@@ -107,6 +107,13 @@ Calibracion::~Calibracion() {
 
 bool Calibracion::disponible() const { return lspdsp::api() != nullptr; }
 
+void Calibracion::setVista(const QString& v) {
+    if (v != "respuesta" && v != "impulso" && v != "rt" && v != "propuesta") return;
+    if (v == vista_) return;
+    vista_ = v;
+    emit vistaCambio();
+}
+
 QVariantMap Calibracion::sesion() const { return aMapa(sesionJson(false)); }
 
 json Calibracion::sesionJson(bool conCurvas) const {
@@ -424,7 +431,11 @@ QString Calibracion::medir(const QString& parlante, const QString& punto, const 
     if (simulada) {
         json sala = s_["sala"];
         sala["rt60"] = 0.6;
-        lazo_ = lazoSimulado(sala, *pa, *pt);
+        // El micrófono simulado suena como su curva (con la corrección se cancela).
+        std::vector<std::pair<double, double>> curva;
+        const calib::Curva cm = calib::curvaMicrofono(*mi);
+        for (size_t i = 0; i < cm.size(); i += 4) curva.emplace_back(calib::grilla()[i], cm[i]);
+        lazo_ = lazoSimulado(sala, *pa, *pt, std::move(curva));
     } else {
         lazo_ = lazoReal(salida, pa->value("salida", json::object()).value("canal", 0), entrada,
                          mi->value("entrada", json::object()).value("canal", 0));

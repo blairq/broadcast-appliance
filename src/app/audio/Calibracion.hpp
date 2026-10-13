@@ -69,6 +69,9 @@ class Calibracion : public QObject {
     Q_PROPERTY(QVariantList grilla READ grilla CONSTANT)
     /// Los micrófonos con curva conocida: [{id, nombre, nota}].
     Q_PROPERTY(QVariantList modelosMicrofono READ modelosMicrofono CONSTANT)
+    /// Lo que muestra la pestaña: respuesta, impulso, rt o propuesta (el asistente lo
+    /// cambia para mostrarle al operador lo que le explica).
+    Q_PROPERTY(QString vista READ vista WRITE setVista NOTIFY vistaCambio)
     /// Si ba-lspdsp está (sin ella no se puede medir).
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
 
@@ -90,6 +93,8 @@ class Calibracion : public QObject {
     QVariantList grilla() const;
     QVariantList modelosMicrofono() const;
     bool disponible() const;
+    QString vista() const { return vista_; }
+    void setVista(const QString& v);
 
     void setRacks(RackManager* r) { racks_ = r; }
     /// Si algo está al aire o grabando (no se mide).
@@ -154,6 +159,7 @@ class Calibracion : public QObject {
     void analisisCambio();
     void ultimaCambio();
     void dispositivosCambio();
+    void vistaCambio();
     /// Terminó una medición: su id, o el error.
     void medicionTerminada(const QString& id, const QString& error);
 
@@ -174,6 +180,7 @@ class Calibracion : public QObject {
     json ultima_;
     std::string ultimoId_;
     QString estado_, mensaje_;
+    QString vista_ = "respuesta";
     QVariantList salidas_, entradas_;
     RackManager* racks_ = nullptr;
     std::function<bool()> alAire_;

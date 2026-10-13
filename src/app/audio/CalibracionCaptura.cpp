@@ -20,7 +20,7 @@ const std::vector<float> kCentros = {63, 125, 250, 500, 1000, 2000, 4000, 8000};
 
 json aRedondo(const std::vector<float>& v, double k) {
     json a = json::array();
-    for (float x : v) a.push_back(std::round(x * k) / k);
+    for (float x : v) a.push_back(std::round(static_cast<double>(x) * k) / k);
     return a;
 }
 } // namespace
@@ -48,12 +48,12 @@ json Calibracion::procesarCaptura(const lspdsp::Api* L, ba_medicion* m, int sr, 
     ba_medicion_resultado r{};
     if (L->medicionAnalizar(m, BA_RT_T20, &r) != 0) return {{"error", "falló la deconvolución"}};
     json j;
-    j["directo_ms"] = std::round(r.directo_ms * 100) / 100;
-    j["pico_db"] = std::round(r.pico_db * 10) / 10;
-    j["snr_db"] = std::round(r.snr_db * 10) / 10;
-    j["rt60_s"] = std::round(r.rt60_s * 1000) / 1000;
-    j["correlacion"] = std::round(r.correlacion * 1000) / 1000;
-    j["limite_integracion_s"] = std::round(r.limite_integracion_s * 1000) / 1000;
+    j["directo_ms"] = std::round(r.directo_ms * 100.0) / 100.0;
+    j["pico_db"] = std::round(r.pico_db * 10.0) / 10.0;
+    j["snr_db"] = std::round(r.snr_db * 10.0) / 10.0;
+    j["rt60_s"] = std::round(r.rt60_s * 1000.0) / 1000.0;
+    j["correlacion"] = std::round(r.correlacion * 1000.0) / 1000.0;
+    j["limite_integracion_s"] = std::round(r.limite_integracion_s * 1000.0) / 1000.0;
     j["ruido_suficiente"] = r.ruido_suficiente != 0;
     // La IR desde 2 ms antes del directo (1 s), normalizada al directo.
     std::vector<float> ir(static_cast<size_t>(sr));

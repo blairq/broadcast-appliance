@@ -54,9 +54,13 @@ std::unique_ptr<LazoMedicion> lazoReal(const QString& salida, int canalSalida, c
 
 /// La respuesta de una sala simulada entre un parlante y un micrófono, aplicada a
 /// `x`: sala {largo, ancho, alto, rt60}, posiciones {x, y, z} en metros.
+/// `curvaMic` (opcional): la respuesta del micrófono [(Hz, dB)]: se le aplica a lo
+/// grabado (un SM58 simulado suena como un SM58).
 std::vector<float> simularSala(const nlohmann::json& sala, const nlohmann::json& parlante,
-                               const nlohmann::json& microfono, const std::vector<float>& x, int frecuencia);
+                               const nlohmann::json& microfono, const std::vector<float>& x, int frecuencia,
+                               const std::vector<std::pair<double, double>>& curvaMic = {});
 std::unique_ptr<LazoMedicion> lazoSimulado(const nlohmann::json& sala, const nlohmann::json& parlante,
-                                           const nlohmann::json& microfono);
+                                           const nlohmann::json& microfono,
+                                           std::vector<std::pair<double, double>> curvaMic = {});
 
 } // namespace ba::app::audio

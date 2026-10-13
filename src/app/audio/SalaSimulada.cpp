@@ -22,7 +22,7 @@ double num(const nlohmann::json& j, const char* k, double d) {
 } // namespace
 
 std::vector<float> simularSala(const nlohmann::json& sala, const nlohmann::json& pa, const nlohmann::json& mic,
-                               const std::vector<float>& x, int sr) {
+                               const std::vector<float>& x, int sr, const std::vector<std::pair<double, double>>& curvaMic) {
     const double L = num(sala, "largo", 8), W = num(sala, "ancho", 6), H = num(sala, "alto", 3);
     const double rt60 = num(sala, "rt60", 0.6);
     const double xs = num(pa, "x", 1), ys = num(pa, "y", 1), zs = num(pa, "z", 1.5);
@@ -113,6 +113,38 @@ std::vector<float> simularSala(const nlohmann::json& sala, const nlohmann::json&
         // Más difusa cuanto más lejos del parlante (el campo reverberante no cae con la distancia).
         const double gd = 0.12;
         for (size_t i = 0; i < y.size(); ++i) y[i] += gd * difusa[i];
+    }
+
+    // El micrófono: un FIR de fase lineal con su curva (muestreo en frecuencia, 1023
+    // coeficientes con ventana de Hann).
+    if (!curvaMic.empty()) {
+        constexpr int N = 1023, M = (N - 1) / 2;
+        const auto gananciaEn = [&](double f) {
+            if (f <= curvaMic.front().first) return curvaMic.front().second;
+            if (f >= curvaMic.back().first) return curvaMic.back().second;
+            for (size_t i = 1; i < curvaMic.size(); ++i)
+                if (f <= curvaMic[i].first) {
+                    const double a = std::log(curvaMic[i - 1].first), b = std::log(curvaMic[i].first);
+                    const double u = (std::log(f) - a) / (b - a);
+                    return curvaMic[i - 1].second + u * (curvaMic[i].second - curvaMic[i - 1].second);
+                }
+            return curvaMic.back().second;
+        };
+        std::vector<double> mag(M + 1);
+        for (int k = 0; k <= M; ++k) mag[k] = std::pow(10.0, gananciaEn(std::max(1.0, k * double(sr) / N)) / 20.0);
+        std::vector<double> h(N);
+        for (int n = 0; n < N; ++n) {
+            double acc = mag[0];
+            for (int k = 1; k <= M; ++k) acc += 2 * mag[k] * std::cos(2 * kPi * k * (n - M) / N);
+            h[n] = acc / N * 0.5 * (1 - std::cos(2 * kPi * n / (N - 1)));
+        }
+        std::vector<double> z(y.size(), 0.0);
+        for (size_t i = 0; i < y.size(); ++i) {
+            if (y[i] == 0.0) continue;
+            for (int n = 0; n < N && i + n < y.size(); ++n) z[i + n] += h[n] * y[i];
+        }
+        // Se saca el retardo del FIR (M muestras): el directo queda donde estaba.
+        for (size_t i = 0; i < y.size(); ++i) y[i] = i + M < z.size() ? z[i + M] : 0.0;
     }
 
     // El ruido de la sala y del micrófono (-75 dBFS).

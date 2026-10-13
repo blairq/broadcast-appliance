@@ -38,27 +38,27 @@ const std::vector<Modelo>& modelos() {
          "Apuntarlo al parlante, a más de 1 m (sin efecto de proximidad).",
          {{50, -10}, {80, -6}, {100, -4}, {150, -2}, {200, -1}, {500, 0}, {1000, 0}, {2000, 1}, {3000, 3},
           {4000, 5}, {5000, 5}, {6000, 4}, {8000, 1}, {10000, -2}, {12000, -6}, {15000, -10}},
-         2000, 10000, 60},
+         2000, 10000, 40},
         {"sm57", "Shure SM57",
          "Cardioide dinámico. Hoja de Shure: cae bajo 100 Hz, presencia +5/+6 dB en 5-7 kHz. Apuntarlo al "
          "parlante, a más de 1 m.",
          {{40, -10}, {80, -5}, {100, -4}, {150, -2}, {200, -1}, {500, 0}, {1000, 0}, {2000, 1}, {4000, 4},
           {6000, 6}, {7000, 5}, {8000, 3}, {10000, 0}, {12000, -4}, {15000, -8}},
-         2000, 10000, 60},
+         2000, 10000, 40},
         {"beta58", "Shure Beta 58A",
          "Supercardioide dinámico. Presencia +4 dB en 4-6 kHz; cae bajo 100 Hz.",
          {{50, -9}, {100, -3}, {200, -1}, {1000, 0}, {3000, 2}, {5000, 4}, {8000, 2}, {10000, -1},
           {15000, -8}},
-         2000, 10000, 60},
+         2000, 10000, 40},
         {"e835", "Sennheiser e835",
          "Cardioide dinámico. Presencia +3/+4 dB en 3-6 kHz; cae bajo 100 Hz.",
          {{50, -9}, {100, -3}, {200, -1}, {1000, 0}, {3000, 3}, {5000, 4}, {8000, 2}, {12000, -4},
           {16000, -10}},
-         2000, 10000, 60},
+         2000, 10000, 40},
         {"desconocido", "Otro (sin curva)",
          "Sin datos del micrófono: solo se corrigen los graves (modos: lo que importa es el pico contra sus "
          "vecinas) y tendencias muy anchas.",
-         {{20, 0}, {20000, 0}}, 1000, 4000, 80},
+         {{20, 0}, {20000, 0}}, 1000, 4000, 40},
     };
     return m;
 }

@@ -57,6 +57,9 @@ class Mezclador : public QObject {
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
     /// Los analizadores de LSP que se pueden abrir sobre una entrada: [{id, nombre, para}].
     Q_PROPERTY(QVariantList analisisLsp READ analisisLsp CONSTANT)
+    /// La pestaña a la vista en la ventana: consola o calibracion (en el modelo: el
+    /// asistente la cambia con mezclador_pestana).
+    Q_PROPERTY(QString pestana READ pestana WRITE setPestana NOTIFY pestanaCambio)
     /// La calibración de sala (audio::Calibracion), la pestaña Calibración.
     Q_PROPERTY(QObject* calibracion READ calibracionQml CONSTANT)
 
@@ -83,6 +86,8 @@ class Mezclador : public QObject {
     /// osciloscopio, latencia, perfil) con su interfaz. "" si salió; si no, el motivo.
     Q_INVOKABLE QString abrirAnalisisLsp(const QString& entrada, const QString& cual);
     void setRacks(RackManager* r);
+    QString pestana() const { return pestana_; }
+    void setPestana(const QString& p);
     Calibracion* calibracion() const { return calibracion_.get(); }
     QObject* calibracionQml() const;
 
@@ -95,6 +100,7 @@ class Mezclador : public QObject {
     void listasCambio();
     void nivelesCambio();
     void activoCambio();
+    void pestanaCambio();
 
    private:
     void rehacerListas();
@@ -104,6 +110,7 @@ class Mezclador : public QObject {
     Matriz* matriz_ = nullptr;
     RackManager* racks_ = nullptr;
     std::unique_ptr<Calibracion> calibracion_;
+    QString pestana_ = "consola";
     QTimer timer_;
     QSet<QObject*> usuarios_;
     QStringList entradas_;

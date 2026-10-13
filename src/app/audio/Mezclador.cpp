@@ -46,6 +46,13 @@ Mezclador::~Mezclador() = default;
 
 QObject* Mezclador::calibracionQml() const { return calibracion_.get(); }
 
+void Mezclador::setPestana(const QString& p) {
+    const QString v = p == "calibracion" ? p : QString("consola");
+    if (v == pestana_) return;
+    pestana_ = v;
+    emit pestanaCambio();
+}
+
 void Mezclador::setRacks(RackManager* r) {
     racks_ = r;
     calibracion_->setRacks(r);

@@ -8,7 +8,9 @@
 #include <QBuffer>
 #include <QMediaDevices>
 #include <QPointer>
+#include <QThread>
 #include <QTimer>
+#include <QCoreApplication>
 
 #include <algorithm>
 #include <cmath>
@@ -166,23 +168,30 @@ class LazoReal : public QObject, public LazoMedicion {
 
 class LazoSim : public QObject, public LazoMedicion {
    public:
-    LazoSim(nlohmann::json sala, nlohmann::json pa, nlohmann::json mic)
-        : sala_(std::move(sala)), pa_(std::move(pa)), mic_(std::move(mic)) {}
+    LazoSim(nlohmann::json sala, nlohmann::json pa, nlohmann::json mic, std::vector<std::pair<double, double>> curva)
+        : sala_(std::move(sala)), pa_(std::move(pa)), mic_(std::move(mic)), curva_(std::move(curva)) {}
     QString arrancar(const std::vector<float>& estimulo, int frecuencia, Listo listo) override {
         listo_ = std::move(listo);
-        std::vector<float> x = estimulo;
-        QTimer::singleShot(0, this, [this, x = std::move(x), frecuencia] {
+        // En otro hilo (con el micrófono son unos cientos de ms): la interfaz no se frena.
+        QPointer<LazoSim> yo(this);
+        QThread* h = QThread::create([yo, sala = sala_, pa = pa_, mic = mic_, curva = curva_, x = estimulo, frecuencia] {
             // Como la de verdad: la grabación sigue 800 ms después.
-            std::vector<float> y = simularSala(sala_, pa_, mic_, x, frecuencia);
+            std::vector<float> y = simularSala(sala, pa, mic, x, frecuencia, curva);
             y.resize(y.size() + static_cast<size_t>(frecuencia * 0.8), 0.0f);
-            if (auto l = std::move(listo_)) l(std::move(y), {});
+            QMetaObject::invokeMethod(qApp, [yo, y = std::move(y)]() mutable {
+                if (!yo) return;
+                if (auto l = std::move(yo->listo_)) l(std::move(y), {});
+            });
         });
+        QObject::connect(h, &QThread::finished, h, &QObject::deleteLater);
+        h->start();
         return {};
     }
     void cancelar() override { listo_ = nullptr; }
 
    private:
     nlohmann::json sala_, pa_, mic_;
+    std::vector<std::pair<double, double>> curva_;
     Listo listo_;
 };
 
@@ -205,8 +214,8 @@ std::unique_ptr<LazoMedicion> lazoReal(const QString& salida, int canalSalida, c
 }
 
 std::unique_ptr<LazoMedicion> lazoSimulado(const nlohmann::json& sala, const nlohmann::json& parlante,
-                                           const nlohmann::json& microfono) {
-    return std::make_unique<LazoSim>(sala, parlante, microfono);
+                                           const nlohmann::json& microfono, std::vector<std::pair<double, double>> curvaMic) {
+    return std::make_unique<LazoSim>(sala, parlante, microfono, std::move(curvaMic));
 }
 
 } // namespace ba::app::audio

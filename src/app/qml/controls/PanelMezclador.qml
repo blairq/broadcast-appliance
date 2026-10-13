@@ -31,6 +31,10 @@ Item {
     property var tiras: ({})     // nombre -> {volumenDb, mute, pfl, envios}
     property bool matrizAbierta: false
     property string elegida: ""
+    // La pestaña es del modelo (el asistente la cambia: mezclador_pestana).
+    readonly property string pestana: mz ? mz.pestana : "consola"
+    property bool calibracionAbierta: pestana === "calibracion" // se crea la primera vez y queda
+    onPestanaChanged: if (pestana === "calibracion") calibracionAbierta = true
 
     Component.onCompleted: if (mz) mz.usar(m, visible)
     onVisibleChanged: if (mz) mz.usar(m, visible)
@@ -367,13 +371,42 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
+            GlassButton { compact: true; text: "Consola"; active: m.pestana === "consola"; onClicked: m.mz.pestana = "consola" }
+            GlassButton {
+                compact: true; text: "Calibración de sala"; active: m.pestana === "calibracion"; onClicked: m.mz.pestana = "calibracion"
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "Medir la sala con barridos (varios puntos, micrófonos sin calibrar incluidos), ver modos y reverberación, y ecualizar."
+            }
+            Rectangle { width: 1; height: 22; color: Qt.rgba(1, 1, 1, 0.12); visible: m.pestana === "consola" }
             Text {
+                visible: m.pestana === "consola"
                 text: m.entradas.length + " entradas · " + m.salidas.length + " salidas"
                 color: Theme.textFaint
                 font { family: Theme.font; pixelSize: 12 }
             }
             Item { Layout.fillWidth: true }
+            // Los analizadores de LSP sobre la entrada elegida (clic en el nombre de una tira).
+            Text {
+                visible: m.pestana === "consola"
+                text: m.elegida === "" ? "Análisis LSP: elegí una entrada" : "Analizar «" + m.elegida + "»:"
+                color: Theme.textFaint
+                font { family: Theme.font; pixelSize: 11 }
+                elide: Text.ElideMiddle
+                Layout.maximumWidth: 280
+            }
+            Repeater {
+                model: m.pestana === "consola" && m.mz ? m.mz.analisisLsp : []
+                delegate: GlassButton {
+                    required property var modelData
+                    compact: true
+                    text: modelData.nombre
+                    enabled: m.elegida !== ""
+                    onClicked: m.abrirLsp(m.elegida, modelData.id)
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.para
+                }
+            }
             GlassButton {
+                visible: m.pestana === "consola"
                 compact: true
                 text: m.matrizAbierta ? "Matriz ▴" : "Matriz ▾"
                 active: m.matrizAbierta
@@ -383,8 +416,18 @@ Item {
             }
         }
 
+        // --- Calibración de sala (se crea la primera vez que se abre) ------------------
+        Loader {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: m.pestana === "calibracion"
+            active: m.calibracionAbierta
+            sourceComponent: Component { PanelCalibracion {} }
+        }
+
         // --- Entradas y salidas -------------------------------------------------------
         RowLayout {
+            visible: m.pestana === "consola"
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 10
@@ -475,7 +518,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: m.matrizAbierta ? Math.max(260, m.height * 0.42) : 0
-            visible: m.matrizAbierta
+            visible: m.matrizAbierta && m.pestana === "consola"
             radius: 12
             color: Qt.rgba(1, 1, 1, 0.03)
             border.color: Qt.rgba(1, 1, 1, 0.08)
