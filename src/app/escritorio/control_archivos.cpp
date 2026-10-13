@@ -2,12 +2,12 @@
 // src/app/escritorio/control_archivos.cpp — archivos, el registro y avisos de
 // Windows (ver control.hpp)
 //
-//   windows_archivos   leer (texto, o una imagen como imagen), escribir,
+//   system_archivos   leer (texto, o una imagen como imagen), escribir,
 //                      listar, info, copiar, mover, borrar (SIEMPRE a la
 //                      papelera: se puede deshacer), crear una carpeta
-//   windows_registro   leer y listar (permiso sistema); escribir y borrar un
+//   system_registro   leer y listar (permiso sistema); escribir y borrar un
 //                      valor (permiso registro, apagado de fábrica)
-//   windows_aviso      un aviso de Windows (el globo del área de notificación)
+//   system_aviso      un aviso de Windows (el globo del área de notificación)
 //
 // Las rutas aceptan variables (%USERPROFILE%\Desktop\x.txt); las relativas son
 // desde la carpeta del usuario.
@@ -20,6 +20,14 @@
 #include <ctime>
 #include <thread>
 
+#if !defined(_WIN32)
+#include <fnmatch.h>
+
+#include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#endif
 #if defined(_WIN32)
 #include <shellapi.h>
 #include <shlwapi.h>
@@ -40,7 +48,8 @@ json herramientasArchivos() {
         "- copiar / mover `ruta` → `destino` (`reemplazar`).\n"
         "- borrar `ruta`: a la PAPELERA (se puede recuperar).\n"
         "- crear_carpeta `ruta`.\n"
-        "Rutas con variables (%USERPROFILE%\\Desktop); las relativas, desde la carpeta del usuario. Permiso: archivos "
+        "Rutas con variables (%USERPROFILE%\\Desktop en Windows; ~/Desktop o $HOME en macOS y Linux); las relativas, desde "
+        "la carpeta del usuario. Permiso: archivos "
         "(leer, listar, info) y archivos_escribir (lo demás).",
         esquema({{"accion", {{"type", "string"}, {"enum", {"leer", "escribir", "listar", "info", "copiar", "mover", "borrar", "crear_carpeta"}}}},
                  {"ruta", {{"type", "string"}}},
@@ -57,7 +66,8 @@ json herramientasArchivos() {
                 {"accion", "ruta"})));
     t.push_back(herramienta(
         "system_registro",
-        "El registro de Windows. `clave`: «HKCU\\Software\\…» (HKCU, HKLM, HKCR, HKU, HKCC). `accion`: leer (el valor "
+        "El registro de Windows; en macOS, las preferencias (`clave` = el dominio: com.apple.dock, NSGlobalDomain; "
+        "`nombre` = la preferencia). En Windows `clave`: «HKCU\\Software\\…» (HKCU, HKLM, HKCR, HKU, HKCC). `accion`: leer (el valor "
         "`nombre`; vacío = el predeterminado), listar (subclaves y valores), escribir (`nombre`, `valor`, `tipo`: sz, "
         "expand_sz, multi_sz —una lista—, dword, qword), borrar (el valor `nombre`; nunca una clave entera). Permiso: "
         "sistema para leer y listar; registro para escribir y borrar (apagado de fábrica).",
@@ -69,7 +79,7 @@ json herramientasArchivos() {
                 {"accion", "clave"})));
     t.push_back(herramienta(
         "system_aviso",
-        "Muestra un aviso de Windows (abajo a la derecha): `titulo` y `texto`, `tipo`: info, aviso, error. Para "
+        "Muestra un aviso del sistema (la notificación de Windows o de macOS): `titulo` y `texto`, `tipo`: info, aviso, error. Para "
         "avisarle algo a la persona que está en la máquina. Permiso: avisos.",
         esquema({{"titulo", {{"type", "string"}}}, {"texto", {{"type", "string"}}}, {"tipo", {{"type", "string"}, {"enum", {"info", "aviso", "error"}}}}},
                 {"texto"})));
@@ -483,12 +493,205 @@ bool atenderArchivos(const json& id, const std::string& nombre, const json& a, c
     return false;
 }
 
-#else
+#else // macOS y Linux: lo mismo con std::filesystem (papelera, registro y aviso: del sistema)
 
-bool atenderArchivos(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
-    if (nombre != "system_archivos" && nombre != "system_registro" && nombre != "system_aviso") return false;
-    out = resultadoTexto(id, todaviaNo(nombre), true);
-    return true;
+namespace {
+
+namespace fs = std::filesystem;
+
+/// «~/x», «$HOME/x», relativas desde la carpeta del usuario (como %USERPROFILE% en Windows).
+fs::path ruta(const std::string& r) {
+    std::string s = r;
+    const char* home = std::getenv("HOME");
+    const std::string h = home ? home : "/";
+    if (s.rfind("~/", 0) == 0 || s == "~") s = h + s.substr(1);
+    for (const char* var : {"$HOME", "${HOME}", "%USERPROFILE%"})
+        if (const auto i = s.find(var); i != std::string::npos) s.replace(i, std::string(var).size(), h);
+    fs::path p(s);
+    if (p.is_relative()) p = fs::path(h) / p;
+    return p;
+}
+
+std::string fecha(fs::file_time_type t) {
+    // Del reloj de los archivos al del sistema (clock_cast no está en todas las bibliotecas).
+    const auto s = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+        t - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+    const std::time_t tt = std::chrono::system_clock::to_time_t(s);
+    std::tm l{};
+    localtime_r(&tt, &l);
+    char b[32];
+    std::strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S", &l);
+    return b;
+}
+
+bool coincide(const std::string& patron, const std::string& nombre) {
+    return fnmatch(patron.c_str(), nombre.c_str(), FNM_CASEFOLD) == 0;
+}
+
+json archivos(const json& id, const json& a, const Permisos& p) {
+    const std::string accion = a.value("accion", std::string());
+    const bool escribe = accion != "leer" && accion != "listar" && accion != "info";
+    if (escribe ? !p.archivos_escribir : !p.archivos) return sinPermiso(id, escribe ? "archivos_escribir" : "archivos");
+    if (a.value("ruta", std::string()).empty()) return resultadoTexto(id, "falta `ruta`", true);
+    const fs::path r = ruta(a.value("ruta", std::string()));
+    const std::string ru = r.string();
+    std::error_code ec;
+
+    if (accion == "info") {
+        const auto st = fs::status(r, ec);
+        if (ec || !fs::exists(st)) return resultadoTexto(id, ru + ": no existe", true);
+        const bool carpeta = fs::is_directory(st);
+        json j{{"ruta", ru}, {"carpeta", carpeta}, {"modificado", fecha(fs::last_write_time(r, ec))},
+               {"oculto", !r.filename().string().empty() && r.filename().string()[0] == '.'},
+               {"solo_lectura", (st.permissions() & fs::perms::owner_write) == fs::perms::none}};
+        if (!carpeta) j["bytes"] = static_cast<unsigned long long>(fs::file_size(r, ec));
+        return resultadoDatos(id, j);
+    }
+
+    if (accion == "leer") {
+        std::string ext = r.extension().string();
+        for (char& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        std::ifstream f(r, std::ios::binary);
+        if (!f) return resultadoTexto(id, ru + ": no se pudo abrir", true);
+        const auto tam = fs::file_size(r, ec);
+        if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".bmp" || ext == ".webp") {
+            if (tam > (8u << 20)) return resultadoTexto(id, ru + ": imagen de más de 8 MB", true);
+            std::string datos((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            const std::string mime = ext == ".png" ? "image/png" : ext == ".gif" ? "image/gif" : ext == ".bmp" ? "image/bmp"
+                                     : ext == ".webp" ? "image/webp" : "image/jpeg";
+            json res = resultadoImagen(id, base64(reinterpret_cast<const unsigned char*>(datos.data()), datos.size()), ru);
+            res["result"]["content"].back()["mimeType"] = mime;
+            return res;
+        }
+        const size_t max = 16u << 20;
+        std::string datos(static_cast<size_t>(std::min<std::uintmax_t>(tam, max)), '\0');
+        f.read(datos.data(), static_cast<std::streamsize>(datos.size()));
+        datos.resize(static_cast<size_t>(f.gcount()));
+        const bool cortado = tam > max;
+        if (datos.find('\0') != std::string::npos) return resultadoTexto(id, ru + " es binario (" + std::to_string(tam) + " bytes): no se muestra como texto", true);
+        if (datos.size() >= 3 && datos.compare(0, 3, "\xEF\xBB\xBF") == 0) datos.erase(0, 3);
+        const int desde = std::max(1, a.value("desde", 1)), lineas = std::max(1, a.value("lineas", 2000));
+        std::string out;
+        int linea = 1, puestas = 0, total = 1;
+        size_t i = 0;
+        while (i <= datos.size()) {
+            const size_t fin = datos.find('\n', i);
+            const size_t ff = fin == std::string::npos ? datos.size() : fin;
+            if (linea >= desde && puestas < lineas) {
+                std::string l = datos.substr(i, ff - i);
+                if (!l.empty() && l.back() == '\r') l.pop_back();
+                out += l + "\n";
+                ++puestas;
+            }
+            if (fin == std::string::npos) break;
+            i = fin + 1;
+            ++linea;
+            ++total;
+        }
+        json d{{"ruta", ru}, {"texto", out}, {"desde", desde}, {"lineas", puestas}, {"lineas_total", total}};
+        if (desde + puestas - 1 < total) d["nota"] = "hay más: `desde` " + std::to_string(desde + puestas);
+        if (cortado) d["nota_tamano"] = "el archivo pasa de 16 MB: se leyó el principio";
+        return resultadoDatos(id, d);
+    }
+
+    if (accion == "listar") {
+        const std::string patron = a.value("patron", std::string("*"));
+        const bool rec = a.value("recursivo", false), ocultos = a.value("ocultos", false);
+        const size_t max = static_cast<size_t>(std::clamp(a.value("max", 500), 1, 5000));
+        if (!fs::is_directory(r, ec)) return resultadoTexto(id, ru + ": no es una carpeta", true);
+        json l = json::array();
+        size_t total = 0;
+        const auto ver = [&](const fs::directory_entry& e, const std::string& relativo) {
+            const std::string n = e.path().filename().string();
+            if (!coincide(patron, n)) return;
+            ++total;
+            if (l.size() >= max) return;
+            const bool carpeta = e.is_directory(ec);
+            json x{{"nombre", relativo}, {"carpeta", carpeta}, {"modificado", fecha(e.last_write_time(ec))}};
+            if (!carpeta) x["bytes"] = static_cast<unsigned long long>(e.file_size(ec));
+            l.push_back(x);
+        };
+        if (rec) {
+            for (auto it = fs::recursive_directory_iterator(r, fs::directory_options::skip_permission_denied, ec);
+                 !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
+                const std::string n = it->path().filename().string();
+                if (!ocultos && !n.empty() && n[0] == '.') {
+                    if (it->is_directory(ec)) it.disable_recursion_pending();
+                    continue;
+                }
+                ver(*it, fs::relative(it->path(), r, ec).string());
+            }
+        } else {
+            for (const auto& e : fs::directory_iterator(r, fs::directory_options::skip_permission_denied, ec)) {
+                const std::string n = e.path().filename().string();
+                if (!ocultos && !n.empty() && n[0] == '.') continue;
+                ver(e, n);
+            }
+        }
+        json d{{"carpeta", ru}, {"elementos", l}, {"total", total}};
+        if (total > l.size()) d["nota"] = "hay " + std::to_string(total - l.size()) + " más (`max`, `patron`)";
+        return resultadoDatos(id, d);
+    }
+
+    if (accion == "escribir") {
+        fs::create_directories(r.parent_path(), ec);
+        const bool agregar = a.value("agregar", false);
+        std::ofstream f(r, std::ios::binary | (agregar ? std::ios::app : std::ios::trunc));
+        if (!f) return resultadoTexto(id, ru + ": no se pudo escribir", true);
+        const std::string c = a.value("contenido", std::string());
+        f << c;
+        if (!f) return resultadoTexto(id, ru + ": no se pudo escribir", true);
+        return resultadoTexto(id, std::string(agregar ? "Agregados " : "Escritos ") + std::to_string(c.size()) + " bytes en " + ru + ".");
+    }
+
+    if (accion == "crear_carpeta") {
+        fs::create_directories(r, ec);
+        if (!fs::is_directory(r, ec)) return resultadoTexto(id, "no se pudo crear " + ru, true);
+        return resultadoTexto(id, "Carpeta " + ru + " lista.");
+    }
+
+    if (accion == "copiar" || accion == "mover") {
+        if (a.value("destino", std::string()).empty()) return resultadoTexto(id, "falta `destino`", true);
+        fs::path d = ruta(a.value("destino", std::string()));
+        if (!fs::exists(r, ec)) return resultadoTexto(id, ru + ": no existe", true);
+        if (fs::is_directory(d, ec)) d /= r.filename();
+        const bool reemplazar = a.value("reemplazar", false);
+        if (fs::exists(d, ec) && !reemplazar) {
+            // Como Windows: con otro nombre al lado en vez de pisar.
+            const std::string base = d.stem().string(), ext = d.extension().string();
+            for (int i = 2; fs::exists(d, ec); ++i) d = d.parent_path() / (base + " (" + std::to_string(i) + ")" + ext);
+        }
+        fs::create_directories(d.parent_path(), ec);
+        if (accion == "mover") {
+            fs::rename(r, d, ec);
+            if (ec) { // otro disco: copiar y borrar
+                ec.clear();
+                fs::copy(r, d, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+                if (!ec) fs::remove_all(r, ec);
+            }
+        } else
+            fs::copy(r, d, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+        if (ec) return resultadoTexto(id, "no se pudo " + accion + " " + ru + ": " + ec.message(), true);
+        return resultadoTexto(id, std::string(accion == "copiar" ? "Copiado " : "Movido ") + ru + " → " + d.string() + ".");
+    }
+
+    if (accion == "borrar") {
+        if (!fs::exists(r, ec)) return resultadoTexto(id, ru + ": no existe", true);
+        // A la papelera, siempre: nada se borra para siempre desde acá.
+        std::string e;
+        if (!aLaPapelera(ru, e)) return resultadoTexto(id, "no se pudo mandar a la papelera " + ru + ": " + e, true);
+        return resultadoTexto(id, ru + " fue a la papelera (se puede recuperar).");
+    }
+    return resultadoTexto(id, "acción desconocida: " + accion, true);
+}
+
+} // namespace
+
+bool atenderArchivos(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
+    if (nombre == "system_archivos") return out = archivos(id, a, p), true;
+    if (nombre == "system_registro") return out = registroSistema(id, a, p), true;
+    if (nombre == "system_aviso") return out = avisoSistema(id, a, p), true;
+    return false;
 }
 
 #endif

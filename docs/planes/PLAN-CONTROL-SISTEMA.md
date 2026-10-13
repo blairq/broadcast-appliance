@@ -48,3 +48,19 @@ Fuera de Windows compila y cada herramienta contesta «solo Windows».
   sistema, avisos, archivos; los permisos del sistema (detectar y pedir).
 - **Q3** — macOS: la UI de otros programas (AX).
 - **Q4** — Linux X11; después Wayland (portales).
+
+## Estado (2026-10-13)
+
+- **Q1 hecho**: herramientas system_*, ControlSistema (control-sistema.json, lee el de
+  antes), «Control del sistema» en Configuración, `mod` (tecla de los atajos de cada
+  sistema) y `shell: sistema` iguales en los tres.
+- **Q2 hecho (macOS)**, control_mac.mm: pantalla (ScreenCaptureKit; en puntos, las
+  coordenadas del mouse), monitores, mouse, teclado, cursor, ejecutar (NSWorkspace; admin
+  con la clave), buscar, ventanas/ventana (CGWindowList + AX; fijar_arriba no existe para
+  otros programas), portapapeles, procesos/cerrar, comando (zsh), sistema, esperar,
+  archivos (POSIX, papelera de macOS), registro (las preferencias: CFPreferences), aviso
+  (notificación) y Chrome (CDP portable: sockets POSIX, lanza Chrome/Edge de /Applications).
+  Probado: monitores, sistema, procesos, comando, ventanas, cursor, buscar, archivos,
+  preferencias, estado de Chrome. Sin probar a mano (mueven el mouse o piden permisos de
+  macOS): pantalla, mouse, teclado, ventana, aviso, abrir Chrome.
+- Falta: **Q3** system_ui_* en macOS (AX); **Q4** Linux (andan archivos y Chrome).

@@ -571,6 +571,13 @@ endif()
     target_link_libraries(ba-control PRIVATE ba_core)
     if(WIN32)
         target_link_libraries(ba-control PRIVATE user32 gdi32 gdiplus shell32 shlwapi ole32 oleaut32 ws2_32 advapi32)
+    elseif(APPLE)
+        # El motor de macOS (las mismas herramientas system_*: PLAN-CONTROL-SISTEMA).
+        target_sources(ba-control PRIVATE escritorio/control_mac.mm)
+        set_source_files_properties(escritorio/control_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+        target_link_libraries(ba-control PRIVATE "-framework AppKit" "-framework ApplicationServices" "-framework Carbon"
+                                                 "-framework CoreGraphics" "-framework ImageIO" "-framework IOKit"
+                                                 "-framework UniformTypeIdentifiers" "-weak_framework ScreenCaptureKit")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_link_options(ba-control PRIVATE -static-libstdc++ -static-libgcc)
     endif()

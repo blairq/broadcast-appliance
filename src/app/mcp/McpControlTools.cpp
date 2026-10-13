@@ -42,16 +42,15 @@ void McpService::registerControlTools() {
 #if defined(_WIN32)
             d["sistema"] = "Windows";
             d["soportado"] = true;
+#elif defined(__APPLE__)
+            d["sistema"] = "macOS";
+            d["soportado"] = true;
+            d["nota"] = "en macOS faltan las de la UI de otros programas (system_ui_*, en camino); el resto anda. Pide "
+                        "los permisos «Accesibilidad» y «Grabación de pantalla» de macOS";
 #else
-            d["sistema"] = std::string(
-#if defined(__APPLE__)
-                "macOS"
-#else
-                "Linux"
-#endif
-            );
+            d["sistema"] = "Linux";
             d["soportado"] = false;
-            d["nota"] = "en este sistema las herramientas system_* están en camino: contestan que todavía no";
+            d["nota"] = "en Linux andan system_archivos y system_chrome; el resto está en camino";
 #endif
             done(ToolResult().data(d));
         };

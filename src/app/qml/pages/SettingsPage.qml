@@ -809,6 +809,13 @@ Rectangle {
                           + "mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado."
                 }
                 Text {
+                    visible: ctl.estado.sistema === "macOS"
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                    text: "En macOS el control pide dos permisos del sistema, la primera vez que se usan: «Accesibilidad» (mouse, "
+                          + "teclado y ventanas) y «Grabación de pantalla» (capturas y títulos de las ventanas), en Ajustes del "
+                          + "Sistema › Privacidad y seguridad. Leer y tocar los elementos de otros programas (system_ui_*) está en camino."
+                }
+                Text {
                     visible: ctl.estado.soportado === false
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: 12
                     text: "En " + (ctl.estado.sistema || "este sistema") + " el control todavía está en camino: los permisos se guardan, "

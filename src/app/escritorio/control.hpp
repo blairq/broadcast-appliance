@@ -66,9 +66,23 @@ std::string todaviaNo(const std::string& herramienta);
 json herramientasUia();
 json herramientasChrome();
 json herramientasArchivos();
+/// Atiende una herramienta system_* con el motor de este sistema (Windows en
+/// ba_control_main.cpp, macOS en control_mac.mm, Linux en camino).
+json ejecutarHerramienta(const json& id, const std::string& nombre, const json& a, const Permisos& p);
 bool atenderUia(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out);
 bool atenderChrome(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out);
 bool atenderArchivos(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out);
+#if !defined(_WIN32)
+// Lo que cada sistema hace a su manera (macOS: control_mac.mm; Linux: en camino).
+/// Manda `ruta` a la papelera del sistema (se puede recuperar). false con el motivo.
+bool aLaPapelera(const std::string& ruta, std::string& error);
+/// system_registro: en macOS, las preferencias (CFPreferences: `clave` = el dominio).
+json registroSistema(const json& id, const json& a, const Permisos& p);
+/// system_aviso: una notificación del sistema.
+json avisoSistema(const json& id, const json& a, const Permisos& p);
+/// Las ventanas de navegador a la vista: [{id, titulo, app}] (system_chrome estado).
+json ventanasDeNavegador();
+#endif
 
 /// La carpeta de datos de la máquina (BA_DATA_ROOT; vacío si no hay).
 std::string dataRoot();
@@ -84,7 +98,7 @@ struct Ventana {
     RECT rect;
 };
 std::vector<Ventana> ventanas();
-/// Por `id` (de windows_ventanas) o `titulo` (parte del título); nullptr si no está.
+/// Por `id` (de system_ventanas) o `titulo` (parte del título); nullptr si no está.
 HWND buscarVentana(const json& a);
 std::string tituloDe(HWND h);
 /// «en «título» (id N)»

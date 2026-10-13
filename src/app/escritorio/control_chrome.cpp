@@ -11,8 +11,9 @@
 // perfil propio del asistente (en los datos de la máquina: sus cookies y
 // sesiones no son las del usuario).
 //
-// Todo acá: un cliente HTTP y WebSocket mínimo sobre Winsock (127.0.0.1, sin
-// TLS), y las llamadas de CDP por id.
+// Todo acá: un cliente HTTP y WebSocket mínimo (Winsock en Windows, POSIX en macOS y
+// Linux; 127.0.0.1, sin TLS), y las llamadas de CDP por id. Igual en los tres sistemas
+// salvo dónde está el navegador y cómo se lo lanza.
 // ============================================================================
 #include "escritorio/control.hpp"
 
@@ -26,6 +27,22 @@
 #include <ws2tcpip.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#else
+// macOS y Linux: los mismos sockets con sus nombres de POSIX.
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <spawn.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
+
+#include <cstdlib>
+#include <filesystem>
+#include <thread>
+extern char** environ;
+using SOCKET = int;
+constexpr SOCKET INVALID_SOCKET = -1;
+inline int closesocket(SOCKET s) { return ::close(s); }
 #endif
 
 namespace bactl {
@@ -56,26 +73,41 @@ json herramientasChrome() {
     return t;
 }
 
-#if defined(_WIN32)
-
 namespace {
 
 // --- Red: HTTP y WebSocket a 127.0.0.1 -------------------------------------------------
 
+/// El tiempo de espera de un socket (Windows lo toma en ms; POSIX, como timeval).
+void esperaSocket(SOCKET s, int ms) {
+#if defined(_WIN32)
+    DWORD t = static_cast<DWORD>(ms);
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&t), sizeof(t));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&t), sizeof(t));
+#else
+    timeval t{ms / 1000, (ms % 1000) * 1000};
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &t, sizeof(t));
+#endif
+}
+
+void dormir(int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
+
+#if defined(_WIN32)
 struct Winsock {
     Winsock() {
         WSADATA w;
         WSAStartup(MAKEWORD(2, 2), &w);
     }
 };
+#endif
 
 SOCKET conectar(int puerto, int msTiempo) {
+#if defined(_WIN32)
     static Winsock w;
+#endif
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET) return s;
-    DWORD t = static_cast<DWORD>(msTiempo);
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&t), sizeof(t));
-    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&t), sizeof(t));
+    esperaSocket(s, msTiempo);
     sockaddr_in a{};
     a.sin_family = AF_INET;
     a.sin_port = htons(static_cast<u_short>(puerto));
@@ -216,10 +248,7 @@ class WebSocket {
             if (fin) return true;
         }
     }
-    void tiempo(int ms) {
-        DWORD t = static_cast<DWORD>(ms);
-        setsockopt(s_, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&t), sizeof(t));
-    }
+    void tiempo(int ms) { esperaSocket(s_, ms); }
 
    private:
     SOCKET s_ = INVALID_SOCKET;
@@ -310,6 +339,7 @@ bool elegir(const json& ps, const std::string& sel, json& out) {
     return false;
 }
 
+#if defined(_WIN32)
 std::wstring entorno(const wchar_t* v) {
     wchar_t b[MAX_PATH];
     const DWORD n = GetEnvironmentVariableW(v, b, MAX_PATH);
@@ -330,6 +360,26 @@ std::wstring ejecutableNavegador(const std::string& cual) {
         if (GetFileAttributesW(x.c_str()) != INVALID_FILE_ATTRIBUTES) return x;
     return {};
 }
+#else
+/// El ejecutable de Chrome o Edge en macOS (las .app de siempre) o Linux (el PATH), o vacío.
+std::string ejecutableNavegador(const std::string& cual) {
+    std::vector<std::string> c;
+    const char* home = std::getenv("HOME");
+#if defined(__APPLE__)
+    const std::string app = cual == "edge" ? "Microsoft Edge" : cual == "brave" ? "Brave Browser" : "Google Chrome";
+    for (const std::string& base : {std::string("/Applications"), std::string(home ? home : "") + "/Applications"})
+        c.push_back(base + "/" + app + ".app/Contents/MacOS/" + app);
+#else
+    const std::vector<std::string> nombres = cual == "edge" ? std::vector<std::string>{"microsoft-edge", "microsoft-edge-stable"}
+                                                            : std::vector<std::string>{"google-chrome", "google-chrome-stable", "chromium", "chromium-browser"};
+    for (const char* dir : {"/usr/bin", "/usr/local/bin", "/snap/bin", "/opt/google/chrome"})
+        for (const auto& n : nombres) c.push_back(std::string(dir) + "/" + n);
+#endif
+    for (const auto& x : c)
+        if (access(x.c_str(), X_OK) == 0) return x;
+    return {};
+}
+#endif
 
 std::string textoDeArgs(const json& args) {
     std::string out;
@@ -403,11 +453,15 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
 
     if (accion == "estado") {
         json navs = json::array();
+#if defined(_WIN32)
         for (const auto& w : ventanas()) {
             const std::string app = minus(ejecutableDe(w.pid));
             if (app == "chrome.exe" || app == "msedge.exe" || app == "brave.exe" || app == "firefox.exe")
                 navs.push_back({{"id", reinterpret_cast<long long>(w.hwnd)}, {"titulo", w.titulo}, {"app", app}});
         }
+#else
+        navs = ventanasDeNavegador();
+#endif
         json d{{"ventanas_de_navegador", navs}, {"depuracion", !ps.empty()}, {"puerto", puerto}};
         if (!ps.empty()) {
             const json v = json::parse(httpGet(puerto, "/json/version"), nullptr, false);
@@ -417,8 +471,8 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
                 l.push_back({{"n", i + 1}, {"id", ps[i].value("id", "")}, {"titulo", ps[i].value("title", "")}, {"url", ps[i].value("url", "")}});
             d["pestanas"] = l;
         } else {
-            d["nota"] = "para la consola o JavaScript: windows_chrome {accion: abrir} (un Chrome con depuración y perfil "
-                        "propio). Para leer o tocar la página sin eso: windows_ui_leer / windows_ui_texto.";
+            d["nota"] = "para la consola o JavaScript: system_chrome {accion: abrir} (un Chrome con depuración y perfil "
+                        "propio). Para leer o tocar la página sin eso: system_ui_leer / system_ui_texto.";
         }
         out = resultadoDatos(id, d);
         return true;
@@ -431,6 +485,7 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
             return true;
         }
         const std::string cual = a.value("navegador", std::string("chrome"));
+#if defined(_WIN32)
         std::wstring exe = ejecutableNavegador(cual);
         if (exe.empty() && cual == "chrome") exe = ejecutableNavegador("edge"); // sin Chrome, Edge (siempre está)
         if (exe.empty()) return out = resultadoTexto(id, "no encontré Chrome ni Edge instalados", true), true;
@@ -449,14 +504,39 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
         ei.lpParameters = args.c_str();
         ei.nShow = SW_SHOWNORMAL;
         if (!ShellExecuteExW(&ei)) return out = resultadoTexto(id, "no se pudo abrir el navegador (error " + std::to_string(GetLastError()) + ")", true), true;
+        const std::string nombreExe = aU(exe.substr(exe.find_last_of(L'\\') + 1));
+#else
+        std::string exe = ejecutableNavegador(cual);
+        if (exe.empty() && cual == "chrome") exe = ejecutableNavegador("edge");
+        if (exe.empty()) return out = resultadoTexto(id, "no encontré Chrome ni Edge instalados", true), true;
+        // Un perfil propio del asistente: Chrome no deja depurar el perfil de siempre.
+        const std::string r = dataRoot();
+        const std::string perfil = (r.empty() ? std::string(std::getenv("HOME") ? std::getenv("HOME") : "/tmp") + "/.broadcastappliance"
+                                              : r) + "/Navegador-asistente";
+        std::error_code ec;
+        std::filesystem::create_directories(perfil, ec);
+        const std::string puertoArg = "--remote-debugging-port=" + std::to_string(puerto), perfilArg = "--user-data-dir=" + perfil;
+        const std::string u = a.value("url", std::string());
+        std::vector<const char*> argv{exe.c_str(), puertoArg.c_str(), perfilArg.c_str(), "--no-first-run", "--no-default-browser-check"};
+        if (!u.empty()) argv.push_back(u.c_str());
+        argv.push_back(nullptr);
+        posix_spawnattr_t at;
+        posix_spawnattr_init(&at);
+        posix_spawnattr_setflags(&at, POSIX_SPAWN_SETSID); // que siga si ba-control se cierra
+        pid_t pid = 0;
+        const int rc = posix_spawn(&pid, exe.c_str(), nullptr, &at, const_cast<char* const*>(argv.data()), environ);
+        posix_spawnattr_destroy(&at);
+        if (rc != 0) return out = resultadoTexto(id, "no se pudo abrir el navegador (error " + std::to_string(rc) + ")", true), true;
+        const std::string nombreExe = exe.substr(exe.find_last_of('/') + 1);
+#endif
         // Que levante el puerto.
         json ya;
         for (int i = 0; i < 50 && ya.empty(); ++i) {
-            Sleep(200);
+            dormir(200);
             ya = pestanas(puerto);
         }
         if (ya.empty()) return out = resultadoTexto(id, "El navegador se abrió pero no levantó la depuración en el puerto " + std::to_string(puerto) + ".", true), true;
-        out = resultadoTexto(id, "Abierto " + aU(exe.substr(exe.find_last_of(L'\\') + 1)) + " con depuración (perfil del asistente), " +
+        out = resultadoTexto(id, "Abierto " + nombreExe + " con depuración (perfil del asistente), " +
                                      std::to_string(ya.size()) + " pestaña(s). Ahora: consola, evaluar, navegar.");
         return true;
     }
@@ -535,15 +615,5 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
     out = resultadoTexto(id, "acción desconocida: " + accion, true);
     return true;
 }
-
-#else
-
-bool atenderChrome(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
-    if (nombre != "system_chrome") return false;
-    out = resultadoTexto(id, todaviaNo(nombre), true);
-    return true;
-}
-
-#endif
 
 } // namespace bactl

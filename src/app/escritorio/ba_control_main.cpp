@@ -204,10 +204,11 @@ json catalogo() {
         tools.push_back({{"name", name}, {"description", desc}, {"inputSchema", schema}});
     };
     tool("system_pantalla",
-         "Saca una captura de pantalla de ESTA máquina (PNG). Sin argumentos: todo el escritorio (todos los "
-         "monitores). `monitor`: el índice de windows_monitores. `x,y,ancho,alto`: una región. `ventana` (id de "
-         "system_ventanas) o `titulo`: solo esa ventana, aunque esté tapada. `escala`: achicar (0.1..1, p. ej. "
-         "0.5 en un monitor 4K). Permiso: pantalla.",
+         "Saca una captura de pantalla de ESTA máquina (PNG; Windows, macOS o Linux). Sin argumentos: todo el "
+         "escritorio (todos los monitores). `monitor`: el índice de system_monitores. `x,y,ancho,alto`: una región. "
+         "`ventana` (id de system_ventanas) o `titulo`: solo esa ventana, aunque esté tapada. `escala`: achicar "
+         "(0.1..1, p. ej. 0.5 en un monitor 4K). Las coordenadas de la imagen son las del mouse (en macOS, puntos "
+         "de pantalla). Permiso: pantalla.",
          obj({{"monitor", {{"type", "integer"}}},
               {"ventana", {{"type", "integer"}}},
               {"titulo", {{"type", "string"}}},
@@ -232,12 +233,16 @@ json catalogo() {
              {"accion"}));
     tool("system_teclado",
          "Escribe texto o manda una combinación de teclas. `texto`: lo escribe tal cual (Unicode). `teclas`: "
-         "una combinación como \"ctrl+c\", \"win+r\", \"alt+tab\", \"enter\", \"f5\". Permiso: teclado.",
+         "una combinación como \"mod+c\", \"alt+tab\", \"enter\", \"f5\". `mod` es la tecla de los atajos de "
+         "este sistema (Control en Windows y Linux, Comando en macOS): «mod+c» copia en los tres. `cmd`/`win`/"
+         "`super` es Comando en macOS y la tecla Windows en Windows. Permiso: teclado.",
          obj({{"texto", {{"type", "string"}}}, {"teclas", {{"type", "string"}}}}));
     tool("system_ejecutar",
-         "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: ruta del .exe, de un "
-         "archivo o una URL. `argumentos`: opcional. `carpeta`: carpeta de trabajo. `admin`: true lo corre "
-         "como administrador (pide UAC). `oculto`: sin ventana. Permiso: ejecutar (y ejecutar_admin si admin).",
+         "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: la ruta del programa o "
+         "de un archivo, una URL o (en macOS) el nombre de la aplicación («Safari») o su identificador. "
+         "`argumentos`: opcional. `carpeta`: carpeta de trabajo. `admin`: true lo corre como administrador (pide "
+         "UAC en Windows, la clave en macOS). `oculto`: sin ventana / sin traerlo al frente. Permiso: ejecutar (y "
+         "ejecutar_admin si admin).",
          obj({{"programa", {{"type", "string"}}},
               {"argumentos", {{"type", "string"}}},
               {"carpeta", {{"type", "string"}}},
@@ -251,13 +256,13 @@ json catalogo() {
               {"carpeta", {{"type", "string"}}},
               {"max", {{"type", "integer"}}}},
              {"patron"}));
-    tool("system_ventanas", "Lista las ventanas visibles: título, id, aplicación (el ejecutable), si es un navegador "
-         "(Chrome, Edge…: ver windows_chrome), proceso y posición. Permiso: ventanas.",
+    tool("system_ventanas", "Lista las ventanas visibles: título, id, aplicación, si es un navegador "
+         "(Chrome, Edge…: ver system_chrome), proceso y posición. Permiso: ventanas.",
          obj({}));
     tool("system_ventana",
-         "Acciona una ventana. `id` (de windows_ventanas) o `titulo` (parte del título). `accion`: activar, "
-         "minimizar, maximizar, restaurar, cerrar, mover (con `x,y` y/o `ancho,alto`), fijar_arriba (siempre "
-         "visible) o soltar_arriba. Permiso: ventanas.",
+         "Acciona una ventana. `id` (de system_ventanas) o `titulo` (parte del título o de la aplicación). "
+         "`accion`: activar, minimizar, maximizar, restaurar, cerrar, mover (con `x,y` y/o `ancho,alto`), "
+         "fijar_arriba (siempre visible; macOS no lo deja para otros programas) o soltar_arriba. Permiso: ventanas.",
          obj({{"id", {{"type", "integer"}}},
               {"titulo", {{"type", "string"}}},
               {"accion",
@@ -281,21 +286,22 @@ json catalogo() {
          "del ejecutable). `max`: cuántos (por defecto 200, los que más memoria usan primero). Permiso: procesos.",
          obj({{"nombre", {{"type", "string"}}}, {"max", {{"type", "integer"}}}}));
     tool("system_proceso_cerrar",
-         "Cierra un proceso por su `pid` (de windows_procesos): primero le pide que cierre sus ventanas; con "
+         "Cierra un proceso por su `pid` (de system_procesos): primero le pide que cierre sus ventanas; con "
          "`forzar`: true lo termina en seco (se pierde lo no guardado). Nunca por nombre: el pid es uno solo. "
          "Permiso: procesos.",
          obj({{"pid", {{"type", "integer"}}}, {"forzar", {{"type", "boolean"}}}}, {"pid"}));
     tool("system_comando",
          "Corre un comando y devuelve lo que contesta (salida, errores y código de salida). `comando`: la línea a "
-         "correr. `shell`: cmd (por defecto) o powershell. `carpeta`: dónde. `segundos`: lo más que espera (por "
-         "defecto 30, hasta 300; si se pasa, lo termina). Sin ventana. Permiso: comandos.",
+         "correr. `shell`: sistema (por defecto: cmd en Windows, zsh en macOS, sh en Linux), cmd, powershell, sh o "
+         "bash. `carpeta`: dónde. `segundos`: lo más que espera (por defecto 30, hasta 300; si se pasa, lo termina). "
+         "Sin ventana. Permiso: comandos.",
          obj({{"comando", {{"type", "string"}}},
-              {"shell", {{"type", "string"}, {"enum", {"cmd", "powershell"}}}},
+              {"shell", {{"type", "string"}, {"enum", {"sistema", "cmd", "powershell", "sh", "bash"}}}},
               {"carpeta", {{"type", "string"}}},
               {"segundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 300}}}},
              {"comando"}));
     tool("system_sistema",
-         "Los datos del equipo: Windows (versión), nombre, usuario, procesadores, memoria total y libre, discos "
+         "Los datos del equipo: el sistema (Windows, macOS o Linux, con su versión), nombre, usuario, procesadores, memoria total y libre, discos "
          "con su espacio libre, hace cuánto que está prendido y la batería si tiene. Sin argumentos. Permiso: sistema.",
          obj({}));
     tool("system_esperar",
@@ -406,7 +412,7 @@ bool capturar(int x, int y, int w, int h, double escala, std::string& png, int& 
 /// que dibuja la GPU). Minimizada no hay nada que dibujar.
 bool capturarVentana(HWND h, double escala, std::string& png, int& sw, int& sh, std::string& error) {
     if (IsIconic(h)) {
-        error = "la ventana está minimizada (windows_ventana accion=restaurar primero)";
+        error = "la ventana está minimizada (system_ventana accion=restaurar primero)";
         return false;
     }
     RECT r{};
@@ -479,7 +485,9 @@ WORD teclaVk(const std::string& n, bool& ok) {
     for (char c : n) k.push_back(static_cast<char>(tolower(static_cast<unsigned char>(c))));
     static const std::map<std::string, WORD> m{
         {"ctrl", VK_CONTROL},   {"control", VK_CONTROL}, {"alt", VK_MENU},    {"shift", VK_SHIFT},
-        {"win", VK_LWIN},       {"enter", VK_RETURN},    {"return", VK_RETURN}, {"tab", VK_TAB},
+        {"win", VK_LWIN},       {"cmd", VK_LWIN},        {"command", VK_LWIN}, {"super", VK_LWIN},
+        {"meta", VK_LWIN},      {"mod", VK_CONTROL},     {"option", VK_MENU},  {"opcion", VK_MENU},
+        {"mayus", VK_SHIFT},    {"enter", VK_RETURN},    {"return", VK_RETURN}, {"tab", VK_TAB},
         {"esc", VK_ESCAPE},     {"escape", VK_ESCAPE},   {"space", VK_SPACE}, {"espacio", VK_SPACE},
         {"backspace", VK_BACK}, {"supr", VK_DELETE},     {"delete", VK_DELETE}, {"del", VK_DELETE},
         {"ins", VK_INSERT},     {"home", VK_HOME},       {"inicio", VK_HOME}, {"end", VK_END},
@@ -896,7 +904,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             json b = a;
             if (a.contains("ventana")) b["id"] = a["ventana"];
             HWND hv = buscarVentana(b);
-            if (hv == nullptr) return resultadoTexto(id, "no encontré esa ventana (windows_ventanas las lista)", true);
+            if (hv == nullptr) return resultadoTexto(id, "no encontré esa ventana (system_ventanas las lista)", true);
             if (!capturarVentana(hv, escala, png, sw, sh, error)) return resultadoTexto(id, error, true);
             return resultadoImagen(id, png, "Ventana «" + tituloDe(hv) + "»: " + std::to_string(sw) + "x" + std::to_string(sh));
         }
@@ -1024,7 +1032,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         const std::string accion = a.value("accion", std::string());
         if (accion == "activar") {
             if (!traerAlFrente(h))
-                return resultadoTexto(id, "Windows no dejó traer esa ventana al frente (probá con windows_mouse "
+                return resultadoTexto(id, "Windows no dejó traer esa ventana al frente (probá con system_mouse "
                                           "un clic sobre ella)", true);
         }
         else if (accion == "minimizar") ShowWindow(h, SW_MINIMIZE);
@@ -1093,7 +1101,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         if (!p.comandos) return noPermiso("comandos");
         const std::string cmd = a.value("comando", std::string());
         if (cmd.empty()) return resultadoTexto(id, "falta el comando", true);
-        return correrComando(id, cmd, a.value("shell", std::string("cmd")), a.value("carpeta", std::string()),
+        return correrComando(id, cmd, a.value("shell", std::string("sistema")), a.value("carpeta", std::string()),
                              std::clamp(a.value("segundos", 30), 1, 300));
     }
     if (nombre == "system_sistema") {
@@ -1117,11 +1125,20 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     }
     return resultadoTexto(id, "herramienta desconocida: " + nombre, true);
 }
-#else  // no Windows
-json ejecutarHerramienta(const json& id, const std::string& nombre, const json&, const Permisos&) {
-    (void)nombre;
+#elif !defined(__APPLE__)  // Linux (en camino; macOS: control_mac.mm)
+json ejecutarHerramienta(const json& id, const std::string& nombre, const json& a, const Permisos& p) {
+    json out;
+    // Los archivos y Chrome ya andan (POSIX y el protocolo de Chrome).
+    if (atenderArchivos(id, nombre, a, p, out) || atenderChrome(id, nombre, a, p, out)) return out;
     return resultadoTexto(id, todaviaNo(nombre), true);
 }
+bool aLaPapelera(const std::string&, std::string& error) {
+    error = "la papelera de Linux todavía no está hecha";
+    return false;
+}
+json registroSistema(const json& id, const json&, const Permisos&) { return resultadoTexto(id, todaviaNo("system_registro"), true); }
+json avisoSistema(const json& id, const json&, const Permisos&) { return resultadoTexto(id, todaviaNo("system_aviso"), true); }
+json ventanasDeNavegador() { return json::array(); }
 #endif
 
 json llamarHerramienta(const json& id, const std::string& nombre, const json& recibidos) {
@@ -1176,7 +1193,7 @@ int main() {
                         {"instructions",
                          "Control del escritorio de ESTA máquina Windows (mouse, teclado, captura, abrir "
                          "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo). Mirá "
-                         "system_monitores y windows_pantalla antes de mover el mouse por coordenadas, y "
+                         "system_monitores y system_pantalla antes de mover el mouse por coordenadas, y "
                          "system_cursor antes de escribir (qué ventana tiene el foco)."}}}});
         } else if (metodo == "tools/list") {
             escribir({{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"tools", catalogo()}}}});

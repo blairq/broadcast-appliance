@@ -11,12 +11,12 @@
 // la ventana esté tapada o en otro monitor, y si el elemento no la tiene, un
 // clic de mouse en su centro.
 //
-//   windows_ui_leer      los elementos de una ventana (los que se pueden tocar,
+//   system_ui_leer      los elementos de una ventana (los que se pueden tocar,
 //                        o todos), numerados
-//   windows_ui_clic      clic en uno (número o nombre)
-//   windows_ui_escribir  le pone texto a un campo
-//   windows_ui_texto     el texto de la ventana (una página, un documento)
-//   windows_ui_esperar   hasta que aparezca un elemento con ese nombre
+//   system_ui_clic      clic en uno (número o nombre)
+//   system_ui_escribir  le pone texto a un campo
+//   system_ui_texto     el texto de la ventana (una página, un documento)
+//   system_ui_esperar   hasta que aparezca un elemento con ese nombre
 // ============================================================================
 #include "escritorio/control.hpp"
 
@@ -39,7 +39,7 @@ namespace bactl {
 
 json herramientasUia() {
     json t = json::array();
-    const json ventana = {{"type", "integer"}, {"description", "id de la ventana (windows_ventanas); sin esto, la que tiene el foco"}};
+    const json ventana = {{"type", "integer"}, {"description", "id de la ventana (system_ventanas); sin esto, la que tiene el foco"}};
     const json titulo = {{"type", "string"}, {"description", "o parte del título de la ventana"}};
     t.push_back(herramienta(
         "system_ui_leer",
@@ -47,7 +47,7 @@ json herramientasUia() {
         "tocar —botones, campos, casillas, desplegables, menús, enlaces, pestañas, ítems— con número, rol, nombre, "
         "valor, estado (foco, marcado, desplegado, elegido), atajo y el centro de lo que se ve; las zonas que se "
         "desplazan; y en un navegador (Chrome, Edge) la página con su texto. Un diálogo modal: solo lo del diálogo. "
-        "Mejor que adivinar en una captura: después windows_ui_clic / windows_ui_escribir con el número. Sin "
+        "Mejor que adivinar en una captura: después system_ui_clic / system_ui_escribir con el número. Sin "
         "`ventana`, la del foco; `todas`: todas las visibles (la del foco primero). `todos`: también textos e "
         "imágenes con nombre; `texto` (true): el texto de la página; `filtro`: solo lo que tenga eso en el "
         "nombre; `max` (500). Permiso: pantalla.",
@@ -60,7 +60,7 @@ json herramientasUia() {
                  {"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 3000}}}})));
     t.push_back(herramienta(
         "system_ui_clic",
-        "Clic en un elemento: `n` (el número de la última windows_ui_leer) o `nombre` (parte del nombre; `rol` para "
+        "Clic en un elemento: `n` (el número de la última system_ui_leer) o `nombre` (parte del nombre; `rol` para "
         "desempatar: boton, enlace, casilla, item, pestaña…) en la ventana. Usa la acción del elemento (invocar, "
         "marcar, elegir, desplegar), que anda aunque la ventana esté tapada; si no tiene, un clic de mouse en su "
         "centro. `con_mouse`: true fuerza el clic de mouse (`boton`: izq, der; `doble`). Permiso: mouse.",
@@ -74,7 +74,7 @@ json herramientasUia() {
                  {"doble", {{"type", "boolean"}}}})));
     t.push_back(herramienta(
         "system_ui_escribir",
-        "Le pone `texto` a un campo: `n` (de windows_ui_leer) o `nombre`. Pone el valor directo si el campo lo deja; "
+        "Le pone `texto` a un campo: `n` (de system_ui_leer) o `nombre`. Pone el valor directo si el campo lo deja; "
         "si no, le da el foco y lo escribe. `reemplazar` (true): borra lo que había; `enter`: aprieta Enter al final. "
         "Permiso: teclado.",
         esquema({{"n", {{"type", "integer"}}},
@@ -202,7 +202,7 @@ const char* rolDe(CONTROLTYPEID t) {
     }
 }
 
-/// Lo que se puede tocar (lo que lee windows_ui_leer sin `todos`).
+/// Lo que se puede tocar (lo que lee system_ui_leer sin `todos`).
 bool tocable(CONTROLTYPEID t) {
     switch (t) {
         case UIA_ButtonControlTypeId:
@@ -620,7 +620,7 @@ json aJson(int n, const Info& i) {
     if (!i.valor.empty()) j["valor"] = i.valor;
     if (!i.idAuto.empty() && i.idAuto.size() < 60) j["id_auto"] = i.idAuto;
     if (!i.habilitado) j["habilitado"] = false;
-    // El centro, en píxeles del escritorio (para windows_mouse si hiciera falta).
+    // El centro, en píxeles del escritorio (para system_mouse si hiciera falta).
     j["x"] = (i.r.left + i.r.right) / 2;
     j["y"] = (i.r.top + i.r.bottom) / 2;
     j["ancho"] = i.r.right - i.r.left;
@@ -635,7 +635,7 @@ bool elementoDe(const json& a, Com<IUIAutomationElement>& el, Info& info, std::s
         std::lock_guard<std::mutex> l(gMu);
         const int n = a.value("n", 0);
         if (n < 1 || n > static_cast<int>(gLeidos.size())) {
-            error = gLeidos.empty() ? "no hay una lectura: windows_ui_leer primero" : "no hay un elemento " + std::to_string(n) + " en la última lectura";
+            error = gLeidos.empty() ? "no hay una lectura: system_ui_leer primero" : "no hay un elemento " + std::to_string(n) + " en la última lectura";
             return false;
         }
         el = gLeidos[static_cast<size_t>(n - 1)];
@@ -673,7 +673,7 @@ bool elementoDe(const json& a, Com<IUIAutomationElement>& el, Info& info, std::s
     }
     if (mejor < 0) {
         error = "no hay ningún elemento con «" + a.value("nombre", std::string()) + "»" + (rol.empty() ? "" : " (" + rol + ")") +
-                " en «" + tituloDe(h) + "» (windows_ui_leer muestra lo que hay)";
+                " en «" + tituloDe(h) + "» (system_ui_leer muestra lo que hay)";
         return false;
     }
     el = r.elementos[static_cast<size_t>(mejor)].el;
@@ -895,7 +895,7 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
                 }
                 v["texto"] = t;
             }
-            if (lista.empty()) v["nota"] = "nada para tocar (una app que no habla UI Automation: windows_pantalla)";
+            if (lista.empty()) v["nota"] = "nada para tocar (una app que no habla UI Automation: system_pantalla)";
             vs.push_back(v);
         }
         {
