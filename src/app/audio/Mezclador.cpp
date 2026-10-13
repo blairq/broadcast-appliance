@@ -2,6 +2,7 @@
 #include "audio/Mezclador.hpp"
 
 #include "arranque/AppRuntime.hpp"
+#include "audio/Calibracion.hpp"
 #include "audio/LoudnessPrograma.hpp"
 #include "audio/Matriz.hpp"
 #include "audio/RackManager.hpp"
@@ -38,6 +39,16 @@ Mezclador::Mezclador(AppRuntime& rt, Matriz* matriz, QObject* parent) : QObject(
     // Una columna nueva (un bus, una placa que se enchufa), una pista renombrada…
     if (matriz_ != nullptr) connect(matriz_, &Matriz::cambio, this, &Mezclador::rehacerListas);
     rehacerListas();
+    calibracion_ = std::make_unique<Calibracion>(rt.dataRoot(), rt.config().modoPrueba);
+}
+
+Mezclador::~Mezclador() = default;
+
+QObject* Mezclador::calibracionQml() const { return calibracion_.get(); }
+
+void Mezclador::setRacks(RackManager* r) {
+    racks_ = r;
+    calibracion_->setRacks(r);
 }
 
 void Mezclador::usar(QObject* vista, bool si) {

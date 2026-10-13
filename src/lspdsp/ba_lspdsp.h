@@ -134,7 +134,8 @@ BA_LSPDSP_API int ba_medicion_respuesta(ba_medicion* m, float desde, float hasta
                                         float* frq, float* db);
 /* EDT, T20 y T30 (s) por banda de octava (centros en Hz), de la IR filtrada e
  * integrada hacia atrás (Schroeder, cortando donde la cola llega al ruido); un
- * centro <= 0 es la banda ancha (sin filtro). -1 si
+ * centro <= 0 es la banda ancha (sin filtro). -1 si no sobresale lo bastante del
+ * ruido (ISO 3382: 25 dB para EDT, 35 para T20, 45 para T30) o si
  * no alcanza el rango. Después de analizar. 0 si salió. */
 BA_LSPDSP_API int ba_medicion_rt_bandas(ba_medicion* m, const float* centros, size_t n, float* edt, float* t20,
                                         float* t30);

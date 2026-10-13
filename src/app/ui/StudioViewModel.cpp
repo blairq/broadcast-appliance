@@ -36,6 +36,7 @@
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
 #include "audio/Matriz.hpp"
+#include "audio/Calibracion.hpp"
 #include "audio/Mezclador.hpp"
 #include "audio/RackManager.hpp"
 #endif
@@ -1477,6 +1478,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
     mezclador_ = std::make_unique<audio::Mezclador>(rt, matriz_.get());
     mezclador_->setRacks(racks_.get());
+    // Un barrido de calibración nunca con la emisión o la grabación en curso.
+    mezclador_->calibracion()->setAlAire([this] { return alAire(); });
     // Una entrada de placa se abre si la trae la tarjeta «Entrada» de un rack, o si su
     // propio rack tiene algo (un filtro, voz a texto): sin salida en la matriz igual
     // tiene que llegarles el audio.

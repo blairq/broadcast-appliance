@@ -26,6 +26,7 @@
 #include <nlohmann/json.hpp>
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,7 @@ class AppRuntime;
 
 namespace ba::app::audio {
 
+class Calibracion;
 class Matriz;
 class RackManager;
 
@@ -55,9 +57,12 @@ class Mezclador : public QObject {
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
     /// Los analizadores de LSP que se pueden abrir sobre una entrada: [{id, nombre, para}].
     Q_PROPERTY(QVariantList analisisLsp READ analisisLsp CONSTANT)
+    /// La calibración de sala (audio::Calibracion), la pestaña Calibración.
+    Q_PROPERTY(QObject* calibracion READ calibracionQml CONSTANT)
 
    public:
     Mezclador(AppRuntime& rt, Matriz* matriz, QObject* parent = nullptr);
+    ~Mezclador() override;
 
     QStringList entradas() const { return entradas_; }
     QVariantList salidas() const { return salidas_; }
@@ -77,7 +82,9 @@ class Mezclador : public QObject {
     /// Abre sobre la entrada el analizador de LSP `cual` (espectro, fase,
     /// osciloscopio, latencia, perfil) con su interfaz. "" si salió; si no, el motivo.
     Q_INVOKABLE QString abrirAnalisisLsp(const QString& entrada, const QString& cual);
-    void setRacks(RackManager* r) { racks_ = r; }
+    void setRacks(RackManager* r);
+    Calibracion* calibracion() const { return calibracion_.get(); }
+    QObject* calibracionQml() const;
 
     /// Lo mismo que ve la ventana, para el MCP: entradas (niveles y estado) y salidas.
     nlohmann::json estado() const;
@@ -96,6 +103,7 @@ class Mezclador : public QObject {
     AppRuntime& rt_;
     Matriz* matriz_ = nullptr;
     RackManager* racks_ = nullptr;
+    std::unique_ptr<Calibracion> calibracion_;
     QTimer timer_;
     QSet<QObject*> usuarios_;
     QStringList entradas_;

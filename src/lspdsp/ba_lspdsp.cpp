@@ -31,6 +31,7 @@
 #include <initializer_list>
 #include <algorithm>
 #include <math.h>
+#include <stdio.h>
 #include <new>
 #include <stdlib.h>
 #include <string.h>
@@ -451,12 +452,13 @@ void ba_medicion_arrancar(ba_medicion* m) {
 void ba_medicion_procesar(ba_medicion* m, float* salida, const float* entrada, size_t muestras) {
     if (m == nullptr || salida == nullptr || entrada == nullptr) return;
     if (m->rt.needs_update()) m->rt.update_settings();
-    for (size_t hecho = 0; hecho < muestras;) {
-        const size_t n = muestras - hecho < kBloque ? muestras - hecho : kBloque;
-        // Como el Profiler: process_in toma lo capturado y process_out escribe lo que se emite.
-        m->rt.process_in(m->b, entrada + hecho, n);
-        m->rt.process_out(salida + hecho, m->b, n);
-        hecho += n;
+    // De a UNA muestra: ResponseTaker toma el comienzo de la captura como
+    // latencia - «time warp», y el warp es lo que queda del bloque cuando termina la
+    // pausa (process_in corre antes que process_out). Con bloques da negativo y LSP
+    // lee antes del buffer (basura, NaN); de a una es cero. Son llamadas baratas.
+    for (size_t k = 0; k < muestras; ++k) {
+        m->rt.process_in(m->b, entrada + k, 1);
+        m->rt.process_out(salida + k, m->b, 1);
     }
 }
 
@@ -484,30 +486,45 @@ int ba_medicion_analizar(ba_medicion* m, int algoritmo, ba_medicion_resultado* r
     const size_t medio = cr->length() / 2 - 1;
     const size_t largo = m->scp.get_chirp() != nullptr ? m->scp.get_chirp()->length() : cr->length() - medio;
     const size_t n = medio + largo < cr->length() ? medio + largo : cr->length();
-    // El sonido directo: el pico, buscado solo en el tiempo positivo.
-    size_t p = medio;
+    // El momento en que se emitió.
+    const size_t cero = medio;
+    // El sonido directo: el pico, buscado desde que se emitió.
+    size_t p = cero;
     float mx = 0;
-    for (size_t k = medio; k < n; ++k)
+    for (size_t k = cero; k < n; ++k)
         if (fabsf(x[k]) > mx) {
             mx = fabsf(x[k]);
             p = k;
         }
-    m->ir.assign(x + medio, x + n);
-    m->pico = p - medio;
-    r->directo_ms = static_cast<float>(p - medio) * 1000.0f / static_cast<float>(m->frecuencia);
-    r->pico_db = aDb(mx);
+    // El directo es la PRIMERA llegada, no la más fuerte: dos reflexiones que llegan
+    // juntas (el piso y el techo a la misma distancia) pueden sumar más que él. El
+    // primer pico que pasa los -10 dB del máximo (los lóbulos del barrido limitado en
+    // banda quedan en -13 dB del directo) y su máximo en el milisegundo siguiente.
+    for (size_t k = cero; k < p; ++k)
+        if (fabsf(x[k]) >= mx * 0.316f) {
+            const size_t fin = std::min(p, k + static_cast<size_t>(m->frecuencia / 1000));
+            size_t q = k;
+            for (size_t j = k; j <= fin; ++j)
+                if (fabsf(x[j]) > fabsf(x[q])) q = j;
+            p = q;
+            break;
+        }
+    m->ir.assign(x + cero, x + n);
+    m->pico = p - cero;
+    r->directo_ms = static_cast<float>(p - cero) * 1000.0f / static_cast<float>(m->frecuencia);
+    r->pico_db = aDb(fabsf(x[p]));
     // El ruido: el RMS del último 10 % de la parte de la IR posterior al pico.
     const size_t cola0 = p + (n - p) * 9 / 10;
     double e = 0;
     for (size_t k = cola0; k < n; ++k) e += static_cast<double>(x[k]) * x[k];
     const double rmsCola = n > cola0 ? sqrt(e / static_cast<double>(n - cola0)) : 0;
-    r->snr_db = rmsCola > 0 ? 20.0f * log10f(mx / static_cast<float>(rmsCola)) : 120.0f;
+    r->snr_db = rmsCola > 0 ? 20.0f * log10f(fabsf(x[p]) / static_cast<float>(rmsCola)) : 120.0f;
 
     // El RT de LSP, desde el directo (no desde el tiempo cero: el viaje del sonido no es reverberación).
     const dspu::scp_rtcalc_t alg = algoritmo == BA_RT_T30   ? dspu::SCP_RT_T_30
                                    : algoritmo == BA_RT_T20 ? dspu::SCP_RT_T_20
                                                             : dspu::SCP_RT_EDT_0;
-    if (m->scp.postprocess_linear_convolution(0, static_cast<ssize_t>(p - medio), alg, kReactividad, kTolerancia) !=
+    if (m->scp.postprocess_linear_convolution(0, static_cast<ssize_t>(p) - static_cast<ssize_t>(medio), alg, kReactividad, kTolerancia) !=
         STATUS_OK)
         return -1;
     r->rt60_s = m->scp.get_reverberation_time_seconds();
@@ -619,10 +636,11 @@ int ba_medicion_rt_bandas(ba_medicion* m, const float* centros, size_t n, float*
         ruido /= static_cast<double>(len - cola0 > 0 ? len - cola0 : 1);
         const size_t vent = static_cast<size_t>(0.010 * sr);
         size_t fin = len;
-        double acum = 0;
+        double acum = 0, envMax = 0;
         for (size_t k = 0; k < len; ++k) {
             acum += x[k] * x[k];
             if (k >= vent) acum -= x[k - vent] * x[k - vent];
+            envMax = std::max(envMax, acum / static_cast<double>(vent));
             if (k > vent && k > static_cast<size_t>(0.02 * sr) && acum / static_cast<double>(vent) < ruido * 2.0) {
                 fin = k;
                 break;
@@ -637,9 +655,12 @@ int ba_medicion_rt_bandas(ba_medicion* m, const float* centros, size_t n, float*
         }
         const double e0 = edc.empty() ? 1.0 : edc[0];
         for (double& v : edc) v = 10.0 * log10(v / e0);
-        if (edt != nullptr) edt[b] = rtDe(edc, sr, -0.0001, -10.0);
-        if (t20 != nullptr) t20[b] = rtDe(edc, sr, -5.0, -25.0);
-        if (t30 != nullptr) t30[b] = rtDe(edc, sr, -5.0, -35.0);
+        // Lo que la IR sobresale del ruido en esta banda (ISO 3382: 35 dB para el T20,
+        // 45 para el T30); sin eso la cuenta da un número, pero falso.
+        const double rango = ruido > 0 ? 10.0 * log10(envMax / ruido) : 120.0;
+        if (edt != nullptr) edt[b] = rango >= 25 ? rtDe(edc, sr, -0.0001, -10.0) : -1;
+        if (t20 != nullptr) t20[b] = rango >= 35 ? rtDe(edc, sr, -5.0, -25.0) : -1;
+        if (t30 != nullptr) t30[b] = rango >= 45 ? rtDe(edc, sr, -5.0, -35.0) : -1;
     }
     return 0;
 }

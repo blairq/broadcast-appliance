@@ -876,6 +876,13 @@ endif()
         target_link_libraries(test_lspdsp PRIVATE ba_core ${CMAKE_DL_LIBS})
         add_test(NAME test_lspdsp COMMAND test_lspdsp)
         set_tests_properties(test_lspdsp PROPERTIES SKIP_RETURN_CODE 77)
+        add_executable(test_calibracion tests/test_calibracion.cpp audio/CalibracionCaptura.cpp
+                                        audio/CalibracionAnalisis.cpp audio/SalaSimulada.cpp audio/LspDsp.cpp)
+        target_include_directories(test_calibracion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/lspdsp")
+        target_compile_definitions(test_calibracion PRIVATE BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_link_libraries(test_calibracion PRIVATE ba_core Qt6::Core ${CMAKE_DL_LIBS})
+        add_test(NAME test_calibracion COMMAND test_calibracion)
+        set_tests_properties(test_calibracion PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     # Host CLAP contra los plugins LSP reales (sin interfaz grafica). Lo que
     # pide ClapEditor.cpp para enlazar: X11 (Linux) o Qt Gui (macOS, QWindow).
