@@ -63,6 +63,7 @@
 #include "net/AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/EstadoIA.hpp"
+#include "ui/DocumentosViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
@@ -1030,6 +1031,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         traductor_ = std::make_unique<agent::Traductor>(rt.dataRoot(), *modelos_, *flujos_);
         marca("traductor");
     }
+    // La documentación del evento (docs/): cada cambio republica la web del evento.
+    documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });
+    if (evento_) connect(documentos_.get(), &DocumentosViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
     // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
     estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(),
                                                   traductor_.get());
@@ -2186,6 +2190,7 @@ QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::traductor() const { return traductor_.get(); }
 QObject* StudioViewModel::estadoIA() const { return estadoIA_.get(); }
+QObject* StudioViewModel::documentosQml() const { return documentos_.get(); }
 QObject* StudioViewModel::superres() const { return superres_.get(); }
 QObject* StudioViewModel::bancoSrObj() const { return bancoSr_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

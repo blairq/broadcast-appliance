@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
 
+#include "evento/Documentos.hpp"
+
 #include <cstdio>
 #include "sala/ControlSala.hpp"
 #include <QPointer>
@@ -339,7 +341,17 @@ void EventoViewModel::publicarWeb() {
         }
         json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, x);
         estado["version"] = webVersion_;
-        cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"estado", estado}};
+        // La documentación pública del evento (docs/): la web la muestra y la sala la sirve.
+        const evento::Documentos docs(rt_.dataRoot());
+        estado["documentos"] = docs.publicos();
+        // Para la sala (no se publica): el archivo de cada documento público, por su id.
+        json docsArchivos = json::object();
+        for (const auto& d : docs.lista())
+            if (d.value("publico", true)) docsArchivos[d.value("id", std::string())] = d.value("archivo", std::string());
+        cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"docs_archivos", docsArchivos}, {"docs_dir", [&] {
+                      const std::u8string u = docs.carpeta().u8string();
+                      return std::string(u.begin(), u.end());
+                  }()}, {"estado", estado}};
     }
     const QByteArray b = QByteArray::fromStdString(cuerpo.dump());
     if (b == webUltimo_) return;
