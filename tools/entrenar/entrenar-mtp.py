@@ -490,28 +490,54 @@ def main():
                         args.lr * 0.5 * (1 + math.cos(math.pi * (paso - calor) / max(1, total - calor))))
         # un lote que no entra en la placa (un estado del aparato muy largo) se SALTEA
         # y se anota, en vez de tirar una corrida que va por el 80 %
-        try:
-            perd, bien = lote_nombres(lote, grad=True)
+        lt = []
+        if TX:
+            if len(orden_t) < args.lote_texto:
+                orden_t = list(range(len(TX)))
+                rnd.shuffle(orden_t)
+            lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
+
+        def atras(nom, tex, escala):
+            """Un pedazo del lote: perdida normalizada por los tokens del lote ENTERO (escala)."""
+            perd, bien = lote_nombres(nom, grad=True)
             # con --repartir la perdida queda en la placa de lm_head, no en la de la cabeza
             n = bien[0][1].sum().clamp(min=1).to(perd.device)
-            (perd / n).backward()
-            if TX:
-                if len(orden_t) < args.lote_texto:
-                    orden_t = list(range(len(TX)))
-                    rnd.shuffle(orden_t)
-                lt, orden_t = [TX[i] for i in orden_t[:args.lote_texto]], orden_t[args.lote_texto:]
-                perd_t, bien_t = lote_texto(lt, grad=True)
+            (perd / n * escala[0]).backward()
+            perd_t = n_t = None
+            if tex:
+                perd_t, bien_t = lote_texto(tex, grad=True)
                 n_t = bien_t[0][1].sum().clamp(min=1).to(perd_t.device)
-                (args.peso_texto * perd_t / n_t).backward()
+                (args.peso_texto * perd_t / n_t * escala[1]).backward()
+            return perd, n, perd_t, n_t
+
+        entro = True
+        try:
+            perd, n, perd_t, n_t = atras(lote, lt, (1.0, 1.0))
             opt.step()
         except torch.OutOfMemoryError:
-            salteados += 1
-            print(f"  paso {paso + 1}: sin memoria, lote salteado ({salteados} en total)", flush=True)
+            entro = False  # se reintenta FUERA del except: la excepcion retiene el grafo y su memoria
+        if not entro:
+            # el lote entero no entra (un estado del aparato largo): de a un ejemplo,
+            # acumulando (cada uno pesa 1/len del lote, como en el lote entero)
+            opt.zero_grad(set_to_none=True)
             torch.cuda.empty_cache()
+            try:
+                for i in range(max(len(lote), len(lt))):
+                    perd, n, perd_t, n_t = atras(lote[i:i + 1] or lote[:1], lt[i:i + 1],
+                                                 (1.0 / len(lote) if i < len(lote) else 0.0, 1.0 / max(1, len(lt))))
+                opt.step()
+            except torch.OutOfMemoryError:
+                salteados += 1
+                print(f"  paso {paso + 1}: sin memoria ni de a uno, lote salteado ({salteados} en total)", flush=True)
+                torch.cuda.empty_cache()
+                if salteados >= 10 and salteados > (paso + 1) // 5:
+                    sys.exit(f"sin memoria en {salteados} de {paso + 1} lotes: bajar --lote / --lote-texto")
+                opt.zero_grad(set_to_none=True)
+                continue
         opt.zero_grad(set_to_none=True)
         if (paso + 1) % 50 == 0:
             print(f"paso {paso + 1}/{total} · perdida nombres {(perd / n).item():.3f}"
-                  + (f" · texto {(perd_t / n_t).item():.3f}" if TX else "")
+                  + (f" · texto {(perd_t / n_t).item():.3f}" if perd_t is not None else "")
                   + f" · {(time.time() - t0) / (paso + 1):.2f} s/paso", flush=True)
         if (paso + 1) % args.elegir_cada == 0 or paso + 1 == total:
             elegir(paso + 1)

@@ -595,8 +595,9 @@ class Fabrica:
             if not self.a.sin_mtp:
                 cmd = [PY, E / "entrenar-mtp.py", "--modelo", hf, "--base-ruta", self.man["base_ruta"],
                        "--datos", self.corpus, "--salida", mtp_f]
-                if self.a.formato == "tc":  # prefijo de ~8.000 tokens: lotes chicos, media epoca
-                    cmd += ["--lote", "4", "--lote-texto", "4", "--epocas", "0.5"]
+                if self.a.formato == "tc":  # prefijo de ~8.000-10.000 tokens: lotes chicos, media epoca
+                    # (con 4 la v5, un 30 % mas larga que la v3, no entraba en ningun lote)
+                    cmd += ["--lote", "2", "--lote-texto", "2", "--epocas", "0.5"]
                 if self.man["arquitectura"]["modo"] == "repartir":
                     cmd.append("--repartir")
                 correr(cmd, env={"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}, salida=self.dir / "mtp.log")

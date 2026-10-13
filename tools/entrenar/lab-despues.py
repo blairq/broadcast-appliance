@@ -147,21 +147,29 @@ def main():
         if nombre_conj == "banco" and args.limite_banco and len(casos) > args.limite_banco:
             paso = len(casos) / args.limite_banco
             casos = [casos[int(i * paso)] for i in range(args.limite_banco)]
-        c = {"ajenos": 0, "ajenos_atendidos": 0, "ajenos_atrapados": 0, "propios": 0, "propios_bien": 0,
-             "propios_bien_atrapados": 0, "propios_mal": 0, "propios_mal_atrapados": 0}
+        c = {"ajenos": 0, "ajenos_texto": 0, "ajenos_atendidos": 0, "ajenos_atrapados": 0, "propios": 0,
+             "propios_bien": 0, "propios_bien_atrapados": 0, "propios_mal": 0, "propios_mal_atrapados": 0}
+        # por separado: lo que atrapa SOLO el esquema (seguro) y lo que suma el estado (depende de que
+        # el estado de la app tenga las entidades; con el estado fijo de aca, el banco nombra otras)
+        for k in ("ajenos_atrapados", "propios_bien_atrapados", "propios_mal_atrapados"):
+            c[k + "_esquema"] = 0
         ejemplos = {"atrapados": [], "de_mas": []}
         for x in casos:
             acept = x.get("aceptables") or ([x["herramienta"]] if x["herramienta"] in conocidas else [tc.DERIVAR])
             salida = generar(tc.usuario(est, x["frase"]))
             leida = tc.leer(salida)  # (nombre, args), o None si no hay una llamada legible
             nombre, a = leida if leida else (None, {})
-            motivo = validar(nombre, a, esquemas, est) if nombre else "no hay llamada"
+            motivo = validar(nombre, a, esquemas, est) if nombre else None
+            de_esquema = bool(motivo) and "no esta en el estado" not in motivo
             if tc.DERIVAR in acept:
                 c["ajenos"] += 1
-                if nombre not in (tc.DERIVAR, tc.FALTA):
+                if nombre is None:
+                    c["ajenos_texto"] += 1  # contesto con texto (charla): no es una llamada que validar
+                elif nombre not in (tc.DERIVAR, tc.FALTA):
                     c["ajenos_atendidos"] += 1
                     if motivo:
                         c["ajenos_atrapados"] += 1
+                        c["ajenos_atrapados_esquema"] += de_esquema
                         if len(ejemplos["atrapados"]) < 8:
                             ejemplos["atrapados"].append([x["frase"], nombre, motivo])
             else:
@@ -170,14 +178,18 @@ def main():
                     c["propios_bien"] += 1
                     if motivo:
                         c["propios_bien_atrapados"] += 1
+                        c["propios_bien_atrapados_esquema"] += de_esquema
                         if len(ejemplos["de_mas"]) < 8:
                             ejemplos["de_mas"].append([x["frase"], nombre, motivo])
                 elif nombre not in (tc.DERIVAR, tc.FALTA):
                     c["propios_mal"] += 1
                     c["propios_mal_atrapados"] += bool(motivo)
+                    c["propios_mal_atrapados_esquema"] += de_esquema
         c["red_atrapa_ajenos"] = c["ajenos_atrapados"] / max(1, c["ajenos_atendidos"])
         c["red_atrapa_propios_mal"] = c["propios_mal_atrapados"] / max(1, c["propios_mal"])
         c["red_molesta_propios_bien"] = c["propios_bien_atrapados"] / max(1, c["propios_bien"])
+        c["esquema_atrapa_ajenos"] = c["ajenos_atrapados_esquema"] / max(1, c["ajenos_atendidos"])
+        c["esquema_molesta_propios_bien"] = c["propios_bien_atrapados_esquema"] / max(1, c["propios_bien"])
         res[nombre_conj] = {"cuentas": c, "ejemplos": ejemplos}
         print(nombre_conj, json.dumps(c, ensure_ascii=False), flush=True)
     if args.json:

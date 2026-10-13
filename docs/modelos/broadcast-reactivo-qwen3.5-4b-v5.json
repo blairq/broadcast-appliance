@@ -1,0 +1,471 @@
+{
+ "base": "Qwen/Qwen3.5-4B",
+ "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+ "base_licencia": "apache-2.0",
+ "corpus_firma": "98f9548466b34810",
+ "corpus_ejemplos": 12721,
+ "repo_commit": "cea99c0",
+ "arquitectura": {
+  "tipo": "qwen3_5",
+  "pesos_gb": 9.3,
+  "capas": 32,
+  "atencion_lineal": true,
+  "mtp": 1,
+  "vision": true,
+  "modo": "repartir",
+  "extra": []
+ },
+ "entrenamiento": {
+  "modo": "repartir",
+  "adaptador_de": "/home/usuario/entrenamientos/tc-v5/mejor",
+  "lote": 8,
+  "lr": 0.0002,
+  "lora_r": 32,
+  "epocas": 2.0
+ },
+ "medidas": {
+  "bf16": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      259,
+      343
+     ],
+     "precision": [
+      225,
+      259
+     ],
+     "derivado": [
+      1005,
+      1080
+     ],
+     "acierto": [
+      1230,
+      1423
+     ],
+     "pregunta": [
+      0,
+      343
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     51,
+     75
+    ],
+    "precision": [
+     44,
+     51
+    ],
+    "derivado": [
+     28,
+     30
+    ],
+    "acierto": [
+     72,
+     105
+    ],
+    "pregunta": [
+     0,
+     75
+    ]
+   },
+   "prueba": {
+    "casos": 292,
+    "conteos": {
+     "formato": [
+      292,
+      292
+     ],
+     "herramienta": [
+      276,
+      292
+     ],
+     "args_exactos": [
+      204,
+      224
+     ],
+     "falta_dato": [
+      63,
+      68
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9452054794520548,
+    "args_exactos": 0.9107142857142857,
+    "falta_dato": 0.9264705882352942
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.43158329444060833,
+    "llamadas_en_charla": 0.0
+   }
+  },
+  "mlx-q4": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      99,
+      123
+     ],
+     "precision": [
+      83,
+      99
+     ],
+     "derivado": [
+      349,
+      377
+     ],
+     "acierto": [
+      432,
+      500
+     ],
+     "pregunta": [
+      0,
+      123
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     55,
+     75
+    ],
+    "precision": [
+     47,
+     55
+    ],
+    "derivado": [
+     27,
+     30
+    ],
+    "acierto": [
+     74,
+     105
+    ],
+    "pregunta": [
+     0,
+     75
+    ]
+   },
+   "prueba": {
+    "casos": 292,
+    "conteos": {
+     "formato": [
+      292,
+      292
+     ],
+     "herramienta": [
+      274,
+      292
+     ],
+     "args_exactos": [
+      204,
+      224
+     ],
+     "falta_dato": [
+      61,
+      68
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9383561643835616,
+    "args_exactos": 0.9107142857142857,
+    "falta_dato": 0.8970588235294118
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.5695576235995758,
+    "llamadas_en_charla": 0.0
+   }
+  },
+  "mlx-q4-fp16": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      99,
+      123
+     ],
+     "precision": [
+      83,
+      99
+     ],
+     "derivado": [
+      349,
+      377
+     ],
+     "acierto": [
+      432,
+      500
+     ],
+     "pregunta": [
+      0,
+      123
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     55,
+     75
+    ],
+    "precision": [
+     47,
+     55
+    ],
+    "derivado": [
+     27,
+     30
+    ],
+    "acierto": [
+     74,
+     105
+    ],
+    "pregunta": [
+     0,
+     75
+    ]
+   },
+   "prueba": {
+    "casos": 292,
+    "conteos": {
+     "formato": [
+      292,
+      292
+     ],
+     "herramienta": [
+      274,
+      292
+     ],
+     "args_exactos": [
+      204,
+      224
+     ],
+     "falta_dato": [
+      61,
+      68
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9383561643835616,
+    "args_exactos": 0.9107142857142857,
+    "falta_dato": 0.8970588235294118
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.5694641235930425,
+    "llamadas_en_charla": 0.0
+   }
+  }
+ },
+ "mtp": {
+  "pasos_mtp": 3,
+  "antes": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.0481287792122895,
+    "por_paso": [
+     0.8293021735577709,
+     0.8331460100132829,
+     0.8649270913277053
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.1969417347745848,
+    "por_paso": [
+     0.6566042710255734,
+     0.5538651315789473,
+     0.5414258188824663
+    ]
+   }
+  },
+  "despues": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.2274064389606143,
+    "por_paso": [
+     0.8607615623467887,
+     0.8779121203184901,
+     0.9074397485155431
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6378855786976008,
+    "por_paso": [
+     0.7574479303981018,
+     0.7101243339253996,
+     0.6883183568677792
+    ]
+   }
+  },
+  "pasos": 3170,
+  "paso_elegido": 3100,
+  "despues_q8": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.2265075992809282,
+    "por_paso": [
+     0.8604347115541755,
+     0.8780607729373586,
+     0.9070688249679748
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6366991827049828,
+    "por_paso": [
+     0.7574479303981018,
+     0.7095914742451155,
+     0.6873072970195272
+    ]
+   }
+  },
+  "despues_q4": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.2226671024677236,
+    "por_paso": [
+     0.860843275044942,
+     0.8756634558678985,
+     0.9054511497607097
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6351173213814922,
+    "por_paso": [
+     0.7571842868441867,
+     0.7084221748400853,
+     0.6883852691218131
+    ]
+   }
+  },
+  "aceptacion_antes": 0.8293021735577709,
+  "aceptacion_despues": 0.8607615623467887,
+  "texto_respuestas": 2260
+ },
+ "perfil": {
+  "nombre": "vivo5",
+  "categorias": [
+   "audio",
+   "escenas",
+   "fuentes",
+   "sala",
+   "oradores",
+   "imagenes",
+   "estado",
+   "salidas",
+   "graficos",
+   "laminas"
+  ],
+  "entradas": [
+   "pedidos"
+  ],
+  "herramientas": [
+   "aire_ftb",
+   "aire_placa",
+   "audio_escuchar",
+   "audio_measure",
+   "audio_set",
+   "audio_sincro",
+   "banca_al_aire",
+   "banca_cola",
+   "banca_terminar",
+   "banca_tiempo",
+   "bancas_listar",
+   "capture_multiview",
+   "capture_people",
+   "capture_person",
+   "capture_program",
+   "capture_source",
+   "chat_destacar",
+   "chat_history",
+   "chat_quitar_destacado",
+   "chat_recientes",
+   "chat_send",
+   "debate_estado",
+   "debate_iniciar",
+   "debate_terminar",
+   "debate_turno",
+   "dsk_listar",
+   "dsk_mostrar",
+   "evento_correr",
+   "grafico_en_escena",
+   "grafico_listar",
+   "grafico_mostrar",
+   "grafico_ocultar",
+   "guest_source_add",
+   "imagen_analizar",
+   "laminas_buscar",
+   "laminas_ir",
+   "laminas_listar",
+   "laminas_ver",
+   "media_use",
+   "mixer_list",
+   "orden_del_dia_punto",
+   "orden_del_dia_ver",
+   "pantalla_mostrar",
+   "pantalla_parar",
+   "participant_admit",
+   "participant_admit_all",
+   "participant_kick",
+   "participant_reject",
+   "participant_request",
+   "participant_requeue",
+   "participant_talk",
+   "pregunta_desde_chat",
+   "pregunta_moderar",
+   "preguntas_ver",
+   "presidencia_silenciar",
+   "prompter_cargar",
+   "prompter_control",
+   "prompter_estado",
+   "ptz_encuadre",
+   "ptz_ir_posicion",
+   "ptz_mover",
+   "ptz_parar",
+   "ptz_posicion_crear",
+   "ptz_posiciones",
+   "ptz_preset",
+   "ptz_rostros",
+   "ptz_seguir",
+   "quorum_estado",
+   "receta_correr",
+   "recinto_apuntar",
+   "record_start",
+   "record_stop",
+   "room_link",
+   "room_set",
+   "room_status",
+   "rostro_ver",
+   "rotulo_desvincular",
+   "rotulo_vincular",
+   "scene_list",
+   "scene_preview",
+   "scene_switch",
+   "scene_take",
+   "share_list",
+   "share_take",
+   "share_view",
+   "source_add",
+   "source_list",
+   "source_remove",
+   "source_update",
+   "speaker_move",
+   "speaker_next",
+   "speaker_on_air",
+   "speaker_presenter",
+   "speaker_queue",
+   "speaker_time",
+   "speakers_status",
+   "status",
+   "stream_start",
+   "stream_stop",
+   "transition_set",
+   "votacion_abrir",
+   "votacion_ver"
+  ],
+  "prompt": "cadeb3134241a8d4",
+  "etiquetas": null,
+  "formato": "tc"
+ },
+ "repos": [
+  "broadcast-reactivo-qwen3.5-4b-v5-mlx-q4",
+  "broadcast-reactivo-qwen3.5-4b-v5-GGUF"
+ ]
+}
