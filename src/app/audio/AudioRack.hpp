@@ -139,6 +139,11 @@ class AudioRack {
     /// Id del dispositivo de la salida ("" si no hay nodo de salida).
     std::string outputDevice() const;
     bool remove(const std::string& id, std::string* error);
+    /// Saca un nodo de la cadena sin quitarlo: lo que le entraba sigue entrándole,
+    /// pero lo que llegaba a través de él va directo a donde iba (él queda
+    /// escuchando al costado). Para los medidores de LSP: el Latency Meter y el
+    /// Profiler mandan pulsos y barridos por su salida, que no tienen que ir al aire.
+    bool enParalelo(const std::string& id);
     /// Conecta una salida con una entrada. Los canales van en -1 (puerto
     /// entero), 0 (izquierdo) o 1 (derecho).
     bool connect(const std::string& from, const std::string& fromPort, const std::string& to,

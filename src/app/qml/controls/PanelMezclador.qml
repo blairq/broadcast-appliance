@@ -92,11 +92,12 @@ Item {
         property string entrada: ""
         anchors.centerIn: parent
         modal: true
+        width: 460   // ancho fijo: con el implícito del Label, el diálogo entraba en un ciclo
         title: "El Profiler de LSP hace sonar un barrido"
         Label {
-            width: 420
+            width: confirmarPerfil.availableWidth
             wrapMode: Text.WordWrap
-            text: "Abre el Profiler sobre «" + confirmarPerfil.entrada + "». Al medir, emite un barrido de 20 Hz a 20 kHz por donde salga esa entrada (puede sonar fuerte). Nada sale hasta que aprietes «Medir» en su interfaz."
+            text: "Abre el Profiler sobre «" + confirmarPerfil.entrada + "», escuchando al costado: lo que él emite no va al aire. Para medir, en el rack de la entrada conectá su salida a una tarjeta Salida (el parlante); el barrido de 20 Hz a 20 kHz puede sonar fuerte. Nada sale hasta que aprietes «Medir» en su interfaz."
         }
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: { const e = m.mz.abrirAnalisisLsp(entrada, "perfil"); if (e !== "") Studio.notify(e, "error") }

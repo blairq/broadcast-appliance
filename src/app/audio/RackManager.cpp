@@ -1217,6 +1217,9 @@ std::string RackManager::abrirAnalisisLsp(const std::string& source, const std::
     if (nodo.empty()) {
         nodo = r->addPlugin(a->plugin, a->nombre, "", &e, a->id);
         if (nodo.empty()) return e.empty() ? std::string("no se pudo agregar ") + a->nombre : e;
+        // Mide al costado: lo que sale de él (los pulsos del Latency Meter, el barrido
+        // del Profiler) no va al aire.
+        r->enParalelo(nodo);
         markDirty();
         emit changed();
     }

@@ -186,6 +186,23 @@ int main() {
     CHECK(after > 0.4f, "sigue pasando audio sin el compresor");
     CHECK(!rack.remove("in", &err), "la entrada no se quita");
 
+    // Un medidor al costado (como los pone el Mezclador): le sigue entrando el audio,
+    // pero lo que él saca (los pulsos del Latency Meter) no llega a la salida.
+    {
+        const std::string lat = rack.addPlugin("in.lsp-plug.latency_meter", "Latency Meter", "", &err);
+        CHECK(!lat.empty() && rack.enParalelo(lat), "el medidor queda al costado");
+        bool entra = false, sale = false, directo = false;
+        const json desc = rack.describe(); // en una variable: el temporal no vive durante el for
+        for (const auto& c : desc["cables"]) {
+            if (c.value("hacia", "") == lat) entra = true;
+            if (c.value("desde", "") == lat) sale = true;
+            if (c.value("desde", "") == eq && c.value("hacia", "") == "out") directo = true;
+        }
+        CHECK(entra && !sale && directo, "le entra el audio, no sale nada de él, el EQ vuelve a ir a la salida");
+        CHECK(feed(rack, 0.5f, 1) > 0.4f, "el audio sigue pasando");
+        CHECK(rack.remove(lat, &err), "se quita");
+    }
+
     // 5. Salida de audio del equipo: sumidero aparte. Sin cable no junta nada;
     //    conectado a la entrada copia lo que entra y NO cambia lo que sale al aire.
     CHECK(rack.addOutput("dev-1", "Auriculares") == "salida-audio" && rack.hasOutput(),
