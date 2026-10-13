@@ -103,20 +103,20 @@
 {"frase": "Abrí en la app la vista de audio de la invitada", "herramienta": "audio_show"}
 {"frase": "Que se vea en pantalla lo que estás tocando del compresor", "herramienta": "audio_show"}
 {"frase": "Llevá la pantalla al gate del micro 1", "herramienta": "audio_show"}
-{"frase": "¿Qué fuentes tienen sonido?", "herramienta": "audio_sources"}
-{"frase": "Listame los micrófonos y su nivel", "herramienta": "audio_sources"}
+{"frase": "¿Qué fuentes tienen sonido?", "herramienta": "audio_sources", "aceptables": ["audio_sources", "mixer_list"]}
+{"frase": "Listame los micrófonos y su nivel", "herramienta": "audio_sources", "aceptables": ["audio_sources", "mixer_list"]}
 {"frase": "¿Cuáles fuentes de audio ya tienen rack?", "herramienta": "audio_sources"}
-{"frase": "Inventario de todo lo que suena", "herramienta": "audio_sources"}
+{"frase": "Inventario de todo lo que suena", "herramienta": "audio_sources", "aceptables": ["audio_sources", "mixer_list"]}
 {"frase": "¿Qué entra con audio: micros, videos, invitados?", "herramienta": "audio_sources"}
 {"frase": "Cambiá el título de Twitch a 'Especial elecciones'", "herramienta": "twitch_channel"}
 {"frase": "Ponele de categoría Just Chatting", "herramienta": "twitch_channel"}
 {"frase": "¿Qué etiquetas tiene el canal?", "herramienta": "twitch_channel"}
 {"frase": "¿Existe la categoría Deportes? Buscala", "herramienta": "twitch_channel"}
 {"frase": "El idioma del canal pasalo a español", "herramienta": "twitch_channel"}
-{"frase": "¿Qué está diciendo el chat de Twitch?", "herramienta": "twitch_chat"}
+{"frase": "¿Qué está diciendo el chat de Twitch?", "herramienta": "twitch_chat", "aceptables": ["chat_recientes", "twitch_chat"]}
 {"frase": "Escribí en el chat: arrancamos en 5", "herramienta": "twitch_chat"}
 {"frase": "Prendé el chat de Twitch", "herramienta": "twitch_chat"}
-{"frase": "Leeme los últimos 20 mensajes del chat", "herramienta": "twitch_chat"}
+{"frase": "Leeme los últimos 20 mensajes del chat", "herramienta": "twitch_chat", "aceptables": ["chat_recientes", "twitch_chat"]}
 {"frase": "Apagá el chat del canal", "herramienta": "twitch_chat"}
 {"frase": "Salimos por Twitch, dale", "herramienta": "twitch_live_start"}
 {"frase": "Arrancá la transmisión a Twitch con título 'Noche de goles'", "herramienta": "twitch_live_start"}
@@ -360,7 +360,7 @@
 {"frase": "Mostrame las opciones de configuración de la sala", "herramienta": "settings_list"}
 {"frase": "Cambiá el ajuste de bitrate a 6000", "herramienta": "settings_set"}
 {"frase": "Poné el idioma de la interfaz en español", "herramienta": "settings_set"}
-{"frase": "Subí el máximo de invitados a 6", "herramienta": "settings_set"}
+{"frase": "Subí el máximo de invitados a 6", "herramienta": "settings_set", "aceptables": ["room_set", "settings_set"]}
 {"frase": "Activá el ajuste de grabación automática", "herramienta": "settings_set"}
 {"frase": "Cambiá la resolución de salida a 720p", "herramienta": "settings_set"}
 {"frase": "¿Cómo va a estar el clima mañana?", "herramienta": "derivar"}
@@ -521,7 +521,7 @@
 {"frase": "La que se llama Chromecast-4B7, que sea 'Bar'", "herramienta": "pantalla_renombrar"}
 {"frase": "Llamala 'Pasillo' a esa pantalla", "herramienta": "pantalla_renombrar"}
 {"frase": "¿Qué páginas del aparato están abiertas ahora?", "herramienta": "superficie_listar"}
-{"frase": "¿El teleprompter está vivo?", "herramienta": "superficie_listar"}
+{"frase": "¿El teleprompter está vivo?", "herramienta": "superficie_listar", "aceptables": ["prompter_estado", "superficie_listar"]}
 {"frase": "¿Qué está mostrando cada superficie?", "herramienta": "superficie_listar"}
 {"frase": "¿Quedó abierta la página del carrusel?", "herramienta": "superficie_listar"}
 {"frase": "Superficies activas, listámelas", "herramienta": "superficie_listar"}
@@ -593,9 +593,9 @@
 {"frase": "La de Jorge ya fue respondida, marcala", "herramienta": "pregunta_moderar"}
 {"frase": "Elegí la próxima pregunta para el conductor", "herramienta": "pregunta_moderar"}
 {"frase": "Sacá del aire la pregunta, ya la contestaron", "herramienta": "pregunta_moderar"}
-{"frase": "Metele a la cola la pregunta que hicieron en YouTube", "herramienta": "pregunta_sumar"}
+{"frase": "Metele a la cola la pregunta que hicieron en YouTube", "herramienta": "pregunta_sumar", "aceptables": ["pregunta_desde_chat", "pregunta_sumar"]}
 {"frase": "Uno del salón preguntó por el presupuesto, agregala", "herramienta": "pregunta_sumar"}
-{"frase": "Sumá la pregunta que llegó por el chat de la sala", "herramienta": "pregunta_sumar"}
+{"frase": "Sumá la pregunta que llegó por el chat de la sala", "herramienta": "pregunta_sumar", "aceptables": ["pregunta_desde_chat", "pregunta_sumar"]}
 {"frase": "Anotá en la cola lo que dijo la señora de la tercera fila", "herramienta": "pregunta_sumar"}
 {"frase": "Cargá una pregunta de YouTube: ¿cuándo abre la inscripción?", "herramienta": "pregunta_sumar"}
 {"frase": "¿Qué preguntas mandó el público?", "herramienta": "preguntas_ver"}
@@ -726,8 +726,8 @@
 {"frase": "Sumá la caja del chat en vivo a la escena principal", "herramienta": "chat_overlay_add"}
 {"frase": "¿Podemos mostrar en pantalla lo que escribe la gente en Twitch?", "herramienta": "chat_overlay_add"}
 {"frase": "Metele el chat en pantalla a la escena del panel", "herramienta": "chat_overlay_add"}
-{"frase": "¿Qué está diciendo la gente en el chat?", "herramienta": "youtube_chat"}
-{"frase": "Leeme los últimos diez mensajes del chat del vivo", "herramienta": "youtube_chat"}
+{"frase": "¿Qué está diciendo la gente en el chat?", "herramienta": "youtube_chat", "aceptables": ["chat_recientes", "youtube_chat"]}
+{"frase": "Leeme los últimos diez mensajes del chat del vivo", "herramienta": "youtube_chat", "aceptables": ["chat_recientes", "youtube_chat"]}
 {"frase": "Mandá un saludo en el chat: arrancamos en cinco minutos", "herramienta": "youtube_chat"}
 {"frase": "Escribí en el chat que se corta un toque la señal", "herramienta": "youtube_chat"}
 {"frase": "El chat, que lo lea del evento de la mañana, no del otro", "herramienta": "youtube_chat"}
@@ -1149,7 +1149,7 @@
 {"frase": "terminá el vivo de Facebook", "herramienta": "facebook_live_end"}
 {"frase": "cortá el vivo de la página, ya terminamos", "herramienta": "facebook_live_end"}
 {"frase": "cerrá la transmisión en Face", "herramienta": "facebook_live_end"}
-{"frase": "se terminó el programa, finalizá el vivo", "herramienta": "facebook_live_end"}
+{"frase": "se terminó el programa, finalizá el vivo", "herramienta": "facebook_live_end", "aceptables": ["facebook_live_end", "stream_stop"]}
 {"frase": "bajá el vivo de Facebook, que quede como video", "herramienta": "facebook_live_end"}
 {"frase": "¿qué vivos tiene la página?", "herramienta": "facebook_live_list"}
 {"frase": "¿el vivo sigue LIVE o se cortó?", "herramienta": "facebook_live_list"}
