@@ -77,8 +77,17 @@ Item {
                 active: !tarjeta.cx.activo
                 onClicked: {
                     if (tarjeta.cx.activo) {
-                        const e = tarjeta.acceso.desconectar()
-                        Studio.notify(e !== "" ? e : "La sala vuelve a ser solo de la red local (se reinicia)", e !== "" ? "error" : "info")
+                        // Desconectar saca a todos los que entraron de afuera: se confirma y
+                        // el botón tarda 3 s en habilitarse (no se aprieta de apuro).
+                        ApplicationWindow.window.confirm({
+                            title: "¿Desconectar la sala de internet?",
+                            text: "Los invitados y los integrantes que entraron desde afuera se cortan, y nadie de afuera puede volver a entrar hasta que la conectes de nuevo. La sala se reinicia (los de la red local se reconectan solos).",
+                            accept: "Desconectar", reject: "Cancelar", espera: 3,
+                            action: function() {
+                                const e = tarjeta.acceso.desconectar()
+                                Studio.notify(e !== "" ? e : "La sala vuelve a ser solo de la red local (se reinicia)", e !== "" ? "error" : "info")
+                            }
+                        })
                     } else {
                         vpnMenu.popup(vpnBtn, 0, vpnBtn.height)
                     }
