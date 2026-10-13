@@ -569,6 +569,7 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
         motor_->quitarEntrada(nombre);
     fuentes::baja(nombre);
     sources_.erase(it);
+    if (pfl_ == nombre) pfl_.clear();
     ordenFuentes_.erase(std::remove(ordenFuentes_.begin(), ordenFuentes_.end(), nombre), ordenFuentes_.end());
 }
 
@@ -738,6 +739,7 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     }
     sources_.erase(it);
     sources_[to] = f;
+    if (pfl_ == from) pfl_ = to;
     fuentes::baja(from);
     if (esDeApp(f.spec.id)) fuentes::alta(to, f.spec.id, json::parse(f.spec.settingsJson, nullptr, false));
     std::replace(ordenFuentes_.begin(), ordenFuentes_.end(), from, to);
@@ -993,17 +995,48 @@ float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
 bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
-    // Las marcadas suenan juntas en los auriculares (la interfaz hace el PFL
-    // exclusivo apagando las demás).
+    // La escucha fija: las marcadas suenan juntas. Si además está en PFL, sigue sonando.
+    const bool cambia = it->second.monitor != on;
     it->second.monitor = on;
-    const std::string e = motor_->ponerEscucha(name, on);
+    const std::string e = motor_->ponerEscucha(name, on || pfl_ == name);
     if (!e.empty()) setError(e);
+    if (cambia && cambioRuteo_) cambioRuteo_(name);
     return e.empty();
 }
 
 bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
     auto it = sources_.find(name);
+    return it != sources_.end() && (it->second.monitor || pfl_ == name);
+}
+
+bool BroadcastEngine::sourceEscuchaFija(const std::string& name) const {
+    auto it = sources_.find(name);
     return it != sources_.end() && it->second.monitor;
+}
+
+bool BroadcastEngine::setPfl(const std::string& name) {
+    if (name == pfl_) return true;
+    if (!name.empty() && sources_.count(name) == 0) return false;
+    const std::string antes = pfl_;
+    pfl_ = name;
+    // El que estaba en PFL vuelve a lo que diga su escucha fija; el nuevo suena.
+    if (auto it = sources_.find(antes); it != sources_.end()) {
+        const std::string e = motor_->ponerEscucha(antes, it->second.monitor);
+        if (!e.empty()) setError(e);
+    }
+    bool ok = true;
+    if (!name.empty()) {
+        const std::string e = motor_->ponerEscucha(name, true);
+        if (!e.empty()) {
+            setError(e);
+            ok = false;
+        }
+    }
+    if (cambioRuteo_) {
+        if (!antes.empty()) cambioRuteo_(antes);
+        if (!name.empty()) cambioRuteo_(name);
+    }
+    return ok;
 }
 
 bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
@@ -1032,7 +1065,9 @@ bool BroadcastEngine::setSourcePistas(const std::string& name, const std::vector
         setError(e);
         return false;
     }
+    const bool cambia = it->second.pistas != pistas;
     it->second.pistas = pistas;
+    if (cambia && cambioRuteo_) cambioRuteo_(name);
     return true;
 }
 
@@ -1189,6 +1224,8 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
         if (f.pistas != std::vector<int>{1}) setSourcePistas(n, f.pistas);
         if (f.monitor) setSourceMonitoring(n, true);
     }
+    // El PFL que estaba sonando sigue sonando en el motor nuevo.
+    if (!pfl_.empty() && sources_.count(pfl_) > 0) motor_->ponerEscucha(pfl_, true);
     micInputs_ = mics;
     scenes_ = escenas;
     for (const auto& e : scenes_) publicarEscena(e);

@@ -176,7 +176,7 @@ QVariantMap Mezclador::tira(const QString& nombre) const {
     return {{"nombre", nombre},
             {"volumenDb", v > 1e-5f ? 20.0 * std::log10(v) : -100.0},
             {"mute", eng.sourceMuted(n)},
-            {"pfl", eng.sourceMonitoring(n)},
+            {"pfl", eng.pfl() == n},
             // El retardo respecto de su video (sincro labios, audio_sincro): positivo atrasa.
             {"retardoMs", eng.sourceSyncOffset(n)},
             {"envios", matriz_ != nullptr ? matriz_->enviosDe(nombre) : QStringList{}}};

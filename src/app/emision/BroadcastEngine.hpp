@@ -420,10 +420,20 @@ class BroadcastEngine {
     /// El pico de lo que ENTREGA la entrada (después de sus filtros y su rack, antes de su
     /// volumen), vaya o no a alguna salida: el vúmetro de su fila en la matriz.
     float sourceOutputPeakDb(const std::string& name) const;
-    /// Escuchar una fuente en los auriculares, sin cambiar lo que sale. Las
-    /// marcadas suenan juntas (el PFL exclusivo lo hace quien llama).
+    /// Los auriculares del operador tienen dos cosas distintas:
+    /// - la ESCUCHA FIJA: lo que la matriz manda ahí a propósito (la voz del
+    ///   asistente, la del teleprompter). Varias juntas; se guarda (audio-matriz.json).
+    /// - el PFL: escuchar UN canal un rato. Uno solo a la vez; se SUMA a la escucha
+    ///   fija sin tocarla (apagarlo saca solo lo que sumó) y no se guarda.
+    /// Lo que suena es la unión de las dos (sourceMonitoring).
     bool setSourceMonitoring(const std::string& name, bool on);
+    /// Si suena en los auriculares (escucha fija o PFL).
     bool sourceMonitoring(const std::string& name) const;
+    /// Solo la escucha fija (lo que muestra y guarda la matriz).
+    bool sourceEscuchaFija(const std::string& name) const;
+    /// El PFL: "" lo apaga. Falla si la fuente no existe.
+    bool setPfl(const std::string& name);
+    std::string pfl() const { return pfl_; }
     /// Atrasa (ms > 0) o adelanta la fuente para que su audio coincida con su video.
     bool setSourceSyncOffset(const std::string& name, int ms);
     int sourceSyncOffset(const std::string& name) const;
@@ -501,6 +511,11 @@ class BroadcastEngine {
     /// tardar van en cola y vuelven enseguida (la interfaz no espera), así que
     /// su error llega por acá, desde el hilo del motor.
     void alFallarMotor(std::function<void(const std::string&)> fn);
+    /// Avisa cuando cambia a dónde va el audio de una fuente: su escucha (PFL) o sus
+    /// pistas. Lo pida quien lo pida (la matriz, el PFL, el asistente, una escena que
+    /// se carga, volver como estaba): quien muestra el ruteo se entera siempre. Se
+    /// llama en el hilo que hizo el cambio.
+    void alCambiarRuteo(std::function<void(const std::string& fuente)> fn);
     bool escenaACanal(int k, const std::string& escena);
     std::string escenaDeCanal(int k) const;
     /// Los que no son Pantallas (las vistas de la sesión remota) toman un canal con
@@ -838,6 +853,8 @@ class BroadcastEngine {
     std::atomic<int> capturasEnCurso_{0};
     std::mutex falloMotorM_;
     std::function<void(const std::string&)> falloMotor_;
+    std::function<void(const std::string&)> cambioRuteo_; ///< alCambiarRuteo (se fija una vez, al armar)
+    std::string pfl_; ///< el canal en PFL ("" = ninguno); no se guarda
     void enviarEscena(int k, const motor::Cuadro& c);
 
     mutable nlohmann::json estadoCache_ = nlohmann::json::object(); ///< objeto vacío hasta la primera foto: arrancando, `value()` sobre un null tiraba excepción (caída del 2026-10-11)

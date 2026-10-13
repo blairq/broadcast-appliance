@@ -1479,6 +1479,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     marca("matriz");
+    // El ruteo (escucha, pistas) es del motor: cuando cambia, por el camino que sea,
+    // la matriz avisa a sus vistas y el PFL de la tarjeta y del Mezclador se entera.
+    rt.engine().alCambiarRuteo([m = matriz_.get()](const std::string&) { m->avisarRuteo(); });
+    connect(matriz_.get(), &audio::Matriz::cambio, this, &StudioViewModel::pflChanged);
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
     mezclador_ = std::make_unique<audio::Mezclador>(rt, matriz_.get());
     mezclador_->setRacks(racks_.get());
@@ -1542,6 +1546,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
 StudioViewModel::~StudioViewModel() {
     rt_.engine().alFallarMotor(nullptr);
+    rt_.engine().alCambiarRuteo(nullptr); // la matriz se va con la vista; el motor sigue
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.
@@ -3325,22 +3330,12 @@ void StudioViewModel::setBalistica(const QString& b) {
     emit balisticaChanged();
 }
 
-QString StudioViewModel::pfl() const {
-    for (const std::string& f : rt_.engine().audioSources())
-        if (rt_.engine().sourceMonitoring(f)) return qs(f);
-    return {};
-}
+QString StudioViewModel::pfl() const { return qs(rt_.engine().pfl()); }
 
 QString StudioViewModel::pflUi(const QString& fuente) {
-    const std::string pedida = fuente.toStdString();
-    const bool apagar = pfl() == fuente; // tocar la que suena la apaga
-    // Exclusivo, como el solo de una mesa (lo mismo que audio_escuchar).
-    for (const std::string& f : rt_.engine().audioSources())
-        if (rt_.engine().sourceMonitoring(f) && (apagar || f != pedida)) rt_.engine().setSourceMonitoring(f, false);
-    if (!apagar && !pedida.empty() && !rt_.engine().setSourceMonitoring(pedida, true))
-        return "No existe la fuente de audio «" + fuente + "».";
-    emit pflChanged();
-    return {};
+    // Tocar la que está en PFL la apaga. Uno solo a la vez y sin tocar la escucha fija
+    // (Matriz::ponerPfl); el aviso llega por el motor (pflChanged).
+    return matriz_->ponerPfl(pfl() == fuente ? QString() : fuente);
 }
 
 int StudioViewModel::retardoUi(const QString& fuente) const { return rt_.engine().sourceSyncOffset(fuente.toStdString()); }

@@ -60,9 +60,19 @@ void ponerMascara(const std::string& f, std::uint32_t m) {
         if ((m & (1u << i)) != 0) v.push_back(i + 1);
     e->setSourcePistas(f, v);
 }
+/// La escucha FIJA (el cruce de la matriz, lo que se guarda); el PFL va aparte.
 bool escucha(const std::string& f) {
     BroadcastEngine* e = motor();
+    return e != nullptr && e->sourceEscuchaFija(f);
+}
+/// Lo que suena en los auriculares: la escucha fija o el PFL.
+bool suenaEnEscucha(const std::string& f) {
+    BroadcastEngine* e = motor();
     return e != nullptr && e->sourceMonitoring(f);
+}
+std::string enPfl() {
+    BroadcastEngine* e = motor();
+    return e != nullptr ? e->pfl() : std::string();
 }
 void setEscucha(const std::string& f, bool on) {
     if (BroadcastEngine* e = motor()) e->setSourceMonitoring(f, on);
@@ -266,7 +276,8 @@ QVariantMap Matriz::cruces() const {
     for (const auto& f : filas_) {
         const std::uint32_t mx = mascara(f);
         const bool oye = escucha(f);
-        if (oye) out[QString::fromStdString(f) + "|escucha"] = QVariantMap{{"activo", true}};
+        const bool pfl = enPfl() == f;
+        if (oye || pfl) out[QString::fromStdString(f) + "|escucha"] = QVariantMap{{"activo", oye}, {"pfl", pfl}};
         for (int i = 0; i < kPistas; ++i)
             if ((mx & (1u << i)) != 0)
                 out[QString::fromStdString(f) + QString("|pista%1").arg(i + 1)] =
@@ -339,6 +350,29 @@ bool Matriz::haceLazo(const std::string& fuente, const std::string& bus) const {
             if (k.first == bb->nombre) pila.push_back(k.second);
     }
     return false;
+}
+
+QString Matriz::ponerPfl(const QString& fuenteQ) {
+    BroadcastEngine* e = motor();
+    if (e == nullptr) return "el motor no está listo";
+    const std::string pedida = fuenteQ.toStdString();
+    if (!pedida.empty() && !e->sourceExists(pedida)) return "No existe la fuente de audio «" + fuenteQ + "».";
+    if (!e->setPfl(pedida)) return QString::fromStdString(e->lastError());
+    // Una entrada de placa en PFL tiene que estar abierta (y la que salió, quizás no).
+    // El cambio() lo trae el aviso del motor (avisarRuteo). No se guarda: el PFL es de un rato.
+    usarEquipo();
+    return {};
+}
+
+void Matriz::avisarRuteo() {
+    if (avisoRuteo_.exchange(true)) return;
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            avisoRuteo_ = false;
+            emit cambio();
+        },
+        Qt::QueuedConnection);
 }
 
 QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activo) {
@@ -624,7 +658,7 @@ void Matriz::usarEquipo() {
     const std::set<std::string> otros = usadasPorOtros_ ? usadasPorOtros_() : std::set<std::string>{};
     for (const auto& f : filas_) {
         if (!equipo_->esEntradaFisica(f)) continue;
-        bool usa = mascara(f) != 0 || escucha(f);
+        bool usa = mascara(f) != 0 || suenaEnEscucha(f);
         for (const auto& [k, e] : envios_)
             if (k.first == f) usa = true;
         if (otros.contains(f)) usa = true;
@@ -829,7 +863,7 @@ Matriz::json Matriz::estado() const {
         const std::uint32_t mx = mascara(f);
         for (int i = 0; i < kPistas; ++i)
             if ((mx & (1u << i)) != 0) pis.push_back("pista" + std::to_string(i + 1));
-        filas.push_back({{"fuente", f}, {"pistas", pis}, {"escucha", oye}});
+        filas.push_back({{"fuente", f}, {"pistas", pis}, {"escucha", oye}, {"pfl", enPfl() == f}});
     }
     return {{"pistas", pistas},
             {"escucha", {{"id", "escucha"}, {"dispositivo", nombreEscucha().toStdString()}}},

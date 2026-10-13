@@ -407,6 +407,16 @@ Item {
                                             color: "#0b0b0d"; font { pixelSize: 9; weight: Font.Bold; family: Theme.mono }
                                         }
                                     }
+                                    // PFL (escuchar un canal un rato, se suma a la escucha fija): aro
+                                    // amarillo como el botón PFL; la tecla sigue siendo la escucha fija.
+                                    Rectangle {
+                                        visible: !!x0.c.pfl
+                                        anchors.centerIn: parent
+                                        width: (mx.compacta ? 22 : 26) + 6; height: width; radius: width / 2
+                                        color: "transparent"
+                                        border.width: 2
+                                        border.color: Qt.rgba(1, 0.8, 0.1, 0.95)
+                                    }
                                     MouseArea {
                                         id: ma
                                         anchors.fill: parent
@@ -429,6 +439,7 @@ Item {
                                         ToolTip.visible: containsMouse
                                         ToolTip.delay: 450
                                         ToolTip.text: x0.f + " → " + x0.modelData.nombre +
+                                            (x0.c.pfl ? "\nen PFL (se suma mientras esté prendido; el clic cambia la escucha fija)" : "") +
                                             (x0.modelData.tipo === "pista" ? "" : "\nclic derecho: nivel, pan y mute")
                                     }
                                 }

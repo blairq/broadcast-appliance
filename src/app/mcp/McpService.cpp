@@ -57,6 +57,7 @@
 #include "emision/InputSpecs.hpp"
 #include "emision/RetornosInvitados.hpp"
 #include "emision/SeguridadAire.hpp"
+#include "audio/Matriz.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "mcp/McpBotoneraTools.hpp"
 #include "mcp/McpEventoTools.hpp"
@@ -2007,6 +2008,7 @@ void McpService::registerTools() {
                                    // invisible: queda una fuente sonando en
                                    // los auriculares y nadie sabe cual.
                                    {"escuchando", rt.engine().sourceMonitoring(n)},
+                                   {"pfl", rt.engine().pfl() == n},
                                    {"peakDb", rt.engine().sourcePeakDb(n)}});
             }
             done(ToolResult().data(
@@ -2056,8 +2058,9 @@ void McpService::registerTools() {
         t.details =
             "Es el PFL de una consola: antes de abrir un microfono se lo escucha para ver si esta ahi, "
             "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
-            "Es EXCLUSIVO, como el solo de una mesa: escuchar una apaga la anterior. Sin argumentos "
-            "apaga la que este sonando.\n\n"
+            "Hay UN PFL a la vez: escuchar una reemplaza a la anterior. Sin argumentos se apaga. "
+            "Se SUMA a la escucha fija (lo que la matriz manda a los auriculares a propósito, como la "
+            "voz del asistente): esa no se toca y sigue sonando. El PFL no se guarda.\n\n"
             "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —el silencio es "
             "antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
             "y bajarle el volumen, no silenciarlo.\n\n"
@@ -2070,30 +2073,25 @@ void McpService::registerTools() {
               {"escuchar",
                {{"type", "boolean"}, {"description", "false para apagar esta (por defecto true)"}}}}}};
         t.examples = {R"({"name": "Microfono del atril"})", R"({})"};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [&rt, &vm](const json& a, Done done) {
             const std::string n = a.value("name", std::string());
             const bool on = a.value("escuchar", true) && !n.empty();
-            // Exclusivo: se apagan todas y se prende la pedida. Asi «escuchar»
-            // siempre quiere decir lo mismo, y nunca quedan dos sonando juntas
-            // sin que nadie se acuerde de la primera.
-            std::vector<std::string> apagadas;
-            for (const std::string& f : rt.engine().audioSources()) {
-                if (f == n && on) continue;
-                if (rt.engine().sourceMonitoring(f)) {
-                    rt.engine().setSourceMonitoring(f, false);
-                    apagadas.push_back(f);
-                }
-            }
+            auto* matriz = qobject_cast<audio::Matriz*>(vm.matriz());
+            if (matriz == nullptr) return done(ToolResult::error("La matriz de audio no está disponible."));
+            // El PFL es uno solo y no toca la escucha fija: la regla es de la Matriz (la
+            // misma del botón PFL de la interfaz); acá solo se arma la respuesta.
+            const std::string antes = rt.engine().pfl();
             if (!on) {
-                return done(ToolResult::ok(apagadas.empty()
-                                               ? "No se estaba escuchando ninguna."
-                                               : "Dejo de escucharse: " + apagadas.front() + "."));
+                if (const QString e = matriz->ponerPfl({}); !e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                return done(ToolResult::ok(antes.empty() ? "No había ninguna en PFL." : "Dejo de escucharse: " + antes + "."));
             }
-            if (!rt.engine().setSourceMonitoring(n, true))
+            if (!rt.engine().sourceExists(n))
                 return done(
                     ToolResult::error("No existe la fuente de audio '" + n + "' (audio_sources las lista)."));
+            if (const QString e = matriz->ponerPfl(QString::fromStdString(n)); !e.isEmpty())
+                return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok("Escuchando «" + n + "» por el monitor. Lo que sale al aire no cambio." +
-                                (apagadas.empty() ? "" : " (se dejo de escuchar " + apagadas.front() + ")")));
+                                (antes.empty() || antes == n ? "" : " (se dejo de escuchar " + antes + ")")));
         };
         core_.addTool(std::move(t));
     }

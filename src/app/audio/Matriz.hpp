@@ -114,6 +114,15 @@ class Matriz : public QObject {
     /// Prender o apagar un cruce. Devuelve el error o "".
     Q_INVOKABLE QString alternar(const QString& fuente, const QString& bus);
     Q_INVOKABLE QString setCruce(const QString& fuente, const QString& bus, bool activo);
+    /// PFL: sumar UN canal a los auriculares un rato ("" lo apaga). Reemplaza al PFL
+    /// anterior, pero NO toca la escucha fija (el cruce Escucha: la voz del asistente
+    /// sigue sonando). Lo usan el Mezclador, la tarjeta y audio_escuchar; el aviso
+    /// llega por el motor y la matriz, las tiras y el PFL lo ven.
+    Q_INVOKABLE QString ponerPfl(const QString& fuente);
+    /// El motor cambió el ruteo de una fuente (escucha o pistas: BroadcastEngine::
+    /// alCambiarRuteo), lo haya pedido quien sea. Desde cualquier hilo; varios
+    /// seguidos dan un solo cambio(), en el hilo de la matriz.
+    void avisarRuteo();
     /// Mostrar (o no) nivel, pan y mute de un cruce de bus virtual.
     Q_INVOKABLE void setAjustes(const QString& fuente, const QString& bus, bool on);
     Q_INVOKABLE void ajustar(const QString& fuente, const QString& bus, double nivelDb, double pan,
@@ -190,6 +199,7 @@ class Matriz : public QObject {
 
     // Medidores
     bool activa_ = false;
+    std::atomic<bool> avisoRuteo_{false}; ///< avisarRuteo: ya hay un cambio() en camino
     QTimer timer_;
     QVariantMap medidores_;
 };
