@@ -10,6 +10,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
+#include <algorithm>
 #include <fstream>
 
 namespace ba::app {
@@ -229,6 +230,76 @@ std::string Configuraciones::nuevoEvento(const std::string& nombre, const std::s
                                               {"evento", ruta}});
     emit cambio();
     return {};
+}
+
+json Configuraciones::separarEventos(const fs::path& datos) {
+    json hecho = json::array();
+    json marcas = leerJson(datos / "migraciones.json");
+    if (marcas.value("un-evento-por-carpeta", false)) return hecho;
+    std::error_code ec;
+    const fs::path raiz = datos / "Configuraciones";
+    const fs::path respaldo = datos / "Respaldos" / ("eventos-antes-de-separar-" + std::to_string(QDateTime::currentSecsSinceEpoch()));
+    std::vector<fs::path> carpetas;
+    for (const auto& e : fs::directory_iterator(raiz, ec))
+        if (e.is_directory() && !aU8(e.path().filename()).empty() && aU8(e.path().filename())[0] != '.')
+            carpetas.push_back(e.path());
+    for (const fs::path& c : carpetas) {
+        evento::EventoStore st(c / "Eventos");
+        const std::string enCurso = st.enCurso();
+        // Los eventos «propios» (no las jornadas que se crean solas).
+        std::vector<evento::Ficha> propios;
+        for (const auto& f : st.listar())
+            if (!st.datos(f.carpeta).automatico) propios.push_back(f);
+        if (propios.size() <= 1) continue;
+        // Se queda el en curso; si el en curso es una jornada (o ninguno), el último tocado.
+        std::string queda = enCurso;
+        if (std::none_of(propios.begin(), propios.end(), [&](const evento::Ficha& f) { return f.carpeta == queda; }))
+            queda = st.ultimoTocado();
+        if (std::none_of(propios.begin(), propios.end(), [&](const evento::Ficha& f) { return f.carpeta == queda; }))
+            queda = propios.front().carpeta;
+        fs::create_directories(respaldo / c.filename(), ec);
+        fs::copy(c / "Eventos", respaldo / c.filename() / "Eventos", fs::copy_options::recursive, ec);
+        for (const auto& f : propios) {
+            if (f.carpeta == queda) continue;
+            // El nombre de la carpeta nueva: el del evento (válido y sin pisar otra).
+            std::string base = f.nombre.empty() ? aU8(fs::path(deU8(f.carpeta)).filename()) : f.nombre;
+            for (char& ch : base)
+                if (std::string("/\\:*?\"<>|").find(ch) != std::string::npos) ch = '-';
+            while (!base.empty() && base[0] == '.') base.erase(0, 1);
+            if (base.size() > 50) base.resize(50);
+            if (base.empty()) base = "Evento";
+            std::string nombre = base;
+            for (int i = 2; fs::exists(raiz / deU8(nombre), ec); ++i) nombre = base + " (" + std::to_string(i) + ")";
+            const fs::path dst = raiz / deU8(nombre);
+            if (const std::string e = copiar(c, dst, false, true); !e.empty()) {
+                fs::remove_all(dst, ec);
+                hecho.push_back({{"evento", f.nombre}, {"de", aU8(c.filename())}, {"error", e}});
+                continue;
+            }
+            const fs::path hoja = fs::path(deU8(f.carpeta)).filename();
+            fs::create_directories(dst / "Eventos", ec);
+            fs::rename(c / "Eventos" / deU8(f.carpeta), dst / "Eventos" / hoja, ec);
+            if (ec) { // otro disco: copiar y borrar
+                ec.clear();
+                fs::copy(c / "Eventos" / deU8(f.carpeta), dst / "Eventos" / hoja, fs::copy_options::recursive, ec);
+                if (!ec) fs::remove_all(c / "Eventos" / deU8(f.carpeta), ec);
+            }
+            // Las fotos de Config/ de sus capítulos (por contenido).
+            fs::copy(c / "Eventos" / ".objetos", dst / "Eventos" / ".objetos",
+                     fs::copy_options::recursive | fs::copy_options::skip_existing, ec);
+            evento::EventoStore nuevo(dst / "Eventos");
+            const std::string h = aU8(hoja);
+            if (nuevo.datos(h).estado != "terminado") nuevo.iniciar(h, QDateTime::currentMSecsSinceEpoch());
+            escribirJson(dst / "configuracion.json", {{"descripcion", "Separado de «" + aU8(c.filename()) + "»"},
+                                                      {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
+                                                      {"desde", aU8(c.filename())},
+                                                      {"evento", h}});
+            hecho.push_back({{"evento", f.nombre}, {"de", aU8(c.filename())}, {"a", nombre}});
+        }
+    }
+    marcas["un-evento-por-carpeta"] = true;
+    escribirJson(datos / "migraciones.json", marcas);
+    return hecho;
 }
 
 std::string Configuraciones::marcarPlantilla(const std::string& nombre, bool plantilla) {

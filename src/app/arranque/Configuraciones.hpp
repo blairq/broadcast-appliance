@@ -69,6 +69,12 @@ class Configuraciones : public QObject {
     std::string marcarPlantilla(const std::string& nombre, bool plantilla);
     /// Las plantillas: las demos del programa y las carpetas marcadas. [{nombre, descripcion, demo}].
     json plantillas() const;
+    /// Una vez (marca en <datos>/migraciones.json): las carpetas que tenían VARIOS eventos
+    /// adentro se separan, cada evento a su carpeta con una copia de los ajustes, escenas
+    /// y medios de donde estaba (sin historial). Se queda el en curso (o el último tocado)
+    /// y las jornadas automáticas. Antes respalda los Eventos/ en <datos>/Respaldos.
+    /// Devuelve lo que hizo (vacío si nada). Antes de abrir el evento (StudioViewModel).
+    static json separarEventos(const std::filesystem::path& datos);
     /// Deja anotada `nombre` como activa (sin reiniciar). "" o el error.
     std::string activar(const std::string& nombre);
     std::string renombrar(const std::string& de, const std::string& a);

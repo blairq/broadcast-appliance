@@ -190,6 +190,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // La cola única de descargas (modelos, agentes, …): antes que quien baja algo.
     // Su historial es de la máquina (como Modelos/ y Agentes/), no de la configuración.
     net::Descargas::iniciar(ba::platform::dataRoot());
+    // Una vez: cada evento a su carpeta (antes de abrir el evento; ver PLAN-EVENTO-TODO).
+    if (const nlohmann::json sep = Configuraciones::separarEventos(ba::platform::dataRoot()); !sep.empty()) {
+        QStringList partes;
+        for (const auto& x : sep)
+            partes << QString::fromStdString(x.value("evento", std::string()) +
+                                             (x.contains("error") ? " (no se pudo: " + x.value("error", std::string()) + ")"
+                                                                  : " → «" + x.value("a", std::string()) + "»"));
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "eventos", 0,
+                                   ("cada evento a su carpeta: " + partes.join("; ")).toStdString());
+        QTimer::singleShot(4000, this, [this, partes]() {
+            emit notify("Cada evento tiene ahora su carpeta con todo lo suyo. Se separaron: " + partes.join("; ") +
+                            " (abrilos con «Abrir otro…» en la página del evento)",
+                        "info");
+        });
+    }
     // La configuración chica que se guarda (modelo): se lee una vez, acá.
     modoVivoCfg_ = std::make_unique<config::ModoVivoConfig>(rt.dataRoot());
     rotulo_ = std::make_unique<agent::RotuloTraduccionConfig>(rt.dataRoot());

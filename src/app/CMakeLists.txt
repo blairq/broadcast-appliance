@@ -794,6 +794,13 @@ endif()
     target_link_libraries(test_evento_web PRIVATE nlohmann_json::nlohmann_json)
     target_compile_definitions(test_evento_web PRIVATE BA_PLANTILLAS_EVENTO="${CMAKE_SOURCE_DIR}/assets/web/evento/plantilla")
     add_test(NAME test_evento_web COMMAND test_evento_web)
+    # Cada evento a su carpeta: la migración de las carpetas con varios eventos.
+    add_executable(test_eventos_separar tests/test_eventos_separar.cpp arranque/Configuraciones.cpp
+                                        evento/EventoStore.cpp evento/Evento.cpp evento/FotosConfig.cpp)
+    target_include_directories(test_eventos_separar PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_eventos_separar PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json mbedtls mbedx509 mbedcrypto)
+    set_target_properties(test_eventos_separar PROPERTIES AUTOMOC ON)
+    add_test(NAME test_eventos_separar COMMAND test_eventos_separar)
     add_executable(test_bitacora tests/test_bitacora.cpp evento/Bitacora.cpp)
     target_include_directories(test_bitacora PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_bitacora PRIVATE nlohmann_json::nlohmann_json)

@@ -77,3 +77,16 @@ grabando.
 - **E2** — Histórico de todas las carpetas; plantillas marcadas; migración.
 - **E3** — Medios: los de los cues (Eventos/<e>/Medios) y los de la página Medios en un
   solo lugar.
+
+## Estado (2026-10-13)
+
+- **E1 hecho**: evento nuevo (cero, copia, otro, plantilla, foto de uno cerrado) sin
+  historial y con su evento en curso; abrir otro (reinicia; no con algo al aire);
+  página del evento con el evento abierto arriba; barra lateral «Evento» antes que Sala;
+  Configuración › Sistema › Eventos con plantillas; MCP eventos_listar / evento_nuevo /
+  evento_cambiar; el asistente sabe qué es «arrancar de cero».
+- **Migración hecha** (Configuraciones::separarEventos, test_eventos_separar): una vez,
+  con respaldo en <datos>/Respaldos/eventos-antes-de-separar-*. En la Mac: «Debate: La
+  Grande Armée y la derrota» pasó a su carpeta; «Principal» quedó con «Prueba Mac 1012».
+- Falta: Histórico de todas las carpetas (hoy muestra los de la abierta); medios de los
+  cues y de la página Medios en un solo lugar (E3).
