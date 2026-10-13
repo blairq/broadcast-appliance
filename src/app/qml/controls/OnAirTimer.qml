@@ -59,7 +59,8 @@ Rectangle {
                     Behavior on font.pixelSize { NumberAnimation { duration: 200 } }
                     SequentialAnimation on scale {
                         loops: Animation.Infinite
-                        running: remaining <= 10000
+                        // Los últimos 10 s y a la vista (pasado de tiempo no late para siempre).
+                        running: remaining <= 10000 && remaining >= 0 && t.visible
                         NumberAnimation { to: 1.12; duration: 450; easing.type: Easing.InOutQuad }
                         NumberAnimation { to: 1.0; duration: 450; easing.type: Easing.InOutQuad }
                     }

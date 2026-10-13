@@ -31,6 +31,7 @@
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/RielConfig.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -470,6 +471,24 @@ void McpService::registerAudioTools() {
             if (!r->remove(a.value("node", ""), &e)) return done(ToolResult::error(e));
             mgr()->markDirty();
             done(ToolResult().data(r->describe()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_entrada_fuente";
+        t.title = "Cambiar de dónde trae el audio una tarjeta Entrada";
+        t.category = "audio_rack";
+        t.idempotent = true;
+        t.description = "La tarjeta Entrada `node` del rack de `source` pasa a traer el audio de `fuente` (otra entrada "
+                        "con audio), sin perder sus cables. No acepta lazos entre racks.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"source", kSource}, {"node", kNode}, {"fuente", {{"type", "string"}}}}},
+                         {"required", {"source", "node", "fuente"}}};
+        t.run = [mgr](const json& a, Done done) {
+            const std::string e = mgr()->setEntradaFuente(a.value("source", ""), a.value("node", ""), a.value("fuente", ""));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("La tarjeta trae ahora el audio de «" + a.value("fuente", "") + "»."));
         };
         core_.addTool(std::move(t));
     }
@@ -978,7 +997,12 @@ void McpService::registerAudioTools() {
                 return done(ToolResult::error("La interfaz grafica no esta abierta."));
             au->selectSource(QString::fromStdString(a.value("source", "")));
             if (!a.value("node", "").empty()) au->select(QString::fromStdString(a.value("node", "")));
-            w->setProperty("page", 9);
+            // El índice de la página lo sabe el riel (ui/RielConfig), como en
+            // ui_show_page: si se reordenan las páginas, esto sigue cayendo en Audio.
+            auto* riel = static_cast<RielConfig*>(vm->riel());
+            const int pagina = riel == nullptr ? -1 : riel->paginaDeId("audio");
+            if (pagina < 0) return done(ToolResult::error("No está la página Audio."));
+            w->setProperty("page", pagina);
             done(ToolResult::ok("Pestaña Audio: " + a.value("source", "")));
         };
         core_.addTool(std::move(t));

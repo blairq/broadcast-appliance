@@ -355,7 +355,7 @@ GstCaps* cpuCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCa
 void cpuAntes(GstBaseTransform* bt, GstBuffer* b) {
     ba::filtros::sincronizarValores(bt, b);
     const Sombra s = copiaSombra(GST_OBJECT(bt), *BA_SOMBRA(bt)->v);
-    gst_base_transform_set_passthrough(bt, !haceAlgo(s));
+    ba::filtros::pasante(bt, !haceAlgo(s));
 }
 
 /// Lecturas de una pasada: para cada punto de la salida y cada paso de la grilla,

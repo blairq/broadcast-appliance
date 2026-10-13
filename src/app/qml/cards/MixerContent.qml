@@ -21,6 +21,8 @@ Item {
 
     /// Que canal manda el teclado. -1 = ninguno todavia.
     property int elegido: -1
+    // El canal elegido con el teclado se trae a la vista (si no, con muchos quedaba oculto).
+    onElegidoChanged: if (elegido >= 0) canales.positionViewAtIndex(elegido, ListView.Contain)
 
     function cuantos() { return Studio.mixer ? Studio.mixer.rowCount() : 0 }
 
@@ -46,6 +48,8 @@ Item {
         switch (e.key) {
             case Qt.Key_Left:  tarjeta.mover(-1); e.accepted = true; break
             case Qt.Key_Right: tarjeta.mover(1);  e.accepted = true; break
+            case Qt.Key_Tab:     tarjeta.mover(1);  e.accepted = true; break
+            case Qt.Key_Backtab: tarjeta.mover(-1); e.accepted = true; break
             case Qt.Key_Up:    tarjeta.ajustar(grande ? 3 : 1);  e.accepted = true; break
             case Qt.Key_Down:  tarjeta.ajustar(grande ? -3 : -1); e.accepted = true; break
             case Qt.Key_Home:  tarjeta.elegido = 0; e.accepted = true; break
@@ -55,8 +59,32 @@ Item {
         }
     }
 
+    // ⧉ El Mezclador entero en su propia ventana (entradas, salidas, matriz): para
+    // otro monitor. Ahí se ve lo que sale de cada entrada y adónde va.
+    // Audio ›: la pestaña donde se configura cada entrada (su rack, filtros, la matriz).
+    GlassButton {
+        anchors { top: parent.top; right: mezBtn.left; rightMargin: 6 }
+        z: 10
+        compact: true
+        text: "Audio ›"
+        onClicked: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("audio"))
+        ToolTip.visible: hovered; ToolTip.delay: 400
+        ToolTip.text: "La pestaña Audio: el rack y los filtros de cada entrada, la matriz y las salidas."
+    }
+    GlassButton {
+        id: mezBtn
+        anchors { top: parent.top; right: parent.right }
+        z: 10
+        compact: true
+        text: "⧉ Mezclador"
+        onClicked: ApplicationWindow.window.sacarPanel("mezclador", "Mezclador")
+        ToolTip.visible: hovered; ToolTip.delay: 400
+        ToolTip.text: "Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz."
+    }
+
     RowLayout {
-        anchors.fill: parent
+        // Debajo del botón ⧉ (si no, tapaba el fader de la última tira).
+        anchors { fill: parent; topMargin: 34 }
         spacing: 14
 
         // Programa (mezcla final). Ancho FIJO: el botón de balística de abajo
@@ -138,12 +166,37 @@ Item {
             model: Studio.mixer
             // Si no entran todos, que se vea que hay más (y se puedan arrastrar).
             ScrollBar.horizontal: ScrollBar { policy: canales.contentWidth > canales.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
+            // La rueda común (vertical) fuera de un fader desplaza los canales de costado; los
+            // faders están encima y la toman antes (su volumen); de costado la maneja la lista.
+            WheelHandler {
+                orientation: Qt.Vertical
+                acceptedDevices: PointerDevice.Mouse
+                onWheel: (ev) => {
+                    const max = Math.max(canales.originX, canales.originX + canales.contentWidth - canales.width)
+                    canales.contentX = Math.max(canales.originX, Math.min(max, canales.contentX - ev.angleDelta.y / 120 * 60))
+                }
+            }
+            // Arrastrar con el botón del medio (la rueda apretada) desplaza los canales.
+            MouseArea {
+                anchors.fill: parent
+                z: 100
+                acceptedButtons: Qt.MiddleButton
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.ArrowCursor
+                property real x0: 0
+                property real cx0: 0
+                onPressed: (e) => { x0 = e.x; cx0 = canales.contentX }
+                onPositionChanged: (e) => {
+                    const max = Math.max(canales.originX, canales.originX + canales.contentWidth - canales.width)
+                    canales.contentX = Math.max(canales.originX, Math.min(max, cx0 - (e.x - x0)))
+                }
+            }
             delegate: ColumnLayout {
                 required property int index
                 required property string name
                 required property real peakDb
                 required property real volumeDb
                 required property bool muted
+                required property int retardoMs
                 height: ListView.view.height
                 width: 70
                 spacing: 6
@@ -164,16 +217,16 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 22; radius: 8
-                    color: muted ? Qt.rgba(1, 0.23, 0.19, 0.7) : Qt.rgba(1, 1, 1, 0.08)
+                    color: muted ? Theme.canalMute : Qt.rgba(1, 1, 1, 0.08)
                     Text { anchors.centerIn: parent; text: muted ? "MUDO" : "M"; color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Studio.mixer.setMuted(name, !muted) }
                 }
-                // PFL: escucharla por el monitor sin tocar el aire (exclusivo, amarillo).
+                // PFL: escucharla por el monitor sin tocar el aire (uno a la vez, amarillo).
                 Rectangle {
                     readonly property bool on: Studio.pfl === name
                     Layout.fillWidth: true
                     height: 18; radius: 6
-                    color: on ? Qt.rgba(1, 0.8, 0.1, 0.85) : Qt.rgba(1, 1, 1, 0.05)
+                    color: on ? Theme.canalPfl : Qt.rgba(1, 1, 1, 0.05)
                     Text { anchors.centerIn: parent; text: "PFL"; color: parent.on ? "#1a1a1a" : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                     MouseArea {
                         id: pflMa
@@ -181,22 +234,36 @@ Item {
                         onClicked: { const e = Studio.pflUi(name); if (e !== "") Studio.notify(e, "error") }
                     }
                     ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
-                    ToolTip.text: "Escucharla por el monitor sin tocar lo que sale al aire. Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla."
+                    ToolTip.text: "Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla."
                 }
                 // AFV: el audio sigue al video (sube y baja con su escena).
                 Rectangle {
-                    property bool on: Studio.afv(name)
+                    readonly property bool on: Studio.afvFuentes.indexOf(name) >= 0
                     Layout.fillWidth: true
                     height: 18; radius: 6
-                    color: on ? Qt.rgba(0.18, 0.44, 0.87, 0.7) : Qt.rgba(1, 1, 1, 0.05)
+                    color: on ? Theme.canalAfv : Qt.rgba(1, 1, 1, 0.05)
                     Text { anchors.centerIn: parent; text: "AFV"; color: parent.on ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                     MouseArea {
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: { Studio.setAfv(name, !parent.on); parent.on = Studio.afv(name) }
+                        onClicked: Studio.setAfv(name, !parent.on)
                     }
                     ToolTip.visible: afvMa.containsMouse; ToolTip.delay: 500
                     ToolTip.text: "Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale"
                     MouseArea { id: afvMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                }
+                // Sincronizar con el video (sincro labios): el retardo del canal, a mano o con aplausos.
+                Rectangle {
+                    id: sincBtn
+                    readonly property int ms: retardoMs
+                    Layout.fillWidth: true
+                    height: 18; radius: 6
+                    color: ms !== 0 ? Theme.canalSinc : Qt.rgba(1, 1, 1, 0.05)
+                    Text { anchors.centerIn: parent; text: sincBtn.ms !== 0 ? (sincBtn.ms > 0 ? "+" : "") + sincBtn.ms + " ms" : "SINC"
+                           color: sincBtn.ms !== 0 ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
+                    MouseArea { id: sincMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                                onClicked: retardoPop.abrir(name) }
+                    ToolTip.visible: sincMa.containsMouse; ToolTip.delay: 500
+                    ToolTip.text: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
                 }
                 // El canal que manda el teclado se marca: sin esto, subir el
                 // volumen con las flechas es una apuesta.
@@ -210,75 +277,13 @@ Item {
                 Text { Layout.fillWidth: true; text: name; color: Theme.textDim; elide: Text.ElideRight
                        horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10
                        font.bold: tarjeta.activeFocus && index === tarjeta.elegido
-                       // Un clic: el retardo de este audio respecto de su video (sincro labios).
+                       // Un clic: sincronizarla con su video (como el botón de abajo).
                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                   onClicked: { retardoPop.fuente = name; retardoPop.ms = Studio.retardoUi(name); retardoPop.open() } } }
+                                   onClicked: retardoPop.abrir(name) } }
             }
         }
     }
 
-    // Retardo de un canal (sincro labios), como audio_sincro.
-    Popup {
-        id: retardoPop
-        property string fuente: ""
-        property int ms: 0
-        property bool midiendo: false
-        property string resultado: ""
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        padding: 16
-        width: 380
-        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 8
-            Text { text: "Retardo de «" + retardoPop.fuente + "»"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
-            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                   text: "Positivo ATRASA el audio (lo normal con una cámara IP, que llega tarde). Mirá a alguien hablando y corregí hasta que coincidan los labios." }
-            RowLayout {
-                SpinBox { id: retMs; from: -5000; to: 5000; stepSize: 10; editable: true; value: retardoPop.ms; Layout.preferredWidth: 160 }
-                Text { text: "ms"; color: Theme.textDim }
-                Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "−40"; onClicked: retMs.value -= 40 }
-                GlassButton { compact: true; text: "+40"; onClicked: retMs.value += 40 }
-            }
-            // Medir con aplauso: mira lo que sale y propone el valor.
-            RowLayout {
-                Layout.fillWidth: true
-                GlassButton {
-                    compact: true; text: retardoPop.midiendo ? "Midiendo… aplaudí" : "Medir con aplauso"
-                    enabled: !retardoPop.midiendo
-                    onClicked: {
-                        const e = Studio.medirSincroUi(10)
-                        if (e !== "") { Studio.notify(e, "error"); return }
-                        retardoPop.midiendo = true; retardoPop.resultado = ""
-                    }
-                }
-                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
-                       text: retardoPop.resultado !== "" ? retardoPop.resultado
-                             : "Con la cámara en el programa: 10 s para aplaudir 4 o 5 veces frente a ella, separadas." }
-            }
-            Connections {
-                target: Studio
-                function onMedicionSincroLista(r) {
-                    if (!retardoPop.midiendo) return
-                    retardoPop.midiendo = false
-                    if (r.ok) {
-                        retMs.value = retardoPop.ms + r.retardo_ms
-                        retardoPop.resultado = (r.retardo_ms >= 0 ? "+" : "") + r.retardo_ms + " ms (" + r.aplausos + " aplausos, ±" +
-                                               r.dispersion_ms + " ms)" + (r.confiable ? "" : " — poco confiable: repetí")
-                    } else {
-                        retardoPop.resultado = "No se pudo: " + (r.problema || "no encontré aplausos")
-                    }
-                }
-            }
-            RowLayout {
-                Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: retardoPop.close() }
-                GlassButton { compact: true; active: true; text: "Aplicar"
-                              onClicked: { const e = Studio.setRetardoUi(retardoPop.fuente, retMs.value); if (e !== "") Studio.notify(e, "error"); else retardoPop.close() } }
-            }
-        }
-    }
+    // Sincronizar un canal con su video (sincro labios), como audio_sincro.
+    RetardoCanal { id: retardoPop }
 }

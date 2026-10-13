@@ -27,6 +27,7 @@
 #include <QString>
 #include <QStringList>
 
+#include "graficos/Catalogo.hpp"
 #include "graficos/GraficoProceso.hpp"
 
 namespace ba::app::graficos {
@@ -45,17 +46,14 @@ class Emisor : public QObject {
     /// (el editor, que dibuja lo que se está escribiendo).
     GraficoProceso& proceso();
 
-    QString raiz() const;
-    QString carpeta(const QString& grafico) const;
-    /// Los gráficos guardados, por nombre de carpeta.
+    /// Los gráficos guardados (dónde están, sus fichas, su pedido): el mismo
+    /// catálogo para el editor, el MCP y todo lo que dispara gráficos.
+    Catalogo& catalogo();
+    const Catalogo& catalogo() const;
+    /// Atajos al catálogo: los gráficos guardados, por nombre de carpeta…
     QStringList nombres() const;
-    /// El `grafico.json` de uno. Vacío = no existe.
+    /// …y el `grafico.json` de uno (vacío = no existe).
     QJsonObject ficha(const QString& grafico) const;
-    /// Los valores por defecto que declara su ficha.
-    QJsonObject valoresPorDefecto(const QString& grafico) const;
-    /// El pedido para el renderizador, leído del disco. Deja el motivo en
-    /// `error` si el gráfico no está o no se puede leer.
-    QJsonObject pedido(const QString& grafico, const QJsonObject& valores, QString* error) const;
 
     /// La fuente de escena que se llama así, o 0 si no hay ninguna. El guion y
     /// el asistente nombran la fuente, no la numeran.

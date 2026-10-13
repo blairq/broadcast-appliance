@@ -705,6 +705,27 @@ bool AudioRack::remove(const std::string& id, std::string* error) {
     return true;
 }
 
+bool AudioRack::enParalelo(const std::string& id) {
+    if (id == "in" || id == "out" || find(id) == nullptr) return false;
+    std::vector<Conn> srcs, dsts;
+    for (const auto& c : conns_) {
+        if (c.to == id && c.toPort == 0) srcs.push_back(c);
+        if (c.from == id && c.fromPort == 0) dsts.push_back(c);
+    }
+    conns_.erase(std::remove_if(conns_.begin(), conns_.end(),
+                                [&](const Conn& c) { return c.from == id && c.fromPort == 0; }),
+                 conns_.end());
+    for (const auto& s : srcs)
+        for (const auto& d : dsts) {
+            const bool dup = std::any_of(conns_.begin(), conns_.end(), [&](const Conn& c) {
+                return c.from == s.from && c.fromPort == s.fromPort && c.to == d.to && c.toPort == d.toPort;
+            });
+            if (!dup && !wouldCycle(s.from, d.to)) conns_.push_back({s.from, s.fromPort, d.to, d.toPort});
+        }
+    rebuild();
+    return true;
+}
+
 bool AudioRack::connect(const std::string& from, const std::string& fromPort, const std::string& to,
                         const std::string& toPort, std::string* error, int fromCh, int toCh) {
     Node* a = find(from);

@@ -80,12 +80,12 @@ ColumnLayout {
                           action: function() { pc.pedir("cerrar", "cerrar_todos") } }) }
         // La presidencia sobre todos (también los remotos): Studio.silenciarTodos / hablaPresidencia.
         GlassButton { text: "🔇 Silenciar a todos"; activeColor: Theme.live
-                      onClicked: { const e = Studio.silenciarTodos("operador"); if (e !== "") Studio.notify(e, "error") }
+                      onClicked: Studio.silenciarTodos()
                       ToolTip.visible: hovered; ToolTip.delay: 400
                       ToolTip.text: "Cierra los micrófonos de la central (menos el del presidente), termina al orador y les saca la palabra a los remotos" }
         GlassButton { text: Studio.presidenciaHabla ? "🎙 Presidencia hablando" : "🎙 Habla la presidencia"
                       active: Studio.presidenciaHabla; activeColor: Theme.live; enabled: pc.ok
-                      onClicked: { const e = Studio.hablaPresidencia(!Studio.presidenciaHabla, "operador"); if (e !== "") Studio.notify(e, "error") }
+                      onClicked: Studio.hablaPresidencia(!Studio.presidenciaHabla)
                       ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Calla a todos y abre el micrófono de la presidencia" }
     }
     Text {
@@ -368,8 +368,9 @@ ColumnLayout {
             RowLayout {
                 spacing: 8
                 GlassButton { text: "Preparar"; enabled: pc.ok && vot.est !== "abierta" && vot.est !== "pausada" && temaVot.text.trim() !== ""
+                              // El número lo pone la central (la que sigue a la última).
                               onClicked: pc.pedir("votacion", "votacion", {accion: "preparar", tema: temaVot.text.trim(),
-                                                  numero: (vot.v.numero || 0) + 1, menu: menuVot.model[menuVot.currentIndex].v, abierta: nominalVot.checked}) }
+                                                  menu: menuVot.model[menuVot.currentIndex].v, abierta: nominalVot.checked}) }
                 GlassButton { text: "Abrir la votación"; active: true; enabled: pc.ok && vot.est === "preparada"
                               onClicked: pc.pedir("votacion", "votacion", {accion: "abrir"}) }
                 GlassButton { text: vot.est === "pausada" ? "Reanudar" : "Pausar"; enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
@@ -483,15 +484,15 @@ ColumnLayout {
                                    model: [ { t: "Sí / No / Abst.", v: "si_no_abstencion" }, { t: "Sí / No", v: "si_no" },
                                             { t: "Sí / No / Abst. / NP", v: "si_no_abstencion_nppv" } ] }
                         GlassButton { text: "Abrir en los celulares"; enabled: temaCel.text.trim() !== ""
-                                      onClicked: { const e = Studio.sesionRemota.abrirVotacionUi(temaCel.text, menuCel.model[menuCel.currentIndex].v,
-                                                                                                Studio.sesionRemota.votoSegundos)
+                                      onClicked: { const e = Studio.votaciones.abrirEnCelularesUi(temaCel.text, menuCel.model[menuCel.currentIndex].v,
+                                                                                                 Studio.sesionRemota.votoSegundos)
                                                    if (e) Studio.notify(e, "error") } }
                     }
                     RowLayout {
                         visible: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada") && vot.vr.origen === "app"
                         GlassButton { text: vot.vr.estado === "pausada" ? "Reanudar" : "Pausar"
-                                      onClicked: Studio.sesionRemota.pausarVotacionUi(vot.vr.estado !== "pausada") }
-                        GlassButton { text: "Cerrar"; active: true; onClicked: Studio.sesionRemota.cerrarVotacionUi() }
+                                      onClicked: Studio.votaciones.pausarEnCelularesUi(vot.vr.estado !== "pausada") }
+                        GlassButton { text: "Cerrar"; active: true; onClicked: Studio.votaciones.cerrarEnCelularesUi() }
                     }
                 }
             }

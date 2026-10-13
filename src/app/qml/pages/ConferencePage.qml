@@ -22,6 +22,18 @@ Rectangle {
         }
     }
 
+    // La columna derecha (Uso, Acceso, Proxy…): se cambia de ancho con el
+    // tirador de su borde izquierdo y, angosta, queda un riel de íconos (QR,
+    // PIN, lobby, sala cerrada, consola). Cuando entra la segunda persona se
+    // angosta sola para que las baldosas de la sala tengan lugar; cuando queda
+    // una, vuelve al ancho que tenía.
+    readonly property real anchoRiel: 64
+    property real anchoDer: 374
+    property real anchoDerAntes: 374
+    readonly property bool derAngosta: anchoDer < 220
+    property int genteAntes: 0
+    function expandirDer() { anchoDer = anchoDerAntes >= 300 ? anchoDerAntes : 374 }
+
     // Reloj para los "hace N min" (sin tocar el modelo).
     property double now: Date.now()
     Timer { interval: 5000; running: page.visible; repeat: true; onTriggered: page.now = Date.now() }
@@ -260,7 +272,7 @@ Rectangle {
                             Menu {
                                 id: qrMenu
                                 MenuItem { text: "QR local (red local)"; onTriggered: qrDlg.show("local") }
-                                MenuItem { text: "QR remoto (Cloudflare)"; onTriggered: qrDlg.show("remote") }
+                                MenuItem { text: "QR remoto (por internet)"; onTriggered: qrDlg.show("remote") }
                             }
                         }
                     }
@@ -441,6 +453,15 @@ Rectangle {
                     GridView {
                         id: grid
                         anchors.fill: parent
+                        onCountChanged: {
+                            if (count > 1 && page.genteAntes <= 1 && !page.derAngosta) {
+                                page.anchoDerAntes = page.anchoDer
+                                page.anchoDer = page.anchoRiel
+                            } else if (count <= 1 && page.genteAntes > 1 && page.derAngosta) {
+                                page.expandirDer()
+                            }
+                            page.genteAntes = count
+                        }
                         clip: true
                         readonly property int cols: count <= 1 ? 1 : 2
                         cellWidth: width / cols
@@ -464,6 +485,7 @@ Rectangle {
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
+                                id: tarjeta
                                 anchors { fill: parent; margins: 6 }
                                 radius: 16
                                 color: "#000000"
@@ -495,7 +517,7 @@ Rectangle {
                                     }
                                 }
                                 ColumnLayout {
-                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 10 }
+                                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 8 }
                                     spacing: 6
                                     RowLayout {
                                         spacing: 8
@@ -503,78 +525,133 @@ Rectangle {
                                             Text { anchors.centerIn: parent; text: slot > 0 ? slot : "–"; color: slot > 0 ? "#140a04" : "white"; font { pixelSize: 12; weight: Font.Bold } } }
                                         Text { text: name; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                                         Text { visible: hand; text: "✋"; font.pixelSize: 16 }
-                                        StatusPill { text: mic ? "mic" : "mic off"; dot: mic ? Theme.ok : Theme.live }
-                                        StatusPill { text: cam ? "cámara" : "cámara off"; dot: cam ? Theme.ok : Theme.live }
+                                        // Achicada, solo lo que avisa algo: el nombre tiene que leerse.
+                                        StatusPill { visible: !barra.compacta || !mic; text: mic ? "mic" : "mic off"; dot: mic ? Theme.ok : Theme.live }
+                                        StatusPill { visible: !barra.compacta || !cam; text: cam ? "cámara" : "cámara off"; dot: cam ? Theme.ok : Theme.live }
                                         StatusPill { visible: screen; text: "pantalla"; dot: Theme.accent }
                                         StatusPill { visible: presenter; text: "PRESENTADOR"; dot: "#a78bfa" }
                                         StatusPill { visible: speaker === "onair"; text: "ORADOR"; dot: Theme.live }
-                                        StatusPill { text: !connected ? "reconectando" : mediaUp ? "en vivo" : "sin medios"; dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
+                                        StatusPill { visible: !barra.compacta || !connected || !mediaUp; text: !connected ? "reconectando" : mediaUp ? "en vivo" : "sin medios"; dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
                                     }
-                                    Flow {
+                                    // Los controles, en una barra oscura propia (antes iban sueltos
+                                    // sobre el video y no se veía que eran botones). Si no entran
+                                    // (la tarjeta se achica cuando entra más gente), quedan
+                                    // «Hablarle» (se mantiene apretado: no puede ir en un menú) y
+                                    // «Controles ▾» con todo lo demás.
+                                    Rectangle {
+                                        id: barra
                                         Layout.fillWidth: true
-                                        spacing: 6
-                                        GlassButton {
-                                            compact: true
-                                            text: mic ? "Silenciar" : "Activar micrófono"
-                                            onClicked: conf.request(uid, mic ? "mute-mic" : "unmute-mic")
+                                        readonly property bool compacta: flujo.implicitHeight > tarjeta.height * 0.42
+                                        implicitHeight: (compacta ? filaCompacta.implicitHeight : flujo.implicitHeight) + 12
+                                        radius: 10
+                                        clip: true
+                                        color: Qt.rgba(0.05, 0.05, 0.07, 0.92)
+                                        border.color: Qt.rgba(1, 1, 1, 0.12)
+                                        Flow {
+                                            id: flujo
+                                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
+                                            spacing: 6
+                                            // Se sigue midiendo aunque no se vea: de su alto sale `compacta`.
+                                            opacity: barra.compacta ? 0 : 1
+                                            enabled: !barra.compacta
+                                            GlassButton {
+                                                compact: true
+                                                text: mic ? "Silenciar" : "Activar micrófono"
+                                                onClicked: conf.request(uid, mic ? "mute-mic" : "unmute-mic")
+                                            }
+                                            GlassButton {
+                                                compact: true
+                                                text: cam ? "Apagar cámara" : "Encender cámara"
+                                                onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
+                                            }
+                                            // IFB: mientras lo mantenés apretado le llega tu voz (mezclada con el
+                                            // retorno, el programa baja). No sale al aire.
+                                            GlassButton {
+                                                compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
+                                                active: talk; activeColor: Theme.ok
+                                                onPressed2: conf.talk(uid, true)
+                                                onReleased2: conf.talk(uid, false)
+                                                onCanceled2: conf.talk(uid, false)
+                                                ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
+                                                ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
+                                            }
+                                            GlassButton {
+                                                compact: true; text: "Prueba técnica"
+                                                onClicked: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") }
+                                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                                ToolTip.text: "Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red"
+                                            }
+                                            GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
+                                            GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
+                                            // Pasarlo a la fila de oradores o dejarlo de presentador
+                                            // fijo: la sala sigue siendo la misma para todos.
+                                            GlassButton {
+                                                visible: !presenter && speaker !== "queued"
+                                                compact: true; text: "→ Oradores"
+                                                onClicked: conf.speakerRequeue(uid)
+                                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                                ToolTip.text: "Lo pone en la fila de oradores (sale del aire hasta que le toque)"
+                                            }
+                                            GlassButton {
+                                                compact: true
+                                                text: presenter ? "Quitar presentador" : "★ Presentador"
+                                                active: presenter
+                                                activeColor: "#a78bfa"
+                                                onClicked: conf.setPresenter(uid, !presenter)
+                                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                                ToolTip.text: presenter ? "Deja de ser presentador y sale del aire"
+                                                                        : "Se queda al aire con su lugar mientras rotan los oradores"
+                                            }
+                                            GlassButton {
+                                                compact: true; text: "✉ Mensaje"
+                                                // Abre SU hilo. Si todavía no hay
+                                                // ninguno con esa persona, el tab
+                                                // aparece con el primer mensaje.
+                                                onClicked: { page.abrirHilo(uid); chatInput.forceActiveFocus() }
+                                            }
+                                            GlassButton {
+                                                compact: true; text: "✎ Datos"
+                                                onClicked: profDlg.editPerson(uid, name, info, contact)
+                                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                                ToolTip.text: "Editar nombre, cargo y contacto"
+                                            }
+                                            GlassButton { compact: true; text: "Sacar"; onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                         }
-                                        GlassButton {
-                                            compact: true
-                                            text: cam ? "Apagar cámara" : "Encender cámara"
-                                            onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
+                                        RowLayout {
+                                            id: filaCompacta
+                                            visible: barra.compacta
+                                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
+                                            spacing: 6
+                                            GlassButton {
+                                                compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
+                                                active: talk; activeColor: Theme.ok
+                                                onPressed2: conf.talk(uid, true)
+                                                onReleased2: conf.talk(uid, false)
+                                                onCanceled2: conf.talk(uid, false)
+                                                ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
+                                                ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
+                                            }
+                                            GlassButton {
+                                                id: controlesBtn
+                                                compact: true; text: "Controles ▾"
+                                                onClicked: controlesMenu.popup(controlesBtn, 0, controlesBtn.height + 4)
+                                                Menu {
+                                                    id: controlesMenu
+                                                    MenuItem { text: mic ? "Silenciar" : "Activar micrófono"; onTriggered: conf.request(uid, mic ? "mute-mic" : "unmute-mic") }
+                                                    MenuItem { text: cam ? "Apagar cámara" : "Encender cámara"; onTriggered: conf.request(uid, cam ? "mute-cam" : "unmute-cam") }
+                                                    MenuItem { text: "Prueba técnica"; onTriggered: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") } }
+                                                    MenuItem { visible: screen; height: visible ? implicitHeight : 0; text: "Cortar pantalla"; onTriggered: conf.request(uid, "stop-screen") }
+                                                    MenuItem { visible: hand; height: visible ? implicitHeight : 0; text: "Bajar mano"; onTriggered: conf.request(uid, "lower-hand") }
+                                                    MenuItem { visible: !presenter && speaker !== "queued"; height: visible ? implicitHeight : 0; text: "→ Oradores"; onTriggered: conf.speakerRequeue(uid) }
+                                                    MenuItem { text: presenter ? "Quitar presentador" : "★ Presentador"; onTriggered: conf.setPresenter(uid, !presenter) }
+                                                    MenuItem { text: "✉ Mensaje"; onTriggered: { page.abrirHilo(uid); chatInput.forceActiveFocus() } }
+                                                    MenuItem { text: "✎ Datos"; onTriggered: profDlg.editPerson(uid, name, info, contact) }
+                                                    MenuSeparator {}
+                                                    MenuItem { text: "Sacar"; onTriggered: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
+                                                }
+                                            }
+                                            Item { Layout.fillWidth: true }
                                         }
-                                        // IFB: mientras lo mantenés apretado le llega tu voz (mezclada con el
-                                        // retorno, el programa baja). No sale al aire.
-                                        GlassButton {
-                                            compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
-                                            active: talk; activeColor: Theme.ok
-                                            onPressed2: conf.talk(uid, true)
-                                            onReleased2: conf.talk(uid, false)
-                                            onCanceled2: conf.talk(uid, false)
-                                            ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
-                                            ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
-                                        }
-                                        GlassButton {
-                                            compact: true; text: "Prueba técnica"
-                                            onClicked: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") }
-                                            ToolTip.visible: hovered; ToolTip.delay: 400
-                                            ToolTip.text: "Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red"
-                                        }
-                                        GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
-                                        GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
-                                        // Pasarlo a la fila de oradores o dejarlo de presentador
-                                        // fijo: la sala sigue siendo la misma para todos.
-                                        GlassButton {
-                                            visible: !presenter && speaker !== "queued"
-                                            compact: true; text: "→ Oradores"
-                                            onClicked: conf.speakerRequeue(uid)
-                                            ToolTip.visible: hovered; ToolTip.delay: 400
-                                            ToolTip.text: "Lo pone en la fila de oradores (sale del aire hasta que le toque)"
-                                        }
-                                        GlassButton {
-                                            compact: true
-                                            text: presenter ? "Quitar presentador" : "★ Presentador"
-                                            active: presenter
-                                            activeColor: "#a78bfa"
-                                            onClicked: conf.setPresenter(uid, !presenter)
-                                            ToolTip.visible: hovered; ToolTip.delay: 400
-                                            ToolTip.text: presenter ? "Deja de ser presentador y sale del aire"
-                                                                    : "Se queda al aire con su lugar mientras rotan los oradores"
-                                        }
-                                        GlassButton {
-                                            compact: true; text: "✉ Mensaje"
-                                            // Abre SU hilo. Si todavía no hay
-                                            // ninguno con esa persona, el tab
-                                            // aparece con el primer mensaje.
-                                            onClicked: { page.abrirHilo(uid); chatInput.forceActiveFocus() }
-                                        }
-                                        GlassButton {
-                                            compact: true; text: "✎ Datos"
-                                            onClicked: profDlg.editPerson(uid, name, info, contact)
-                                            ToolTip.visible: hovered; ToolTip.delay: 400
-                                            ToolTip.text: "Editar nombre, cargo y contacto"
-                                        }
-                                        GlassButton { compact: true; text: "Sacar"; onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                     }
                                 }
                             }
@@ -694,12 +771,102 @@ Rectangle {
             // asistente —parecía que la barra se superponía, y en realidad era
             // la página la que se salía de su lugar—. Acá se scrollea, que es
             // lo que hace cualquier panel lateral que no entra.
-            ScrollView {
-                id: colDer
-                Layout.preferredWidth: 360
-                Layout.maximumWidth: 360
+            Item {
+                id: colDerMarco
+                Layout.preferredWidth: page.anchoDer
+                Layout.minimumWidth: page.anchoDer
+                Layout.maximumWidth: page.anchoDer
                 Layout.fillWidth: false
                 Layout.fillHeight: true
+
+                // El vestigio: siempre está, aunque la columna sea un riel.
+                // Arrastrarlo cambia el ancho; soltado muy angosto, queda el riel.
+                Rectangle {
+                    id: tirador
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    width: 10
+                    radius: 5
+                    color: tiradorMa.containsMouse || tiradorMa.pressed ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 3
+                        Repeater { model: 3; Rectangle { width: 3; height: 3; radius: 1.5; color: Theme.textFaint } }
+                    }
+                    MouseArea {
+                        id: tiradorMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.SizeHorCursor
+                        property real x0: 0
+                        property real ancho0: 0
+                        onPressed: (m) => { x0 = mapToItem(page, m.x, 0).x; ancho0 = page.anchoDer }
+                        onPositionChanged: (m) => {
+                            if (!pressed) return
+                            const dx = mapToItem(page, m.x, 0).x - x0
+                            page.anchoDer = Math.max(page.anchoRiel, Math.min(560, ancho0 - dx))
+                        }
+                        onReleased: {
+                            if (page.anchoDer < 260) page.anchoDer = page.anchoRiel
+                            else { page.anchoDer = Math.max(300, page.anchoDer); page.anchoDerAntes = page.anchoDer }
+                        }
+                        onDoubleClicked: page.derAngosta ? page.expandirDer() : (page.anchoDer = page.anchoRiel)
+                        ToolTip.visible: containsMouse && !pressed; ToolTip.delay: 600
+                        ToolTip.text: "Arrastrá para cambiar el ancho (doble clic: abrir o cerrar)"
+                    }
+                }
+
+                // Angosta: los atajos de lo que más se usa.
+                ColumnLayout {
+                    id: riel
+                    visible: page.derAngosta
+                    anchors { left: tirador.right; right: parent.right; top: parent.top; leftMargin: 4 }
+                    spacing: 8
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "⟨"; compact: true
+                        onClicked: page.expandirDer()
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir el panel (Acceso, uso de la sala…)"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "⊞"; compact: true; active: true
+                        onClicked: qrDlg.show("local")
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Invitar con QR"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "PIN"; compact: true
+                        onClicked: { Studio.copiar(conf.pin); Studio.notify("PIN copiado: " + conf.pin, "info") }
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Copiar el PIN de la sala"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "⏸"; compact: true
+                        active: conf.lobby
+                        onClicked: conf.setLobby(!conf.lobby)
+                        ToolTip.visible: hovered; ToolTip.delay: 300
+                        ToolTip.text: conf.lobby ? "Lobby de admisión: prendido (vos decidís quién entra)" : "Lobby de admisión: apagado (entran directo)"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "🔒"; compact: true
+                        active: conf.locked; activeColor: Theme.live
+                        onClicked: conf.setLocked(!conf.locked)
+                        ToolTip.visible: hovered; ToolTip.delay: 300
+                        ToolTip.text: conf.locked ? "Sala cerrada: nadie nuevo puede pedir entrar" : "Sala abierta a quien tenga el PIN"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "↗"; compact: true; enabled: conf.online
+                        onClicked: conf.openWebConsole()
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir consola web"
+                    }
+                }
+
+            ScrollView {
+                id: colDer
+                visible: !page.derAngosta
+                anchors { left: tirador.right; right: parent.right; top: parent.top; bottom: parent.bottom; leftMargin: 4 }
                 clip: true
                 // Sin barra horizontal: la columna tiene ancho fijo y lo que
                 // sobra es alto. Una barra de abajo acá solo roba 12 px.
@@ -893,7 +1060,7 @@ Rectangle {
                             }
                             GlassButton {
                                 compact: true; text: "Cambiar…"
-                                onClicked: { Studio.seccionConfig = "Voz del operador"; ApplicationWindow.window.showPage(6) }
+                                onClicked: { Studio.seccionConfig = "Voz del operador"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
                             }
                         }
                         GlassButton { text: "Abrir consola web"; icon: "↗"; compact: true; enabled: conf.online; onClicked: conf.openWebConsole() }
@@ -1076,6 +1243,7 @@ Rectangle {
                 }
             } // ColumnLayout de la columna derecha
             } // ScrollView
+            } // colDerMarco
         }
     }
 
@@ -1102,12 +1270,8 @@ Rectangle {
             profTime.text = ""
             open()
         }
-        onAccepted: {
-            conf.setProfile(who, profName.text, profInfo.text, profContact.text)
-            if (!withTime) return
-            const s = conf.parseDuration(profTime.text)
-            if (s > 0) conf.speakerTime(who, s)
-        }
+        onAccepted: conf.guardarFicha(who, profName.text, profInfo.text, profContact.text,
+                                      withTime ? profTime.text : "")
         GridLayout {
             columns: 2
             columnSpacing: 10
@@ -1135,114 +1299,7 @@ Rectangle {
     }
 
     // QR para entrar al lobby (lo arma la API de control del gateway).
-    Dialog {
-        id: qrDlg
-        anchors.centerIn: parent
-        modal: true
-        standardButtons: Dialog.Close
-        property string target: "local"
-        property string url: ""
-        property var modules: []
-        property string message: ""
-        property bool loading: false
-        readonly property bool board: target.startsWith("board-")
-        title: board ? "Tablero de oradores (solo lectura) — " + (target === "board-remote" ? "por internet" : "red local")
-                     : target === "remote" ? "QR remoto — por internet (Cloudflare)" : "QR local — misma red"
-        function show(t) {
-            target = t; url = ""; modules = []; message = ""; loading = true
-            open()
-            if (board) conf.requestBoardLink(t.substring(6))
-            else conf.requestQr(t, qrPin.checked)
-        }
-        Connections {
-            target: conf
-            function onQrReady(t, url, modules, message) {
-                if (t !== qrDlg.target) return
-                qrDlg.loading = false
-                qrDlg.url = url
-                qrDlg.modules = modules
-                qrDlg.message = message
-                qrCanvas.requestPaint()
-            }
-        }
-        ColumnLayout {
-            spacing: 12
-            Rectangle {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 300
-                Layout.preferredHeight: 300
-                radius: 12
-                color: qrDlg.url !== "" ? "white" : Qt.rgba(1, 1, 1, 0.05)
-                Canvas {
-                    id: qrCanvas
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    visible: qrDlg.url !== ""
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-                        const rows = qrDlg.modules
-                        if (!rows || rows.length === 0) return
-                        const n = rows.length + 8 // zona silenciosa de 4 modulos
-                        const cell = Math.floor(Math.min(width, height) / n)
-                        const off = Math.floor((Math.min(width, height) - cell * n) / 2) + 4 * cell
-                        ctx.fillStyle = "#000000"
-                        for (let y = 0; y < rows.length; ++y)
-                            for (let x = 0; x < rows[y].length; ++x)
-                                if (rows[y][x] === "1") ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
-                    }
-                }
-                Text {
-                    anchors.fill: parent
-                    anchors.margins: 20
-                    visible: qrDlg.url === ""
-                    wrapMode: Text.Wrap
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    color: Theme.textDim; font.pixelSize: 13
-                    text: qrDlg.loading ? "Generando…" : qrDlg.message
-                }
-            }
-            // Donde sirve el QR: se puede cambiar sin cerrar.
-            RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                visible: !qrDlg.board
-                spacing: 6
-                GlassButton {
-                    compact: true; text: "Red local"
-                    active: qrDlg.target === "local"
-                    onClicked: qrDlg.show("local")
-                }
-                GlassButton {
-                    compact: true; text: "Por internet"
-                    active: qrDlg.target === "remote"
-                    onClicked: qrDlg.show("remote")
-                }
-            }
-            CheckBox {
-                id: qrPin
-                visible: !qrDlg.board
-                text: "Incluir el PIN en el QR (entran sin tipearlo)"
-                onToggled: qrDlg.show(qrDlg.target)
-            }
-            RowLayout {
-                visible: qrDlg.url !== ""
-                Layout.preferredWidth: 300
-                TextField { id: qrUrl; Layout.fillWidth: true; readOnly: true; text: qrDlg.url; font.pixelSize: 11 }
-                GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(qrDlg.url) }
-            }
-            Text {
-                Layout.preferredWidth: 300
-                wrapMode: Text.Wrap
-                color: Theme.textFaint; font.pixelSize: 11
-                visible: qrDlg.url !== ""
-                text: qrDlg.board ? "Abrilo en la tablet: muestra la fila, las caras y los tiempos. La clave cambia en cada arranque." :
-                      (qrDlg.message !== "" ? qrDlg.message + " " : "") +
-                      (qrDlg.target === "remote" ? "Sirve desde cualquier lugar." : "Sirve para dispositivos en la misma red (wifi) que este equipo.") +
-                      (qrPin.checked ? " Incluye el PIN: quien tenga este QR puede pedir entrar (igual pasa por el lobby)." : " El PIN no va en el QR: pasalo aparte.")
-            }
-        }
-    }
+    DialogoQrSala { id: qrDlg; conf: page.conf }
 
     // Asistente: claves + wg0.conf para el servidor con IP publica.
     Dialog {

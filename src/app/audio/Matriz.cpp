@@ -10,6 +10,7 @@
 #include <QAudioSink>
 #include <QIODevice>
 #include <QMediaDevices>
+#include <QSaveFile>
 
 #include "emision/BroadcastEngine.hpp"
 #include "emision/FuentesApp.hpp"
@@ -60,9 +61,19 @@ void ponerMascara(const std::string& f, std::uint32_t m) {
         if ((m & (1u << i)) != 0) v.push_back(i + 1);
     e->setSourcePistas(f, v);
 }
+/// La escucha FIJA (el cruce de la matriz, lo que se guarda); el PFL va aparte.
 bool escucha(const std::string& f) {
     BroadcastEngine* e = motor();
+    return e != nullptr && e->sourceEscuchaFija(f);
+}
+/// Lo que suena en los auriculares: la escucha fija o el PFL.
+bool suenaEnEscucha(const std::string& f) {
+    BroadcastEngine* e = motor();
     return e != nullptr && e->sourceMonitoring(f);
+}
+std::string enPfl() {
+    BroadcastEngine* e = motor();
+    return e != nullptr ? e->pfl() : std::string();
 }
 void setEscucha(const std::string& f, bool on) {
     if (BroadcastEngine* e = motor()) e->setSourceMonitoring(f, on);
@@ -116,6 +127,9 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
         usarEquipo();
         emit cambio();
     });
+    guardarLuego_.setSingleShot(true);
+    guardarLuego_.setInterval(600);
+    connect(&guardarLuego_, &QTimer::timeout, this, [this]() { guardar(); });
     cargando_ = true;
     cargar();
     cargando_ = false;
@@ -194,6 +208,11 @@ void Matriz::refrescar() {
     if (motor() == nullptr) return;
     const std::vector<std::string> antes = filas_;
     filas_ = fuentesConAudio();
+    // Las que aparecieron reciben lo guardado; las que se fueron, al volver, otra vez.
+    for (auto it = aplicadas_.begin(); it != aplicadas_.end();)
+        it = std::find(filas_.begin(), filas_.end(), *it) == filas_.end() ? aplicadas_.erase(it) : std::next(it);
+    for (const auto& f : filas_)
+        if (!aplicadas_.contains(f)) aplicarGuardado(f);
     sincronizarTomas();
     armarPlan();
     // Las entradas de placa se abren según lo que las usa; al arrancar la matriz decide
@@ -266,7 +285,8 @@ QVariantMap Matriz::cruces() const {
     for (const auto& f : filas_) {
         const std::uint32_t mx = mascara(f);
         const bool oye = escucha(f);
-        if (oye) out[QString::fromStdString(f) + "|escucha"] = QVariantMap{{"activo", true}};
+        const bool pfl = enPfl() == f;
+        if (oye || pfl) out[QString::fromStdString(f) + "|escucha"] = QVariantMap{{"activo", oye}, {"pfl", pfl}};
         for (int i = 0; i < kPistas; ++i)
             if ((mx & (1u << i)) != 0)
                 out[QString::fromStdString(f) + QString("|pista%1").arg(i + 1)] =
@@ -279,6 +299,24 @@ QVariantMap Matriz::cruces() const {
                                                                             {"pan", e.pan},
                                                                             {"mute", e.mute},
                                                                             {"retardo_ms", kRetardoBusMs}};
+    return out;
+}
+
+double Matriz::picoDbDe(const std::string& columna) const {
+    for (const auto& b : buses_)
+        if (b->id == columna) return linealADb(b->pico->load());
+    const auto it = picosEquipo_.find(columna);
+    return it != picosEquipo_.end() ? linealADb(it->second->load()) : -100.0;
+}
+
+QStringList Matriz::enviosDe(const QString& fuente) const {
+    QStringList out;
+    const std::string f = fuente.toStdString();
+    const std::uint32_t mx = mascara(f);
+    for (int i = 0; i < kPistas; ++i)
+        if ((mx & (1u << i)) != 0) out << QString("pista%1").arg(i + 1);
+    for (const auto& [k, e] : envios_)
+        if (k.first == f) out << QString::fromStdString(k.second);
     return out;
 }
 
@@ -321,6 +359,83 @@ bool Matriz::haceLazo(const std::string& fuente, const std::string& bus) const {
             if (k.first == bb->nombre) pila.push_back(k.second);
     }
     return false;
+}
+
+QString Matriz::ponerPfl(const QString& fuenteQ) {
+    BroadcastEngine* e = motor();
+    if (e == nullptr) return "el motor no está listo";
+    const std::string pedida = fuenteQ.toStdString();
+    if (!pedida.empty() && !e->sourceExists(pedida)) return "No existe la fuente de audio «" + fuenteQ + "».";
+    if (!e->setPfl(pedida)) return QString::fromStdString(e->lastError());
+    // Una entrada de placa en PFL tiene que estar abierta (y la que salió, quizás no).
+    // El cambio() lo trae el aviso del motor (avisarFuente). No se guarda: el PFL es de un rato.
+    usarEquipo();
+    return {};
+}
+
+void Matriz::avisarFuente(const std::string& fuente, const char* que) {
+    bool primero = false;
+    {
+        std::lock_guard<std::mutex> l(avisosM_);
+        primero = avisos_.empty();
+        avisos_[fuente].insert(que);
+    }
+    if (primero) QMetaObject::invokeMethod(this, [this]() { atenderAvisos(); }, Qt::QueuedConnection);
+}
+
+void Matriz::atenderAvisos() {
+    std::map<std::string, std::set<std::string>> a;
+    {
+        std::lock_guard<std::mutex> l(avisosM_);
+        a.swap(avisos_);
+    }
+    bool ruteo = false, anotada = false;
+    for (const auto& [f, ques] : a) {
+        if (ques.contains("alta")) {
+            aplicadas_.erase(f); // nació o se rehízo: con lo de fábrica, hasta que se le ponga lo guardado
+            // Solo las de audio (las de video no tienen canal); si todavía no se sabe que
+            // tiene audio, la recibe refrescar cuando aparece en las filas.
+            const auto con = fuentesConAudio();
+            if (std::find(con.begin(), con.end(), f) != con.end()) aplicarGuardado(f);
+            ruteo = true;
+            continue;
+        }
+        // Lo de una fuente que todavía no recibió lo guardado son los valores con que
+        // nace: no se anotan (pisarían lo guardado).
+        if (aplicadas_.contains(f)) {
+            anotar(f);
+            anotada = true;
+        }
+        if (ques.contains("escucha") || ques.contains("pistas")) ruteo = true;
+    }
+    if (anotada) guardarLuego_.start();
+    if (ruteo) emit cambio();
+}
+
+void Matriz::anotar(const std::string& f) const {
+    BroadcastEngine* e = motor();
+    if (e == nullptr || !e->sourceExists(f)) return;
+    Canal& c = canales_[f];
+    c.pistas = mascara(f);
+    c.escucha = escucha(f);
+    c.volumen = e->sourceVolume(f);
+    c.mute = e->sourceMuted(f);
+    c.retardoMs = e->sourceSyncOffset(f);
+}
+
+void Matriz::aplicarGuardado(const std::string& f) {
+    BroadcastEngine* e = motor();
+    if (e == nullptr || !e->sourceExists(f)) return;
+    if (const auto it = canales_.find(f); it != canales_.end()) {
+        const Canal c = it->second; // copia: los avisos de lo que se pone no la tocan (todavía no está aplicada)
+        if (c.pistas) ponerMascara(f, *c.pistas & 0x3F);
+        if (c.escucha) setEscucha(f, *c.escucha);
+        if (c.volumen) e->setSourceVolume(f, *c.volumen);
+        if (c.mute) e->setSourceMuted(f, *c.mute);
+        if (c.retardoMs) e->setSourceSyncOffset(f, *c.retardoMs);
+    }
+    aplicadas_.insert(f);
+    anotar(f); // lo que no estaba guardado (una fuente nueva) queda con lo suyo
 }
 
 QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activo) {
@@ -606,7 +721,7 @@ void Matriz::usarEquipo() {
     const std::set<std::string> otros = usadasPorOtros_ ? usadasPorOtros_() : std::set<std::string>{};
     for (const auto& f : filas_) {
         if (!equipo_->esEntradaFisica(f)) continue;
-        bool usa = mascara(f) != 0 || escucha(f);
+        bool usa = mascara(f) != 0 || suenaEnEscucha(f);
         for (const auto& [k, e] : envios_)
             if (k.first == f) usa = true;
         if (otros.contains(f)) usa = true;
@@ -743,6 +858,20 @@ void Matriz::setActiva(bool on) {
     timer_.stop();
 }
 
+void Matriz::usar(QObject* vista, bool si) {
+    if (vista == nullptr) return;
+    if (si && !vistas_.contains(vista)) {
+        vistas_.insert(vista);
+        connect(vista, &QObject::destroyed, this, [this](QObject* o) {
+            vistas_.remove(o);
+            setActiva(!vistas_.isEmpty());
+        });
+    } else if (!si) {
+        vistas_.remove(vista);
+    }
+    setActiva(!vistas_.isEmpty());
+}
+
 void Matriz::leerMedidores() {
     BroadcastEngine* eng = motor();
     if (eng == nullptr) return;
@@ -797,7 +926,7 @@ Matriz::json Matriz::estado() const {
         const std::uint32_t mx = mascara(f);
         for (int i = 0; i < kPistas; ++i)
             if ((mx & (1u << i)) != 0) pis.push_back("pista" + std::to_string(i + 1));
-        filas.push_back({{"fuente", f}, {"pistas", pis}, {"escucha", oye}});
+        filas.push_back({{"fuente", f}, {"pistas", pis}, {"escucha", oye}, {"pfl", enPfl() == f}});
     }
     return {{"pistas", pistas},
             {"escucha", {{"id", "escucha"}, {"dispositivo", nombreEscucha().toStdString()}}},
@@ -830,20 +959,31 @@ void Matriz::guardar() const {
     if (cargando_) return;
     json j = estado();
     j.erase("fuentes");
-    // Las pistas de cada fuente (máscara: bit 0 = pista 1).
-    json mx = json::object();
-    for (const auto& f : filas_) mx[f] = mascara(f);
-    j["mezcladores"] = mx;
-    // Qué fuentes suenan en la escucha (los auriculares).
-    json oye = json::object();
-    for (const auto& f : filas_) oye[f] = escucha(f);
-    j["escucha"] = oye;
+    // El audio de cada fuente: las que están se anotan del motor; las que no (una
+    // placa desenchufada) quedan como estaban guardadas.
+    for (const auto& f : aplicadas_) anotar(f);
+    json canales = json::object();
+    for (const auto& [f, c] : canales_) {
+        json k = json::object();
+        if (c.pistas) k["pistas"] = *c.pistas;
+        if (c.escucha) k["escucha"] = *c.escucha;
+        if (c.volumen) k["volumen"] = *c.volumen;
+        if (c.mute) k["mute"] = *c.mute;
+        if (c.retardoMs) k["retardo_ms"] = *c.retardoMs;
+        canales[f] = k;
+    }
+    j["canales"] = canales;
     j["equipo"] = equipo_->guardado();
     j["pistasPlegadas"] = pistasPlegadas_;
     const fs::path p = root_ / "Config" / "audio-matriz.json";
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
-    std::ofstream(p) << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    // Escribir aparte y reemplazar: un corte a mitad no deja el archivo trunco (y la
+    // próxima carga no lo ignora y lo pisa con la matriz vacía).
+    QSaveFile out(QString::fromStdString(p.string()));
+    if (!out.open(QIODevice::WriteOnly)) return;
+    out.write(QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
+    out.commit();
 }
 
 void Matriz::cargar() {
@@ -877,16 +1017,23 @@ void Matriz::cargar() {
         v.ajustes = e.value("ajustes", false);
         envios_[{e.value("fuente", std::string()), e.value("bus", std::string())}] = v;
     }
+    // El audio de cada fuente: se le pone cuando aparece (refrescar, o el aviso de alta del motor).
+    for (const auto obj_ = j.value("canales", json::object()); const auto& [fuente, k] : obj_.items()) {
+        Canal& c = canales_[fuente];
+        if (k.contains("pistas") && k["pistas"].is_number()) c.pistas = k["pistas"].get<std::uint32_t>();
+        if (k.contains("escucha") && k["escucha"].is_boolean()) c.escucha = k["escucha"].get<bool>();
+        if (k.contains("volumen") && k["volumen"].is_number()) c.volumen = k["volumen"].get<float>();
+        if (k.contains("mute") && k["mute"].is_boolean()) c.mute = k["mute"].get<bool>();
+        if (k.contains("retardo_ms") && k["retardo_ms"].is_number()) c.retardoMs = k["retardo_ms"].get<int>();
+    }
+    // Los archivos de antes («mezcladores» y «escucha» sueltos).
     for (const auto obj_ = j.value("mezcladores", json::object()); const auto& [fuente, mx] : obj_.items())
-        if (motor()->sourceExists(fuente) && mx.is_number()) ponerMascara(fuente, mx.get<std::uint32_t>() & 0x3F);
-    // Primero el equipo: crea las fuentes de las entradas físicas, que el resto
-    // (pistas, escucha) reconoce por nombre.
+        if (mx.is_number() && !canales_[fuente].pistas) canales_[fuente].pistas = mx.get<std::uint32_t>();
+    for (const auto obj_ = j.value("escucha", json::object()); const auto& [fuente, on] : obj_.items())
+        if (on.is_boolean() && !canales_[fuente].escucha) canales_[fuente].escucha = on.get<bool>();
+    // El equipo crea las fuentes de las entradas físicas (reciben lo suyo al aparecer).
     equipo_->cargar(j.value("equipo", json::object()));
     pistasPlegadas_ = j.value("pistasPlegadas", true);
-    for (const auto obj_ = j.value("mezcladores", json::object()); const auto& [fuente, mx2] : obj_.items())
-        if (equipo_->esEntradaFisica(fuente) && mx2.is_number()) ponerMascara(fuente, mx2.get<std::uint32_t>() & 0x3F);
-    for (const auto obj_ = j.value("escucha", json::object()); const auto& [fuente, on] : obj_.items())
-        if (motor()->sourceExists(fuente) && on.is_boolean()) setEscucha(fuente, on.get<bool>());
 }
 
 } // namespace ba::app::audio

@@ -196,6 +196,19 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
     }).detach();
 }
 
+bool VideoGrafos::tieneSenal(const json& st) {
+    const json g = st.value("gstreamer", json::object());
+    if (!g.is_object()) return false;
+    // Recién rearmada a pedido (se prendió el PTZ, se agregó una tarjeta): la
+    // cámara se vuelve a abrir y tarda unos segundos en dar cuadros. No es una
+    // caída: 12 s de gracia (una que de verdad se cayó sigue sin señal después).
+    const double rearmada = g.value("rearmada_hace_s", -1.0);
+    if (rearmada >= 0.0 && rearmada < 12.0) return true;
+    if (g.contains("fps_recibidos")) return st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5;
+    const double sin = g.value("sin_datos_s", -1.0);
+    return sin >= 0.0 && sin < 1.5;
+}
+
 bool VideoGrafos::esEntrada(const std::string& n) const {
     BroadcastEngine& e = rt_.engine();
     const std::string type = e.sourceTypeId(n);
@@ -214,9 +227,14 @@ QVariantList VideoGrafos::entradasInfo() const {
     QVariantList out;
     for (const QString& e : entradas_) {
         const std::string n = e.toStdString();
-        const std::string tipo = inputs::tipoLogico(rt_.engine().sourceTypeId(n),
-                                                    json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false));
+        const json ajustes = json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
+        const std::string tipo = inputs::tipoLogico(rt_.engine().sourceTypeId(n), ajustes);
+        // Los remotos de la asamblea (el que tiene la palabra y lo que comparte)
+        // aparte de los invitados de la sala.
+        const bool deAsamblea = tipo == "ba_guest_video" && ajustes.is_object() &&
+                                ajustes.value("channel", std::string()).rfind("remoto", 0) == 0;
         const QString grupo = tipo == inputs::kVideoType ? QStringLiteral("Cámaras")
+                              : deAsamblea               ? QStringLiteral("Asamblea")
                               : tipo == "ba_guest_video" ? QStringLiteral("Invitados")
                               : tipo == "ba_ndi_input"   ? QStringLiteral("NDI")
                               : tipo == kTipoVirtual     ? QStringLiteral("Virtuales")
@@ -1034,8 +1052,10 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     }
     filtros["video"] = video;
     const std::string js = video.empty() ? std::string() : filtros.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    const auto ya = filtrosAplicados_.find(entrada);
-    if (ya == filtrosAplicados_.end() || ya->second != js) {
+    // Contra lo que la entrada tiene DE VERDAD (no contra lo último que se le mandó):
+    // si la fuente se rehízo (se sacó y se volvió a agregar con el mismo nombre),
+    // en la próxima revisión recupera sus tarjetas (el PTZ quedaba afuera para siempre).
+    {
         const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
         const json previo = actual.is_object() ? actual.value("filtros", json()) : json();
         const std::string previoJs = previo.is_string() ? previo.get<std::string>() : previo.is_null() ? "" : previo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -1044,7 +1064,6 @@ void VideoGrafos::aplicar(const std::string& entrada) {
                                        "«" + entrada + "»: filtros en la entrada: " + js);
             rt_.updateSourceSettings(entrada, json{{"filtros", js}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
-        filtrosAplicados_[entrada] = js;
     }
     // Las Salidas de esta entrada: que su escena lea el punto de la cadena del que cuelgan.
     for (const auto& n : grafo_.nodos()) {
@@ -2667,6 +2686,73 @@ std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras
     return {};
 }
 
+json VideoGrafos::capasDeDisposicion(const std::string& disposicion, const std::vector<std::string>& puertos,
+                                     std::string* error) {
+    const auto falla = [error](const std::string& m) {
+        if (error != nullptr) *error = m;
+        return json();
+    };
+    const std::string d = disposicion.empty() ? std::string("mosaico") : disposicion;
+    if (d != "mosaico" && d != "pip" && d != "lado")
+        return falla("no conozco la disposición «" + disposicion + "» (mosaico, pip o lado)");
+    if (d != "mosaico" && puertos.size() < 2) return falla("hacen falta al menos dos entradas");
+    const size_t n = puertos.size();
+    json capas = json::object();
+    for (size_t i = 0; i < n; ++i) {
+        json k;
+        if (d == "pip") {
+            k = i == 0 ? json{{"x", 0}, {"y", 0}, {"ancho", 1}, {"alto", 1}, {"orden", 0}}
+                       : json{{"x", 0.68},
+                              {"y", 0.06 + 0.3 * static_cast<double>(i - 1)},
+                              {"ancho", 0.28},
+                              {"alto", 0.28},
+                              {"orden", static_cast<int>(i)}};
+        } else if (d == "lado") {
+            const double w = 1.0 / static_cast<double>(n);
+            // Cada una en su franja de toda la altura: el encaje la centra (con
+            // dos de 16:9 queda en y 0,25 y alto 0,5; con otras, sin estirarlas).
+            k = {{"x", w * static_cast<double>(i)}, {"y", 0}, {"ancho", w}, {"alto", 1}};
+        } else if (n == 3) {
+            // Tres en una grilla de 2x2 dejan un hueco negro: la primera
+            // arriba al centro y las otras dos abajo.
+            k = i == 0 ? json{{"x", 0.25}, {"y", 0}, {"ancho", 0.5}, {"alto", 0.5}}
+                       : json{{"x", 0.5 * static_cast<double>(i - 1)}, {"y", 0.5}, {"ancho", 0.5}, {"alto", 0.5}};
+        } else {
+            k = nullptr; // mosaico: sin posición, la grilla
+        }
+        capas[puertos[i]] = k;
+    }
+    return capas;
+}
+
+std::string VideoGrafos::disponerEn(GrafoVideo& g, const std::string& comp, const std::string& disposicion,
+                                    const std::vector<std::string>& puertos) {
+    std::string e;
+    const json capas = capasDeDisposicion(disposicion, puertos, &e);
+    if (capas.is_null()) return e;
+    const GrafoVideo::Nodo* n = g.nodo(comp);
+    if (n == nullptr || n->tipo != "compositor") return "«" + comp + "» no es un compositor";
+    // Las capas se mezclan clave por clave: primero se borran todas las que
+    // había (si no, quedaría el `orden` de un pip o la opacidad de antes).
+    json borrar = json::object();
+    for (const auto& [puerto, k] : n->params.value("capas", json::object()).items()) borrar[puerto] = nullptr;
+    if (!borrar.empty() && !g.ajustar(comp, json{{"capas", borrar}}, &e)) return e;
+    if (!capas.empty() && !g.ajustar(comp, json{{"capas", capas}}, &e)) return e;
+    return {};
+}
+
+std::string VideoGrafos::aplicarDisposicion(const std::string& compositor, const std::string& disposicion) {
+    return editar([&](GrafoVideo& g) {
+        const GrafoVideo::Nodo* n = g.nodo(compositor);
+        if (n == nullptr || n->tipo != "compositor") return "«" + compositor + "» no es un compositor";
+        // Sus entradas conectadas, en el orden de sus puertos (la primera es el fondo del pip).
+        std::vector<std::string> puertos;
+        for (const auto& p : g.puertosEntrada(*n))
+            if (!p.pedido && p.tipo == "video") puertos.push_back(p.id);
+        return disponerEn(g, compositor, disposicion, puertos);
+    });
+}
+
 std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
                                       const std::string& disposicion, const std::string& nombre,
                                       bool ocultarSueltas, json* hecho) {
@@ -2675,6 +2761,10 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
     if (entradas.size() < 2) return "hacen falta al menos dos entradas";
     for (const auto& e : entradas)
         if (!esEntrada(e)) return "«" + e + "» no es una entrada de video";
+    {
+        std::string e;
+        if (capasDeDisposicion(disposicion, entradas, &e).is_null()) return e;
+    }
     std::string comp;
     const std::string err = editar([&](GrafoVideo& g) {
         std::string e;
@@ -2699,40 +2789,17 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
         if (!g.ajustar(comp, params, &e)) return e;
         if (!nombre.empty()) g.ajustar(comp, json{{"etiqueta", nombre}}, nullptr);
         // De cada entrada, lo que llega a su escena (con sus tarjetas).
-        json capas = json::object();
-        for (size_t i = 0; i < entradas.size(); ++i) {
-            std::string desde = GrafoVideo::idEntrada(entradas[i]);
+        std::vector<std::string> puertos;
+        for (const auto& entrada : entradas) {
+            std::string desde = GrafoVideo::idEntrada(entrada);
             for (const auto& c : g.cables())
-                if (c.hacia == GrafoVideo::idEscena(entradas[i]) && c.entrada == "in") desde = c.desde;
+                if (c.hacia == GrafoVideo::idEscena(entrada) && c.entrada == "in") desde = c.desde;
             const std::string puerto = g.conectar(desde, "out", comp, "", &e);
             if (puerto.empty()) return e;
-            json k;
-            if (disposicion == "pip") {
-                k = i == 0 ? json{{"x", 0}, {"y", 0}, {"ancho", 1}, {"alto", 1}, {"orden", 0}}
-                           : json{{"x", 0.68},
-                                  {"y", 0.06 + 0.3 * static_cast<double>(i - 1)},
-                                  {"ancho", 0.28},
-                                  {"alto", 0.28},
-                                  {"orden", static_cast<int>(i)}};
-            } else if (disposicion == "lado") {
-                const double w = 1.0 / static_cast<double>(entradas.size());
-                // Cada una en su franja de toda la altura: el encaje la centra.
-                k = {{"x", w * static_cast<double>(i)}, {"y", 0}, {"ancho", w}, {"alto", 1}};
-            } else if (entradas.size() == 3) {
-                // Tres en una grilla de 2x2 dejan un hueco negro: la primera
-                // arriba al centro y las otras dos abajo.
-                k = i == 0 ? json{{"x", 0.25}, {"y", 0}, {"ancho", 0.5}, {"alto", 0.5}}
-                           : json{{"x", 0.5 * static_cast<double>(i - 1)},
-                                  {"y", 0.5},
-                                  {"ancho", 0.5},
-                                  {"alto", 0.5}};
-            } else {
-                k = nullptr; // mosaico: sin posición, la grilla
-            }
-            capas[puerto] = k;
+            puertos.push_back(puerto);
         }
-        g.ajustar(comp, json{{"capas", capas}}, nullptr);
-        return std::string();
+        // La misma disposición que el botón de la página Video.
+        return disponerEn(g, comp, disposicion, puertos);
     });
     if (!err.empty()) return err;
     const std::string pe = ponerEnEscena(comp, escena);

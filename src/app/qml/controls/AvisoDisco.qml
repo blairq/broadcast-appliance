@@ -21,7 +21,8 @@ Rectangle {
     border.width: 1
 
     Timer {
-        interval: 1000; running: true; repeat: true; triggeredOnStart: true
+        // Mostrándose, cada segundo; si no, alcanza con enterarse a los pocos segundos.
+        interval: a.visible ? 1000 : 4000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: a.d = Studio.apurosDiscoUi()
     }
 

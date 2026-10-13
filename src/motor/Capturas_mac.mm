@@ -5,11 +5,13 @@
 // pantalla los títulos vienen vacíos: queda el nombre de la aplicación). La
 // pantalla, con avfvideosrc (su device-index es el orden de
 // CGGetActiveDisplayList); la ventana, con bacapturaventana (ScreenCaptureKit).
+// Y el índice de cada cámara para avfvideosrc (indiceCamaraMac).
 // ============================================================================
 #include "Capturas.hpp"
 
 #include "Piezas.hpp" // hayFabrica
 
+#import <AVFoundation/AVFoundation.h>
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 
@@ -97,6 +99,21 @@ std::string origenVentana(const std::string& app, const std::string& titulo, boo
     VentanaCapturable v;
     if (!buscarVentanaCapturable(app, titulo, v)) return {};
     return "bacapturaventana ventana=" + std::to_string(v.handle) + " cursor=" + (cursor ? "true" : "false");
+}
+
+int indiceCamaraMac(const std::string& uniqueId) {
+    if (uniqueId.empty()) return -1;
+    @autoreleasepool {
+        // La misma lista y el mismo orden que avfvideosrc al abrir device-index.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        NSArray<AVCaptureDevice*>* camaras = [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+#pragma clang diagnostic pop
+        const NSString* buscado = [NSString stringWithUTF8String:uniqueId.c_str()];
+        for (NSUInteger i = 0; i < camaras.count; ++i)
+            if ([camaras[i].uniqueID isEqualToString:(NSString*)buscado]) return static_cast<int>(i);
+    }
+    return -1;
 }
 
 } // namespace ba::motor

@@ -244,8 +244,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.details =
             "`falta` es lo importante: dice por que ese cue no se podria ejecutar (una escena sin nombre, "
             "un orador sin tiempo, un video sin archivo). Un guion sano tiene todos los `falta` vacios.\n\n"
-            "`offsetSeg` de cada cue son los segundos desde el arranque del evento: con `inicio` sale la "
-            "hora prevista de cada cosa.\n\n"
+            "`offsetSeg` de cada cue son los segundos desde el arranque del evento y `horaPrevista` la "
+            "hora («HH:MM») a la que le toca, si el evento tiene `inicio`.\n\n"
             "`cuando` es el arranque como instante absoluto con desfasaje "
             "(\"2026-09-24T19:00:00-03:00\"): es lo unico que le sirve a alguien que esta en otro huso. "
             "Viene vacio si falta la fecha o la hora.\n\n"
@@ -263,7 +263,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_abrir";
         t.title = "Abrir un evento";
         t.category = "evento";
-        t.description = "Abre un evento guardado, o crea uno nuevo si se pasa `nombre` en vez de `carpeta`.";
+        t.description = "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). Para "
+                        "un evento nuevo de verdad —sus propias escenas, mezclador, medios, asamblea— es evento_nuevo.";
         t.details =
             "Con `carpeta` abre uno que ya existe (el nombre exacto que devuelve evento_listar).\n"
             "Con `nombre` crea uno nuevo con ese titulo y lo deja abierto; si ya hay uno con ese nombre "
@@ -797,6 +798,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             const std::string antes = ev.enCurso().value("carpeta").toString().toStdString();
             if (antes.empty() || !ev.terminarEvento()) return done(ToolResult::error("No había ningún evento en curso."));
             const std::string ahora = ev.enCurso().value("carpeta").toString().toStdString();
+            if (ahora == antes)
+                return done(ToolResult::ok("Se cerró " + antes + " y el evento automático lo volvió a abrir (es la "
+                                           "jornada de hoy). Para cerrarla del todo: evento_terminar con "
+                                           "`automatico`: false."));
             done(ToolResult::ok("Terminado: " + antes + (ahora.empty() ? std::string() : ". En curso ahora: " + ahora)));
         };
         core.addTool(std::move(t));
@@ -923,7 +928,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Un cue es una cosa concreta que pasa. Los tipos y lo que necesita cada uno en `datos`:\n\n"
             "  escena        {escena}              pone esa escena al aire\n"
             "  musica        {archivo, accion, repetir}  accion: arrancar (por defecto) o parar;\n"
-            "                                        el archivo va en Medios/ del evento\n"
+            "                                        el archivo: uno de los medios del evento (media_list)\n"
             "  video         {archivo, accion, repetir, alAire}\n"
             "                                        el video va en SU escena («Video del evento»),\n"
             "                                        que se crea sola la primera vez y queda\n"
@@ -1093,7 +1098,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Cada reparo dice donde esta (`bloque`, `cue`) y si es `grave` (asi no se puede correr) o "
             "solo algo para mirar.\n\n"
             "Revisa tambien los archivos que el guion nombra: que la musica y los videos esten en "
-            "Medios/, que los discursos esten en Discursos/, que no esten vacios y que ninguno apunte "
+            "los medios del evento, que los discursos esten en Discursos/, que no esten vacios y que ninguno apunte "
             "fuera de la carpeta del evento.\n\n"
             "Revisa tambien el aparato: horas de disco al bitrate configurado, destino de la transmision, "
             "entradas sin señal (reparos sin bloque). Y devuelve la lista de chequeo manual (`chequeo`: lo "
@@ -1257,6 +1262,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "  pausar      frena el guion; el tiempo pausado NO cuenta como atraso\n"
             "  reanudar\n"
             "  parar       lo deja parado\n\n"
+            "`ensayo` es un modo que QUEDA como se lo dejo (como el boton Ensayo de la GUI): despues de "
+            "ensayar, para salir al aire de verdad hay que pasar `ensayo`: false (la respuesta dice en "
+            "`ensayo` como quedo).\n\n"
             "La respuesta trae el cue actual, el que sigue y el reloj: `desvioSeg` positivo = vamos "
             "tarde.\n\n"
             "Mientras el guion corre sin ensayo, el sistema entra en MODO EVENTO: la app le avisa al "
@@ -1270,13 +1278,19 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "parar"}}}},
               {"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue", {{"type", "integer"}, {"minimum", 0}}},
-              {"ensayo", {{"type", "boolean"}, {"description", "Recorrer sin salir al aire."}}}}},
+              {"ensayo", {{"type", "boolean"}, {"description", "Recorrer sin salir al aire."}}},
+              {"forzar", {{"type", "boolean"}, {"description", "arrancar aunque la revisión encuentre problemas graves"}}}}},
             {"required", {"accion"}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("ensayo")) ev.setEnsayo(a["ensayo"].get<bool>());
             const std::string accion = a["accion"];
-            if (accion == "arrancar")
-                ev.arrancar();
+            if (accion == "arrancar") {
+                // La misma revisión previa que la GUI: con problemas graves no arranca sin `forzar`.
+                if (const int graves = ev.arrancarRevisando(a.value("forzar", false)); graves > 0)
+                    return done(ToolResult::error("La revisión encontró " + std::to_string(graves) +
+                                                  " problema(s) grave(s): mirá evento_revisar (o evento_verificar) "
+                                                  "y corregilos, o repetí con `forzar`: true."));
+            }
             else if (accion == "siguiente")
                 ev.avanzar();
             else if (accion == "atras")
@@ -1383,8 +1397,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                   {"required", {"nombre"}},
                   {"properties",
                    {{"nombre", {{"type", "string"}}},
-                    {"papel", {{"type", "string"}}},
-                    {"canal", {{"type", "string"}}},
+                    {"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+                    {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
                     {"contacto", {{"type", "string"}}},
                     {"nota", {{"type", "string"}}},
                     {"vota", {{"type", "boolean"}}}}}}}}}}}};

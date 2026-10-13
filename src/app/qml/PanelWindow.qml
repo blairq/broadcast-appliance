@@ -99,6 +99,9 @@ Window {
                 // lo leen de su id.
                 if (item.panelId !== undefined) item.panelId = w.panelId
                 if (item.enVentana !== undefined) item.enVentana = true
+                // Un panel grande (el Mezclador) pide su tamaño.
+                if (item.anchoVentana !== undefined) w.width = item.anchoVentana
+                if (item.altoVentana !== undefined) w.height = item.altoVentana
             }
         }
     }

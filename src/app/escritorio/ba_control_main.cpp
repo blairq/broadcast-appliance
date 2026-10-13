@@ -1,6 +1,8 @@
 // ============================================================================
-// src/app/escritorio/ba_control_main.cpp — ba-control: control del escritorio de
-// Windows como servidor MCP, para los asistentes del aparato.
+// src/app/escritorio/ba_control_main.cpp — ba-control: control del sistema (el
+// escritorio de esta máquina) como servidor MCP, para los asistentes del aparato.
+// Las mismas herramientas system_* en Windows, macOS y Linux; cada sistema con su
+// motor (docs/planes/PLAN-CONTROL-SISTEMA.md).
 //
 // QUÉ ES. Un servidor MCP (stdio, JSON-RPC 2.0) aparte del de la emisión
 // (`broadcast`): le da al asistente del operador manejo de ESTA máquina —mouse,
@@ -15,11 +17,11 @@
 // idea de «computer use», acá nativa y sobre la propia máquina del aparato.
 //
 // PERMISOS. Nada se hace sin permiso. Lee en CADA llamada
-// <datos>/Config/control-windows.json: un interruptor general `habilitado` y
+// <datos>/Config/control-sistema.json: un interruptor general `habilitado` y
 // uno por capacidad (`pantalla`, `mouse`, `teclado`, `ejecutar`,
 // `ejecutar_admin`, `buscar`, `ventanas`, `portapapeles`, `procesos`,
 // `comandos`, `sistema`). El operador los
-// cambia en Configuración → Control de Windows, o por el MCP
+// cambia en Configuración → Control del sistema, o por el MCP
 // interno (`control_estado` / `control_configurar`). De fábrica está APAGADO;
 // prendido, «ejecutar como administrador» sigue apagado hasta que lo prendan.
 // Un cambio vale en la llamada siguiente, sin relanzar.
@@ -30,8 +32,7 @@
 // «preguntar antes de cada acción».
 //
 // SIN Qt, runtime de C++ estático: lo lanzan clientes externos, sin pasar por
-// el launcher. En la Mac y Linux compila pero cada herramienta contesta que es
-// solo para Windows (el control nativo es Win32).
+// el launcher. Donde una herramienta todavía no tiene motor, contesta eso (todaviaNo).
 // ============================================================================
 
 #include "escritorio/control.hpp"
@@ -88,7 +89,9 @@ Permisos permisos() {
     Permisos p;
     const std::string root = dataRoot();
     if (root.empty()) return p; // sin datos: de fábrica (apagado)
-    std::ifstream f(root + "/Config/control-windows.json");
+    // control-sistema.json (y el de antes, control-windows.json, hasta que se guarde el nuevo).
+    std::ifstream f(root + "/Config/control-sistema.json");
+    if (!f) f.open(root + "/Config/control-windows.json");
     if (!f) return p;
     const json j = json::parse(f, nullptr, false);
     if (!j.is_object()) return p;
@@ -175,10 +178,22 @@ json herramienta(const char* nombre, const char* descripcion, json esq) {
     return {{"name", nombre}, {"description", descripcion}, {"inputSchema", std::move(esq)}};
 }
 
+std::string todaviaNo(const std::string& herramienta) {
+#if defined(__APPLE__)
+    const char* sis = "macOS";
+#elif defined(_WIN32)
+    const char* sis = "Windows";
+#else
+    const char* sis = "Linux";
+#endif
+    return herramienta + " todavía no está hecha en " + sis +
+           " (las herramientas system_* son las mismas en los tres sistemas; el motor de este está en camino).";
+}
+
 json sinPermiso(const json& id, const char* que) {
     return resultadoTexto(id,
-                          std::string("El control de Windows no tiene permiso para «") + que +
-                              "» (Configuración → Control de Windows, o control_configurar).",
+                          std::string("El control del sistema no tiene permiso para «") + que +
+                              "» (Configuración → Control del sistema, o control_configurar).",
                           true);
 }
 
@@ -188,11 +203,12 @@ json catalogo() {
     const auto tool = [&](const char* name, const char* desc, json schema) {
         tools.push_back({{"name", name}, {"description", desc}, {"inputSchema", schema}});
     };
-    tool("windows_pantalla",
-         "Saca una captura de pantalla de ESTA máquina (PNG). Sin argumentos: todo el escritorio (todos los "
-         "monitores). `monitor`: el índice de windows_monitores. `x,y,ancho,alto`: una región. `ventana` (id de "
-         "windows_ventanas) o `titulo`: solo esa ventana, aunque esté tapada. `escala`: achicar (0.1..1, p. ej. "
-         "0.5 en un monitor 4K). Permiso: pantalla.",
+    tool("system_pantalla",
+         "Saca una captura de pantalla de ESTA máquina (PNG; Windows, macOS o Linux). Sin argumentos: todo el "
+         "escritorio (todos los monitores). `monitor`: el índice de system_monitores. `x,y,ancho,alto`: una región. "
+         "`ventana` (id de system_ventanas) o `titulo`: solo esa ventana, aunque esté tapada. `escala`: achicar "
+         "(0.1..1, p. ej. 0.5 en un monitor 4K). Las coordenadas de la imagen son las del mouse (en macOS, puntos "
+         "de pantalla). Permiso: pantalla.",
          obj({{"monitor", {{"type", "integer"}}},
               {"ventana", {{"type", "integer"}}},
               {"titulo", {{"type", "string"}}},
@@ -201,9 +217,9 @@ json catalogo() {
               {"y", {{"type", "integer"}}},
               {"ancho", {{"type", "integer"}}},
               {"alto", {{"type", "integer"}}}}));
-    tool("windows_monitores", "Lista los monitores: índice, posición, tamaño y cuál es el principal. Permiso: pantalla.",
+    tool("system_monitores", "Lista los monitores: índice, posición, tamaño y cuál es el principal. Permiso: pantalla.",
          obj({}));
-    tool("windows_mouse",
+    tool("system_mouse",
          "Mueve o acciona el mouse. `accion`: mover, click, doble, arrastrar, rueda. `x,y` el destino (en "
          "píxeles del escritorio virtual); `hasta_x,hasta_y` para arrastrar; `boton`: izq, der, medio; "
          "`pasos` para la rueda (positivo arriba). Permiso: mouse.",
@@ -215,34 +231,38 @@ json catalogo() {
               {"boton", {{"type", "string"}, {"enum", {"izq", "der", "medio"}}}},
               {"pasos", {{"type", "integer"}}}},
              {"accion"}));
-    tool("windows_teclado",
+    tool("system_teclado",
          "Escribe texto o manda una combinación de teclas. `texto`: lo escribe tal cual (Unicode). `teclas`: "
-         "una combinación como \"ctrl+c\", \"win+r\", \"alt+tab\", \"enter\", \"f5\". Permiso: teclado.",
+         "una combinación como \"mod+c\", \"alt+tab\", \"enter\", \"f5\". `mod` es la tecla de los atajos de "
+         "este sistema (Control en Windows y Linux, Comando en macOS): «mod+c» copia en los tres. `cmd`/`win`/"
+         "`super` es Comando en macOS y la tecla Windows en Windows. Permiso: teclado.",
          obj({{"texto", {{"type", "string"}}}, {"teclas", {{"type", "string"}}}}));
-    tool("windows_ejecutar",
-         "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: ruta del .exe, de un "
-         "archivo o una URL. `argumentos`: opcional. `carpeta`: carpeta de trabajo. `admin`: true lo corre "
-         "como administrador (pide UAC). `oculto`: sin ventana. Permiso: ejecutar (y ejecutar_admin si admin).",
+    tool("system_ejecutar",
+         "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: la ruta del programa o "
+         "de un archivo, una URL o (en macOS) el nombre de la aplicación («Safari») o su identificador. "
+         "`argumentos`: opcional. `carpeta`: carpeta de trabajo. `admin`: true lo corre como administrador (pide "
+         "UAC en Windows, la clave en macOS). `oculto`: sin ventana / sin traerlo al frente. Permiso: ejecutar (y "
+         "ejecutar_admin si admin).",
          obj({{"programa", {{"type", "string"}}},
               {"argumentos", {{"type", "string"}}},
               {"carpeta", {{"type", "string"}}},
               {"admin", {{"type", "boolean"}}},
               {"oculto", {{"type", "boolean"}}}},
              {"programa"}));
-    tool("windows_buscar",
+    tool("system_buscar",
          "Busca archivos por nombre. `patron`: parte del nombre (acepta * y ?). `carpeta`: dónde (por defecto "
          "el perfil del usuario). `max`: cuántos como mucho (por defecto 100). Permiso: buscar.",
          obj({{"patron", {{"type", "string"}}},
               {"carpeta", {{"type", "string"}}},
               {"max", {{"type", "integer"}}}},
              {"patron"}));
-    tool("windows_ventanas", "Lista las ventanas visibles: título, id, aplicación (el ejecutable), si es un navegador "
-         "(Chrome, Edge…: ver windows_chrome), proceso y posición. Permiso: ventanas.",
+    tool("system_ventanas", "Lista las ventanas visibles: título, id, aplicación, si es un navegador "
+         "(Chrome, Edge…: ver system_chrome), proceso y posición. Permiso: ventanas.",
          obj({}));
-    tool("windows_ventana",
-         "Acciona una ventana. `id` (de windows_ventanas) o `titulo` (parte del título). `accion`: activar, "
-         "minimizar, maximizar, restaurar, cerrar, mover (con `x,y` y/o `ancho,alto`), fijar_arriba (siempre "
-         "visible) o soltar_arriba. Permiso: ventanas.",
+    tool("system_ventana",
+         "Acciona una ventana. `id` (de system_ventanas) o `titulo` (parte del título o de la aplicación). "
+         "`accion`: activar, minimizar, maximizar, restaurar, cerrar, mover (con `x,y` y/o `ancho,alto`), "
+         "fijar_arriba (siempre visible; macOS no lo deja para otros programas) o soltar_arriba. Permiso: ventanas.",
          obj({{"id", {{"type", "integer"}}},
               {"titulo", {{"type", "string"}}},
               {"accion",
@@ -253,37 +273,38 @@ json catalogo() {
               {"ancho", {{"type", "integer"}}},
               {"alto", {{"type", "integer"}}}},
              {"accion"}));
-    tool("windows_portapapeles",
+    tool("system_portapapeles",
          "Lee o escribe el portapapeles de texto. Sin `texto`: lo lee. Con `texto`: lo pone. Permiso: portapapeles.",
          obj({{"texto", {{"type", "string"}}}}));
-    tool("windows_cursor",
+    tool("system_cursor",
          "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado), y si la "
          "persona está usando la máquina (`inactivo_s`: hace cuánto tocó mouse o teclado; `usandola` si fue hace "
          "menos de 5 s: esperar antes de mover el mouse). Sin argumentos. Permiso: pantalla.",
          obj({}));
-    tool("windows_procesos",
+    tool("system_procesos",
          "Lista los procesos: pid, nombre, memoria (MB) y si tienen ventana. `nombre`: filtrar (parte del nombre "
          "del ejecutable). `max`: cuántos (por defecto 200, los que más memoria usan primero). Permiso: procesos.",
          obj({{"nombre", {{"type", "string"}}}, {"max", {{"type", "integer"}}}}));
-    tool("windows_proceso_cerrar",
-         "Cierra un proceso por su `pid` (de windows_procesos): primero le pide que cierre sus ventanas; con "
+    tool("system_proceso_cerrar",
+         "Cierra un proceso por su `pid` (de system_procesos): primero le pide que cierre sus ventanas; con "
          "`forzar`: true lo termina en seco (se pierde lo no guardado). Nunca por nombre: el pid es uno solo. "
          "Permiso: procesos.",
          obj({{"pid", {{"type", "integer"}}}, {"forzar", {{"type", "boolean"}}}}, {"pid"}));
-    tool("windows_comando",
+    tool("system_comando",
          "Corre un comando y devuelve lo que contesta (salida, errores y código de salida). `comando`: la línea a "
-         "correr. `shell`: cmd (por defecto) o powershell. `carpeta`: dónde. `segundos`: lo más que espera (por "
-         "defecto 30, hasta 300; si se pasa, lo termina). Sin ventana. Permiso: comandos.",
+         "correr. `shell`: sistema (por defecto: cmd en Windows, zsh en macOS, sh en Linux), cmd, powershell, sh o "
+         "bash. `carpeta`: dónde. `segundos`: lo más que espera (por defecto 30, hasta 300; si se pasa, lo termina). "
+         "Sin ventana. Permiso: comandos.",
          obj({{"comando", {{"type", "string"}}},
-              {"shell", {{"type", "string"}, {"enum", {"cmd", "powershell"}}}},
+              {"shell", {{"type", "string"}, {"enum", {"sistema", "cmd", "powershell", "sh", "bash"}}}},
               {"carpeta", {{"type", "string"}}},
               {"segundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 300}}}},
              {"comando"}));
-    tool("windows_sistema",
-         "Los datos del equipo: Windows (versión), nombre, usuario, procesadores, memoria total y libre, discos "
+    tool("system_sistema",
+         "Los datos del equipo: el sistema (Windows, macOS o Linux, con su versión), nombre, usuario, procesadores, memoria total y libre, discos "
          "con su espacio libre, hace cuánto que está prendido y la batería si tiene. Sin argumentos. Permiso: sistema.",
          obj({}));
-    tool("windows_esperar",
+    tool("system_esperar",
          "Espera `ms` milisegundos (hasta 30000), o hasta que aparezca una ventana cuyo título contenga "
          "`titulo` (con `ms` como límite). Para dar tiempo a que abra un programa antes de seguir.",
          obj({{"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 30000}}}, {"titulo", {{"type", "string"}}}}));
@@ -391,7 +412,7 @@ bool capturar(int x, int y, int w, int h, double escala, std::string& png, int& 
 /// que dibuja la GPU). Minimizada no hay nada que dibujar.
 bool capturarVentana(HWND h, double escala, std::string& png, int& sw, int& sh, std::string& error) {
     if (IsIconic(h)) {
-        error = "la ventana está minimizada (windows_ventana accion=restaurar primero)";
+        error = "la ventana está minimizada (system_ventana accion=restaurar primero)";
         return false;
     }
     RECT r{};
@@ -464,7 +485,9 @@ WORD teclaVk(const std::string& n, bool& ok) {
     for (char c : n) k.push_back(static_cast<char>(tolower(static_cast<unsigned char>(c))));
     static const std::map<std::string, WORD> m{
         {"ctrl", VK_CONTROL},   {"control", VK_CONTROL}, {"alt", VK_MENU},    {"shift", VK_SHIFT},
-        {"win", VK_LWIN},       {"enter", VK_RETURN},    {"return", VK_RETURN}, {"tab", VK_TAB},
+        {"win", VK_LWIN},       {"cmd", VK_LWIN},        {"command", VK_LWIN}, {"super", VK_LWIN},
+        {"meta", VK_LWIN},      {"mod", VK_CONTROL},     {"option", VK_MENU},  {"opcion", VK_MENU},
+        {"mayus", VK_SHIFT},    {"enter", VK_RETURN},    {"return", VK_RETURN}, {"tab", VK_TAB},
         {"esc", VK_ESCAPE},     {"escape", VK_ESCAPE},   {"space", VK_SPACE}, {"espacio", VK_SPACE},
         {"backspace", VK_BACK}, {"supr", VK_DELETE},     {"delete", VK_DELETE}, {"del", VK_DELETE},
         {"ins", VK_INSERT},     {"home", VK_HOME},       {"inicio", VK_HOME}, {"end", VK_END},
@@ -860,11 +883,11 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         return out;
     const auto noPermiso = [&](const char* que) {
         return resultadoTexto(id,
-                              std::string("El control de Windows no tiene permiso para «") + que +
-                                  "» (Configuración → Control de Windows, o control_configurar).",
+                              std::string("El control del sistema no tiene permiso para «") + que +
+                                  "» (Configuración → Control del sistema, o control_configurar).",
                               true);
     };
-    if (nombre == "windows_pantalla") {
+    if (nombre == "system_pantalla") {
         if (!p.pantalla) return noPermiso("pantalla");
         const Virtual v;
         int x = v.x, y = v.y, w = v.w, h = v.h;
@@ -881,7 +904,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             json b = a;
             if (a.contains("ventana")) b["id"] = a["ventana"];
             HWND hv = buscarVentana(b);
-            if (hv == nullptr) return resultadoTexto(id, "no encontré esa ventana (windows_ventanas las lista)", true);
+            if (hv == nullptr) return resultadoTexto(id, "no encontré esa ventana (system_ventanas las lista)", true);
             if (!capturarVentana(hv, escala, png, sw, sh, error)) return resultadoTexto(id, error, true);
             return resultadoImagen(id, png, "Ventana «" + tituloDe(hv) + "»: " + std::to_string(sw) + "x" + std::to_string(sh));
         }
@@ -894,7 +917,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                                             std::to_string(x) + "," + std::to_string(y) +
                                             (sw != w ? " (achicada a " + std::to_string(sw) + "x" + std::to_string(sh) + ")" : ""));
     }
-    if (nombre == "windows_monitores") {
+    if (nombre == "system_monitores") {
         if (!p.pantalla) return noPermiso("pantalla");
         json out = json::array();
         int i = 0;
@@ -902,7 +925,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             out.push_back({{"indice", i++}, {"x", m.x}, {"y", m.y}, {"ancho", m.w}, {"alto", m.h}, {"principal", m.principal}});
         return resultadoDatos(id, {{"monitores", out}});
     }
-    if (nombre == "windows_mouse") {
+    if (nombre == "system_mouse") {
         if (!p.mouse) return noPermiso("mouse");
         const std::string accion = a.value("accion", std::string());
         const std::string boton = a.value("boton", std::string("izq"));
@@ -932,14 +955,14 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         return resultadoTexto(id, "Hecho. El mouse quedó en " + std::to_string(pt.x) + "," + std::to_string(pt.y) +
                                       ", sobre «" + tituloDe(raiz) + "».");
     }
-    if (nombre == "windows_teclado") {
+    if (nombre == "system_teclado") {
         if (!p.teclado) return noPermiso("teclado");
         if (a.contains("texto")) escribirTexto(aW(a.value("texto", std::string())));
         if (a.contains("teclas") && !mandarTeclas(a.value("teclas", std::string())))
             return resultadoTexto(id, "no entendí la combinación de teclas", true);
         return resultadoTexto(id, "Hecho, " + donde(GetForegroundWindow()) + ".");
     }
-    if (nombre == "windows_ejecutar") {
+    if (nombre == "system_ejecutar") {
         if (!p.ejecutar) return noPermiso("ejecutar");
         const bool admin = a.value("admin", false);
         if (admin && !p.ejecutar_admin) return noPermiso("ejecutar como administrador");
@@ -966,7 +989,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         return resultadoTexto(id, "Ejecutado «" + prog + "»" + (admin ? " como administrador" : "") +
                                       (pid ? " (pid " + std::to_string(pid) + ")" : "") + ".");
     }
-    if (nombre == "windows_buscar") {
+    if (nombre == "system_buscar") {
         if (!p.buscar) return noPermiso("buscar");
         const std::string patron = a.value("patron", std::string());
         if (patron.empty()) return resultadoTexto(id, "falta el patrón", true);
@@ -982,7 +1005,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         buscarEn(dir, pat, res, a.value("max", 100), 0);
         return resultadoDatos(id, {{"encontrados", res}, {"total", res.size()}});
     }
-    if (nombre == "windows_ventanas") {
+    if (nombre == "system_ventanas") {
         if (!p.ventanas) return noPermiso("ventanas");
         json out = json::array();
         for (const auto& w : ventanas()) {
@@ -1002,14 +1025,14 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         }
         return resultadoDatos(id, {{"ventanas", out}});
     }
-    if (nombre == "windows_ventana") {
+    if (nombre == "system_ventana") {
         if (!p.ventanas) return noPermiso("ventanas");
         HWND h = buscarVentana(a);
         if (h == nullptr) return resultadoTexto(id, "no encontré esa ventana", true);
         const std::string accion = a.value("accion", std::string());
         if (accion == "activar") {
             if (!traerAlFrente(h))
-                return resultadoTexto(id, "Windows no dejó traer esa ventana al frente (probá con windows_mouse "
+                return resultadoTexto(id, "Windows no dejó traer esa ventana al frente (probá con system_mouse "
                                           "un clic sobre ella)", true);
         }
         else if (accion == "minimizar") ShowWindow(h, SW_MINIMIZE);
@@ -1033,7 +1056,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         else return resultadoTexto(id, "acción desconocida", true);
         return resultadoTexto(id, "Hecho " + donde(h) + ".");
     }
-    if (nombre == "windows_portapapeles") {
+    if (nombre == "system_portapapeles") {
         if (!p.portapapeles) return noPermiso("portapapeles");
         if (a.contains("texto")) {
             if (!portapapelesEscribir(aW(a.value("texto", std::string())))) return resultadoTexto(id, "no se pudo escribir", true);
@@ -1041,7 +1064,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         }
         return resultadoDatos(id, {{"texto", portapapelesLeer()}});
     }
-    if (nombre == "windows_cursor") {
+    if (nombre == "system_cursor") {
         if (!p.pantalla) return noPermiso("pantalla");
         POINT pt{};
         GetCursorPos(&pt);
@@ -1063,29 +1086,29 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                                    {"debajo", {{"id", reinterpret_cast<long long>(raiz)}, {"titulo", tituloDe(raiz)}}},
                                    {"foco", {{"id", reinterpret_cast<long long>(foco)}, {"titulo", tituloDe(foco)}}}});
     }
-    if (nombre == "windows_procesos") {
+    if (nombre == "system_procesos") {
         if (!p.procesos) return noPermiso("procesos");
         return resultadoDatos(id, listarProcesos(a.value("nombre", std::string()), a.value("max", 200)));
     }
-    if (nombre == "windows_proceso_cerrar") {
+    if (nombre == "system_proceso_cerrar") {
         if (!p.procesos) return noPermiso("procesos");
         const DWORD pid = static_cast<DWORD>(a.value("pid", 0LL));
         if (pid <= 4) return resultadoTexto(id, "ese proceso es del sistema: no se cierra", true);
         if (pid == GetCurrentProcessId()) return resultadoTexto(id, "ese soy yo (ba-control)", true);
         return cerrarProceso(id, pid, a.value("forzar", false));
     }
-    if (nombre == "windows_comando") {
+    if (nombre == "system_comando") {
         if (!p.comandos) return noPermiso("comandos");
         const std::string cmd = a.value("comando", std::string());
         if (cmd.empty()) return resultadoTexto(id, "falta el comando", true);
-        return correrComando(id, cmd, a.value("shell", std::string("cmd")), a.value("carpeta", std::string()),
+        return correrComando(id, cmd, a.value("shell", std::string("sistema")), a.value("carpeta", std::string()),
                              std::clamp(a.value("segundos", 30), 1, 300));
     }
-    if (nombre == "windows_sistema") {
+    if (nombre == "system_sistema") {
         if (!p.sistema) return noPermiso("sistema");
         return resultadoDatos(id, datosSistema());
     }
-    if (nombre == "windows_esperar") {
+    if (nombre == "system_esperar") {
         const int ms = std::clamp(a.value("ms", a.contains("titulo") ? 10000 : 1000), 0, 30000);
         const std::string t = a.value("titulo", std::string());
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
@@ -1102,11 +1125,20 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     }
     return resultadoTexto(id, "herramienta desconocida: " + nombre, true);
 }
-#else  // no Windows
-json ejecutarHerramienta(const json& id, const std::string& nombre, const json&, const Permisos&) {
-    (void)nombre;
-    return resultadoTexto(id, "El control del escritorio es solo para Windows.", true);
+#elif !defined(__APPLE__) && !defined(__linux__)  // otro sistema (macOS: control_mac.mm; Linux: control_linux.cpp)
+json ejecutarHerramienta(const json& id, const std::string& nombre, const json& a, const Permisos& p) {
+    json out;
+    // Los archivos y Chrome ya andan (POSIX y el protocolo de Chrome).
+    if (atenderArchivos(id, nombre, a, p, out) || atenderChrome(id, nombre, a, p, out)) return out;
+    return resultadoTexto(id, todaviaNo(nombre), true);
 }
+bool aLaPapelera(const std::string&, std::string& error) {
+    error = "la papelera de Linux todavía no está hecha";
+    return false;
+}
+json registroSistema(const json& id, const json&, const Permisos&) { return resultadoTexto(id, todaviaNo("system_registro"), true); }
+json avisoSistema(const json& id, const json&, const Permisos&) { return resultadoTexto(id, todaviaNo("system_aviso"), true); }
+json ventanasDeNavegador() { return json::array(); }
 #endif
 
 json llamarHerramienta(const json& id, const std::string& nombre, const json& recibidos) {
@@ -1116,7 +1148,7 @@ json llamarHerramienta(const json& id, const std::string& nombre, const json& re
     const Permisos p = permisos();
     if (!p.habilitado)
         return resultadoTexto(id,
-                              "El control de Windows está deshabilitado (Configuración → Control de Windows, "
+                              "El control del sistema está deshabilitado (Configuración → Control del sistema, "
                               "o control_configurar {habilitado: true}).",
                               true);
     try {
@@ -1161,8 +1193,8 @@ int main() {
                         {"instructions",
                          "Control del escritorio de ESTA máquina Windows (mouse, teclado, captura, abrir "
                          "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo). Mirá "
-                         "windows_monitores y windows_pantalla antes de mover el mouse por coordenadas, y "
-                         "windows_cursor antes de escribir (qué ventana tiene el foco)."}}}});
+                         "system_monitores y system_pantalla antes de mover el mouse por coordenadas, y "
+                         "system_cursor antes de escribir (qué ventana tiene el foco)."}}}});
         } else if (metodo == "tools/list") {
             escribir({{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"tools", catalogo()}}}});
         } else if (metodo == "tools/call") {

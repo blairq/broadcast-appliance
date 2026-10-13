@@ -6,6 +6,8 @@
 // BANCAS (o del id o el nombre del integrante, como en el Cuerpo).
 // ============================================================================
 
+#include "asamblea/Votaciones.hpp"
+#include "asamblea/Presidencia.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -233,31 +235,23 @@ void McpService::registerSesionTools() {
         auto& vmRef = vm_;
         t.run = [s, &vmRef](const json& a, Done done) {
             if (a.contains("voto_s")) s->setVotoSegundos(a.value("voto_s", 60));
+            // Las reglas (numerar, cerrar mostrando el resultado, a Quórum) son del modelo de votaciones.
+            asamblea::Votaciones* v = vmRef.votaciones();
+            if (v == nullptr) return done(ToolResult::error("Las votaciones de la asamblea no están disponibles."));
             const std::string acc = a.value("accion", std::string("estado"));
             if (acc == "abrir") {
-                const QString e = s->abrirVotacionUi(QString::fromStdString(a.value("tema", std::string())),
-                                                     QString::fromStdString(a.value("menu", std::string("si_no_abstencion"))),
-                                                     a.value("segundos", s->votoSegundos()));
-                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                const std::string e = v->abrirEnCelulares(a.value("tema", std::string()),
+                                                          a.value("menu", std::string("si_no_abstencion")),
+                                                          a.value("segundos", s->votoSegundos()));
+                if (!e.empty()) return done(ToolResult::error(e));
             } else if (acc == "pausar" || acc == "reanudar") {
-                s->pausarVotacion(acc == "pausar");
+                v->pausarEnCelulares(acc == "pausar");
             } else if (acc == "cerrar") {
-                s->cerrarVotacionUi();
+                v->cerrarEnCelulares();
             } else if (acc == "a_quorum") {
-                const json v = s->votacion();
-                if (v.value("estado", std::string()) != "cerrada") return done(ToolResult::error("cerrala primero"));
-                const json c = s->resultadoCombinado(json::array());
-                const json t2 = c.value("totales", json::object());
-                json r{{"asunto", a.value("tema", v.value("tema", std::string()))},
-                       {"afirmativos", t2.value("afirmativo", 0)},
-                       {"negativos", t2.value("negativo", 0)},
-                       {"abstenciones", t2.value("abstencion", 0)},
-                       {"presentes", s->presentes()},
-                       {"nominal", c.value("nominal", json::array())},
-                       {"origen", "celulares"}};
-                const json res = vmRef.quorum().cargarOficial(r);
-                if (res.contains("error")) return done(ToolResult::error(res.value("error", std::string())));
-                return done(ToolResult().data({{"resultado", res}}));
+                const json r = v->celularesAQuorum(a.value("tema", std::string()));
+                if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+                return done(ToolResult().data(r));
             }
             done(ToolResult().data(s->votacion()));
         };
@@ -339,8 +333,9 @@ void McpService::registerSesionTools() {
             std::string e;
             const std::string id = idDe(a, e);
             if (id.empty()) return done(ToolResult::error(e));
-            const QString r = vm->hablarARemoto(QString::fromStdString(id), a.value("activo", false));
-            if (!r.isEmpty()) return done(ToolResult::error(r.toStdString()));
+            if (vm->presidencia() == nullptr) return done(ToolResult::error("La sesión remota no está andando."));
+            const std::string r = vm->presidencia()->hablarARemoto(id, a.value("activo", false));
+            if (!r.empty()) return done(ToolResult::error(r));
             done(ToolResult::ok(a.value("activo", false) ? "Le estás hablando." : "Listo, ya no le hablás."));
         };
         core_.addTool(std::move(t));

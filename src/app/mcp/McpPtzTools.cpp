@@ -13,6 +13,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"
+#include "ptz/Interlock.hpp"
 #include "ui/Seguidor.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -46,8 +47,10 @@ void McpService::registerPtzTools() {
                       "Y «Mejorar imagen».");
     const QPointer<ptz::ControlCamaras> c = cc;
     // Interlock: la cámara AL AIRE no se mueve por pedido de algo automático.
-    // Con `forzar` igual pasa por la confirmación de aire (McpAire). El
-    // `ptz_seguir` en modo suave puede seguir si el interlock lo permite.
+    // La regla es la del modelo (ControlCamaras::chequearMovimiento), la misma
+    // que consultan las páginas antes de preguntarle al operador. Con `forzar`
+    // igual pasa por la confirmación de aire (McpAire). El `ptz_seguir` en modo
+    // suave puede seguir si el interlock lo permite.
     const auto conInterlock = [c](Tool& t) {
         if (t.inputSchema.contains("properties"))
             t.inputSchema["properties"]["forzar"] = {
@@ -57,14 +60,15 @@ void McpService::registerPtzTools() {
         const std::string nombre = t.name;
         t.run = [c, run, nombre](const json& a, Done done) {
             if (c) {
-                const QString e = QString::fromStdString(a.value("entrada", std::string()));
-                const QVariantMap il = c->interlock();
-                const bool suave = nombre == "ptz_seguir" && a.value("modo", std::string()) == "suave" &&
-                                   il.value("seguir_suave_permitido").toBool();
-                if (!e.isEmpty() && il.value("activo").toBool() && c->alAire(e) && !a.value("forzar", false) && !suave) {
-                    ToolResult r = ToolResult::error("La camara «" + e.toStdString() +
-                                                     "» esta AL AIRE: moverla se ve. Usá otra camara, o `forzar`: true "
-                                                     "(pide confirmacion al operador).");
+                const QString e = qarg(a, "entrada");
+                const QString modo = nombre == "ptz_seguir" && a.value("modo", std::string()) == "suave"
+                                         ? QString::fromLatin1(ptz::kMovimientoSeguirSuave)
+                                         : QString();
+                const QString motivo = c->chequearMovimiento(e, a.value("forzar", false), modo);
+                if (!motivo.isEmpty()) {
+                    ToolResult r = ToolResult::error(motivo.toStdString() +
+                                                     " Usá otra camara, o `forzar`: true (pide confirmacion al "
+                                                     "operador).");
                     r.structured = json{{"camara_al_aire", true}};
                     return done(r);
                 }
@@ -174,6 +178,53 @@ void McpService::registerPtzTools() {
                     done(ToolResult().data(r));
                 });
             });
+        };
+        conInterlock(t);
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_foco";
+        t.title = "Foco de una cámara";
+        t.category = "camaras";
+        t.description = "Foco de la cámara `entrada`: `auto` true/false prende o apaga el autofoco; `velocidad` (-1 cerca … "
+                        "1 lejos) lo mueve a mano durante `duracion_ms` y lo para.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"auto", {{"type", "boolean"}}},
+                           {"velocidad", {{"type", "number"}, {"minimum", -1}, {"maximum", 1}}},
+                           {"duracion_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 5000}}}}}};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString e = qarg(a, "entrada");
+            if (a.contains("auto")) {
+                const QString err = c->autoFoco(e, a.value("auto", true));
+                if (!err.isEmpty() || !a.contains("velocidad")) return done(err.isEmpty() ? ToolResult::ok("listo") : ToolResult::error(err.toStdString()));
+            }
+            if (!a.contains("velocidad")) return done(ToolResult::error("falta `auto` o `velocidad`"));
+            const QString err = c->enfocar(e, a.value("velocidad", 0.0));
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            QTimer::singleShot(std::clamp(a.value("duracion_ms", 600), 100, 5000), c.data(), [c, e, done]() {
+                if (c) c->enfocar(e, 0.0);
+                done(ToolResult::ok("enfocada"));
+            });
+        };
+        conInterlock(t);
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_home";
+        t.title = "Llevar una cámara a su posición de inicio";
+        t.category = "camaras";
+        t.description = "La cámara `entrada` vuelve a su posición de inicio (home): centrada, sin zoom.";
+        t.inputSchema = {{"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString err = c->home(qarg(a, "entrada"));
+            done(err.isEmpty() ? ToolResult::ok("en home") : ToolResult::error(err.toStdString()));
         };
         conInterlock(t);
         core_.addTool(std::move(t));

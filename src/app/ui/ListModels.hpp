@@ -17,6 +17,8 @@
 #include <QVariantList>
 
 #include <map>
+#include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -126,8 +128,12 @@ class SourcesModel : public QAbstractListModel {
 class MixerModel : public QAbstractListModel {
     Q_OBJECT
    public:
-    enum Roles { NameRole = Qt::UserRole + 1, PeakDbRole, VolumeDbRole, MutedRole };
+    enum Roles { NameRole = Qt::UserRole + 1, PeakDbRole, VolumeDbRole, MutedRole, RetardoMsRole };
     explicit MixerModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// El motor cambió el audio de una fuente (volumen, mute, retardo…: BroadcastEngine::
+    /// alCambiarAudioFuente), lo haya pedido quien sea. Desde cualquier hilo; los de una
+    /// misma vuelta se juntan en un dataChanged por fila, en el hilo del modelo.
+    void avisarCambio(const std::string& fuente);
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
@@ -150,6 +156,8 @@ class MixerModel : public QAbstractListModel {
     AppRuntime& rt_;
     std::vector<std::string> names_;
     std::vector<float> peaks_;
+    std::mutex cambiosM_;
+    std::set<std::string> cambios_; ///< avisarCambio: las fuentes a refrescar en la próxima vuelta
 };
 
 class SourceTypesModel : public QAbstractListModel {

@@ -50,6 +50,8 @@ class VideoItem : public QQuickItem {
 
    protected:
     QSGNode* updatePaintNode(QSGNode* old, UpdatePaintNodeData*) override;
+    /// Al volverse visible trae el último cuadro (oculto no los copia ni los sube).
+    void itemChange(ItemChange change, const ItemChangeData& value) override;
 
    private slots:
     void refresh();

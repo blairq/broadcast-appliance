@@ -254,7 +254,7 @@ void McpService::registerAsambleaTools() {
                          {"properties",
                           {{"general", {{"type", "string"}, {"description", "La cámara del plano general (de fábrica, la que más bancas tiene)."}}},
                            {"crear", {{"type", "boolean"}}}}}};
-        t.run = [&vm, &rt, this](const json& a, Done done) {
+        t.run = [&vm, &rt](const json& a, Done done) {
             BroadcastEngine& eng = rt.engine();
             const auto& cuerpo = vm.cuerpo().cuerpo();
             const auto camaras = camarasDeBancas(cuerpo);
@@ -330,7 +330,6 @@ void McpService::registerAsambleaTools() {
                 if (!esc.empty()) deb->configurar({{"escenas", esc}});
             }
             rt.save();
-            vm.refreshModels();
             done(ToolResult()
                      .text(errores.empty() ? "Listo." : "Hecho, con errores en algunas fuentes.")
                      .data({{"creadas", creadas}, {"errores", errores}, {"siguiente", "asamblea_revisar"}}));

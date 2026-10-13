@@ -298,6 +298,16 @@ bool Padron::despedir(const std::string& id) {
     return true;
 }
 
+Padron::Votantes Padron::votantes() const {
+    Votantes v;
+    for (const Asistente& a : gente_) {
+        if (!a.vota) continue;
+        ++v.podian;
+        if (a.estado == Estado::Llego) v.habilitados.push_back({a.codigo, a.nombre});
+    }
+    return v;
+}
+
 Resumen Padron::resumen() const {
     Resumen r;
     r.total = static_cast<int>(gente_.size());
@@ -308,10 +318,16 @@ Resumen Padron::resumen() const {
         if (a.estado != Estado::Llego) continue;
         ++r.presentes;
         if (a.vota) ++r.votoPresente;
-        if (a.canal == Canal::Presencial)
+        // Sin canal previsto, lo dice por dónde se acreditó (el QR sirve en los dos lados).
+        const bool aca = a.canal == Canal::Presencial ||
+                         (a.canal == Canal::SinDefinir && (a.porDonde == "mostrador" || a.porDonde == "rostro"));
+        const bool online = a.canal == Canal::Online || (a.canal == Canal::SinDefinir && a.porDonde == "lobby");
+        if (aca)
             ++r.presenciales;
-        else if (a.canal == Canal::Online)
+        else if (online)
             ++r.enLinea;
+        else
+            ++r.sinDato;
     }
     return r;
 }

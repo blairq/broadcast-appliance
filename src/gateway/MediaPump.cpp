@@ -180,53 +180,20 @@ MediaPump::MediaPump(WebrtcHub& hub, const Cfg& cfg, Log& log) : hub_(hub), cfg_
 MediaPump::~MediaPump() { stop(); }
 
 void MediaPump::start() {
-    const uint32_t pid = currentPid();
     const auto name = [](const std::vector<std::wstring>& v, size_t i) {
         return i < v.size() ? v[i] : std::wstring();
     };
-    const auto narrow = [](const std::wstring& w) { return std::string(w.begin(), w.end()); };
 
-    const auto makeVideo = [&](const std::wstring& n, int w, int h) {
-        auto out = std::make_unique<VideoOut>();
-        out->w = w;
-        out->h = h;
-        out->nombre = narrow(n);
-        out->scratch.resize(static_cast<size_t>(w) * h * 4u);
-        if (!n.empty()) {
-            if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
-                log_.info("video out: " + narrow(n) + " listo (" + std::to_string(w) + "x" +
-                          std::to_string(h) + ")");
-            } else {
-                log_.warn("video out: no se pudo publicar " + narrow(n) + " (se salta)", -1);
-            }
-        }
-        return out;
-    };
-    const auto makeAudio = [&](const std::wstring& n) {
-        auto out = std::make_unique<AudioOut>();
-        if (!n.empty()) {
-            if (SharedAudioRing::init(n.c_str(), static_cast<uint32_t>(cfg_.audioChannels),
-                                      audio_ring::kDefaultCapacityBlocks, pid, kGeneration, out->ring)
-                    .ok) {
-                log_.info("audio out: " + narrow(n) + " listo");
-            } else {
-                log_.warn("audio out: no se pudo crear " + narrow(n) + " (se salta)", -1);
-            }
-        }
-        return out;
-    };
+    const auto makeVideo = [this](const std::wstring& n, int w, int h) { return crearVideo(n, w, h); };
+    const auto makeAudio = [this](const std::wstring& n) { return crearAudio(n); };
 
-    const size_t guests = cfg_.guestVideoNames.empty() ? 0 : cfg_.guestVideoNames.size() - 1;
+    const size_t nombres = cfg_.guestVideoNames.empty() ? 0 : cfg_.guestVideoNames.size() - 1;
+    const size_t guests =
+        cfg_.lugaresIniciales > 0 ? std::min(nombres, static_cast<size_t>(cfg_.lugaresIniciales)) : nombres;
     const size_t lobby = cfg_.lobbyVideoNames.empty() ? 0 : cfg_.lobbyVideoNames.size() - 1;
-    guestVideo_.clear();
-    shareVideo_.clear();
     lobbyVideo_.clear();
     backstageVideo_.clear();
-    guestAudio_.clear();
     lobbyAudio_.clear();
-    guestVideo_.emplace_back();
-    shareVideo_.emplace_back();
-    guestAudio_.emplace_back();
     lobbyVideo_.emplace_back();
     lobbyAudio_.emplace_back();
     backstageVideo_.emplace_back();
@@ -236,11 +203,7 @@ void MediaPump::start() {
             makeVideo(name(cfg_.backstageVideoNames, k), cfg_.backstageW, cfg_.backstageH));
         backstageVideo_.back()->minIntervalNs = 100'000'000; // ~10 fps: es una miniatura
     }
-    for (size_t s = 1; s <= guests; ++s) {
-        guestVideo_.push_back(makeVideo(name(cfg_.guestVideoNames, s), cfg_.programW, cfg_.programH));
-        shareVideo_.push_back(makeVideo(name(cfg_.shareVideoNames, s), cfg_.programW, cfg_.programH));
-        guestAudio_.push_back(makeAudio(name(cfg_.guestAudioNames, s)));
-    }
+    ampliar(static_cast<int>(guests)); // los del cupo de arranque; los demás, al subir el cupo
     for (size_t k = 1; k <= lobby; ++k) {
         lobbyVideo_.push_back(makeVideo(name(cfg_.lobbyVideoNames, k), cfg_.lobbyW, cfg_.lobbyH));
         lobbyAudio_.push_back(makeAudio(name(cfg_.lobbyAudioNames, k)));
@@ -288,6 +251,62 @@ void MediaPump::stop() {
     }
     threads_.clear();
     log_.info("MediaPump: detenido");
+}
+
+std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n, int w, int h) {
+    const auto narrow = [](const std::wstring& x) { return std::string(x.begin(), x.end()); };
+    auto out = std::make_unique<VideoOut>();
+    out->w = w;
+    out->h = h;
+    out->nombre = narrow(n);
+    out->scratch.resize(static_cast<size_t>(w) * h * 4u);
+    if (!n.empty()) {
+        if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
+            log_.info("video out: " + narrow(n) + " listo (" + std::to_string(w) + "x" + std::to_string(h) + ")");
+        } else {
+            log_.warn("video out: no se pudo publicar " + narrow(n) + " (se salta)", -1);
+        }
+    }
+    return out;
+}
+
+std::unique_ptr<MediaPump::AudioOut> MediaPump::crearAudio(const std::wstring& n) {
+    const auto narrow = [](const std::wstring& x) { return std::string(x.begin(), x.end()); };
+    auto out = std::make_unique<AudioOut>();
+    if (!n.empty()) {
+        if (SharedAudioRing::init(n.c_str(), static_cast<uint32_t>(cfg_.audioChannels),
+                                  audio_ring::kDefaultCapacityBlocks, currentPid(), kGeneration, out->ring)
+                .ok) {
+            log_.info("audio out: " + narrow(n) + " listo");
+        } else {
+            log_.warn("audio out: no se pudo crear " + narrow(n) + " (se salta)", -1);
+        }
+    }
+    return out;
+}
+
+void MediaPump::ampliar(int slots) {
+    const auto name = [](const std::vector<std::wstring>& v, size_t i) { return i < v.size() ? v[i] : std::wstring(); };
+    std::lock_guard<std::mutex> l(canalesLock_);
+    const int hasta = std::min(slots, kMaxInvitados);
+    const int antes = lugares_;
+    for (int s = lugares_ + 1; s <= hasta; ++s) {
+        const size_t i = static_cast<size_t>(s);
+        videosInvitado_.push_back(crearVideo(name(cfg_.guestVideoNames, i), cfg_.programW, cfg_.programH));
+        guestVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
+        videosInvitado_.push_back(crearVideo(name(cfg_.shareVideoNames, i), cfg_.programW, cfg_.programH));
+        shareVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
+        audiosInvitado_.push_back(crearAudio(name(cfg_.guestAudioNames, i)));
+        guestAudio_[i].store(audiosInvitado_.back().get(), std::memory_order_release);
+        lugares_ = s;
+    }
+    if (lugares_ > antes && antes > 0)
+        log_.info("MediaPump: lugares " + std::to_string(antes) + " -> " + std::to_string(lugares_) + " (sin reiniciar)");
+}
+
+int MediaPump::lugares() const {
+    std::lock_guard<std::mutex> l(canalesLock_);
+    return lugares_;
 }
 
 // --- Rutas -------------------------------------------------------------------
@@ -689,8 +708,9 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
     }
     const MediaRoute r = route(session);
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
-        r.index < static_cast<int>(guestAudio_.size())) {
-        publishAudio(*guestAudio_[static_cast<size_t>(r.index)], samples, n, rate);
+        r.index <= kMaxInvitados) {
+        if (AudioOut* a = guestAudio_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
+            publishAudio(*a, samples, n, rate);
     } else if (r.kind == MediaRoute::Kind::Lobby && r.talk && r.index >= 1 &&
                r.index < static_cast<int>(lobbyAudio_.size())) {
         // El operador solo escucha a quien le esta hablando.
@@ -774,8 +794,9 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
-        r.index < static_cast<int>(guestVideo_.size())) {
-        publishVideo(*guestVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+        r.index <= kMaxInvitados) {
+        if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
+            publishVideo(*v, pixels, w, h, true);
     } else if (r.kind == MediaRoute::Kind::Lobby && r.index >= 1 &&
                r.index < static_cast<int>(lobbyVideo_.size())) {
         publishVideo(*lobbyVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
@@ -792,8 +813,9 @@ void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, 
     const MediaRoute r = route(session);
     // Solo los de adentro comparten pantalla hacia el programa (y el remoto con la palabra).
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
-        r.index < static_cast<int>(shareVideo_.size())) {
-        publishVideo(*shareVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+        r.index <= kMaxInvitados) {
+        if (VideoOut* v = shareVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
+            publishVideo(*v, pixels, w, h, true);
     } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 &&
                r.index < static_cast<int>(remotoContenido_.size()) && remotoContenido_[static_cast<size_t>(r.index)]) {
         publishVideo(*remotoContenido_[static_cast<size_t>(r.index)], pixels, w, h, true);
@@ -892,18 +914,21 @@ void MediaPump::publishAudio(AudioOut& out, const float* samples, size_t n, int 
 void MediaPump::plateThread() {
     const int w = cfg_.programW;
     const int h = cfg_.programH;
+    // La placa de cada lugar se dibuja cuando el lugar tiene canal (el cupo puede
+    // subir andando: ampliar).
     std::vector<std::vector<uint8_t>> plates(guestVideo_.size());
-    for (size_t s = 1; s < plates.size(); ++s) {
-        plates[s].assign(static_cast<size_t>(w) * h * 4u, 0);
-        drawPlate(plates[s].data(), w, h, static_cast<int>(s));
-    }
     const uint64_t kGuestTimeoutNs = cfg_.sinVideoNs; // sin video tanto tiempo -> placa
     while (!stop_.load(std::memory_order_relaxed)) {
         const uint64_t now = monoNs();
         for (size_t s = 1; s < guestVideo_.size(); ++s) {
-            const uint64_t last = guestVideo_[s]->lastNs.load(std::memory_order_relaxed);
-            if (last == 0 || now - last > kGuestTimeoutNs)
-                publishVideo(*guestVideo_[s], plates[s].data(), w, h, false);
+            VideoOut* v = guestVideo_[s].load(std::memory_order_acquire);
+            if (v == nullptr) continue;
+            if (plates[s].empty()) {
+                plates[s].assign(static_cast<size_t>(w) * h * 4u, 0);
+                drawPlate(plates[s].data(), w, h, static_cast<int>(s));
+            }
+            const uint64_t last = v->lastNs.load(std::memory_order_relaxed);
+            if (last == 0 || now - last > kGuestTimeoutNs) publishVideo(*v, plates[s].data(), w, h, false);
         }
         // 5 fps: es una imagen fija y A muestra el ultimo frame recibido.
         std::this_thread::sleep_for(std::chrono::milliseconds(200));

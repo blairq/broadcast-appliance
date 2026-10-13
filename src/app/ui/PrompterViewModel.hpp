@@ -22,6 +22,10 @@
 // copia del estado: se pregunta cada medio segundo mientras la página está a
 // la vista, y nada más (preguntar cuando nadie mira es gastar).
 //
+// LAS ÓRDENES SON DEL MODELO. Cargar, arrancar, la velocidad… y la consulta
+// son operaciones de sala::Teleprompter, las mismas que usa el cue
+// «teleprompter» del guion: este view model solo las presenta.
+//
 // LA CLAVE ES DEL GATEWAY. La genera él al arrancar (aleatoria, 16 bytes) y
 // no se puede cambiar desde acá: cambiarla dejaría afuera al control que ya
 // está en la mano de alguien. Se muestra para poder dictarla.

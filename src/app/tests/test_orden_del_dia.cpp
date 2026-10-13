@@ -69,6 +69,13 @@ int main(int argc, char** argv) {
           "anexo del acta");
     CHECK(!od.punto(9, "votado", "").empty(), "punto inexistente");
     CHECK(!od.punto(1, "raro", "").empty(), "estado inválido");
+    // Los capítulos para YouTube: desde que arrancó la grabación; sin grabación, nada.
+    CHECK(od.capitulosTexto(0).empty(), "sin grabación no hay capítulos");
+    {
+        const std::string t = od.capitulosTexto(od.puntos()[0].value("inicio_ms", 0LL));
+        CHECK(t.rfind("0:00 Punto 1: Uno\n", 0) == 0 && t.find("Punto 2: Dos\n") != std::string::npos,
+              "capítulos como texto, uno por línea");
+    }
     {
         asamblea::OrdenDelDia otra(dir.path().toStdString(), bus);
         CHECK(otra.puntos().size() == 2, "queda guardado");

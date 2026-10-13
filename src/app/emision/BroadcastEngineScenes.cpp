@@ -540,6 +540,9 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     sources_[spec.name] = f;
     ordenFuentes_.push_back(spec.name);
     if (esDeApp(spec.id)) fuentes::alta(spec.name, spec.id, json::parse(spec.settingsJson, nullptr, false));
+    // Una fuente nueva (o rehecha: una placa que cambió de canales): lo guardado de su
+    // audio se le vuelve a poner (Matriz).
+    if (cambioAudio_) cambioAudio_(spec.name, "alta");
     // Los compositores que la juntan (creados antes que ella, p. ej. al arrancar) se rearman.
     for (const auto& [n, c] : sources_) {
         if (c.compProductor.empty()) continue;
@@ -569,6 +572,7 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
         motor_->quitarEntrada(nombre);
     fuentes::baja(nombre);
     sources_.erase(it);
+    if (pfl_ == nombre) pfl_.clear();
     ordenFuentes_.erase(std::remove(ordenFuentes_.begin(), ordenFuentes_.end(), nombre), ordenFuentes_.end());
 }
 
@@ -738,8 +742,10 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     }
     sources_.erase(it);
     sources_[to] = f;
+    if (pfl_ == from) pfl_ = to;
     fuentes::baja(from);
     if (esDeApp(f.spec.id)) fuentes::alta(to, f.spec.id, json::parse(f.spec.settingsJson, nullptr, false));
+    if (cambioAudio_) cambioAudio_(to, "alta");
     std::replace(ordenFuentes_.begin(), ordenFuentes_.end(), from, to);
     std::replace(micInputs_.begin(), micInputs_.end(), from, to);
     for (auto& sc : scenes_) {
@@ -949,8 +955,12 @@ std::vector<std::string> BroadcastEngine::sourceNames() const { return ordenFuen
 bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
-    it->second.spec.volume = std::max(0.0f, mul);
-    return motor_->ponerNivel(name, it->second.spec.volume).empty();
+    const float v = std::max(0.0f, mul);
+    const bool cambia = it->second.spec.volume != v;
+    it->second.spec.volume = v;
+    const bool ok = motor_->ponerNivel(name, v).empty();
+    if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
+    return ok;
 }
 
 float BroadcastEngine::sourceVolume(const std::string& name) const {
@@ -961,8 +971,11 @@ float BroadcastEngine::sourceVolume(const std::string& name) const {
 bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
+    const bool cambia = it->second.spec.muted != muted;
     it->second.spec.muted = muted;
-    return motor_->ponerMute(name, muted).empty();
+    const bool ok = motor_->ponerMute(name, muted).empty();
+    if (cambia && cambioAudio_) cambioAudio_(name, "mute");
+    return ok;
 }
 
 bool BroadcastEngine::sourceMuted(const std::string& name) const {
@@ -971,6 +984,13 @@ bool BroadcastEngine::sourceMuted(const std::string& name) const {
 }
 
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {
+    // Lo que entrega la entrada (después de su rack, vaya a donde vaya), como los
+    // vúmetros del Mezclador. El del bus Programa marcaba -100 con audio si la
+    // fuente no iba al Programa (un micrófono que sale solo por un parlante).
+    if (motor_)
+        if (const auto niveles = motor_->niveles())
+            for (const auto& n : *niveles)
+                if (!n.bus && n.id == name) return std::max(-100.0f, std::max(n.pico[0], n.pico[1]));
     const json& p = estadoMotor().value("programa", json::object());
     const json e = p.is_object() ? p.value("entradas", json::object()) : json::object();
     if (!e.contains(name)) return -100.0f;
@@ -986,17 +1006,48 @@ float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
 bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
-    // Las marcadas suenan juntas en los auriculares (la interfaz hace el PFL
-    // exclusivo apagando las demás).
+    // La escucha fija: las marcadas suenan juntas. Si además está en PFL, sigue sonando.
+    const bool cambia = it->second.monitor != on;
     it->second.monitor = on;
-    const std::string e = motor_->ponerEscucha(name, on);
+    const std::string e = motor_->ponerEscucha(name, on || pfl_ == name);
     if (!e.empty()) setError(e);
+    if (cambia && cambioAudio_) cambioAudio_(name, "escucha");
     return e.empty();
 }
 
 bool BroadcastEngine::sourceMonitoring(const std::string& name) const {
     auto it = sources_.find(name);
+    return it != sources_.end() && (it->second.monitor || pfl_ == name);
+}
+
+bool BroadcastEngine::sourceEscuchaFija(const std::string& name) const {
+    auto it = sources_.find(name);
     return it != sources_.end() && it->second.monitor;
+}
+
+bool BroadcastEngine::setPfl(const std::string& name) {
+    if (name == pfl_) return true;
+    if (!name.empty() && sources_.count(name) == 0) return false;
+    const std::string antes = pfl_;
+    pfl_ = name;
+    // El que estaba en PFL vuelve a lo que diga su escucha fija; el nuevo suena.
+    if (auto it = sources_.find(antes); it != sources_.end()) {
+        const std::string e = motor_->ponerEscucha(antes, it->second.monitor);
+        if (!e.empty()) setError(e);
+    }
+    bool ok = true;
+    if (!name.empty()) {
+        const std::string e = motor_->ponerEscucha(name, true);
+        if (!e.empty()) {
+            setError(e);
+            ok = false;
+        }
+    }
+    if (cambioAudio_) {
+        if (!antes.empty()) cambioAudio_(antes, "escucha");
+        if (!name.empty()) cambioAudio_(name, "escucha");
+    }
+    return ok;
 }
 
 bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
@@ -1005,11 +1056,15 @@ bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
         setError("no existe la fuente '" + name + "'");
         return false;
     }
-    it->second.syncMs = std::clamp(ms, -5000, 5000);
+    const int v = std::clamp(ms, -5000, 5000);
+    const bool cambia = it->second.syncMs != v;
+    it->second.syncMs = v;
     json ajustes;
     if (!ajustesMotor(it->second.spec, ajustes)) return false;
     ajustes["desfase_audio"] = it->second.syncMs; // solo el audio; cambia andando (el offset del pad)
-    return motor_->actualizarEntrada(name, ajustes).empty();
+    const bool ok = motor_->actualizarEntrada(name, ajustes).empty();
+    if (cambia && cambioAudio_) cambioAudio_(name, "retardo");
+    return ok;
 }
 
 int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
@@ -1025,7 +1080,9 @@ bool BroadcastEngine::setSourcePistas(const std::string& name, const std::vector
         setError(e);
         return false;
     }
+    const bool cambia = it->second.pistas != pistas;
     it->second.pistas = pistas;
+    if (cambia && cambioAudio_) cambioAudio_(name, "pistas");
     return true;
 }
 
@@ -1182,6 +1239,8 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
         if (f.pistas != std::vector<int>{1}) setSourcePistas(n, f.pistas);
         if (f.monitor) setSourceMonitoring(n, true);
     }
+    // El PFL que estaba sonando sigue sonando en el motor nuevo.
+    if (!pfl_.empty() && sources_.count(pfl_) > 0) motor_->ponerEscucha(pfl_, true);
     micInputs_ = mics;
     scenes_ = escenas;
     for (const auto& e : scenes_) publicarEscena(e);

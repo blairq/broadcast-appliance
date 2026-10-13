@@ -22,6 +22,7 @@
 #include "diag/Registro.hpp"
 #include "qr/Iconos.hpp"
 #include "qr/Qr.hpp"
+#include "sala/EnlacesSala.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -126,15 +127,6 @@ qr::Puntos puntosDe(const QString& s) {
     if (s == "separados") return qr::Puntos::Separados;
     if (s == "muy-redondeados") return qr::Puntos::MuyRedondeados;
     return qr::Puntos::Cuadrados;
-}
-QString deP(qr::Puntos p) {
-    switch (p) {
-        case qr::Puntos::Redondeados: return "redondeados";
-        case qr::Puntos::Circulos: return "circulos";
-        case qr::Puntos::Separados: return "separados";
-        case qr::Puntos::MuyRedondeados: return "muy-redondeados";
-        default: return "cuadrados";
-    }
 }
 qr::Ojos ojosDe(const QString& s) { return s == "redondeados" ? qr::Ojos::Redondeados : qr::Ojos::Cuadrados; }
 qr::Marco marcoDe(const QString& s) {
@@ -422,30 +414,27 @@ QString armar(const QString& tipo, const QVariantMap& d) {
 } // namespace
 
 void QrViewModel::resolver() {
-    // Los del aparato llevan claves que cambian: se los pide al gateway en vez
-    // de guardarlos armados. Se piden los tres de una y se cachean.
+    // Los del aparato llevan claves que cambian: se los pide a la sala (el
+    // modelo sala::EnlacesSala) en vez de guardarlos armados. Se piden todos
+    // de una y se cachean.
     if (d_->sala == nullptr) return;
-    struct Pedido {
-        const char* tipo;
-        const char* ruta;
-    };
-    static const Pedido kPedidos[] = {{"sala", "/api/v1/qr?target=local&pin=1"},
-                                      {"prompter", "/api/v1/prompter-link?target=local&vista=orador"},
-                                      {"rotulos", "/api/v1/rotulos-link?target=local&conClave=1"},
-                                      {"publico", "/api/v1/publico-link?target=local&conClave=1"}};
-    for (const Pedido& p : kPedidos) {
-        const QString tipo = p.tipo;
-        d_->sala->client().get(p.ruta, [this, tipo](bool ok, const QJsonObject& r) {
-            if (!ok || !r.value("ok").toBool()) return;
-            d_->delAparato[tipo] = r.value("url").toString();
+    const auto guardar = [this](const QString& tipo) {
+        return [this, tipo](const sala::Enlace& e) {
+            if (!e.ok) return;
+            d_->delAparato[tipo] = QString::fromStdString(e.url);
             if (d_->tipo == tipo) {
                 d_->contenido = d_->delAparato[tipo];
                 d_->aviso.clear();
                 ++d_->revision;
                 emit editorCambio();
             }
-        });
-    }
+        };
+    };
+    sala::EnlacesSala& enlaces = d_->sala->enlaces();
+    enlaces.ingreso(false, true, guardar("sala"));
+    enlaces.prompter(false, "orador", true, guardar("prompter"));
+    enlaces.rotulos(false, true, guardar("rotulos"));
+    enlaces.publico(false, guardar("publico"));
 }
 
 namespace {
@@ -518,6 +507,15 @@ void QrViewModel::setDato(const QString& clave, const QString& valor) {
     d_->datos[clave] = valor;
     d_->sucio = true;
     setTipo(d_->tipo);
+}
+
+void QrViewModel::estiloSimple() {
+    setEstilo("primario", "#000000");
+    setEstilo("secundario", "");
+    setEstilo("puntos", "cuadrados");
+    setEstilo("ojos", "cuadrados");
+    setEstilo("marco", "ninguno");
+    setEstilo("icono", "");
 }
 
 void QrViewModel::setEstilo(const QString& clave, const QVariant& valor) {

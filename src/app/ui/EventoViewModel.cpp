@@ -2,6 +2,12 @@
 // src/app/ui/EventoViewModel.cpp — ver EventoViewModel.hpp
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
+
+#include "evento/Documentos.hpp"
+
+#include <cstdio>
+#include "sala/ControlSala.hpp"
+#include <QPointer>
 #include "ajustes/Ajustes.hpp"
 
 #include <set>
@@ -13,6 +19,7 @@
 #include <QDateTime>
 #include <QPointer>
 #include <QDir>
+#include <QFileInfo>
 #include <QCryptographicHash>
 #include <QFile>
 #include <QJsonDocument>
@@ -27,6 +34,10 @@
 #include "graficos/Vinculos.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/Discursos.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/OradoresSala.hpp"
+#include "sala/Teleprompter.hpp"
 #include "evento/EventoWeb.hpp"
 #include "platform/Paths.hpp"
 
@@ -98,8 +109,8 @@ struct CampoDeTipo {
 
 constexpr CampoDeTipo kTipos[] = {
     {"escena", "Escena", "Pone una escena al aire.", "escena"},
-    {"musica", "Música", "Arranca o para un tema de Medios/.", "archivo,accion,repetir"},
-    {"video", "Video", "Reproduce un video de Medios/ en su propia escena.", "archivo,accion,repetir,alAire"},
+    {"musica", "Música", "Arranca o para un tema de los medios del evento.", "archivo,accion,repetir"},
+    {"video", "Video", "Reproduce un video de los medios del evento en su propia escena.", "archivo,accion,repetir,alAire"},
     {"teleprompter", "Teleprompter", "Carga un discurso y lo deja listo.", "discurso,arrancar"},
     {"orador", "Orador", "Le da la palabra a alguien, con su tiempo.", "participante"},
     {"grafico", "Gráfico", "Saca al aire un gráfico animado en una fuente de escena.",
@@ -330,7 +341,17 @@ void EventoViewModel::publicarWeb() {
         }
         json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, x);
         estado["version"] = webVersion_;
-        cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"estado", estado}};
+        // La documentación pública del evento (docs/): la web la muestra y la sala la sirve.
+        const evento::Documentos docs(rt_.dataRoot());
+        estado["documentos"] = docs.publicos();
+        // Para la sala (no se publica): el archivo de cada documento público, por su id.
+        json docsArchivos = json::object();
+        for (const auto& d : docs.lista())
+            if (d.value("publico", true)) docsArchivos[d.value("id", std::string())] = d.value("archivo", std::string());
+        cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"docs_archivos", docsArchivos}, {"docs_dir", [&] {
+                      const std::u8string u = docs.carpeta().u8string();
+                      return std::string(u.begin(), u.end());
+                  }()}, {"estado", estado}};
     }
     const QByteArray b = QByteArray::fromStdString(cuerpo.dump());
     if (b == webUltimo_) return;
@@ -338,8 +359,7 @@ void EventoViewModel::publicarWeb() {
     // La hora de la sala va aparte (cambia siempre y no tiene que forzar el reenvío).
     json conHora = cuerpo;
     if (conHora.contains("estado")) conHora["estado"]["ahoraMs"] = QDateTime::currentMSecsSinceEpoch();
-    sala_->client().post("/api/v1/evento-web",
-                         QJsonDocument::fromJson(QByteArray::fromStdString(conHora.dump())).object());
+    sala_->control().publicarEventoWeb(conHora);
 }
 
 EventoViewModel::~EventoViewModel() = default;
@@ -580,6 +600,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
         return false;
     }
     parar();
+    ultimoGuion_.reset();
     e_ = std::move(e);
     abierto_ = carpeta;
     sucio_ = false;
@@ -617,6 +638,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
 void EventoViewModel::cerrar() {
     if (sucio_) guardar();
     parar();
+    ultimoGuion_.reset();
     buzon_.stop();
     e_ = {};
     padron_ = {};
@@ -631,12 +653,18 @@ void EventoViewModel::cerrar() {
 }
 
 bool EventoViewModel::borrar(const QString& carpeta) {
+    // Si es el abierto, se cierra ANTES de borrarlo y sin guardar: cerrar
+    // guarda lo pendiente, y hacerlo después volvía a escribir en el disco el
+    // evento recién borrado (por eso la página cerraba y borraba por su cuenta).
+    if (abierto_ == carpeta) {
+        sucio_ = false;
+        cerrar();
+    }
     std::string err;
     if (!store_.borrar(carpeta.toStdString(), &err)) {
         emit notify("No se pudo borrar: " + QString::fromStdString(err), "error");
         return false;
     }
-    if (abierto_ == carpeta) cerrar();
     emit listaChanged();
     return true;
 }
@@ -655,6 +683,19 @@ QVariantMap EventoViewModel::cueAMap(const evento::Cue& c, int bloque, int cue) 
                        {"cue", cue}};
 }
 
+namespace {
+// La hora prevista de algo que arranca `offsetSeg` después de `inicio` («HH:MM»): «HH:MM»
+// (da la vuelta a medianoche), o "" si no hay hora de inicio válida.
+QString horaPrevista(const std::string& inicio, int offsetSeg) {
+    int h = 0, m = 0;
+    char sobra = 0;
+    if (offsetSeg < 0 || std::sscanf(inicio.c_str(), "%d:%d%c", &h, &m, &sobra) != 2 || h < 0 || h > 23 || m < 0 || m > 59)
+        return {};
+    const int total = h * 60 + m + offsetSeg / 60;
+    return QString("%1:%2").arg((total / 60) % 24, 2, 10, QChar('0')).arg(total % 60, 2, 10, QChar('0'));
+}
+} // namespace
+
 QVariantMap EventoViewModel::guion() const {
     QVariantList bs;
     int nro = 0;
@@ -665,6 +706,7 @@ QVariantMap EventoViewModel::guion() const {
             QVariantMap m = cueAMap(b.cues[ci], static_cast<int>(bi), static_cast<int>(ci));
             m["nro"] = ++nro; // numeracion corrida, como un rundown de verdad
             m["offsetSeg"] = e_.offsetDeCueSeg(bi, ci);
+            m["horaPrevista"] = horaPrevista(e_.inicio, e_.offsetDeCueSeg(bi, ci));
             cs.append(m);
         }
         bs.append(QVariantMap{{"id", QString::fromStdString(b.id)},
@@ -672,6 +714,7 @@ QVariantMap EventoViewModel::guion() const {
                               {"nota", QString::fromStdString(b.nota)},
                               {"duracionSeg", b.duracionSeg()},
                               {"offsetSeg", e_.offsetDeBloqueSeg(bi)},
+                              {"horaPrevista", horaPrevista(e_.inicio, e_.offsetDeBloqueSeg(bi))},
                               {"indice", static_cast<int>(bi)},
                               {"cues", cs}});
     }
@@ -1001,9 +1044,10 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
     const auto fallo = [](const QString& motivo) {
         return QVariantMap{{"ok", false}, {"motivo", motivo}, {"capitulos", QVariantList{}}};
     };
-    if (!guionCorriendo_)
+    const evento::Guion* g = guionDelInforme();
+    if (g == nullptr)
         return fallo("El guion no se corrio en esta sesion: no hay de donde sacar los tiempos.");
-    const auto& pasos = guionCorriendo_->recorrido();
+    const auto& pasos = g->recorrido();
     if (pasos.empty()) return fallo("El guion no avanzo ningun cue todavia.");
     if (recInicioMs <= 0)
         return fallo("No se cuando arranco la grabacion. Los capitulos se miden desde ahi, no desde "
@@ -1067,8 +1111,6 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
 void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
                                       std::function<void(const QVariantMap&)> luego) {
     if (sala_ == nullptr) return luego(QVariantMap{{"ok", false}, {"motivo", "La sala no está disponible."}});
-    const QString ruta =
-        QString("/api/v1/publico-link?target=") + (remoto ? "remote" : "local") + "&conClave=1";
     const QString codigo = quien.value("codigo").toString();
     // El nombre y la fecha salen del evento; el enlace, del gateway.
     const QString nombreEvento = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
@@ -1077,14 +1119,15 @@ void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
     if (!e_.huso.empty()) cuandoTexto += " (" + QString::fromStdString(e_.huso) + ")";
     const QString instante = cuando();
 
-    sala_->client().get(
-        ruta, [luego, quien, codigo, nombreEvento, cuandoTexto, instante](bool ok, const QJsonObject& r) {
-            if (!ok || !r.value("ok").toBool())
+    // El mismo enlace de la página del público (modelo: sala::EnlacesSala).
+    sala_->enlaces().publico(
+        remoto, [luego, quien, codigo, nombreEvento, cuandoTexto, instante](const sala::Enlace& e) {
+            if (!e.ok)
                 return luego(QVariantMap{
                     {"ok", false}, {"motivo", "No pude pedirle el enlace a la sala. Fijate `room_status`."}});
             // El código va en el FRAGMENTO, con la clave: no viaja en la petición
             // ni queda en los registros de ningún servidor por el que pase.
-            const QString url = r.value("url").toString() + "&c=" + codigo;
+            const QString url = QString::fromStdString(e.url) + "&c=" + codigo;
 
             QString t;
             t += "Te esperamos en " + nombreEvento + ".\n\n";
@@ -1101,8 +1144,8 @@ void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
                 t += "\nNota: " + quien.value("nota").toString() + "\n";
 
             QVariantList modulos;
-            for (const QJsonValue& fila : r.value("modules").toArray())
-                modulos.append(fila.toString());
+            for (const std::string& fila : e.filas)
+                modulos.append(QString::fromStdString(fila));
             luego(QVariantMap{{"ok", true}, {"texto", t}, {"url", url}, {"modulos", modulos}});
         });
 }
@@ -1124,11 +1167,12 @@ QString EventoViewModel::acta(const QJsonArray& votaciones) const {
     // votar no prueba nada.
     t += "## Asistencia\n\n";
     t += QString("- Presentes: **%1** de %2 en el padrón "
-                 "(%3 en el lugar, %4 en línea)\n")
+                 "(%3 en el lugar, %4 en línea%5)\n")
              .arg(r.presentes)
              .arg(r.total)
              .arg(r.presenciales)
-             .arg(r.enLinea);
+             .arg(r.enLinea)
+             .arg(r.sinDato > 0 ? QString(", %1 sin dato de por dónde").arg(r.sinDato) : QString());
     if (r.conVoto > 0)
         t += QString("- Con derecho a voto presentes: **%1** de %2 — **quórum**\n")
                  .arg(r.votoPresente)
@@ -1218,8 +1262,9 @@ QString EventoViewModel::hashActa(const QString& texto) {
 }
 
 QVariantMap EventoViewModel::informe() const {
-    if (!guionCorriendo_) return {};
-    const auto& pasos = guionCorriendo_->recorrido();
+    const evento::Guion* g = guionDelInforme();
+    if (g == nullptr) return {};
+    const auto& pasos = g->recorrido();
     if (pasos.empty()) return {};
 
     // Se agrupa por bloque respetando el ORDEN EN QUE PASO, no el del guion:
@@ -1336,7 +1381,7 @@ void EventoViewModel::revisar() {
     }
     // Y lo que hay que ir a mirar al disco: los archivos que el guion nombra.
     if (!abierto_.isEmpty()) {
-        for (const evento::Reparo& r : evento::revisarArchivos(e_, store_.carpetaDe(abierto_.toStdString())))
+        for (const evento::Reparo& r : evento::revisarArchivos(e_, store_.carpetaDe(abierto_.toStdString()), rt_.dataRoot() / "Media"))
             reparos_.push_back(r);
     }
     // Lo del aparato: disco, destino de la transmisión, entradas con señal,
@@ -1476,6 +1521,14 @@ void EventoViewModel::anotar(const QString& texto, const QString& tipo) {
     emit bitacoraChanged();
 }
 
+int EventoViewModel::arrancarRevisando(bool forzar) {
+    revisar();
+    const int graves = static_cast<int>(std::count_if(reparos_.begin(), reparos_.end(), [](const evento::Reparo& r) { return r.grave; }));
+    if (graves > 0 && !forzar) return graves;
+    arrancar();
+    return 0;
+}
+
 void EventoViewModel::arrancar() {
     if (e_.cantidadDeCues() == 0) {
         emit notify("El guion no tiene ningún cue", "error");
@@ -1483,6 +1536,7 @@ void EventoViewModel::arrancar() {
     }
     // Correrlo de verdad lo pone en curso: lo que pase desde ahora es de este evento.
     if (!ensayo_ && !abierto_.isEmpty() && store_.enCurso() != abierto_.toStdString()) iniciarEvento(abierto_);
+    ultimoGuion_.reset();
     guionCorriendo_ = std::make_unique<evento::Guion>(e_);
     guionCorriendo_->arrancar(ahoraMs());
     reloj_.start();
@@ -1518,6 +1572,7 @@ void EventoViewModel::retroceder() {
 
 void EventoViewModel::irA(int bloque, int cue) {
     if (!guionCorriendo_) {
+        ultimoGuion_.reset();
         guionCorriendo_ = std::make_unique<evento::Guion>(e_);
         reloj_.start();
     }
@@ -1545,7 +1600,8 @@ void EventoViewModel::reanudar() {
 void EventoViewModel::parar() {
     if (!guionCorriendo_) return;
     reloj_.stop();
-    guionCorriendo_.reset();
+    guionCorriendo_->terminar(ahoraMs());
+    ultimoGuion_ = std::move(guionCorriendo_);
     emit correChanged();
     emit relojChanged();
 }
@@ -1606,7 +1662,21 @@ bool EventoViewModel::prepararEscenaDeVideo() {
     return true;
 }
 
-QString EventoViewModel::medioPath(const QString& rel) const { return dentroDelEvento("Medios", rel); }
+QString EventoViewModel::medioPath(const QString& rel) const {
+    // Los medios del evento son su biblioteca (Media/, la de la página Medios: cada
+    // evento tiene la suya). Los guiones de antes nombraban Medios/ de la carpeta del
+    // guion: si no está en Media/, se busca ahí.
+    if (rel.isEmpty()) return {};
+    QString limpio = rel;
+    for (const QString& pre : {QStringLiteral("Media/"), QStringLiteral("Medios/"), QStringLiteral("Media\\"),
+                               QStringLiteral("Medios\\")})
+        if (limpio.startsWith(pre)) limpio = limpio.mid(pre.size());
+    const QDir media(QString::fromStdString((rt_.dataRoot() / "Media").string()));
+    const QString abs = QDir::cleanPath(media.filePath(limpio));
+    // Fuera de la biblioteca no se lee nada (un «..» en un guion que vino de otro lado).
+    if (abs.startsWith(QDir::cleanPath(media.absolutePath()) + "/") && QFileInfo::exists(abs)) return abs;
+    return dentroDelEvento("Medios", rel);
+}
 
 void EventoViewModel::ejecutarActual() {
     const evento::Cue* c = guionCorriendo_ ? guionCorriendo_->cueActual() : nullptr;
@@ -1640,8 +1710,9 @@ void EventoViewModel::ejecutarActual() {
                 anotar("No se pudo dar la palabra: no dice a quién", "error");
                 return;
             }
-            if (c->duracionSeg > 0) sala_->speakerTime(quien, c->duracionSeg);
-            sala_->speakerOnAir(quien, true);
+            // Las mismas operaciones que la página Sala y el MCP (sala::OradoresSala).
+            if (c->duracionSeg > 0) sala_->oradores().tiempo(quien.toStdString(), c->duracionSeg);
+            sala_->oradores().alAire(quien.toStdString(), true);
             anotar("Habla " + quien, "ok");
             return;
         }
@@ -1658,8 +1729,8 @@ void EventoViewModel::ejecutarActual() {
             const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
             const QString ruta = medioPath(rel);
             if (ruta.isEmpty() || !QFile::exists(ruta)) {
-                anotar("No encontré la música \"" + rel + "\" en Medios/", "error");
-                emit notify("El cue no se pudo ejecutar: falta Medios/" + rel, "error");
+                anotar("No encontré la música \"" + rel + "\" en los medios del evento", "error");
+                emit notify("El cue no se pudo ejecutar: falta «" + rel + "» en los medios del evento", "error");
                 return;
             }
             const bool repetir = c->datos.value("repetir", false);
@@ -1681,20 +1752,19 @@ void EventoViewModel::ejecutarActual() {
                 anotar("No se pudo cargar el discurso: no dice cuál", "error");
                 return;
             }
-            const QString ruta = discursoPathPriv(rel);
-            QFile f(ruta);
-            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                anotar("No se pudo abrir el discurso: " + ruta, "error");
+            // La misma carga que la página Teleprompter (sala::Teleprompter): el
+            // discurso de Discursos/ con su ruta de título. `arrancar` en los
+            // datos del cue: por defecto el texto queda LISTO pero parado, que
+            // es lo que se quiere casi siempre (el orador todavia esta
+            // caminando hacia el atril).
+            const Discursos docs(carpetaDeDiscursos());
+            const std::string err =
+                sala_->teleprompter().cargarDiscurso(docs, rel.toStdString(), c->datos.value("arrancar", false));
+            if (!err.empty()) {
+                anotar("No se pudo abrir el discurso: " + rel, "error");
                 emit notify("No encontré el discurso \"" + rel + "\" en la carpeta del evento", "error");
                 return;
             }
-            const QString texto = QString::fromUtf8(f.readAll());
-            QJsonObject cmd{{"titulo", titulo}, {"texto", texto}};
-            // `arrancar` en los datos del cue: por defecto el texto queda
-            // LISTO pero parado, que es lo que se quiere casi siempre (el
-            // orador todavia esta caminando hacia el atril).
-            if (c->datos.value("arrancar", false)) cmd["corriendo"] = true;
-            sala_->client().post("/api/v1/prompter", cmd);
             anotar("Teleprompter: " + rel, "ok");
             return;
         }
@@ -1817,8 +1887,8 @@ void EventoViewModel::ejecutarActual() {
             const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
             const QString ruta = medioPath(rel);
             if (ruta.isEmpty() || !QFile::exists(ruta)) {
-                anotar("No encontré el video \"" + rel + "\" en Medios/", "error");
-                emit notify("El cue no se pudo ejecutar: falta Medios/" + rel, "error");
+                anotar("No encontré el video \"" + rel + "\" en los medios del evento", "error");
+                emit notify("El cue no se pudo ejecutar: falta «" + rel + "» en los medios del evento", "error");
                 return;
             }
             if (!prepararEscenaDeVideo()) return;
@@ -1966,7 +2036,7 @@ QVariantMap EventoViewModel::resumenPadron() const {
     return QVariantMap{
         {"total", r.total},     {"presentes", r.presentes},      {"presenciales", r.presenciales},
         {"enLinea", r.enLinea}, {"confirmados", r.confirmados},  {"faltan", r.faltan},
-        {"conVoto", r.conVoto}, {"votoPresente", r.votoPresente}};
+        {"conVoto", r.conVoto}, {"votoPresente", r.votoPresente}, {"sinDato", r.sinDato}};
 }
 
 bool EventoViewModel::guardarPadronAhora() {
@@ -2025,8 +2095,10 @@ bool EventoViewModel::despedir(const QString& id) {
 
 void EventoViewModel::recogerAcreditaciones() {
     if (abierto_.isEmpty() || sala_ == nullptr) return;
-    sala_->client().get("/api/v1/acreditaciones", [this](bool ok, const QJsonObject& r) {
-        if (!ok) return;
+    QPointer<EventoViewModel> yo(this);
+    sala_->control().acreditaciones([this, yo](const std::string& err, const nlohmann::json& rj) {
+        if (!yo || !err.empty()) return;
+        const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(rj.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
         const QJsonArray cs = r.value("codigos").toArray();
         if (cs.isEmpty()) return;
         int hechos = 0;

@@ -1,5 +1,6 @@
 // agent/Vocabulario: corrección por sonido, solo con confianza alta.
 #include "agent/Vocabulario.hpp"
+#include "asamblea/Cuerpo.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -48,6 +49,17 @@ int main() {
     {
         Vocabulario v(dir / "vocabulario.json");
         CHECK(v.corregir("trelev") == "trelev", "lo quitado sigue quitado al recargar");
+    }
+    {
+        // Los nombres del cuerpo: el nombre entero y el apellido solo (si no es corto).
+        ba::app::asamblea::Cuerpo c(dir / "cuerpo.json");
+        std::string err;
+        c.guardar({{"nombre", "Ana Gutiérrez"}, {"banca", "1"}}, &err);
+        c.guardar({{"nombre", "Luis Paz"}, {"banca", "2"}}, &err);
+        Vocabulario v(dir / "vocabulario.json");
+        CHECK(v.cargarCuerpo(c) == 3, "nombres y el apellido largo (Paz no va solo)");
+        v.activarGrupo("cuerpo", true); // arriba quedó apagado (y se conserva al recargar)
+        CHECK(v.corregir("dijo gutierres") == "dijo Gutiérrez", "el apellido solo corrige");
     }
     std::printf(fallas ? "\n%d fallas\n" : "\ntodo ok\n", fallas);
     return fallas ? 1 : 0;

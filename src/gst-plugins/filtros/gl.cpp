@@ -106,7 +106,7 @@ void colorPasante(BaColorGl* c) {
     const bool n = std::abs(c->brillo) < 1e-4 && std::abs(c->contraste - 1) < 1e-4 &&
                    std::abs(c->saturacion - 1) < 1e-4 && std::abs(c->gamma - 1) < 1e-4;
     GST_OBJECT_UNLOCK(c);
-    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(c), n);
+    ba::filtros::pasante(GST_BASE_TRANSFORM(c), n);
 }
 
 void colorPoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
@@ -233,7 +233,7 @@ bool recortaAlgo(const Recorte& a) { return a.izq > 0 || a.arr > 0 || a.der > 0 
 
 void recortePasante(BaRecorteGl* r) {
     const Recorte a = copiaRecorte(r);
-    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(r), !recortaAlgo(a) && !a.espejoH && !a.espejoV);
+    ba::filtros::pasante(GST_BASE_TRANSFORM(r), !recortaAlgo(a) && !a.espejoH && !a.espejoV);
 }
 
 void recortePoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {

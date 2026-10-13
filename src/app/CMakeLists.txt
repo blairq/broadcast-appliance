@@ -227,6 +227,21 @@ if(BA_HAVE_CLAP)
         install(FILES ${_ba_lsp_lic} DESTINATION data/licencias/lsp-plugins)
     endif()
 endif()
+# ba-lspdsp: el DSP de LSP con API en C (tools/deps/lspdsp.sh), junto a los
+# ejecutables (bin/64bit). La app la carga en tiempo de ejecución (audio/LspDsp).
+if(WIN32)
+    set(BA_LSPDSP_DIR "${CMAKE_SOURCE_DIR}/extern/lsp/windows-x86_64/dsp")
+    set(_ba_lspdsp_lib "${BA_LSPDSP_DIR}/ba-lspdsp.dll")
+elseif(APPLE)
+    set(BA_LSPDSP_DIR "${CMAKE_SOURCE_DIR}/extern/lsp/macos-arm64/dsp")
+    set(_ba_lspdsp_lib "${BA_LSPDSP_DIR}/libba-lspdsp.dylib")
+else()
+    set(BA_LSPDSP_DIR "${CMAKE_SOURCE_DIR}/extern/lsp/linux-x86_64/dsp")
+    set(_ba_lspdsp_lib "${BA_LSPDSP_DIR}/libba-lspdsp.so")
+endif()
+if(BA_HAVE_CLAP AND EXISTS "${_ba_lspdsp_lib}")
+    install(FILES "${_ba_lspdsp_lib}" DESTINATION bin/64bit)
+endif()
 # LSP para los tests (en el bundle: plugins/lsp/).
 if(WIN32)
     set(BA_LSP_CLAP "${CMAKE_SOURCE_DIR}/extern/lsp/windows-x86_64/lsp-plugins.clap")
@@ -473,7 +488,9 @@ endif()
     target_link_libraries(ba-app PRIVATE ba_vterm)
     if(BA_HAVE_CLAP)
         target_include_directories(ba-app PRIVATE "${BA_CLAP_INC}")
-        target_compile_definitions(ba-app PRIVATE BA_HAVE_CLAP=1 BA_DEV_LSP_CLAP="${BA_LSP_CLAP}")
+        target_compile_definitions(ba-app PRIVATE BA_HAVE_CLAP=1 BA_DEV_LSP_CLAP="${BA_LSP_CLAP}"
+                                   BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_include_directories(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/src/lspdsp")
         # ClapEditor (las ventanas de los plugins) usa X11 en Linux; antes llegaba de rebote por libobs.
         if(UNIX AND NOT APPLE)
             find_package(X11 REQUIRED)
@@ -554,7 +571,17 @@ endif()
     target_link_libraries(ba-control PRIVATE ba_core)
     if(WIN32)
         target_link_libraries(ba-control PRIVATE user32 gdi32 gdiplus shell32 shlwapi ole32 oleaut32 ws2_32 advapi32)
+    elseif(APPLE)
+        # El motor de macOS (las mismas herramientas system_*: PLAN-CONTROL-SISTEMA).
+        target_sources(ba-control PRIVATE escritorio/control_mac.mm)
+        set_source_files_properties(escritorio/control_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+        target_link_libraries(ba-control PRIVATE "-framework AppKit" "-framework ApplicationServices" "-framework Carbon"
+                                                 "-framework CoreGraphics" "-framework ImageIO" "-framework IOKit"
+                                                 "-framework UniformTypeIdentifiers" "-weak_framework ScreenCaptureKit")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # El motor de Linux: X11 se carga al usar (dlopen), no es una dependencia.
+        target_sources(ba-control PRIVATE escritorio/control_linux.cpp)
+        target_link_libraries(ba-control PRIVATE ${CMAKE_DL_LIBS})
         target_link_options(ba-control PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-control RUNTIME DESTINATION bin/64bit)
@@ -751,6 +778,12 @@ endif()
         target_link_libraries(test_grafico_proceso PRIVATE Qt6::Core Qt6::Gui)
         add_test(NAME test_grafico_proceso COMMAND test_grafico_proceso)
         set_tests_properties(test_grafico_proceso PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+        # El catálogo de gráficos (graficos/Catalogo): lo mismo para el editor, el aire y el MCP.
+        add_executable(test_graficos_catalogo tests/test_graficos_catalogo.cpp graficos/Catalogo.cpp)
+        target_include_directories(test_graficos_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_graficos_catalogo PRIVATE Qt6::Core)
+        set_target_properties(test_graficos_catalogo PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        add_test(NAME test_graficos_catalogo COMMAND test_graficos_catalogo)
     endif()
 
     # Medir el retardo entre labios y voz con un aplauso. C++ puro: recibe
@@ -771,6 +804,13 @@ endif()
     target_link_libraries(test_evento_web PRIVATE nlohmann_json::nlohmann_json)
     target_compile_definitions(test_evento_web PRIVATE BA_PLANTILLAS_EVENTO="${CMAKE_SOURCE_DIR}/assets/web/evento/plantilla")
     add_test(NAME test_evento_web COMMAND test_evento_web)
+    # Cada evento a su carpeta: la migración de las carpetas con varios eventos.
+    add_executable(test_eventos_separar tests/test_eventos_separar.cpp arranque/Configuraciones.cpp
+                                        evento/EventoStore.cpp evento/Evento.cpp evento/FotosConfig.cpp)
+    target_include_directories(test_eventos_separar PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_eventos_separar PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json mbedtls mbedx509 mbedcrypto)
+    set_target_properties(test_eventos_separar PROPERTIES AUTOMOC ON)
+    add_test(NAME test_eventos_separar COMMAND test_eventos_separar)
     add_executable(test_bitacora tests/test_bitacora.cpp evento/Bitacora.cpp)
     target_include_directories(test_bitacora PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_bitacora PRIVATE nlohmann_json::nlohmann_json)
@@ -793,6 +833,12 @@ endif()
     target_include_directories(test_padron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_padron PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_padron COMMAND test_padron)
+
+    # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
+    add_executable(test_reglas_sala tests/test_reglas_sala.cpp sala/ReglasSala.cpp)
+    target_include_directories(test_reglas_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_reglas_sala PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_reglas_sala COMMAND test_reglas_sala)
 
     # El carrusel de la escena: la tira, el salto y las etiquetas.
     add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp
@@ -839,6 +885,21 @@ endif()
         target_include_directories(test_audio_dsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(test_audio_dsp PRIVATE nlohmann_json::nlohmann_json)
         add_test(NAME test_audio_dsp COMMAND test_audio_dsp)
+
+        # ba-lspdsp (el DSP de LSP) contra señales conocidas, cargada como la carga la app.
+        add_executable(test_lspdsp tests/test_lspdsp.cpp audio/LspDsp.cpp)
+        target_include_directories(test_lspdsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/lspdsp")
+        target_compile_definitions(test_lspdsp PRIVATE BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_link_libraries(test_lspdsp PRIVATE ba_core ${CMAKE_DL_LIBS})
+        add_test(NAME test_lspdsp COMMAND test_lspdsp)
+        set_tests_properties(test_lspdsp PROPERTIES SKIP_RETURN_CODE 77)
+        add_executable(test_calibracion tests/test_calibracion.cpp audio/CalibracionCaptura.cpp
+                                        audio/CalibracionAnalisis.cpp audio/SalaSimulada.cpp audio/LspDsp.cpp)
+        target_include_directories(test_calibracion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/lspdsp")
+        target_compile_definitions(test_calibracion PRIVATE BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_link_libraries(test_calibracion PRIVATE ba_core Qt6::Core ${CMAKE_DL_LIBS})
+        add_test(NAME test_calibracion COMMAND test_calibracion)
+        set_tests_properties(test_calibracion PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     # Host CLAP contra los plugins LSP reales (sin interfaz grafica). Lo que
     # pide ClapEditor.cpp para enlazar: X11 (Linux) o Qt Gui (macOS, QWindow).
@@ -977,11 +1038,20 @@ endif()
     target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_notificador COMMAND test_notificador)
-    add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp)
+    add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_vocabulario COMMAND test_vocabulario)
-    add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp)
+    # La configuración chica que se guarda en Config/ (modo en vivo, escenas, rótulo, interfaz).
+    add_executable(test_config_persistida tests/test_config_persistida.cpp arranque/ArchivoConfig.cpp
+                   arranque/ModoVivoConfig.cpp arranque/InterfazConfig.cpp escenas/AjustesEscenas.cpp
+                   agent/RotuloTraduccionConfig.cpp)
+    target_include_directories(test_config_persistida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_config_persistida PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
+    set_target_properties(test_config_persistida PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_config_persistida COMMAND test_config_persistida)
+    add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp
+                   arranque/ArchivoConfig.cpp)
     target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_loudness PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_loudness COMMAND test_loudness)
@@ -1024,7 +1094,8 @@ endif()
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
-    add_executable(test_qml_carga tests/test_qml_carga.cpp)
+    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp)
+    target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

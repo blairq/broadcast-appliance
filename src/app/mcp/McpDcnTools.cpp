@@ -106,7 +106,8 @@ void McpService::registerDcnTools() {
           {"reloj", {{"type", "boolean"}}}},
          false, false},
         {"dcn_votacion", "votacion", "Votación en la central",
-         "`accion`: preparar (`tema`, `numero`, `menu` si_no_abstencion de fábrica, `abierta` para el voto nominal), "
+         "`accion`: preparar (`tema`, `menu` si_no_abstencion de fábrica, `abierta` para el voto nominal; `numero` "
+         "opcional: sin él, la que sigue a la última de la central), "
          "abrir, pausar, reanudar o cerrar (devuelve el resultado final). Los delegados votan en sus unidades; los "
          "parciales salen en dcn_votacion_resultado. El resultado OFICIAL se lleva a Quórum con dcn_votacion_a_quorum.",
          {{"accion", {{"type", "string"}, {"enum", {"preparar", "abrir", "pausar", "reanudar", "cerrar"}}}},

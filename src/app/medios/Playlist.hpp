@@ -21,6 +21,7 @@
 #pragma once
 
 #include <QObject>
+#include <QStringList>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -58,14 +59,18 @@ class Playlist : public QObject {
     std::string control(const std::string& accion, int indice = -1);
     void setAutoNext(bool on);
     void setLoop(bool on);
-    /// Crea la escena si falta y la deja armada en PVW (con `armar`, el VM).
-    void setArmar(std::function<void(const QString&)> f) { armar_ = std::move(f); }
+    /// Cómo se arma una escena en PVW (el conmutador): "" o por qué no.
+    void setArmar(std::function<std::string(const QString&)> f) { armar_ = std::move(f); }
+    /// Crea la escena de la playlist si falta y la deja armada en PVW. "" o por qué no.
+    std::string armar();
     /// Si estaba sonando cuando se cortó, sigue en ese ítem y ese segundo. "" o qué pasó.
     std::string retomar();
 
     QVariantList itemsUi() const;
     QVariantMap estadoUi() const;
     Q_INVOKABLE QString agregarUi(const QString& archivo);
+    /// Varios de una vez (todos o ninguno: si uno no sirve, no se suma nada).
+    Q_INVOKABLE QString agregarVariosUi(const QStringList& archivos);
     Q_INVOKABLE QString quitarUi(int indice);
     Q_INVOKABLE QString moverUi(int indice, int destino);
     Q_INVOKABLE QString controlUi(const QString& accion, int indice = -1);
@@ -95,7 +100,7 @@ class Playlist : public QObject {
     int intentosIn_ = 0;
     int vueltas_ = 0; ///< de vigilar(), para anotar cada 2 s
     QTimer reloj_;
-    std::function<void(const QString&)> armar_;
+    std::function<std::string(const QString&)> armar_;
 };
 
 } // namespace ba::app::medios

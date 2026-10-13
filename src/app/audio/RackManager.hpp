@@ -133,6 +133,14 @@ class RackManager : public QObject {
     /// Tarjeta ENTRADA en el rack de `source`: trae el audio de `fuente`
     /// (después de su propio rack). Devuelve el id del nodo o "" con el error.
     std::string addEntrada(const std::string& source, const std::string& fuente, std::string* error);
+    /// Los analizadores de LSP para mirar una fuente con su interfaz (el Mezclador):
+    /// `cual` = espectro (Spectrum Analyzer x2), fase (Phase Detector: L contra R),
+    /// osciloscopio (Oscilloscope x2), latencia (Latency Meter) o perfil (Profiler).
+    /// Si la fuente ya lo tiene en su rack lo reusa; si no lo agrega al final (los
+    /// analizadores dejan pasar el audio sin tocarlo). Abre su interfaz. "" si salió.
+    std::string abrirAnalisisLsp(const std::string& source, const std::string& cual);
+    /// Los que hay: [{id, nombre, para}] (para el menú del Mezclador y el MCP).
+    static json analisisLsp();
     /// Cambia de qué fuente trae el audio una tarjeta de entrada.
     std::string setEntradaFuente(const std::string& source, const std::string& nodo,
                                  const std::string& fuente);

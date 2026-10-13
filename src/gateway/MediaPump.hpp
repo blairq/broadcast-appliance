@@ -33,6 +33,7 @@
 // ============================================================================
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <deque>
 #include <cstddef>
@@ -80,6 +81,9 @@ class MediaPump {
         std::vector<std::wstring> remotoAudioNames;    // BA.Audio.Remoto.<k> (R3)
         std::vector<std::wstring> remotoVideoNames;    // BA.Remoto.<k>
         std::vector<std::wstring> remotoContenidoNames; // BA.RemotoContenido.<k>: lo que comparte (pantalla, otra cámara)
+        /// Los lugares con canales desde el arranque (el cupo de la sala); los demás
+        /// hasta kMaxInvitados se crean al subir el cupo (ampliar). 0 = todos los nombres.
+        int lugaresIniciales = 0;
         int audioRate = 48000;
         int audioChannels = 2;
         uint64_t sinVideoNs = 1000000000ULL; // invitado sin video tanto tiempo -> placa (Configuración → Invitados)
@@ -107,6 +111,14 @@ class MediaPump {
 
     void start();
     void stop();
+
+    /// Crea los canales (cámara, pantalla, audio) de los lugares hasta `slots`
+    /// (a lo sumo kMaxInvitados) que todavía no estén. Se llama al subir el cupo,
+    /// ANTES de que la sala admita a alguien ahí: así el cupo cambia sin reiniciar
+    /// la sala. Nunca borra canales (bajar el cupo no saca a nadie).
+    void ampliar(int slots);
+    /// Cuántos lugares tienen canales.
+    int lugares() const;
 
     /// Ruta de la sesion `session` (1..hub.sessions()).
     void setRoute(int session, const MediaRoute& route);
@@ -172,6 +184,9 @@ class MediaPump {
     void operatorVideoThread();
     void plateThread();
 
+    std::unique_ptr<VideoOut> crearVideo(const std::wstring& nombre, int w, int h);
+    std::unique_ptr<AudioOut> crearAudio(const std::wstring& nombre);
+
     void publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real);
     void publishAudio(AudioOut& out, const float* samples, size_t n, int rate);
     /// Sesiones cuya ruta cumple `pred` (copia de la tabla bajo lock).
@@ -183,12 +198,20 @@ class MediaPump {
     std::atomic<bool> stop_{false};
     std::vector<std::thread> threads_;
 
+    // Los de los invitados del programa: lugar para kMaxInvitados, creados a pedido
+    // (ampliar). Los hilos de medios leen el puntero atómico sin lock; los canales se
+    // crean bajo canalesLock_ y viven hasta el destructor (nunca se borran andando).
+    std::array<std::atomic<VideoOut*>, kMaxInvitados + 1> guestVideo_{};
+    std::array<std::atomic<VideoOut*>, kMaxInvitados + 1> shareVideo_{};
+    std::array<std::atomic<AudioOut*>, kMaxInvitados + 1> guestAudio_{};
+    mutable std::mutex canalesLock_;
+    std::vector<std::unique_ptr<VideoOut>> videosInvitado_; // los dueños
+    std::vector<std::unique_ptr<AudioOut>> audiosInvitado_;
+    int lugares_ = 0; // con canales (bajo canalesLock_)
+
     // [0] reservado en todos.
-    std::vector<std::unique_ptr<VideoOut>> guestVideo_;
-    std::vector<std::unique_ptr<VideoOut>> shareVideo_;
     std::vector<std::unique_ptr<VideoOut>> lobbyVideo_;
     std::vector<std::unique_ptr<VideoOut>> backstageVideo_;
-    std::vector<std::unique_ptr<AudioOut>> guestAudio_;
     std::vector<std::unique_ptr<AudioOut>> lobbyAudio_;
     std::vector<std::unique_ptr<VideoOut>> remotoVideo_;
     std::vector<std::unique_ptr<VideoOut>> remotoContenido_;

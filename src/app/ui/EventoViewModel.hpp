@@ -14,6 +14,7 @@
 // igual, se ven los tiempos, pero no se toca lo que sale al aire.
 // ============================================================================
 #pragma once
+#include <optional>
 
 #include <memory>
 
@@ -97,6 +98,11 @@ class EventoViewModel : public QObject {
 
     QVariantList eventos() const;
     QString abierto() const { return abierto_; }
+    /// Los votantes del evento abierto (la regla es de evento::Padron), o nada sin evento.
+    std::optional<evento::Padron::Votantes> votantes() const {
+        if (abierto_.isEmpty()) return std::nullopt;
+        return padron_.votantes();
+    }
     QVariantMap enCurso() const;
     /// El bitacora.jsonl del evento en curso (vacío si no hay ninguno).
     std::filesystem::path archivoBitacora() const;
@@ -161,6 +167,8 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QString crear(const QString& nombre, const QString& enCarpeta = {});
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();
+    /// Lo borra del disco. Si es el abierto, primero lo cierra SIN guardar
+    /// (se tira entero: guardarlo para borrarlo no tiene sentido).
     Q_INVOKABLE bool borrar(const QString& carpeta);
 
     // --- Editar el guion ------------------------------------------------------
@@ -268,6 +276,10 @@ class EventoViewModel : public QObject {
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
+    /// Arrancar con la revisión previa: revisa y, si encontró problemas graves y no
+    /// se pide `forzar`, NO arranca y devuelve cuántos son (la GUI pregunta, el MCP
+    /// pide forzar). 0 = arrancó.
+    Q_INVOKABLE int arrancarRevisando(bool forzar);
     Q_INVOKABLE void avanzar();
     Q_INVOKABLE void retroceder();
     Q_INVOKABLE void irA(int bloque, int cue);
@@ -452,6 +464,10 @@ class EventoViewModel : public QObject {
     /// Genera las páginas que falten del sitio (no pisa nada): al crear y al guardar.
     void asegurarWebBase();
     std::unique_ptr<evento::Guion> guionCorriendo_;
+    /// El último que se paró: su recorrido sigue sirviendo para el informe y los
+    /// capítulos (se piden al terminar). Se olvida al arrancar otro o cambiar de evento.
+    std::unique_ptr<evento::Guion> ultimoGuion_;
+    const evento::Guion* guionDelInforme() const { return guionCorriendo_ ? guionCorriendo_.get() : ultimoGuion_.get(); }
     QString abierto_;
     bool sucio_ = false;
     bool ensayo_ = false;

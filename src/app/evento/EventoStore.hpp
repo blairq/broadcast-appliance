@@ -90,7 +90,10 @@ std::string nombreDeCarpeta(const std::string& nombre);
 /// Es la parte que más evita problemas el día del acto: un cue que nombra un
 /// archivo que se movió, o un discurso que quedó en la otra máquina, no se ve
 /// hasta que toca — y entonces ya es tarde.
-std::vector<Reparo> revisarArchivos(const Evento& e, const std::filesystem::path& carpeta);
+/// `medios`: la biblioteca del evento (su Media/): la música y los videos se buscan ahí
+/// primero y después en Medios/ de la carpeta del guion (los guiones de antes).
+std::vector<Reparo> revisarArchivos(const Evento& e, const std::filesystem::path& carpeta,
+                                    const std::filesystem::path& medios = {});
 
 class EventoStore {
    public:

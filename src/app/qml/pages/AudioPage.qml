@@ -152,7 +152,7 @@ Rectangle {
     readonly property var sourceTree: {
         groupTick
         const src = au ? au.sources : []
-        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Entradas del equipo (placas)", "Voces (texto a audio)",
+        const orden = ["Invitados", "Asamblea", "Micrófonos y líneas del equipo", "Entradas del equipo (placas)", "Voces (texto a audio)",
                        "Audio del equipo (lo que suena)", "Medios y red", "Otras fuentes"]
         const porGrupo = {}
         for (let i = 0; i < src.length; ++i) {
@@ -341,8 +341,7 @@ Rectangle {
                     onTriggered: {
                         page.msg = Studio.inputs.addAudioInput(modelData.value, "")
                         if (page.msg) return
-                        // La lista de fuentes con audio se arma aparte: sin esto
-                        // la entrada nueva no aparecia hasta tocar otra cosa.
+                        // La lista se rehace sola (el modelo se entera); acá solo se la elige.
                         page.au.refresh()
                         page.au.selectSource(Studio.inputs.audioInputName(modelData.value))
                     }
@@ -405,7 +404,16 @@ Rectangle {
                 // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
                 // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
                 mas: [{ t: "Restablecer interfaz LSP", f: () => page.msg = page.au.restablecerInterfazLsp(),
-                        tip: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece." }]
+                        tip: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece." },
+                      // Cuando el rack quedó enredado (cables sacados, módulos que no se van),
+                      // volver a cero en un clic: el audio pasa directo, como sin rack.
+                      { t: "Restablecer entrada…", tip: "Quita el rack entero de esta entrada: el audio vuelve a pasar directo, sin filtros",
+                        f: () => { const fuente = page.au.source
+                                   ApplicationWindow.window.confirm({
+                                       title: "¿Restablecer «" + fuente + "»?",
+                                       text: "Se quitan todas las tarjetas y cables de su rack (filtros, medidores, voz a texto, traducción) y el audio vuelve a pasar directo. Si querés conservarlo, guardalo antes en Plantillas.",
+                                       accept: "Restablecer", reject: "Cancelar",
+                                       action: function() { if (page.au.source === fuente) page.au.removeRack() } }) } }]
                 lienzo: lienzoAudio
             }
             Text {
@@ -590,6 +598,10 @@ Rectangle {
                                 opacity: modelData.bypass ? 0.55 : 1
                                 onXChanged: { page.livePos[modelData.id] = Qt.point(x, y); page.liveTick++ }
                                 onYChanged: { page.livePos[modelData.id] = Qt.point(x, y); page.liveTick++ }
+
+                                // Un clic en cualquier lado de la tarjeta la elige (y el panel muestra
+                                // Quitar, Anular…). Va primero: los puertos y la cabecera quedan encima.
+                                MouseArea { anchors.fill: parent; onClicked: page.au.select(nd.modelData.id) }
 
                                 // Cabecera: elegir y arrastrar.
                                 Rectangle {

@@ -1,5 +1,5 @@
-// src/app/agent/ControlWindows.cpp — ver ControlWindows.hpp
-#include "agent/ControlWindows.hpp"
+// src/app/agent/ControlSistema.cpp — ver ControlSistema.hpp
+#include "agent/ControlSistema.hpp"
 
 #include <fstream>
 #include <system_error>
@@ -8,7 +8,7 @@ namespace ba::app::agent {
 
 using json = nlohmann::json;
 
-const std::vector<std::pair<std::string, std::string>>& ControlWindows::capacidades() {
+const std::vector<std::pair<std::string, std::string>>& ControlSistema::capacidades() {
     static const std::vector<std::pair<std::string, std::string>> c{
         {"pantalla", "Ver la pantalla (capturas, monitores)"},
         {"mouse", "Mover y hacer clic con el mouse"},
@@ -29,7 +29,7 @@ const std::vector<std::pair<std::string, std::string>>& ControlWindows::capacida
     return c;
 }
 
-bool* ControlWindows::capacidad(const std::string& k) {
+bool* ControlSistema::capacidad(const std::string& k) {
     if (k == "pantalla") return &pantalla;
     if (k == "mouse") return &mouse;
     if (k == "teclado") return &teclado;
@@ -49,14 +49,14 @@ bool* ControlWindows::capacidad(const std::string& k) {
     return nullptr;
 }
 
-json ControlWindows::comoJson() const {
+json ControlSistema::comoJson() const {
     json p = json::object();
-    auto* yo = const_cast<ControlWindows*>(this);
+    auto* yo = const_cast<ControlSistema*>(this);
     for (const auto& [k, etiqueta] : capacidades()) p[k] = *yo->capacidad(k);
     return json{{"habilitado", habilitado}, {"preguntar", preguntar}, {"permisos", p}};
 }
 
-void ControlWindows::aplicar(const json& j) {
+void ControlSistema::aplicar(const json& j) {
     if (!j.is_object()) return;
     if (j.contains("habilitado") && j["habilitado"].is_boolean()) habilitado = j["habilitado"].get<bool>();
     if (j.contains("preguntar") && j["preguntar"].is_boolean()) preguntar = j["preguntar"].get<bool>();
@@ -66,19 +66,24 @@ void ControlWindows::aplicar(const json& j) {
             if (bool* b = capacidad(it.key()); b != nullptr && it->is_boolean()) *b = it->get<bool>();
 }
 
-std::filesystem::path ControlWindows::archivo(const std::filesystem::path& datos) {
-    return datos / "Config" / "control-windows.json";
+std::filesystem::path ControlSistema::archivo(const std::filesystem::path& datos) {
+    return datos / "Config" / "control-sistema.json";
 }
 
-ControlWindows ControlWindows::leer(const std::filesystem::path& datos) {
-    ControlWindows c;
+ControlSistema ControlSistema::leer(const std::filesystem::path& datos) {
+    ControlSistema c;
     std::ifstream f(archivo(datos));
-    if (!f) return c;
+    if (!f) {
+        // El de antes (cuando era «Control de Windows»): se lee hasta que se guarde el nuevo.
+        std::ifstream viejo(datos / "Config" / "control-windows.json");
+        if (viejo) c.aplicar(json::parse(viejo, nullptr, false));
+        return c;
+    }
     c.aplicar(json::parse(f, nullptr, false));
     return c;
 }
 
-bool ControlWindows::guardar(const std::filesystem::path& datos) const {
+bool ControlSistema::guardar(const std::filesystem::path& datos) const {
     std::error_code ec;
     std::filesystem::create_directories(archivo(datos).parent_path(), ec);
     const auto tmp = std::filesystem::path(archivo(datos)).concat(".tmp");

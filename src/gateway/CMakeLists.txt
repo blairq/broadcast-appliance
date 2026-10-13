@@ -372,103 +372,19 @@ else()
         RUNTIME DESTINATION bin/64bit
     )
 endif()
-# App web del invitado (spec §8.3). Si el directorio existe en el árbol de
-# fuente se copia; si no, se deja el directorio vacío (lo crea el root).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/guest")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/guest/"
-        DESTINATION Web/guest
-    )
-endif()
-# Consola web del operador (la sirve B en 127.0.0.1:adminPort/admin/).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/admin")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/admin/"
-        DESTINATION Web/admin
-    )
-endif()
-# Tablero de oradores (solo lectura, para una tablet; lo sirve B en /board/).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/board")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/board/"
-        DESTINATION Web/board
-    )
-endif()
-# El canal de control, compartido por TODAS las superficies web (canal.js).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/comun")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/comun/"
-        DESTINATION Web/comun
-    )
-endif()
-# Nota: assets/web/pantalla/ incluye carrusel/ (se copia el directorio entero).
-# El programa en vivo para un televisor (/cast/): la pagina del invitado sin
-# las partes de invitado, por WebRTC (100-300 ms, contra los 1-5 s del
-# reproductor de fabrica del Chromecast).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/cast")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/cast/"
-        DESTINATION Web/cast
-    )
-endif()
-# Lo que se manda a un televisor (/pantalla/): mensajes, QR y reloj. Una sola
-# pagina para todo lo que se proyecta (ver assets/web/pantalla/index.html).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/pantalla")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/pantalla/"
-        DESTINATION Web/pantalla
-    )
-endif()
-# Puesto del corrector de subtítulos (/correccion/#k=…, T44).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/correccion")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/correccion/"
-        DESTINATION Web/correccion
-    )
-endif()
-
-# Teleprompter: la tablet del orador (/prompter) y el control del celular
-# (/prompter/#control). Lo sirve B, como el resto de las vistas web.
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/prompter/"
-        DESTINATION Web/prompter
-    )
-endif()
-
-# Botonera: la superficie de control de la tablet (/botonera/), emparejada por QR.
-# La consola web de la presidencia (/presidencia/, docs/funciones/SESION-REMOTA.md §8).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/presidencia")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/presidencia/"
-        DESTINATION Web/presidencia
-    )
-endif()
-# La sesión remota de los integrantes (/sesion/, docs/funciones/SESION-REMOTA.md).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/sesion")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/sesion/"
-        DESTINATION Web/sesion
-    )
-endif()
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/botonera")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/botonera/"
-        DESTINATION Web/botonera
-    )
-endif()
-
-# Publico: el que esta en la butaca, con su telefono (/publico/). Pregunta y
-# vota; no entra a la sala ni pide camara.
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/publico")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/publico/"
-        DESTINATION Web/publico
-    )
-endif()
-
-# Evento: el marco de la página del evento en vivo (la raíz de la sala cuando
-# hay un evento con sitio) y vivo.js, que usan las páginas de cada sección.
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/evento")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/evento/"
-        DESTINATION Web/evento
-    )
-endif()
-
-# Rotulos: escribir el nombre del que habla desde el celular (/rotulos/).
-if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
-    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/rotulos/"
-        DESTINATION Web/rotulos
-    )
-endif()
+# Las vistas web que sirve B: assets/web/ ENTERO, a Web/. Una sola regla, la
+# misma que la de Windows (cmake/BaWinStaticPart.cmake): con una lista por vista
+# y por plataforma, Windows se quedó dos veces sin vistas que en Linux existían
+# (el teleprompter y los rótulos; después la sesión remota, la presidencia, el
+# corrector y el evento), y la página simplemente daba 404.
+#   guest/       el invitado (spec §8.3)          admin/     consola del operador (127.0.0.1)
+#   board/       tablero de oradores (tablet)      comun/     canal de control de todas (canal.js)
+#   cast/        el programa para un televisor     pantalla/  mensajes, QR, reloj, carrusel
+#   correccion/  puesto del corrector (T44)        prompter/  teleprompter y su control
+#   presidencia/ consola de la presidencia         sesion/    integrantes remotos (SESION-REMOTA.md)
+#   botonera/    superficie de control (tablet)    publico/   la butaca: preguntar y votar
+#   evento/      marco de la página del evento     rotulos/   el nombre del que habla
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/" DESTINATION Web)
 
 # --- TURN de la caja (src/gateway/turn, docs/funciones/TURN.md) --------------
 # BA_GATEWAY_LIB_SOURCES no es recursivo y no ve turn/: se suman a TODOS los

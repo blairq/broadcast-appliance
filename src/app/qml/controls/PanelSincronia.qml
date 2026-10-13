@@ -107,7 +107,7 @@ Popup {
                     Repeater {
                         model: latPanel.lat.tarde || []
                         delegate: Text { required property var modelData; color: Theme.live; font.pixelSize: 12
-                                         text: "⚠ «" + modelData.nombre + "» llega tarde (" + modelData.pide_ms + " ms)" }
+                                         text: "⚠ «" + modelData.entrada + "» llega tarde (" + modelData.latencia_ms + " ms)" }
                     }
                 }
             }
@@ -153,7 +153,12 @@ Popup {
                             from: 0; to: 127; editable: true
                             value: pop.reloj.dominio || 0
                         }
-                        Text { text: "Colchón"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text {
+                            text: "Colchón de las entradas de red"; color: Theme.textDim; font.pixelSize: 12
+                            HoverHandler { id: colHov }
+                            ToolTip.visible: colHov.hovered; ToolTip.delay: 400
+                            ToolTip.text: "Lo que espera cada cámara o entrada de red (RTSP, SRT…) para absorber los saltos de la red. No es la latencia del estudio: con una entrada de red, el estudio se atrasa al menos esto para que todo salga alineado."
+                        }
                         SpinBox { id: latencia; from: 0; to: 5000; stepSize: 50; editable: true; value: pop.reloj.latencia_ms || 200 }
                         Text { text: "ms"; color: Theme.textDim; font.pixelSize: 12 }
                         GlassButton {
@@ -383,6 +388,39 @@ Popup {
                 }
             }
 
+            // --- Audio de cada canal (sincro labios) -------------------------------------
+            Panel {
+                Layout.fillWidth: true
+                padding: 12
+                implicitHeight: audioSincCol.implicitHeight + 2 * padding
+                ColumnLayout {
+                    id: audioSincCol
+                    anchors.fill: parent
+                    spacing: 6
+                    Text { text: "Audio de cada canal con su video"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                        text: "El retardo de cada audio respecto de su imagen (sincro labios). Positivo atrasa el audio: lo normal cuando la cámara " +
+                              "llega tarde. Se ajusta a mano o midiendo con aplausos; es el mismo botón SINC del Mezclador."
+                    }
+                    Repeater {
+                        model: Studio.mixer
+                        delegate: RowLayout {
+                            id: filaSinc
+                            required property string name
+                            required property int retardoMs
+                            readonly property int ms: retardoMs
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Text { Layout.fillWidth: true; text: filaSinc.name; color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight }
+                            Text { text: (filaSinc.ms > 0 ? "+" : "") + filaSinc.ms + " ms"
+                                   color: filaSinc.ms !== 0 ? Theme.accent : Theme.textFaint; font.pixelSize: 12 }
+                            GlassButton { compact: true; text: "Sincronizar…"; onClicked: retardoPop.abrir(filaSinc.name) }
+                        }
+                    }
+                }
+            }
+
             // --- Entrada de red nueva ---------------------------------------------------
             Panel {
                 Layout.fillWidth: true
@@ -467,4 +505,7 @@ Popup {
         }
         onGuardado: if (filaQueAbrio) filaQueAbrio.refrescar()
     }
+
+    // Sincronizar un canal de audio con su video (el mismo de la tarjeta y la ventana del Mezclador).
+    RetardoCanal { id: retardoPop }
 }

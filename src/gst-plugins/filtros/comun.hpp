@@ -4,8 +4,8 @@
 // Cada filtro es un GstVideoFilter como corresponde:
 //   - CAPS: plantillas con los formatos que sabe tratar; videoconvert (que el
 //     que arma la cadena pone delante) convierte solo si hace falta.
-//   - PASANTE: si los ajustes no cambian nada, el buffer pasa sin tocarse
-//     (gst_base_transform_set_passthrough), sin copia.
+//   - PASANTE: si los ajustes no cambian nada, el buffer pasa sin tocarse,
+//     sin copia (pasante(): al cambiar, renegocia la asignación).
 //   - EN EL LUGAR cuando el tamaño no cambia (transform_frame_ip).
 //   - QoS activado: si la cadena viene atrasada, se descartan cuadros antes.
 //   - PROPIEDADES CONTROLABLES (GST_PARAM_CONTROLLABLE): se pueden animar con
@@ -30,6 +30,16 @@ inline void sincronizarValores(GstBaseTransform* bt, GstBuffer* b) {
     if (!GST_CLOCK_TIME_IS_VALID(t)) return;
     const GstClockTime st = gst_segment_to_stream_time(&bt->segment, GST_FORMAT_TIME, t);
     if (GST_CLOCK_TIME_IS_VALID(st)) gst_object_sync_values(GST_OBJECT(bt), st);
+}
+
+/// Pasante o no, andando. Al cambiar se renegocia la asignación: un filtro que
+/// arrancó pasante no armó su pool, y al volver a trabajar (sobre todo los de GL,
+/// que necesitan texturas de salida) la salida no tenía de dónde salir y la
+/// cadena se caía. Ver tests/test_ptz_gl.cpp.
+inline void pasante(GstBaseTransform* bt, bool si) {
+    if (gst_base_transform_is_passthrough(bt) == static_cast<gboolean>(si)) return;
+    gst_base_transform_set_passthrough(bt, si);
+    gst_base_transform_reconfigure_src(bt);
 }
 
 inline std::uint8_t a8(float v) { return static_cast<std::uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f); }

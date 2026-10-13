@@ -5,14 +5,11 @@
 // cuadros, corregir. Sin ese bucle el asistente escribe a ciegas y el
 // operador se entera al aire.
 //
-// Los gráficos viven en Graficos/ del bundle (los de fábrica) y en
-// Eventos/<evento>/Graficos/ (los del evento, que viajan con él).
+// Dónde están los gráficos, cómo se leen y cómo se arma su pedido lo sabe
+// graficos::Catalogo (el del Emisor): el mismo que usan el editor y el aire.
 // ============================================================================
 #include <algorithm>
 
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -22,6 +19,7 @@
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
+#include "escenas/Conmutador.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -29,62 +27,9 @@
 namespace ba::app::mcp {
 namespace {
 
-using graficos::GraficoProceso;
-
-/// Dónde puede vivir un gráfico. Nunca fuera de estas dos carpetas: un nombre
-/// con ".." no tiene por qué llegar a leer el disco.
-QStringList carpetas(AppRuntime& rt) {
-    return {QString::fromStdString((rt.dataRoot() / "Graficos").string())};
-}
-
-QString carpetaDe(AppRuntime& rt, const QString& nombre, QString* err) {
-    if (nombre.isEmpty() || nombre.contains("..") || nombre.contains('/') || nombre.contains('\\')) {
-        if (err != nullptr) *err = "nombre de gráfico inválido";
-        return {};
-    }
-    for (const QString& base : carpetas(rt)) {
-        const QString c = QDir(base).filePath(nombre);
-        if (QFileInfo(c).isDir()) return c;
-    }
-    if (err != nullptr) *err = "no existe el gráfico «" + nombre + "» (grafico_listar los muestra)";
-    return {};
-}
-
-/// El grafico.json de un gráfico, o un objeto vacío.
-QJsonObject ficha(const QString& carpeta) {
-    QFile f(QDir(carpeta).filePath("grafico.json"));
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    return QJsonDocument::fromJson(f.readAll()).object();
-}
-
-/// Arma el pedido para el renderizador a partir de lo que hay en la carpeta:
-/// si tiene "declarativo" en su ficha va por ahí; si tiene grafico.qml, por el
-/// archivo.
-QJsonObject pedidoDe(const QString& carpeta, const QJsonObject& parametros, QString* err) {
-    const QJsonObject f = ficha(carpeta);
-    // Lo que no venga sale del porDefecto de la ficha, como cuando se saca al
-    // aire (Emisor): si no, probar sin un color deja «{acento}» en el QML.
-    QJsonObject valores;
-    for (const QJsonValue& v : f.value("parametros").toArray()) {
-        const QJsonObject par = v.toObject();
-        if (par.contains("porDefecto")) valores[par.value("clave").toString()] = par.value("porDefecto");
-    }
-    for (auto it = parametros.begin(); it != parametros.end(); ++it) valores[it.key()] = it.value();
-    QJsonObject p{{"parametros", valores}};
-    if (f.contains("declarativo")) {
-        p["declarativo"] = f.value("declarativo");
-        return p;
-    }
-    const QString qml = QDir(carpeta).filePath("grafico.qml");
-    if (!QFileInfo::exists(qml)) {
-        if (err != nullptr)
-            *err = "el gráfico no tiene ni «declarativo» en su grafico.json ni un grafico.qml";
-        return {};
-    }
-    p["qml"] = qml;
-    if (f.contains("ancho")) p["ancho"] = f.value("ancho");
-    if (f.contains("alto")) p["alto"] = f.value("alto");
-    return p;
+/// De Qt a json (lo que devuelve el catálogo).
+json aJsonGrafico(const QJsonArray& a) {
+    return json::parse(QJsonDocument(a).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
 }
 
 } // namespace
@@ -118,35 +63,9 @@ void McpService::registerGraficoTools() {
             "la pantalla de Rótulos. Cuando te llegue uno de esos pedidos vas a recibirlo con el "
             "contexto puesto (escena, fuente y gráfico). Si un gráfico no tiene ninguno, proponelos: "
             "se escriben en su `grafico.json` y estan explicados en docs/funciones/GRAFICOS.md.";
-        t.run = [&rt, proc](const json&, Done done) {
-            json out = json::array();
-            for (const QString& base : carpetas(rt)) {
-                for (const QString& d : QDir(base).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-                    const QJsonObject f = ficha(QDir(base).filePath(d));
-                    json g{{"nombre", d.toStdString()},
-                           {"titulo", f.value("nombre").toString(d).toStdString()},
-                           {"descripcion", f.value("descripcion").toString().toStdString()},
-                           {"categoria", f.value("categoria").toString("General").toStdString()},
-                           {"declarativo", f.contains("declarativo")}};
-                    json params = json::array();
-                    for (const QJsonValue& v : f.value("parametros").toArray()) {
-                        const QJsonObject p = v.toObject();
-                        params.push_back(json{{"clave", p.value("clave").toString().toStdString()},
-                                              {"titulo", p.value("titulo").toString().toStdString()},
-                                              {"tipo", p.value("tipo").toString().toStdString()},
-                                              {"ayuda", p.value("ayuda").toString().toStdString()}});
-                    }
-                    g["parametros"] = params;
-                    json acts = json::array();
-                    for (const QJsonValue& v : f.value("acciones").toArray()) {
-                        const QJsonObject a = v.toObject();
-                        acts.push_back(json{{"titulo", a.value("titulo").toString().toStdString()},
-                                            {"prompt", a.value("prompt").toString().toStdString()}});
-                    }
-                    g["acciones"] = acts;
-                    out.push_back(g);
-                }
-            }
+        t.run = [em, proc](const json&, Done done) {
+            if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
+            json out = aJsonGrafico(em->catalogo().lista());
             done(ToolResult().data(json{{"graficos", out}, {"motorDisponible", proc->disponible()}}));
         };
         core_.addTool(std::move(t));
@@ -173,23 +92,22 @@ void McpService::registerGraficoTools() {
             {"properties",
              {{"nombre", {{"type", "string"}, {"description", "Cuál gráfico (ver grafico_listar)."}}},
               {"parametros", {{"type", "object"}, {"description", "Los valores a probar."}}},
-              {"momentos", {{"type", "array"}, {"items", {{"type", "integer"}}}}}}},
+              {"momentos", {{"type", "array"}, {"items", {{"type", "integer"}, {"minimum", 0}}}, {"description", "instantes de la animación, en milisegundos desde que entra"}}}}},
             {"required", {"nombre"}}};
         t.examples = {
             R"({"nombre": "zocalo", "parametros": {"nombre": "Jorge Ortega", "cargo": "Intendente"}, "momentos": [0, 150, 300, 450, 900]})"};
-        t.run = [&rt, proc](const json& a, Done done) {
+        t.run = [em, proc](const json& a, Done done) {
+            if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
             if (!proc->disponible())
                 return done(ToolResult::error("El renderizador de gráficos no está en este bundle (" +
                                               proc->binario().toStdString() + ")."));
             QString err;
-            const QString carpeta =
-                carpetaDe(rt, QString::fromStdString(a.value("nombre", std::string())), &err);
-            if (carpeta.isEmpty()) return done(ToolResult::error(err.toStdString()));
-
             QJsonObject par;
             if (a.contains("parametros"))
                 par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
-            QJsonObject pedido = pedidoDe(carpeta, par, &err);
+            // El mismo pedido que sale al aire (Emisor): lo que se prueba es lo que se ve.
+            const QJsonObject pedido =
+                em->catalogo().pedido(QString::fromStdString(a.value("nombre", std::string())), par, &err);
             if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
 
             QVector<int> momentos;
@@ -282,7 +200,7 @@ void McpService::registerGraficoTools() {
                                             a.value("duracionMs", 0), a.value("repetir", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             if (!escenaArmar.empty()) {
-                vm_.armarEscena(QString::fromStdString(escenaArmar));
+                vm_.conmutador().armar(escenaArmar);
                 return done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» armado en el preview («" + escenaArmar +
                                            "»): sale con TAKE."));
             }

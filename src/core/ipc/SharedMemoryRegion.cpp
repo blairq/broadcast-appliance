@@ -184,16 +184,23 @@ Status SharedMemoryRegion::open(const wchar_t* name, SharedMemoryRegion& out) {
         return Status::fail(static_cast<int>(ErrorCode::kNotFound));
     }
 
-    LARGE_INTEGER sz;
-    GetFileSizeEx(impl->mapping, &sz);
-    impl->size = static_cast<size_t>(sz.QuadPart);
-
     impl->view = MapViewOfFile(impl->mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (impl->view == nullptr) {
         impl->release();
         delete impl;
         return Status::fail(static_cast<int>(ErrorCode::kPlatform));
     }
+    // El tamaño: el de la vista (toda la sección, redondeada a páginas).
+    // GetFileSizeEx no sirve con un mapping: fallaba y el tamaño quedaba en
+    // basura (casi siempre chico), así que el que lee rechazaba la región y
+    // los canales del gateway (invitados, remotos) nunca llegaban a la app.
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (VirtualQuery(impl->view, &mbi, sizeof(mbi)) == 0) {
+        impl->release();
+        delete impl;
+        return Status::fail(static_cast<int>(ErrorCode::kPlatform));
+    }
+    impl->size = static_cast<size_t>(mbi.RegionSize);
 
     out.impl_ = impl;
     return Status::success();

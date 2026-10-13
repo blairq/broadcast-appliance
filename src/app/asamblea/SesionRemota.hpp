@@ -100,6 +100,8 @@ class SesionRemota : public QObject {
     int conectados() const;
     /// Los integrantes habilitados y conectados (para no contarlos dos veces).
     std::vector<std::string> presentesIds() const;
+    /// Está sesionando desde el navegador: conectado y habilitado (cuenta como presente por acá).
+    bool presente(const std::string& integrante) const;
     /// Las bancas de los habilitados y conectados.
     std::vector<std::string> presentesBancas() const;
 
@@ -183,14 +185,12 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QString setDatosUi(const QString& integrante, const QVariantMap& datos);
     Q_INVOKABLE QString habilitarUi(const QString& integrante, bool si);
     Q_INVOKABLE QString expulsarUi(const QString& integrante, const QString& motivo);
+    Q_INVOKABLE bool presenteUi(const QString& integrante) const { return presente(integrante.toStdString()); }
     /// La foto de su cámara (la última que mandó): la pide la interfaz al gateway
     /// y, cuando llega (`fotoLista`), la toma con `fotoUrl` (data:image/jpeg…).
     Q_INVOKABLE void pedirFoto(const QString& integrante);
     QVariantMap votacionUi() const;
     /// Sin la central: abrir con un menú (si_no, si_no_abstencion…) o cerrar.
-    Q_INVOKABLE QString abrirVotacionUi(const QString& tema, const QString& menu, int segundos);
-    Q_INVOKABLE void pausarVotacionUi(bool pausa) { pausarVotacion(pausa); }
-    Q_INVOKABLE void cerrarVotacionUi();
     Q_PROPERTY(QVariantList consolasUi READ consolasUi NOTIFY cambio)
     QVariantList consolasUi() const;
     Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);
@@ -237,7 +237,11 @@ class SesionRemota : public QObject {
     void cargar();
     void guardar() const;
     void anotar(const std::string& que, const std::string& integrante, const json& extra = {});
-    json integrante(const std::string& id) const;
+    json integrante(const std::string& id) const; ///< null si ya no está en el Cuerpo
+    /// Su nombre y su banca, o `siNo` / "" si lo borraron del Cuerpo (un voto, un aviso o
+    /// un evento suyo pueden llegar después: no hay que tirar con json().value()).
+    std::string nombreDe(const std::string& id, const std::string& siNo) const;
+    std::string bancaDe(const std::string& id) const;
     void mandarEstado(const std::string& id);
 
     const Cuerpo& cuerpo_;

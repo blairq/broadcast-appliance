@@ -46,7 +46,7 @@ ColumnLayout {
     property int fotosVersion: 0
     // Titileo de 1 Hz para «le toca» y los que esperan que los habiliten.
     property bool fase: false
-    Timer { interval: 500; repeat: true; running: rec.conCentral || rec.hayEsperando; onTriggered: rec.fase = !rec.fase }
+    Timer { interval: 500; repeat: true; running: rec.visible && (rec.conCentral || rec.hayEsperando); onTriggered: rec.fase = !rec.fase }
     readonly property bool hayEsperando: (rec.sr ? rec.sr.participantes : []).some(p => p.estado === "esperando")
     // Las caras de los conectados, cada 3 s mientras se ve.
     Timer {

@@ -79,6 +79,97 @@ AccesoRemoto::AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* paren
     poll_.setInterval(5000);
     connect(&poll_, &QTimer::timeout, this, &AccesoRemoto::refrescar);
     estado_ = {{"disponible", false}, {"sala", false}, {"texto", "Sin consultar todavía."}};
+    // Se prendió o apagó un túnel (desde acá, Configuración o el MCP): la conexión cambió.
+    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
+        if (c != AppRuntime::Cambio::Ajustes) return;
+        QMetaObject::invokeMethod(this, [this]() {
+            emit estadoChanged();
+            emit credencialesChanged();
+            refrescar();
+        }, Qt::QueuedConnection);
+    });
+}
+
+AccesoRemoto::~AccesoRemoto() { rt_.dejarDeObservar(observador_); }
+
+QVariantMap AccesoRemoto::conexion() const {
+    const auto& g = rt_.gateway();
+    if (g.pinggyActivo) {
+        const QVariantMap p = estado_.value("pinggy").toMap();
+        const QString url = p.value("urlPublica").toString();
+        const QString est = p.value("estado").toString();
+        const QString error = p.value("error").toString();
+        const QString estado = !error.isEmpty() ? "error" : (!url.isEmpty() && est == "listo") ? "listo" : "conectando";
+        return {{"activo", true}, {"via", "pinggy"}, {"estado", estado}, {"url", url},
+                {"texto", estado == "listo" ? "Por internet (pinggy): " + url
+                          : estado == "error" ? "Pinggy no conecta: " + error
+                                              : QString("Conectando por pinggy…")}};
+    }
+    if (g.tunnel) {
+        const QString host = QString::fromStdString(g.tunnelHostname);
+        const QString url = host.isEmpty() ? QString() : "https://" + host;
+        return {{"activo", true}, {"via", "cloudflare"}, {"estado", url.isEmpty() ? "conectando" : "listo"}, {"url", url},
+                {"texto", url.isEmpty() ? QString("Por internet (Cloudflare)") : "Por internet (Cloudflare): " + url}};
+    }
+    return {{"activo", false}, {"via", ""}, {"estado", "apagado"}, {"url", ""},
+            {"texto", "Solo en la red local: nadie de afuera puede entrar"}};
+}
+
+QVariantList AccesoRemoto::formasDeConectar() const {
+    const auto& g = rt_.gateway();
+    QVariantList out;
+    if (tokenGuardado()) {
+        const QString host = QString::fromStdString(g.pinggyHost);
+        out << QVariantMap{{"id", "pinggy"}, {"nombre", "Pinggy"},
+                           {"detalle", g.pinggyDominioTipo == "azar" || host.isEmpty() ? QString("con tu cuenta (dirección al azar)")
+                                                                                       : "con tu cuenta: " + host}};
+    } else if (apiKeyGuardada()) {
+        out << QVariantMap{{"id", "pinggy-cuenta"}, {"nombre", "Pinggy"},
+                           {"detalle", "con tu API key: arma el túnel y la dirección fija de la cuenta"}};
+    }
+    if (tokenCloudflareGuardado()) {
+        const QString host = QString::fromStdString(g.tunnelHostname);
+        out << QVariantMap{{"id", "cloudflare"}, {"nombre", "Cloudflare"},
+                           {"detalle", host.isEmpty() ? QString("con tu token") : "con tu token: " + host}};
+    }
+    // Sin cuenta de pinggy: igual se puede, con una dirección al azar que dura 60 minutos.
+    if (!tokenGuardado() && !apiKeyGuardada())
+        out << QVariantMap{{"id", "pinggy-gratis"}, {"nombre", "Pinggy gratis"},
+                           {"detalle", "sin cuenta: dirección al azar, se corta a los 60 minutos"}};
+    return out;
+}
+
+QString AccesoRemoto::conectar(const QString& id) {
+    if (!aplicarPinggy_) return "no disponible";
+    if (enVivo_ && enVivo_()) return "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala).";
+    if (id == "pinggy-cuenta") {
+        if (!apiKeyGuardada()) return "No hay API key de pinggy guardada (Configuración → Pinggy).";
+        if (rt_.gateway().tunnel)
+            if (const QString e = aplicarPinggy_({{"gateway.tunnel", false}}); !e.isEmpty()) return e;
+        configurarConApiKey(); // asíncrono: el resultado en `cuenta`
+        return {};
+    }
+    QVariantMap cambios;
+    if (id == "pinggy") {
+        if (!tokenGuardado()) return "No hay token de pinggy guardado (Configuración → Pinggy).";
+        cambios = {{"pinggy.activo", true}, {"gateway.tunnel", false}};
+    } else if (id == "pinggy-gratis") {
+        cambios = {{"pinggy.activo", true}, {"pinggy.dominioTipo", "azar"}, {"gateway.tunnel", false}};
+    } else if (id == "cloudflare") {
+        if (!tokenCloudflareGuardado()) return "No hay token de Cloudflare guardado (Configuración → Cloudflare).";
+        cambios = {{"gateway.tunnel", true}, {"pinggy.activo", false}};
+    } else {
+        return "No conozco esa forma de conectar: «" + id + "».";
+    }
+    return aplicarPinggy_(cambios);
+}
+
+QString AccesoRemoto::desconectar() {
+    if (!aplicarPinggy_) return "no disponible";
+    if (enVivo_ && enVivo_()) return "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala).";
+    const auto& g = rt_.gateway();
+    if (!g.pinggyActivo && !g.tunnel) return {};
+    return aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}});
 }
 
 bool AccesoRemoto::tokenGuardado() const { return ba::security::CredentialStore::bundle().exists(kToken); }
@@ -166,6 +257,14 @@ QString AccesoRemoto::guardarToken(const QString& token) {
         return "No se pudo guardar en Credenciales/ (¿el disco está lleno o es de solo lectura?).";
     emit credencialesChanged();
     return {};
+}
+
+QVariantMap AccesoRemoto::guardarTokenTunel(const QString& token, bool hayCambiosSinAplicar) {
+    if (const QString e = guardarToken(token); !e.isEmpty())
+        return {{"error", e}, {"reiniciarAhora", false}};
+    // Lo que rige es lo guardado (rt_.gateway()), no lo que está a medio editar.
+    const bool reiniciar = cli_.online() && rt_.gateway().pinggyActivo && !hayCambiosSinAplicar;
+    return {{"error", QString()}, {"reiniciarAhora", reiniciar}};
 }
 
 QString AccesoRemoto::borrarToken() {

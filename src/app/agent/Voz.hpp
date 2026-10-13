@@ -165,6 +165,9 @@ class Voz : public QObject {
     /// nombre de su tarjeta.
     void setFlujos(class FlujosTexto* flujos) { flujos_ = flujos; }
     QString microfono() const;
+    /// Si el dictado tiene de dónde escuchar: el micrófono del operador, o una fuente
+    /// con «Voz a texto» en modo dictado (EstadoIA avisa si no).
+    bool dictadoConMicrofono() const;
     /// Elegir el micrófono del operador entre las fuentes con audio. Devuelve el error o "".
     Q_INVOKABLE QString setMicrofono(const QString& fuente);
     QVariantList fuentesTexto() const;

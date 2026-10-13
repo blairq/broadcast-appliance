@@ -2,6 +2,11 @@
 // src/app/ui/RotuladorViewModel.cpp — ver RotuladorViewModel.hpp
 // ============================================================================
 #include "ui/RotuladorViewModel.hpp"
+#include "sala/ControlSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include <QPointer>
+#include <QJsonDocument>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <map>
@@ -231,15 +236,17 @@ void RotuladorViewModel::sincronizar() {
     // latido con el que el celular sabe que la app sigue viva (ver `viva` en
     // Rotulador.hpp). Lo que se evita es redibujar de mas del otro lado, y de
     // eso se ocupa la pagina con su propia firma.
-    d_->sala->client().post("/api/v1/rotulos", QJsonObject{{"estado", estado}, {"tomar", true}},
-                            [this](bool ok, const QJsonObject& r) {
-                                if (!ok) return;
-                                const QJsonArray es = r.value("encargos").toArray();
-                                if (es.isEmpty()) return;
-                                for (const QJsonValue& e : es)
-                                    atender(e.toObject());
-                                emit cambio();
-                            });
+    QPointer<RotuladorViewModel> yo(this);
+    d_->sala->control().publicarRotulos(
+        nlohmann::json::parse(QJsonDocument(estado).toJson(QJsonDocument::Compact).toStdString(), nullptr, false),
+        [yo](const std::string& err, const nlohmann::json& r) {
+            if (!yo || !err.empty()) return;
+            const nlohmann::json es = r.value("encargos", nlohmann::json::array());
+            if (!es.is_array() || es.empty()) return;
+            for (const nlohmann::json& e : es)
+                yo->atender(QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object());
+            emit yo->cambio();
+        });
 }
 
 void RotuladorViewModel::atender(const QJsonObject& e) {
@@ -271,18 +278,14 @@ void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {
         emit qrListo({}, {}, "La sala no está corriendo", {});
         return;
     }
-    const QString t = target == "remote" ? "remote" : "local";
-    d_->sala->client().get("/api/v1/rotulos-link?target=" + t + "&conClave=" + (conClave ? "1" : "0"),
-                           [this](bool ok, const QJsonObject& r) {
-                               QStringList filas;
-                               for (const QJsonValue& v : r.value("modules").toArray())
-                                   filas << v.toString();
-                               QString msg = r.value("message").toString();
-                               const bool bien = ok && r.value("ok").toBool();
-                               if (!bien && msg.isEmpty()) msg = "La sala no responde";
-                               emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
-                                            r.value("clave").toString());
-                           });
+    QPointer<RotuladorViewModel> yo(this);
+    d_->sala->enlaces().rotulos(target == "remote", conClave, [yo](const sala::Enlace& e) {
+        if (!yo) return;
+        QStringList filas;
+        for (const std::string& f : e.filas) filas << QString::fromStdString(f);
+        const QString msg = e.mensaje.empty() && !e.ok ? QString("La sala no responde") : QString::fromStdString(e.mensaje);
+        emit yo->qrListo(e.ok ? QString::fromStdString(e.url) : QString(), filas, msg, QString::fromStdString(e.clave));
+    });
 }
 
 } // namespace ba::app

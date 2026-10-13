@@ -62,7 +62,7 @@ Item {
             Text { text: "Interfaz"; color: Theme.textFaint; font.pixelSize: 11 }
             Text {
                 property var l: ({})
-                Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: parent.l = Studio.latidoUi() }
+                Timer { interval: 1000; running: parent.visible; repeat: true; triggeredOnStart: true; onTriggered: parent.l = Studio.latidoUi() }
                 text: l.ui_viva === false ? "trabada " + Math.round((l.ui_trabada_ms || 0) / 1000) + " s (el aire sigue)"
                       : "viva" + (l.motor_vivo === false ? " · motor sin cuadros" : "") +
                         ((l.ultima_traba_ms || 0) > 0 ? " · última traba " + ((l.ultima_traba_ms || 0) / 1000).toFixed(1) + " s" : "")

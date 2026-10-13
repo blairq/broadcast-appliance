@@ -13,9 +13,13 @@
 // que los telefonos alcanzan. Estas herramientas son el lado de A: mirar la
 // cola, elegir, sacar al aire y dar por respondida.
 // ============================================================================
+#include "sala/VotacionSala.hpp"
+#include "asamblea/Votaciones.hpp"
+#include "sala/PreguntasSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/PaginaPublico.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -36,15 +40,6 @@ namespace {
 
 using json = nlohmann::json;
 
-/// Tope de la imagen de fondo. La bajan TODOS los telefonos del salon: dos
-/// megas por doscientos aparatos son cuatrocientos megas de la red del lugar,
-/// que suele ser el wifi que tambien usa la transmision.
-constexpr qint64 kMaxFondo = 2 * 1024 * 1024;
-
-json aJson(const QJsonObject& o) {
-    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-}
-
 } // namespace
 
 void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
@@ -54,37 +49,18 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
 
     const auto salaDe = [&vm]() { return static_cast<ConferenceViewModel*>(vm.conference()); };
 
-    /// Todo pasa por B. Si B no esta, se dice y no se inventa una cola vacia:
-    /// «no hay preguntas» y «no puedo ver las preguntas» son cosas muy
-    /// distintas para el que esta por salir al aire.
-    const auto pedir = [salaDe](const QString& metodo, const QString& ruta, const QJsonObject& cuerpo,
-                                Done done, const std::string& textoOk) {
-        ConferenceViewModel* conf = salaDe();
-        if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
-        const auto contestar = [done, textoOk](bool ok, const QJsonObject& r) {
-            if (!ok)
-                return done(ToolResult::error(
-                    "No pude hablar con la sala (gateway). Fijate `room_status`: si esta caida, las "
-                    "preguntas del publico no llegan a ningun lado."));
+    /// Lo que contestó la sala, para el asistente (los errores dicen que mire la sala).
+    const auto contestarSala = [](Done done, std::string texto) {
+        return [done, texto](const std::string& err, const json& r) {
+            if (!err.empty())
+                return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                                              ". Fijate `room_status`: si esta caida, las preguntas del publico no llegan a ningun lado."));
             ToolResult res;
-            res.structured = aJson(r);
-            if (!textoOk.empty()) {
-                res.text(textoOk);
-            } else {
-                // Sin texto, el asistente que solo lee `content` no veía nada (el enlace del
-                // QR, por ejemplo). La matriz del QR no: es para dibujarlo.
-                nlohmann::json d = res.structured;
-                if (d.is_object()) d.erase("modules");
-                res.text(d.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
-            }
+            res.structured = r;
+            res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
             done(res);
         };
-        if (metodo == "GET")
-            conf->client().get(ruta, contestar);
-        else
-            conf->client().post(ruta, cuerpo, contestar);
     };
-
     {
         Tool t;
         t.name = "preguntas_ver";
@@ -109,9 +85,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             "`deDonde` dice por donde entro (publico, sala, youtube, twitch, facebook). La cola es una "
             "sola para todos a proposito.\\n\\n"
             "El TEXTO LO ESCRIBE CUALQUIERA con el enlace: leelo antes de sacarlo al aire.";
-        t.run = [pedir](const json&, Done done) {
-            pedir("GET", "/api/v1/preguntas", {}, std::move(done), {});
-        };
+        t.run = [&vm, contestarSala](const json&, Done done) { vm.preguntas().ver(contestarSala(done, {})); };
         core.addTool(std::move(t));
     }
     {
@@ -145,15 +119,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 {"enum",
                  {"elegir", "des_elegir", "al_aire", "responder", "descartar", "limpiar", "vaciar"}}}},
               {"id", {{"type", "string"}, {"description", "el id que da preguntas_ver"}}}}}};
-        t.run = [pedir](const json& a, Done done) {
-            const std::string accion = a.value("accion", std::string());
-            const std::string id = a.value("id", std::string());
-            const bool necesitaId = accion != "limpiar" && accion != "vaciar";
-            if (necesitaId && id.empty())
-                return done(ToolResult::error("Falta `id`: decime cual. Los ids los da `preguntas_ver`."));
-            pedir("POST", "/api/v1/preguntas",
-                  QJsonObject{{"accion", QString::fromStdString(accion)}, {"id", QString::fromStdString(id)}},
-                  std::move(done), "Hecho.");
+        t.run = [&vm, contestarSala](const json& a, Done done) {
+            const std::string e = vm.preguntas().moderar(a.value("accion", std::string()), a.value("id", std::string()),
+                                                         contestarSala(done, "Hecho."));
+            if (!e.empty()) done(ToolResult::error(e + " Los ids los da `preguntas_ver`."));
         };
         core.addTool(std::move(t));
     }
@@ -181,13 +150,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                             {{"type", "string"},
                              {"enum", {"sala", "publico", "youtube", "twitch", "facebook"}},
                              {"description", "por donde llego"}}}}}};
-        t.run = [pedir](const json& a, Done done) {
-            pedir("POST", "/api/v1/preguntas",
-                  QJsonObject{{"accion", "preguntar"},
-                              {"texto", QString::fromStdString(a.value("texto", std::string()))},
-                              {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
-                              {"deDonde", QString::fromStdString(a.value("deDonde", std::string("sala")))}},
-                  std::move(done), "Sumada a la cola.");
+        t.run = [&vm, contestarSala](const json& a, Done done) {
+            const std::string e = vm.preguntas().sumar(a.value("texto", std::string()), a.value("nombre", std::string()),
+                                                       a.value("deDonde", std::string("sala")),
+                                                       contestarSala(done, "Sumada a la cola."));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }
@@ -243,9 +210,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                            {"mayoria", {{"type", "string"}, {"enum", {"simple", "absoluta", "dos_tercios_presentes", "dos_tercios_miembros"}}}},
                            {"punto", {{"type", "integer"}, {"minimum", 1}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const json r = vm.quorum().cargarOficial(a);
+            // Por el modelo de votaciones: a Quórum y al bus, como la central y los celulares.
+            if (vm.votaciones() == nullptr) return done(ToolResult::error("Las votaciones de la asamblea no están disponibles."));
+            const json r = vm.votaciones()->cargarOficial(a);
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
-            vm.bus().publicar("sesion/votacion", r, true);
             done(ToolResult().text(std::string(r.value("aprobado", false) ? "APROBADO" : "RECHAZADO") + ": " +
                                    std::to_string(r.value("afirmativos", 0)) + " a " + std::to_string(r.value("negativos", 0)))
                      .data(r));
@@ -260,10 +228,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.description = "Suma a la cola de preguntas un mensaje del chat (YouTube, Twitch, Facebook o la sala) por su "
                         "`mensaje_id` (la `key` de chat_recientes), con su autor y de donde vino.";
         t.inputSchema = {{"type", "object"}, {"required", {"mensaje_id"}}, {"properties", {{"mensaje_id", {{"type", "string"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.preguntaDesdeChatUi(QString::fromStdString(a.value("mensaje_id", std::string())));
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult::ok("Mandada a la cola de preguntas."));
+        t.run = [&vm, contestarSala](const json& a, Done done) {
+            // Por el modelo, esperando lo que diga la sala (antes contestaba «ok» antes de saberlo).
+            const std::string e = vm.preguntas().sumarDesdeChat(a.value("mensaje_id", std::string()),
+                                                                contestarSala(done, "Sumada a la cola de preguntas."));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }
@@ -306,51 +275,22 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"secreta", {{"type", "boolean"}, {"description", "no guardar que voto cada uno"}}},
               {"enVivo",
                {{"type", "boolean"}, {"description", "mostrar el resultado mientras esta abierta"}}}}}};
-        t.run = [pedir, &vm](const json& a, Done done) {
-            QJsonArray opciones;
+        t.run = [&vm](const json& a, Done done) {
+            // La operación es del modelo (reglas y padrón), la misma que usa la GUI.
+            std::vector<std::string> opciones;
             if (a.contains("opciones") && a["opciones"].is_array())
                 for (const json& o : a["opciones"])
-                    if (o.is_string()) opciones.append(QString::fromStdString(o.get<std::string>()));
-            if (opciones.size() < 2)
-                return done(ToolResult::error(
-                    "Hacen falta al menos dos opciones: con una sola no hay nada que decidir."));
-
-            QJsonObject cuerpo{{"accion", "abrir"},
-                               {"pregunta", QString::fromStdString(a.value("pregunta", std::string()))},
-                               {"opciones", opciones},
-                               {"modo", QString::fromStdString(a.value("modo", std::string("encuesta")))},
-                               {"secreta", a.value("secreta", false)},
-                               {"enVivo", a.value("enVivo", false)}};
-
-            if (a.value("modo", std::string("encuesta")) == "formal") {
-                auto* ev = static_cast<EventoViewModel*>(vm.evento());
-                if (ev == nullptr || ev->abierto().isEmpty())
-                    return done(ToolResult::error(
-                        "Una votacion formal necesita el padron, y el padron vive en el evento. Abri "
-                        "uno con `evento_abrir`."));
-                QJsonArray habilitados;
-                int podian = 0;
-                for (const QVariant& v : ev->padron()) {
-                    const QVariantMap m = v.toMap();
-                    if (!m.value("vota").toBool()) continue;
-                    ++podian;
-                    // Solo los PRESENTES votan. El que tiene derecho y no vino
-                    // cuenta para el denominador —para eso esta `podian`— pero
-                    // no puede votar desde su casa.
-                    if (m.value("estado").toString() != "llego") continue;
-                    habilitados.append(QJsonObject{{"codigo", m.value("codigo").toString()},
-                                                   {"nombre", m.value("nombre").toString()}});
-                }
-                if (habilitados.isEmpty())
-                    return done(ToolResult::error(
-                        "No hay nadie con derecho a voto y presente en el padron. Fijate "
-                        "`padron_ver`: hace falta `vota` en true y estado `llego`. Abrir una votacion "
-                        "formal donde nadie puede votar es peor que no abrirla, porque el resultado "
-                        "parece valido."));
-                cuerpo["habilitados"] = habilitados;
-                cuerpo["podian"] = podian;
-            }
-            pedir("POST", "/api/v1/votacion", cuerpo, std::move(done), "Votacion abierta.");
+                    if (o.is_string()) opciones.push_back(o.get<std::string>());
+            const std::string e = vm.votacion().abrir(
+                a.value("pregunta", std::string()), opciones, a.value("modo", std::string("encuesta")),
+                a.value("secreta", false), a.value("enVivo", false), [done](const std::string& err, const json& r) {
+                    if (!err.empty()) return done(ToolResult::error("La sala respondio: " + err));
+                    ToolResult res;
+                    res.structured = r;
+                    res.text("Votacion abierta.");
+                    done(res);
+                });
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }
@@ -379,16 +319,22 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"historial",
                {{"type", "boolean"}, {"description", "ademas, TODAS las que se cerraron en este evento"}}},
               {"enVivo", {{"type", "boolean"}, {"description", "mostrar el resultado en vivo"}}}}}};
-        t.run = [pedir](const json& a, Done done) {
-            if (a.value("cerrar", false))
-                return pedir("POST", "/api/v1/votacion", QJsonObject{{"accion", "cerrar"}}, std::move(done),
-                             "Votacion cerrada.");
-            if (a.contains("enVivo"))
-                return pedir("POST", "/api/v1/votacion",
-                             QJsonObject{{"accion", "en_vivo"}, {"si", a["enVivo"].get<bool>()}},
-                             std::move(done), "Hecho.");
-            pedir("GET", a.value("historial", false) ? "/api/v1/votacion?historial=1" : "/api/v1/votacion",
-                  {}, std::move(done), {});
+        t.run = [&vm](const json& a, Done done) {
+            const auto contestar = [done](const std::string& texto) {
+                return [done, texto](const std::string& err, const json& r) {
+                    if (!err.empty())
+                        return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                                                      ". Fijate `room_status`."));
+                    ToolResult res;
+                    res.structured = r;
+                    res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
+                    done(res);
+                };
+            };
+            auto& v = vm.votacion();
+            if (a.value("cerrar", false)) return v.cerrar(contestar("Votacion cerrada."));
+            if (a.contains("enVivo")) return v.setEnVivo(a["enVivo"].get<bool>(), contestar("Hecho."));
+            v.ver(a.value("historial", false), contestar({}));
         };
         core.addTool(std::move(t));
     }
@@ -509,9 +455,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const bool soloVer = a.value("soloVer", false);
             // El historial de la urna vive en B: hay que ir a buscarlo antes de
             // poder escribir nada.
-            conf->client().get(
-                "/api/v1/votacion?historial=1", [ev, done, soloVer, &vm](bool ok, const QJsonObject& r) {
-                    const QJsonArray votaciones = ok ? r.value("historial").toArray() : QJsonArray{};
+            // El historial de la urna, por el modelo de la votación (como la GUI).
+            vm.votacion().ver(
+                true, [ev, done, soloVer, &vm](const std::string& err, const json& rj) {
+                    const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(rj.dump(-1, ' ', false, json::error_handler_t::replace))).object();
+                    const QJsonArray votaciones = err.empty() ? r.value("historial").toArray() : QJsonArray{};
                     const QString texto = ev->acta(votaciones);
                     QString archivo;
                     if (!soloVer) archivo = ev->guardarActa(texto);
@@ -525,7 +473,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     // Si B no contesto, el acta sale igual PERO se dice: un acta a
                     // la que le faltan las votaciones y no lo aclara es peor que
                     // ninguna.
-                    if (!ok)
+                    if (!err.empty())
                         out["aviso"] = "No pude hablar con la sala: el acta va SIN las votaciones. Fijate "
                                        "`room_status` y volve a pedirla.";
                     res.structured = out;
@@ -564,44 +512,41 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"remoto",
                {{"type", "boolean"},
                 {"description", "el enlace por internet en vez del de la red local"}}}}}};
-        t.run = [pedir, salaDe](const json& a, Done done) {
+        t.run = [salaDe](const json& a, Done done) {
             ConferenceViewModel* conf = salaDe();
             if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
-            const bool cambia = a.contains("titulo") || a.contains("cuando") || a.contains("fondo");
-            const QString ruta = QString("/api/v1/publico-link?target=") +
-                                 (a.value("remoto", false) ? "remote" : "local") + "&conClave=1";
-            if (!cambia) return pedir("GET", ruta, {}, std::move(done), {});
-
-            QJsonObject info;
-            if (a.contains("titulo")) info["evento"] = QString::fromStdString(a["titulo"].get<std::string>());
-            if (a.contains("cuando")) info["cuando"] = QString::fromStdString(a["cuando"].get<std::string>());
-            QJsonObject cuerpo{{"info", info}};
-            if (a.contains("fondo")) {
-                const std::string ruta = a["fondo"].get<std::string>();
-                if (ruta.empty()) {
-                    cuerpo["fondo"] = QString();
-                } else {
-                    QFile f(QString::fromStdString(ruta));
-                    if (!f.open(QIODevice::ReadOnly))
-                        return done(ToolResult::error("No pude leer la imagen: " + ruta));
-                    const QByteArray bytes = f.read(kMaxFondo + 1);
-                    if (bytes.size() > kMaxFondo)
-                        return done(ToolResult::error(
-                            "Esa imagen pesa mas de 2 MB. La bajan todos los telefonos del salon: "
-                            "achicala antes."));
-                    cuerpo["fondo"] = QString::fromLatin1(bytes.toBase64());
-                    cuerpo["fondoTipo"] = QString::fromStdString(ruta).endsWith(".png", Qt::CaseInsensitive)
-                                              ? "image/png"
-                                              : "image/jpeg";
-                }
-            }
-            pedir("POST", "/api/v1/publico-info", cuerpo,
-                  [pedir, ruta, done](const ToolResult&) mutable {
-                      // Despues de cambiarla, se devuelve el enlace: quien la
-                      // configura casi siempre quiere el QR a continuacion.
-                      pedir("GET", ruta, {}, std::move(done), {});
-                  },
-                  {});
+            // El enlace y el cambio son operaciones del modelo (sala::EnlacesSala,
+            // sala::PaginaPublico), las mismas que usa la GUI (PublicoViewModel).
+            sala::EnlacesSala* enlaces = &conf->enlaces();
+            const bool remoto = a.value("remoto", false);
+            const auto darEnlace = [enlaces, remoto](Done done) {
+                enlaces->publico(remoto, [done](const sala::Enlace& e) {
+                    if (!e.ok) return done(ToolResult::error(e.mensaje));
+                    ToolResult res;
+                    res.structured = e.respuesta;
+                    // Sin texto, el asistente que solo lee `content` no veía nada (el
+                    // enlace del QR). La matriz del QR no: es para dibujarlo.
+                    json d = e.respuesta;
+                    if (d.is_object()) d.erase("modules");
+                    res.text(d.dump(2, ' ', false, json::error_handler_t::replace));
+                    done(res);
+                });
+            };
+            const auto texto = [&a](const char* k) {
+                return a.contains(k) && a[k].is_string() ? std::optional<std::string>(a[k].get<std::string>())
+                                                         : std::nullopt;
+            };
+            if (!a.contains("titulo") && !a.contains("cuando") && !a.contains("fondo")) return darEnlace(done);
+            const std::string e = conf->paginaPublico().cambiar(
+                texto("titulo"), texto("cuando"), texto("fondo"), [darEnlace, done](const std::string& err, const json&) {
+                    if (!err.empty())
+                        return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                                                      ". Fijate `room_status`."));
+                    // Despues de cambiarla, se devuelve el enlace: quien la
+                    // configura casi siempre quiere el QR a continuacion.
+                    darEnlace(done);
+                });
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }

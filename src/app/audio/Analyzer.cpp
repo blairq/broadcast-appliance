@@ -149,7 +149,7 @@ void Analyzer::feed(const float* const* ch, int channels, uint32_t frames) {
         // FFT sobre la mezcla (M).
         fftBuf_[static_cast<size_t>(fftPos_++)] = 0.5f * (l + r);
         if (fftPos_ == kFft) {
-            fftFrame();
+            if (bloquesSinLeer_ < 30) fftFrame();
             // Solape del 50 %: la segunda mitad pasa a ser la primera.
             std::memmove(fftBuf_.data(), fftBuf_.data() + kFft / 2, sizeof(float) * (kFft / 2));
             fftPos_ = kFft / 2;
@@ -232,6 +232,8 @@ void Analyzer::fftFrame() {
 }
 
 void Analyzer::publish() {
+    // Cada 100 ms: ¿alguien leyó desde la última vez? (ver leido_).
+    bloquesSinLeer_ = leido_.exchange(false, std::memory_order_relaxed) ? 0 : std::min(bloquesSinLeer_ + 1, 1000);
     Snapshot s;
     s.seconds = seconds_;
     for (int c = 0; c < 2; ++c) {
@@ -300,6 +302,7 @@ void Analyzer::publish() {
 }
 
 Analyzer::Snapshot Analyzer::snapshot() const {
+    leido_.store(true, std::memory_order_relaxed);
     Snapshot s;
     for (int tries = 0; tries < 100; ++tries) {
         const uint32_t a = seq_.load(std::memory_order_acquire);

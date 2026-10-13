@@ -85,6 +85,8 @@ Item {
             pixelSize: 15
             dot: Studio.cpuPercent > 80 ? Theme.live : Theme.ok
         }
+        // Lo que no anda de la asistencia con IA (clic: qué y dónde se arregla).
+        PastillaIA {}
         Item { width: 8 }
         GlassButton {
             text: "Tarjeta"; icon: "+"

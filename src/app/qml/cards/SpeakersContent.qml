@@ -24,7 +24,7 @@ Item {
         }
     }
     property double clock: Date.now() + conf.clockOffset
-    Timer { interval: 250; running: conf.speakers.count > 0 || !!root.bst.al_aire; repeat: true; onTriggered: root.clock = Date.now() + root.conf.clockOffset }
+    Timer { interval: 250; running: root.visible && (conf.speakers.count > 0 || !!root.bst.al_aire); repeat: true; onTriggered: root.clock = Date.now() + root.conf.clockOffset }
     function fmt(ms) {
         const neg = ms < 0
         const t = Math.floor(Math.abs(ms) / 1000)

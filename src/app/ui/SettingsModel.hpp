@@ -52,6 +52,7 @@ class SettingsModel : public QAbstractListModel {
     };
 
     explicit SettingsModel(AppRuntime& rt, QObject* parent = nullptr);
+    ~SettingsModel() override;
     int rowCount(const QModelIndex& = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
@@ -81,9 +82,14 @@ class SettingsModel : public QAbstractListModel {
     void dirtyChanged();
     void draftChanged();
     void applied(const QString& summary);
+    /// El reinicio de la sala que pidió apply() terminó (corre aparte: no traba la
+    /// interfaz). `error` vacío = hecho.
+    void salaReiniciada(const QString& error);
 
    private:
     std::function<std::string(int)> cupoEnCaliente_;
+    int observador_ = 0;     ///< el aviso «Ajustes» del runtime (otro formulario aplicó)
+    bool aplicando_ = false; ///< apply() en curso: su propio aviso no lo recarga
     struct Field {
         QString key;
         QString section;

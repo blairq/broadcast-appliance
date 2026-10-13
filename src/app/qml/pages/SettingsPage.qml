@@ -22,7 +22,7 @@ Rectangle {
     readonly property string modelosSection: "Modelos locales"
     readonly property string vozSection: "Voz del operador"
     readonly property string traduccionSection: "Traducción"
-    readonly property string controlSection: "Control de Windows"
+    readonly property string controlSection: "Control del sistema"
     readonly property string pinggySection: "Pinggy"
     /// Los avanzados de la sección Pinggy (los del TURN), al final de su página.
     readonly property var clavesAvanzadasPinggy: ["turn.maxAsignaciones", "turn.maxConexiones", "turn.vidaMaxS", "turn.nonceS", "turn.colaTcpKB", "turn.credencialS"]
@@ -77,19 +77,10 @@ Rectangle {
     property string updateError: ""
 
     // Actualizar o volver atras cierra la app: emitiendo, grabando o con gente en
-    // la sala (lobby, programa o fila de oradores) eso corta todo, asi que se advierte y se pide una confirmacion explicita.
-    readonly property bool onAir: Studio.streaming || Studio.recording || Studio.conference.peopleConnected > 0
-    function onAirWarning(what) {
-        const people = Studio.conference.peopleConnected > 0
-        const head = Studio.streaming ? "Estás AL AIRE" : Studio.recording ? "Estás GRABANDO" : "Hay gente en la sala"
-        const lost = []
-        if (Studio.streaming) lost.push("corta la emisión")
-        if (Studio.recording) lost.push("corta la grabación")
-        if (people) lost.push(lost.length > 0 ? "desconecta a quienes están en la sala" : "la desconecta")
-        if (lost.length === 0) return ""
-        const last = lost.pop()
-        return head + ": " + what + " cierra la aplicación y " + (lost.length > 0 ? lost.join(", ") + " y " : "") + last + "."
-    }
+    // la sala o en la sesion remota eso corta todo, asi que se advierte y se pide una
+    // confirmacion explicita. Lo que se corta lo dice Studio (Main.qml usa lo mismo).
+    readonly property bool onAir: Studio.impactoDeCerrar.hay
+    function onAirWarning(what) { return Studio.avisoDeCerrar(what) }
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
             title: "¿Actualizar ahora?",
@@ -387,18 +378,25 @@ Rectangle {
                          : "Estado desconocido"
                 }
                 function guardarSecreto(campo, esToken) {
-                    const e = esToken ? pg.ar.guardarToken(campo.text) : pg.ar.guardarApiKey(campo.text)
-                    if (e !== "") { Studio.notify(e, "error"); return }
+                    if (!esToken) {
+                        const e = pg.ar.guardarApiKey(campo.text)
+                        if (e !== "") { Studio.notify(e, "error"); return }
+                        campo.text = ""
+                        Studio.notify("API key guardada (cifrada).", "ok")
+                        return
+                    }
+                    // Si hay que reiniciar la sala para que rija lo decide el modelo.
+                    const r = pg.ar.guardarTokenTunel(campo.text, Studio.settings.dirty)
+                    if (r.error !== "") { Studio.notify(r.error, "error"); return }
                     campo.text = ""
-                    if (!esToken) { Studio.notify("API key guardada (cifrada).", "ok"); return }
-                    if (pg.ar.estado.sala && Studio.settings.value("pinggy.activo") === true && !Studio.settings.dirty) {
+                    if (r.reiniciarAhora) {
                         ApplicationWindow.window.confirm({
                             title: "Token guardado",
                             text: "La sala lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
                             accept: "Reiniciar la sala", reject: "Después",
                             action: function() {
-                                const r = Studio.conference.reiniciarSala()
-                                Studio.notify(r === "" ? "La sala se está reiniciando con el token nuevo." : r, r === "" ? "ok" : "error")
+                                const e = Studio.conference.reiniciarSala()
+                                Studio.notify(e === "" ? "La sala se está reiniciando con el token nuevo." : e, e === "" ? "ok" : "error")
                             }
                         })
                     } else {
@@ -785,10 +783,10 @@ Rectangle {
         }
     }
 
-    // --- Control de Windows --------------------------------------------------------
+    // --- Control del sistema --------------------------------------------------------
     // ba-control (src/app/escritorio): el servidor MCP con el que el asistente
     // maneja el escritorio de esta máquina. Los permisos viven en
-    // Config/control-windows.json (agent/ControlWindows) y se aplican en la
+    // Config/control-sistema.json (agent/ControlSistema) y se aplican en la
     // llamada siguiente; prender o apagar todo, o «preguntar», al relanzar.
     Component {
         id: controlComp
@@ -799,11 +797,11 @@ Rectangle {
                 id: ctl
                 width: parent.width
                 spacing: 12
-                property var estado: Studio.agent.controlWindows()
+                property var estado: Studio.agent.controlSistema()
                 function cambiar(c) {
-                    const e = Studio.agent.setControlWindows(c)
+                    const e = Studio.agent.setControlSistema(c)
                     if (e !== "") Studio.notify(e, "error")
-                    ctl.estado = Studio.agent.controlWindows()
+                    ctl.estado = Studio.agent.controlSistema()
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
@@ -811,13 +809,21 @@ Rectangle {
                           + "mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado."
                 }
                 Text {
-                    visible: !ctl.estado.windows
+                    visible: ctl.estado.sistema === "macOS"
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                    text: "En macOS el control pide dos permisos del sistema, la primera vez que se usan: «Accesibilidad» (mouse, "
+                          + "teclado y ventanas) y «Grabación de pantalla» (capturas y títulos de las ventanas), en Ajustes del "
+                          + "Sistema › Privacidad y seguridad."
+                }
+                Text {
+                    visible: ctl.estado.soportado === false
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: 12
-                    text: "Este sistema no es Windows: estos permisos se guardan pero el control no hace nada acá."
+                    text: "En " + (ctl.estado.sistema || "este sistema") + " el control todavía está en camino: los permisos se guardan, "
+                          + "pero las herramientas contestan que aún no están hechas acá (las mismas que en Windows)."
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: "Permitir el control de Windows"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { Layout.fillWidth: true; text: "Permitir el control del sistema"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Toggle { checked: ctl.estado.habilitado === true; onToggled: (quiero) => ctl.cambiar({ habilitado: quiero }) }
                 }
                 RowLayout {

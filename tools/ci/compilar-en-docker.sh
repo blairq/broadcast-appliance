@@ -43,8 +43,11 @@ d build -q --platform linux/amd64 -t ba-compilar -f "$ROOT/tools/ci/compilar.Doc
 log "compilando $QUE en el commit $(git rev-parse --short HEAD) (la primera vez tarda horas)"
 d run --rm --platform linux/amd64 \
     -v ba-trabajo:/trabajo -v "$ROOT:/repo:ro" -v "$ROOT/dist:/salida" \
+    -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
     -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" ba-compilar bash -c '
 set -euo pipefail
+# La caché de ccache, en su propio volumen (ba-ccache): en /root del contenedor
+# (--rm) se perdía en cada corrida y ccache no aceleraba nada.
 git config --global --add safe.directory "*"
 [ -d /trabajo/ba/.git ] || git clone -q /repo /trabajo/ba
 cd /trabajo/ba

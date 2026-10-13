@@ -69,6 +69,19 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_dependencies(test_baanillo gstbaipc)
     add_test(NAME test_baanillo COMMAND test_baanillo)
     set_tests_properties(test_baanillo PROPERTIES SKIP_RETURN_CODE 77)
+    # El video del canal (como el gateway: publica BA.Guest.<n>): el tamaño del
+    # canal en las caps, también después de que abajo pidan renegociar.
+    add_executable(test_bavideoanillo tests/test_bavideoanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
+        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp")
+    target_include_directories(test_bavideoanillo PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+    target_link_libraries(test_bavideoanillo PRIVATE ba::gstreamer)
+    if(DEFINED BA_GST_LIBDIR)
+        set_target_properties(test_bavideoanillo PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
+    endif()
+    target_compile_definitions(test_bavideoanillo PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+    add_dependencies(test_bavideoanillo gstbaipc)
+    add_test(NAME test_bavideoanillo COMMAND test_bavideoanillo)
+    set_tests_properties(test_bavideoanillo PROPERTIES SKIP_RETURN_CODE 77)
 endif()
 
 add_library(gstbaplugins MODULE plugin/baplugin.cpp)
@@ -185,6 +198,16 @@ if(TARGET gstbarostros)
     add_dependencies(test_eventos gstbarostros)
 endif()
 add_test(NAME test_eventos COMMAND test_eventos)
+
+# baptzgl con el video andando: de quieto (pasante) a moverse y vuelta, sin caerse.
+add_executable(test_ptz_gl tests/test_ptz_gl.cpp)
+target_link_libraries(test_ptz_gl PRIVATE ba::gstreamer)
+if(DEFINED BA_GST_LIBDIR)
+    set_target_properties(test_ptz_gl PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
+endif()
+target_compile_definitions(test_ptz_gl PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(test_ptz_gl gstbafiltros)
+add_test(NAME test_ptz_gl COMMAND test_ptz_gl)
 
 # La superresolución cambiada ANDANDO desde otro hilo (las caídas del 2026-10-10).
 add_executable(test_superres_vivo tests/test_superres_vivo.cpp)

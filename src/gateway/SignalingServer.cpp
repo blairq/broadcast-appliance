@@ -79,11 +79,17 @@ std::string ipText(std::uint32_t ipNetOrder) {
     return buf;
 }
 
-const char* contentTypeFor(const std::string& rel) {
+const char* contentTypeFor(const std::string& relOriginal) {
+    std::string rel = relOriginal; // «Acta.PDF» también
+    for (char& c : rel) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     const auto ends = [&](const char* ext) {
         const std::string e(ext);
         return rel.size() >= e.size() && rel.compare(rel.size() - e.size(), e.size(), e) == 0;
     };
+    if (ends(".pdf")) return "application/pdf";
+    if (ends(".jpg") || ends(".jpeg")) return "image/jpeg";
+    if (ends(".webp")) return "image/webp";
+    if (ends(".gif")) return "image/gif";
     if (ends(".html")) return "text/html; charset=utf-8";
     if (ends(".js")) return "text/javascript; charset=utf-8";
     if (ends(".css")) return "text/css; charset=utf-8";
@@ -665,6 +671,55 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         std::string rel = path.substr(11);
         if (rel.empty()) rel = "index.html";
         serveStatic(fd, cfg_.webroot, rel);
+        return;
+    }
+    if (method == "GET" && path.rfind("/evento/docs/", 0) == 0) {
+        // La documentación pública del evento abierto: /evento/docs/<id>.pdf (el documento)
+        // y <id>.jpg (su carátula, ya hecha). Solo lo que el evento publicó.
+        const std::string nombre = path.substr(13);
+        const auto punto = nombre.rfind('.');
+        const std::string id = punto == std::string::npos ? std::string() : nombre.substr(0, punto);
+        const std::string ext = punto == std::string::npos ? std::string() : nombre.substr(punto + 1);
+        const json e = eventoWeb();
+        const json arch = e.value("docs_archivos", json::object());
+        const std::string docs = e.value("docs_dir", std::string());
+        if (id.empty() || id.find_first_not_of("0123456789abcdef") != std::string::npos || !arch.contains(id) || docs.empty() ||
+            !eventoWebActivo()) {
+            http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+            return;
+        }
+        if (ext == "jpg") {
+            if (!serveStatic(fd, docs, "miniaturas/" + id + ".jpg")) http::sendResponse(fd, 404, "text/plain", "sin carátula\n");
+            return;
+        }
+        if (ext == "pdf") {
+            const std::string a = arch.value(id, std::string());
+            if (a.empty() || a.find('/') != std::string::npos || a.find('\\') != std::string::npos || a.find("..") != std::string::npos ||
+                !serveStatic(fd, docs, "archivos/" + a))
+                http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+            return;
+        }
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/v1/evento/documentos" && method == "GET") {
+        // Los documentos públicos del evento abierto; ?seccion=<id> o ?punto=<n> filtra.
+        const json e = eventoWeb();
+        json docs = e.value("estado", json::object()).value("documentos", json::array());
+        const auto q = http::parseQuery(query);
+        if (q.count("seccion") || q.count("punto")) {
+            json f = json::array();
+            const std::string sec = q.count("seccion") ? http::urlDecode(q.at("seccion")) : std::string();
+            const int pun = q.count("punto") ? std::atoi(q.at("punto").c_str()) : 0;
+            for (const auto& d : docs) {
+                bool va = false;
+                for (const auto& x : d.value("secciones", json::array())) va = va || (x.is_string() && x.get<std::string>() == sec);
+                for (const auto& x : d.value("puntos", json::array())) va = va || (x.is_number_integer() && x.get<int>() == pun);
+                if (va) f.push_back(d);
+            }
+            docs = f;
+        }
+        http::sendResponse(fd, 200, "application/json", json{{"documentos", docs}}.dump(), "Cache-Control: no-cache\r\n");
         return;
     }
     if (method == "GET" && path.rfind("/evento/", 0) == 0) {

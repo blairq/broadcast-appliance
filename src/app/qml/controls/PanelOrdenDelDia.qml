@@ -1,7 +1,8 @@
 // El orden del día de la sesión: cargar los puntos (pegando el texto o un
 // CSV), marcar cuál se trata, el resultado de cada uno y el uso de la palabra.
 // El punto en tratamiento queda para los zócalos ({punto.texto}), los
-// capítulos de la grabación y el acta. Fuente: Studio.ordenDelDia.
+// capítulos de la grabación y el acta. Fuente: Studio.ordenDelDia. Los documentos
+// relacionados con cada punto (Studio.documentos) se abren desde su fila.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -11,6 +12,8 @@ ColumnLayout {
     id: od
     spacing: 8
     readonly property var o: Studio.ordenDelDia
+    readonly property var docs: Studio.documentos ? Studio.documentos.lista : []
+    function docsDe(n) { return od.docs.filter(d => (d.puntos || []).indexOf(n) >= 0) }
 
     RowLayout {
         Layout.fillWidth: true
@@ -86,6 +89,27 @@ ColumnLayout {
                                  comision: "a comisión", retirado: "retirado" })[modelData.estado] +
                               (modelData.resultado ? " · " + modelData.resultado : "")
                         color: Theme.textFaint; font.pixelSize: 11
+                    }
+                }
+                GlassButton {
+                    id: btnDocs
+                    readonly property var lista: od.docsDe(modelData.n)
+                    compact: true
+                    visible: lista.length > 0
+                    text: "📄 " + lista.length
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Documentos de este punto:\n" + lista.map(d => d.titulo).join("\n")
+                    onClicked: menuDocs.popup(btnDocs, 0, btnDocs.height)
+                    Menu {
+                        id: menuDocs
+                        Repeater {
+                            model: btnDocs.lista
+                            delegate: MenuItem {
+                                required property var modelData
+                                text: modelData.titulo
+                                onTriggered: Studio.documentos.abrirUi(modelData.id)
+                            }
+                        }
                     }
                 }
                 GlassButton {

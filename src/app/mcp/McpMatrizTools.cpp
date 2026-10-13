@@ -17,6 +17,7 @@
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
 #include "audio/Matriz.hpp"
+#include "audio/Mezclador.hpp"
 #endif
 
 namespace ba::app::mcp {
@@ -26,6 +27,53 @@ void McpService::registerMatrizTools() {
     auto* m = qobject_cast<audio::Matriz*>(vm_.matriz());
     if (m == nullptr) return;
     const auto err = [](const QString& e) { return ToolResult::error(e.toStdString()); };
+
+    if (auto* mz = qobject_cast<audio::Mezclador*>(vm_.mezcladorQml())) {
+        Tool t;
+        t.name = "mezclador_estado";
+        t.title = "El Mezclador: niveles de cada entrada y salida, y adónde va cada una";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
+            "rack, vaya a donde vaya) su pico, RMS y retención (2 s) por canal en dB, el fader, mute, escucha "
+            "y a qué destinos va; por salida (Programa, pistas, buses, placa) su nivel; y el loudness del "
+            "programa (EBU R128).";
+        t.details = "Niveles en dBFS, [L, R]; -100 = nada. Una entrada «sin salida» (envios vacío) suena pero no "
+                    "va a ningún lado: suele ser un error de la matriz (audio_matriz_cruce la conecta). La "
+                    "ventana se abre con ui_panel_window {panel: mezclador}.";
+        t.run = [mz](const json&, Done done) {
+            // Sin la ventana abierta no corre su temporizador: se mide una vez acá.
+            if (!mz->activo()) mz->medirYa();
+            done(ToolResult().data(mz->estado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    if (auto* mz = qobject_cast<audio::Mezclador*>(vm_.mezcladorQml())) {
+        Tool t;
+        t.name = "mezclador_analisis_lsp";
+        t.title = "Abrir un analizador de LSP sobre una entrada";
+        t.category = "audio_rack";
+        t.description =
+            "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
+            "aparte para el operador): espectro (Spectrum Analyzer), fase (Phase Detector: L contra R), "
+            "osciloscopio, latencia (Latency Meter) o perfil (Profiler: barrido, respuesta impulsiva y RT60; "
+            "SUENA). Si ya está en su rack lo reusa; si no, lo agrega al final (deja pasar el audio sin tocarlo).";
+        t.details = "La interfaz de LSP es para el operador: sus gráficos no vuelven por acá (LSP no publica sus "
+                    "medidores por CLAP). Para leer números usá mezclador_estado o audio_analyze.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "cual"}},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}, {"description", "una de mezclador_estado.entradas"}}},
+                           {"cual", {{"type", "string"}, {"enum", {"espectro", "fase", "osciloscopio", "latencia", "perfil"}}}}}}};
+        t.run = [mz](const json& a, Done done) {
+            const QString e = mz->abrirAnalisisLsp(QString::fromStdString(a["entrada"].get<std::string>()),
+                                                   QString::fromStdString(a["cual"].get<std::string>()));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Abierto: la interfaz de LSP está en una ventana aparte."));
+        };
+        core_.addTool(std::move(t));
+    }
 
     {
         Tool t;

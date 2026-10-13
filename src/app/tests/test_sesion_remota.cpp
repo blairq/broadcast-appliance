@@ -73,15 +73,17 @@ int main(int argc, char** argv) {
     // Entra → espera → la presidencia lo habilita.
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", true}, {"ip", "190.1.2.3"}, {"lugar", "afuera"}});
     CHECK(s.presentes() == 0 && s.conectados() == 1, "conectado pero sin habilitar: no es presente");
+    CHECK(!s.presente(ana), "conectado pero sin habilitar: no sesiona desde el navegador");
     CHECK(!enviados.empty() && enviados.back().value("estado", std::string()) == "conectado", "le avisa que espera");
     CHECK(s.habilitar(ana, true, "presidencia").empty() && s.presentes() == 1, "habilitado: presente");
+    CHECK(s.presente(ana) && !s.presente(juan), "habilitado y conectado: es remoto; el que no entró, no");
     CHECK(enviados.back().value("estado", std::string()) == "habilitado", "le avisa que está habilitado");
     CHECK(s.presentesBancas() == std::vector<std::string>{"3"}, "su banca");
     CHECK(!s.habilitar(juan, true, "operador").empty(), "no se habilita a alguien que no está conectado");
 
     // Se cae y vuelve dentro de la gracia: sigue habilitado.
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", false}});
-    CHECK(s.presentes() == 0, "caído no cuenta");
+    CHECK(s.presentes() == 0 && !s.presente(ana), "caído no cuenta (ni es remoto)");
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", true}, {"lugar", "sala"}});
     CHECK(s.presentes() == 1, "volvió enseguida: sigue habilitado");
 
@@ -211,6 +213,25 @@ int main(int argc, char** argv) {
     s.setAccesoFijo(true);
     s.generar(ana, true);
     CHECK(s.revocar(ana) && !s.accesoGuardado(ana), "revocar borra el guardado");
+
+    // Juan votó por el celular y después lo borran del Cuerpo: la votación (que QML lee
+    // en cada cambio) y sus eventos no pueden tirar (json().value() sobre el que no
+    // está rompía el motor de QML y la app se caía en la emisión siguiente).
+    CHECK(cuerpo.borrar(juan), "se borra a Juan del Cuerpo");
+    bool tiro = false;
+    try {
+        const json v = s.votacion();
+        CHECK(v.value("votos", json::array()).size() == 1 && v["votos"][0].value("nombre", std::string()) == juan,
+              "su voto sigue, con el id por nombre");
+        s.resultadoCombinado(json::array());
+        s.votacionUi();
+        s.evento({{"tipo", "conexion"}, {"id", juan}, {"conectado", true}, {"lugar", "afuera"}});
+        s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "pedir"}}}});
+    } catch (const std::exception& e) {
+        tiro = true;
+        std::printf("  tiró: %s\n", e.what());
+    }
+    CHECK(!tiro, "un integrante borrado no hace tirar a la votación ni a sus eventos");
 
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

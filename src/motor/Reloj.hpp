@@ -34,6 +34,13 @@ bool iniciarGStreamer(std::string* error = nullptr);
 /// (DirectShow: le ofrece a decodebin cualquier códec instalado, como los LAV
 /// del K-Lite). Por si quedó el .dll de una versión vieja. Después de gst_init.
 void quitarPluginsDelSistema();
+/// Los convertidores de D3D12 se crean de a uno (d3d12convert/scale/colorconvert:
+/// su set_caps, bajo un candado de todo el proceso). GStreamer 1.26 comparte entre
+/// todos un blob de D3D12 (la firma raíz del mipgen) y le suma y resta referencias
+/// sin protección: con muchas placas negociando a la vez se libera dos veces y se
+/// rompe el heap (0xC0000374, las caídas del 2026-10-09/10/12; se reproduce con
+/// gst-launch solo: 32 ramas, 1 de cada ~300 arranques). Después de gst_init; una vez.
+void serializarConvertidoresD3D12();
 
 enum class Nivel { Info, Aviso, Error };
 /// Adónde van los avisos del motor (de fábrica, stderr). La app pone su registro.

@@ -212,6 +212,22 @@ void revisar_archivos() {
     b2.cues.push_back(parar);
     e2.bloques.push_back(b2);
     CHECK(revisarArchivos(e2, dir).empty(), "parar la musica no busca ningun archivo");
+
+    // Con la biblioteca del evento (Media/): la música se busca ahí primero; si no está
+    // en ningún lado, el reparo lo dice.
+    const fs::path media = dir.parent_path() / "Media-del-evento";
+    fs::create_directories(media);
+    std::ofstream(media / "cortina.wav") << "pesa";
+    Evento e3;
+    Bloque b3;
+    b3.nombre = "Biblioteca";
+    b3.cues.push_back(cue(Tipo::Musica, "archivo", "cortina.wav"));   // en Media/
+    b3.cues.push_back(cue(Tipo::Musica, "archivo", "himno.wav"));     // en Medios/ (guion de antes)
+    b3.cues.push_back(cue(Tipo::Musica, "archivo", "no-existe.wav")); // en ningún lado
+    e3.bloques.push_back(b3);
+    const auto r3 = revisarArchivos(e3, dir, media);
+    CHECK(r3.size() == 1 && r3[0].cue == 2 && r3[0].texto.find("medios del evento") != std::string::npos,
+          "encuentra en Media/ y en Medios/, y dice el que falta");
 }
 
 void nombres() {

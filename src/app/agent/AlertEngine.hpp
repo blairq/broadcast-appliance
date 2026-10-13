@@ -135,6 +135,10 @@ class AlertEngine : public QObject {
     void fired(const nlohmann::json& event);
     /// Cambiaron las alarmas por reconocer.
     void alarmasCambio();
+    /// Cambiaron las reglas (crear, cambiar, borrar, restablecer las de fábrica).
+    /// Lo emite el motor, no quien lo llamó: la vista se entera sola venga el
+    /// cambio de la interfaz, del MCP o de un plugin.
+    void reglasCambio();
 
    private:
     std::vector<json> activas_; ///< eventos con `reconocer` todavía sin reconocer

@@ -223,6 +223,9 @@ class Guion {
     /// desvío, porque el operador paró a propósito.
     void pausar(int64_t nowMs);
     void reanudar(int64_t nowMs);
+    /// El operador lo para: el cue en curso queda cerrado (con su duración real)
+    /// y el recorrido sirve para el informe.
+    void terminar(int64_t nowMs);
 
     /// Segundos en el cue actual.
     int enCueSeg(int64_t nowMs) const;

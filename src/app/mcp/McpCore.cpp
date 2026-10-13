@@ -34,58 +34,6 @@ json rpcError(const json& id, int code, const std::string& message) {
     return json{{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", code}, {"message", message}}}};
 }
 
-std::string lower(std::string s) {
-    for (char& c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
-/// Quita tildes comunes (busqueda tolerante: "transmision" == "transmisión").
-std::string fold(const std::string& s) {
-    static const std::pair<const char*, char> kMap[] = {{"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'},
-                                                        {"ú", 'u'}, {"ñ", 'n'}, {"Á", 'a'}, {"É", 'e'},
-                                                        {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ñ", 'n'}};
-    std::string out = lower(s);
-    for (const auto& [from, to] : kMap) {
-        const std::string f = from;
-        size_t p = 0;
-        while ((p = out.find(f, p)) != std::string::npos) {
-            out.replace(p, f.size(), 1, to);
-            ++p;
-        }
-    }
-    return out;
-}
-
-std::vector<std::string> words(const std::string& s) {
-    std::vector<std::string> out;
-    std::string cur;
-    for (char c : fold(s)) {
-        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-            cur.push_back(c);
-        } else if (!cur.empty()) {
-            out.push_back(cur);
-            cur.clear();
-        }
-    }
-    if (!cur.empty()) out.push_back(cur);
-    return out;
-}
-
-int score(const std::vector<std::string>& q, const std::string& title, const std::string& body) {
-    static const std::set<std::string> kStop{"un",   "una", "el",   "la",  "los", "las", "de", "del", "en",
-                                             "con",  "por", "para", "que", "y",   "o",   "a",  "al",  "mi",
-                                             "como", "se",  "lo",   "le",  "es",  "the", "to", "of",  "and"};
-    const std::string t = fold(title);
-    const std::string b = fold(body);
-    int s = 0;
-    for (const std::string& w : q) {
-        if (w.size() < 2 || kStop.count(w)) continue;
-        if (t.find(w) != std::string::npos) s += 5;
-        if (b.find(w) != std::string::npos) s += 1;
-    }
-    return s;
-}
 
 std::string typeName(const json& v) {
     if (v.is_string()) return "string";
@@ -392,45 +340,64 @@ const Tool* McpCore::findTool(const std::string& name) const {
 
 // --- Validacion ---------------------------------------------------------------
 
-std::string McpCore::validate(const json& schema, const json& args) {
-    if (!args.is_object()) return "los argumentos deben ser un objeto JSON";
+namespace {
+std::string validarObjeto(const json& schema, const json& obj, const std::string& ruta);
+
+/// Un valor contra su esquema (tipo, enum, mínimo y máximo) y, si es un objeto o
+/// una lista, lo de adentro: un enum anidado (`gente[0].papel`) se respeta igual.
+std::string validarValor(const json& p, const json& v, const std::string& ruta) {
+    const auto dump = [](const json& j) { return j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace); };
+    if (p.contains("type")) {
+        bool ok = false;
+        std::string want;
+        if (p["type"].is_array()) {
+            for (const auto& t : p["type"]) {
+                want += (want.empty() ? "" : "|") + t.get<std::string>();
+                ok = ok || typeMatches(t.get<std::string>(), v);
+            }
+        } else {
+            want = p["type"].get<std::string>();
+            ok = typeMatches(want, v);
+        }
+        if (!ok) return "`" + ruta + "` debe ser " + want + " (llego " + typeName(v) + ")";
+    }
+    if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
+        return "`" + ruta + "` debe ser uno de " + dump(p["enum"]);
+    if (v.is_number()) {
+        if (p.contains("minimum") && v.get<double>() < p["minimum"].get<double>())
+            return "`" + ruta + "` minimo " + dump(p["minimum"]);
+        if (p.contains("maximum") && v.get<double>() > p["maximum"].get<double>())
+            return "`" + ruta + "` maximo " + dump(p["maximum"]);
+    }
+    if (v.is_object() && p.contains("properties")) return validarObjeto(p, v, ruta + ".");
+    if (v.is_array() && p.contains("items") && p["items"].is_object())
+        for (std::size_t i = 0; i < v.size(); ++i)
+            if (std::string e = validarValor(p["items"], v[i], ruta + "[" + std::to_string(i) + "]"); !e.empty()) return e;
+    return {};
+}
+
+/// `ruta`: el prefijo de los nombres en los mensajes ("" arriba, "gente[0]." adentro).
+std::string validarObjeto(const json& schema, const json& obj, const std::string& ruta) {
     const json props = schema.value("properties", json::object());
     for (const auto& req : schema.value("required", json::array())) {
         const std::string k = req.get<std::string>();
-        if (!args.contains(k) || args[k].is_null()) return "falta el argumento obligatorio `" + k + "`";
+        if (!obj.contains(k) || obj[k].is_null()) return "falta el argumento obligatorio `" + ruta + k + "`";
     }
-    for (auto it = args.begin(); it != args.end(); ++it) {
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
         if (!props.contains(it.key())) {
             if (schema.value("additionalProperties", true) == false)
-                return "argumento desconocido `" + it.key() + "`";
+                return "argumento desconocido `" + ruta + it.key() + "`";
             continue;
         }
-        const json& p = props[it.key()];
-        const json& v = it.value();
-        if (p.contains("type")) {
-            bool ok = false;
-            std::string want;
-            if (p["type"].is_array()) {
-                for (const auto& t : p["type"]) {
-                    want += (want.empty() ? "" : "|") + t.get<std::string>();
-                    ok = ok || typeMatches(t.get<std::string>(), v);
-                }
-            } else {
-                want = p["type"].get<std::string>();
-                ok = typeMatches(want, v);
-            }
-            if (!ok) return "`" + it.key() + "` debe ser " + want + " (llego " + typeName(v) + ")";
-        }
-        if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
-            return "`" + it.key() + "` debe ser uno de " + p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-        if (v.is_number()) {
-            if (p.contains("minimum") && v.get<double>() < p["minimum"].get<double>())
-                return "`" + it.key() + "` minimo " + p["minimum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-            if (p.contains("maximum") && v.get<double>() > p["maximum"].get<double>())
-                return "`" + it.key() + "` maximo " + p["maximum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-        }
+        if (std::string e = validarValor(props[it.key()], it.value(), ruta + it.key()); !e.empty()) return e;
     }
     return {};
+}
+} // namespace
+
+std::string McpCore::validate(const json& schema, const json& args) {
+    if (!args.is_object()) return "los argumentos deben ser un objeto JSON";
+    return validarObjeto(schema, args, "");
 }
 
 // --- JSON-RPC -----------------------------------------------------------------

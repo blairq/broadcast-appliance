@@ -54,7 +54,6 @@ void McpService::registerUiTools() {
         "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
         "(multiview en otro monitor).");
     core_.addCategory("sistema", "Sistema", "Videos disponibles, registros, salud, salir.");
-    AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
     auto* self = this;
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
@@ -84,6 +83,7 @@ void McpService::registerUiTools() {
               {"copiar", {{"type", "boolean"}, {"default", false}}},
               {"renombrar", {{"type", "string"}}},
               {"borrar", {{"type", "boolean"}, {"default", false}}},
+              {"restablecer", {{"type", "boolean"}, {"default", false}, {"description", "vuelve la multivista elegida a la de fábrica (con su nombre)"}}},
               {"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
               {"distribucion", {{"type", "string"}, {"enum", {"control", "grid", "focus", "pip", "row"}}}},
               {"separacion", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 0-60"}}},
@@ -105,6 +105,10 @@ void McpService::registerUiTools() {
                       R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
                       R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
         t.run = [&vm, windows](const json& a, Done done) {
+            if (a.value("restablecer", false)) {
+                vm.restablecerMultiview();
+                return done(ToolResult::ok("La multivista elegida volvió a la de fábrica."));
+            }
             QString id = vm.multiviewActual();
             if (a.contains("vista")) {
                 const QString q = QString::fromStdString(a.value("vista", std::string()));
@@ -200,7 +204,9 @@ void McpService::registerUiTools() {
         // Los paneles y diálogos que se abren con un botón: sin esto no había
         // forma de mostrarlos (ni de verlos con capture_ui) sin tocar la pantalla.
         static const std::map<std::string, std::vector<std::string>> kPaneles{
-            {"video", {"superresolucion", "entrada_virtual", "catalogo"}}, {"escenas", {"efectos"}}};
+            {"video", {"superresolucion", "entrada_virtual", "catalogo"}}, {"escenas", {"efectos"}},
+            {"historico", {"registro"}},
+            {"guion", {"guion", "padron", "publico", "orden", "web", "documentos"}}};
         Tool t;
         t.name = "ui_abrir_panel";
         t.title = "Abrir un panel o diálogo de una página";
@@ -209,7 +215,7 @@ void McpService::registerUiTools() {
                         "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
                         "entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con "
                         "`fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde "
-                        "difuso y sombra). Para mirarlo, capture_ui.";
+                        "difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.";
         json enumPaginas = json::array();
         for (const auto& [p, l] : kPaneles) enumPaginas.push_back(p);
         t.inputSchema = {{"type", "object"},
@@ -308,6 +314,8 @@ void McpService::registerUiTools() {
             "- `preguntas`: la cola del publico, para moderarla.\n"
             "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n"
             "- `carrusel`: el control del carrusel.\n"
+            "- `mezclador`: el Mezclador (lo que sale de cada entrada, las salidas con el loudness "
+            "y la matriz desplegable). Lo que muestra lo lee `mezclador_estado`.\n"
             "- `ptz`: el control PTZ de la camara `entrada`, con su imagen en vivo para apuntar "
             "con el mouse (clic: centrar; cuadro: encuadrar). Uno por camara: `ba:panel:ptz:<entrada>`.\n\n"
             "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
@@ -321,7 +329,7 @@ void McpService::registerUiTools() {
             {"required", {"panel"}},
             {"properties",
              {{"panel",
-               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "ptz"}}}},
+               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "mezclador", "ptz"}}}},
               {"entrada", {{"type", "string"}, {"description", "Con panel=ptz: la entrada de video."}}}}}};
         t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})"};
         t.run = [self](const json& a, Done done) {
@@ -331,6 +339,7 @@ void McpService::registerUiTools() {
             QString titulo = id == "padron"      ? "Padrón"
                              : id == "preguntas" ? "Preguntas"
                              : id == "carrusel"  ? "Carrusel"
+                             : id == "mezclador" ? "Mezclador"
                                                  : "Votación";
             if (id == "ptz") {
                 const std::string entrada = a.value("entrada", std::string());
@@ -644,9 +653,9 @@ void McpService::registerUiTools() {
              {{"log", {{"type", "string"}, {"default", "app.log"}}},
               {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
               {"grep", {{"type", "string"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [](const json& a, Done done) {
             const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
-            const QString name = QString::fromStdString(a.value("log", std::string("ba.log")));
+            const QString name = QString::fromStdString(a.value("log", std::string("app.log")));
             if (name.contains('/') || name.contains('\\') || name.contains(".."))
                 return done(ToolResult::error("Solo nombres de archivo de Logs/."));
             QFile f(dir + "/" + name);

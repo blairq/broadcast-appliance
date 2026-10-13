@@ -1,6 +1,8 @@
 // Confirmacion de acciones de riesgo (borrar, cortar, cerrar...). Hay una sola
 // instancia, en Main.qml; paginas y tarjetas la piden con
-//   ApplicationWindow.window.confirm({ title, text, accept, reject, action })
+//   ApplicationWindow.window.confirm({ title, text, accept, reject, action, espera })
+// `espera` (segundos): para lo que no tiene vuelta atrás fácil, el botón de
+// aceptar recién se habilita después de esa cuenta (se ve en el botón).
 // Botones propios: los standardButtons salen en ingles (no hay QTranslator).
 import QtQuick
 import QtQuick.Controls
@@ -14,6 +16,7 @@ Dialog {
     // Corre una sola vez y solo si el operador acepta. Se suelta al cerrar
     // (aceptando o no) para no retener closures de las paginas.
     property var action: null
+    property int restante: 0 // segundos que faltan para poder aceptar (opción `espera`)
 
     /// Pregunta. Si ya habia una pregunta abierta, esta la reemplaza y la
     /// accion de la anterior no corre.
@@ -24,6 +27,8 @@ Dialog {
         acceptText = opts.accept || "Sí"
         rejectText = opts.reject || "No"
         action = opts.action || null
+        restante = Math.max(0, opts.espera || 0)
+        cuenta.restart()
         open()
         // El foco arranca en rechazar: un Enter apurado no confirma.
         rejectBtn.forceActiveFocus()
@@ -40,7 +45,8 @@ Dialog {
     modal: true
     focus: true
     onOpened: rejectBtn.forceActiveFocus()
-    onClosed: action = null // Esc o clic afuera: es un "no"
+    onClosed: { action = null; cuenta.stop() } // Esc o clic afuera: es un "no"
+    Timer { id: cuenta; interval: 1000; repeat: true; running: false; onTriggered: if (--dlg.restante <= 0) stop() }
 
     // Boton con foco de teclado (GlassButton no lo tiene): Espacio lo maneja
     // Button; Enter se agrega aca.
@@ -127,10 +133,12 @@ Dialog {
             // Accion de riesgo: en rojo y nunca con el foco inicial.
             DialogButton {
                 id: acceptBtn
-                text: dlg.acceptText
+                text: dlg.restante > 0 ? dlg.acceptText + " (" + dlg.restante + ")" : dlg.acceptText
+                enabled: dlg.restante <= 0
+                opacity: enabled ? 1 : 0.5
                 risky: true
                 KeyNavigation.left: rejectBtn
-                onClicked: dlg.finish(true)
+                onClicked: if (dlg.restante <= 0) dlg.finish(true)
             }
         }
     }

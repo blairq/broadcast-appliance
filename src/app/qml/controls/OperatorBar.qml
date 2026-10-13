@@ -42,7 +42,7 @@ Item {
         border.width: 2
         border.color: bar.accent
         SequentialAnimation on border.color {
-            running: bar.cur !== null && bar.cur.priority === "critical"
+            running: bar.cur !== null && bar.cur.priority === "critical" && bar.visible
             loops: Animation.Infinite
             ColorAnimation { to: "#ffffff"; duration: 500 }
             ColorAnimation { to: "#ef4444"; duration: 500 }

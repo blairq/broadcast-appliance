@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "control/Botonera.hpp"
+#include "control/BotoneraGateway.hpp"
 #include "control/BusEventos.hpp"
 #include "control/CarasBotonera.hpp"
 #include "control/Dsk.hpp"
@@ -374,19 +375,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             c.erase("pagina");
             const std::string e = bot.setCelda(a.value("perfil", std::string()), a.value("pagina", std::string()), c);
             if (!e.empty()) return done(ToolResult::error(e));
-            // Aviso si la accion no esta permitida en el perfil.
-            std::string aviso;
-            const json p = bot.perfil(a.value("perfil", std::string()));
-            std::set<std::string> perm;
-            for (const auto& h : p.value("herramientas_permitidas", json::array()))
-                if (h.is_string()) perm.insert(h.get<std::string>());
-            for (const char* k : {"accion", "accion_soltar", "accion_mantener"})
-                if (a.contains(k) && a[k].is_object() && a[k].contains("herramienta") && !perm.count("*") &&
-                    !perm.count(a[k].value("herramienta", std::string())))
-                    aviso = " Ojo: «" + a[k].value("herramienta", std::string()) +
-                            "» no esta en las herramientas del perfil; hasta que una persona la sume, el boton avisa y no "
-                            "hace nada.";
-            done(ToolResult::ok("Listo." + aviso));
+            const std::string aviso = bot.avisoPermisos(a.value("perfil", std::string()), c);
+            done(ToolResult::ok(aviso.empty() ? std::string("Listo.") : "Listo. Ojo: " + aviso));
         };
         core.addTool(std::move(t));
     }
@@ -400,8 +390,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             "Stream Deck y en la grilla de la app (el video se repite a 8 cuadros/s). De `archivo` (imagen, GIF o video: "
             "los primeros 5 s) o de la cámara `entrada` (lo que muestra ahora: apuntala antes con ptz_apuntar o "
             "ptz_encuadre); con `segundos` (1-5) graba un video, si no saca una foto. `al_tocar`: además, al tocar el "
-            "botón pone ese medio en la escena al aire (media_use; el perfil tiene que permitirla). La celda tiene que "
-            "existir (botonera_celda_set). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:<id>»).";
+            "botón pone ese medio en la escena al aire (media_use; el perfil tiene que permitirla). Si no hay celda en "
+            "(`x`, `y`), crea un botón (como la pagina Botonera). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:<id>»).";
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
                          {"properties",
@@ -418,9 +408,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.run = [&bot, &vm](const json& a, Done done) {
             const std::string perfil = a.value("perfil", std::string()), pagina = a.value("pagina", std::string());
             const int x = a.value("x", 0), y = a.value("y", 0);
-            if (bot.celdaJsonUi(QString::fromStdString(perfil), QString::fromStdString(pagina), x, y).isEmpty())
-                return done(ToolResult::error("No hay celda en (" + std::to_string(x) + ", " + std::to_string(y) +
-                                              "): creala antes con botonera_celda_set"));
+            if (const std::string e = bot.validarLugar(perfil, pagina, x, y); !e.empty()) return done(ToolResult::error(e));
             control::CarasBotonera& caras = vm.carasBotonera();
             const QString archivo = QString::fromStdString(a.value("archivo", std::string()));
             const QString entrada = QString::fromStdString(a.value("entrada", std::string()));
@@ -442,26 +430,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                     if (id != mia) return;
                     QObject::disconnect(*con);
                     if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
-                    json c = json::parse(bot.celdaJsonUi(QString::fromStdString(perfil), QString::fromStdString(pagina), x, y)
-                                             .toStdString(),
-                                         nullptr, false);
-                    if (!c.is_object()) return done(ToolResult::error("La celda ya no está"));
-                    if (!c.contains("estilo") || !c["estilo"].is_object()) c["estilo"] = json::object();
-                    c["estilo"]["imagen"] = "medio:" + id.toStdString();
-                    const QVariantMap info = caras.info(id);
-                    if (al && !info.value("medio").toString().isEmpty())
-                        c["accion"] = {{"tipo", "herramienta"},
-                                       {"herramienta", "media_use"},
-                                       {"args", {{"path", info.value("medio").toString().toStdString()},
-                                                 {"loop", info.value("video").toBool()}}}};
-                    const std::string e = bot.setCelda(perfil, pagina, c);
+                    std::string aviso;
+                    const std::string e = bot.ponerCara(perfil, pagina, x, y, id.toStdString(), al, &aviso);
                     if (!e.empty()) return done(ToolResult::error(e));
                     done(ToolResult::ok("Listo: cara «medio:" + id.toStdString() + "» (" +
-                                        std::to_string(info.value("cuadros").toInt()) + " cuadro(s)" +
-                                        (al && info.value("medio").toString().isEmpty()
-                                             ? "; un video de cámara no se puede poner al aire, solo se ve en el botón"
-                                             : "") +
-                                        ")."));
+                                        std::to_string(caras.info(id).value("cuadros").toInt()) + " cuadro(s)" +
+                                        (aviso.empty() ? std::string() : "; " + aviso) + ")."));
                 });
         };
         core.addTool(std::move(t));
@@ -575,20 +549,20 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                            {"nombre", {{"type", "string"}}},
                            {"vence_dias", {{"type", "integer"}, {"minimum", 0}, {"maximum", 365}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            vm.emparejarTablet(QString::fromStdString(a.value("perfil", std::string())),
-                               QString::fromStdString(a.value("nombre", std::string())), a.value("vence_dias", 30),
-                               [done](const QVariantMap& r) {
-                                   if (r.contains("error") && !r.contains("url"))
-                                       return done(ToolResult::error(r.value("error").toString().toStdString()));
-                                   json d{{"url", r.value("url").toString().toStdString()},
-                                          {"vence_ms", r.value("vence_ms").toLongLong()},
-                                          {"huella_tls", r.value("huella").toString().toStdString()},
-                                          {"aviso", r.value("aviso").toString().toStdString()}};
-                                   done(ToolResult()
-                                            .text("Abri la URL en la tablet (o mostrá el QR de la pagina Botonera). "
-                                                  "Despues el operador aprueba en la pagina Botonera.")
-                                            .data(d));
-                               });
+            vm.botoneraGateway().emparejar(
+                a.value("perfil", std::string()), a.value("nombre", std::string()), a.value("vence_dias", 30),
+                [done](const json& r) {
+                    if (r.contains("error") && !r.contains("url"))
+                        return done(ToolResult::error(r.value("error", std::string())));
+                    json d{{"url", r.value("url", std::string())},
+                           {"vence_ms", r.value("vence_ms", std::int64_t{0})},
+                           {"huella_tls", r.value("huella", std::string())},
+                           {"aviso", r.value("aviso", std::string())}};
+                    done(ToolResult()
+                             .text("Abri la URL en la tablet (o mostrá el QR de la pagina Botonera). "
+                                   "Despues el operador aprueba en la pagina Botonera.")
+                             .data(d));
+                });
         };
         core.addTool(std::move(t));
     }
@@ -633,15 +607,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.description = "El servidor de la botonera en el gateway: conexiones vivas, credenciales cargadas, "
                         "solicitudes; y los aparatos de la app.";
         t.run = [&vm, &bot](const json&, Done done) {
-            auto& cli = static_cast<ConferenceViewModel*>(vm.conference())->client();
-            json base{{"dispositivos", bot.dispositivos()}};
-            if (!cli.online()) {
-                base["gateway"] = "apagado";
-                return done(ToolResult().data(base));
-            }
-            cli.get("/api/v1/botonera/estado", [done, base](bool ok, const QJsonObject& r) mutable {
-                base["gateway"] = ok ? json::parse(QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString(), nullptr, false)
-                                     : json("sin respuesta");
+            vm.botoneraGateway().estado([done, base = json{{"dispositivos", bot.dispositivos()}}](const json& gw) mutable {
+                base["gateway"] = gw;
                 done(ToolResult().data(base));
             });
         };

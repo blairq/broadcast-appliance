@@ -217,10 +217,12 @@ fs::path ModelosLocales::carpetaDe(const QString& repo) const {
     return carpetaModelos() / carpetaDeRepo(repo.toStdString());
 }
 
-bool ModelosLocales::instalado(const QString& repo) const {
+bool ModelosLocales::instaladoEn(const fs::path& carpetaModelos, const std::string& repo) {
     std::error_code ec;
-    return fs::exists(carpetaDe(repo) / ".ok", ec);
+    return fs::exists(carpetaModelos / carpetaDeRepo(repo) / ".ok", ec);
 }
+
+bool ModelosLocales::instalado(const QString& repo) const { return instaladoEn(carpetaModelos(), repo.toStdString()); }
 
 nlohmann::json ModelosLocales::entradaCatalogo(const QString& repo) const {
     for (const json& m : catalogo_.value("modelos", json::array()))

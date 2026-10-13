@@ -1,10 +1,13 @@
 // ============================================================================
-// src/app/agent/ControlWindows.hpp — los permisos del control de Windows
+// src/app/agent/ControlSistema.hpp — los permisos del control del sistema
 //
-// El archivo <datos de la máquina>/Config/control-windows.json (la raíz de
+// El control del equipo (Windows, macOS y Linux, las mismas herramientas system_*:
+// docs/planes/PLAN-CONTROL-SISTEMA.md). El archivo
+// <datos de la máquina>/Config/control-sistema.json (se lee el control-windows.json de
+// antes si todavía no está) (la raíz de
 // datos, no la carpeta de una configuración: es la misma PC) que lee ba-control (el
 // servidor MCP del escritorio, src/app/escritorio) en cada llamada. Lo escriben
-// Configuración → Control de Windows y el MCP interno
+// Configuración → Control del sistema y el MCP interno
 // (control_estado / control_configurar); lo lee el lanzador de los asistentes
 // para saber si les agrega ese servidor y si lo deja usar sin preguntar.
 //
@@ -22,7 +25,7 @@
 
 namespace ba::app::agent {
 
-struct ControlWindows {
+struct ControlSistema {
     bool habilitado = false;
     /// El cliente (Claude, Gemini) le pregunta al operador antes de cada herramienta.
     bool preguntar = true;
@@ -39,7 +42,7 @@ struct ControlWindows {
     void aplicar(const nlohmann::json& j);
 
     static std::filesystem::path archivo(const std::filesystem::path& datos);
-    static ControlWindows leer(const std::filesystem::path& datos);
+    static ControlSistema leer(const std::filesystem::path& datos);
     bool guardar(const std::filesystem::path& datos) const;
 };
 

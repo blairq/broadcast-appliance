@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "arranque/AppRuntime.hpp"
+#include "audio/ObjetivoLoudness.hpp"
+#include "emision/RetornosInvitados.hpp"
 #include "arranque/ArranqueAviso.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/ChatOverlaySource.hpp"
@@ -179,6 +181,24 @@ void AppRuntime::requestStop() { g_stop.store(true); }
 
 bool AppRuntime::stopRequested() { return g_stop.load(); }
 
+int AppRuntime::observar(std::function<void(Cambio)> fn) {
+    observadores_.emplace_back(++proximoObservador_, std::move(fn));
+    return proximoObservador_;
+}
+
+void AppRuntime::dejarDeObservar(int id) {
+    observadores_.erase(std::remove_if(observadores_.begin(), observadores_.end(),
+                                       [id](const auto& o) { return o.first == id; }),
+                        observadores_.end());
+}
+
+void AppRuntime::avisar(Cambio c) const {
+    // Sobre una copia: quien escucha puede darse de baja mientras se le avisa.
+    const auto lista = observadores_;
+    for (const auto& [id, fn] : lista)
+        if (fn) fn(c);
+}
+
 std::uint32_t AppRuntime::pid() const { return currentPid(); }
 
 void AppRuntime::configure(int argc, char** argv) {
@@ -251,6 +271,7 @@ bool AppRuntime::addAudioInput(const SourceSpec& pedida) {
         cfg_.audioInputs.push_back(spec);
     else
         *it = spec;
+    avisar(Cambio::Audio);
     return true;
 }
 
@@ -259,6 +280,7 @@ bool AppRuntime::removeAudioInput(const std::string& name) {
     cfg_.audioInputs.erase(std::remove_if(cfg_.audioInputs.begin(), cfg_.audioInputs.end(),
                                           [&](const SourceSpec& s) { return s.name == name; }),
                            cfg_.audioInputs.end());
+    avisar(Cambio::Audio);
     return ok;
 }
 
@@ -270,6 +292,46 @@ void AppRuntime::ajustarInvitados(int n) {
         for (int slot = antes + 1; slot <= n; ++slot)
             if (!engine_.addGuestAudio(slot))
                 std::printf("ba-app: invitado %d (audio) omitido: %s\n", slot, engine_.lastError().c_str());
+    // Y el video de los lugares nuevos (la cámara y la pantalla de cada uno): sin
+    // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
+    // primera escena, como las del arranque: el operador las pone donde quiera.
+    if (cfg_.guestVideo && !cfg_.scenes.empty()) {
+        const auto existe = [this](const std::string& nombre) {
+            for (const auto& sc : cfg_.scenes)
+                for (const auto& s : sc.sources)
+                    if (s.name == nombre) return true;
+            return false;
+        };
+        for (int slot = antes + 1; slot <= n; ++slot)
+            for (const bool share : {false, true}) {
+                SourceSpec spec;
+                spec.id = "ba_guest_video";
+                spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
+                if (existe(spec.name)) continue;
+                spec.settingsJson =
+                    "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"" + (share ? "share" : "guest") + "\"}";
+                spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+                spec.visible = false;
+                if (!addSource(cfg_.scenes.front().name, spec))
+                    std::printf("ba-app: «%s» omitido: %s\n", spec.name.c_str(), lastError_.c_str());
+            }
+    }
+    // Al bajar el cupo (la sala ya lo aceptó: no hay nadie en esos lugares), las
+    // entradas de video de los lugares que se van salen de todas las escenas: si no,
+    // en Video seguían «Invitado 4…6» sin nadie. El audio queda (en silencio: lleva
+    // atado su retorno mix-minus). Si el cupo vuelve a subir, se crean de nuevo.
+    if (n < antes) {
+        std::vector<std::pair<std::string, std::string>> sacar; // escena, fuente
+        for (const auto& sc : cfg_.scenes)
+            for (const auto& s : sc.sources) {
+                if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
+                const nlohmann::json j = nlohmann::json::parse(s.settingsJson.empty() ? "{}" : s.settingsJson, nullptr, false);
+                const std::string canal = j.is_object() ? j.value("channel", std::string("guest")) : "guest";
+                if (j.is_object() && j.value("slot", 0) > n && (canal == "guest" || canal == "share"))
+                    sacar.emplace_back(sc.name, s.name);
+            }
+        for (const auto& [escena, fuente] : sacar) removeSource(escena, fuente);
+    }
     save();
 }
 
@@ -365,6 +427,32 @@ void AppRuntime::addGuests() {
             cfg_.scenes.front().sources.push_back(spec);
         }
     }
+    // Cada lugar con su cámara y su pantalla, aunque ya hubiera invitados: si el
+    // cupo se subió (a 4) con escenas que tenían los de 2, los nuevos no se creaban
+    // y en Entradas se veían solo 2. Los que faltan, ocultos en la primera escena.
+    if (cfg_.guestVideo && !cfg_.scenes.empty()) {
+        const auto hay = [this](int slot, const std::string& canal) {
+            for (const auto& sc : cfg_.scenes)
+                for (const auto& s : sc.sources) {
+                    if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
+                    const nlohmann::json j = nlohmann::json::parse(s.settingsJson.empty() ? "{}" : s.settingsJson, nullptr, false);
+                    if (j.is_object() && j.value("slot", 0) == slot && j.value("channel", std::string("guest")) == canal) return true;
+                }
+            return false;
+        };
+        for (int slot = 1; slot <= cfg_.guests; ++slot)
+            for (const bool share : {false, true}) {
+                if (hay(slot, share ? "share" : "guest")) continue;
+                SourceSpec spec;
+                spec.id = "ba_guest_video";
+                spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
+                spec.settingsJson =
+                    "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"" + (share ? "share" : "guest") + "\"}";
+                spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+                spec.visible = false;
+                cfg_.scenes.front().sources.push_back(spec);
+            }
+    }
 }
 
 int AppRuntime::start() {
@@ -459,11 +547,7 @@ int AppRuntime::start() {
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
     // gráficos) pasan por acá: así quedan también en la configuración.
     fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
-    {
-        std::ifstream f(root_ / "Config" / "loudness.json");
-        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object()) engine_.loudness().ponerObjetivo(j);
-    }
+    audio::ObjetivoLoudness(root_, engine_.loudness()).cargar(); // el objetivo guardado (Config/loudness.json)
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
     // interfaz ya no hace que el supervisor corte el aire. Desde acá late él.
     latidoArranque.parar();
@@ -484,14 +568,8 @@ int AppRuntime::start() {
     addAudioInputs();
     marca("las entradas de audio");
     arranque::avisar("Armando las escenas…");
-    // Lo que oye cada invitado (mix-minus de fábrica): Config/retornos.json.
-    {
-        std::ifstream f(root_ / "Config" / "retornos.json");
-        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object())
-            for (const auto& [slot, modo] : j.items())
-                if (modo.is_string()) engine_.setRetornoInvitado(std::atoi(slot.c_str()), modo.get<std::string>());
-    }
+    // Lo que oye cada invitado (mix-minus de fábrica): lo guardado en Config/retornos.json.
+    emision::RetornosInvitados(*this).cargar();
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         arranque::avisar("Armando la escena «" + sc.name + "»…");
@@ -683,6 +761,7 @@ bool AppRuntime::startRecording() {
     if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
     recordStopWanted_ = false;
     writeOnAirState();
+    avisar(Cambio::Salidas);
     return true;
 }
 
@@ -699,6 +778,7 @@ bool AppRuntime::startSourceRecording(const std::string& source) {
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
                                "grabando la entrada \"" + source + "\" aparte");
+    avisar(Cambio::Salidas);
     return true;
 }
 
@@ -709,15 +789,20 @@ bool AppRuntime::stopSourceRecording(const std::string& source) {
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
                                "para la grabacion aparte de \"" + source + "\"");
+    avisar(Cambio::Salidas);
     return true;
 }
 
-void AppRuntime::stopAllSourceRecordings() { engine_.stopAllSourceRecordings(); }
+void AppRuntime::stopAllSourceRecordings() {
+    engine_.stopAllSourceRecordings();
+    avisar(Cambio::Salidas);
+}
 
 void AppRuntime::stopRecording() {
     recordStopWanted_ = true;
     writeOnAirState();
     engine_.stopRecording();
+    avisar(Cambio::Salidas);
 }
 
 namespace {
@@ -788,6 +873,26 @@ void AppRuntime::restoreOutputs() {
     }
 }
 
+std::string AppRuntime::grabarAparte(const std::string& fuente) {
+    const nlohmann::json d = discoGrabacion();
+    const double horas = d.value("horas", -1.0);
+    if (horas >= 0 && horas < kDiscoMinimoAparteH)
+        return "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.";
+    if (static_cast<int>(engine_.sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
+        return "Ya se graban " + std::to_string(BroadcastEngine::kMaxIndividuales) + " aparte (el tope): pará alguna.";
+    if (!startSourceRecording(fuente)) return lastError_;
+    return {};
+}
+
+bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
+    if (!startStreaming(server, key, cambiarEnCaliente)) return false;
+    if (engine_.ultimoInicio() != BroadcastEngine::Inicio::YaIgual && alVivoManual_) {
+        const std::string srv = server.empty() ? cfg_.streamCfg.server : server;
+        if (!srv.empty()) alVivoManual_(srv);
+    }
+    return true;
+}
+
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
     StreamConfig sc = cfg_.streamCfg;
     if (!server.empty()) {
@@ -825,6 +930,7 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         keySaved_ = 1;
     }
     writeOnAirState();
+    avisar(Cambio::Salidas);
     return true;
 }
 
@@ -832,6 +938,7 @@ void AppRuntime::stopStreaming() {
     streamStopWanted_ = true;
     writeOnAirState();
     engine_.stopStreaming();
+    avisar(Cambio::Salidas);
 }
 
 namespace {
@@ -931,6 +1038,7 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
         ba::security::CredentialStore::bundle().write("stream-" + id, d["clave"].get<std::string>());
     escribirDestinos(root_, lista);
     if (idOut != nullptr) *idOut = id;
+    avisar(Cambio::Salidas);
     return {};
 }
 
@@ -939,6 +1047,11 @@ std::string AppRuntime::aplicarReplay() {
     if (!engine_.setReplay(s, cfg_.rec.directory + "/repeticiones", cfg_.encoder))
         return "Repetición: " + engine_.lastError();
     return s > 0 ? "Repetición: guarda los últimos " + std::to_string(s) + " s." : "Repetición apagada.";
+}
+
+void AppRuntime::detenerSenalLimpia() {
+    engine_.stopCleanFeed();
+    avisar(Cambio::Salidas);
 }
 
 std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
@@ -956,6 +1069,7 @@ std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
     if (!engine_.startCleanFeed(url, clave, dir, cfg_.encoder)) return engine_.lastError();
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                "señal limpia " + (destino.empty() ? std::string("grabando en ") + dir : "a " + destino));
+    avisar(Cambio::Salidas);
     return {};
 }
 
@@ -967,6 +1081,7 @@ std::string AppRuntime::borrarDestino(const std::string& id) {
     engine_.stopExtra(id);
     ba::security::CredentialStore::bundle().remove("stream-" + id);
     escribirDestinos(root_, nueva);
+    avisar(Cambio::Salidas);
     return {};
 }
 
@@ -983,6 +1098,8 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
             errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
     }
     if (!alguno) return "no hay un destino «" + id + "» (stream_destinos los lista)";
+    // Aunque alguno haya fallado, otros pudieron arrancar: la lista cambia igual.
+    avisar(Cambio::Salidas);
     return errores;
 }
 
@@ -1001,6 +1118,7 @@ void AppRuntime::detenerDestino(const std::string& id) {
         engine_.stopExtras();
     else
         engine_.stopExtra(id);
+    avisar(Cambio::Salidas);
 }
 
 // --- Escenas y fuentes ----------------------------------------------------------
@@ -1011,6 +1129,7 @@ bool AppRuntime::addScene(const std::string& name) {
         return false;
     }
     cfg_.scenes.push_back(SceneConfig{name, {}});
+    avisar(Cambio::Escenas);
     return true;
 }
 
@@ -1054,6 +1173,7 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
                 "la escena se copio, pero la fuente \"" + spec.name + "\" no se pudo recrear: " + lastError_;
         }
     }
+    avisar(Cambio::Escenas);
     return true;
 }
 
@@ -1061,6 +1181,7 @@ bool AppRuntime::setSceneProtected(const std::string& name, bool protegida) {
     for (SceneConfig& s : cfg_.scenes)
         if (s.name == name) {
             s.protegida = protegida;
+            avisar(Cambio::Escenas);
             return true;
         }
     lastError_ = "no existe la escena \"" + name + "\"";
@@ -1086,6 +1207,7 @@ bool AppRuntime::removeScene(const std::string& name) {
                                      [&](const SceneConfig& s) { return s.name == name; }),
                       cfg_.scenes.end());
     cfg_.currentScene = engine_.currentScene();
+    avisar(Cambio::Escenas);
     return true;
 }
 
@@ -1102,6 +1224,7 @@ bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
         sc->name = to;
     }
     cfg_.currentScene = engine_.currentScene();
+    avisar(Cambio::Escenas);
     return true;
 }
 
@@ -1117,6 +1240,7 @@ bool AppRuntime::setSceneFolder(const std::string& name, const std::string& fold
         return false;
     }
     sc->folder = folder;
+    avisar(Cambio::Escenas);
     return true;
 }
 
@@ -1155,6 +1279,7 @@ bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
         if (dst != cfg_.scenes.end()) moved.folder = dst->folder; // cae en su misma carpeta
     }
     cfg_.scenes.insert(dst, std::move(moved));
+    avisar(Cambio::Escenas);
     return true;
 }
 
@@ -1164,6 +1289,7 @@ bool AppRuntime::setScene(const std::string& name) {
         return false;
     }
     cfg_.currentScene = name;
+    avisar(Cambio::Aire);
     return true;
 }
 
@@ -1173,6 +1299,7 @@ bool AppRuntime::setSceneCon(const std::string& name, const std::string& tipo, i
         return false;
     }
     cfg_.currentScene = name;
+    avisar(Cambio::Aire);
     return true;
 }
 
@@ -1182,6 +1309,7 @@ bool AppRuntime::setTransition(const std::string& type, int durationMs) {
         return false;
     }
     cfg_.transition = TransitionConfig{type, durationMs};
+    avisar(Cambio::Aire);
     return true;
 }
 
@@ -1212,6 +1340,7 @@ bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
         stored.settingsJson = engine_.sourceSettingsJson(spec.name);
         sc->sources.push_back(stored);
     }
+    avisar(Cambio::Fuentes);
     return true;
 }
 
@@ -1225,6 +1354,7 @@ bool AppRuntime::removeSource(const std::string& scene, const std::string& name)
                                          [&](const SourceSpec& s) { return s.name == name; }),
                           sc->sources.end());
     }
+    avisar(Cambio::Fuentes);
     return true;
 }
 
@@ -1240,6 +1370,7 @@ bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name
         s->recorte[2] = derecha;
         s->recorte[3] = abajo;
     }
+    avisar(Cambio::Capa);
     return true;
 }
 
@@ -1249,6 +1380,7 @@ bool AppRuntime::setSourceEfectos(const std::string& scene, const std::string& n
         return false;
     }
     if (SourceSpec* s = findSpec(scene, name)) s->efectos = efectos;
+    avisar(Cambio::Capa);
     return true;
 }
 
@@ -1268,6 +1400,22 @@ bool AppRuntime::moveSource(const std::string& scene, const std::string& name, i
             }
         }
     }
+    avisar(Cambio::Fuentes);
+    return true;
+}
+
+bool AppRuntime::renameSource(const std::string& from, const std::string& to) {
+    if (!engine_.renameSource(from, to)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    // La misma fuente puede estar en varias escenas, y entre las entradas de audio.
+    for (auto& sc : cfg_.scenes)
+        for (auto& s : sc.sources)
+            if (s.name == from) s.name = to;
+    for (auto& s : cfg_.audioInputs)
+        if (s.name == from) s.name = to;
+    avisar(Cambio::Fuentes);
     return true;
 }
 
@@ -1278,6 +1426,7 @@ bool AppRuntime::setSourceVisible(const std::string& scene, const std::string& n
     if (SourceSpec* s = findSpec(scene, name)) {
         s->visible = visible;
     }
+    avisar(Cambio::Capa);
     return true;
 }
 
@@ -1288,6 +1437,7 @@ bool AppRuntime::setSourceRect(const std::string& scene, const std::string& name
     if (SourceSpec* s = findSpec(scene, name)) {
         s->rect = rect;
     }
+    avisar(Cambio::Capa);
     return true;
 }
 
@@ -1308,6 +1458,7 @@ bool AppRuntime::updateSourceSettings(const std::string& name, const std::string
     // Y las entradas globales (micrófonos: p. ej. sus filtros de audio).
     for (auto& s : cfg_.audioInputs)
         if (s.name == name) s.settingsJson = current;
+    avisar(Cambio::Capa);
     return true;
 }
 
@@ -1324,6 +1475,7 @@ bool AppRuntime::setVolume(const std::string& name, float mul) {
     }
     for (auto& s : cfg_.audioInputs)
         if (s.name == name) s.volume = mul;
+    avisar(Cambio::Audio);
     return true;
 }
 
@@ -1340,6 +1492,7 @@ bool AppRuntime::setMuted(const std::string& name, bool muted) {
     }
     for (auto& s : cfg_.audioInputs)
         if (s.name == name) s.muted = muted;
+    avisar(Cambio::Audio);
     return true;
 }
 
@@ -1403,13 +1556,16 @@ bool AppRuntime::save() {
     return true;
 }
 
-bool AppRuntime::restartGateway() {
+namespace {
+/// El pedido de reinicio a B (bloquea hasta ~4 s). Sin tocar el estado de
+/// AppRuntime: lo usan restartGateway y el hilo de reiniciarSalaEnElFondo.
+bool pedirReinicioGateway(std::string& error) {
     // Cierre ordenado de B por su canal de control: el launcher lo relanza y
     // B relee gateway.json. Sin launcher, B simplemente se cierra.
     ba::platform::LocalStream s;
     std::string err;
     if (!ba::platform::LocalStream::connect("control.gateway", 1000, s, &err)) {
-        lastError_ = "sin canal con el gateway: " + err;
+        error = "sin canal con el gateway: " + err;
         return false;
     }
     ba::ipc::ControlEndpoint ep(s, ba::ipc::ControlEndpoint::kLauncher);
@@ -1417,7 +1573,7 @@ bool AppRuntime::restartGateway() {
     m.type = ba::ipc::Type::Shutdown;
     m.payload = "{}";
     if (!ep.sendRequest(m)) {
-        lastError_ = "no se pudo mandar el pedido al gateway";
+        error = "no se pudo mandar el pedido al gateway";
         return false;
     }
     // La conexión queda abierta hasta que el gateway la cierre al salir: B mira
@@ -1430,10 +1586,36 @@ bool AppRuntime::restartGateway() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     if (ep.connected()) {
-        lastError_ = "el gateway no contestó al pedido de reinicio";
+        error = "el gateway no contestó al pedido de reinicio";
         return false;
     }
     return true;
+}
+} // namespace
+
+bool AppRuntime::restartGateway() {
+    std::string e;
+    const bool ok = pedirReinicioGateway(e);
+    if (!ok) lastError_ = e;
+    return ok;
+}
+
+void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo) {
+    if (reiniciandoSala_.exchange(true)) {
+        if (listo) listo("ya se está reiniciando la sala");
+        return;
+    }
+    if (reinicioSala_.joinable()) reinicioSala_.join(); // el anterior ya terminó
+    reinicioSala_ = std::thread([this, listo = std::move(listo)]() {
+        std::string e;
+        pedirReinicioGateway(e);
+        reiniciandoSala_ = false;
+        if (listo) listo(e);
+    });
+}
+
+AppRuntime::~AppRuntime() {
+    if (reinicioSala_.joinable()) reinicioSala_.join();
 }
 
 CanvasRect guestRect(int slot, int count) {

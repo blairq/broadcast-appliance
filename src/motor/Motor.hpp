@@ -192,6 +192,17 @@ class Motor {
     /// 100 ms; con `estado()` cualquier espera del candado congelaba la app).
     /// Vacía (json nulo) hasta la primera vuelta del bucle.
     std::shared_ptr<const nlohmann::json> instantanea() const;
+    /// Los niveles para los vúmetros (el Mezclador): cada entrada con audio (lo que
+    /// entrega, después de su rack, vaya a donde vaya) y cada bus (programa,
+    /// pista<n>, retorno<n>), por canal, pico y RMS en dB. La publica el bucle cada
+    /// ~40 ms; como la foto, NO toma el candado (la interfaz nunca espera).
+    struct NivelAudio {
+        std::string id;
+        bool bus = false;
+        float pico[2] = {-100, -100};
+        float rms[2] = {-100, -100};
+    };
+    std::shared_ptr<const std::vector<NivelAudio>> niveles() const;
     /// Las órdenes que se encolaron y fallaron (ver orden): `que` es la función.
     /// Se llama desde el hilo del motor.
     void alFallar(std::function<void(const std::string& que, const std::string& error)> fn);
@@ -258,6 +269,9 @@ class Motor {
     std::map<std::string, CompEscena> vEscenas_;
     mutable std::mutex instantaneaM_; ///< solo para copiar el puntero: nunca se tiene haciendo algo
     std::shared_ptr<const nlohmann::json> instantanea_;
+    void publicarNiveles();
+    mutable std::mutex nivelesM_; ///< como instantaneaM_
+    std::shared_ptr<const std::vector<NivelAudio>> niveles_;
     std::atomic<bool> fotoPedida_{true};
     void publicarInstantanea();
     /// Las composiciones que se están desarmando aparte (ver soltarEscena).

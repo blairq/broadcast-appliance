@@ -27,6 +27,7 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <mutex>
@@ -59,11 +60,32 @@ static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     GST_STATIC_CAPS("video/x-raw, format=(string)BGRA, width=(int)[1, MAX], height=(int)[1, MAX], framerate=(fraction)0/1"));
 
 static bool esperar(BaVideoAnillo* v, int ms) {
-    for (int i = 0; i < ms; i += 2) {
+    for (int i = 0; i < ms; i += 4) {
         if (v->parar.load()) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(4, ms - i)));
     }
     return !v->parar.load();
+}
+
+static GstCaps* capsDe(int w, int h) {
+    return gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w, "height",
+                               G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1,
+                               // sin el píxel cuadrado, d3d12upload fija 1/2147483647 y no negocia
+                               "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
+}
+
+// La negociación de basesrc de fábrica fija el template ([1, MAX]) en 1x1 antes
+// del primer cuadro, y vuelve a hacerlo cada vez que abajo piden renegociar (los
+// elementos D3D12 de Windows lo piden al cambiar de caps): el invitado quedaba
+// en 1x1, negro. Acá: sin cuadro todavía, nada (las fija crear con el tamaño del
+// canal); después, siempre el tamaño del canal.
+static gboolean negociar(GstBaseSrc* bs) {
+    auto* v = BA_VIDEO_ANILLO(bs);
+    if (v->ancho <= 0 || v->alto <= 0) return TRUE;
+    GstCaps* caps = capsDe(v->ancho, v->alto);
+    const gboolean ok = gst_base_src_set_caps(bs, caps);
+    gst_caps_unref(caps);
+    return ok;
 }
 
 static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
@@ -90,20 +112,19 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             v->suscripto = true;
             *v->suscriptoCanal = canal;
         }
+        // Sin cuadro nuevo: se vuelve a mirar en 4 ms (un cuadro dura 33). A 2 ms eran 500
+        // despertadas por segundo por invitado.
         if (!v->rx->hasData()) {
-            if (!esperar(v, 2)) return GST_FLOW_FLUSHING;
+            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         const int w = v->rx->width(), h = v->rx->height();
         if (w <= 0 || h <= 0) {
-            if (!esperar(v, 2)) return GST_FLOW_FLUSHING;
+            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         if (w != v->ancho || h != v->alto) {
-            GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w,
-                                                "height", G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1,
-                                                // sin el píxel cuadrado, d3d12upload fija 1/2147483647 y no negocia
-                                                "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
+            GstCaps* caps = capsDe(w, h);
             const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
             gst_caps_unref(caps);
             if (!ok) return GST_FLOW_NOT_NEGOTIATED;
@@ -118,7 +139,10 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         const bool hay = v->rx->receive(map.data, map.size, meta);
         gst_buffer_unmap(b, &map);
         if (!hay) {
+            // Sin esto, un cuadro que no se pudo leer era una vuelta sin pausa (y un buffer
+            // del tamaño del cuadro por vuelta).
             gst_buffer_unref(b);
+            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         // La hora: la que le puso el gateway, en el reloj del pipeline.
@@ -204,6 +228,7 @@ static void ba_video_anillo_class_init(BaVideoAnilloClass* k) {
     bs->unlock_stop = desbloquearFin;
     bs->stop = alParar;
     bs->query = consultar;
+    bs->negotiate = negociar;
     GST_PUSH_SRC_CLASS(k)->create = crear;
 }
 

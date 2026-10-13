@@ -71,7 +71,7 @@ static void actualizarPasante(BaColor* c) {
         std::lock_guard<std::mutex> l(*c->mu);
         n = neutro(c);
     }
-    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(c), n);
+    ba::filtros::pasante(GST_BASE_TRANSFORM(c), n);
 }
 
 static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {

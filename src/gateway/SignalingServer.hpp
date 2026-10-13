@@ -267,6 +267,11 @@ class SignalingServer {
     /// Cambia el PIN de la sala (API de control). Vacio = generar uno.
     /// :returns: el PIN vigente, o vacio si no se pudo generar.
     std::string changePin(const std::string& pin);
+    /// El PIN del día: el último PIN de la sala queda guardado (cifrado, en
+    /// Credenciales) con la fecha local. Los arranques del mismo día lo reusan;
+    /// con otro día se genera uno nuevo. Vacío si no hay o es de otro día.
+    static std::string pinDeHoy();
+    static void guardarPinDeHoy(const std::string& pin);
     /// Clave del tablero de oradores (aleatoria por arranque).
     const std::string& boardToken() const { return boardToken_; }
 

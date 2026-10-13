@@ -100,6 +100,9 @@ class QrViewModel : public QObject {
     Q_INVOKABLE void setTipo(const QString& tipo);
     Q_INVOKABLE void setDato(const QString& clave, const QString& valor);
     Q_INVOKABLE void setEstilo(const QString& clave, const QVariant& valor);
+    /// El estilo de fábrica: negro, cuadrado, sin marco ni ícono (lo mismo que sale sin
+    /// estilo por MCP).
+    Q_INVOKABLE void estiloSimple();
     /// Vuelve a pedir el contenido de los tipos del aparato (cambió el PIN,
     /// se reinició la sala).
     Q_INVOKABLE void resolver();

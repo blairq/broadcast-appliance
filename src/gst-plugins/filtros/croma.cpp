@@ -118,7 +118,7 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
         case PROP_DERRAME: c->derrame = g_value_get_double(v); break;
         case PROP_ACTIVO:
             c->activo = g_value_get_boolean(v);
-            gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(c), !c->activo);
+            ba::filtros::pasante(GST_BASE_TRANSFORM(c), !c->activo);
             break;
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
     }

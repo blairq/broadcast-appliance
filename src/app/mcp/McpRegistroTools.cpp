@@ -15,6 +15,7 @@
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"
+#include "sala/ControlSala.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -133,21 +134,17 @@ void McpService::registerRegistroTools() {
                 auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
                 if (conf == nullptr) return done(ToolResult::error("La sala no esta corriendo."));
                 if (!a.contains("nivel")) {
-                    conf->client().get("/api/v1/log-nivel", [done](bool ok, const QJsonObject& r) {
-                        if (!ok) return done(ToolResult::error("La sala no responde."));
-                        done(ToolResult().data(json{{"nivel", r.value("nivel").toString().toStdString()},
-                                                    {"donde", "gateway"}}));
+                    conf->control().nivelLog([done](const std::string& err, const json& r) {
+                        if (!err.empty()) return done(ToolResult::error("La sala no responde."));
+                        done(ToolResult().data(json{{"nivel", r.value("nivel", std::string())}, {"donde", "gateway"}}));
                     });
                     return;
                 }
                 const std::string nivel = a["nivel"].get<std::string>();
-                conf->client().post(
-                    "/api/v1/log-nivel", QJsonObject{{"nivel", QString::fromStdString(nivel)}},
-                    [done, nivel](bool ok, const QJsonObject& r) {
-                        if (!ok || !r.value("ok").toBool())
-                            return done(ToolResult::error("No se pudo cambiar el nivel del gateway."));
-                        done(ToolResult::ok("El gateway ahora registra desde " + nivel + "."));
-                    });
+                conf->control().setNivelLog(nivel, [done, nivel](const std::string& err, const json&) {
+                    if (!err.empty()) return done(ToolResult::error("No se pudo cambiar el nivel del gateway: " + err));
+                    done(ToolResult::ok("El gateway ahora registra desde " + nivel + "."));
+                });
                 return;
             }
             auto& reg = ba::diag::registro();

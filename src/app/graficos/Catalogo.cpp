@@ -1,0 +1,241 @@
+// ============================================================================
+// src/app/graficos/Catalogo.cpp — ver Catalogo.hpp
+// ============================================================================
+#include "graficos/Catalogo.hpp"
+
+#include <algorithm>
+#include <vector>
+
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QRegularExpression>
+#include <QSaveFile>
+
+namespace ba::app::graficos {
+namespace {
+
+QJsonObject leerJson(const QString& ruta) {
+    QFile f(ruta);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    return QJsonDocument::fromJson(f.readAll()).object();
+}
+
+bool escribir(const QString& ruta, const QByteArray& datos) {
+    // A un temporal y renombrar: si se corta la luz, el archivo que estaba
+    // sigue entero.
+    QSaveFile f(ruta);
+    if (!f.open(QIODevice::WriteOnly)) return false;
+    f.write(datos);
+    return f.commit();
+}
+
+} // namespace
+
+Catalogo::Catalogo(const std::filesystem::path& raizDatos)
+    : raiz_(QString::fromStdString((raizDatos / "Graficos").string())) {
+    QDir().mkpath(raiz_);
+}
+
+QString Catalogo::raiz() const { return raiz_; }
+
+QString Catalogo::carpeta(const QString& nombre, QString* error) const {
+    if (nombre.isEmpty() || nombre.contains("..") || nombre.contains('/') || nombre.contains('\\')) {
+        if (error != nullptr) *error = "nombre de gráfico inválido";
+        return {};
+    }
+    const QString c = QDir(raiz_).filePath(nombre);
+    if (!QFileInfo(c).isDir()) {
+        if (error != nullptr) *error = "no existe el gráfico «" + nombre + "»";
+        return {};
+    }
+    return c;
+}
+
+QStringList Catalogo::nombres() const {
+    QStringList out;
+    for (const QString& n : QDir(raiz_).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name))
+        if (QFile::exists(QDir(QDir(raiz_).filePath(n)).filePath("grafico.json"))) out << n;
+    return out;
+}
+
+QJsonArray Catalogo::lista() const {
+    std::vector<QJsonObject> todos;
+    for (const QString& n : nombres()) {
+        const QJsonObject f = ficha(n);
+        QJsonArray params;
+        for (const QJsonValue& v : f.value("parametros").toArray()) {
+            const QJsonObject p = v.toObject();
+            params.append(QJsonObject{{"clave", p.value("clave").toString()},
+                                      {"titulo", p.value("titulo").toString()},
+                                      {"tipo", p.value("tipo").toString("texto")},
+                                      {"ayuda", p.value("ayuda").toString()}});
+        }
+        QJsonArray acciones;
+        for (const QJsonValue& v : f.value("acciones").toArray()) {
+            const QJsonObject a = v.toObject();
+            acciones.append(QJsonObject{{"titulo", a.value("titulo").toString()},
+                                        {"prompt", a.value("prompt").toString()},
+                                        {"icono", a.value("icono").toString("✦")}});
+        }
+        todos.push_back(QJsonObject{{"nombre", n},
+                                    {"titulo", f.value("nombre").toString(n)},
+                                    {"descripcion", f.value("descripcion").toString()},
+                                    {"categoria", f.value("categoria").toString("General")},
+                                    {"declarativo", f.contains("declarativo")},
+                                    {"parametros", params},
+                                    {"acciones", acciones}});
+    }
+    // Agrupados por categoría (la lista los muestra con su título): «General» primero.
+    std::stable_sort(todos.begin(), todos.end(), [](const QJsonObject& a, const QJsonObject& b) {
+        const QString ca = a.value("categoria").toString(), cb = b.value("categoria").toString();
+        if (ca == cb) return false;
+        if (ca == "General") return true;
+        if (cb == "General") return false;
+        return ca < cb;
+    });
+    QJsonArray out;
+    for (const QJsonObject& o : todos) out.append(o);
+    return out;
+}
+
+QJsonObject Catalogo::ficha(const QString& nombre) const {
+    const QString c = carpeta(nombre);
+    if (c.isEmpty()) return {};
+    return leerJson(QDir(c).filePath("grafico.json"));
+}
+
+QJsonObject Catalogo::valoresPorDefecto(const QJsonObject& ficha) {
+    QJsonObject out;
+    for (const QJsonValue& v : ficha.value("parametros").toArray()) {
+        const QJsonObject p = v.toObject();
+        const QString clave = p.value("clave").toString();
+        if (!clave.isEmpty() && p.contains("porDefecto")) out[clave] = p.value("porDefecto");
+    }
+    return out;
+}
+
+QString Catalogo::texto(const QString& nombre) const {
+    const QString c = carpeta(nombre);
+    if (c.isEmpty()) return {};
+    const QJsonObject f = leerJson(QDir(c).filePath("grafico.json"));
+    // Se edita la DESCRIPCIÓN, no el QML: el QML lo genera el motor.
+    if (f.contains("declarativo"))
+        return QString::fromUtf8(QJsonDocument(f.value("declarativo").toObject()).toJson(QJsonDocument::Indented));
+    QFile qml(QDir(c).filePath("grafico.qml"));
+    return qml.open(QIODevice::ReadOnly) ? QString::fromUtf8(qml.readAll()) : QString();
+}
+
+QJsonObject Catalogo::pedido(const QString& nombre, const QJsonObject& valores, QString* error) const {
+    QString err;
+    if (carpeta(nombre, &err).isEmpty()) {
+        if (error != nullptr) *error = err;
+        return {};
+    }
+    const QJsonObject f = ficha(nombre);
+    if (f.isEmpty()) {
+        if (error != nullptr) *error = "el gráfico «" + nombre + "» no tiene grafico.json";
+        return {};
+    }
+    return pedidoCon(f, texto(nombre), valores, error);
+}
+
+QJsonObject Catalogo::pedidoCon(const QJsonObject& ficha, const QString& texto, const QJsonObject& valores,
+                                QString* error) {
+    const auto falla = [error](const QString& m) {
+        if (error != nullptr) *error = m;
+        return QJsonObject{};
+    };
+    // Lo que no venga sale del porDefecto de la ficha: el guion suele traer
+    // solo el nombre del orador, y probar sin un color dejaría «{acento}».
+    QJsonObject v = valoresPorDefecto(ficha);
+    for (auto it = valores.begin(); it != valores.end(); ++it) v[it.key()] = it.value();
+    QJsonObject p{{"parametros", v}};
+    if (ficha.contains("declarativo")) {
+        QJsonParseError pe{};
+        const QJsonDocument d = QJsonDocument::fromJson(texto.toUtf8(), &pe);
+        if (!d.isObject()) return falla("la descripción no es JSON válido: " + pe.errorString());
+        // La descripción trae su propio tamaño: no se lo pisa.
+        p["declarativo"] = d.object();
+    } else {
+        if (texto.trimmed().isEmpty())
+            return falla("el gráfico no tiene ni «declarativo» en su grafico.json ni un grafico.qml");
+        // Como texto, igual que sale al aire: lo que se prueba es lo que se ve.
+        p["fuente"] = texto;
+        p["ancho"] = ficha.value("ancho").toInt(900);
+        p["alto"] = ficha.value("alto").toInt(220);
+    }
+    if (error != nullptr) error->clear();
+    return p;
+}
+
+QString Catalogo::crear(const QString& nombre, bool declarativo, QString* creado) {
+    const QString limpio = QString(nombre).remove(QRegularExpression("[^A-Za-z0-9 _-]")).trimmed();
+    if (limpio.isEmpty()) return "ese nombre no sirve";
+    const QString c = QDir(raiz_).filePath(limpio);
+    if (QFileInfo::exists(c)) return "ya hay un gráfico con ese nombre";
+    if (!QDir().mkpath(c)) return "no se pudo crear la carpeta";
+
+    QJsonObject f{{"nombre", limpio},
+                  {"descripcion", ""},
+                  {"ancho", 900},
+                  {"alto", 220},
+                  {"parametros", QJsonArray{QJsonObject{{"clave", "texto"},
+                                                        {"titulo", "Texto"},
+                                                        {"tipo", "texto"},
+                                                        {"porDefecto", "Hola"},
+                                                        {"ayuda", "Lo que dice el gráfico."}}}}};
+    if (declarativo) {
+        f["declarativo"] =
+            QJsonObject{{"ancho", 900},
+                        {"alto", 220},
+                        {"capas", QJsonArray{QJsonObject{{"tipo", "panel"},
+                                                         {"izquierda", 0},
+                                                         {"abajo", 30},
+                                                         {"alto", 100},
+                                                         {"ancho", 500},
+                                                         {"color", "#12151a"}},
+                                             QJsonObject{{"tipo", "texto"},
+                                                         {"id", "t"},
+                                                         {"valor", "{texto}"},
+                                                         {"tamano", 40},
+                                                         {"izquierda", 28},
+                                                         {"abajo", 60},
+                                                         {"aparece", 200}}}},
+                        {"entrada", QJsonObject{{"efecto", "desliza-izquierda"}, {"duracion", 450}}}};
+    } else if (!escribir(QDir(c).filePath("grafico.qml"),
+                         "import QtQuick\n\nItem {\n    id: raiz\n    width: 900\n    height: 220\n\n"
+                         "    property string texto: \"Hola\"\n\n"
+                         "    Text {\n        text: raiz.texto\n        color: \"white\"\n"
+                         "        font.pixelSize: 40\n        renderType: Text.QtRendering\n"
+                         "        y: raiz.height - 90\n        opacity: 0\n"
+                         "        NumberAnimation on opacity { to: 1; duration: 400; running: true }\n"
+                         "    }\n}\n")) {
+        return "no se pudo escribir el grafico.qml";
+    }
+    if (!escribir(QDir(c).filePath("grafico.json"), QJsonDocument(f).toJson()))
+        return "no se pudo escribir el grafico.json";
+    if (creado != nullptr) *creado = limpio;
+    return {};
+}
+
+QString Catalogo::guardar(const QString& nombre, const QString& texto) {
+    QString err;
+    const QString c = carpeta(nombre, &err);
+    if (c.isEmpty()) return err;
+    QJsonObject f = leerJson(QDir(c).filePath("grafico.json"));
+    if (f.contains("declarativo")) {
+        QJsonParseError pe{};
+        const QJsonDocument doc = QJsonDocument::fromJson(texto.toUtf8(), &pe);
+        if (!doc.isObject()) return "la descripción no es JSON válido (" + pe.errorString() + ")";
+        f["declarativo"] = doc.object();
+        if (!escribir(QDir(c).filePath("grafico.json"), QJsonDocument(f).toJson()))
+            return "no se pudo escribir el grafico.json";
+    } else if (!escribir(QDir(c).filePath("grafico.qml"), texto.toUtf8())) {
+        return "no se pudo escribir el grafico.qml";
+    }
+    return {};
+}
+
+} // namespace ba::app::graficos

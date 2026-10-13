@@ -539,8 +539,7 @@ void McpService::registerYouTubeTools() {
                 {"enum", {"destacado", "flujo"}},
                 {"description", "destacado (de fabrica): solo salen los mensajes que el operador destaca "
                                 "(chat_destacar); flujo: todos, en automatico (al aire pide confirmacion)"}}}}}};
-        StudioViewModel& vm = vm_;
-        t.run = [yt, &rt, &vm](const json& a, Done done) {
+        t.run = [yt, &rt](const json& a, Done done) {
             if (a.contains("broadcast")) yt->setChatBroadcast(QString::fromStdString(a["broadcast"]));
             const std::string scene = a.value("scene", rt.engine().currentScene());
             SourceSpec spec;
@@ -558,7 +557,6 @@ void McpService::registerYouTubeTools() {
                 return done(ToolResult::error(err));
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            vm.refreshModels();
             done(ToolResult::ok("Chat en pantalla en '" + scene + "'" +
                                 (yt->chatBroadcastId().isEmpty()
                                      ? " (sin evento de YouTube elegido: por ahora solo la sala; "

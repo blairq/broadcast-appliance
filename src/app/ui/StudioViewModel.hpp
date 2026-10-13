@@ -48,14 +48,18 @@ class Voz;
 class VozPrompter;
 class FlujosTexto;
 class Traductor;
+class EstadoIA;
 class Subtitulos;
 class VocesRack;
+class RotuloTraduccionConfig;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
 class RackManager;
 class Matriz;
+class Mezclador;
 class AudioViewModel;
+class ObjetivoLoudness;
 } // namespace ba::app::audio
 
 namespace ba::app::ptz {
@@ -66,6 +70,25 @@ class VideoGrafos;
 class SuperRes;
 class BancoSuperRes;
 } // namespace ba::app::video
+namespace ba::app::sala {
+class CupoSala;
+class VotacionSala;
+class PreguntasSala;
+class SeguridadSala;
+}
+namespace ba::app::escenas {
+class Conmutador;
+class RespaldoEntradas;
+class AjustesEscenas;
+}
+namespace ba::app::config {
+class ModoVivoConfig;
+class InterfazConfig;
+}
+namespace ba::app::emision {
+class RetornosInvitados;
+class SeguridadAire;
+}
 namespace ba::app::red {
 class Red;
 } // namespace ba::app::red
@@ -83,6 +106,7 @@ class FotosConfig;
 namespace ba::app::control {
 class BusEventos;
 class Botonera;
+class BotoneraGateway;
 class CarasBotonera;
 class SatelliteServidor;
 class Dsk;
@@ -99,6 +123,8 @@ class Bancas;
 class Debate;
 class ConferenciaDcn;
 class SesionRemota;
+class Votaciones;
+class Presidencia;
 class SeguirMicrofono;
 class OrdenDelDia;
 class Quorum;
@@ -131,6 +157,7 @@ class TwitchViewModel;
 class FacebookViewModel;
 class SystemViewModel;
 class Configuraciones;
+class DocumentosViewModel;
 class OperatorMessages;
 class InputsViewModel;
 class ChatOverlayRenderer;
@@ -149,6 +176,8 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
+    Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY statusChanged)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
     /// El cuerpo deliberativo (integrantes, bancas, presets, micrófonos): asamblea/CuerpoViewModel.
@@ -163,6 +192,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
     /// La banca virtual (sesión remota, en la sala o afuera): asamblea/SesionRemota.
     Q_PROPERTY(QObject* sesionRemota READ sesionRemotaQml CONSTANT)
+    /// Las votaciones de la asamblea (central y celulares; modelo).
+    Q_PROPERTY(QObject* votaciones READ votacionesQml CONSTANT)
     /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
     /// El bus de eventos de la app (control/BusEventos): superficies, plugins, MCP.
@@ -298,6 +329,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* vozPrompter READ vozPrompter CONSTANT)
     /// La matriz de mezcla (fuentes × pistas y buses virtuales): audio/Matriz.hpp.
     Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
+    /// El Mezclador (la ventana propia): audio/Mezclador.hpp.
+    Q_PROPERTY(QObject* mezclador READ mezcladorQml CONSTANT)
     /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
     /// ptz/ControlCamaras.hpp.
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
@@ -319,6 +352,11 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* voces READ voces CONSTANT)
     /// La traducción en vivo de las salidas de texto, con su glosario (agent/Traductor.hpp).
     Q_PROPERTY(QObject* traductor READ traductor CONSTANT)
+    /// Qué parte de la asistencia con IA no anda o falta configurar (agent/EstadoIA.hpp):
+    /// la pastilla «IA» del encabezado y la herramienta ia_estado.
+    Q_PROPERTY(QObject* estadoIA READ estadoIA CONSTANT)
+    /// La documentación del evento abierto (PDF con carátula, por punto y sección): ui/DocumentosViewModel.
+    Q_PROPERTY(QObject* documentos READ documentosQml CONSTANT)
     /// La superresolución de las entradas de red: motores, modelos, laboratorio (video/SuperRes.hpp).
     Q_PROPERTY(QObject* superres READ superres CONSTANT)
     /// El banco de pruebas de superresolución: qué puede usar esta máquina.
@@ -362,20 +400,27 @@ class StudioViewModel : public QObject {
     void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
-    /// «Apretar para hablar» desde la app: mientras `activo`, el remoto oye la voz del
-    /// operador (su micrófono de la sala) mezclada en el sonido de su celular. "" o el error.
+    /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
+    /// programa, fila de oradores) y los integrantes de la sesión remota.
+    QVariantMap impactoDeCerrar() const;
+    /// El aviso para confirmar: `accion` vacía = cerrar la ventana; si no, lo que
+    /// cierra la app (p. ej. "actualizar"). "" si no se corta nada.
+    Q_INVOKABLE QString avisoDeCerrar(const QString& accion = {}) const;
+    /// «Apretar para hablar» desde la app (asamblea::Presidencia): mientras `activo`, el
+    /// remoto oye la voz del operador en su celular. "" o el error.
     Q_INVOKABLE QString hablarARemoto(const QString& integrante, bool activo);
-    /// La presidencia calla a todos: los micrófonos de la central (menos el suyo), el orador
-    /// que está al aire y los remotos que tienen la palabra (también los de un debate).
-    Q_INVOKABLE QString silenciarTodos(const QString& quien = QStringLiteral("operador"));
-    /// «Hablo yo»: calla a todos y abre el micrófono de la presidencia en la central;
-    /// con false lo cierra. "" o el error.
-    Q_INVOKABLE QString hablaPresidencia(bool activo, const QString& quien = QStringLiteral("operador"));
+    /// La presidencia calla a todos (asamblea::Presidencia); lo que falle se avisa.
+    Q_INVOKABLE void silenciarTodos();
+    /// «Hablo yo» (asamblea::Presidencia): calla a todos y abre el micrófono de la
+    /// presidencia en la central; con false lo cierra. Lo que falle se avisa.
+    Q_INVOKABLE void hablaPresidencia(bool activo);
     Q_PROPERTY(bool presidenciaHabla READ presidenciaHabla NOTIFY presidenciaHablaChanged)
-    bool presidenciaHabla() const { return presidenciaHabla_; }
-    bool corteDirectoEditor() const { return corteDirectoEditor_; }
+    bool presidenciaHabla() const;
+    bool corteDirectoEditor() const;
     QObject* cuerpoQml() const;
-    QStringList sinSenal() const { return sinSenal_; }
+    QStringList sinSenal() const;
+    /// El respaldo de entradas (modelo).
+    escenas::RespaldoEntradas& respaldoEntradas() { return *respaldo_; }
     /// Qué hacer si la entrada se cae estando al aire: {escena, al_perder_aire: avisar|armar|cortar, ms}.
     Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
@@ -386,6 +431,9 @@ class StudioViewModel : public QObject {
     asamblea::Debate* debate() { return debate_.get(); }
     QObject* dcnQml() const;
     QObject* sesionRemotaQml() const;
+    QObject* votacionesQml() const;
+    asamblea::Votaciones* votaciones() { return votaciones_.get(); }
+    asamblea::Presidencia* presidencia() { return presidencia_.get(); }
     QObject* ccQml() const;
     agent::SubtitulosCC& cc() { return *cc_; }
     asamblea::Bancas& bancas() { return *bancas_; }
@@ -402,7 +450,7 @@ class StudioViewModel : public QObject {
     /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
     Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
     /// «Traducción automática»: mientras salga una traducción en pantalla o en CC, una capa DSK lo rotula.
-    Q_INVOKABLE bool rotuloTraduccionActivo() const { return rotuloTraduccion_; }
+    Q_INVOKABLE bool rotuloTraduccionActivo() const;
     Q_INVOKABLE void setRotuloTraduccion(bool activo);
     nlohmann::json rotuloTraduccionEstado() const;
     asamblea::CuerpoViewModel& cuerpo() { return *cuerpo_; }
@@ -414,11 +462,14 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void vocabularioGrupoUi(const QString& grupo, bool activo);
     /// {texto, reemplazos: [{original, reemplazo}]}.
     Q_INVOKABLE QVariantMap vocabularioProbarUi(const QString& texto);
-    /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo». Devuelve cuántos.
+    /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo» (agent::Vocabulario::cargarCuerpo)
+    /// y avisa cuántos. Devuelve cuántos.
     Q_INVOKABLE int vocabularioDelCuerpoUi();
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return *botonera_; }
+    /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
+    control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
     control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
     Q_INVOKABLE QVariantMap apiRemotaUi() const;
@@ -481,6 +532,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantList isosUi() const;
     /// Graba o deja de grabar una fuente aparte (chequea el disco y el tope). "" o el error.
     Q_INVOKABLE QString isoUi(const QString& fuente, bool grabar);
+    /// Grabar aparte la fuente de un invitado de la sala (id): avisa el resultado.
+    Q_INVOKABLE void isoInvitadoUi(const QString& id);
     /// La fuente de un invitado de la sala («Invitado N» por su lugar). "" si no tiene.
     Q_INVOKABLE QString fuenteDeInvitado(const QString& participante) const;
     /// Todas las de video de la escena al aire (true) o ninguna (false). Devuelve los errores.
@@ -495,9 +548,16 @@ class StudioViewModel : public QObject {
     QObject* playlistQml() const;
     QObject* puestoCorreccionQml() const;
     medios::Playlist& playlist() { return *playlist_; }
-    /// El cupo de invitados sin reiniciar la sala (hasta los reservados). "" o el error
-    /// inmediato; el resultado de la sala llega a `listo` ("" = aplicado).
-    QString cupo(int n, std::function<void(const QString&)> listo);
+    /// El cupo de invitados (modelo: sala::CupoSala). La interfaz y el MCP lo piden
+    /// por acá; el resultado se muestra como aviso.
+    sala::CupoSala& cupoSala() { return *cupoSala_; }
+    /// La votación de la sala (modelo).
+    sala::VotacionSala& votacion() { return *votacion_; }
+    /// La cola de preguntas de la sala (modelo).
+    sala::PreguntasSala& preguntas() { return *preguntas_; }
+    /// El PIN por sesión y el token del MCP (modelo: Config/seguridad.json).
+    sala::SeguridadSala& seguridad() { return *seguridad_; }
+    /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
     Q_INVOKABLE QString cupoUi(int n);
     QString balistica() const;
     bool modoTest() const { return modoTest_; }
@@ -532,33 +592,6 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
     /// Una persona aprueba (o no) la tablet que pidió emparejarse.
     Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar);
-    /// Lo mismo para el MCP: arma el código y llama a `listo` con lo de arriba.
-    void emparejarTablet(const QString& perfil, const QString& nombre, int venceDias,
-                         std::function<void(const QVariantMap&)> listo);
-    /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
-    void sincronizarBotonera();
-    void sincronizarSesion();
-    /// Las vistas del celular de los remotos al gateway: el programa o las escenas
-    /// (toma sus canales mientras haya alguien conectado). `forzar`: aunque no cambió nada.
-    void aplicarVistasRemotas(bool forzar = false);
-    std::string firmaVistas_;
-    QStringList mediosPendientes_;
-    bool mediosProgramados_ = false;
-    /// Arranca en la hora de arranque: siempre mayor que el de la corrida anterior (el gateway
-    /// sigue andando y descarta las listas con número menor al último).
-    long long mediosSeq_ = QDateTime::currentMSecsSinceEpoch();
-    bool presidenciaHabla_ = false;
-    bool prioridadCentral_ = false; ///< el botón de prioridad del presidente, como lo vio la última vez
-    /// Los remotos que tienen la palabra (y el orador remoto al aire) dejan de hablar.
-    void silenciarRemotos();
-    int unidadPresidente() const;
-    void seguirVotacionCentral();
-    nlohmann::json estadoConsola() const;
-    void mandarEstadoConsola();
-    void enlaceProgramaConsola(const QString& consola);
-    void accionConsola(const QString& consola, const nlohmann::json& m);
-    QTimer consolaTimer_;
-    nlohmann::json votacionCombinada(const nlohmann::json& rCentral) const;
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
@@ -665,6 +698,7 @@ class StudioViewModel : public QObject {
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
+    QObject* mezcladorQml() const;
     QObject* camaras() const;
     QObject* video() const;
     video::VideoGrafos* videoGrafos() const { return video_.get(); }
@@ -680,6 +714,10 @@ class StudioViewModel : public QObject {
     QObject* flujos() const;
     QObject* voces() const;
     QObject* traductor() const;
+    QObject* estadoIA() const;
+    QObject* documentosQml() const;
+    DocumentosViewModel* documentos() const { return documentos_.get(); }
+    agent::EstadoIA* estadoIAModelo() const { return estadoIA_.get(); }
     QObject* superres() const;
     QObject* bancoSrObj() const;
     video::BancoSuperRes* bancoSr() const { return bancoSr_.get(); }
@@ -751,10 +789,21 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap transicionEntrada(const QString& escena) const;
     Q_INVOKABLE QString setTransicionEntrada(const QString& escena, const QString& tipo, int ms);
     /// Audio que sigue al video (AFV): la fuente sube cuando su escena entra al aire y baja cuando sale.
-    Q_INVOKABLE bool afv(const QString& fuente) const { return afv_.contains(fuente); }
+    Q_INVOKABLE bool afv(const QString& fuente) const;
     Q_INVOKABLE void setAfv(const QString& fuente, bool sigue);
-    QStringList afvFuentes() const { return QStringList(afv_.begin(), afv_.end()); }
+    /// Las fuentes con AFV, para enlazar en la vista (afv() es una llamada: no se
+    /// reevalúa y el botón no se enteraba de un cambio hecho en otra vista o por MCP).
+    Q_PROPERTY(QStringList afvFuentes READ afvFuentes NOTIFY afvChanged)
+    QStringList afvFuentes() const;
     QString escenaArmada() const;
+    /// El conmutador de escenas (modelo): la GUI y el MCP cambian de escena por ahí.
+    escenas::Conmutador& conmutador() { return *conmutador_; }
+    /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
+    emision::SeguridadAire& seguridadAire() { return *seguridadAire_; }
+    /// Lo que oye cada invitado (modelo, Config/retornos.json).
+    emision::RetornosInvitados& retornos() { return *retornos_; }
+    /// El objetivo de loudness guardado (modelo, Config/loudness.json).
+    audio::ObjetivoLoudness& objetivoLoudness() { return *objetivoLoudness_; }
 
     /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
     /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
@@ -860,6 +909,7 @@ class StudioViewModel : public QObject {
     void medicionSincroLista(const QVariantMap& resultado);
     void balisticaChanged();
     void pflChanged();
+    void afvChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
     void notify(const QString& message, const QString& level);
@@ -890,6 +940,10 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FrameService> frames_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
+    std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
+    std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
+    std::unique_ptr<sala::PreguntasSala> preguntas_; ///< ídem
+    std::unique_ptr<sala::SeguridadSala> seguridad_; ///< ídem
     std::unique_ptr<AccesoRemoto> accesoRemoto_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;
@@ -917,6 +971,7 @@ class StudioViewModel : public QObject {
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
+    std::unique_ptr<audio::Mezclador> mezclador_;
     std::unique_ptr<ptz::ControlCamaras> camaras_;
     std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<red::Red> red_;
@@ -928,6 +983,8 @@ class StudioViewModel : public QObject {
     bool modoTest_ = false;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<agent::Traductor> traductor_;
+    std::unique_ptr<agent::EstadoIA> estadoIA_;
+    std::unique_ptr<DocumentosViewModel> documentos_;
     std::unique_ptr<agent::Subtitulos> subtitulos_;
     std::unique_ptr<agent::SubtitulosCC> cc_;
     std::unique_ptr<video::SuperRes> superres_;
@@ -972,15 +1029,16 @@ class StudioViewModel : public QObject {
     std::atomic<bool> cancelarSellos_{false};
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
+    std::unique_ptr<control::BotoneraGateway> botoneraGw_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
     std::unique_ptr<agent::Notificador> notificador_;
-    bool modoVivoActivo_ = true;
-    bool modoVivoGrabando_ = false;
-    QStringList paginasProtegidas_{"configuracion", "plugins", "agentes"};
+    std::unique_ptr<config::ModoVivoConfig> modoVivoCfg_; ///< Config/modo-vivo.json (modelo)
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
+    /// Los conectados que se cortan al cerrar: sala + sesión remota.
+    int personasConectadas() const;
     bool eventoEnVivo_ = false;
     QVariantMap caida_;
     QVariantMap tally_;
@@ -998,19 +1056,15 @@ class StudioViewModel : public QObject {
     nlohmann::json saludActual_ = nlohmann::json::array();
     std::uint64_t saltadosAntes_ = 0;
     void muestrearSalud();
-    nlohmann::json transicionesEntrada_ = nlohmann::json::object();
-    QSet<QString> afv_;
-    QHash<QString, float> afvVolumen_;
-    /// Cambia a `dest` con la transición que corresponda (la pedida, la de entrada de la escena o la global) y aplica el AFV.
-    bool cambiarEscena(const QString& dest, const QString& tipo, int ms);
-    void aplicarAfv(const QString& dest, int ms);
-    void guardarTransiciones() const;
+    std::unique_ptr<escenas::Conmutador> conmutador_; ///< el aire y la armada (modelo)
+    std::unique_ptr<emision::SeguridadAire> seguridadAire_;     ///< FTB y placa (modelo)
+    std::unique_ptr<emision::RetornosInvitados> retornos_;      ///< (modelo)
+    std::unique_ptr<audio::ObjetivoLoudness> objetivoLoudness_; ///< (modelo)
     qint64 caidaMs_ = 0;
     std::unique_ptr<asamblea::SeguirMicrofono> seguirMic_;
     std::unique_ptr<asamblea::OrdenDelDia> ordenDia_;
     std::unique_ptr<asamblea::Quorum> quorum_;
-    bool rotuloTraduccion_ = true;
-    int rotuloCapa_ = 4;
+    std::unique_ptr<agent::RotuloTraduccionConfig> rotulo_; ///< Config/rotulo-traduccion.json (modelo)
     QTimer rotuloApagar_;
     void rotularTraduccion(const QString& flujo, const QString& origen);
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
@@ -1021,7 +1075,15 @@ class StudioViewModel : public QObject {
     nlohmann::json centralAntesDelDebate_; ///< modo y máximo de abiertos para devolverle a la central
     std::unique_ptr<asamblea::ConferenciaDcn> dcn_;
     std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
+    std::unique_ptr<asamblea::Votaciones> votaciones_; ///< usa sesionRemota_, dcn_, quorum_ y bus_: va después (se destruye antes)
+    /// Usa sesionRemota_, bancas_, debate_, dcn_, votaciones_, cuerpo_, quorum_, ordenDia_, conference_ y bus_.
+    std::unique_ptr<asamblea::Presidencia> presidencia_;
     qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
+    /// Los avisos del runtime (AppRuntime::observar): se juntan en una máscara y se
+    /// reflejan en una sola pasada por vuelta del bucle (refrescarAvisos).
+    int observadorRt_ = 0;
+    std::atomic<unsigned> avisosPendientes_{0};
+    void refrescarAvisos();
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.
@@ -1029,12 +1091,11 @@ class StudioViewModel : public QObject {
     int dcnAvisos_ = 0;
     int dcnTic_ = 0;
     void tiemposCentral();
-    bool corteDirectoEditor_ = false;
+    std::unique_ptr<escenas::AjustesEscenas> ajustesEscenas_; ///< Config/escenas.json (modelo)
+    std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
-    QStringList sinSenal_;
-    QHash<QString, qint64> sinSenalDesde_; ///< entrada -> cuándo se perdió
-    QSet<QString> respaldoHecho_;          ///< entradas cuyo respaldo ya se aplicó en esta caída
+    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y conmutador_
     void revisarSenales();
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;

@@ -43,13 +43,9 @@ Rectangle {
     /// aire ni tocar el audio aunque el texto se lo pida. Esa contención es la
     /// mitad de por qué existe el rol.
     function armar(texto) {
-        const err = Studio.despachador.encargarDesdeUi("organizador", texto)
-        if (err !== "") { ev.notify(err, "error"); return }
-        // `encargarDesdeUi` devuelve el error, no el id: el de la corrida sale
-        // de la más nueva de este rol, que es la que se acaba de encargar.
-        const cs = Studio.despachador.corridas
-        for (let i = 0; i < cs.length; ++i)
-            if (cs[i].rol === "organizador") { corridaId = cs[i].id; break }
+        const r = Studio.despachador.encargarDesdeUiConId("organizador", texto)
+        if (r.error !== "") { ev.notify(r.error, "error"); return }
+        corridaId = r.id
     }
 
     function descartarLoArmado() {
@@ -59,7 +55,8 @@ Rectangle {
             title: "Descartar el evento armado",
             text: "Se borra «" + cual + "» con su guion y su padrón. No se puede deshacer.",
             accept: "Descartar", reject: "Dejarlo",
-            action: () => { ev.cerrar(); ev.borrar(cual); corridaId = ""; armando = false }
+            // borrar cierra el abierto sin guardarlo antes de tirarlo
+            action: () => { ev.borrar(cual); corridaId = ""; armando = false }
         })
     }
 
@@ -71,6 +68,10 @@ Rectangle {
         ApplicationWindow.window.pedirAlAsistente(texto)
     }
 
+    function bytesLegibles(b) {
+        if (b === undefined || b === null) return ""
+        return b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round(b / 1e3) + " kB"
+    }
     function mmss(s) {
         const neg = s < 0
         const t = Math.abs(Math.round(s))
@@ -88,13 +89,6 @@ Rectangle {
         return f + " · " + h
     }
 
-    function horaDe(offsetSeg) {
-        const inicio = ev.guion.inicio || ""
-        if (!/^\d{1,2}:\d{2}$/.test(inicio) || offsetSeg < 0) return ""
-        const p = inicio.split(":")
-        const total = parseInt(p[0]) * 60 + parseInt(p[1]) + Math.floor(offsetSeg / 60)
-        return String(Math.floor(total / 60) % 24).padStart(2, "0") + ":" + String(total % 60).padStart(2, "0")
-    }
     function colorDeTipo(tipo) {
         switch (tipo) {
         case "escena": return Theme.accent
@@ -122,9 +116,34 @@ Rectangle {
                 anchors.fill: parent
                 spacing: 12
 
+                // El evento abierto (con todo lo suyo: escenas, mezclador, medios, asamblea,
+                // web). Uno nuevo o abrir otro: cada uno tiene lo suyo, nunca se pisan.
+                ColumnLayout {
+                    spacing: 0
+                    Text { text: "EVENTO"; color: Theme.textFaint; font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
+                    Text {
+                        text: Studio.configuraciones ? Studio.configuraciones.activa : ""
+                        color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                        elide: Text.ElideRight
+                        Layout.maximumWidth: 260
+                    }
+                }
+                GlassButton {
+                    icon: "+"; text: "Evento nuevo…"
+                    onClicked: nuevoEventoDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Un evento aparte, con sus propias escenas, mezclador, medios, asamblea y web: desde cero, copiando este, desde uno anterior o desde una plantilla"
+                }
+                GlassButton {
+                    text: "Abrir otro…"
+                    onClicked: abrirEventoDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Pasar a otro evento (reinicia la app con todo lo suyo)"
+                }
+                Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 8; color: Qt.rgba(1, 1, 1, 0.1) }
                 ComboBox {
                     id: selector
-                    Layout.preferredWidth: 260
+                    Layout.preferredWidth: 220
                     model: page.ev.eventos
                     textRole: "nombre"
                     displayText: page.ev.abierto === "" ? "Elegí un evento…" : (page.ev.guion.nombre || page.ev.abierto)
@@ -141,8 +160,10 @@ Rectangle {
                     }
                 }
                 GlassButton {
-                    icon: "+"; text: "Evento"
+                    icon: "+"; text: "Guion"; compact: true
                     onClicked: nuevoDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Otro guion dentro de este mismo evento (comparte escenas y medios). Para un evento aparte: «Evento nuevo…»"
                 }
                 // Armar contándolo, en vez de llenando un formulario. No es un
                 // motor aparte: es el asistente que ya existe, usando las
@@ -189,6 +210,28 @@ Rectangle {
                     text: "Guardar"; compact: true
                     active: page.ev.sucio
                     onClicked: page.ev.guardar()
+                }
+            }
+        }
+
+        // --- Copiando un evento (en otro hilo): cuánto va --------------------------
+        Panel {
+            readonly property var c: Studio.configuraciones ? Studio.configuraciones.copia : ({})
+            visible: !!c.nombre
+            Layout.fillWidth: true
+            Layout.preferredHeight: 44
+            RowLayout {
+                anchors.fill: parent
+                spacing: 10
+                BusyIndicator { running: parent.parent.visible; Layout.preferredWidth: 22; Layout.preferredHeight: 22 }
+                Text {
+                    Layout.fillWidth: true
+                    readonly property var c: parent.parent.c
+                    color: Theme.text; font.pixelSize: 13
+                    text: "Copiando «" + (c.nombre || "") + "»… " +
+                          (c.total > 0 ? Math.min(100, Math.round(100 * c.hechos / c.total)) + " % (" +
+                                         page.bytesLegibles(c.hechos) + " de " + page.bytesLegibles(c.total) + ")"
+                                       : page.bytesLegibles(c.hechos))
                 }
             }
         }
@@ -422,6 +465,15 @@ Rectangle {
         // modelo. Están en los dos lados a propósito: acá mientras se arma el
         // evento, y allá con el aire encendido, donde hay que poder mirar la
         // cola sin perder de vista el guion.
+        // ui_abrir_panel {page: "guion", panel: "documentos"…}: la pestaña pedida.
+        Connections {
+            target: Studio
+            function onAbrirPanel(pagina, panel) {
+                if (pagina !== "guion") return
+                const i = ["guion", "padron", "publico", "orden", "web", "documentos"].indexOf(panel)
+                if (i >= 0) pestanas.currentIndex = i
+            }
+        }
         TabBar {
             id: pestanas
             visible: page.ev.abierto !== "" && !page.armando
@@ -441,6 +493,16 @@ Rectangle {
             }
             TabButton { text: "Orden del día" }
             TabButton { text: "Página web" }
+            TabButton { text: Studio.documentos && Studio.documentos.lista.length ? "Documentos (" + Studio.documentos.lista.length + ")" : "Documentos" }
+        }
+
+        // ---- Documentación del evento (PDF con carátula, por punto y sección) ----------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 5
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Documentación del evento"
+            PanelDocumentos { anchors.fill: parent; bloques: page.ev.guion.bloques || [] }
         }
 
         // ---- Página web del evento en vivo -----------------------------------------
@@ -617,8 +679,9 @@ Rectangle {
                                                 onEditingFinished: page.ev.renombrarBloque(index, text)
                                             }
                                             Text {
-                                                text: page.horaDe(modelData.offsetSeg) !== ""
-                                                      ? page.horaDe(modelData.offsetSeg) + " · " + page.mmss(modelData.duracionSeg)
+                                                // La hora la calcula el modelo (la misma que lee el asistente).
+                                                text: (modelData.horaPrevista || "") !== ""
+                                                      ? modelData.horaPrevista + " · " + page.mmss(modelData.duracionSeg)
                                                       : page.mmss(modelData.duracionSeg)
                                                 color: Theme.textDim
                                                 font { family: Theme.mono; pixelSize: 12 }
@@ -847,15 +910,14 @@ Rectangle {
                                 Layout.fillWidth: true
                                 onClicked: {
                                     if (page.ev.estado !== "parado") { page.ev.avanzar(); return }
-                                    // Antes de arrancar: si la revisión encontró algo grave, se pregunta.
-                                    page.ev.revisar()
-                                    const graves = page.ev.reparos.filter(r => r.grave).length
-                                    if (graves === 0) { page.ev.arrancar(); return }
+                                    // La revisión previa la hace el view model; si hay algo grave, se pregunta.
+                                    const graves = page.ev.arrancarRevisando(false)
+                                    if (graves === 0) return
                                     ApplicationWindow.window.confirm({
                                         title: "¿Correr el guion igual?",
                                         text: "La revisión encontró " + graves + " problema(s) grave(s). Mirá «Revisión» antes de salir.",
                                         accept: "Correr igual", reject: "Revisar",
-                                        action: function() { page.ev.arrancar() }
+                                        action: function() { page.ev.arrancarRevisando(true) }
                                     })
                                 }
                             }
@@ -1322,7 +1384,7 @@ Rectangle {
         anchors.centerIn: parent
         width: 420
         modal: true
-        title: "Evento nuevo"
+        title: "Otro guion en este evento"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: { nombreCampo.text = ""; carpetaNueva.editText = "" }
         onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim(), carpetaNueva.editText.trim())
@@ -1332,8 +1394,8 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Se crea una carpeta con este nombre adentro de Eventos/, con lugar para su música, " +
-                      "sus videos y sus discursos."
+                text: "Un guion más dentro de este evento: usa sus mismas escenas, mezclador y medios. " +
+                      "Para un evento aparte, con lo suyo, es «Evento nuevo…»."
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -1351,6 +1413,119 @@ Rectangle {
                 editable: true
                 model: page.ev.carpetas
             }
+        }
+    }
+
+    // --- Evento nuevo: aparte, con todo lo suyo --------------------------------
+    Dialog {
+        id: nuevoEventoDlg
+        readonly property var cf: Studio.configuraciones
+        property string modo: "cero"
+        anchors.centerIn: parent
+        width: 500
+        modal: true
+        title: "Evento nuevo"
+        onAboutToShow: { nombreEv.text = ""; modo = "cero"; abrirlo.checked = !(Studio.streaming || Studio.recording) }
+        ColumnLayout {
+            width: nuevoEventoDlg.availableWidth
+            spacing: 8
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                text: "Un evento tiene TODO lo suyo: escenas, mezclador, medios, gráficos, distribución de la asamblea, " +
+                      "orden del día, votaciones, página web y guion. Copiar es copia total (también la web, el historial y " +
+                      "las grabaciones). El evento abierto no se toca."
+            }
+            TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: "Sesión ordinaria del 20 de octubre"; color: Theme.text }
+            ButtonGroup { id: grupoDesde }
+            RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "cero"; onClicked: nuevoEventoDlg.modo = "cero"
+                          text: "Desde cero (de fábrica: escenas base, sin medios ni asamblea)" }
+            RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "actual"; onClicked: nuevoEventoDlg.modo = "actual"
+                          text: "Copiando este («" + (nuevoEventoDlg.cf ? nuevoEventoDlg.cf.activa : "") + "»): copia total" }
+            RowLayout {
+                RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "anterior"; onClicked: nuevoEventoDlg.modo = "anterior"
+                              text: "Copiando otro evento" }
+                ComboBox {
+                    id: anterior
+                    Layout.fillWidth: true
+                    enabled: nuevoEventoDlg.modo === "anterior"
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.lista.filter(e => !e.activa).map(e => e.nombre) : []
+                }
+            }
+            RowLayout {
+                RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "plantilla"; onClicked: nuevoEventoDlg.modo = "plantilla"
+                              text: "Desde una plantilla" }
+                ComboBox {
+                    id: plantilla
+                    Layout.fillWidth: true
+                    enabled: nuevoEventoDlg.modo === "plantilla"
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillasUi().map(p => p.nombre) : []
+                }
+            }
+            CheckBox {
+                id: abrirlo
+                text: (Studio.streaming || Studio.recording) ? "Abrirlo ahora (no: hay algo al aire o grabando)" : "Abrirlo ahora (la app se reinicia con él)"
+                enabled: !(Studio.streaming || Studio.recording)
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: nuevoEventoDlg.close() }
+                GlassButton {
+                    compact: true; active: true; text: "Crear"
+                    enabled: nombreEv.text.trim() !== "" && (nuevoEventoDlg.modo !== "anterior" || anterior.currentIndex >= 0)
+                             && (nuevoEventoDlg.modo !== "plantilla" || plantilla.currentIndex >= 0)
+                    onClicked: {
+                        const m = nuevoEventoDlg.modo
+                        const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentText : m
+                        // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
+                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording))
+                        if (e !== "") { Studio.notify(e, "error"); return }
+                        nuevoEventoDlg.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Abrir otro evento (reinicia con lo suyo) ---------------------------------
+    Dialog {
+        id: abrirEventoDlg
+        readonly property var cf: Studio.configuraciones
+        anchors.centerIn: parent
+        width: 500
+        modal: true
+        title: "Abrir otro evento"
+        ColumnLayout {
+            width: abrirEventoDlg.availableWidth
+            spacing: 6
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                   text: "Cada evento tiene sus escenas, mezclador, medios, asamblea y web. Abrir otro reinicia la app." }
+            Repeater {
+                model: abrirEventoDlg.cf ? abrirEventoDlg.cf.lista : []
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 13
+                           text: modelData.nombre + (modelData.activa ? "  ● abierto" : "") + (modelData.plantilla ? "  (plantilla)" : "") }
+                    Text { color: Theme.textFaint; font.pixelSize: 11
+                           text: modelData.midiendo ? "midiendo…" : page.bytesLegibles(modelData.bytes) }
+                    GlassButton {
+                        compact: true; text: "Abrir"; visible: !modelData.activa
+                        enabled: !(Studio.streaming || Studio.recording)
+                        onClicked: {
+                            const n = modelData.nombre
+                            abrirEventoDlg.close()
+                            ApplicationWindow.window.confirm({
+                                title: "¿Abrir «" + n + "»?",
+                                text: "La app se reinicia con ese evento (sus escenas, mezclador, medios y asamblea).",
+                                accept: "Abrir", reject: "Cancelar",
+                                action: function() { const e = abrirEventoDlg.cf.cambiarUi(n); if (e !== "") Studio.notify(e, "error") } })
+                        }
+                    }
+                }
+            }
+            Text { visible: (Studio.streaming || Studio.recording); color: Theme.amber; font.pixelSize: 12
+                   text: "Hay una transmisión o una grabación en curso: terminala para abrir otro evento." }
+            RowLayout { Item { Layout.fillWidth: true } GlassButton { compact: true; text: "Cerrar"; onClicked: abrirEventoDlg.close() } }
         }
     }
 

@@ -132,6 +132,9 @@ class ModelosLocales : public QObject {
     Q_PROPERTY(QVariantMap restos READ restos NOTIFY discoCambio)
 
    public:
+    /// La regla de «instalado» (bajado y verificado: su carpeta tiene «.ok»), sin
+    /// una instancia: la usan también las listas de modelos de los agentes.
+    static bool instaladoEn(const std::filesystem::path& carpetaModelos, const std::string& repo);
     using json = nlohmann::json;
     /// Respuesta del motor a un pedido (o {"error": ...}).
     using Respuesta = std::function<void(const json&)>;

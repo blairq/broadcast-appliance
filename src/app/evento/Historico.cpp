@@ -70,6 +70,17 @@ nlohmann::json Historico::resumen(const fs::path& evento) {
     for (fs::recursive_directory_iterator it(evento, ec), fin; !ec && it != fin; it.increment(ec))
         if (it->is_regular_file(ec)) bytes += it->file_size(ec);
     r["bytes"] = bytes;
+    // Las grabaciones viven en Recordings/ (fuera de la carpeta del evento): lo que ocupan
+    // las suyas, por la ruta que anotó (y la copia, si hubo).
+    std::uintmax_t grab = 0;
+    for (const auto& g : lista(evento / "grabaciones.json"))
+        for (const char* k : {"archivo", "copia"}) {
+            const std::string a = g.value(k, std::string());
+            if (a.empty() || g.value("borrada_ms", 0LL) != 0) continue;
+            const auto b2 = fs::file_size(fs::path(std::u8string(a.begin(), a.end())), ec);
+            if (!ec) grab += b2;
+        }
+    r["bytes_grabaciones"] = grab;
     return r;
 }
 

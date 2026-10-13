@@ -206,6 +206,13 @@ void quienes_estan() {
     CHECK(r.enLinea == 0, "ninguno por la sala");
     CHECK(r.faltan == 2, "faltan dos");
     CHECK(r.votoPresente == 1, "y solo uno de los presentes vota");
+    {
+        // Quiénes votan en una formal: los que tienen voto Y llegaron; podian = todos los que tienen voto.
+        const Padron::Votantes v = p.votantes();
+        CHECK(v.habilitados.size() == 1 && v.habilitados[0].codigo == p.gente()[0].codigo,
+              "vota el presente con derecho (no el de prensa, no el que no llegó)");
+        CHECK(v.podian == 2, "el denominador cuenta a los dos con derecho, vinieran o no");
+    }
 
     // El de online entra por la sala: el padron es UNO para los dos mundos.
     p.acreditar(p.gente()[1].id, "lobby", 1200);
@@ -219,6 +226,22 @@ void quienes_estan() {
     r = p.resumen();
     CHECK(r.presentes == 2, "el que se fue ya no esta");
     CHECK(r.faltan == 1, "y no vuelve a contar como que falta");
+
+    // Sin canal previsto: lo dice por donde se acredito; el QR no dice nada.
+    Padron q;
+    Asistente s1, s2, s3;
+    s1.nombre = "Mostrador";
+    s2.nombre = "Lobby";
+    s3.nombre = "QR";
+    q.agregar(s1);
+    q.agregar(s2);
+    q.agregar(s3);
+    q.acreditar(q.gente()[0].id, "mostrador", 1);
+    q.acreditar(q.gente()[1].id, "lobby", 2);
+    q.acreditar(q.gente()[2].id, "qr", 3);
+    r = q.resumen();
+    CHECK(r.presentes == 3 && r.presenciales == 1 && r.enLinea == 1 && r.sinDato == 1,
+          "sin canal: mostrador en el lugar, lobby en linea, QR sin dato (la suma cierra)");
 }
 
 // --- 5) Ida y vuelta --------------------------------------------------------

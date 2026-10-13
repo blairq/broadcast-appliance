@@ -129,8 +129,9 @@ void McpService::registerMediaTools() {
             if (a.contains("auto_next")) pl.setAutoNext(a.value("auto_next", true));
             if (a.contains("loop")) pl.setLoop(a.value("loop", false));
             const std::string acc = a.value("accion", std::string());
-            if (acc == "armar") pl.armarUi();
-            else if (!acc.empty())
+            if (acc == "armar") {
+                if (const std::string e = pl.armar(); !e.empty()) return done(ToolResult::error(e));
+            } else if (!acc.empty())
                 if (const std::string e = pl.control(acc, a.value("indice", -1)); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(json{{"estado", pl.estado()}, {"items", pl.items()}}));
         };
@@ -327,7 +328,7 @@ void McpService::registerMediaTools() {
             {"required", {"path"}}};
         t.examples = {
             R"({"path": "Media/logos/sponsor.png", "scene": "Escena 4", "name": "Logo sponsor", "layout": "pip-tr"})"};
-        t.run = [&rt, &vm, root](const json& a, Done done) {
+        t.run = [&rt, root](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
                 return done(ToolResult::error(
@@ -361,7 +362,6 @@ void McpService::registerMediaTools() {
                     ToolResult::error("No existe la escena '" + scene + "' (scene_list las muestra)."));
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            vm.refreshModels();
             done(ToolResult::ok("'" + spec.name + "' (" + kind.toStdString() + ") agregada a '" + scene +
                                 "'. Verifica con capture_source {\"name\": \"" + scene + "\"}."));
         };

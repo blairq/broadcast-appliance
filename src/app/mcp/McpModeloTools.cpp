@@ -24,6 +24,7 @@
 #include "mcp/McpService.hpp"
 #include "net/Descargas.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "sala/EnlacesSala.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -571,15 +572,14 @@ void McpService::registerModeloTools() {
         t.inputSchema = {{"type", "object"}, {"properties", {{"remoto", {{"type", "boolean"}}}}}};
         t.run = [vmp = &vm_](const json& a, Done done) {
             auto* conf = static_cast<ConferenceViewModel*>(vmp->conference());
-            if (conf == nullptr || !conf->client().online()) return done(ToolResult::error("la sala no está corriendo"));
-            conf->client().get(QString("/api/v1/correccion-link?target=") + (a.value("remoto", false) ? "remote" : "local"),
-                               [done](bool ok, const QJsonObject& r) {
-                                   if (!ok || !r.value("ok").toBool())
-                                       return done(ToolResult::error(r.value("message").toString("la sala no dio el enlace").toStdString()));
-                                   json out{{"url", r.value("url").toString().toStdString()}};
-                                   if (r.contains("message")) out["aviso"] = r.value("message").toString().toStdString();
-                                   done(ToolResult().data(out));
-                               });
+            if (conf == nullptr) return done(ToolResult::error("la sala no está corriendo"));
+            // El mismo enlace que el QR del puesto en la GUI (modelo: sala::EnlacesSala).
+            conf->enlaces().correccion(a.value("remoto", false), [done](const sala::Enlace& e) {
+                if (!e.ok) return done(ToolResult::error(e.mensaje));
+                json out{{"url", e.url}};
+                if (!e.mensaje.empty()) out["aviso"] = e.mensaje;
+                done(ToolResult().data(out));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -757,6 +757,19 @@ void McpService::registerModeloTools() {
             (void)a;
             done(ToolResult::error("esta compilacion no tiene racks de audio"));
 #endif
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_transcripcion_borrar";
+        t.title = "Borrar lo transcripto";
+        t.category = "agentes";
+        t.destructive = true;
+        t.description = "Vacía la transcripción continua guardada (lo que muestra Configuración → Voz). No toca lo grabado.";
+        t.run = [voz](const json&, Done done) {
+            voz->borrarTranscripcion();
+            done(ToolResult::ok("Transcripción borrada."));
         };
         core_.addTool(std::move(t));
     }

@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ui/ConferenceViewModel.hpp"
+#include <QMetaObject>
+#include <QPointer>
 #include "ajustes/Ajustes.hpp"
 
 #include <QClipboard>
@@ -21,6 +23,13 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/AppSettings.hpp"
+#include "sala/ControlSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/OradoresSala.hpp"
+#include "sala/PaginaPublico.hpp"
+#include "sala/ParticipantesSala.hpp"
+#include "sala/ReglasSala.hpp"
+#include "sala/Teleprompter.hpp"
 #include "ui/ConferenceClient.hpp"
 
 namespace ba::app {
@@ -30,6 +39,28 @@ namespace ba::app {
 inline int kEsperarAlReconocimientoMs() { return ba::ajustes::entero("asistente.esperaLobbyMs", 2500); }
 
 namespace fs = std::filesystem;
+
+namespace {
+QString qs(const std::string& s) { return QString::fromStdString(s); }
+std::string ss(const QString& s) { return s.toStdString(); }
+QVariantMap aMapa(const nlohmann::json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+        .object()
+        .toVariantMap();
+}
+/// La primera letra en mayúscula: los textos del modelo vienen en minúscula
+/// para que el MCP les ponga algo adelante.
+QString frase(const std::string& s) {
+    QString q = qs(s);
+    if (!q.isEmpty()) q[0] = q[0].toUpper();
+    return q;
+}
+QStringList filasDe(const sala::Enlace& e) {
+    QStringList rows;
+    for (const std::string& f : e.filas) rows << qs(f);
+    return rows;
+}
+} // namespace
 
 // --- JsonListModel ------------------------------------------------------------
 
@@ -102,23 +133,48 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
             [this](const QJsonObject& m) { onChatMsg(m, true); });
+    control_ = std::make_unique<sala::ControlSala>(rt_, *client_);
+    participantes_ = std::make_unique<sala::ParticipantesSala>(*client_);
+    oradores_ = std::make_unique<sala::OradoresSala>(*client_);
+    enlaces_ = std::make_unique<sala::EnlacesSala>(*client_);
+    paginaPublico_ = std::make_unique<sala::PaginaPublico>(*client_);
+    teleprompter_ = std::make_unique<sala::Teleprompter>(*client_);
+    // Un archivo compartido que entra a la escena (por la GUI o el MCP): las
+    // listas de fuentes se recargan.
+    control_->setAlTomarArchivo([this]() { emit sourceAdded(); });
+    // Todo pedido que falla pasa por acá: el texto es el del modelo (el mismo
+    // que lee el MCP).
     connect(client_.get(), &ConferenceClient::failed, this, [this](const QString& e) {
-        static const QHash<QString, QString> kText{
-            {"full", "La sala esta llena: sacá a alguien primero"},
-            {"not_found", "Ya no esta en la sala"},
-            {"state", "No aplica en su estado actual"},
-            {"offline", "La sala no responde (¿el gateway esta arriba?)"}};
-        emit notify(kText.value(e, "La sala respondio: " + e), "error");
+        // Sin sala (se está reiniciando o se cayó) fallan todos los pedidos, también los
+        // periódicos: un aviso por caída, no una ráfaga (trababa la interfaz con avisos).
+        if (e == "offline") {
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            if (ahora - avisoSinSalaMs_ < 30000) return;
+            avisoSinSalaMs_ = ahora;
+        } else if (e == "auth" || e == "401") {
+            // La sala volvió con otro token: el cliente lo relee solo. Se avisa si sigue.
+            if (++authSeguidos_ < 2) return;
+        } else {
+            authSeguidos_ = 0;
+        }
+        const std::string t = sala::explicarError(ss(e));
+        emit notify(t == ss(e) ? "La sala respondio: " + e : frase(t), "error");
+    });
+    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
+        if (!on) return;
+        avisoSinSalaMs_ = 0; // volvió: la próxima caída se avisa enseguida
+        authSeguidos_ = 0;
     });
     // Estado de red: cada 5 s (cambia poco; no amerita un evento propio).
     const auto pollNetwork = [this]() {
         if (!client_->online()) return;
-        client_->get("/api/v1/network", [this](bool ok, const QJsonObject& r) {
-            if (!ok) return;
-            const QVariantMap m = r.toVariantMap();
-            if (m != network_) {
-                network_ = m;
-                emit networkChanged();
+        QPointer<ConferenceViewModel> yo(this);
+        control_->verRed([yo](const std::string& err, const nlohmann::json& r) {
+            if (!yo || !err.empty()) return;
+            const QVariantMap m = aMapa(r);
+            if (m != yo->network_) {
+                yo->network_ = m;
+                emit yo->networkChanged();
             }
         });
     };
@@ -128,14 +184,9 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
     connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
     networkPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
-    // Si el operador lo dejo prendido, sigue prendido al arrancar: es una
-    // decision del evento, no un boton que haya que volver a apretar. Si no
-    // hay asistente, se apaga solo en cuanto lo intenta (ver onSnapshot).
-    autoIntake_ = rt_.gateway().autoIntake;
-    // La sala arranca despues que esto, asi que se le avisa cuando conecta.
-    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() {
-        if (client_->online()) client_->post("/api/v1/room", QJsonObject{{"intake", autoIntake_}});
-    });
+    // La atención automática la guarda el modelo (sigue prendida al arrancar
+    // y la sala se entera cuando conecta). Si no hay asistente, se apaga sola
+    // en cuanto lo intenta (ver onSnapshot).
 }
 
 ConferenceViewModel::~ConferenceViewModel() = default;
@@ -199,8 +250,7 @@ void ConferenceViewModel::pollAvatars() {
         const QJsonObject p = v.toObject();
         if (!p.value("hasAvatar").toBool()) continue;
         const QString id = p.value("id").toString();
-        client_->getRaw("/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/avatar",
-                        [this, id](bool ok, const QByteArray& jpeg) {
+        participantes_->foto(id.toStdString(), [this, id](bool ok, const QByteArray& jpeg) {
                             if (!ok || jpeg.isEmpty()) return;
                             const QString url =
                                 "data:image/jpeg;base64," + QString::fromLatin1(jpeg.toBase64());
@@ -218,24 +268,22 @@ void ConferenceViewModel::pollAvatars() {
 }
 
 void ConferenceViewModel::setSpeakerConfig(const QVariantMap& cfg) {
-    client_->post("/api/v1/speakers", QJsonObject::fromVariantMap(cfg));
+    const nlohmann::json c =
+        nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(cfg)).toJson().toStdString(), nullptr, false);
+    if (const std::string e = oradores_->configurar(c); !e.empty()) emit notify(frase(e), "error");
 }
-void ConferenceViewModel::speakerOnAir(const QString& id, bool on) {
-    participantAction(id, "onair", QJsonObject{{"on", on}});
-}
+void ConferenceViewModel::speakerOnAir(const QString& id, bool on) { oradores_->alAire(ss(id), on); }
 void ConferenceViewModel::speakerNext() {
-    client_->post("/api/v1/speakers/next", {}, [this](bool ok, const QJsonObject& r) {
-        Q_UNUSED(r);
-        if (!ok) emit notify("No hay nadie mas en la fila", "info");
+    QPointer<ConferenceViewModel> yo(this);
+    oradores_->siguiente([yo](const std::string& err, const nlohmann::json&) {
+        if (yo && !err.empty()) emit yo->notify("No hay nadie mas en la fila", "info");
     });
 }
-void ConferenceViewModel::speakerMove(const QString& id, int index) {
-    participantAction(id, "move", QJsonObject{{"index", std::max(0, index)}});
-}
+void ConferenceViewModel::speakerMove(const QString& id, int index) { oradores_->mover(ss(id), index); }
 void ConferenceViewModel::speakerTime(const QString& id, int sec) {
-    if (sec > 0) participantAction(id, "time", QJsonObject{{"sec", sec}});
+    if (const std::string e = oradores_->tiempo(ss(id), sec); !e.empty()) emit notify(frase(e), "error");
 }
-void ConferenceViewModel::speakerRequeue(const QString& id) { participantAction(id, "requeue"); }
+void ConferenceViewModel::speakerRequeue(const QString& id) { oradores_->aLaFila(ss(id)); }
 QVariantMap ConferenceViewModel::usage() const {
     const QJsonObject s = client_->snapshot();
     QVariantMap u = s.value("uso").toObject().toVariantMap();
@@ -266,26 +314,28 @@ QString ConferenceViewModel::photoOf(const QString& idOrName) const {
     return {};
 }
 
+bool ConferenceViewModel::autoIntake() const { return control_->atencionAutomatica(); }
+
 void ConferenceViewModel::setAutoIntake(bool on) {
-    if (autoIntake_ == on) return;
-    autoIntake_ = on;
+    if (control_->atencionAutomatica() == on) return;
     // Al prenderlo, los que ya estaban esperando tambien se atienden.
     if (!on) intakeDone_.clear();
+    control_->setAtencionAutomatica(on);
     emit autoIntakeChanged();
-    rt_.gateway().autoIntake = on;
-    rt_.save();
-    // B tiene que enterarse: con el asistente atendiendo, la pantalla de
-    // ingreso del invitado no le pide los datos (se los pregunta el asistente).
-    client_->post("/api/v1/room", QJsonObject{{"intake", on}});
     if (on) onSnapshot();
 }
 
-void ConferenceViewModel::setPresenter(const QString& id, bool on) {
-    participantAction(id, "presenter", QJsonObject{{"on", on}});
-}
+void ConferenceViewModel::setPresenter(const QString& id, bool on) { oradores_->presentador(ss(id), on); }
 void ConferenceViewModel::setProfile(const QString& id, const QString& name, const QString& info,
                                      const QString& contact) {
-    participantAction(id, "profile", QJsonObject{{"name", name}, {"info", info}, {"contact", contact}});
+    participantes_->perfil(ss(id), ss(name), ss(info), ss(contact));
+}
+
+void ConferenceViewModel::guardarFicha(const QString& id, const QString& name, const QString& info,
+                                       const QString& contact, const QString& tiempo) {
+    setProfile(id, name, info, contact);
+    // Sin tiempo (desde el lobby o la sala) o uno que no se entiende: solo la ficha.
+    if (const int s = parseDuration(tiempo); s > 0) speakerTime(id, s);
 }
 
 int ConferenceViewModel::parseDuration(const QString& text) const {
@@ -302,15 +352,11 @@ int ConferenceViewModel::parseDuration(const QString& text) const {
 }
 
 void ConferenceViewModel::requestBoardLink(const QString& target) {
-    const QString t = target == "remote" ? "remote" : "local";
-    client_->get("/api/v1/board-link?target=" + t, [this, t](bool ok, const QJsonObject& r) {
-        QStringList rows;
-        for (const QJsonValue& v : r.value("modules").toArray())
-            rows << v.toString();
-        QString msg = r.value("message").toString();
-        const bool good = ok && r.value("ok").toBool();
-        if (!good && msg.isEmpty()) msg = "La sala no responde";
-        emit qrReady("board-" + t, good ? r.value("url").toString() : QString(), rows, msg);
+    const bool remoto = target == "remote";
+    QPointer<ConferenceViewModel> yo(this);
+    enlaces_->tablero(remoto, [yo, remoto](const sala::Enlace& e) {
+        if (yo)
+            emit yo->qrReady(remoto ? "board-remote" : "board-local", qs(e.url), filasDe(e), qs(e.mensaje));
     });
 }
 
@@ -338,7 +384,7 @@ void ConferenceViewModel::onSnapshot() {
             // Atencion automatica: se le encarga al asistente una sola vez por
             // persona (mientras siga esperando).
             const QString pid = p.value("id").toString();
-            if (autoIntake_ && intakeSink_ && !intakeDone_.contains(pid)) {
+            if (autoIntake() && intakeSink_ && !intakeDone_.contains(pid)) {
                 intakeDone_.insert(pid);
                 // UN MOMENTO ANTES DE ABORDARLO, a propósito. El
                 // reconocimiento de rostros necesita una vuelta para tener algo
@@ -455,78 +501,59 @@ QString ConferenceViewModel::nameOf(const QString& id) const {
     return id;
 }
 
-void ConferenceViewModel::participantAction(const QString& id, const QString& action,
-                                            const QJsonObject& body) {
-    client_->post("/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/" + action,
-                  body);
-}
-
 void ConferenceViewModel::pruebaTecnica(const QString& id) {
-    // Tarda ~5 s (tono por su retorno y lo que vuelve por su micrófono): timeout largo.
-    client_->post(
-        "/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/prueba", QJsonObject{{"ms", 4000}},
-        [this, id](bool ok, const QJsonObject& r) {
-            QVariantMap m = r.toVariantMap();
-            m["ok"] = ok;
-            m["recomendacion"] = recomendacionPrueba(r);
-            emit pruebaLista(id, m);
-        },
-        15000);
-}
-
-void ConferenceViewModel::refrescarProxy() {
-    client_->get("/api/v1/proxy", [this](bool ok, const QJsonObject& r) {
-        QVariantMap m = ok ? r.toVariantMap() : QVariantMap{{"activo", false}};
-        m["configuracion"] = QJsonDocument::fromJson(QByteArray::fromStdString(rt_.gateway().proxy.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
-        proxy_ = m;
-        emit proxyChanged();
+    QPointer<ConferenceViewModel> yo(this);
+    participantes_->prueba(ss(id), [yo, id](const std::string& err, const nlohmann::json& r) {
+        if (!yo) return;
+        QVariantMap m = aMapa(r);
+        m["ok"] = err.empty();
+        emit yo->pruebaLista(id, m);
     });
 }
 
-void ConferenceViewModel::renovarProxy(const QString& host) {
-    client_->post("/api/v1/proxy/renovar", QJsonObject{{"host", host}});
+void ConferenceViewModel::refrescarProxy() {
+    QPointer<ConferenceViewModel> yo(this);
+    control_->verProxy([yo](const std::string& err, const nlohmann::json& r) {
+        if (!yo) return;
+        QVariantMap m = aMapa(r);
+        if (!err.empty()) m["activo"] = false; // sin la sala, solo la configuración guardada
+        yo->proxy_ = m;
+        emit yo->proxyChanged();
+    });
 }
 
+void ConferenceViewModel::renovarProxy(const QString& host) { control_->renovarProxy(ss(host)); }
+
 QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
-    nlohmann::json& p = rt_.gateway().proxy;
     const nlohmann::json c = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
-    if (!c.is_object()) return "cambios inválidos";
-    for (const auto& [k, v] : c.items()) {
-        if (k == "acme" && v.is_object())
-            for (const auto& [ka, va] : v.items()) p["acme"][ka] = va;
-        else
-            p[k] = v;
-    }
-    if (p.value("activo", false) && p.value("dominio", std::string()).empty()) return "falta el dominio";
-    if (!rt_.save()) return QString::fromStdString(rt_.lastError());
-    return reiniciarSala();
+    QPointer<ConferenceViewModel> yo(this);
+    return qs(control_->configurarProxy(c, [yo](const std::string& e) {
+        if (yo && !e.empty())
+            emit yo->notify("No se pudo reiniciar la sala: " + qs(e) + ". Si sigue, cerrá y volvé a abrir el programa.",
+                            "error");
+    }));
 }
 
 QString ConferenceViewModel::reiniciarSala() {
-    if (rt_.restartGateway()) return {};
-    return "No se pudo reiniciar la sala: " + QString::fromStdString(rt_.lastError()) +
-           ". Si sigue, cerrá y volvé a abrir el programa.";
+    // Aparte: esperar que el gateway se cierre trababa la interfaz. Si falla, avisa.
+    QPointer<ConferenceViewModel> yo(this);
+    rt_.reiniciarSalaEnElFondo([yo](const std::string& e) {
+        if (e.empty() || !yo) return;
+        QMetaObject::invokeMethod(yo.data(), [yo, e]() {
+            if (yo)
+                emit yo->notify("No se pudo reiniciar la sala: " + QString::fromStdString(e) +
+                                    ". Si sigue, cerrá y volvé a abrir el programa.",
+                                "error");
+        }, Qt::QueuedConnection);
+    });
+    return {};
 }
 
-QString ConferenceViewModel::recomendacionPrueba(const QJsonObject& r) {
-    if (r.contains("error")) return r.value("error").toString();
-    QStringList out;
-    if (r.value("eco").toBool())
-        out << QString("Se escucha el retorno por su micrófono (%1 dB): que use auriculares o baje el parlante.")
-                   .arg(r.value("eco_db").toDouble(), 0, 'f', 1);
-    const QJsonObject red = r.value("red").toObject();
-    const QString sem = red.value("semaforo").toString();
-    if (sem == "rojo") out << "La red no alcanza: que se acerque al wifi o use cable (o bajarle la calidad).";
-    else if (sem == "ambar") out << "La red anda justa: puede haber cortes.";
-    if (r.contains("aviso")) out << r.value("aviso").toString();
-    return out.isEmpty() ? QString("Todo bien: sin eco y la red alcanza.") : out.join(" ");
-}
-
-void ConferenceViewModel::admit(const QString& id) { participantAction(id, "admit"); }
-void ConferenceViewModel::reject(const QString& id) { participantAction(id, "reject"); }
-void ConferenceViewModel::kick(const QString& id) { participantAction(id, "kick"); }
+void ConferenceViewModel::admit(const QString& id) { participantes_->admitir(ss(id)); }
+void ConferenceViewModel::reject(const QString& id) { participantes_->rechazar(ss(id)); }
+void ConferenceViewModel::kick(const QString& id) { participantes_->sacar(ss(id)); }
 void ConferenceViewModel::request(const QString& id, const QString& what) {
-    participantAction(id, "request", QJsonObject{{"what", what}});
+    if (const std::string e = participantes_->pedirle(ss(id), ss(what)); !e.empty()) emit notify(frase(e), "error");
 }
 
 QVariantList ConferenceViewModel::chatTargets() const {
@@ -582,9 +609,7 @@ QStringList ConferenceViewModel::audioSourceNames() const {
     return out;
 }
 
-void ConferenceViewModel::talk(const QString& id, bool on) {
-    participantAction(id, "talk", QJsonObject{{"on", on}});
-}
+void ConferenceViewModel::talk(const QString& id, bool on) { participantes_->hablar(ss(id), on); }
 
 void ConferenceViewModel::setOperatorFeed(const QString& video, const QString& audio) {
     if (!rt_.setOperatorFeed(video.toStdString(), audio.toStdString())) {
@@ -596,163 +621,94 @@ void ConferenceViewModel::setOperatorFeed(const QString& video, const QString& a
 
 void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const QString& publicAddress,
                                                 const QString& iface) {
-    const QString ep = endpoint.trimmed();
-    if (ep.isEmpty()) {
-        emit serverConfigReady({}, "Falta la direccion del servidor (host:puerto)");
-        return;
-    }
-    QJsonObject req{{"endpoint", ep},
-                    {"interface", iface.trimmed().isEmpty() ? QString("eth0") : iface.trimmed()}};
-    client_->post("/api/v1/network/server-config", req,
-                  [this, ep, publicAddress](bool ok, const QJsonObject& r) {
-                      if (!ok) {
-                          emit serverConfigReady({}, "El gateway no pudo generar la configuracion: " +
-                                                         r.value("error").toString());
-                          return;
-                      }
-                      // Este equipo queda apuntando a ese servidor, con el tunel encendido.
-                      GatewaySettings& g = rt_.gateway();
-                      g.wgEnabled = true;
-                      g.wgEndpoint = r.value("endpoint").toString().toStdString();
-                      g.wgServerPublicKey = r.value("serverPublicKey").toString().toStdString();
-                      QString pub = publicAddress.trimmed();
-                      if (pub.isEmpty()) pub = ep.section(':', 0, 0); // por defecto, el mismo host
-                      g.wgPublicAddress = pub.toStdString();
-                      rt_.save();
-                      emit serverConfigReady(r.value("config").toString(), {});
-                      emit notify(rt_.restartGateway() ? "Tunel configurado: reiniciando la sala"
-                                                       : "Tunel configurado, pero la sala no se reinició: apretá «Reiniciar la sala» en la página Sala",
-                                  "ok");
-                  });
+    QPointer<ConferenceViewModel> yo(this);
+    const std::string e = control_->accesoDirecto(
+        ss(endpoint), ss(publicAddress), ss(iface),
+        [yo](const std::string& err, const nlohmann::json& r) {
+            if (!yo) return;
+            if (!err.empty()) return emit yo->serverConfigReady({}, qs(err));
+            emit yo->serverConfigReady(qs(r.value("config", std::string())), {});
+            emit yo->notify("Tunel configurado: reiniciando la sala", "ok");
+        },
+        [yo](const std::string& err) {
+            if (yo && !err.empty())
+                emit yo->notify("No se pudo reiniciar la sala: " + qs(err) +
+                                    ". Si sigue, cerrá y volvé a abrir el programa.",
+                                "error");
+        });
+    if (!e.empty()) emit serverConfigReady({}, qs(e));
 }
 
 void ConferenceViewModel::requestQr(const QString& target, bool withPin) {
-    const QString t = target == "remote" ? "remote" : "local";
-    client_->get("/api/v1/qr?target=" + t + (withPin ? "&pin=1" : ""),
-                 [this, t](bool ok, const QJsonObject& r) {
-                     QStringList rows;
-                     for (const QJsonValue& v : r.value("modules").toArray())
-                         rows << v.toString();
-                     QString msg = r.value("message").toString();
-                     if (msg.isEmpty()) msg = r.value("warning").toString();
-                     const bool good = ok && r.value("ok").toBool();
-                     if (!good && msg.isEmpty()) msg = "La sala no responde";
-                     emit qrReady(t, good ? r.value("url").toString() : QString(), rows, msg);
-                 });
+    const bool remoto = target == "remote";
+    QPointer<ConferenceViewModel> yo(this);
+    enlaces_->ingreso(remoto, withPin, [yo, remoto](const sala::Enlace& e) {
+        if (yo) emit yo->qrReady(remoto ? "remote" : "local", qs(e.url), filasDe(e), qs(e.mensaje));
+    });
 }
 
 void ConferenceViewModel::admitAll() {
-    for (const QJsonValue& v : waiting_->items())
-        admit(v.toObject().value("id").toString());
+    QPointer<ConferenceViewModel> yo(this);
+    participantes_->admitirATodos([yo](int pedidos, int admitidos, const std::string& err) {
+        // Los que no pudieron pasar ya los avisó `failed` (sala llena, etc.).
+        if (yo && pedidos > 0 && err.empty())
+            emit yo->notify(QString("Pasaron los %1 que esperaban").arg(admitidos), "ok");
+    });
 }
 
 void ConferenceViewModel::sendChat(const QString& to, const QString& text) {
-    if (text.trimmed().isEmpty()) return;
-    client_->post("/api/v1/chat", QJsonObject{{"to", to.isEmpty() ? QString("all") : to}, {"text", text}});
+    control_->chatear(ss(to), ss(text)); // vacío no se manda (no hay nada que avisar)
 }
 
-void ConferenceViewModel::setLobby(bool on) { client_->post("/api/v1/room", QJsonObject{{"lobby", on}}); }
-void ConferenceViewModel::setLocked(bool on) { client_->post("/api/v1/room", QJsonObject{{"locked", on}}); }
+void ConferenceViewModel::setLobby(bool on) { control_->entrada(on, std::nullopt); }
+void ConferenceViewModel::setLocked(bool on) { control_->entrada(std::nullopt, on); }
 
 void ConferenceViewModel::newPin(const QString& pin) {
-    QJsonObject body;
-    if (!pin.trimmed().isEmpty()) body.insert("pin", pin.trimmed());
-    client_->post("/api/v1/pin", body, [this](bool ok, const QJsonObject& r) {
-        if (ok) emit notify("PIN nuevo: " + r.value("pin").toString(), "ok");
+    QPointer<ConferenceViewModel> yo(this);
+    control_->cambiarPin(ss(pin), [yo](const std::string& err, const nlohmann::json& r) {
+        if (yo && err.empty()) emit yo->notify("PIN nuevo: " + qs(r.value("pin", std::string())), "ok");
     });
 }
 
 void ConferenceViewModel::pinBloqueos() {
-    client_->get("/api/v1/pin/bloqueos", [this](bool ok, const QJsonObject& r) {
-        if (!ok) return;
-        bloqueosPin_ = r.value("bloqueos").toObject().toVariantMap();
-        emit bloqueosPinChanged();
+    QPointer<ConferenceViewModel> yo(this);
+    control_->verBloqueosPin([yo](const std::string& err, const nlohmann::json& r) {
+        if (!yo || !err.empty()) return;
+        yo->bloqueosPin_ = aMapa(r.value("bloqueos", nlohmann::json::object()));
+        emit yo->bloqueosPinChanged();
     });
 }
 
 void ConferenceViewModel::desbloquearPin(const QString& ip) {
-    QJsonObject body;
-    if (!ip.trimmed().isEmpty()) body.insert("ip", ip.trimmed());
-    client_->post("/api/v1/pin/desbloquear", body, [this, ip](bool ok, const QJsonObject& r) {
-        if (!ok) {
-            emit notify("No se pudo desbloquear (¿la sala está conectada?)", "error");
-            return;
-        }
-        bloqueosPin_ = r.value("bloqueos").toObject().toVariantMap();
-        emit bloqueosPinChanged();
-        emit notify(ip.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + ip, "ok");
+    QPointer<ConferenceViewModel> yo(this);
+    const QString cual = ip.trimmed();
+    control_->desbloquearPin(ss(cual), [yo, cual](const std::string& err, const nlohmann::json& r) {
+        if (!yo) return;
+        if (!err.empty()) return emit yo->notify("No se pudo desbloquear (¿la sala está conectada?)", "error");
+        yo->bloqueosPin_ = aMapa(r.value("bloqueos", nlohmann::json::object()));
+        emit yo->bloqueosPinChanged();
+        emit yo->notify(cual.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + cual,
+                        "ok");
     });
 }
 
-void ConferenceViewModel::removeShare(const QString& id) {
-    client_->del("/api/v1/shares/" + QString::fromUtf8(QUrl::toPercentEncoding(id)));
-}
+void ConferenceViewModel::removeShare(const QString& id) { control_->borrarArchivo(ss(id)); }
 
 void ConferenceViewModel::openWebConsole() {
-    client_->post("/api/v1/login-code", {}, [this](bool ok, const QJsonObject& r) {
-        if (ok && QDesktopServices::openUrl(QUrl(r.value("url").toString()))) return;
-        emit notify("No se pudo abrir la consola web", "error");
+    QPointer<ConferenceViewModel> yo(this);
+    control_->codigoConsolaWeb([yo](const std::string& err, const nlohmann::json& r) {
+        if (!yo) return;
+        if (err.empty() && QDesktopServices::openUrl(QUrl(qs(r.value("url", std::string()))))) return;
+        emit yo->notify("No se pudo abrir la consola web", "error");
     });
 }
 
 void ConferenceViewModel::takeShare(const QString& id) {
-    QJsonObject share;
-    for (const QJsonValue& v : shares_->items()) {
-        if (v.toObject().value("id").toString() == id) share = v.toObject();
-    }
-    if (share.isEmpty()) {
-        emit notify("Ese archivo ya no esta", "error");
-        return;
-    }
-    // Copia propia: la carpeta de B se limpia al reiniciarlo, y la escena de A
-    // no debe depender de eso.
-    const QString srcPath = share.value("path").toString();
-    const fs::path src(srcPath.toStdU16String());
-    const fs::path mediaDir = rt_.dataRoot() / "Media";
-    std::error_code ec;
-    fs::create_directories(mediaDir, ec);
-    const QString shown = share.value("name").toString();
-    QString stem = QString::fromStdU16String(fs::path(shown.toStdU16String()).stem().u16string());
-    stem.replace(QRegularExpression("[^\\w\\- ]"), "_");
-    if (stem.isEmpty()) stem = "archivo";
-    fs::path dst = mediaDir / (stem.toStdU16String() + src.extension().u16string());
-    for (int n = 2; fs::exists(dst, ec); ++n) {
-        dst = mediaDir / ((stem + QString(" (%1)").arg(n)).toStdU16String() + src.extension().u16string());
-    }
-    fs::copy_file(src, dst, ec);
-    if (ec) {
-        emit notify("No se pudo copiar el archivo: " + QString::fromStdString(ec.message()), "error");
-        return;
-    }
-
-    const QString kind = share.value("kind").toString();
-    const QString file = QString::fromStdU16String(dst.u16string());
-    SourceSpec spec;
-    QJsonObject settings;
-    if (kind == "image") {
-        spec.id = "image_source";
-        settings.insert("file", file);
-    } else {
-        spec.id = "ffmpeg_source";
-        settings.insert("local_file", file);
-        settings.insert("is_local_file", true);
-        settings.insert("looping", kind == "video");
-        settings.insert("restart_on_activate", true);
-    }
-    spec.settingsJson = QJsonDocument(settings).toJson(QJsonDocument::Compact).toStdString();
-    const std::string scene = rt_.engine().currentScene();
-    const QString base = share.value("participantName").toString() + " — " + shown;
-    QString name = base;
-    for (int n = 2; rt_.engine().sourceExists(name.toStdString()); ++n)
-        name = base + QString(" (%1)").arg(n);
-    spec.name = name.toStdString();
-    if (!rt_.addSource(scene, spec)) {
-        emit notify("No se pudo agregar la fuente: " + QString::fromStdString(rt_.lastError()), "error");
-        return;
-    }
-    rt_.save();
-    emit sourceAdded();
-    emit notify("«" + shown + "» agregado a la escena " + QString::fromStdString(scene), "ok");
+    // Las reglas (copia propia en Media/, el nombre, el tipo de fuente) son del
+    // modelo, el mismo que usa el MCP (share_take).
+    const sala::ControlSala::Tomado t = control_->tomarArchivo(ss(id));
+    if (!t.error.empty()) return emit notify(qs(t.error), "error");
+    emit notify("«" + qs(t.nombre) + "» agregado a la escena " + qs(t.escena), "ok");
 }
 
 QVariantList ConferenceViewModel::chatCon(const QString& uid) const {

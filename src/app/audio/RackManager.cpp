@@ -17,6 +17,7 @@
 #include <QFile>
 #include <QMetaObject>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QSocketNotifier>
 #include <QThread>
 
@@ -455,8 +456,12 @@ void RackManager::saveMonitor() const {
     const fs::path file = root_ / "Config" / "audio-escucha.json";
     std::error_code ec;
     fs::create_directories(file.parent_path(), ec);
-    std::ofstream out(file, std::ios::binary);
-    if (out) out << json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+    // Aparte y reemplazar: un corte a mitad no deja el archivo trunco.
+    QSaveFile out(QString::fromStdString(file.string()));
+    if (!out.open(QIODevice::WriteOnly)) return;
+    out.write(QByteArray::fromStdString(
+        json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+    out.commit();
 }
 
 void RackManager::restoreMonitor() {
@@ -493,7 +498,9 @@ json RackManager::audioSources() const {
         } else if (type == "ba_entrada_virtual") {
             group = "Entradas virtuales (matriz)";
         } else if (type == "ba_guest_audio") {
-            group = "Invitados";
+            // Los remotos de la asamblea, aparte de los invitados de la sala.
+            const json s = json::parse(e->sourceSettingsJson(name), nullptr, false);
+            group = s.is_object() && s.value("anillo", std::string()) == "remoto" ? "Asamblea" : "Invitados";
         } else if (type.find("_input_capture") != std::string::npos) {
             group = "Micrófonos y líneas del equipo";
         } else if (type.find("_output_capture") != std::string::npos) {
@@ -1173,6 +1180,58 @@ std::string RackManager::addEntrada(const std::string& source, const std::string
     markDirty();
     emit changed();
     return id;
+}
+
+namespace {
+struct AnalisisLsp {
+    const char* id;
+    const char* plugin;
+    const char* nombre;
+    const char* para;
+};
+// Los plugins de medición de LSP (vienen en el bundle entero: tools/deps/lsp-*.sh).
+constexpr AnalisisLsp kAnalisisLsp[] = {
+    {"espectro", "in.lsp-plug.spectrum_analyzer_x2", "Spectrum Analyzer",
+     "espectro en vivo (FFT) de L y R, con retención y espectrograma"},
+    {"fase", "in.lsp-plug.phase_detector", "Phase Detector", "fase y retardo entre L y R (dos micrófonos, polaridad)"},
+    {"osciloscopio", "in.lsp-plug.oscilloscope_x2", "Oscilloscope", "la forma de onda de L y R (recortes, DC, XY)"},
+    {"latencia", "in.lsp-plug.latency_meter", "Latency Meter", "la latencia de ida y vuelta de un camino de audio"},
+    {"perfil", "in.lsp-plug.profiler_stereo", "Profiler",
+     "respuesta impulsiva, respuesta en frecuencia y RT60 con un barrido (suena)"},
+};
+} // namespace
+
+json RackManager::analisisLsp() {
+    json out = json::array();
+    for (const auto& a : kAnalisisLsp) out.push_back({{"id", a.id}, {"nombre", a.nombre}, {"para", a.para}});
+    return out;
+}
+
+std::string RackManager::abrirAnalisisLsp(const std::string& source, const std::string& cual) {
+    const AnalisisLsp* a = nullptr;
+    for (const auto& x : kAnalisisLsp)
+        if (cual == x.id) a = &x;
+    if (a == nullptr) return "no conozco el análisis «" + cual + "» (espectro, fase, osciloscopio, latencia, perfil)";
+    std::string e;
+    if (library(&e) == nullptr) return e.empty() ? "no están los plugins LSP" : e;
+    AudioRack* r = rack(source, true, &e);
+    if (r == nullptr) return e.empty() ? "esa fuente no tiene audio" : e;
+    std::string nodo;
+    for (const std::string& id : r->nodeIds())
+        if (ClapInstance* c = r->plugin(id); c != nullptr && c->desc().id == a->plugin) nodo = id;
+    if (nodo.empty()) {
+        nodo = r->addPlugin(a->plugin, a->nombre, "", &e, a->id);
+        if (nodo.empty()) return e.empty() ? std::string("no se pudo agregar ") + a->nombre : e;
+        // Mide al costado: lo que sale de él (los pulsos del Latency Meter, el barrido
+        // del Profiler) no va al aire.
+        r->enParalelo(nodo);
+        markDirty();
+        emit changed();
+    }
+    ClapInstance* c = r->plugin(nodo);
+    if (c == nullptr) return "no quedó el módulo";
+    if (!c->openEditor(std::string(a->nombre) + " — " + source, &e)) return e.empty() ? "no abrió su interfaz" : e;
+    return {};
 }
 
 std::string RackManager::setEntradaFuente(const std::string& source, const std::string& nodo,

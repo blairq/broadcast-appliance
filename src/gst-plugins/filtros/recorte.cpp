@@ -123,7 +123,7 @@ static void pixeles(const Ajustes& r, int w, int h, int par, int& i, int& a, int
 
 static void actualizarPasante(BaRecorte* r) {
     const Ajustes a = copia(r);
-    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(r), !recortaAlgo(a) && !a.espejoH && !a.espejoV);
+    ba::filtros::pasante(GST_BASE_TRANSFORM(r), !recortaAlgo(a) && !a.espejoH && !a.espejoV);
 }
 
 static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* filtro) {

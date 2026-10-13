@@ -8,6 +8,7 @@
 #include <QTimer>
 
 #include "agent/AgentViewModel.hpp"
+#include "agent/EstadoIA.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -31,6 +32,30 @@ void McpService::registerAssistantTools() {
         "El agente de IA que corre en la pestaña Asistente (Claude Code, Gemini CLI u opencode): "
         "proveedor, modelo, instalación, arrancar/detener y mandarle pedidos.");
     auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
+    {
+        Tool t;
+        t.name = "ia_estado";
+        t.title = "Qué parte de la IA no anda o falta configurar";
+        t.category = "asistente";
+        t.readOnly = true;
+        t.description =
+            "La lista de lo que falta para que la asistencia con IA ande entera: el asistente (instalado, "
+            "clave, corriendo, MCP), el modelo local, el dictado y la voz del operador (reconocedor, "
+            "micrófono), la voz que contesta, los auriculares, la voz del teleprompter y las traducciones. "
+            "Cada problema trae `pagina` y `seccion` (ui_show_page) para llevar al operador a arreglarlo. "
+            "Es lo mismo que muestra la pastilla «IA» del encabezado.";
+        t.details = "Usalo primero cuando alguien no sabe por dónde empezar, o algo de voz/IA no responde: "
+                    "seguí la guía de puesta en marcha (help {\"topic\": \"puesta-en-marcha\"}) en el orden "
+                    "que dice, y volvé a mirar hasta que `todo_bien` sea true.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        StudioViewModel* vm = &vm_;
+        t.run = [vm](const json&, Done done) {
+            agent::EstadoIA* e = vm->estadoIAModelo();
+            if (e == nullptr) return done(ToolResult::error("El estado de la IA no está disponible."));
+            done(ToolResult().data(e->estado()));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "agente_limpieza";

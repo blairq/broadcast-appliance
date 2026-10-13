@@ -56,4 +56,12 @@ std::string origenPantalla(const nlohmann::json& a);
 /// El origen para capturar la ventana `app` / `titulo` (vacío si no está abierta).
 std::string origenVentana(const std::string& app, const std::string& titulo, bool cursor);
 
+#if defined(__APPLE__)
+/// macOS: el device-index de avfvideosrc para la cámara de ese uniqueID de AVFoundation
+/// (el «avf.unique_id» del dispositivo de GStreamer); -1 si no está. Se cuenta como
+/// avfvideosrc, en el momento: el índice que trae el dispositivo de GStreamer
+/// (avfdeviceprovider) a veces sale en otro orden y abría OTRA cámara.
+int indiceCamaraMac(const std::string& uniqueId);
+#endif
+
 } // namespace ba::motor

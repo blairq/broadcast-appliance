@@ -23,11 +23,14 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
+#include <thread>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -59,6 +62,29 @@ class AppRuntime {
     static void requestStop();
     static bool stopRequested();
 
+    // --- Avisos: quien muestra el estado se entera de lo que cambia ------------
+    /// Qué cambió. Lo avisa la operación que lo cambia, no quien la llamó: la
+    /// interfaz se entera igual si el pedido vino del operador, del MCP, de un
+    /// plugin o del guion del evento, sin que cada llamador se acuerde de avisar.
+    enum class Cambio {
+        Salidas, ///< transmisión, grabación (programa, por entrada, señal limpia) o destinos
+        Escenas, ///< la lista de escenas: agregar, copiar, quitar, renombrar, mover, carpeta, protegida
+        Aire,    ///< la escena al aire o la transición
+        Fuentes, ///< qué fuentes hay en una escena y en qué orden (agregar, quitar, mover, renombrar)
+        Capa,    ///< cómo está una fuente: visible, lugar, efectos, recorte o sus ajustes
+        Audio,   ///< volumen o silencio de una fuente, o las entradas de audio del equipo
+        Ajustes, ///< se aplicó la configuración (Configuración o settings_set del MCP)
+    };
+    /// Suma a alguien a los avisos; devuelve su id (para `dejarDeObservar`). Se
+    /// lo llama en el hilo de la operación (el de la interfaz) y puede llegar
+    /// muchas veces seguidas (arrastrar una capa, crear escenas en tanda): el
+    /// trabajo pesado, agrupado del lado de quien escucha.
+    int observar(std::function<void(Cambio)> fn);
+    void dejarDeObservar(int id);
+    /// La configuración se aplicó y se guardó (lo llama SettingsModel::apply): los
+    /// formularios de Configuración que no tienen cambios a medio hacer se recargan.
+    void ajustesAplicados() { avisar(Cambio::Ajustes); }
+
     // --- Salidas --------------------------------------------------------------
     /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
     /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
@@ -72,16 +98,32 @@ class AppRuntime {
     /// Graba una entrada a su propio archivo, ademas del programa. Ver
     /// BroadcastEngine::startSourceRecording: cada una es un encode mas.
     bool startSourceRecording(const std::string& source);
+    /// Grabar una fuente aparte (ISO) con las reglas: disco para al menos
+    /// kDiscoMinimoAparteH y el tope de BroadcastEngine::kMaxIndividuales.
+    /// "" = arrancó; si no, por qué no. La GUI y el MCP pasan por acá.
+    std::string grabarAparte(const std::string& fuente);
+    /// Con menos disco que esto (a este bitrate) la grabación del programa no
+    /// arranca sola: la GUI pide confirmar, el MCP no la arranca.
+    static constexpr double kDiscoMinimoH = 0.25;
+    static constexpr double kDiscoMinimoAparteH = 0.5;
     bool stopSourceRecording(const std::string& source);
     void stopAllSourceRecordings();
     /// La señal limpia (sin DSK ni placa) a un destino guardado (`destino` = su id) o
     /// a Recordings/limpia/ si viene vacío. "" o el error.
     std::string iniciarSenalLimpia(const std::string& destino);
+    /// Corta la señal limpia (y avisa, como todas las salidas).
+    void detenerSenalLimpia();
     /// Prende o apaga la repetición con cfg_.replaySegundos. Devuelve la nota para el operador.
     std::string aplicarReplay();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
     bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false);
     void stopStreaming();
+    /// Salir al aire a mano (servidor y clave escritos o los de la configuración):
+    /// startStreaming y, si arrancó o cambió de destino, avisa a alVivoManual con el
+    /// servidor (nunca la clave). La GUI y el MCP pasan por acá: el vivo queda en el
+    /// bus y en el histórico venga de donde venga.
+    bool salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente = false);
+    void alVivoManual(std::function<void(const std::string& servidor)> f) { alVivoManual_ = std::move(f); }
 
     // --- Destinos adicionales de la transmisión (Config/destinos.json; la
     // clave de cada uno en el almacén cifrado como "stream-<id>") -------------
@@ -126,6 +168,8 @@ class AppRuntime {
     bool addSource(const std::string& scene, const SourceSpec& spec);
     bool removeSource(const std::string& scene, const std::string& name);
     bool moveSource(const std::string& scene, const std::string& name, int delta);
+    /// Renombra una fuente en el motor y en todas las escenas de la configuración.
+    bool renameSource(const std::string& from, const std::string& to);
     bool setSourceVisible(const std::string& scene, const std::string& name, bool visible);
     bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect);
     /// Transparencia, borde difuso y sombra de la fuente en la escena (y se guarda en la config).
@@ -142,8 +186,15 @@ class AppRuntime {
     bool applyEncoder(const EncoderConfig& e);
     /// Guarda app.json, gateway.json y launcher.json.
     bool save();
-    /// Reinicia B (el launcher lo relanza con gateway.json nuevo).
+    /// Reinicia B (el launcher lo relanza con gateway.json nuevo). BLOQUEA hasta
+    /// ~4 s (espera que B se cierre): desde la interfaz o el MCP, usar
+    /// reiniciarSalaEnElFondo.
     bool restartGateway();
+    /// Lo mismo sin bloquear a quien lo pide: corre en un hilo aparte (uno a la
+    /// vez) y llama a `listo` DESDE ESE HILO con el resultado ("" = hecho). Si ya
+    /// hay un reinicio en curso, `listo` recibe que se espere.
+    void reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo);
+    ~AppRuntime();
 
     AppConfig& config() { return cfg_; }
     const AppConfig& config() const { return cfg_; }
@@ -194,6 +245,9 @@ class AppRuntime {
     void ajustarInvitados(int n);
 
    private:
+    void avisar(Cambio c) const;
+    std::vector<std::pair<int, std::function<void(Cambio)>>> observadores_;
+    int proximoObservador_ = 0;
     std::function<std::filesystem::path()> carpetaDelEvento_;
     void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
@@ -214,6 +268,9 @@ class AppRuntime {
     ba::ipc::ControlService control_;
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
     std::string lastError_;
+    std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
+    std::function<void(const std::string&)> alVivoManual_;
+    std::atomic<bool> reiniciandoSala_{false};
     bool streamStopWanted_ = true;
     bool recordStopWanted_ = true;
     bool corteAnterior_ = false;
