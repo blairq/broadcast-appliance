@@ -91,6 +91,8 @@ class Emisor : public QObject {
     void fallo(const QString& motivo);
 
    private:
+    /// Crea el dibujo para el aire (una vez).
+    void prepararAire();
     /// Una tanda del dibujo para el aire (en el hilo de la interfaz).
     void recibirTanda(std::uint64_t fuente, int generacion, std::vector<QImage> cuadros, bool fin, const QString& error);
     struct Impl;

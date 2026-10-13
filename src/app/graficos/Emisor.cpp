@@ -27,6 +27,8 @@ constexpr int kFps = 30;
 /// De a cuántos se le piden al renderizador. Viajan en base64, así que una
 /// tanda muy grande hincha el mensaje sin ganar nada.
 constexpr int kPorTanda = 12;
+/// La primera, para el aire: con dos cuadros ya hay qué mostrar.
+constexpr int kPrimeraTanda = 2;
 
 } // namespace
 
@@ -75,8 +77,10 @@ class DibujoAire {
         return !fin_ && vigente_[p.fuente] == p.generacion;
     }
     void trabajar() {
-        // El renderizador se crea en este hilo: su proceso se usa solo desde acá.
+        // El renderizador se crea en este hilo: su proceso se usa solo desde acá. Se
+        // levanta ya (repertorio no dibuja nada): el primer gráfico no espera su arranque.
         GraficoProceso proc(binario_);
+        if (proc.disponible()) proc.repertorio();
         for (;;) {
             Pedido p;
             {
@@ -89,7 +93,9 @@ class DibujoAire {
             for (int desde = 0; desde < p.total;) {
                 if (!vigente(p)) break; // otro pedido para esa fuente lo reemplazó
                 QVector<int> momentos;
-                for (int k = 0; k < kPorTanda && desde < p.total; ++k, ++desde) momentos.append(desde * 1000 / kFps);
+                // La primera tanda, chica: el gráfico entra enseguida y el resto llega andando.
+                const int tanda = desde == 0 ? kPrimeraTanda : kPorTanda;
+                for (int k = 0; k < tanda && desde < p.total; ++k, ++desde) momentos.append(desde * 1000 / kFps);
                 QString err;
                 const auto parte = proc.tira(p.pedido, momentos, &err);
                 std::vector<QImage> cuadros;
@@ -128,7 +134,24 @@ struct Emisor::Impl {
 };
 
 Emisor::Emisor(const std::filesystem::path& raizDatos, QObject* padre)
-    : QObject(padre), d_(std::make_unique<Impl>(raizDatos)) {}
+    : QObject(padre), d_(std::make_unique<Impl>(raizDatos)) {
+    // El dibujo para el aire, listo de entrada (su ba-grafico arranca en el fondo).
+    if (d_->proc.disponible()) prepararAire();
+}
+
+void Emisor::prepararAire() {
+    if (d_->aire) return;
+    QPointer<Emisor> yo(this);
+    d_->aire = std::make_unique<DibujoAire>(
+        d_->proc.binario(), [yo](const DibujoAire::Pedido& pd, std::vector<QImage> cuadros, bool fin, QString err) {
+            QMetaObject::invokeMethod(
+                qApp,
+                [yo, pd, cuadros = std::move(cuadros), fin, err]() mutable {
+                    if (yo) yo->recibirTanda(pd.fuente, pd.generacion, std::move(cuadros), fin, err);
+                },
+                Qt::QueuedConnection);
+        });
+}
 
 Emisor::~Emisor() = default;
 
@@ -173,18 +196,7 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
     const int total = std::max(1, duracionMs * kFps / 1000);
     // Se dibuja en otro hilo (DibujoAire): sale al aire con la primera tanda y el resto
     // se suma mientras se reproduce. Lo que falle después se avisa con `fallo`.
-    if (!d_->aire) {
-        QPointer<Emisor> yo(this);
-        d_->aire = std::make_unique<DibujoAire>(
-            d_->proc.binario(), [yo](const DibujoAire::Pedido& pd, std::vector<QImage> cuadros, bool fin, QString err) {
-                QMetaObject::invokeMethod(
-                    qApp,
-                    [yo, pd, cuadros = std::move(cuadros), fin, err]() mutable {
-                        if (yo) yo->recibirTanda(pd.fuente, pd.generacion, std::move(cuadros), fin, err);
-                    },
-                    Qt::QueuedConnection);
-            });
-    }
+    prepararAire();
     const int gen = ++d_->generacion[fuente];
     d_->empezado[fuente] = false;
     d_->repetir[fuente] = repetir;
