@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <map>
 #include <set>
 
 #include <QCoreApplication>
@@ -940,7 +941,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "                                        `fuente` es el nombre de la fuente «Grafico\n"
             "                                        animado» de la escena (DONDE se ve); `grafico` es\n"
             "                                        cual de los guardados; `valores` son sus parametros\n"
-            "                                        (los que no pongas quedan en el valor por defecto).\n"
+            "                                        {clave: texto} (los que no pongas quedan en el valor\n"
+            "                                        por defecto). OJO: `valores` y `grafico`, NO\n"
+            "                                        `parametros`/`nombre` como en grafico_mostrar.\n"
             "                                        accion: mostrar (por defecto), ocultar, o\n"
             "                                        prender/apagar un VINCULO (un rotulo que se\n"
             "                                        mantiene solo): en ese caso lleva {vinculo} con\n"
@@ -983,6 +986,52 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"required", {"bloque"}}};
         t.run = [&ev](const json& a, Done done) {
             const int b = a["bloque"].get<int>();
+            // LO QUE EL TIPO NO USA, SE DICE (antes se guardaba callado): el asistente mandó
+            // los textos de los gráficos como `params`/`parametros` (así se llaman en
+            // grafico_mostrar), nadie los leía y todos salieron con el texto por defecto.
+            const auto revisarDatos = [&ev, &a, b]() -> std::string {
+                if (!a.contains("datos") || !a["datos"].is_object()) return {};
+                std::string tipo = a.value("tipo", std::string());
+                if (tipo.empty() && a.contains("cue")) {
+                    const QVariantList bs = ev.guion()["bloques"].toList();
+                    const int c = a["cue"].get<int>();
+                    if (b >= 0 && b < bs.size()) {
+                        const QVariantList cs = bs[b].toMap()["cues"].toList();
+                        if (c >= 0 && c < cs.size()) tipo = cs[c].toMap()["tipo"].toString().toStdString();
+                    }
+                }
+                static const std::map<std::string, std::set<std::string>> kCampos{
+                    {"escena", {"escena"}},
+                    {"musica", {"archivo", "accion", "repetir"}},
+                    {"video", {"archivo", "accion", "repetir", "alAire"}},
+                    {"teleprompter", {"discurso", "arrancar"}},
+                    {"orador", {"participante"}},
+                    {"grafico", {"fuente", "grafico", "valores", "duracionMs", "repetir", "accion", "vinculo"}},
+                    {"pantalla", {"pantalla", "contenido", "tipo", "pie"}},
+                    {"audio", {"accion", "fuente", "db"}},
+                    {"pausa", {}}, {"espera", {}}, {"nota", {}}};
+                const auto it = kCampos.find(tipo);
+                if (it == kCampos.end()) return {};
+                std::string corregidos, fuera;
+                for (const auto& [k, v] : a["datos"].items()) {
+                    if (it->second.count(k)) continue;
+                    if (tipo == "grafico" && (k == "params" || k == "parametros")) corregidos += " «" + k + "»→«valores»";
+                    else if (tipo == "grafico" && k == "nombre") corregidos += " «nombre»→«grafico»";
+                    else fuera += (fuera.empty() ? "" : ", ") + std::string("«") + k + "»";
+                }
+                std::string aviso;
+                if (!corregidos.empty())
+                    aviso += " Ojo: en un cue de " + tipo + " se tomó" + corregidos +
+                             " (los campos del gráfico van en `valores`, no como en grafico_mostrar).";
+                if (!fuera.empty()) {
+                    std::string acepta;
+                    for (const auto& k : it->second) acepta += (acepta.empty() ? "" : ", ") + k;
+                    aviso += " Ojo: un cue de " + tipo + " no usa " + fuera + " (se guardó igual, pero no hace nada). " +
+                             "Usa: " + (acepta.empty() ? std::string("nada en datos") : acepta) + ".";
+                }
+                return aviso;
+            };
+            const std::string aviso = revisarDatos();
             if (!a.contains("cue")) {
                 const QString id =
                     ev.agregarCue(b, QString::fromStdString(a.value("tipo", std::string("nota"))));
@@ -998,7 +1047,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (a.contains("duracionSeg")) campos["duracionSeg"] = a["duracionSeg"].get<int>();
                 if (a.contains("automatico")) campos["automatico"] = a["automatico"].get<bool>();
                 if (!campos.isEmpty()) ev.editarCue(b, ultimo, campos);
-                return done(ToolResult::ok("Cue agregado en el bloque " + std::to_string(b) + "."));
+                return done(ToolResult::ok("Cue agregado en el bloque " + std::to_string(b) + "." + aviso));
             }
             const int c = a["cue"].get<int>();
             if (a.value("quitar", false)) {
@@ -1016,7 +1065,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("duracionSeg")) campos["duracionSeg"] = a["duracionSeg"].get<int>();
             if (a.contains("automatico")) campos["automatico"] = a["automatico"].get<bool>();
             ev.editarCue(b, c, campos);
-            done(ToolResult::ok("Cue actualizado."));
+            done(ToolResult::ok("Cue actualizado." + aviso));
         };
         core.addTool(std::move(t));
     }

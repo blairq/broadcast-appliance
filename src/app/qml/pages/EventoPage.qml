@@ -118,14 +118,19 @@ Rectangle {
 
                 // El evento abierto (con todo lo suyo: escenas, mezclador, medios, asamblea,
                 // web). Uno nuevo o abrir otro: cada uno tiene lo suyo, nunca se pisan.
+                // Lo que se achica cuando falta lugar (el título, el selector, el conteo):
+                // así «Guardar» nunca queda afuera de la ventana.
                 ColumnLayout {
                     spacing: 0
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 90
+                    Layout.maximumWidth: 260
                     Text { text: "EVENTO"; color: Theme.textFaint; font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
                     Text {
                         text: Studio.configuraciones ? Studio.configuraciones.activa : ""
                         color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                         elide: Text.ElideRight
-                        Layout.maximumWidth: 260
+                        Layout.fillWidth: true
                     }
                 }
                 GlassButton {
@@ -143,7 +148,9 @@ Rectangle {
                 Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 8; color: Qt.rgba(1, 1, 1, 0.1) }
                 ComboBox {
                     id: selector
-                    Layout.preferredWidth: 220
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 130
+                    Layout.maximumWidth: 220
                     model: page.ev.eventos
                     textRole: "nombre"
                     displayText: page.ev.abierto === "" ? "Elegí un evento…" : (page.ev.guion.nombre || page.ev.abierto)
@@ -183,6 +190,10 @@ Rectangle {
                     text: page.ev.guion.cues + " cues · " + page.mmss(page.ev.guion.duracionSeg)
                     color: Theme.textDim
                     font.pixelSize: 12
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: implicitWidth
                 }
                 // Cuando es el evento. Sin fecha no se lo puede convocar ni
                 // archivar, asi que cuando falta se ve que falta en vez de no
@@ -789,6 +800,13 @@ Rectangle {
                                                     color: Theme.textDim
                                                     font { family: Theme.mono; pixelSize: 11 }
                                                 }
+                                                // Editarlo (lo mismo que tocar la fila): el editor sale a la derecha.
+                                                GlassButton {
+                                                    compact: true; text: "✎"
+                                                    active: elegido
+                                                    onClicked: { page.selB = modelData.bloque; page.selC = modelData.cue; cueDlg.abrir(modelData.bloque, modelData.cue) }
+                                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Editar este cue"
+                                                }
                                             }
                                         }
                                     }
@@ -964,277 +982,220 @@ Rectangle {
                     }
                 }
 
-                // Antes de salir: la lista de chequeo manual (lo que no se mide solo).
-                Panel {
-                    id: chequeoPanel
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
-                    title: "Antes de salir · " + lista.filter(x => x.hecho).length + "/" + lista.length
-                    property var lista: page.ev.chequeo()
-                    Connections {
-                        target: page.ev
-                        function onChequeoChanged() { chequeoPanel.lista = page.ev.chequeo() }
-                    }
-                    ListView {
-                        anchors.fill: parent
-                        clip: true
-                        spacing: 2
-                        model: chequeoPanel.lista
-                        delegate: RowLayout {
-                            required property var modelData
-                            width: ListView.view.width
-                            spacing: 6
-                            CheckBox {
-                                checked: modelData.hecho
-                                onToggled: page.ev.marcarChequeo(modelData.item, checked, modelData.nota)
-                            }
-                            Text {
-                                Layout.fillWidth: true; elide: Text.ElideRight
-                                text: modelData.texto + (modelData.cuando ? "  · " + modelData.cuando : "")
-                                color: modelData.hecho ? Theme.textFaint : Theme.text
-                                font { pixelSize: 11; strikeout: modelData.hecho }
-                            }
-                        }
-                    }
-                }
-
-                // Reparos de la revision previa
-                Panel {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Math.min(150, 40 + page.ev.reparos.length * 34)
-                    visible: page.ev.reparos.length > 0
-                    title: "Revisión"
-                    ListView {
-                        anchors.fill: parent
-                        clip: true
-                        spacing: 4
-                        model: page.ev.reparos
-                        delegate: RowLayout {
-                            required property var modelData
-                            width: ListView.view.width
-                            spacing: 6
-                            Text {
-                                text: modelData.grave ? "●" : "○"
-                                color: modelData.grave ? Theme.live : Theme.amber
-                                font.pixelSize: 12
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: (modelData.bloque >= 0 ? "Bloque " + (modelData.bloque + 1) +
-                                       (modelData.cue >= 0 ? ", cue " + (modelData.cue + 1) : "") + ": " : "") +
-                                      modelData.texto
-                                color: Theme.textDim
-                                font.pixelSize: 11
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: { page.selB = modelData.bloque; page.selC = modelData.cue }
-                            }
-                        }
-                    }
-                }
-
-                // El cue elegido: su formulario
+                // El cue elegido: lo que es (solo para leer). Se edita en el modal (DialogoCue),
+                // con el lápiz de la fila o con «Editar…».
                 Panel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: page.selCue ? "Cue" : ""
-                    visible: true
+                    title: page.selCue ? "Cue " + (page.selC + 1) + " del bloque " + (page.selB + 1) : ""
+                    visible: !!page.selCue
 
-                    Text {
-                        anchors.centerIn: parent
-                        visible: !page.selCue
-                        width: parent.width - 20
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
-                        text: "Tocá un cue del guion para editarlo.\nDoble clic lo pone al aire."
-                        color: Theme.textFaint
-                        font.pixelSize: 12
+                    GlassButton {
+                        z: 2
+                        anchors { right: parent.right; top: parent.top; topMargin: -40 }
+                        compact: true; text: "✕"
+                        onClicked: page.selC = -1
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Volver al chequeo y la bitácora"
                     }
 
                     ScrollView {
                         id: cueScroll
                         anchors.fill: parent
-                        visible: !!page.selCue
                         clip: true
                         contentWidth: availableWidth
                         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                         ColumnLayout {
                             width: cueScroll.availableWidth
-                            spacing: 7
-
+                            spacing: 6
+                            RowLayout {
+                                spacing: 8
+                                Rectangle {
+                                    Layout.preferredWidth: tipoInfo.implicitWidth + 12
+                                    Layout.preferredHeight: 20
+                                    radius: 3
+                                    color: Qt.rgba(1, 1, 1, 0.07)
+                                    Text {
+                                        id: tipoInfo
+                                        anchors.centerIn: parent
+                                        text: page.selCue ? page.selCue.tipo : ""
+                                        color: page.selCue ? page.colorDeTipo(page.selCue.tipo) : Theme.text
+                                        font { pixelSize: 11; weight: Font.DemiBold }
+                                    }
+                                }
+                                Text {
+                                    text: page.selCue ? page.mmss(page.selCue.duracionSeg) + (page.selCue.automatico ? " · encadena solo" : "") : ""
+                                    color: Theme.textDim; font { family: Theme.mono; pixelSize: 11 }
+                                }
+                            }
                             Text {
-                                visible: page.selCue && page.selCue.falta !== ""
+                                visible: !!page.selCue && page.selCue.falta !== ""
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 text: page.selCue ? "⚠ " + page.selCue.falta : ""
                                 color: Theme.live
                                 font.pixelSize: 11
                             }
-
-                            Text { text: "Qué dice"; color: Theme.textDim; font.pixelSize: 11 }
-                            TextField {
+                            Text {
                                 Layout.fillWidth: true
-                                text: page.selCue ? page.selCue.texto : ""
-                                placeholderText: "Lo que vas a leer cuando toque"
+                                wrapMode: Text.WordWrap
+                                text: page.selCue ? (page.selCue.texto || "(sin texto)") : ""
                                 color: Theme.text
                                 font.pixelSize: 12
-                                onEditingFinished: page.ev.editarCue(page.selB, page.selC, { texto: text })
                             }
-
-                            // Los campos propios del tipo.
+                            // Lo propio del tipo, como está guardado.
                             Repeater {
                                 model: {
                                     if (!page.selCue) return []
-                                    const ts = page.ev.tiposDeCue()
-                                    for (let i = 0; i < ts.length; i++)
-                                        if (ts[i].tipo === page.selCue.tipo) return ts[i].campos
-                                    return []
-                                }
-                                delegate: ColumnLayout {
-                                    required property string modelData
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    Text { text: modelData; color: Theme.textDim; font.pixelSize: 11 }
-                                    TextField {
-                                        Layout.fillWidth: true
-                                        text: page.selCue && page.selCue.datos[modelData] !== undefined
-                                              ? String(page.selCue.datos[modelData]) : ""
-                                        color: Theme.text
-                                        font.pixelSize: 12
-                                        onEditingFinished: {
-                                            let d = {}
-                                            d[modelData] = text
-                                            page.ev.editarCue(page.selB, page.selC, { datos: d })
+                                    const out = []
+                                    const d = page.selCue.datos || {}
+                                    for (const k in d) {
+                                        if (k === "valores" && typeof d[k] === "object") {
+                                            for (const v in d[k]) out.push({ k: v, v: String(d[k][v]) })
+                                        } else {
+                                            out.push({ k: k, v: typeof d[k] === "object" ? JSON.stringify(d[k]) : String(d[k]) })
                                         }
                                     }
+                                    return out
+                                }
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    Text { text: modelData.k; color: Theme.textFaint; font.pixelSize: 11; Layout.preferredWidth: 90; elide: Text.ElideRight }
+                                    Text { text: modelData.v; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere }
                                 }
                             }
-
-                            // Un cue de gráfico lleva ADEMÁS los parámetros del
-                            // gráfico elegido. Se leen de su ficha, así que un
-                            // gráfico nuevo aparece acá sin tocar esta pantalla.
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 6
-                                visible: page.selCue && page.selCue.tipo === "grafico"
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    color: Theme.textDim
-                                    font.pixelSize: 10
-                                    text: {
-                                        const fs = page.ev.fuentesDeGrafico()
-                                        const gs = page.ev.graficosDisponibles()
-                                        return "Fuentes en las escenas: " + (fs.length ? fs.join(" · ") : "ninguna todavía") +
-                                               "\nGráficos guardados: " + (gs.length ? gs.join(" · ") : "ninguno")
-                                    }
-                                }
-
-                                Repeater {
-                                    model: page.selCue && page.selCue.tipo === "grafico"
-                                           ? page.ev.parametrosDeGrafico(page.selCue.datos.grafico || "") : []
-                                    delegate: ColumnLayout {
-                                        required property var modelData
-                                        Layout.fillWidth: true
-                                        spacing: 2
-                                        Text {
-                                            text: modelData.titulo || modelData.clave
-                                            color: Theme.textDim; font.pixelSize: 11
-                                        }
-                                        TextField {
-                                            Layout.fillWidth: true
-                                            color: Theme.text
-                                            font.pixelSize: 12
-                                            // Vacío = queda el valor por defecto del gráfico, y se
-                                            // muestra como marca de agua para que se sepa cuál es.
-                                            placeholderText: String(modelData.porDefecto !== undefined
-                                                                    ? modelData.porDefecto : "")
-                                            text: {
-                                                const v = page.selCue && page.selCue.datos.valores
-                                                if (!v || v[modelData.clave] === undefined) return ""
-                                                return String(v[modelData.clave])
-                                            }
-                                            onEditingFinished: page.ev.setValorDeCue(page.selB, page.selC,
-                                                                                     modelData.clave, text)
-                                        }
-                                    }
-                                }
-                            }
-
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
-                                ColumnLayout {
-                                    spacing: 2
-                                    Text { text: "Dura (seg)"; color: Theme.textDim; font.pixelSize: 11 }
-                                    TextField {
-                                        Layout.preferredWidth: 90
-                                        text: page.selCue ? String(page.selCue.duracionSeg) : "0"
-                                        color: Theme.text
-                                        font.pixelSize: 12
-                                        validator: IntValidator { bottom: 0; top: 86400 }
-                                        onEditingFinished: page.ev.editarCue(page.selB, page.selC,
-                                                                             { duracionSeg: parseInt(text) || 0 })
-                                    }
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    Text { text: "Encadena solo"; color: Theme.textDim; font.pixelSize: 11 }
-                                    Toggle {
-                                        checked: page.selCue ? page.selCue.automatico : false
-                                        onToggled: (w) => page.ev.editarCue(page.selB, page.selC, { automatico: w })
-                                    }
-                                }
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
+                                Layout.topMargin: 6
                                 spacing: 6
-                                GlassButton {
-                                    text: "Poner al aire"; compact: true
-                                    onClicked: page.ev.irA(page.selB, page.selC)
-                                }
-                                Item { Layout.fillWidth: true }
-                                GlassButton {
-                                    icon: "✕"; text: "Quitar"; compact: true
-                                    onClicked: { page.ev.quitarCue(page.selB, page.selC); page.selC = -1 }
-                                }
+                                GlassButton { text: "Editar…"; compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
+                                GlassButton { text: "Poner al aire"; compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
                             }
                         }
                     }
                 }
 
-                // Bitacora: lo que fue pasando
-                Panel {
+                // Sin cue elegido: el chequeo, la revisión y la bitácora, con desplazamiento
+                // (apilados excedían la ventana y empujaban la página hacia abajo).
+                ScrollView {
+                    id: extrasScroll
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 130
-                    visible: page.ev.bitacora.length > 0
-                    title: "Lo que pasó"
-                    ListView {
-                        anchors.fill: parent
-                        clip: true
-                        spacing: 2
-                        model: page.ev.bitacora
-                        delegate: RowLayout {
-                            required property var modelData
-                            width: ListView.view.width
-                            spacing: 6
-                            Text {
-                                text: modelData.hora
-                                color: Theme.textFaint
-                                font { family: Theme.mono; pixelSize: 10 }
+                    Layout.fillHeight: true
+                    visible: !page.selCue
+                    clip: true
+                    contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ColumnLayout {
+                        width: extrasScroll.availableWidth
+                        spacing: 14
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: "Tocá un cue para ver qué hace; el lápiz lo edita. Doble clic lo pone al aire."
+                            color: Theme.textFaint
+                            font.pixelSize: 11
+                        }
+                        // Antes de salir: la lista de chequeo manual (lo que no se mide solo).
+                        Panel {
+                            id: chequeoPanel
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
+                            title: "Antes de salir · " + lista.filter(x => x.hecho).length + "/" + lista.length
+                            property var lista: page.ev.chequeo()
+                            Connections {
+                                target: page.ev
+                                function onChequeoChanged() { chequeoPanel.lista = page.ev.chequeo() }
                             }
-                            Text {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: modelData.texto
-                                color: modelData.tipo === "error" ? Theme.live
-                                       : (modelData.tipo === "ok" ? Theme.ok : Theme.textDim)
-                                font.pixelSize: 11
+                            ListView {
+                                anchors.fill: parent
+                                clip: true
+                                spacing: 2
+                                model: chequeoPanel.lista
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    spacing: 6
+                                    CheckBox {
+                                        checked: modelData.hecho
+                                        onToggled: page.ev.marcarChequeo(modelData.item, checked, modelData.nota)
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        text: modelData.texto + (modelData.cuando ? "  · " + modelData.cuando : "")
+                                        color: modelData.hecho ? Theme.textFaint : Theme.text
+                                        font { pixelSize: 11; strikeout: modelData.hecho }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Reparos de la revision previa
+                        Panel {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.min(150, 40 + page.ev.reparos.length * 34)
+                            visible: page.ev.reparos.length > 0
+                            title: "Revisión"
+                            ListView {
+                                anchors.fill: parent
+                                clip: true
+                                spacing: 4
+                                model: page.ev.reparos
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    spacing: 6
+                                    Text {
+                                        text: modelData.grave ? "●" : "○"
+                                        color: modelData.grave ? Theme.live : Theme.amber
+                                        font.pixelSize: 12
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        text: (modelData.bloque >= 0 ? "Bloque " + (modelData.bloque + 1) +
+                                               (modelData.cue >= 0 ? ", cue " + (modelData.cue + 1) : "") + ": " : "") +
+                                              modelData.texto
+                                        color: Theme.textDim
+                                        font.pixelSize: 11
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: { page.selB = modelData.bloque; page.selC = modelData.cue }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bitacora: lo que fue pasando
+                        Panel {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 130
+                            visible: page.ev.bitacora.length > 0
+                            title: "Lo que pasó"
+                            ListView {
+                                anchors.fill: parent
+                                clip: true
+                                spacing: 2
+                                model: page.ev.bitacora
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    spacing: 6
+                                    Text {
+                                        text: modelData.hora
+                                        color: Theme.textFaint
+                                        font { family: Theme.mono; pixelSize: 10 }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                        text: modelData.texto
+                                        color: modelData.tipo === "error" ? Theme.live
+                                               : (modelData.tipo === "ok" ? Theme.ok : Theme.textDim)
+                                        font.pixelSize: 11
+                                    }
+                                }
                             }
                         }
                     }
@@ -1563,6 +1524,9 @@ Rectangle {
         }
     }
 
+    // --- Editar un cue (el lápiz de la fila) -----------------------------------
+    DialogoCue { id: cueDlg; ev: page.ev }
+
     // --- Elegir el tipo de cue ------------------------------------------------
     Dialog {
         id: tipoDlg
@@ -1618,6 +1582,7 @@ Rectangle {
                             page.selB = tipoDlg.bloque
                             page.selC = cs.length - 1
                             tipoDlg.close()
+                            cueDlg.abrir(page.selB, page.selC)
                         }
                     }
                 }

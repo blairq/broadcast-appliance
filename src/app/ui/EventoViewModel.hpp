@@ -257,6 +257,11 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QStringList fuentesDeGrafico() const;
     /// Los parametros que declara ese grafico, para armar el formulario del cue.
     Q_INVOKABLE QVariantList parametrosDeGrafico(const QString& grafico) const;
+    /// Las opciones para el campo `campo` de un cue de tipo `tipo`, para elegirlas en
+    /// vez de escribirlas: [{valor, texto}] (las escenas, los medios del evento, los
+    /// discursos, los gráficos y sus fuentes, las fuentes de audio, quién está en la
+    /// sala, las acciones de cada tipo). Vacía = se escribe (o es un sí/no o un número).
+    Q_INVOKABLE QVariantList opcionesDeCampo(const QString& tipo, const QString& campo) const;
     /// Cambia UN valor de los parametros de un cue de grafico, sin pisar los
     /// otros (que es lo que pasaria mandando `datos` entero).
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);

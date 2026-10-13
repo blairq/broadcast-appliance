@@ -72,6 +72,24 @@ const char* nombreDeTipo(Tipo t) {
     return "nota";
 }
 
+void Cue::normalizarDatos() {
+    if (tipo != Tipo::Grafico || !datos.is_object()) return;
+    // `nombre` es como grafico_mostrar llama al gráfico; acá es `grafico`.
+    if (!datos.contains("grafico") && datos.contains("nombre") && datos["nombre"].is_string()) {
+        datos["grafico"] = datos["nombre"];
+        datos.erase("nombre");
+    }
+    for (const char* alias : {"params", "parametros"}) {
+        if (!datos.contains(alias)) continue;
+        const nlohmann::json v = datos[alias];
+        datos.erase(alias);
+        if (!v.is_object()) continue;
+        if (!datos.contains("valores") || !datos["valores"].is_object()) datos["valores"] = nlohmann::json::object();
+        for (const auto& [k, x] : v.items())
+            if (!datos["valores"].contains(k)) datos["valores"][k] = x;
+    }
+}
+
 bool tipoDeNombre(const std::string& s, Tipo& out) {
     for (const NombreTipo& n : kTipos) {
         if (s == n.nombre) {
@@ -245,6 +263,7 @@ Evento Evento::deJson(const json& j) {
                 if (jc.contains("datos") && jc["datos"].is_object()) c.datos = jc["datos"];
                 c.duracionSeg = std::max(0, enteroDe(jc, "duracionSeg"));
                 c.automatico = boolDe(jc, "automatico");
+                c.normalizarDatos();
                 b.cues.push_back(std::move(c));
             }
         }

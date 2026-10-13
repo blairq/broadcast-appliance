@@ -19,9 +19,11 @@
 #include <QDateTime>
 #include <QPointer>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QCryptographicHash>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimeZone>
@@ -768,6 +770,72 @@ QVariantList EventoViewModel::parametrosDeGrafico(const QString& grafico) const 
     return out;
 }
 
+QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString& campo) const {
+    QVariantList out;
+    const auto op = [&out](const QString& valor, const QString& texto = {}) {
+        out.append(QVariantMap{{"valor", valor}, {"texto", texto.isEmpty() ? valor : texto}});
+    };
+    if (campo == "accion") {
+        if (tipo == "musica" || tipo == "video") {
+            op("arrancar", "Arrancar");
+            op("parar", "Parar");
+        } else if (tipo == "grafico") {
+            op("mostrar", "Mostrar");
+            op("ocultar", "Sacar");
+            op("prender", "Prender el rótulo automático");
+            op("apagar", "Apagar el rótulo automático");
+        } else if (tipo == "audio") {
+            op("silenciar", "Silenciar");
+            op("activar", "Activar");
+            op("volumen", "Cambiar el volumen");
+        }
+    } else if (campo == "escena") {
+        for (const std::string& e : rt_.engine().sceneNames()) op(QString::fromStdString(e));
+    } else if (campo == "archivo") {
+        // Los medios del evento (Media/), con su ruta relativa, solo los del tipo.
+        static const QStringList kAudio{"mp3", "wav", "ogg", "oga", "flac", "m4a", "aac", "opus", "aif", "aiff"};
+        static const QStringList kVideo{"mp4", "mov", "mkv", "webm", "avi", "m4v", "mxf", "ts", "mpg", "mpeg"};
+        const QStringList& exts = tipo == "video" ? kVideo : kAudio;
+        const QDir media(QString::fromStdU16String((rt_.dataRoot() / "Media").u16string()));
+        QStringList rels;
+        QDirIterator it(media.absolutePath(), QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            const QString f = it.next();
+            if (exts.contains(QFileInfo(f).suffix().toLower())) rels << media.relativeFilePath(f);
+        }
+        rels.sort(Qt::CaseInsensitive);
+        for (const QString& r : rels) op(r);
+    } else if (campo == "discurso") {
+        const Discursos docs(carpetaDeDiscursos());
+        for (const QString& carpeta : docs.carpetas())
+            for (const QVariant& d : docs.listar(carpeta)) {
+                const QVariantMap m = d.toMap();
+                op(m.value("rel").toString(), m.value("rel").toString());
+            }
+    } else if (campo == "participante") {
+        // Quien está en la sala ahora (los que llegan después se pueden escribir).
+        if (sala_ != nullptr)
+            for (const QJsonValue& v : sala_->client().snapshot().value("participants").toArray()) {
+                const QJsonObject p = v.toObject();
+                const QString id = p.value("id").toString();
+                if (!id.isEmpty()) op(id, p.value("name").toString().isEmpty() ? id : p.value("name").toString());
+            }
+    } else if (campo == "grafico") {
+        for (const QString& g : graficosDisponibles()) op(g);
+    } else if (campo == "fuente" && tipo == "grafico") {
+        for (const QString& f : fuentesDeGrafico()) op(f);
+    } else if (campo == "fuente" && tipo == "audio") {
+        for (const std::string& f : rt_.engine().audioSources()) op(QString::fromStdString(f));
+    } else if (campo == "contenido" && tipo == "pantalla") {
+        op("programa", "El programa (lo que sale al aire)");
+        op("reloj", "Un reloj");
+        op("prompter", "El teleprompter");
+        op("tally", "Quién está al aire");
+        op("votacion", "La votación");
+    }
+    return out;
+}
+
 void EventoViewModel::setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor) {
     evento::Cue* c = cuePtr(bloque, cue);
     if (c == nullptr || clave.isEmpty()) return;
@@ -919,6 +987,7 @@ void EventoViewModel::editarCue(int bloque, int cue, const QVariantMap& campos) 
                 c->datos[clave] = aJson(it.value());
         }
     }
+    c->normalizarDatos();
     marcarSucio();
 }
 
