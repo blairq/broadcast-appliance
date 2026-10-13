@@ -92,7 +92,7 @@ void McpService::registerGraficoTools() {
             {"properties",
              {{"nombre", {{"type", "string"}, {"description", "Cuál gráfico (ver grafico_listar)."}}},
               {"parametros", {{"type", "object"}, {"description", "Los valores a probar."}}},
-              {"momentos", {{"type", "array"}, {"items", {{"type", "integer"}}}}}}},
+              {"momentos", {{"type", "array"}, {"items", {{"type", "integer"}, {"minimum", 0}}}, {"description", "instantes de la animación, en milisegundos desde que entra"}}}}},
             {"required", {"nombre"}}};
         t.examples = {
             R"({"nombre": "zocalo", "parametros": {"nombre": "Jorge Ortega", "cargo": "Intendente"}, "momentos": [0, 150, 300, 450, 900]})"};
