@@ -287,6 +287,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, conference_->client());
+    accesoRemoto_->setEnVivo([this]() { return modoVivo(); });
     // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un
     // modelo aparte (como el MCP), así no se pisa lo que el operador tenga a medio editar.
     accesoRemoto_->setAplicarPinggy([this](const QVariantMap& cambios) -> QString {

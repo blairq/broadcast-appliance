@@ -54,8 +54,15 @@ class AccesoRemoto : public QObject {
     Q_PROPERTY(QVariantMap prueba READ prueba NOTIFY pruebaChanged)
     /// «Configurar todo con la API key»: {estado: ""|trabajando|ok|error, texto, host, puerto_tcp, subdominio}
     Q_PROPERTY(QVariantMap cuenta READ cuenta NOTIFY cuentaChanged)
+    /// Cómo está saliendo la sala a internet ahora: {activo, via ("pinggy"|"cloudflare"|""),
+    /// estado ("listo"|"conectando"|"error"|"apagado"), url (la pública), texto (para mostrar)}.
+    Q_PROPERTY(QVariantMap conexion READ conexion NOTIFY estadoChanged)
+    /// Las formas de conectar con lo que hay guardado, en el orden en que conviene:
+    /// [{id, nombre, detalle}] (ver conectar).
+    Q_PROPERTY(QVariantList formasDeConectar READ formasDeConectar NOTIFY credencialesChanged)
    public:
     AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* parent = nullptr);
+    ~AccesoRemoto() override;
 
     QVariantMap estado() const { return estado_; }
     QVariantList enlaces() const { return enlaces_; }
@@ -70,6 +77,16 @@ class AccesoRemoto : public QObject {
     QVariantMap prueba() const { return prueba_; }
 
     Q_INVOKABLE void refrescar();
+    QVariantMap conexion() const;
+    QVariantList formasDeConectar() const;
+    /// Saca la sala a internet por `id` (uno de formasDeConectar): "pinggy" (el túnel de
+    /// la cuenta con su dirección), "pinggy-cuenta" (solo la API key: lo arma todo),
+    /// "cloudflare" (el token de Cloudflare) o "pinggy-gratis" (sin cuenta, dirección
+    /// al azar, se corta a los 60 min). Apaga la otra. "" si arrancó; si no, el motivo.
+    /// Reinicia la sala (en el fondo): los invitados conectados se reconectan.
+    Q_INVOKABLE QString conectar(const QString& id);
+    /// Apaga pinggy y Cloudflare. "" si salió; si no, el motivo.
+    Q_INVOKABLE QString desconectar();
     /// Guarda el token de túnel (cifrado). "" si salió bien, si no el motivo.
     Q_INVOKABLE QString guardarToken(const QString& token);
     /// Guarda el token de túnel y dice si hay que reiniciar la sala para que
@@ -100,6 +117,9 @@ class AccesoRemoto : public QObject {
     /// Lo pone StudioViewModel: aplica cambios de Configuración → Pinggy
     /// ({"pinggy.activo": true, …}) y devuelve el resumen (o el error).
     void setAplicarPinggy(std::function<QString(const QVariantMap&)> f) { aplicarPinggy_ = std::move(f); }
+    /// Lo pone StudioViewModel: si el evento está corriendo (conectar o desconectar
+    /// reinicia la sala: no se toca hasta que termine, la misma regla que el MCP).
+    void setEnVivo(std::function<bool()> f) { enVivo_ = std::move(f); }
     /// Prueba si pinggy da esa dirección con el token guardado: abre un túnel de
     /// prueba corto (sin desplazar a otro) y compara la dirección que devuelve.
     /// Con la API key, mira antes si ya la usa un túnel activo de la cuenta.
@@ -128,6 +148,7 @@ class AccesoRemoto : public QObject {
     QTimer poll_;
     bool siguiendo_ = false;
     QString ruta_ = "/api/remoto"; ///< la que contestó (o la primera a probar)
+    int observador_ = -1;          ///< AppRuntime::observar (Ajustes: cambió pinggy o Cloudflare)
     QVariantMap estado_;
     QVariantList enlaces_;
     QVariantMap dns_;
@@ -137,6 +158,7 @@ class AccesoRemoto : public QObject {
     void probarConTunel(const QString& host);
     QVariantMap cuenta_;
     std::function<QString(const QVariantMap&)> aplicarPinggy_;
+    std::function<bool()> enVivo_;
     void ponerCuenta(const QString& estado, const QString& texto, const QVariantMap& extra = {});
     void seguirConToken(const std::string& clave, const QString& subdominio);
 };

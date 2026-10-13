@@ -6,29 +6,103 @@ import BA
 import "../controls"
 
 Item {
+    id: tarjeta
+    readonly property var acceso: Studio.accesoRemoto
+    readonly property var cx: acceso ? acceso.conexion : ({})
+    readonly property var formas: acceso ? acceso.formasDeConectar : []
+    // El link que conviene pasar: el de internet si la sala sale por un túnel; si no, el local.
+    readonly property string link: cx.estado === "listo" && cx.url ? cx.url.replace(/\/$/, "") + "/invitados/#room=" + Studio.room
+                                                                  : Studio.joinUrl
+    // Mientras se ve, el estado del túnel se consulta cada 5 s.
+    Binding { target: tarjeta.acceso; property: "siguiendo"; value: tarjeta.visible; when: !!tarjeta.acceso }
+    function conectar(id) {
+        const e = acceso.conectar(id)
+        Studio.notify(e !== "" ? e : "Conectando la sala a internet… (la sala se reinicia: los invitados se reconectan solos)",
+                      e !== "" ? "error" : "info")
+    }
+    DialogoQrSala { id: qrDlg }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
         RowLayout {
             Layout.fillWidth: true
-            StatusPill { text: Studio.gatewayAlive ? "Gateway" : "Gateway caido"; dot: Studio.gatewayAlive ? Theme.ok : Theme.live; pulse: !Studio.gatewayAlive }
-            Item { Layout.fillWidth: true }
-            Text { text: "Sala: " + Studio.room; color: Theme.textDim; font.pixelSize: 12 }
+            spacing: 8
+            StatusPill {
+                text: Studio.gatewayAlive ? "Sala lista" : "Sala caída"
+                dot: Studio.gatewayAlive ? Theme.ok : Theme.live; pulse: !Studio.gatewayAlive
+                HoverHandler { id: salaHov }
+                ToolTip.visible: salaHov.hovered; ToolTip.delay: 400
+                ToolTip.text: Studio.gatewayAlive ? "El servidor de la sala (el gateway) está andando: recibe a los invitados por el navegador."
+                                                  : "El servidor de la sala (el gateway) no responde: se reinicia solo. Mientras tanto nadie puede entrar."
+            }
+            // Por dónde se puede entrar: solo la red local, o también por internet.
+            Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4
+                        color: tarjeta.cx.estado === "listo" ? Theme.ok : tarjeta.cx.estado === "error" ? Theme.live
+                             : tarjeta.cx.activo ? Theme.amber : Theme.textFaint }
+            Text {
+                Layout.fillWidth: true
+                text: tarjeta.cx.texto || ""
+                color: tarjeta.cx.estado === "error" ? Theme.live : Theme.textDim
+                font.pixelSize: 11; elide: Text.ElideRight
+                HoverHandler { id: cxHov }
+                ToolTip.visible: cxHov.hovered && truncated; ToolTip.text: text
+            }
+            Text { text: "Sala: " + Studio.room; color: Theme.textFaint; font.pixelSize: 11 }
         }
         RowLayout {
             Layout.fillWidth: true
+            spacing: 6
             TextField {
                 Layout.fillWidth: true
                 readOnly: true
-                text: Studio.joinUrl
+                text: tarjeta.link
                 font.pixelSize: 11
                 selectByMouse: true
             }
             GlassButton {
                 text: "Copiar"; compact: true
-                onClicked: { urlHelper.text = Studio.joinUrl; urlHelper.selectAll(); urlHelper.copy(); Studio.notify("Link copiado", "ok") }
+                onClicked: { Studio.copiar(tarjeta.link); Studio.notify("Link copiado", "ok") }
             }
-            TextEdit { id: urlHelper; visible: false }
+            GlassButton {
+                text: "QR"; icon: "⊞"; compact: true
+                onClicked: qrDlg.show(tarjeta.cx.estado === "listo" ? "remote" : "local")
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "El código para escanear: adentro se elige red local o por internet, y si va el PIN."
+            }
+            GlassButton {
+                id: vpnBtn
+                compact: true
+                text: tarjeta.cx.activo ? "Desconectar" : "Conectar VPN"
+                active: !tarjeta.cx.activo
+                onClicked: {
+                    if (tarjeta.cx.activo) {
+                        const e = tarjeta.acceso.desconectar()
+                        Studio.notify(e !== "" ? e : "La sala vuelve a ser solo de la red local (se reinicia)", e !== "" ? "error" : "info")
+                    } else {
+                        vpnMenu.popup(vpnBtn, 0, vpnBtn.height)
+                    }
+                }
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: tarjeta.cx.activo ? "Corta el acceso desde internet (la sala se reinicia)."
+                                                : "Saca la sala a internet para que entren invitados de afuera."
+                Menu {
+                    id: vpnMenu
+                    Repeater {
+                        model: tarjeta.formas
+                        delegate: MenuItem {
+                            required property var modelData
+                            text: modelData.nombre + " — " + modelData.detalle
+                            onTriggered: tarjeta.conectar(modelData.id)
+                        }
+                    }
+                    MenuSeparator {}
+                    MenuItem {
+                        text: "Configurar pinggy o Cloudflare…"
+                        onTriggered: { Studio.seccionConfig = "Pinggy"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
+                    }
+                }
+            }
         }
         GridLayout {
             Layout.fillWidth: true

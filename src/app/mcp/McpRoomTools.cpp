@@ -685,6 +685,40 @@ void McpService::registerRoomTools() {
         }
         {
             Tool t;
+            t.name = "acceso_remoto_conectar";
+            t.title = "Acceso remoto: conectar o desconectar la sala de internet";
+            t.category = "sala";
+            t.openWorld = true;
+            t.description = "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la sala a internet por "
+                            "`via` o la vuelve a dejar solo en la red local (`via`: \"desconectar\"). Sin `via` dice "
+                            "cómo está y las formas que hay con lo guardado.";
+            t.details = "Las formas (solo las que se pueden con lo que hay guardado; la lista la da la llamada sin "
+                        "`via`): pinggy (el token de la cuenta, con su dirección), pinggy-cuenta (solo la API key: "
+                        "arma todo), cloudflare (el token de Cloudflare), pinggy-gratis (sin cuenta, dirección al "
+                        "azar, se corta a los 60 min). Conectar por una apaga la otra. Reinicia la sala: los "
+                        "invitados se reconectan solos. Con el evento corriendo no se toca.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"via", {{"type", "string"},
+                                        {"enum", {"pinggy", "pinggy-cuenta", "cloudflare", "pinggy-gratis", "desconectar"}}}}}}};
+            t.run = [acc](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const auto aJson = [](const QVariant& v) {
+                    return json::parse(QJsonDocument::fromVariant(v).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+                };
+                if (!a.contains("via"))
+                    return done(ToolResult().data({{"conexion", aJson(acc->conexion())}, {"formas", aJson(acc->formasDeConectar())}}));
+                const QString via = QString::fromStdString(a["via"].get<std::string>());
+                const QString e = via == "desconectar" ? acc->desconectar() : acc->conectar(via);
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                done(ToolResult::ok(via == "desconectar" ? "La sala vuelve a ser solo de la red local (se reinicia)."
+                                                         : "Conectando por " + via.toStdString() +
+                                                               " (la sala se reinicia). Mirá acceso_remoto_estado en unos segundos."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
             t.name = "acceso_remoto_cortar_tuneles";
             t.title = "Acceso remoto: cortar los túneles activos de la cuenta de pinggy";
             t.category = "sala";
