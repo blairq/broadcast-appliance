@@ -203,7 +203,8 @@ def main():
         if not (a_medias and (corpus / "huella.json").exists()):
             correr([PY, E / "tc-corpus.py", "--salida", corpus], salida=d / "corpus.log")
         huella = json.loads((corpus / "huella.json").read_text())
-        if not (ad / "adapter_config.json").exists():
+        ya_estaba = (ad / "adapter_config.json").exists()
+        if not ya_estaba:
             # las dos placas como una (FSDP2; entrenar-rapido supervisa y reanuda)
             correr([PY, E / "entrenar-rapido.py", "--fsdp", "--recalcular", "--base", args.base, "--datos", corpus,
                     "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200", "--lote", "16", "--micro", "2"]
@@ -223,7 +224,7 @@ def main():
             shutil.copytree(ad, W / "mejor")
             shutil.copy(d / "medidas.json", W / "mejor" / "medidas.json")
             log(f"nuevo mejor: vuelta {v}")
-        else:
+        elif not ya_estaba:  # una vuelta retomada ya entrenada no cuenta (si no, retomar corta el bucle)
             sin_mejora += 1
             if sin_mejora >= 2:
                 log("dos vueltas sin mejorar: listo")
