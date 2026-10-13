@@ -542,4 +542,11 @@ int Guion::restanteSeg(int64_t nowMs) const {
     return c->duracionSeg - enCueSeg(nowMs);
 }
 
+int Guion::transcurridoSeg(int64_t nowMs) const {
+    if (estado_ == Estado::Parado || arranqueMs_ == 0) return 0;
+    const int64_t hasta = estado_ == Estado::Terminado && !recorrido_.empty() ? recorrido_.back().hastaMs : nowMs;
+    const int64_t pausaEnCurso = estado_ == Estado::Pausado ? nowMs - pausadoDesdeMs_ : 0;
+    return static_cast<int>(std::max<int64_t>(0, hasta - arranqueMs_ - pausadoMs_ - pausaEnCurso) / 1000);
+}
+
 } // namespace ba::evento

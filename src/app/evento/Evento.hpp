@@ -242,6 +242,8 @@ class Guion {
     /// Cuánto falta para que termine el cue actual según lo previsto
     /// (negativo si ya se pasó). Sin duración prevista: 0.
     int restanteSeg(int64_t nowMs) const;
+    /// Lo que lleva el evento desde que arrancó, sin contar las pausas.
+    int transcurridoSeg(int64_t nowMs) const;
 
     /// Lo que realmente pasó: un renglón por cue ejecutado, con su duración
     /// real. Es la materia prima del informe posterior.

@@ -193,14 +193,88 @@ Item {
             }
         }
 
-        // --- El guion, si está corriendo ----------------------------------------
+        // --- El guion: los controles, el cue y los tiempos ----------------------------
+        // Con un guion abierto (corriendo o no): arrancar, anterior / siguiente, pausa y
+        // parar, el ensayo (recorre sin sacar nada al aire), y cuánto lleva contra lo
+        // previsto y cuánto se va pasando.
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: tarjeta.corriendo
-            spacing: 2
+            visible: !!tarjeta.ev && tarjeta.ev.abierto !== ""
+            spacing: 4
+            readonly property string estado: tarjeta.ev ? tarjeta.ev.estado : "parado"
+            readonly property bool enMarcha: estado === "corriendo" || estado === "pausado"
+
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 6
+                GlassButton {
+                    compact: true; text: "◀"
+                    enabled: parent.parent.enMarcha
+                    onClicked: tarjeta.ev.retroceder()
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Volver al cue anterior"
+                }
+                GlassButton {
+                    Layout.fillWidth: true
+                    active: true
+                    text: parent.parent.enMarcha ? "Siguiente cue ▶" : (tarjeta.ev && tarjeta.ev.ensayo ? "Arrancar el ensayo" : "Arrancar el guion")
+                    onClicked: {
+                        if (parent.parent.enMarcha) { tarjeta.ev.avanzar(); return }
+                        // Con la revisión: si encontró algo grave no arranca y avisa.
+                        const graves = tarjeta.ev.arrancarRevisando(false)
+                        if (graves > 0) Studio.notify("La revisión encontró " + graves + (graves === 1 ? " problema grave" : " problemas graves") +
+                                                      ": miralos en Guion del evento (ahí se puede arrancar igual).", "error")
+                    }
+                }
+                GlassButton {
+                    compact: true
+                    enabled: parent.parent.enMarcha
+                    text: parent.parent.estado === "pausado" ? "⏵" : "⏸"
+                    onClicked: parent.parent.estado === "pausado" ? tarjeta.ev.reanudar() : tarjeta.ev.pausar()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: parent.parent.estado === "pausado" ? "Seguir (lo pausado no cuenta como atraso)" : "Pausar el guion"
+                }
+                GlassButton {
+                    compact: true; text: "■"
+                    enabled: parent.parent.enMarcha
+                    onClicked: tarjeta.ev.parar()
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Terminar el guion (queda el informe de tiempos)"
+                }
+            }
+            // Los tiempos del guion entero.
+            GridLayout {
+                Layout.fillWidth: true
+                visible: parent.enMarcha
+                columns: 3
+                columnSpacing: 10
+                rowSpacing: 0
+                Text { text: "LLEVA"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
+                Text { text: "VAS"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
+                Text { text: "TERMINA"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
+                Text {
+                    text: tarjeta.mmss(tarjeta.reloj.transcurridoSeg || 0) + " / " + tarjeta.mmss(tarjeta.reloj.totalPrevistoSeg || 0)
+                    color: Theme.text; font { family: "JetBrains Mono"; pixelSize: 14 }
+                    ToolTip.visible: llevaMa.containsMouse; ToolTip.text: "Lo que lleva el guion (sin las pausas) de lo previsto en total"
+                    MouseArea { id: llevaMa; anchors.fill: parent; hoverEnabled: true }
+                }
+                Text {
+                    // El desvío: positivo = vas tarde, negativo = adelantado.
+                    readonly property int d: tarjeta.reloj.desvioSeg || 0
+                    text: Math.abs(d) < 5 ? "en hora" : (d > 0 ? tarjeta.mmss(d) + " tarde" : tarjeta.mmss(-d) + " antes")
+                    color: d > 20 ? Theme.live : (d < -20 ? Theme.amber : Theme.ok)
+                    font { family: "JetBrains Mono"; pixelSize: 14; weight: Font.DemiBold }
+                }
+                Text {
+                    readonly property var r: tarjeta.reloj
+                    text: (r.horaFinPrevista || "—") + (r.horaFinPlaneada ? " (plan " + r.horaFinPlaneada + ")" : "")
+                    color: r && r.backTimingSeg < 0 ? Theme.amber : Theme.text
+                    font { family: "JetBrains Mono"; pixelSize: 14 }
+                }
+            }
+            // El cue en curso: qué es y cuánto le queda (negativo = ya se pasó).
+            RowLayout {
+                Layout.fillWidth: true
+                visible: parent.enMarcha
                 Text {
                     Layout.fillWidth: true
                     text: (tarjeta.ev.actual.texto || "—")
@@ -213,32 +287,42 @@ Item {
                     font { family: "JetBrains Mono"; pixelSize: 22; weight: Font.DemiBold }
                 }
             }
-            RowLayout {
-                Layout.fillWidth: true
-                Text {
-                    Layout.fillWidth: true
-                    text: "sigue: " + (tarjeta.ev.siguiente.texto || "—")
-                    color: Theme.textDim; elide: Text.ElideRight; font.pixelSize: 12
-                }
-                Text {
-                    // El desvío es lo que decide si hay que apurar o estirar.
-                    readonly property int d: tarjeta.reloj.desvioSeg || 0
-                    text: d === 0 ? "en hora" : (d > 0 ? "+" + tarjeta.mmss(d) : tarjeta.mmss(d))
-                    color: d > 20 ? Theme.live : (d < -20 ? Theme.amber : Theme.textFaint)
-                    font { family: "JetBrains Mono"; pixelSize: 12 }
-                }
-            }
             Text {
                 Layout.fillWidth: true
-                text: "cue " + (tarjeta.reloj.cueNro || 0) + " de " + (tarjeta.reloj.cuesTotal || 0)
-                color: Theme.textFaint; font.pixelSize: 11
+                visible: parent.enMarcha
+                text: "sigue: " + (tarjeta.ev.siguiente.texto || "—") + "   ·   cue " + (tarjeta.reloj.cueNro || 0) + " de " + (tarjeta.reloj.cuesTotal || 0)
+                color: Theme.textDim; elide: Text.ElideRight; font.pixelSize: 12
             }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                Toggle {
+                    checked: !!tarjeta.ev && tarjeta.ev.ensayo
+                    enabled: parent.parent.estado === "parado" || parent.parent.estado === "terminado"
+                    onToggled: (w) => tarjeta.ev.ensayo = w
+                }
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: tarjeta.ev && tarjeta.ev.ensayo ? "Ensayo: recorre el guion sin sacar nada al aire"
+                                                          : "Ensayo apagado: los cues salen al aire de verdad"
+                    color: tarjeta.ev && tarjeta.ev.ensayo ? Theme.amber : Theme.textFaint
+                    font.pixelSize: 11
+                }
+                Text {
+                    visible: parent.parent.estado === "pausado"
+                    text: "EN PAUSA"
+                    color: Theme.amber
+                    font { pixelSize: 11; weight: Font.DemiBold }
+                }
+            }
+
             Item { Layout.fillHeight: true }
         }
         Text {
             Layout.fillWidth: true
-            visible: !tarjeta.corriendo
-            text: "Sin guion corriendo. Abrí uno en Guion del evento para ver los tiempos acá."
+            visible: !tarjeta.ev || tarjeta.ev.abierto === ""
+            text: "Sin guion abierto. Abrí uno en Guion del evento para manejarlo y ver los tiempos acá."
             color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
         }
     }

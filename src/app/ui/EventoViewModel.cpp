@@ -1556,7 +1556,10 @@ QVariantMap EventoViewModel::reloj() const {
                   {"cuesTotal", static_cast<int>(e_.cantidadDeCues())},
                   {"restanteBloqueSeg", restanteBloque},
                   {"restanteGuionSeg", restanteGuion},
-                  {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(t + restanteGuion * 1000LL).toString("HH:mm")}};
+                  {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(t + restanteGuion * 1000LL).toString("HH:mm")},
+                  // Lo que lleva (sin pausas) contra lo previsto del guion entero.
+                  {"transcurridoSeg", guionCorriendo_->transcurridoSeg(t)},
+                  {"totalPrevistoSeg", totalPrevisto}};
     if (!e_.inicio.empty()) {
         const QTime ini = QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm");
         if (ini.isValid()) {
