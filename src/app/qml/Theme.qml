@@ -18,6 +18,12 @@ QtObject {
     readonly property color glassBorder: Qt.rgba(1, 1, 1, 0.13)
     readonly property color glassHighlight: Qt.rgba(1, 1, 1, 0.07)
     readonly property color field: Qt.rgba(1, 1, 1, 0.07)
+    // Los botones de un canal de audio, iguales en la tarjeta, la ventana del Mezclador
+    // y la matriz (como en una consola: mute rojo, PFL amarillo).
+    readonly property color canalMute: "#ff3b30"
+    readonly property color canalPfl: "#facc15"
+    readonly property color canalAfv: "#3b82f6"
+    readonly property color canalSinc: "#8b5cf6"
     // La paleta de los controles de Qt (TextField, ComboBox, Menu...). Vive
     // ACA y no adentro de una ventana porque hay TRES que la necesitan: la
     // principal, la de una pagina suelta y la de un panel suelto. Estaba

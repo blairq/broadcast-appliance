@@ -58,6 +58,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 
 #include "net/AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
@@ -1482,7 +1483,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("matriz");
     // El ruteo (escucha, pistas) es del motor: cuando cambia, por el camino que sea,
     // la matriz avisa a sus vistas y el PFL de la tarjeta y del Mezclador se entera.
-    rt.engine().alCambiarRuteo([m = matriz_.get()](const std::string&) { m->avisarRuteo(); });
+    rt.engine().alCambiarAudioFuente([m = matriz_.get(), mx = mixer_.get()](const std::string& f, const char* que) {
+        // La matriz solo muestra el ruteo (escucha, pistas): con el fader no se rehace.
+        if (std::strcmp(que, "escucha") == 0 || std::strcmp(que, "pistas") == 0) m->avisarRuteo();
+        mx->avisarCambio(f);
+    });
     connect(matriz_.get(), &audio::Matriz::cambio, this, &StudioViewModel::pflChanged);
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
     mezclador_ = std::make_unique<audio::Mezclador>(rt, matriz_.get());
@@ -1547,7 +1552,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
 StudioViewModel::~StudioViewModel() {
     rt_.engine().alFallarMotor(nullptr);
-    rt_.engine().alCambiarRuteo(nullptr); // la matriz se va con la vista; el motor sigue
+    rt_.engine().alCambiarAudioFuente(nullptr); // la matriz y el mezclador se van con la vista; el motor sigue
     rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.

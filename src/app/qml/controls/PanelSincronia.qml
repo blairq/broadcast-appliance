@@ -408,14 +408,14 @@ Popup {
                         delegate: RowLayout {
                             id: filaSinc
                             required property string name
-                            property int ms: Studio.retardoUi(name)
+                            required property int retardoMs
+                            readonly property int ms: retardoMs
                             Layout.fillWidth: true
                             spacing: 8
                             Text { Layout.fillWidth: true; text: filaSinc.name; color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { text: (filaSinc.ms > 0 ? "+" : "") + filaSinc.ms + " ms"
                                    color: filaSinc.ms !== 0 ? Theme.accent : Theme.textFaint; font.pixelSize: 12 }
                             GlassButton { compact: true; text: "Sincronizar…"; onClicked: retardoPop.abrir(filaSinc.name) }
-                            Connections { target: retardoPop; function onAplicado(f, v) { if (f === filaSinc.name) filaSinc.ms = v } }
                         }
                     }
                 }

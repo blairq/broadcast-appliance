@@ -329,12 +329,17 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
         case PeakDbRole: return peaks_[i];
         case VolumeDbRole: return mulToDb(rt_.engine().sourceVolume(names_[i]));
         case MutedRole: return rt_.engine().sourceMuted(names_[i]);
+        case RetardoMsRole: return rt_.engine().sourceSyncOffset(names_[i]);
         default: return {};
     }
 }
 
 QHash<int, QByteArray> MixerModel::roleNames() const {
-    return {{NameRole, "name"}, {PeakDbRole, "peakDb"}, {VolumeDbRole, "volumeDb"}, {MutedRole, "muted"}};
+    return {{NameRole, "name"},
+            {PeakDbRole, "peakDb"},
+            {VolumeDbRole, "volumeDb"},
+            {MutedRole, "muted"},
+            {RetardoMsRole, "retardoMs"}};
 }
 
 void MixerModel::reload() {
@@ -378,25 +383,39 @@ QVariantMap MixerModel::canal(int fila) const {
         {"nombre", data(i, NameRole)}, {"volumenDb", data(i, VolumeDbRole)}, {"mudo", data(i, MutedRole)}};
 }
 
+// El aviso a las vistas lo trae el motor (avisarCambio): igual que si lo cambia el
+// asistente, el AFV o la otra vista.
 bool MixerModel::setVolumeDb(const QString& name, double db) {
     const float mul = db <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0));
-    const bool ok = rt_.setVolume(name.toStdString(), mul);
-    if (ok) {
-        const auto it = std::find(names_.begin(), names_.end(), name.toStdString());
-        const int row = static_cast<int>(it - names_.begin());
-        emit dataChanged(index(row), index(row), {VolumeDbRole});
-    }
-    return ok;
+    return rt_.setVolume(name.toStdString(), mul);
 }
 
-bool MixerModel::setMuted(const QString& name, bool muted) {
-    const bool ok = rt_.setMuted(name.toStdString(), muted);
-    if (ok) {
-        const auto it = std::find(names_.begin(), names_.end(), name.toStdString());
-        const int row = static_cast<int>(it - names_.begin());
-        emit dataChanged(index(row), index(row), {MutedRole});
+bool MixerModel::setMuted(const QString& name, bool muted) { return rt_.setMuted(name.toStdString(), muted); }
+
+void MixerModel::avisarCambio(const std::string& fuente) {
+    bool primero = false;
+    {
+        std::lock_guard<std::mutex> l(cambiosM_);
+        primero = cambios_.empty();
+        cambios_.insert(fuente);
     }
-    return ok;
+    if (!primero) return; // ya hay una vuelta en camino
+    QMetaObject::invokeMethod(
+        this,
+        [this]() {
+            std::set<std::string> c;
+            {
+                std::lock_guard<std::mutex> l(cambiosM_);
+                c.swap(cambios_);
+            }
+            for (const std::string& f : c) {
+                const auto it = std::find(names_.begin(), names_.end(), f);
+                if (it == names_.end()) continue;
+                const int row = static_cast<int>(it - names_.begin());
+                emit dataChanged(index(row), index(row), {VolumeDbRole, MutedRole, RetardoMsRole});
+            }
+        },
+        Qt::QueuedConnection);
 }
 
 // ============================================================================

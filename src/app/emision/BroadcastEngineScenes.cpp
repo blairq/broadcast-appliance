@@ -951,8 +951,12 @@ std::vector<std::string> BroadcastEngine::sourceNames() const { return ordenFuen
 bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
-    it->second.spec.volume = std::max(0.0f, mul);
-    return motor_->ponerNivel(name, it->second.spec.volume).empty();
+    const float v = std::max(0.0f, mul);
+    const bool cambia = it->second.spec.volume != v;
+    it->second.spec.volume = v;
+    const bool ok = motor_->ponerNivel(name, v).empty();
+    if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
+    return ok;
 }
 
 float BroadcastEngine::sourceVolume(const std::string& name) const {
@@ -963,8 +967,11 @@ float BroadcastEngine::sourceVolume(const std::string& name) const {
 bool BroadcastEngine::setSourceMuted(const std::string& name, bool muted) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
+    const bool cambia = it->second.spec.muted != muted;
     it->second.spec.muted = muted;
-    return motor_->ponerMute(name, muted).empty();
+    const bool ok = motor_->ponerMute(name, muted).empty();
+    if (cambia && cambioAudio_) cambioAudio_(name, "mute");
+    return ok;
 }
 
 bool BroadcastEngine::sourceMuted(const std::string& name) const {
@@ -1000,7 +1007,7 @@ bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     it->second.monitor = on;
     const std::string e = motor_->ponerEscucha(name, on || pfl_ == name);
     if (!e.empty()) setError(e);
-    if (cambia && cambioRuteo_) cambioRuteo_(name);
+    if (cambia && cambioAudio_) cambioAudio_(name, "escucha");
     return e.empty();
 }
 
@@ -1032,9 +1039,9 @@ bool BroadcastEngine::setPfl(const std::string& name) {
             ok = false;
         }
     }
-    if (cambioRuteo_) {
-        if (!antes.empty()) cambioRuteo_(antes);
-        if (!name.empty()) cambioRuteo_(name);
+    if (cambioAudio_) {
+        if (!antes.empty()) cambioAudio_(antes, "escucha");
+        if (!name.empty()) cambioAudio_(name, "escucha");
     }
     return ok;
 }
@@ -1045,11 +1052,15 @@ bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
         setError("no existe la fuente '" + name + "'");
         return false;
     }
-    it->second.syncMs = std::clamp(ms, -5000, 5000);
+    const int v = std::clamp(ms, -5000, 5000);
+    const bool cambia = it->second.syncMs != v;
+    it->second.syncMs = v;
     json ajustes;
     if (!ajustesMotor(it->second.spec, ajustes)) return false;
     ajustes["desfase_audio"] = it->second.syncMs; // solo el audio; cambia andando (el offset del pad)
-    return motor_->actualizarEntrada(name, ajustes).empty();
+    const bool ok = motor_->actualizarEntrada(name, ajustes).empty();
+    if (cambia && cambioAudio_) cambioAudio_(name, "retardo");
+    return ok;
 }
 
 int BroadcastEngine::sourceSyncOffset(const std::string& name) const {
@@ -1067,7 +1078,7 @@ bool BroadcastEngine::setSourcePistas(const std::string& name, const std::vector
     }
     const bool cambia = it->second.pistas != pistas;
     it->second.pistas = pistas;
-    if (cambia && cambioRuteo_) cambioRuteo_(name);
+    if (cambia && cambioAudio_) cambioAudio_(name, "pistas");
     return true;
 }
 

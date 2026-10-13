@@ -190,11 +190,11 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 3
-                Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.live; ayuda: "Mute"
+                Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.canalMute; ayuda: "Mute"
                         alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute); m.leerTiras() } }
-                Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: "#22c55e"; ayuda: "Escucharla sola en los auriculares"
+                Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: Theme.canalPfl; textoOn: "#1a1a1a"; ayuda: "Escucharla en los auriculares (se suma a lo que ya va ahí, como la voz del asistente)"
                         alTocar: () => { const e = Studio.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
-                Boton { texto: "AFV"; on: Studio.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.accent; ayuda: "Sigue al video: sube cuando su escena sale al aire"
+                Boton { texto: "AFV"; on: Studio.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: "Sigue al video: sube cuando su escena sale al aire"
                         alTocar: () => Studio.setAfv(t.nombre, Studio.afvFuentes.indexOf(t.nombre) < 0) }
             }
             // Sincronizar con el video (sincro labios): el retardo del canal.
@@ -202,7 +202,7 @@ Item {
                 Layout.fillWidth: true
                 readonly property int ms: t.st.retardoMs || 0
                 texto: ms !== 0 ? "SINC " + (ms > 0 ? "+" : "") + ms + " ms" : "SINC"
-                on: ms !== 0; colorOn: "#8b5cf6"
+                on: ms !== 0; colorOn: Theme.canalSinc
                 ayuda: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
                 alTocar: () => retardoPop.abrir(t.nombre)
             }
@@ -323,13 +323,14 @@ Item {
         property string texto
         property bool on: false
         property color colorOn: Theme.accent
+        property color textoOn: "white" // oscuro sobre colores claros (el amarillo del PFL)
         property string ayuda
         property var alTocar: null
         Layout.fillWidth: true
         height: 20; radius: 5
         color: on ? colorOn : Qt.rgba(1, 1, 1, 0.07)
         border.color: on ? Qt.lighter(colorOn, 1.3) : Qt.rgba(1, 1, 1, 0.12)
-        Text { anchors.centerIn: parent; text: b.texto; color: b.on ? "white" : Theme.textDim
+        Text { anchors.centerIn: parent; text: b.texto; color: b.on ? b.textoOn : Theme.textDim
                font { family: Theme.font; pixelSize: 9; weight: Font.Bold } }
         HoverHandler { id: bHov; cursorShape: Qt.PointingHandCursor }
         ToolTip.visible: bHov.hovered && b.ayuda !== ""; ToolTip.delay: 500; ToolTip.text: b.ayuda

@@ -120,7 +120,7 @@ class Matriz : public QObject {
     /// llega por el motor y la matriz, las tiras y el PFL lo ven.
     Q_INVOKABLE QString ponerPfl(const QString& fuente);
     /// El motor cambió el ruteo de una fuente (escucha o pistas: BroadcastEngine::
-    /// alCambiarRuteo), lo haya pedido quien sea. Desde cualquier hilo; varios
+    /// alCambiarAudioFuente), lo haya pedido quien sea. Desde cualquier hilo; varios
     /// seguidos dan un solo cambio(), en el hilo de la matriz.
     void avisarRuteo();
     /// Mostrar (o no) nivel, pan y mute de un cruce de bus virtual.

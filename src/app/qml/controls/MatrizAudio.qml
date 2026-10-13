@@ -415,7 +415,7 @@ Item {
                                         width: (mx.compacta ? 22 : 26) + 6; height: width; radius: width / 2
                                         color: "transparent"
                                         border.width: 2
-                                        border.color: Qt.rgba(1, 0.8, 0.1, 0.95)
+                                        border.color: Theme.canalPfl
                                     }
                                     MouseArea {
                                         id: ma

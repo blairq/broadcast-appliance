@@ -511,11 +511,11 @@ class BroadcastEngine {
     /// tardar van en cola y vuelven enseguida (la interfaz no espera), así que
     /// su error llega por acá, desde el hilo del motor.
     void alFallarMotor(std::function<void(const std::string&)> fn);
-    /// Avisa cuando cambia a dónde va el audio de una fuente: su escucha (PFL) o sus
-    /// pistas. Lo pida quien lo pida (la matriz, el PFL, el asistente, una escena que
-    /// se carga, volver como estaba): quien muestra el ruteo se entera siempre. Se
-    /// llama en el hilo que hizo el cambio.
-    void alCambiarRuteo(std::function<void(const std::string& fuente)> fn);
+    /// Avisa cuando cambia el audio de una fuente: `que` es "escucha" (fija o PFL),
+    /// "pistas", "retardo", "volumen" o "mute". Lo pida quien lo pida (la matriz, el
+    /// Mezclador, el asistente, el AFV, una escena que se carga, volver como estaba):
+    /// quien lo muestra se entera siempre. Se llama en el hilo que hizo el cambio.
+    void alCambiarAudioFuente(std::function<void(const std::string& fuente, const char* que)> fn);
     bool escenaACanal(int k, const std::string& escena);
     std::string escenaDeCanal(int k) const;
     /// Los que no son Pantallas (las vistas de la sesión remota) toman un canal con
@@ -853,7 +853,7 @@ class BroadcastEngine {
     std::atomic<int> capturasEnCurso_{0};
     std::mutex falloMotorM_;
     std::function<void(const std::string&)> falloMotor_;
-    std::function<void(const std::string&)> cambioRuteo_; ///< alCambiarRuteo (se fija una vez, al armar)
+    std::function<void(const std::string&, const char*)> cambioAudio_; ///< alCambiarAudioFuente (se fija una vez, al armar)
     std::string pfl_; ///< el canal en PFL ("" = ninguno); no se guarda
     void enviarEscena(int k, const motor::Cuadro& c);
 

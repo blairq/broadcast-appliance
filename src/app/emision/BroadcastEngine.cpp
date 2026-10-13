@@ -476,7 +476,9 @@ void BroadcastEngine::alFallarMotor(std::function<void(const std::string&)> fn) 
     falloMotor_ = std::move(fn);
 }
 
-void BroadcastEngine::alCambiarRuteo(std::function<void(const std::string&)> fn) { cambioRuteo_ = std::move(fn); }
+void BroadcastEngine::alCambiarAudioFuente(std::function<void(const std::string&, const char*)> fn) {
+    cambioAudio_ = std::move(fn);
+}
 
 bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
     if (k < 0 || k >= ba::ipc::kCanalesEscena) {

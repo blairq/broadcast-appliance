@@ -196,6 +196,7 @@ Item {
                 required property real peakDb
                 required property real volumeDb
                 required property bool muted
+                required property int retardoMs
                 height: ListView.view.height
                 width: 70
                 spacing: 6
@@ -216,16 +217,16 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 22; radius: 8
-                    color: muted ? Qt.rgba(1, 0.23, 0.19, 0.7) : Qt.rgba(1, 1, 1, 0.08)
+                    color: muted ? Theme.canalMute : Qt.rgba(1, 1, 1, 0.08)
                     Text { anchors.centerIn: parent; text: muted ? "MUDO" : "M"; color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Studio.mixer.setMuted(name, !muted) }
                 }
-                // PFL: escucharla por el monitor sin tocar el aire (exclusivo, amarillo).
+                // PFL: escucharla por el monitor sin tocar el aire (uno a la vez, amarillo).
                 Rectangle {
                     readonly property bool on: Studio.pfl === name
                     Layout.fillWidth: true
                     height: 18; radius: 6
-                    color: on ? Qt.rgba(1, 0.8, 0.1, 0.85) : Qt.rgba(1, 1, 1, 0.05)
+                    color: on ? Theme.canalPfl : Qt.rgba(1, 1, 1, 0.05)
                     Text { anchors.centerIn: parent; text: "PFL"; color: parent.on ? "#1a1a1a" : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                     MouseArea {
                         id: pflMa
@@ -233,14 +234,14 @@ Item {
                         onClicked: { const e = Studio.pflUi(name); if (e !== "") Studio.notify(e, "error") }
                     }
                     ToolTip.visible: pflMa.containsMouse; ToolTip.delay: 500
-                    ToolTip.text: "Escucharla por el monitor sin tocar lo que sale al aire. Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla."
+                    ToolTip.text: "Escucharla en los auriculares sin tocar lo que sale al aire (se suma a lo que ya va ahí, como la voz del asistente). Si está MUDA no suena ni acá: bajale el volumen en vez de silenciarla."
                 }
                 // AFV: el audio sigue al video (sube y baja con su escena).
                 Rectangle {
                     readonly property bool on: Studio.afvFuentes.indexOf(name) >= 0
                     Layout.fillWidth: true
                     height: 18; radius: 6
-                    color: on ? Qt.rgba(0.18, 0.44, 0.87, 0.7) : Qt.rgba(1, 1, 1, 0.05)
+                    color: on ? Theme.canalAfv : Qt.rgba(1, 1, 1, 0.05)
                     Text { anchors.centerIn: parent; text: "AFV"; color: parent.on ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                     MouseArea {
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -253,15 +254,14 @@ Item {
                 // Sincronizar con el video (sincro labios): el retardo del canal, a mano o con aplausos.
                 Rectangle {
                     id: sincBtn
-                    property int ms: Studio.retardoUi(name)
+                    readonly property int ms: retardoMs
                     Layout.fillWidth: true
                     height: 18; radius: 6
-                    color: ms !== 0 ? Qt.rgba(0.55, 0.36, 0.96, 0.6) : Qt.rgba(1, 1, 1, 0.05)
+                    color: ms !== 0 ? Theme.canalSinc : Qt.rgba(1, 1, 1, 0.05)
                     Text { anchors.centerIn: parent; text: sincBtn.ms !== 0 ? (sincBtn.ms > 0 ? "+" : "") + sincBtn.ms + " ms" : "SINC"
                            color: sincBtn.ms !== 0 ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                     MouseArea { id: sincMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
                                 onClicked: retardoPop.abrir(name) }
-                    Connections { target: retardoPop; function onAplicado(f, v) { if (f === name) sincBtn.ms = v } }
                     ToolTip.visible: sincMa.containsMouse; ToolTip.delay: 500
                     ToolTip.text: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
                 }
