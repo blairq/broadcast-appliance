@@ -3,6 +3,7 @@
 #include "escenas/Conmutador.hpp"
 
 #include "arranque/AppRuntime.hpp"
+#include "diag/Registro.hpp"
 
 #include <QSaveFile>
 #include <QTimer>
@@ -28,7 +29,8 @@ Conmutador::Conmutador(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(r
 
 std::string Conmutador::alAire() const { return rt_.engine().currentScene(); }
 
-std::string Conmutador::cortar(const std::string& escena, const std::string& tipoPedido, int msPedido) {
+std::string Conmutador::cortar(const std::string& escena, const std::string& tipoPedido, int msPedido, const char* via) {
+    const std::string antes = alAire();
     std::string tipo = tipoPedido;
     int ms = msPedido;
     // Sin pedido explícito: la transición de entrada de la escena (si tiene).
@@ -39,6 +41,11 @@ std::string Conmutador::cortar(const std::string& escena, const std::string& tip
     }
     const bool ok = tipo.empty() ? rt_.setScene(escena) : rt_.setSceneCon(escena, tipo, ms);
     if (!ok) return rt_.lastError().empty() ? "no se pudo poner «" + escena + "» al aire" : rt_.lastError();
+    // Cada cambio del aire al registro, con por dónde vino: «la cambia y vuelve sola»
+    // se ve acá (quién la devolvió y cuándo).
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "aire", 0,
+                               "al aire: «" + escena + "» (salió «" + antes + "», por " + via +
+                                   (tipo.empty() ? "" : ", " + tipo) + ")");
     aplicarAfv(escena, tipo == "cut" ? 0 : (ms < 0 ? rt_.config().transition.durationMs : ms));
     rt_.save(); // la escena al aire vuelve igual tras un corte de luz
     emit alAireCambio(QString::fromStdString(escena));
@@ -46,7 +53,7 @@ std::string Conmutador::cortar(const std::string& escena, const std::string& tip
 }
 
 std::string Conmutador::poner(const std::string& escena, const std::string& tipo, int ms) {
-    return cortar(escena, tipo, ms);
+    return cortar(escena, tipo, ms, "corte directo");
 }
 
 std::string Conmutador::armar(const std::string& escena) {
@@ -64,7 +71,7 @@ std::string Conmutador::take(const std::string& tipo, int ms) {
     if (armada_.empty()) return "No hay ninguna escena armada: elegí una en el bus de preview.";
     const std::string entra = armada_;
     const std::string sale = alAire();
-    if (std::string e = cortar(entra, tipo, ms); !e.empty()) return e;
+    if (std::string e = cortar(entra, tipo, ms, "TAKE"); !e.empty()) return e;
     // El plano que sale del aire queda armado: en una mesa, después de un take
     // el preview tiene lo anterior y volver es un solo golpe.
     setArmadaYAvisar(sale);

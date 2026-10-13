@@ -72,7 +72,7 @@ class Conmutador : public QObject {
 
    private:
     /// La parte común de poner/take: transición de entrada, AFV, guardar y avisar.
-    std::string cortar(const std::string& escena, const std::string& tipo, int ms);
+    std::string cortar(const std::string& escena, const std::string& tipo, int ms, const char* via);
     void aplicarAfv(const std::string& destino, int ms);
     void setArmadaYAvisar(const std::string& escena);
     void guardar() const;
