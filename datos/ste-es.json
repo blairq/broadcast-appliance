@@ -3672,6 +3672,13 @@
      "herramientas": [
       "ptz_posicion_crear"
      ]
+    },
+    {
+     "objeto": "fuente nueva en una escena (texto, título, zócalo, cámara, color)",
+     "ejemplo": "creá un zócalo nuevo en la escena Panel",
+     "herramientas": [
+      "source_add"
+     ]
     }
    ]
   },
