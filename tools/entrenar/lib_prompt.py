@@ -63,6 +63,8 @@ SOLO = None  # «herramientas»: la lista EXACTA (el perfil no crece solo cuando
 ORDEN = None  # «grupos»: {grupo: [herramientas]}; la union es la lista exacta y el orden es el del prompt
 GRUPOS = None
 ESTADO = None
+RENOMBRES = {}  # «renombres»: {nombre real: el que ve y escribe el modelo}
+DESCRIPCIONES = {}  # «descripciones»: {nombre real: la oracion que ve el modelo}
 FUERA = []  # «fuera»: las que se sacaron del perfil a proposito (sus anotaciones sirven de derivar)
 ENTRADAS = ["pedidos"]
 _perfil = RAIZ / "datos" / "perfiles" / f"{PERFIL}.json"
@@ -78,6 +80,11 @@ if _perfil.exists():
         SOLO = set(ORDEN)
     FUERA = list(_p.get("fuera", []))
     ESTADO = _p.get("estado")  # «v5»: el estado suma bancas, capas del DSK, orden del dia y chat
+    # v6: el nombre y la primera oracion con que el MODELO ve una herramienta, cuando
+    # no son los del MCP (pares que se pisaban). La app traduce la etiqueta al nombre
+    # real con modelo.json (endpoints[].etiqueta). Ver lib_tc.a_modelo / a_real.
+    RENOMBRES = dict(_p.get("renombres", {}))
+    DESCRIPCIONES = dict(_p.get("descripciones", {}))
     ENTRADAS = list(_p.get("entradas", ["pedidos"]))
     # el juego de etiquetas del perfil, salvo que se pida otro a mano
     if _p.get("etiquetas") and "BA_ETIQUETAS" not in os.environ:

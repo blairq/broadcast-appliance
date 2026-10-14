@@ -138,17 +138,51 @@ def compactar(esq, prof=0):
     return out
 
 
+# LA CAPA DE TRADUCCION (v6). El modelo ve y escribe una ETIQUETA cuando el nombre
+# del MCP se pisaba con el de otra herramienta (chat_history / chat_recientes,
+# bancas_listar / speakers_status...: los pares con CDNV mas alta en el modelo base
+# y los que el base y v4 confundian igual). Todo lo de adentro (anotaciones, banco,
+# examen, esquemas, fallos) sigue con el nombre REAL: la etiqueta solo existe en el
+# prompt y en la respuesta. La app traduce con modelo.json (endpoints[].etiqueta).
+_A_MODELO = dict(getattr(lp, "RENOMBRES", {}))
+_A_REAL = {v: k for k, v in _A_MODELO.items()}
+_DESCRIPCIONES = dict(getattr(lp, "DESCRIPCIONES", {}))
+
+
+def a_modelo(nombre):
+    return _A_MODELO.get(nombre, nombre)
+
+
+def a_real(nombre):
+    return _A_REAL.get(nombre, nombre)
+
+
+def _en_idioma_del_modelo(texto):
+    """Las descripciones nombran a otras herramientas («la `key` de chat_recientes»):
+    que hablen el mismo idioma que la respuesta."""
+    for real in sorted(_A_MODELO, key=len, reverse=True):
+        texto = re.sub(rf"\b{re.escape(real)}\b", _A_MODELO[real], texto)
+    return texto
+
+
 def funciones(inv=None):
+    """Lo que ve el modelo, en el orden del prompt: con las etiquetas."""
     inv = inv or lp.inventario()
     por = {h["nombre"]: h for h in inv["herramientas"]}
-    out = [{"type": "function", "function": {"name": n, "description": _desc(por[n]),
-                                             "parameters": compactar(por[n]["esquema"])}}
-           for n in lp.orden_prompt(inv)]
+    out = [{"type": "function", "function": {
+        "name": a_modelo(n), "description": _en_idioma_del_modelo(_DESCRIPCIONES.get(n) or _desc(por[n])),
+        "parameters": compactar(por[n]["esquema"])}} for n in lp.orden_prompt(inv)]
     return out + PSEUDO
 
 
+def fichas(inv=None):
+    """{nombre REAL: la ficha que ve el modelo}: para todo lo de adentro."""
+    return {a_real(f["function"]["name"]): f["function"] for f in funciones(inv)}
+
+
 def esquemas(inv=None):
-    return {f["function"]["name"]: f["function"]["parameters"] for f in funciones(inv)}
+    """{nombre REAL: parametros}."""
+    return {h: f["parameters"] for h, f in fichas(inv).items()}
 
 
 def cabeza(inv=None):
@@ -183,7 +217,7 @@ def valor_texto(v):
 
 def llamada(nombre, args):
     """Como la escribe el chat_template de Qwen3.5 (sin texto antes)."""
-    s = f"<tool_call>\n<function={nombre}>\n"
+    s = f"<tool_call>\n<function={a_modelo(nombre)}>\n"
     for k, v in args.items():
         s += f"<parameter={k}>\n{valor_texto(v)}\n</parameter>\n"
     return s + "</function>\n</tool_call>"
@@ -199,7 +233,39 @@ def leer(texto):
     m = RE_LLAMADA.search(texto)
     if not m:
         return None, texto.strip()
-    return m.group(1).strip(), {k.strip(): v.strip() for k, v in RE_PARAM.findall(m.group(2))}
+    return a_real(m.group(1).strip()), {k.strip(): v.strip() for k, v in RE_PARAM.findall(m.group(2))}
+
+
+# COPIAS adentro de una herramienta: dos plantillas que comparten esta porcion de sus
+# palabras con contenido y piden LO MISMO (mismos argumentos o la misma falta) son
+# una sola. Con otros argumentos no es copia («activá la placa» / «quitá la placa»).
+COPIA = 0.7
+VACIAS = set("el la los las lo le les de del a al en con por para que y o u un una unos unas es "
+             "esta este esto eso esa ese se su sus mi me te tu ya ahi aca hay como cual cuales "
+             "dale eh che ojo rapido porfa bueno ahora toque".split())
+
+
+def contenido(plantilla):
+    """Las palabras con contenido de una plantilla (los huecos cuentan como uno)."""
+    x = unicodedata.normalize("NFKD", re.sub(r"\{[a-z_]+\d?\}", " X ", plantilla).lower())
+    t = set(re.sub(r"\W+", " ", x.encode("ascii", "ignore").decode()).split())
+    return (t - VACIAS) or t
+
+
+def sin_copias(lista, umbral=COPIA):
+    """(las que quedan, las copias), con las humanas antes que las del agente."""
+    quedan, copias, vistas = [], [], []
+    for a in sorted(lista, key=lambda a: bool(a.get("nueva"))):
+        if not a.get("plantilla"):
+            quedan.append(a)
+            continue
+        t, pide = contenido(a["plantilla"]), json.dumps([a.get("args"), a.get("falta")], sort_keys=True)
+        if any(p == pide and len(t & u) / max(len(t), len(u)) >= umbral for u, p in vistas):
+            copias.append(a)
+            continue
+        vistas.append((t, pide))
+        quedan.append(a)
+    return quedan, copias
 
 
 def normal(s):
@@ -456,6 +522,9 @@ def rellenar(plantilla, args, formas, rnd):
     frase = RE_HUECO.sub(lambda m: rnd.choice(elegidos[m.group(1) + m.group(2)][1]), plantilla)
     frase = re.sub(r"\b([aA]) el\b", r"\1l", frase)
     frase = re.sub(r"\b([dD]e) el\b", lambda m: m.group(1)[0] + "el", frase)
+    # las formas de las posiciones traen su preposicion («al atril», «a Laura»): con
+    # «a {posicion}» en la plantilla quedaba «a a Laura» / «a al atril»
+    frase = re.sub(r"\b[aA] (al?)\b", r"\1", frase)
     sal = {}
     for k, v in args.items():
         if isinstance(v, str):

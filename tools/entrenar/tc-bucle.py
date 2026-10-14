@@ -55,12 +55,26 @@ def log(*a):
     print("\033[35m[tc-bucle]\033[0m", *a, flush=True)
 
 
+PARADO = 3
+PARAR = None  # <trabajo>/PARAR: tools/entrenar/tc-parar.sh lo crea
+
+
+def parar_si_toca(donde):
+    """Entre etapas: con PARAR, se sale (codigo 3). Se retoma con --retomar."""
+    if PARAR is not None and PARAR.exists():
+        log(f"PARADO a pedido ({donde}). Para seguir: tc-bucle.py --trabajo ... --retomar")
+        sys.exit(PARADO)
+
+
 def correr(cmd, env=None, salida=None):
     cmd = [str(c) for c in cmd]
+    parar_si_toca(Path(cmd[1]).name if len(cmd) > 1 else cmd[0])
     log("$", " ".join(cmd)[:200])
     with open(salida, "w") if salida else open(os.devnull, "w") as f:
-        r = subprocess.run(cmd, cwd=RAIZ, env=dict(os.environ, **(env or {})), stdout=f, stderr=subprocess.STDOUT)
+        r = subprocess.run(cmd, cwd=RAIZ, env=dict(os.environ, **(env or {}), BA_PARAR=str(PARAR or "")),
+                           stdout=f, stderr=subprocess.STDOUT)
     if r.returncode:
+        parar_si_toca(f"durante {Path(cmd[1]).name if len(cmd) > 1 else cmd[0]}")
         sys.exit(f"fallo: {' '.join(cmd)[:200]} (ver {salida})")
 
 
@@ -153,7 +167,7 @@ def arreglar(fallos, dir_, adaptador, v):
     spec.loader.exec_module(tca)
     anot = json.loads(ANOT.read_text())
     esquemas = tc.esquemas()
-    funcs = {f["function"]["name"]: f["function"] for f in tc.funciones()}
+    funcs = tc.fichas()
     por_h = {}
     for f in fallos:
         if f["herramienta"] not in funcs:
@@ -235,18 +249,38 @@ def main():
     ap.add_argument("--epocas", type=float, default=2.0)
     ap.add_argument("--limite-banco", type=int, default=500, help="muestra del banco por vuelta (0 = entero)")
     ap.add_argument("--desde", type=int, default=0, help="numero de la primera vuelta (para retomar)")
+    ap.add_argument("--retomar", action="store_true",
+                    help="seguir donde quedo (parado o caido): la vuelta la deduce de las carpetas; --vueltas"
+                         " es el total contando las ya hechas")
     args = ap.parse_args()
     W = Path(args.trabajo).expanduser()
     W.mkdir(parents=True, exist_ok=True)
+    global PARAR
+    PARAR = W / "PARAR"
+    if PARAR.exists():
+        PARAR.unlink()  # arrancar (o retomar) es la orden contraria
+    (W / "bucle.pid").write_text(str(os.getpid()))
+    hasta = args.desde + args.vueltas
+    if args.retomar:
+        hechas = sorted(int(x.name.split("-")[1]) for x in W.glob("vuelta-*") if x.name.split("-")[1].isdigit())
+        if hechas:
+            ult = hechas[-1]
+            # una vuelta esta cerrada cuando termino su arreglo (o era la ultima)
+            args.desde = ult + 1 if (W / f"vuelta-{ult}" / "cerrada").exists() else ult
+        hasta = args.vueltas
+        log(f"retomo en la vuelta {args.desde} (hasta la {hasta - 1})")
     rnd = random.Random(31)
     mejor_p, sin_mejora = -1.0, 0
-    if (W / "mejor" / "medidas.json").exists():
+    if (W / "mejor" / "puntaje.json").exists() and \
+            json.loads((W / "mejor" / "puntaje.json").read_text()).get("limite_banco") == args.limite_banco:
+        mejor_p = json.loads((W / "mejor" / "puntaje.json").read_text())["puntaje"]  # retomar no vuelve a medir
+    elif (W / "mejor" / "medidas.json").exists():
         # el mejor se re-mide con la MISMA muestra del banco que las vueltas nuevas:
         # comparar el banco entero contra una muestra de 500 corto el bucle de la v3
         # («dos vueltas sin mejorar» cuando la vuelta 3 si mejoraba)
         corpus_mejor = sorted(W.glob("vuelta-*/corpus"))[-1]
         mejor_p = puntaje(medir(W / "mejor", corpus_mejor, W / "mejor" / "medidas.json", args.limite_banco)["medidas"])
-    for v in range(args.desde, args.desde + args.vueltas):
+    for v in range(args.desde, hasta):
         d = W / f"vuelta-{v}"
         d.mkdir(exist_ok=True)
         log(f"=== vuelta {v} ===")
@@ -278,13 +312,16 @@ def main():
                 shutil.rmtree(W / "mejor")
             shutil.copytree(ad, W / "mejor")
             shutil.copy(d / "medidas.json", W / "mejor" / "medidas.json")
+            (W / "mejor" / "puntaje.json").write_text(json.dumps({"puntaje": p, "vuelta": v,
+                                                                   "limite_banco": args.limite_banco}))
             log(f"nuevo mejor: vuelta {v}")
         elif not ya_estaba:  # una vuelta retomada ya entrenada no cuenta (si no, retomar corta el bucle)
             sin_mejora += 1
             if sin_mejora >= 2:
                 log("dos vueltas sin mejorar: listo")
                 break
-        if v == args.desde + args.vueltas - 1:
+        if v == hasta - 1:
+            (d / "cerrada").write_text("ultima")
             break
         # buscar que arreglar en lo ENTRENADO, con estados nuevos
         auto = autoexamen(corpus, d / "autoexamen", rnd)
@@ -294,6 +331,7 @@ def main():
         log(f"autoexamen: {len(fal)} fallos")
         if not arreglar(fal, d, ad, v):
             log("nada que arreglar")
+        (d / "cerrada").write_text("arreglada")  # retomar sigue en la vuelta siguiente
     log(f"mejor: {W / 'mejor'} · puntaje {mejor_p:.3f}")
 
 

@@ -137,7 +137,7 @@ def main():
         finally:
             ch.volver(kv, foto, Lp)
 
-    esquemas = {f["function"]["name"]: f["function"]["parameters"] for f in tc.funciones()}
+    esquemas = tc.esquemas()
     conocidas = set(lp.herramientas_reactivas())
     est, _ = tc.estado_sintetico(random.Random(0))  # el mismo estado fijo que tc-evaluar
     res = {}

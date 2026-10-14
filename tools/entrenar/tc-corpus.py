@@ -226,34 +226,12 @@ def main():
         descartadas += len(anot[h]) - len(buenas)
         anot[h] = buenas
     print(f"anotaciones descartadas por no validar: {descartadas}")
-    # SIN COPIAS adentro de una herramienta: dos plantillas que comparten el 70 % de
-    # sus palabras con contenido y piden LO MISMO (mismos argumentos o la misma falta)
-    # son una sola: la copia no le enseña nada a la nube, solo la aprieta (memoria).
-    # Con otros argumentos no es copia («activá la placa» / «quitá la placa»: true y
-    # false). Queda la primera, con las humanas antes que las del agente.
-    import unicodedata as _ud
-    _vac = set("el la los las lo le les de del a al en con por para que y o u un una unos unas es "
-               "esta este esto eso esa ese se su sus mi me te tu ya ahi aca hay como cual cuales "
-               "dale eh che ojo rapido porfa bueno ahora toque".split())
-
-    def _contenido(pl):
-        x = _ud.normalize("NFKD", re.sub(r"\{[a-z_]+\d?\}", " X ", pl).lower()).encode("ascii", "ignore").decode()
-        t = set(re.sub(r"\W+", " ", x).split())
-        return (t - _vac) or t
+    # SIN COPIAS adentro de una herramienta (lib_tc.sin_copias): la copia no le enseña
+    # nada a la nube, solo la aprieta (memoria)
     copias = 0
     for h in list(anot):
-        quedan, vistas = [], []
-        for a in sorted(anot[h], key=lambda a: bool(a.get("nueva"))):
-            if not a.get("plantilla"):
-                quedan.append(a)
-                continue
-            t, pide = _contenido(a["plantilla"]), json.dumps([a.get("args"), a.get("falta")], sort_keys=True)
-            if any(p == pide and len(t & u) / max(len(t), len(u)) >= args.copia for u, p in vistas):
-                copias += 1
-                continue
-            vistas.append((t, pide))
-            quedan.append(a)
-        anot[h] = quedan
+        anot[h], cp = tc.sin_copias(anot[h], args.copia)
+        copias += len(cp)
     print(f"anotaciones copia de otra de su herramienta: fuera {copias}")
     ent, prueba = [], []
     for h, lista in sorted(anot.items()):

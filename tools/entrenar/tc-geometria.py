@@ -46,6 +46,7 @@ import collections
 import hashlib
 import importlib.util
 import json
+import os
 import random
 import re
 import sys
@@ -56,7 +57,8 @@ E = Path(__file__).resolve().parent
 sys.path.insert(0, str(E))
 import lib_tc as tc  # noqa: E402
 
-ANOT = RAIZ / "datos" / "tc-anotaciones.json"
+# BA_TC_ANOTACIONES: otro archivo (tc-parejo mide las de la vuelta, antes de escribirlas)
+ANOT = Path(os.environ.get("BA_TC_ANOTACIONES") or RAIZ / "datos" / "tc-anotaciones.json")
 RE_FUNCION = re.compile(r"<function=([^>\n]+)>")
 
 
@@ -136,24 +138,37 @@ class Medidor:
         self.t.cuda.empty_cache()
 
 
-_tcc = None
+_FIJO = None
 
 
-def usuario_de(h, a, semilla=0):
-    """La anotacion rendida UNA vez, con un estado fijo por anotacion (mismo texto
-    en cada corrida: el cache sirve y las rondas se comparan). Devuelve
-    (usuario, destino): destino es el nombre que el modelo tiene que escribir
-    (la herramienta, falta_dato o derivar)."""
-    global _tcc
-    if _tcc is None:
-        _tcc = _modulo("tcc_geo", "tc-corpus.py")
-    rnd = random.Random(int(hashlib.sha1(f"{semilla}|{h}|{a['plantilla']}".encode()).hexdigest()[:8], 16))
-    filas = _tcc.rendir(h, a, rnd, 1, variar=False)
-    if not filas:
+def estado_fijo():
+    """UN estado para medir todas las frases: con cada clase de entidad (dos de cada
+    una) para que cualquier plantilla se pueda llenar. Antes cada anotacion iba con
+    un estado al azar —cientos de tokens distintos— y parte de la «variedad» de una
+    nube era el estado y no la frase."""
+    global _FIJO
+    if _FIJO is None:
+        necesita = [t for t in list(tc.TIPOS) + ["posicion"] for _ in range(2)]
+        est, formas = tc.estado_sintetico(random.Random(1234), necesita)
+        if not est["escena_armada"]:
+            est["escena_armada"] = next(e for e in est["escenas"] if e != est["escena_actual"])
+        _FIJO = (est, formas)
+    return _FIJO
+
+
+def usuario_de(h, a):
+    """La anotacion con el estado fijo y sus huecos llenos con una eleccion fija por
+    anotacion (mismo texto en cada corrida: el cache sirve y las rondas se comparan).
+    Devuelve (usuario, destino): destino es el nombre REAL que el modelo tiene que
+    escribir (la herramienta o derivar). Las de falta no tienen destino de nube."""
+    if "falta" in a or not a.get("plantilla"):
         return None, None
-    f = filas[0]
-    m = RE_FUNCION.search(f["completion"])
-    return f["prompt"][len(tc.cabeza()):-len(tc.COLA)], (m.group(1) if m else None)
+    est, formas = estado_fijo()
+    rnd = random.Random(int(hashlib.sha1(f"{h}|{a['plantilla']}".encode()).hexdigest()[:8], 16))
+    frase, _ = tc.rellenar(a["plantilla"], a.get("args", {}), formas, rnd)
+    if frase is None:
+        return None, None
+    return tc.usuario(est, frase), h
 
 
 def nubes(med, anot=None, herramientas=None):
@@ -169,9 +184,7 @@ def nubes(med, anot=None, herramientas=None):
         for a in lista:
             if not a.get("plantilla"):
                 continue
-            if "falta" in a:
-                continue  # pedir el dato depende del ESTADO, no de la frase: no es una nube
-            u, destino = usuario_de(h, a)
+            u, destino = usuario_de(h, a)  # sin las de falta: pedir el dato depende del estado
             if u is None or destino is None:
                 continue
             grupos[destino].append(med.h(u))
@@ -213,7 +226,7 @@ def resumen(d):
 
 
 def filtrar(geo, med, candidatas, evidencia, objetivo=0.028, novedad_min=0.45, tolerancia=0.05,
-            evidencia_min=2):
+            evidencia_min=2, permitir_otra=False):
     """candidatas: [(herramienta, anotacion)]. evidencia: Counter((h, elegida)) de
     lo que el modelo real hizo mal. Devuelve (aprobadas, rechazadas[(h, a, motivo)]).
     Las aprobadas se suman a la geometria en el acto: la siguiente se mide contra
@@ -221,18 +234,21 @@ def filtrar(geo, med, candidatas, evidencia, objetivo=0.028, novedad_min=0.45, t
     torch = geo.t
     aprobadas, rechazadas = [], []
     for h, a in candidatas:
+        if "falta" in a:  # pedir el dato depende del estado: no hay nube contra que medir
+            aprobadas.append((h, a))
+            continue
         u, destino = usuario_de(h, a)
         if u is None:
             rechazadas.append((h, a, "no se pudo rendir"))
             continue
-        if destino not in geo.P:  # herramienta sin nube todavia: nada contra que medir
+        if u is not None and destino not in geo.P:  # herramienta sin nube todavia: nada contra que medir
             aprobadas.append((h, a))
             continue
         v = med.h(u)
         cerca = geo.mas_cercano(v)
         if cerca != destino:
             n_ev = evidencia.get((h, cerca), 0)
-            if n_ev < evidencia_min:
+            if n_ev < evidencia_min and not permitir_otra:
                 rechazadas.append((h, a, f"cae en {cerca} (sin evidencia: {n_ev})"))
                 continue
             # corrige un error visto: entra sin los filtros 2 y 3 (es el contraste)
@@ -263,6 +279,35 @@ def filtrar(geo, med, candidatas, evidencia, objetivo=0.028, novedad_min=0.45, t
     return aprobadas, rechazadas
 
 
+def podar(geo, etiq, tope, topes=None):
+    """Para cada herramienta con mas de `tope` frases: saca de a una la que menos
+    suma (novedad contra las demas de su grupo: la copia segun el MODELO, no segun
+    las palabras), primero las del agente, hasta quedar en `tope`. Devuelve
+    {herramienta: [plantillas que salen]}."""
+    t = geo.t
+    sale = {}
+    for h in list(geo.hs):
+        P, et = geo.P[h], list(etiq[h])
+        fuera = []
+        while len(P) > (topes or {}).get(h, tope):
+            nov = []
+            for i in range(len(P)):
+                resto = t.cat([P[:i], P[i + 1:]])
+                geo.P[h] = resto
+                geo._recalcular()
+                nov.append((not et[i]["agente"], geo.novedad(h, P[i]), i))
+            _, _, i = min(nov)
+            fuera.append(et[i]["plantilla"])
+            P = t.cat([P[:i], P[i + 1:]])
+            et.pop(i)
+        geo.P[h] = P
+        geo._recalcular()
+        etiq[h] = et
+        if fuera:
+            sale[h] = fuera
+    return sale
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modelo", required=True, help="adaptador LoRA o el repo de la base")
@@ -271,6 +316,11 @@ def main():
     ap.add_argument("--filtrar", help="jsonl de candidatas {herramienta, plantilla, args|falta, ...}: los tres filtros")
     ap.add_argument("--evidencia", help="con --filtrar: json [[herramienta, elegida, veces], ...] de lo que el modelo hizo mal")
     ap.add_argument("--aprobadas", help="con --filtrar: jsonl de salida (las descartadas van a <...>.descartadas.jsonl)")
+    ap.add_argument("--permitir-otra", action="store_true",
+                    help="con --filtrar: no descartar lo que cae en otro grupo (medido con un modelo que no distingue el par)")
+    ap.add_argument("--podar", type=int, help="dejar cada herramienta en N frases, sacando las que menos suman")
+    ap.add_argument("--salida-poda", help="con --podar: json {herramienta: [plantillas que salen]}")
+    ap.add_argument("--topes", help="con --podar: json {herramienta: N} (el tope de la nube: sin las de falta)")
     args = ap.parse_args()
     med = Medidor(args.modelo)
     geo, etiq = nubes(med)
@@ -282,7 +332,7 @@ def main():
                 cands.append((a.pop("herramienta"), a))
         ev = collections.Counter({(h, e): n for h, e, n in json.loads(Path(args.evidencia).read_text())}) \
             if args.evidencia else collections.Counter()
-        aprob, rech = filtrar(geo, med, cands, ev, objetivo=args.objetivo)
+        aprob, rech = filtrar(geo, med, cands, ev, objetivo=args.objetivo, permitir_otra=args.permitir_otra)
         sal = Path(args.aprobadas)
         sal.write_text("".join(json.dumps({"herramienta": h, **a}, ensure_ascii=False) + "\n" for h, a in aprob))
         sal.with_suffix(".descartadas.jsonl").write_text(
@@ -290,6 +340,11 @@ def main():
         motivos = collections.Counter("cae en otra" if m.startswith("cae en") else "acerca vecinas"
                                       if m.startswith("acerca") else m.split(" (")[0] for _, _, m in rech)
         print(f"filtro geometrico: {len(aprob)} de {len(cands)} aprobadas · descartadas {dict(motivos)}")
+        return
+    if args.podar:
+        sale = podar(geo, etiq, args.podar, json.loads(Path(args.topes).read_text()) if args.topes else None)
+        Path(args.salida_poda).write_text(json.dumps(sale, ensure_ascii=False, indent=1))
+        print(f"poda a {args.podar}: salen {sum(map(len, sale.values()))} de {len(sale)} herramientas")
         return
     d = diagnostico(geo, etiq, args.objetivo)
     print(json.dumps(resumen(d), ensure_ascii=False))

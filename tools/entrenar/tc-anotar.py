@@ -194,7 +194,7 @@ def main():
     import agente
     esquemas = tc.esquemas()
     sem = json.loads((RAIZ / "datos/semillas-reactivas.json").read_text())["herramientas"]
-    funcs = {f["function"]["name"]: f["function"] for f in tc.funciones()}
+    funcs = tc.fichas()
     hechas = json.loads(SALIDA.read_text()) if SALIDA.exists() else {}
     # con --sumar entran tambien las herramientas SIN semillas (las nuevas de un perfil)
     nombres = [h for h in lp.herramientas_reactivas() if h in sem or args.sumar]

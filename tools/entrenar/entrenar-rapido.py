@@ -57,6 +57,15 @@ def cargar(carpeta, nombre):
             if l.strip()]
 
 
+PARADO = 3  # salida de una corrida parada a pedido: el supervisor no la relanza
+
+
+def archivo_parar(args):
+    """El archivo que pide parar: BA_PARAR (lo pone tc-bucle: <trabajo>/PARAR) o
+    <salida>/PARAR si se corre suelto."""
+    return Path(os.environ.get("BA_PARAR") or Path(args.salida) / "PARAR")
+
+
 def supervisar(args):
     """Lanza torchrun y relanza desde el ultimo estado si la corrida se cae."""
     import torch
@@ -93,6 +102,9 @@ def supervisar(args):
             pass
         if rc == 0:
             return
+        if rc == PARADO or archivo_parar(args).exists():
+            print("[supervisor] parado a pedido: no relanzo", flush=True)
+            sys.exit(PARADO)
         if marca.exists():
             marca.unlink()
             micro = max(1, micro // 2)
@@ -583,16 +595,26 @@ def main():
         # cada proceso difieren) y la comparte, porque guardar es colectivo. Se
         # pregunta cada 10 pasos: leer la respuesta (.item) sincroniza la CPU con
         # la placa, y en cada paso dejaba a la placa esperando el paso siguiente
-        toca = False
+        # PARAR A PEDIDO: el mismo aviso lleva si existe el archivo PARAR (ver
+        # archivo_parar): se guarda el estado y se sale con 3, que el supervisor
+        # no relanza. Lo maximo que se pierde son 10 pasos.
+        toca = parar = False
         if (paso + 1) % 10 == 0 and paso + 1 < total:
-            t = torch.tensor([float(time.time() - t_estado > args.guardar_cada_min * 60)], device=dev)
+            t = torch.tensor([float(time.time() - t_estado > args.guardar_cada_min * 60),
+                              float(archivo_parar(args).exists())], device=dev)
             if dist_on:
                 dist.broadcast(t, 0)
-            toca = bool(t.item())
-        if toca:
+            toca, parar = bool(t[0].item()), bool(t[1].item())
+        if toca or parar:
             guardar_estado(paso + 1)
             t_estado = time.time()
             log(f"  estado guardado (paso {paso + 1})")
+        if parar:
+            log(f"  PARADO a pedido en el paso {paso + 1}: se retoma con --reanudar (tc-bucle --retomar)")
+            if dist_on:
+                dist.barrier()
+                dist.destroy_process_group()
+            sys.exit(PARADO)
     if yo:
         guardar(args.salida, sd=estado_mejor)
         import lib_prompt as _lp

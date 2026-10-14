@@ -131,7 +131,7 @@ def main():
     # cobertura deja de medir la ELECCION. --con-falta lo deja elegir (diagnostico).
     nombres = lp.herramientas_reactivas() + [tc.DERIVAR] + ([tc.FALTA] if args.con_falta else [])
     puente = tc.COLA + "<tool_call>\n<function="
-    seqs = {n: tok(puente + n + ">", add_special_tokens=False).input_ids for n in nombres}
+    seqs = {n: tok(puente + tc.a_modelo(n) + ">", add_special_tokens=False).input_ids for n in nombres}
     comun = min(len(s) for s in seqs.values())
     for i in range(comun):
         if len({s[i] for s in seqs.values()}) > 1:
