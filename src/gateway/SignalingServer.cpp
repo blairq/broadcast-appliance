@@ -192,6 +192,7 @@ bool SignalingServer::start() {
     acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false);
     // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
     statsThread_ = std::thread([this] {
+        std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
         while (!stop_.load()) {
             for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
             std::vector<std::pair<std::string, int>> sesiones;
@@ -206,6 +207,12 @@ bool SignalingServer::start() {
                 if (WebrtcSession* s = hub_.session(idx)) {
                     const nlohmann::json j = nlohmann::json::parse(s->estadisticas(), nullptr, false);
                     if (j.is_object() && !j.empty()) room_.setRed(pid, j, ahora);
+                    // Lo que le sale a una pantalla (codificador, capas, qué lo limita), cada
+                    // 30 s: junto con lo que ella dice que recibe, se ve dónde se traba.
+                    if (esPantalla(pid) && j.is_object() && j.contains("salida") && ahora - anotada[pid] >= 30000) {
+                        anotada[pid] = ahora;
+                        log_.info("pantalla " + pid + " sale: " + j["salida"].dump());
+                    }
                 }
         }
     });

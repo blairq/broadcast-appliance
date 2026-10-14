@@ -198,17 +198,14 @@
     negociar(pc);
   }
 
-  // EL CODEC. Sin pedir nada, sale VP8 (el primero que ofrece el navegador), y un
-  // televisor o un Chromecast casi nunca decodifica VP8 en hardware: a 1080p lo
-  // hace el procesador del aparato, no llega, los cuadros se encolan y la pantalla
-  // va cada vez más atrás (y se traba cuando hay mucho movimiento, como un gráfico
-  // que entra a pantalla completa). H.264 lo decodifican en hardware todos. En un
-  // televisor se pide H.264 primero; ?codec=vp8|h264 lo fuerza (el gateway contesta
-  // en el orden del offer).
+  // EL CODEC. Por defecto VP8, que el gateway manda con capas temporales (L1T3):
+  // si el wifi pierde un paquete de un cuadro que no es referencia, ese cuadro se
+  // saltea y la imagen sigue en hora en vez de clavarse (ver Webrtc.cpp,
+  // seguirElReloj). ?codec=h264 pide H.264 (en la Mac, por hardware: menos trabajo
+  // para el aparato si no da abasto decodificando, pero sin capas: una pérdida clava
+  // hasta recuperarse). El gateway contesta en el orden del offer.
   function preferirCodec(vt) {
-    const ua = navigator.userAgent || "";
-    const tele = /CrKey|SMART-TV|SmartTV|Tizen|Web0S|webOS|AFT|Android TV|BRAVIA|GoogleTV/i.test(ua);
-    const pedido = (q.get("codec") || (tele ? "h264" : "")).toLowerCase();
+    const pedido = (q.get("codec") || "").toLowerCase();
     if (!pedido || !vt.setCodecPreferences || !window.RTCRtpReceiver || !RTCRtpReceiver.getCapabilities) return;
     try {
       const todos = RTCRtpReceiver.getCapabilities("video").codecs;
