@@ -2162,7 +2162,7 @@ void McpService::registerTools() {
         t.category = "audio";
         t.description =
             "Atrasa el audio de una fuente para que coincida con su video. Sin `ms`, dice el retardo que "
-            "tiene puesto.";
+            "tiene puesto; '+40' / '-40' lo cambia sobre el que tiene.";
         t.details =
             "Para que sirve: una camara IP llega con 200 ms a 2 s de retardo (codificacion + red + "
             "buffer), mientras que un microfono por la placa de audio llega casi al instante. Se escucha "
@@ -2185,11 +2185,29 @@ void McpService::registerTools() {
                     return done(ToolResult::error("El motor todavia no tiene fuentes."));
                 return done(ToolResult().data(json{{"name", n}, {"ms", rt.engine().sourceSyncOffset(n)}}));
             }
-            if (!rt.engine().setSourceSyncOffset(n, a["ms"].get<int>()))
+            // Un numero lo deja en eso; «+40» / «-40» lo cambia sobre el actual; «=200», en 200.
+            int ms = 0;
+            if (a["ms"].is_number()) {
+                ms = static_cast<int>(std::lround(a["ms"].get<double>()));
+            } else if (a["ms"].is_string()) {
+                std::string v = a["ms"].get<std::string>();
+                while (!v.empty() && v.front() == ' ') v.erase(0, 1);
+                const bool cambio = !v.empty() && (v.front() == '+' || v.front() == '-');
+                if (!v.empty() && v.front() == '=') v.erase(0, 1);
+                try {
+                    ms = static_cast<int>(std::lround(std::stod(v)));
+                } catch (const std::exception&) {
+                    return done(ToolResult::error("`ms` tiene que ser un numero (o '+40' / '-40')."));
+                }
+                if (cambio) ms += rt.engine().sourceSyncOffset(n);
+            } else {
+                return done(ToolResult::error("`ms` tiene que ser un numero (o '+40' / '-40')."));
+            }
+            ms = std::clamp(ms, -5000, 5000);
+            if (!rt.engine().setSourceSyncOffset(n, ms))
                 return done(ToolResult::error(rt.engine().lastError()));
             persist();
-            done(ToolResult::ok("El audio de '" + n + "' va " + std::to_string(a["ms"].get<int>()) +
-                                " ms respecto del video."));
+            done(ToolResult::ok("El audio de '" + n + "' va " + std::to_string(ms) + " ms respecto del video."));
         };
         core_.addTool(std::move(t));
     }

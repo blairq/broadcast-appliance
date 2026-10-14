@@ -211,6 +211,27 @@
    },
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "ocupate del fundido a negro, rapido",
+   "falta": "¿fundir a negro o volver del negro?",
+   "nueva": true,
+   "frase": "ocupate del fundido a negro, rapido",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "ojo con el negro de la salida, resolvelo ya",
+   "falta": "¿fundir a negro o volver del negro?",
+   "nueva": true,
+   "frase": "ojo con el negro de la salida, resolvelo ya",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "ahora va lo del negro, encargate",
+   "falta": "¿fundir a negro o volver del negro?",
+   "nueva": true,
+   "frase": "ahora va lo del negro, encargate",
+   "origen": "bucle"
   }
  ],
  "aire_placa": [
@@ -437,6 +458,16 @@
    "falta": "¿Qué texto lleva el cartel?",
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "quitá la placa en medio segundo",
+   "args": {
+    "activar": false,
+    "ms": 500
+   },
+   "nueva": true,
+   "frase": "quitá la placa en medio segundo",
+   "origen": "bucle"
   }
  ],
  "audio_analyze": [
@@ -1055,6 +1086,26 @@
    },
    "nueva": true,
    "frase": "medí cuanto comprime el compresor de {audio}",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "hay un zumbido en la salida, medí la cadena con tono de prueba",
+   "args": {
+    "source": "{audio_operador}",
+    "tipo": "respuesta"
+   },
+   "nueva": true,
+   "frase": "hay un zumbido en la salida, medí la cadena con tono de prueba",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "el audio no esta desfasado, tiene zumbido: medí la cadena",
+   "args": {
+    "source": "{audio_operador}",
+    "tipo": "respuesta"
+   },
+   "nueva": true,
+   "frase": "el audio no esta desfasado, tiene zumbido: medí la cadena",
    "origen": "bucle"
   }
  ],
@@ -4179,9 +4230,7 @@
   {
    "frase": "escribile por chat que se acerque al micrófono",
    "plantilla": "escribile por chat que se acerque al micrófono",
-   "args": {
-    "text": "se acerque al micrófono"
-   }
+   "falta": "¿A quién le escribo?"
   },
   {
    "frase": "mandale a Sofía por chat que baje el volumen de su micrófono",
@@ -6268,7 +6317,7 @@
   },
   {
    "frase": "¿la de LSA está fija o se puede bajar?",
-   "plantilla": "¿la de LSA está fija o se puede bajar?",
+   "plantilla": "¿la capa de LSA del DSK esta fija o se puede bajar?",
    "args": {},
    "nueva": true,
    "origen": "tc-nuevas"
@@ -6728,7 +6777,7 @@
   },
   {
    "frase": "andá al bloque 6",
-   "plantilla": "andá al bloque 6",
+   "plantilla": "andá al bloque 6 del guion",
    "args": {
     "accion": "ir",
     "bloque": 6
@@ -6793,6 +6842,15 @@
    },
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "se cancela el acto, terminá el guion acá",
+   "args": {
+    "accion": "parar"
+   },
+   "nueva": true,
+   "frase": "se cancela el acto, terminá el guion acá",
+   "origen": "bucle"
   }
  ],
  "gateway_restart": [
@@ -11883,6 +11941,15 @@
    },
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "en el PDF de la escena cargá {documento}, no la lista",
+   "args": {
+    "documento": "{documento}"
+   },
+   "nueva": true,
+   "frase": "en el PDF de la escena cargá {documento}, no la lista",
+   "origen": "bucle"
   }
  ],
  "pdf_escena_ver": [
@@ -14479,6 +14546,15 @@
    "falta": "¿qué cámara freno?",
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "pará {camara} donde está, sin ir a otra posición",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "frase": "pará {camara} donde está, sin ir a otra posición",
+   "origen": "bucle"
   }
  ],
  "ptz_posicion_crear": [
@@ -17273,6 +17349,15 @@
    },
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "eliminá el vínculo 7 del todo",
+   "args": {
+    "id": "7"
+   },
+   "nueva": true,
+   "frase": "eliminá el vínculo 7 del todo",
+   "origen": "bucle"
   }
  ],
  "rotulo_vincular": [
@@ -19177,6 +19262,24 @@
    "falta": "¿qué escena dejo en preview?",
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "cargá en preview {escena}, no al aire",
+   "args": {
+    "name": "{escena}"
+   },
+   "nueva": true,
+   "frase": "cargá en preview {escena}, no al aire",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "armame {escena} en preview para el take que viene",
+   "args": {
+    "name": "{escena}"
+   },
+   "nueva": true,
+   "frase": "armame {escena} en preview para el take que viene",
+   "origen": "bucle"
   }
  ],
  "scene_protect": [
@@ -21832,6 +21935,16 @@
    },
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "mové el recuadro de {fuente} a la esquina de abajo a la izquierda",
+   "args": {
+    "name": "{fuente}",
+    "layout": "bottom-left"
+   },
+   "nueva": true,
+   "frase": "mové el recuadro de {fuente} a la esquina de abajo a la izquierda",
+   "origen": "bucle"
   }
  ],
  "speaker_move": [
@@ -23427,7 +23540,9 @@
   {
    "frase": "sacanos de youtube",
    "plantilla": "sacanos de youtube",
-   "args": {}
+   "args": {
+    "destino": "youtube"
+   }
   },
   {
    "frase": "corta la transmision pero segui grabando",
@@ -23451,7 +23566,7 @@
   },
   {
    "frase": "Pará el stream RTMP que está saliendo",
-   "plantilla": "Pará el stream RTMP que está saliendo",
+   "plantilla": "pará el stream RTMP que esta saliendo, bajanos del aire",
    "args": {}
   },
   {
@@ -23538,7 +23653,7 @@
   },
   {
    "frase": "cortá Twitch nomás",
-   "plantilla": "cortá Twitch nomás",
+   "plantilla": "cortá la transmision a Twitch nomas",
    "args": {
     "destino": "Twitch"
    },
@@ -23558,6 +23673,24 @@
    "args": {},
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "plantilla": "cortá la transmision a facebook nomas, youtube sigue al aire",
+   "args": {
+    "destino": "facebook"
+   },
+   "nueva": true,
+   "frase": "cortá la transmision a facebook nomas, youtube sigue al aire",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "bajá del aire solo twitch, el resto que siga",
+   "args": {
+    "destino": "twitch"
+   },
+   "nueva": true,
+   "frase": "bajá del aire solo twitch, el resto que siga",
+   "origen": "bucle"
   }
  ],
  "transition_set": [
@@ -23716,6 +23849,20 @@
    "tipo_nueva": "sintoma",
    "nueva": true,
    "origen": "tc-sumar"
+  },
+  {
+   "plantilla": "dejá la duracion de la transicion en 800 milisegundos",
+   "falta": "¿Qué tipo de transición?",
+   "nueva": true,
+   "frase": "dejá la duracion de la transicion en 800 milisegundos",
+   "origen": "bucle"
+  },
+  {
+   "plantilla": "la transicion dura mucho, dejá la duracion en 250 ms",
+   "falta": "¿Qué tipo de transición?",
+   "nueva": true,
+   "frase": "la transicion dura mucho, dejá la duracion en 250 ms",
+   "origen": "bucle"
   }
  ],
  "votacion_abrir": [

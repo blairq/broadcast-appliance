@@ -38,7 +38,8 @@ import lib_tc as tc  # noqa: E402
 
 def igual(esperado, obtenido):
     """Valor esperado (como lo escribe lib_tc) contra el texto que escribio el modelo.
-    Numeros: 3 == 3.0, pero un cambio (+3/-3) no es un exacto (=3) ni un numero suelto."""
+    Como los lee la app (ArgumentosLocales, parseSeconds): 3 == 3.0 == «=3», y
+    «2:30» son 150 s; pero un cambio (+3/-3) no es un exacto ni un numero suelto."""
     e = tc.valor_texto(esperado).strip()
     o = str(obtenido).strip()
     if e == o:
@@ -46,14 +47,17 @@ def igual(esperado, obtenido):
     if e.lower() in ("true", "false"):
         return e.lower() == o.lower()
     def forma(x):
-        exacto = x.startswith("=")
-        x = x.lstrip("=")
-        return exacto, x[:1] in "+-" and not exacto, float(x)
+        x = x[1:] if x.startswith("=") else x
+        cambio = x[:1] in "+-"
+        if ":" in x:  # m:ss (los tiempos de speaker_time)
+            signo = -1 if x.startswith("-") else 1
+            m, s = x.lstrip("+-").split(":", 1)
+            return cambio, signo * (int(m) * 60 + int(s))
+        return cambio, float(x)
     try:
-        fe, fo = forma(e), forma(o)
+        return forma(e) == forma(o)
     except ValueError:
         return False
-    return fe[0] == fo[0] and fe[1] == fo[1] and fe[2] == fo[2]
 
 
 def main():
@@ -155,12 +159,15 @@ def main():
     def camino(lg, sin_derivar, largo):
         """La eleccion restringida desde lg (largo: posiciones en la cache hasta lg).
         Sin --con-falta, si el modelo elige falta_dato se repite sin las ramas que
-        llevan a falta: gana la mejor de las que no son preguntar."""
+        llevan a falta NI a derivar: preguntar el dato es decir «es mia» (con el
+        estado fijo, las entidades de la frase no estan y preguntar es lo correcto;
+        contarlo como derivar mandaba a derivar 32 de las 43 propias derivadas del
+        banco en la vuelta 0 de la v6). Gana la mejor herramienta propia."""
         f = ch.foto(kv)
         r = _camino(lg, sin_derivar, False)
         if r[0] == tc.FALTA and not args.con_falta:
             ch.volver(kv, f, largo)
-            r = _camino(lg, sin_derivar, True)
+            r = _camino(lg, True, True)
         return r
 
     def _camino(lg, sin_derivar, sin_falta):

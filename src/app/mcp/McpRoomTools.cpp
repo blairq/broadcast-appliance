@@ -1356,17 +1356,32 @@ void McpService::registerRoomTools() {
         t.name = "speaker_time";
         t.title = "Tiempo de un orador";
         t.category = "oradores";
-        t.description = "Tiempo asignado para hablar de una persona (segundos o 'm:ss'). Se puede cambiar "
-                        "estando al aire.";
+        t.description = "Tiempo asignado para hablar de una persona (segundos o 'm:ss'): '+2:00' le suma dos "
+                        "minutos, '-30' le saca treinta segundos, '2:30' o '=2:30' lo deja en eso. Se puede "
+                        "cambiar estando al aire.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"participant", personProp}, {"time", {{"type", json::array({"string", "integer"})}}}}},
             {"required", {"participant", "time"}}};
-        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
+        t.run = [withPerson, &oradores, &vm, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            const int s = parseSeconds(a["time"]);
+            // «+2:00» / «-30»: sobre lo que ya tiene (el suyo, o el general si no tiene uno);
+            // «=2:30» o «2:30»: eso. Antes el signo se perdia y «+2:00» lo DEJABA en dos minutos.
+            int s = 0;
+            std::string txt = a["time"].is_string() ? a["time"].get<std::string>() : std::string();
+            while (!txt.empty() && txt.front() == ' ') txt.erase(0, 1);
+            if (!txt.empty() && (txt.front() == '+' || txt.front() == '-')) {
+                const int signo = txt.front() == '-' ? -1 : 1;
+                int base = p.value("allottedSec", 0);
+                if (base <= 0) base = roomSnapshot(vm).value("speakers", json::object()).value("defaultSec", 0);
+                s = base + signo * parseSeconds(json(txt.substr(1)));
+            } else if (!txt.empty() && txt.front() == '=') {
+                s = parseSeconds(json(txt.substr(1)));
+            } else {
+                s = parseSeconds(a["time"]);
+            }
             const std::string e = oradores.tiempo(p["id"], s, contestar("Tiempo: " + std::to_string(s) + " s.", done));
             if (!e.empty()) done(ToolResult::error(e + " (segundos o 'm:ss')."));
         };

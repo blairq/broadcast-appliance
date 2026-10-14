@@ -8,8 +8,12 @@ modelo, cada herramienta una nube, y la cuenta decide.
 DONDE SE MIDE. En el formato tc el nombre se decide despues de «<function=»: el
 tokenizador de Qwen3.5 parte «<function=aire_ftb>» en «<», «function», «=»,
 «aire»... y el estado oculto en «=» es el que elige el primer token del nombre.
-Se toma ese estado, FINAL (despues de la norma): exactamente lo que multiplica
-la cabeza de salida, que es donde vale la cota de la CDNV. El usuario va como en
+Pero en unos 35 nombres el tokenizador pega «=» con la primera letra
+(«=f»oto_invitado, «=s»peaker_next, «=l»aminas_ir, «=f»alta_dato): para esos
+la eleccion empieza en «function». Se toman LOS DOS estados, concatenados: cada
+frase en la misma posicion, y cada nombre con el estado donde se decide. FINALES
+(despues de la norma): exactamente lo que multiplica la cabeza de salida, que es
+donde vale la cota de la CDNV. El usuario va como en
 el corpus (estado del aparato + «Pedido: ...»), con el prefijo del sistema
 compartido y su cache recuperado entre frases (cache_hibrido: las capas
 lineales de Qwen3.5 no se recortan como un cache KV).
@@ -104,7 +108,7 @@ class Medidor:
         self.Lp = ids.shape[1]
         self.foto = ch.foto(self.kv)
         self.forzado = self.tok(tc.COLA + "<tool_call>\n<function=", add_special_tokens=False).input_ids
-        firma = hashlib.sha1((firma_m + self.cab).encode()).hexdigest()[:12]
+        firma = hashlib.sha1((firma_m + self.cab + "|function+=").encode()).hexdigest()[:12]
         self.cache_f = Path(cache_dir) / f"h-{firma}.pt"
         self.cache = torch.load(self.cache_f) if self.cache_f.exists() else {}
         self.sucio = False
@@ -118,10 +122,10 @@ class Medidor:
         try:
             with torch.no_grad():
                 v = self.m.model(input_ids=torch.tensor([u + self.forzado], device=self.dev),
-                                 past_key_values=self.kv, use_cache=True).last_hidden_state[0, -1]
+                                 past_key_values=self.kv, use_cache=True).last_hidden_state[0, -2:]
         finally:
             self.ch.volver(self.kv, self.foto, self.Lp)
-        v = v.float().cpu()
+        v = v.float().cpu().reshape(-1)  # «function» y «=», uno detras del otro
         self.cache[usuario] = v
         self.sucio = True
         return v

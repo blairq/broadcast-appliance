@@ -255,7 +255,7 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
             continue;
         }
         const json& p = props[k];
-        const std::string tipo = p.value("type", std::string());
+        const std::string tipo = tipoDe(p);
         if (v.is_string() && v.get<std::string>().empty()) {
             r.notas.push_back("vacío: afuera " + k);
             continue;
@@ -301,9 +301,14 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
                 v = std::round((volumen[fuente] + d) * 10.0) / 10.0;
                 r.notas.push_back("relativo " + std::string(d > 0 ? "+" : "") + json(d).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) +
                                   " dB sobre " + json(volumen[fuente]).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            } else if (herr == "audio_sincro" && kl == "ms") {
+                // La herramienta suma el cambio a su retardo actual («atrasale 40 ms
+                // más» es «+40»); antes llegaba como 40 a secas y lo DEJABA en 40.
+                r.notas.push_back("cambio: lo suma la herramienta: " + k + "=" + v.get<std::string>());
+                r.args[k] = v;
+                continue;
             } else {
-                // Sin valor actual que conozcamos: el número con su signo (un
-                // corrimiento, como el de sincronía, es así).
+                // Sin valor actual que conozcamos: el número con su signo.
                 r.notas.push_back("con signo, sin valor actual: " + k + "=" + v.get<std::string>());
                 v = d;
             }
@@ -320,6 +325,20 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
         if (req.is_string() && !r.args.contains(req.get<std::string>()))
             r.bloqueos.push_back("falta: " + req.get<std::string>());
     return r;
+}
+
+std::string tipoDe(const json& propiedad) {
+    const auto it = propiedad.find("type");
+    if (it == propiedad.end()) return {};
+    if (it->is_string()) return it->get<std::string>();
+    if (!it->is_array()) return {};
+    // json.value("type", std::string()) con una lista tiraba una excepcion que
+    // nadie atrapaba: la app se caia cada vez que el modelo llamaba a speaker_time
+    for (const auto& t : *it)
+        if (t == "string") return "string";
+    for (const auto& t : *it)
+        if (t.is_string() && t != "null") return t.get<std::string>();
+    return {};
 }
 
 LlamadaTc leerTc(const std::string& generado) {
@@ -348,7 +367,7 @@ json argsDesdeTc(const LlamadaTc& llamada, const json& ficha) {
         const auto a = v.find_first_not_of(" \t\r\n"), b = v.find_last_not_of(" \t\r\n");
         v = a == std::string::npos ? std::string() : v.substr(a, b - a + 1);
         const json p = props.value(k, json::object());
-        const std::string tipo = p.value("type", std::string());
+        const std::string tipo = tipoDe(p);
         if (tipo == "number" || tipo == "integer") {
             if (!v.empty() && v[0] == '=' && std::regex_match(v.substr(1), numero)) {
                 const double x = std::stod(v.substr(1));

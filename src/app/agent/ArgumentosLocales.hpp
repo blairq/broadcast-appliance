@@ -86,4 +86,10 @@ LlamadaTc leerTc(const std::string& generado);
 /// booleanos; listas y objetos (JSON). Después va por `validar`.
 json argsDesdeTc(const LlamadaTc& llamada, const json& ficha);
 
+/// El «type» de una propiedad del esquema. Puede ser una lista
+/// (["string", "integer"], el tiempo de speaker_time): con «string» entre los
+/// tipos se lee como texto, para que el signo («+2:00») y el «=» lleguen a la
+/// herramienta; si no, el primero que no sea «null».
+std::string tipoDe(const json& propiedad);
+
 } // namespace ba::app::agent::argumentos

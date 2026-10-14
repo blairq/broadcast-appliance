@@ -659,7 +659,7 @@ void Voz::completar(int id, const QString& frase, const QString& h, const FichaH
         for (const auto& [clave, prop] : ficha.ficha.value("inputSchema", nlohmann::json::object())
                                              .value("properties", nlohmann::json::object())
                                              .items())
-            if (prop.value("type", std::string()) == "array" || prop.value("type", std::string()) == "object")
+            if (argumentos::tipoDe(prop) == "array" || argumentos::tipoDe(prop) == "object")
                 maxTokens = 256;
         modelos_.generar(
             QString::fromStdString(texto), false, maxTokens, {},
