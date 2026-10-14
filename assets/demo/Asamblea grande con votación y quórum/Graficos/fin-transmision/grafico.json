@@ -1,0 +1,117 @@
+{
+  "nombre": "Fin de transmisión",
+  "descripcion": "La placa del cierre: gracias, el nombre del evento y dónde queda la grabación. Pantalla completa, se queda hasta que se corta la transmisión.",
+  "ancho": 1920,
+  "alto": 1080,
+  "parametros": [
+    {
+      "clave": "titulo",
+      "titulo": "Título",
+      "tipo": "texto",
+      "porDefecto": "Gracias por acompañarnos",
+      "ayuda": "El cartel grande."
+    },
+    {
+      "clave": "evento",
+      "titulo": "Evento",
+      "tipo": "texto",
+      "porDefecto": "Nombre del evento",
+      "ayuda": "El nombre del evento, abajo del título."
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Bajada",
+      "tipo": "texto",
+      "porDefecto": "",
+      "ayuda": "Dónde ver la grabación o el próximo encuentro. Puede ir vacía."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#ff4d2e",
+      "ayuda": "La línea fina sobre el título."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "0 = se queda hasta que se corta la transmisión."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 1080,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 800
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 600
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 1920,
+        "alto": 1080,
+        "color": "#0b0b0c",
+        "opacidad": 1
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 264,
+        "arriba": 420,
+        "ancho": 200,
+        "alto": 6,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "titulo",
+        "valor": "{titulo}",
+        "tamano": 84,
+        "peso": "negrita",
+        "izquierda": 260,
+        "arriba": 450,
+        "ancho": 1400
+      },
+      {
+        "tipo": "texto",
+        "id": "evento",
+        "valor": "{evento}",
+        "tamano": 40,
+        "peso": "normal",
+        "color": "#f4f4f5",
+        "izquierda": 262,
+        "arriba": 590,
+        "ancho": 1400,
+        "aparece": 400
+      },
+      {
+        "tipo": "texto",
+        "id": "bajada",
+        "valor": "{bajada}",
+        "tamano": 30,
+        "peso": "liviana",
+        "color": "#a1a1aa",
+        "izquierda": 262,
+        "arriba": 660,
+        "ancho": 1400,
+        "aparece": 600
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "✓",
+      "titulo": "Con los datos del evento",
+      "prompt": "Mirá el evento abierto (evento_ver) y poné en esta placa su nombre; de bajada, dónde va a quedar la grabación si se sabe (por ejemplo el canal de YouTube). Dejala armada en el preview."
+    }
+  ]
+}

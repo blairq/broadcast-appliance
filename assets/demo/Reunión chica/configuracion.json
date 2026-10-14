@@ -1,0 +1,10 @@
+{
+ "descripcion": "Hasta unas 10 personas, presencial, remota o mixta. Poco montaje, que ande y quede grabada.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "reunion-chica",
+  "icono": "☺",
+  "orden": 0
+ }
+}

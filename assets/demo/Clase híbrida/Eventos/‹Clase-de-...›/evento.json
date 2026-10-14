@@ -1,0 +1,310 @@
+{
+ "nombre": "‹Clase de ...›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Docente con alumnos en el aula y remotos; materiales, asistencia a mano, preguntas, quizá traducción.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b155-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c148-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c149-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c150-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c151-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Clase de ...›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Clase de ...›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c152-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c153-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c154-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b158-g",
+   "nombre": "Asistencia",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c156-g",
+     "tipo": "escena",
+     "texto": "Al aire: Mosaico",
+     "datos": {
+      "escena": "Mosaico"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c157-g",
+     "tipo": "nota",
+     "texto": "Tomar asistencia (padrón: acreditar a cada alumno)",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b164-g",
+   "nombre": "‹Tema 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c159-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Tema 1›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Tema 1›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c160-g",
+     "tipo": "escena",
+     "texto": "Al aire: Docente",
+     "datos": {
+      "escena": "Docente"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c161-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el tema 1",
+     "datos": {
+      "discurso": "1-tema-1.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c162-g",
+     "tipo": "escena",
+     "texto": "La ficha del tema",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c163-g",
+     "tipo": "nota",
+     "texto": "Explicación",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b169-g",
+   "nombre": "‹Tema 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c165-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Tema 2›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Tema 2›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c166-g",
+     "tipo": "escena",
+     "texto": "Al aire: Docente",
+     "datos": {
+      "escena": "Docente"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c167-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el tema 2",
+     "datos": {
+      "discurso": "2-tema-2.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c168-g",
+     "tipo": "nota",
+     "texto": "Explicación",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b172-g",
+   "nombre": "Preguntas",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c170-g",
+     "tipo": "escena",
+     "texto": "Al aire: Pregunta remota",
+     "datos": {
+      "escena": "Pregunta remota"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c171-g",
+     "tipo": "nota",
+     "texto": "Preguntas del aula y de los remotos",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b177-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c173-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c174-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c175-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c176-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

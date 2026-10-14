@@ -1,0 +1,10 @@
+{
+ "descripcion": "Directorio, equipo o comité con parte en la sala y parte remota; presentaciones y documentos.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "reunion-hibrida",
+  "icono": "⧉",
+  "orden": 1
+ }
+}

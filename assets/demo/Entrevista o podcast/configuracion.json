@@ -1,0 +1,10 @@
+{
+ "descripcion": "Uno o dos conductores con invitados, audio cuidado, video para redes.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "entrevista",
+  "icono": "🎙",
+  "orden": 10
+ }
+}

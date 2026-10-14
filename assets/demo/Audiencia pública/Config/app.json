@@ -1,0 +1,612 @@
+{
+ "scenes": [
+  {
+   "name": "Espera",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Fondo",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4280951584,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "text_ft2_source_v2",
+     "name": "Título",
+     "rect": [
+      0.06,
+      0.34,
+      0.88,
+      0.16
+     ],
+     "settings": {
+      "text": "‹Audiencia pública›",
+      "font": {
+       "face": "Helvetica",
+       "size": 96
+      }
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "text_ft2_source_v2",
+     "name": "Empezamos",
+     "rect": [
+      0.06,
+      0.52,
+      0.88,
+      0.08
+     ],
+     "settings": {
+      "text": "Empezamos a las ‹hora›",
+      "font": {
+       "face": "Helvetica",
+       "size": 48
+      }
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Conducción",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Cámara",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Zócalo",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Invitado remoto",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Fondo",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4280951584,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Remoto con la palabra",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "remoto",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Remoto.1",
+      "pipeline_audio": "",
+      "slot": 1,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Zócalo",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Presentación",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Fondo",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4280951584,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Remoto con la palabra — contenido",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "remoto_contenido",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.RemotoContenido.1",
+      "pipeline_audio": "",
+      "slot": 1,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Cámara",
+     "rect": [
+      0.74,
+      0.7,
+      0.24,
+      0.27
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Mosaico",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Fondo",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4280951584,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Invitado 1",
+     "rect": [
+      0,
+      0,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.1",
+      "pipeline_audio": "",
+      "slot": 1,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Invitado 2",
+     "rect": [
+      0.5,
+      0,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.2",
+      "pipeline_audio": "",
+      "slot": 2,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Invitado 3",
+     "rect": [
+      0,
+      0.5,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.3",
+      "pipeline_audio": "",
+      "slot": 3,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Invitado 4",
+     "rect": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.4",
+      "pipeline_audio": "",
+      "slot": 4,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "PDF",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Fondo",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4278190080,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_pdf",
+     "name": "PDF",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "documento": "",
+      "pagina": 1
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Placa",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Cámara",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Cierre",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Fondo",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4280951584,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "text_ft2_source_v2",
+     "name": "Gracias",
+     "rect": [
+      0.06,
+      0.4,
+      0.88,
+      0.14
+     ],
+     "settings": {
+      "text": "¡Gracias por acompañarnos!",
+      "font": {
+       "face": "Helvetica",
+       "size": 88
+      }
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Presidencia",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Cámara",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Zócalo",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  },
+  {
+   "name": "Orador",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Cámara",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Zócalo",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Próximo",
+     "rect": [
+      0.57,
+      0.04,
+      0.40625,
+      0.2777777777777778
+     ],
+     "settings": {
+      "grafico": "proximo-orador",
+      "ancho": 780,
+      "alto": 300
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    }
+   ]
+  }
+ ],
+ "currentScene": "Espera"
+}

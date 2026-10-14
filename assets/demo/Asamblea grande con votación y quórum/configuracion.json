@@ -1,0 +1,10 @@
+{
+ "descripcion": "Asamblea presencial numerosa: acreditación en la puerta, quórum, votaciones y resultado en pantalla.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "asamblea-votacion",
+  "icono": "✋",
+  "orden": 4
+ }
+}

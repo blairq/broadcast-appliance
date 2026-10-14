@@ -1,0 +1,35 @@
+{
+ "nombre": "‹Señalética del evento›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Televisores en el lugar, QR impresos o en pantalla, cartelería que cambia durante el evento.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b370-g",
+   "nombre": "Durante el evento",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c368-g",
+     "tipo": "escena",
+     "texto": "Al aire: Pantalla de sala",
+     "datos": {
+      "escena": "Pantalla de sala"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c369-g",
+     "tipo": "nota",
+     "texto": "Mandar la escena a cada televisor (pantalla_mostrar)",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

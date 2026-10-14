@@ -1,0 +1,98 @@
+{
+  "nombre": "Cuarto intermedio",
+  "categoria": "Asamblea",
+  "descripcion": "Placa de pausa de la sesión, con la hora en que se vuelve. Pantalla completa, se queda.",
+  "ancho": 1920,
+  "alto": 1080,
+  "parametros": [
+    {
+      "clave": "titulo",
+      "titulo": "Título",
+      "tipo": "texto",
+      "porDefecto": "CUARTO INTERMEDIO",
+      "ayuda": "El cartel grande."
+    },
+    {
+      "clave": "detalle",
+      "titulo": "Detalle",
+      "tipo": "texto",
+      "porDefecto": "La sesión se reanuda en breve",
+      "ayuda": "Por ejemplo «Volvemos a las 16:30»."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#1f6fb2",
+      "ayuda": "El color del cuerpo o del bloque."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 1080,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 700
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 500
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 1920,
+        "alto": 1080,
+        "color": "#0b0e12",
+        "opacidad": 0.96
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 810,
+        "arriba": 440,
+        "ancho": 300,
+        "alto": 6,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "titulo",
+        "valor": "{titulo}",
+        "tamano": 90,
+        "peso": "negrita",
+        "izquierda": 520,
+        "arriba": 470
+      },
+      {
+        "tipo": "texto",
+        "id": "detalle",
+        "valor": "{detalle}",
+        "tamano": 38,
+        "peso": "liviana",
+        "color": "#9aa4b2",
+        "izquierda": 524,
+        "arriba": 600,
+        "ancho": 900,
+        "aparece": 400
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "⏸",
+      "titulo": "Volvemos en 15",
+      "prompt": "Sacá al aire la placa de cuarto intermedio con «Volvemos a las HH:MM» (ahora más 15 minutos, usá {hora})."
+    }
+  ]
+}

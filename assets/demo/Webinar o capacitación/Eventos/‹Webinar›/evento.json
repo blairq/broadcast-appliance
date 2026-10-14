@@ -1,0 +1,211 @@
+{
+ "nombre": "‹Webinar›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Presentación online con inscriptos, preguntas, encuestas y material descargable.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b249-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c242-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c243-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c244-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c245-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Webinar›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Webinar›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c246-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c247-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c248-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b254-g",
+   "nombre": "Contenido",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c250-g",
+     "tipo": "escena",
+     "texto": "Al aire: Presentador",
+     "datos": {
+      "escena": "Presentador"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c251-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Presentador›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Presentador›",
+       "cargo": "‹Empresa›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c252-g",
+     "tipo": "escena",
+     "texto": "Demostración en pantalla",
+     "datos": {
+      "escena": "Pantalla"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c253-g",
+     "tipo": "nota",
+     "texto": "‹Contenido›",
+     "datos": {},
+     "duracionSeg": 2400,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b256-g",
+   "nombre": "Preguntas",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c255-g",
+     "tipo": "nota",
+     "texto": "Preguntas de los inscriptos",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b261-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c257-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c258-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c259-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c260-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

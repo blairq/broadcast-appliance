@@ -1,0 +1,297 @@
+{
+ "nombre": "‹Reunión de trabajo›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Directorio, equipo o comité con parte en la sala y parte remota; presentaciones y documentos.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b26-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c19-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c20-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c21-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c22-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Reunión de trabajo›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Reunión de trabajo›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c23-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c24-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c25-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b32-g",
+   "nombre": "‹Tema 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c27-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Tema 1›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Tema 1›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c28-g",
+     "tipo": "escena",
+     "texto": "Al aire: Sala",
+     "datos": {
+      "escena": "Sala"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c29-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Responsable›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Responsable›",
+       "cargo": "‹Área›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c30-g",
+     "tipo": "escena",
+     "texto": "La presentación del tema",
+     "datos": {
+      "escena": "Presentación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c31-g",
+     "tipo": "nota",
+     "texto": "Exposición y discusión",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b37-g",
+   "nombre": "‹Tema 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c33-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Tema 2›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Tema 2›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c34-g",
+     "tipo": "escena",
+     "texto": "Al aire: Invitado remoto",
+     "datos": {
+      "escena": "Invitado remoto"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c35-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Remoto›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Remoto›",
+       "cargo": "‹Área›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c36-g",
+     "tipo": "nota",
+     "texto": "Exposición y discusión",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b40-g",
+   "nombre": "Decisiones y próximos pasos",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c38-g",
+     "tipo": "escena",
+     "texto": "Al aire: Mosaico",
+     "datos": {
+      "escena": "Mosaico"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c39-g",
+     "tipo": "nota",
+     "texto": "Repaso de lo decidido",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b45-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c41-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c42-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c43-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c44-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

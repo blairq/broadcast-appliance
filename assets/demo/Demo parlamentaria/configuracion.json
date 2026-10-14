@@ -1,3 +1,9 @@
 {
- "descripcion": "Consejo de la Ciudad de Puerto Ejemplo (todo inventado): 15 consejeros y la presidencia, recinto en hemiciclo, una cámara del recinto con PTZ digital y una posición por banca, central de conferencia simulada con una unidad por banca, remotos que ven la salida principal o el recinto, escenas de asamblea y de debate, botoneras de presidencia, recinto, micrófonos y dirección, orden del día y una sesión de ejemplo."
+ "descripcion": "Consejo de la Ciudad de Puerto Ejemplo (todo inventado): 15 consejeros y la presidencia, recinto en hemiciclo, una cámara del recinto con PTZ digital y una posición por banca, central de conferencia simulada con una unidad por banca, remotos que ven la salida principal o el recinto, escenas de asamblea y de debate, botoneras de presidencia, recinto, micrófonos y dirección, orden del día y una sesión de ejemplo.",
+ "plantillaDatos": {
+  "escenario": "sesion-deliberativa",
+  "icono": "⚖",
+  "orden": 3
+ },
+ "plantilla": true
 }

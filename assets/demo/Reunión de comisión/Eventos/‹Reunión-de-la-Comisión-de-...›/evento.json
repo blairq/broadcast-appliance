@@ -1,0 +1,254 @@
+{
+ "nombre": "‹Reunión de la Comisión de ...›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Comisión de un cuerpo deliberativo: orden del día, expedientes, dictámenes, palabra ordenada.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b53-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c46-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c47-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c48-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c49-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Comisión›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Comisión›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c50-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c51-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c52-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b58-g",
+   "nombre": "Orden del día",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c54-g",
+     "tipo": "escena",
+     "texto": "Al aire: Presidencia",
+     "datos": {
+      "escena": "Presidencia"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c55-g",
+     "tipo": "nota",
+     "texto": "Lectura del orden del día y verificación de quórum",
+     "datos": {},
+     "duracionSeg": 180,
+     "automatico": false
+    },
+    {
+     "id": "c56-g",
+     "tipo": "escena",
+     "texto": "El expediente en pantalla",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c57-g",
+     "tipo": "nota",
+     "texto": "‹Expediente 1›: tratamiento",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b62-g",
+   "nombre": "Invitados",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c59-g",
+     "tipo": "escena",
+     "texto": "Al aire: Invitado remoto",
+     "datos": {
+      "escena": "Invitado remoto"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c60-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Invitado›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Invitado›",
+       "cargo": "‹Organismo›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c61-g",
+     "tipo": "nota",
+     "texto": "Exposición del invitado",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b65-g",
+   "nombre": "Dictamen",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c63-g",
+     "tipo": "escena",
+     "texto": "Al aire: Votación",
+     "datos": {
+      "escena": "Votación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c64-g",
+     "tipo": "nota",
+     "texto": "Votación del dictamen",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b70-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c66-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c67-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c68-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c69-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

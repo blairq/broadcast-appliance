@@ -145,6 +145,12 @@ Rectangle {
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: "Pasar a otro evento (reinicia la app con todo lo suyo)"
                 }
+                GlassButton {
+                    compact: true; text: "Plantillas…"
+                    onClicked: plantillasDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Las plantillas de evento: orden, nombre, visibilidad, editarlas, guardar este evento como plantilla"
+                }
                 Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 8; color: Qt.rgba(1, 1, 1, 0.1) }
                 ComboBox {
                     id: selector
@@ -1412,7 +1418,11 @@ Rectangle {
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: "Elegís el tipo de evento y el asistente te hace las preguntas, lo arma desde cero, lo verifica y te pasa los enlaces"
             }
-            Text { Layout.fillWidth: true; text: "O crealo a mano:"; color: Theme.textFaint; font.pixelSize: 11 }
+            RowLayout {
+                Layout.fillWidth: true
+                Text { Layout.fillWidth: true; text: "O crealo a mano:"; color: Theme.textFaint; font.pixelSize: 11 }
+                GlassButton { compact: true; text: "Administrar plantillas…"; onClicked: { nuevoEventoDlg.close(); plantillasDlg.open() } }
+            }
             TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: "Sesión ordinaria del 20 de octubre"; color: Theme.text }
             ButtonGroup { id: grupoDesde }
             RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "cero"; onClicked: nuevoEventoDlg.modo = "cero"
@@ -1436,7 +1446,10 @@ Rectangle {
                     id: plantilla
                     Layout.fillWidth: true
                     enabled: nuevoEventoDlg.modo === "plantilla"
-                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillasUi().map(p => p.nombre) : []
+                    // El nombre que se ve; se crea con la carpeta (puede tener otro nombre visible).
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillasUi() : []
+                    textRole: "nombre"
+                    valueRole: "carpeta"
                 }
             }
             CheckBox {
@@ -1453,7 +1466,7 @@ Rectangle {
                              && (nuevoEventoDlg.modo !== "plantilla" || plantilla.currentIndex >= 0)
                     onClicked: {
                         const m = nuevoEventoDlg.modo
-                        const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentText : m
+                        const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentValue : m
                         // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
                         const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording))
                         if (e !== "") { Studio.notify(e, "error"); return }
@@ -1464,16 +1477,26 @@ Rectangle {
         }
     }
 
+    // --- Administrar las plantillas de evento -----------------------------------------
+    DialogoPlantillas { id: plantillasDlg }
+
     // --- Preparar un evento con el asistente (la guía de su tipo) ------------------
     Dialog {
         id: asistenteEvtDlg
         property string elegido: ""
+        property string plantillaElegida: ""
+        /// Los tipos de evento: las plantillas visibles que tienen escenario (en su orden y
+        /// con su nombre, los de «Plantillas…»).
+        property var tipos: []
         anchors.centerIn: parent
         width: Math.min(page.width - 80, 760)
         height: Math.min(page.height - 60, 680)
         modal: true
         title: "Preparar un evento con el asistente"
-        onAboutToShow: { elegido = ""; notasEvt.text = "" }
+        onAboutToShow: {
+            elegido = ""; plantillaElegida = ""; notasEvt.text = ""
+            tipos = (Studio.configuraciones ? Studio.configuraciones.plantillasUi() : []).filter(p => p.escenario !== "")
+        }
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
@@ -1490,7 +1513,7 @@ Rectangle {
                 clip: true
                 cellWidth: Math.floor(width / Math.max(1, Math.floor(width / 230)))
                 cellHeight: 86
-                model: page.ev.escenarios()
+                model: asistenteEvtDlg.tipos
                 delegate: Item {
                     required property var modelData
                     width: gridEsc.cellWidth
@@ -1498,7 +1521,7 @@ Rectangle {
                     Rectangle {
                         anchors { fill: parent; margins: 4 }
                         radius: 8
-                        readonly property bool sel: asistenteEvtDlg.elegido === modelData.id
+                        readonly property bool sel: asistenteEvtDlg.plantillaElegida === modelData.carpeta
                         color: sel ? Qt.rgba(1, 0.42, 0.17, 0.18) : (escMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04))
                         border.color: sel ? Theme.accent : Theme.glassBorder
                         RowLayout {
@@ -1508,9 +1531,9 @@ Rectangle {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                Text { Layout.fillWidth: true; text: modelData.titulo; color: Theme.text; elide: Text.ElideRight
+                                Text { Layout.fillWidth: true; text: modelData.nombre; color: Theme.text; elide: Text.ElideRight
                                        font { pixelSize: 13; weight: Font.DemiBold } }
-                                Text { Layout.fillWidth: true; Layout.fillHeight: true; text: modelData.resumen; color: Theme.textFaint
+                                Text { Layout.fillWidth: true; Layout.fillHeight: true; text: modelData.descripcion; color: Theme.textFaint
                                        font.pixelSize: 10; wrapMode: Text.WordWrap; elide: Text.ElideRight; maximumLineCount: 3 }
                             }
                         }
@@ -1519,7 +1542,7 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: asistenteEvtDlg.elegido = modelData.id
+                            onClicked: { asistenteEvtDlg.elegido = modelData.escenario; asistenteEvtDlg.plantillaElegida = modelData.carpeta }
                         }
                     }
                 }
@@ -1540,7 +1563,7 @@ Rectangle {
                     compact: true; active: true; text: "Empezar con el asistente"
                     enabled: asistenteEvtDlg.elegido !== ""
                     onClicked: {
-                        Studio.agent.encargar(page.ev.pedidoDeEscenario(asistenteEvtDlg.elegido, notasEvt.text))
+                        Studio.agent.encargar(page.ev.pedidoDeEscenario(asistenteEvtDlg.elegido, notasEvt.text, asistenteEvtDlg.plantillaElegida))
                         asistenteEvtDlg.close()
                     }
                 }

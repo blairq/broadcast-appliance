@@ -270,7 +270,8 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QVariantList escenarios() const;
     /// El pedido para el asistente: preparar un evento de ese tipo siguiendo su guía
     /// (evento_escenario), con lo que el operador ya contó en `notas`.
-    Q_INVOKABLE QString pedidoDeEscenario(const QString& id, const QString& notas) const;
+    /// `plantilla`: la carpeta de la plantilla de ese tipo ("" = desde cero).
+    Q_INVOKABLE QString pedidoDeEscenario(const QString& id, const QString& notas, const QString& plantilla = {}) const;
     /// Cambia UN valor de los parametros de un cue de grafico, sin pisar los
     /// otros (que es lo que pasaria mandando `datos` entero).
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);

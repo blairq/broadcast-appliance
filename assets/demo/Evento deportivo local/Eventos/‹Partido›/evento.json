@@ -1,0 +1,115 @@
+{
+ "nombre": "‹Partido›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Partido o torneo: marcador, tiempo, relato, repeticiones y patrocinadores.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b358-g",
+   "nombre": "Previa",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c356-g",
+     "tipo": "escena",
+     "texto": "Al aire: Espera",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c357-g",
+     "tipo": "escena",
+     "texto": "Al aire: Relatores",
+     "datos": {
+      "escena": "Relatores"
+     },
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b360-g",
+   "nombre": "Primer tiempo",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c359-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cancha",
+     "datos": {
+      "escena": "Cancha"
+     },
+     "duracionSeg": 2700,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b362-g",
+   "nombre": "Entretiempo",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c361-g",
+     "tipo": "escena",
+     "texto": "Al aire: Entretiempo",
+     "datos": {
+      "escena": "Entretiempo"
+     },
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b364-g",
+   "nombre": "Segundo tiempo",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c363-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cancha",
+     "datos": {
+      "escena": "Cancha"
+     },
+     "duracionSeg": 2700,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b367-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c365-g",
+     "tipo": "escena",
+     "texto": "Al aire: Relatores",
+     "datos": {
+      "escena": "Relatores"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    },
+    {
+     "id": "c366-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Televisores en el lugar, QR impresos o en pantalla, cartelería que cambia durante el evento.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "senaletica",
+  "icono": "⊞",
+  "orden": 18
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Acto escolar, colación de grado, aniversario: himno, banderas, escudo, discursos y nombres.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "acto",
+  "icono": "★",
+  "orden": 13
+ }
+}

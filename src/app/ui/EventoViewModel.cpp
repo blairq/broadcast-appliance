@@ -848,15 +848,21 @@ QVariantList EventoViewModel::escenarios() const {
     return QJsonDocument::fromJson(f.readAll()).array().toVariantList();
 }
 
-QString EventoViewModel::pedidoDeEscenario(const QString& id, const QString& notas) const {
+QString EventoViewModel::pedidoDeEscenario(const QString& id, const QString& notas, const QString& plantilla) const {
     QString titulo = id;
     for (const QVariant& v : escenarios())
         if (v.toMap().value("id").toString() == id) titulo = v.toMap().value("titulo").toString();
     QString p = "Quiero preparar un evento nuevo: «" + titulo + "». Seguí la guía de ese tipo de evento: evento_escenario "
                 "{\"id\": \"" + id + "\"} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, "
-                "de a pocas y con opciones; no armes nada hasta que te confirme el plan. Arrancalo DESDE CERO (un evento "
-                "aparte, con evento_nuevo), verificá todo antes de mandar invitaciones, sugerime el ensayo y al terminar "
-                "pasame el enlace de la página web del evento.";
+                "de a pocas y con opciones; no armes nada hasta que te confirme el plan. ";
+    if (plantilla.isEmpty())
+        p += "Arrancalo DESDE CERO (un evento aparte, con evento_nuevo). ";
+    else
+        p += "Crealo desde su plantilla (evento_nuevo con desde «plantilla:" + plantilla + "»): ya trae escenas, gráficos, "
+             "guion con los textos para completar marcados ‹así›, discursos de ejemplo y lo propio del tipo; ajustalo con "
+             "lo que te cuente (reemplazá cada ‹…›, sacá lo que no se use, agregá lo que falte). ";
+    p += "Verificá todo antes de mandar invitaciones, sugerime el ensayo y al terminar pasame el enlace de la página web "
+         "del evento.";
     if (!notas.trimmed().isEmpty()) p += " Lo que ya sé: " + notas.trimmed();
     return p;
 }

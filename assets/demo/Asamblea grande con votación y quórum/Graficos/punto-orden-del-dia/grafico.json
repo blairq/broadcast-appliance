@@ -1,0 +1,98 @@
+{
+  "nombre": "Punto del orden del día",
+  "categoria": "Asamblea",
+  "descripcion": "«Punto N» y el título del asunto que se trata, en una banda abajo.",
+  "ancho": 1600,
+  "alto": 220,
+  "parametros": [
+    {
+      "clave": "n",
+      "titulo": "Número",
+      "tipo": "texto",
+      "porDefecto": "1",
+      "ayuda": "El número del punto."
+    },
+    {
+      "clave": "titulo",
+      "titulo": "Título",
+      "tipo": "texto",
+      "porDefecto": "Asunto en tratamiento",
+      "ayuda": "Hasta dos renglones; si es más largo, resumilo."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#1f6fb2",
+      "ayuda": "El color del cuerpo o del bloque."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 8000,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Una referencia de punto se lee y se va: 6 a 10 segundos."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1600,
+    "alto": 220,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 400
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 300
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "abajo": 24,
+        "ancho": 1600,
+        "alto": 150,
+        "color": "#10141a",
+        "opacidad": 0.92
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 0,
+        "abajo": 174,
+        "ancho": 1600,
+        "alto": 5,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "etiqueta",
+        "valor": "PUNTO {n}",
+        "tamano": 26,
+        "peso": "negrita",
+        "color": "{acento}",
+        "izquierda": 40,
+        "abajo": 128
+      },
+      {
+        "tipo": "texto",
+        "id": "titulo",
+        "valor": "{titulo}",
+        "tamano": 34,
+        "peso": "semi",
+        "izquierda": 40,
+        "abajo": 40,
+        "ancho": 1500,
+        "aparece": 200
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "≣",
+      "titulo": "El punto actual",
+      "prompt": "Llená esta placa con el punto del orden del día que se está tratando ({punto.n} y {punto.titulo}) y sacala al aire 8 segundos."
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+ "nombre": "‹Stream›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Juego en pantalla, cámara del streamer, chat del público en pantalla, alertas.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b265-g",
+   "nombre": "Inicio",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c262-g",
+     "tipo": "escena",
+     "texto": "Al aire: Espera",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c263-g",
+     "tipo": "espera",
+     "texto": "Arrancá la transmisión",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c264-g",
+     "tipo": "escena",
+     "texto": "Al aire: Charla",
+     "datos": {
+      "escena": "Charla"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b267-g",
+   "nombre": "A jugar",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c266-g",
+     "tipo": "escena",
+     "texto": "Al aire: Juego",
+     "datos": {
+      "escena": "Juego"
+     },
+     "duracionSeg": 3600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b269-g",
+   "nombre": "Pausa",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c268-g",
+     "tipo": "escena",
+     "texto": "Al aire: Pausa",
+     "datos": {
+      "escena": "Pausa"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b272-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c270-g",
+     "tipo": "escena",
+     "texto": "Al aire: Charla",
+     "datos": {
+      "escena": "Charla"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    },
+    {
+     "id": "c271-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}
