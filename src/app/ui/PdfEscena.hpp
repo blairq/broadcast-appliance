@@ -31,7 +31,7 @@ class AppRuntime;
 
 class PdfEscena : public QObject {
     Q_OBJECT
-    /// [{nombre, documento, archivo, titulo, pagina, paginas, error}]
+    /// [{nombre, documento, archivo, titulo, pagina, paginas, zoom, x, y, error}]
     Q_PROPERTY(QVariantList fuentes READ fuentes NOTIFY cambio)
     /// Los PDF de la documentación del evento: [{id, titulo, paginas, url_miniatura}]
     Q_PROPERTY(QVariantList documentos READ documentos NOTIFY documentosCambio)
@@ -55,6 +55,12 @@ class PdfEscena : public QObject {
     Q_INVOKABLE QString irA(const QString& fuente, int pagina);
     /// `delta` páginas para adelante (o para atrás, negativo).
     Q_INVOKABLE QString paso(const QString& fuente, int delta);
+    /// El zoom (1 = la página entera; hasta 8) y el centro de lo que se ve (x, y de 0 a 1
+    /// sobre la página); fuera de rango se acota. Un valor < 0 deja el que estaba.
+    Q_INVOKABLE QString encuadre(const QString& fuente, double zoom, double x, double y);
+    /// Corre lo que se ve (`dx`, `dy`: fracciones de lo visible; positivo = derecha / abajo),
+    /// sin salirse de la página. Para el joystick.
+    Q_INVOKABLE QString mover(const QString& fuente, double dx, double dy);
     /// Arma la escena `nombre` con una fuente PDF a pantalla completa (si no
     /// existe). Devuelve el error, o "" (y la fuente queda lista para elegir).
     Q_INVOKABLE QString crearEscena(const QString& nombre);
@@ -73,6 +79,11 @@ class PdfEscena : public QObject {
     QString rutaDe(const json& ajustes) const;
     QPdfDocument* abrir(const QString& ruta);
     int paginasDe(const QString& ruta) const;
+    /// La página en el lienzo con ese zoom: su tamaño escalado (W, H) y lo visible (vw, vh).
+    struct Geometria {
+        double W = 0, H = 0, vw = 0, vh = 0;
+    };
+    Geometria geometria(const nlohmann::json& ajustes);
 
     AppRuntime& rt_;
     QTimer timer_;

@@ -24,7 +24,7 @@ void registrar() {
     t.id = kTipo;
     t.nombre = "PDF (una página por vez)";
     t.deApp = true;
-    t.defectos = {{"documento", ""}, {"archivo", ""}, {"pagina", 1}, {"ancho", 1920}, {"alto", 1080},
+    t.defectos = {{"documento", ""}, {"archivo", ""}, {"pagina", 1}, {"zoom", 1.0}, {"x", 0.5}, {"y", 0.5}, {"ancho", 1920}, {"alto", 1080},
                   {"fondo", static_cast<std::int64_t>(0xFF000000)}};
     t.props = [](const json& a) {
         using P = fuentes::Prop;
@@ -44,6 +44,9 @@ void registrar() {
             out.push_back(arch);
         }
         out.push_back({"pagina", "Página", "int", 1, 100000, 1});
+        out.push_back({"zoom", "Zoom (1 = la página entera)", "float", 1, 8, 0.1});
+        out.push_back({"x", "Centro horizontal (0 a 1)", "float", 0, 1, 0.01});
+        out.push_back({"y", "Centro vertical (0 a 1)", "float", 0, 1, 0.01});
         out.push_back({"ancho", "Ancho del lienzo (píxeles)", "int", 320, 7680, 16});
         out.push_back({"alto", "Alto del lienzo (píxeles)", "int", 240, 4320, 16});
         P fondo{"fondo", "Fondo", "color"};

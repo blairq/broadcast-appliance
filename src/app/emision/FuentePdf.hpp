@@ -7,7 +7,8 @@
 // La pinta la app (ui/PdfEscena): la página entera, sin deformar, sobre el fondo.
 //
 //   ajustes: documento (el id de uno de docs/; vacío = `archivo`), archivo (ruta),
-//            pagina (1 = la primera), ancho y alto (el lienzo, en píxeles), fondo
+//            pagina (1 = la primera), zoom (1-8) y x, y (el centro de lo que se ve,
+//            0 a 1 sobre la página), ancho y alto (el lienzo, en píxeles), fondo
 //            (color 0xAABBGGRR)
 // ============================================================================
 #pragma once

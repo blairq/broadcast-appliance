@@ -1,8 +1,9 @@
 // Tarjeta «PDF»: el PDF que muestra una fuente PDF de la escena, y pasarle páginas.
 // Arriba la fuente (si hay más de una), el documento y «página N de M» con las
 // flechas; abajo los PDF de la documentación del evento (con su carátula) para
-// elegir uno, u «Otro PDF…». Con el teclado (un clic en la tarjeta): ← → páginas,
-// Inicio / Fin. Sin ninguna fuente PDF, un botón arma la escena «PDF».
+// elegir uno, u «Otro PDF…». El encuadre: la barra de zoom y un joystick (como el del
+// PTZ) para moverse por la página ampliada. Con el teclado (un clic en la tarjeta):
+// ← → páginas, Inicio / Fin. Sin ninguna fuente PDF, un botón arma la escena «PDF».
 // Modelo: Studio.pdfEscena (ui/PdfEscena); lo mismo por MCP: pdf_escena_*.
 import QtQuick
 import QtQuick.Controls
@@ -76,46 +77,130 @@ Item {
             }
         }
 
-        // Lo que se ve y las páginas.
-        Rectangle {
+        // Lo que se ve, las páginas y el encuadre (zoom y joystick, como el PTZ).
+        RowLayout {
             Layout.fillWidth: true
-            implicitHeight: 92
-            radius: 10
-            color: Qt.rgba(1, 1, 1, 0.05)
-            border.color: Theme.glassBorder
+            spacing: 10
             ColumnLayout {
-                anchors { fill: parent; margins: 10 }
+                Layout.fillWidth: true
                 spacing: 6
-                RowLayout {
+                Rectangle {
                     Layout.fillWidth: true
-                    Text {
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        text: tarjeta.f ? (tarjeta.f.titulo || "Elegí un PDF de la lista") : ""
-                        color: tarjeta.f && tarjeta.f.titulo ? Theme.text : Theme.textFaint
-                        font { pixelSize: 14; weight: Font.DemiBold }
-                    }
-                    Text {
-                        visible: !!tarjeta.f && !!tarjeta.f.error
-                        text: tarjeta.f && tarjeta.f.error ? "⚠ " + tarjeta.f.error : ""
-                        color: Theme.amber; font.pixelSize: 11
+                    implicitHeight: 92
+                    radius: 10
+                    color: Qt.rgba(1, 1, 1, 0.05)
+                    border.color: Theme.glassBorder
+                    ColumnLayout {
+                        anchors { fill: parent; margins: 10 }
+                        spacing: 6
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: tarjeta.f ? (tarjeta.f.titulo || "Elegí un PDF de la lista") : ""
+                                color: tarjeta.f && tarjeta.f.titulo ? Theme.text : Theme.textFaint
+                                font { pixelSize: 14; weight: Font.DemiBold }
+                            }
+                            Text {
+                                visible: !!tarjeta.f && !!tarjeta.f.error
+                                text: tarjeta.f && tarjeta.f.error ? "⚠ " + tarjeta.f.error : ""
+                                color: Theme.amber; font.pixelSize: 11
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            enabled: !!tarjeta.f && tarjeta.f.paginas > 0
+                            GlassButton { compact: true; text: "⏮"; onClicked: tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 1)) }
+                            GlassButton { text: "◀"; onClicked: tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, -1)) }
+                            Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                text: tarjeta.f && tarjeta.f.paginas > 0 ? "Página " + tarjeta.f.pagina + " de " + tarjeta.f.paginas : "—"
+                                color: Theme.text
+                                font { family: Theme.mono; pixelSize: 16; weight: Font.DemiBold }
+                            }
+                            GlassButton { text: "▶"; active: true; onClicked: tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, 1)) }
+                            GlassButton { compact: true; text: "⏭"; onClicked: tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 100000)) }
+                        }
                     }
                 }
+                // El zoom: 1 = la página entera.
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 8
                     enabled: !!tarjeta.f && tarjeta.f.paginas > 0
-                    GlassButton { compact: true; text: "⏮"; onClicked: tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 1)) }
-                    GlassButton { text: "◀"; onClicked: tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, -1)) }
-                    Text {
+                    Text { text: "Zoom"; color: Theme.textDim; font.pixelSize: 11 }
+                    Slider {
+                        id: zoom
                         Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
-                        text: tarjeta.f && tarjeta.f.paginas > 0 ? "Página " + tarjeta.f.pagina + " de " + tarjeta.f.paginas : "—"
-                        color: Theme.text
-                        font { family: Theme.mono; pixelSize: 16; weight: Font.DemiBold }
+                        from: 1; to: 8; stepSize: 0.05
+                        onMoved: tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, value, -1, -1))
                     }
-                    GlassButton { text: "▶"; active: true; onClicked: tarjeta.ok(tarjeta.pe.paso(tarjeta.f.nombre, 1)) }
-                    GlassButton { compact: true; text: "⏭"; onClicked: tarjeta.ok(tarjeta.pe.irA(tarjeta.f.nombre, 100000)) }
+                    // Sigue al modelo salvo mientras se arrastra (lo cambian también el MCP y la botonera).
+                    Binding { target: zoom; property: "value"; value: tarjeta.f ? (tarjeta.f.zoom || 1) : 1; when: !zoom.pressed }
+                    Text {
+                        text: (tarjeta.f ? (tarjeta.f.zoom || 1) : 1).toFixed(1) + "×"
+                        color: Theme.text; font { family: Theme.mono; pixelSize: 12 }
+                        Layout.preferredWidth: 36
+                    }
+                    GlassButton {
+                        compact: true; text: "Entera"
+                        onClicked: tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, 1, 0.5, 0.5))
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La página entera, sin zoom"
+                    }
+                }
+            }
+            // El joystick: mantenerlo corrido mueve lo que se ve hacia ese lado (más
+            // lejos del centro, más rápido); la rueda acerca y aleja.
+            Rectangle {
+                id: pad
+                property real px: 0
+                property real py: 0
+                Layout.preferredWidth: 104; Layout.preferredHeight: 104
+                Layout.alignment: Qt.AlignTop
+                radius: 52
+                // Mueve solo con zoom (entera no hay adónde ir); la rueda anda siempre.
+                readonly property bool activo: !!tarjeta.f && tarjeta.f.paginas > 0 && (tarjeta.f.zoom || 1) > 1.001
+                opacity: activo ? 1 : 0.45
+                color: Qt.rgba(1, 1, 1, 0.05); border.color: Qt.rgba(1, 1, 1, 0.18)
+                Rectangle {
+                    width: 32; height: 32; radius: 16
+                    color: padMa.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.22)
+                    x: pad.width / 2 - width / 2 + pad.px * (pad.width / 2 - 16)
+                    y: pad.height / 2 - height / 2 - pad.py * (pad.height / 2 - 16)
+                }
+                Text {
+                    anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: 2 }
+                    text: pad.activo ? "mover · rueda: zoom" : "rueda: zoom"
+                    color: Theme.textFaint; font.pixelSize: 9
+                }
+                Timer {
+                    interval: 60; repeat: true; running: pad.activo && padMa.pressed && (pad.px !== 0 || pad.py !== 0)
+                    onTriggered: tarjeta.pe.mover(tarjeta.f.nombre, pad.px * 0.06, -pad.py * 0.06)
+                }
+                MouseArea {
+                    id: padMa
+                    anchors.fill: parent
+                    preventStealing: true
+                    function leer(m) {
+                        let dx = (m.x - pad.width / 2) / (pad.width / 2 - 16)
+                        let dy = -(m.y - pad.height / 2) / (pad.height / 2 - 16)
+                        const r = Math.sqrt(dx * dx + dy * dy)
+                        if (r > 1) { dx /= r; dy /= r }
+                        pad.px = Math.abs(dx) < 0.08 ? 0 : dx
+                        pad.py = Math.abs(dy) < 0.08 ? 0 : dy
+                    }
+                    onPressed: (m) => { tarjeta.forceActiveFocus(); leer(m) }
+                    onPositionChanged: (m) => leer(m)
+                    onReleased: { pad.px = 0; pad.py = 0 }
+                    onCanceled: { pad.px = 0; pad.py = 0 }
+                    onWheel: (w) => {
+                        if (!tarjeta.f || !(tarjeta.f.paginas > 0)) return
+                        const z = Math.max(1, Math.min(8, (tarjeta.f.zoom || 1) * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15)))
+                        tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, z, -1, -1))
+                    }
                 }
             }
         }
@@ -130,6 +215,8 @@ Item {
             id: lista
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // Las carátulas se tienen que ver aunque la tarjeta sea baja.
+            Layout.minimumHeight: 96
             clip: true
             orientation: ListView.Horizontal
             spacing: 8

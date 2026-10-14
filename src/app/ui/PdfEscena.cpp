@@ -10,6 +10,7 @@
 #include <QImage>
 #include <QPainter>
 #include <QPdfDocument>
+#include <QPdfDocumentRenderOptions>
 #include <QUrl>
 
 #include <algorithm>
@@ -89,10 +90,14 @@ int PdfEscena::paginasDe(const QString& ruta) const {
 
 QVariantList PdfEscena::fuentes() const {
     QVariantList out;
-    for (const auto& f : estado()["fuentes"]) {
+    // Guardado primero: recorrer `estado()["fuentes"]` directo recorría un temporal
+    // ya destruido y la tarjeta veía la lista vacía («no hay ninguna fuente PDF»).
+    const json e = estado();
+    for (const auto& f : e["fuentes"]) {
         QVariantMap m;
         for (const auto& [k, x] : f.items())
             m[QString::fromStdString(k)] = x.is_number_integer() ? QVariant(x.get<int>())
+                                         : x.is_number()         ? QVariant(x.get<double>())
                                          : x.is_string()         ? QVariant(QString::fromStdString(x.get<std::string>()))
                                                                  : QVariant();
         out << m;
@@ -115,7 +120,10 @@ PdfEscena::json PdfEscena::estado() const {
                {"archivo", ruta.toStdString()},
                {"titulo", titulo},
                {"pagina", std::max(1, f.ajustes.value("pagina", 1))},
-               {"paginas", paginas}};
+               {"paginas", paginas},
+               {"zoom", f.ajustes.value("zoom", 1.0)},
+               {"x", f.ajustes.value("x", 0.5)},
+               {"y", f.ajustes.value("y", 0.5)}};
         if (ruta.isEmpty()) o["error"] = "no tiene ningún PDF elegido";
         else if (!QFileInfo::exists(ruta)) o["error"] = "no está el archivo";
         fs.push_back(o);
@@ -145,7 +153,7 @@ QString PdfEscena::elegir(const QString& fuente, const QString& id) {
     const std::string n = resolver(fuente, &err);
     if (n.empty()) return err;
     if (evento::Documentos(rt_.dataRoot()).ruta(id.toStdString()).empty()) return "no hay un documento «" + id + "»";
-    fuentes::cambiarAjustes(n, json{{"documento", id.toStdString()}, {"archivo", ""}, {"pagina", 1}});
+    fuentes::cambiarAjustes(n, json{{"documento", id.toStdString()}, {"archivo", ""}, {"pagina", 1}, {"zoom", 1.0}, {"x", 0.5}, {"y", 0.5}});
     tic();
     return {};
 }
@@ -157,7 +165,7 @@ QString PdfEscena::elegirArchivo(const QString& fuente, const QString& ruta) {
     const QString r = ruta.startsWith("file:") ? QUrl(ruta).toLocalFile() : ruta;
     if (!QFileInfo::exists(r)) return "no existe " + r;
     if (abrir(r) == nullptr) return "no es un PDF que se pueda abrir";
-    fuentes::cambiarAjustes(n, json{{"documento", ""}, {"archivo", r.toStdString()}, {"pagina", 1}});
+    fuentes::cambiarAjustes(n, json{{"documento", ""}, {"archivo", r.toStdString()}, {"pagina", 1}, {"zoom", 1.0}, {"x", 0.5}, {"y", 0.5}});
     tic();
     return {};
 }
@@ -184,6 +192,59 @@ QString PdfEscena::paso(const QString& fuente, int delta) {
     if (n.empty()) return err;
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) return irA(QString::fromStdString(n), std::max(1, f.ajustes.value("pagina", 1)) + delta);
+    return "no está la fuente";
+}
+
+PdfEscena::Geometria PdfEscena::geometria(const json& a) {
+    Geometria g;
+    const int ancho = std::clamp(a.value("ancho", 1920), 320, 7680), alto = std::clamp(a.value("alto", 1080), 240, 4320);
+    QPdfDocument* d = abrir(rutaDe(a));
+    if (d == nullptr || d->pageCount() == 0) return g;
+    const int pagina = std::clamp(a.value("pagina", 1), 1, d->pageCount());
+    const QSizeF pt = d->pagePointSize(pagina - 1);
+    const QSize base = pt.isValid() && pt.width() > 0 ? pt.toSize().scaled(ancho, alto, Qt::KeepAspectRatio) : QSize(ancho, alto);
+    const double z = std::clamp(a.value("zoom", 1.0), 1.0, 8.0);
+    g.W = base.width() * z;
+    g.H = base.height() * z;
+    g.vw = std::min<double>(ancho, g.W);
+    g.vh = std::min<double>(alto, g.H);
+    return g;
+}
+
+QString PdfEscena::encuadre(const QString& fuente, double zoom, double x, double y) {
+    QString err;
+    const std::string n = resolver(fuente, &err);
+    if (n.empty()) return err;
+    json c = json::object();
+    if (zoom >= 0) c["zoom"] = std::clamp(zoom, 1.0, 8.0);
+    if (x >= 0) c["x"] = std::clamp(x, 0.0, 1.0);
+    if (y >= 0) c["y"] = std::clamp(y, 0.0, 1.0);
+    if (c.empty()) return {};
+    fuentes::cambiarAjustes(n, c);
+    tic();
+    return {};
+}
+
+QString PdfEscena::mover(const QString& fuente, double dx, double dy) {
+    QString err;
+    const std::string n = resolver(fuente, &err);
+    if (n.empty()) return err;
+    for (const auto& f : fuentes::de(fuentespdf::kTipo))
+        if (f.nombre == n) {
+            const Geometria g = geometria(f.ajustes);
+            if (g.W <= 0) return "esa fuente no tiene un PDF que se pueda abrir";
+            // El centro, acotado para que lo visible no se salga de la página.
+            const auto acotar = [](double v, double visible, double total) {
+                if (visible >= total) return 0.5;
+                const double m = visible / 2 / total;
+                return std::clamp(v, m, 1 - m);
+            };
+            const double x = acotar(f.ajustes.value("x", 0.5) + dx * g.vw / g.W, g.vw, g.W);
+            const double y = acotar(f.ajustes.value("y", 0.5) + dy * g.vh / g.H, g.vh, g.H);
+            fuentes::cambiarAjustes(n, json{{"x", x}, {"y", y}});
+            tic();
+            return {};
+        }
     return "no está la fuente";
 }
 
@@ -225,7 +286,11 @@ void PdfEscena::tic() {
         const std::int64_t fondo = f.ajustes.value("fondo", static_cast<std::int64_t>(0xFF000000));
         const int total = d ? d->pageCount() : 0;
         const int pagina = total > 0 ? std::clamp(f.ajustes.value("pagina", 1), 1, total) : 1;
-        const std::size_t firma = std::hash<std::string>{}(ruta.toStdString()) ^ (static_cast<std::size_t>(pagina) << 1) ^
+        const double zoom = std::clamp(f.ajustes.value("zoom", 1.0), 1.0, 8.0);
+        const double cx = std::clamp(f.ajustes.value("x", 0.5), 0.0, 1.0), cy = std::clamp(f.ajustes.value("y", 0.5), 0.0, 1.0);
+        const std::size_t firma = std::hash<std::string>{}(ruta.toStdString() + "|" + std::to_string(zoom) + "|" +
+                                                           std::to_string(cx) + "|" + std::to_string(cy)) ^
+                                  (static_cast<std::size_t>(pagina) << 1) ^
                                   (static_cast<std::size_t>(ancho) << 20) ^ (static_cast<std::size_t>(alto) << 34) ^
                                   static_cast<std::size_t>(fondo) ^ (d ? 0x5bd1e995u : 0u) ^ (static_cast<std::size_t>(f.version) << 44);
         firmaLista ^= firma + 0x9e3779b9u + (firmaLista << 6) + std::hash<std::string>{}(f.nombre);
@@ -235,12 +300,21 @@ void PdfEscena::tic() {
         QImage lienzo(ancho, alto, QImage::Format_ARGB32);
         lienzo.fill(colorDe(fondo));
         if (d != nullptr && total > 0) {
+            // Con zoom: la página escalada (W×H) y, de ella, SOLO lo visible (pdfium dibuja
+            // ese recorte a esa escala: nítido, sin dibujar la página entera grande).
             const QSizeF pt = d->pagePointSize(pagina - 1);
-            QSize tam = pt.isValid() && pt.width() > 0 ? pt.toSize().scaled(ancho, alto, Qt::KeepAspectRatio) : QSize(ancho, alto);
-            const QImage pag = d->render(pagina - 1, tam);
+            const QSize base = pt.isValid() && pt.width() > 0 ? pt.toSize().scaled(ancho, alto, Qt::KeepAspectRatio) : QSize(ancho, alto);
+            const QSize escalada(qRound(base.width() * zoom), qRound(base.height() * zoom));
+            const int vw = std::min(ancho, escalada.width()), vh = std::min(alto, escalada.height());
+            const int izq = std::clamp(qRound(cx * escalada.width() - vw / 2.0), 0, escalada.width() - vw);
+            const int arr = std::clamp(qRound(cy * escalada.height() - vh / 2.0), 0, escalada.height() - vh);
+            QPdfDocumentRenderOptions o;
+            o.setScaledSize(escalada);
+            o.setScaledClipRect(QRect(izq, arr, vw, vh));
+            const QImage pag = d->render(pagina - 1, QSize(vw, vh), o);
             QPainter p(&lienzo);
             // La hoja en blanco (las páginas sin fondo vienen transparentes).
-            const QRect r((ancho - tam.width()) / 2, (alto - tam.height()) / 2, tam.width(), tam.height());
+            const QRect r((ancho - vw) / 2, (alto - vh) / 2, vw, vh);
             p.fillRect(r, Qt::white);
             p.drawImage(r, pag);
         }

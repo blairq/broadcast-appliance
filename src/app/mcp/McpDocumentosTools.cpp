@@ -248,15 +248,19 @@ void McpService::registerDocumentosTools() {
         t.category = "documentos";
         t.description = "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del "
                         "evento: pdf_escena_ver / documentos_listar) o `archivo` (la ruta de otro PDF), y/o `pagina` (1 = la "
-                        "primera) o `paso` (+1 la siguiente, -1 la anterior). Elegir un documento lo deja en la página 1. "
-                        "SE VE AL AIRE si esa escena está en el programa.";
+                        "primera) o `paso` (+1 la siguiente, -1 la anterior); y el encuadre: `zoom` (1 = la página entera, "
+                        "hasta 8) y `x`, `y` (el centro de lo que se ve, 0 a 1 sobre la página: 0.5, 0.2 = arriba al medio). "
+                        "Elegir un documento lo deja en la página 1 y entero. SE VE AL AIRE si esa escena está en el programa.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"fuente", {{"type", "string"}}},
                            {"documento", {{"type", "string"}}},
                            {"archivo", {{"type", "string"}}},
                            {"pagina", {{"type", "integer"}, {"minimum", 1}}},
-                           {"paso", {{"type", "integer"}}}}}};
+                           {"paso", {{"type", "integer"}}},
+                           {"zoom", {{"type", "number"}, {"minimum", 1}, {"maximum", 8}}},
+                           {"x", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"y", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
         t.run = [pe](const json& a, Done done) {
             const QString f = QString::fromStdString(a.value("fuente", std::string()));
             QString e;
@@ -264,6 +268,8 @@ void McpService::registerDocumentosTools() {
             else if (a.contains("archivo")) e = pe->elegirArchivo(f, QString::fromStdString(a.value("archivo", std::string())));
             if (e.isEmpty() && a.contains("pagina")) e = pe->irA(f, a.value("pagina", 1));
             if (e.isEmpty() && a.contains("paso")) e = pe->paso(f, a.value("paso", 1));
+            if (e.isEmpty() && (a.contains("zoom") || a.contains("x") || a.contains("y")))
+                e = pe->encuadre(f, a.value("zoom", -1.0), a.value("x", -1.0), a.value("y", -1.0));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().data(pe->estado()));
         };
