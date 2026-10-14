@@ -129,7 +129,12 @@ def main():
     # cuyas entidades no son las que nombran sus frases; un modelo que aprendio a
     # preguntar cuando el nombre no esta en el estado (lo correcto) pregunta, y la
     # cobertura deja de medir la ELECCION. --con-falta lo deja elegir (diagnostico).
-    nombres = lp.herramientas_reactivas() + [tc.DERIVAR] + ([tc.FALTA] if args.con_falta else [])
+    # falta_dato va SIEMPRE en el arbol, aunque no se pueda elegir: el tokenizador
+    # pega «=» con la primera letra de algunos nombres («=f» de falta_dato y de
+    # fuente_crear); sin falta en el arbol, todo lo que el modelo queria PREGUNTAR
+    # caia por «=f» en fuente_crear (55 de los 98 fallos del banco en la vuelta 0 de
+    # la v6). Si gana falta y no se puede elegir, se repite sin sus ramas (camino).
+    nombres = lp.herramientas_reactivas() + [tc.DERIVAR, tc.FALTA]
     puente = tc.COLA + "<tool_call>\n<function="
     seqs = {n: tok(puente + tc.a_modelo(n) + ">", add_special_tokens=False).input_ids for n in nombres}
     comun = min(len(s) for s in seqs.values())
@@ -147,25 +152,38 @@ def main():
                 siguientes.setdefault(sq[:k], set()).add(sq[k])
     sig_t = {p: torch.tensor(sorted(v), device=dev) for p, v in siguientes.items()}
 
-    def camino(lg, sin_derivar):
+    def camino(lg, sin_derivar, largo):
+        """La eleccion restringida desde lg (largo: posiciones en la cache hasta lg).
+        Sin --con-falta, si el modelo elige falta_dato se repite sin las ramas que
+        llevan a falta: gana la mejor de las que no son preguntar."""
+        f = ch.foto(kv)
+        r = _camino(lg, sin_derivar, False)
+        if r[0] == tc.FALTA and not args.con_falta:
+            ch.volver(kv, f, largo)
+            r = _camino(lg, sin_derivar, True)
+        return r
+
+    def _camino(lg, sin_derivar, sin_falta):
         """La eleccion restringida desde lg, con su puntaje (suma de log-probabilidades
         entre las opciones validas de cada paso). sin_derivar: fuera los tokens que
-        solo llevan a derivar."""
+        solo llevan a derivar; sin_falta: fuera los que pueden llevar a falta_dato."""
+        fuera = ({tc.DERIVAR} if sin_derivar else set()) | ({tc.FALTA} if sin_falta else set())
         pre, puntaje = (), 0.0
         for paso in range(16):
-            vivos = quedan[pre] - ({tc.DERIVAR} if sin_derivar else set())
+            vivos = quedan[pre] - fuera
             if len(vivos) == 1:
                 return next(iter(vivos)), puntaje
             op = sig_t[pre]
-            if sin_derivar:
-                op = torch.tensor([t for t in op.tolist() if quedan[pre + (t,)] != {tc.DERIVAR}], device=dev)
+            if fuera:
+                op = torch.tensor([t for t in op.tolist() if quedan[pre + (t,)] - fuera
+                                   and not (sin_falta and tc.FALTA in quedan[pre + (t,)])], device=dev)
             lp_ = torch.log_softmax(lg.index_select(0, op).float(), 0)
             k = int(lp_.argmax())
             t = int(op[k])
             puntaje += float(lp_[k])
             pre += (t,)
             lg = adelante([t])[-1]
-        vivos = quedan[pre] - ({tc.DERIVAR} if sin_derivar else set())
+        vivos = quedan[pre] - fuera
         return next(iter(vivos)), puntaje
 
     def puntaje_derivar(lg):
@@ -188,11 +206,12 @@ def main():
         try:
             u = tok(usuario, add_special_tokens=False).input_ids
             lg = adelante(u + forzado)[-1]
+            largo = Lp + len(u) + len(forzado)
             if not args.sesgo:
-                return camino(lg, False)[0]
+                return camino(lg, False, largo)[0]
             f = ch.foto(kv)
-            propia, s_propia = camino(lg, True)
-            ch.volver(kv, f, Lp + len(u) + len(forzado))
+            propia, s_propia = camino(lg, True, largo)
+            ch.volver(kv, f, largo)
             s_der = puntaje_derivar(lg)
             return tc.DERIVAR if s_der + args.sesgo > s_propia else propia
         finally:
