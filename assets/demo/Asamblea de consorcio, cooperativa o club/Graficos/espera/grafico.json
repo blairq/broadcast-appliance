@@ -1,0 +1,47 @@
+{
+  "nombre": "Placa de espera",
+  "descripcion": "Antes de empezar: el nombre del evento y a qué hora arranca. Estilo «Vecinal».",
+  "categoria": "De la plantilla",
+  "ancho": 1600,
+  "alto": 620,
+  "duracionMs": 2000,
+  "parametros": [
+    {
+      "clave": "etiqueta",
+      "titulo": "Etiqueta",
+      "tipo": "texto",
+      "porDefecto": "En instantes",
+      "ayuda": "El renglón chico de arriba, en mayúsculas."
+    },
+    {
+      "clave": "titulo",
+      "titulo": "Título",
+      "tipo": "texto",
+      "porDefecto": "‹Nombre del evento›",
+      "ayuda": ""
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Bajada",
+      "tipo": "texto",
+      "porDefecto": "Empezamos a las ‹hora›",
+      "ayuda": ""
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "ayuda": "El color del evento.",
+      "porDefecto": "#16a34a"
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ]
+}

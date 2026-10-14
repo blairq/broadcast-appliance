@@ -66,7 +66,7 @@ Item {
             anchors { left: fondo.left; leftMargin: 28; top: fondo.top; topMargin: 20 }
             text: raiz.nombre
             color: "white"
-            font { family: "Inter, Noto Sans, DejaVu Sans, Sans"; pixelSize: 44; weight: Font.DemiBold }
+            font { family: "Noto Sans"; pixelSize: 44; weight: Font.DemiBold }
             // Sobre transparencia el suavizado subpíxel deja flecos de color.
             renderType: Text.QtRendering
             opacity: 0
@@ -77,7 +77,7 @@ Item {
             anchors { left: fondo.left; leftMargin: 28; top: txtNombre.bottom; topMargin: 2 }
             text: raiz.cargo
             color: "#b9c0c6"
-            font { family: "Inter, Noto Sans, DejaVu Sans, Sans"; pixelSize: 24 }
+            font { family: "Noto Sans"; pixelSize: 24 }
             renderType: Text.QtRendering
             opacity: 0
         }

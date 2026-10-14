@@ -103,6 +103,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "graficos/GraficoSource.hpp"
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
 #include "evento/FotosConfig.hpp"
@@ -1598,6 +1599,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     QTimer::singleShot(ba::ajustes::entero("arranque.restaurarPlacaMs", 1500), this, [this]() {
         restaurarPlaca();
         if (dsk_) dsk_->restaurar();
+        // Los gráficos que arrancan solos al abrir el evento (ajuste `alAbrir` de la
+        // fuente): el logo que flamea en bucle, la placa de espera. Sin esto, una
+        // plantilla con su bandera la mostraba recién cuando alguien la disparaba.
+        if (emisor_)
+            for (const auto& g : graficos::instancias()) {
+                if (!g.alAbrir || g.reproduciendo) continue;
+                const QJsonObject v = QJsonDocument::fromJson(QByteArray::fromStdString(g.valores.dump())).object();
+                const QString e = emisor_->mostrar(QString::fromStdString(g.grafico), v, g.id, 0, g.bucle);
+                if (!e.isEmpty())
+                    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "graficos", 0, "«" + g.nombre + "» no arrancó al abrir: " + e.toStdString());
+            }
     });
 }
 

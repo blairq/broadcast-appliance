@@ -4,15 +4,16 @@
  "inicio": "",
  "huso": "",
  "nota": "Juego en pantalla, cámara del streamer, chat del público en pantalla, alertas.",
+ "asamblea": false,
  "autoAceptar": [],
  "bloques": [
   {
-   "id": "b265-g",
+   "id": "b276-g",
    "nombre": "Inicio",
    "nota": "",
    "cues": [
     {
-     "id": "c262-g",
+     "id": "c273-g",
      "tipo": "escena",
      "texto": "Al aire: Espera",
      "datos": {
@@ -22,7 +23,7 @@
      "automatico": false
     },
     {
-     "id": "c263-g",
+     "id": "c274-g",
      "tipo": "espera",
      "texto": "Arrancá la transmisión",
      "datos": {},
@@ -30,7 +31,7 @@
      "automatico": false
     },
     {
-     "id": "c264-g",
+     "id": "c275-g",
      "tipo": "escena",
      "texto": "Al aire: Charla",
      "datos": {
@@ -42,12 +43,12 @@
    ]
   },
   {
-   "id": "b267-g",
+   "id": "b278-g",
    "nombre": "A jugar",
    "nota": "",
    "cues": [
     {
-     "id": "c266-g",
+     "id": "c277-g",
      "tipo": "escena",
      "texto": "Al aire: Juego",
      "datos": {
@@ -59,12 +60,12 @@
    ]
   },
   {
-   "id": "b269-g",
+   "id": "b280-g",
    "nombre": "Pausa",
    "nota": "",
    "cues": [
     {
-     "id": "c268-g",
+     "id": "c279-g",
      "tipo": "escena",
      "texto": "Al aire: Pausa",
      "datos": {
@@ -76,12 +77,12 @@
    ]
   },
   {
-   "id": "b272-g",
+   "id": "b283-g",
    "nombre": "Cierre",
    "nota": "",
    "cues": [
     {
-     "id": "c270-g",
+     "id": "c281-g",
      "tipo": "escena",
      "texto": "Al aire: Charla",
      "datos": {
@@ -91,7 +92,7 @@
      "automatico": false
     },
     {
-     "id": "c271-g",
+     "id": "c282-g",
      "tipo": "escena",
      "texto": "Al aire: Cierre",
      "datos": {

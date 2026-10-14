@@ -4,15 +4,16 @@
  "inicio": "",
  "huso": "",
  "nota": "Moderador y varios panelistas (presenciales o remotos), turnos y preguntas.",
+ "asamblea": false,
  "autoAceptar": [],
  "bloques": [
   {
-   "id": "b210-g",
+   "id": "b218-g",
    "nombre": "Apertura",
    "nota": "",
    "cues": [
     {
-     "id": "c203-g",
+     "id": "c211-g",
      "tipo": "escena",
      "texto": "Placa de espera con la hora de inicio",
      "datos": {
@@ -22,7 +23,7 @@
      "automatico": false
     },
     {
-     "id": "c204-g",
+     "id": "c212-g",
      "tipo": "espera",
      "texto": "Confirmá que está todo listo para empezar",
      "datos": {},
@@ -30,7 +31,7 @@
      "automatico": false
     },
     {
-     "id": "c205-g",
+     "id": "c213-g",
      "tipo": "escena",
      "texto": "Al aire: Conducción",
      "datos": {
@@ -40,7 +41,7 @@
      "automatico": false
     },
     {
-     "id": "c206-g",
+     "id": "c214-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Panel›",
      "datos": {
@@ -49,7 +50,7 @@
       "valores": {
        "titulo": "‹Panel›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
+       "acento": "#ef4444",
        "salidaEn": 4500
       }
      },
@@ -57,7 +58,7 @@
      "automatico": false
     },
     {
-     "id": "c207-g",
+     "id": "c215-g",
      "tipo": "teleprompter",
      "texto": "Teleprompter: la apertura",
      "datos": {
@@ -68,7 +69,7 @@
      "automatico": false
     },
     {
-     "id": "c208-g",
+     "id": "c216-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Quien conduce›",
      "datos": {
@@ -77,7 +78,7 @@
       "valores": {
        "nombre": "‹Quien conduce›",
        "cargo": "‹Cargo o rol›",
-       "acento": "#ff6a2b",
+       "acento": "#ef4444",
        "salidaEn": 0
       }
      },
@@ -85,7 +86,7 @@
      "automatico": false
     },
     {
-     "id": "c209-g",
+     "id": "c217-g",
      "tipo": "nota",
      "texto": "Bienvenida y presentación del evento",
      "datos": {},
@@ -95,12 +96,12 @@
    ]
   },
   {
-   "id": "b214-g",
+   "id": "b222-g",
    "nombre": "Ronda de apertura",
    "nota": "",
    "cues": [
     {
-     "id": "c211-g",
+     "id": "c219-g",
      "tipo": "escena",
      "texto": "Al aire: Panelistas",
      "datos": {
@@ -110,7 +111,7 @@
      "automatico": false
     },
     {
-     "id": "c212-g",
+     "id": "c220-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Panelista 1›",
      "datos": {
@@ -119,7 +120,7 @@
       "valores": {
        "nombre": "‹Panelista 1›",
        "cargo": "‹Cargo›",
-       "acento": "#ff6a2b",
+       "acento": "#ef4444",
        "salidaEn": 0
       }
      },
@@ -127,7 +128,7 @@
      "automatico": false
     },
     {
-     "id": "c213-g",
+     "id": "c221-g",
      "tipo": "nota",
      "texto": "Cada panelista: 5 minutos",
      "datos": {},
@@ -137,12 +138,12 @@
    ]
   },
   {
-   "id": "b217-g",
+   "id": "b225-g",
    "nombre": "Intercambio",
    "nota": "",
    "cues": [
     {
-     "id": "c215-g",
+     "id": "c223-g",
      "tipo": "escena",
      "texto": "Al aire: Plano general",
      "datos": {
@@ -152,7 +153,7 @@
      "automatico": false
     },
     {
-     "id": "c216-g",
+     "id": "c224-g",
      "tipo": "nota",
      "texto": "Preguntas cruzadas",
      "datos": {},
@@ -162,12 +163,12 @@
    ]
   },
   {
-   "id": "b219-g",
+   "id": "b227-g",
    "nombre": "Preguntas del público",
    "nota": "",
    "cues": [
     {
-     "id": "c218-g",
+     "id": "c226-g",
      "tipo": "nota",
      "texto": "Preguntas",
      "datos": {},
@@ -177,12 +178,12 @@
    ]
   },
   {
-   "id": "b224-g",
+   "id": "b233-g",
    "nombre": "Cierre",
    "nota": "",
    "cues": [
     {
-     "id": "c220-g",
+     "id": "c228-g",
      "tipo": "escena",
      "texto": "Al aire: Conducción",
      "datos": {
@@ -192,7 +193,7 @@
      "automatico": false
     },
     {
-     "id": "c221-g",
+     "id": "c229-g",
      "tipo": "teleprompter",
      "texto": "Teleprompter: el cierre",
      "datos": {
@@ -203,7 +204,7 @@
      "automatico": false
     },
     {
-     "id": "c222-g",
+     "id": "c230-g",
      "tipo": "nota",
      "texto": "Agradecimientos y cierre",
      "datos": {},
@@ -211,13 +212,28 @@
      "automatico": false
     },
     {
-     "id": "c223-g",
+     "id": "c231-g",
      "tipo": "escena",
      "texto": "Al aire: Cierre",
      "datos": {
       "escena": "Cierre"
      },
      "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c232-g",
+     "tipo": "grafico",
+     "texto": "Placa de cierre: dónde ver la grabación",
+     "datos": {
+      "fuente": "Placa de cierre",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "¡Gracias por acompañarnos!",
+       "bajada": "‹Dónde queda la grabación›"
+      }
+     },
+     "duracionSeg": 0,
      "automatico": false
     }
    ]

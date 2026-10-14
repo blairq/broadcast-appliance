@@ -111,6 +111,9 @@ std::vector<InstanciaInfo> instancias() {
         info.grafico = f.ajustes.value("grafico", std::string("zocalo"));
         info.ancho = f.ajustes.value("ancho", 900);
         info.alto = f.ajustes.value("alto", 220);
+        info.alAbrir = f.ajustes.value("alAbrir", false);
+        info.bucle = f.ajustes.value("bucle", false);
+        if (f.ajustes.contains("valores") && f.ajustes["valores"].is_object()) info.valores = f.ajustes["valores"];
         if (auto r = reproduccion(f.id, false)) {
             info.reproduciendo = r->vivo.load();
             std::lock_guard<std::mutex> l2(r->m);

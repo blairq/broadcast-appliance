@@ -4,15 +4,16 @@
  "inicio": "",
  "huso": "",
  "nota": "Asamblea o sesión con quórum y votación donde parte de los integrantes participa a distancia.",
+ "asamblea": true,
  "autoAceptar": [],
  "bloques": [
   {
-   "id": "b107-g",
+   "id": "b111-g",
    "nombre": "Apertura",
    "nota": "",
    "cues": [
     {
-     "id": "c100-g",
+     "id": "c104-g",
      "tipo": "escena",
      "texto": "Placa de espera con la hora de inicio",
      "datos": {
@@ -22,7 +23,7 @@
      "automatico": false
     },
     {
-     "id": "c101-g",
+     "id": "c105-g",
      "tipo": "espera",
      "texto": "Confirmá que está todo listo para empezar",
      "datos": {},
@@ -30,7 +31,7 @@
      "automatico": false
     },
     {
-     "id": "c102-g",
+     "id": "c106-g",
      "tipo": "escena",
      "texto": "Al aire: Conducción",
      "datos": {
@@ -40,7 +41,7 @@
      "automatico": false
     },
     {
-     "id": "c103-g",
+     "id": "c107-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Asamblea›",
      "datos": {
@@ -49,7 +50,7 @@
       "valores": {
        "titulo": "‹Asamblea›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
+       "acento": "#0e7490",
        "salidaEn": 4500
       }
      },
@@ -57,7 +58,7 @@
      "automatico": false
     },
     {
-     "id": "c104-g",
+     "id": "c108-g",
      "tipo": "teleprompter",
      "texto": "Teleprompter: la apertura",
      "datos": {
@@ -68,7 +69,7 @@
      "automatico": false
     },
     {
-     "id": "c105-g",
+     "id": "c109-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Quien conduce›",
      "datos": {
@@ -77,7 +78,7 @@
       "valores": {
        "nombre": "‹Quien conduce›",
        "cargo": "‹Cargo o rol›",
-       "acento": "#ff6a2b",
+       "acento": "#0e7490",
        "salidaEn": 0
       }
      },
@@ -85,7 +86,7 @@
      "automatico": false
     },
     {
-     "id": "c106-g",
+     "id": "c110-g",
      "tipo": "nota",
      "texto": "Bienvenida y presentación del evento",
      "datos": {},
@@ -95,12 +96,12 @@
    ]
   },
   {
-   "id": "b110-g",
+   "id": "b114-g",
    "nombre": "Quórum (presentes y remotos)",
    "nota": "",
    "cues": [
     {
-     "id": "c108-g",
+     "id": "c112-g",
      "tipo": "escena",
      "texto": "Al aire: Remotos",
      "datos": {
@@ -110,7 +111,7 @@
      "automatico": false
     },
     {
-     "id": "c109-g",
+     "id": "c113-g",
      "tipo": "nota",
      "texto": "Verificación de presentes y remotos",
      "datos": {},
@@ -120,12 +121,12 @@
    ]
   },
   {
-   "id": "b117-g",
+   "id": "b121-g",
    "nombre": "‹Punto 1›",
    "nota": "",
    "cues": [
     {
-     "id": "c111-g",
+     "id": "c115-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Punto 1›",
      "datos": {
@@ -134,7 +135,7 @@
       "valores": {
        "titulo": "‹Punto 1›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
+       "acento": "#0e7490",
        "salidaEn": 4500
       }
      },
@@ -142,7 +143,7 @@
      "automatico": false
     },
     {
-     "id": "c112-g",
+     "id": "c116-g",
      "tipo": "escena",
      "texto": "Al aire: Invitado remoto",
      "datos": {
@@ -152,7 +153,7 @@
      "automatico": false
     },
     {
-     "id": "c113-g",
+     "id": "c117-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Integrante remoto›",
      "datos": {
@@ -161,7 +162,7 @@
       "valores": {
        "nombre": "‹Integrante remoto›",
        "cargo": "‹Bloque›",
-       "acento": "#ff6a2b",
+       "acento": "#0e7490",
        "salidaEn": 0
       }
      },
@@ -169,7 +170,7 @@
      "automatico": false
     },
     {
-     "id": "c114-g",
+     "id": "c118-g",
      "tipo": "nota",
      "texto": "Debate",
      "datos": {},
@@ -177,7 +178,7 @@
      "automatico": false
     },
     {
-     "id": "c115-g",
+     "id": "c119-g",
      "tipo": "escena",
      "texto": "Al aire: Votación",
      "datos": {
@@ -187,7 +188,7 @@
      "automatico": false
     },
     {
-     "id": "c116-g",
+     "id": "c120-g",
      "tipo": "nota",
      "texto": "Votación (también remotos)",
      "datos": {},
@@ -197,12 +198,12 @@
    ]
   },
   {
-   "id": "b122-g",
+   "id": "b127-g",
    "nombre": "Cierre",
    "nota": "",
    "cues": [
     {
-     "id": "c118-g",
+     "id": "c122-g",
      "tipo": "escena",
      "texto": "Al aire: Conducción",
      "datos": {
@@ -212,7 +213,7 @@
      "automatico": false
     },
     {
-     "id": "c119-g",
+     "id": "c123-g",
      "tipo": "teleprompter",
      "texto": "Teleprompter: el cierre",
      "datos": {
@@ -223,7 +224,7 @@
      "automatico": false
     },
     {
-     "id": "c120-g",
+     "id": "c124-g",
      "tipo": "nota",
      "texto": "Agradecimientos y cierre",
      "datos": {},
@@ -231,13 +232,28 @@
      "automatico": false
     },
     {
-     "id": "c121-g",
+     "id": "c125-g",
      "tipo": "escena",
      "texto": "Al aire: Cierre",
      "datos": {
       "escena": "Cierre"
      },
      "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c126-g",
+     "tipo": "grafico",
+     "texto": "Placa de cierre: dónde ver la grabación",
+     "datos": {
+      "fuente": "Placa de cierre",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "¡Gracias por acompañarnos!",
+       "bajada": "‹Dónde queda la grabación›"
+      }
+     },
+     "duracionSeg": 0,
      "automatico": false
     }
    ]

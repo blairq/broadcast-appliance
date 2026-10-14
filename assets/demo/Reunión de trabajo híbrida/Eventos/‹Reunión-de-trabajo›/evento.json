@@ -4,15 +4,16 @@
  "inicio": "",
  "huso": "",
  "nota": "Directorio, equipo o comité con parte en la sala y parte remota; presentaciones y documentos.",
+ "asamblea": false,
  "autoAceptar": [],
  "bloques": [
   {
-   "id": "b26-g",
+   "id": "b27-g",
    "nombre": "Apertura",
    "nota": "",
    "cues": [
     {
-     "id": "c19-g",
+     "id": "c20-g",
      "tipo": "escena",
      "texto": "Placa de espera con la hora de inicio",
      "datos": {
@@ -22,7 +23,7 @@
      "automatico": false
     },
     {
-     "id": "c20-g",
+     "id": "c21-g",
      "tipo": "espera",
      "texto": "Confirmá que está todo listo para empezar",
      "datos": {},
@@ -30,7 +31,7 @@
      "automatico": false
     },
     {
-     "id": "c21-g",
+     "id": "c22-g",
      "tipo": "escena",
      "texto": "Al aire: Conducción",
      "datos": {
@@ -40,7 +41,7 @@
      "automatico": false
     },
     {
-     "id": "c22-g",
+     "id": "c23-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Reunión de trabajo›",
      "datos": {
@@ -49,7 +50,7 @@
       "valores": {
        "titulo": "‹Reunión de trabajo›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
+       "acento": "#2563eb",
        "salidaEn": 4500
       }
      },
@@ -57,7 +58,7 @@
      "automatico": false
     },
     {
-     "id": "c23-g",
+     "id": "c24-g",
      "tipo": "teleprompter",
      "texto": "Teleprompter: la apertura",
      "datos": {
@@ -68,7 +69,7 @@
      "automatico": false
     },
     {
-     "id": "c24-g",
+     "id": "c25-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Quien conduce›",
      "datos": {
@@ -77,7 +78,7 @@
       "valores": {
        "nombre": "‹Quien conduce›",
        "cargo": "‹Cargo o rol›",
-       "acento": "#ff6a2b",
+       "acento": "#2563eb",
        "salidaEn": 0
       }
      },
@@ -85,7 +86,7 @@
      "automatico": false
     },
     {
-     "id": "c25-g",
+     "id": "c26-g",
      "tipo": "nota",
      "texto": "Bienvenida y presentación del evento",
      "datos": {},
@@ -95,12 +96,12 @@
    ]
   },
   {
-   "id": "b32-g",
+   "id": "b33-g",
    "nombre": "‹Tema 1›",
    "nota": "",
    "cues": [
     {
-     "id": "c27-g",
+     "id": "c28-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Tema 1›",
      "datos": {
@@ -109,7 +110,7 @@
       "valores": {
        "titulo": "‹Tema 1›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
+       "acento": "#2563eb",
        "salidaEn": 4500
       }
      },
@@ -117,7 +118,7 @@
      "automatico": false
     },
     {
-     "id": "c28-g",
+     "id": "c29-g",
      "tipo": "escena",
      "texto": "Al aire: Sala",
      "datos": {
@@ -127,7 +128,7 @@
      "automatico": false
     },
     {
-     "id": "c29-g",
+     "id": "c30-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Responsable›",
      "datos": {
@@ -136,7 +137,7 @@
       "valores": {
        "nombre": "‹Responsable›",
        "cargo": "‹Área›",
-       "acento": "#ff6a2b",
+       "acento": "#2563eb",
        "salidaEn": 0
       }
      },
@@ -144,7 +145,7 @@
      "automatico": false
     },
     {
-     "id": "c30-g",
+     "id": "c31-g",
      "tipo": "escena",
      "texto": "La presentación del tema",
      "datos": {
@@ -154,7 +155,7 @@
      "automatico": false
     },
     {
-     "id": "c31-g",
+     "id": "c32-g",
      "tipo": "nota",
      "texto": "Exposición y discusión",
      "datos": {},
@@ -164,12 +165,12 @@
    ]
   },
   {
-   "id": "b37-g",
+   "id": "b38-g",
    "nombre": "‹Tema 2›",
    "nota": "",
    "cues": [
     {
-     "id": "c33-g",
+     "id": "c34-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Tema 2›",
      "datos": {
@@ -178,7 +179,7 @@
       "valores": {
        "titulo": "‹Tema 2›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
+       "acento": "#2563eb",
        "salidaEn": 4500
       }
      },
@@ -186,7 +187,7 @@
      "automatico": false
     },
     {
-     "id": "c34-g",
+     "id": "c35-g",
      "tipo": "escena",
      "texto": "Al aire: Invitado remoto",
      "datos": {
@@ -196,7 +197,7 @@
      "automatico": false
     },
     {
-     "id": "c35-g",
+     "id": "c36-g",
      "tipo": "grafico",
      "texto": "Zócalo: ‹Remoto›",
      "datos": {
@@ -205,7 +206,7 @@
       "valores": {
        "nombre": "‹Remoto›",
        "cargo": "‹Área›",
-       "acento": "#ff6a2b",
+       "acento": "#2563eb",
        "salidaEn": 0
       }
      },
@@ -213,7 +214,7 @@
      "automatico": false
     },
     {
-     "id": "c36-g",
+     "id": "c37-g",
      "tipo": "nota",
      "texto": "Exposición y discusión",
      "datos": {},
@@ -223,12 +224,12 @@
    ]
   },
   {
-   "id": "b40-g",
+   "id": "b41-g",
    "nombre": "Decisiones y próximos pasos",
    "nota": "",
    "cues": [
     {
-     "id": "c38-g",
+     "id": "c39-g",
      "tipo": "escena",
      "texto": "Al aire: Mosaico",
      "datos": {
@@ -238,7 +239,7 @@
      "automatico": false
     },
     {
-     "id": "c39-g",
+     "id": "c40-g",
      "tipo": "nota",
      "texto": "Repaso de lo decidido",
      "datos": {},
@@ -248,12 +249,12 @@
    ]
   },
   {
-   "id": "b45-g",
+   "id": "b47-g",
    "nombre": "Cierre",
    "nota": "",
    "cues": [
     {
-     "id": "c41-g",
+     "id": "c42-g",
      "tipo": "escena",
      "texto": "Al aire: Conducción",
      "datos": {
@@ -263,7 +264,7 @@
      "automatico": false
     },
     {
-     "id": "c42-g",
+     "id": "c43-g",
      "tipo": "teleprompter",
      "texto": "Teleprompter: el cierre",
      "datos": {
@@ -274,7 +275,7 @@
      "automatico": false
     },
     {
-     "id": "c43-g",
+     "id": "c44-g",
      "tipo": "nota",
      "texto": "Agradecimientos y cierre",
      "datos": {},
@@ -282,13 +283,28 @@
      "automatico": false
     },
     {
-     "id": "c44-g",
+     "id": "c45-g",
      "tipo": "escena",
      "texto": "Al aire: Cierre",
      "datos": {
       "escena": "Cierre"
      },
      "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c46-g",
+     "tipo": "grafico",
+     "texto": "Placa de cierre: dónde ver la grabación",
+     "datos": {
+      "fuente": "Placa de cierre",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "¡Gracias por acompañarnos!",
+       "bajada": "‹Dónde queda la grabación›"
+      }
+     },
+     "duracionSeg": 0,
      "automatico": false
     }
    ]

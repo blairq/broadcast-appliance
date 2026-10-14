@@ -29,6 +29,30 @@ std::string aU8(const fs::path& p) {
     return std::string(u.begin(), u.end());
 }
 
+/// El guion `ruta` pasa a llamarse `nombre`, en una carpeta con ese nombre (la arma el
+/// almacén, como a uno nuevo) a la que se mudan sus cosas. Devuelve la ruta que queda
+/// (la vieja si algo falla: mejor con el nombre de la plantilla que sin guion).
+std::string renombrarGuion(evento::EventoStore& store, const fs::path& raiz, const std::string& ruta,
+                           const std::string& nombre) {
+    bool ok = false;
+    evento::Evento ev = store.cargar(ruta, &ok);
+    if (!ok) return ruta;
+    ev.nombre = nombre;
+    std::string err;
+    const std::string nueva = store.crear(nombre, &err);
+    if (nueva.empty()) return ruta;
+    std::error_code ec;
+    for (const auto& x : fs::directory_iterator(raiz / ruta, ec)) {
+        const fs::path destino = raiz / nueva / x.path().filename();
+        fs::remove_all(destino, ec); // el esqueleto vacío que armó crear
+        fs::rename(x.path(), destino, ec);
+        if (ec) return ruta;
+    }
+    fs::remove_all(raiz / ruta, ec);
+    store.guardar(nueva, ev, &err);
+    return nueva;
+}
+
 json leerJson(const fs::path& p) {
     std::ifstream f(p);
     json j = json::parse(f, nullptr, false);
@@ -334,6 +358,11 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
     std::string ruta = store.enCurso();
     if (ruta.empty()) {
         ruta = store.ultimoTocado();
+        // El guion de una plantilla se llama como ella («‹Asamblea General›», un texto
+        // para completar): toma el nombre del evento nuevo, y su carpeta también (con
+        // ese nombre salen la web, el padrón y las grabaciones).
+        if (!ruta.empty() && !de.empty() && leerJson(de / "configuracion.json").value("plantilla", false))
+            ruta = renombrarGuion(store, dst / "Eventos", ruta, nombre);
         std::string e2;
         if (!ruta.empty()) store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
     }

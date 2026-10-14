@@ -1,0 +1,47 @@
+{
+  "nombre": "Placa de cierre",
+  "descripcion": "Al terminar: el agradecimiento y dónde queda la grabación. Estilo «Académico».",
+  "categoria": "De la plantilla",
+  "ancho": 1600,
+  "alto": 620,
+  "duracionMs": 2000,
+  "parametros": [
+    {
+      "clave": "etiqueta",
+      "titulo": "Etiqueta",
+      "tipo": "texto",
+      "porDefecto": "Gracias",
+      "ayuda": "El renglón chico de arriba, en mayúsculas."
+    },
+    {
+      "clave": "titulo",
+      "titulo": "Título",
+      "tipo": "texto",
+      "porDefecto": "¡Gracias por acompañarnos!",
+      "ayuda": ""
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Bajada",
+      "tipo": "texto",
+      "porDefecto": "‹Dónde queda la grabación›",
+      "ayuda": ""
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "ayuda": "El color del evento.",
+      "porDefecto": "#8b5cf6"
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ]
+}

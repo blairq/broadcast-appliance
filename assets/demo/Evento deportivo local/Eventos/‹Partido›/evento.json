@@ -4,15 +4,16 @@
  "inicio": "",
  "huso": "",
  "nota": "Partido o torneo: marcador, tiempo, relato, repeticiones y patrocinadores.",
+ "asamblea": false,
  "autoAceptar": [],
  "bloques": [
   {
-   "id": "b358-g",
+   "id": "b374-g",
    "nombre": "Previa",
    "nota": "",
    "cues": [
     {
-     "id": "c356-g",
+     "id": "c372-g",
      "tipo": "escena",
      "texto": "Al aire: Espera",
      "datos": {
@@ -22,7 +23,7 @@
      "automatico": false
     },
     {
-     "id": "c357-g",
+     "id": "c373-g",
      "tipo": "escena",
      "texto": "Al aire: Relatores",
      "datos": {
@@ -34,29 +35,73 @@
    ]
   },
   {
-   "id": "b360-g",
+   "id": "b379-g",
    "nombre": "Primer tiempo",
    "nota": "",
    "cues": [
     {
-     "id": "c359-g",
+     "id": "c375-g",
      "tipo": "escena",
      "texto": "Al aire: Cancha",
      "datos": {
       "escena": "Cancha"
      },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c376-g",
+     "tipo": "grafico",
+     "texto": "Marcador: arranca el partido",
+     "datos": {
+      "fuente": "Marcador",
+      "grafico": "marcador",
+      "valores": {
+       "local": "‹LOC›",
+       "visitante": "‹VIS›",
+       "golesLocal": 0,
+       "golesVisitante": 0,
+       "tiempo": "1T"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c377-g",
+     "tipo": "nota",
+     "texto": "Primer tiempo (para un gol: la cue de abajo con los goles nuevos)",
+     "datos": {},
      "duracionSeg": 2700,
+     "automatico": false
+    },
+    {
+     "id": "c378-g",
+     "tipo": "grafico",
+     "texto": "Marcador: ‹gol›",
+     "datos": {
+      "fuente": "Marcador",
+      "grafico": "marcador",
+      "valores": {
+       "local": "‹LOC›",
+       "visitante": "‹VIS›",
+       "golesLocal": 1,
+       "golesVisitante": 0,
+       "tiempo": "1T"
+      }
+     },
+     "duracionSeg": 0,
      "automatico": false
     }
    ]
   },
   {
-   "id": "b362-g",
+   "id": "b381-g",
    "nombre": "Entretiempo",
    "nota": "",
    "cues": [
     {
-     "id": "c361-g",
+     "id": "c380-g",
      "tipo": "escena",
      "texto": "Al aire: Entretiempo",
      "datos": {
@@ -68,29 +113,55 @@
    ]
   },
   {
-   "id": "b364-g",
+   "id": "b385-g",
    "nombre": "Segundo tiempo",
    "nota": "",
    "cues": [
     {
-     "id": "c363-g",
+     "id": "c382-g",
      "tipo": "escena",
      "texto": "Al aire: Cancha",
      "datos": {
       "escena": "Cancha"
      },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c383-g",
+     "tipo": "grafico",
+     "texto": "Marcador: segundo tiempo",
+     "datos": {
+      "fuente": "Marcador",
+      "grafico": "marcador",
+      "valores": {
+       "local": "‹LOC›",
+       "visitante": "‹VIS›",
+       "golesLocal": 1,
+       "golesVisitante": 0,
+       "tiempo": "2T"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c384-g",
+     "tipo": "nota",
+     "texto": "Segundo tiempo",
+     "datos": {},
      "duracionSeg": 2700,
      "automatico": false
     }
    ]
   },
   {
-   "id": "b367-g",
+   "id": "b388-g",
    "nombre": "Cierre",
    "nota": "",
    "cues": [
     {
-     "id": "c365-g",
+     "id": "c386-g",
      "tipo": "escena",
      "texto": "Al aire: Relatores",
      "datos": {
@@ -100,7 +171,7 @@
      "automatico": false
     },
     {
-     "id": "c366-g",
+     "id": "c387-g",
      "tipo": "escena",
      "texto": "Al aire: Cierre",
      "datos": {

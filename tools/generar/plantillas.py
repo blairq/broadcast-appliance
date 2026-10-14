@@ -24,9 +24,76 @@ GRAFICOS = os.path.join(RAIZ, "assets", "graficos")
 EXTENSIONES = os.path.join(RAIZ, "assets", "extensiones")
 INDICE = os.path.join(RAIZ, "datos", "escenarios", "indice.json")
 
+MOLDES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "graficos-plantilla")
+
+# --- Estilos -------------------------------------------------------------------------
+# Cada plantilla con su estilo: colores, tipografía (las del bundle, data/fonts: un gráfico
+# se ve igual en cualquier máquina), forma y entrada (ver graficos-plantilla/comun.qml).
+# `fondo`: el de las escenas (0xAABBGGRR). Lo usan sus gráficos propios (zócalo, placa,
+# espera, cierre y los de su tipo) y el color de acento de las cues del guion.
+# UN nombre de familia: font.family de QML no acepta una lista con comas como CSS (toma
+# todo como un nombre que no existe y cae a la letra por defecto). Son las del bundle, así
+# que están siempre.
+SANS, SERIF = "Rubik", "Linux Libertine G"
+
+
+def estilo(nombre, forma, entrada, acento, acento2, panel, fondo, familia=SANS, titulo=None, peso="Font.DemiBold",
+           radio=4, entrada_ms=600, texto="#ffffff", texto2="#c9d1da"):
+    return {"estilo": nombre, "forma": forma, "entrada": entrada, "acento": acento, "acento2": acento2,
+            "panel": panel, "fondo": fondo, "familia": familia, "familiaTitulo": titulo or familia, "peso": peso,
+            "radio": str(radio), "entradaMs": str(entrada_ms), "texto": texto, "texto2": texto2}
+
+
+INSTITUCIONAL = estilo("Institucional", "filete", "revela", "#74acdf", "#c9a227", "#0b1f3a", 0xFF2A1A0E,
+                       familia="Linux Biolinum G", titulo=SERIF, peso="Font.Normal", radio=0,
+                       entrada_ms=800, texto2="#e5d6a8")
+ESTILOS = {
+    "reunion-chica": estilo("Cálido", "pildora", "sube", "#f59e0b", "#fde68a", "#1f2937", 0xFF372B22,
+                            texto2="#d1d5db"),
+    "reunion-hibrida": estilo("Corporativo", "barra", "desliza", "#2563eb", "#93c5fd", "#0f172a", 0xFF2A1A11,
+                              familia="Noto Sans", radio=2, texto2="#cbd5e1"),
+    # Las institucionales comparten el carácter (serif, filetes, entrada que se revela) y
+    # cada una tiene su color.
+    "comision": dict(INSTITUCIONAL, estilo="Institucional celeste"),
+    "sesion-deliberativa": dict(INSTITUCIONAL, estilo="Institucional azul", acento="#3b82f6", panel="#0a1a33"),
+    "asamblea-votacion": dict(INSTITUCIONAL, estilo="Institucional bordó", acento="#9f1239", acento2="#d4af37",
+                              panel="#2a0a12", fondo=0xFF140A1E, texto2="#f1d9a0"),
+    "asamblea-remota": dict(INSTITUCIONAL, estilo="Institucional petróleo", acento="#0e7490", acento2="#a5f3fc",
+                            panel="#062a33", fondo=0xFF2A1F08, texto2="#cffafe"),
+    "audiencia-publica": dict(INSTITUCIONAL, estilo="Institucional verde", acento="#15803d", acento2="#d4af37",
+                              panel="#0b2414", fondo=0xFF14200C, texto2="#e8dcae"),
+    "consorcio": estilo("Vecinal", "pildora", "sube", "#16a34a", "#bbf7d0", "#102a1c", 0xFF1E2A17,
+                        texto2="#d1fae5"),
+    "clase-hibrida": estilo("Pizarrón", "barra", "sube", "#facc15", "#fef08a", "#1f3a2e", 0xFF2A3A24,
+                            familia="Rubik", radio=10, texto2="#e7f5ec"),
+    "conferencia": estilo("Académico", "diagonal", "desliza", "#8b5cf6", "#c4b5fd", "#17112b", 0xFF2B1A21,
+                          texto2="#ddd6fe"),
+    "panel": estilo("Debate", "barra", "revela", "#ef4444", "#60a5fa", "#111827", 0xFF271811,
+                    familia="Noto Sans", titulo=SANS, peso="Font.Bold", radio=0),
+    "entrevista": estilo("Podcast", "pildora", "crece", "#f43f5e", "#fda4af", "#18181b", 0xFF1E1B1B,
+                         peso="Font.Bold", texto2="#e4e4e7"),
+    "webinar": estilo("Tecnológico", "barra", "revela", "#06b6d4", "#67e8f9", "#0b1220", 0xFF241812,
+                      familia="Noto Sans", titulo=SANS, radio=6, texto2="#cffafe"),
+    "streaming-juegos": estilo("Neón", "neon", "crece", "#a855f7", "#22d3ee", "#0a0014", 0xFF1A0612,
+                               peso="Font.Bold", radio=12, entrada_ms=500, texto2="#67e8f9"),
+    "acto": estilo("Protocolar", "filete", "revela", "#1e3a8a", "#d4af37", "#0d1b3e", 0xFF2E1A0D,
+                   familia="Linux Biolinum G", titulo=SERIF, peso="Font.Normal", radio=0,
+                   entrada_ms=900, texto2="#f1e3b0"),
+    "ceremonia": estilo("Sereno", "filete", "revela", "#b08d57", "#e9d5a1", "#2b2118", 0xFF18212B,
+                        familia="Gentium Basic", titulo="Gentium Basic",
+                        peso="Font.Normal", radio=0, entrada_ms=1100, texto2="#f3e7c9"),
+    "lanzamiento": estilo("Impacto", "diagonal", "crece", "#ff3d00", "#ffd166", "#000000", 0xFF0A0A0A,
+                          peso="Font.Black", radio=0, entrada_ms=500, texto2="#e5e5e5"),
+    "deportivo": estilo("Deportivo", "diagonal", "desliza", "#22c55e", "#facc15", "#052e16", 0xFF162E05,
+                        familia="Liberation Sans Narrow", titulo="Rubik", peso="Font.Black",
+                        radio=0, entrada_ms=450, texto2="#bbf7d0"),
+    "senaletica": estilo("Señalética", "barra", "sube", "#0ea5e9", "#7dd3fc", "#0f172a", 0xFF2A170F,
+                         peso="Font.Bold", radio=8, texto2="#e0f2fe"),
+}
+EST = ESTILOS["reunion-chica"]  # el de la plantilla que se está armando (lo pone main)
+
 FILTRO_PTZ = json.dumps({"alfa": False, "video": [{"elemento": "baptz", "id": "ptz"}]}, separators=(",", ":"))
 FONDO = 0xFF2A2320   # 0xAABBGGRR (rojo en el byte bajo): un gris azulado oscuro, rgb(32, 35, 42)
-ACENTO = "#ff6a2b"
 
 
 # --- Fuentes -------------------------------------------------------------------------
@@ -35,7 +102,8 @@ def fuente(id, nombre, rect, settings, visible=True):
             "volume": 1.0, "muted": False}
 
 
-def fondo(color=FONDO):
+def fondo(color=None):
+    color = EST["fondo"] if color is None else color
     return fuente("color_source_v3", "Fondo", (0, 0, 1, 1), {"color": color, "width": 1920, "height": 1080})
 
 
@@ -61,17 +129,60 @@ def sala(canal, slot, nombre, rect=(0, 0, 1, 1)):
 
 
 def tam_grafico(cual):
+    # Los propios de la plantilla (ver PROPIOS) mandan sobre los de fábrica.
+    # (El tamaño no depende del estilo: sirve el de cualquier plantilla que lo traiga.)
+    for g in [PROPIOS, GRAFICOS_BASE] + list(GRAFICOS_DE.values()):
+        if cual in g:
+            return g[cual]["ancho"], g[cual]["alto"]
     f = json.load(open(os.path.join(GRAFICOS, cual, "grafico.json")))
     return f.get("ancho", 1920), f.get("alto", 1080)
 
 
-def grafico(nombre, cual, pos=None):
+def grafico(nombre, cual, pos=None, al_abrir=False, bucle=False, valores=None):
     """Un gráfico animado con SU tamaño (el de su ficha). `pos`: (x, y) de la esquina en
-    fracciones del lienzo; sin ella, a pantalla completa si es de 1920×1080 o centrado."""
+    fracciones del lienzo; sin ella, centrado. `al_abrir`: arranca solo al abrir el evento
+    (con `valores`), `bucle`: se repite sin parar (GraficoSource: alAbrir, bucle, valores)."""
     ancho, alto = tam_grafico(cual)
     w, h = ancho / 1920.0, alto / 1080.0
     x, y = pos if pos else ((1 - w) / 2, (1 - h) / 2)
-    return fuente("ba_grafico", nombre, (x, y, w, h), {"grafico": cual, "ancho": ancho, "alto": alto})
+    aj = {"grafico": cual, "ancho": ancho, "alto": alto}
+    if al_abrir:
+        aj.update({"alAbrir": True, "bucle": bucle, "valores": valores or {}})
+    return fuente("ba_grafico", nombre, (x, y, w, h), aj)
+
+
+MEDIOS = os.path.join(RAIZ, "assets", "medios")
+
+
+BANDERA = "bandera-malvinas.png"  # cuál de las de assets/medios va de mosca (ver CREDITOS.md)
+
+
+def bandera():
+    # La mosca de arriba a la derecha: una imagen fija con transparencia (assets/medios),
+    # semitransparente por efecto. La ruta es relativa a la carpeta del evento (el motor la
+    # resuelve ahí). Fija a propósito: el GIF en una fuente de video parpadeaba en pantalla.
+    from PIL import Image  # solo para el tamaño
+    iw, ih = Image.open(os.path.join(MEDIOS, BANDERA)).size
+    w = 0.11
+    h = w * 1920 / 1080 * ih / iw
+    f = fuente("image_source", "Bandera", (1 - w - 0.015, 0.025, w, h), {"file": "Media/" + BANDERA})
+    f["efectos"] = {"opacidad": 0.85}  # con transparencia: una mosca no tapa
+    return f
+
+
+def copiar_medios(dest):
+    os.makedirs(os.path.join(dest, "Media"), exist_ok=True)
+    for f in os.listdir(MEDIOS):
+        shutil.copy(os.path.join(MEDIOS, f), os.path.join(dest, "Media", f))
+
+
+def con_bandera(escenas):
+    """La bandera arriba de todo en cada escena. Es UNA fuente compartida (mismo nombre):
+    se carga una vez. No va en una capa DSK: una escena o fuente en el DSK se compone
+    sobre negro opaco (Composicion: background=black) y tapaba el programa."""
+    for e in escenas:
+        e["sources"] = [x for x in e["sources"] if x.get("name") != "Bandera"] + [bandera()]
+    return escenas
 
 
 def zocalo(cual="zocalo"):
@@ -91,8 +202,8 @@ def escena(nombre, fuentes, carpeta=""):
 def escenas_base(titulo):
     """Las que tiene todo evento."""
     return [
-        escena("Espera", [fondo(), texto("Título", titulo, (0.06, 0.34, 0.88, 0.16), 96),
-                          texto("Empezamos", "Empezamos a las ‹hora›", (0.06, 0.52, 0.88, 0.08), 48)]),
+        escena("Espera", [fondo(), grafico("Placa de espera", "espera", al_abrir=True,
+                                           valores={"titulo": titulo, "bajada": "Empezamos a las ‹hora›"})]),
         escena("Conducción", [camara(), zocalo()]),
         escena("Invitado remoto", [fondo(), sala("remoto", 1, "Remoto con la palabra"), zocalo()]),
         escena("Presentación", [fondo(), sala("remoto_contenido", 1, "Remoto con la palabra — contenido"),
@@ -103,7 +214,7 @@ def escenas_base(titulo):
                            sala("guest", 4, "Invitado 4", (0.5, 0.5, 0.5, 0.5))]),
         escena("PDF", [fondo(0xFF000000), pdf()]),
         escena("Placa", [camara(), grafico("Placa", "placa-titulo")]),
-        escena("Cierre", [fondo(), texto("Gracias", "¡Gracias por acompañarnos!", (0.06, 0.40, 0.88, 0.14), 88)]),
+        escena("Cierre", [fondo(), grafico("Placa de cierre", "cierre", al_abrir=True)]),
     ]
 
 
@@ -127,14 +238,18 @@ def c_escena(nombre, txt=None, seg=0):
 
 def c_zocalo(nombre="‹Nombre›", cargo="‹Cargo›"):
     return cue("grafico", "Zócalo: %s" % nombre,
-               {"fuente": "Zócalo", "grafico": "zocalo", "valores": {"nombre": nombre, "cargo": cargo, "acento": ACENTO,
+               {"fuente": "Zócalo", "grafico": "zocalo", "valores": {"nombre": nombre, "cargo": cargo, "acento": EST["acento"],
                                                                       "salidaEn": 0}})
 
 
 def c_placa(titulo, bajada="‹Bajada›"):
     return cue("grafico", "Placa: %s" % titulo,
                {"fuente": "Placa", "grafico": "placa-titulo",
-                "valores": {"titulo": titulo, "bajada": bajada, "acento": ACENTO, "salidaEn": 4500}})
+                "valores": {"titulo": titulo, "bajada": bajada, "acento": EST["acento"], "salidaEn": 4500}})
+
+
+def c_grafico(fuente_, cual, valores, txt):
+    return cue("grafico", txt, {"fuente": fuente_, "grafico": cual, "valores": dict(valores)})
 
 
 def c_prompter(archivo, txt):
@@ -164,7 +279,10 @@ def apertura(titulo):
 
 def cierre():
     return bloque("Cierre", [c_escena("Conducción"), c_prompter("9-cierre.txt", "Teleprompter: el cierre"),
-                             c_nota("Agradecimientos y cierre", 60), c_escena("Cierre", seg=15)])
+                             c_nota("Agradecimientos y cierre", 60), c_escena("Cierre", seg=15),
+                             c_grafico("Placa de cierre", "cierre", {"titulo": "¡Gracias por acompañarnos!",
+                                                                     "bajada": "‹Dónde queda la grabación›"},
+                                       "Placa de cierre: dónde ver la grabación")])
 
 
 # --- Escenarios ----------------------------------------------------------------------
@@ -292,17 +410,17 @@ def escenarios():
         cierre()])
     E["streaming-juegos"] = p("‹Stream›", [
         escena("Juego", [fuente("screen_capture", "Juego", (0, 0, 1, 1), {"show_cursor": False}),
-                         camara("Cámara", (0.76, 0.02, 0.22, 0.25)),
-                         fuente("ba_chat_overlay", "Chat", (0.76, 0.3, 0.22, 0.6), {})]),
+                         camara("Cámara", (0.76, 0.18, 0.22, 0.25)),
+                         fuente("ba_chat_overlay", "Chat", (0.76, 0.45, 0.22, 0.5), {})]),
         escena("Charla", [camara(), fuente("ba_chat_overlay", "Chat", (0.7, 0.1, 0.28, 0.8), {})]),
-        escena("Pausa", [fondo(), texto("Pausa", "Ya volvemos", (0.06, 0.4, 0.88, 0.14), 96)])], [
+        escena("Pausa", [fondo(), grafico("Ya volvemos", "pausa", al_abrir=True)])], [
         bloque("Inicio", [c_escena("Espera"), c_espera("Arrancá la transmisión"), c_escena("Charla", seg=300)]),
         bloque("A jugar", [c_escena("Juego", seg=3600)]),
         bloque("Pausa", [c_escena("Pausa", seg=300)]),
         bloque("Cierre", [c_escena("Charla", seg=300), c_escena("Cierre", seg=15)])])
     E["acto"] = p("‹Acto›", [
         escena("Escenario", [camara(), zocalo(),
-                             fuente("image_source", "Escudo", (0.88, 0.03, 0.1, 0.17), {"file": ""})]),
+                             fuente("image_source", "Escudo", (0.02, 0.03, 0.1, 0.17), {"file": ""})]),
         escena("Egresados", [camara(), zocalo()])], [
         apertura("‹Acto›"),
         bloque("Himno y banderas", [c_escena("Escenario"), c_nota("Ingreso de banderas e Himno Nacional", 300)]),
@@ -313,9 +431,10 @@ def escenarios():
         cierre()], gente(20, "egresado", prefijo="Egresado"))
     E["ceremonia"] = p("‹Ceremonia›", [
         escena("Altar", [camara()]),
-        escena("Letra", [camara(), texto("Letra", "‹Estrofa›", (0.05, 0.74, 0.9, 0.2), 54)])], [
+        escena("Letra", [camara(), grafico("Letra", "letra", (0.05, 0.70))])], [
         apertura("‹Ceremonia›"),
         bloque("Celebración", [c_escena("Altar"), c_nota("‹Momento 1›", 900), c_escena("Letra", "Canto con la letra"),
+                               c_grafico("Letra", "letra", {"estrofa": "‹Primer verso›\n‹Segundo verso›"}, "Letra: ‹canto›"),
                                c_nota("‹Momento 2›", 900)]),
         cierre()])
     E["audiencia-publica"] = p("‹Audiencia pública›", [
@@ -335,14 +454,23 @@ def escenarios():
         bloque("Preguntas de la prensa", [c_nota("Preguntas", 600)]),
         cierre()])
     E["deportivo"] = p("‹Partido›", [
-        escena("Cancha", [camara(), texto("Marcador", "‹Local› 0 - 0 ‹Visitante›", (0.03, 0.03, 0.4, 0.07), 44)]),
+        escena("Cancha", [camara(), grafico("Marcador", "marcador", (0.02, 0.03), al_abrir=True,
+                                            valores={"local": "‹LOC›", "visitante": "‹VIS›", "tiempo": "1T"})]),
         escena("Relatores", [fondo(), sala("remoto", 1, "Remoto con la palabra", (0, 0, 0.5, 1)),
                              sala("remoto", 2, "Remoto con la palabra 2", (0.5, 0, 0.5, 1))]),
-        escena("Entretiempo", [fondo(), texto("Entretiempo", "Entretiempo", (0.06, 0.4, 0.88, 0.14), 96)])], [
+        escena("Entretiempo", [fondo(), grafico("Entretiempo", "entretiempo", al_abrir=True)])], [
         bloque("Previa", [c_escena("Espera"), c_escena("Relatores", seg=600)]),
-        bloque("Primer tiempo", [c_escena("Cancha", seg=2700)]),
+        bloque("Primer tiempo", [c_escena("Cancha"),
+                                 c_grafico("Marcador", "marcador", {"local": "‹LOC›", "visitante": "‹VIS›", "golesLocal": 0,
+                                                                    "golesVisitante": 0, "tiempo": "1T"}, "Marcador: arranca el partido"),
+                                 c_nota("Primer tiempo (para un gol: la cue de abajo con los goles nuevos)", 2700),
+                                 c_grafico("Marcador", "marcador", {"local": "‹LOC›", "visitante": "‹VIS›", "golesLocal": 1,
+                                                                    "golesVisitante": 0, "tiempo": "1T"}, "Marcador: ‹gol›")]),
         bloque("Entretiempo", [c_escena("Entretiempo", seg=900)]),
-        bloque("Segundo tiempo", [c_escena("Cancha", seg=2700)]),
+        bloque("Segundo tiempo", [c_escena("Cancha"),
+                                  c_grafico("Marcador", "marcador", {"local": "‹LOC›", "visitante": "‹VIS›", "golesLocal": 1,
+                                                                     "golesVisitante": 0, "tiempo": "2T"}, "Marcador: segundo tiempo"),
+                                  c_nota("Segundo tiempo", 2700)]),
         bloque("Cierre", [c_escena("Relatores", seg=300), c_escena("Cierre", seg=15)])])
     E["senaletica"] = p("‹Señalética del evento›", [
         escena("Pantalla de sala", [fondo(), texto("Agenda", "‹Agenda del día›", (0.05, 0.06, 0.55, 0.8), 48),
@@ -353,6 +481,105 @@ def escenarios():
         bloque("Durante el evento", [c_escena("Pantalla de sala"),
                                      c_nota("Mandar la escena a cada televisor (pantalla_mostrar)", 0)])])
     return E
+
+
+# --- Gráficos propios ------------------------------------------------------------------
+# Lo que cada plantilla trae con SU estilo (graficos-plantilla/<molde>.qml con los colores
+# de ESTILOS). Van con el mismo nombre que los de fábrica donde existen (zocalo,
+# placa-titulo): las cues y las herramientas los nombran igual, y en esa plantilla se ven
+# con su estilo.
+def p_texto(clave, titulo, defecto, ayuda=""):
+    return {"clave": clave, "titulo": titulo, "tipo": "texto", "porDefecto": defecto, "ayuda": ayuda}
+
+
+P_ACENTO = {"clave": "acento", "titulo": "Color de acento", "tipo": "color", "ayuda": "El color del evento."}
+P_SALIDA = {"clave": "salidaEn", "titulo": "Cuándo se va", "tipo": "ms", "porDefecto": 0, "minimo": 0, "maximo": 60000,
+            "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."}
+
+
+def tarjeta(nombre, descripcion, etiqueta, titulo, bajada):
+    return {"molde": "tarjeta", "nombre": nombre, "descripcion": descripcion, "ancho": 1600, "alto": 620,
+            "duracionMs": 2000, "tokens": {"etiqueta": etiqueta, "titulo": titulo, "bajada": bajada, "nombreGrafico": nombre},
+            "parametros": [p_texto("etiqueta", "Etiqueta", etiqueta, "El renglón chico de arriba, en mayúsculas."),
+                           p_texto("titulo", "Título", titulo), p_texto("bajada", "Bajada", bajada), P_ACENTO, P_SALIDA]}
+
+
+GRAFICOS_BASE = {
+    "zocalo": {"molde": "zocalo", "nombre": "Zócalo", "descripcion": "El nombre y el cargo de quien habla, abajo a la izquierda.",
+               "ancho": 900, "alto": 220, "duracionMs": 2000,
+               "parametros": [p_texto("nombre", "Nombre", "‹Nombre›", "Más de 30 caracteres empieza a quedar apretado."),
+                              p_texto("cargo", "Cargo o procedencia", "‹Cargo›", "El renglón chico. Puede ir vacío."),
+                              P_ACENTO, {"clave": "duracionEntrada", "titulo": "Cuánto tarda en entrar", "tipo": "ms",
+                                         "minimo": 150, "maximo": 1500}, P_SALIDA]},
+    "placa-titulo": {"molde": "placa-titulo", "nombre": "Placa de título",
+                     "descripcion": "La apertura de un bloque: una banda a media altura con el título y una bajada.",
+                     "ancho": 1920, "alto": 360, "duracionMs": 2000,
+                     "parametros": [p_texto("titulo", "Título", "‹Título›", "Más de 34 caracteres se recorta."),
+                                    p_texto("bajada", "Bajada", "‹Bajada›"), P_ACENTO, P_SALIDA]},
+    "espera": tarjeta("Placa de espera", "Antes de empezar: el nombre del evento y a qué hora arranca.",
+                      "En instantes", "‹Nombre del evento›", "Empezamos a las ‹hora›"),
+    "cierre": tarjeta("Placa de cierre", "Al terminar: el agradecimiento y dónde queda la grabación.",
+                      "Gracias", "¡Gracias por acompañarnos!", "‹Dónde queda la grabación›"),
+}
+GRAFICOS_DE = {
+    "streaming-juegos": {"pausa": tarjeta("Ya volvemos", "La pausa del stream.", "Pausa", "Ya volvemos", "‹En unos minutos›")},
+    "deportivo": {
+        "marcador": {"molde": "marcador", "nombre": "Marcador", "descripcion": "Local, visitante, goles y tiempo, arriba a la izquierda.",
+                     "ancho": 760, "alto": 110, "duracionMs": 1000,
+                     "parametros": [p_texto("local", "Local", "‹LOC›", "Tres letras."), p_texto("visitante", "Visitante", "‹VIS›"),
+                                    {"clave": "golesLocal", "titulo": "Goles del local", "tipo": "numero", "porDefecto": 0},
+                                    {"clave": "golesVisitante", "titulo": "Goles del visitante", "tipo": "numero", "porDefecto": 0},
+                                    p_texto("tiempo", "Tiempo", "1T", "1T, 2T, ET, o el minuto."), P_ACENTO, P_SALIDA]},
+        "entretiempo": tarjeta("Entretiempo", "La placa del entretiempo.", "Entretiempo", "‹Local› 0 - 0 ‹Visitante›",
+                               "Ya vuelve el segundo tiempo")},
+    "ceremonia": {
+        "letra": {"molde": "letra", "nombre": "Letra", "descripcion": "Una estrofa para cantar, centrada abajo.",
+                  "ancho": 1700, "alto": 300, "duracionMs": 1500,
+                  "parametros": [p_texto("estrofa", "Estrofa", "‹Primer verso›\n‹Segundo verso›",
+                                         "Hasta tres renglones (separados con un salto de línea)."), P_ACENTO, P_SALIDA]}},
+}
+PROPIOS = {}  # los de la plantilla que se está armando (lo pone main)
+
+
+def escribir_graficos(dest, meta):
+    """Los de fábrica y, encima, los propios de la plantilla con su estilo."""
+    import string
+    shutil.copytree(GRAFICOS, os.path.join(dest, "Graficos"))
+    for cual, g in PROPIOS.items():
+        d = os.path.join(dest, "Graficos", cual)
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+        os.makedirs(d)
+        tokens = dict(EST, plantilla=meta["titulo"], **g.get("tokens", {}))
+        qml = string.Template(open(os.path.join(MOLDES, g["molde"] + ".qml")).read()).substitute(tokens)
+        open(os.path.join(d, "grafico.qml"), "w").write(qml)
+        params = []
+        for prm in g["parametros"]:
+            prm = dict(prm)
+            if prm["clave"] == "acento":
+                prm["porDefecto"] = EST["acento"]
+            if prm["clave"] == "duracionEntrada":
+                prm["porDefecto"] = int(EST["entradaMs"])
+            params.append(prm)
+        json.dump({"nombre": g["nombre"], "descripcion": g["descripcion"] + " Estilo «%s»." % EST["estilo"],
+                   "categoria": "De la plantilla", "ancho": g["ancho"], "alto": g["alto"], "duracionMs": g["duracionMs"],
+                   "parametros": params}, open(os.path.join(d, "grafico.json"), "w"), ensure_ascii=False, indent=2)
+
+
+# El orden del día de ejemplo de las asambleas (Config/orden-del-dia.json, el de la Demo
+# parlamentaria) y cuáles son asamblea (la web muestra integrantes, quórum, orden del día y
+# los resultados de las votaciones).
+ORDEN_DEL_DIA = {
+    "comision": ["Lectura y aprobación del acta anterior", "‹Expediente 1›", "‹Expediente 2›", "Dictámenes"],
+    "asamblea-votacion": ["Designación de dos asociados para firmar el acta", "Consideración de la memoria y el balance",
+                          "‹Punto 3›", "Elección de autoridades"],
+    "asamblea-remota": ["Verificación de presentes y remotos", "‹Punto 1›", "‹Punto 2›"],
+    "consorcio": ["Designación de quien preside la asamblea", "Rendición de cuentas y balance del ejercicio",
+                  "Presupuesto y expensas", "‹Otros puntos›"],
+    "audiencia-publica": ["Lectura del objeto de la audiencia y de las reglas", "Exposición de los inscriptos",
+                          "Cierre y próximos pasos"],
+}
+ASAMBLEAS = {"comision", "asamblea-votacion", "asamblea-remota", "consorcio"}
 
 
 # --- Escritura -----------------------------------------------------------------------
@@ -371,15 +598,21 @@ def escribir(dest, meta, esc):
         if e["name"] in nombres:
             escenas = [x for x in escenas if x["name"] != e["name"]]
         escenas.append(e)
-    json.dump({"scenes": escenas, "currentScene": "Espera"}, open(os.path.join(dest, "Config", "app.json"), "w"),
+    json.dump({"scenes": con_bandera(escenas), "currentScene": "Espera"}, open(os.path.join(dest, "Config", "app.json"), "w"),
               ensure_ascii=False, indent=1)
-    shutil.copytree(GRAFICOS, os.path.join(dest, "Graficos"))
+    escribir_graficos(dest, meta)
+    copiar_medios(dest)
+    if meta["id"] in ORDEN_DEL_DIA:
+        puntos = [{"estado": "pendiente", "expediente": "", "fin_ms": 0, "inicio_ms": 0, "n": i + 1, "resultado": "",
+                   "titulo": t} for i, t in enumerate(ORDEN_DEL_DIA[meta["id"]])]
+        json.dump({"puntos": puntos, "tramos": []}, open(os.path.join(dest, "Config", "orden-del-dia.json"), "w"),
+                  ensure_ascii=False, indent=1)
     if os.path.isdir(EXTENSIONES):
         shutil.copytree(EXTENSIONES, os.path.join(dest, "Extensiones"))
     ev = os.path.join(dest, "Eventos", carpeta_evento(titulo))
     os.makedirs(os.path.join(ev, "Discursos"))
     json.dump({"nombre": titulo, "fecha": "", "inicio": "", "huso": "", "nota": meta["resumen"],
-               "autoAceptar": [], "bloques": esc["bloques"]},
+               "asamblea": meta["id"] in ASAMBLEAS, "autoAceptar": [], "bloques": esc["bloques"]},
               open(os.path.join(ev, "evento.json"), "w"), ensure_ascii=False, indent=1)
     discursos = {"0-apertura.txt": "‹Buenas tardes y bienvenidos a ...›\n\n‹Lo que vas a decir al abrir.›\n",
                  "9-cierre.txt": "‹Gracias a todos por ...›\n"}
@@ -401,7 +634,7 @@ def escribir(dest, meta, esc):
 
 def main():
     indice = json.load(open(INDICE))
-    defs = escenarios()
+    defs = escenarios()  # solo para saber cuáles hay (se vuelven a armar con cada estilo)
     # Fuera las generadas antes (las hechas a mano quedan).
     for d in os.listdir(DEMOS):
         cj = os.path.join(DEMOS, d, "configuracion.json")
@@ -415,9 +648,50 @@ def main():
             print("FALTA el escenario", meta["id"], file=sys.stderr)
             continue
         meta = dict(meta, orden=orden)
-        escribir(os.path.join(DEMOS, meta["titulo"]), meta, defs[meta["id"]])
+        # El estilo y los gráficos propios ANTES de armar escenas y cues: los usan.
+        global EST, PROPIOS
+        EST = ESTILOS[meta["id"]]
+        PROPIOS = dict(GRAFICOS_BASE, **GRAFICOS_DE.get(meta["id"], {}))
+        _n[0] = 0
+        escribir(os.path.join(DEMOS, meta["titulo"]), meta, escenarios()[meta["id"]])
         hechas += 1
     print("plantillas generadas:", hechas)
+    retocar_demo(next(dict(m, orden=i) for i, m in enumerate(indice) if m["id"] == "sesion-deliberativa"))
+
+
+def retocar_demo(meta):
+    """La «Demo parlamentaria» está hecha a mano: no se regenera, solo se le suma lo que
+    tienen todas (su estilo en zócalo, placa, espera y cierre; la bandera en cada escena;
+    la marca de asamblea). Lo demás de ella queda como está."""
+    global EST, PROPIOS
+    EST, PROPIOS = ESTILOS["sesion-deliberativa"], dict(GRAFICOS_BASE)
+    dest = os.path.join(DEMOS, "Demo parlamentaria")
+    if not os.path.isfile(os.path.join(dest, "Config", "app.json")):
+        print("FALTA la Demo parlamentaria (assets/demo/Demo parlamentaria)", file=sys.stderr)
+        return
+    for cual, g in PROPIOS.items():
+        d = os.path.join(dest, "Graficos", cual)
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+    # Los propios, escritos sobre su carpeta de gráficos (sin copiar de nuevo los de fábrica).
+    tmp = os.path.join(dest, ".graficos-nuevos")
+    if os.path.isdir(tmp):
+        shutil.rmtree(tmp)
+    escribir_graficos(tmp, dict(meta))
+    for cual in PROPIOS:
+        shutil.move(os.path.join(tmp, "Graficos", cual), os.path.join(dest, "Graficos", cual))
+    shutil.rmtree(tmp)
+    copiar_medios(dest)
+    app = json.load(open(os.path.join(dest, "Config", "app.json")))
+    app["scenes"] = con_bandera([e for e in app["scenes"] if e.get("name") != "Logo"])
+    json.dump(app, open(os.path.join(dest, "Config", "app.json"), "w"), ensure_ascii=False, indent=2)  # su formato
+    for ev in os.listdir(os.path.join(dest, "Eventos")):
+        f = os.path.join(dest, "Eventos", ev, "evento.json")
+        if os.path.isfile(f):
+            e = json.load(open(f))
+            e["asamblea"] = True
+            json.dump(e, open(f, "w"), ensure_ascii=False, indent=2)
+    print("demo retocada:", meta["titulo"])
 
 
 if __name__ == "__main__":

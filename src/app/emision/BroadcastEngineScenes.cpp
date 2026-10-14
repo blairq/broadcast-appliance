@@ -18,6 +18,9 @@
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
+#include "platform/Paths.hpp"
+
+#include <filesystem>
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 #include "video/FuentesCaptura.hpp"
@@ -418,6 +421,20 @@ bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     return true;
 }
 
+namespace {
+/// Una ruta de archivo de una fuente (imagen, video) RELATIVA es relativa a la carpeta del
+/// evento: así una plantilla trae sus archivos (Media/bandera.gif) y un evento sigue
+/// andando en un pendrive aunque cambie la letra de la unidad o la carpeta. Antes quedaba
+/// relativa a la carpeta de trabajo del proceso, que la app no fija.
+std::string rutaDelEvento(const std::string& r) {
+    if (r.empty()) return r;
+    const std::filesystem::path p(std::u8string(r.begin(), r.end()));
+    if (p.is_absolute()) return r;
+    const std::u8string u = (ba::platform::configRoot() / p).lexically_normal().u8string();
+    return std::string(u.begin(), u.end());
+}
+} // namespace
+
 bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
     const json in = s.is_object() ? s : json::object();
@@ -431,6 +448,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         a = in;
         a["medio"] = true;
         a["nombre"] = spec.name;
+        if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = rutaDelEvento(a["local_file"]);
         return true;
     }
     if (id == "ffmpeg_source") {
@@ -438,6 +456,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         if (in.value("is_local_file", true)) {
             a = in;
             a["medio"] = true;
+            if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = rutaDelEvento(a["local_file"]);
             return true;
         }
         a = {{"uri", in.value("input", std::string())}, {"nombre", spec.name}, {"audio", true}};
@@ -473,7 +492,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         return true;
     }
     if (id == "image_source") {
-        a = {{"tipo", "imagen"}, {"archivo", in.value("file", std::string())}};
+        a = {{"tipo", "imagen"}, {"archivo", rutaDelEvento(in.value("file", std::string()))}};
         return true;
     }
     if (esPantalla(id)) {
