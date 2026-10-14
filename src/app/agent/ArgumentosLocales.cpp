@@ -49,6 +49,10 @@ std::vector<std::string> lista(const json& estado, const char* clave, const char
     return out;
 }
 
+// Las familias van por prefijo; las renombradas en v6 (que perdieron el prefijo de
+// su familia: fuente_crear era source_add) van por su nombre entero, para que cada
+// una siga recibiendo el mismo estado que con el nombre viejo (el de entrenamiento:
+// tools/entrenar/lib_tc.py estado_para).
 bool empieza(const std::string& s, std::initializer_list<const char*> prefijos) {
     for (const char* p : prefijos)
         if (s.rfind(p, 0) == 0) return true;
@@ -69,14 +73,14 @@ std::vector<std::string> candidatos(const std::string& herr, const std::string& 
         (empieza(herr, {"scene_"}) && (k == "name" || k == "to" || k == "from" || k == "nombre")))
         return escenas;
     if (empieza(herr, {"audio", "mixer_"})) return audio;
-    if (empieza(herr, {"source_", "capture_source"})) {
+    if (empieza(herr, {"source_", "foto_fuente", "fuente_crear", "escena_fuentes_ver"})) {
         auto v = fuentes;
         v.insert(v.end(), audio.begin(), audio.end());
         return v;
     }
     if (empieza(herr, {"grafico_", "rotulo_"})) return graficos;
-    if (empieza(herr, {"laminas_"}) && k == "carrusel") return lista(estado, "carruseles");
-    if (empieza(herr, {"participant_", "speaker_", "capture_person"})) return gente;
+    if (empieza(herr, {"laminas_", "carrusel_laminas_ver", "carruseles_listar"}) && k == "carrusel") return lista(estado, "carruseles");
+    if (empieza(herr, {"participant_", "speaker_", "foto_invitado"})) return gente;
     std::vector<std::string> todo = escenas;
     for (const auto* l : {&fuentes, &audio, &gente, &graficos})
         todo.insert(todo.end(), l->begin(), l->end());
@@ -145,13 +149,13 @@ json estadoPara(const std::string& h, const json& estado) {
             if (estado.contains(k)) out[k] = estado[k];
         return out;
     };
-    if (empieza(h, {"scene_", "transition_"})) return con({"escena_actual", "escena_armada", "escenas"});
+    if (empieza(h, {"scene_", "transition_", "preview_al_aire"})) return con({"escena_actual", "escena_armada", "escenas"});
     if (empieza(h, {"audio", "mixer_"})) return con({"audio"});
-    if (empieza(h, {"source_", "capture_source"}))
+    if (empieza(h, {"source_", "foto_fuente", "fuente_crear", "escena_fuentes_ver"}))
         return con({"escena_actual", "escenas", "fuentes_de_la_escena_actual", "audio"});
-    if (empieza(h, {"participant_", "speaker_", "chat_", "capture_person"})) return con({"participantes"});
+    if (empieza(h, {"participant_", "speaker_", "chat_", "foto_invitado", "invitados_chat_leer", "publico_chat_leer"})) return con({"participantes"});
     if (empieza(h, {"grafico_", "rotulo_"})) return con({"graficos", "escena_actual"});
-    if (empieza(h, {"laminas_"})) return con({"carruseles", "escenas", "escena_actual"});
+    if (empieza(h, {"laminas_", "carrusel_laminas_ver", "carruseles_listar"})) return con({"carruseles", "escenas", "escena_actual"});
     return estado;
 }
 
@@ -198,7 +202,7 @@ std::string primerObjeto(const std::string& s) {
 json leer(const std::string& generado, const std::string& herramienta) {
     const std::string t = primerObjeto("{" + generado);
     if (t.empty()) return json();
-    // Solo el nombre de la herramienta («{capture_program}»): sin argumentos.
+    // Solo el nombre de la herramienta («{foto_programa}»): sin argumentos.
     if (!herramienta.empty()) {
         const std::regex soloNombre("\\{\\s*" + herramienta + "[^{}\"]*\\}");
         if (std::regex_match(t, soloNombre)) return json::object();
@@ -234,7 +238,7 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
         args = json(args.begin().value());
     }
     // Lo que el modelo copia en vez de un dato: un texto con forma de
-    // herramienta («scene_take», «grafico_en_escena») o un comodín de la
+    // herramienta («preview_al_aire», «grafico_en_escena») o un comodín de la
     // descripción («guest:N»).
     static const std::regex formaDeHerramienta("^[a-z]+(_[a-z]+)+$");
     static const std::regex comodin(".*:[A-Z]$");

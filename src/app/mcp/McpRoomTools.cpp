@@ -917,11 +917,12 @@ void McpService::registerRoomTools() {
     }
     {
         Tool t;
-        t.name = "chat_history";
+        t.name = "invitados_chat_leer";
         t.title = "Chat reciente";
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Ultimos mensajes del chat (de quien, a quien, texto, hora).";
+        t.description = "Lee el chat PRIVADO con los invitados de la sala (de quién, a quién, texto, hora); no es el chat del "
+            "público.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -946,7 +947,7 @@ void McpService::registerRoomTools() {
     }
     {
         // Para un agente de un tiro que atiende a alguien: una pregunta, un
-        // chat_wait. Sin esto tendria que consultar chat_history cada tanto,
+        // chat_wait. Sin esto tendria que consultar invitados_chat_leer cada tanto,
         // que es caro (cada consulta es un turno) y torpe.
         Tool t;
         t.name = "chat_wait";
@@ -1019,13 +1020,13 @@ void McpService::registerRoomTools() {
     }
     {
         Tool t;
-        t.name = "share_view";
+        t.name = "compartida_revisar";
         t.title = "Ver un archivo compartido";
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Muestra una imagen compartida por un invitado (para revisarla antes de ponerla al aire). "
-            "Videos y audios: da sus datos.";
+             "Muestra una imagen que COMPARTIÓ un invitado, para revisarla antes de ponerla al aire. Videos y "
+            "audios: da sus datos.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1187,14 +1188,13 @@ void McpService::registerRoomTools() {
     // --- Oradores ----------------------------------------------------------------
     {
         Tool t;
-        t.name = "speakers_status";
+        t.name = "remotos_fila_ver";
         t.title = "Fila de oradores";
         t.category = "oradores";
         t.readOnly = true;
         t.description =
-            "Configuracion del modo oradores y la fila en orden: estado (queued/onair/done), tiempo "
-            "asignado, cuanto le queda al que esta al aire (negativo = se paso), cuanto uso cada uno, "
-            "conexion, info y contacto.";
+             "Los oradores REMOTOS (por videollamada): la fila en orden, el estado de cada uno y cuánto le queda "
+            "al que habla; no son las bancas del recinto.";
         t.run = [&vm](const json&, Done done) {
             const json s = roomSnapshot(vm);
             const double now = s.value("serverNowMs", 0.0);

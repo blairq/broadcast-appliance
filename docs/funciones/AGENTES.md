@@ -96,7 +96,7 @@ toca por un lado se ve por el otro.
 
 `chat_wait` (categoría `sala`) existe para esto: un agente de un tiro que
 atiende a alguien hace una pregunta con `chat_send` y espera la respuesta con
-`chat_wait`, en vez de consultar `chat_history` cada tanto.
+`chat_wait`, en vez de consultar `invitados_chat_leer` cada tanto.
 
 ## Lo que sigue
 

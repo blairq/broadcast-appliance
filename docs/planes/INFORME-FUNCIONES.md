@@ -61,7 +61,7 @@
 | Tarjetas del dashboard | 12 (+ las de extensiones) |
 | Procesos | launcher + `ba-app` (A) + `ba-gateway` (B) + hijos (`ba-grafico`, `ba-modelo`, traductor Python, plugins Python, agentes CLI, `cloudflared`) |
 
-Algunas herramientas se registran solo si la pieza existe en el build: `ptz_rostros` y `ptz_seguir` (si hay `Seguidor`, o sea `BA_HAVE_ROSTROS`), toda la familia `plugin_*` (si hay `vm.plugins()`), las de voz (`BA_HAVE_VOZ`). El 400 es el máximo con todo compilado.
+Algunas herramientas se registran solo si la pieza existe en el build: `ptz_caras_ubicar` y `ptz_seguir` (si hay `Seguidor`, o sea `BA_HAVE_ROSTROS`), toda la familia `plugin_*` (si hay `vm.plugins()`), las de voz (`BA_HAVE_VOZ`). El 400 es el máximo con todo compilado.
 
 `docs/mcp.json` (generado por `tools/docs/mcp-inventario.py`) lista 333 y no tiene `plugins`, `video`, `equipos` ni `traduccion`; `docs/funciones/MCP.md` habla de "170 herramientas" **[doc desactualizado]**.
 
@@ -160,7 +160,7 @@ Todo lo de tiempo de ejecución viaja en el bundle (Qt, libobs, GStreamer, Pytho
 - Tarjeta **Dirección**: AL AIRE y ARMADA en grande, más el reloj del guion. T o Enter hacen TAKE.
 - **Escenas y fuentes** (`ScenesPage.qml`) es el editor: árbol de carpetas con arrastrar y soltar; copiar, proteger, renombrar y borrar; lienzo con capas (mover, tamaño, visibilidad, orden); panel de propiedades de cualquier fuente (`PropertiesModel`). El botón "Al aire" de esa página hace corte directo.
 
-**MCP.** `scene_list`, `scene_create`, `scene_define`, `scene_copy`, `scene_delete`, `scene_rename`, `scene_protect`, `scene_folder`, `scene_move`, `scene_export`, `scene_preview`, `scene_take`, `scene_switch`, `transition_set`; fuentes: `source_list`, `source_add`, `source_remove`, `source_update`, `source_properties`, `source_set_property`, `source_types`, `guest_source_add`; estado general: `status`.
+**MCP.** `scene_list`, `scene_create`, `scene_define`, `scene_copy`, `scene_delete`, `scene_rename`, `scene_protect`, `scene_folder`, `scene_move`, `scene_export`, `scene_preview`, `preview_al_aire`, `scene_switch`, `transition_set`; fuentes: `escena_fuentes_ver`, `fuente_crear`, `source_remove`, `source_update`, `source_properties`, `source_set_property`, `source_types`, `guest_source_add`; estado general: `status`.
 
 **Archivos.** `src/app/emision/BroadcastEngine.cpp`, `src/app/emision/BroadcastEngineScenes.cpp`, `src/app/ui/StudioViewModel.cpp` (~884-946), `src/app/ui/PropertiesModel.cpp`, `src/app/qml/pages/ScenesPage.qml`, `src/app/qml/cards/ScenesContent.qml`, `src/app/qml/cards/DireccionContent.qml`.
 
@@ -220,9 +220,9 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
   - `OutputWindow`: videos en otro monitor, con pantalla completa.
   - `PageWindow`: clic derecho en el riel saca una página a su propia ventana.
   - `PanelWindow`: padrón, preguntas, urna, carrusel o PTZ en ventana propia.
-- `capture_multiview` arma una imagen con todas las escenas y marca la del aire en rojo, pero es para el asistente, no un monitor en vivo.
+- `foto_todas_escenas` arma una imagen con todas las escenas y marca la del aire en rojo, pero es para el asistente, no un monitor en vivo.
 
-**MCP.** `dashboard_list`, `dashboard_card`, `dashboard_background`, `output_window`, `ui_show_page`, `ui_page_window`, `ui_panel_window`, `ui_notify`, `ui_barra`, `ventana_listar`, `ventana_mover`, `ventanas_ordenar`, `ventana_cerrar`, `ventana_captura`, `monitor_identificar`, `monitors`, `feeds_list`, `capture_multiview`.
+**MCP.** `dashboard_list`, `dashboard_card`, `dashboard_background`, `output_window`, `ui_show_page`, `ui_page_window`, `ui_panel_window`, `ui_notify`, `ui_barra`, `ventana_listar`, `ventana_mover`, `ventanas_ordenar`, `ventana_cerrar`, `ventana_captura`, `monitor_identificar`, `monitors`, `feeds_list`, `foto_todas_escenas`.
 
 **Archivos.** `src/app/ui/DashboardModel.*`, `src/app/qml/pages/DashboardPage.qml`, `src/app/qml/cards/*`, `src/app/qml/controls/VideoWall.qml`, `src/app/qml/OutputWindow.qml`, `PageWindow.qml`, `PanelWindow.qml`, `src/app/mcp/McpVentanaTools.cpp`, `src/app/ui/RielConfig.cpp`.
 
@@ -247,7 +247,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
 - Chat, PIN, lobby, sala cerrada, "Te ven con / Te oyen con", QR, WireGuard, archivos compartidos ("Tomar") y uso de CPU de la sala.
 - Tarjetas Invitados, Sala/Lobby y Oradores en el dashboard.
 
-**MCP.** `room_status`, `room_set`, `room_pin`, `room_link`, `network_status`, `operator_feed`, `gateway_restart`, `participant_admit`, `participant_admit_all`, `participant_reject`, `participant_kick`, `participant_talk`, `participant_request`, `participant_profile`, `chat_send`, `chat_history`, `chat_wait`, `share_list`, `share_view`, `share_take`, `share_delete`, `guest_chat_pending`, `guest_reply_suggest`, `invitado_chequeo`, `rostro_lobby`, `capture_people`, `capture_person`.
+**MCP.** `room_status`, `room_set`, `room_pin`, `room_link`, `network_status`, `operator_feed`, `gateway_restart`, `participant_admit`, `participant_admit_all`, `participant_reject`, `participant_kick`, `participant_talk`, `participant_request`, `participant_profile`, `chat_send`, `invitados_chat_leer`, `chat_wait`, `share_list`, `compartida_revisar`, `share_take`, `share_delete`, `guest_chat_pending`, `guest_reply_suggest`, `invitado_chequeo`, `rostro_lobby`, `foto_todos_invitados`, `foto_invitado`.
 
 **Archivos.** `src/gateway/Room.*`, `Webrtc.*`, `SignalingServer.*`, `MediaPump.*`, `MediaRoute.hpp`, `TokenAuth.*`, `ShareStore.*`, `AdminApi.cpp`, `Cloudflared.*`, `src/gateway/net/*`, `src/app/ui/ConferenceViewModel.*`, `ConferenceClient.*`, `assets/web/guest/`, `docs/funciones/CONFERENCIA.md`, `docs/manual/guia-del-invitado.md`.
 
@@ -269,7 +269,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
 
 **Cómo se usa.** En la página Sala y en la tarjeta **Oradores** (`SpeakersContent.qml`, `SpeakerCard.qml`).
 
-**MCP.** `speakers_status`, `speakers_config`, `speaker_queue`, `speaker_on_air`, `speaker_next`, `speaker_move`, `speaker_time`, `speaker_presenter`, `participant_requeue`.
+**MCP.** `remotos_fila_ver`, `speakers_config`, `speaker_queue`, `speaker_on_air`, `speaker_next`, `speaker_move`, `speaker_time`, `speaker_presenter`, `participant_requeue`.
 
 **Limitaciones.** Los oradores presenciales que no están conectados a la sala no entran en la fila. Se manejan solo con cues del guion.
 
@@ -447,7 +447,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **Cómo se usa.** Página **Cámaras PTZ** (`PtzPage.qml`): joystick óptico o digital, zoom, foco, velocidad, presets, Posiciones y backend. Tarjeta o ventana **PTZ** (`PtzContent.qml`): imagen para apuntar, "Analizar rostros", "¿A quién seguir?" y "Tracking".
 
-**MCP.** `ptz_camaras`, `ptz_configurar`, `ptz_buscar`, `ptz_mover`, `ptz_parar`, `ptz_preset`, `ptz_encuadre`, `ptz_apuntar`, `ptz_posiciones`, `ptz_posicion_crear`, `ptz_posicion_editar`, `ptz_posicion_borrar`, `ptz_ir_posicion`, `ptz_rostros`, `ptz_seguir`, `video_mejora`.
+**MCP.** `ptz_camaras`, `ptz_configurar`, `ptz_buscar`, `ptz_mover`, `ptz_parar`, `ptz_preset`, `ptz_encuadre`, `ptz_apuntar`, `ptz_posiciones`, `ptz_posicion_crear`, `ptz_posicion_editar`, `ptz_posicion_borrar`, `ptz_ir_posicion`, `ptz_caras_ubicar`, `ptz_seguir`, `video_mejora`.
 
 **Archivos.** `src/app/ptz/*`, `src/obs-module/ba_ptz_digital.cpp`, `ba_mejora_imagen.cpp`, `src/app/ui/Seguidor.*`, `docs/funciones/PTZ.md`.
 
@@ -471,7 +471,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **Cómo se usa.** Página **Personas** (`PersonasPage.qml`). En la Sala, "Reconocer a los que llegan".
 
-**MCP.** `rostro_ver`, `rostro_guardar`, `rostro_listar`, `rostro_borrar`, `rostro_calidad`, `rostro_sumar`, `rostro_pendientes`, `rostro_fusionar`, `rostro_autoalta`, `rostro_lobby`, `padron_puerta`, `ptz_rostros`.
+**MCP.** `persona_identificar`, `rostro_guardar`, `rostro_listar`, `rostro_borrar`, `rostro_calidad`, `rostro_sumar`, `rostro_pendientes`, `rostro_fusionar`, `rostro_autoalta`, `rostro_lobby`, `padron_puerta`, `ptz_caras_ubicar`.
 
 **Archivos.** `src/core/rostros/*`, `src/app/ui/PersonasViewModel.*`, `Reconocedor.*`, `CalidadCara.*`.
 
@@ -596,7 +596,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **Cómo se usa.** Tarjeta **Carrusel** (`CarruselContent.qml`, `PanelCarruseles.qml`), que no tiene página propia. Página **Medios** (`MediosPage.qml`).
 
-**MCP.** `laminas_listar`, `laminas_ver`, `laminas_ir`, `laminas_buscar`, `laminas_desarmar`, `laminas_armar`, `laminas_editar`, `laminas_aplicar`, `laminas_sin_analizar`, `laminas_etiquetar`, `media_list`, `media_find`, `media_carpetas`, `media_view`, `media_use`, `media_ordenar`.
+**MCP.** `carruseles_listar`, `carrusel_laminas_ver`, `laminas_ir`, `laminas_buscar`, `laminas_desarmar`, `laminas_armar`, `laminas_editar`, `laminas_aplicar`, `laminas_sin_analizar`, `laminas_etiquetar`, `media_list`, `media_find`, `media_carpetas`, `media_view`, `medio_poner`, `media_ordenar`.
 
 **Archivos.** `src/app/carrusel/*`, `src/app/ui/CarruselViewModel.*`, `src/app/medios/*`, `src/app/ui/MediosViewModel.*`, `docs/funciones/CARRUSEL.md`.
 
@@ -661,7 +661,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **Cómo se usa.** Página **Público** (`PublicoPage.qml`), con `PanelPadron.qml`, `PanelPreguntas.qml` y `PanelVotacion.qml` (se pueden sacar a ventanas propias). Pantalla de votación para proyectar.
 
-**MCP.** `padron_ver`, `padron_anotar`, `padron_cambiar`, `padron_acreditar`, `padron_quitar`, `padron_puerta`, `invitacion`, `preguntas_ver`, `pregunta_moderar`, `pregunta_sumar`, `publico_pagina`, `votacion_abrir`, `votacion_ver`, `evento_acta`.
+**MCP.** `padron_ver`, `padron_anotar`, `padron_cambiar`, `padron_acreditar`, `padron_quitar`, `padron_puerta`, `invitacion`, `preguntas_ver`, `pregunta_moderar`, `pregunta_sumar`, `publico_pagina`, `votacion_abrir`, `votacion_recuento`, `evento_acta`.
 
 **Archivos.** `src/app/evento/Padron.*`, `src/gateway/Preguntas.*`, `Votacion.*`, `src/app/ui/PublicoViewModel.*`, `assets/web/publico/`.
 
@@ -727,7 +727,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 - Modelo local: `modelo_local_*` (8).
 - Voz: `voz_*` y `texto_*`.
 - Operador: `operator_message`, `operator_ask`, `operator_messages`.
-- Visión: `imagen_analizar`, `capture_*` (program, source, feed, sequence, ui, people, person, multiview).
+- Visión: `imagen_preguntar`, `capture_*` (program, source, feed, sequence, ui, people, person, multiview).
 
 **Archivos.** `src/app/agent/*`, `src/app/term/*`, `src/modelo-mac/`, `src/app/ui/OperatorMessages.*`, `docs/funciones/AGENTES.md`, `docs/modelos/modelo-local.md`, `docs/modelos/voz-modelo-local.md`.
 
@@ -857,7 +857,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 | Crear disparadores | `alert_create`, `alert_update` | solo prender, apagar y borrar |
 | Recetas | `receta_*` | ninguna |
 | Ordenar ventanas por zonas | `ventana_mover`, `ventanas_ordenar` | solo la barra de cada ventana |
-| Mirar con IA, analizar láminas | `imagen_analizar`, `laminas_sin_analizar`, `laminas_etiquetar` | se dispara a través del asistente |
+| Mirar con IA, analizar láminas | `imagen_preguntar`, `laminas_sin_analizar`, `laminas_etiquetar` | se dispara a través del asistente |
 | Medir y calibrar la cadena de audio | `audio_measure` | parcial (análisis en el panel) |
 | Herramientas de medios (ffmpeg, yt-dlp) | tema de ayuda `herramientas` (las usa el asistente por consola) | ninguna |
 | Traza completa de MCP | `log_leer` | parcial (página Registro) |
@@ -1011,7 +1011,7 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `ptz_posicion_editar` | camaras | Cambiar una posición | modifica |
 | `ptz_posiciones` | camaras | Las posiciones con nombre | lee |
 | `ptz_preset` | camaras | Ir a un preset o guardarlo | modifica |
-| `ptz_rostros` | camaras | Las caras que ve una cámara | lee |
+| `ptz_caras_ubicar` | camaras | Las caras que ve una cámara | lee |
 | `ptz_seguir` | camaras | Seguir a una persona con el PTZ | modifica |
 | `video_mejora` | camaras | Mejorar imagen (general) | modifica |
 | `app_save` | config | Guardar configuracion | modifica |
@@ -1054,7 +1054,7 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `scene_protect` | escenas | Proteger una escena | modifica |
 | `scene_rename` | escenas | Renombrar escena | modifica |
 | `scene_switch` | escenas | Poner una escena al aire (corte directo) | modifica |
-| `scene_take` | escenas | TAKE: sacar al aire la escena armada | modifica |
+| `preview_al_aire` | escenas | TAKE: sacar al aire la escena armada | modifica |
 | `transition_set` | escenas | Transicion entre escenas | modifica |
 | `status` | estado | Estado general | lee |
 | `evento_abrir` | evento | Abrir un evento | modifica |
@@ -1083,8 +1083,8 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `facebook_video_upload` | facebook | Subir un video a la Pagina | modifica |
 | `facebook_videos` | facebook | Videos de la Pagina | lee |
 | `guest_source_add` | fuentes | Poner a un invitado en una escena | modifica |
-| `source_add` | fuentes | Agregar fuente | modifica |
-| `source_list` | fuentes | Fuentes de una escena | lee |
+| `fuente_crear` | fuentes | Agregar fuente | modifica |
+| `escena_fuentes_ver` | fuentes | Fuentes de una escena | lee |
 | `source_properties` | fuentes | Propiedades de una fuente | lee |
 | `source_remove` | fuentes | Quitar fuente de una escena | modifica |
 | `source_set_property` | fuentes | Cambiar una propiedad (o apretar un boton) | modifica |
@@ -1100,14 +1100,14 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `rotulo_vincular` | graficos | Que un rotulo se escriba solo | modifica |
 | `rotulo_vinculos` | graficos | Rotulos que se escriben solos | lee |
 | `capture_feed` | imagenes | Ver un video de entrada | lee |
-| `capture_multiview` | imagenes | Vista multiple de escenas | lee |
-| `capture_people` | imagenes | Ver a todas las personas | lee |
-| `capture_person` | imagenes | Ver a una persona | lee |
-| `capture_program` | imagenes | Ver el programa | lee |
+| `foto_todas_escenas` | imagenes | Vista multiple de escenas | lee |
+| `foto_todos_invitados` | imagenes | Ver a todas las personas | lee |
+| `foto_invitado` | imagenes | Ver a una persona | lee |
+| `foto_programa` | imagenes | Ver el programa | lee |
 | `capture_sequence` | imagenes | Secuencia de cuadros (video) | lee |
-| `capture_source` | imagenes | Ver una fuente o escena | lee |
+| `foto_fuente` | imagenes | Ver una fuente o escena | lee |
 | `capture_ui` | imagenes | Captura de la app | lee |
-| `imagen_analizar` | imagenes | Que se ve: se lo pregunta a un agente que mira | lee |
+| `imagen_preguntar` | imagenes | Que se ve: se lo pregunta a un agente que mira | lee |
 | `dashboard_background` | interfaz | Fondo del dashboard | modifica |
 | `dashboard_card` | interfaz | Agregar / quitar tarjeta | modifica |
 | `dashboard_list` | interfaz | Dashboard y ventanas de salida | lee |
@@ -1125,14 +1125,14 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `laminas_editar` | laminas | Cambiar un carrusel ya armado | modifica |
 | `laminas_etiquetar` | laminas | Guardar lo que se ve en una lamina | modifica |
 | `laminas_ir` | laminas | Saltar a una lamina | modifica |
-| `laminas_listar` | laminas | Que carruseles de laminas hay | lee |
+| `carruseles_listar` | laminas | Que carruseles de laminas hay | lee |
 | `laminas_sin_analizar` | laminas | La proxima lamina sin etiquetas | lee |
-| `laminas_ver` | laminas | Las laminas de un carrusel | lee |
+| `carrusel_laminas_ver` | laminas | Las laminas de un carrusel | lee |
 | `media_carpetas` | medios | Como estan ordenados los medios | lee |
 | `media_find` | medios | Buscar un archivo de medios | lee |
 | `media_list` | medios | Archivos de medios | lee |
 | `media_ordenar` | medios | Mover, renombrar, crear carpetas y borrar | modifica |
-| `media_use` | medios | Usar un archivo de medios en una escena | modifica |
+| `medio_poner` | medios | Usar un archivo de medios en una escena | modifica |
 | `media_view` | medios | Ver una imagen de medios | lee |
 | `guest_chat_pending` | operador | Mensajes de invitados sin responder | lee |
 | `guest_reply_suggest` | operador | Sugerir respuestas a un invitado | modifica |
@@ -1147,7 +1147,7 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `speaker_queue` | oradores | Mandar a la fila de oradores | modifica |
 | `speaker_time` | oradores | Tiempo de un orador | modifica |
 | `speakers_config` | oradores | Configurar el modo oradores | modifica |
-| `speakers_status` | oradores | Fila de oradores | lee |
+| `remotos_fila_ver` | oradores | Fila de oradores | lee |
 | `invitacion` | padron | La invitacion de una persona, con su QR | lee |
 | `padron_acreditar` | padron | Marcar que alguien llego (o que se fue) | modifica |
 | `padron_anotar` | padron | Anotar a alguien en el evento | modifica |
@@ -1190,7 +1190,7 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `preguntas_ver` | preguntas | La cola de preguntas del publico | lee |
 | `publico_pagina` | preguntas | La pagina del publico: enlace, QR y como se ve | modifica |
 | `votacion_abrir` | preguntas | Abrir una votacion o una encuesta | modifica |
-| `votacion_ver` | preguntas | Como va la votacion, y cerrarla | modifica |
+| `votacion_recuento` | preguntas | Como va la votacion, y cerrarla | modifica |
 | `prompter_cargar` | prompter | Mandar un discurso al teleprompter | modifica |
 | `prompter_control` | prompter | Manejar el texto que esta al aire | modifica |
 | `prompter_documentos` | prompter | Los discursos que hay | lee |
@@ -1220,8 +1220,8 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `rostro_lobby` | rostros | Quien es cada uno de los que estan esperando | lee |
 | `rostro_pendientes` | rostros | Las fichas sin nombre, esperando que alguien diga quien es | lee |
 | `rostro_sumar` | rostros | Sumarle una pose mas a alguien que ya esta | modifica |
-| `rostro_ver` | rostros | Quien aparece en una camara | lee |
-| `chat_history` | sala | Chat reciente | lee |
+| `persona_identificar` | rostros | Quien aparece en una camara | lee |
+| `invitados_chat_leer` | sala | Chat reciente | lee |
 | `chat_send` | sala | Escribir en el chat | modifica |
 | `chat_wait` | sala | Esperar que alguien escriba | lee |
 | `gateway_restart` | sala | Reiniciar la sala (gateway) | modifica |
@@ -1241,7 +1241,7 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `share_delete` | sala | Borrar archivo compartido | modifica |
 | `share_list` | sala | Archivos compartidos | lee |
 | `share_take` | sala | Poner un archivo compartido en la escena | modifica |
-| `share_view` | sala | Ver un archivo compartido | lee |
+| `compartida_revisar` | sala | Ver un archivo compartido | lee |
 | `grabacion_individual` | salidas | Grabar cada entrada por separado | modifica |
 | `record_start` | salidas | Grabar | modifica |
 | `record_stop` | salidas | Detener grabacion | modifica |

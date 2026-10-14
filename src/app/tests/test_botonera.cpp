@@ -65,10 +65,10 @@ int main(int argc, char** argv) {
     g.escenas = [] { return std::vector<std::string>{"Cámara 1", "Cámara 2"}; };
     g.fuentesAudio = [] { return std::vector<std::string>{"Mic 1"}; };
     g.herramientas = [] {
-        return std::set<std::string>{"scene_preview", "scene_take", "aire_ftb", "record_start", "stream_start",
-                                     "audio_set", "banca_al_aire", "banca_terminar", "prompter_control", "receta_correr"};
+        return std::set<std::string>{"scene_preview", "preview_al_aire", "aire_ftb", "record_start", "stream_start",
+                                     "audio_set", "banca_al_aire", "recinto_orador_terminar", "prompter_control", "receta_correr"};
     };
-    g.deAireAhora = [&](const std::string& h, const json&) { return hayAire && h == "scene_take"; };
+    g.deAireAhora = [&](const std::string& h, const json&) { return hayAire && h == "preview_al_aire"; };
     g.ejecutar = [&](const std::string& h, const json& a, const std::string&, const std::string&, Botonera::Listo l) {
         llamadas.emplace_back(h, a);
         l(true, "");
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
     const std::string pid = perfiles[0]["id"];
     const std::string pag = perfiles[0]["paginas"][0]["id"];
     const json perm = perfiles[0]["herramientas_permitidas"];
-    CHECK(std::find(perm.begin(), perm.end(), "scene_take") != perm.end(), "la plantilla trae sus herramientas");
+    CHECK(std::find(perm.begin(), perm.end(), "preview_al_aire") != perm.end(), "la plantilla trae sus herramientas");
 
     // Un aparato local (como el de un plugin) con el perfil Director.
     bot.registrarLocal("hw1", "Deck", "plugin", json::object());
@@ -161,12 +161,12 @@ int main(int argc, char** argv) {
     for (const auto& m : mensajes) if (m["type"] == "confirmar" && m["celda"] == "0,3") pidio = true;
     CHECK(pidio, "pide confirmar en el aparato");
     bot.entrada("hw1", {{"type", "confirmar"}, {"x", 0}, {"y", 3}});
-    CHECK(llamadas.size() == 1 && llamadas[0].first == "scene_take", "confirmado, corre");
+    CHECK(llamadas.size() == 1 && llamadas[0].first == "preview_al_aire", "confirmado, corre");
     hayAire = false;
 
     // Una celda con una herramienta que no está en el perfil: no corre.
     CHECK(bot.setCelda(pid, pag, {{"x", 3}, {"y", 3}, {"tipo", "boton"},
-                                  {"accion", {{"tipo", "herramienta"}, {"herramienta", "banca_terminar"}}}}).empty(),
+                                  {"accion", {{"tipo", "herramienta"}, {"herramienta", "recinto_orador_terminar"}}}}).empty(),
           "celda nueva");
     llamadas.clear();
     bot.entrada("hw1", {{"type", "presionar"}, {"x", 3}, {"y", 3}});
@@ -176,10 +176,10 @@ int main(int argc, char** argv) {
     CHECK(!bot.setCelda(pid, pag, {{"x", 30}, {"y", 3}}).empty(), "fuera de la grilla no");
 
     // El asistente no amplía permisos; una persona sí.
-    CHECK(!bot.editarPerfil(pid, {{"herramientas_permitidas", {"banca_terminar"}}}, false).empty(),
+    CHECK(!bot.editarPerfil(pid, {{"herramientas_permitidas", {"recinto_orador_terminar"}}}, false).empty(),
           "el asistente no suma herramientas");
     json nuevas = perm;
-    nuevas.push_back("banca_terminar");
+    nuevas.push_back("recinto_orador_terminar");
     nuevas.push_back("audio_set");
     CHECK(bot.editarPerfil(pid, {{"herramientas_permitidas", nuevas}}, true).empty(), "una persona sí");
     llamadas.clear();
@@ -264,7 +264,7 @@ int main(int argc, char** argv) {
         auto herrAntes = bot.ganchos().herramientas;
         bot.ganchos().herramientas = [herrAntes] {
             auto s = herrAntes();
-            s.insert("media_use");
+            s.insert("medio_poner");
             return s;
         };
         bot.ganchos().medioDeCara = [](const std::string& id) {
@@ -279,11 +279,11 @@ int main(int argc, char** argv) {
         CHECK(!bot.formularioCelda(pid, pg, 0, 0)["existe"].get<bool>(), "formulario de una casilla vacía");
 
         CHECK(bot.editarCelda(pid, pg, 0, 0, {{"tipo", "boton"}, {"texto", "Cam 1"}, {"fondo", "#123456"},
-                                               {"herramienta", "scene_take"}, {"args", {{"name", "Cámara 1"}}}})
+                                               {"herramienta", "preview_al_aire"}, {"args", {{"name", "Cámara 1"}}}})
                   .empty(),
               "editarCelda crea la celda");
         json f = bot.formularioCelda(pid, pg, 0, 0);
-        CHECK(f["existe"] == true && f["texto"] == "Cam 1" && f["fondo"] == "#123456" && f["herramienta"] == "scene_take" &&
+        CHECK(f["existe"] == true && f["texto"] == "Cam 1" && f["fondo"] == "#123456" && f["herramienta"] == "preview_al_aire" &&
                   json::parse(f["args"].get<std::string>())["name"] == "Cámara 1",
               "el formulario muestra lo guardado");
         CHECK(bot.editarCelda(pid, pg, 0, 0, {{"fondo", ""}, {"herramienta", ""}}).empty(), "editarCelda: vaciar");
@@ -300,9 +300,9 @@ int main(int argc, char** argv) {
         CHECK(f["imagen"] == "medio:c1" && f["herramienta"] == "" && !f["al_tocar"].get<bool>(), "la cara, sin acción");
         CHECK(bot.setAlTocarCara(pid, pg, 2, 0, true).empty(), "al tocar: prender");
         f = bot.formularioCelda(pid, pg, 2, 0);
-        CHECK(f["al_tocar"] == true && f["herramienta"] == "media_use" &&
+        CHECK(f["al_tocar"] == true && f["herramienta"] == "medio_poner" &&
                   json::parse(f["args"].get<std::string>())["path"] == "Caras/c1/medio.mp4",
-              "la acción es media_use con el medio de la cara");
+              "la acción es medio_poner con el medio de la cara");
         CHECK(bot.ponerCara(pid, pg, 2, 0, "c2", false).empty() && !bot.formularioCelda(pid, pg, 2, 0)["al_tocar"].get<bool>(),
               "otra cara sin al_tocar: la acción queda, pero ya no es de esta cara");
         CHECK(bot.ponerCara(pid, pg, 2, 0, "c2", true).empty() && bot.formularioCelda(pid, pg, 2, 0)["al_tocar"] == true,
@@ -316,8 +316,8 @@ int main(int argc, char** argv) {
         CHECK(!bot.setAlTocarCara(pid, pg, 3, 0, true).empty(), "al tocar con una cara de cámara: error");
         CHECK(bot.quitarCara(pid, pg, 3, 0).empty() && bot.formularioCelda(pid, pg, 3, 0)["imagen"] == "", "quitarCara");
 
-        CHECK(!bot.avisoPermisos(pid, {{"accion", {{"tipo", "herramienta"}, {"herramienta", "media_use"}}}}).empty(),
-              "avisoPermisos: media_use no está en el perfil Director");
+        CHECK(!bot.avisoPermisos(pid, {{"accion", {{"tipo", "herramienta"}, {"herramienta", "medio_poner"}}}}).empty(),
+              "avisoPermisos: medio_poner no está en el perfil Director");
         bot.borrarPagina(pid, pg);
         bot.ganchos().herramientas = herrAntes;
     }

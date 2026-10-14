@@ -54,7 +54,7 @@ Un enlace o un QR que se manda y no anda es peor que no mandarlo.
 - Si se va a IMPRIMIR un QR o mandar invitaciones con días de anticipación: dirección FIJA (un
   dominio propio o un subdominio reservado: acceso_remoto_probar_direccion, acceso_remoto_dns_verificar).
   Si la dirección cambia después, hay que reimprimir y reenviar todo. Decíselo al operador.
-- La cámara y el audio: capture_program / capture_source; que se vea y se escuche (sin sonar
+- La cámara y el audio: foto_programa / foto_fuente; que se vea y se escuche (sin sonar
   parlantes de noche: medí con audio_measure).
 - Un invitado de prueba: el enlace de la sala (room_link) abierto desde otro aparato o el
   navegador, y invitado_prueba (eco y red) con alguien adentro.

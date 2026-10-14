@@ -122,7 +122,7 @@ const Fila kPropias[] = {
     {"mezclador_pestana", "mezclador pestana consola calibracion mostrar ventana"},
     {"audio_entrada_fuente", "audio rack tarjeta entrada fuente cambiar traer audio de otra"},
     {"ptz_foco", "camara ptz foco autofoco enfocar nitido"},
-    {"ptz_home", "camara ptz home inicio centrar volver"},
+    {"ptz_inicio", "camara ptz home inicio centrar volver"},
     {"prompter_archivos", "prompter discurso carpeta renombrar mover borrar ordenar archivo"},
     {"pantalla_olvidar", "pantalla tv olvidar sacar borrar conocida"},
     {"voz_transcripcion_borrar", "voz transcripcion borrar vaciar limpiar"},
@@ -210,14 +210,14 @@ const Fila kPropias[] = {
     {"recinto_apuntar", "apuntar la camara a la banca preparar el plano de un integrante"},
     {"ptz_posicion_foto", "foto de la posicion miniatura como se ve el plano guardado"},
     {"invitado_info_aprobar", "aprobar cargo invitado zocalo validar info rotulo"},
-    {"chat_recientes", "chat mensajes recientes publico destacar"},
+    {"publico_chat_leer", "chat mensajes recientes publico destacar"},
     {"chat_destacar", "destacar mensaje chat aire pantalla publico pregunta"},
     {"chat_quitar_destacado", "sacar destacado chat"},
     {"ptz_interlock", "interlock ptz camara al aire no mover bloqueo seguridad"},
-    {"bancas_listar", "bancas oradores presenciales fila integrantes recinto"},
+    {"recinto_bancas_ver", "bancas oradores presenciales fila integrantes recinto"},
     {"banca_cola", "fila banca agregar quitar orador presencial"},
     {"banca_al_aire", "banca al aire orador presencial preset camara microfono zocalo consejero habla"},
-    {"banca_terminar", "terminar orador presencial banca"},
+    {"recinto_orador_terminar", "terminar orador presencial banca"},
     {"entrada_respaldo", "sin senal entrada caida respaldo escena cortar armar camara perdida"},
     {"cc_estado", "subtitulos ocultos closed captions cc 608 accesibilidad sordos"},
     {"cc_activar", "prender subtitulos ocultos closed captions cc 608 youtube accesibilidad"},
@@ -275,15 +275,15 @@ const Fila kPropias[] = {
     {"subtitulos_puesto", "puesto corrector subtitulos enlace web corregir desde otra computadora estenotipista"},
     {"subtitulos_corregir", "corregir aprobar descartar frase subtitulos"},
     {"quorum_regla", "quorum mayoria simple absoluta dos tercios miembros reglas"},
-    {"quorum_estado", "hay quorum presentes"},
+    {"quorum_presentes", "hay quorum presentes"},
     {"votacion_resultado_oficial", "resultado oficial votacion tablero afirmativos negativos abstenciones nominal"},
-    {"pregunta_desde_chat", "sumar chat a preguntas cola youtube"},
+    {"chat_a_preguntas", "sumar chat a preguntas cola youtube"},
     {"orden_del_dia_cargar", "orden del dia puntos expedientes sesion cargar"},
     {"orden_del_dia_ver", "orden del dia puntos uso de la palabra tiempos capitulos"},
     {"orden_del_dia_punto", "punto orden del dia tratamiento votado comision siguiente"},
     {"seguir_microfono", "seguir microfono abierto banca pidio la palabra automatico"},
     {"seguir_microfono_estado", "seguir microfono estado propuesta banca"},
-    {"dsk_listar", "capas dsk logo mosca interprete lsa encima programa"},
+    {"dsk_capas_ver", "capas dsk logo mosca interprete lsa encima programa"},
     {"dsk_definir", "definir capa dsk logo interprete lsa lengua de senas recuadro"},
     {"dsk_mostrar", "subir bajar capa dsk logo interprete lsa"},
     {"botonera_satellite", "companion satellite bitfocus stream deck loupedeck botonera"},
@@ -318,7 +318,7 @@ const Fila kPropias[] = {
     {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el "
                       "proximo plano bus de preview previo antes de sacarlo "
                       "cuear siguiente escena mesa switcher"},
-    {"scene_take", "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada "
+    {"preview_al_aire", "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada "
                    "cortar ahora disparar el plano preparado mesa switcher"},
     {"scene_create", "crear nueva agregar escena"},
     {"scene_copy", "copiar duplicar clonar escena"},
@@ -333,9 +333,9 @@ const Fila kPropias[] = {
     {"transition_set", "que fundido esta puesto que transicion hay puesta cual es el fundido fundido corte "
                        "disolvencia stinger duracion transicion"},
     {"source_types", "que tipos de fuente hay disponibles"},
-    {"source_list", "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena "
+    {"escena_fuentes_ver", "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena "
                     "listar fuentes de una escena que hay adentro"},
-    {"source_add",
+    {"fuente_crear",
      "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en "
      "la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador codigo qr "
      "captura de pantalla capturar una aplicacion ventana"},
@@ -417,15 +417,15 @@ const Fila kPropias[] = {
     {"grabacion_individual", "grabar por separado pista aislada isos cada camara"},
 
     // --- Ver ---------------------------------------------------------------
-    {"capture_program", "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al "
+    {"foto_programa", "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al "
                         "aire que se ve ahora salida programa"},
-    {"capture_source", "ver una fuente revisar antes de poner al aire"},
-    {"capture_multiview", "todas las escenas de una grilla multiview"},
+    {"foto_fuente", "ver una fuente revisar antes de poner al aire"},
+    {"foto_todas_escenas", "todas las escenas de una grilla multiview"},
     {"capture_feed", "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una "
                      "señal entrante feed camara"},
-    {"capture_person", "ver a una persona invitado invitada camara de alguien cara como esta saliendo "
+    {"foto_invitado", "ver a una persona invitado invitada camara de alguien cara como esta saliendo "
                        "como sale como se ve el invitado mostrame al invitado mostrame a la invitada"},
-    {"capture_people",
+    {"foto_todos_invitados",
      "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala"},
     {"capture_sequence", "varias capturas seguidas ver que cambia movimiento"},
     {"capture_ui", "ver la interfaz de la app pantalla del operador"},
@@ -452,12 +452,12 @@ const Fila kPropias[] = {
     {"participant_profile", "ficha datos nombre cargo informacion de la persona"},
     {"chat_send",
      "mandale un mensaje escribile decile por chat avisale mandar mensaje escribir al chat avisar por chat"},
-    {"chat_history", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial "
+    {"invitados_chat_leer", "que me dijo que dijo que escribio leer lo que mandaron que contesto historial "
                      "conversacion que dijeron leer chat"},
     {"chat_wait", "esperar mensaje quedarse esperando a que escriban avisame cuando escriba el invitado"},
     {"chat_overlay_add", "chat en pantalla mostrar comentarios al aire overlay"},
     {"share_list", "que archivos mandaron subidos adjuntos"},
-    {"share_view", "ver archivo mirar adjunto abrir subida revisar lo que mando antes de ponerlo"},
+    {"compartida_revisar", "ver archivo mirar adjunto abrir subida revisar lo que mando antes de ponerlo"},
     {"share_take", "poner archivo al aire mostrar foto documento subido"},
     {"share_delete", "borrar archivo subido eliminar adjunto"},
     {"guest_chat_pending", "mensajes sin responder pendientes de invitados"},
@@ -470,7 +470,7 @@ const Fila kPropias[] = {
      "camara del operador cabina mi camara con que imagen me ven y me oyen los que esperan en el lobby"},
 
     // --- Oradores ----------------------------------------------------------
-    {"speakers_status", "quien esta en la fila estado de oradores"},
+    {"remotos_fila_ver", "quien esta en la fila estado de oradores"},
     {"speakers_config",
      "configurar fila de oradores tiempos reglas activar el modo oradores minutos por orador"},
     {"speaker_on_air", "poner orador al aire darle el aire a quien habla"},
@@ -602,7 +602,7 @@ const Fila kPropias[] = {
     {"ptz_posicion_editar", "renombrar posicion cambiar comentario regrabar plano"},
     {"ptz_posicion_borrar", "borrar posicion eliminar plano guardado"},
     {"ptz_ir_posicion", "llevar la camara a la posicion ir al plano mover a la posicion guardada"},
-    {"ptz_rostros", "caras que ve la camara quien esta en cuadro detectar rostros ptz"},
+    {"ptz_caras_ubicar", "caras que ve la camara quien esta en cuadro detectar rostros ptz"},
     {"ptz_seguir", "seguir a una persona tracking seguimiento ptz que la camara siga a alguien centrar cara"},
     {"ptz_buscar", "buscar camaras onvif en la red descubrir camaras ip"},
     {"video_grafo", "grafo de video tarjetas de video pipeline de la camara que filtros tiene"},
@@ -671,7 +671,7 @@ const Fila kPropias[] = {
     {"media_list", "que archivos hay musica videos biblioteca"},
     {"media_find", "buscar archivo cancion video por nombre"},
     {"media_view", "ver miniatura previsualizar archivo"},
-    {"media_use",
+    {"medio_poner",
      "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner "
      "una cancion un video poner musica reproducir cancion video al aire cortina"},
 
@@ -722,8 +722,8 @@ const Fila kPropias[] = {
     {"pantalla_parar", "dejar de mostrar apagar la proyeccion cortar el casteo"},
     {"carrusel_listar", "que carruseles hay rotaciones"},
     {"carrusel_armar", "armar carrusel rotacion de pantallas pasos"},
-    {"laminas_listar", "que carruseles de laminas hay presentaciones cargadas"},
-    {"laminas_ver", "que laminas tiene cuantas diapositivas de que trata cada una"},
+    {"carruseles_listar", "que carruseles de laminas hay presentaciones cargadas"},
+    {"carrusel_laminas_ver", "que laminas tiene cuantas diapositivas de que trata cada una"},
     {"grafico_mostrar", "poner grafico al aire zocalo placa GC generador de caracteres rotulo "
                         "pie de pagina faldon "
                         "el apellido esta mal corregir el nombre cambiar el cargo poner el nombre "
@@ -787,7 +787,7 @@ const Fila kPropias[] = {
     {"debate_terminar", "terminar el debate cortar debate"},
     {"debate_config", "escena del debate tiempo de cada turno configurar debate"},
     {"debate_estado", "como va el debate quien habla"},
-    {"presidencia_silenciar", "silenciar a todos callar a todos mute general cerrar todos los microfonos remotos"},
+    {"presidencia_callar_todos", "silenciar a todos callar a todos mute general cerrar todos los microfonos remotos"},
     {"presidencia_hablar", "hablo yo habla el presidente la presidencia toma la palabra prioridad"},
     {"sesion_vistas", "que ven los remotos en el celular canales escena salida principal"},
     {"sesion_hablar", "hablarle a un remoto apretar para hablar talkback intercom"},
@@ -843,7 +843,7 @@ const Fila kPropias[] = {
     // diferencia.
     {"votacion_abrir", "abrir una votacion poner algo a votar hacer una encuesta al publico "
                        "votemos si aprobamos preguntar y que voten levantar la mano"},
-    {"votacion_ver", "como va la votacion resultado de la encuesta cuantos votaron quienes "
+    {"votacion_recuento", "como va la votacion resultado de la encuesta cuantos votaron quienes "
                      "faltan votar cerrar la votacion quorum del voto"},
     {"publico_pagina", "enlace y qr para que el publico pregunte pagina del publico codigo qr para "
                        "proyectar titulo y fondo de la pagina del publico"},
@@ -865,12 +865,12 @@ const Fila kPropias[] = {
                           "sacarlo del lobby meterlo a la sala"},
     {"participant_reject", "rechazar no dejar entrar negar la entrada echar del lobby"},
     {"participant_kick", "echar sacar de la sala expulsar desconectar a alguien que ya entro"},
-    {"imagen_analizar", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
+    {"imagen_preguntar", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
                         "analizar captura vision hay alguien cuadro negro se lee el rotulo"},
     {"audio_plugin_buscar", "que filtros hay que plugins tengo hay algun filtro para buscar "
                             "un efecto autotune reverb eco delay coro que la musica baje cuando "
                             "hablan ducking siseo sincronizar audio con imagen mas de doscientos"},
-    {"rostro_ver", "quien esta en camara quien aparece reconocer a alguien identificar cara"},
+    {"persona_identificar", "quien esta en camara quien aparece reconocer a alguien identificar cara"},
     {"rostro_guardar", "dar de alta una persona ensenarle una cara agregar al sistema corregir ficha"},
     {"rostro_listar", "que personas hay guardadas libreta conocidas"},
     {"rostro_borrar", "borrar una persona olvidar una cara sacar de la libreta"},

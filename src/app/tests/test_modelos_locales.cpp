@@ -92,7 +92,7 @@ void vivo(const char* binarios, const char* repo) {
     nlohmann::json eleccion;
     m.elegir("dale take", [&](const nlohmann::json& j) { eleccion = j; });
     esperar([&] { return !eleccion.is_null(); }, 60000);
-    CHECK(eleccion.value("herramienta", std::string()) == "scene_take", "elegir: «dale take» -> scene_take");
+    CHECK(eleccion.value("herramienta", std::string()) == "preview_al_aire", "elegir: «dale take» -> preview_al_aire");
     std::printf("   %s\n", eleccion.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
 
     nlohmann::json fin;

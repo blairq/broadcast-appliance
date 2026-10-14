@@ -131,11 +131,11 @@ bloque de preguntas». A veces te dicen el estilo y a veces no.
 1. **Mira que hay antes de inventar.** `scene_list`, `source_types`, `media_list`
    y `grafico_listar`: casi siempre hay algo parecido que se copia y se ajusta,
    y una escena copiada arranca con las fuentes bien puestas.
-2. **Armala.** `scene_create` o `scene_copy`, `source_add` y
-   `source_set_property` para ubicar y escalar, `media_use` para los archivos.
+2. **Armala.** `scene_create` o `scene_copy`, `fuente_crear` y
+   `source_set_property` para ubicar y escalar, `medio_poner` para los archivos.
 3. **MIRALA.** Es lo que separa diseñar de adivinar: `scene_preview` la deja en
-   el monitor de preview SIN tocar el aire, y con `capture_source` sacas un
-   cuadro y se lo das a `imagen_analizar` para que te digan que se ve. Ajusta y
+   el monitor de preview SIN tocar el aire, y con `foto_fuente` sacas un
+   cuadro y se lo das a `imagen_preguntar` para que te digan que se ve. Ajusta y
    volve a mirar. Una escena que nadie miro no esta terminada.
 4. **Decile al operador que quedo lista**, y que la saque al aire cuando quiera.
 
@@ -208,7 +208,7 @@ std::vector<Rol> deFabrica() {
         // SOLO imagenes. Es la contencion: aunque el modelo quiera hacer otra
         // cosa, no tiene con que. Un rol que mira no necesita poder tocar.
         x.categorias = {"imagenes"};
-        x.disparadores = {}; // no se dispara solo: lo llama `imagen_analizar`
+        x.disparadores = {}; // no se dispara solo: lo llama `imagen_preguntar`
         x.prompt = std::string(kVision) + kComun;
         // PRENDIDO de fabrica, y es la excepcion a la regla. Los demas roles
         // arrancan apagados porque actuan solos ante un evento; este no tiene

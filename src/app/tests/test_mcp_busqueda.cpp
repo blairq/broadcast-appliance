@@ -7,7 +7,7 @@
 //   "poner musica"      -> scene_switch, guest_source_add, share_take
 //   "silenciar a alguien" -> chat_wait, evento_cue, scene_protect
 //
-// Ninguna de esas era la respuesta. `media_use` y `audio_set` existen y no
+// Ninguna de esas era la respuesta. `medio_poner` y `audio_set` existen y no
 // aparecían, porque su documentación no dice "música" ni "silenciar": la
 // escribió alguien que ya sabía cómo se llamaban.
 //
@@ -52,8 +52,8 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"media_carpetas", "Como estan ordenados los medios"},
     {"media_ordenar", "Mover, renombrar, crear carpetas y borrar"},
     {"ventana_captura", "Ver la interfaz"},
-    {"laminas_listar", "Que carruseles de laminas hay"},
-    {"laminas_ver", "Las laminas de un carrusel"},
+    {"carruseles_listar", "Que carruseles de laminas hay"},
+    {"carrusel_laminas_ver", "Las laminas de un carrusel"},
     {"laminas_ir", "Saltar a una lamina"},
     {"laminas_buscar", "Buscar una lamina por lo que dice"},
     {"laminas_aplicar", "Poner un carrusel en una escena"},
@@ -73,7 +73,7 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"scene_create", "Crear una escena"},
     {"scene_delete", "Borrar una escena"},
     {"scene_protect", "Proteger una escena"},
-    {"source_add", "Agregar una fuente"},
+    {"fuente_crear", "Agregar una fuente"},
     {"source_remove", "Quitar una fuente"},
     {"guest_source_add", "Poner a un invitado en una escena"},
     {"audio_set", "Ajustar un canal de audio"},
@@ -84,8 +84,8 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"stream_start", "Empezar a transmitir"},
     {"stream_stop", "Terminar la transmision"},
     {"record_start", "Empezar a grabar"},
-    {"capture_program", "Ver el programa"},
-    {"capture_person", "Ver a una persona"},
+    {"foto_programa", "Ver el programa"},
+    {"foto_invitado", "Ver a una persona"},
     {"room_status", "Estado de la sala"},
     {"room_link", "El enlace de la sala"},
     {"participant_admit", "Admitir a un invitado"},
@@ -96,7 +96,7 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"speaker_time", "El tiempo del orador"},
     {"media_list", "Los archivos"},
     {"media_find", "Buscar un archivo"},
-    {"media_use", "Usar un archivo"},
+    {"medio_poner", "Usar un archivo"},
     {"grafico_mostrar", "Poner un grafico al aire"},
     {"rotulo_vincular", "Vincular un rotulo"},
     {"log_leer", "Leer el registro"},
@@ -307,7 +307,7 @@ int main() {
     velocidad(i);
 
     // --- Las que fallaban antes ---------------------------------------------
-    exigir(i, "poner musica", "media_use");
+    exigir(i, "poner musica", "medio_poner");
     exigir(i, "silenciar a alguien", "audio_set");
     exigir(i, "mutear un microfono", "audio_set");
 
@@ -317,7 +317,7 @@ int main() {
     exigir(i, "salir al aire", "stream_start");
     exigir(i, "bajar del aire", "stream_stop");
     exigir(i, "empezar a grabar", "record_start");
-    exigir(i, "que se esta viendo ahora", "capture_program");
+    exigir(i, "que se esta viendo ahora", "foto_programa");
     exigir(i, "cortar a otra camara", "scene_switch");
     exigir(i, "poner el zocalo con el nombre", "rotulo_vincular");
     exigir(i, "cuanto tiempo le queda al que habla", "speaker_time");
@@ -343,10 +343,10 @@ int main() {
     exigir(i, "cuanta gente esta esperando para entrar", "room_status");
     exigir(i, "grabar lo que estamos haciendo", "record_start");
     exigir(i, "poner el nombre de alguien en pantalla", "rotulo_vincular");
-    exigir(i, "se ve todo negro", "capture_program");
+    exigir(i, "se ve todo negro", "foto_programa");
 
     // --- Lo de 2026-10-08, y con tildes (en la app el locale es UTF-8) -------
-    exigir(i, "poner música", "media_use");
+    exigir(i, "poner música", "medio_poner");
     exigir(i, "unir varias cámaras en una panorámica", "video_panoramica");
     exigir(i, "cámara 360 de dos lentes ojo de pez", "video_panoramica");
     exigir(i, "cambiar de configuración", "configuracion_cambiar");

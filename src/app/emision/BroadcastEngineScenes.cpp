@@ -57,7 +57,7 @@ bool termina(const std::string& s, const std::string& fin) {
 
 /// Tipos de captura de pantalla de OBS (cualquier sistema).
 bool esPantalla(const std::string& id) {
-    return id == "screen_capture" || id == "display_capture" || id == "macos-capture" || id == "capture_source" ||
+    return id == "screen_capture" || id == "display_capture" || id == "macos-capture" || id == "foto_fuente" ||
            id == "monitor_capture" || id == "xshm_input" || id == "pipewire-desktop-capture-source" ||
            id == "ba_pantalla";
 }

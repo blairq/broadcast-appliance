@@ -5,7 +5,7 @@
 // cerrada, atención automática del asistente), el PIN y sus bloqueos, el chat
 // del operador, los archivos compartidos, el proxy por nombre y la red. La GUI
 // (la página Sala, Configuración) y el MCP (room_set, room_pin,
-// room_pin_bloqueos, chat_send, share_view, share_take, share_delete, proxy_*,
+// room_pin_bloqueos, chat_send, compartida_revisar, share_take, share_delete, proxy_*,
 // network_status) pasan por acá, con las mismas reglas:
 //
 //   - la atención automática se guarda en la configuración y la sala se entera

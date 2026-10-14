@@ -241,7 +241,7 @@ void McpService::registerProcedimientoTools() {
                                json x = args;
                                x["scene"] = e;
                                x["name"] = f;
-                               pasos.push_back({std::string("agregar «") + f + "»", "source_add", x});
+                               pasos.push_back({std::string("agregar «") + f + "»", "fuente_crear", x});
                            };
                            // Las barras con la hora, por el camino de las entradas virtuales (fija
                            // el tamaño y la cadencia del lienzo: sin eso no engancha con su grafo).
@@ -425,7 +425,7 @@ void McpService::registerProcedimientoTools() {
                 if (preguntas) pedidos.push_back({"preg", {"preguntas_ver", json::object()}});
                 if (asamblea) {
                     pedidos.push_back({"asam", {"asamblea_revisar", json::object()}});
-                    pedidos.push_back({"quorum", {"quorum_estado", json::object()}});
+                    pedidos.push_back({"quorum", {"quorum_presentes", json::object()}});
                     pedidos.push_back({"orden", {"orden_del_dia_ver", json::object()}});
                 }
                 leerVarias(core, pedidos, [&core, done, g, tipo, asamblea, invitados, preguntas](std::shared_ptr<std::map<std::string, Resp>> r) {

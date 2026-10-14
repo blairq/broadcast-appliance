@@ -8,7 +8,7 @@
 //   - TODAS LAS PALABRAS VALEN IGUAL. "poner música" traía `scene_switch`,
 //     `guest_source_add` y `share_take`, porque "poner" está en media docena
 //     de títulos. La palabra que llevaba la intención —"música"— no pesaba más
-//     que el verbo genérico, y `media_use`, que es la respuesta, ni aparecía.
+//     que el verbo genérico, y `medio_poner`, que es la respuesta, ni aparecía.
 //   - SE BUSCA EN LO QUE ALGUIEN ESCRIBIO. `audio_set` no dice "silenciar" en
 //     ningún lado, porque quien la escribió ya sabía cómo se llamaba. Ninguna
 //     búsqueda por sinónimos la iba a encontrar.

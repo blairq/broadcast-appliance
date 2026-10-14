@@ -181,11 +181,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     }
     {
         Tool t;
-        t.name = "quorum_estado";
+        t.name = "quorum_presentes";
         t.title = "Hay quorum?";
         t.category = "preguntas";
         t.readOnly = true;
-        t.description = "Si hay quorum ahora: presentes con voto (del padron del evento), necesarios y miembros.";
+        t.description = "Si hay QUÓRUM ahora: cuántos presentes con voto hay y cuántos hacen falta; no es una votación.";
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.quorum().estado())); };
         core.addTool(std::move(t));
     }
@@ -222,11 +222,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     }
     {
         Tool t;
-        t.name = "pregunta_desde_chat";
+        t.name = "chat_a_preguntas";
         t.title = "Sumar un mensaje del chat a las preguntas";
         t.category = "preguntas";
-        t.description = "Suma a la cola de preguntas un mensaje del chat (YouTube, Twitch, Facebook o la sala) por su "
-                        "`mensaje_id` (la `key` de chat_recientes), con su autor y de donde vino.";
+        t.description = "Pasa un mensaje del chat del público a la cola de preguntas, por su key.";
         t.inputSchema = {{"type", "object"}, {"required", {"mensaje_id"}}, {"properties", {{"mensaje_id", {{"type", "string"}}}}}};
         t.run = [&vm, contestarSala](const json& a, Done done) {
             // Por el modelo, esperando lo que diga la sala (antes contestaba «ok» antes de saberlo).
@@ -296,12 +295,12 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     }
     {
         Tool t;
-        t.name = "votacion_ver";
+        t.name = "votacion_recuento";
         t.title = "Como va la votacion, y cerrarla";
         t.category = "preguntas";
         t.description =
-            "El recuento de la votacion o encuesta, quienes votaron y quienes faltan. Con `cerrar` la "
-            "da por terminada.";
+             "El recuento de la VOTACIÓN o encuesta: cuántos sí y cuántos no, quiénes votaron y quiénes faltan; no "
+            "es el quórum. Con `cerrar` la da por terminada.";
         t.details = "`votaron` y `podian` juntos son el QUORUM: «votaron 12 de 40». En una formal viene "
                     "ademas `quienes` (con que voto cada uno, salvo que sea secreta) y `faltanVotar`, que es "
                     "con lo que se sale a buscar a los que faltan antes de cerrar.\n\n"

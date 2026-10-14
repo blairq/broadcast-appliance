@@ -1318,9 +1318,9 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         // tool_search. Poco contexto y nada que lo tiente a actuar solo.
         servidores["broadcast"]["exposure"] = "deferred";
         json directas = json::object();
-        for (const char* n : {"help", "help_search", "status", "scene_list", "source_list", "mixer_list",
+        for (const char* n : {"help", "help_search", "status", "scene_list", "escena_fuentes_ver", "mixer_list",
                               "input_status", "audio_devices", "video_devices", "stream_salud", "record_disco",
-                              "room_status", "speakers_status", "alert_list", "logs_tail", "system_info"})
+                              "room_status", "remotos_fila_ver", "alert_list", "logs_tail", "system_info"})
             directas[n] = "direct";
         servidores["broadcast"]["toolExposure"] = directas;
         if (control) servidores["control"] = mcpControl;

@@ -42,7 +42,7 @@ std::string prompt(const std::string& sistema, const std::string& herramienta, c
 
 /// El primer objeto JSON de lo que escribió el modelo (al que se le antepone
 /// la «{» del prompt). Tolera claves sin comillas y el objeto envuelto en el
-/// nombre de la herramienta (`{"audio_analyze": {...}}`, `{capture_program}`).
+/// nombre de la herramienta (`{"audio_analyze": {...}}`, `{foto_programa}`).
 /// Nulo si no hay uno válido.
 json leer(const std::string& generado, const std::string& herramienta = {});
 

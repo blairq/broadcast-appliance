@@ -3,7 +3,7 @@
 //
 // Hacer pasar, no dejar pasar, sacar, hablarle, pedirle algo a su navegador,
 // cambiarle la ficha, la prueba técnica y su foto. La GUI (la página Sala, el
-// lobby) y el MCP (participant_*, invitado_prueba, capture_person) pasan por
+// lobby) y el MCP (participant_*, invitado_prueba, foto_invitado) pasan por
 // acá: el mismo pedido a la API y la misma respuesta.
 //
 // «Admitir a todos» también es de acá y no un bucle en cada lado: los que

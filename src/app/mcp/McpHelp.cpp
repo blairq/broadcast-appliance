@@ -22,11 +22,11 @@ const char* kInstructions =
     R"md(Broadcast Appliance: estudio de transmision en vivo (escenas y fuentes sobre un motor propio de GStreamer, salida RTMP/SRT y grabacion) con sala de videoconferencia propia (invitados por WebRTC con lobby, modo oradores con reloj, tablero para tablet). Este servidor maneja TODO y te deja VER todo.
 
 Como trabajar:
-1. Orientate con `status` y mira el programa con `capture_program` (o `capture_multiview` para todas las escenas).
+1. Orientate con `status` y mira el programa con `foto_programa` (o `foto_todas_escenas` para todas las escenas).
 2. Si no sabes como hacer algo: `help` (guia y catalogo), `help {"topic": ...}` o `help_search {"query": ...}`.
-3. Despues de cada cambio visual, VERIFICA mirando: si la captura (capture_source / capture_program) no te devuelve la imagen, `imagen_analizar` sobre la escena o fuente con una pregunta concreta. No supongas. Para comparar brillo o color fino usa numeros, no la vista.
-4. Las acciones ocurren en vivo: si hay transmision (`status.streaming`), lo que cambies en la escena al aire lo ve el publico. Para preparar algo sin que se vea, armalo en otra escena y revisala (imagen_analizar) antes de scene_switch.
-5. Las personas se nombran por nombre o id (room_status las lista). Para verlas: capture_person / capture_people.)md";
+3. Despues de cada cambio visual, VERIFICA mirando: si la captura (foto_fuente / foto_programa) no te devuelve la imagen, `imagen_preguntar` sobre la escena o fuente con una pregunta concreta. No supongas. Para comparar brillo o color fino usa numeros, no la vista.
+4. Las acciones ocurren en vivo: si hay transmision (`status.streaming`), lo que cambies en la escena al aire lo ve el publico. Para preparar algo sin que se vea, armalo en otra escena y revisala (imagen_preguntar) antes de scene_switch.
+5. Las personas se nombran por nombre o id (room_status las lista). Para verlas: foto_invitado / foto_todos_invitados.)md";
 
 struct TopicDef {
     const char* id;
@@ -46,8 +46,8 @@ Un estudio de transmision completo en una sola app:
 
 ## Primer vistazo (recomendado)
 1. `status` — que esta al aire, si se transmite o graba, salud.
-2. `capture_program` — ver el programa.
-3. `scene_list` / `capture_multiview` — todas las escenas.
+2. `foto_programa` — ver el programa.
+3. `scene_list` / `foto_todas_escenas` — todas las escenas.
 4. `room_status` — quien esta en la sala.
 
 ## Convenciones
@@ -90,8 +90,8 @@ Solo localhost, token obligatorio, y se rechazan pedidos con Origin de otra pagi
 - `scene_export` devuelve este mismo formato: exporta, modifica, y volve a definir.
 
 ## Buenas practicas
-- Arma en una escena que NO este al aire y revisala con `capture_source {"name": "<escena>"}` antes de `scene_switch`.
-- `capture_multiview` para ver todas de un vistazo.)md"},
+- Arma en una escena que NO este al aire y revisala con `foto_fuente {"name": "<escena>"}` antes de `scene_switch`.
+- `foto_todas_escenas` para ver todas de un vistazo.)md"},
     {"fuentes", "Fuentes y ubicacion", "Tipos, settings mas usados, propiedades, presets de ubicacion.",
      R"md(## Tipos
 `source_types` lista los de esta instalacion. Los mas usados:
@@ -104,7 +104,7 @@ Solo localhost, token obligatorio, y se rechazan pedidos con Origin de otra pagi
 | `v4l2_input` (Linux) | camara: `device_id`, resolucion (ver source_properties) |
 | `macos-avcapture` (macOS) | camara: `device` (ver source_properties) |
 | `coreaudio_output_capture` (macOS) | audio del sistema: `device_id` |
-| microfonos (todos los sistemas) | entran por GStreamer: `audio_input_add` (no `source_add`); `ba_gst_fuente` con `pipeline_audio` y `microfono`. Filtros: `entrada_filtros_audio`; mesa redonda: `automixer` |
+| microfonos (todos los sistemas) | entran por GStreamer: `audio_input_add` (no `fuente_crear`); `ba_gst_fuente` con `pipeline_audio` y `microfono`. Filtros: `entrada_filtros_audio`; mesa redonda: `automixer` |
 | `screen_capture` | una pantalla: `monitor` (su nombre: las opciones salen en source_properties; vacio = la principal), `show_cursor` |
 | `ba_qr` | un codigo QR en la escena: `qr` = \"aparato:publico\" (la pagina del publico, con su clave), \"aparato:sala\", \"aparato:prompter\", \"aparato:rotulos\" o el id de uno guardado (qr_listar); vacio = `texto`. `fondo` (margen blanco), `tamano`. Se mantiene al dia solo |
 | `window_capture` | la ventana de una aplicacion, aunque este tapada: `ventana` = "aplicacion\ntitulo" (las abiertas salen en source_properties), `show_cursor`. Se recuerda la aplicacion: si se cierra y se abre, sigue sola. En la Mac pide permiso de grabacion de pantalla |
@@ -129,11 +129,11 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
      R"md(## Que capturar
 | Quiero ver... | Herramienta |
 |---|---|
-| lo que sale al aire | `capture_program` |
-| una escena (este o no al aire) o una fuente | `capture_source {"name"}` |
-| todas las escenas de un vistazo | `capture_multiview` |
-| a una persona de la sala | `capture_person {"participant": "Ana"}` (con `includeScreen` su pantalla) |
-| a todos los de la sala | `capture_people` |
+| lo que sale al aire | `foto_programa` |
+| una escena (este o no al aire) o una fuente | `foto_fuente {"name"}` |
+| todas las escenas de un vistazo | `foto_todas_escenas` |
+| a una persona de la sala | `foto_invitado {"participant": "Ana"}` (con `includeScreen` su pantalla) |
+| a todos los de la sala | `foto_todos_invitados` |
 | un video crudo (guest:N, share:N, lobby:K, backstage:K, operator) | `capture_feed {"key"}` (`feeds_list` los muestra) |
 | la propia app | `capture_ui {"window": "main"|"all"}` |
 | **movimiento / video** | `capture_sequence {"target": "program", "frames": 6, "intervalMs": 400}` |
@@ -142,7 +142,7 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
 - Tamaño: `maxWidth` (640 alcanza para reconocer caras y texto grande; 1280+ para leer texto chico). JPEG por defecto; `format: "png"` para graficos nitidos.
 - `capture_sequence` con una persona (`participant`) sirve para ver si habla (boca), si esta presente, si levanto la mano, si la imagen esta congelada (cuadros identicos) o negra.
 - Despues de cada cambio visual, captura para verificar. En vivo, la escena al aire cambia al instante.
-- Las personas en la fila de oradores mas alla de los primeros no mandan video a la app: `capture_person` devuelve su foto reciente (lo dice en el texto).)md"},
+- Las personas en la fila de oradores mas alla de los primeros no mandan video a la app: `foto_invitado` devuelve su foto reciente (lo dice en el texto).)md"},
     {"audio", "Audio", "Volumen, silencio y como leer los niveles.",
      R"md(- `mixer_list`: cada fuente de audio con volumen (dB), silencio y pico actual (dBFS), y el pico del programa.
 - `audio_set {"name", "volumeDb", "muted"}` (tambien `source_update`).
@@ -152,7 +152,7 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
     {"salidas", "Transmision y grabacion", "Salir al aire, grabar, controles previos.",
      R"md(- `stream_start {"server"?, "key"?}`: la clave NUNCA se guarda (sale de la variable BA_STREAM_KEY o se pasa en `key`, solo en memoria).
 - `stream_stop`, `record_start`, `record_stop`. `status` muestra tiempos, kbps, cuadros perdidos y codificador.
-- Antes de salir al aire: `status` (fps estable, droppedFrames bajo), `capture_program`, `mixer_list` (niveles).
+- Antes de salir al aire: `status` (fps estable, droppedFrames bajo), `foto_programa`, `mixer_list` (niveles).
 - Codificacion/resolucion: ajustes `encoder.*`, `video.*` (`settings_list {"section": "Codificación"}`).)md"},
     {"sala", "Sala de videoconferencia",
      "Lobby, admitir, hablar en privado, pedidos, chat, archivos, enlaces.",
@@ -167,8 +167,8 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
 ## Adentro
 - Su camara es la fuente `Invitado N` (N = slot). `guest_source_add` la pone en una escena.
 - `participant_request {"what": "mute-mic"|"mute-cam"|"unmute-mic"|"unmute-cam"|"stop-screen"|"lower-hand"}` (los unmute vuelven a prender lo que se apago), `participant_kick`.
-- `chat_send` (a todos o a una persona), `chat_history`.
-- Archivos que comparten: `share_list`, `share_view` (ver la imagen), `share_take` (a la escena), `share_delete`.
+- `chat_send` (a todos o a una persona), `invitados_chat_leer`.
+- Archivos que comparten: `share_list`, `compartida_revisar` (ver la imagen), `share_take` (a la escena), `share_delete`.
 
 ## Ingreso
 - `room_link {"target": "local"|"remote", "withPin"}` da el enlace y su QR (imagen). `room_pin` cambia el PIN. `room_set {"lobby", "locked"}`.
@@ -255,7 +255,7 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - `speaker_next` pone al siguiente; `speaker_on_air {"participant", "on"}` a alguien puntual (on=false lo saca: vuelve como "hablo").
 - `speaker_move {"participant", "position"}`, `speaker_time {"participant", "time"}`, `participant_requeue`.
 - El reloj **nunca saca a nadie** salvo carrusel `time` (pasado cero + margen, rota). Pasado el tiempo cuenta en negativo; el invitado lo ve.
-- `speakers_status`: la fila con lo que le queda al que esta al aire (`remainingSec` negativo = se paso).
+- `remotos_fila_ver`: la fila con lo que le queda al que esta al aire (`remainingSec` negativo = se paso).
 - Tablero para tablet: `room_link {"board": true}`.)md"},
     {"conferencia", "Central de conferencia (Bosch DCN)", "Micrófonos de banca, pedidos de palabra, siguiente orador.",
      R"md(La central del recinto (Bosch DCN Next Generation) la maneja el plugin `bosch-dcn`; estas herramientas hablan de **bancas** (las del Cuerpo), no de unidades.
@@ -263,7 +263,7 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 2. **Unidades:** cada banca necesita su unidad (`dcn_unidad` en el Cuerpo). `dcn_unidades` dice cuáles faltan; `dcn_unidad_asignar {"aprender_todas": true}` y alguien aprieta el botón de cada banca en la sala, en orden.
 3. **Operar:** `dcn_estado` (abiertos, pedidos en orden, `siguiente`), `dcn_microfono {"banca", "abierto"}`, `dcn_siguiente`, `dcn_pedido {"banca", "accion"}`, `dcn_cerrar_todos` (no toca al presidente), `dcn_modo {"modo": "operador", "max_abiertos": 4}`.
 - La app y la botonera dan la palabra solo en modo **operador**; en los otros modos la central decide y se ve igual lo que pasa.
-- `banca_al_aire` con la central conectada también abre el micrófono de esa banca (y cierra el del anterior); `banca_terminar` lo cierra.
+- `banca_al_aire` con la central conectada también abre el micrófono de esa banca (y cierra el del anterior); `recinto_orador_terminar` lo cierra.
 - Las que abren o cierran micrófonos son **de aire**: si las dispara algo automático con transmisión, piden confirmar.
 - Cada aviso de micrófono sale en el bus como `plugin/bosch-dcn/conferencia/microfono {banca, abierto}`: Seguir al micrófono (fuente «conferencia») lo usa.
 - **Votación:** `dcn_votacion {"accion": "preparar", "tema": ..., "menu": "si_no_abstencion"}`, después `abrir` y `cerrar`; `dcn_votacion_resultado` (parciales y nominal por banca); el oficial va a Quórum con `dcn_votacion_a_quorum` (nunca lo cargues sin que una persona lo pida).
@@ -304,7 +304,7 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 8. **El debate** (si va a haber): `debate_config` con la escena de cada tipo y el tiempo de cada turno.
 9. **El guion** (`evento_armar`) para lo que sí tiene orden: apertura, himno, cierre. El cuerpo de la sesión lo maneja la fila de oradores (`banca_*`), no los cues.
 
-Durante la sesión: `banca_al_aire` / `banca_terminar` (la palabra), `presidencia_silenciar` y `presidencia_hablar`, `debate_iniciar` / `debate_turno`, votación con `dcn_votacion` o `sesion_votacion`.
+Durante la sesión: `banca_al_aire` / `recinto_orador_terminar` (la palabra), `presidencia_callar_todos` y `presidencia_hablar`, `debate_iniciar` / `debate_turno`, votación con `dcn_votacion` o `sesion_votacion`.
 
 Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un consejo con 15 integrantes, recinto, central simulada, escenas y debate): `configuracion_crear {"nombre": "Demo", "desde": "demo:Demo parlamentaria"}` y `configuracion_cambiar` (ver `help {"topic": "configuraciones"}`).md"},
     {"procedimiento_salon", "Procedimiento: evento en salón",
@@ -335,7 +335,7 @@ Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un
 
 **4. Ensayar** (probar cada pieza, sin salir al aire):
 - **Música:** `audio_escuchar {name}` la manda a los auriculares del operador; que la escuche y diga si el volumen está bien.
-- **Videos:** `scene_preview` con la escena del video y `capture_source` para mirarlo; con su audio.
+- **Videos:** `scene_preview` con la escena del video y `foto_fuente` para mirarlo; con su audio.
 - **Gráficos:** `grafico_probar` con los datos reales de cada zócalo y placa (mirá las imágenes; nombres y cargos bien escritos).
 - **Página web:** `evento_web {accion: ver}` y el QR con `qr_mostrar` para abrirla en un celular.
 - **Grabación de prueba:** `record_start`, un minuto, `record_stop`, y que la reproduzcan.
@@ -381,19 +381,19 @@ Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un
 **3. Pedirle a la persona que controle:** la lista «a_mano» de `evento_verificar`: además de lo general (cámaras, sonido, gráficos, página, grabación, transmisión de prueba), la **central probada banca por banca**, el **preset de cada banca**, una **votación de prueba**, los **remotos con su link y PIN** (uno probado), la **consola de la presidencia** y **quién toma el acta**. Marcá con `evento_chequeo` solo lo que te confirmen.
 
 **4. Ensayar:**
-- **Cada banca:** darle la palabra (`banca_al_aire`) y terminarla (`banca_terminar`): ¿se mueve la cámara, se arma la escena, sale el zócalo con el nombre correcto, abre el micrófono?
+- **Cada banca:** darle la palabra (`banca_al_aire`) y terminarla (`recinto_orador_terminar`): ¿se mueve la cámara, se arma la escena, sale el zócalo con el nombre correcto, abre el micrófono?
 - **Un remoto:** que entre con su link y PIN, habilitarlo, darle la palabra.
 - **Votación de prueba:** con la central o con la banca virtual (`sesion_votacion`); el resultado oficial (`votacion_resultado_oficial`) en pantalla.
-- **Quórum:** `quorum_estado` con los presentes.
+- **Quórum:** `quorum_presentes` con los presentes.
 - Y lo de todo evento: música, gráficos, página web, grabación y transmisión de prueba (help procedimiento_salon, paso 4).
 
 **5. Dejarlo listo:** `evento_verificar {tipo: asamblea}` sin faltas y con todo confirmado; `evento_preparar {al_aire: true}` deja la señal de ajuste en el programa. Avisale a la persona.
 
 **6. El día, de la señal de ajuste al final:**
 1. **30 a 15 minutos antes:** `evento_iniciar`; señal de ajuste; `stream_start` y `record_start`; confirmar en la plataforma.
-2. **Antes de empezar:** placa de espera con música; los remotos entran y se habilitan; `quorum_estado`.
+2. **Antes de empezar:** placa de espera con música; los remotos entran y se habilitan; `quorum_presentes`.
 3. **Apertura:** con quórum, el primer bloque (himno, apertura de la presidencia).
-4. **La sesión:** la fila de oradores (`banca_cola`, `banca_al_aire`, `banca_terminar`); el punto en tratamiento (`orden_del_dia_punto`); votaciones y su resultado oficial; cuarto intermedio con su placa si hace falta. El registro va solo al acta (`sesion_registro`).
+4. **La sesión:** la fila de oradores (`banca_cola`, `banca_al_aire`, `recinto_orador_terminar`); el punto en tratamiento (`orden_del_dia_punto`); votaciones y su resultado oficial; cuarto intermedio con su placa si hace falta. El registro va solo al acta (`sesion_registro`).
 5. **Cierre:** el bloque Cierre (placa de fin); `stream_stop`, `record_stop`, `evento_terminar` y `evento_informe`.)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
@@ -402,15 +402,15 @@ Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un
 En medio de la charla el orador dice "volve a la del grafico de barras". Con veinte diapositivas y un boton de siguiente son veinte clics y diez segundos de aire perdido. `laminas_ir {"carrusel", "numero"}` es un salto.
 
 ## Como se usa
-- `laminas_listar`: que hay. Por aca se empieza; el resto pide el nombre.
-- `laminas_ver {"carrusel"}`: las laminas en orden, con su numero, su titulo y sus etiquetas. El **numero empieza en 1** y es lo que pide `laminas_ir`.
+- `carruseles_listar`: que hay. Por aca se empieza; el resto pide el nombre.
+- `carrusel_laminas_ver {"carrusel"}`: las laminas en orden, con su numero, su titulo y sus etiquetas. El **numero empieza en 1** y es lo que pide `laminas_ir`.
 - `laminas_armar {"nombre", "imagenes"}`: armar uno a mano con placas sueltas (logos, fondos). Si ya existe, agrega al final.
 - `laminas_editar {"carrusel", "accion"}`: quitar una lamina, moverla de lugar, renombrar, borrar o soltarlo de la escena. `borrar` se lleva el carrusel, NO las imagenes.
 - `laminas_aplicar {"carrusel", "escena"}`: **es el paso que falta casi siempre**. Hasta que el carrusel no esta EN una escena, `laminas_ir` mueve el puntero y no se ve nada.
-- `laminas_desarmar {"archivo", "nombre"}`: convierte un PDF o un .pptx en laminas. **Tarda** (segundos por pagina) y no espera: avisa que empezo, y cuando termina aparece en `laminas_listar`. Un .pptx necesita que el equipo traiga LibreOffice; un PDF no.
+- `laminas_desarmar {"archivo", "nombre"}`: convierte un PDF o un .pptx en laminas. **Tarda** (segundos por pagina) y no espera: avisa que empezo, y cuando termina aparece en `carruseles_listar`. Un .pptx necesita que el equipo traiga LibreOffice; un PDF no.
 
 ## Que se busca y como
-El operador escribe "barras" en un cuadro y le queda esa lamina. Eso funciona si alguien miro las imagenes antes: `laminas_sin_analizar {"carrusel"}` da la proxima sin etiquetas, se la mira con `imagen_analizar` (que es quien sabe mirar: el asistente principal NO recibe imagenes), y lo que se vio se guarda con `laminas_etiquetar {"carrusel", "numero", "etiquetas"}`. Se hace **una vez por lamina**; si salio vacio queda marcada igual, para no volver a mirarla para siempre.
+El operador escribe "barras" en un cuadro y le queda esa lamina. Eso funciona si alguien miro las imagenes antes: `laminas_sin_analizar {"carrusel"}` da la proxima sin etiquetas, se la mira con `imagen_preguntar` (que es quien sabe mirar: el asistente principal NO recibe imagenes), y lo que se vio se guarda con `laminas_etiquetar {"carrusel", "numero", "etiquetas"}`. Se hace **una vez por lamina**; si salio vacio queda marcada igual, para no volver a mirarla para siempre.
 
 Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que dice, de que trata. "grafico barras ventas trimestre", no una descripcion.)md"},
     {"configuracion", "Configuracion", "Leer y cambiar cualquier ajuste.",
@@ -479,7 +479,7 @@ Al terminar, contale al operador en dos renglones qué quedó andando y qué no 
 
 ## Chat
 - `youtube_chat {"broadcast": id}` elige el evento; `{"send": "texto"}` escribe; devuelve los ultimos mensajes.
-- En pantalla: `chat_overlay_add {"channel": "all"|"youtube"|"twitch"|"facebook"|"room"}` agrega la fuente **Chat en vivo** (tipo `ba_chat_overlay`) a una escena; con `all` mezcla todas las plataformas conectadas (cada mensaje con su marca). Se ajusta con `source_update` (settings: show_youtube, show_twitch, show_facebook, show_room, max_messages, font_size, width, height, bg_opacity, show_names, fade_sec). Verificar con `capture_source`.
+- En pantalla: `chat_overlay_add {"channel": "all"|"youtube"|"twitch"|"facebook"|"room"}` agrega la fuente **Chat en vivo** (tipo `ba_chat_overlay`) a una escena; con `all` mezcla todas las plataformas conectadas (cada mensaje con su marca). Se ajusta con `source_update` (settings: show_youtube, show_twitch, show_facebook, show_room, max_messages, font_size, width, height, bg_opacity, show_names, fade_sec). Verificar con `foto_fuente`.
 
 ## Cuota
 10.000 unidades por dia y proyecto: listar y editar cuesta poco; subir un video ~1.600; leer el chat ~5 por lectura (la app lee cada 6 s o mas, solo con un evento elegido).)md"},
@@ -584,7 +584,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 3. `facebook_login`: abre el navegador; la PERSONA elige la cuenta, marca las Paginas y acepta. Despues `facebook_pages` (y `{"select": "..."}` si hay varias).
 
 ## Transmitir
-- `facebook_live_create {"title": "...", "test": true}` crea el vivo **sin publicar** (solo lo ve la Pagina en Live Producer) y transmite desde la app (RTMPS, servidor y clave solo en memoria). Revisar con `capture_program` y `facebook_live_list {"id"}`; cuando este bien, `facebook_live_publish {"id"}` lo hace publico sin cortar.
+- `facebook_live_create {"title": "...", "test": true}` crea el vivo **sin publicar** (solo lo ve la Pagina en Live Producer) y transmite desde la app (RTMPS, servidor y clave solo en memoria). Revisar con `foto_programa` y `facebook_live_list {"id"}`; cuando este bien, `facebook_live_publish {"id"}` lo hace publico sin cortar.
 - `test: false`: sale publico en el acto.
 - Terminar: `facebook_live_end` (sin `id`: el vivo al que transmite la app). Queda como video.
 
@@ -597,7 +597,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
     {"equipo", "El equipo", "Monitores, audio, camaras, GPU: para decidir con datos.",
      R"md(- `system_hardware`: todo de una vez (monitores, placas de audio de entrada y salida, camaras/capturadoras, GPU, codificadores de hardware, CPU, memoria, disco).
 - `monitors`: nombre, resolucion en pixeles, posicion en el escritorio, escala, Hz y principal. El `name` es el que usa `output_window.screen`.
-- `audio_devices`: el `value` de cada entrada es el `device_id` de una fuente de captura de audio (`source_add {"type": inputSourceType, "settings": {"device_id": ...}}`).
+- `audio_devices`: el `value` de cada entrada es el `device_id` de una fuente de captura de audio (`fuente_crear {"type": inputSourceType, "settings": {"device_id": ...}}`).
 - `video_devices`: camaras y capturadoras; con `{"device": value}`, sus formatos, resoluciones y cuadros por segundo.
 
 ## Receta: ocupar todos los monitores
@@ -609,7 +609,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
      R"md(## Hardware (conectadas a la maquina)
 1. `video_devices` -> elegir `device`; `video_devices {"device": ...}` muestra formatos/resoluciones/fps.
 2. `video_input_add {"device": ..., "scene": ..., "layout": "full", "resolution": ..., "framerate": ...}`.
-3. Verificar con `capture_source`. Una misma camara no se abre dos veces: si ya es fuente en otra escena, agregala con `source_add` usando su nombre (queda compartida).
+3. Verificar con `foto_fuente`. Una misma camara no se abre dos veces: si ya es fuente en otra escena, agregala con `fuente_crear` usando su nombre (queda compartida).
 
 ## NDI
 - `ndi_sources` busca emisores NDI en la red (mDNS) y `ndi_input_add {"ndiName": ...}` (o `host` + `port`) los agrega.
@@ -628,7 +628,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 ## Como trabajar (siempre en este orden)
 1. **Mirar**: `video_estado` (todas, con su diagnostico) y `video_estado {"entrada": ...}` antes de tocar nada: tamaño, fps, formato, color (BT.601/709, rango), si llega entrelazada, reloj, colchon de red. `video_grafo` muestra las tarjetas.
 2. **Armar** con `video_pipeline` (UNA llamada por entrada, valida todo y no cambia nada si algo falla). Las herramientas sueltas (`video_tarjeta_agregar`, `_ajustar`, `_quitar`, `video_cable`) son para retoques.
-3. **Verificar**: `video_estado {"entrada": ...}` otra vez (el `diagnostico` tiene que quedar sin errores) y `capture_source {"name": ...}` para ver la imagen.
+3. **Verificar**: `video_estado {"entrada": ...}` otra vez (el `diagnostico` tiene que quedar sin errores) y `foto_fuente {"name": ...}` para ver la imagen.
 
 ## Recetas
 **La misma correccion de color en varias camaras** (que cambiando una vez cambie en todas), en UNA llamada:
@@ -641,7 +641,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 **Mosaico / imagen en imagen / lado a lado**: `video_mosaico {"escena", "entradas": [...], "disposicion": "mosaico|pip|lado", "nombre"}` en UNA llamada (toma cada entrada con sus tarjetas y oculta las sueltas en esa escena: el mosaico las sigue recibiendo). Para retocar: `video_tarjeta_ajustar` sobre el compositor con `capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden}.
 
 **Unir cámaras: panorámica o 360** (todo en la placa de video): `video_panoramica {"camaras": [...], "preset": "fila"|"360", "campo", "escena", "nombre"}` en UNA llamada. Une hasta 8 cámaras (un stream cada una; la primera es la lente 1) lado a lado en su lienzo y corrige la deformación de cada una y cómo encajan. `preset: "fila"`: cámaras comunes de `campo` grados repartidas con un 10% que se pisa; sale la **tira** (panorámica cilíndrica) del tamaño de la suma de las resoluciones (4 de 1080p = 7680x1080; máximo 16384 de ancho). `preset: "360"`: dos ojos de pez de 190° espalda con espalda; sale la **vista**, una cámara común que es un PTZ virtual (`yaw`, `pitch`, `fov` = pan, tilt, zoom). Una 360 que manda todo en UN stream (equirectangular o los dos círculos juntos): tarjeta `vista360` en su cadena (`modo`).
-Calibrar a mano con `video_tarjeta_ajustar` sobre la tarjeta (`estudio.panoramica`), mirando con `capture_source`:
+Calibrar a mano con `video_tarjeta_ajustar` sobre la tarjeta (`estudio.panoramica`), mirando con `foto_fuente`:
 1. `ver: "entrada"`: lo crudo con los círculos de los ojos de pez y los límites de cada cámara; mover `lenteN_x`, `lenteN_y`, `lenteN_radio` hasta que los círculos encajen.
 2. `ver: "tira"` (o `"panorama"`) con `guia: "esfera"` (paralelos y meridianos cada 15°): cómo encaja cada una (`lenteN_yaw`, `_pitch`, `_roll`) y su `_campo`, hasta que el horizonte quede derecho y no se noten las costuras (`mezcla`: el ancho de la unión, en grados).
 3. Una guía `rectangulo` o `circulo` (`guia_x`, `guia_y`, `guia_ancho`, `guia_alto` en fracciones de la salida) encima de algo que lo sea (una puerta, un reloj): la deformación (`lenteN_k1`, `_k2`; barril < 0 < cojín) hasta que coincida. `lenteN_tipo`: `ojo` (ojo de pez) o `normal`.
@@ -660,7 +660,7 @@ Los parámetros, uno por uno: `video_tarjeta_ayuda {"tipo": "panoramica"}`. En l
 
 **"¿Esta todo bien?" (revisar todo)**: `video_estado` sin nada (todas las entradas con su diagnostico) -> aplicar los arreglos de gravedad `aviso` o `error` (cada uno trae la llamada exacta; los `info` son solo para contar) -> si se tocaron desfases o relojes, `video_sincronia` sin aplicar entre las que tienen que coincidir (debe dar ~0) -> `status` (fps, cuadros perdidos, CPU) -> `mixer_list` (que audio traen: las entradas ocultas en un mosaico siguen sonando en esa escena si traen audio). Un «llegaron tarde» con «recien conectada» es la rafaga del arranque: no subas el colchon, volve a mirar en 10 s.
 
-**Ver la imagen**: `imagen_analizar` sobre una escena o fuente, con una pregunta concreta («¿hay algo estirado o en negro?», «¿que hora marcan los relojes de cada recuadro?»). Sirve para encuadre, negros, estirados y leer texto; NO para comparar brillo o color fino entre recuadros: para eso estan los numeros (`video_grafo`, valores efectivos).
+**Ver la imagen**: `imagen_preguntar` sobre una escena o fuente, con una pregunta concreta («¿hay algo estirado o en negro?», «¿que hora marcan los relojes de cada recuadro?»). Sirve para encuadre, negros, estirados y leer texto; NO para comparar brillo o color fino entre recuadros: para eso estan los numeros (`video_grafo`, valores efectivos).
 
 **Rostros**: la tarjeta `rostros` la pone Personas sola al usar `entrada:<camara>`; `marcar` dibuja las caras.
 
@@ -730,7 +730,7 @@ Casos típicos:
 3. **Escribilo**: `plugin_escribir {"id", "manifiesto": {"nombre", "descripcion", "dependencias": [...], "config": {...}}, "archivos": {"plugin.py": "..."}}`.
 4. **Probalo sin tocar el aire**: `plugin_probar {"id"}` → informe (lo declarado, tarjetas con ms por cuadro y qué cambiaron, entradas con cuadros por segundo, controles, eventos, registro con los errores de Python). Si `ok` es false o algo no cierra, arreglá y volvé a probar. `controles: [{"nombre", "args"}]` llama controles; `ptz: true` mueve el equipo un instante.
 5. **Activalo**: `plugin_activar {"id"}`. Sus entradas aparecen solas (escena del manifiesto o «Plugins»), su PTZ queda como el de esa entrada (`ptz_*` y la botonera andan igual), sus tarjetas se ponen con `plugin_tarjeta` (o en `video_pipeline` con `{"tipo": "plugin", "plugin", "tarjeta", "parametros"}`) y se gradúan con `video_tarjeta_ajustar {"id": "<id de la tarjeta>", "params": {"parametros": {"fuerza": 0.5}}}` (o los parámetros sueltos: `{"fuerza": 0.5}`). Una entrada que no está al aire solo se dibuja cuando alguien la mira: para verificar, capturá dos veces (la primera puede ser un cuadro viejo).
-6. **Verificá en vivo**: `video_estado {"entrada"}`, `imagen_analizar`, `plugin_registro`, `plugin_control {"id"}` (info de sus medios), `plugin_eventos`.
+6. **Verificá en vivo**: `video_estado {"entrada"}`, `imagen_preguntar`, `plugin_registro`, `plugin_control {"id"}` (info de sus medios), `plugin_eventos`.
 7. **Contale al operador** qué hace y cómo se usa. Si después cambiás el código: `plugin_escribir` + `plugin_reiniciar`.
 
 ## El SDK (`import ba_plugin as ba`)
@@ -830,7 +830,7 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 
 ## Mover
 - `ptz_mover {"entrada": ..., "pan": 0.3, "duracion_ms": 1000}`: velocidades -1..1 (pan + derecha, tilt + arriba, zoom + acercar); se para sola al terminar. Mueve lo que diga su `modo` (optico = la cabeza, digital = el recorte).
-- Encuadre digital exacto: `ptz_encuadre {"entrada": ..., "x": 0.3, "y": 0.4, "zoom": 2, "segundos": 1}` (x, y = centro, 0..1; zoom 1..8). Mira el resultado con `capture_source`.
+- Encuadre digital exacto: `ptz_encuadre {"entrada": ..., "x": 0.3, "y": 0.4, "zoom": 2, "segundos": 1}` (x, y = centro, 0..1; zoom 1..8). Mira el resultado con `foto_fuente`.
 - Presets: `ptz_preset {"entrada": ..., "numero": 2}` (ir) o con `"accion": "guardar"`.
 
 ## Posiciones con nombre
@@ -887,7 +887,7 @@ Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
 ## Receta: subtítulos en inglés y voz en inglés por la pista 2
 1. Voz a texto del orador (help {"topic": "audio_rack"}): una salida «Orador», modo continuo.
 2. `traduccion_agregar {"desde": "Orador", "a": "en"}`. Si dice `faltan`, `traduccion_bajar {"a": "en"}` y esperá (modelo_local_estado muestra el avance). Los pedazos de la transcripción se juntan hasta cerrar una oración (o 0,6 s sin más texto: `espera_ms` en traduccion_ajustar) antes de traducir; si el orador encadena sin punto, a los `maximo_ms` (8 s) se traduce lo que hay. Queda como una tarjeta «Traducir» en el rack de audio de la fuente (al lado de su voz a texto; no lleva cables); el operador la ve y la ajusta ahí.
-2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`source_add` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
+2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`fuente_crear` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
 3. `texto_a_voz {"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador · en"}` y en la Matriz esa fuente a la pista 2.
 4. `traducciones` muestra la última frase traducida y cuánto tardó.
 
@@ -927,10 +927,10 @@ Antes de traducir, cada término conocido se reemplaza por su traducción ya hec
 1. `media_find {"query": "X"}` (sin importar mayusculas, tildes ni guiones).
 2. `media_view {"path": ...}` para confirmar que es la correcta (mirala).
 3. `scene_list` para encontrar la escena ("la 4" puede ser la cuarta de la lista o una que se llame asi: si hay duda, pregunta).
-4. `media_use {"path": ..., "scene": ..., "name": "Logo", "layout": "pip-tr"}` (arriba a la derecha; `pip-tl` arriba a la izquierda; o `{x,y,w,h}`).
-5. `capture_source {"name": escena}` y ajustar con `source_update` (ubicacion, tamaño) hasta que quede bien.
+4. `medio_poner {"path": ..., "scene": ..., "name": "Logo", "layout": "pip-tr"}` (arriba a la derecha; `pip-tl` arriba a la izquierda; o `{x,y,w,h}`).
+5. `foto_fuente {"name": escena}` y ajustar con `source_update` (ubicacion, tamaño) hasta que quede bien.
 
-Videos y audios: `media_use` con `loop` para fondos o musica en bucle; `alert_create {"type": "media_end"}` para enterarte cuando terminan.
+Videos y audios: `medio_poner` con `loop` para fondos o musica en bucle; `alert_create {"type": "media_end"}` para enterarte cuando terminan.
 
 ## Ordenar el disco
 `media_carpetas` dice COMO estan repartidos (el arbol, con cuantos tiene cada carpeta; las vacias aparecen igual, porque son a donde se mueven cosas). `media_ordenar {"accion": "mover"|"renombrar"|"carpeta"|"borrar"}` los acomoda.
@@ -955,7 +955,7 @@ Todo lo que el asistente le quiere decir al operador sin depender de que mire el
 - Disparador: `alert_create {"type": "guest_message"}` (o con `"params": {"privateOnly": true}`).)md"},
     {"alertas", "Disparadores (alertas)", "Que el servidor vigile algo y avise o actue solo.",
      R"md(## Para que
-En vez de consultar cada tanto (mixer_list, speakers_status...), pedile al servidor que vigile: evalua cada 250 ms y cuando pasa algo te **avisa en el chat** (pestaña Asistente) y/o en pantalla, y puede **actuar solo** (acciones = herramientas MCP).
+En vez de consultar cada tanto (mixer_list, remotos_fila_ver...), pedile al servidor que vigile: evalua cada 250 ms y cuando pasa algo te **avisa en el chat** (pestaña Asistente) y/o en pantalla, y puede **actuar solo** (acciones = herramientas MCP).
 
 ## Crear
 `alert_create {"type": ..., "params": {...}, "message": "...", "notify": ["llm","ui"], "actions": [{"tool": ..., "arguments": {...}}], "once": false, "cooldownSec": N}`. Tipos y parametros: `alert_types`.
@@ -984,8 +984,8 @@ En vez de consultar cada tanto (mixer_list, speakers_status...), pedile al servi
     {"diagnostico", "Diagnostico", "Recetas cuando algo anda mal.",
      R"md(| Sintoma | Que mirar |
 |---|---|
-| Programa negro | `capture_program`; `source_list` (fuente oculta o fuera del lienzo); `capture_source` de cada fuente |
-| Un invitado no se ve | `room_status` (connected, mediaUp, cam), `capture_person`, `participant_request` no aplica; que su fuente este en la escena (`guest_source_add`) |
+| Programa negro | `foto_programa`; `escena_fuentes_ver` (fuente oculta o fuera del lienzo); `foto_fuente` de cada fuente |
+| Un invitado no se ve | `room_status` (connected, mediaUp, cam), `foto_invitado`, `participant_request` no aplica; que su fuente este en la escena (`guest_source_add`) |
 | Sin audio / saturado | `mixer_list` (muted, peakDb) |
 | Cortes en la transmision | `status` (droppedFrames, fps, kbps), bajar `encoder.bitrate` |
 | La sala no responde | `status.gatewayAlive`, `log_leer {"modulo": "gateway"}`, `gateway_restart` |
@@ -996,20 +996,20 @@ procesos entrelazados por hora, con nivel y modulo. Si no aparece nada, bajar co
 ver un archivo crudo (cloudflared.log).)md"},
     {"recetas", "Recetas", "Flujos completos de produccion.",
      R"md(## Abrir un programa
-1. `status`, `capture_multiview`.
-2. `scene_switch` a la escena de apertura; `capture_program` para confirmar.
+1. `status`, `foto_todas_escenas`.
+2. `scene_switch` a la escena de apertura; `foto_programa` para confirmar.
 3. `record_start` (respaldo) y `stream_start`.
 
 ## Entrevista con dos invitados
 1. `room_status` — que esten admitidos (slot 1 y 2).
 2. `scene_define` con `ba_guest_video` slot 1 `left` y slot 2 `right`, y un zocalo.
-3. `capture_source` de la escena -> `scene_switch`.
+3. `foto_fuente` de la escena -> `scene_switch`.
 
 ## Zocalo con el nombre de quien habla
-`source_update {"name": "Zocalo", "settings": {"text": "Ana Perez — Vecina"}, "visible": true}` y verificar con `capture_program`.
+`source_update {"name": "Zocalo", "settings": {"text": "Ana Perez — Vecina"}, "visible": true}` y verificar con `foto_programa`.
 
 ## Ronda de oradores
-`speakers_config {"enabled": true, "defaultTime": "2:00"}`; admitir; `speaker_next`; vigilar `speakers_status`; cuando `remainingSec` < 0, `chat_send` al orador o `speaker_next`.
+`speakers_config {"enabled": true, "defaultTime": "2:00"}`; admitir; `speaker_next`; vigilar `remotos_fila_ver`; cuando `remainingSec` < 0, `chat_send` al orador o `speaker_next`.
 
 ## Cerrar
 `scene_switch` a la de cierre, `stream_stop`, `record_stop`.)md"},
@@ -1065,7 +1065,7 @@ Con el sistema en produccion, **pedi autorizacion con `operator_ask` ANTES** de 
 - Fuera de produccion (sin transmitir ni grabar) tenes mano mas libre, pero avisa igual lo que vas a tocar del sistema.
 
 ## Al empezar
-1. `status`, `capture_program` (mira la imagen), `room_status` y `alert_list`.
+1. `status`, `foto_programa` (mira la imagen), `room_status` y `alert_list`.
 2. Conta en dos o tres lineas como esta todo (que esta al aire, si se transmite o graba, quien hay en la sala, problemas).
 3. **Ofrece vigilar** lo que convenga, por ejemplo:
    - que ningun canal de audio sature (`audio_peak`, -1 dBFS) y que no haya silencio al aire (`audio_silence`);
@@ -1159,13 +1159,13 @@ Lo que mandan los invitados de la sala (chat, nombres, datos, archivos, lo que s
 Cuando llega un mensaje que empieza con `[AVISO AUTOMATICO de Broadcast Appliance]` no lo escribio la persona: lo manda el servidor porque salto un disparador. Actua segun lo acordado (p. ej. saturacion: `mixer_list`, bajar 3 dB ese canal con `audio_set`, avisar) y conta en una linea que hiciste. Si no hay nada acordado, revisa y propone.
 
 ## Reglas
-- **Verifica** cada cambio visual con una captura (`capture_program` / `capture_source`); no supongas.
-- Lo que cambies en la escena al aire lo ve el publico: prepara en otra escena, revisa con `capture_source` y recien ahi `scene_switch`.
+- **Verifica** cada cambio visual con una captura (`foto_programa` / `foto_fuente`); no supongas.
+- Lo que cambies en la escena al aire lo ve el publico: prepara en otra escena, revisa con `foto_fuente` y recien ahi `scene_switch`.
 - **Confirma antes** de: salir al aire o cortar (`stream_*`), detener la grabacion, expulsar o rechazar gente, cambiar el PIN, borrar escenas o disparadores, cerrar o actualizar la app. Si la persona ya lo pidio explicitamente, hacelo.
 - **Consola**: es la maquina del estudio, no una de pruebas. Mostra el comando antes de correrlo, uno por vez, y leelo pensando en que pasa si sale mal. Nada de borrados masivos, formateos ni reinicios por tu cuenta. Con el aire encendido, ver "La emision es lo primero".
 - Mientras se transmite, deja la grabacion de respaldo encendida (`record_start`) salvo que te digan lo contrario.
 - Audio: voces con picos cerca de -6 dBFS y nunca sobre -1; musica de fondo 15-20 dB por debajo de la voz.
-- Con invitados: nombralos por su nombre; para ver a alguien, `capture_person`.
+- Con invitados: nombralos por su nombre; para ver a alguien, `foto_invitado`.
 - Si una herramienta devuelve error, lee el mensaje (explica que paso y como seguir) y corregi.
 - Si no sabes como hacer algo: `help` (guia), `help {"topic": ...}` o `help_search {"query": ...}`.
 
@@ -1216,10 +1216,10 @@ void McpService::registerHelp() {
             return "Sos el director tecnico del programa en vivo de Broadcast Appliance. " +
                    std::string(
                        a.value("objetivo", "").empty() ? "" : "Objetivo: " + a.value("objetivo", "") + ". ") +
-                   "Trabaja en ciclos: (1) `status` y `capture_program` para ver que sale al aire; "
-                   "(2) `room_status`/`capture_people` si hay invitados; (3) decidi el cambio minimo; "
-                   "(4) prepara lo nuevo fuera del aire y revisalo con `capture_source`; (5) aplicalo "
-                   "(`scene_switch`, `source_update`...) y verifica con `capture_program`. Explica en "
+                   "Trabaja en ciclos: (1) `status` y `foto_programa` para ver que sale al aire; "
+                   "(2) `room_status`/`foto_todos_invitados` si hay invitados; (3) decidi el cambio minimo; "
+                   "(4) prepara lo nuevo fuera del aire y revisalo con `foto_fuente`; (5) aplicalo "
+                   "(`scene_switch`, `source_update`...) y verifica con `foto_programa`. Explica en "
                    "una linea cada decision. Ante dudas: `help`.";
         }});
     core_.addPrompt(Prompt{
@@ -1227,7 +1227,7 @@ void McpService::registerHelp() {
         json::array(), [](const json&) {
             return std::string(
                 "Hace el checklist para salir al aire: 1) `status` (fps estable, sin cuadros perdidos, "
-                "gateway vivo); 2) `capture_program` y describi lo que se ve; 3) `mixer_list` (niveles "
+                "gateway vivo); 2) `foto_programa` y describi lo que se ve; 3) `mixer_list` (niveles "
                 "razonables, nada muteado por error); 4) `room_status` si hay invitados; 5) si todo "
                 "esta bien, `record_start` y `stream_start`; 6) `status` para confirmar. Si algo falla, "
                 "decime que y no transmitas.");
@@ -1240,9 +1240,9 @@ void McpService::registerHelp() {
             return "Conduci una ronda de oradores: `speakers_config` con enabled=true" +
                    std::string(a.value("tiempo", "").empty() ? ""
                                                              : " y defaultTime=" + a.value("tiempo", "")) +
-                   "; admiti a los del lobby; `speaker_next` para el primero; revisa `speakers_status` "
+                   "; admiti a los del lobby; `speaker_next` para el primero; revisa `remotos_fila_ver` "
                    "seguido; cuando a alguien le queden 30 s avisale por `chat_send`; si se pasa, pasa al "
-                   "siguiente con `speaker_next`. Verifica con `capture_program` que el orador se vea.";
+                   "siguiente con `speaker_next`. Verifica con `foto_programa` que el orador se vea.";
         }});
     core_.addPrompt(Prompt{
         "armar_escena", "Armar una escena", "Diseña y crea una escena a partir de una descripcion.",
@@ -1252,7 +1252,7 @@ void McpService::registerHelp() {
             return "Arma una escena nueva que cumpla: " +
                    a.value("descripcion", std::string("(sin descripcion)")) +
                    ". Pasos: `source_types` y `help {\"topic\": \"fuentes\"}` si hace falta; `scene_define` "
-                   "(sin ponerla al aire); `capture_source` para verla; ajusta con `source_update` hasta "
+                   "(sin ponerla al aire); `foto_fuente` para verla; ajusta con `source_update` hasta "
                    "que quede bien; mostrame la captura final y preguntame antes de `scene_switch`.";
         }});
     core_.addPrompt(Prompt{

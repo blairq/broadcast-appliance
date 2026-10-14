@@ -42,12 +42,12 @@ void McpService::registerLaminaTools() {
 
     {
         Tool t;
-        t.name = "laminas_listar";
+        t.name = "carruseles_listar";
         t.title = "Que carruseles de laminas hay";
         t.category = "laminas";
         t.readOnly = true;
-        t.description = "Los carruseles de la biblioteca, con cuantas laminas tiene cada uno y cual "
-                        "esta abierto. Es por donde se empieza: el resto pide el nombre.";
+        t.description = "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
+            "abierto. Es por donde se empieza: el resto pide el nombre.";
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [cc](const json&, Done done) {
             json out = json::array();
@@ -74,12 +74,12 @@ void McpService::registerLaminaTools() {
 
     {
         Tool t;
-        t.name = "laminas_ver";
+        t.name = "carrusel_laminas_ver";
         t.title = "Las laminas de un carrusel";
         t.category = "laminas";
         t.readOnly = true;
-        t.description = "Las laminas de un carrusel, en orden, con su numero, su titulo, sus "
-                        "etiquetas y cual esta puesta ahora. El numero es lo que pide `laminas_ir`.";
+        t.description = "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
+            "que pide `laminas_ir`.";
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"carrusel", {{"type", "string"}, {"description", "su nombre"}}}}},
                          {"required", {"carrusel"}}};
@@ -106,7 +106,7 @@ void McpService::registerLaminaTools() {
             cc->setConsulta(consulta);
             if (!existe) {
                 done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
-                                       "». laminas_listar los da."));
+                                       "». carruseles_listar los da."));
                 return;
             }
             done(ToolResult().data(json{{"carrusel", n.toStdString()}, {"laminas", out}}));
@@ -130,7 +130,7 @@ void McpService::registerLaminaTools() {
                            {"numero",
                             {{"type", "integer"},
                              {"minimum", 1},
-                             {"description", "empezando en 1, como los da laminas_ver"}}},
+                             {"description", "empezando en 1, como los da carrusel_laminas_ver"}}},
                            {"hacia",
                             {{"type", "string"},
                              {"enum", {"siguiente", "anterior"}},
@@ -169,7 +169,7 @@ void McpService::registerLaminaTools() {
             }
             if (!cc->ir(numero - 1)) {
                 done(ToolResult::error("Ese carrusel no tiene una lamina " + std::to_string(numero) +
-                                       ". laminas_ver dice cuantas hay."));
+                                       ". carrusel_laminas_ver dice cuantas hay."));
                 return;
             }
             done(ToolResult().text("Puesta la lamina " + std::to_string(numero) + " de «" + n.toStdString() +
@@ -205,7 +205,7 @@ void McpService::registerLaminaTools() {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             if (!cc->existe(n)) {
                 done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
-                                       "». laminas_listar los da."));
+                                       "». carruseles_listar los da."));
                 return;
             }
             const QString antes = cc->actual();
@@ -260,8 +260,8 @@ void McpService::registerLaminaTools() {
             cc->desarmar(archivo, QString::fromStdString(a.value("nombre", std::string())));
             // No se espera: convertir cincuenta laminas puede tardar mas que
             // cualquier limite razonable de una herramienta. Se avisa y el que
-            // pregunte despues lo ve con laminas_listar.
-            done(ToolResult().text("Empece a desarmarlo. Cuando termine aparece en laminas_listar."));
+            // pregunte despues lo ve con carruseles_listar.
+            done(ToolResult().text("Empece a desarmarlo. Cuando termine aparece en carruseles_listar."));
         };
         core_.addTool(std::move(t));
     }
@@ -338,7 +338,7 @@ void McpService::registerLaminaTools() {
             "`borrar` se lleva el carrusel, NO las imagenes: pueden estar en una escena o ser del "
             "operador. `soltar` lo desvincula de la fuente y la imagen queda como estaba; la fuente "
             "se saca desde Escenas si ademas hay que quitarla.\n\n"
-            "Los numeros son los de `laminas_ver`, empezando en 1.";
+            "Los numeros son los de `carrusel_laminas_ver`, empezando en 1.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"carrusel", "accion"}},
@@ -354,7 +354,7 @@ void McpService::registerLaminaTools() {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             if (!cc->existe(n)) {
                 done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
-                                       "». laminas_listar los da."));
+                                       "». carruseles_listar los da."));
                 return;
             }
             const std::string accion = a.value("accion", std::string());
@@ -374,7 +374,7 @@ void McpService::registerLaminaTools() {
                     ok = cc->mover(numero - 1, a.value("hasta", 0) - 1);
             }
             if (!ok) {
-                done(ToolResult::error("No se pudo: revisa los numeros con laminas_ver (empiezan en 1) "
+                done(ToolResult::error("No se pudo: revisa los numeros con carrusel_laminas_ver (empiezan en 1) "
                                        "y que el nombre nuevo no este usado."));
                 return;
             }
@@ -413,12 +413,12 @@ void McpService::registerLaminaTools() {
             }
             if (!cc->aplicarAEscena(n, QString::fromStdString(escena))) {
                 done(ToolResult::error("No se pudo poner «" + n.toStdString() + "» en «" + escena +
-                                       "». laminas_listar dice cuales hay."));
+                                       "». carruseles_listar dice cuales hay."));
                 return;
             }
             done(ToolResult::ok("«" + n.toStdString() + "» quedo en «" + escena +
                                 "». Ahora laminas_ir cambia lo que se ve. Verifica con "
-                                "capture_source."));
+                                "foto_fuente."));
         };
         core_.addTool(std::move(t));
     }
@@ -432,7 +432,7 @@ void McpService::registerLaminaTools() {
         t.description =
             "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
             "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
-            "imagen_analizar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
+            "imagen_preguntar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
             "lo que vio con laminas_etiquetar. Vacio = no queda "
             "ninguna.";
         t.inputSchema = {{"type", "object"},

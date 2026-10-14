@@ -624,7 +624,7 @@ void McpService::registerVentanaTools() {
         t.readOnly = true;
         t.description =
             "Una foto de la INTERFAZ del aparato, no de lo que sale al aire (eso es "
-            "`capture_program`). Es la unica forma de mirar una pagina: si algo se ve mal —una "
+            "`foto_programa`). Es la unica forma de mirar una pagina: si algo se ve mal —una "
             "tarjeta encima de otra, un texto cortado, un boton que no aparece— esto lo muestra; "
             "describirlo de memoria no. Por defecto la ventana principal; `ventana_listar` da las "
             "otras (los paneles sueltos son `panel:<id>`).\n\n"

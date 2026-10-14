@@ -2,14 +2,14 @@
 // src/app/mcp/McpImageTools.cpp — Herramientas de imagen (vision)
 //
 // Todo lo que se puede VER, como imagen para un modelo con vision:
-//   capture_program    el programa (lo que sale al aire), a resolucion completa
-//   capture_source     cualquier fuente o escena (tambien una que NO esta al
+//   foto_programa    el programa (lo que sale al aire), a resolucion completa
+//   foto_fuente     cualquier fuente o escena (tambien una que NO esta al
 //                      aire: sirve para revisar antes de cambiar)
-//   capture_multiview  todas las escenas en una grilla con su nombre
+//   foto_todas_escenas  todas las escenas en una grilla con su nombre
 //   capture_feed       un video crudo de A (camara de un invitado, lobby, fila,
 //                      pantalla compartida, feed del operador)
-//   capture_person     la imagen de una persona de la sala, por nombre o id
-//   capture_people     todas las personas de la sala, una imagen cada una
+//   foto_invitado     la imagen de una persona de la sala, por nombre o id
+//   foto_todos_invitados     todas las personas de la sala, una imagen cada una
 //   capture_sequence   N cuadros separados en el tiempo (analisis de video:
 //                      movimiento, gestos, si alguien habla, cortes)
 //   capture_ui         captura de la propia app (principal, salidas y pestañas sueltas)
@@ -220,13 +220,13 @@ void McpService::registerImageTools() {
 
     {
         Tool t;
-        t.name = "capture_program";
+        t.name = "foto_programa";
         t.title = "Ver el programa";
         t.category = "imagenes";
         t.readOnly = true;
-        t.description = "Una foto de lo que esta saliendo al aire AHORA: para ver si se ve negro, congelado "
-                        "o mal encuadrado. Imagen de lo que esta saliendo al aire ahora (la escena del "
-                        "programa, render completo del motor). Por defecto 1280 px de ancho, JPEG.";
+        t.description = "Una foto de lo que sale AL AIRE ahora, para ver si está negro, congelado o mal encuadrado. Imagen de "
+            "lo que esta saliendo al aire ahora (la escena del programa, render completo del motor). Por defecto "
+            "1280 px de ancho, JPEG.";
         t.inputSchema = withImageProps(json::object());
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             renderAparte(rt, "", a.value("maxWidth", 1280), [&rt, &vm, &core, a, done](QImage img, std::string err) {
@@ -306,14 +306,13 @@ void McpService::registerImageTools() {
     }
     {
         Tool t;
-        t.name = "capture_source";
+        t.name = "foto_fuente";
         t.title = "Ver una fuente o escena";
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Imagen actual de una fuente (camara, imagen, texto, invitado...) o de una escena completa, "
-            "este o no al aire. Ideal para revisar una escena antes de cambiarla, o verificar lo que "
-            "armaste con scene_define.";
+             "La foto de UNA fuente (cámara, imagen, texto, invitado) o de una escena entera, esté o no al aire. "
+            "Ideal para revisar una escena antes de cambiarla, o verificar lo que armaste con scene_define.";
         t.inputSchema =
             withImageProps(json{{"name", {{"type", "string"}, {"description", "Fuente o escena."}}}});
         t.inputSchema["required"] = {"name"};
@@ -354,13 +353,13 @@ void McpService::registerImageTools() {
     }
     {
         Tool t;
-        t.name = "capture_multiview";
+        t.name = "foto_todas_escenas";
         t.title = "Vista multiple de escenas";
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Una sola imagen con TODAS las escenas en grilla, cada una con su nombre; la del aire, "
-            "marcada en rojo. Como el multiview de un switcher.";
+             "Una sola foto con TODAS las escenas en grilla, cada una con su nombre; la del aire, marcada en rojo. "
+            "Como el multiview de un switcher.";
         t.inputSchema = withImageProps(
             json{{"cellWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 400}}}});
         t.run = [&rt, &core](const json& a, Done done) {
@@ -441,13 +440,12 @@ void McpService::registerImageTools() {
     };
     {
         Tool t;
-        t.name = "capture_person";
+        t.name = "foto_invitado";
         t.title = "Ver a una persona";
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Imagen de una persona de la sala (por nombre o id): su camara en vivo si esta al aire, en "
-            "el lobby o entre los primeros de la fila; si no, la foto reciente de su navegador. Con "
+             "La foto de UNA persona de la sala, por nombre o id: su cámara en vivo o su última imagen. Con "
             "includeScreen tambien su pantalla compartida.";
         t.inputSchema =
             withImageProps(json{{"participant", {{"type", "string"}, {"description", "Nombre o id."}}},
@@ -480,13 +478,13 @@ void McpService::registerImageTools() {
     }
     {
         Tool t;
-        t.name = "capture_people";
+        t.name = "foto_todos_invitados";
         t.title = "Ver a todas las personas";
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Una imagen por cada persona de la sala (lobby, adentro y fila de oradores), cada una "
-            "precedida por su nombre, estado y de donde sale la imagen. Default 480 px.";
+             "Una foto de CADA persona de la sala (lobby, adentro y fila de oradores), con su nombre y estado. "
+            "Default 480 px.";
         t.inputSchema = withImageProps(json{
             {"state", {{"type", "string"}, {"enum", {"all", "waiting", "admitted"}}, {"default", "all"}}}});
         t.run = [&vm, &rt, &core, personImage](const json& a, Done done) {
@@ -555,7 +553,7 @@ void McpService::registerImageTools() {
                 if (target.empty())
                     return done(ToolResult::error(p.value("name", "") +
                                                   " no tiene video en vivo en la app ahora "
-                                                  "(capture_person da su foto)."));
+                                                  "(foto_invitado da su foto)."));
             }
             const int maxW = a.value("maxWidth", 640);
             // Sin que espere la interfaz: la imagen llega a `listo` (ver renderAparte).
@@ -613,13 +611,13 @@ void McpService::registerImageTools() {
 
     {
         Tool t;
-        t.name = "imagen_analizar";
+        t.name = "imagen_preguntar";
         t.title = "Que se ve: se lo pregunta a un agente que mira";
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Mira lo que se VE (una camara, el programa, una escena o la propia app) y contesta la "
-            "pregunta concreta que le hagas. Solo video, nada de audio. Devuelve TEXTO.";
+             "Contesta una PREGUNTA concreta sobre lo que se ve en una cámara, el programa, una escena o la app; "
+            "no devuelve la foto. Solo video, nada de audio. Devuelve TEXTO.";
         t.details = "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
                     "imagenes y, pasadas esas, se cuelga —no da error, se cuelga, en el medio de una "
                     "transmision en vivo—. Por eso las herramientas `capture_*` te devuelven un archivo y "

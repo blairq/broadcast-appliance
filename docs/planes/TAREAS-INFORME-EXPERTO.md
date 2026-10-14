@@ -133,7 +133,7 @@
   - Las acciones automáticas de voz deciden sin mirar el aire (`src/app/agent/Voz.cpp:682-693`).
 - **Qué hacer.**
   - En `McpCore`, crear `ClaseAire` por herramienta: `normal`, `aire` y `aire_si(args)`, este último para `settings_set` con alcance gateway o restart y para `ptz_*` sobre la cámara en PGM.
-    - Es una tabla en `src/app/mcp/McpAire.{hpp,cpp}` con: `scene_switch`, `scene_take`, `stream_stop`, `stream_start` (si cambia destino), `record_stop`, `participant_kick`, `gateway_restart`, `app_quit`, `transition_set`, `speaker_on_air` (cuando saca a alguien) y `audio_set` mute del máster.
+    - Es una tabla en `src/app/mcp/McpAire.{hpp,cpp}` con: `scene_switch`, `preview_al_aire`, `stream_stop`, `stream_start` (si cambia destino), `record_stop`, `participant_kick`, `gateway_restart`, `app_quit`, `transition_set`, `speaker_on_air` (cuando saca a alguien) y `audio_set` mute del máster.
   - `McpCore::callTool` consulta un `EstadoAire` (inyectado por la app: transmitiendo, grabando, `EventoViewModel::enVivo()` en `src/app/ui/EventoViewModel.cpp:914-920`).
     - Si la herramienta es de aire y hay aire, **siempre** pide confirmación humana, sin importar política, rol ni contaminación.
     - Aplica a todos los orígenes de `CallContext`: asistente, plugin, receta, disparador, voz y superficie (T52).
@@ -417,8 +417,8 @@
 - **MCP.**
   - `speaker_queue {agregar: {banca|persona_id}}`.
   - `speaker_on_air {id, modo: "armar"|"directo"}`.
-  - `speakers_status` distingue `tipo`.
-  - Herramienta nueva `bancas_listar`.
+  - `remotos_fila_ver` distingue `tipo`.
+  - Herramienta nueva `recinto_bancas_ver`.
 - **GUI.** En la tarjeta Oradores (`src/app/qml/cards/SpeakersContent.qml`), una pestaña "Bancas" con la grilla del recinto (la misma de T41): tocar una banca la suma a la fila, y doble toque la saca al aire. `SpeakerCard.qml` muestra el ícono de banca o de remoto.
 - **Depende de:** T16 y T20. Mejora con T41.
 
@@ -569,7 +569,7 @@
   - El DSK "LSA" está marcado `fijo`: no se baja con FTB ni con cambios de escena, solo con confirmación.
   - La placa de T07 es el DSK de mayor prioridad.
 - **MCP.** Herramientas nuevas:
-  - `dsk_listar`;
+  - `dsk_capas_ver`;
   - `dsk_definir {capa: 1-4, nombre, escena|fuentes, fijo?, transicion_ms?}`;
   - `dsk_mostrar {capa, visible}` (bajar un DSK fijo es de aire).
 - **GUI.** En la tarjeta Dirección y en Escenas, una fila de 4 botones DSK con miniatura, iluminados cuando están arriba. En Escenas, un editor para asignar el contenido de cada capa. La plantilla "Intérprete LSA" pone la cámara en un recuadro inferior derecho.
@@ -578,7 +578,7 @@
 ### T26 · Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV — P1
 - **Estado: parcial.**
   - Hay una transición global (`src/app/emision/BroadcastEngineScenes.cpp:150-176`) con los tipos cut, fade, swipe, slide y fade_to_color (`:41-47`, enum MCP en `src/app/mcp/McpService.cpp:1235`).
-  - `scene_take` no recibe parámetros (`McpService.cpp:920/930`).
+  - `preview_al_aire` no recibe parámetros (`McpService.cpp:920/930`).
   - No hay stinger, T-bar ni audio follow video.
 - **Qué hacer.**
   - `take(transicion?, ms?)` y `cut()` separados.
@@ -587,7 +587,7 @@
   - T-bar con `obs_transition_set_manual_time(t)` y `obs_transition_set_manual_torque`.
   - AFV: por fuente, `sigue_video: bool`. Al entrar o salir de PGM se hace un fundido de volumen con la transición.
 - **MCP.**
-  - `scene_take {transicion?, ms?}`.
+  - `preview_al_aire {transicion?, ms?}`.
   - Herramienta nueva `scene_cut`.
   - `scene_define {transicion_entrada?}`.
   - `transition_set` suma `stinger` con `{archivo, punto_ms}`.
@@ -827,9 +827,9 @@
   - Botón "Sumar a preguntas" desde el chat (lo comparte con T18).
 - **MCP.** Herramientas nuevas:
   - `quorum_regla {miembros, minimo}`;
-  - `quorum_estado`;
+  - `quorum_presentes`;
   - `votacion_resultado_oficial {csv|afirmativos, negativos, abstenciones, nominal?: []}`;
-  - `pregunta_desde_chat {plataforma, mensaje_id}`.
+  - `chat_a_preguntas {plataforma, mensaje_id}`.
   `evento_acta` devuelve `hash`.
 - **GUI.** En el panel del padrón, un indicador grande de quórum (también en la pantalla de proyección). En el panel de votación, "Cargar resultado oficial". En la página Evento → Acta, el hash visible.
 - **Depende de:** T16 y T43 (plantilla).
@@ -846,7 +846,7 @@
   - Además: estado de señal (T19), vúmetro por celda (nivel de la fuente de audio asociada), reloj y la cuenta regresiva del medio (T46).
   - En `Patchbay.qml`, una insignia de ms por cuadro en cada nodo, en ámbar si pasa del presupuesto del lienzo.
 - **MCP.**
-  - `capture_multiview` ya existe.
+  - `foto_todas_escenas` ya existe.
   - Herramienta nueva `multiview_ajustes {celdas, vumetros, reloj, tally}`.
   - `video_grafo` incluye `ms` por nodo.
 - **GUI.** El multiview con tally, nombre, vúmetro y alarma. En la página Video, el grafo con su costo.
@@ -903,7 +903,7 @@
   - Hay posiciones con nombre (`src/app/ptz/Posiciones.hpp:25-41`), pero sin imagen y sin grilla.
   - El preset no lleva velocidad (`src/app/ptz/PtzVisca.cpp:204-207`). Solo el movimiento digital tiene duración (`ControlCamaras.hpp:132`).
 - **Qué hacer.**
-  - `Posicion` suma `miniatura` (JPEG de 320 px capturado al guardar con `capture_source`), `velocidad` y `segundos`. Para VISCA: velocidad de pan/tilt en el recall cuando la cámara lo admite; si no, pasos interpolados.
+  - `Posicion` suma `miniatura` (JPEG de 320 px capturado al guardar con `foto_fuente`), `velocidad` y `segundos`. Para VISCA: velocidad de pan/tilt en el recall cuando la cámara lo admite; si no, pasos interpolados.
   - Grilla del recinto: `Recinto {filas, columnas, bancas: [{n, x, y, persona, posicion}]}`, editable.
 - **MCP.**
   - `ptz_posicion_crear` y `ptz_posicion_editar` suman `{miniatura: auto, velocidad?, segundos?}`.

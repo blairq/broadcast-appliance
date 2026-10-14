@@ -171,7 +171,7 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
             } else if (k == "remoto_remoto" && (!tiene(eng.sceneSources(sc), kRemoto1) || !tiene(eng.sceneSources(sc), kRemoto2))) {
                 falta("debate", "La escena del debate entre dos remotos («" + sc + "») no muestra a los dos: necesita «" + kRemoto1 +
                                     "» y «" + kRemoto2 + "».",
-                      "Agregá las dos entradas a esa escena (source_add con esos nombres: se comparten).");
+                      "Agregá las dos entradas a esa escena (fuente_crear con esos nombres: se comparten).");
             } else if (k == "sala_remoto" && !tiene(eng.sceneSources(sc), kRemoto1)) {
                 falta("debate", "La escena del debate sala-remoto («" + sc + "») no muestra «" + kRemoto1 + "».",
                       "Agregá «Remoto con la palabra» a esa escena.");

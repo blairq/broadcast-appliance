@@ -3,9 +3,9 @@
 //
 // El flujo pensado para en vivo, y por que en ese orden:
 //
-//   1. `rostro_ver {feed}`      ¿quien hay en esta camara?
+//   1. `persona_identificar {feed}`      ¿quien hay en esta camara?
 //   2. `rostro_guardar {...}`   dar de alta a quien el operador diga que es
-//   3. `rostro_ver` otra vez    y ya sale con nombre
+//   3. `persona_identificar` otra vez    y ya sale con nombre
 //
 // EL ALTA GUIADA DE UN INVITADO QUE ENTRA POR WEBRTC, que es el caso que
 // importa: el invitado esta del otro lado de una camara que no controlamos, con
@@ -18,7 +18,7 @@
 //   3. cuando `sirve` es true, `rostro_guardar` (si es nuevo) o `rostro_sumar`
 //   4. pedile que gire un poco y repeti 1-3 tres o cuatro veces: `rostro_sumar`
 //      avisa con `aporto` si esa pose agrego algo o si ya la tenia
-//   5. `rostro_ver` para confirmar que ahora sale con su nombre
+//   5. `persona_identificar` para confirmar que ahora sale con su nombre
 //
 // Y si lo que se quiere es no perder a nadie: `rostro_autoalta` anota sola a
 // toda cara desconocida que pase, sin nombre y con foto; `rostro_pendientes`
@@ -134,13 +134,13 @@ void McpService::registerRostroTools() {
 
     {
         Tool t;
-        t.name = "rostro_ver";
+        t.name = "persona_identificar";
         t.title = "Quien aparece en una camara";
         t.category = "rostros";
         t.readOnly = true;
-        t.description = "Solo IDENTIFICA, no pone nada en pantalla. Busca caras en un video "
-                        "(claves de feeds_list: program, armada, guest:N...) y dice a quien "
-                        "se parece cada una, con cuanta confianza.";
+        t.description = "Dice QUIÉN es la persona que se ve en un feed (programa, armada, invitado); solo identifica, no "
+            "mueve la cámara ni pone nada al aire. Busca caras en un video (claves de feeds_list: program, "
+            "armada, guest:N...) y dice a quien se parece cada una, con cuanta confianza.";
         t.details = "`parecido` va de 0 a 1. Por encima de 0.45 es la misma persona con bastante margen "
                     "—medido: la misma cara da ~0.86 y dos personas distintas ~0.13—. Abajo de eso viene "
                     "`nombre` vacio: es «no se», no «no es nadie».\n\n"
@@ -412,7 +412,7 @@ void McpService::registerRostroTools() {
             {"type", "object"},
             {"required", {"id", "feed"}},
             {"properties",
-             {{"id", {{"type", "string"}, {"description", "de rostro_listar o rostro_ver"}}},
+             {{"id", {{"type", "string"}, {"description", "de rostro_listar o persona_identificar"}}},
               {"feed", {{"type", "string"}}},
               {"nuevaFoto", {{"type", "boolean"}, {"description", "ademas, cambiarle la foto"}}},
               {"igual",

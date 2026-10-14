@@ -106,7 +106,7 @@ int main() {
     CHECK((argumentos::leer(R"("audio_analyze": {"source": "Música"}})", "audio_analyze") ==
            json{{"source", "Música"}}),
           "leer: envuelto en el nombre de la herramienta");
-    CHECK((argumentos::leer("capture_program}", "capture_program") == json::object()),
+    CHECK((argumentos::leer("foto_programa}", "foto_programa") == json::object()),
           "leer: solo el nombre: {}");
     CHECK(
         (argumentos::resumen(json{{"name", "Música"}, {"volumeDb", -16}}) == "name: Música · volumeDb: -16"),
@@ -119,7 +119,7 @@ int main() {
     r = validar("source_properties", kProps, json{{"properties", {{"name", "Logo"}}}}, kEstado);
     CHECK(r.args.value("name", "") == "Logo" && r.bloqueos.empty(),
           "desenvuelto de una clave que no es del esquema");
-    r = validar("scene_preview", kSceneSwitch, json{{"name", "scene_take"}}, kEstado);
+    r = validar("scene_preview", kSceneSwitch, json{{"name", "preview_al_aire"}}, kEstado);
     CHECK(!r.args.contains("name") && !r.bloqueos.empty(),
           "un nombre de herramienta como dato: afuera (y falta)");
     const json kFeed = json::parse(R"J({"inputSchema": {"type": "object", "properties": {

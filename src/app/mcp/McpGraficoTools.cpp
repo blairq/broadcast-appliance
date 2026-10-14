@@ -168,7 +168,7 @@ void McpService::registerGraficoTools() {
                {{"type", "boolean"},
                 {"default", false},
                 {"description", "Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al "
-                                "aire y la deja armada; sale con TAKE (scene_take)."}}}}},
+                                "aire y la deja armada; sale con TAKE (preview_al_aire)."}}}}},
             {"required", {"fuente", "nombre"}}};
         t.run = [em, &rt, this](const json& a, Done done) {
             if (em == nullptr || !em->disponible())

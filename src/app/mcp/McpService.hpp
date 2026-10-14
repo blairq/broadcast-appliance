@@ -134,7 +134,7 @@ QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, con
                        int defaultWidth);
 
 /// Igual, pero SOLO le manda la imagen a quien puede recibirla (el rol que
-/// mira). A los demás les deja el archivo y les dice que usen `imagen_analizar`.
+/// mira). A los demás les deja el archivo y les dice que usen `imagen_preguntar`.
 /// Ver el comentario de `puedeVerImagenes` en el .cpp: no es una preferencia,
 /// es que una imagen de más cuelga la sesión del que está operando.
 void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWidth, McpCore& core,

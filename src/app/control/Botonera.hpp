@@ -84,7 +84,7 @@ class Botonera : public QObject {
         /// {id, cuadros, fps} para que cada superficie traiga los cuadros a su
         /// medida (null si no).
         std::function<json(const std::string& ref)> cara;
-        /// De una cara propia (el id, sin «medio:»): {medio (ruta para media_use;
+        /// De una cara propia (el id, sin «medio:»): {medio (ruta para medio_poner;
         /// vacía si no se puede poner al aire, p. ej. un video de cámara), video}.
         std::function<json(const std::string& id)> medioDeCara;
         /// Las bancas que son de presidente (la central), para pedir confirmación.
@@ -131,7 +131,7 @@ class Botonera : public QObject {
     std::string editarCelda(const std::string& perfil, const std::string& pagina, int x, int y, const json& campos);
     /// La cara (CarasBotonera «medio:<id>») de la celda en (x, y); si no hay
     /// celda, crea un botón. `alTocar`: además, tocar el botón pone ese medio en
-    /// la escena al aire (media_use); si la cara no se puede poner al aire, queda
+    /// la escena al aire (medio_poner); si la cara no se puede poner al aire, queda
     /// solo la cara y `aviso` lo dice. Sin `alTocar`, la acción queda como estaba.
     std::string ponerCara(const std::string& perfil, const std::string& pagina, int x, int y, const std::string& idCara,
                           bool alTocar, std::string* aviso = nullptr);
@@ -266,7 +266,7 @@ class Botonera : public QObject {
     const json* celdaEn(const json& pagina, int x, int y) const;
     /// La celda que cubre (x, y) para editarla, o una nueva {x, y, tipo: boton}. Null + error si no se puede.
     json celdaParaEditar(const std::string& perfil, const std::string& pagina, int x, int y, std::string* error) const;
-    /// La ruta de media_use de la cara de la celda ("" si no tiene o no se puede poner al aire) y si es video.
+    /// La ruta de medio_poner de la cara de la celda ("" si no tiene o no se puede poner al aire) y si es video.
     std::string medioDeCelda(const json& celda, bool* video = nullptr) const;
     bool alTocarCara(const json& celda) const;
     json renderCelda(const json& celda, const std::string& claveValor) const;

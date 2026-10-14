@@ -13,7 +13,7 @@ namespace {
 const std::map<std::string, std::string>& fijas() {
     static const std::map<std::string, std::string> m{
         {"scene_switch", "cambia la escena al aire"},
-        {"scene_take", "pasa el preview al aire"},
+        {"preview_al_aire", "pasa el preview al aire"},
         {"scene_cut", "corta la armada al aire"},
         {"transicion_manual", "lleva la transición a mano (T-bar)"},
         {"stream_stop", "corta la transmisión"},

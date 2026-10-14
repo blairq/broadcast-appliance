@@ -216,10 +216,11 @@ void McpService::registerPtzTools() {
     }
     {
         Tool t;
-        t.name = "ptz_home";
+        t.name = "ptz_inicio";
         t.title = "Llevar una cámara a su posición de inicio";
         t.category = "camaras";
-        t.description = "La cámara `entrada` vuelve a su posición de inicio (home): centrada, sin zoom.";
+        t.description = "La cámara `entrada` vuelve a su inicio de fábrica (home): centrada y sin zoom; no es una posición "
+            "guardada.";
         t.inputSchema = {{"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
@@ -233,13 +234,12 @@ void McpService::registerPtzTools() {
         const QPointer<Seguidor> seg = sg;
         {
             Tool t;
-            t.name = "ptz_rostros";
+            t.name = "ptz_caras_ubicar";
             t.title = "Las caras que ve una cámara";
             t.category = "camaras";
             t.readOnly = true;
-            t.description = "Mira la cámara `entrada` y devuelve las caras que hay: dónde (x, y, ancho, alto "
-                            "en 0..1 del cuadro) y, "
-                            "si la reconoce (Personas), su `id` y `nombre`. Para seguir a una: ptz_seguir.";
+            t.description = "Dónde están las caras en el cuadro de la cámara PTZ `entrada` (x, y, tamaño), para encuadrar o "
+            "seguir a alguien. Para seguir a una: ptz_seguir.";
             t.inputSchema = {
                 {"type", "object"}, {"required", {"entrada"}}, {"properties", {{"entrada", entrada}}}};
             t.run = [seg](const json& a, Done done) {
@@ -269,7 +269,7 @@ void McpService::registerPtzTools() {
             t.category = "camaras";
             t.description =
                 "La cámara `entrada` sigue a una cara y la mantiene encuadrada. A quién: `persona` (el id de alguien "
-                "reconocido, de ptz_rostros o Personas: la vuelve a encontrar si se cruza con otro), `cara` (el número "
+                "reconocido, de ptz_caras_ubicar o Personas: la vuelve a encontrar si se cruza con otro), `cara` (el número "
                 "que le puso la tarjeta Rostros), `regla` (\"mayor\": la más grande; \"centro\": la más cercana al "
                 "centro) o `x`, `y` (0..1 de la toma entera: la cara más cercana a ese punto). `parar: true` deja de seguir.";
             t.details =

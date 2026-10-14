@@ -561,7 +561,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 
 | Prioridad | Esfuerzo | Propuesta |
 |---|---|---|
-| Imprescindible | Chico | **Lista de herramientas "de aire"** (`scene_switch`, `scene_take`, `stream_stop`, `record_stop`, `participant_kick`, `gateway_restart`, `app_quit`, `settings_set` con alcance gateway o restart, `ptz_*` sobre la cámara al aire) que **siempre piden confirmación** mientras se transmite, sin importar la política ni la contaminación. Incluye disparadores, recetas, plugins y voz. |
+| Imprescindible | Chico | **Lista de herramientas "de aire"** (`scene_switch`, `preview_al_aire`, `stream_stop`, `record_stop`, `participant_kick`, `gateway_restart`, `app_quit`, `settings_set` con alcance gateway o restart, `ptz_*` sobre la cámara al aire) que **siempre piden confirmación** mientras se transmite, sin importar la política ni la contaminación. Incluye disparadores, recetas, plugins y voz. |
 | Imprescindible | Chico | Las acciones de los disparadores, con un rol restringido (no pueden `stream_stop` ni `app_quit` salvo marca explícita). |
 | Importante | Chico | Mientras `enVivo`: asistente interactivo **sin Bash**, y `agente_configurar consola=true` bloqueado. |
 | Importante | Chico | Las acciones de voz automáticas, limitadas a lecturas y a acciones reversibles (mute, volumen) mientras se transmite. |

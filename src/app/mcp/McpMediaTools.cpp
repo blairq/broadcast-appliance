@@ -287,7 +287,7 @@ void McpService::registerMediaTools() {
                     "No existe ese archivo dentro de la carpeta del sistema (usa media_find)."));
             if (kindOf(abs) != "image")
                 return done(ToolResult::error(
-                    "media_view muestra imagenes; para videos, usalos en una escena y capture_source."));
+                    "media_view muestra imagenes; para videos, usalos en una escena y foto_fuente."));
             QImageReader reader(abs);
             reader.setAutoTransform(true);
             const QSize orig = reader.size();
@@ -307,15 +307,14 @@ void McpService::registerMediaTools() {
     }
     {
         Tool t;
-        t.name = "media_use";
+        t.name = "medio_poner";
         t.title = "Usar un archivo de medios en una escena";
         t.category = "medios";
         t.description =
-            "PONE un archivo —musica de fondo, un video, una imagen— en una escena. Pone una imagen (logo, "
-            "placa, fondo), un video o un audio de las carpetas de medios en una "
-            "escena, "
-            "en la ubicacion pedida (preset como pip-tr = arriba a la derecha, o {x,y,w,h}). Las imagenes "
-            "conservan su proporcion dentro del lugar. Verifica con capture_source.";
+             "PONE en una escena un archivo de la biblioteca de medios (música, video, imagen), por su ruta. Pone "
+            "una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una escena, en la "
+            "ubicacion pedida (preset como pip-tr = arriba a la derecha, o {x,y,w,h}). Las imagenes conservan su "
+            "proporcion dentro del lugar. Verifica con foto_fuente.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -363,7 +362,7 @@ void McpService::registerMediaTools() {
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
             done(ToolResult::ok("'" + spec.name + "' (" + kind.toStdString() + ") agregada a '" + scene +
-                                "'. Verifica con capture_source {\"name\": \"" + scene + "\"}."));
+                                "'. Verifica con foto_fuente {\"name\": \"" + scene + "\"}."));
         };
         core_.addTool(std::move(t));
     }

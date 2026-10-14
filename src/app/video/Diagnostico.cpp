@@ -95,7 +95,7 @@ json diagnosticar(const json& e) {
                 "declara color BT.601 siendo HD (" + std::to_string(alto) +
                     " líneas): casi siempre es un error del que manda; "
                     "si los colores se ven corridos (piel naranja, verdes raros), es eso",
-                "comparar con `capture_source`; si está corrido: tarjeta `normalizar` con "
+                "comparar con `foto_fuente`; si está corrido: tarjeta `normalizar` con "
                 "{\"matriz_declarada\": \"709\", "
                 "\"matriz_real\": \"601\"} si ya se normalizó, o al revés si no");
     if (o.value("hdr", false))

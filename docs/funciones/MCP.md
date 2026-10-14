@@ -34,13 +34,13 @@ Se activa y desactiva en Configuración → **Asistente (MCP)**.
 | Ayuda | `help` (guía, temas, ficha de cada herramienta), `help_search` |
 | Estado | `status` |
 | Escenas | `scene_list`, `scene_switch`, `scene_create`, `scene_delete`, `scene_rename`, `scene_define` (escena completa de una vez), `scene_export`, `transition_set` |
-| Fuentes | `source_types`, `source_list`, `source_add`, `source_remove`, `source_update` (visibilidad, ubicación con presets, orden, settings, volumen, nombre), `source_properties`, `source_set_property`, `guest_source_add` |
+| Fuentes | `source_types`, `escena_fuentes_ver`, `fuente_crear`, `source_remove`, `source_update` (visibilidad, ubicación con presets, orden, settings, volumen, nombre), `source_properties`, `source_set_property`, `guest_source_add` |
 | Audio | `mixer_list`, `audio_set` |
 | Rack de audio (LSP) | Armar: `audio_sources`, `audio_rack` (nodos, cables, medidores), `audio_modules` (catálogo y búsqueda en los ~200 LSP), `audio_module_add` / `_remove`, `audio_patch` (cables), `audio_bypass`. Calibrar con parámetros en unidades reales y presets: `audio_gate`, `audio_compressor`, `audio_deesser`, `audio_eq`, `audio_multiband`, `audio_limiter`; cualquier parámetro: `audio_module_get` / `_set`. Medir: `audio_analyze` (LUFS, espectro por tercios y zonas, piso de ruido, nivel activo, pistas), `audio_measure` (respuesta o curva entrada/salida sobre copias, sin tocar el aire), `audio_generator` (seno, rosa, blanco, barrido). Mostrar: `audio_show` (pestaña Audio), `audio_editor` (interfaz original de LSP) |
 | Salidas | `stream_start` (la clave nunca se guarda), `stream_stop`, `record_start`, `record_stop` |
-| Imágenes y video | `capture_program`, `capture_source` (cualquier fuente o escena, al aire o no), `capture_multiview`, `capture_feed`, `capture_person`, `capture_people`, `capture_sequence`, `capture_ui` |
-| Sala | `room_status`, `room_set`, `room_pin`, `participant_admit` / `_admit_all` / `_reject` / `_kick` / `_talk` / `_request` / `_profile`, `chat_send`, `chat_history`, `share_list`, `share_view`, `share_take`, `share_delete`, `room_link` (enlace + QR como imagen, también del tablero), `network_status`, `operator_feed`, `gateway_restart` |
-| Oradores | `speakers_status`, `speakers_config`, `speaker_on_air`, `speaker_next`, `speaker_move`, `speaker_time`, `participant_requeue` |
+| Imágenes y video | `foto_programa`, `foto_fuente` (cualquier fuente o escena, al aire o no), `foto_todas_escenas`, `capture_feed`, `foto_invitado`, `foto_todos_invitados`, `capture_sequence`, `capture_ui` |
+| Sala | `room_status`, `room_set`, `room_pin`, `participant_admit` / `_admit_all` / `_reject` / `_kick` / `_talk` / `_request` / `_profile`, `chat_send`, `invitados_chat_leer`, `share_list`, `compartida_revisar`, `share_take`, `share_delete`, `room_link` (enlace + QR como imagen, también del tablero), `network_status`, `operator_feed`, `gateway_restart` |
+| Oradores | `remotos_fila_ver`, `speakers_config`, `speaker_on_air`, `speaker_next`, `speaker_move`, `speaker_time`, `participant_requeue` |
 | Configuración | `settings_list`, `settings_set` (cualquier ajuste), `app_save` |
 | Interfaz | `ui_show_page`, `ui_notify`, `dashboard_list`, `dashboard_card`, `dashboard_background`, `output_window` (multiview en otro monitor) |
 | Sistema | `feeds_list`, `logs_tail`, `app_quit` |
@@ -54,7 +54,7 @@ Se activa y desactiva en Configuración → **Asistente (MCP)**.
 | Sistema | `system_info` (carpeta, credenciales, respaldos), `system_update` (actualizar / volver atrás) |
 | El equipo | `system_hardware` (todo junto), `monitors`, `audio_devices`, `video_devices` (formatos de cada cámara) |
 | Entradas de video | `video_input_add` (cámara USB / capturadora), `network_input_add` (RTSP, RTMP, SRT, HLS/HTTPS, UDP), `ndi_sources` + `ndi_input_add` (NDI® abierto con libNoIDea), `input_status` |
-| Medios | `media_list`, `media_find` (sin importar tildes ni mayúsculas), `media_view` (ver la imagen), `media_use` (a una escena) |
+| Medios | `media_list`, `media_find` (sin importar tildes ni mayúsculas), `media_view` (ver la imagen), `medio_poner` (a una escena) |
 | Operador | `operator_message` (barra de abajo, color por prioridad), `operator_ask` (pregunta con botones/texto), `operator_messages`, `guest_chat_pending`, `guest_reply_suggest` (respuestas sugeridas, un click) |
 | Salvaguarda | `security_status` (si esta sesión necesita aprobación) |
 
@@ -160,10 +160,10 @@ asistente se ve en la app al instante (y queda guardado).
 Las capturas vuelven como contenido de imagen MCP (JPEG por defecto, PNG con
 `format: "png"`), con `maxWidth` configurable:
 
-- `capture_program` / `capture_source`: render de libobs fuera de pantalla
+- `foto_programa` / `foto_fuente`: render de libobs fuera de pantalla
   (el mismo que el programa, filtros incluidos), a cualquier escena aunque no
   esté al aire: se revisa antes de cambiar.
-- `capture_person` / `capture_people`: el video en vivo de cada persona
+- `foto_invitado` / `foto_todos_invitados`: el video en vivo de cada persona
   (al aire, lobby o primeros de la fila); si no llega video a la app, la foto
   reciente que manda su navegador.
 - `capture_sequence`: N cuadros separados en el tiempo (movimiento, si alguien

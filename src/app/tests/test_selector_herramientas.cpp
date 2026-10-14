@@ -47,14 +47,14 @@ class BotoneraFalsa : public QObject {
                             {"herramientas", QVariantList{herr("scene_switch", "Poner una escena al aire", "Corte directo"),
                                                           herr("scene_list", "Las escenas", "Lista")}}},
                 QVariantMap{{"id", "medios"}, {"titulo", "Medios"}, {"resumen", ""},
-                            {"herramientas", QVariantList{herr("media_use", "Usar un archivo de medios", "En una escena", "musica cancion"),
+                            {"herramientas", QVariantList{herr("medio_poner", "Usar un archivo de medios", "En una escena", "musica cancion"),
                                                           herr("playlist_crear", "Armar una lista", "Videos y temas", "musica de fondo"),
                                                           herr("media_find", "Buscar un archivo", "Por nombre")}}}};
     }
     Q_INVOKABLE QVariantList buscarUi(const QString& texto) const {
         if (buscadorVacio || !texto.contains("sica")) return {};
         // Como el índice: la mejor primero y por qué.
-        return {QVariantMap{{"nombre", "media_use"}, {"puntaje", 9.5}, {"porque", QVariantList{"musica"}}},
+        return {QVariantMap{{"nombre", "medio_poner"}, {"puntaje", 9.5}, {"porque", QVariantList{"musica"}}},
                 QVariantMap{{"nombre", "playlist_crear"}, {"puntaje", 4.0}, {"porque", QVariantList{"musica"}}}};
     }
 };
@@ -107,11 +107,11 @@ int main(int argc, char** argv) {
     abrir(sel, "");
     CHECK(filas(sel).size() == 5, "sin buscar: todas");
     seccion(sel, "medios");
-    CHECK(nombres(sel) == "media_use,playlist_crear,media_find", "con la sección Medios: solo las de Medios");
+    CHECK(nombres(sel) == "medio_poner,playlist_crear,media_find", "con la sección Medios: solo las de Medios");
 
     seccion(sel, "");
     abrir(sel, "música");
-    CHECK(nombres(sel) == "media_use,playlist_crear", "buscando: las del buscador, en su orden");
+    CHECK(nombres(sel) == "medio_poner,playlist_crear", "buscando: las del buscador, en su orden");
     CHECK(!filas(sel).isEmpty() && filas(sel)[0].toMap().value("porque").toString() == "musica",
           "buscando: dice por qué salió");
     QVariant n;
@@ -123,14 +123,14 @@ int main(int argc, char** argv) {
     seccion(sel, "escenas");
     CHECK(filas(sel).isEmpty(), "buscando con la sección Escenas elegida: la acota (nada de música ahí)");
     seccion(sel, "medios");
-    CHECK(nombres(sel) == "media_use,playlist_crear", "buscando con la sección Medios: las de Medios");
+    CHECK(nombres(sel) == "medio_poner,playlist_crear", "buscando con la sección Medios: las de Medios");
 
     studio.b.buscadorVacio = true;
     seccion(sel, "");
     abrir(sel, "escena aire");
     CHECK(nombres(sel) == "scene_switch", "sin el buscador: la búsqueda simple (todas las palabras)");
     abrir(sel, "cancion");
-    CHECK(nombres(sel) == "media_use", "sin el buscador: también en las etiquetas");
+    CHECK(nombres(sel) == "medio_poner", "sin el buscador: también en las etiquetas");
 
     delete win;
     std::printf(fallos ? "\n%d fallas\n" : "\ntodo ok\n", fallos);

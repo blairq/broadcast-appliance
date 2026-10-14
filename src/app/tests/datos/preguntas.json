@@ -92,7 +92,7 @@
     {
       "pregunta": "saca al aire lo que tengo armado",
       "herramientas": [
-        "scene_take"
+        "preview_al_aire"
       ]
     },
     {
@@ -105,13 +105,13 @@
     {
       "pregunta": "que hay adentro de la escena que esta al aire",
       "herramientas": [
-        "source_list"
+        "escena_fuentes_ver"
       ]
     },
     {
       "pregunta": "agrega la camara del fondo a esta escena",
       "herramientas": [
-        "source_add"
+        "fuente_crear"
       ]
     },
     {
@@ -213,7 +213,7 @@
     {
       "pregunta": "que me dijo el invitado",
       "herramientas": [
-        "chat_history",
+        "invitados_chat_leer",
         "guest_chat_pending"
       ]
     },
@@ -240,7 +240,7 @@
       "pregunta": "quien habla ahora y cuanto le queda",
       "herramientas": [
         "speaker_time",
-        "speakers_status"
+        "remotos_fila_ver"
       ]
     },
     {
@@ -253,14 +253,14 @@
       "pregunta": "quien es el que esta en camara",
       "herramientas": [
         "rostro_lobby",
-        "rostro_ver"
+        "persona_identificar"
       ]
     },
     {
       "pregunta": "no me acuerdo como se llama el que esta esperando",
       "herramientas": [
         "rostro_lobby",
-        "rostro_ver"
+        "persona_identificar"
       ]
     },
     {
@@ -318,22 +318,22 @@
     {
       "pregunta": "mostrame como se ve el programa",
       "herramientas": [
-        "capture_program",
-        "imagen_analizar"
+        "foto_programa",
+        "imagen_preguntar"
       ]
     },
     {
       "pregunta": "se ve todo negro",
       "herramientas": [
-        "capture_program",
-        "imagen_analizar"
+        "foto_programa",
+        "imagen_preguntar"
       ]
     },
     {
       "pregunta": "fijate si en camara se ve bien el rotulo",
       "herramientas": [
-        "capture_program",
-        "imagen_analizar"
+        "foto_programa",
+        "imagen_preguntar"
       ]
     },
     {
@@ -387,7 +387,7 @@
       "herramientas": [
         "media_find",
         "media_list",
-        "media_use"
+        "medio_poner"
       ]
     },
     {
@@ -501,9 +501,9 @@
     {
       "pregunta": "quedamos sin imagen",
       "herramientas": [
-        "capture_program",
+        "foto_programa",
         "status",
-        "imagen_analizar"
+        "imagen_preguntar"
       ]
     },
     {
@@ -684,19 +684,19 @@
     {
       "pregunta": "como va la votacion",
       "herramientas": [
-        "votacion_ver"
+        "votacion_recuento"
       ]
     },
     {
       "pregunta": "quienes faltan votar",
       "herramientas": [
-        "votacion_ver"
+        "votacion_recuento"
       ]
     },
     {
       "pregunta": "cerra la votacion",
       "herramientas": [
-        "votacion_ver"
+        "votacion_recuento"
       ]
     },
     {
@@ -795,7 +795,7 @@
       "pregunta": "volve a la lamina del grafico de barras",
       "herramientas": [
         "laminas_ir",
-        "laminas_ver"
+        "carrusel_laminas_ver"
       ]
     },
     {
@@ -807,7 +807,7 @@
     {
       "pregunta": "que presentaciones tengo cargadas",
       "herramientas": [
-        "laminas_listar"
+        "carruseles_listar"
       ]
     },
     {
@@ -825,8 +825,8 @@
     {
       "pregunta": "cuantas laminas tiene la presentacion",
       "herramientas": [
-        "laminas_listar",
-        "laminas_ver"
+        "carruseles_listar",
+        "carrusel_laminas_ver"
       ]
     },
     {
@@ -917,19 +917,19 @@
     {
       "pregunta": "mostrame todas las escenas juntas en una grilla",
       "herramientas": [
-        "capture_multiview"
+        "foto_todas_escenas"
       ]
     },
     {
       "pregunta": "quiero ver a toda la gente que hay en la sala",
       "herramientas": [
-        "capture_people"
+        "foto_todos_invitados"
       ]
     },
     {
       "pregunta": "mostrame cómo está saliendo la invitada",
       "herramientas": [
-        "capture_person"
+        "foto_invitado"
       ]
     },
     {
@@ -941,7 +941,7 @@
     {
       "pregunta": "quiero ver cómo quedó la escena de la entrevista antes de ponerla",
       "herramientas": [
-        "capture_source"
+        "foto_fuente"
       ]
     },
     {
@@ -1085,7 +1085,7 @@
     {
       "pregunta": "quiero ver qué mandó antes de ponerlo",
       "herramientas": [
-        "share_view"
+        "compartida_revisar"
       ]
     },
     {

@@ -3,7 +3,7 @@
 //
 // POR QUE HACE FALTA. El nombre y la descripción de una herramienta los
 // escribió alguien que ya sabía cómo se llamaba. `audio_set` no dice
-// "silenciar" en ningún lado, `media_use` no dice "música", `participant_kick`
+// "silenciar" en ningún lado, `medio_poner` no dice "música", `participant_kick`
 // no dice "echar". Ninguna búsqueda por esas palabras las iba a encontrar, y
 // son exactamente las palabras con las que alguien las pide.
 //

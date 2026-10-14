@@ -390,7 +390,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             "Stream Deck y en la grilla de la app (el video se repite a 8 cuadros/s). De `archivo` (imagen, GIF o video: "
             "los primeros 5 s) o de la cámara `entrada` (lo que muestra ahora: apuntala antes con ptz_apuntar o "
             "ptz_encuadre); con `segundos` (1-5) graba un video, si no saca una foto. `al_tocar`: además, al tocar el "
-            "botón pone ese medio en la escena al aire (media_use; el perfil tiene que permitirla). Si no hay celda en "
+            "botón pone ese medio en la escena al aire (medio_poner; el perfil tiene que permitirla). Si no hay celda en "
             "(`x`, `y`), crea un botón (como la pagina Botonera). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:<id>»).";
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
@@ -620,12 +620,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                      "recuadro del intérprete de LSA, un zócalo fijo, un reloj.");
     {
         Tool t;
-        t.name = "dsk_listar";
+        t.name = "dsk_capas_ver";
         t.title = "Capas DSK";
         t.category = "dsk";
         t.readOnly = true;
-        t.description = "Las 4 capas: nombre, contenido (escenas o fuentes), recuadro, si es fija (la de LSA: bajarla "
-                        "pide confirmacion), fundido y si esta arriba.";
+        t.description = "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están "
+            "arriba.";
         t.run = [&vm](const json&, Done done) { done(ToolResult().data({{"capas", vm.dsk().capas()}})); };
         core.addTool(std::move(t));
     }

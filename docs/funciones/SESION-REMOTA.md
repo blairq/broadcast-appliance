@@ -204,7 +204,7 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
   - **«A la sala»:** en la Matriz, el cruce de «Remoto con la palabra (audio)» a una salida virtual con el dispositivo que va a la sala o a la entrada de la central.
   - Así el celular es **micrófono** en el recinto si se cae la central.
   - Al terminar la palabra (o si se desconecta) se cierra.
-  - **Probado de punta a punta** con Chrome sin ventana y cámara/micrófono falsos: entra con link y PIN, se habilita y `banca_al_aire` le da la palabra; el gateway acepta la oferta y conecta; en la app «Remoto con la palabra» muestra la imagen del celular y el audio se mueve (−58 a −33 dBFS); `banca_terminar` cierra los medios y el aviso del celular.
+  - **Probado de punta a punta** con Chrome sin ventana y cámara/micrófono falsos: entra con link y PIN, se habilita y `banca_al_aire` le da la palabra; el gateway acepta la oferta y conecta; en la app «Remoto con la palabra» muestra la imagen del celular y el audio se mueve (−58 a −33 dBFS); `recinto_orador_terminar` cierra los medios y el aviso del celular.
   - No hay vuelta de audio por este camino: el programa lo ve en su página. Un remoto de afuera que necesite oír la sala usa la consola o la página.
 - **Hecho el 2026-10-08:**
   - vuelve con la palabra el que se reconecta (con el tiempo que le queda) y la entrada no se queda con la cara del anterior;

@@ -72,7 +72,7 @@ void McpService::registerInputTools() {
             "GStreamer (ba_gst_fuente: sus tarjetas y filtros corren en su cadena). `modo` opcional: tamaño y "
             "cuadros, uno de los `modos` de video_devices {device} (p. ej. \"1920x1080@30\"); sin modo, el de "
             "la camara (igual se normaliza al lienzo). Si la misma camara ya es una fuente en otra escena, "
-            "conviene usar esa (source_add con su nombre) en vez de abrirla dos veces.";
+            "conviene usar esa (fuente_crear con su nombre) en vez de abrirla dos veces.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -101,7 +101,7 @@ void McpService::registerInputTools() {
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
             done(ToolResult::ok("Agregada '" + spec.name + "' a '" + scene +
-                                "'. Verifica con capture_source (la camara tarda un instante en abrir)."));
+                                "'. Verifica con foto_fuente (la camara tarda un instante en abrir)."));
         };
         core_.addTool(std::move(t));
     }
@@ -163,7 +163,7 @@ void McpService::registerInputTools() {
                 if (w > 0)
                     done(ToolResult::ok("Agregada '" + name + "' a '" + scene + "': llega imagen de " +
                                         std::to_string(w) + "x" + std::to_string(h) +
-                                        ". Verifica con capture_source."));
+                                        ". Verifica con foto_fuente."));
                 else
                     done(ToolResult::ok(
                         "Agregada '" + name + "' a '" + scene +

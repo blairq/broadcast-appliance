@@ -651,7 +651,7 @@ bool Botonera::alTocarCara(const json& celda) const {
     if (medio.empty() || !a.is_object()) return false;
     const json args = a.value("args", json::object());
     return a.value("tipo", std::string("herramienta")) == "herramienta" &&
-           a.value("herramienta", std::string()) == "media_use" && args.is_object() &&
+           a.value("herramienta", std::string()) == "medio_poner" && args.is_object() &&
            args.value("path", std::string()) == medio;
 }
 
@@ -709,7 +709,7 @@ std::string Botonera::ponerCara(const std::string& perfil, const std::string& pa
         if (medio.empty()) {
             if (aviso) *aviso = "un video de cámara no se puede poner al aire, solo se ve en el botón";
         } else {
-            c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "media_use"}, {"args", {{"path", medio}, {"loop", video}}}};
+            c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "medio_poner"}, {"args", {{"path", medio}, {"loop", video}}}};
         }
     }
     return setCelda(perfil, pagina, c);
@@ -735,7 +735,7 @@ std::string Botonera::setAlTocarCara(const std::string& perfil, const std::strin
     const std::string medio = medioDeCelda(c, &video);
     if (on) {
         if (medio.empty()) return "esta cara no se puede poner al aire (un video de cámara solo se ve en el botón)";
-        c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "media_use"}, {"args", {{"path", medio}, {"loop", video}}}};
+        c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "medio_poner"}, {"args", {{"path", medio}, {"loop", video}}}};
     } else {
         if (!alTocarCara(c)) return {}; // ya no lo hacía
         c.erase("accion");
@@ -881,7 +881,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
                         lig("aire/tally", "programa", "==", e, "fondo", "#c62828")}));
             ++i;
         }
-        usar(boton(0, 3, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+        usar(boton(0, 3, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
         usar(boton(1, 3, "FTB", herr("aire_ftb", {{"activar", true}}), json::array(), "#000000"));
         usar(boton(2, 3, "Volver de FTB", herr("aire_ftb", {{"activar", false}})));
         usar(boton(4, 3, "REC", herr("record_start"),
@@ -930,11 +930,11 @@ json Botonera::armarPlantilla(const std::string& id) const {
         }
         const int f = filas - 1;
         usar(boton(0, f, "Siguiente", herr("banca_al_aire"), json::array(), "#1f5f8a"));
-        usar(boton(1, f, "Terminar", herr("banca_terminar")));
+        usar(boton(1, f, "Terminar", herr("recinto_orador_terminar")));
         usar(json{{"x", 2}, {"y", f}, {"ancho", 2}, {"tipo", "texto"},
                   {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
-        usar(boton(5, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+        usar(boton(5, f, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
     } else if (id == "recinto") {
         // Como Asamblea, pero cada banca en su lugar de la grilla del recinto
         // (hasta 16 columnas y 15 filas; la última fila es la de los comandos).
@@ -953,11 +953,11 @@ json Botonera::armarPlantilla(const std::string& id) const {
         }
         const int f = filas - 1;
         usar(boton(0, f, "Siguiente", herr("banca_al_aire"), json::array(), "#1f5f8a"));
-        usar(boton(1, f, "Terminar", herr("banca_terminar")));
+        usar(boton(1, f, "Terminar", herr("recinto_orador_terminar")));
         usar(json{{"x", 2}, {"y", f}, {"ancho", columnas - 3}, {"tipo", "texto"},
                   {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
-        usar(boton(columnas - 1, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+        usar(boton(columnas - 1, f, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
     } else if (id == "microfonos") {
         // Guía bosch-dcn §11. Cada banca en su lugar del recinto (o en orden si no
         // hay grilla), con su foto; el estado sale de plugin/bosch-dcn/dcn/estado.
@@ -1018,7 +1018,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
                       {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                       {"estado", {lig(tema, "hablando.0.nombre", "existe", nullptr, "texto", "{{v}}")}}});
         usar(boton(columnas - 2, f, "Limpiar pedidos", herr("dcn_pedidos_limpiar")));
-        usar(boton(columnas - 1, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+        usar(boton(columnas - 1, f, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
     } else if (id == "prompter") {
         nombre = "Prompter";
         columnas = 4;
@@ -1047,7 +1047,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
         usar(boton(0, 1, "Escena PDF\n(armar)", herr("scene_preview", {{"name", "PDF"}}),
                    {lig("aire/tally", "preview", "==", "PDF", "fondo", "#1f8a3c"),
                     lig("aire/tally", "programa", "==", "PDF", "fondo", "#c62828")}));
-        usar(boton(1, 1, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+        usar(boton(1, 1, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
         int i = 0;
         for (const auto& [docId, titulo] : ds) {
             if (i >= (filas - 2) * 4) break;

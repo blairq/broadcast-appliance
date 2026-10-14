@@ -266,6 +266,15 @@ class McpCore {
         return out;
     }
     const Tool* findTool(const std::string& name) const;
+    /// Un nombre VIEJO que sigue funcionando (recetas, botoneras y disparadores
+    /// guardados, modelos ya publicados que lo escriben): llama a la herramienta
+    /// `nuevo`. No aparece en tools/list ni en el buscador.
+    void addAlias(const std::string& viejo, const std::string& nuevo) { alias_[viejo] = nuevo; }
+    /// El nombre de hoy de `name` (el mismo si no es un alias).
+    std::string nombreActual(const std::string& name) const {
+        const auto it = alias_.find(name);
+        return it == alias_.end() ? name : it->second;
+    }
     /// El catálogo para elegir una herramienta a mano (el selector de la
     /// Botonera): [{id, titulo, resumen, herramientas: [{nombre, titulo,
     /// descripcion, etiquetas, ejemplo, solo_lectura, destructiva}]}], en el orden
@@ -335,6 +344,7 @@ class McpCore {
     std::string instructions_;
     std::vector<Category> categories_;
     std::vector<Tool> tools_;
+    std::map<std::string, std::string> alias_; ///< nombre viejo -> nombre de hoy
     std::vector<HelpTopic> topics_;
     /// El indice de busqueda: se arma solo la primera vez que se busca, y de
     /// nuevo si aparecieron herramientas (las extensiones se registran

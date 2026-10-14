@@ -82,7 +82,7 @@ Un solo grafo para todo el video, como un pipeline de GStreamer con sus bins: ca
 - La app la lee con el proc `analisis` del filtro (`VideoGrafos::cuadroRostros`) y le manda las caras
   reconocidas con el proc `caras`; con `marcar`, la tarjeta las dibuja (vencen a los 2 s).
 - Personas trata a cada cámara del estudio como el feed `entrada:<cámara>`: lo ofrece en sus listas, y al
-  usarlo (la página, `rostro_ver`, el anotado automático, la cámara de la puerta) le pone sola la tarjeta en
+  usarlo (la página, `persona_identificar`, el anotado automático, la cámara de la puerta) le pone sola la tarjeta en
   el grafo (`auto: true`, con su `uso`) y se la saca cuando deja de usarla. Una puesta a mano se queda.
   Moverla de lugar cambia qué imagen mira (antes o después de corregir el color, de recortar).
 

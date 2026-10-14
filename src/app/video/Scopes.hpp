@@ -3,7 +3,7 @@
 // vectorscopio e histograma (T39)
 //
 // Se dibujan a partir de una imagen RGB del programa o de una fuente (la que ya
-// se renderiza para los monitores o para capture_source): no tocan la cadena
+// se renderiza para los monitores o para foto_fuente): no tocan la cadena
 // de video ni agregan nada al camino al aire. Se achica la imagen a ~480 px de
 // ancho antes de contar, así un cuadro cuesta unos pocos milisegundos y se
 // pueden refrescar a 5-10 por segundo en la GUI.

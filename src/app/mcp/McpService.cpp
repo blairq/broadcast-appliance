@@ -5,6 +5,7 @@
 //  Interfaz y sistema: McpUiTools.cpp · Ayuda: McpHelp.cpp)
 // ============================================================================
 
+#include "McpRenombres.hpp"
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/SeguridadSala.hpp"
@@ -153,11 +154,11 @@ std::string encodeImage(const QImage& src, const std::string& format, int maxWid
 /// lo piden») no alcanza: se lo vio disparar veinte herramientas de una y meter
 /// una captura al final sin que nadie se la pidiera. Entonces la capacidad no
 /// existe para él: las capturas le vuelven como un archivo, y para mirarlas
-/// está `imagen_analizar`, que se lo encarga a un agente aparte.
+/// está `imagen_preguntar`, que se lo encarga a un agente aparte.
 bool puedeVerImagenes(McpCore& core) { return core.contextoEnCurso().rol == "vision"; }
 
 /// Dónde quedan las capturas para que las mire otro. Una por archivo, con un
-/// nombre que no se repite. (Declarada en el header: la usa `imagen_analizar`.)
+/// nombre que no se repite. (Declarada en el header: la usa `imagen_preguntar`.)
 QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, const json& args,
                        int defaultWidth) {
     (void)raiz; // las capturas son de la máquina (Runtime/), no de la configuración
@@ -193,7 +194,7 @@ void addImage(ToolResult& r, const QImage& img, const json& args, int defaultWid
     r.text("Captura guardada en " + archivo.toStdString() + " (" + std::to_string(img.width()) + "x" +
            std::to_string(img.height()) +
            "). NO te la mando acá: una imagen en esta conversación cuelga la sesión. Para saber "
-           "qué se ve, usá `imagen_analizar` con una pregunta concreta.");
+           "qué se ve, usá `imagen_preguntar` con una pregunta concreta.");
     if (r.structured.is_null()) r.structured = json::object();
     json archivos = r.structured.value("capturas", json::array());
     archivos.push_back(archivo.toStdString());
@@ -425,7 +426,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                     (*estado)["escena_actual"] = sl.value("current", std::string());
                     (*estado)["escena_armada"] = sl.value("armada", std::string());
                     (*estado)["escenas"] = escenas;
-                    leer("source_list", json::object(), [=](bool, const json& src, const std::string&) {
+                    leer("escena_fuentes_ver", json::object(), [=](bool, const json& src, const std::string&) {
                         json fuentes = json::array();
                         for (const auto& f : src.value("sources", json::array()))
                             fuentes.push_back({{"nombre", f.value("name", std::string())},
@@ -471,7 +472,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                                               for (const auto& g : gr.value("graficos", json::array()))
                                                   graficos.push_back(g.value("nombre", std::string()));
                                               (*estado)["graficos"] = graficos;
-                                              leer("laminas_listar", json::object(),
+                                              leer("carruseles_listar", json::object(),
                                                    [=](bool, const json& la, const std::string&) {
                                                        json carruseles = json::array();
                                                        for (const auto& c :
@@ -534,7 +535,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                  "pedile, de a una pregunta por vez y en español rioplatense: su nombre y apellido tal como "
                  "quiere que se lea en pantalla, su cargo o de qué va a hablar, cómo quiere que la presenten "
                  "al aire, y un teléfono o correo de contacto por si se corta. Leé sus respuestas con "
-                 "`chat_history`. A medida que las tengas, completá su ficha con `participant_profile`. "
+                 "`invitados_chat_leer`. A medida que las tengas, completá su ficha con `participant_profile`. "
                  "Cuando los tengas, ANTES de consultarme a mí, avisale por `chat_send` que ya "
                  "está: algo como «Listo, ya tengo todo. Se lo paso a producción y te aviso apenas "
                  "me confirmen». Del otro lado no se ve nada de lo que pasa acá, y quedarse "
@@ -608,12 +609,12 @@ void McpService::applySecurity() {
     // de YouTube/Twitch/Facebook (y el Chat en vivo en pantalla) NO la dispara:
     // es texto del publico, que el asistente trata como dato (ver la guia).
     // Devuelven SIEMPRE archivos de invitados.
-    // (chat_history y guest_chat_pending marcan su respuesta solo si traen mensajes.)
-    static const std::set<std::string> kAlways{"share_list", "share_view"};
+    // (invitados_chat_leer y guest_chat_pending marcan su respuesta solo si traen mensajes.)
+    static const std::set<std::string> kAlways{"share_list", "compartida_revisar"};
     // Devuelven nombres, datos o video de invitados cuando hay alguien en la sala.
-    static const std::set<std::string> kWithPeople{"room_status",    "speakers_status",   "capture_program",
-                                                   "capture_source", "capture_multiview", "capture_feed",
-                                                   "capture_person", "capture_people",    "capture_sequence",
+    static const std::set<std::string> kWithPeople{"room_status",    "remotos_fila_ver",   "foto_programa",
+                                                   "foto_fuente", "foto_todas_escenas", "capture_feed",
+                                                   "foto_invitado", "foto_todos_invitados",    "capture_sequence",
                                                    "capture_ui",     "feeds_list",        "dashboard_list"};
     // Su efecto lo decide una persona con un click: no necesitan aprobacion.
     // Mediados por la persona (ella decide en la barra) o limitados a enlaces
@@ -798,6 +799,11 @@ void McpService::registerTools() {
     // Las preguntas del publico: viven en B, y esto es el lado de A que las
     // modera (ver McpPreguntaTools.cpp).
     registerPreguntaTools(core_, vm_, rt_);
+
+    // Los nombres viejos de las herramientas renombradas (v6) siguen andando: lo
+    // guardado con ellos (recetas, botoneras, disparadores) y los modelos
+    // publicados que los escriben (ver McpRenombres.cpp).
+    registrarRenombres(core_);
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
@@ -1063,7 +1069,7 @@ void McpService::registerTools() {
             "carpeta esta cada una (`folder`, \"\" = suelta). Las carpetas solo ordenan la lista de la "
             "pestaña Escenas: no cambian nada de la emision.\n\n"
             "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
-            "proximo `scene_take`. Son los dos buses de una mesa de switcher.";
+            "proximo `preview_al_aire`. Son los dos buses de una mesa de switcher.";
         t.run = [&rt, &vm](const json&, Done done) {
             const std::string armada = vm.conmutador().armada();
             json scenes = json::array();
@@ -1137,7 +1143,7 @@ void McpService::registerTools() {
                         "transmision cambia EN EL ACTO, sin pasar por el bus de preview.";
         t.details =
             "Es el corte de urgencia: sale ya. Para lo demas, la forma de trabajar de una mesa es "
-            "`scene_preview` (armar el proximo plano) -> mirarlo con `capture_source` -> `scene_take`. "
+            "`scene_preview` (armar el proximo plano) -> mirarlo con `foto_fuente` -> `preview_al_aire`. "
             "Dos pasos parece mas lento y es al reves: lo que esta roto se ve ANTES de salir al aire, "
             "no despues.";
         t.inputSchema = {
@@ -1161,11 +1167,11 @@ void McpService::registerTools() {
         t.title = "Armar la proxima escena (sin sacarla al aire)";
         t.category = "escenas";
         t.description =
-            "Pone una escena en el bus de PREVIEW: queda armada para el proximo `scene_take`. NO cambia "
+            "Pone una escena en el bus de PREVIEW: queda armada para el proximo `preview_al_aire`. NO cambia "
             "lo que se ve en la transmision.";
         t.details =
-            "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`capture_source` con "
-            "el mismo nombre da la foto de como va a salir), y recien ahi `scene_take`.\n\n"
+            "Asi se opera una mesa de switcher: se arma el proximo plano, se MIRA (`foto_fuente` con "
+            "el mismo nombre da la foto de como va a salir), y recien ahi `preview_al_aire`.\n\n"
             "Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mismo) y se "
             "rechaza.\n\n"
             "`scene_list` dice cual esta armada y cual al aire.";
@@ -1177,7 +1183,7 @@ void McpService::registerTools() {
             if (!sceneExists(name)) return done(noScene(name));
             if (const std::string e = vm.conmutador().armar(name); !e.empty())
                 return done(ToolResult::error("No se armo: " + e));
-            done(ToolResult::ok("Armada: " + name + ". Mirala con capture_source y sacala con scene_take."));
+            done(ToolResult::ok("Armada: " + name + ". Mirala con foto_fuente y sacala con preview_al_aire."));
         };
         core_.addTool(std::move(t));
     }
@@ -1256,11 +1262,11 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "scene_take";
+        t.name = "preview_al_aire";
         t.title = "TAKE: sacar al aire la escena armada";
         t.category = "escenas";
-        t.description = "Pone al aire la escena que estaba armada en el bus de preview, con la transicion "
-                        "configurada. Deja armada la que salia, para poder volver de un golpe.";
+        t.description = "Pasa al aire la escena que estaba ARMADA en preview, con la transición configurada. Deja armada la "
+            "que salia, para poder volver de un golpe.";
         t.details = "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
                     "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
                     "despues de un take, volver a lo anterior es un solo take mas.";
@@ -1569,7 +1575,7 @@ void McpService::registerTools() {
             std::string msg = "Escena '" + name + "': " + std::to_string(added) + " fuente(s).";
             for (const auto& l : log)
                 msg += "\n- " + l;
-            msg += "\nVerifica como quedo con capture_source {\"name\": \"" + name + "\"}.";
+            msg += "\nVerifica como quedo con foto_fuente {\"name\": \"" + name + "\"}.";
             done(ToolResult::ok(msg));
         };
         core_.addTool(std::move(t));
@@ -1605,7 +1611,7 @@ void McpService::registerTools() {
         t.idempotent = true;
         t.description =
             "Tipos de fuente que esta instalacion puede crear (id, nombre, si tiene video "
-            "y/o audio). El id es el `type` de source_add / scene_define.";
+            "y/o audio). El id es el `type` de fuente_crear / scene_define.";
         t.run = [&rt](const json&, Done done) {
             json out = json::array();
             for (const SourceType& s : rt.engine().inputTypes())
@@ -1617,14 +1623,13 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "source_list";
+        t.name = "escena_fuentes_ver";
         t.title = "Fuentes de una escena";
         t.category = "fuentes";
         t.readOnly = true;
         t.idempotent = true;
-        t.description = "Lo que hay ADENTRO de una escena: sus capas, una por una. Fuentes de una escena (de "
-                        "abajo hacia arriba) con tipo, visibilidad, ubicacion en el "
-                        "lienzo, volumen y silencio.";
+        t.description = "Las fuentes que hay ADENTRO de una escena, una por una; no son las capas del DSK. Fuentes de una "
+            "escena (de abajo hacia arriba) con tipo, visibilidad, ubicacion en el lienzo, volumen y silencio.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"scene", sceneProp}}}};
         t.run = [&rt, sceneOr, sceneExists, noScene](const json& a, Done done) {
             const std::string scene = sceneOr(a);
@@ -1648,13 +1653,13 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "source_add";
+        t.name = "fuente_crear";
         t.title = "Agregar fuente";
         t.category = "fuentes";
         t.description =
-            "Agrega una fuente a una escena (arriba de todo): texto, titulo, zocalo, imagen, logo, "
-            "video, camara, color, invitado... Si ya existe una fuente con ese nombre "
-            "(en otra escena) se agrega LA MISMA (compartida).";
+             "CREA una fuente nueva en una escena: texto, título, zócalo, cámara, color, invitado; un archivo de "
+            "medios va con medio_poner. Si ya existe una fuente con ese nombre (en otra escena) se agrega LA "
+            "MISMA (compartida).";
         t.details =
             "Settings mas comunes: image_source {file: ruta}, ffmpeg_source {local_file, looping: true}, "
             "color_source_v3 {color: ABGR entero, width, height}, text_ft2_source_v2 {text, font: {face, "
@@ -1707,7 +1712,7 @@ void McpService::registerTools() {
         t.description =
             "Las PANTALLAS conectadas (para screen_capture: su `monitor`) y las VENTANAS de aplicaciones abiertas "
             "(para window_capture: su `ventana`, que es «aplicación\\ntítulo»), y si este sistema puede capturar "
-            "una ventana sola. Para elegir antes de source_add.";
+            "una ventana sola. Para elegir antes de fuente_crear.";
         t.examples = {R"({})"};
         t.run = [](const json&, Done done) {
             json ps = json::array(), vs = json::array();
@@ -1719,7 +1724,7 @@ void McpService::registerTools() {
             const bool hay = ba::motor::hayCapturaDeVentana(&porque);
             json d{{"pantallas", ps}, {"ventanas", vs}, {"captura_de_ventana", hay}};
             if (!hay) d["por_que_no"] = porque;
-            d["como"] = "source_add {type: screen_capture, settings: {monitor}} o {type: window_capture, settings: {ventana}}";
+            d["como"] = "fuente_crear {type: screen_capture, settings: {monitor}} o {type: window_capture, settings: {ventana}}";
             done(ToolResult().data(d));
         };
         core_.addTool(std::move(t));
@@ -1811,7 +1816,7 @@ void McpService::registerTools() {
             const auto items = rt.engine().sceneSources(scene);
             if (std::find(items.begin(), items.end(), name) == items.end())
                 return done(ToolResult::error("'" + name + "' no esta en la escena '" + scene +
-                                              "'. source_list la muestra."));
+                                              "'. escena_fuentes_ver la muestra."));
             std::vector<std::string> did;
             std::vector<std::string> failed;
             if (a.contains("visible")) {
@@ -2165,7 +2170,7 @@ void McpService::registerTools() {
             "`ms` positivo ATRASA el audio (lo normal con una camara IP); negativo lo adelanta, que sirve "
             "cuando el audio llega despues que el video. Se acota a +-5 s: mas que eso no es una camara "
             "con retardo, es un error.\n\n"
-            "Como encontrar el numero: poner un valor, mirar con `capture_program` a alguien hablando y "
+            "Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien hablando y "
             "corregir. El ojo humano es el juez. Un metodo mas fino -medirlo con un aplauso- esta "
             "escrito pero todavia no conectado a las fuentes.";
         t.inputSchema = {{"type", "object"},
@@ -2539,13 +2544,12 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "bancas_listar";
+        t.name = "recinto_bancas_ver";
         t.title = "Bancas y fila de oradores presenciales";
         t.category = "oradores";
         t.readOnly = true;
-        t.description = "Los oradores PRESENCIALES (desde su banca, sin conexion): todas las bancas del cuerpo, la fila, "
-                        "quien habla (al_aire) y hace cuanto (usado_s de asignado_s). speakers_status es la fila de los "
-                        "remotos (invitados conectados).";
+        t.description = "Los oradores PRESENCIALES del recinto: las bancas, la fila, quién habla y hace cuánto; no son los "
+            "oradores remotos. remotos_fila_ver es la fila de los remotos (invitados conectados).";
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.bancas().estadoJson())); };
         core_.addTool(std::move(t));
     }
@@ -2721,10 +2725,11 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "banca_terminar";
+        t.name = "recinto_orador_terminar";
         t.title = "Terminar al orador presencial";
         t.category = "oradores";
-        t.description = "Saca del aire al orador presencial: cierra su microfono y para su reloj (la escena no cambia).";
+        t.description = "Termina a UN orador presencial: cierra el micrófono de su banca y para su reloj; no calla a los "
+            "demás.";
         t.run = [&vm](const json&, Done done) {
             vm.bancas().terminar();
             done(ToolResult().data(vm.bancas().estadoJson()));
@@ -2733,12 +2738,11 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "presidencia_silenciar";
+        t.name = "presidencia_callar_todos";
         t.title = "Silenciar a todos";
         t.category = "oradores";
-        t.description = "Lo que hace la presidencia sobre todos: cierra los micrófonos de la central (menos el de la "
-                        "presidencia), termina al orador que está al aire y les saca la palabra a los remotos (también a "
-                        "los de un debate). Lo mismo que el botón de prioridad del presidente en su unidad.";
+        t.description = "Calla a TODOS a la vez: cierra todos los micrófonos de la central menos el de la presidencia y "
+            "termina al que está hablando. Lo mismo que el botón de prioridad del presidente en su unidad.";
         t.run = [&vm](const json&, Done done) {
             // La misma operación que el botón y las consolas; el error es el de la central.
             if (vm.presidencia() == nullptr) return done(ToolResult::error("La presidencia no está disponible."));
@@ -2753,7 +2757,7 @@ void McpService::registerTools() {
         t.name = "presidencia_hablar";
         t.title = "Hablo yo (la presidencia)";
         t.category = "oradores";
-        t.description = "`activo: true` calla a todos (como presidencia_silenciar) y abre el micrófono de la unidad de "
+        t.description = "`activo: true` calla a todos (como presidencia_callar_todos) y abre el micrófono de la unidad de "
                         "presidente de la central; false lo cierra. Hace falta la central conectada.";
         t.inputSchema = {{"type", "object"}, {"required", {"activo"}}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {

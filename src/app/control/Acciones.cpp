@@ -45,14 +45,14 @@ bool Acciones::globalesDisponibles() const { return globales_ != nullptr; }
 
 json Acciones::catalogo() const {
     json c = json::array({
-        herr("take", "TAKE (el preview al aire)", "Aire", "scene_take"),
+        herr("take", "TAKE (el preview al aire)", "Aire", "preview_al_aire"),
         herr("ftb", "FTB: a negro", "Aire", "aire_ftb", {{"activar", true}}),
         herr("ftb_sacar", "Sacar el negro", "Aire", "aire_ftb", {{"activar", false}}),
         herr("placa", "Placa «Volvemos enseguida»", "Aire", "aire_placa", {{"activar", true}}),
         herr("placa_sacar", "Sacar la placa", "Aire", "aire_placa", {{"activar", false}}),
         herr("grabar", "Grabar", "Salidas", "record_start"),
         herr("banca_siguiente", "Siguiente banca (armar)", "Oradores", "banca_al_aire"),
-        herr("banca_terminar", "Terminar al orador presencial", "Oradores", "banca_terminar"),
+        herr("recinto_orador_terminar", "Terminar al orador presencial", "Oradores", "recinto_orador_terminar"),
         herr("seguir_aceptar", "Armar la banca que pidió la palabra", "Oradores", "seguir_microfono", {{"accion", "aceptar"}}),
         herr("punto_siguiente", "Siguiente punto del orden del día", "Sesión", "orden_del_dia_punto", {{"siguiente", true}}),
         herr("prompter_correr", "Prompter: correr", "Prompter", "prompter_control", {{"corriendo", true}}),

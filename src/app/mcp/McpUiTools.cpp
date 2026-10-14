@@ -242,7 +242,7 @@ void McpService::registerUiTools() {
             std::string pedido = panel;
             if (pag == "escenas" && panel == "efectos") {
                 const std::string f = a.value("fuente", std::string());
-                if (f.empty()) return done(ToolResult::error("escenas → efectos: falta `fuente` (source_list las muestra)."));
+                if (f.empty()) return done(ToolResult::error("escenas → efectos: falta `fuente` (escena_fuentes_ver las muestra)."));
                 pedido = "efectos:" + f;
             }
             w->setProperty("page", pagina);

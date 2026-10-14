@@ -333,8 +333,9 @@ void McpCore::addResource(Resource resource) { resources_.push_back(std::move(re
 void McpCore::addPrompt(Prompt prompt) { prompts_.push_back(std::move(prompt)); }
 
 const Tool* McpCore::findTool(const std::string& name) const {
+    const std::string n = nombreActual(name);
     for (const Tool& t : tools_)
-        if (t.name == name) return &t;
+        if (t.name == n) return &t;
     return nullptr;
 }
 
@@ -650,7 +651,9 @@ std::string primerTexto(const ToolResult& r) {
 } // namespace
 
 void McpCore::callTool(const json& params, std::function<void(json)> done, const CallContext& ctx) {
-    const std::string name = params["name"].get<std::string>();
+    // Un nombre viejo (alias) se atiende con el de hoy: las guardas de rol y de
+    // aire y el registro hablan del nombre actual.
+    const std::string name = nombreActual(params["name"].get<std::string>());
     const json args = params.contains("arguments") && params["arguments"].is_object() ? params["arguments"]
                                                                                       : json::object();
     // Un aviso que va al final de la respuesta (p. ej. argumentos que no existen).

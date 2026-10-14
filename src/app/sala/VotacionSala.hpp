@@ -2,7 +2,7 @@
 // src/app/sala/VotacionSala.hpp — la votación (o encuesta) de la sala (modelo)
 //
 // Abrir, cerrar y mirar la votación del público. Es una operación del modelo:
-// la pide la GUI (PanelVotacion) y el MCP (votacion_abrir, votacion_ver), todos
+// la pide la GUI (PanelVotacion) y el MCP (votacion_abrir, votacion_recuento), todos
 // por acá y con las mismas reglas:
 //
 //   - de dos a diez opciones (con una sola no hay nada que decidir);

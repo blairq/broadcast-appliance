@@ -10,7 +10,7 @@
 // Se guarda en Media/botonera/<id>/: los cuadros cuadrados de 288 px
 // (0000.jpg…, a 8 cuadros/s; una foto es un solo cuadro) y `medio.<ext>`, el
 // archivo grande (el original importado o la foto en 1280 px), para que el
-// botón lo pueda poner en una escena con media_use. Cada toma tiene un id
+// botón lo pueda poner en una escena con medio_poner. Cada toma tiene un id
 // nuevo: los archivos no cambian nunca (se cachean para siempre).
 //
 // La celda lo nombra como `estilo.imagen = "medio:<id>"`. Al dibujar viaja
@@ -71,7 +71,7 @@ class CarasBotonera : public QObject {
     Q_INVOKABLE QVariantMap grabar(const QString& entrada, double segundos);
 
     /// {id, url (el primer cuadro), base (file:// de la carpeta, con «/»),
-    /// cuadros, video, medio (ruta relativa a los datos, para media_use)} o {}.
+    /// cuadros, video, medio (ruta relativa a los datos, para medio_poner)} o {}.
     Q_INVOKABLE QVariantMap info(const QString& id) const;
 
     /// Para la botonera: el primer cuadro de «medio:<id>» (ruta) y la

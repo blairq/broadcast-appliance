@@ -173,7 +173,7 @@ junto. Los dos mundos ya se hablan.
 
 ## 5. Preguntas del público — **hecho**
 
-Hay chat de sala y hay chat de las plataformas (`chat_history`,
+Hay chat de sala y hay chat de las plataformas (`invitados_chat_leer`,
 `youtube_chat`, `twitch_chat`, `facebook_chat`). **Chat no es cola de
 preguntas**: no se modera, no se elige, no se ordena, no hay «la que sigue», y
 no sale al aire con el nombre de quien preguntó.

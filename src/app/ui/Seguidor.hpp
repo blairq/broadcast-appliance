@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/ui/Seguidor.hpp — analizar las caras de una cámara y seguir a una
 //
-// Lo usa la ventana del PTZ (cards/PtzContent.qml) y el asistente (ptz_rostros,
+// Lo usa la ventana del PTZ (cards/PtzContent.qml) y el asistente (ptz_caras_ubicar,
 // ptz_seguir):
 //   - analizar(entrada): las caras que hay ahora, dónde (0..1 del cuadro) y,
 //     si la reconoce, de quién (la libreta de Personas);

@@ -2,7 +2,7 @@
 // src/app/sala/PreguntasSala.hpp — la cola de preguntas del público (modelo)
 //
 // Ver, moderar y sumar preguntas. La GUI (Público, el chat) y el MCP
-// (preguntas_ver, pregunta_moderar, pregunta_sumar, pregunta_desde_chat) pasan
+// (preguntas_ver, pregunta_moderar, pregunta_sumar, chat_a_preguntas) pasan
 // por acá, con las mismas reglas: las acciones que van sobre una pregunta
 // necesitan su id; una pregunta vacía no se suma.
 // ============================================================================

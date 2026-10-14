@@ -814,7 +814,7 @@ void McpService::registerVideoTools() {
                 a.value("escena", std::string()), es, a.value("disposicion", std::string("mosaico")),
                 a.value("nombre", std::string()), a.value("ocultar_sueltas", true), &hecho);
             if (!err.empty()) return done(ToolResult::error(err));
-            hecho["verificar"] = "imagen_analizar sobre «" + hecho.value("fuente", std::string()) +
+            hecho["verificar"] = "imagen_preguntar sobre «" + hecho.value("fuente", std::string()) +
                                  "» con una pregunta concreta (¿algo estirado o en negro?; el primer cuadro "
                                  "puede tardar un instante)";
             done(ToolResult().data(hecho));
@@ -864,8 +864,8 @@ void McpService::registerVideoTools() {
                                                        a.value("nombre", std::string()), a.value("escena", std::string()),
                                                        a.value("params", json::object()), &hecho);
             if (!err.empty()) return done(ToolResult::error(err));
-            hecho["verificar"] = "capture_source sobre «" + hecho.value("fuente", std::string()) +
-                                 "» (o imagen_analizar con una pregunta concreta)";
+            hecho["verificar"] = "foto_fuente sobre «" + hecho.value("fuente", std::string()) +
+                                 "» (o imagen_preguntar con una pregunta concreta)";
             done(ToolResult().data(hecho));
         };
         core_.addTool(std::move(t));

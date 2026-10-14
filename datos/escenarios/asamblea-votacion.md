@@ -14,7 +14,7 @@ entrar, quórum, varias votaciones y resultados que todos tienen que ver.
 
 ## Qué armar
 - Padrón completo con `vota: true` y contacto (correo o WhatsApp) para la invitación con QR.
-- Acreditación en la puerta (padron_puerta / padron_acreditar) y quórum en vivo (quorum_estado).
+- Acreditación en la puerta (padron_puerta / padron_acreditar) y quórum en vivo (quorum_presentes).
 - Orden del día con documentos; votaciones por punto.
 - Escenas: «Mesa», «Orador», «Votación en curso», «Resultado»; placa con el quórum.
 - Pantallas de la sala con la votación (pantalla_*) y QR para votar a la vista.
