@@ -42,7 +42,8 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_nuevo";
         t.title = "Crear un evento nuevo (arrancar de cero o desde otro)";
         t.category = "eventos";
-        t.description = "Crea un evento APARTE con todo lo suyo, sin tocar el abierto. Es lo que corresponde cuando "
+        t.description = "Crea un evento APARTE con todo lo suyo, sin tocar el abierto (antes de prepararlo: la guía de su "
+                        "tipo, evento_escenarios / evento_escenario). Es lo que corresponde cuando "
                         "piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, "
                         "vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, "
                         "guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento "
@@ -180,6 +181,55 @@ void McpService::registerConfiguracionesTools() {
             else if (e.empty() && a.contains("renombrar_a")) e = cf->renombrar(n, a.value("renombrar_a", std::string()));
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data({{"configuraciones", cf->listar()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Las plantillas de evento (el menú «Plantillas…» de la página del evento) -------
+    {
+        Tool t;
+        t.name = "plantillas_listar";
+        t.title = "Las plantillas de evento (para administrarlas)";
+        t.category = "eventos";
+        t.readOnly = true;
+        t.description = "Todas las plantillas en su orden: id (la carpeta: «plantilla:<id>» en evento_nuevo), el nombre que "
+                        "se ve, descripción, escenario (su guía: evento_escenario), si es visible, si viene con el programa, "
+                        "si es propia o una del programa editada, y si está abierta.";
+        t.run = [cf](const json&, Done done) { done(ToolResult().data({{"plantillas", cf->plantillasAdmin()}})); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "plantilla_ajustar";
+        t.title = "Ordenar, renombrar u ocultar una plantilla";
+        t.category = "eventos";
+        t.description = "Cambia de la plantilla `id` lo que venga: `nombre` (el que se ve; \"\" = el de la carpeta), "
+                        "`descripcion`, `visible` (si aparece en «Evento nuevo» y en «Prepararlo con el asistente») y "
+                        "`mover` (-1 un lugar arriba, +1 abajo). Para EDITAR su contenido hay que abrirla (desde el menú "
+                        "Plantillas…, reinicia la app); para una nueva desde el evento abierto, `desde_actual` con su nombre.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"descripcion", {{"type", "string"}}},
+                           {"visible", {{"type", "boolean"}}},
+                           {"mover", {{"type", "integer"}}},
+                           {"desde_actual", {{"type", "string"}, {"description", "nombre de una plantilla nueva copiando el evento abierto"}}},
+                           {"escenario", {{"type", "string"}, {"description", "con desde_actual: su tipo (evento_escenarios)"}}}}}};
+        t.run = [cf](const json& a, Done done) {
+            if (a.contains("desde_actual")) {
+                const std::string e = cf->plantillaDesdeActual(a.value("desde_actual", std::string()), a.value("escenario", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                return done(ToolResult().data({{"plantillas", cf->plantillasAdmin()}}));
+            }
+            const std::string id = a.value("id", std::string());
+            if (id.empty()) return done(ToolResult::error("falta `id` (plantillas_listar)"));
+            json c = a;
+            for (const char* k : {"id", "mover", "desde_actual", "escenario"}) c.erase(k);
+            if (!c.empty())
+                if (const std::string e = cf->plantillaAjustar(id, c); !e.empty()) return done(ToolResult::error(e));
+            if (a.contains("mover"))
+                if (const std::string e = cf->plantillaMover(id, a.value("mover", 0)); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data({{"plantillas", cf->plantillasAdmin()}}));
         };
         core_.addTool(std::move(t));
     }

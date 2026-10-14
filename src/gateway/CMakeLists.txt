@@ -164,6 +164,15 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
         "-framework SystemConfiguration")
     # libwebrtc esta compilado sin RTTI.
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+    # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va en la
+    # interfaz para que lo tenga todo el que use libwebrtc (gateway y su prueba).
+    target_sources(ba_webrtc_mac INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm")
+    target_include_directories(ba_webrtc_mac SYSTEM INTERFACE "${BA_WEBRTC_ROOT}/include/sdk/objc"
+                               "${BA_WEBRTC_ROOT}/include/sdk/objc/base")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm" PROPERTIES COMPILE_OPTIONS "-fno-rtti;-fobjc-arc")
+    # Las categorías de Objective-C de libwebrtc.a (RTCVideoCodecInfo+Private...) no se
+    # enlazan solas: sin esto, «unrecognized selector» al pedir los codecs.
+    target_link_options(ba_webrtc_mac INTERFACE "-Wl,-ObjC")
     target_link_libraries(ba-gateway PRIVATE ba_webrtc_mac)
 endif()
 

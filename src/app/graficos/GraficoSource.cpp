@@ -23,6 +23,9 @@ struct Reproduccion {
     std::vector<QImage> cuadros;
     int fps = 30;
     bool repetir = false;
+    /// Faltan cuadros (se siguen dibujando, ver agregar): al alcanzar el último que
+    /// hay, espera en ese en vez de darlo por terminado.
+    bool llegando = false;
     std::atomic<bool> vivo{false};
     std::thread hilo;
 
@@ -126,7 +129,7 @@ bool setGrafico(std::uint64_t id, const std::string& grafico) {
     return true;
 }
 
-bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir) {
+bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando) {
     if (cuadros.empty() || fps <= 0 || !viva(id)) return false;
     limpiar();
     auto inst = reproduccion(id, true);
@@ -139,6 +142,7 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
         inst->cuadros = std::move(cuadros);
         inst->fps = fps;
         inst->repetir = repetir;
+        inst->llegando = llegando;
     }
 
     inst->vivo.store(true);
@@ -148,12 +152,16 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
         std::size_t i = 0;
         while (inst->vivo.load()) {
             QImage cuadro;
-            bool ultimo = false;
+            bool ultimo = false, esperando = false;
             {
                 std::lock_guard<std::mutex> lock(inst->m);
                 if (inst->cuadros.empty()) break;
                 if (i >= inst->cuadros.size()) {
-                    if (!inst->repetir) {
+                    if (inst->llegando) {
+                        // Todavía se están dibujando: queda el último que se entregó y el
+                        // reloj espera con él (sin saltear los que vienen).
+                        esperando = true;
+                    } else if (!inst->repetir) {
                         // Se acabo la animacion: el ULTIMO cuadro queda fijo,
                         // que es lo que hace un zocalo que entra y se sostiene.
                         i = inst->cuadros.size() - 1;
@@ -162,7 +170,12 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
                         i = 0;
                     }
                 }
-                cuadro = inst->cuadros[i];
+                if (!esperando) cuadro = inst->cuadros[i];
+            }
+            if (esperando) {
+                siguiente = std::chrono::steady_clock::now() + paso;
+                std::this_thread::sleep_until(siguiente);
+                continue;
             }
             entregar(inst->id, cuadro);
             // Ya no hay nada nuevo: el motor sigue mostrando el ultimo cuadro.
@@ -172,6 +185,18 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
             std::this_thread::sleep_until(siguiente);
         }
     });
+    return true;
+}
+
+bool agregar(std::uint64_t id, std::vector<QImage> cuadros, bool fin) {
+    auto inst = reproduccion(id, false);
+    if (!inst || !inst->vivo.load()) return false;
+    std::lock_guard<std::mutex> lock(inst->m);
+    for (QImage& c : cuadros) {
+        if (c.format() != QImage::Format_ARGB32) c = c.convertToFormat(QImage::Format_ARGB32);
+        inst->cuadros.push_back(std::move(c));
+    }
+    if (fin) inst->llegando = false;
     return true;
 }
 

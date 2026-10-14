@@ -43,6 +43,12 @@ class Conversor : public QObject {
     static bool necesitaOffice(const QString& archivo);
     /// El soffice del bundle, o "" si este equipo no lo trae.
     static QString soffice();
+    /// Deja `p` listo para que LibreOffice (headless) convierta `archivo` a PDF en
+    /// `salida`, con su perfil en `perfil` (uno por conversión) y lo que hace falta para
+    /// que no muera adentro de la app (señales limpias, entorno mínimo). Lo usan el
+    /// carrusel y el conversor a PDF (documentos/APdf).
+    static void prepararOffice(QProcess& p, const QString& bin, const QString& archivo, const QString& salida,
+                               const QString& perfil);
 
     /// Arranca. Las imágenes salen en `destino` como lamina-001.png…
     /// :param anchoPx: ancho de cada lámina. 1920 alcanza para pantalla

@@ -351,7 +351,11 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // nombre (crear, cambiar, la demo) y el histórico de los eventos. Faltaban
         // y no fallaba nada: no existían para el asistente (ni en help_search).
         // McpCore::verificarJuegos avisa en el registro si queda otra afuera.
-        "asamblea", "configuraciones", "historico"};
+        "asamblea", "configuraciones", "historico",
+        // Los eventos (crear uno nuevo desde cero, copia, anterior o plantilla) y su
+        // documentación (PDF por punto y sección). Quedaron afuera al agregarlas: el
+        // asistente decía que no tenía cómo crear un evento.
+        "eventos", "documentos"};
     return c;
 }
 

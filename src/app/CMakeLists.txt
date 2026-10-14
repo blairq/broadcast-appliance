@@ -479,6 +479,11 @@ endif()
     qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json"
                            "${CMAKE_SOURCE_DIR}/datos/glosario-traduccion.json")
+    # Las guías para preparar cada tipo de evento (MCP evento_escenario y «Evento nuevo» con
+    # el asistente): el protocolo común y una por escenario, más su índice.
+    file(GLOB _ba_escenarios CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/datos/escenarios/*")
+    qt_add_resources(ba-app "ba_escenarios" PREFIX "/escenarios" BASE "${CMAKE_SOURCE_DIR}/datos/escenarios"
+                     FILES ${_ba_escenarios})
     # El logo, para el icono de la ventana (tools/generar/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
@@ -859,6 +864,18 @@ endif()
     endif()
     set_target_properties(test_conversion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_conversion COMMAND test_conversion)
+
+    # Lo que se publica, a PDF (evento/APdf): texto en varios idiomas, Markdown, imagen,
+    # y con el LibreOffice vendoreado, HTML y .pptx. Cada PDF se vuelve a leer.
+    add_executable(test_apdf tests/test_apdf.cpp evento/APdf.cpp carrusel/Conversion.cpp)
+    target_include_directories(test_apdf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_apdf PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
+    target_compile_definitions(test_apdf PRIVATE BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
+    if(_ba_lo_ok)
+        target_compile_definitions(test_apdf PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
+    endif()
+    set_target_properties(test_apdf PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_apdf COMMAND test_apdf)
 
     # Que el Qt vendoreado DECODIFIQUE de verdad. Ver el comentario del .cpp:
     # si el plugin de ffmpeg no viaja, no falla al compilar ni al arrancar,

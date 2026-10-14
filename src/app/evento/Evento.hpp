@@ -80,6 +80,13 @@ struct Cue {
     /// completo. Es la mitad barata de la revisión previa: se ve sin tocar el
     /// disco ni el motor.
     std::string queLeFalta() const;
+
+    /// Deja `datos` con los nombres de siempre. Un gráfico lleva sus campos en
+    /// `valores` (los lee la interfaz y el que lo ejecuta); el asistente a veces los
+    /// manda como `params` o `parametros` (así se llaman en grafico_mostrar) y el
+    /// zócalo salía vacío. Se pasan a `valores` (lo que ya estaba ahí gana), y
+    /// `nombre` (el gráfico, en grafico_mostrar) a `grafico`.
+    void normalizarDatos();
 };
 
 /// Un tramo del evento con nombre propio.
@@ -235,6 +242,8 @@ class Guion {
     /// Cuánto falta para que termine el cue actual según lo previsto
     /// (negativo si ya se pasó). Sin duración prevista: 0.
     int restanteSeg(int64_t nowMs) const;
+    /// Lo que lleva el evento desde que arrancó, sin contar las pausas.
+    int transcurridoSeg(int64_t nowMs) const;
 
     /// Lo que realmente pasó: un renglón por cue ejecutado, con su duración
     /// real. Es la materia prima del informe posterior.

@@ -64,6 +64,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/EstadoIA.hpp"
 #include "ui/DocumentosViewModel.hpp"
+#include "ui/PdfEscena.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
@@ -325,6 +326,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
+    connect(emisor_.get(), &graficos::Emisor::fallo, this, [this](const QString& m) { emit notify(m, "error"); });
     marca("emisor");
     // El guion del evento necesita la sala para los cues de orador.
     {
@@ -680,6 +682,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QStringList args{"--reiniciar"};
         for (const QString& a : QCoreApplication::arguments())
             if (a == "--test" || a == "--debug") args << a;
+        // La conversación del asistente sigue después del reinicio (la retoma al abrir).
+        if (agent_)
+            if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty()) args << "--app-arg=--reanudar-asistente=" + s;
         return system_->launch(args);
     });
     // Terminó un evento nuevo hecho aparte (una copia puede tardar): un solo aviso.
@@ -901,6 +906,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
         marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>, ver
+        // el reinicio de Configuraciones): el asistente arranca con ella y se muestra.
+        for (const QString& a : QCoreApplication::arguments())
+            if (a.startsWith("--reanudar-asistente=")) agent_->reanudarAlArrancar(a.mid(21));
         // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
         // asistente se entera por él, sin que cada llamador se acuerde de avisar.
         connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
@@ -1034,6 +1043,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // La documentación del evento (docs/): cada cambio republica la web del evento.
     documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });
     if (evento_) connect(documentos_.get(), &DocumentosViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(documentos_.get(), &DocumentosViewModel::notify, this, &StudioViewModel::notify);
+    // Los PDF en las escenas: la lista para elegir es la documentación del evento.
+    pdfEscena_ = std::make_unique<PdfEscena>(rt);
+    connect(documentos_.get(), &DocumentosViewModel::cambio, pdfEscena_.get(), &PdfEscena::refrescarDocumentos);
     // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
     estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(),
                                                   traductor_.get());
@@ -1312,6 +1325,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         control::Botonera::Ganchos g;
         g.escenas = [this]() { return rt_.engine().sceneNames(); };
         g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
+        g.pdfs = [this]() {
+            std::vector<std::pair<std::string, std::string>> out;
+            if (pdfEscena_)
+                for (const QVariant& v : pdfEscena_->documentos())
+                    out.emplace_back(v.toMap().value("id").toString().toStdString(), v.toMap().value("titulo").toString().toStdString());
+            return out;
+        };
         g.bancas = [this]() {
             std::vector<std::pair<std::string, std::string>> out;
             for (const auto& i : cuerpo_->cuerpo().integrantes())
@@ -2191,6 +2211,7 @@ QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::traductor() const { return traductor_.get(); }
 QObject* StudioViewModel::estadoIA() const { return estadoIA_.get(); }
 QObject* StudioViewModel::documentosQml() const { return documentos_.get(); }
+QObject* StudioViewModel::pdfEscenaQml() const { return pdfEscena_.get(); }
 QObject* StudioViewModel::superres() const { return superres_.get(); }
 QObject* StudioViewModel::bancoSrObj() const { return bancoSr_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

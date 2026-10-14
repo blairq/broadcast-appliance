@@ -98,9 +98,9 @@ bajar() { # nombre url sha
 # Lo que NO va. Medido sobre la instalacion de verdad, no estimado: la primera
 # poda dejaba 563 MB porque miraba solo cuatro carpetas. Esta baja a la mitad.
 #
-# Se usa UNA cosa: `--headless --convert-to pdf` sobre un .pptx. Todo lo que no
+# Se usa UNA cosa: `--headless --convert-to pdf` (presentaciones, Word, planillas, HTML). Todo lo que no
 # participa de eso sobra:
-#   - Writer y Calc: no abrimos textos ni planillas.
+#   - (Writer y Calc se quedan: Word, planillas y HTML a PDF, ver podar.)
 #   - help/ y los creditos: headless no muestra ayuda a nadie (29 MB).
 #   - python-core: es para escribir macros, no para convertir (38 MB).
 #   - extensions/ y wizards/: asistentes y plantillas de la interfaz (76 MB).
@@ -110,9 +110,9 @@ bajar() { # nombre url sha
 #     que tenerlas dos veces es cargar 54 MB al pedo.
 podar() {
     local dir="$1"
-    # Writer y Calc: no abrimos .docx ni .xlsx, solo diapositivas.
-    rm -f  "$dir/program/libswlo.so"  "$dir/program/libsclo.so"  2>/dev/null || true
-    rm -f  "$dir/program/swlo.dll"    "$dir/program/sclo.dll"    2>/dev/null || true
+    # Writer y Calc SE QUEDAN (2026-10-13): la documentación del evento se publica en
+    # PDF y la gente trae Word, planillas y páginas web (evento/APdf). Antes se
+    # sacaban (~40 MB) porque solo se convertían diapositivas.
     rm -rf "$dir/share/gallery" "$dir/share/template" 2>/dev/null || true
     rm -rf "$dir/share/extensions" "$dir/share/wizards" "$dir/share/basic" 2>/dev/null || true
     rm -rf "$dir/share/fonts" 2>/dev/null || true
@@ -228,8 +228,10 @@ convierte() {
     # `soffice` antes daba por podado de mas un arbol que estaba perfecto.
     case "$dir" in
         *"/win")
+            # Con Writer y Calc (Word, planillas y HTML a PDF): uno podado de antes, sin
+            # ellos, no sirve y se arma de nuevo.
             [ -f "$dir/program/soffice.exe" ] && [ -f "$dir/program/soffice.bin" ] &&
-                [ -d "$dir/share/registry" ]
+                [ -d "$dir/share/registry" ] && [ -f "$dir/program/swlo.dll" ] && [ -f "$dir/program/sclo.dll" ]
             return $?
             ;;
     esac
@@ -251,8 +253,11 @@ convierte() {
    <draw:text-box><text:p>prueba</text:p></draw:text-box></draw:frame></draw:page>
  </office:presentation></office:body></office:document>
 FODP
+    # Y un HTML (Writer): Word, planillas y páginas web también se pasan a PDF.
+    printf '<html><body><h1>prueba</h1><p>texto</p></body></html>' > "$t/w.html"
     HOME="$t" "$soffice" --headless --norestore --convert-to pdf --outdir "$t" "$t/p.fodp" >/dev/null 2>&1 || true
-    local ok=1; [ -s "$t/p.pdf" ] && ok=0
+    HOME="$t" "$soffice" --headless --norestore --convert-to pdf --outdir "$t" "$t/w.html" >/dev/null 2>&1 || true
+    local ok=1; [ -s "$t/p.pdf" ] && [ -s "$t/w.pdf" ] && ok=0
     rm -rf "$t"
     return $ok
 }
@@ -335,9 +340,13 @@ hacer_win() {
     if [ -f "$OUT/win/program/soffice.exe" ]; then
         log "windows ya estaba; repodando"
         podar "$OUT/win"
-        verificar "$OUT/win"
-        log "windows: $(du -sh "$OUT/win" | cut -f1)"
-        return
+        if convierte "$OUT/win"; then
+            log "windows: $(du -sh "$OUT/win" | cut -f1)"
+            return
+        fi
+        # Uno podado de antes (sin Writer ni Calc): se arma de nuevo.
+        log "el que estaba no sirve (le faltan Writer o Calc); lo armo de nuevo"
+        rm -rf "$OUT/win"
     fi
     bajar "$WIN_MSI" "$BASE/win/x86_64/$WIN_MSI" "$WIN_SHA"
     # SOLO msiextract. 7z «abre» el .msi pero escupe los flujos OLE crudos
@@ -374,12 +383,9 @@ hacer_win() {
 # Contents/Resources. El .dmg viene solo en ingles: no hay idiomas que sacar.
 podar_mac() {
     local c="$1/LibreOffice.app/Contents"
-    # Writer y Calc. (libmwaw NO: en macOS libmergedlo la enlaza directo y sin
-    # ella no arranca; en Linux se carga aparte y ahi si se saca.)
-    rm -f  "$c/Frameworks/libswlo.dylib" "$c/Frameworks/libsclo.dylib" 2>/dev/null || true
-    # Y en cascada lo que dependia de eso (filtros .doc/.xls, VBA de planillas):
-    # una dylib que apunta a otra que ya no esta es un agujero que el chequeo
-    # del bundle (check-portable-macos) marca, y con razon.
+    # Writer y Calc SE QUEDAN (ver podar). Igual, una dylib que apunta a otra que ya
+    # no esta es un agujero que el chequeo del bundle (check-portable-macos) marca, y
+    # con razon: se sacan en cascada.
     local cambio=1 f dep
     while [ "$cambio" = 1 ]; do
         cambio=0

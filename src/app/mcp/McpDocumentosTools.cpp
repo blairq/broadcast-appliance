@@ -10,7 +10,9 @@
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "platform/Paths.hpp"
 #include "ui/DocumentosViewModel.hpp"
+#include "ui/PdfEscena.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include <algorithm>
@@ -68,7 +70,9 @@ void McpService::registerDocumentosTools() {
         t.name = "documento_agregar";
         t.title = "Agregar un documento al evento";
         t.category = "documentos";
-        t.description = "Agrega un PDF (o una imagen) a la documentación del evento: lo copia a la carpeta docs/ del evento y "
+        t.description = "Agrega un documento a la documentación del evento: un PDF o una imagen tal cual, y un Word, "
+                        "planilla, presentación, HTML, Markdown o texto pasado a PDF antes (LibreOffice o Qt, del bundle). "
+                        "Lo copia a la carpeta docs/ del evento y "
                         "guarda su carátula (la primera página) para la web. `archivo`: la ruta. `titulo` y `descripcion` "
                         "(si no se dan: el título del PDF; la respuesta trae el comienzo del texto para escribir una "
                         "descripción con documento_editar). Relaciones opcionales.";
@@ -81,9 +85,75 @@ void McpService::registerDocumentosTools() {
             json datos = a;
             datos.erase("archivo");
             const std::string ruta = a.value("archivo", std::string());
-            const json r = dv->agregar(std::filesystem::path(std::u8string(ruta.begin(), ruta.end())), datos);
-            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
-            done(ToolResult().data(r));
+            dv->agregarConvirtiendo(std::filesystem::path(std::u8string(ruta.begin(), ruta.end())), datos, [done](const json& r) {
+                if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+                done(ToolResult().data(r));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pdf_convertir";
+        t.title = "Convertir a PDF";
+        t.category = "documentos";
+        t.description =
+            "Convierte a PDF con lo que viaja en el sistema (sin Chrome ni nada instalado): `archivo` (Word, Excel, "
+            "PowerPoint, OpenDocument, RTF, CSV, HTML, Markdown, texto o imagen) o `texto` que escribas vos, con "
+            "`formato` markdown (de fábrica), html o texto; cualquier idioma. `destino`: la ruta del .pdf (si no, al lado "
+            "del archivo, o en <datos>/Runtime/pdf/ para un texto). Con `agregar_al_evento`, en vez de eso lo suma a la "
+            "documentación del evento (con `titulo`, `descripcion`, `puntos`, `secciones`, `publico`) y la web lo "
+            "publica. Para un PDF desde HTML usá esto y no Chrome sin pantalla (en macOS pide el llavero).";
+        json props = relaciones;
+        props["archivo"] = {{"type", "string"}, {"description", "lo que se convierte (o `texto`)"}};
+        props["texto"] = {{"type", "string"}, {"description", "el contenido, si no hay archivo"}};
+        props["formato"] = {{"type", "string"}, {"enum", {"markdown", "html", "texto"}}};
+        props["titulo"] = {{"type", "string"}};
+        props["descripcion"] = {{"type", "string"}};
+        props["destino"] = {{"type", "string"}, {"description", "la ruta del .pdf"}};
+        props["agregar_al_evento"] = {{"type", "boolean"}, {"description", "sumarlo a la documentación del evento"}};
+        t.inputSchema = {{"type", "object"}, {"properties", props}};
+        t.run = [dv](const json& a, Done done) {
+            namespace fs = std::filesystem;
+            const auto deU8 = [](const std::string& x) { return fs::path(std::u8string(x.begin(), x.end())); };
+            const auto aQ = [](const fs::path& p) { return QString::fromStdU16String(p.u16string()); };
+            const std::string archivo = a.value("archivo", std::string()), texto = a.value("texto", std::string());
+            const std::string titulo = a.value("titulo", std::string());
+            if (archivo.empty() == texto.empty()) return done(ToolResult::error("pasá `archivo` o `texto` (uno de los dos)"));
+            const bool alEvento = a.value("agregar_al_evento", false);
+            json datos = a;
+            for (const char* k : {"archivo", "texto", "formato", "destino", "agregar_al_evento"}) datos.erase(k);
+            // Un archivo al evento: el camino de documento_agregar (convierte y agrega).
+            if (alEvento && !archivo.empty()) {
+                dv->agregarConvirtiendo(deU8(archivo), datos, [done](const json& r) {
+                    if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+                    done(ToolResult().data(r));
+                });
+                return;
+            }
+            const std::string nombre = !titulo.empty() ? titulo : !archivo.empty() ? deU8(archivo).stem().string() : "documento";
+            fs::path destino = deU8(a.value("destino", std::string()));
+            if (alEvento || destino.empty())
+                destino = (!alEvento && !archivo.empty()) ? deU8(archivo).replace_extension(".pdf")
+                                                          : ba::platform::dataRoot() / "Runtime" / "pdf" / deU8(nombre + ".pdf");
+            if (destino.extension() != ".pdf") destino += ".pdf";
+            // Lo que queda hecho: al evento, o la ruta.
+            const auto terminar = [dv, alEvento, datos, destino, done](const QString& err) {
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                if (!alEvento) return done(ToolResult().data({{"pdf", destino.string()}}));
+                dv->agregarConvirtiendo(destino, datos, [destino, done](const json& r) {
+                    std::error_code ec;
+                    std::filesystem::remove(destino, ec); // ya está copiado en docs/
+                    if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+                    done(ToolResult().data(r));
+                });
+            };
+            if (!texto.empty()) {
+                terminar(APdf::texto(QString::fromStdString(texto), QString::fromStdString(a.value("formato", std::string("markdown"))),
+                                     QString::fromStdString(nombre), aQ(destino)));
+                return;
+            }
+            dv->aPdf().archivo(aQ(deU8(archivo)), aQ(destino), terminar);
         };
         core_.addTool(std::move(t));
     }
@@ -153,6 +223,71 @@ void McpService::registerDocumentosTools() {
             const json r = dv->texto(a.value("id", std::string()), a.value("desde", 1), a.value("hasta", 0));
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Un PDF en una escena (fuente ba_pdf): elegirlo y pasarle páginas ---------------
+    PdfEscena* pe = vm_.pdfEscena();
+    if (pe == nullptr) return;
+    {
+        Tool t;
+        t.name = "pdf_escena_ver";
+        t.title = "Los PDF en las escenas";
+        t.category = "documentos";
+        t.readOnly = true;
+        t.description = "Las fuentes PDF de las escenas (ba_pdf: un PDF a pantalla, una página por vez): qué documento y qué "
+                        "página muestra cada una (de cuántas), y los PDF de la documentación del evento que se pueden elegir. "
+                        "Para mostrar un PDF en vivo sin desarmarlo en láminas.";
+        t.run = [pe](const json&, Done done) { done(ToolResult().data(pe->estado())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pdf_escena_poner";
+        t.title = "Elegir el PDF o la página de una fuente PDF";
+        t.category = "documentos";
+        t.description = "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del "
+                        "evento: pdf_escena_ver / documentos_listar) o `archivo` (la ruta de otro PDF), y/o `pagina` (1 = la "
+                        "primera) o `paso` (+1 la siguiente, -1 la anterior); y el encuadre: `zoom` (1 = la página entera, "
+                        "hasta 8) y `x`, `y` (el centro de lo que se ve, 0 a 1 sobre la página: 0.5, 0.2 = arriba al medio). "
+                        "Elegir un documento lo deja en la página 1 y entero. SE VE AL AIRE si esa escena está en el programa.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"fuente", {{"type", "string"}}},
+                           {"documento", {{"type", "string"}}},
+                           {"archivo", {{"type", "string"}}},
+                           {"pagina", {{"type", "integer"}, {"minimum", 1}}},
+                           {"paso", {{"type", "integer"}}},
+                           {"zoom", {{"type", "number"}, {"minimum", 1}, {"maximum", 8}}},
+                           {"x", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"y", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
+        t.run = [pe](const json& a, Done done) {
+            const QString f = QString::fromStdString(a.value("fuente", std::string()));
+            QString e;
+            if (a.contains("documento")) e = pe->elegir(f, QString::fromStdString(a.value("documento", std::string())));
+            else if (a.contains("archivo")) e = pe->elegirArchivo(f, QString::fromStdString(a.value("archivo", std::string())));
+            if (e.isEmpty() && a.contains("pagina")) e = pe->irA(f, a.value("pagina", 1));
+            if (e.isEmpty() && a.contains("paso")) e = pe->paso(f, a.value("paso", 1));
+            if (e.isEmpty() && (a.contains("zoom") || a.contains("x") || a.contains("y")))
+                e = pe->encuadre(f, a.value("zoom", -1.0), a.value("x", -1.0), a.value("y", -1.0));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(pe->estado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pdf_escena_crear";
+        t.title = "Armar una escena para mostrar PDF";
+        t.category = "documentos";
+        t.description = "Crea la escena `nombre` (de fábrica «PDF») con una fuente PDF a pantalla completa (si ya existe, le "
+                        "agrega la fuente si no la tiene). Después: pdf_escena_poner para elegir el documento y pasar páginas, "
+                        "y la tarjeta «PDF» del tablero hace lo mismo a mano.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"nombre", {{"type", "string"}}}}}};
+        t.run = [pe](const json& a, Done done) {
+            const QString e = pe->crearEscena(QString::fromStdString(a.value("nombre", std::string("PDF"))));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(pe->estado()));
         };
         core_.addTool(std::move(t));
     }

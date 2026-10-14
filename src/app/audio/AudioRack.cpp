@@ -976,7 +976,15 @@ void meterInto(std::atomic<float>& pow, std::atomic<float>& peak, float* const* 
 
 namespace {
 std::atomic<int> g_umbralPct{50}, g_bloques{20};
-std::mutex g_racksMu;
+// El candado y la lista viven lo que el proceso (nunca se destruyen): el hilo vigía
+// está suelto y sigue corriendo mientras el proceso termina; con un std::mutex
+// global, al destruirse los globales su lock fallaba («mutex lock failed:
+// Invalid argument») y la app se caía al cerrar (2026-10-13, al reiniciar para
+// abrir un evento nuevo).
+std::mutex& racksMu() {
+    static auto* m = new std::mutex();
+    return *m;
+}
 std::set<AudioRack*>* g_racks = nullptr;
 std::atomic<bool> g_vigiaAndando{false};
 std::int64_t ahoraNsRack() {
@@ -986,7 +994,7 @@ std::int64_t ahoraNsRack() {
 } // namespace
 
 void AudioRack::registrar(AudioRack* r, bool alta) {
-    std::lock_guard<std::mutex> l(g_racksMu);
+    std::lock_guard<std::mutex> l(racksMu());
     if (g_racks == nullptr) g_racks = new std::set<AudioRack*>();
     if (alta)
         g_racks->insert(r);
@@ -998,7 +1006,7 @@ void AudioRack::registrar(AudioRack* r, bool alta) {
         std::thread([] {
             for (;;) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                std::lock_guard<std::mutex> l2(g_racksMu);
+                std::lock_guard<std::mutex> l2(racksMu());
                 const std::int64_t ahora = ahoraNsRack();
                 for (AudioRack* x : *g_racks) {
                     const std::int64_t desde = x->enProcesoDesde_.load();
@@ -1014,7 +1022,7 @@ void AudioRack::registrar(AudioRack* r, bool alta) {
 void AudioRack::rehacerTodos() {
     std::vector<AudioRack*> todos;
     {
-        std::lock_guard<std::mutex> l(g_racksMu);
+        std::lock_guard<std::mutex> l(racksMu());
         if (g_racks != nullptr) todos.assign(g_racks->begin(), g_racks->end());
     }
     for (AudioRack* r : todos) r->rebuild();

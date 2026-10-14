@@ -1,0 +1,10 @@
+{
+ "descripcion": "Presentación online con inscriptos, preguntas, encuestas y material descargable.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "webinar",
+  "icono": "▣",
+  "orden": 11
+ }
+}

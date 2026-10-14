@@ -1,0 +1,10 @@
+{
+ "descripcion": "Docente con alumnos en el aula y remotos; materiales, asistencia a mano, preguntas, quizá traducción.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "clase-hibrida",
+  "icono": "✎",
+  "orden": 7
+ }
+}

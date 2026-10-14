@@ -1,0 +1,10 @@
+{
+ "descripcion": "Vecinos inscriptos que exponen por turnos con tiempo fijo; registro de oradores y acta.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "audiencia-publica",
+  "icono": "◎",
+  "orden": 15
+ }
+}

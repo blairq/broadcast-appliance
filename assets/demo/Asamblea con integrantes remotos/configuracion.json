@@ -1,0 +1,10 @@
+{
+ "descripcion": "Asamblea o sesión con quórum y votación donde parte de los integrantes participa a distancia.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "asamblea-remota",
+  "icono": "⌂",
+  "orden": 5
+ }
+}

@@ -21,7 +21,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <vector>
 
+#include <QImage>
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
@@ -59,7 +61,8 @@ class Emisor : public QObject {
     /// el asistente nombran la fuente, no la numeran.
     std::uint64_t fuentePorNombre(const QString& nombre) const;
 
-    /// Lo dibuja entero y lo pone al aire en esa fuente.
+    /// Lo pone al aire en esa fuente. Se dibuja en otro hilo y sale con la primera tanda
+    /// de cuadros (la interfaz no espera); si algo falla después, avisa con `fallo`.
     ///
     /// :param duracionMs: cuánto se pre-renderiza. 0 = lo que diga la ficha.
     /// :returns: vacío si salió bien; si no, el motivo, en castellano.
@@ -84,8 +87,14 @@ class Emisor : public QObject {
    signals:
     /// Algo salió o dejó de estar al aire. El rotulador y la web se refrescan.
     void cambio();
+    /// Un gráfico que se estaba dibujando para el aire no salió (o se cortó).
+    void fallo(const QString& motivo);
 
    private:
+    /// Crea el dibujo para el aire (una vez).
+    void prepararAire();
+    /// Una tanda del dibujo para el aire (en el hilo de la interfaz).
+    void recibirTanda(std::uint64_t fuente, int generacion, std::vector<QImage> cuadros, bool fin, const QString& error);
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

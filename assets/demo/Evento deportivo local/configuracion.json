@@ -1,0 +1,10 @@
+{
+ "descripcion": "Partido o torneo: marcador, tiempo, relato, repeticiones y patrocinadores.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "deportivo",
+  "icono": "⚽",
+  "orden": 17
+ }
+}

@@ -1,0 +1,254 @@
+{
+ "nombre": "‹Asamblea de propietarios›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Propietarios o socios, presenciales y por videollamada, con votación por mayorías o porcentajes.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b130-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c123-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c124-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c125-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c126-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Asamblea de propietarios›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Asamblea de propietarios›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c127-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c128-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c129-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b133-g",
+   "nombre": "Constitución",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c131-g",
+     "tipo": "escena",
+     "texto": "Al aire: Mesa",
+     "datos": {
+      "escena": "Mesa"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c132-g",
+     "tipo": "nota",
+     "texto": "Presentes, poderes y quórum",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b139-g",
+   "nombre": "Balance",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c134-g",
+     "tipo": "grafico",
+     "texto": "Placa: Balance del ejercicio",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "Balance del ejercicio",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c135-g",
+     "tipo": "escena",
+     "texto": "El balance en pantalla",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c136-g",
+     "tipo": "nota",
+     "texto": "Presentación y preguntas",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c137-g",
+     "tipo": "escena",
+     "texto": "Al aire: Votación",
+     "datos": {
+      "escena": "Votación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c138-g",
+     "tipo": "nota",
+     "texto": "Aprobación",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b142-g",
+   "nombre": "‹Otros puntos›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c140-g",
+     "tipo": "nota",
+     "texto": "‹Punto›",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    },
+    {
+     "id": "c141-g",
+     "tipo": "escena",
+     "texto": "Al aire: Votación",
+     "datos": {
+      "escena": "Votación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b147-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c143-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c144-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c145-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c146-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Uno o varios oradores, público en la sala y online, preguntas, transmisión.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "conferencia",
+  "icono": "◉",
+  "orden": 8
+ }
+}

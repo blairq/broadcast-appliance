@@ -28,7 +28,9 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
+#include <QUuid>
 #include <QFile>
+#include <QProcessEnvironment>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -257,7 +259,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
     connect(&alerts_, &AlertEngine::fired, this, &AgentViewModel::onAlert);
     // Arranque automatico cuando todo este listo (GuiMode conecta el MCP despues).
     QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
-        if (autoStart_ && installed() && mcpReady() && !running()) start();
+        if (autoStart_ && reanudar_.isEmpty() && installed() && mcpReady() && !running()) start(); // (retomar: reanudarAlArrancar)
     });
 }
 
@@ -1376,6 +1378,11 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY",  "GOOGLE_API_KEY",
                   "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH", "BA_MODELO_PROPIO_KEY",
                   "PYTHONHOME",         "PYTHONPATH"};
+    // Lo heredado de OTRO Claude Code (si la app se abrió desde su terminal): con
+    // CLAUDE_CODE_CHILD_SESSION el asistente se cree una sesión hija y no guarda el
+    // historial («Transcript saving is off»), y con su SESSION_ID/SOCKET habla con aquel.
+    for (const QString& k : QProcessEnvironment::systemEnvironment().keys())
+        if (k.startsWith("CLAUDE_") || k == "AI_AGENT") o.unsetEnv << k;
     if (prov != nullptr && !QString(prov->keyName).isEmpty()) {
         QByteArray key;
         if (!cred::read(root + "/Credenciales", prov->keyName, key)) {
@@ -1494,6 +1501,49 @@ void AgentViewModel::aislarEnLaCarpetaDeDatos(term::Pty::Options& o, const QStri
     QDir().mkpath(profile + "/AppData/Local");
 #endif
     o.env["NPM_CONFIG_CACHE"] = root + "/Cache/npm";
+    // LOS TEMPORALES, TAMBIÉN EN LOS DATOS (el pendrive): Claude Code usa /tmp salvo
+    // CLAUDE_CODE_TMPDIR (salidas de tareas, PDF, vistas previas), y lo que corre en su
+    // consola, TMPDIR (Unix) o TMP/TEMP (Windows). Los sockets del sistema siguen en
+    // runtimeDir(), que no puede ir a un FAT/exFAT.
+    {
+        const QString tmp = root + "/Runtime/tmp/" + runtime;
+        QDir().mkpath(tmp);
+        o.env["CLAUDE_CODE_TMPDIR"] = tmp;
+        o.env["TMPDIR"] = tmp;
+        o.env["TMP"] = tmp;
+        o.env["TEMP"] = tmp;
+    }
+#ifdef __APPLE__
+    // EL LLAVERO DE macOS, NUNCA. Claude Code guarda el login con `security` y solo si
+    // falla pasa a <perfil>/.credentials.json. Con el HOME del perfil no hay llavero
+    // por defecto y `security` no falla: abre un cartel («no se encuentra un llavero
+    // para guardar…») y espera; Claude lo toma como llavero bloqueado, no pasa al
+    // archivo y dice «Couldn't save your login». Un `security` propio adelante en el
+    // PATH contesta al instante «no está» (leer, borrar) y «no se pudo» (guardar): el
+    // login queda en el archivo del perfil, en la carpeta de datos (el pendrive).
+    {
+        const QString bin = profile + "/bin";
+        QDir().mkpath(bin);
+        const QString sec = bin + "/security";
+        const QByteArray guion = "#!/bin/sh\n"
+                                 "# Broadcast Appliance: los agentes no usan el llavero de macOS (todo queda en la\n"
+                                 "# carpeta de datos). Ver AgentViewModel::aislarEnLaCarpetaDeDatos.\n"
+                                 "case \"$1\" in\n"
+                                 "  add-generic-password|add-internet-password) exit 1 ;;\n"
+                                 "  *) exit 44 ;;\n"
+                                 "esac\n";
+        QFile f(sec);
+        if (!f.exists() || (f.open(QIODevice::ReadOnly) && f.readAll() != guion)) {
+            f.close();
+            if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(guion);
+        }
+        f.close();
+        f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner | QFileDevice::ReadGroup |
+                         QFileDevice::ExeGroup | QFileDevice::ReadOther | QFileDevice::ExeOther);
+        const QString path = o.env.contains("PATH") ? o.env["PATH"] : qEnvironmentVariable("PATH");
+        o.env["PATH"] = bin + (path.isEmpty() ? QString() : ":" + path);
+    }
+#endif
     // Gemini CLI: su login y los tokens de MCP a archivo (en el HOME del perfil), nunca
     // al llavero del sistema.
     o.env["GEMINI_FORCE_FILE_STORAGE"] = "true";
@@ -1529,6 +1579,16 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         else
             o.args << "--allowedTools" << permitidas << "--disallowedTools" << "Bash" << "PowerShell"
                    << "Edit" << "Write" << "NotebookEdit";
+        // La conversación con su id: retomar la pedida (reinicio de la app, relanzamiento
+        // por el aire) o empezar una nueva con un id propio, para poder retomarla después.
+        if (!reanudar_.isEmpty()) {
+            sesion_ = reanudar_;
+            o.args << "--resume" << sesion_;
+        } else {
+            sesion_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            o.args << "--session-id" << sesion_;
+        }
+        reanudar_.clear();
     } else if (runtimeOf(provider_) == "pi") {
         conConsola_ = false; // pi con el modelo local: nunca consola (ver baseLaunch)
     }
@@ -1747,8 +1807,32 @@ void AgentViewModel::stop() {
 }
 
 void AgentViewModel::restart() {
+    // Relanzar (el aire prende o apaga la consola) sigue la misma conversación.
+    const QString seguir = sesionParaReanudar();
     stop();
+    reanudar_ = seguir;
     QTimer::singleShot(300, this, &AgentViewModel::start);
+}
+
+QString AgentViewModel::sesionParaReanudar() const {
+    if (sesion_.isEmpty() || runtimeOf(provider_) != "claude" || !session_->running()) return {};
+    // Solo si ya guardó algo (<perfil>/projects/<carpeta>/<id>.jsonl): `--resume` de una
+    // conversación sin mensajes no la encuentra y el asistente no arrancaría.
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring());
+    QDirIterator it(root + "/Credenciales/agentes/claude/projects", {sesion_ + ".jsonl"}, QDir::Files,
+                    QDirIterator::Subdirectories);
+    return it.hasNext() ? sesion_ : QString();
+}
+
+void AgentViewModel::reanudarAlArrancar(const QString& id) {
+    if (id.isEmpty() || QUuid::fromString(id).isNull()) return;
+    reanudar_ = id;
+    // Cuando el MCP esté listo (como el arranque automático), aunque no esté prendido.
+    QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
+        if (reanudar_.isEmpty() || running() || !installed() || !mcpReady()) return;
+        start();
+        emit mostrarseAlReanudar();
+    });
 }
 
 void AgentViewModel::setHayAire(std::function<bool()> fn) {
@@ -1779,6 +1863,33 @@ void AgentViewModel::send(const QString& text) {
         return;
     }
     session_->submit(text.trimmed());
+}
+
+void AgentViewModel::encargar(const QString& texto) {
+    if (texto.trimmed().isEmpty()) return;
+    emit pideVerse();
+    if (running()) {
+        send(texto);
+        return;
+    }
+    // Arranca y manda cuando la terminal ya está: unos segundos después de que corre
+    // (Claude Code tarda en mostrar su entrada; antes, lo escrito se perdía).
+    encargoPendiente_ = texto;
+    QPointer<AgentViewModel> yo(this);
+    auto* c = new QMetaObject::Connection;
+    *c = connect(this, &AgentViewModel::runningChanged, this, [yo, c]() {
+        if (!yo || !yo->running()) return;
+        QObject::disconnect(*c);
+        delete c;
+        QTimer::singleShot(ba::ajustes::entero("asistente.esperaEncargoMs", 6000), yo, [yo]() {
+            if (!yo || yo->encargoPendiente_.isEmpty()) return;
+            const QString t = yo->encargoPendiente_;
+            yo->encargoPendiente_.clear();
+            yo->send(t);
+        });
+    });
+    if (installed() && mcpReady()) start();
+    else setError("El asistente no está listo (instalado y con el servidor MCP prendido): el pedido queda para cuando arranque.");
 }
 
 // --- Alertas ------------------------------------------------------------------------------

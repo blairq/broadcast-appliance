@@ -1,0 +1,10 @@
+{
+ "descripcion": "Propietarios o socios, presenciales y por videollamada, con votación por mayorías o porcentajes.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "consorcio",
+  "icono": "⌘",
+  "orden": 6
+ }
+}

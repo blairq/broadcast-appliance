@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <map>
 
 namespace ba::app {
 
@@ -286,7 +287,9 @@ std::string Configuraciones::origenDe(const std::string& desde, std::filesystem:
     if (origen.rfind("plantilla:", 0) == 0 || origen.rfind("demo:", 0) == 0) {
         const std::string n = origen.substr(origen.find(':') + 1);
         const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(n);
-        *de = fs::is_directory(demo, ec) ? demo : carpeta(n);
+        // La copia propia marcada como plantilla (una del programa editada) le gana a la original.
+        const bool propia = fs::is_directory(carpeta(n), ec) && leerJson(carpeta(n) / "configuracion.json").value("plantilla", false);
+        *de = propia ? carpeta(n) : fs::is_directory(demo, ec) ? demo : carpeta(n);
         return fs::is_directory(*de, ec) ? std::string() : "no hay ninguna plantilla «" + n + "»";
     }
     *de = origen == "actual" ? ba::platform::configRoot() : carpeta(origen);
@@ -323,10 +326,17 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
         return err;
     }
     sembrar(dst);
-    // Su evento en curso: el de la copia (su guion, su web, su padrón…) o, si no tiene
-    // ninguno (de cero, de una foto), uno nuevo con su nombre.
+    // Su evento en curso: el de la copia (su guion, su web, su padrón…); si no hay uno en
+    // curso, el que trae (una plantilla trae su guion sin marcarlo en curso: antes se
+    // creaba uno vacío y el guion de la plantilla no llegaba); si no trae ninguno (de
+    // cero, de una foto), uno nuevo con su nombre.
     evento::EventoStore store(dst / "Eventos");
     std::string ruta = store.enCurso();
+    if (ruta.empty()) {
+        ruta = store.ultimoTocado();
+        std::string e2;
+        if (!ruta.empty()) store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
+    }
     if (ruta.empty()) {
         std::string e2;
         ruta = store.crear(nombre, &e2);
@@ -476,18 +486,145 @@ std::string Configuraciones::marcarPlantilla(const std::string& nombre, bool pla
     return {};
 }
 
+json Configuraciones::plantillasAdmin() const {
+    const json ajustes = leerJson(datos() / "plantillas.json");
+    const json orden = ajustes.value("orden", json::array()), ocultas = ajustes.value("ocultas", json::array());
+    const json nombres = ajustes.value("nombres", json::object()), descs = ajustes.value("descripciones", json::object());
+    const auto en = [](const json& arr, const std::string& v) { return std::find(arr.begin(), arr.end(), v) != arr.end(); };
+    std::map<std::string, json> t; // por carpeta
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(ba::platform::bundleRoot() / "Demos", ec)) {
+        if (!e.is_directory()) continue;
+        const json meta = leerJson(e.path() / "configuracion.json");
+        const std::string id = aU8(e.path().filename());
+        t[id] = {{"id", id}, {"descripcion", meta.value("descripcion", std::string())},
+                 {"datos", meta.value("plantillaDatos", json::object())}, {"programa", true}, {"propia", false}};
+    }
+    const std::string act = activa();
+    for (const auto& c : listar()) {
+        if (!c.value("plantilla", false)) continue;
+        const std::string id = c.value("nombre", std::string());
+        const json meta = leerJson(carpeta(id) / "configuracion.json");
+        json& x = t[id];
+        if (!x.is_object()) x = {{"id", id}, {"programa", false}, {"datos", json::object()}};
+        x["propia"] = true;
+        if (!meta.value("descripcion", std::string()).empty()) x["descripcion"] = meta.value("descripcion", std::string());
+        if (meta.contains("plantillaDatos") && meta["plantillaDatos"].is_object()) x["datos"] = meta["plantillaDatos"];
+    }
+    std::vector<json> l;
+    for (auto& [id, x] : t) {
+        const json d = x.value("datos", json::object());
+        json o{{"id", id},
+               {"carpeta", id},
+               {"nombre", nombres.value(id, id)},
+               {"descripcion", descs.value(id, x.value("descripcion", std::string()))},
+               {"escenario", d.value("escenario", std::string())},
+               {"icono", d.value("icono", std::string("▣"))},
+               {"visible", !en(ocultas, id)},
+               {"programa", x.value("programa", false)},
+               {"propia", x.value("propia", false)},
+               {"editada", x.value("programa", false) && x.value("propia", false)},
+               {"activa", id == act}};
+        // Lo ordenado a mano primero (en ese orden); después el orden de fábrica.
+        const auto it = std::find(orden.begin(), orden.end(), id);
+        o["_pos"] = it != orden.end() ? static_cast<int>(it - orden.begin()) : 1000 + d.value("orden", 500);
+        l.push_back(o);
+    }
+    std::stable_sort(l.begin(), l.end(), [](const json& a, const json& b) { return a["_pos"].get<int>() < b["_pos"].get<int>(); });
+    json out = json::array();
+    for (auto& o : l) {
+        o.erase("_pos");
+        out.push_back(o);
+    }
+    return out;
+}
+
 json Configuraciones::plantillas() const {
     json out = json::array();
-    for (const auto& d : demos())
-        out.push_back({{"nombre", d.value("nombre", std::string())},
-                       {"descripcion", d.value("descripcion", std::string())},
-                       {"demo", true}});
-    for (const auto& c : listar())
-        if (c.value("plantilla", false))
-            out.push_back({{"nombre", c.value("nombre", std::string())},
-                           {"descripcion", c.value("descripcion", std::string())},
-                           {"demo", false}});
+    for (const auto& p : plantillasAdmin())
+        if (p.value("visible", true))
+            out.push_back({{"nombre", p["nombre"]}, {"carpeta", p["carpeta"]}, {"descripcion", p["descripcion"]},
+                           {"demo", p["programa"]}, {"escenario", p["escenario"]}, {"icono", p["icono"]}});
     return out;
+}
+
+std::string Configuraciones::plantillaAjustar(const std::string& id, const json& cambios) {
+    bool hay = false;
+    for (const auto& p : plantillasAdmin()) hay = hay || p.value("id", std::string()) == id;
+    if (!hay) return "no hay una plantilla «" + id + "»";
+    json a = leerJson(datos() / "plantillas.json");
+    if (!a.is_object()) a = json::object();
+    if (cambios.contains("nombre") && cambios["nombre"].is_string()) {
+        const std::string n = cambios["nombre"];
+        if (n.empty() || n == id) a["nombres"].erase(id);
+        else a["nombres"][id] = n;
+    }
+    if (cambios.contains("descripcion") && cambios["descripcion"].is_string()) a["descripciones"][id] = cambios["descripcion"];
+    if (cambios.contains("visible") && cambios["visible"].is_boolean()) {
+        json oc = a.value("ocultas", json::array());
+        oc.erase(std::remove(oc.begin(), oc.end(), id), oc.end());
+        if (!cambios["visible"].get<bool>()) oc.push_back(id);
+        a["ocultas"] = oc;
+    }
+    escribirJson(datos() / "plantillas.json", a);
+    emit cambio();
+    return {};
+}
+
+std::string Configuraciones::plantillaMover(const std::string& id, int delta) {
+    std::vector<std::string> ids;
+    for (const auto& p : plantillasAdmin()) ids.push_back(p.value("id", std::string()));
+    const auto it = std::find(ids.begin(), ids.end(), id);
+    if (it == ids.end()) return "no hay una plantilla «" + id + "»";
+    const int i = static_cast<int>(it - ids.begin()), j = std::clamp(i + delta, 0, static_cast<int>(ids.size()) - 1);
+    if (i == j) return {};
+    std::swap(ids[static_cast<std::size_t>(i)], ids[static_cast<std::size_t>(j)]);
+    json a = leerJson(datos() / "plantillas.json");
+    if (!a.is_object()) a = json::object();
+    a["orden"] = ids;
+    escribirJson(datos() / "plantillas.json", a);
+    emit cambio();
+    return {};
+}
+
+std::string Configuraciones::plantillaParaEditar(const std::string& id) {
+    std::error_code ec;
+    if (!fs::is_directory(carpeta(id), ec)) {
+        // Del programa: una copia propia, marcada como plantilla con sus datos (le gana a la original).
+        const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(id);
+        if (!fs::is_directory(demo, ec)) return "no hay una plantilla «" + id + "»";
+        if (const std::string e = crearSinAvisar(id, "demo:" + id, "", false); !e.empty()) return e;
+        const json original = leerJson(demo / "configuracion.json");
+        json meta = leerJson(carpeta(id) / "configuracion.json");
+        meta["plantilla"] = true;
+        if (original.contains("plantillaDatos")) meta["plantillaDatos"] = original["plantillaDatos"];
+        if (meta.value("descripcion", std::string()).empty()) meta["descripcion"] = original.value("descripcion", std::string());
+        escribirJson(carpeta(id) / "configuracion.json", meta);
+    }
+    if (id != activa())
+        if (const std::string e = activar(id); !e.empty()) return e;
+    emit cambio();
+    return {};
+}
+
+std::string Configuraciones::plantillaRestablecer(const std::string& id) {
+    for (const auto& p : plantillasAdmin())
+        if (p.value("id", std::string()) == id) {
+            if (!p.value("editada", false)) return "«" + id + "» no tiene cambios propios para sacar";
+            if (p.value("activa", false)) return "está abierta: pasá a otro evento antes de restablecerla";
+            return borrar(id);
+        }
+    return "no hay una plantilla «" + id + "»";
+}
+
+std::string Configuraciones::plantillaDesdeActual(const std::string& nombre, const std::string& escenario) {
+    if (const std::string e = crearSinAvisar(nombre, "actual", "", false); !e.empty()) return e;
+    json meta = leerJson(carpeta(nombre) / "configuracion.json");
+    meta["plantilla"] = true;
+    if (!escenario.empty()) meta["plantillaDatos"] = {{"escenario", escenario}};
+    escribirJson(carpeta(nombre) / "configuracion.json", meta);
+    emit cambio();
+    return {};
 }
 
 std::string Configuraciones::activar(const std::string& nombre) {
@@ -553,6 +690,28 @@ QString Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
     return QString::fromStdString(marcarPlantilla(n.toStdString(), p));
 }
 QVariantList Configuraciones::plantillasUi() const { return aQvl(plantillas()); }
+QVariantList Configuraciones::plantillasAdminUi() const { return aQvl(plantillasAdmin()); }
+QString Configuraciones::plantillaAjustarUi(const QString& id, const QVariantMap& c) {
+    return QString::fromStdString(plantillaAjustar(id.toStdString(), json::parse(QJsonDocument::fromVariant(c).toJson().toStdString(), nullptr, false)));
+}
+QString Configuraciones::plantillaMoverUi(const QString& id, int d) { return QString::fromStdString(plantillaMover(id.toStdString(), d)); }
+QString Configuraciones::plantillaEditarUi(const QString& id) {
+    if (const std::string e = plantillaParaEditar(id.toStdString()); !e.empty()) return QString::fromStdString(e);
+    return reiniciar();
+}
+QString Configuraciones::plantillaRestablecerUi(const QString& id) { return QString::fromStdString(plantillaRestablecer(id.toStdString())); }
+QString Configuraciones::plantillaBorrarUi(const QString& id) {
+    for (const auto& p : plantillasAdmin())
+        if (p.value("id", std::string()) == id.toStdString()) {
+            if (p.value("programa", false)) return "las del programa no se borran: ocultala (o restablecela si la editaste)";
+            if (p.value("activa", false)) return "está abierta: pasá a otro evento antes de borrarla";
+            return QString::fromStdString(borrar(id.toStdString()));
+        }
+    return "no hay una plantilla «" + id + "»";
+}
+QString Configuraciones::plantillaDesdeActualUi(const QString& n, const QString& esc) {
+    return QString::fromStdString(plantillaDesdeActual(n.trimmed().toStdString(), esc.toStdString()));
+}
 QString Configuraciones::cambiarUi(const QString& n) {
     if (n.toStdString() == activa()) return "ya es la activa";
     if (const std::string e = activar(n.toStdString()); !e.empty()) return QString::fromStdString(e);

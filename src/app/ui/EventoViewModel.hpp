@@ -257,6 +257,21 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QStringList fuentesDeGrafico() const;
     /// Los parametros que declara ese grafico, para armar el formulario del cue.
     Q_INVOKABLE QVariantList parametrosDeGrafico(const QString& grafico) const;
+    /// Las opciones para el campo `campo` de un cue de tipo `tipo`, para elegirlas en
+    /// vez de escribirlas: [{valor, texto}] (las escenas, los medios del evento, los
+    /// discursos, los gráficos y sus fuentes, las fuentes de audio, quién está en la
+    /// sala, las acciones de cada tipo). Vacía = se escribe (o es un sí/no o un número).
+    Q_INVOKABLE QVariantList opcionesDeCampo(const QString& tipo, const QString& campo) const;
+    /// La vista web para ver si un cue anda (el teleprompter: la pantalla del orador,
+    /// que avanza sola), en esta máquina; "" si ese tipo no tiene vista.
+    Q_INVOKABLE QString enlaceDeCue(const QString& tipo) const;
+    /// Los tipos de evento con guía para prepararlos con el asistente (datos/escenarios):
+    /// [{id, titulo, icono, resumen}].
+    Q_INVOKABLE QVariantList escenarios() const;
+    /// El pedido para el asistente: preparar un evento de ese tipo siguiendo su guía
+    /// (evento_escenario), con lo que el operador ya contó en `notas`.
+    /// `plantilla`: la carpeta de la plantilla de ese tipo ("" = desde cero).
+    Q_INVOKABLE QString pedidoDeEscenario(const QString& id, const QString& notas, const QString& plantilla = {}) const;
     /// Cambia UN valor de los parametros de un cue de grafico, sin pisar los
     /// otros (que es lo que pasaria mandando `datos` entero).
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);

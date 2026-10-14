@@ -32,9 +32,9 @@ std::string corto(std::string s, std::size_t max) {
 
 } // namespace
 
-void Superficies::latido(const std::string& tipo, const std::string& id, const std::string& que,
+bool Superficies::latido(const std::string& tipo, const std::string& id, const std::string& que,
                          std::uint32_t ip) {
-    if (id.empty() || id.size() > 64) return;
+    if (id.empty() || id.size() > 64) return false;
     std::lock_guard<std::mutex> lock(m_);
     const std::int64_t ahora = ahoraMs();
     // Se limpia al anotar: no hay temporizador acá y lo viejo se va solo.
@@ -53,6 +53,9 @@ void Superficies::latido(const std::string& tipo, const std::string& id, const s
     v.ip = ipTexto(ip);
     v.vistaMs = ahora;
     ++v.latidos;
+    if ((v.tipo != "programa" && v.tipo != "escena") || ahora - v.anotadaMs < 30000) return false;
+    v.anotadaMs = ahora;
+    return true;
 }
 
 json Superficies::vivas() const {

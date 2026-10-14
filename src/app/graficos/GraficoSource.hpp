@@ -53,8 +53,14 @@ std::vector<InstanciaInfo> instancias();
 /// :param fps: a cuántos cuadros por segundo se dibujaron.
 /// :param repetir: para un ticker; para un zócalo va en false y el último
 ///        cuadro queda fijo.
+/// :param llegando: faltan cuadros que se suman con `agregar` (se reproduce mientras
+///        se siguen dibujando; al alcanzar el último que hay, espera en ese).
 /// :returns: false si esa instancia no existe.
-bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir);
+bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando = false);
+
+/// Suma cuadros a la animación que se está reproduciendo en `id` (los que se terminaron
+/// de dibujar). `fin`: eran los últimos. false si ya no se reproduce (otro la reemplazó).
+bool agregar(std::uint64_t id, std::vector<QImage> cuadros, bool fin);
 
 /// Saca el gráfico de pantalla (deja de emitir).
 bool ocultar(std::uint64_t id);

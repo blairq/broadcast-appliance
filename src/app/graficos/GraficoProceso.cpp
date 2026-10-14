@@ -3,6 +3,9 @@
 // ============================================================================
 #include "graficos/GraficoProceso.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "platform/Segmento.hpp"
+
+#include <cstring>
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -135,9 +138,34 @@ QVector<Cuadro> GraficoProceso::tira(QJsonObject pedido, const QVector<int>& mom
     for (const int m : momentos)
         ms.append(m);
     pedido["momentos"] = ms;
+    // Los píxeles crudos por memoria compartida (ver src/grafico/main.cpp): sin PNG
+    // ni base64, que se comían el tiempo de una animación al aire.
+    pedido["shm"] = true;
 
     const QJsonObject r = d_->pedir(pedido, error);
     QVector<Cuadro> out;
+    if (r.contains("shm")) {
+        const int ancho = r.value("ancho").toInt(), alto = r.value("alto").toInt(), bpl = r.value("bpl").toInt();
+        const QJsonArray cuadros = r.value("cuadros").toArray();
+        const qsizetype porCuadro = static_cast<qsizetype>(bpl) * alto;
+        ba::platform::Segmento seg;
+        std::string err;
+        if (ancho <= 0 || alto <= 0 || bpl < ancho * 4 || !seg.abrir(r.value("shm").toString().toStdString(), &err) ||
+            seg.tam() < static_cast<size_t>(porCuadro * cuadros.size())) {
+            if (error != nullptr)
+                *error = "no se pudieron leer los cuadros del renderizador: " + QString::fromStdString(err);
+            return out;
+        }
+        const auto* base = static_cast<const uchar*>(seg.datos());
+        for (qsizetype i = 0; i < cuadros.size(); ++i) {
+            QImage img(ancho, alto, QImage::Format_ARGB32_Premultiplied);
+            const uchar* src = base + porCuadro * i;
+            for (int y = 0; y < alto; ++y)
+                std::memcpy(img.scanLine(y), src + static_cast<qsizetype>(bpl) * y, static_cast<size_t>(ancho) * 4);
+            out.append(Cuadro{cuadros.at(i).toInt(), std::move(img)});
+        }
+        return out;
+    }
     for (const QJsonValue& v : r.value("cuadros").toArray()) {
         const QJsonObject c = v.toObject();
         out.append(Cuadro{c.value("ms").toInt(), dePngBase64(c.value("png").toString())});

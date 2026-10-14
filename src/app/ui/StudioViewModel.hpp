@@ -158,6 +158,7 @@ class FacebookViewModel;
 class SystemViewModel;
 class Configuraciones;
 class DocumentosViewModel;
+class PdfEscena;
 class OperatorMessages;
 class InputsViewModel;
 class ChatOverlayRenderer;
@@ -357,6 +358,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* estadoIA READ estadoIA CONSTANT)
     /// La documentación del evento abierto (PDF con carátula, por punto y sección): ui/DocumentosViewModel.
     Q_PROPERTY(QObject* documentos READ documentosQml CONSTANT)
+    /// Los PDF en las escenas (fuentes ba_pdf): elegir y pasar páginas. ui/PdfEscena.
+    Q_PROPERTY(QObject* pdfEscena READ pdfEscenaQml CONSTANT)
     /// La superresolución de las entradas de red: motores, modelos, laboratorio (video/SuperRes.hpp).
     Q_PROPERTY(QObject* superres READ superres CONSTANT)
     /// El banco de pruebas de superresolución: qué puede usar esta máquina.
@@ -717,6 +720,8 @@ class StudioViewModel : public QObject {
     QObject* estadoIA() const;
     QObject* documentosQml() const;
     DocumentosViewModel* documentos() const { return documentos_.get(); }
+    QObject* pdfEscenaQml() const;
+    PdfEscena* pdfEscena() const { return pdfEscena_.get(); }
     agent::EstadoIA* estadoIAModelo() const { return estadoIA_.get(); }
     QObject* superres() const;
     QObject* bancoSrObj() const;
@@ -985,6 +990,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::Traductor> traductor_;
     std::unique_ptr<agent::EstadoIA> estadoIA_;
     std::unique_ptr<DocumentosViewModel> documentos_;
+    std::unique_ptr<PdfEscena> pdfEscena_;
     std::unique_ptr<agent::Subtitulos> subtitulos_;
     std::unique_ptr<agent::SubtitulosCC> cc_;
     std::unique_ptr<video::SuperRes> superres_;

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Misa, culto, casamiento o celebración: música, letras en pantalla, lecturas, transmisión.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "ceremonia",
+  "icono": "✧",
+  "orden": 14
+ }
+}

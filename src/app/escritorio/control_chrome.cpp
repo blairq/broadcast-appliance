@@ -517,7 +517,10 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
         std::filesystem::create_directories(perfil, ec);
         const std::string puertoArg = "--remote-debugging-port=" + std::to_string(puerto), perfilArg = "--user-data-dir=" + perfil;
         const std::string u = a.value("url", std::string());
-        std::vector<const char*> argv{exe.c_str(), puertoArg.c_str(), perfilArg.c_str(), "--no-first-run", "--no-default-browser-check"};
+        // Sin el llavero del sistema (en macOS Chrome guarda ahí su «Safe Storage» y le
+        // pide la clave al operador): las claves del perfil, en el perfil.
+        std::vector<const char*> argv{exe.c_str(), puertoArg.c_str(), perfilArg.c_str(), "--no-first-run", "--no-default-browser-check",
+                                      "--use-mock-keychain", "--password-store=basic"};
         if (!u.empty()) argv.push_back(u.c_str());
         argv.push_back(nullptr);
         posix_spawnattr_t at;

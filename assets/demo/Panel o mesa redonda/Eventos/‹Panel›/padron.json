@@ -1,0 +1,64 @@
+{
+ "gente": [
+  {
+   "id": "a1-plantilla",
+   "nombre": "‹Panelista 1›",
+   "papel": "panelista",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A2B",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  },
+  {
+   "id": "a2-plantilla",
+   "nombre": "‹Panelista 2›",
+   "papel": "panelista",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A50",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  },
+  {
+   "id": "a3-plantilla",
+   "nombre": "‹Panelista 3›",
+   "papel": "panelista",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A75",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  },
+  {
+   "id": "a4-plantilla",
+   "nombre": "‹Panelista 4›",
+   "papel": "panelista",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A9A",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  }
+ ]
+}

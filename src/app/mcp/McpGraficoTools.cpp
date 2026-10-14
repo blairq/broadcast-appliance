@@ -140,10 +140,13 @@ void McpService::registerGraficoTools() {
             "lo ve el público.\n\n"
             "La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo "
             "«Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.\n\n"
-            "Los cuadros se dibujan TODOS de antemano y después se reproducen, así que el primer "
-            "disparo tarda un poco (medio segundo para una animación corta) y a partir de ahí no hay "
-            "nada que pueda trabarse. Por eso hay tope de duración: más de unos segundos no es un "
-            "gráfico animado, es un video.\n\n"
+            "Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.\n\n"
+            "CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en "
+            "milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el "
+            "gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, "
+            "queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada "
+            "y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta "
+            "(solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).\n\n"
             "Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y "
             "se sostiene. Con `repetir`, vuelve a empezar (un ticker).";
         t.inputSchema = {
@@ -151,13 +154,14 @@ void McpService::registerGraficoTools() {
             {"properties",
              {{"fuente", {{"type", "integer"}, {"description", "Id de la fuente (grafico_en_escena)."}}},
               {"nombre", {{"type", "string"}, {"description", "Qué gráfico mostrar."}}},
-              {"parametros", {{"type", "object"}}},
+              {"parametros",
+               {{"type", "object"},
+                {"description", "Los campos del gráfico (grafico_listar los dice), incluido `salidaEn` (ms: cuándo se va; 0 = se queda)."}}},
               {"duracionMs",
                {{"type", "integer"},
                 {"minimum", 100},
                 {"maximum", 15000},
-                {"default", 1500},
-                {"description", "Cuánta animación dibujar."}}},
+                {"description", "Solo para un gráfico SIN `salidaEn`: cuánta animación dibujar (si no, lo de su ficha)."}}},
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
               {"repetir", {{"type", "boolean"}, {"default", false}}},
               {"armar",

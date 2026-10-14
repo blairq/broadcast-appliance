@@ -22,6 +22,7 @@
 #include <QAnimationDriver>
 #include <QCoreApplication>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonValue>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
@@ -95,9 +96,22 @@ struct Renderizador::Impl {
     std::unique_ptr<QOpenGLFramebufferObject> fbo;
     bool listo = false;
     bool calentado = false;
+    // La instancia de la tira que sigue (ver Renderizador::tira). El objeto antes que su motor.
+    std::unique_ptr<QQmlEngine> sesionMotor;
+    std::unique_ptr<QObject> sesionObj;
+    QString sesionClave;
+    int sesionMs = -1;
+    void cerrarSesion() {
+        if (auto* item = qobject_cast<QQuickItem*>(sesionObj.get())) item->setParentItem(nullptr);
+        sesionObj.reset();
+        sesionMotor.reset();
+        sesionClave.clear();
+        sesionMs = -1;
+    }
 
     ~Impl() {
         if (gl != nullptr && superficie != nullptr) gl->makeCurrent(superficie);
+        cerrarSesion();
         fbo.reset();
         delete ventana;
         delete control;
@@ -190,6 +204,7 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
                                                    const QJsonObject& parametros, QSize tam, int ms) {
     Resultado r;
     if (!d_->preparar(r.error)) return r;
+    d_->cerrarSesion(); // un dibujo suelto no convive con la instancia de una tira en la ventana
 
     // El primer dibujo de la sesión sale con el reloj sin arrancar del todo:
     // la animación queda en su instante cero sin importar lo que se pida. No
@@ -291,6 +306,98 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
 
     raiz->setParentItem(nullptr);
     return r;
+}
+
+std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const QString& fuente,
+                                                       const QJsonObject& parametros, QSize tam,
+                                                       const std::vector<int>& momentos) {
+    std::vector<Resultado> out;
+    Resultado base;
+    if (momentos.empty()) return out;
+    if (!d_->preparar(base.error)) {
+        out.push_back(base);
+        return out;
+    }
+    // El dibujo de descarte de la primera vez (ver dibujarComun).
+    if (!d_->calentado) dibujarComun(url, fuente, parametros, tam, momentos.front());
+
+    tam = tam.expandedTo(QSize(2, 2)).boundedTo(QSize(3840, 2160));
+    d_->gl->makeCurrent(d_->superficie);
+    const QString clave = url.toString() + "\n" + fuente + "\n" +
+                          QString::fromUtf8(QJsonDocument(parametros).toJson(QJsonDocument::Compact)) + "\n" +
+                          QString::number(tam.width()) + "x" + QString::number(tam.height());
+    const auto dibujarCuadro = [this]() {
+        d_->control->polishItems();
+        d_->control->beginFrame();
+        d_->control->sync();
+        d_->control->render();
+        d_->control->endFrame();
+    };
+    // Otra cosa, o para atrás en el tiempo: una instancia nueva (como dibujarComun).
+    if (clave != d_->sesionClave || !d_->sesionObj || momentos.front() < d_->sesionMs) {
+        d_->cerrarSesion();
+        d_->ventana->setGeometry(0, 0, tam.width(), tam.height());
+        if (!d_->destino(tam, base.error)) {
+            out.push_back(base);
+            return out;
+        }
+        d_->sesionMotor = std::make_unique<QQmlEngine>();
+        d_->sesionMotor->setOutputWarningsToStandardError(false);
+        QQmlComponent componente(d_->sesionMotor.get());
+        if (fuente.isEmpty())
+            componente.loadUrl(url);
+        else
+            componente.setData(fuente.toUtf8(), url);
+        if (componente.isError()) {
+            base.error = textoDeErrores(componente.errors());
+            d_->cerrarSesion();
+            out.push_back(base);
+            return out;
+        }
+        d_->sesionObj.reset(componente.create());
+        auto* raiz = qobject_cast<QQuickItem*>(d_->sesionObj.get());
+        if (raiz == nullptr) {
+            base.error = d_->sesionObj ? QString("la raíz del gráfico tiene que ser un Item (algo que se pueda dibujar)")
+                                       : (componente.isError() ? textoDeErrores(componente.errors())
+                                                               : QString("el gráfico no devolvió ningún objeto"));
+            d_->cerrarSesion();
+            out.push_back(base);
+            return out;
+        }
+        for (auto it = parametros.begin(); it != parametros.end(); ++it) {
+            const QByteArray nombre = it.key().toUtf8();
+            if (raiz->metaObject()->indexOfProperty(nombre.constData()) < 0) {
+                base.error = QString("el gráfico no declara el parámetro «%1»").arg(it.key());
+                d_->cerrarSesion();
+                out.push_back(base);
+                return out;
+            }
+            raiz->setProperty(nombre.constData(), aVariant(it.value()));
+        }
+        raiz->setParentItem(d_->ventana->contentItem());
+        raiz->setWidth(tam.width());
+        raiz->setHeight(tam.height());
+        QCoreApplication::processEvents();
+        dibujarCuadro(); // el asentamiento en el instante cero (ver dibujarComun)
+        d_->reloj->avanzar(0);
+        d_->sesionClave = clave;
+        d_->sesionMs = 0;
+    }
+    for (const int m : momentos) {
+        if (m > d_->sesionMs) {
+            d_->reloj->avanzar(m - d_->sesionMs);
+            d_->sesionMs = m;
+        }
+        dibujarCuadro();
+        Resultado r;
+        r.imagen = d_->fbo->toImage();
+        if (r.imagen.isNull()) r.error = "el renderizador no devolvió ninguna imagen";
+        else if (r.imagen.format() != QImage::Format_ARGB32_Premultiplied)
+            r.imagen = r.imagen.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        out.push_back(std::move(r));
+        if (!out.back().error.isEmpty()) break;
+    }
+    return out;
 }
 
 } // namespace ba::grafico

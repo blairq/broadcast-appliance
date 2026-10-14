@@ -1,0 +1,19 @@
+{
+ "gente": [
+  {
+   "id": "a1-plantilla",
+   "nombre": "‹Invitado 1›",
+   "papel": "orador",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A2B",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  }
+ ]
+}

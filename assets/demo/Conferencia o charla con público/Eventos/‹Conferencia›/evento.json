@@ -1,0 +1,263 @@
+{
+ "nombre": "‹Conferencia›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Uno o varios oradores, público en la sala y online, preguntas, transmisión.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b185-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c178-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c179-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c180-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c181-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Conferencia›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Conferencia›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c182-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c183-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c184-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b190-g",
+   "nombre": "‹Orador 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c186-g",
+     "tipo": "escena",
+     "texto": "Al aire: Orador",
+     "datos": {
+      "escena": "Orador"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c187-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Orador 1›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Orador 1›",
+       "cargo": "‹Cargo›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c188-g",
+     "tipo": "escena",
+     "texto": "Su presentación",
+     "datos": {
+      "escena": "Presentación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c189-g",
+     "tipo": "nota",
+     "texto": "Exposición",
+     "datos": {},
+     "duracionSeg": 1500,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b194-g",
+   "nombre": "‹Orador 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c191-g",
+     "tipo": "escena",
+     "texto": "Al aire: Invitado remoto",
+     "datos": {
+      "escena": "Invitado remoto"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c192-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Orador 2›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Orador 2›",
+       "cargo": "‹Cargo›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c193-g",
+     "tipo": "nota",
+     "texto": "Exposición",
+     "datos": {},
+     "duracionSeg": 1500,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b197-g",
+   "nombre": "Preguntas del público",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c195-g",
+     "tipo": "escena",
+     "texto": "Al aire: Preguntas",
+     "datos": {
+      "escena": "Preguntas"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c196-g",
+     "tipo": "nota",
+     "texto": "Preguntas moderadas",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b202-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c198-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c199-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c200-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c201-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

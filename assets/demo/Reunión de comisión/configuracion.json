@@ -1,0 +1,10 @@
+{
+ "descripcion": "Comisión de un cuerpo deliberativo: orden del día, expedientes, dictámenes, palabra ordenada.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "comision",
+  "icono": "§",
+  "orden": 2
+ }
+}

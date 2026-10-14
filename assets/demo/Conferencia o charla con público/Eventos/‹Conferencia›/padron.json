@@ -1,0 +1,49 @@
+{
+ "gente": [
+  {
+   "id": "a1-plantilla",
+   "nombre": "‹Orador 1›",
+   "papel": "orador",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A2B",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  },
+  {
+   "id": "a2-plantilla",
+   "nombre": "‹Orador 2›",
+   "papel": "orador",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A50",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  },
+  {
+   "id": "a3-plantilla",
+   "nombre": "‹Orador 3›",
+   "papel": "orador",
+   "vota": false,
+   "canal": "sin_definir",
+   "estado": "invitado",
+   "contacto": "",
+   "nota": "",
+   "codigo": "1A75",
+   "llegoMs": 0,
+   "porDonde": "",
+   "dejarPasarSolo": false,
+   "personaId": ""
+  }
+ ]
+}

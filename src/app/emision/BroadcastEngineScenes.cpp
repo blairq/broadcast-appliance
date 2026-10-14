@@ -78,10 +78,15 @@ json configDe(const std::string& tipo, const json& aj) {
 }
 const std::string kPrefijoCompositor = "__compositor:";
 
-/// Lo que pinta la app (QImage → cuadros al motor).
+/// Lo que pinta la app (QImage → cuadros al motor): los de siempre y todo tipo
+/// registrado como «deApp» (fuentes::registrar). Antes era solo esta lista, y un
+/// tipo nuevo (la fuente PDF) se rechazaba con «todavía no lo arma el motor».
 bool esDeApp(const std::string& id) {
-    return id == "ba_subtitulos" || id == "ba_chat_overlay" || id == "ba_grafico" || id == "ba_app" || id == "ba_qr" ||
-           id == "ba_video_compositor" || id == "ba_placeholder";
+    if (id == "ba_subtitulos" || id == "ba_chat_overlay" || id == "ba_grafico" || id == "ba_app" || id == "ba_qr" ||
+        id == "ba_video_compositor" || id == "ba_placeholder")
+        return true;
+    fuentes::Tipo t;
+    return fuentes::tipo(id, t) && t.deApp;
 }
 
 } // namespace
@@ -860,6 +865,7 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
             {"screen_capture", "Captura de pantalla", true, false},
             {video::kTipoVentana, "Captura de una aplicación", true, false},
             {"ba_qr", "Código QR (Público, Sala, uno guardado…)", true, false},
+            {"ba_pdf", "PDF (una página por vez)", true, false},
             {"ba_app", "Lo que pinta la app", true, false}};
 }
 

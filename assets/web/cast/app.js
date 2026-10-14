@@ -36,12 +36,14 @@
   // programa). Va también al reengancharse, para seguir en la misma escena.
   const canal = /^\d{1,2}$/.test(q.get("canal") || "") ? q.get("canal") : "";
   const conAudio = q.get("audio") !== "0";
-  // 0 por defecto: lo menos que el navegador acepte retener. Era 80 ms, que
-  // en una red cableada ya es holgado, pero «holgado» no es gratis: son 80 ms
-  // que la pantalla va atras de la sala sin que nada este fallando. Con
-  // ?buffer=N se sube si la red del lugar lo pide (wifi cargado, un tele que
-  // entrecorta).
-  const bufferMs = Math.max(0, parseInt(q.get("buffer") || "0", 10) || 0);
+  // 150 ms por defecto. Con 0 (lo que había) cada paquete que el wifi pierde se ve:
+  // el navegador muestra todo apenas llega y no le queda tiempo de pedir el reenvío,
+  // así que se clava. En una red local el reenvío tarda ~10-20 ms: con 150 ms de
+  // margen llega antes de que toque mostrar ese cuadro y la pérdida no se ve, a
+  // cambio de ir 150 ms atrás de la sala (casi imperceptible). ?buffer=N lo cambia
+  // (0 = lo mínimo, para una red cableada sin pérdidas).
+  const pedidoBuffer = parseInt(q.get("buffer") || "", 10);
+  const bufferMs = Number.isFinite(pedidoBuffer) ? Math.max(0, pedidoBuffer) : 150;
   const hud = q.get("hud") === "1";
 
   const st = {
@@ -163,6 +165,7 @@
     // pedirlos abriría un permiso que en un televisor nadie puede contestar).
     const vt = pc.addTransceiver("video", { direction: "recvonly" });
     const at = pc.addTransceiver("audio", { direction: "recvonly" });
+    preferirCodec(vt);
 
     // La perilla del retardo (ver ../comun/retardo.js).
     st.retardoPuesto = window.BARetardo.aplicar(vt.receiver, bufferMs);
@@ -195,6 +198,29 @@
     };
 
     negociar(pc);
+  }
+
+  // EL CODEC. Por defecto VP8, que el gateway manda con capas temporales (L1T3):
+  // si el wifi pierde un paquete de un cuadro que no es referencia, ese cuadro se
+  // saltea y la imagen sigue en hora en vez de clavarse (ver Webrtc.cpp,
+  // seguirElReloj). ?codec=h264 pide H.264 (en la Mac, por hardware: menos trabajo
+  // para el aparato si no da abasto decodificando, pero sin capas: una pérdida clava
+  // hasta recuperarse). El gateway contesta en el orden del offer.
+  function preferirCodec(vt) {
+    const pedido = (q.get("codec") || "").toLowerCase();
+    if (!pedido || !vt.setCodecPreferences || !window.RTCRtpReceiver || !RTCRtpReceiver.getCapabilities) return;
+    try {
+      const todos = RTCRtpReceiver.getCapabilities("video").codecs;
+      const tipo = pedido === "vp8" ? "video/VP8" : "video/H264";
+      const peso = (c) => {
+        if (c.mimeType !== tipo) return 2;
+        // Constrained baseline con packetization-mode=1: el que codifica el gateway.
+        const f = c.sdpFmtpLine || "";
+        return tipo === "video/H264" && !(/42e01f/i.test(f) && /packetization-mode=1/.test(f)) ? 1 : 0;
+      };
+      const orden = todos.slice().sort((a, b) => peso(a) - peso(b));
+      if (orden.length && peso(orden[0]) < 2) vt.setCodecPreferences(orden);
+    } catch (e) { /* un navegador que no deja elegir: sigue con lo suyo */ }
   }
 
   async function negociar(pc) {
@@ -246,7 +272,7 @@
       // equivocado: un televisor que no informa una medida se lee igual que
       // uno que la informa en cero. Lo que el navegador no diga queda en null
       // y se muestra como «?».
-      const m = { fps: 0, buffer: null, jitter: 0, perdidos: 0, rtt: null, proceso: null };
+      const m = { fps: 0, buffer: null, jitter: 0, perdidos: 0, rtt: null, proceso: null, codec: null, alto: null };
       const prom = (total, cuenta) =>
           typeof total === "number" && typeof cuenta === "number" && cuenta > 0
               ? Math.round(1000 * total / cuenta)
@@ -266,6 +292,9 @@
           // numero que separa «llega tarde» de «tarda en mostrarlo», y en un
           // televisor la diferencia es toda la diferencia.
           m.proceso = prom(r.totalProcessingDelay, r.framesDecoded);
+          const c = r.codecId && stats.get ? stats.get(r.codecId) : null;
+          m.codec = c && c.mimeType ? c.mimeType.replace("video/", "") : null;
+          m.alto = r.frameHeight || null;
         }
         txt += `${r.kind}  ${r.framesPerSecond || 0} fps  perdidos ${r.packetsLost || 0}\n` +
                `  buffer ${buffer === null ? "?" : buffer} ms` +
@@ -308,7 +337,8 @@
             ? " · SIN perilla de retardo (navegador viejo)"
             : " · " + st.retardoPuesto + "=" + bufferMs + " ms";
         const n = (v, u) => (v === null ? "?" : v + " " + u);
-        const como = m ? " · " + m.fps + " fps · buffer " + n(m.buffer, "ms") +
+        const como = m ? " · " + (m.codec ? m.codec + (m.alto ? " " + m.alto + "p" : "") + " · " : "") +
+                         m.fps + " fps · buffer " + n(m.buffer, "ms") +
                          " · proceso " + n(m.proceso, "ms") +
                          " · ida y vuelta " + n(m.rtt, "ms") +
                          (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "") + perilla

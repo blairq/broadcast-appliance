@@ -81,6 +81,9 @@
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
+#ifdef __APPLE__
+#include "CodecsMac.hpp"
+#endif
 #include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
@@ -737,6 +740,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             int64_t lost = 0;
             double jitterMax = 0, rtt = -1;
             uint32_t perdidos = 0, alto = 0, ancho = 0;
+            nlohmann::json salida;
             for (const webrtc::RTCStats& st : *report) {
                 if (st.type() == webrtc::RTCInboundRtpStreamStats::kType) {
                     const auto& r = st.cast_to<webrtc::RTCInboundRtpStreamStats>();
@@ -750,7 +754,17 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                         ancho = std::max(ancho, r.frame_width.value_or(0));
                     }
                 } else if (st.type() == webrtc::RTCOutboundRtpStreamStats::kType) {
-                    out += st.cast_to<webrtc::RTCOutboundRtpStreamStats>().bytes_sent.value_or(0);
+                    const auto& o = st.cast_to<webrtc::RTCOutboundRtpStreamStats>();
+                    out += o.bytes_sent.value_or(0);
+                    // Lo que SALE de video: con qué codificador, en qué capas y qué lo
+                    // limita (para saber por qué una pantalla se ve como se ve).
+                    if (o.kind.value_or("") == "video" && o.frame_height.has_value()) {
+                        salida = {{"codificador", o.encoder_implementation.value_or("?")},
+                                  {"capas", o.scalability_mode.value_or("")},
+                                  {"alto", o.frame_height.value_or(0)},
+                                  {"fps", std::lround(o.frames_per_second.value_or(0.0))},
+                                  {"limita", o.quality_limitation_reason.value_or("")}};
+                    }
                 } else if (st.type() == webrtc::RTCIceCandidatePairStats::kType) {
                     const auto& c = st.cast_to<webrtc::RTCIceCandidatePairStats>();
                     if (c.nominated.value_or(false) && c.current_round_trip_time.has_value())
@@ -787,6 +801,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                              {"jitter_ms", std::lround(jit)}, {"rtt_ms", std::lround(rttMs)},
                              {"cuadros_perdidos", perdidos},   {"alto", alto},
                              {"ancho", ancho},                 {"semaforo", sem}};
+            if (!salida.is_null()) j["salida"] = salida;
             impl_->statsJson = j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         }
 
@@ -843,6 +858,29 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         pc->AddTrack(v, {"ba-return"});
     }
 
+    /// SEGUIR EL RELOJ aunque se pierdan cuadros. En VP8 común cada cuadro depende del
+    /// anterior: un paquete perdido en el wifi y el que mira se queda clavado hasta
+    /// recuperarlo (o hasta un cuadro completo), y después va atrás. Con capas
+    /// temporales (L1T3) dos de cada tres cuadros no son referencia de nadie: si se
+    /// pierde uno de esos, se saltea y la imagen sigue en hora; solo una pérdida en la
+    /// capa base hace esperar. Va DESPUÉS de negociar (el H.264 de VideoToolbox no
+    /// tiene capas: queda como está).
+    static void seguirElReloj(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& p) {
+        for (const auto& sender : p->GetSenders()) {
+            if (sender->media_type() != cricket::MEDIA_TYPE_VIDEO) continue;
+            webrtc::RtpParameters par = sender->GetParameters();
+            // Sin mirar el codec: a esta altura GetParameters todavía no lo informa
+            // (codecs vacío). Si el codec no tiene capas (H.264 de VideoToolbox),
+            // SetParameters lo rechaza y queda como estaba.
+            if (par.encodings.empty()) continue;
+            par.encodings.front().scalability_mode = "L1T3";
+            // Ante poco ancho de banda, menos cuadros antes que menos nitidez: lo que se
+            // ve en una pantalla de sala es texto y gráficos.
+            par.degradation_preference = webrtc::DegradationPreference::BALANCED;
+            sender->SetParameters(par);
+        }
+    }
+
     bool setRemoteOffer(const std::string& sdp) {
         rtc::scoped_refptr<webrtc::PeerConnectionInterface> p;
         {
@@ -864,6 +902,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             }
             std::string answer;
             p->local_description()->ToString(&answer);
+            seguirElReloj(p);
             if (self->cb.onLocalAnswer) self->cb.onLocalAnswer(answer);
         };
         auto onSrd = [self, p, onSld](webrtc::RTCError e) {
@@ -1079,12 +1118,17 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
     st->factory = webrtc::CreatePeerConnectionFactory(
         st->network.get(), st->worker.get(), st->signaling.get(), adm,
         webrtc::CreateBuiltinAudioEncoderFactory(), webrtc::CreateBuiltinAudioDecoderFactory(),
+#ifdef __APPLE__
+        // H.264 por VideoToolbox además de VP8/VP9/AV1 (ver CodecsMac.mm).
+        codificadoresMac(), decodificadoresMac(),
+#else
         std::make_unique<webrtc::VideoEncoderFactoryTemplate<
             webrtc::LibvpxVp8EncoderTemplateAdapter, webrtc::LibvpxVp9EncoderTemplateAdapter,
             webrtc::OpenH264EncoderTemplateAdapter, webrtc::LibaomAv1EncoderTemplateAdapter>>(),
         std::make_unique<webrtc::VideoDecoderFactoryTemplate<
             webrtc::LibvpxVp8DecoderTemplateAdapter, webrtc::LibvpxVp9DecoderTemplateAdapter,
             webrtc::OpenH264DecoderTemplateAdapter, webrtc::Dav1dDecoderTemplateAdapter>>(),
+#endif
         nullptr /* mixer por defecto */, nullptr /* sin APM: B no captura audio */);
     if (st->factory) {
         // Loopback solo para pruebas en una sola maquina (tests): en produccion

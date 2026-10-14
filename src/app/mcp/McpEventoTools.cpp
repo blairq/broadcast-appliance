@@ -21,10 +21,12 @@
 
 #include <algorithm>
 #include <fstream>
+#include <map>
 #include <set>
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QFile>
 #include <QThreadPool>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -941,7 +943,13 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "                                        `fuente` es el nombre de la fuente «Grafico\n"
             "                                        animado» de la escena (DONDE se ve); `grafico` es\n"
             "                                        cual de los guardados; `valores` son sus parametros\n"
-            "                                        (los que no pongas quedan en el valor por defecto).\n"
+            "                                        {clave: texto} (los que no pongas quedan en el valor\n"
+            "                                        por defecto). OJO: `valores` y `grafico`, NO\n"
+            "                                        `parametros`/`nombre` como en grafico_mostrar.\n"
+            "                                        Cuánto queda en pantalla: `salidaEn` (ms) DENTRO de\n"
+            "                                        `valores` (0 = se queda hasta un cue `ocultar`).\n"
+            "                                        `duracionMs` no hace falta. Y `duracionSeg` del cue\n"
+            "                                        es solo para los tiempos del guion, no del gráfico.\n"
             "                                        accion: mostrar (por defecto), ocultar, o\n"
             "                                        prender/apagar un VINCULO (un rotulo que se\n"
             "                                        mantiene solo): en ese caso lleva {vinculo} con\n"
@@ -984,6 +992,52 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"required", {"bloque"}}};
         t.run = [&ev](const json& a, Done done) {
             const int b = a["bloque"].get<int>();
+            // LO QUE EL TIPO NO USA, SE DICE (antes se guardaba callado): el asistente mandó
+            // los textos de los gráficos como `params`/`parametros` (así se llaman en
+            // grafico_mostrar), nadie los leía y todos salieron con el texto por defecto.
+            const auto revisarDatos = [&ev, &a, b]() -> std::string {
+                if (!a.contains("datos") || !a["datos"].is_object()) return {};
+                std::string tipo = a.value("tipo", std::string());
+                if (tipo.empty() && a.contains("cue")) {
+                    const QVariantList bs = ev.guion()["bloques"].toList();
+                    const int c = a["cue"].get<int>();
+                    if (b >= 0 && b < bs.size()) {
+                        const QVariantList cs = bs[b].toMap()["cues"].toList();
+                        if (c >= 0 && c < cs.size()) tipo = cs[c].toMap()["tipo"].toString().toStdString();
+                    }
+                }
+                static const std::map<std::string, std::set<std::string>> kCampos{
+                    {"escena", {"escena"}},
+                    {"musica", {"archivo", "accion", "repetir"}},
+                    {"video", {"archivo", "accion", "repetir", "alAire"}},
+                    {"teleprompter", {"discurso", "arrancar"}},
+                    {"orador", {"participante"}},
+                    {"grafico", {"fuente", "grafico", "valores", "duracionMs", "repetir", "accion", "vinculo"}},
+                    {"pantalla", {"pantalla", "contenido", "tipo", "pie"}},
+                    {"audio", {"accion", "fuente", "db"}},
+                    {"pausa", {}}, {"espera", {}}, {"nota", {}}};
+                const auto it = kCampos.find(tipo);
+                if (it == kCampos.end()) return {};
+                std::string corregidos, fuera;
+                for (const auto& [k, v] : a["datos"].items()) {
+                    if (it->second.count(k)) continue;
+                    if (tipo == "grafico" && (k == "params" || k == "parametros")) corregidos += " «" + k + "»→«valores»";
+                    else if (tipo == "grafico" && k == "nombre") corregidos += " «nombre»→«grafico»";
+                    else fuera += (fuera.empty() ? "" : ", ") + std::string("«") + k + "»";
+                }
+                std::string aviso;
+                if (!corregidos.empty())
+                    aviso += " Ojo: en un cue de " + tipo + " se tomó" + corregidos +
+                             " (los campos del gráfico van en `valores`, no como en grafico_mostrar).";
+                if (!fuera.empty()) {
+                    std::string acepta;
+                    for (const auto& k : it->second) acepta += (acepta.empty() ? "" : ", ") + k;
+                    aviso += " Ojo: un cue de " + tipo + " no usa " + fuera + " (se guardó igual, pero no hace nada). " +
+                             "Usa: " + (acepta.empty() ? std::string("nada en datos") : acepta) + ".";
+                }
+                return aviso;
+            };
+            const std::string aviso = revisarDatos();
             if (!a.contains("cue")) {
                 const QString id =
                     ev.agregarCue(b, QString::fromStdString(a.value("tipo", std::string("nota"))));
@@ -999,7 +1053,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (a.contains("duracionSeg")) campos["duracionSeg"] = a["duracionSeg"].get<int>();
                 if (a.contains("automatico")) campos["automatico"] = a["automatico"].get<bool>();
                 if (!campos.isEmpty()) ev.editarCue(b, ultimo, campos);
-                return done(ToolResult::ok("Cue agregado en el bloque " + std::to_string(b) + "."));
+                return done(ToolResult::ok("Cue agregado en el bloque " + std::to_string(b) + "." + aviso));
             }
             const int c = a["cue"].get<int>();
             if (a.value("quitar", false)) {
@@ -1017,7 +1071,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("duracionSeg")) campos["duracionSeg"] = a["duracionSeg"].get<int>();
             if (a.contains("automatico")) campos["automatico"] = a["automatico"].get<bool>();
             ev.editarCue(b, c, campos);
-            done(ToolResult::ok("Cue actualizado."));
+            done(ToolResult::ok("Cue actualizado." + aviso));
         };
         core.addTool(std::move(t));
     }
@@ -1328,6 +1382,54 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         core.addTool(std::move(t));
     }
 
+    // --- Las guías de cada tipo de evento (datos/escenarios) -------------------------
+    {
+        Tool t;
+        t.name = "evento_escenarios";
+        t.title = "Los tipos de evento y sus guías";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "Los escenarios para los que hay guía de preparación (reunión chica, clase híbrida, sesión de un "
+                        "cuerpo deliberativo, asamblea con votación, streaming de juegos, acto, audiencia pública…): id, "
+                        "título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con "
+                        "evento_escenario.";
+        t.run = [](const json&, Done done) {
+            QFile f(":/escenarios/indice.json");
+            if (!f.open(QIODevice::ReadOnly)) return done(ToolResult::error("no están las guías en este programa"));
+            done(ToolResult().data({{"escenarios", json::parse(f.readAll().toStdString(), nullptr, false)}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_escenario";
+        t.title = "La guía para preparar un tipo de evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "El protocolo para preparar CUALQUIER evento (entrevistar antes de armar, el orden de armado, qué "
+                        "verificar antes de invitar, el ensayo y qué entregar al final) más la guía del escenario `id` "
+                        "(evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [](const json& a, Done done) {
+            const auto leer = [](const QString& r) {
+                QFile f(r);
+                return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+            };
+            const QString comun = leer(":/escenarios/comun.md");
+            if (comun.isEmpty()) return done(ToolResult::error("no están las guías en este programa"));
+            const std::string id = a.value("id", std::string());
+            QString guia;
+            if (!id.empty()) {
+                // Solo letras, números y guiones: es un nombre de archivo.
+                if (id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-") != std::string::npos)
+                    return done(ToolResult::error("id inválido: " + id));
+                guia = leer(":/escenarios/" + QString::fromStdString(id) + ".md");
+                if (guia.isEmpty()) return done(ToolResult::error("no hay una guía «" + id + "» (evento_escenarios)"));
+            }
+            done(ToolResult::ok((comun + (guia.isEmpty() ? QString() : "\n\n---\n\n" + guia)).toStdString()));
+        };
+        core.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "evento_armar";
@@ -1337,6 +1439,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Crea el evento con su fecha, sus bloques con tiempos y su lista de gente, todo en una "
             "llamada.";
         t.details =
+            "ANTES: la guía del tipo de evento (evento_escenarios / evento_escenario): qué preguntar y qué "
+            "verificar.\n\n"
             "ES PARA ARMAR CONVERSANDO. El que organiza cuenta lo que va a pasar —«asamblea del "
             "consorcio, el jueves 8 a las 19, dos horas, presencial y por videollamada, hay que votar "
             "tres puntos, son 40 propietarios»— y esto lo deja escrito de una.\n\n"

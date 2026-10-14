@@ -86,8 +86,26 @@ class Configuraciones : public QObject {
     }
     /// Marcar una carpeta como plantilla (aparece en «Evento nuevo › desde plantilla»).
     std::string marcarPlantilla(const std::string& nombre, bool plantilla);
-    /// Las plantillas: las demos del programa y las carpetas marcadas. [{nombre, descripcion, demo}].
+    /// Las plantillas VISIBLES, en su orden (las del programa y las carpetas marcadas):
+    /// [{nombre (el que se ve), carpeta (para «plantilla:<carpeta>»), descripcion, demo,
+    /// escenario, icono}].
     json plantillas() const;
+    /// Todas, para administrarlas: [{id (= carpeta), nombre, descripcion, escenario, icono,
+    /// visible, programa (viene con el programa), propia (carpeta del usuario), editada (copia
+    /// propia de una del programa, que le gana), activa}]. Orden, nombres, descripciones y
+    /// visibilidad: <datos>/plantillas.json (sirve igual para las del programa, que no se tocan).
+    json plantillasAdmin() const;
+    /// Cambia lo que venga: nombre (el que se ve; "" = el de la carpeta), descripcion, visible.
+    std::string plantillaAjustar(const std::string& id, const json& cambios);
+    /// Un lugar más arriba (delta < 0) o más abajo.
+    std::string plantillaMover(const std::string& id, int delta);
+    /// Para editarla: si es del programa, primero una copia propia (que le gana); la deja
+    /// anotada como activa (quien llama reinicia). "" o el error.
+    std::string plantillaParaEditar(const std::string& id);
+    /// Saca la copia propia de una del programa (vuelve la original; a la papelera).
+    std::string plantillaRestablecer(const std::string& id);
+    /// Una plantilla nueva copiando el evento abierto (con todo lo suyo, sin historial).
+    std::string plantillaDesdeActual(const std::string& nombre, const std::string& escenario);
     /// Una vez (marca en <datos>/migraciones.json): las carpetas que tenían VARIOS eventos
     /// adentro se separan, cada evento a su carpeta con una copia de los ajustes, escenas
     /// y medios de donde estaba (sin historial). Se queda el en curso (o el último tocado)
@@ -109,6 +127,14 @@ class Configuraciones : public QObject {
     Q_INVOKABLE QString nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir);
     Q_INVOKABLE QString marcarPlantillaUi(const QString& nombre, bool plantilla);
     Q_INVOKABLE QVariantList plantillasUi() const;
+    Q_INVOKABLE QVariantList plantillasAdminUi() const;
+    Q_INVOKABLE QString plantillaAjustarUi(const QString& id, const QVariantMap& cambios);
+    Q_INVOKABLE QString plantillaMoverUi(const QString& id, int delta);
+    /// La abre para editarla (reinicia con ella).
+    Q_INVOKABLE QString plantillaEditarUi(const QString& id);
+    Q_INVOKABLE QString plantillaRestablecerUi(const QString& id);
+    Q_INVOKABLE QString plantillaBorrarUi(const QString& id);
+    Q_INVOKABLE QString plantillaDesdeActualUi(const QString& nombre, const QString& escenario);
     /// Activa y reinicia.
     Q_INVOKABLE QString cambiarUi(const QString& nombre);
     Q_INVOKABLE QString renombrarUi(const QString& de, const QString& a);

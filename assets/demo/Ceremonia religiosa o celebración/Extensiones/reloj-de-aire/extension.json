@@ -1,0 +1,7 @@
+{
+  "id": "reloj-de-aire",
+  "nombre": "Reloj de aire",
+  "descripcion": "La hora, y cuánto hace que estamos al aire. Es el ejemplo de referencia de una tarjeta de extensión: mirá su tarjeta.qml para escribir la tuya.",
+  "necesita": ["estado"],
+  "tarjeta": "tarjeta.qml"
+}

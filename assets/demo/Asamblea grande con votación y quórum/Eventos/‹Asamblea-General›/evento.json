@@ -1,0 +1,297 @@
+{
+ "nombre": "‹Asamblea General›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Asamblea presencial numerosa: acreditación en la puerta, quórum, votaciones y resultado en pantalla.",
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b78-g",
+   "nombre": "Apertura",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c71-g",
+     "tipo": "escena",
+     "texto": "Placa de espera con la hora de inicio",
+     "datos": {
+      "escena": "Espera"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c72-g",
+     "tipo": "espera",
+     "texto": "Confirmá que está todo listo para empezar",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c73-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c74-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Asamblea General›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Asamblea General›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c75-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: la apertura",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c76-g",
+     "tipo": "grafico",
+     "texto": "Zócalo: ‹Quien conduce›",
+     "datos": {
+      "fuente": "Zócalo",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Quien conduce›",
+       "cargo": "‹Cargo o rol›",
+       "acento": "#ff6a2b",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c77-g",
+     "tipo": "nota",
+     "texto": "Bienvenida y presentación del evento",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b83-g",
+   "nombre": "Quórum y orden del día",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c79-g",
+     "tipo": "escena",
+     "texto": "Al aire: Quórum",
+     "datos": {
+      "escena": "Quórum"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c80-g",
+     "tipo": "nota",
+     "texto": "Acreditación y verificación del quórum",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    },
+    {
+     "id": "c81-g",
+     "tipo": "escena",
+     "texto": "Al aire: Mesa",
+     "datos": {
+      "escena": "Mesa"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c82-g",
+     "tipo": "nota",
+     "texto": "Lectura del orden del día",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b89-g",
+   "nombre": "‹Punto 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c84-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Punto 1›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Punto 1›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c85-g",
+     "tipo": "escena",
+     "texto": "La documentación del punto",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c86-g",
+     "tipo": "nota",
+     "texto": "Debate",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c87-g",
+     "tipo": "escena",
+     "texto": "Al aire: Votación",
+     "datos": {
+      "escena": "Votación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c88-g",
+     "tipo": "nota",
+     "texto": "Votación del punto",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b94-g",
+   "nombre": "‹Punto 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c90-g",
+     "tipo": "grafico",
+     "texto": "Placa: ‹Punto 2›",
+     "datos": {
+      "fuente": "Placa",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Punto 2›",
+       "bajada": "‹Bajada›",
+       "acento": "#ff6a2b",
+       "salidaEn": 4500
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c91-g",
+     "tipo": "nota",
+     "texto": "Debate",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c92-g",
+     "tipo": "escena",
+     "texto": "Al aire: Votación",
+     "datos": {
+      "escena": "Votación"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c93-g",
+     "tipo": "nota",
+     "texto": "Votación del punto",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b99-g",
+   "nombre": "Cierre",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c95-g",
+     "tipo": "escena",
+     "texto": "Al aire: Conducción",
+     "datos": {
+      "escena": "Conducción"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c96-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: el cierre",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c97-g",
+     "tipo": "nota",
+     "texto": "Agradecimientos y cierre",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c98-g",
+     "tipo": "escena",
+     "texto": "Al aire: Cierre",
+     "datos": {
+      "escena": "Cierre"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}
