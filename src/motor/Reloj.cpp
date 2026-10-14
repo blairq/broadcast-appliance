@@ -12,7 +12,20 @@
 #include <gst/net/net.h>
 
 #include <algorithm>
+#include <chrono>
+#include <condition_variable>
 #include <cstdio>
+#include <cstdlib>
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <thread>
+#include <utility>
+#include <vector>
 
 namespace ba::motor {
 
@@ -20,6 +33,148 @@ namespace {
 std::mutex g_regMu;
 std::function<void(Nivel, const std::string&)> g_registro;
 } // namespace
+
+namespace {
+// --- La revisión de plugins (cuando GStreamer rehace su registro) -------------
+// Cuál está revisando sale del archivo de diagnóstico del escáner (lo que anota
+// él al empezar cada uno: la app no lo sabe, porque en macOS y Linux le manda
+// todos de una y las respuestas llegan con un plugin de atraso). Los que no
+// contestaron, del proceso de la app.
+std::string archivoDe(std::string ruta) {
+    const auto barra = ruta.find_last_of("/\\");
+    if (barra != std::string::npos) ruta = ruta.substr(barra + 1);
+    return ruta;
+}
+/// Lo que sigue a `prefijo` hasta `fin`, si `t` empieza con `prefijo`.
+bool entre(const std::string& t, const std::string& prefijo, const char* fin, std::string& sale) {
+    if (t.rfind(prefijo, 0) != 0) return false;
+    const auto f = t.find(fin, prefijo.size());
+    if (f == std::string::npos) return false;
+    sale = t.substr(prefijo.size(), f - prefijo.size());
+    return true;
+}
+
+using Hora = std::chrono::steady_clock::time_point;
+struct Revisado {
+    std::string archivo;
+    Hora desde; // cuándo se vio que el escáner lo empezó a cargar
+};
+struct Revision {
+    std::mutex mu;
+    int total = 0;
+    Hora desde;
+    // Lo que va anotando cada escáner (archivo de diagnóstico → cuánto se leyó y
+    // la línea a medias). El escáner revisa de a un plugin: el último que empezó
+    // es el que está revisando.
+    std::map<std::filesystem::path, std::pair<std::uintmax_t, std::string>> leido;
+    std::vector<Revisado> revisados;
+    std::vector<std::string> fallados;
+
+    /// Lee lo nuevo de los archivos de los escáneres (bajo `mu`).
+    void leer() {
+        const Hora ahora = std::chrono::steady_clock::now();
+        static const std::string kEmpieza = "attempt to load plugin \"";
+        for (const auto& ruta : ba::platform::archivosDeEscaneres()) {
+            auto& [desde, resto] = leido[ruta];
+            std::ifstream f(ruta, std::ios::binary);
+            if (!f) continue;
+            f.seekg(static_cast<std::streamoff>(desde));
+            std::string nuevo((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            desde += nuevo.size();
+            resto += nuevo;
+            std::size_t ini = 0;
+            for (std::size_t fin; (fin = resto.find('\n', ini)) != std::string::npos; ini = fin + 1) {
+                const auto i = resto.find(kEmpieza, ini);
+                if (i == std::string::npos || i > fin) continue;
+                const auto cierra = resto.find('"', i + kEmpieza.size());
+                if (cierra == std::string::npos || cierra > fin) continue;
+                revisados.push_back({archivoDe(resto.substr(i + kEmpieza.size(), cierra - i - kEmpieza.size())), ahora});
+            }
+            resto.erase(0, ini);
+        }
+    }
+};
+Revision& revision() {
+    static Revision r;
+    return r;
+}
+
+// Los que no contestaron los dice el proceso de la app (no el escáner, que se
+// trabó): se los oye con un registrador propio mientras dura el gst_init.
+void oirRevision(GstDebugCategory* cat, GstDebugLevel, const gchar*, const gchar*, gint, GObject*,
+                 GstDebugMessage* m, gpointer) G_GNUC_NO_INSTRUMENT;
+void oirRevision(GstDebugCategory* cat, GstDebugLevel, const gchar*, const gchar*, gint, GObject*,
+                 GstDebugMessage* m, gpointer) {
+    const char* c = gst_debug_category_get_name(cat);
+    const gchar* texto = gst_debug_message_get(m);
+    if (c == nullptr || texto == nullptr || std::strcmp(c, "GST_PLUGIN_LOADING") != 0) return;
+    const std::string t(texto);
+    std::string archivo;
+    // Windows: «Loading plugin X failed»; macOS/Linux: «Plugin file X failed to load».
+    if (!entre(t, "Loading plugin ", " failed", archivo) && !entre(t, "Plugin file ", " failed to load", archivo)) return;
+    Revision& r = revision();
+    std::lock_guard<std::mutex> l(r.mu);
+    archivo = archivoDe(archivo);
+    if (std::find(r.fallados.begin(), r.fallados.end(), archivo) == r.fallados.end()) r.fallados.push_back(archivo);
+}
+
+void empezarRevision(int total) {
+    Revision& r = revision();
+    {
+        std::lock_guard<std::mutex> l(r.mu);
+        r.total = total;
+        r.desde = std::chrono::steady_clock::now();
+        r.leido.clear();
+        r.revisados.clear();
+        r.fallados.clear();
+    }
+    gst_debug_add_log_function(oirRevision, nullptr, nullptr);
+}
+
+/// Deja de oír y anota en el registro cuánto tardó, cuáles tardaron y cuáles fallaron.
+void terminarRevision() {
+    gst_debug_remove_log_function(oirRevision);
+    Revision& r = revision();
+    std::lock_guard<std::mutex> l(r.mu);
+    r.leer();
+    const Hora ahora = std::chrono::steady_clock::now();
+    const auto seg = [](std::chrono::steady_clock::duration d) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(d).count() / 1000.0;
+    };
+    char b[160];
+    std::snprintf(b, sizeof b, "GStreamer rehízo su lista de plugins en %.1f s: revisó %zu de %d", seg(ahora - r.desde),
+                  r.revisados.size(), r.total);
+    registrar(Nivel::Info, std::string(b) + " (el detalle, en Logs/gst-plugins-*.log)");
+    // Lo que tardó cada uno: hasta que empezó el siguiente (se mira cada ~100 ms).
+    std::vector<std::pair<double, std::string>> lentos;
+    for (std::size_t i = 0; i < r.revisados.size(); ++i) {
+        const Hora fin = i + 1 < r.revisados.size() ? r.revisados[i + 1].desde : ahora;
+        const double s = seg(fin - r.revisados[i].desde);
+        if (s >= 3.0) lentos.emplace_back(s, r.revisados[i].archivo);
+    }
+    std::sort(lentos.rbegin(), lentos.rend());
+    for (const auto& [s, archivo] : lentos) {
+        std::snprintf(b, sizeof b, "%.1f s", s);
+        registrar(Nivel::Aviso, "el plugin " + archivo + " tardó " + b + " en revisarse");
+    }
+    for (const std::string& archivo : r.fallados)
+        registrar(Nivel::Aviso, "el plugin " + archivo +
+                                    " no contestó al revisarlo: queda afuera (GStreamer lo anota y no lo vuelve a cargar)");
+    r.total = 0;
+}
+} // namespace
+
+ProgresoGst progresoGStreamer() {
+    Revision& r = revision();
+    std::lock_guard<std::mutex> l(r.mu);
+    ProgresoGst p;
+    p.total = r.total;
+    if (r.total == 0) return p;
+    r.leer();
+    p.revisados = static_cast<int>(r.revisados.size());
+    if (!r.revisados.empty()) p.actual = r.revisados.back().archivo;
+    return p;
+}
 
 bool iniciarGStreamer(std::string* error) {
     static std::once_flag una;
@@ -35,10 +190,23 @@ bool iniciarGStreamer(std::string* error) {
             err = "GStreamer no está en el programa";
             return;
         }
+        // Si rehace la lista de plugins, se oye cuál revisa (progresoGStreamer) y al
+        // final queda en el registro cuáles tardaron o fallaron.
+        const char* gstDebug = std::getenv("GST_DEBUG");
+        const bool delUsuario = gstDebug != nullptr && *gstDebug != '\0';
+        const bool rehacer = ba::platform::empezarRegistro();
+        if (rehacer) empezarRevision(ba::platform::contarPlugins());
         GError* e = nullptr;
         ok = gst_init_check(nullptr, nullptr, &e);
         if (!ok) err = e != nullptr ? ba::diag::utf8Valido(e->message) : "gst_init falló";
         if (e != nullptr) g_error_free(e);
+        if (rehacer) {
+            if (!delUsuario) {
+                gst_debug_set_threshold_for_name("GST_PLUGIN_LOADING", GST_LEVEL_NONE);
+            }
+            terminarRevision();
+        }
+        ba::platform::registroTerminado(ok);
         if (ok) {
             quitarPluginsDelSistema();
             serializarConvertidoresD3D12();
@@ -46,6 +214,33 @@ bool iniciarGStreamer(std::string* error) {
     });
     if (!ok && error != nullptr) *error = err;
     return ok;
+}
+
+bool iniciarGStreamer(std::string* error, const std::function<void()>& esperando) {
+    if (!esperando) return iniciarGStreamer(error);
+    // En otro hilo; este sigue llamando a `esperando` hasta que termine. Si ya
+    // estaba iniciado, el hilo vuelve enseguida.
+    struct Estado {
+        std::mutex mu;
+        std::condition_variable cv;
+        bool listo = false;
+    };
+    auto estado = std::make_shared<Estado>();
+    std::thread hilo([estado]() {
+        iniciarGStreamer(nullptr);
+        std::lock_guard<std::mutex> l(estado->mu);
+        estado->listo = true;
+        estado->cv.notify_all();
+    });
+    for (;;) {
+        {
+            std::unique_lock<std::mutex> l(estado->mu);
+            if (estado->cv.wait_for(l, std::chrono::milliseconds(100), [&] { return estado->listo; })) break;
+        }
+        esperando();
+    }
+    hilo.join();
+    return iniciarGStreamer(error); // ya iniciado: el resultado guardado
 }
 
 void quitarPluginsDelSistema() {

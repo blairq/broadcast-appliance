@@ -37,8 +37,10 @@
 #include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
 #include "diag/Registro.hpp"
+#include "Reloj.hpp" // motor: iniciarGStreamer
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "platform/GstEntorno.hpp"
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
@@ -467,12 +469,54 @@ int AppRuntime::start() {
         health_.setState(kHealthSlot, ba::ipc::ProcessState::Running);
         health_.beat(kHealthSlot);
     }
-    // EL LATIDO DEL ARRANQUE: arrancar no es estar colgado. El primer arranque
-    // después de compilar o actualizar, GStreamer vuelve a leer sus plugins y el
-    // motor tarda 15 s o más; sin latir, el launcher lo daba por colgado a los 20 s
-    // y lo mataba en pleno arranque (pasó). Late desde su hilo hasta que el latido
-    // de los cuadros toma la posta, con un tope de 2 minutos: un arranque colgado
-    // de verdad se sigue viendo.
+    // GSTREAMER PRIMERO, EN OTRO HILO. La primera vez en una PC (o con el disco en
+    // otra letra) rehace su lista de plugins: cada uno pasa por el escáner y uno
+    // que se traba mirando el hardware cuesta 60 s. En otra PC tardó más de 2
+    // minutos; con gst_init en este hilo el cartel quedaba quieto («No responde»),
+    // el latido del arranque se cortaba a los 2 minutos y el launcher lo mataba;
+    // la lista se guarda al final, así que cada reinicio empezaba de cero y la
+    // app no arrancaba nunca (2026-10-14). Mientras GStreamer revisa, este hilo
+    // late y repinta el cartel, sin tope: no puede quedar colgado para siempre,
+    // GStreamer corta a cada plugin a los 60 s.
+    {
+        // Antes de revisar, GStreamer cuenta los plugins: el cartel dice cuántos son,
+        // cuál está revisando y cuántos lleva («37 de 312»).
+        const bool rehacer = ba::platform::registroPorRehacer();
+        arranque::avisar(rehacer ? "Contando los plugins de video…" : "Iniciando GStreamer…");
+        const auto desde = std::chrono::steady_clock::now();
+        ba::motor::iniciarGStreamer(nullptr, [&]() {
+            if (health_.valid()) {
+                std::lock_guard<std::mutex> l(healthMu_);
+                health_.beat(kHealthSlot);
+            }
+            const long long s =
+                std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - desde).count();
+            const std::string reloj = std::to_string(s) + " s";
+            const std::string primera = rehacer ? " · la primera vez en esta PC tarda más" : "";
+            const ba::motor::ProgresoGst pg = ba::motor::progresoGStreamer();
+            arranque::Aviso a;
+            if (pg.total > 0 && pg.revisados > 0) {
+                const int n = std::min(pg.revisados, pg.total);
+                a.que = "Revisando los plugins de video: " + std::to_string(n) + " de " + std::to_string(pg.total);
+                a.detalle = pg.actual + " · " + reloj + primera;
+                a.parte = static_cast<double>(n) / pg.total;
+            } else if (pg.total > 0) {
+                a.que = "Revisando los plugins de video: son " + std::to_string(pg.total);
+                a.detalle = reloj + primera;
+                a.parte = 0;
+            } else {
+                a.que = rehacer ? "Contando los plugins de video…" : "Iniciando GStreamer…";
+                if (s >= 2) a.detalle = reloj;
+            }
+            arranque::seguir(a);
+        });
+    }
+
+    // EL LATIDO DEL ARRANQUE: arrancar no es estar colgado. Con GStreamer ya
+    // iniciado, el motor igual tarda unos segundos en armarse; sin latir, el
+    // launcher lo daba por colgado a los 20 s y lo mataba en pleno arranque (pasó).
+    // Late desde su hilo hasta que el latido de los cuadros toma la posta, con un
+    // tope de 2 minutos: un arranque colgado de verdad se sigue viendo.
     struct LatidoArranque {
         std::atomic<bool> seguir{true};
         std::thread hilo;

@@ -5,6 +5,7 @@
 #include "platform/GstEntorno.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <mutex>
 
@@ -66,10 +67,16 @@ bool iniciarGst() {
             g_err = "GStreamer no está en el programa";
             return;
         }
+        // Si el registro se rehace acá (y no en el motor): lo mismo que motor::iniciarGStreamer.
+        const char* gstDebug = std::getenv("GST_DEBUG");
+        const bool delUsuario = gstDebug != nullptr && *gstDebug != '\0';
+        const bool rehacer = ba::platform::empezarRegistro();
         GError* e = nullptr;
         g_ok = gst_init_check(nullptr, nullptr, &e);
         if (!g_ok) g_err = e != nullptr ? e->message : "gst_init falló";
         if (e != nullptr) g_error_free(e);
+        if (rehacer && !delUsuario) gst_debug_set_threshold_for_name("GST_PLUGIN_LOADING", GST_LEVEL_NONE);
+        ba::platform::registroTerminado(g_ok);
         // Lo mismo que motor::quitarPluginsDelSistema (este catálogo no enlaza el motor).
         if (g_ok)
             if (GstPlugin* p = gst_registry_find_plugin(gst_registry_get(), "directshow")) {

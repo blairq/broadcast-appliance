@@ -4,9 +4,19 @@
 
 #include "platform/Paths.hpp"
 
+#include <algorithm>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <system_error>
+#include <vector>
+
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace ba::platform {
 
@@ -52,18 +62,26 @@ fs::path gstRaiz() {
     return {};
 }
 
+namespace {
+/// Dónde busca plugins: los de GStreamer y los propios (gst-plugins/:
+/// superresolución…), más BA_GST_PLUGINS_EXTRA (pruebas).
+std::string rutaPlugins(const fs::path& raiz) {
+    std::string ruta = texto(raiz / "lib" / "gstreamer-1.0");
+    std::error_code ec;
+    if (fs::is_directory(bundleRoot() / "gst-plugins", ec))
+        ruta += std::string(1, kSepRuta) + texto(bundleRoot() / "gst-plugins");
+    if (const char* extra = std::getenv("BA_GST_PLUGINS_EXTRA"); extra != nullptr && *extra != '\0')
+        ruta += std::string(1, kSepRuta) + extra;
+    return ruta;
+}
+} // namespace
+
 bool prepararGst() {
     const fs::path raiz = gstRaiz();
     if (raiz.empty()) return false;
     // Solo los plugins del bundle: la ruta del sistema apunta a la nuestra y la
     // del usuario queda vacía.
-    // Los de GStreamer y los propios (gst-plugins/: superresolución…).
-    std::string ruta = texto(raiz / "lib" / "gstreamer-1.0");
-    std::error_code ec2;
-    if (fs::is_directory(bundleRoot() / "gst-plugins", ec2))
-        ruta += std::string(1, kSepRuta) + texto(bundleRoot() / "gst-plugins");
-    if (const char* extra = std::getenv("BA_GST_PLUGINS_EXTRA"); extra != nullptr && *extra != '\0')
-        ruta += std::string(1, kSepRuta) + extra;
+    const std::string ruta = rutaPlugins(raiz);
     ponerTexto("GST_PLUGIN_SYSTEM_PATH_1_0", ruta.c_str());
     ponerTexto("GST_PLUGIN_SYSTEM_PATH", ruta.c_str());
     ponerTexto("GST_PLUGIN_PATH_1_0", "");
@@ -121,6 +139,121 @@ bool prepararGst() {
     // por proxy; y así tampoco se lee la configuración del sistema.
     ponerTexto("GIO_USE_PROXY_RESOLVER", "dummy");
     return true;
+}
+
+// --- El registro de plugins ---------------------------------------------------------
+
+namespace {
+fs::path archivoRegistro() {
+    const fs::path cache = cacheDir();
+    return cache.empty() ? fs::path() : cache / "gstreamer-1.0-registry.bin";
+}
+/// Al lado del registro: la ruta de plugins con la que se hizo. GStreamer guarda
+/// la ruta completa de cada plugin y, si cambia, los vuelve a revisar todos.
+fs::path archivoRutaRegistro() {
+    const fs::path r = archivoRegistro();
+    return r.empty() ? fs::path() : fs::path(r).replace_extension(".ruta");
+}
+constexpr const char* kPrefijoDiag = "gst-plugins-";
+bool g_diagnostico = false;
+
+void quitarVariable(const char* k) {
+#ifdef _WIN32
+    _putenv_s(k, "");
+#else
+    unsetenv(k);
+#endif
+}
+} // namespace
+
+bool registroPorRehacer() {
+    const fs::path raiz = gstRaiz();
+    const fs::path reg = archivoRegistro();
+    if (raiz.empty() || reg.empty()) return false;
+    std::error_code ec;
+    if (!fs::is_regular_file(reg, ec)) return true;
+    std::ifstream f(archivoRutaRegistro(), std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return !f || ss.str() != rutaPlugins(raiz);
+}
+
+int contarPlugins() {
+    const fs::path raiz = gstRaiz();
+    if (raiz.empty()) return 0;
+    // Lo que GStreamer va a mirar: los módulos de cada carpeta de la ruta (y sus
+    // subcarpetas), con la extensión de módulo del sistema.
+#if defined(_WIN32)
+    const std::vector<std::string> ext = {".dll"};
+#elif defined(__APPLE__)
+    const std::vector<std::string> ext = {".dylib", ".so"};
+#else
+    const std::vector<std::string> ext = {".so"};
+#endif
+    int n = 0;
+    std::stringstream ruta(rutaPlugins(raiz));
+    std::string dir;
+    while (std::getline(ruta, dir, kSepRuta)) {
+        std::error_code ec;
+        for (fs::recursive_directory_iterator it(fs::path(std::u8string(dir.begin(), dir.end())), ec), fin; !ec && it != fin; it.increment(ec))
+            if (it->is_regular_file(ec) &&
+                std::find(ext.begin(), ext.end(), texto(it->path().extension())) != ext.end())
+                ++n;
+    }
+    return n;
+}
+
+bool empezarRegistro() {
+    g_diagnostico = false;
+    if (!registroPorRehacer()) return false;
+    // Lo que pida quien corre la app manda (GST_DEBUG a mano para depurar).
+    if (const char* d = std::getenv("GST_DEBUG"); d != nullptr && *d != '\0') return true;
+    std::error_code ec;
+    const fs::path logs = dataRoot() / "Logs";
+    fs::create_directories(logs, ec);
+    // Los de la vez anterior: solo quedan los de la última revisión.
+    for (const auto& e : fs::directory_iterator(logs, ec)) {
+        const std::string n = texto(e.path().filename());
+        if (n.rfind(kPrefijoDiag, 0) == 0 && e.path().extension() == ".log") fs::remove(e.path(), ec);
+    }
+    // DEBUG (5) y no más: el GStreamer del bundle viene sin los mensajes de nivel
+    // LOG. En el escáner, qué plugin empieza a cargar; en la app, cuáles fallaron.
+    // Uno por proceso (%p: la app y cada escáner, que hereda el entorno).
+    ponerTexto("GST_DEBUG", "GST_PLUGIN_LOADING:5");
+    ponerTexto("GST_DEBUG_NO_COLOR", "1");
+    poner("GST_DEBUG_FILE", logs / (std::string(kPrefijoDiag) + "%p.log"));
+    g_diagnostico = true;
+    return true;
+}
+
+std::vector<fs::path> archivosDeEscaneres() {
+    std::vector<fs::path> v;
+    if (!g_diagnostico) return v;
+#ifdef _WIN32
+    const std::string propio = std::string(kPrefijoDiag) + std::to_string(_getpid()) + ".log";
+#else
+    const std::string propio = std::string(kPrefijoDiag) + std::to_string(getpid()) + ".log";
+#endif
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(dataRoot() / "Logs", ec)) {
+        const std::string n = texto(e.path().filename());
+        if (n.rfind(kPrefijoDiag, 0) == 0 && e.path().extension() == ".log" && n != propio) v.push_back(e.path());
+    }
+    std::sort(v.begin(), v.end());
+    return v;
+}
+
+void registroTerminado(bool ok) {
+    if (ok && !archivoRutaRegistro().empty()) {
+        std::ofstream f(archivoRutaRegistro(), std::ios::binary | std::ios::trunc);
+        f << rutaPlugins(gstRaiz());
+    }
+    if (!g_diagnostico) return;
+    g_diagnostico = false;
+    // Que no lo hereden los procesos que la app lance después.
+    quitarVariable("GST_DEBUG");
+    quitarVariable("GST_DEBUG_NO_COLOR");
+    quitarVariable("GST_DEBUG_FILE");
 }
 
 } // namespace ba::platform
