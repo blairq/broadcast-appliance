@@ -13,10 +13,15 @@ funciono (docs/modelos/entrenamiento-avanzado.md), para el formato nuevo:
   4. buscar     tc-evaluar.py sobre las plantillas ENTRENADAS rendidas con
                 estados que nunca vio («autoexamen»): si ahi falla, no aprendio a
                 copiar del estado o el patron.
-  5. arreglar   un agente (consignas/tc-arreglar.md) corrige la anotacion si
-                estaba mal o escribe anotaciones nuevas que enseñen lo que fallo;
-                el programa las valida (tc-anotar.validar) antes de sumarlas.
-  6. otra vuelta, hasta --vueltas o hasta que dos vueltas seguidas no mejoren.
+  5. geometria  tc-geometria.py con el adaptador de la vuelta: la CDNV entre
+                las nubes de cada herramienta (bucle-corpus.md), a la bitacora.
+  6. arreglar   un agente (consignas/tc-arreglar.md) corrige la anotacion si
+                estaba mal o escribe anotaciones nuevas que enseñen lo que fallo,
+                sabiendo con quien se pisa cada herramienta y que plantillas caen
+                en otra. Lo nuevo pasa por el validador (tc-anotar.validar) y por
+                los tres filtros de la geometria (cae en su grupo o corrige un
+                error visto, suma variedad, no acerca vecinas) antes de sumarse.
+  7. otra vuelta, hasta --vueltas o hasta que dos vueltas seguidas no mejoren.
 
 Cada vuelta queda en datos/bitacora-tc.jsonl (versionada, como la del corpus) y
 el mejor adaptador en <trabajo>/mejor.
@@ -24,6 +29,7 @@ el mejor adaptador en <trabajo>/mejor.
     tools/entrenar/tc-bucle.py --trabajo ~/entrenamientos/tc --vueltas 3
 """
 import argparse
+import collections
 import datetime
 import json
 import os
@@ -110,8 +116,36 @@ def medir(adaptador, corpus, salida, limite_banco):
     return out
 
 
-def arreglar(fallos, dir_):
-    """Agente: corregir la anotacion o sumar nuevas. Devuelve cuantas se sumaron."""
+def geometria(adaptador, salida, v, filtrar=None, evidencia=None):
+    """tc-geometria.py en un proceso aparte (la placa 0 queda libre para entrenar).
+    Sin `filtrar`: el diagnostico de la vuelta (a la bitacora). Con `filtrar`: los
+    tres filtros sobre las anotaciones nuevas; devuelve las aprobadas."""
+    cmd = [PY, E / "tc-geometria.py", "--modelo", adaptador]
+    if filtrar is None:
+        correr(cmd + ["--json", salida], env={"CUDA_VISIBLE_DEVICES": "0"}, salida=salida.with_suffix(".log"))
+        d = json.loads(salida.read_text())
+        res = {"cdnv_mediana": round(d["cdnv_mediana"], 4), "cdnv_peor": round(d["cdnv_peor"], 4),
+               "pares_sobre_objetivo": d["pares_sobre_objetivo"], "pares_medidos": d["pares_medidos"],
+               "dim_mediana": round(d["dim_mediana"], 2), "fuera_de_su_grupo": len(d["fuera_de_su_grupo"])}
+        log(f"geometria: {json.dumps(res)}")
+        with open(BITACORA, "a", encoding="utf-8") as b:
+            b.write(json.dumps({"fecha": datetime.datetime.now().isoformat(timespec="seconds"), "vuelta": v,
+                                "geometria": res}, ensure_ascii=False) + "\n")
+        return d
+    ev = salida.with_suffix(".evidencia.json")
+    ev.write_text(json.dumps([[h, e, n] for (h, e), n in evidencia.items()], ensure_ascii=False))
+    correr(cmd + ["--filtrar", filtrar, "--evidencia", ev, "--aprobadas", salida],
+           env={"CUDA_VISIBLE_DEVICES": "0"}, salida=salida.with_suffix(".log"))
+    log(Path(salida.with_suffix(".log")).read_text().strip().splitlines()[-1])
+    return [json.loads(l) for l in salida.read_text().splitlines() if l.strip()]
+
+
+def arreglar(fallos, dir_, adaptador, v):
+    """Agente: corregir la anotacion o sumar nuevas. Devuelve cuantas se sumaron.
+
+    Con la geometria (tc-geometria.py, la CDNV de bucle-corpus en el formato tc):
+    el agente recibe con quien se pisa cada herramienta y que plantillas suyas caen
+    en otra, y lo NUEVO que escribe pasa por los tres filtros antes de entrar."""
     import agente
     import importlib.util
     spec = importlib.util.spec_from_file_location("tca", E / "tc-anotar.py")
@@ -127,18 +161,28 @@ def arreglar(fallos, dir_):
         por_h.setdefault(f["herramienta"], []).append(f)
     if not por_h:
         return 0
+    diag = geometria(adaptador, dir_ / "geometria.json", v)
+    caen = collections.defaultdict(list)
+    for x in diag["fuera_de_su_grupo"]:
+        caen[x["herramienta"]].append({"plantilla": x["plantilla"], "cae_en": x["cae_en"]})
+
+    def geo_de(h):
+        peor = diag["por_herramienta"].get(h, {}).get("peor", {})
+        return {"vecina": peor.get("con"), "cdnv": round(peor.get("cdnv", 0.0), 3), "caen_en_otra": caen[h][:6]}
     trabajos = []
     items = sorted(por_h.items())
     for i in range(0, len(items), 6):
         lote = [{"herramienta": h, "descripcion": funcs[h]["description"], "esquema": esquemas[h],
                  "anotaciones": [{k: a[k] for k in ("plantilla", "args", "falta") if k in a} for a in anot.get(h, [])],
-                 "errores": [{k: e[k] for k in ("plantilla", "frase", "esperado", "obtenido")} for e in errs[:8]]}
+                 "errores": [{k: e[k] for k in ("plantilla", "frase", "esperado", "obtenido")} for e in errs[:8]],
+                 "geometria": geo_de(h)}
                 for h, errs in items[i:i + 6]]
         f = dir_ / f"arreglar-{i}.json"
         f.write_text(json.dumps(lote, ensure_ascii=False, indent=1))
         trabajos.append(agente.Trabajo("tc-arreglar.md", f, dir_ / f"arreglos-{i}.jsonl", ["herramienta", "plantilla"]))
     agente.correr_lotes(trabajos, paralelo=4)
     sumadas = corregidas = rechazadas = 0
+    candidatas = []
     for t in trabajos:
         if not Path(t.salida).exists():
             continue
@@ -165,10 +209,21 @@ def arreglar(fallos, dir_):
             else:
                 a["nueva"] = True
                 a["origen"] = "bucle"
-                anot.setdefault(h, []).append(a)
-                sumadas += 1
+                candidatas.append({"herramienta": h, **a})
+    if candidatas:
+        # lo que el modelo REAL hizo mal (herramienta -> la que eligio): la evidencia
+        # que deja entrar un contraste aunque caiga del lado de la vecina
+        evidencia = collections.Counter(
+            (f["herramienta"], f["obtenido"][0]) for f in fallos
+            if isinstance(f.get("obtenido"), list) and f["obtenido"] and f["obtenido"][0] != f["herramienta"])
+        cand = dir_ / "candidatas.jsonl"
+        cand.write_text("".join(json.dumps(c, ensure_ascii=False) + "\n" for c in candidatas))
+        for a in geometria(adaptador, dir_ / "aprobadas.jsonl", v, filtrar=cand, evidencia=evidencia):
+            anot.setdefault(a.pop("herramienta"), []).append(a)
+            sumadas += 1
     ANOT.write_text(json.dumps(dict(sorted(anot.items())), ensure_ascii=False, indent=1) + "\n")
-    log(f"arreglos: {sumadas} nuevas, {corregidas} corregidas, {rechazadas} rechazadas por invalidas")
+    log(f"arreglos: {sumadas} nuevas (de {len(candidatas)} propuestas), {corregidas} corregidas,"
+        f" {rechazadas} rechazadas por invalidas")
     return sumadas + corregidas
 
 
@@ -237,7 +292,7 @@ def main():
                 "--json", d / "autoexamen.json"], env={"CUDA_VISIBLE_DEVICES": "0"}, salida=d / "autoexamen.log")
         fal = json.loads((d / "autoexamen.json").read_text())["fallos"].get("prueba", [])
         log(f"autoexamen: {len(fal)} fallos")
-        if not arreglar(fal, d):
+        if not arreglar(fal, d, ad, v):
             log("nada que arreglar")
     log(f"mejor: {W / 'mejor'} · puntaje {mejor_p:.3f}")
 

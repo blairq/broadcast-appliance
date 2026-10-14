@@ -5301,6 +5301,283 @@
    "origen": "tc-sumar"
   }
  ],
+ "documento_abrir": [
+  {
+   "frase": "abrime el reglamento acá",
+   "plantilla": "abrime {documento} acá",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el expediente del presupuesto en esta máquina",
+   "plantilla": "abrí {documento} en esta máquina",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quiero leer el PDF de las becas, abrilo acá",
+   "plantilla": "quiero leer {documento}, abrilo acá",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrime el reglamento en mi compu, no al aire",
+   "plantilla": "abrime {documento} en mi compu, no al aire",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el expediente del presupuesto en el visor",
+   "plantilla": "abrí {documento} en el visor",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale, abrime el PDF de las becas",
+   "plantilla": "dale, abrime {documento}",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el reglamento",
+   "plantilla": "abrí {documento}",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "me piden un dato, abrime el expediente del presupuesto acá rápido",
+   "plantilla": "me piden un dato, abrime {documento} acá rápido",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el PDF de las becas en esta compu para leerlo yo",
+   "plantilla": "abrí {documento} en esta compu para leerlo yo",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrime en el visor de PDF el reglamento",
+   "plantilla": "abrime en el visor de PDF {documento}",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el presidente pregunta algo del expediente del presupuesto, abrilo acá",
+   "plantilla": "el presidente pregunta algo de {documento}, abrilo acá",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el PDF de las becas solo en mi pantalla",
+   "plantilla": "abrí {documento} solo en mi pantalla",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el expediente del presupuesto desde la pestaña Documentos",
+   "plantilla": "abrí {documento} desde la pestaña Documentos",
+   "args": {
+    "id": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrime el documento acá",
+   "plantilla": "abrime el documento acá",
+   "falta": "¿Qué documento abro?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el PDF en esta máquina",
+   "plantilla": "abrí el PDF en esta máquina",
+   "falta": "¿Cuál PDF?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "documentos_listar": [
+  {
+   "frase": "¿qué documentos hay?",
+   "plantilla": "¿qué documentos hay?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué documentos tiene el punto 3?",
+   "plantilla": "¿qué documentos tiene el punto 3?",
+   "args": {
+    "punto": 3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué PDF van con el punto del presupuesto?",
+   "plantilla": "¿qué PDF van con {punto}?",
+   "args": {
+    "punto": "{punto}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué documentación cargaron para esta sesión?",
+   "plantilla": "¿qué documentación cargaron para esta sesión?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay algún documento para el punto 5?",
+   "plantilla": "¿hay algún documento para el punto 5?",
+   "args": {
+    "punto": 5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuáles documentos son públicos?",
+   "plantilla": "¿cuáles documentos son públicos?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas páginas tiene cada documento?",
+   "plantilla": "¿cuántas páginas tiene cada documento?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "busco el expediente, ¿qué documentos tenemos?",
+   "plantilla": "busco el expediente, ¿qué documentos tenemos?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué archivos van adjuntos al punto 1?",
+   "plantilla": "¿qué archivos van adjuntos al punto 1?",
+   "args": {
+    "punto": 1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué documentos tiene el punto que tratamos ahora, el del presupuesto?",
+   "plantilla": "¿qué documentos tiene el punto que tratamos ahora, {punto}?",
+   "args": {
+    "punto": "{punto}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay PDF cargados para la sesión de hoy?",
+   "plantilla": "¿hay PDF cargados para la sesión de hoy?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿con qué documentos contamos para el punto 4?",
+   "plantilla": "¿con qué documentos contamos para el punto 4?",
+   "args": {
+    "punto": 4
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "no encuentro el reglamento, ¿qué documentos hay cargados?",
+   "plantilla": "no encuentro el reglamento, ¿qué documentos hay cargados?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué documentos tiene el punto 3 del orden del día?",
+   "plantilla": "¿qué documentos tiene el punto 3 del orden del día?",
+   "args": {
+    "punto": 3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "listame los documentos del evento",
+   "plantilla": "listame los documentos del evento",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "decime los documentos del punto 2",
+   "plantilla": "decime los documentos del punto 2",
+   "args": {
+    "punto": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame la lista de documentos",
+   "plantilla": "mostrame la lista de documentos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pasame el listado de la documentación",
+   "plantilla": "pasame el listado de la documentación",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "dsk_listar": [
   {
    "frase": "¿qué capas hay arriba?",
@@ -10228,6 +10505,246 @@
    "origen": "tc-sumar"
   }
  ],
+ "pdf_escena_poner": [
+  {
+   "frase": "andá a la página 4 del PDF",
+   "plantilla": "andá a la página 4 del PDF",
+   "args": {
+    "pagina": 4
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "página siguiente del PDF",
+   "plantilla": "página siguiente del PDF",
+   "args": {
+    "paso": 1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "acercá el PDF al doble",
+   "plantilla": "acercá el PDF al doble",
+   "args": {
+    "zoom": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "no se lee nada, acercá el PDF al triple",
+   "plantilla": "no se lee nada, acercá el PDF al triple",
+   "args": {
+    "zoom": 3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "PDF a la página 1",
+   "plantilla": "PDF a la página 1",
+   "args": {
+    "pagina": 1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya leyó esta, siguiente página del PDF",
+   "plantilla": "ya leyó esta, siguiente página del PDF",
+   "args": {
+    "paso": 1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "retrocedé una página del PDF que está al aire",
+   "plantilla": "retrocedé una página del PDF que está al aire",
+   "args": {
+    "paso": -1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el reglamento en la escena",
+   "plantilla": "mostrá {documento} en la escena",
+   "args": {
+    "documento": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé una página en el PDF",
+   "plantilla": "volvé una página en el PDF",
+   "args": {
+    "paso": -1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cargá el expediente del presupuesto en la escena del PDF",
+   "plantilla": "cargá {documento} en la escena del PDF",
+   "args": {
+    "documento": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el concejal está leyendo la página 7, mostrala en el PDF",
+   "plantilla": "el concejal está leyendo la página 7, mostrala en el PDF",
+   "args": {
+    "pagina": 7
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "en la escena del PDF mostrá el PDF de las becas",
+   "plantilla": "en la escena del PDF mostrá {documento}",
+   "args": {
+    "documento": "{documento}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé a la página 2 del PDF",
+   "plantilla": "volvé a la página 2 del PDF",
+   "args": {
+    "pagina": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "pdf_escena_ver": [
+  {
+   "frase": "¿qué PDF hay en la escena?",
+   "plantilla": "¿qué PDF hay en la escena?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿en qué página está el PDF?",
+   "plantilla": "¿en qué página está el PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué documento se ve en la escena del PDF?",
+   "plantilla": "¿qué documento se ve en la escena del PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas páginas tiene el PDF que está al aire?",
+   "plantilla": "¿cuántas páginas tiene el PDF que está al aire?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué página del PDF se está mostrando?",
+   "plantilla": "¿qué página del PDF se está mostrando?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el PDF tiene zoom?",
+   "plantilla": "¿el PDF tiene zoom?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "me perdí, ¿en qué página va el PDF?",
+   "plantilla": "me perdí, ¿en qué página va el PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué escenas tienen PDF?",
+   "plantilla": "¿qué escenas tienen PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿está el reglamento en la escena o es otro PDF?",
+   "plantilla": "¿está el reglamento en la escena o es otro PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "estado del PDF de la escena",
+   "plantilla": "estado del PDF de la escena",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas páginas le quedan al PDF?",
+   "plantilla": "¿cuántas páginas le quedan al PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el concejal dice que no es esa hoja, ¿qué página muestra el PDF?",
+   "plantilla": "el concejal dice que no es esa hoja, ¿qué página muestra el PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué fuentes PDF hay en las escenas?",
+   "plantilla": "¿qué fuentes PDF hay en las escenas?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "contame qué muestra el PDF ahora",
+   "plantilla": "contame qué muestra el PDF ahora",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay algún PDF cargado en la escena?",
+   "plantilla": "¿hay algún PDF cargado en la escena?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué documento y qué página tiene la fuente PDF?",
+   "plantilla": "¿qué documento y qué página tiene la fuente PDF?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "decime qué PDF tiene cargado cada escena",
+   "plantilla": "decime qué PDF tiene cargado cada escena",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "pregunta_desde_chat": [
   {
    "frase": "sumá el mensaje de Juan a la cola de preguntas",
@@ -11138,6 +11655,287 @@
    "frase": "centrá el recorte digital",
    "plantilla": "centrá el recorte digital",
    "falta": "¿de qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_foco": [
+  {
+   "frase": "foco más cerca en la dos",
+   "plantilla": "foco más cerca en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": -0.3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "foco más lejos en la uno",
+   "plantilla": "foco más lejos en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": 0.3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "enfocá más cerca la cuatro, el atril está borroso",
+   "plantilla": "enfocá más cerca {camara}, el atril está borroso",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": -0.3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "foco manual en la dos",
+   "plantilla": "foco manual en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "auto": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el fondo se ve borroso, foco más lejos en la tres",
+   "plantilla": "el fondo se ve borroso, foco más lejos en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": 0.3
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "un toque de foco hacia cerca en la uno",
+   "plantilla": "un toque de foco hacia cerca en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": -0.1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mucho más lejos el foco de la dos",
+   "plantilla": "mucho más lejos el foco de {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": 0.7
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la dos está desenfocada",
+   "plantilla": "{camara} está desenfocada",
+   "args": {
+    "entrada": "{camara}",
+    "auto": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "foco más cerca durante dos segundos en la tres",
+   "plantilla": "foco más cerca durante dos segundos en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "velocidad": -0.3,
+    "duracion_ms": 2000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "foco más cerca, rápido",
+   "plantilla": "foco más cerca, rápido",
+   "falta": "¿En qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné autofoco en la tres",
+   "plantilla": "poné autofoco en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "auto": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "apagá el autofoco de la dos",
+   "plantilla": "apagá el autofoco de {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "auto": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la tres está fuera de foco, prendé el autofoco",
+   "plantilla": "{camara} está fuera de foco, prendé el autofoco",
+   "args": {
+    "entrada": "{camara}",
+    "auto": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_home": [
+  {
+   "frase": "centrá la uno sin zoom",
+   "plantilla": "centrá {camara} sin zoom",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la tres a home",
+   "plantilla": "{camara} a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "reseteá la posición de la uno a home",
+   "plantilla": "reseteá la posición de {camara} a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "home en la dos",
+   "plantilla": "home en {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "centrá la cuatro",
+   "plantilla": "centrá {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la dos está en cualquier lado, centrala sin zoom",
+   "plantilla": "{camara} está en cualquier lado, centrala sin zoom",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminó la toma, la dos a home",
+   "plantilla": "terminó la toma, {camara} a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "inicio en la tres",
+   "plantilla": "inicio en {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "centrala sin zoom",
+   "plantilla": "centrala sin zoom",
+   "falta": "¿Cuál cámara centro?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "llevá la dos a home",
+   "plantilla": "llevá {camara} a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mandá la cuatro a la posición de inicio",
+   "plantilla": "mandá {camara} a la posición de inicio",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la dos quedó mirando el techo, llevala a home",
+   "plantilla": "{camara} quedó mirando el techo, llevala a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé la tres al centro y abrí todo el zoom",
+   "plantilla": "volvé {camara} al centro y abrí todo el zoom",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "me perdí con la uno, mandala a home",
+   "plantilla": "me perdí con {camara}, mandala a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "antes de arrancar, llevá la uno a home",
+   "plantilla": "antes de arrancar, llevá {camara} a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la cuatro quedó con todo el zoom, llevala a home",
+   "plantilla": "{camara} quedó con todo el zoom, llevala a home",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "llevá la cámara a home",
+   "plantilla": "llevá la cámara a home",
+   "falta": "¿Qué cámara?",
    "nueva": true,
    "origen": "tc-nuevas"
   }

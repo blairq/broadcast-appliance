@@ -69,7 +69,9 @@ SISTEMA_V4 = SISTEMA.replace(
 NUEVO = lp.PERFIL != "reactivo"
 # v5 (perfil vivo5): el recinto (bancas), las capas del DSK, el orden del dia y el
 # chat del publico tambien se nombran
-V5 = getattr(lp, "ESTADO", None) == "v5"
+V5 = getattr(lp, "ESTADO", None) in ("v5", "v6")
+# v6 (perfil vivo6): suma la documentacion del evento (los documentos se nombran por su id)
+V6 = getattr(lp, "ESTADO", None) == "v6"
 SISTEMA_V5 = SISTEMA_V4.replace(
     "Discursos y medios van por su ruta; preguntas y recetas, por su id.",
     "Discursos y medios van por su ruta; preguntas y recetas, por su id. Una banca va por el nombre de su"
@@ -77,8 +79,12 @@ SISTEMA_V5 = SISTEMA_V4.replace(
     " por su número; los mensajes del chat, por su key.")
 
 
+SISTEMA_V6 = SISTEMA_V5.replace("los mensajes del chat, por su key.",
+                                "los mensajes del chat, por su key; los documentos, por su id.")
+
+
 def sistema():
-    return SISTEMA_V5 if V5 else SISTEMA_V4 if NUEVO else SISTEMA
+    return SISTEMA_V6 if V6 else SISTEMA_V5 if V5 else SISTEMA_V4 if NUEVO else SISTEMA
 
 
 INSTRUCCION_QWEN = (
@@ -293,18 +299,26 @@ MENSAJES = [("yt:8f2a", ["el mensaje de Juan", "lo que escribió Juan"], "Saludo
             ("fb:5d1e", ["el mensaje de Sofía", "lo que escribió Sofía"], "Gracias por transmitir|Sofía|facebook"),
             ("yt:a04f", ["el mensaje de Martín", "lo que puso Martín"], "¿Cuándo se vota el presupuesto?|Martín|youtube"),
             ("sala:7e", ["el mensaje de Lucía", "lo que escribió Lucía"], "Pido la palabra para una pregunta|Lucía|sala")]
+# v6: la documentacion del evento (un documento por punto, mas los generales)
+DOCUMENTOS = [("d1", ["el expediente del presupuesto", "el PDF del presupuesto"], "Expte. 123/24 – Presupuesto 2025"),
+              ("d2", ["el expediente del transporte", "el PDF del transporte"], "Expte. 45/24 – Transporte urbano"),
+              ("d3", ["el expediente de la plaza", "el PDF de la plaza"], "Expte. 88/24 – Plaza Belgrano"),
+              ("d4", ["el reglamento", "el reglamento interno"], "Reglamento interno"),
+              ("d5", ["el orden del día impreso", "el PDF del orden del día"], "Orden del día"),
+              ("d6", ["la presentación de las becas", "el PDF de las becas"], "Expte. 12/24 – Becas estudiantiles")]
 TIPOS = {"escena": ESCENAS, "audio": AUDIO, "fuente": FUENTES, "persona": PERSONAS,
          "grafico": GRAFICOS, "carrusel": CARRUSELES,
          "camara": CAMARAS, "posicion": POSICIONES, "discurso": DISCURSOS, "medio": MEDIOS,
          "pregunta": PREGUNTAS, "pantalla": PANTALLAS, "receta": RECETAS,
-         "banca": INTEGRANTES, "capa": CAPAS, "punto": PUNTOS, "mensaje": MENSAJES}
+         "banca": INTEGRANTES, "capa": CAPAS, "punto": PUNTOS, "mensaje": MENSAJES, "documento": DOCUMENTOS}
 RE_HUECO = re.compile(r"\{(escena|audio|audio_operador|fuente|persona|grafico|carrusel|camara|posicion|discurso|medio"
-                      r"|pregunta|pantalla|receta|banca|capa|punto|mensaje)(\d?)\}")
+                      r"|pregunta|pantalla|receta|banca|capa|punto|mensaje|documento)(\d?)\}")
 # las claves del estado (v4 suma las de los comandos nuevos)
 ESTADO_CLAVES = ["escena_actual", "escena_armada", "escenas", "fuentes_de_la_escena_actual", "audio", "participantes",
                  "graficos", "carruseles"]
 ESTADO_CLAVES_V4 = ESTADO_CLAVES + ["camaras", "discursos", "medios", "preguntas", "pantallas", "recetas"]
 ESTADO_CLAVES_V5 = ESTADO_CLAVES_V4 + ["bancas", "capas", "orden_del_dia", "chat"]
+ESTADO_CLAVES_V6 = ESTADO_CLAVES_V5 + ["documentos"]
 
 
 def estado_sintetico(rnd, necesita=()):
@@ -384,6 +398,10 @@ def estado_sintetico(rnd, necesita=()):
                        "capa": [(str(n), c[1] + [f"la capa {n}"]) for n, c in zip(n_capas, capas)],
                        "punto": [(str(i + 1), p[1] + [f"el punto {i + 1}"]) for i, p in enumerate(puntos)],
                        "mensaje": mensajes})
+    if V6:
+        docs = elegir(DOCUMENTOS, 0, 5, cuantos.get("documento", 0))
+        est["documentos"] = [{"id": d[0], "titulo": d[2]} for d in docs]
+        formas["documento"] = docs
     return est, formas
 
 

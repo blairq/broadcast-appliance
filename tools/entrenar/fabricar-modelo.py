@@ -1226,7 +1226,7 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
                             "estado_json": "separators=(',',':'),ensure_ascii=false"},
                 # las del perfil con que se entreno (v4: + camaras con posiciones, discursos,
                 # medios, preguntas, pantallas, recetas)
-                "estado_claves": (tc.ESTADO_CLAVES_V5 if tc.V5 else tc.ESTADO_CLAVES_V4 if tc.NUEVO
+                "estado_claves": (tc.ESTADO_CLAVES_V6 if tc.V6 else tc.ESTADO_CLAVES_V5 if tc.V5 else tc.ESTADO_CLAVES_V4 if tc.NUEVO
                                   else tc.ESTADO_CLAVES),
                 "llamada": {"abre": "<tool_call>", "funcion": "<function={nombre}>", "parametro":
                             "<parameter={clave}>\n{valor}\n</parameter>", "cierra_funcion": "</function>",

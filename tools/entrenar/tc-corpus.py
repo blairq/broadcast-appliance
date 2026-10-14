@@ -196,6 +196,10 @@ def main():
                     help="porcion de derivar (0,15 en el v2: derivaba de mas, cobertura 81,7 %%)")
     ap.add_argument("--prueba", type=float, default=0.15, help="plantillas que no se entrenan")
     ap.add_argument("--falta", type=float, default=0.10, help="porcion (techo) de falta_dato")
+    ap.add_argument("--copia", type=float, default=0.7,
+                    help="dos plantillas de una herramienta que comparten esta porcion de palabras y piden lo mismo son una")
+    ap.add_argument("--parecido", type=float, default=0.6,
+                    help="fuera la frase que comparte esta porcion de palabras con una del banco o del examen de su misma respuesta")
     ap.add_argument("--ausentes", type=float, default=0.35,
                     help="probabilidad por plantilla de sumar su version con un nombre que no esta en el estado")
     ap.add_argument("--social", type=int, default=6, help="ejemplos por frase social")
@@ -222,6 +226,35 @@ def main():
         descartadas += len(anot[h]) - len(buenas)
         anot[h] = buenas
     print(f"anotaciones descartadas por no validar: {descartadas}")
+    # SIN COPIAS adentro de una herramienta: dos plantillas que comparten el 70 % de
+    # sus palabras con contenido y piden LO MISMO (mismos argumentos o la misma falta)
+    # son una sola: la copia no le enseña nada a la nube, solo la aprieta (memoria).
+    # Con otros argumentos no es copia («activá la placa» / «quitá la placa»: true y
+    # false). Queda la primera, con las humanas antes que las del agente.
+    import unicodedata as _ud
+    _vac = set("el la los las lo le les de del a al en con por para que y o u un una unos unas es "
+               "esta este esto eso esa ese se su sus mi me te tu ya ahi aca hay como cual cuales "
+               "dale eh che ojo rapido porfa bueno ahora toque".split())
+
+    def _contenido(pl):
+        x = _ud.normalize("NFKD", re.sub(r"\{[a-z_]+\d?\}", " X ", pl).lower()).encode("ascii", "ignore").decode()
+        t = set(re.sub(r"\W+", " ", x).split())
+        return (t - _vac) or t
+    copias = 0
+    for h in list(anot):
+        quedan, vistas = [], []
+        for a in sorted(anot[h], key=lambda a: bool(a.get("nueva"))):
+            if not a.get("plantilla"):
+                quedan.append(a)
+                continue
+            t, pide = _contenido(a["plantilla"]), json.dumps([a.get("args"), a.get("falta")], sort_keys=True)
+            if any(p == pide and len(t & u) / max(len(t), len(u)) >= args.copia for u, p in vistas):
+                copias += 1
+                continue
+            vistas.append((t, pide))
+            quedan.append(a)
+        anot[h] = quedan
+    print(f"anotaciones copia de otra de su herramienta: fuera {copias}")
     ent, prueba = [], []
     for h, lista in sorted(anot.items()):
         for a in lista:
@@ -244,6 +277,20 @@ def main():
                 f = ausente(h, a, rnd)
                 if f:
                     aus.append(f)
+    # ninguna fila repetida: la misma frase con la misma respuesta (una plantilla sin
+    # huecos rendida k veces da k veces la misma frase; solo cambiaba el estado).
+    # Antes de las porciones: derivar, falta y charla se calculan sobre lo que queda
+    _vistas, _sin_rep = set(), []
+    for f in ent:
+        clave = (f["tipo"], f.get("herramienta"), f.get("frase"), json.dumps(f.get("args"), sort_keys=True)) \
+            if f.get("herramienta") else None
+        if clave is not None and clave in _vistas:
+            continue
+        if clave is not None:
+            _vistas.add(clave)
+        _sin_rep.append(f)
+    print(f"filas repetidas (misma frase, misma respuesta): fuera {len(ent) - len(_sin_rep)}")
+    ent = _sin_rep
     # falta_dato CON TECHO: el agente marca como incompleta toda frase con
     # «ese/eso» y quedaba un 27 % del corpus; con eso el modelo aprende a
     # preguntar de mas. ~10 % del total (como la irrelevancia de Hammer).
@@ -337,6 +384,53 @@ def main():
         est, _ = tc.estado_sintetico(rnd)
         cp.append(fila(est, c["pedido"], c["respuesta"], "charla", None, None, con_estado=rnd.random() < 0.5))
 
+    # FUERA lo que se parece DEMASIADO a una frase del banco o del examen CON LA
+    # MISMA RESPUESTA, no solo lo identico: la v5 tenia 0 frases identicas pero
+    # «¿llegaron preguntas nuevas?» o «corta la transmision» estaban tal cual salvo
+    # tildes. Por palabras compartidas, como parecido() del corpus de nombres: importa
+    # que sea OTRA forma de pedirlo, no que cambien dos letras. Y por herramienta: una
+    # frase parecida con OTRA respuesta («vinculá un rótulo al que habla» frente a
+    # «desatá el rótulo del que habla») no filtra la respuesta, es un contraste.
+    # Sin las palabras vacias ni las muletillas: con ellas «mostrame el mezclador» se
+    # parecia a «Mostrame el guion».
+    vacias = set("el la los las lo le les de del a al en con por para que y o u un una unos unas es "
+                 "esta este esto eso esa ese se su sus mi me te tu ya ahi aca hay como cual cuales "
+                 "dale eh che ojo rapido porfa bueno ahora toque".split())
+
+    def _toks(x):
+        t = set(x.split())
+        return (t - vacias) or t
+    _por_destino = {}  # destino -> ([tokens], indice palabra -> filas)
+    for f in (RAIZ / "datos/orientacion.jsonl", RAIZ / "datos/entrenamiento/examen.jsonl"):
+        for l in f.read_text().splitlines():
+            if not l.strip():
+                continue
+            x = json.loads(l)
+            # la respuesta bajo ESTE perfil, como la mide tc-evaluar: lo que salio del
+            # perfil es derivar
+            dest = {h for h in ([x["herramienta"]] if x.get("herramienta") else []) + x.get("aceptables", [])
+                    if h in _mias or h == tc.DERIVAR} or {tc.DERIVAR}
+            t = _toks(_norm(x["frase"]))
+            for d in dest:
+                lista, ind = _por_destino.setdefault(d, ([], {}))
+                for w in t:
+                    ind.setdefault(w, []).append(len(lista))
+                lista.append(t)
+
+    def parecida(f, umbral=args.parecido):
+        """f: una fila. Su respuesta es su herramienta (falta_dato tambien: el pedido
+        es el de la herramienta) o derivar; la charla no tiene."""
+        if not f.get("frase") or not f.get("herramienta"):
+            return False
+        lista, ind = _por_destino.get(f["herramienta"], ([], {}))
+        t = _toks(_norm(f["frase"]))
+        return bool(t) and any(len(t & lista[i]) / max(len(t), len(lista[i])) >= umbral
+                               for i in {i for w in t for i in ind.get(w, ())})
+    n0, p0 = len(ent), len(prueba)
+    ent = [f for f in ent if not parecida(f)]
+    prueba = [f for f in prueba if not parecida(f)]
+    print(f"parecidas al banco o al examen: fuera {n0 - len(ent)} de entrenar y {p0 - len(prueba)} de prueba")
+
     rnd.shuffle(ent)
     n_val = max(50, len(ent) // 20)
     val, ent = ent[:n_val], ent[n_val:]
@@ -346,7 +440,7 @@ def main():
     cuenta["de_eso_ausentes"] = len(aus)
     huella = {"formato": "tc", "prompt": tc.huella(), "ejemplos": len(ent), "por_tipo": cuenta,
               "porcion": {t: round(n / max(1, len(ent)), 3) for t, n in cuenta.items()},
-              "prueba": len(prueba), "charla_prueba": len(cp), "k": args.k,
+              "prueba": len(prueba), "charla_prueba": len(cp), "k": args.k, "parecido": args.parecido, "copia": args.copia,
               "anotaciones": hashlib.sha256(Path(args.anotaciones).read_bytes()).hexdigest()[:16]}
     (sal / "huella.json").write_text(json.dumps(huella, ensure_ascii=False, indent=1))
     print(json.dumps(huella, ensure_ascii=False))

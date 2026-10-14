@@ -797,6 +797,13 @@
      "herramientas": [
       "chat_destacar"
      ]
+    },
+    {
+     "objeto": "autofoco de una cámara PTZ",
+     "ejemplo": "poné autofoco en la cámara 2",
+     "herramientas": [
+      "ptz_foco"
+     ]
     }
    ]
   },
@@ -1220,6 +1227,20 @@
      "herramientas": [
       "orden_del_dia_punto"
      ]
+    },
+    {
+     "objeto": "listado de la documentación (pasame)",
+     "ejemplo": "pasame el listado de la documentación",
+     "herramientas": [
+      "documentos_listar"
+     ]
+    },
+    {
+     "objeto": "a otra página del PDF en escena",
+     "ejemplo": "pasá a la página siguiente del PDF",
+     "herramientas": [
+      "pdf_escena_poner"
+     ]
     }
    ]
   },
@@ -1338,6 +1359,13 @@
      "ejemplo": "Diego ya habló, mandalo al final de la fila",
      "herramientas": [
       "participant_requeue"
+     ]
+    },
+    {
+     "objeto": "cámara PTZ a la posición de inicio",
+     "ejemplo": "mandá la cámara 1 a la posición de inicio",
+     "herramientas": [
+      "ptz_home"
      ]
     }
    ]
@@ -1928,6 +1956,20 @@
      "ejemplo": "mostrá la capa del logo",
      "herramientas": [
       "dsk_mostrar"
+     ]
+    },
+    {
+     "objeto": "documento o página en la fuente PDF de una escena",
+     "ejemplo": "mostrá el reglamento en la escena del PDF",
+     "herramientas": [
+      "pdf_escena_poner"
+     ]
+    },
+    {
+     "objeto": "lista de documentos del evento",
+     "ejemplo": "mostrame la lista de documentos",
+     "herramientas": [
+      "documentos_listar"
      ]
     }
    ]
@@ -2959,6 +3001,13 @@
      "herramientas": [
       "debate_iniciar"
      ]
+    },
+    {
+     "objeto": "documento del evento (en esta máquina, no al aire)",
+     "ejemplo": "abrime el reglamento acá",
+     "herramientas": [
+      "documento_abrir"
+     ]
     }
    ]
   },
@@ -3074,6 +3123,13 @@
      "herramientas": [
       "stream_stop"
      ]
+    },
+    {
+     "objeto": "autofoco de una cámara PTZ",
+     "ejemplo": "apagá el autofoco de la cámara 1",
+     "herramientas": [
+      "ptz_foco"
+     ]
     }
    ]
   },
@@ -3120,6 +3176,13 @@
      "ejemplo": "prendé la transmisión",
      "herramientas": [
       "stream_start"
+     ]
+    },
+    {
+     "objeto": "autofoco de una cámara PTZ",
+     "ejemplo": "prendé el autofoco de la cámara 3",
+     "herramientas": [
+      "ptz_foco"
      ]
     }
    ]
@@ -4074,6 +4137,13 @@
      "herramientas": [
       "source_properties"
      ]
+    },
+    {
+     "objeto": "documento del evento (para leerlo acá)",
+     "ejemplo": "quiero leer el expediente del presupuesto, abrilo acá",
+     "herramientas": [
+      "documento_abrir"
+     ]
     }
    ]
   },
@@ -4163,6 +4233,20 @@
      "ejemplo": "decime qué fuentes tiene la escena Panel",
      "herramientas": [
       "source_list"
+     ]
+    },
+    {
+     "objeto": "documentos del evento o de un punto (decime)",
+     "ejemplo": "decime los documentos del punto 2",
+     "herramientas": [
+      "documentos_listar"
+     ]
+    },
+    {
+     "objeto": "qué PDF muestra cada escena (decime)",
+     "ejemplo": "decime qué PDF tiene cargado cada escena",
+     "herramientas": [
+      "pdf_escena_ver"
      ]
     }
    ]
@@ -4258,6 +4342,13 @@
      "ejemplo": "listá las bancas",
      "herramientas": [
       "bancas_listar"
+     ]
+    },
+    {
+     "objeto": "documentos del evento",
+     "ejemplo": "listame los documentos del evento",
+     "herramientas": [
+      "documentos_listar"
      ]
     }
    ]
@@ -4598,6 +4689,13 @@
      "herramientas": [
       "media_use"
      ]
+    },
+    {
+     "objeto": "documento en la fuente PDF de una escena",
+     "ejemplo": "cargá el expediente de la plaza en la escena del PDF",
+     "herramientas": [
+      "pdf_escena_poner"
+     ]
     }
    ]
   },
@@ -4686,6 +4784,20 @@
      "ejemplo": "volvé del negro",
      "herramientas": [
       "aire_ftb"
+     ]
+    },
+    {
+     "objeto": "cámara PTZ al centro (home)",
+     "ejemplo": "volvé la cámara 3 al centro, sin zoom",
+     "herramientas": [
+      "ptz_home"
+     ]
+    },
+    {
+     "objeto": "una página del PDF en escena",
+     "ejemplo": "volvé una página en el PDF",
+     "herramientas": [
+      "pdf_escena_poner"
      ]
     }
    ]
@@ -6337,6 +6449,13 @@
      "ejemplo": "llevá la cámara 2 a la posición del atril",
      "herramientas": [
       "ptz_ir_posicion"
+     ]
+    },
+    {
+     "objeto": "cámara PTZ a home (inicio: centrada, sin zoom)",
+     "ejemplo": "llevá la cámara 2 a home",
+     "herramientas": [
+      "ptz_home"
      ]
     }
    ]

@@ -2,6 +2,11 @@ Tu trabajo: arreglar lo que el modelo de tool calling hace mal, corrigiendo o am
 
 El archivo `lote.txt` (JSON) tiene, por herramienta: su `descripcion`, su `esquema`, sus `anotaciones` actuales (plantillas con huecos y los argumentos que corresponden) y los `errores` del modelo: casos rendidos con un estado del aparato, con lo `esperado` y lo `obtenido`.
 
+Cuando está, `geometria` dice cómo ve el modelo a esa herramienta por dentro: `vecina` es la herramienta con la que más se pisa (y su `cdnv`: arriba de 0,03 se confunden), y `caen_en_otra` son plantillas SUYAS que el modelo ubica más cerca de otra herramienta. Usalo así:
+- Una plantilla de `caen_en_otra` que en realidad pide lo de la otra herramienta, o que no dice nada que la distinga, es una anotación mal hecha: corregila (A) para que nombre lo que la separa de la vecina.
+- Las nuevas (B) tienen que marcar el CONTRASTE con la `vecina`: lo que esta herramienta hace y la otra no («dejá de seguir a Laura» frente a «pará la cámara»), no otra variante de lo que ya hay.
+- Las nuevas pasan además por la cuenta: si una cae en el grupo de otra herramienta sin que el modelo haya cometido ese error, se descarta; si no suma variedad (dice lo mismo que las que ya hay con otras palabras), también.
+
 Para cada error decidí:
 
 A. **La anotación estaba mal** (lo esperado no es lo que pide la frase, o el argumento no corresponde): escribí la anotación corregida con "corrige": "<la plantilla original>".

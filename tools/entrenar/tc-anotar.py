@@ -44,7 +44,8 @@ RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "
            "persona": "Laura", "grafico": "el zócalo", "carrusel": "la presentación", "camara": "la dos",
            "posicion": "el atril", "discurso": "el del intendente", "medio": "la tanda", "pregunta": "la de Juan",
            "pantalla": "la tele del hall", "receta": "la de apertura",
-           "banca": "Pérez", "capa": "la capa del logo", "punto": "el del presupuesto", "mensaje": "el mensaje de Juan"}
+           "banca": "Pérez", "capa": "la capa del logo", "punto": "el del presupuesto", "mensaje": "el mensaje de Juan",
+           "documento": "el reglamento"}
 
 
 # que tipo de entidad recibe cada familia de herramientas (como candidatos() en
@@ -53,6 +54,8 @@ ENTIDADES = [  # v5 primero: el primer prefijo que coincide manda (chat_destacar
              (("banca_", "recinto_", "debate_"), {"banca"}), (("dsk_",), {"capa"}), (("orden_del_dia_",), {"punto"}),
              (("chat_destacar", "chat_quitar_destacado", "pregunta_desde_chat"), {"mensaje"}),
              (("ptz_seguir",), {"camara", "persona"}),
+             # v6: la documentacion del evento y el PDF en escena
+             (("documento_abrir", "pdf_escena_"), {"documento", "fuente"}), (("documentos_listar",), {"punto"}),
              (("scene_", "transition_"), {"escena"}), (("audio", "mixer_"), {"audio", "audio_operador"}),
              (("source_", "capture_source"), {"fuente", "audio", "audio_operador", "escena"}),
              (("participant_", "speaker_", "capture_person", "chat_"), {"persona"}),
