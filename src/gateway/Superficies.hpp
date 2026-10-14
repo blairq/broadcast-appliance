@@ -50,7 +50,10 @@ class Superficies {
     /// Una página dice que está viva. `tipo` es qué es ("carrusel",
     /// "pantalla", "prompter"...), `id` la identifica entre recargas, `que`
     /// es lo que está mostrando ahora mismo.
-    void latido(const std::string& tipo, const std::string& id, const std::string& que, std::uint32_t ip);
+    /// :returns: true si es una pantalla de video (programa o escena) y hace 30 s que
+    ///           no se anota lo que dice: su retardo, fps y cuánto tarda en decodificar,
+    ///           que sin el log solo se ven en vivo desde la cabina.
+    bool latido(const std::string& tipo, const std::string& id, const std::string& que, std::uint32_t ip);
     /// Las que latieron hace menos de kVivaMs().
     nlohmann::json vivas() const;
 
@@ -71,6 +74,7 @@ class Superficies {
         std::int64_t desdeMs = 0; ///< cuándo se la vio por primera vez
         std::int64_t vistaMs = 0;
         std::uint64_t latidos = 0;
+        std::int64_t anotadaMs = 0; ///< la última vez que fue al log
     };
     mutable std::mutex m_;
     std::map<std::string, Viva> por_;

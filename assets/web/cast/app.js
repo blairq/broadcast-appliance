@@ -163,6 +163,7 @@
     // pedirlos abriría un permiso que en un televisor nadie puede contestar).
     const vt = pc.addTransceiver("video", { direction: "recvonly" });
     const at = pc.addTransceiver("audio", { direction: "recvonly" });
+    preferirCodec(vt);
 
     // La perilla del retardo (ver ../comun/retardo.js).
     st.retardoPuesto = window.BARetardo.aplicar(vt.receiver, bufferMs);
@@ -195,6 +196,32 @@
     };
 
     negociar(pc);
+  }
+
+  // EL CODEC. Sin pedir nada, sale VP8 (el primero que ofrece el navegador), y un
+  // televisor o un Chromecast casi nunca decodifica VP8 en hardware: a 1080p lo
+  // hace el procesador del aparato, no llega, los cuadros se encolan y la pantalla
+  // va cada vez más atrás (y se traba cuando hay mucho movimiento, como un gráfico
+  // que entra a pantalla completa). H.264 lo decodifican en hardware todos. En un
+  // televisor se pide H.264 primero; ?codec=vp8|h264 lo fuerza (el gateway contesta
+  // en el orden del offer).
+  function preferirCodec(vt) {
+    const ua = navigator.userAgent || "";
+    const tele = /CrKey|SMART-TV|SmartTV|Tizen|Web0S|webOS|AFT|Android TV|BRAVIA|GoogleTV/i.test(ua);
+    const pedido = (q.get("codec") || (tele ? "h264" : "")).toLowerCase();
+    if (!pedido || !vt.setCodecPreferences || !window.RTCRtpReceiver || !RTCRtpReceiver.getCapabilities) return;
+    try {
+      const todos = RTCRtpReceiver.getCapabilities("video").codecs;
+      const tipo = pedido === "vp8" ? "video/VP8" : "video/H264";
+      const peso = (c) => {
+        if (c.mimeType !== tipo) return 2;
+        // Constrained baseline con packetization-mode=1: el que codifica el gateway.
+        const f = c.sdpFmtpLine || "";
+        return tipo === "video/H264" && !(/42e01f/i.test(f) && /packetization-mode=1/.test(f)) ? 1 : 0;
+      };
+      const orden = todos.slice().sort((a, b) => peso(a) - peso(b));
+      if (orden.length && peso(orden[0]) < 2) vt.setCodecPreferences(orden);
+    } catch (e) { /* un navegador que no deja elegir: sigue con lo suyo */ }
   }
 
   async function negociar(pc) {
@@ -246,7 +273,7 @@
       // equivocado: un televisor que no informa una medida se lee igual que
       // uno que la informa en cero. Lo que el navegador no diga queda en null
       // y se muestra como «?».
-      const m = { fps: 0, buffer: null, jitter: 0, perdidos: 0, rtt: null, proceso: null };
+      const m = { fps: 0, buffer: null, jitter: 0, perdidos: 0, rtt: null, proceso: null, codec: null, alto: null };
       const prom = (total, cuenta) =>
           typeof total === "number" && typeof cuenta === "number" && cuenta > 0
               ? Math.round(1000 * total / cuenta)
@@ -266,6 +293,9 @@
           // numero que separa «llega tarde» de «tarda en mostrarlo», y en un
           // televisor la diferencia es toda la diferencia.
           m.proceso = prom(r.totalProcessingDelay, r.framesDecoded);
+          const c = r.codecId && stats.get ? stats.get(r.codecId) : null;
+          m.codec = c && c.mimeType ? c.mimeType.replace("video/", "") : null;
+          m.alto = r.frameHeight || null;
         }
         txt += `${r.kind}  ${r.framesPerSecond || 0} fps  perdidos ${r.packetsLost || 0}\n` +
                `  buffer ${buffer === null ? "?" : buffer} ms` +
@@ -308,7 +338,8 @@
             ? " · SIN perilla de retardo (navegador viejo)"
             : " · " + st.retardoPuesto + "=" + bufferMs + " ms";
         const n = (v, u) => (v === null ? "?" : v + " " + u);
-        const como = m ? " · " + m.fps + " fps · buffer " + n(m.buffer, "ms") +
+        const como = m ? " · " + (m.codec ? m.codec + (m.alto ? " " + m.alto + "p" : "") + " · " : "") +
+                         m.fps + " fps · buffer " + n(m.buffer, "ms") +
                          " · proceso " + n(m.proceso, "ms") +
                          " · ida y vuelta " + n(m.rtt, "ms") +
                          (m.perdidos > 0 ? " · " + m.perdidos + " perdidos" : "") + perilla

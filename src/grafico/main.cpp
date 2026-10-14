@@ -13,22 +13,28 @@
 // PROTOCOLO. Una petición JSON por línea en la entrada, una respuesta JSON por
 // línea en la salida. Las imágenes viajan en PNG codificado en base64.
 //
-// Eso alcanza para lo que hace hoy: vistas previas (un cuadro, o una tira de
-// cuadros para mirar una animación). Para componer EN VIVO dentro de una
-// escena a 30 cuadros por segundo, base64 no sirve y habrá que pasar los
-// cuadros por memoria compartida, como ya hacen A y B.
+// Para las vistas previas alcanza. Para el AIRE (la tira de una animación a 30
+// cuadros por segundo) no: comprimir PNG se llevaba tres cuartos del tiempo y el
+// gráfico llegaba tarde y trabado. Con `"shm":true` la tira deja los píxeles crudos
+// en memoria compartida y la respuesta solo dice dónde: {"ok":true, "shm":"<clave>",
+// "ancho", "alto", "bpl", "cuadros":[ms...]}, BGRA premultiplicado, un cuadro atrás
+// del otro. El segmento vive hasta el pedido siguiente (el que lo pidió lo copia
+// antes de mandar otro).
 //
 // Peticiones:
 //   {"op":"validar",  "qml":"...", "parametros":{...}}
 //   {"op":"dibujar",  "qml":"...", "parametros":{...}, "ancho":900, "alto":220, "ms":400}
 //   {"op":"tira",     "qml":"...", "parametros":{...}, "ancho":900, "alto":220,
-//                     "momentos":[0,200,400,1500]}
+//                     "momentos":[0,200,400,1500], "shm":false}
 //   {"op":"salir"}
 //
 // Respuestas: {"ok":true, ...} o {"ok":false, "error":"..."}.
 // ============================================================================
 
 #include <cstdio>
+#include <cstring>
+#include <memory>
+#include <vector>
 #include <iostream>
 #include <string>
 
@@ -45,6 +51,7 @@
 #include "diag/Caidas.hpp"
 #include "diag/Registro.hpp"
 #include "platform/Paths.hpp"
+#include "platform/Segmento.hpp"
 
 namespace {
 
@@ -56,6 +63,39 @@ QString aBase64Png(const QImage& img) {
     buf.open(QIODevice::WriteOnly);
     img.save(&buf, "PNG");
     return QString::fromLatin1(bytes.toBase64());
+}
+
+// La tira en memoria compartida (ver el encabezado). Se guarda el segmento de la
+// respuesta anterior hasta acá: el que pidió ya lo copió, porque no manda otro pedido
+// sin haber leído la respuesta.
+ba::platform::Segmento g_segmento;
+int g_segmentos = 0;
+
+QJsonObject enMemoria(const std::vector<Renderizador::Resultado>& res, const std::vector<int>& ms) {
+    const QImage& primero = res.front().imagen;
+    const size_t porCuadro = static_cast<size_t>(primero.sizeInBytes());
+    for (const auto& c : res)
+        if (c.imagen.size() != primero.size() || static_cast<size_t>(c.imagen.sizeInBytes()) != porCuadro)
+            return QJsonObject{{"ok", false}, {"error", "los cuadros de la tira no tienen el mismo tamaño"}};
+    g_segmento.cerrar();
+    // Una clave corta: en macOS el nombre de un segmento no pasa de 31 letras.
+    const std::string clave =
+        "bag" + std::to_string(QCoreApplication::applicationPid()) + "n" + std::to_string(++g_segmentos);
+    std::string err;
+    if (!g_segmento.crear(clave, porCuadro * res.size(), &err))
+        return QJsonObject{{"ok", false}, {"error", "no se pudo crear la memoria compartida: " + QString::fromStdString(err)}};
+    auto* destino = static_cast<uchar*>(g_segmento.datos());
+    QJsonArray cuadros;
+    for (size_t i = 0; i < res.size(); ++i) {
+        std::memcpy(destino + porCuadro * i, res[i].imagen.constBits(), porCuadro);
+        cuadros.append(ms[i]);
+    }
+    return QJsonObject{{"ok", true},
+                       {"shm", QString::fromStdString(clave)},
+                       {"ancho", primero.width()},
+                       {"alto", primero.height()},
+                       {"bpl", static_cast<int>(primero.bytesPerLine())},
+                       {"cuadros", cuadros}};
 }
 
 void responder(const QJsonObject& o) {
@@ -122,12 +162,20 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
         // Un tope: una tira de doscientos cuadros no la mira nadie y llenaria
         // la respuesta de megabytes.
         if (momentos.size() > 12) return QJsonObject{{"ok", false}, {"error", "hasta 12 momentos por tira"}};
+        // Una sola instancia para toda la tira (y la siguiente, si sigue la misma animación).
+        std::vector<int> ms;
+        for (const QJsonValue& m : momentos) ms.push_back(m.toInt());
+        for (size_t i = 1; i < ms.size(); ++i)
+            if (ms[i] < ms[i - 1]) return QJsonObject{{"ok", false}, {"error", "los momentos van en orden"}};
+        const QUrl url = fuente.isEmpty() ? QUrl::fromLocalFile(qml) : QUrl("grafico.qml");
+        const std::vector<Renderizador::Resultado> res = r.tira(url, fuente, parReales, tam, ms);
+        for (const auto& c : res)
+            if (!c.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", c.error}};
+        if (res.size() != ms.size()) return QJsonObject{{"ok", false}, {"error", "la tira salió incompleta"}};
+        if (pedido.value("shm").toBool()) return enMemoria(res, ms);
         QJsonArray cuadros;
-        for (const QJsonValue& m : momentos) {
-            const Renderizador::Resultado res = dibujar(m.toInt());
-            if (!res.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", res.error}};
-            cuadros.append(QJsonObject{{"ms", m.toInt()}, {"png", aBase64Png(res.imagen)}});
-        }
+        for (size_t i = 0; i < res.size(); ++i)
+            cuadros.append(QJsonObject{{"ms", ms[i]}, {"png", aBase64Png(res[i].imagen)}});
         return QJsonObject{{"ok", true}, {"cuadros", cuadros}};
     }
     return QJsonObject{{"ok", false}, {"error", "no sé qué es la operación «" + op + "»"}};

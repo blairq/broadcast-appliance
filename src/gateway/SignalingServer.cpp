@@ -2281,7 +2281,8 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
         // que llega de un televisor es informacion, no ordenes.
         if (pid.rfind("superficie:", 0) == 0) {
             if (type == "late") {
-                superficies_.latido(msg.value("tipo", ""), pid.substr(11), msg.value("que", ""), 0);
+                if (superficies_.latido(msg.value("tipo", ""), pid.substr(11), msg.value("que", ""), 0))
+                    log_.info("pantalla " + pid.substr(11) + ": " + msg.value("que", "").substr(0, 200));
                 superficies_.dice(pid, msg.value("que", ""));
             } else if (type == "ping") {
                 sendToGuest(pid, json{{"type", "pong"}});

@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <QImage>
 #include <QJsonObject>
@@ -73,6 +74,16 @@ class Renderizador {
     /// Solo carga el gráfico y devuelve los errores, sin dibujar. Es lo que
     /// corre antes de dejar que un gráfico llegue a una escena.
     Resultado validar(const QString& qml, const QJsonObject& parametros);
+
+    /// Una TIRA de cuadros del mismo gráfico con UNA instancia: se crea con el primer
+    /// momento y para cada uno de los siguientes se adelanta el reloj, como corre una
+    /// animación de verdad (antes, cada cuadro creaba un motor QML, compilaba y
+    /// dibujaba dos veces: ~350 ms por cuadro de 1920×1080). Si el pedido siguiente es
+    /// el mismo gráfico (fuente, parámetros, tamaño) y empieza después del último
+    /// momento, sigue con la misma instancia. `momentos` crecientes.
+    /// :param url: el archivo (vacío si va `fuente`, el QML en texto).
+    std::vector<Resultado> tira(const QUrl& url, const QString& fuente, const QJsonObject& parametros, QSize tam,
+                                const std::vector<int>& momentos);
 
    private:
     /// Los dos `dibujar` son el mismo camino: uno carga de archivo y el otro
