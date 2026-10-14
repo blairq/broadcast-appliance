@@ -287,8 +287,8 @@ def main():
         sal.write_text("".join(json.dumps({"herramienta": h, **a}, ensure_ascii=False) + "\n" for h, a in aprob))
         sal.with_suffix(".descartadas.jsonl").write_text(
             "".join(json.dumps({"herramienta": h, **a, "motivo": m}, ensure_ascii=False) + "\n" for h, a, m in rech))
-        motivos = collections.Counter(m.split(" (")[0].split(" ")[0] if not m.startswith("cae en") else "cae en otra"
-                                      for _, _, m in rech)
+        motivos = collections.Counter("cae en otra" if m.startswith("cae en") else "acerca vecinas"
+                                      if m.startswith("acerca") else m.split(" (")[0] for _, _, m in rech)
         print(f"filtro geometrico: {len(aprob)} de {len(cands)} aprobadas · descartadas {dict(motivos)}")
         return
     d = diagnostico(geo, etiq, args.objetivo)
