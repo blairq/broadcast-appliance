@@ -74,6 +74,14 @@ class Emisor : public QObject {
                        std::uint64_t fuente, int duracionMs, bool repetir);
 
     QString ocultar(std::uint64_t fuente);
+    /// Lo saca CON su animación de salida (no de golpe, como ocultar): lo dibuja ya entrado
+    /// y desde ahí se va; al terminar, lo oculta. Un gráfico que no declara «cuándo se va»
+    /// (salidaEn) no sabe irse: se oculta. Lo usa el guion para los que se van al avanzar.
+    /// :param siSigue: la generación que se quiere sacar (generacion()); si en esa fuente ya
+    ///        se puso otra cosa, no se toca. -1 = lo que haya.
+    QString sacar(std::uint64_t fuente, int siSigue = -1);
+    /// Cuántos gráficos se pusieron en esa fuente (cambia con cada mostrar/sacar).
+    int generacion(std::uint64_t fuente) const;
     /// Campos vivos (T43): con el gráfico ya al aire en `fuente`, lo vuelve a dibujar
     /// con `valores` SOLO en su cuadro estable (sin la animación de entrada): un
     /// reloj con segundos o un cronómetro que cambia cada segundo sin «volver a entrar».

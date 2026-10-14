@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Panel›",
        "bajada": "‹Bajada›",
-       "acento": "#ef4444",
-       "salidaEn": 4500
+       "acento": "#ef4444"
       }
      },
      "duracionSeg": 0,

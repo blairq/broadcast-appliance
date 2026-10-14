@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Entrevista›",
        "bajada": "‹Bajada›",
-       "acento": "#f43f5e",
-       "salidaEn": 4500
+       "acento": "#f43f5e"
       }
      },
      "duracionSeg": 0,

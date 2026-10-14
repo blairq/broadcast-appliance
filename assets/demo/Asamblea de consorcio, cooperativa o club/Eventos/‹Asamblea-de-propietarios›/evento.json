@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Asamblea de propietarios›",
        "bajada": "‹Bajada›",
-       "acento": "#16a34a",
-       "salidaEn": 4500
+       "acento": "#16a34a"
       }
      },
      "duracionSeg": 0,
@@ -135,8 +134,7 @@
       "valores": {
        "titulo": "Balance del ejercicio",
        "bajada": "‹Bajada›",
-       "acento": "#16a34a",
-       "salidaEn": 4500
+       "acento": "#16a34a"
       }
      },
      "duracionSeg": 0,

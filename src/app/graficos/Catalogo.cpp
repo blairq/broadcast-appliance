@@ -2,6 +2,7 @@
 // src/app/graficos/Catalogo.cpp — ver Catalogo.hpp
 // ============================================================================
 #include "graficos/Catalogo.hpp"
+#include "platform/Paths.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -236,6 +237,18 @@ QString Catalogo::guardar(const QString& nombre, const QString& texto) {
         return "no se pudo escribir el grafico.qml";
     }
     return {};
+}
+
+QString Catalogo::seVaDe(const QString& nombre) const {
+    const QString propio = ficha(nombre).value("seVa").toString();
+    if (!propio.isEmpty()) return propio;
+    if (nombre.contains('/') || nombre.contains('\\') || nombre.contains("..")) return "queda";
+    QFile f(QString::fromStdU16String((ba::platform::bundleRoot() / "Graficos" / nombre.toStdU16String() / "grafico.json").u16string()));
+    if (f.open(QIODevice::ReadOnly)) {
+        const QString fab = QJsonDocument::fromJson(f.readAll()).object().value("seVa").toString();
+        if (!fab.isEmpty()) return fab;
+    }
+    return "queda";
 }
 
 } // namespace ba::app::graficos

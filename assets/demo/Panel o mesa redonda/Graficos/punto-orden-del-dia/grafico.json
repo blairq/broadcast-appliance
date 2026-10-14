@@ -2,6 +2,7 @@
   "nombre": "Punto del orden del día",
   "categoria": "Asamblea",
   "descripcion": "«Punto N» y el título del asunto que se trata, en una banda abajo.",
+  "seVa": "al-avanzar",
   "ancho": 1600,
   "alto": 220,
   "parametros": [

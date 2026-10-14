@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Reunión›",
        "bajada": "‹Bajada›",
-       "acento": "#f59e0b",
-       "salidaEn": 4500
+       "acento": "#f59e0b"
       }
      },
      "duracionSeg": 0,

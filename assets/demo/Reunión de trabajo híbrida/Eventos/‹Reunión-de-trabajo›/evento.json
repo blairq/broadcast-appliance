@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Reunión de trabajo›",
        "bajada": "‹Bajada›",
-       "acento": "#2563eb",
-       "salidaEn": 4500
+       "acento": "#2563eb"
       }
      },
      "duracionSeg": 0,
@@ -102,6 +101,16 @@
    "cues": [
     {
      "id": "c28-g",
+     "tipo": "escena",
+     "texto": "Al aire: Sala",
+     "datos": {
+      "escena": "Sala"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c29-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Tema 1›",
      "datos": {
@@ -110,19 +119,8 @@
       "valores": {
        "titulo": "‹Tema 1›",
        "bajada": "‹Bajada›",
-       "acento": "#2563eb",
-       "salidaEn": 4500
+       "acento": "#2563eb"
       }
-     },
-     "duracionSeg": 0,
-     "automatico": false
-    },
-    {
-     "id": "c29-g",
-     "tipo": "escena",
-     "texto": "Al aire: Sala",
-     "datos": {
-      "escena": "Sala"
      },
      "duracionSeg": 0,
      "automatico": false
@@ -171,6 +169,16 @@
    "cues": [
     {
      "id": "c34-g",
+     "tipo": "escena",
+     "texto": "Al aire: Invitado remoto",
+     "datos": {
+      "escena": "Invitado remoto"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c35-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Tema 2›",
      "datos": {
@@ -179,19 +187,8 @@
       "valores": {
        "titulo": "‹Tema 2›",
        "bajada": "‹Bajada›",
-       "acento": "#2563eb",
-       "salidaEn": 4500
+       "acento": "#2563eb"
       }
-     },
-     "duracionSeg": 0,
-     "automatico": false
-    },
-    {
-     "id": "c35-g",
-     "tipo": "escena",
-     "texto": "Al aire: Invitado remoto",
-     "datos": {
-      "escena": "Invitado remoto"
      },
      "duracionSeg": 0,
      "automatico": false

@@ -414,6 +414,9 @@ class EventoViewModel : public QObject {
     std::function<QString()> anexoActa_;
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
+    /// Saca (con su salida) los gráficos que puso el guion y «se van al avanzar»
+    /// (títulos, placas): se llama antes de pasar a otra cue.
+    void sacarAlAvanzar();
     void anotar(const QString& texto, const QString& tipo);
     std::function<void(const std::string&, const nlohmann::json&, std::function<void(bool, const std::string&)>)>
         herramienta_;
@@ -451,6 +454,9 @@ class EventoViewModel : public QObject {
     AppRuntime& rt_;
     ConferenceViewModel* sala_ = nullptr;
     graficos::Emisor* graficos_ = nullptr;
+    /// Los gráficos al aire que se van cuando el guion avanza: la fuente y la generación
+    /// con que se pusieron (si después se puso otra cosa ahí, no se toca).
+    std::vector<std::pair<std::uint64_t, int>> alAvanzar_;
     graficos::Vinculos* vinculos_ = nullptr;
     evento::EventoStore store_;
     evento::Evento e_;

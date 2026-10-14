@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Ceremonia›",
        "bajada": "‹Bajada›",
-       "acento": "#b08d57",
-       "salidaEn": 4500
+       "acento": "#b08d57"
       }
      },
      "duracionSeg": 0,

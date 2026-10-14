@@ -112,6 +112,24 @@
      "muted": false
     },
     {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
      "id": "image_source",
      "name": "Bandera",
      "rect": [
@@ -191,6 +209,24 @@
       "grafico": "zocalo",
       "ancho": 900,
       "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
      },
      "visible": true,
      "volume": 1.0,
@@ -280,6 +316,24 @@
       "normalizar": true,
       "pipeline": "",
       "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
      },
      "visible": true,
      "volume": 1.0,
@@ -419,6 +473,24 @@
       "pipeline_audio": "",
       "slot": 4,
       "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
      },
      "visible": true,
      "volume": 1.0,
@@ -691,6 +763,24 @@
      "muted": false
     },
     {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
      "id": "image_source",
      "name": "Bandera",
      "rect": [
@@ -747,6 +837,24 @@
       0.8
      ],
      "settings": {},
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
      "visible": true,
      "volume": 1.0,
      "muted": false

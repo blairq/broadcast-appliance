@@ -1,6 +1,7 @@
 {
   "nombre": "Letra",
   "descripcion": "Una estrofa para cantar, centrada abajo. Estilo «Sereno».",
+  "seVa": "al-avanzar",
   "categoria": "De la plantilla",
   "ancho": 1700,
   "alto": 300,

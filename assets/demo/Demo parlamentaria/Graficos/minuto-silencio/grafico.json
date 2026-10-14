@@ -72,5 +72,6 @@
       "titulo": "Un minuto",
       "prompt": "Sacá al aire la placa de minuto de silencio con el homenaje que te diga, y que se vaya sola al minuto. Antes preguntame a quién."
     }
-  ]
+  ],
+  "seVa": "al-avanzar"
 }

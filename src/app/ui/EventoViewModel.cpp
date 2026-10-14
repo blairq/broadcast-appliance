@@ -116,7 +116,7 @@ constexpr CampoDeTipo kTipos[] = {
     {"teleprompter", "Teleprompter", "Carga un discurso y lo deja listo.", "discurso,arrancar"},
     {"orador", "Orador", "Le da la palabra a alguien, con su tiempo.", "participante"},
     {"grafico", "Gráfico", "Saca al aire un gráfico animado en una fuente de escena.",
-     "fuente,grafico,accion"},
+     "fuente,grafico,accion,seVa"},
     {"pantalla", "Pantalla", "Manda contenido a una pantalla.", "pantalla,contenido"},
     {"audio", "Audio", "Silencia una fuente, la activa o le cambia el volumen.", "accion,fuente,db"},
     {"pausa", "Pausa", "Espera los segundos que diga la duración.", ""},
@@ -820,6 +820,11 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
                 const QString id = p.value("id").toString();
                 if (!id.isEmpty()) op(id, p.value("name").toString().isEmpty() ? id : p.value("name").toString());
             }
+    } else if (campo == "seVa") {
+        op("", "Lo que diga el gráfico");
+        op("al-avanzar", "Al avanzar a otra cue");
+        op("sola", "Sola (a los «cuándo se va» ms)");
+        op("queda", "Queda hasta que la saquen");
     } else if (campo == "grafico") {
         for (const QString& g : graficosDisponibles()) op(g);
     } else if (campo == "fuente" && tipo == "grafico") {
@@ -1654,6 +1659,7 @@ void EventoViewModel::avanzar() {
         arrancar();
         return;
     }
+    sacarAlAvanzar();
     if (!guionCorriendo_->avanzar(ahoraMs())) {
         reloj_.stop();
         anotar(ensayo_ ? "Terminó el ensayo" : "Terminó el evento", "ok");
@@ -1667,6 +1673,7 @@ void EventoViewModel::avanzar() {
 
 void EventoViewModel::retroceder() {
     if (!guionCorriendo_ || !guionCorriendo_->retroceder(ahoraMs())) return;
+    sacarAlAvanzar();
     anotar("Vuelve atrás", "info");
     ejecutarActual();
     emit correChanged();
@@ -1680,6 +1687,7 @@ void EventoViewModel::irA(int bloque, int cue) {
         reloj_.start();
     }
     if (!guionCorriendo_->irA({bloque, cue}, ahoraMs())) return;
+    sacarAlAvanzar();
     anotar("Salta al cue elegido", "info");
     ejecutarActual();
     emit correChanged();
@@ -1702,6 +1710,7 @@ void EventoViewModel::reanudar() {
 
 void EventoViewModel::parar() {
     if (!guionCorriendo_) return;
+    sacarAlAvanzar();
     reloj_.stop();
     guionCorriendo_->terminar(ahoraMs());
     ultimoGuion_ = std::move(guionCorriendo_);
@@ -1779,6 +1788,12 @@ QString EventoViewModel::medioPath(const QString& rel) const {
     // Fuera de la biblioteca no se lee nada (un «..» en un guion que vino de otro lado).
     if (abs.startsWith(QDir::cleanPath(media.absolutePath()) + "/") && QFileInfo::exists(abs)) return abs;
     return dentroDelEvento("Medios", rel);
+}
+
+void EventoViewModel::sacarAlAvanzar() {
+    if (graficos_ == nullptr) return;
+    for (const auto& [fuente, gen] : alAvanzar_) graficos_->sacar(fuente, gen);
+    alAvanzar_.clear();
 }
 
 void EventoViewModel::ejecutarActual() {
@@ -1923,13 +1938,28 @@ void EventoViewModel::ejecutarActual() {
                     QJsonDocument::fromJson(QByteArray::fromStdString(c->datos["valores"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
             const int dur = c->datos.value("duracionMs", 0);
             const bool repetir = c->datos.value("repetir", false);
+            // CUÁNDO SE VA: lo que diga la cue (seVa); si no dice, «sola» si trae un
+            // «cuándo se va» (salidaEn), y si no, lo que diga la ficha del gráfico (los
+            // títulos y placas: al avanzar), o queda.
+            std::string seVa = c->datos.value("seVa", std::string());
+            if (seVa.empty())
+                seVa = valores.value("salidaEn").toInt(0) > 0
+                           ? "sola"
+                           : graficos_->catalogo().seVaDe(grafico).toStdString();
+            if (seVa != "sola") valores.remove("salidaEn"); // al avanzar o queda: no se va solo
             const QString err = graficos_->mostrar(grafico, valores, id, dur, repetir);
             if (!err.isEmpty()) {
                 anotar("No se pudo sacar al aire el gráfico \"" + grafico + "\": " + err, "error");
                 emit notify("El cue de gráfico falló: " + err, "error");
                 return;
             }
-            anotar("Al aire el gráfico " + grafico + " en " + fuente, "ok");
+            alAvanzar_.erase(std::remove_if(alAvanzar_.begin(), alAvanzar_.end(),
+                                            [id](const auto& a) { return a.first == id; }),
+                             alAvanzar_.end());
+            if (seVa == "al-avanzar") alAvanzar_.emplace_back(id, graficos_->generacion(id));
+            anotar("Al aire el gráfico " + grafico + " en " + fuente +
+                       (seVa == "al-avanzar" ? " (se va al avanzar)" : seVa == "sola" ? " (se va solo)" : ""),
+                   "ok");
             return;
         }
         case evento::Tipo::Espera: anotar("Espera tu confirmación: " + titulo, "info"); return;

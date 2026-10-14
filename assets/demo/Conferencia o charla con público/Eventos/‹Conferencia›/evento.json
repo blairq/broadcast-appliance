@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Conferencia›",
        "bajada": "‹Bajada›",
-       "acento": "#8b5cf6",
-       "salidaEn": 4500
+       "acento": "#8b5cf6"
       }
      },
      "duracionSeg": 0,

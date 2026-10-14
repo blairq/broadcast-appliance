@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Comisión›",
        "bajada": "‹Bajada›",
-       "acento": "#74acdf",
-       "salidaEn": 4500
+       "acento": "#74acdf"
       }
      },
      "duracionSeg": 0,

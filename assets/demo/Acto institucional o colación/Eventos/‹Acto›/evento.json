@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Acto›",
        "bajada": "‹Bajada›",
-       "acento": "#1e3a8a",
-       "salidaEn": 4500
+       "acento": "#1e3a8a"
       }
      },
      "duracionSeg": 0,

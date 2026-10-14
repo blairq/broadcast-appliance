@@ -938,15 +938,20 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "                                        false lo deja cargado sin cortar a esa escena.\n"
             "  teleprompter  {discurso}            un archivo de Discursos/\n"
             "  orador        {participante}        ademas necesita duracionSeg > 0\n"
-            "  grafico       {fuente, grafico, valores, duracionMs, repetir, accion}\n"
+            "  grafico       {fuente, grafico, valores, seVa, duracionMs, repetir, accion}\n"
             "                                        `fuente` es el nombre de la fuente «Grafico\n"
             "                                        animado» de la escena (DONDE se ve); `grafico` es\n"
             "                                        cual de los guardados; `valores` son sus parametros\n"
             "                                        {clave: texto} (los que no pongas quedan en el valor\n"
             "                                        por defecto). OJO: `valores` y `grafico`, NO\n"
             "                                        `parametros`/`nombre` como en grafico_mostrar.\n"
-            "                                        Cuánto queda en pantalla: `salidaEn` (ms) DENTRO de\n"
-            "                                        `valores` (0 = se queda hasta un cue `ocultar`).\n"
+            "                                        CUÁNDO SE VA: `seVa` = al-avanzar (sale con su\n"
+            "                                        animación cuando el guion pasa a otra cue: títulos\n"
+            "                                        y placas), sola (a los `salidaEn` ms, DENTRO de\n"
+            "                                        `valores`) o queda (hasta un cue `ocultar`: un\n"
+            "                                        marcador, un zócalo fijo). Sin `seVa`: sola si trae\n"
+            "                                        salidaEn > 0; si no, lo que diga la ficha del\n"
+            "                                        gráfico (`seVa`; placas y títulos: al-avanzar).\n"
             "                                        `duracionMs` no hace falta. Y `duracionSeg` del cue\n"
             "                                        es solo para los tiempos del guion, no del gráfico.\n"
             "                                        accion: mostrar (por defecto), ocultar, o\n"
@@ -1011,7 +1016,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                     {"video", {"archivo", "accion", "repetir", "alAire"}},
                     {"teleprompter", {"discurso", "arrancar"}},
                     {"orador", {"participante"}},
-                    {"grafico", {"fuente", "grafico", "valores", "duracionMs", "repetir", "accion", "vinculo"}},
+                    {"grafico", {"fuente", "grafico", "valores", "seVa", "duracionMs", "repetir", "accion", "vinculo"}},
                     {"pantalla", {"pantalla", "contenido", "tipo", "pie"}},
                     {"audio", {"accion", "fuente", "db"}},
                     {"pausa", {}}, {"espera", {}}, {"nota", {}}};

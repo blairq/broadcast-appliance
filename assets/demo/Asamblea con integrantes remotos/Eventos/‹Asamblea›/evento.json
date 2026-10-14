@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Asamblea›",
        "bajada": "‹Bajada›",
-       "acento": "#0e7490",
-       "salidaEn": 4500
+       "acento": "#0e7490"
       }
      },
      "duracionSeg": 0,
@@ -135,8 +134,7 @@
       "valores": {
        "titulo": "‹Punto 1›",
        "bajada": "‹Bajada›",
-       "acento": "#0e7490",
-       "salidaEn": 4500
+       "acento": "#0e7490"
       }
      },
      "duracionSeg": 0,

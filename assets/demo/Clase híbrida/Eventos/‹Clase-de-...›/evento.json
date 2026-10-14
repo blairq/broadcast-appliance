@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Clase de ...›",
        "bajada": "‹Bajada›",
-       "acento": "#facc15",
-       "salidaEn": 4500
+       "acento": "#facc15"
       }
      },
      "duracionSeg": 0,
@@ -127,6 +126,16 @@
    "cues": [
     {
      "id": "c165-g",
+     "tipo": "escena",
+     "texto": "Al aire: Docente",
+     "datos": {
+      "escena": "Docente"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c166-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Tema 1›",
      "datos": {
@@ -135,19 +144,8 @@
       "valores": {
        "titulo": "‹Tema 1›",
        "bajada": "‹Bajada›",
-       "acento": "#facc15",
-       "salidaEn": 4500
+       "acento": "#facc15"
       }
-     },
-     "duracionSeg": 0,
-     "automatico": false
-    },
-    {
-     "id": "c166-g",
-     "tipo": "escena",
-     "texto": "Al aire: Docente",
-     "datos": {
-      "escena": "Docente"
      },
      "duracionSeg": 0,
      "automatico": false
@@ -190,6 +188,16 @@
    "cues": [
     {
      "id": "c171-g",
+     "tipo": "escena",
+     "texto": "Al aire: Docente",
+     "datos": {
+      "escena": "Docente"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c172-g",
      "tipo": "grafico",
      "texto": "Placa: ‹Tema 2›",
      "datos": {
@@ -198,19 +206,8 @@
       "valores": {
        "titulo": "‹Tema 2›",
        "bajada": "‹Bajada›",
-       "acento": "#facc15",
-       "salidaEn": 4500
+       "acento": "#facc15"
       }
-     },
-     "duracionSeg": 0,
-     "automatico": false
-    },
-    {
-     "id": "c172-g",
-     "tipo": "escena",
-     "texto": "Al aire: Docente",
-     "datos": {
-      "escena": "Docente"
      },
      "duracionSeg": 0,
      "automatico": false

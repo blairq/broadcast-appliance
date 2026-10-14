@@ -15,6 +15,7 @@
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QPointer>
+#include <QTimer>
 
 #include "graficos/GraficoSource.hpp"
 
@@ -288,6 +289,53 @@ QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, s
 QString Emisor::ocultar(std::uint64_t fuente) {
     if (!graficos::ocultar(fuente)) return "esa fuente de gráfico ya no está";
     emit cambio();
+    return {};
+}
+
+int Emisor::generacion(std::uint64_t fuente) const {
+    const auto it = d_->generacion.find(fuente);
+    return it == d_->generacion.end() ? 0 : it->second;
+}
+
+QString Emisor::sacar(std::uint64_t fuente, int siSigue) {
+    if (siSigue >= 0 && generacion(fuente) != siSigue) return {}; // ya hay otra cosa ahí
+    const auto it = d_->ultimos.find(fuente);
+    if (it == d_->ultimos.end() || !d_->proc.disponible()) return ocultar(fuente);
+    const QString grafico = it->second.grafico;
+    bool sabeIrse = false;
+    for (const QJsonValue& prm : ficha(grafico).value("parametros").toArray())
+        sabeIrse = sabeIrse || prm.toObject().value("clave").toString() == "salidaEn";
+    if (!sabeIrse) return ocultar(fuente);
+    // Ya entrado (a los 3 s la entrada terminó) y la salida empezando ahí mismo: el plan
+    // arranca en ese instante, así que el primer cuadro es el gráfico entero y quieto.
+    constexpr int kDesde = 3000;
+    QJsonObject v = it->second.valores;
+    v["salidaEn"] = kDesde;
+    QString err;
+    QJsonObject p = d_->catalogo.pedido(grafico, v, &err);
+    if (!err.isEmpty()) return ocultar(fuente);
+    bool existe = false;
+    for (const auto& i : instancias())
+        if (i.id == fuente) {
+            p["ancho"] = i.ancho;
+            p["alto"] = i.alto;
+            existe = true;
+        }
+    if (!existe) return "esa fuente de gráfico ya no está en ninguna escena";
+    const int dur = std::clamp(p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800), 0, 3000) + 150;
+    std::vector<int> plan;
+    for (int ms = kDesde; ms <= kDesde + dur; ms += 1000 / kFps) plan.push_back(ms);
+    prepararAire();
+    const int gen = ++d_->generacion[fuente];
+    d_->empezado[fuente] = false;
+    d_->repetir[fuente] = false;
+    d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
+    d_->ultimos.erase(fuente);
+    // Al terminar la salida, fuera (si nadie puso otra cosa mientras tanto).
+    QPointer<Emisor> yo(this);
+    QTimer::singleShot(dur + 700, this, [yo, fuente, gen]() {
+        if (yo && yo->generacion(fuente) == gen) yo->ocultar(fuente);
+    });
     return {};
 }
 

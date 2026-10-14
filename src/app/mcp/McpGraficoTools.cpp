@@ -147,6 +147,9 @@ void McpService::registerGraficoTools() {
             "queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada "
             "y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta "
             "(solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).\n\n"
+            "EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se "
+            "van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del "
+            "gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.\n\n"
             "Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y "
             "se sostiene. Con `repetir`, vuelve a empezar (un ticker).";
         t.inputSchema = {

@@ -2,6 +2,7 @@
   "nombre": "Minuto de silencio",
   "categoria": "Asamblea",
   "descripcion": "Placa sobria para un minuto de silencio, con el homenaje. Fondo negro, sin color.",
+  "seVa": "al-avanzar",
   "ancho": 1920,
   "alto": 1080,
   "parametros": [

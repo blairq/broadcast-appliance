@@ -1,6 +1,7 @@
 {
   "nombre": "Fin de transmisión",
   "descripcion": "La placa del cierre: gracias, el nombre del evento y dónde queda la grabación. Pantalla completa, se queda hasta que se corta la transmisión.",
+  "seVa": "al-avanzar",
   "ancho": 1920,
   "alto": 1080,
   "parametros": [

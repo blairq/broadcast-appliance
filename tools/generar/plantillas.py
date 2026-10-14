@@ -176,6 +176,38 @@ def copiar_medios(dest):
         shutil.copy(os.path.join(MEDIOS, f), os.path.join(dest, "Media", f))
 
 
+SIN_PLACA = {"Espera", "Cierre", "PDF", "Pausa", "Entretiempo", "QR grande", "Placa"}
+
+
+def con_placa(escenas):
+    """La «Placa» (de título o de bloque) en cada escena donde puede salir: una cue de placa
+    la dispara en la escena que esté al aire (antes vivía solo en la escena «Placa» y una
+    cue después de «Al aire: Conducción» se dibujaba sin verse). Es UNA fuente compartida."""
+    for e in escenas:
+        if e["name"] in SIN_PLACA or any(x.get("name") == "Placa" for x in e["sources"]):
+            continue
+        # En el tercio de abajo: centrada tapaba la cara de quien está en cámara.
+        e["sources"].append(grafico("Placa", "placa-titulo", (0, 0.60)))
+    return escenas
+
+
+def revisar_guion(titulo, escenas, bloques):
+    """Recorre el guion siguiendo la escena al aire: cada cue de gráfico tiene que caer en una
+    fuente que esté en esa escena (si no, sale al aire sin verse). Devuelve los problemas."""
+    fuentes = {e["name"]: {x["name"] for x in e["sources"]} for e in escenas}
+    al_aire, mal = "Espera", []
+    for b in bloques:
+        for c in b["cues"]:
+            if c["tipo"] == "escena":
+                al_aire = c["datos"]["escena"]
+                if al_aire not in fuentes:
+                    mal.append("%s · %s: no existe la escena «%s»" % (titulo, c["texto"], al_aire))
+            elif c["tipo"] == "grafico" and c["datos"].get("fuente") not in fuentes.get(al_aire, set()):
+                mal.append("%s · «%s»: la fuente «%s» no está en «%s» (al aire en ese momento)"
+                           % (titulo, c["texto"], c["datos"].get("fuente"), al_aire))
+    return mal
+
+
 def con_bandera(escenas):
     """La bandera arriba de todo en cada escena. Es UNA fuente compartida (mismo nombre):
     se carga una vez. No va en una capa DSK: una escena o fuente en el DSK se compone
@@ -245,7 +277,7 @@ def c_zocalo(nombre="‹Nombre›", cargo="‹Cargo›"):
 def c_placa(titulo, bajada="‹Bajada›"):
     return cue("grafico", "Placa: %s" % titulo,
                {"fuente": "Placa", "grafico": "placa-titulo",
-                "valores": {"titulo": titulo, "bajada": bajada, "acento": EST["acento"], "salidaEn": 4500}})
+                "valores": {"titulo": titulo, "bajada": bajada, "acento": EST["acento"]}})  # se va al avanzar (su ficha)
 
 
 def c_grafico(fuente_, cual, valores, txt):
@@ -310,9 +342,9 @@ def escenarios():
     E["reunion-hibrida"] = p("‹Reunión de trabajo›", [
         escena("Sala", [camara(), zocalo()])], [
         apertura("‹Reunión de trabajo›"),
-        bloque("‹Tema 1›", [c_placa("‹Tema 1›"), c_escena("Sala"), c_zocalo("‹Responsable›", "‹Área›"),
+        bloque("‹Tema 1›", [c_escena("Sala"), c_placa("‹Tema 1›"), c_zocalo("‹Responsable›", "‹Área›"),
                             c_escena("Presentación", "La presentación del tema"), c_nota("Exposición y discusión", 1200)]),
-        bloque("‹Tema 2›", [c_placa("‹Tema 2›"), c_escena("Invitado remoto"), c_zocalo("‹Remoto›", "‹Área›"),
+        bloque("‹Tema 2›", [c_escena("Invitado remoto"), c_placa("‹Tema 2›"), c_zocalo("‹Remoto›", "‹Área›"),
                             c_nota("Exposición y discusión", 1200)]),
         bloque("Decisiones y próximos pasos", [c_escena("Mosaico"), c_nota("Repaso de lo decidido", 600)]),
         cierre()], gente(8, "participante", prefijo="Participante"))
@@ -363,10 +395,10 @@ def escenarios():
         escena("Pregunta remota", [fondo(), sala("remoto", 1, "Remoto con la palabra"), zocalo()])], [
         apertura("‹Clase de ...›"),
         bloque("Asistencia", [c_escena("Mosaico"), c_nota("Tomar asistencia (padrón: acreditar a cada alumno)", 300)]),
-        bloque("‹Tema 1›", [c_placa("‹Tema 1›"), c_escena("Docente"),
+        bloque("‹Tema 1›", [c_escena("Docente"), c_placa("‹Tema 1›"),
                             c_prompter("1-tema-1.txt", "Teleprompter: el tema 1"),
                             c_escena("PDF", "La ficha del tema"), c_nota("Explicación", 900)]),
-        bloque("‹Tema 2›", [c_placa("‹Tema 2›"), c_escena("Docente"),
+        bloque("‹Tema 2›", [c_escena("Docente"), c_placa("‹Tema 2›"),
                             c_prompter("2-tema-2.txt", "Teleprompter: el tema 2"), c_nota("Explicación", 900)]),
         bloque("Preguntas", [c_escena("Pregunta remota"), c_nota("Preguntas del aula y de los remotos", 600)]),
         cierre()], gente(30, "alumno", prefijo="Alumno"),
@@ -387,7 +419,7 @@ def escenarios():
         escena("Panelistas", [fondo(), camara("Cámara", (0, 0, 0.5, 0.5)),
                               sala("guest", 1, "Invitado 1", (0.5, 0, 0.5, 0.5)),
                               sala("guest", 2, "Invitado 2", (0, 0.5, 0.5, 0.5)),
-                              sala("guest", 3, "Invitado 3", (0.5, 0.5, 0.5, 0.5))])], [
+                              sala("guest", 3, "Invitado 3", (0.5, 0.5, 0.5, 0.5)), zocalo()])], [
         apertura("‹Panel›"),
         bloque("Ronda de apertura", [c_escena("Panelistas"), c_zocalo("‹Panelista 1›", "‹Cargo›"), c_nota("Cada panelista: 5 minutos", 1200)]),
         bloque("Intercambio", [c_escena("Plano general"), c_nota("Preguntas cruzadas", 1500)]),
@@ -513,7 +545,7 @@ GRAFICOS_BASE = {
                                          "minimo": 150, "maximo": 1500}, P_SALIDA]},
     "placa-titulo": {"molde": "placa-titulo", "nombre": "Placa de título",
                      "descripcion": "La apertura de un bloque: una banda a media altura con el título y una bajada.",
-                     "ancho": 1920, "alto": 360, "duracionMs": 2000,
+                     "ancho": 1920, "alto": 360, "duracionMs": 2000, "seVa": "al-avanzar",
                      "parametros": [p_texto("titulo", "Título", "‹Título›", "Más de 34 caracteres se recorta."),
                                     p_texto("bajada", "Bajada", "‹Bajada›"), P_ACENTO, P_SALIDA]},
     "espera": tarjeta("Placa de espera", "Antes de empezar: el nombre del evento y a qué hora arranca.",
@@ -534,11 +566,12 @@ GRAFICOS_DE = {
                                "Ya vuelve el segundo tiempo")},
     "ceremonia": {
         "letra": {"molde": "letra", "nombre": "Letra", "descripcion": "Una estrofa para cantar, centrada abajo.",
-                  "ancho": 1700, "alto": 300, "duracionMs": 1500,
+                  "ancho": 1700, "alto": 300, "duracionMs": 1500, "seVa": "al-avanzar",
                   "parametros": [p_texto("estrofa", "Estrofa", "‹Primer verso›\n‹Segundo verso›",
                                          "Hasta tres renglones (separados con un salto de línea)."), P_ACENTO, P_SALIDA]}},
 }
 PROPIOS = {}  # los de la plantilla que se está armando (lo pone main)
+PROBLEMAS = []  # lo que revisar_guion encontró (main sale con error si hay)
 
 
 def escribir_graficos(dest, meta):
@@ -561,9 +594,12 @@ def escribir_graficos(dest, meta):
             if prm["clave"] == "duracionEntrada":
                 prm["porDefecto"] = int(EST["entradaMs"])
             params.append(prm)
-        json.dump({"nombre": g["nombre"], "descripcion": g["descripcion"] + " Estilo «%s»." % EST["estilo"],
-                   "categoria": "De la plantilla", "ancho": g["ancho"], "alto": g["alto"], "duracionMs": g["duracionMs"],
-                   "parametros": params}, open(os.path.join(d, "grafico.json"), "w"), ensure_ascii=False, indent=2)
+        ficha = {"nombre": g["nombre"], "descripcion": g["descripcion"] + " Estilo «%s»." % EST["estilo"]}
+        if g.get("seVa"):
+            ficha["seVa"] = g["seVa"]  # cuándo se va una cue del guion que no lo dice (EventoViewModel)
+        ficha.update({"categoria": "De la plantilla", "ancho": g["ancho"], "alto": g["alto"], "duracionMs": g["duracionMs"],
+                      "parametros": params})
+        json.dump(ficha, open(os.path.join(d, "grafico.json"), "w"), ensure_ascii=False, indent=2)
 
 
 # El orden del día de ejemplo de las asambleas (Config/orden-del-dia.json, el de la Demo
@@ -598,7 +634,11 @@ def escribir(dest, meta, esc):
         if e["name"] in nombres:
             escenas = [x for x in escenas if x["name"] != e["name"]]
         escenas.append(e)
-    json.dump({"scenes": con_bandera(escenas), "currentScene": "Espera"}, open(os.path.join(dest, "Config", "app.json"), "w"),
+    escenas = con_bandera(con_placa(escenas))
+    for m in revisar_guion(meta["titulo"], escenas, esc["bloques"]):
+        print("OJO", m, file=sys.stderr)
+        PROBLEMAS.append(m)
+    json.dump({"scenes": escenas, "currentScene": "Espera"}, open(os.path.join(dest, "Config", "app.json"), "w"),
               ensure_ascii=False, indent=1)
     escribir_graficos(dest, meta)
     copiar_medios(dest)
@@ -657,6 +697,8 @@ def main():
         hechas += 1
     print("plantillas generadas:", hechas)
     retocar_demo(next(dict(m, orden=i) for i, m in enumerate(indice) if m["id"] == "sesion-deliberativa"))
+    if PROBLEMAS:
+        sys.exit("%d problemas en los guiones (arriba)" % len(PROBLEMAS))
 
 
 def retocar_demo(meta):
@@ -682,6 +724,16 @@ def retocar_demo(meta):
         shutil.move(os.path.join(tmp, "Graficos", cual), os.path.join(dest, "Graficos", cual))
     shutil.rmtree(tmp)
     copiar_medios(dest)
+    # «Cuándo se va» de los de fábrica, en sus copias (la demo no se regenera entera).
+    for cual in os.listdir(GRAFICOS):
+        fab, suya = os.path.join(GRAFICOS, cual, "grafico.json"), os.path.join(dest, "Graficos", cual, "grafico.json")
+        if not (os.path.isfile(fab) and os.path.isfile(suya)):
+            continue
+        sv = json.load(open(fab)).get("seVa")
+        j = json.load(open(suya))
+        if sv and j.get("seVa") != sv:
+            j["seVa"] = sv
+            json.dump(j, open(suya, "w"), ensure_ascii=False, indent=2)
     app = json.load(open(os.path.join(dest, "Config", "app.json")))
     app["scenes"] = con_bandera([e for e in app["scenes"] if e.get("name") != "Logo"])
     json.dump(app, open(os.path.join(dest, "Config", "app.json"), "w"), ensure_ascii=False, indent=2)  # su formato

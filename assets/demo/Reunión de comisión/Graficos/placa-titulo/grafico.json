@@ -1,6 +1,7 @@
 {
   "nombre": "Placa de título",
   "descripcion": "La apertura de un bloque: una banda a media altura con el título y una bajada. Estilo «Institucional celeste».",
+  "seVa": "al-avanzar",
   "categoria": "De la plantilla",
   "ancho": 1920,
   "alto": 360,

@@ -50,8 +50,7 @@
       "valores": {
        "titulo": "‹Asamblea General›",
        "bajada": "‹Bajada›",
-       "acento": "#9f1239",
-       "salidaEn": 4500
+       "acento": "#9f1239"
       }
      },
      "duracionSeg": 0,
@@ -153,8 +152,7 @@
       "valores": {
        "titulo": "‹Punto 1›",
        "bajada": "‹Bajada›",
-       "acento": "#9f1239",
-       "salidaEn": 4500
+       "acento": "#9f1239"
       }
      },
      "duracionSeg": 0,
@@ -213,8 +211,7 @@
       "valores": {
        "titulo": "‹Punto 2›",
        "bajada": "‹Bajada›",
-       "acento": "#9f1239",
-       "salidaEn": 4500
+       "acento": "#9f1239"
       }
      },
      "duracionSeg": 0,

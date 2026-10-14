@@ -94,5 +94,6 @@
       "titulo": "El punto actual",
       "prompt": "Llená esta placa con el punto del orden del día que se está tratando ({punto.n} y {punto.titulo}) y sacala al aire 8 segundos."
     }
-  ]
+  ],
+  "seVa": "al-avanzar"
 }

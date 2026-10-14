@@ -1,6 +1,7 @@
 {
   "nombre": "Antes de empezar",
   "descripcion": "La placa de la previa: el nombre del evento y a qué hora empieza. Pantalla completa, se queda hasta que arranca (va con la música de espera).",
+  "seVa": "al-avanzar",
   "ancho": 1920,
   "alto": 1080,
   "parametros": [

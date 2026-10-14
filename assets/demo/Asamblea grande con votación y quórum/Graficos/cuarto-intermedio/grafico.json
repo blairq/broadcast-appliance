@@ -2,6 +2,7 @@
   "nombre": "Cuarto intermedio",
   "categoria": "Asamblea",
   "descripcion": "Placa de pausa de la sesión, con la hora en que se vuelve. Pantalla completa, se queda.",
+  "seVa": "al-avanzar",
   "ancho": 1920,
   "alto": 1080,
   "parametros": [
