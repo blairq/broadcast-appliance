@@ -6,9 +6,9 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-10-13T20:30:23+00:00",
+  "generado": "2026-10-14T03:09:42+00:00",
   "fuente": "codigo",
-  "cuantas": 667,
+  "cuantas": 675,
   "repetidas": [],
   "categorias": [
     {
@@ -292,7 +292,11 @@
         "documento_editar",
         "documento_quitar",
         "documento_texto",
-        "documentos_listar"
+        "documentos_listar",
+        "pdf_convertir",
+        "pdf_escena_crear",
+        "pdf_escena_poner",
+        "pdf_escena_ver"
       ]
     },
     {
@@ -402,6 +406,8 @@
         "evento_cue",
         "evento_en_curso",
         "evento_ensayo_rapido",
+        "evento_escenario",
+        "evento_escenarios",
         "evento_ficha",
         "evento_grabaciones",
         "evento_guardar",
@@ -430,7 +436,9 @@
       "herramientas": [
         "evento_cambiar",
         "evento_nuevo",
-        "eventos_listar"
+        "eventos_listar",
+        "plantilla_ajustar",
+        "plantillas_listar"
       ]
     },
     {
@@ -988,12 +996,14 @@
       "config",
       "configuraciones",
       "cuentas",
+      "documentos",
       "dsk",
       "entradas",
       "equipo",
       "equipos",
       "escenas",
       "evento",
+      "eventos",
       "facebook",
       "fuentes",
       "graficos",
@@ -1180,6 +1190,12 @@
       "titulo": "Configuracion",
       "resumen": "Leer y cambiar cualquier ajuste.",
       "texto": "- `settings_list` (o `{\"section\": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.\n- `settings_set {\"values\": {\"clave\": valor, ...}}` aplica y guarda. `{\"resetSection\": \"Video\"}` vuelve a los valores por defecto.\n- Alcance: `live` (en el momento), `gateway` (reinicia la sala: los invitados se reconectan), `restart` (al proximo arranque).\n- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Sala, Red de la sala, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del operador, Modelos locales, Control del sistema, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {\"topic\": \"acceso_remoto\"}`.\n- Para tener VARIAS configuraciones enteras (una por cliente, una de prueba, la demo) y pasar de una a otra: `help {\"topic\": \"configuraciones\"}`."
+    },
+    {
+      "id": "documentos",
+      "titulo": "Documentación del evento y PDF",
+      "resumen": "Los PDF del evento (por punto del orden del día y por sección) que la web publica, y convertir cualquier cosa a PDF sin Chrome.",
+      "texto": "La web del evento publica **PDF**. Cada evento guarda los suyos en `docs/` (con su carátula para la web).\n\n- `documentos_listar` (o `{\"punto\": 2}`, `{\"seccion\": \"<id>\"}`), `documento_agregar {\"archivo\", \"titulo\", \"descripcion\", \"puntos\", \"secciones\", \"publico\"}`, `documento_editar` (también `pagina_tapa`: otra página como carátula), `documento_quitar`, `documento_texto`, `documento_abrir`.\n- **Agregar un Word, una planilla, una presentación, un HTML o un Markdown ya lo pasa a PDF** (no hace falta convertir antes).\n- `pdf_convertir {\"archivo\"}` o `{\"texto\", \"formato\": \"markdown\"|\"html\"|\"texto\", \"titulo\"}`: hace un PDF con lo que trae el programa (LibreOffice y Qt, cualquier idioma). `destino` para elegir dónde; `agregar_al_evento: true` lo suma a la documentación.\n- **Para un PDF no uses Chrome sin pantalla** (`--print-to-pdf`, Puppeteer, Playwright): en macOS pide el llavero del sistema y no viaja con el programa. Usá `pdf_convertir`.\n- Tus temporales van a `Runtime/tmp/` dentro de la carpeta de datos (TMPDIR): todo queda en el pendrive."
     },
     {
       "id": "configuraciones",
@@ -8422,7 +8438,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 145
+        "linea": 146
       },
       "roles": [
         "asistente"
@@ -8462,7 +8478,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 119
+        "linea": 120
       },
       "roles": [
         "asistente"
@@ -8502,7 +8518,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 163
+        "linea": 164
       },
       "roles": [
         "asistente"
@@ -8525,7 +8541,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 106
+        "linea": 107
       },
       "roles": [
         "asistente"
@@ -8732,15 +8748,17 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDocumentosTools.cpp",
-        "linea": 127
+        "linea": 197
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "documento_agregar",
       "titulo": "Agregar un documento al evento",
       "categoria": "documentos",
-      "descripcion": "Agrega un PDF (o una imagen) a la documentación del evento: lo copia a la carpeta docs/ del evento y guarda su carátula (la primera página) para la web. `archivo`: la ruta. `titulo` y `descripcion` (si no se dan: el título del PDF; la respuesta trae el comienzo del texto para escribir una descripción con documento_editar). Relaciones opcionales.",
+      "descripcion": "Agrega un documento a la documentación del evento: un PDF o una imagen tal cual, y un Word, planilla, presentación, HTML, Markdown o texto pasado a PDF antes (LibreOffice o Qt, del bundle). Lo copia a la carpeta docs/ del evento y guarda su carátula (la primera página) para la web. `archivo`: la ruta. `titulo` y `descripcion` (si no se dan: el título del PDF; la respuesta trae el comienzo del texto para escribir una descripción con documento_editar). Relaciones opcionales.",
       "esquema": {
         "type": "object",
         "required": [
@@ -8779,9 +8797,11 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDocumentosTools.cpp",
-        "linea": 68
+        "linea": 70
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "documento_editar",
@@ -8826,9 +8846,11 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDocumentosTools.cpp",
-        "linea": 92
+        "linea": 162
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "documento_quitar",
@@ -8854,9 +8876,11 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDocumentosTools.cpp",
-        "linea": 113
+        "linea": 183
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "documento_texto",
@@ -8888,9 +8912,11 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDocumentosTools.cpp",
-        "linea": 143
+        "linea": 213
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "documentos_listar",
@@ -8918,9 +8944,162 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpDocumentosTools.cpp",
-        "linea": 34
+        "linea": 36
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pdf_convertir",
+      "titulo": "Convertir a PDF",
+      "categoria": "documentos",
+      "descripcion": "Convierte a PDF con lo que viaja en el sistema (sin Chrome ni nada instalado): `archivo` (Word, Excel, PowerPoint, OpenDocument, RTF, CSV, HTML, Markdown, texto o imagen) o `texto` que escribas vos, con `formato` markdown (de fábrica), html o texto; cualquier idioma. `destino`: la ruta del .pdf (si no, al lado del archivo, o en <datos>/Runtime/pdf/ para un texto). Con `agregar_al_evento`, en vez de eso lo suma a la documentación del evento (con `titulo`, `descripcion`, `puntos`, `secciones`, `publico`) y la web lo publica. Para un PDF desde HTML usá esto y no Chrome sin pantalla (en macOS pide el llavero).",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "puntos": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "números de punto del orden del día"
+          },
+          "secciones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "secciones del guion: el id del bloque (evento_ver) o su número"
+          },
+          "publico": {
+            "type": "boolean",
+            "description": "si la web del evento lo muestra y deja bajar (por defecto sí)"
+          },
+          "pagina_tapa": {
+            "type": "integer",
+            "description": "la página del PDF que hace de carátula (1 = la primera); se rehace la miniatura"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "convertir pasar a pdf exportar word docx excel planilla powerpoint html markdown texto imagen imprimir",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpDocumentosTools.cpp",
+        "linea": 97
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pdf_escena_crear",
+      "titulo": "Armar una escena para mostrar PDF",
+      "categoria": "documentos",
+      "descripcion": "Crea la escena `nombre` (de fábrica «PDF») con una fuente PDF a pantalla completa (si ya existe, le agrega la fuente si no la tiene). Después: pdf_escena_poner para elegir el documento y pasar páginas, y la tarjeta «PDF» del tablero hace lo mismo a mano.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "escena para pdf armar escena mostrar pdf",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpDocumentosTools.cpp",
+        "linea": 280
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pdf_escena_poner",
+      "titulo": "Elegir el PDF o la página de una fuente PDF",
+      "categoria": "documentos",
+      "descripcion": "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del evento: pdf_escena_ver / documentos_listar) o `archivo` (la ruta de otro PDF), y/o `pagina` (1 = la primera) o `paso` (+1 la siguiente, -1 la anterior); y el encuadre: `zoom` (1 = la página entera, hasta 8) y `x`, `y` (el centro de lo que se ve, 0 a 1 sobre la página: 0.5, 0.2 = arriba al medio). Elegir un documento lo deja en la página 1 y entero. SE VE AL AIRE si esa escena está en el programa.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "fuente": {
+            "type": "string"
+          },
+          "documento": {
+            "type": "string"
+          },
+          "archivo": {
+            "type": "string"
+          },
+          "pagina": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "paso": {
+            "type": "integer"
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "pasar pagina pdf siguiente anterior elegir pdf mostrar documento en pantalla",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpDocumentosTools.cpp",
+        "linea": 246
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "pdf_escena_ver",
+      "titulo": "Los PDF en las escenas",
+      "categoria": "documentos",
+      "descripcion": "Las fuentes PDF de las escenas (ba_pdf: un PDF a pantalla, una página por vez): qué documento y qué página muestra cada una (de cuántas), y los PDF de la documentación del evento que se pueden elegir. Para mostrar un PDF en vivo sin desarmarlo en láminas.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "pdf en la escena mostrar pdf en pantalla que pagina",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpDocumentosTools.cpp",
+        "linea": 234
+      },
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "dsk_definir",
@@ -10878,7 +11057,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 263
+        "linea": 265
       },
       "roles": [
         "asistente",
@@ -11017,7 +11196,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1333
+        "linea": 1435
       },
       "roles": [
         "asistente",
@@ -11080,7 +11259,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 330
+        "linea": 332
       },
       "roles": [
         "asistente",
@@ -11121,7 +11300,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 889
+        "linea": 891
       },
       "roles": [
         "asistente",
@@ -11145,7 +11324,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1494
+        "linea": 1598
       },
       "roles": [
         "asistente",
@@ -11182,7 +11361,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 811
+        "linea": 813
       },
       "roles": [
         "asistente",
@@ -11224,7 +11403,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1138
+        "linea": 1192
       },
       "roles": [
         "asistente",
@@ -11248,7 +11427,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1163
+        "linea": 1217
       },
       "roles": [
         "asistente",
@@ -11292,7 +11471,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 389
+        "linea": 391
       },
       "roles": [
         "asistente",
@@ -11348,7 +11527,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1248
+        "linea": 1302
       },
       "roles": [
         "asistente",
@@ -11427,7 +11606,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 923
+        "linea": 925
       },
       "roles": [
         "asistente",
@@ -11451,7 +11630,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 301
+        "linea": 303
       },
       "roles": [
         "asistente",
@@ -11475,7 +11654,59 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1184
+        "linea": 1238
+      },
+      "roles": [
+        "asistente",
+        "organizador"
+      ]
+    },
+    {
+      "nombre": "evento_escenario",
+      "titulo": "La guía para preparar un tipo de evento",
+      "categoria": "evento",
+      "descripcion": "El protocolo para preparar CUALQUIER evento (entrevistar antes de armar, el orden de armado, qué verificar antes de invitar, el ensayo y qué entregar al final) más la guía del escenario `id` (evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "guia para preparar un evento que preguntar checklist protocolo invitaciones verificar",
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpEventoTools.cpp",
+        "linea": 1405
+      },
+      "roles": [
+        "asistente",
+        "organizador"
+      ]
+    },
+    {
+      "nombre": "evento_escenarios",
+      "titulo": "Los tipos de evento y sus guías",
+      "categoria": "evento",
+      "descripcion": "Los escenarios para los que hay guía de preparación (reunión chica, clase híbrida, sesión de un cuerpo deliberativo, asamblea con votación, streaming de juegos, acto, audiencia pública…): id, título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con evento_escenario.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "tipos de evento guias plantillas preparar un evento clase asamblea reunion streaming acto",
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpEventoTools.cpp",
+        "linea": 1388
       },
       "roles": [
         "asistente",
@@ -11516,7 +11747,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 841
+        "linea": 843
       },
       "roles": [
         "asistente",
@@ -11545,7 +11776,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 460
+        "linea": 462
       },
       "roles": [
         "asistente",
@@ -11597,7 +11828,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1026
+        "linea": 1080
       },
       "roles": [
         "asistente",
@@ -11625,7 +11856,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1215
+        "linea": 1269
       },
       "roles": [
         "asistente",
@@ -11657,7 +11888,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 760
+        "linea": 762
       },
       "roles": [
         "asistente",
@@ -11686,7 +11917,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 72
+        "linea": 74
       },
       "roles": [
         "asistente",
@@ -11763,7 +11994,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1089
+        "linea": 1143
       },
       "roles": [
         "asistente",
@@ -11795,7 +12026,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 530
+        "linea": 532
       },
       "roles": [
         "asistente",
@@ -11828,7 +12059,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 780
+        "linea": 782
       },
       "roles": [
         "asistente",
@@ -11852,7 +12083,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 237
+        "linea": 239
       },
       "roles": [
         "asistente",
@@ -11982,7 +12213,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 123
+        "linea": 125
       },
       "roles": [
         "asistente",
@@ -12297,15 +12528,17 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
-        "linea": 83
+        "linea": 84
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "evento_nuevo",
       "titulo": "Crear un evento nuevo (arrancar de cero o desde otro)",
       "categoria": "eventos",
-      "descripcion": "Crea un evento APARTE con todo lo suyo, sin tocar el abierto. Es lo que corresponde cuando piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento (copia total de ese), «plantilla:<nombre>» (copia total de una plantilla; eventos_listar dice cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» (solo los ajustes con que se hizo un evento cerrado). Una copia puede tardar (grabaciones): la respuesta llega al terminar. Si no dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire).",
+      "descripcion": "Crea un evento APARTE con todo lo suyo, sin tocar el abierto (antes de prepararlo: la guía de su tipo, evento_escenarios / evento_escenario). Es lo que corresponde cuando piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento (copia total de ese), «plantilla:<nombre>» (copia total de una plantilla; eventos_listar dice cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» (solo los ajustes con que se hizo un evento cerrado). Una copia puede tardar (grabaciones): la respuesta llega al terminar. Si no dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire).",
       "esquema": {
         "type": "object",
         "required": [
@@ -12338,7 +12571,9 @@
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
         "linea": 42
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "eventos_listar",
@@ -12359,7 +12594,79 @@
         "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
         "linea": 29
       },
-      "roles": []
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "plantilla_ajustar",
+      "titulo": "Ordenar, renombrar u ocultar una plantilla",
+      "categoria": "eventos",
+      "descripcion": "Cambia de la plantilla `id` lo que venga: `nombre` (el que se ve; \"\" = el de la carpeta), `descripcion`, `visible` (si aparece en «Evento nuevo» y en «Prepararlo con el asistente») y `mover` (-1 un lugar arriba, +1 abajo). Para EDITAR su contenido hay que abrirla (desde el menú Plantillas…, reinicia la app); para una nueva desde el evento abierto, `desde_actual` con su nombre.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "mover": {
+            "type": "integer"
+          },
+          "desde_actual": {
+            "type": "string",
+            "description": "nombre de una plantilla nueva copiando el evento abierto"
+          },
+          "escenario": {
+            "type": "string",
+            "description": "con desde_actual: su tipo (evento_escenarios)"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "renombrar ocultar ordenar plantilla guardar evento como plantilla",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
+        "linea": 202
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "plantillas_listar",
+      "titulo": "Las plantillas de evento (para administrarlas)",
+      "categoria": "eventos",
+      "descripcion": "Todas las plantillas en su orden: id (la carpeta: «plantilla:<id>» en evento_nuevo), el nombre que se ve, descripción, escenario (su guía: evento_escenario), si es visible, si viene con el programa, si es propia o una del programa editada, y si está abierta.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "plantillas de evento cuales hay ordenar administrar",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpConfiguracionesTools.cpp",
+        "linea": 190
+      },
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "facebook_chat",
@@ -13210,7 +13517,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 233
+        "linea": 237
       },
       "roles": [
         "asistente",
@@ -13260,14 +13567,14 @@
             "description": "Qué gráfico mostrar."
           },
           "parametros": {
-            "type": "object"
+            "type": "object",
+            "description": "Los campos del gráfico (grafico_listar los dice), incluido `salidaEn` (ms: cuándo se va; 0 = se queda)."
           },
           "duracionMs": {
             "type": "integer",
             "minimum": 100,
             "maximum": 15000,
-            "default": 1500,
-            "description": "Cuánta animación dibujar."
+            "description": "Solo para un gráfico SIN `salidaEn`: cuánta animación dibujar (si no, lo de su ficha)."
           },
           "fps": {
             "type": "integer",
@@ -13330,7 +13637,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 213
+        "linea": 217
       },
       "roles": [
         "asistente",
@@ -13400,7 +13707,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 372
+        "linea": 376
       },
       "roles": [
         "asistente",
@@ -13436,7 +13743,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 342
+        "linea": 346
       },
       "roles": [
         "asistente",
@@ -13495,7 +13802,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 288
+        "linea": 292
       },
       "roles": [
         "asistente",
@@ -13520,7 +13827,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 265
+        "linea": 269
       },
       "roles": [
         "asistente",
@@ -13561,7 +13868,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 732
+        "linea": 734
       },
       "roles": [
         "asistente"
@@ -13597,7 +13904,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 566
+        "linea": 568
       },
       "roles": [
         "asistente"
@@ -13635,7 +13942,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 699
+        "linea": 701
       },
       "roles": [
         "asistente"
@@ -13679,7 +13986,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 599
+        "linea": 601
       },
       "roles": [
         "asistente"
@@ -13706,7 +14013,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 676
+        "linea": 678
       },
       "roles": [
         "asistente"
@@ -13745,7 +14052,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 647
+        "linea": 649
       },
       "roles": [
         "asistente"
@@ -16884,7 +17191,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1822
+        "linea": 1926
       },
       "roles": [
         "asistente",
@@ -16933,7 +17240,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1767
+        "linea": 1871
       },
       "roles": [
         "asistente",
@@ -17011,7 +17318,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1675
+        "linea": 1779
       },
       "roles": [
         "asistente",
@@ -17089,7 +17396,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1725
+        "linea": 1829
       },
       "roles": [
         "asistente",
@@ -17154,7 +17461,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1888
+        "linea": 1992
       },
       "roles": [
         "asistente",
@@ -17211,7 +17518,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1619
+        "linea": 1723
       },
       "roles": [
         "asistente",
