@@ -104,7 +104,7 @@ Solo localhost, token obligatorio, y se rechazan pedidos con Origin de otra pagi
 | `v4l2_input` (Linux) | camara: `device_id`, resolucion (ver source_properties) |
 | `macos-avcapture` (macOS) | camara: `device` (ver source_properties) |
 | `coreaudio_output_capture` (macOS) | audio del sistema: `device_id` |
-| microfonos (todos los sistemas) | entran por GStreamer: `audio_input_add` (no `fuente_crear`); `ba_gst_fuente` con `pipeline_audio` y `microfono`. Filtros: `entrada_filtros_audio`; mesa redonda: `automixer` |
+| microfonos (todos los sistemas) | entran por GStreamer: `audio_input_add` (no `crear_fuente`); `ba_gst_fuente` con `pipeline_audio` y `microfono`. Filtros: `entrada_filtros_audio`; mesa redonda: `automixer` |
 | `screen_capture` | una pantalla: `monitor` (su nombre: las opciones salen en source_properties; vacio = la principal), `show_cursor` |
 | `ba_qr` | un codigo QR en la escena: `qr` = \"aparato:publico\" (la pagina del publico, con su clave), \"aparato:sala\", \"aparato:prompter\", \"aparato:rotulos\" o el id de uno guardado (qr_listar); vacio = `texto`. `fondo` (margen blanco), `tamano`. Se mantiene al dia solo |
 | `window_capture` | la ventana de una aplicacion, aunque este tapada: `ventana` = "aplicacion\ntitulo" (las abiertas salen en source_properties), `show_cursor`. Se recuerda la aplicacion: si se cierra y se abre, sigue sola. En la Mac pide permiso de grabacion de pantalla |
@@ -597,7 +597,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
     {"equipo", "El equipo", "Monitores, audio, camaras, GPU: para decidir con datos.",
      R"md(- `system_hardware`: todo de una vez (monitores, placas de audio de entrada y salida, camaras/capturadoras, GPU, codificadores de hardware, CPU, memoria, disco).
 - `monitors`: nombre, resolucion en pixeles, posicion en el escritorio, escala, Hz y principal. El `name` es el que usa `output_window.screen`.
-- `audio_devices`: el `value` de cada entrada es el `device_id` de una fuente de captura de audio (`fuente_crear {"type": inputSourceType, "settings": {"device_id": ...}}`).
+- `audio_devices`: el `value` de cada entrada es el `device_id` de una fuente de captura de audio (`crear_fuente {"type": inputSourceType, "settings": {"device_id": ...}}`).
 - `video_devices`: camaras y capturadoras; con `{"device": value}`, sus formatos, resoluciones y cuadros por segundo.
 
 ## Receta: ocupar todos los monitores
@@ -609,7 +609,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
      R"md(## Hardware (conectadas a la maquina)
 1. `video_devices` -> elegir `device`; `video_devices {"device": ...}` muestra formatos/resoluciones/fps.
 2. `video_input_add {"device": ..., "scene": ..., "layout": "full", "resolution": ..., "framerate": ...}`.
-3. Verificar con `foto_fuente`. Una misma camara no se abre dos veces: si ya es fuente en otra escena, agregala con `fuente_crear` usando su nombre (queda compartida).
+3. Verificar con `foto_fuente`. Una misma camara no se abre dos veces: si ya es fuente en otra escena, agregala con `crear_fuente` usando su nombre (queda compartida).
 
 ## NDI
 - `ndi_sources` busca emisores NDI en la red (mDNS) y `ndi_input_add {"ndiName": ...}` (o `host` + `port`) los agrega.
@@ -887,7 +887,7 @@ Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
 ## Receta: subtítulos en inglés y voz en inglés por la pista 2
 1. Voz a texto del orador (help {"topic": "audio_rack"}): una salida «Orador», modo continuo.
 2. `traduccion_agregar {"desde": "Orador", "a": "en"}`. Si dice `faltan`, `traduccion_bajar {"a": "en"}` y esperá (modelo_local_estado muestra el avance). Los pedazos de la transcripción se juntan hasta cerrar una oración (o 0,6 s sin más texto: `espera_ms` en traduccion_ajustar) antes de traducir; si el orador encadena sin punto, a los `maximo_ms` (8 s) se traduce lo que hay. Queda como una tarjeta «Traducir» en el rack de audio de la fuente (al lado de su voz a texto; no lleva cables); el operador la ve y la ajusta ahí.
-2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`fuente_crear` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
+2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`crear_fuente` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
 3. `texto_a_voz {"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador · en"}` y en la Matriz esa fuente a la pista 2.
 4. `traducciones` muestra la última frase traducida y cuánto tardó.
 

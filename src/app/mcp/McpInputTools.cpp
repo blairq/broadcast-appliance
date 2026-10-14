@@ -72,7 +72,7 @@ void McpService::registerInputTools() {
             "GStreamer (ba_gst_fuente: sus tarjetas y filtros corren en su cadena). `modo` opcional: tamaño y "
             "cuadros, uno de los `modos` de video_devices {device} (p. ej. \"1920x1080@30\"); sin modo, el de "
             "la camara (igual se normaliza al lienzo). Si la misma camara ya es una fuente en otra escena, "
-            "conviene usar esa (fuente_crear con su nombre) en vez de abrirla dos veces.";
+            "conviene usar esa (crear_fuente con su nombre) en vez de abrirla dos veces.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

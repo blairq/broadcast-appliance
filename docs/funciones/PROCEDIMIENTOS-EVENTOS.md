@@ -52,7 +52,7 @@ Con un evento de prueba: `evento_preparar` en 25 pasos sin error; las tres escen
 
 En el camino se arreglaron tres cosas que le pasaban a cualquiera:
 
-- `fuente_crear` con un nombre con «:» decía «agregada» pero el motor no la creaba (el «:» separa
+- `crear_fuente` con un nombre con «:» decía «agregada» pero el motor no la creaba (el «:» separa
   entrada y salida): ahora lo rechaza con el motivo.
 - Dos tarjetas PTZ en el grafo de una entrada (un grafo viejo de una fuente borrada cuyo nombre
   «aplanado» coincide) daban dos `baptz` y la cadena no enganchaba nunca: uno por entrada, y el

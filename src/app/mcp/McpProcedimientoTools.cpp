@@ -241,7 +241,7 @@ void McpService::registerProcedimientoTools() {
                                json x = args;
                                x["scene"] = e;
                                x["name"] = f;
-                               pasos.push_back({std::string("agregar «") + f + "»", "fuente_crear", x});
+                               pasos.push_back({std::string("agregar «") + f + "»", "crear_fuente", x});
                            };
                            // Las barras con la hora, por el camino de las entradas virtuales (fija
                            // el tamaño y la cadencia del lienzo: sin eso no engancha con su grafo).

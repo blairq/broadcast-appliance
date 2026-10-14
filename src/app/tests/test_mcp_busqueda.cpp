@@ -73,7 +73,7 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"scene_create", "Crear una escena"},
     {"scene_delete", "Borrar una escena"},
     {"scene_protect", "Proteger una escena"},
-    {"fuente_crear", "Agregar una fuente"},
+    {"crear_fuente", "Agregar una fuente"},
     {"source_remove", "Quitar una fuente"},
     {"guest_source_add", "Poner a un invitado en una escena"},
     {"audio_set", "Ajustar un canal de audio"},

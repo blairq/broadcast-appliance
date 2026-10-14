@@ -264,7 +264,7 @@ void McpService::registerSystemTools() {
         t.description =
             "Que placas y conectores de audio tiene la maquina, por nombre de sistema. "
             "Entradas (microfonos, lineas, interfaces) y salidas (parlantes, auriculares) de audio. El "
-            "`value` es el que va en la fuente de captura de audio (fuente_crear).";
+            "`value` es el que va en la fuente de captura de audio (crear_fuente).";
         t.run = [&rt](const json&, Done done) {
             BroadcastEngine& e = rt.engine();
             done(ToolResult().data(

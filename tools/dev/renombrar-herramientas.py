@@ -56,7 +56,10 @@ def main():
     ap.add_argument("--aplicar", action="store_true")
     ap.add_argument("--solo-app", action="store_true", help="sin los datos ni los scripts de entrenamiento")
     args = ap.parse_args()
-    ren = json.loads((RAIZ / f"datos/perfiles/{args.perfil}.json").read_text())["renombres"]
+    perfil = json.loads((RAIZ / f"datos/perfiles/{args.perfil}.json").read_text())
+    ren = perfil["renombres"]
+    # etiquetas que ya se usaron y se cambiaron otra vez: alias del nombre de hoy
+    anteriores = {v: ren[r] for v, r in perfil.get("renombres_anteriores", {}).items()}
     patron = re.compile(r"(?<![\w-])(" + "|".join(sorted(map(re.escape, ren), key=len, reverse=True)) + r")(?![\w-])")
     cambios, por = 0, {}
     for f, p in archivos(args.solo_app):
@@ -75,7 +78,7 @@ def main():
         print(f"  {n:4} {f}")
     print(f"{cambios} reemplazos en {len(por)} archivos" + ("" if args.aplicar else " (sin aplicar)"))
     if args.aplicar:
-        filas = "\n".join(f'        {{"{v}", "{n}"}},' for v, n in sorted(ren.items()))
+        filas = "\n".join(f'        {{"{v}", "{n}"}},' for v, n in sorted((ren | anteriores).items()))
         ALIAS.write_text(f'''// Nombres VIEJOS de herramientas que siguen andando como alias del nombre de hoy:
 // lo guardado con el nombre viejo (recetas, botoneras, disparadores) y los modelos
 // ya publicados que lo escriben. Lo escribe tools/dev/renombrar-herramientas.py

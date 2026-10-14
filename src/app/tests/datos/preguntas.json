@@ -111,7 +111,7 @@
     {
       "pregunta": "agrega la camara del fondo a esta escena",
       "herramientas": [
-        "fuente_crear"
+        "crear_fuente"
       ]
     },
     {

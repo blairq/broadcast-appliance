@@ -1611,7 +1611,7 @@ void McpService::registerTools() {
         t.idempotent = true;
         t.description =
             "Tipos de fuente que esta instalacion puede crear (id, nombre, si tiene video "
-            "y/o audio). El id es el `type` de fuente_crear / scene_define.";
+            "y/o audio). El id es el `type` de crear_fuente / scene_define.";
         t.run = [&rt](const json&, Done done) {
             json out = json::array();
             for (const SourceType& s : rt.engine().inputTypes())
@@ -1653,7 +1653,7 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "fuente_crear";
+        t.name = "crear_fuente";
         t.title = "Agregar fuente";
         t.category = "fuentes";
         t.description =
@@ -1712,7 +1712,7 @@ void McpService::registerTools() {
         t.description =
             "Las PANTALLAS conectadas (para screen_capture: su `monitor`) y las VENTANAS de aplicaciones abiertas "
             "(para window_capture: su `ventana`, que es «aplicación\\ntítulo»), y si este sistema puede capturar "
-            "una ventana sola. Para elegir antes de fuente_crear.";
+            "una ventana sola. Para elegir antes de crear_fuente.";
         t.examples = {R"({})"};
         t.run = [](const json&, Done done) {
             json ps = json::array(), vs = json::array();
@@ -1724,7 +1724,7 @@ void McpService::registerTools() {
             const bool hay = ba::motor::hayCapturaDeVentana(&porque);
             json d{{"pantallas", ps}, {"ventanas", vs}, {"captura_de_ventana", hay}};
             if (!hay) d["por_que_no"] = porque;
-            d["como"] = "fuente_crear {type: screen_capture, settings: {monitor}} o {type: window_capture, settings: {ventana}}";
+            d["como"] = "crear_fuente {type: screen_capture, settings: {monitor}} o {type: window_capture, settings: {ventana}}";
             done(ToolResult().data(d));
         };
         core_.addTool(std::move(t));

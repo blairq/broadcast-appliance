@@ -131,7 +131,7 @@ bloque de preguntas». A veces te dicen el estilo y a veces no.
 1. **Mira que hay antes de inventar.** `scene_list`, `source_types`, `media_list`
    y `grafico_listar`: casi siempre hay algo parecido que se copia y se ajusta,
    y una escena copiada arranca con las fuentes bien puestas.
-2. **Armala.** `scene_create` o `scene_copy`, `fuente_crear` y
+2. **Armala.** `scene_create` o `scene_copy`, `crear_fuente` y
    `source_set_property` para ubicar y escalar, `medio_poner` para los archivos.
 3. **MIRALA.** Es lo que separa diseñar de adivinar: `scene_preview` la deja en
    el monitor de preview SIN tocar el aire, y con `foto_fuente` sacas un

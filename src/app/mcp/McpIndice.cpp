@@ -201,7 +201,7 @@ std::vector<Resultado> Indice::buscar(const std::string& consulta, std::size_t t
     }
 
     // Si la consulta ES el nombre de una herramienta, esa va primera y punto.
-    // Sin esto `fuente_crear` y `guest_source_add` empatan —las dos tienen los
+    // Sin esto `crear_fuente` y `guest_source_add` empatan —las dos tienen los
     // dos terminos— y desempata el orden alfabetico, que no significa nada.
     // Quien escribe un nombre exacto no esta explorando: ya sabe cual quiere.
     std::size_t exacta = docs_.size();

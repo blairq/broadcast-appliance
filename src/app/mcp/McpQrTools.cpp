@@ -77,7 +77,7 @@ void McpService::registerQrTools() {
         t.details = "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
                     "contenido lo arma el sistema con la clave que corresponda en ese momento. Por eso se "
                     "guardan sin texto y salen siempre al dia.\n\n`para_elegir`: lo que acepta `qr` en "
-                    "pantalla_mostrar y en una fuente «Código QR» (fuente_crear {type: ba_qr, settings: {qr}}): los del "
+                    "pantalla_mostrar y en una fuente «Código QR» (crear_fuente {type: ba_qr, settings: {qr}}): los del "
                     "aparato SIEMPRE (\"aparato:publico\", \"aparato:sala\", \"aparato:prompter\", "
                     "\"aparato:rotulos\"), aunque no esten guardados, y los guardados por su id.";
         t.run = [q](const json&, Done done) {

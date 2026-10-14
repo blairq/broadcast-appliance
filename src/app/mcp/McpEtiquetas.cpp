@@ -335,7 +335,7 @@ const Fila kPropias[] = {
     {"source_types", "que tipos de fuente hay disponibles"},
     {"escena_fuentes_ver", "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena "
                     "listar fuentes de una escena que hay adentro"},
-    {"fuente_crear",
+    {"crear_fuente",
      "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en "
      "la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador codigo qr "
      "captura de pantalla capturar una aplicacion ventana"},

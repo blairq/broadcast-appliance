@@ -145,7 +145,8 @@ def compactar(esq, prof=0):
 # examen, esquemas, fallos) sigue con el nombre REAL: la etiqueta solo existe en el
 # prompt y en la respuesta. La app traduce con modelo.json (endpoints[].etiqueta).
 _A_MODELO = dict(getattr(lp, "RENOMBRES", {}))
-_A_REAL = {v: k for k, v in _A_MODELO.items()}
+# las etiquetas anteriores tambien se leen (fuente_crear, de la vuelta 0 de la v6)
+_A_REAL = dict(getattr(lp, "ANTERIORES", {})) | {v: k for k, v in _A_MODELO.items()}
 _DESCRIPCIONES = dict(getattr(lp, "DESCRIPCIONES", {}))
 
 

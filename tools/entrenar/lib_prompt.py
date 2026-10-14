@@ -64,6 +64,7 @@ ORDEN = None  # «grupos»: {grupo: [herramientas]}; la union es la lista exacta
 GRUPOS = None
 ESTADO = None
 RENOMBRES = {}  # «renombres»: {nombre real: el que ve y escribe el modelo}
+ANTERIORES = {}  # «renombres_anteriores»: {nombre que ya dejo de ver: real} (modelos viejos)
 DESCRIPCIONES = {}  # «descripciones»: {nombre real: la oracion que ve el modelo}
 FUERA = []  # «fuera»: las que se sacaron del perfil a proposito (sus anotaciones sirven de derivar)
 ENTRADAS = ["pedidos"]
@@ -84,6 +85,7 @@ if _perfil.exists():
     # no son los del MCP (pares que se pisaban). La app traduce la etiqueta al nombre
     # real con modelo.json (endpoints[].etiqueta). Ver lib_tc.a_modelo / a_real.
     RENOMBRES = dict(_p.get("renombres", {}))
+    ANTERIORES = dict(_p.get("renombres_anteriores", {}))
     DESCRIPCIONES = dict(_p.get("descripciones", {}))
     ENTRADAS = list(_p.get("entradas", ["pedidos"]))
     # el juego de etiquetas del perfil, salvo que se pida otro a mano

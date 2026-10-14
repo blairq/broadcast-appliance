@@ -50,7 +50,7 @@ std::vector<std::string> lista(const json& estado, const char* clave, const char
 }
 
 // Las familias van por prefijo; las renombradas en v6 (que perdieron el prefijo de
-// su familia: fuente_crear era source_add) van por su nombre entero, para que cada
+// su familia: crear_fuente era source_add) van por su nombre entero, para que cada
 // una siga recibiendo el mismo estado que con el nombre viejo (el de entrenamiento:
 // tools/entrenar/lib_tc.py estado_para).
 bool empieza(const std::string& s, std::initializer_list<const char*> prefijos) {
@@ -73,7 +73,7 @@ std::vector<std::string> candidatos(const std::string& herr, const std::string& 
         (empieza(herr, {"scene_"}) && (k == "name" || k == "to" || k == "from" || k == "nombre")))
         return escenas;
     if (empieza(herr, {"audio", "mixer_"})) return audio;
-    if (empieza(herr, {"source_", "foto_fuente", "fuente_crear", "escena_fuentes_ver"})) {
+    if (empieza(herr, {"source_", "foto_fuente", "crear_fuente", "escena_fuentes_ver"})) {
         auto v = fuentes;
         v.insert(v.end(), audio.begin(), audio.end());
         return v;
@@ -151,7 +151,7 @@ json estadoPara(const std::string& h, const json& estado) {
     };
     if (empieza(h, {"scene_", "transition_", "preview_al_aire"})) return con({"escena_actual", "escena_armada", "escenas"});
     if (empieza(h, {"audio", "mixer_"})) return con({"audio"});
-    if (empieza(h, {"source_", "foto_fuente", "fuente_crear", "escena_fuentes_ver"}))
+    if (empieza(h, {"source_", "foto_fuente", "crear_fuente", "escena_fuentes_ver"}))
         return con({"escena_actual", "escenas", "fuentes_de_la_escena_actual", "audio"});
     if (empieza(h, {"participant_", "speaker_", "chat_", "foto_invitado", "invitados_chat_leer", "publico_chat_leer"})) return con({"participantes"});
     if (empieza(h, {"grafico_", "rotulo_"})) return con({"graficos", "escena_actual"});

@@ -160,7 +160,7 @@ Todo lo de tiempo de ejecución viaja en el bundle (Qt, libobs, GStreamer, Pytho
 - Tarjeta **Dirección**: AL AIRE y ARMADA en grande, más el reloj del guion. T o Enter hacen TAKE.
 - **Escenas y fuentes** (`ScenesPage.qml`) es el editor: árbol de carpetas con arrastrar y soltar; copiar, proteger, renombrar y borrar; lienzo con capas (mover, tamaño, visibilidad, orden); panel de propiedades de cualquier fuente (`PropertiesModel`). El botón "Al aire" de esa página hace corte directo.
 
-**MCP.** `scene_list`, `scene_create`, `scene_define`, `scene_copy`, `scene_delete`, `scene_rename`, `scene_protect`, `scene_folder`, `scene_move`, `scene_export`, `scene_preview`, `preview_al_aire`, `scene_switch`, `transition_set`; fuentes: `escena_fuentes_ver`, `fuente_crear`, `source_remove`, `source_update`, `source_properties`, `source_set_property`, `source_types`, `guest_source_add`; estado general: `status`.
+**MCP.** `scene_list`, `scene_create`, `scene_define`, `scene_copy`, `scene_delete`, `scene_rename`, `scene_protect`, `scene_folder`, `scene_move`, `scene_export`, `scene_preview`, `preview_al_aire`, `scene_switch`, `transition_set`; fuentes: `escena_fuentes_ver`, `crear_fuente`, `source_remove`, `source_update`, `source_properties`, `source_set_property`, `source_types`, `guest_source_add`; estado general: `status`.
 
 **Archivos.** `src/app/emision/BroadcastEngine.cpp`, `src/app/emision/BroadcastEngineScenes.cpp`, `src/app/ui/StudioViewModel.cpp` (~884-946), `src/app/ui/PropertiesModel.cpp`, `src/app/qml/pages/ScenesPage.qml`, `src/app/qml/cards/ScenesContent.qml`, `src/app/qml/cards/DireccionContent.qml`.
 
@@ -1083,7 +1083,7 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `facebook_video_upload` | facebook | Subir un video a la Pagina | modifica |
 | `facebook_videos` | facebook | Videos de la Pagina | lee |
 | `guest_source_add` | fuentes | Poner a un invitado en una escena | modifica |
-| `fuente_crear` | fuentes | Agregar fuente | modifica |
+| `crear_fuente` | fuentes | Agregar fuente | modifica |
 | `escena_fuentes_ver` | fuentes | Fuentes de una escena | lee |
 | `source_properties` | fuentes | Propiedades de una fuente | lee |
 | `source_remove` | fuentes | Quitar fuente de una escena | modifica |

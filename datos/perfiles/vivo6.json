@@ -225,12 +225,15 @@
   "votacion_ver": "votacion_recuento",
   "quorum_estado": "quorum_presentes",
   "media_use": "medio_poner",
-  "source_add": "fuente_crear",
+  "source_add": "crear_fuente",
   "laminas_ver": "carrusel_laminas_ver",
   "laminas_listar": "carruseles_listar",
   "scene_take": "preview_al_aire",
   "source_list": "escena_fuentes_ver",
   "dsk_listar": "dsk_capas_ver"
+ },
+ "renombres_anteriores": {
+  "fuente_crear": "source_add"
  },
  "descripciones": {
   "chat_history": "Lee el chat PRIVADO con los invitados de la sala (de quién, a quién, texto, hora); no es el chat del público.",

@@ -34,7 +34,7 @@ Se activa y desactiva en Configuración → **Asistente (MCP)**.
 | Ayuda | `help` (guía, temas, ficha de cada herramienta), `help_search` |
 | Estado | `status` |
 | Escenas | `scene_list`, `scene_switch`, `scene_create`, `scene_delete`, `scene_rename`, `scene_define` (escena completa de una vez), `scene_export`, `transition_set` |
-| Fuentes | `source_types`, `escena_fuentes_ver`, `fuente_crear`, `source_remove`, `source_update` (visibilidad, ubicación con presets, orden, settings, volumen, nombre), `source_properties`, `source_set_property`, `guest_source_add` |
+| Fuentes | `source_types`, `escena_fuentes_ver`, `crear_fuente`, `source_remove`, `source_update` (visibilidad, ubicación con presets, orden, settings, volumen, nombre), `source_properties`, `source_set_property`, `guest_source_add` |
 | Audio | `mixer_list`, `audio_set` |
 | Rack de audio (LSP) | Armar: `audio_sources`, `audio_rack` (nodos, cables, medidores), `audio_modules` (catálogo y búsqueda en los ~200 LSP), `audio_module_add` / `_remove`, `audio_patch` (cables), `audio_bypass`. Calibrar con parámetros en unidades reales y presets: `audio_gate`, `audio_compressor`, `audio_deesser`, `audio_eq`, `audio_multiband`, `audio_limiter`; cualquier parámetro: `audio_module_get` / `_set`. Medir: `audio_analyze` (LUFS, espectro por tercios y zonas, piso de ruido, nivel activo, pistas), `audio_measure` (respuesta o curva entrada/salida sobre copias, sin tocar el aire), `audio_generator` (seno, rosa, blanco, barrido). Mostrar: `audio_show` (pestaña Audio), `audio_editor` (interfaz original de LSP) |
 | Salidas | `stream_start` (la clave nunca se guarda), `stream_stop`, `record_start`, `record_stop` |
