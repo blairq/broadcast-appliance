@@ -1865,6 +1865,33 @@ void AgentViewModel::send(const QString& text) {
     session_->submit(text.trimmed());
 }
 
+void AgentViewModel::encargar(const QString& texto) {
+    if (texto.trimmed().isEmpty()) return;
+    emit pideVerse();
+    if (running()) {
+        send(texto);
+        return;
+    }
+    // Arranca y manda cuando la terminal ya está: unos segundos después de que corre
+    // (Claude Code tarda en mostrar su entrada; antes, lo escrito se perdía).
+    encargoPendiente_ = texto;
+    QPointer<AgentViewModel> yo(this);
+    auto* c = new QMetaObject::Connection;
+    *c = connect(this, &AgentViewModel::runningChanged, this, [yo, c]() {
+        if (!yo || !yo->running()) return;
+        QObject::disconnect(*c);
+        delete c;
+        QTimer::singleShot(ba::ajustes::entero("asistente.esperaEncargoMs", 6000), yo, [yo]() {
+            if (!yo || yo->encargoPendiente_.isEmpty()) return;
+            const QString t = yo->encargoPendiente_;
+            yo->encargoPendiente_.clear();
+            yo->send(t);
+        });
+    });
+    if (installed() && mcpReady()) start();
+    else setError("El asistente no está listo (instalado y con el servidor MCP prendido): el pedido queda para cuando arranque.");
+}
+
 // --- Alertas ------------------------------------------------------------------------------
 
 QVariantList AgentViewModel::alerts() const {

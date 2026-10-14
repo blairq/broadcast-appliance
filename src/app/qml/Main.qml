@@ -398,6 +398,10 @@ ApplicationWindow {
             const p = Studio.riel.paginaDeId("asistente")
             if (p >= 0) win.showPage(p)
         }
+        function onPideVerse() {
+            const p = Studio.riel.paginaDeId("asistente")
+            if (p >= 0) win.showPage(p)
+        }
     }
 
     // Los carteles que dicen cuál monitor es cuál (Studio.identificarPantallas).

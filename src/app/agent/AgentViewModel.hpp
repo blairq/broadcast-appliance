@@ -214,6 +214,10 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE QVariantMap aireUi() const { return aireInfo_ ? aireInfo_() : QVariantMap{}; }
     /// Escribe un pedido en el prompt del agente y lo manda.
     Q_INVOKABLE void send(const QString& text);
+    /// Le encarga algo al asistente aunque no esté corriendo: lo arranca, espera a que
+    /// esté listo y le manda `texto`; pide que se lo muestre (`pideVerse`). Lo usa
+    /// «Evento nuevo → con el asistente» (la guía del tipo de evento).
+    Q_INVOKABLE void encargar(const QString& texto);
     Q_INVOKABLE void setAlertEnabled(const QString& id, bool on);
     Q_INVOKABLE void deleteAlert(const QString& id);
     /// Sin sonido (sus alarmas siguen apareciendo).
@@ -281,6 +285,8 @@ class AgentViewModel : public QObject {
    signals:
     /// Se retomó una conversación al arrancar: la interfaz muestra el asistente.
     void mostrarseAlReanudar();
+    /// Se le encargó algo (encargar): la interfaz muestra el asistente.
+    void pideVerse();
     void configChanged();
     void installChanged();
     void latestChanged();
@@ -372,6 +378,7 @@ class AgentViewModel : public QObject {
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
     QString sesion_;    ///< el id de la conversación de Claude que corre (--session-id / --resume)
     QString reanudar_;  ///< la que el próximo arranque retoma (una vez)
+    QString encargoPendiente_; ///< lo que se manda apenas el asistente está listo (encargar)
     std::function<bool(const nlohmann::json&)> reclamado_;
     std::function<bool()> hayAire_;
     bool conConsola_ = false; ///< el interactivo arrancó con Bash/PowerShell

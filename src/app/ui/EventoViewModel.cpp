@@ -842,6 +842,25 @@ QString EventoViewModel::enlaceDeCue(const QString& tipo) const {
     return {};
 }
 
+QVariantList EventoViewModel::escenarios() const {
+    QFile f(":/escenarios/indice.json");
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    return QJsonDocument::fromJson(f.readAll()).array().toVariantList();
+}
+
+QString EventoViewModel::pedidoDeEscenario(const QString& id, const QString& notas) const {
+    QString titulo = id;
+    for (const QVariant& v : escenarios())
+        if (v.toMap().value("id").toString() == id) titulo = v.toMap().value("titulo").toString();
+    QString p = "Quiero preparar un evento nuevo: «" + titulo + "». Seguí la guía de ese tipo de evento: evento_escenario "
+                "{\"id\": \"" + id + "\"} (trae el protocolo común y lo propio de este tipo). Empezá por las preguntas, "
+                "de a pocas y con opciones; no armes nada hasta que te confirme el plan. Arrancalo DESDE CERO (un evento "
+                "aparte, con evento_nuevo), verificá todo antes de mandar invitaciones, sugerime el ensayo y al terminar "
+                "pasame el enlace de la página web del evento.";
+    if (!notas.trimmed().isEmpty()) p += " Lo que ya sé: " + notas.trimmed();
+    return p;
+}
+
 void EventoViewModel::setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor) {
     evento::Cue* c = cuePtr(bloque, cue);
     if (c == nullptr || clave.isEmpty()) return;

@@ -552,6 +552,8 @@ const Fila kPropias[] = {
     {"pdf_escena_ver", "pdf en la escena mostrar pdf en pantalla que pagina"},
     {"pdf_escena_poner", "pasar pagina pdf siguiente anterior elegir pdf mostrar documento en pantalla"},
     {"pdf_escena_crear", "escena para pdf armar escena mostrar pdf"},
+    {"evento_escenarios", "tipos de evento guias plantillas preparar un evento clase asamblea reunion streaming acto"},
+    {"evento_escenario", "guia para preparar un evento que preguntar checklist protocolo invitaciones verificar"},
     {"documento_abrir", "abrir mostrar ver documento pdf en pantalla visor"},
     {"evento_nuevo", "arrancar de cero evento nuevo empezar algo nuevo desde cero copiar el actual plantilla "
                      "crear evento aparte sin tocar las escenas"},

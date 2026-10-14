@@ -1403,6 +1403,16 @@ Rectangle {
                       "orden del día, votaciones, página web y guion. Copiar es copia total (también la web, el historial y " +
                       "las grabaciones). El evento abierto no se toca."
             }
+            // Lo recomendado: que el asistente lo prepare entero siguiendo la guía de su tipo
+            // (pregunta lo que hace falta, arma, verifica y entrega).
+            GlassButton {
+                Layout.fillWidth: true
+                icon: "✦"; text: "Prepararlo con el asistente (recomendado)"; active: true
+                onClicked: { nuevoEventoDlg.close(); asistenteEvtDlg.open() }
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "Elegís el tipo de evento y el asistente te hace las preguntas, lo arma desde cero, lo verifica y te pasa los enlaces"
+            }
+            Text { Layout.fillWidth: true; text: "O crealo a mano:"; color: Theme.textFaint; font.pixelSize: 11 }
             TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: "Sesión ordinaria del 20 de octubre"; color: Theme.text }
             ButtonGroup { id: grupoDesde }
             RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "cero"; onClicked: nuevoEventoDlg.modo = "cero"
@@ -1448,6 +1458,90 @@ Rectangle {
                         const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording))
                         if (e !== "") { Studio.notify(e, "error"); return }
                         nuevoEventoDlg.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Preparar un evento con el asistente (la guía de su tipo) ------------------
+    Dialog {
+        id: asistenteEvtDlg
+        property string elegido: ""
+        anchors.centerIn: parent
+        width: Math.min(page.width - 80, 760)
+        height: Math.min(page.height - 60, 680)
+        modal: true
+        title: "Preparar un evento con el asistente"
+        onAboutToShow: { elegido = ""; notasEvt.text = "" }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                text: "¿Qué tipo de evento es? El asistente sigue la guía de ese tipo: te pregunta lo que hace falta " +
+                      "(gente, invitados, registro, documentos, gráficos, teleprompter, música, logos, traducción, pantallas), " +
+                      "lo arma desde cero, prueba la conexión y la cámara antes de invitar, te sugiere el ensayo y te pasa los enlaces."
+            }
+            GridView {
+                id: gridEsc
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                cellWidth: Math.floor(width / Math.max(1, Math.floor(width / 230)))
+                cellHeight: 86
+                model: page.ev.escenarios()
+                delegate: Item {
+                    required property var modelData
+                    width: gridEsc.cellWidth
+                    height: gridEsc.cellHeight
+                    Rectangle {
+                        anchors { fill: parent; margins: 4 }
+                        radius: 8
+                        readonly property bool sel: asistenteEvtDlg.elegido === modelData.id
+                        color: sel ? Qt.rgba(1, 0.42, 0.17, 0.18) : (escMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04))
+                        border.color: sel ? Theme.accent : Theme.glassBorder
+                        RowLayout {
+                            anchors { fill: parent; margins: 8 }
+                            spacing: 8
+                            Text { text: modelData.icono; color: Theme.accent; font.pixelSize: 22; Layout.alignment: Qt.AlignTop }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text { Layout.fillWidth: true; text: modelData.titulo; color: Theme.text; elide: Text.ElideRight
+                                       font { pixelSize: 13; weight: Font.DemiBold } }
+                                Text { Layout.fillWidth: true; Layout.fillHeight: true; text: modelData.resumen; color: Theme.textFaint
+                                       font.pixelSize: 10; wrapMode: Text.WordWrap; elide: Text.ElideRight; maximumLineCount: 3 }
+                            }
+                        }
+                        MouseArea {
+                            id: escMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: asistenteEvtDlg.elegido = modelData.id
+                        }
+                    }
+                }
+            }
+            Text { text: "Lo que ya sabés (opcional): fecha, cuántos son, quién habla…"; color: Theme.textDim; font.pixelSize: 11 }
+            TextArea {
+                id: notasEvt
+                Layout.fillWidth: true
+                Layout.preferredHeight: 60
+                wrapMode: TextEdit.Wrap
+                color: Theme.text
+                placeholderText: "Clase de historia el jueves 16 a las 16, 60 minutos, 30 alumnos (la mitad remotos)…"
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: asistenteEvtDlg.close() }
+                GlassButton {
+                    compact: true; active: true; text: "Empezar con el asistente"
+                    enabled: asistenteEvtDlg.elegido !== ""
+                    onClicked: {
+                        Studio.agent.encargar(page.ev.pedidoDeEscenario(asistenteEvtDlg.elegido, notasEvt.text))
+                        asistenteEvtDlg.close()
                     }
                 }
             }

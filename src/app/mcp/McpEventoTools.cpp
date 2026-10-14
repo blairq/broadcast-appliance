@@ -26,6 +26,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QFile>
 #include <QThreadPool>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -1380,6 +1381,54 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         core.addTool(std::move(t));
     }
 
+    // --- Las guías de cada tipo de evento (datos/escenarios) -------------------------
+    {
+        Tool t;
+        t.name = "evento_escenarios";
+        t.title = "Los tipos de evento y sus guías";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "Los escenarios para los que hay guía de preparación (reunión chica, clase híbrida, sesión de un "
+                        "cuerpo deliberativo, asamblea con votación, streaming de juegos, acto, audiencia pública…): id, "
+                        "título y para qué sirve. ANTES de preparar un evento nuevo, elegí el que corresponde y leelo con "
+                        "evento_escenario.";
+        t.run = [](const json&, Done done) {
+            QFile f(":/escenarios/indice.json");
+            if (!f.open(QIODevice::ReadOnly)) return done(ToolResult::error("no están las guías en este programa"));
+            done(ToolResult().data({{"escenarios", json::parse(f.readAll().toStdString(), nullptr, false)}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_escenario";
+        t.title = "La guía para preparar un tipo de evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "El protocolo para preparar CUALQUIER evento (entrevistar antes de armar, el orden de armado, qué "
+                        "verificar antes de invitar, el ensayo y qué entregar al final) más la guía del escenario `id` "
+                        "(evento_escenarios): sus preguntas propias, qué armar, qué verificar. Seguilo paso a paso.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [](const json& a, Done done) {
+            const auto leer = [](const QString& r) {
+                QFile f(r);
+                return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+            };
+            const QString comun = leer(":/escenarios/comun.md");
+            if (comun.isEmpty()) return done(ToolResult::error("no están las guías en este programa"));
+            const std::string id = a.value("id", std::string());
+            QString guia;
+            if (!id.empty()) {
+                // Solo letras, números y guiones: es un nombre de archivo.
+                if (id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-") != std::string::npos)
+                    return done(ToolResult::error("id inválido: " + id));
+                guia = leer(":/escenarios/" + QString::fromStdString(id) + ".md");
+                if (guia.isEmpty()) return done(ToolResult::error("no hay una guía «" + id + "» (evento_escenarios)"));
+            }
+            done(ToolResult::ok((comun + (guia.isEmpty() ? QString() : "\n\n---\n\n" + guia)).toStdString()));
+        };
+        core.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "evento_armar";
@@ -1389,6 +1438,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Crea el evento con su fecha, sus bloques con tiempos y su lista de gente, todo en una "
             "llamada.";
         t.details =
+            "ANTES: la guía del tipo de evento (evento_escenarios / evento_escenario): qué preguntar y qué "
+            "verificar.\n\n"
             "ES PARA ARMAR CONVERSANDO. El que organiza cuenta lo que va a pasar —«asamblea del "
             "consorcio, el jueves 8 a las 19, dos horas, presencial y por videollamada, hay que votar "
             "tres puntos, son 40 propietarios»— y esto lo deja escrito de una.\n\n"

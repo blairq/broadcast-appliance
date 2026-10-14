@@ -42,7 +42,8 @@ void McpService::registerConfiguracionesTools() {
         t.name = "evento_nuevo";
         t.title = "Crear un evento nuevo (arrancar de cero o desde otro)";
         t.category = "eventos";
-        t.description = "Crea un evento APARTE con todo lo suyo, sin tocar el abierto. Es lo que corresponde cuando "
+        t.description = "Crea un evento APARTE con todo lo suyo, sin tocar el abierto (antes de prepararlo: la guía de su "
+                        "tipo, evento_escenarios / evento_escenario). Es lo que corresponde cuando "
                         "piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, "
                         "vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, "
                         "guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento "
