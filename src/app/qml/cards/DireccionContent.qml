@@ -42,6 +42,8 @@ Item {
         return (s < 0 ? "−" : "") + Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0")
     }
 
+    QrControlEscenas { id: qrEscenas; parent: Overlay.overlay }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
@@ -186,6 +188,13 @@ Item {
                 dot: Theme.live; pulse: true
             }
             Item { Layout.fillWidth: true }
+            // Manejar las escenas desde una tablet o un celular (la Botonera «Director»).
+            GlassButton {
+                compact: true; text: "QR de escenas"
+                onClicked: qrEscenas.open()
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "El QR para manejar las escenas desde una tablet o un celular"
+            }
             Text {
                 visible: Studio.droppedFrames > 0
                 text: Studio.droppedFrames + " perdidos"
