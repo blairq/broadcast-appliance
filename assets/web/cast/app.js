@@ -36,12 +36,14 @@
   // programa). Va también al reengancharse, para seguir en la misma escena.
   const canal = /^\d{1,2}$/.test(q.get("canal") || "") ? q.get("canal") : "";
   const conAudio = q.get("audio") !== "0";
-  // 0 por defecto: lo menos que el navegador acepte retener. Era 80 ms, que
-  // en una red cableada ya es holgado, pero «holgado» no es gratis: son 80 ms
-  // que la pantalla va atras de la sala sin que nada este fallando. Con
-  // ?buffer=N se sube si la red del lugar lo pide (wifi cargado, un tele que
-  // entrecorta).
-  const bufferMs = Math.max(0, parseInt(q.get("buffer") || "0", 10) || 0);
+  // 150 ms por defecto. Con 0 (lo que había) cada paquete que el wifi pierde se ve:
+  // el navegador muestra todo apenas llega y no le queda tiempo de pedir el reenvío,
+  // así que se clava. En una red local el reenvío tarda ~10-20 ms: con 150 ms de
+  // margen llega antes de que toque mostrar ese cuadro y la pérdida no se ve, a
+  // cambio de ir 150 ms atrás de la sala (casi imperceptible). ?buffer=N lo cambia
+  // (0 = lo mínimo, para una red cableada sin pérdidas).
+  const pedidoBuffer = parseInt(q.get("buffer") || "", 10);
+  const bufferMs = Number.isFinite(pedidoBuffer) ? Math.max(0, pedidoBuffer) : 150;
   const hud = q.get("hud") === "1";
 
   const st = {

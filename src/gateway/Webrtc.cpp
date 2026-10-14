@@ -863,13 +863,16 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     /// recuperarlo (o hasta un cuadro completo), y después va atrás. Con capas
     /// temporales (L1T3) dos de cada tres cuadros no son referencia de nadie: si se
     /// pierde uno de esos, se saltea y la imagen sigue en hora; solo una pérdida en la
-    /// capa base hace esperar. Va DESPUÉS de negociar, cuando se sabe el codec (el
-    /// H.264 de VideoToolbox no tiene capas: queda como está).
+    /// capa base hace esperar. Va DESPUÉS de negociar (el H.264 de VideoToolbox no
+    /// tiene capas: queda como está).
     static void seguirElReloj(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& p) {
         for (const auto& sender : p->GetSenders()) {
             if (sender->media_type() != cricket::MEDIA_TYPE_VIDEO) continue;
             webrtc::RtpParameters par = sender->GetParameters();
-            if (par.encodings.empty() || par.codecs.empty() || par.codecs.front().name != "VP8") continue;
+            // Sin mirar el codec: a esta altura GetParameters todavía no lo informa
+            // (codecs vacío). Si el codec no tiene capas (H.264 de VideoToolbox),
+            // SetParameters lo rechaza y queda como estaba.
+            if (par.encodings.empty()) continue;
             par.encodings.front().scalability_mode = "L1T3";
             // Ante poco ancho de banda, menos cuadros antes que menos nitidez: lo que se
             // ve en una pantalla de sala es texto y gráficos.
