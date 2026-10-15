@@ -631,6 +631,11 @@ void SesionRemota::info(const json& campos) {
 // --- La consola de la presidencia ------------------------------------------------------------
 
 json SesionRemota::generarConsola(const std::string& nombre) {
+    // Sin origen el link sería «/presidencia/#…» (sin https ni dirección): un QR que no
+    // abre nada. Mejor decirlo que entregar una credencial rota (y se ve una sola vez).
+    if (origen_.empty())
+        return {{"error", "Todavía no hay una dirección para el link: ni el túnel está listo ni la sala escucha en la "
+                          "red local. Esperá unos segundos a que conecte el túnel (Servicios) y probá de nuevo."}};
     const std::string id = hexAleatorio(4);
     const std::string token = hexAleatorio(32);
     const quint32 n = QRandomGenerator::system()->bounded(1000000u);
