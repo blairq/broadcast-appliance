@@ -63,7 +63,7 @@ ApplicationWindow {
         // Arranca cuando la interfaz ya se ve; una página cada 150 ms.
         interval: 150
         repeat: true
-        running: win.visible && win.precargadas < 29
+        running: win.visible && win.precargadas < win.componentesDePagina.length
         onTriggered: win.precargadas++
     }
     // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
@@ -235,7 +235,7 @@ ApplicationWindow {
         // en el momento. Una vez creada queda: conserva lo que se escribió.
         // El orden es el de componenteDePagina (= el índice de cada página).
         Repeater {
-            model: 29
+            model: win.componentesDePagina.length
             delegate: Loader {
                 id: lugar
                 required property int index
@@ -284,14 +284,17 @@ ApplicationWindow {
     Component { id: cmpAsamblea; AsambleaPage {} }
     Component { id: cmpHistorico; HistoricoPage {} }
     Component { id: cmpMultiview;  MultiviewPage {} }
+    Component { id: cmpEnlaces;    EnlacesPage {} }
 
-    function componenteDePagina(i) {
-        return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
-                cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
-                cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea,
-                cmpHistorico, cmpMultiview][i] || null
-    }
+    /// Las páginas, por índice (el `page` del catálogo de RielConfig). Cuántas son
+    /// sale de acá: una página nueva se agrega solo en esta lista y en el catálogo.
+    readonly property var componentesDePagina: [
+        cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
+        cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
+        cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
+        cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea,
+        cmpHistorico, cmpMultiview, cmpEnlaces]
+    function componenteDePagina(i) { return win.componentesDePagina[i] || null }
 
     ListModel { id: sueltas }
     /// Cambia cada vez que se saca o se cierra una ventana de página (para los bindings de paginaAfuera).
@@ -520,20 +523,26 @@ ApplicationWindow {
         Row {
             id: airState
             spacing: 8
-            // Reconectando gana sobre "al aire": para libobs la salida sigue
-            // activa, pero no esta llegando nada y el operador tiene que saberlo.
+            // Al aire = sale algo (Studio.alAire): lo mismo que miran la PTZ, las
+            // alertas y los candados. Solo grabando también cuenta, y lo dice.
+            // Reconectando gana: la salida sigue activa, pero no esta llegando nada
+            // y el operador tiene que saberlo.
             StatusPill {
                 height: 16
                 text: Studio.reconnecting ? "RECONECTANDO"
-                      : Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"
+                      : Studio.transmitiendo ? "AL AIRE" + (Studio.streaming ? "  " + Studio.streamTime : "")
+                      : Studio.alAire ? "AL AIRE · GRABANDO" + (Studio.recording ? "  " + Studio.recordTime : "")
+                      : "FUERA DEL AIRE"
                 dot: Studio.reconnecting ? Theme.amber : Theme.live
-                on: Studio.streaming || Studio.reconnecting
+                on: Studio.alAire || Studio.reconnecting
                 pulse: true
-                ToolTip.visible: pillMa.containsMouse && Studio.outputProblem !== ""
-                ToolTip.text: Studio.outputProblem
+                ToolTip.visible: pillMa.containsMouse
+                ToolTip.text: Studio.outputProblem !== "" ? Studio.outputProblem
+                              : Studio.alAire ? "Sale el programa: la PTZ de una cámara que se ve pide confirmar y las páginas protegidas, CONFIRMAR."
+                              : "No sale nada (ni transmisión ni grabación): se puede mover y tocar todo sin avisos de aire."
                 MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
-            StatusPill { height: 16; visible: Studio.recording; text: "REC  " + Studio.recordTime; dot: Theme.accent; pulse: true }
+            StatusPill { height: 16; visible: Studio.recording && Studio.transmitiendo; text: "REC  " + Studio.recordTime; dot: Theme.accent; pulse: true }
             // En las otras páginas, solo si algo de la IA no anda.
             PastillaIA { height: 16; visible: total > 0 }
         }

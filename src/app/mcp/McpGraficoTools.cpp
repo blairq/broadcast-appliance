@@ -184,11 +184,13 @@ void McpService::registerGraficoTools() {
                 for (const auto& i : graficos::instancias())
                     if (i.id == id) nombreFuente = i.nombre;
                 if (nombreFuente.empty()) return done(ToolResult::error("No hay una fuente de gráfico con ese id (grafico_en_escena)."));
+                // La escena del programa solo frena si el programa sale (se transmite o graba).
                 bool alAire = false;
+                const bool sale = rt.engine().haySalida();
                 for (const std::string& sc : rt.engine().sceneNames()) {
                     const auto ss = rt.engine().sceneSources(sc);
                     if (std::find(ss.begin(), ss.end(), nombreFuente) == ss.end()) continue;
-                    if (sc == rt.engine().currentScene()) alAire = true;
+                    if (sale && sc == rt.engine().currentScene()) alAire = true;
                     else if (escenaArmar.empty()) escenaArmar = sc;
                 }
                 if (alAire)

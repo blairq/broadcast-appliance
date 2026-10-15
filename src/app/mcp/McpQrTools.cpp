@@ -9,9 +9,13 @@
 // Son cosas de armar una vez y usar todo el evento.
 // ============================================================================
 
+#include <QJsonDocument>
+
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "qr/Iconos.hpp"
+#include "ui/EnlacesViewModel.hpp"
+#include "ui/EventoViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -308,6 +312,62 @@ void McpService::registerQrTools() {
             }
             done(
                 ToolResult::ok("Guardado en " + ruta.toStdString()).data(json{{"ruta", ruta.toStdString()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Los enlaces del aparato (la página Enlaces, por el mismo modelo) -----------
+    {
+        Tool t;
+        t.name = "enlaces_listar";
+        t.title = "Todos los enlaces del aparato, con su estado";
+        t.category = "qr";
+        t.readOnly = true;
+        t.description =
+            "Cada servicio web del aparato en una lista: invitados, tablero, público, teleprompter, rótulos, "
+            "corrección, botonera, Companion, sesión remota, presidencia, web del evento, televisores, túnel y "
+            "consola. De cada uno: `led` (ok, aviso, apagado, error) y `estado` en palabras, si se puede "
+            "prender o apagar (`activable`, `activo`), el enlace de la red local (`local`) y el de afuera "
+            "(`remoto`, solo con el túnel andando). Los que son por persona (`porPersona`) no traen enlace: "
+            "se dan en su página (`pagina`). Para pasarle uno al operador, `qr_mostrar` con ese enlace.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        StudioViewModel* vmp = &vm_;
+        t.run = [vmp](const json&, Done done) {
+            EnlacesViewModel* e = vmp->enlacesVm();
+            if (e == nullptr) return done(ToolResult::error("no disponible"));
+            const QJsonDocument d = QJsonDocument::fromVariant(QVariantMap{{"servicios", e->servicios()},
+                                                                           {"hay_tunel", e->hayTunel()}});
+            done(ToolResult().data(json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "enlace_activar";
+        t.title = "Prender o apagar un servicio web";
+        t.category = "qr";
+        t.description =
+            "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
+            "sala con llave), `companion` (la API HTTP de la botonera), `satellite` "
+            "(Companion Satellite) o `tunel` (la salida a internet: reinicia la sala, los invitados se "
+            "reconectan).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id", "activo"}},
+                         {"properties",
+                          {{"id", {{"type", "string"}, {"enum", {"invitados", "companion", "satellite", "tunel"}}}},
+                           {"activo", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"id": "invitados", "activo": false})"};
+        StudioViewModel* vmp = &vm_;
+        t.run = [vmp](const json& a, Done done) {
+            EnlacesViewModel* e = vmp->enlacesVm();
+            if (e == nullptr) return done(ToolResult::error("no disponible"));
+            // Como acceso_remoto_*: con el evento corriendo, el túnel (reinicia la sala) no lo toca el asistente.
+            if (a.value("id", std::string()) == "tunel")
+                if (auto* ev = static_cast<EventoViewModel*>(vmp->evento()); ev != nullptr && ev->enVivo())
+                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
+                                                  "(reinicia la sala). Si hace falta, lo hace el operador desde la app."));
+            const QString err = e->activar(QString::fromStdString(a.value("id", std::string())), a.value("activo", false));
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult::ok(a.value("activo", false) ? "Prendido." : "Apagado."));
         };
         core_.addTool(std::move(t));
     }

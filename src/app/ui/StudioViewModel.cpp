@@ -13,6 +13,7 @@
 #include "escenas/RespaldoEntradas.hpp"
 #include "escenas/AjustesEscenas.hpp"
 #include "arranque/ModoVivoConfig.hpp"
+#include "ui/EnlacesViewModel.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
@@ -1285,10 +1286,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), video_.get());
     {
         video::BancoSuperRes::Entorno en;
-        en.alAire = [this]() {
-            const auto s = rt_.engine().status();
-            return s.streaming || s.recording;
-        };
+        en.alAire = [this]() { return rt_.engine().haySalida(); };
         en.fps = [this]() {
             const auto& v = rt_.engine().videoConfig();
             return std::make_pair(v.fpsNum, v.fpsDen);
@@ -1591,6 +1589,50 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (avisosPendientes_.fetch_or(bit) == 0)
             QMetaObject::invokeMethod(this, &StudioViewModel::refrescarAvisos, Qt::QueuedConnection);
     });
+    // Todos los enlaces del aparato (página Enlaces y MCP enlaces_*): cómo preguntar y
+    // prender cada servicio, sin que el modelo conozca sus clases.
+    {
+        EnlacesViewModel::Fuentes f;
+        f.enlaces = [this]() { return &conference_->enlaces(); };
+        f.salaEnLinea = [this]() { return conference_->online(); };
+        f.salaCerrada = [this]() { return conference_->locked(); };
+        f.cerrarSala = [this](bool on) { conference_->setLocked(on); };
+        f.tunel = [this]() { return accesoRemoto_ ? accesoRemoto_->conexion() : QVariantMap(); };
+        f.activarTunel = [this](bool on) -> QString {
+            if (!accesoRemoto_) return "No disponible.";
+            if (!on) return accesoRemoto_->desconectar();
+            const QVariantList formas = accesoRemoto_->formasDeConectar();
+            if (formas.isEmpty())
+                return "No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.";
+            return accesoRemoto_->conectar(formas.first().toMap().value("id").toString());
+        };
+        f.apiRemota = [this]() { return apiRemotaUi(); };
+        f.activarApiRemota = [this](bool on) { setApiRemotaUi(on); };
+        f.satellite = [this]() -> QVariantMap {
+            if (!satellite_) return {};
+            return {{"activo", satellite_->activo()}, {"puerto", satellite_->puerto()}, {"error", satellite_->error()}};
+        };
+        f.activarSatellite = [this](bool on) -> QString {
+            return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : QString("No disponible.");
+        };
+        f.origenLocal = [this]() { return joinUrl(); };
+        f.webEvento = [this]() -> QVariantMap {
+            if (!evento_) return {};
+            return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
+        };
+        f.abrirConsolaWeb = [this]() { conference_->openWebConsole(); };
+        enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
+        auto* e = enlaces_.get();
+        const auto avisar = [e]() { e->avisarCambio(); };
+        connect(conference_.get(), &ConferenceViewModel::onlineChanged, e, avisar);
+        connect(conference_.get(), &ConferenceViewModel::roomChanged, e, avisar);
+        if (accesoRemoto_) connect(accesoRemoto_.get(), &AccesoRemoto::estadoChanged, e, avisar);
+        if (satellite_) connect(satellite_.get(), &control::SatelliteServidor::cambio, e, avisar);
+        if (evento_) {
+            connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
+            connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
+        }
+    }
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
@@ -2314,6 +2356,7 @@ QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
+QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
 QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::medios() const { return medios_.get(); }
@@ -3616,10 +3659,14 @@ nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
 
 namespace ba::app {
 
+bool StudioViewModel::alAire() const { return rt_.engine().haySalida(); }
+bool StudioViewModel::transmitiendo() const { return rt_.engine().haySalida(false); }
+
 bool StudioViewModel::modoVivo() const {
+    // En vivo = sale algo de verdad (una transmisión; la grabación, si el ajuste
+    // la cuenta). Correr el guion del evento sin transmitir no es estar al aire.
     if (!modoVivoCfg_->activo()) return false;
-    const bool evento = evento_ != nullptr && evento_->property("enVivo").toBool();
-    return streaming_ || evento || (modoVivoCfg_->incluirGrabando() && recording_);
+    return rt_.engine().haySalida(modoVivoCfg_->incluirGrabando());
 }
 
 bool StudioViewModel::paginaBloqueada(const QString& id) const {

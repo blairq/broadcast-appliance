@@ -74,7 +74,11 @@ Item {
             Text { text: "Escena: " + Studio.currentScene + "   ·   " + Studio.canvasLabel; color: Theme.textDim; font.pixelSize: 12 }
         }
         Item { Layout.fillWidth: true }
-        StatusPill { text: Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"; dot: Theme.live; on: Studio.streaming; pulse: true }
+        // Al aire = sale algo (Studio.alAire), igual que el cartel de arriba de las otras páginas.
+        StatusPill { text: Studio.reconnecting ? "RECONECTANDO"
+                           : Studio.transmitiendo ? "AL AIRE" + (Studio.streaming ? "  " + Studio.streamTime : "")
+                           : Studio.alAire ? "AL AIRE · GRABANDO" : "FUERA DEL AIRE"
+                     dot: Studio.reconnecting ? Theme.amber : Theme.live; on: Studio.alAire || Studio.reconnecting; pulse: true }
         StatusPill { text: Studio.recording ? "REC  " + Studio.recordTime : "REC"; dot: Theme.accent; on: Studio.recording; pulse: true }
         // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
         // una cifra a dos se ensancha y encoge varias veces por segundo,

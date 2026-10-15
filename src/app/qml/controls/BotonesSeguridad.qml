@@ -24,7 +24,7 @@ GridLayout {
                                      : Studio.placaUi(activar, textoPlaca.editText, "", 600)
             if (e !== "") Studio.notify(e, "error")
         }
-        if (activar && Studio.alAire())
+        if (activar && Studio.alAire)
             ApplicationWindow.window.confirm({
                 title: cual === "ftb" ? "¿Mandar la salida a negro?" : "¿Tapar la salida con la placa «" + textoPlaca.editText + "»?",
                 text: "Se ve en la transmisión y en la grabación.",

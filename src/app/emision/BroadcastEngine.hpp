@@ -280,6 +280,18 @@ class BroadcastEngine {
     nlohmann::json dskEstado() const;
     /// Las fuentes que muestran las capas que están arriba (tally, interlock de PTZ).
     std::vector<std::string> fuentesDsk() const;
+    /// Sale algo hacia afuera: alguna transmisión (la principal o una extra), la
+    /// grabación o la señal limpia. Sin esto, lo que pasa en el programa no lo ve
+    /// nadie: ni la PTZ ni las alertas ni los candados tratan nada como «al aire».
+    /// `contarGrabacion` en false: solo lo que se transmite (el modo en vivo
+    /// puede no contar la grabación, Config/modo-vivo.json).
+    bool haySalida(bool contarGrabacion = true) const;
+    /// Las fuentes que SE VEN en el programa: las visibles de la escena al aire
+    /// y lo que muestran las capas DSK que están arriba.
+    std::vector<std::string> fuentesEnPrograma() const;
+    /// `fuente` se ve en el programa y el programa sale (haySalida): lo que le
+    /// pase se ve en la transmisión o queda en la grabación.
+    bool fuenteAlAire(const std::string& fuente) const;
     /// Un rótulo de texto con nombre (fuera de las escenas, para una capa DSK).
     bool textoGlobal(const std::string& nombre, const std::string& texto);
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.

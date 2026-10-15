@@ -977,10 +977,9 @@ void ControlCamaras::guardar() {
 }
 
 bool ControlCamaras::alAire(const QString& entrada) const {
-    auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
-    // Lo que muestra una capa DSK (el recuadro del intérprete de LSA) también está al aire.
-    for (const std::string& f : rt_.engine().fuentesDsk()) ss.push_back(f);
-    return std::find(ss.begin(), ss.end(), entrada.toStdString()) != ss.end();
+    // Se ve en el programa (escena al aire o capa DSK, como el recuadro de LSA)
+    // Y el programa sale: sin transmisión ni grabación, moverla no lo ve nadie.
+    return rt_.engine().fuenteAlAire(entrada.toStdString());
 }
 
 QVariantMap ControlCamaras::interlock() const {

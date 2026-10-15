@@ -139,6 +139,7 @@ class GraficoViewModel;
 class RotuladorViewModel;
 class PrompterViewModel;
 class PantallasViewModel;
+class EnlacesViewModel;
 class QrViewModel;
 class PersonasViewModel;
 class Seguidor;
@@ -177,6 +178,10 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// Sale algo (transmisión, grabación o señal limpia) y si eso incluye una
+    /// transmisión: lo mismo que mira la PTZ, las alertas y los candados.
+    Q_PROPERTY(bool alAire READ alAire NOTIFY statusChanged)
+    Q_PROPERTY(bool transmitiendo READ transmitiendo NOTIFY statusChanged)
     /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
     Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY statusChanged)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
@@ -286,6 +291,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* pantallas READ pantallas CONSTANT)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
+    /// Todos los enlaces del aparato, con su estado y su botón de activar (página Enlaces).
+    Q_PROPERTY(QObject* enlaces READ enlacesQml CONSTANT)
     /// La libreta de personas (rostros). Existe siempre: sin los modelos
     /// vendoreados avisa por qué, que es mejor que una lista vacía.
     Q_PROPERTY(QObject* personas READ personas CONSTANT)
@@ -402,7 +409,10 @@ class StudioViewModel : public QObject {
     /// Vuelve a poner el FTB y la placa como estaban (Runtime/placa.json): tras una caída.
     void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
-    Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
+    /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
+    bool alAire() const;
+    /// Se transmite algo (la principal, una extra o la señal limpia).
+    bool transmitiendo() const;
     /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
     /// programa, fila de oradores) y los integrantes de la sesión remota.
     QVariantMap impactoDeCerrar() const;
@@ -648,6 +658,8 @@ class StudioViewModel : public QObject {
     QObject* prompter() const;
     QObject* pantallas() const;
     QObject* qr() const;
+    QObject* enlacesQml() const;
+    EnlacesViewModel* enlacesVm() const { return enlaces_.get(); }
     QObject* personas() const;
     QObject* publico() const;
     QObject* medios() const;
@@ -1145,6 +1157,9 @@ class StudioViewModel : public QObject {
     void leerMultiviews() const;
     int indiceMultiview(const QString& id) const;
     void guardarMultiviews();
+    /// Lee a los demás servicios: se arma al final del constructor y, declarado
+    /// último, se destruye antes que ellos.
+    std::unique_ptr<EnlacesViewModel> enlaces_;
 };
 
 } // namespace ba::app

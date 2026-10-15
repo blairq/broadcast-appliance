@@ -1874,6 +1874,33 @@ nlohmann::json BroadcastEngine::cleanFeedEstado() const {
 // Estado
 // ============================================================================
 
+bool BroadcastEngine::haySalida(bool contarGrabacion) const {
+    const json f = fotoSalidas();
+    if (f.value("principal", json::object()).value("andando", false)) return true;
+    for (const auto& [id, x] : f.value("extras", json::object()).items())
+        if (x.value("andando", false)) return true;
+    // La señal limpia se transmite (tiene destino) o se graba.
+    const json limpio = f.value("limpio", json::object());
+    if (limpio.value("activa", false) && (contarGrabacion || !limpio.value("destino", std::string()).empty()))
+        return true;
+    return contarGrabacion && f.value("grabacion", json::object()).value("activa", false);
+}
+
+std::vector<std::string> BroadcastEngine::fuentesEnPrograma() const {
+    std::vector<std::string> out;
+    if (const EscenaApp* e = escena(currentScene_))
+        for (const auto& i : e->items)
+            if (i.visible) out.push_back(i.fuente);
+    for (const std::string& f : fuentesDsk()) out.push_back(f);
+    return out;
+}
+
+bool BroadcastEngine::fuenteAlAire(const std::string& fuente) const {
+    if (fuente.empty() || !haySalida()) return false;
+    const auto ss = fuentesEnPrograma();
+    return std::find(ss.begin(), ss.end(), fuente) != ss.end();
+}
+
 EngineStatus BroadcastEngine::status() const {
     EngineStatus st;
     st.lastError = lastError_;

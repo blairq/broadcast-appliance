@@ -184,7 +184,7 @@ Rectangle {
                                     activeColor: "#16a34a"
                                     onClicked: {
                                         if (!Studio.corteDirectoEditor) { Studio.armarEscena(esc); return }
-                                        if (!Studio.alAire()) { Studio.takeScene(esc); return }
+                                        if (!Studio.alAire) { Studio.takeScene(esc); return }
                                         const n = esc
                                         ApplicationWindow.window.confirm({
                                             title: "¿Cortar a «" + n + "» al aire?",
@@ -310,7 +310,7 @@ Rectangle {
                             const alAire = escena === Studio.currentScene
                             ApplicationWindow.window.confirm({
                                 title: "¿Borrar la escena «" + escena + "»?",
-                                text: (alAire ? "«" + escena + "» está AL AIRE: al borrarla se corta a otra escena. " : "")
+                                text: (alAire ? "«" + escena + "» " + (Studio.alAire ? "está AL AIRE" : "es la del programa") + ": al borrarla se corta a otra escena. " : "")
                                       + "Se pierden su disposición y las fuentes que solo están en ella.",
                                 accept: "Borrar",
                                 reject: "Cancelar",
@@ -463,7 +463,7 @@ Rectangle {
                                         ApplicationWindow.window.confirm({
                                             title: "¿Quitar «" + fuente + "» de la escena?",
                                             text: (escena === Studio.currentScene
-                                                   ? "«" + escena + "» está AL AIRE: la fuente sale del programa al instante. " : "")
+                                                   ? "«" + escena + "» " + (Studio.alAire ? "está AL AIRE" : "es la del programa") + ": la fuente sale del programa al instante. " : "")
                                                   + "Se quita solo de esta escena; si no está en ninguna otra, se borra con su configuración.",
                                             accept: "Quitar",
                                             reject: "Cancelar",

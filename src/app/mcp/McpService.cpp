@@ -661,18 +661,14 @@ void McpService::applySecurity() {
     // Guardas de aire (McpAire): qué es "hay aire" y cuándo una PTZ cuenta
     // (la cámara está en la escena al aire).
     core_.aire().cargar(rt_.dataRoot() / "Config" / "mcp-aire.json");
-    const auto hayAire = [this]() {
-        const EngineStatus st = rt_.engine().status();
-        if (st.streaming || st.recording) return true;
-        auto* ev = static_cast<EventoViewModel*>(vm_.evento());
-        return ev != nullptr && ev->enVivo();
-    };
+    // Hay aire = sale algo (transmisión, grabación, señal limpia); el guion del
+    // evento corriendo sin salida no lo es.
+    const auto hayAire = [this]() { return rt_.engine().haySalida(); };
     core_.setHayAire(hayAire);
     core_.aire().setCondicion([this](const std::string&, const json& a) {
         const std::string e = a.value("entrada", std::string());
         if (e.empty()) return true;
-        const auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
-        return std::find(ss.begin(), ss.end(), e) != ss.end();
+        return rt_.engine().fuenteAlAire(e);
     });
     // El guion del evento llama herramientas (p. ej. el cue Pantalla): lo corre
     // el operador, así que cuenta como una persona.
