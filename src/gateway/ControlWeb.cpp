@@ -72,7 +72,7 @@ inline int kAuthMs() { return ba::ajustes::sAMs("controlWeb.authS", 10); }
 inline std::int64_t kSolicitudMs() { return ba::ajustes::entero64("controlWeb.solicitudMin", 5) * 60 * 1000; }
 constexpr std::size_t kMaxMensaje = 64 * 1024;
 /// Lo único que se le pasa a la app; el resto se descarta acá.
-const std::set<std::string> kTipos{"hola", "llamar", "mirar"};
+const std::set<std::string> kTipos{"hola", "llamar", "mirar", "preferencias"};
 
 } // namespace
 
@@ -384,6 +384,9 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
                 for (const auto& x : m["temas"])
                     if (x.is_string() && temas.size() < 32) temas.push_back(x);
             limpio["temas"] = temas;
+        } else if (t == "preferencias") {
+            if (!m.contains("datos") || !m["datos"].is_object() || m["datos"].dump().size() > 8192) continue;
+            limpio["datos"] = m["datos"];
         }
         alApp_({{"tipo", "entrada"}, {"conexion", c->id}, {"aparato", c->aparato}, {"msg", limpio}});
     }

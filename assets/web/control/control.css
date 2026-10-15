@@ -72,8 +72,14 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .dato.mal strong { color: var(--aire); }
 
 /* --- Menú de tarjetas, paneles, confirmar, aviso ------------------------------------------- */
-.menu-tarjetas { position: fixed; z-index: 8; top: 76px; right: clamp(16px, 3vw, 28px); display: flex; flex-direction: column; gap: 6px;
-  max-height: calc(100vh - 100px); overflow-y: auto; min-width: 260px; }
+/* El scroll va en .lista-tarjetas, con margen para el relieve de los controles: un
+   contenedor con scroll recorta lo que sobresale de su caja (las sombras, el resalte). */
+.menu-tarjetas { position: fixed; z-index: 8; top: 76px; right: clamp(16px, 3vw, 28px); display: flex; flex-direction: column; gap: 8px;
+  max-height: calc(100vh - 100px); min-width: 280px; padding: 18px 8px 10px; }
+.menu-tarjetas h3 { margin: 0 12px; }
+.lista-tarjetas { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding: 8px 10px 12px; }
+.lista-tarjetas ba-toggle { padding: 4px 12px; border-radius: var(--radio-chico); transition: background .15s; }
+.lista-tarjetas ba-toggle:hover { background: var(--superficie-hundida); }
 .cubre { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24px;
   background: color-mix(in srgb, var(--fondo) 82%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .caja { width: min(480px, 92vw); display: flex; flex-direction: column; gap: 16px; text-align: center; }

@@ -495,6 +495,7 @@ void ControlWeb::enviarAuth(const std::string& cid) {
                          {"nombre", a->value("nombre", std::string())},
                          {"perfil", perfil},
                          {"lugar", it->second.lugar},
+                         {"preferencias", a->value("preferencias", json::object())},
                          {"categorias", categorias},
                          {"temas", [] {
                               json t = json::array();
@@ -523,6 +524,15 @@ void ControlWeb::entrada(const std::string& cid, const std::string& aparato, con
     if (t == "llamar") llamar(cid, msg);
     else if (t == "mirar") mirar(cid, msg);
     else if (t == "hola") enviarAuth(cid);
+    else if (t == "preferencias") preferencias(cid, msg);
+}
+
+void ControlWeb::preferencias(const std::string& cid, const json& msg) {
+    const json d = msg.contains("datos") ? msg["datos"] : json();
+    json* a = buscarAparato(conns_[cid].aparato);
+    if (a == nullptr || !d.is_object() || d.dump().size() > 8192) return;
+    (*a)["preferencias"] = d;
+    guardar();
 }
 
 void ControlWeb::llamar(const std::string& cid, const json& msg) {

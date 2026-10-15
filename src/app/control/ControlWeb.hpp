@@ -17,7 +17,7 @@
 //
 // Config/control-web.json (en la carpeta de datos del evento):
 //   {aparatos: [{id, nombre, hash, sal, perfil: ["*"] | [categorías], ip,
-//                creado_ms, ultimo_uso_ms}],
+//                creado_ms, ultimo_uso_ms, preferencias: {…}}],
 //    tunel: {habilitado, sal, hash_pin}}
 //
 // --- Protocolo del WebSocket /ws?control=1 (JSON de texto, campo `type`) ------
@@ -32,10 +32,15 @@
 //                                  botonera. Fuera del perfil, no corre.
 //   {type:"mirar", temas:[…]}      reemplaza lo que mira esta conexión ([] = nada).
 //   {type:"hola"}                  pide de nuevo el auth (perfil y herramientas).
+//   {type:"preferencias", datos:{…}}  lo que el aparato quiere recordar (p. ej.
+//                                  qué tarjetas muestra): se guarda en SU registro,
+//                                  no en el navegador (sobrevive a reinicios, a
+//                                  borrar los datos del navegador y a otra URL).
+//                                  Como mucho 8 KiB.
 //   {type:"ping"}                  lo contesta el gateway con {type:"pong"}.
 //
 // app → aparato
-//   {type:"auth", ok:true, aparato, nombre, perfil, lugar, categorias:[{id,titulo}],
+//   {type:"auth", ok:true, aparato, nombre, perfil, lugar, preferencias, categorias:[{id,titulo}],
 //    herramientas:[{name, title, category, description, inputSchema, readOnly,
 //                   destructive, aire}], mas}
 //                                  `herramientas` va en tandas (el catálogo
@@ -223,6 +228,7 @@ class ControlWeb : public QObject {
     void mandar(const std::string& conexion, const json& msg);
     void enviarAuth(const std::string& conexion);
     void llamar(const std::string& conexion, const json& msg);
+    void preferencias(const std::string& cid, const json& msg);
     void mirar(const std::string& conexion, const json& msg);
     /// "" si el aparato puede mirar el tema; si no, por qué.
     std::string motivoTema(const json& perfil, const Tema& t) const;

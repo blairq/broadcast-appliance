@@ -174,6 +174,22 @@ int main(int argc, char** argv) {
             if (h.value("name", "") == "scene_take") aire = h.value("aire", false);
         CHECK(aire, "scene_take viene marcada de aire");
     }
+    // --- Preferencias del aparato: en su registro (sobreviven a reiniciar la app) ---------------
+    CHECK(auth.value("preferencias", json()).is_object() && auth["preferencias"].empty(), "sin preferencias todavía");
+    cw.entrada("c1", ap, {{"type", "preferencias"}, {"datos", {{"ocultas", {"ptz", "audio"}}}}});
+    cw.entrada("c1", ap, {{"type", "preferencias"}, {"datos", "no es un objeto"}}); // se ignora
+    {
+        ControlWeb otra(dir.path().toStdString()); // la app de nuevo: lee el archivo
+        otra.setCore(&core);
+        std::vector<json> enviados2;
+        QObject::connect(&otra, &ControlWeb::enviar,
+                         [&](const QStringList&, const nlohmann::json& m) { enviados2.push_back(m); });
+        otra.conexion("r1", ap, true, "192.168.1.9", "sala");
+        json pref;
+        for (const auto& m : enviados2)
+            if (m.value("type", "") == "auth") pref = m.value("preferencias", json());
+        CHECK(pref.value("ocultas", json::array()) == json({"ptz", "audio"}), "las preferencias vuelven al reconectarse");
+    }
     cw.conexion("c9", "cw-no-existe", true, "192.168.1.66", "sala");
     CHECK(!cortadas.empty() && cortadas.back() == "c9" && !ultimo("auth").value("ok", true), "un aparato desconocido: auth no y se corta");
 

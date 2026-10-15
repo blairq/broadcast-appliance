@@ -121,6 +121,10 @@
         sinMensaje();
         estadoConexion(true);
         BA.control.perfil = m.perfil || [];
+        // Lo que este aparato recuerda lo guarda la app (en su registro): manda eso, y la
+        // copia local queda solo para pintar rápido mientras se conecta.
+        if (m.preferencias && Array.isArray(m.preferencias.ocultas)) guardar(CLAVE_OCULTAS, JSON.stringify(m.preferencias.ocultas));
+        else if (ocultas().size) ws.send(JSON.stringify({ type: "preferencias", datos: { ocultas: [...ocultas()] } })); // lo de antes, a la app
         $("aparato").textContent = m.nombre ? "· " + m.nombre : "";
         herramientasNuevas = m.herramientas || [];
         if (!m.mas) listasLasHerramientas();
@@ -254,6 +258,9 @@
     const h = document.createElement("h3");
     h.textContent = "Tarjetas en este aparato";
     m.append(h);
+    const lista = document.createElement("div");
+    lista.className = "lista-tarjetas";
+    m.append(lista);
     for (const def of BA.tarjetas) {
       const t = document.createElement("ba-toggle");
       t.setAttribute("etiqueta", def.titulo);
@@ -262,9 +269,11 @@
         const f = ocultas();
         if (e.detail.valor) f.delete(def.id); else f.add(def.id);
         guardar(CLAVE_OCULTAS, JSON.stringify([...f]));
+        if (ws && ws.readyState === WebSocket.OPEN && autenticado)
+          ws.send(JSON.stringify({ type: "preferencias", datos: { ocultas: [...f] } }));
         armarTablero();
       });
-      m.append(t);
+      lista.append(t);
     }
   }
 
