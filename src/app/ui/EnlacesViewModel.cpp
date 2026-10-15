@@ -63,9 +63,6 @@ const std::vector<ServicioEnlace>& catalogo() {
          true},
         {"tunel", "Internet", "Salida a internet (túnel)",
          "Lo que hace que los enlaces «de afuera» anden desde cualquier lugar.", "", "configuracion"},
-        {"consola", "Internet", "Consola web del operador",
-         "La sala en el navegador, solo en esta máquina (entra con un código de un uso).", "", "sala", false,
-         "Abrir"},
     };
     return c;
 }
@@ -210,8 +207,6 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
               : e == "error"      ? estado("error", t.value("texto").toString().isEmpty() ? QString("No se pudo conectar")
                                                                                           : t.value("texto").toString())
                                   : estado("apagado", "Apagado: los enlaces de afuera no andan"));
-    } else if (id == "consola") {
-        poner(enLinea ? estado("ok", "Solo en esta máquina") : estado("error", "La sala no responde"));
     }
     return m;
 }
@@ -278,7 +273,7 @@ QString EnlacesViewModel::activar(const QString& id, bool activo) {
 }
 
 void EnlacesViewModel::accion(const QString& id) {
-    if (id == "consola" && f_.abrirConsolaWeb) f_.abrirConsolaWeb();
+    (void)id;
 }
 
 } // namespace ba::app

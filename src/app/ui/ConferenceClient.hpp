@@ -11,8 +11,7 @@
 //     vigia que corta si el servidor deja de latir (B manda ": ping" cada 15 s).
 //   - Acciones: POST/DELETE con Bearer.
 //
-// La consola web consume EXACTAMENTE la misma API: ninguna de las dos vistas
-// tiene logica de sala propia.
+// La vista no tiene logica de sala propia: todo lo decide B.
 // ============================================================================
 #pragma once
 

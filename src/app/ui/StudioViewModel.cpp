@@ -1678,7 +1678,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (!evento_) return {};
             return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
         };
-        f.abrirConsolaWeb = [this]() { conference_->openWebConsole(); };
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };

@@ -66,7 +66,6 @@ class EnlacesViewModel : public QObject {
         std::function<QString()> origenLocal;
         /// {hay (la web generada), evento (el abierto)}
         std::function<QVariantMap()> webEvento;
-        std::function<void()> abrirConsolaWeb;
     };
 
     explicit EnlacesViewModel(Fuentes f, QObject* parent = nullptr);
@@ -78,7 +77,7 @@ class EnlacesViewModel : public QObject {
     Q_INVOKABLE void refrescar();
     /// Prende o apaga el servicio `id` (los que tienen `activable`). "" o el motivo.
     Q_INVOKABLE QString activar(const QString& id, bool activo);
-    /// La acción propia de una fila (`accion`: p. ej. abrir la consola web).
+    /// La acción propia de una fila (`accion`).
     Q_INVOKABLE void accion(const QString& id);
 
     /// Algo cambió en un servicio (lo llama quien conoce las señales).

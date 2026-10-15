@@ -235,34 +235,99 @@
       },
     },
 
-    // --- Sala: quién espera, admitir ---------------------------------------------------
+    // --- Sala: lo que hacía la consola vieja (PIN, lobby, enlace y QR, admitir, la gente,
+    //     el chat y los archivos compartidos) -------------------------------------------
     {
-      id: "sala", titulo: "Sala de invitados", temas: ["sala"],
-      herramientas: ["participant_admit", "participant_reject"],
+      id: "sala", titulo: "Sala de invitados", temas: ["sala"], ancha: true,
+      herramientas: ["participant_admit", "participant_reject", "room_set", "room_pin", "chat_send"],
       crear(c, api) {
         this.api = api;
-        this.resumen = el("div", "fila");
-        this.esperan = el("div", "columna");
-        this.adentro = el("div", "columna");
-        c.append(this.resumen, el("h3", "", "Esperan"), this.esperan, el("h3", "", "Adentro"), this.adentro);
+        // Arriba: PIN, lugares, lobby y sala cerrada.
+        const cab = el("div", "fila sala-cabeza");
+        this.pin = el("ba-chip");
+        this.lugares = el("ba-chip");
+        this.lobby = el("ba-toggle"); this.lobby.setAttribute("etiqueta", "Lobby");
+        this.lobby.addEventListener("cambio", (e) => api.hacer("room_set", { lobby: e.detail.valor }).catch(() => {}));
+        this.cerrada = el("ba-toggle"); this.cerrada.setAttribute("etiqueta", "Sala cerrada");
+        this.cerrada.addEventListener("cambio", (e) => api.hacer("room_set", { locked: e.detail.valor }).catch(() => {}));
+        cab.append(this.pin, boton("PIN nuevo", () => api.hacer("room_pin", {}).then(() => api.avisar("PIN nuevo")), { compacto: true, confirmar: "¿Cambiar el PIN?" }),
+                   this.lugares, el("span", "espacio"), this.lobby, this.cerrada);
+        // El enlace para los invitados (red local o internet, con o sin el PIN) y su QR.
+        const enlace = el("div", "fila sala-enlace");
+        this.conPin = el("ba-toggle"); this.conPin.setAttribute("etiqueta", "Con el PIN");
+        const pedir = (target) => api.hacer("room_link", { target, withPin: this.conPin.encendido }).then((d) => this.mostrarEnlace(d)).catch(() => {});
+        enlace.append(boton("Enlace (red local)", () => pedir("local"), { compacto: true }),
+                      boton("Enlace (internet)", () => pedir("remote"), { compacto: true }), this.conPin);
+        this.enlace = el("div", "enlace-qr oculto");
+        // Las listas.
+        this.esperan = el("div", "columna"); this.adentro = el("div", "columna");
+        this.archivos = el("div", "columna");
+        // El chat.
+        this.chat = el("div", "chat");
+        const escribir = el("div", "fila");
+        this.campoChat = el("input"); this.campoChat.type = "text"; this.campoChat.maxLength = 1000; this.campoChat.placeholder = "Escribile a la sala…";
+        this.campoChat.className = "lleno";
+        const mandar = () => { const t = this.campoChat.value.trim(); if (!t) return; api.hacer("chat_send", { text: t }).then(() => { this.campoChat.value = ""; }).catch(() => {}); };
+        this.campoChat.addEventListener("keydown", (e) => { if (e.key === "Enter") mandar(); });
+        escribir.append(this.campoChat, boton("Enviar", mandar, { compacto: true, variante: "acento" }));
+        const col1 = el("div", "columna"), col2 = el("div", "columna");
+        col1.append(el("h3", "", "Esperan"), this.esperan, el("h3", "", "Adentro"), this.adentro);
+        col2.append(el("h3", "", "Chat"), this.chat, escribir, el("h3", "", "Archivos compartidos"), this.archivos);
+        const dos = el("div", "dos-columnas"); dos.append(col1, col2);
+        c.append(cab, enlace, this.enlace, dos);
+      },
+      mostrarEnlace(d) {
+        const url = (d && (d.url || d.texto)) || "";
+        this.enlace.replaceChildren();
+        if (!url) return;
+        const fila = el("div", "fila");
+        const campo = el("input"); campo.type = "text"; campo.readOnly = true; campo.value = url; campo.className = "lleno";
+        fila.append(campo, boton("Copiar", () => navigator.clipboard?.writeText(url).then(() => this.api.avisar("Copiado")), { compacto: true }));
+        this.enlace.append(fila);
+        for (const img of (d && d.imagenes) || []) {
+          const i = el("img", "qr"); i.alt = "QR"; i.src = "data:" + img.mime + ";base64," + img.data;
+          this.enlace.append(i);
+        }
+        this.enlace.classList.remove("oculto");
       },
       actualizar(_, d) {
+        this.pin.textContent = "PIN " + (d.pin || "—");
+        this.lugares.setAttribute("estado", d.slotsFree > 0 ? "ok" : "aviso");
+        this.lugares.textContent = (d.slotsFree ?? "—") + " de " + (d.maxGuests ?? "—") + " lugares libres";
+        this.lobby.encendido = !!d.lobby;
+        this.cerrada.encendido = !!d.locked;
         const ps = d.participants || [];
-        const esperan = ps.filter((p) => p.state === "lobby" || p.waiting || p.estado === "esperando");
-        const adentro = ps.filter((p) => !esperan.includes(p));
-        const pin = el("ba-chip"); pin.textContent = "PIN " + (d.pin || "—");
-        const lugares = el("ba-chip"); lugares.setAttribute("estado", d.slotsFree > 0 ? "ok" : "aviso"); lugares.textContent = (d.slotsFree ?? "—") + " lugares libres";
-        this.resumen.replaceChildren(pin, lugares, ...(esperan.length > 1 ? [boton("Admitir a todos", () => this.api.hacer("participant_admit_all", {}), { compacto: true })] : []));
-        const fila = (p, conAdmitir) => {
+        const esperan = ps.filter((p) => p.state === "waiting");
+        const adentro = ps.filter((p) => p.state === "admitted");
+        const persona = (p, espera) => {
           const f = el("div", "fila persona");
-          f.append(el("strong", "", p.name || p.nombre || p.id), el("span", "espacio"));
-          if (conAdmitir) f.append(boton("Admitir", () => this.api.hacer("participant_admit", { participant: p.id }), { compacto: true, variante: "armado" }),
-                                    boton("✕", () => this.api.hacer("participant_reject", { participant: p.id }), { compacto: true }));
-          else f.append(el("span", "suave", p.slot ? "lugar " + p.slot : ""));
+          const nombre = el("div", "lleno");
+          nombre.append(el("strong", "", p.name || p.id), el("span", "suave", " " + [p.slot ? "lugar " + p.slot : "", p.hand ? "✋ pide la palabra" : "", p.talk ? "🎙 hablando" : "", p.connected === false ? "desconectado" : ""].filter(Boolean).join(" · ")));
+          f.append(nombre);
+          if (espera) f.append(boton("Admitir", () => this.api.hacer("participant_admit", { participant: p.id }), { compacto: true, variante: "armado" }),
+                               boton("✕", () => this.api.hacer("participant_reject", { participant: p.id }), { compacto: true }));
+          else f.append(boton(p.talk ? "🎙 Callar" : "🎙 Hablar", () => this.api.hacer("participant_talk", { participant: p.id, on: !p.talk }), { compacto: true, activo: !!p.talk, variante: p.talk ? "aire" : "" }),
+                        boton("Sacar", () => this.api.hacer("participant_kick", { participant: p.id }), { compacto: true, confirmar: "¿Sacarlo de la sala?" }));
           return f;
         };
-        esperan.length ? this.esperan.replaceChildren(...esperan.map((p) => fila(p, true))) : vacio(this.esperan, "Nadie esperando.");
-        adentro.length ? this.adentro.replaceChildren(...adentro.map((p) => fila(p, false))) : vacio(this.adentro, "Nadie adentro.");
+        const todos = esperan.length > 1 ? [boton("Admitir a todos", () => this.api.hacer("participant_admit_all", {}), { compacto: true, variante: "armado" })] : [];
+        esperan.length ? this.esperan.replaceChildren(...todos, ...esperan.map((p) => persona(p, true))) : vacio(this.esperan, "Nadie esperando.");
+        adentro.length ? this.adentro.replaceChildren(...adentro.map((p) => persona(p, false))) : vacio(this.adentro, "Nadie adentro.");
+        // El chat: los últimos 30, lo nuevo abajo.
+        const msgs = (d.chat || []).slice(-30);
+        if (msgs.length) {
+          const abajo = this.chat.scrollTop + this.chat.clientHeight >= this.chat.scrollHeight - 8;
+          this.chat.replaceChildren(...msgs.map((m) => { const x = el("div", "mensaje"); x.append(el("strong", "", (m.fromName || "Operador") + ": "), document.createTextNode(m.text || "")); return x; }));
+          if (abajo) this.chat.scrollTop = this.chat.scrollHeight;
+        } else vacio(this.chat, "Sin mensajes.");
+        const shares = d.shares || [];
+        shares.length ? this.archivos.replaceChildren(...shares.map((x) => {
+          const f = el("div", "fila persona");
+          f.append(el("span", "lleno", (x.name || x.id) + " · " + (x.participantName || "")),
+                   boton("Tomar", () => this.api.hacer("share_take", { id: x.id }).then(() => this.api.avisar("Agregado a la escena")), { compacto: true, variante: "acento" }),
+                   boton("Borrar", () => this.api.hacer("share_delete", { id: x.id }), { compacto: true, confirmar: "¿Borrarlo?" }));
+          return f;
+        })) : vacio(this.archivos, "Nadie compartió nada.");
       },
     },
 
@@ -275,12 +340,23 @@
         const acc = el("div", "fila");
         acc.append(boton("Siguiente ▶", () => api.hacer("speaker_next", {}), { variante: "acento" }),
                    boton("Terminar", () => api.hacer("banca_terminar", {}), { variante: "aire" }));
+        // El modo oradores de la sala (lo que estaba en la consola vieja): prenderlo y el tiempo general.
+        const modo = el("div", "fila");
+        this.modo = el("ba-toggle"); this.modo.setAttribute("etiqueta", "Modo oradores");
+        this.modo.addEventListener("cambio", (e) => api.hacer("speakers_config", { enabled: e.detail.valor }).catch(() => {}));
+        this.tiempo = el("ba-slider");
+        for (const [k, v] of [["etiqueta", "Tiempo general"], ["min", "30"], ["max", "900"], ["paso", "30"], ["valor", "180"], ["unidad", "s"]]) this.tiempo.setAttribute(k, v);
+        this.tiempo.addEventListener("final", (e) => api.hacer("speakers_config", { defaultTime: e.detail.valor }).catch(() => {}));
+        modo.append(this.modo);
+        this.modoFila = modo;
         this.fila = el("ol", "fila-oradores");
         this.quien.append(el("strong", "", "Nadie tiene la palabra"));
         this.fila.append(el("li", "vacio", "Nadie pidió la palabra."));
-        c.append(this.quien, acc, el("h3", "", "En la fila"), this.fila);
+        c.append(this.quien, acc, this.modoFila, this.tiempo, el("h3", "", "En la fila"), this.fila);
       },
       actualizar(_, d) {
+        if (d.enabled !== undefined || d.speakerMode !== undefined) this.modo.encendido = !!(d.enabled ?? d.speakerMode);
+        if (typeof d.defaultTime === "number") this.tiempo.valor = d.defaultTime;
         const actual = d.al_aire || d.onAir || d.actual || (d.speakersOnAir || [])[0];
         const nombre = actual ? (actual.nombre || actual.name || actual) : "Nadie tiene la palabra";
         this.quien.replaceChildren(el("strong", "", String(nombre)),

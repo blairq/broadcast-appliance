@@ -642,7 +642,6 @@ int main(int argc, char** argv) {
     sigCfg.pinIntentos = cfg.pinIntentos;
     sigCfg.pinBloqueoS = cfg.pinBloqueoS;
     sigCfg.adminPort = cfg.adminPort;
-    sigCfg.adminWebroot = cfg.adminWebroot;
     // Las caras propias de los botones (fotos y videos cortos): <datos>/Media/botonera.
     sigCfg.carasBotonera = (pathFromUtf8(cfg.configDir).parent_path() / "Media" / "botonera").string();
     {

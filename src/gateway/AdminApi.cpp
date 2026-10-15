@@ -2,21 +2,16 @@
 // src/gateway/AdminApi.cpp — API de control de la sala (operador)
 //
 // Proposito:
-//   La UNICA forma de operar la conferencia. De esta API cuelgan la consola
-//   web (Web/admin) y la vista Qt de la app; ninguna tiene logica propia de
-//   sala, asi que cualquier otra vista futura se hace igual.
+//   La UNICA forma de operar la conferencia. De esta API cuelga la vista Qt de
+//   la app (que es la que la expone al resto: el MCP y el dashboard web /control/);
+//   ninguna vista tiene logica propia de sala.
 //
 //   Escucha SIEMPRE en 127.0.0.1 (puerto `adminPort`, 8788 por defecto).
 //
-// Autenticacion:
-//   - `Authorization: Bearer <token>` (la app Qt; el token lo publica B en
-//     Runtime/gateway-admin.json (dentro del bundle) con permisos solo-usuario), o
-//   - cookie `ba_admin` (la consola web). Se obtiene con un codigo de un solo
-//     uso (POST /api/v1/login-code -> GET /admin/login?code=...) o pegando el
-//     token en la consola (POST /api/v1/login).
-//   Con cookie, toda escritura exige ademas la cabecera `X-BA-Admin: 1`: un
-//   sitio ajeno no puede mandarla sin un preflight CORS que aca no se
-//   responde (defensa CSRF), y la cookie es SameSite=Strict.
+// Autenticacion: `Authorization: Bearer <token>` (la app Qt; el token lo publica
+//   B en Runtime/gateway-admin.json (dentro del bundle) con permisos solo-usuario).
+//   No hay cookie ni página propia: la vieja consola web (/admin/) se reemplazó por
+//   el dashboard /control/, que habla con la app (no con esta API).
 //
 // Rutas (JSON; errores {ok:false, error}):
 //   GET    /api/v1/room                    estado completo (snapshot)
@@ -60,9 +55,6 @@
 //   POST   /api/v1/chat                    {text, to?}
 //   GET    /api/v1/shares/<id>/content     el archivo (vista previa)
 //   DELETE /api/v1/shares/<id>
-//   POST   /api/v1/login-code              -> {code, url} (consola web)
-//   POST   /api/v1/login                   {token} -> cookie
-//   GET    /admin/...                      consola web (estatico)
 // ============================================================================
 
 #include <algorithm>
@@ -133,24 +125,6 @@ bool sameSecret(const std::string& a, const std::string& b) {
     return diff == 0;
 }
 
-std::string cookieValue(const std::string& headers, const std::string& name) {
-    const std::string all = http::getHeader(headers, "Cookie");
-    size_t i = 0;
-    while (i < all.size()) {
-        while (i < all.size() && (all[i] == ' ' || all[i] == ';'))
-            ++i;
-        const size_t eq = all.find('=', i);
-        if (eq == std::string::npos) break;
-        const size_t end = all.find(';', eq);
-        const std::string k = all.substr(i, eq - i);
-        const std::string v = all.substr(eq + 1, end == std::string::npos ? std::string::npos : end - eq - 1);
-        if (k == name) return v;
-        if (end == std::string::npos) break;
-        i = end + 1;
-    }
-    return {};
-}
-
 void sendJson(long long fd, int code, const json& j) {
     http::sendResponse(fd, code, "application/json", j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
@@ -170,40 +144,12 @@ void sendRoomResult(long long fd, int err) {
     }
 }
 
-const char* kCookieName = "ba_admin";
-
 } // namespace
 
 bool SignalingServer::adminAuthorized(const std::string& headers, const std::string& method) const {
     const std::string auth = http::getHeader(headers, "Authorization");
-    if (auth.rfind("Bearer ", 0) == 0 && sameSecret(auth.substr(7), cfg_.adminToken)) return true;
-    if (sameSecret(cookieValue(headers, kCookieName), cfg_.adminToken)) {
-        // Con cookie, las escrituras piden la cabecera anti-CSRF.
-        if (method == "GET" || method == "HEAD") return true;
-        return http::getHeader(headers, "X-BA-Admin") == "1";
-    }
-    return false;
-}
-
-std::string SignalingServer::issueLoginCode() {
-    std::string code;
-    if (!ba::security::randomSecretHex(16, code)) return {};
-    std::lock_guard<std::mutex> lock(loginLock_);
-    const long long now = nowMsA();
-    for (auto it = loginCodes_.begin(); it != loginCodes_.end();) {
-        it = (it->second <= now) ? loginCodes_.erase(it) : std::next(it);
-    }
-    loginCodes_[code] = now + ba::ajustes::sAMs("room.adminCodigoS", 120); // para abrir el navegador
-    return code;
-}
-
-bool SignalingServer::redeemLoginCode(const std::string& code) {
-    std::lock_guard<std::mutex> lock(loginLock_);
-    const auto it = loginCodes_.find(code);
-    if (it == loginCodes_.end()) return false;
-    const bool ok = it->second > nowMsA();
-    loginCodes_.erase(it); // un solo uso, valga o no
-    return ok;
+    (void)method;
+    return auth.rfind("Bearer ", 0) == 0 && sameSecret(auth.substr(7), cfg_.adminToken);
 }
 
 std::string SignalingServer::changePin(const std::string& pin) {
@@ -242,48 +188,13 @@ void SignalingServer::guardarPinDeHoy(const std::string& pin) {
 void SignalingServer::handleAdmin(long long fd, const std::string& method, const std::string& path,
                                   const std::string& query, const std::string& headers,
                                   const std::string& body) {
-    // --- Sin autenticacion: salud, consola web estatica y login -------------
+    // --- Sin autenticacion: la salud ------------------------------------------
     if (path == "/healthz") {
         http::sendResponse(fd, 200, "text/plain", "ok\n");
         return;
     }
-    const std::string cookieAttrs = "; Path=/; HttpOnly; SameSite=Strict";
-    if (path == "/admin/login" && method == "GET") {
-        const auto q = http::parseQuery(query);
-        const std::string code = q.count("code") ? http::urlDecode(q.at("code")) : "";
-        if (!redeemLoginCode(code)) {
-            http::sendResponse(fd, 302, "text/plain", "codigo vencido\n", "Location: /admin/\r\n");
-            return;
-        }
-        http::sendResponse(fd, 302, "text/plain", "ok\n",
-                           "Set-Cookie: " + std::string(kCookieName) + "=" + cfg_.adminToken + cookieAttrs +
-                               "\r\nLocation: /admin/\r\n");
-        return;
-    }
-    if (path == "/api/v1/login" && method == "POST") {
-        const json req = json::parse(body, nullptr, false);
-        const std::string tok = req.is_object() ? req.value("token", "") : "";
-        if (!sameSecret(tok, cfg_.adminToken)) {
-            sendErr(fd, 401, "auth");
-            return;
-        }
-        http::sendResponse(fd, 200, "application/json", R"({"ok":true})",
-                           "Set-Cookie: " + std::string(kCookieName) + "=" + cfg_.adminToken + cookieAttrs +
-                               "\r\n");
-        return;
-    }
-    if (path == "/admin" || path.rfind("/admin/", 0) == 0) {
-        if (method != "GET") {
-            sendErr(fd, 405, "method");
-            return;
-        }
-        std::string rel = path.size() > 7 ? path.substr(7) : std::string();
-        if (rel.empty()) rel = "index.html";
-        serveStatic(fd, cfg_.adminWebroot, rel);
-        return;
-    }
     if (path == "/" && method == "GET") {
-        http::sendResponse(fd, 302, "text/plain", "", "Location: /admin/\r\n");
+        http::sendResponse(fd, 200, "text/plain", "API de control de la sala (solo para la app).\n");
         return;
     }
 
@@ -1052,20 +963,6 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendRoomResult(fd, room_.chatFromHost(req.value("to", "all"), req.value("text", ""), nowMsA()));
         return;
     }
-    if (path == "/api/v1/login-code" && method == "POST") {
-        const std::string code = issueLoginCode();
-        if (code.empty()) {
-            sendErr(fd, 500, "entropy");
-            return;
-        }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"code", code},
-                      {"url",
-                       "http://127.0.0.1:" + std::to_string(adminBoundPort_) + "/admin/login?code=" + code}});
-        return;
-    }
-
     // /api/v1/participants/<id>/<accion>
     static const std::string kPart = "/api/v1/participants/";
     if (path.rfind(kPart, 0) == 0 && method == "GET") {

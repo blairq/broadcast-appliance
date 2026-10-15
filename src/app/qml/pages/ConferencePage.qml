@@ -1,7 +1,6 @@
 // Sala de videoconferencia: lobby | participantes (con su video) + chat |
 // acceso + archivos compartidos. Solo presentacion: todo sale de
-// Studio.conference, que a su vez es un cliente de la API de control de B
-// (la misma que usa la consola web).
+// Studio.conference, que a su vez es un cliente de la API de control de B.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -855,12 +854,6 @@ Rectangle {
                         ToolTip.visible: hovered; ToolTip.delay: 300
                         ToolTip.text: conf.locked ? "Sala cerrada: nadie nuevo puede pedir entrar" : "Sala abierta a quien tenga el PIN"
                     }
-                    GlassButton {
-                        Layout.alignment: Qt.AlignHCenter
-                        icon: "↗"; compact: true; enabled: conf.online
-                        onClicked: conf.openWebConsole()
-                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir consola web"
-                    }
                 }
 
             ScrollView {
@@ -1063,7 +1056,6 @@ Rectangle {
                                 onClicked: { Studio.seccionConfig = "Voz del operador"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
                             }
                         }
-                        GlassButton { text: "Abrir consola web"; icon: "↗"; compact: true; enabled: conf.online; onClicked: conf.openWebConsole() }
                     }
                 }
 

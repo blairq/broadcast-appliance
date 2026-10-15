@@ -95,7 +95,6 @@ struct Config {
     int pinIntentos = 5;        // PIN mal tantas veces desde una IP: se la bloquea
     int pinBloqueoS = 60;       // por cuánto
     nlohmann::json ajustes = nlohmann::json::object(); // los avanzados (ba::ajustes), de gateway.json
-    std::string adminWebroot;  // Web/admin (consola web del operador)
     // --- Acceso directo de invitados ----------------------------------------
     bool https = true;           // HTTPS propio (camara/micro exigen pagina segura)
     uint16_t httpsPort = 8789;   // en bindAddress (8443 suele estar tomado: LXD, etc.)
@@ -354,7 +353,6 @@ struct Config {
         const std::filesystem::path web =
             std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";
         if (webroot.empty()) webroot = utf8(web / "guest");
-        if (adminWebroot.empty()) adminWebroot = utf8(web / "admin");
         // Lo de la configuración activa (Configuraciones/<nombre>/): su Config/ y lo que comparten los invitados.
         const std::filesystem::path conf = ba::platform::configRoot().empty() ? root : ba::platform::configRoot();
         if (sharesDir.empty()) sharesDir = utf8(conf / "Shares");

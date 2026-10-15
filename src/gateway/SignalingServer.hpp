@@ -118,7 +118,6 @@ class SignalingServer {
         int maxGuests = 4;
         // --- API de control (loopback siempre) ---
         uint16_t adminPort = 8788; // 0 = puerto efimero (tests)
-        std::string adminWebroot;  // Web/admin (consola web)
         std::string adminToken;    // Bearer / cookie de la consola; vacio = sin API de control
         int maxSharesPerGuest = 20;
         std::string boardWebroot;    // Web/board (tablero de oradores)
@@ -396,8 +395,6 @@ class SignalingServer {
     void adminEvents(long long fd);
     void adminShareContent(long long fd, const std::string& id);
     void broadcastToHosts(const std::string& event, const nlohmann::json& data);
-    std::string issueLoginCode();
-    bool redeemLoginCode(const std::string& code);
 
     struct SseConn {
         long long fd = -1;
@@ -405,8 +402,6 @@ class SignalingServer {
     };
     std::vector<std::shared_ptr<SseConn>> sse_;
     std::mutex sseLock_;
-    std::map<std::string, long long> loginCodes_; // code -> vence (ms)
-    std::mutex loginLock_;
 
     Cfg cfg_;
     TokenAuth& auth_;

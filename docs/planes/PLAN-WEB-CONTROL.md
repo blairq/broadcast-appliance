@@ -85,7 +85,7 @@ Con el sistema de diseño y el puente nuevo:
 - **Presidencia:** el mismo protocolo (`/ws?presidencia=1`) con la interfaz nueva. Botones grandes para dar la palabra, sumar tiempo y silenciar a todos; el recinto con las bancas y la toma de cada una; la votación.
 - **Botonera:** las celdas como botones, faders y perillas neumórficos (hoy son cuadrados planos).
 - **Rótulos y corrección:** la interfaz nueva, y del sondeo pasan al canal que empuja.
-- **La consola `/admin/`:** se reemplaza por `/control/`. Queda un aviso que lleva al dashboard.
+- **La consola `/admin/`:** se sacó entera (página, login por código, cookie). Lo que hacía está en `/control/` (tarjeta Sala) y en la página Sala de la app; el generador de WireGuard queda en la app y en el MCP (`acceso_remoto_*`).
 
 ## Fases
 
@@ -96,7 +96,7 @@ Con el sistema de diseño y el puente nuevo:
 | W3 | `/control/` con escenas, PTZ, mezclador y salidas; pantalla completa en pestaña nueva | Chrome con un aparato emparejado contra la app de prueba |
 | W4 | El resto de las tarjetas: gráficos, rótulos, sala, asamblea, teleprompter, latencias, estado | igual |
 | W5 | Presidencia rediseñada | la prueba de punta a punta de la asamblea, desde la consola |
-| W6 | Botonera, rótulos y corrección rediseñados; `/admin/` lleva a `/control/` | capturas |
+| W6 | Botonera, rótulos y corrección rediseñados; `/admin/` eliminado | capturas |
 
 ## Para decidir
 

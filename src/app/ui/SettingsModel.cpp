@@ -164,7 +164,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"direct.httpsPort", "Red de la sala", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).", "gateway", 8789},
         {"direct.rtcMin", "Red de la sala", "WebRTC: primer puerto UDP", "int", {}, 1024, 65000, "", "Rango fijo para el firewall y la redirección del servidor.", "gateway", 40000},
         {"direct.rtcMax", "Red de la sala", "WebRTC: último puerto UDP", "int", {}, 1024, 65535, "", "", "gateway", 40099},
-        {"room.adminPort", "Red de la sala", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: consola web y esta interfaz.", "gateway", 8788},
+        {"room.adminPort", "Red de la sala", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: la usa esta app.", "gateway", 8788},
         // --- Acceso remoto ---------------------------------------------------------
         {"gateway.tunnel", "Cloudflare", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Saca la sala a internet por un túnel de Cloudflare (cloudflared). Necesita el token del túnel (acá arriba).", "gateway", false},
         {"gateway.tunnelHost", "Cloudflare", "Dominio público (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},

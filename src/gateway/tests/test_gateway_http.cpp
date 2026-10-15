@@ -8,8 +8,7 @@
 //   2. /api/join con PIN correcto/incorrecto.
 //   3. Upgrade WS: cabeceras en cualquier capitalizacion, Sec-WebSocket-Accept
 //      del RFC 6455 (el valor de la cabecera no se altera) y anti-replay.
-//   4. API de control: Bearer, cookie (solo lectura sin X-BA-Admin: CSRF) y
-//      que NO exista en la superficie de invitados.
+//   4. API de control: solo Bearer, y que NO exista en la superficie de invitados.
 //   5. Lobby: el invitado espera, el operador lo ve por SSE, un offer desde el
 //      lobby se ignora, admitir por la API le da su slot.
 //   6. Offer fragmentado (FIN=0 + continuaciones) -> answer.
@@ -20,7 +19,7 @@
 //  10. Reconexion: el corte conserva el slot; resume con clave mala -> 401,
 //      con la buena vuelve a su slot.
 //  11. Sala cerrada -> 423; lobby apagado -> admision directa.
-//  12. Cambio de PIN y login de la consola web con codigo de un solo uso.
+//  12. Cambio de PIN (uno por dia).
 //  13. QR de ingreso (URL local/remota, PIN opcional en el fragmento).
 //  14. Modo oradores: admitir = a la fila (backstage) con info y contacto,
 //      aviso "speaker" al invitado, al aire por la API, foto (JPEG chico,
@@ -415,7 +414,6 @@ int main() {
     scfg.port = 0;      // efimero: nada de pelear por un puerto fijo en CI
     scfg.adminPort = 0; // idem
     scfg.webroot = BA_TEST_WEBROOT;
-    scfg.adminWebroot = BA_TEST_WEBROOT; // alcanza para probar el estatico
     scfg.boardWebroot = BA_TEST_WEBROOT;
     const std::string kAdmin = "token-de-operador-de-prueba";
     scfg.adminToken = kAdmin;
@@ -502,15 +500,6 @@ int main() {
         const std::string ok = httpReq(aport, "GET", "/api/v1/room", bearer);
         CHECK(statusLine(ok).find("200") != std::string::npos, "con Bearer -> 200");
         CHECK(jsonBody(ok).value("pin", "") == "", "el PIN lo informa main (aca no se seteo)");
-        const std::string cookie = "Cookie: ba_admin=" + kAdmin + "\r\n";
-        CHECK(statusLine(httpReq(aport, "GET", "/api/v1/room", cookie)).find("200") != std::string::npos,
-              "cookie sirve para leer");
-        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/room", cookie, "{\"locked\":false}")).find("401") !=
-                  std::string::npos,
-              "con cookie, escribir sin X-BA-Admin -> 401 (CSRF)");
-        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/room", cookie + "X-BA-Admin: 1\r\n", "{}"))
-                      .find("200") != std::string::npos,
-              "con cookie + X-BA-Admin -> 200");
         CHECK(statusLine(httpReq(port, "GET", "/api/v1/room", bearer)).find("404") != std::string::npos,
               "la API de control NO existe en la superficie de invitados");
     }
@@ -680,7 +669,7 @@ int main() {
         closeTestFd(dani.fd);
     }
 
-    // --- 12) PIN y login de la consola web ----------------------------------
+    // --- 12) PIN de la sala ----------------------------------
     {
         const json pin = jsonBody(httpReq(aport, "POST", "/api/v1/pin", bearer, R"({"pin":"4455"})"));
         CHECK(pin.value("pin", "") == "4455", "cambiar el PIN");
@@ -695,18 +684,6 @@ int main() {
         CHECK(mismo.value("pin", "") == gen.value("pin", "") && !mismo.value("cambio", true),
               "sesión nueva el mismo día: el mismo PIN");
 
-        const json code = jsonBody(httpReq(aport, "POST", "/api/v1/login-code", bearer));
-        const std::string c = code.value("code", "");
-        CHECK(!c.empty(), "codigo de un solo uso para la consola");
-        const std::string login = httpReq(aport, "GET", "/admin/login?code=" + c, "");
-        CHECK(login.find("Set-Cookie: ba_admin=" + kAdmin) != std::string::npos, "el codigo da la cookie");
-        CHECK(login.find("HttpOnly") != std::string::npos &&
-                  login.find("SameSite=Strict") != std::string::npos,
-              "cookie HttpOnly + SameSite=Strict");
-        const std::string again = httpReq(aport, "GET", "/admin/login?code=" + c, "");
-        CHECK(again.find("Set-Cookie") == std::string::npos, "el codigo no sirve dos veces");
-        CHECK(statusLine(httpReq(aport, "GET", "/admin/", "")).find("200") != std::string::npos,
-              "la consola web se sirve");
     }
 
     // --- 13) QR de ingreso --------------------------------------------------

@@ -74,7 +74,6 @@ const std::vector<AjusteAvanzado>& ajustesAvanzados() {
         {"room.pinGlobalBloqueoS", "Sala", "PIN: bloqueo general", "int", {}, 5, 86400, "s", "", "gateway", QVariant(60), Destino::Sala},
         {"room.tokenTtlS", "Sala", "Vida del pase de un invitado", "int", {}, 30, 86400, "s", "El pase que recibe al poner el PIN, para entrar.", "gateway", QVariant(300), Destino::Sala},
         {"room.subidaTimeoutS", "Sala", "Archivos compartidos: espera de red", "int", {}, 5, 600, "s", "", "gateway", QVariant(60), Destino::Sala},
-        {"room.adminCodigoS", "Sala", "Código de la consola web: vale", "int", {}, 30, 3600, "s", "Lo que dura el código para abrir la consola web en el navegador.", "gateway", QVariant(120), Destino::Sala},
         {"sesion.maxConexiones", "Sala", "Sesión remota: conexiones", "int", {}, 10, 10000, "", "", "gateway", QVariant(4096), Destino::Sala},
         {"sesion.mensajesPorSegundo", "Sala", "Sesión remota: mensajes por segundo", "int", {}, 1, 1000, "", "Por conexión.", "gateway", QVariant(20), Destino::Sala},
         {"sesion.latidoS", "Sala", "Sesión remota: latido", "int", {}, 5, 300, "s", "", "gateway", QVariant(30), Destino::Sala},

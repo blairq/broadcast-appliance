@@ -182,7 +182,7 @@ Rectangle {
                                             // Sin enlace, solo se muestra la línea de afuera para decir que falta el
                                             // túnel (y solo en lo que la sala sirve hacia afuera).
                                             visible: hay || (enl.modelData.remoto && !page.en.hayTunel && (fila.s.local || "") !== ""
-                                                             && ["botonera", "companion", "consola"].indexOf(fila.s.id) < 0)
+                                                             && ["botonera", "companion"].indexOf(fila.s.id) < 0)
                                             Layout.fillWidth: true
                                             Layout.leftMargin: 22
                                             spacing: 8

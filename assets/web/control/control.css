@@ -83,3 +83,13 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .aviso { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 30; padding: 13px 22px; border-radius: var(--radio-chico);
   color: var(--texto); background: var(--superficie-plana); box-shadow: var(--relieve-alto); border: 1px solid var(--borde); font-weight: 600; max-width: 90vw; }
 .aviso.error { color: #fff; background: var(--aire); }
+
+/* --- Sala ----------------------------------------------------------------------------------- */
+.sala-cabeza, .sala-enlace { gap: 12px; }
+.enlace-qr { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.enlace-qr .qr { width: 200px; height: 200px; border-radius: var(--radio-chico); background: #fff; padding: 10px; box-shadow: var(--relieve); }
+.dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 900px) { .dos-columnas { grid-template-columns: 1fr; } }
+.chat { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding: 10px 12px;
+  border-radius: var(--radio-chico); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.chat .mensaje { font-size: 14px; }
