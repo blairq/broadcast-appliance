@@ -126,6 +126,7 @@ json armar(const Fotos& f) {
             const std::string idE = "entrada:" + id + (esAudio ? ":audio" : "");
             // Los pasos de esta rama.
             std::vector<Paso> pasos;
+            std::vector<Paso> ramas; ///< lo que escucha una copia (voz a texto, traducir…): no atrasa
             for (const auto& fl : filtros) {
                 if (!fl.is_object() || si(fl, "audio") != esAudio) continue;
                 Paso p;
@@ -146,7 +147,20 @@ json armar(const Fotos& f) {
                 if (const auto r = f.racks.find(id); r != f.racks.end()) {
                     const double sr = std::max(1.0, r->second.value("frecuenciaMuestreo", 48000.0));
                     for (const auto& n : r->second.value("nodos", json::array())) {
-                        if (n.value("tipo", std::string()) != "plugin") continue;
+                        const std::string tn = n.value("tipo", std::string());
+                        if (tn == "texto" || tn == "habla" || tn == "traducir") {
+                            Paso p;
+                            p.id = "modulo:" + id + ":" + n.value("id", std::string());
+                            p.tipo = "derivacion";
+                            p.titulo = !n.value("etiqueta", std::string()).empty() ? n.value("etiqueta", std::string())
+                                       : tn == "texto" ? std::string("Voz a texto") : tn == "habla" ? std::string("Texto a voz") : std::string("Traducción");
+                            p.detalle = {{"que", "escucha una copia del audio: no atrasa lo que sale"}, {"tipo", tn}};
+                            for (const char* k : {"flujo", "modo", "nombre"})
+                                if (n.contains(k)) p.detalle[k] = n[k];
+                            ramas.push_back(std::move(p));
+                            continue;
+                        }
+                        if (tn != "plugin") continue;
                         Paso p;
                         p.id = "modulo:" + id + ":" + n.value("id", std::string());
                         p.tipo = "modulo";
@@ -209,6 +223,14 @@ json armar(const Fotos& f) {
             }
             // Lo medido al salir de la entrada manda (los pasos sin medir quedan adentro).
             if (medida) a.acumulado[previo] = total;
+            // Las ramas (escuchan una copia): colgadas de la entrada, sin sumar al camino.
+            for (const auto& p : ramas) {
+                json& nr = a.nodo(p.id, p.tipo, p.titulo, 1, medio, activa);
+                nr["detalle"] = p.detalle;
+                nr["fuente"] = "derivacion";
+                nr["estado"] = "bien";
+                a.tramo(idE, p.id, medio);
+            }
             (esAudio ? conAudio : conVideo).insert(previo + "\x1f" + id);
         }
     }

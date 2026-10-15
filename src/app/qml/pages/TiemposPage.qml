@@ -124,10 +124,12 @@ Rectangle {
         let f = 0
         for (const n of nodos) if (n.tipo === "entrada") fila[n.id] = f++
         for (const n of nodos)
-            if (n.columna === 1) {
+            if (n.columna === 1 && n.tipo !== "derivacion") {
                 const ent = (n.medio === "audio" ? "entrada:" + entradaDe(n) + ":audio" : "entrada:" + entradaDe(n))
                 fila[n.id] = fila[ent] !== undefined ? fila[ent] : f++
             }
+        // Las ramas (voz a texto…): en una fila propia, debajo de las demás.
+        for (const n of nodos) if (n.tipo === "derivacion") fila[n.id] = f++
         for (const col of [2, 3]) {
             const enCol = nodos.filter(n => n.columna === col)
             for (const n of enCol) {
@@ -393,9 +395,19 @@ Rectangle {
                     target: null
                     onScaleChanged: (delta) => mundo.escala = Math.max(0.35, Math.min(2.0, mundo.escala * delta))
                 }
+                // Encajar: el zoom para que entre todo el mapa (solo al abrir y cuando cambia cuántas tarjetas hay).
+                function encajar() {
+                    if (page.acomodo.nodos.length === 0 || lienzo.width <= 0) return
+                    mundo.escala = Math.max(0.6, Math.min(1.0, Math.min(lienzo.width / page.acomodo.ancho, lienzo.height / page.acomodo.alto))) // legible: lo que no entra, con scroll
+                    lienzo.contentX = 0; lienzo.contentY = 0
+                }
+                property int cuantas: page.acomodo.nodos.length
+                onCuantasChanged: Qt.callLater(encajar)
+                onHeightChanged: Qt.callLater(encajar)
                 Row {
                     anchors { right: parent.right; bottom: parent.bottom; margins: 10 }
                     spacing: 4
+                    GlassButton { compact: true; text: "Encajar"; icon: "⤢"; onClicked: parent.parent.encajar() }
                     GlassButton { compact: true; text: "−"; onClicked: mundo.escala = Math.max(0.35, mundo.escala * 0.85) }
                     GlassButton { compact: true; text: Math.round(mundo.escala * 100) + " %"; onClicked: mundo.escala = 1.0 }
                     GlassButton { compact: true; text: "+"; onClicked: mundo.escala = Math.min(2.0, mundo.escala * 1.15) }
@@ -453,7 +465,7 @@ Rectangle {
         // --- La línea de tiempo: las tarjetas elegidas, con los eventos abajo --------------------
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: page.serie.length === 0 ? 46 : (page.modoLinea === "apiladas" ? Math.min(420, 90 + 74 * page.serie.length) : 250)
+            Layout.preferredHeight: page.serie.length === 0 ? 46 : (page.modoLinea === "apiladas" ? Math.min(360, 80 + 64 * page.serie.length) : 220)
             Behavior on Layout.preferredHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
             radius: 14
             color: Theme.glassTint
@@ -544,7 +556,8 @@ Rectangle {
         // --- Abajo: los análisis ------------------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 112
+            // Vacío, una línea; con análisis, la tira de tarjetas.
+            Layout.preferredHeight: page.tm && page.tm.analisis.length > 0 ? 112 : 40
             radius: 14
             color: Theme.glassTint
             border.color: Theme.glassBorder

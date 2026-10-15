@@ -56,7 +56,8 @@ int main() {
     f.racks["mic"] = {{"frecuenciaMuestreo", 48000},
                       {"nodos", json::array({{{"id", "n1"}, {"tipo", "plugin"}, {"etiqueta", "Compresor"}, {"modulo", "lsp.comp"},
                                               {"ms_medio", 0.5}, {"latencia_muestras", 480}},
-                                             {{"id", "in"}, {"tipo", "in"}}})}};
+                                             {{"id", "in"}, {"tipo", "in"}},
+                                             {{"id", "t1"}, {"tipo", "texto"}, {"etiqueta", ""}}})}};
 
     const json g = armar(f);
     std::printf("%s\n", g.dump(1, ' ', false, json::error_handler_t::replace).c_str());
@@ -74,6 +75,9 @@ int main() {
     const json* mod = nodo(g, "modulo:mic:n1");
     CHECK(mod && (*mod)["titulo"] == "Compresor" && cerca((*mod)["ms"], 10.5), "el módulo: proceso + su latencia (480 muestras = 10 ms)");
     CHECK(nodo(g, "modulo:mic:in") == nullptr, "lo que no es un plugin del rack no es un paso");
+    const json* vt = nodo(g, "modulo:mic:t1");
+    CHECK(vt && (*vt)["tipo"] == "derivacion" && (*vt)["titulo"] == "Voz a texto" && (*vt)["fuente"] == "derivacion",
+          "la voz a texto: una rama que escucha una copia");
     const json* ea = nodo(g, "entrada:mic:audio");
     CHECK(ea && cerca((*ea)["ms"], 14.5), "la entrada de audio: 25 − 10,5 del módulo");
     CHECK(e && (*e)["activo"] == true && sr && (*sr)["activo"] == true, "le llegan datos: activa (y sus tarjetas)");

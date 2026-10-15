@@ -26,7 +26,7 @@ Item {
                                        : nodo.estado === "bien" ? Theme.ok : Theme.textFaint
     readonly property color colorMedio: nodo.medio === "audio" ? "#ffb347" : nodo.medio === "video" ? "#4fd8ff" : "#c38bff"
     readonly property string icono: ({ entrada: "◉", tarjeta: "▣", modulo: "🎚", escena: "▦", mezcla: "◎",
-                                       transmision: "📡", grabacion: "⏺", pantalla: "🖵" })[nodo.tipo] || "•"
+                                       transmision: "📡", grabacion: "⏺", pantalla: "🖵", derivacion: "✎" })[nodo.tipo] || "•"
     function ms(v) { return v === null || v === undefined ? "—" : (v >= 1000 ? (v / 1000).toFixed(2) + " s" : Number(v).toFixed(v < 10 ? 1 : 0) + " ms") }
 
     // --- La inclinación que sigue al puntero (y se endereza sola) -----------------------
@@ -185,7 +185,8 @@ Item {
                     Text {
                         id: etiqueta
                         anchors.centerIn: parent
-                        text: t.nodo.fuente === "medido" ? "medido" : t.nodo.fuente === "declarado" ? "declarado" : "sin medir"
+                        text: t.nodo.fuente === "medido" ? "medido" : t.nodo.fuente === "declarado" ? "declarado"
+                            : t.nodo.fuente === "derivacion" ? "no atrasa" : "sin medir"
                         color: t.nodo.fuente === "medido" ? Theme.ok : Theme.textDim
                         font.pixelSize: 8
                     }
