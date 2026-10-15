@@ -48,6 +48,10 @@ const std::vector<ServicioEnlace>& catalogo() {
         {"botonera", "Producción", "Botonera en una tablet",
          "Una tablet como superficie de control. Se empareja con un código de un solo uso (solo red local).", "",
          "botonera", false, "Emparejar"},
+        {"control", "Producción", "Control web (dashboard)",
+         "Una tablet, notebook o PC como consola completa en el navegador: escenas, PTZ, mezclador, salidas. "
+         "Se empareja con un QR y una persona lo aprueba acá (solo red local).",
+         "", "", false, "Emparejar (QR)"},
         {"companion", "Producción", "API para Companion (HTTP)",
          "Bitfocus Companion u otro programa que aprieta botones de la botonera por HTTP.", "", "botonera"},
         {"satellite", "Producción", "Companion Satellite",
@@ -158,6 +162,22 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
         poner(!enLinea              ? estado("error", "La sala no responde")
               : soloEstaMaquina(red) ? estado("aviso", QString("Ninguna tablet llega: ") + kSoloEsta)
                                      : estado("ok", "Lista para emparejar (solo red local)"));
+    } else if (id == "control") {
+        const QVariantMap c = f_.controlWeb ? f_.controlWeb() : QVariantMap();
+        const int conectados = c.value("conectados").toInt();
+        const int pendientes = c.value("pendientes").toInt();
+        m["local"] = red.isEmpty() ? QVariant() : QVariant(red + "/control/");
+        m["remoto"] = afuera.isEmpty() || !c.value("tunel").toBool() ? QVariant() : QVariant(afuera + "/control/");
+        m["nota"] = QString("Sin emparejar no entra nadie. Aparatos emparejados: %1%2")
+                        .arg(c.value("aparatos").toInt())
+                        .arg(c.value("tunel").toBool() ? " · desde afuera, con PIN" : "");
+        // El LED: verde si hay algún aparato conectado ahora.
+        poner(!enLinea                ? estado("error", "La sala no responde")
+              : soloEstaMaquina(red)  ? estado("aviso", QString("Ningún aparato llega: ") + kSoloEsta)
+              : pendientes > 0        ? estado("aviso", QString::number(pendientes) + " esperan aprobación (abajo)")
+              : conectados > 0        ? estado("ok", conectados == 1 ? QString("Un aparato conectado")
+                                                                     : QString::number(conectados) + " aparatos conectados")
+                                      : estado("apagado", "Ningún aparato conectado ahora"));
     } else if (id == "companion") {
         const QVariantMap a = f_.apiRemota ? f_.apiRemota() : QVariantMap();
         m["activable"] = true;
@@ -279,6 +299,7 @@ QString EnlacesViewModel::activar(const QString& id, bool activo) {
 
 void EnlacesViewModel::accion(const QString& id) {
     if (id == "consola" && f_.abrirConsolaWeb) f_.abrirConsolaWeb();
+    else if (id == "control" && f_.emparejarControlWeb) f_.emparejarControlWeb();
 }
 
 } // namespace ba::app

@@ -72,6 +72,8 @@
 #include "agent/Notificador.hpp"
 #include "control/Botonera.hpp"
 #include "control/BotoneraGateway.hpp"
+#include "control/ControlWeb.hpp"
+#include "control/ControlWebGateway.hpp"
 #include "asamblea/Debate.hpp"
 #include "control/CarasBotonera.hpp"
 #include "control/BusEventos.hpp"
@@ -1485,6 +1487,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             else if (origen == "satellite" && satellite_)
                 satellite_->mensaje(dev.toStdString(), msg);
         });
+        // El control web (dashboard /control/): sus aparatos y el puente con el gateway (como la botonera).
+        controlWeb_ = std::make_unique<control::ControlWeb>(rt.dataRoot());
+        controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, *cli);
+        connect(controlWebGw_.get(), &control::ControlWebGateway::aviso, this,
+                [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
+        connect(controlWeb_.get(), &control::ControlWeb::solicitudNueva, this,
+                [this](const QString&, const QString& nombre, const QString& ip) {
+                    emit notify("«" + nombre + "» (" + ip + ") pide entrar al control web: aprobalo en Servicios → Control web.",
+                                "warn");
+                });
         connect(botonera_.get(), &control::Botonera::solicitudNueva, this,
                 [this](const QString&, const QString& nombre, const QString& perfil, const QString& ip) {
                     emit notify("«" + nombre + "» (" + ip + ") pide emparejarse como botonera con el perfil «" + perfil +
@@ -1679,6 +1691,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
         };
         f.abrirConsolaWeb = [this]() { conference_->openWebConsole(); };
+        f.controlWeb = [this]() -> QVariantMap {
+            return {{"conectados", controlWeb_->conectados()},
+                    {"aparatos", controlWeb_->aparatosUi().size()},
+                    {"pendientes", controlWeb_->solicitudesUi().size()},
+                    {"tunel", controlWeb_->tunel()}};
+        };
+        f.emparejarControlWeb = [this]() { emparejarControlWebUi(); };
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };
@@ -1686,6 +1705,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(conference_.get(), &ConferenceViewModel::roomChanged, e, avisar);
         if (accesoRemoto_) connect(accesoRemoto_.get(), &AccesoRemoto::estadoChanged, e, avisar);
         if (satellite_) connect(satellite_.get(), &control::SatelliteServidor::cambio, e, avisar);
+        connect(controlWeb_.get(), &control::ControlWeb::aparatosCambio, e, avisar);
+        connect(controlWeb_.get(), &control::ControlWeb::solicitudesCambio, e, avisar);
+        connect(controlWeb_.get(), &control::ControlWeb::conexionesCambio, e, avisar);
         if (evento_) {
             connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
             connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
@@ -3365,6 +3387,24 @@ void StudioViewModel::publicarEventos() {
 namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
+QObject* StudioViewModel::controlWebQml() const { return controlWeb_.get(); }
+
+void StudioViewModel::emparejarControlWebUi() {
+    QPointer<StudioViewModel> yo(this);
+    controlWebGw_->emparejar(nullptr, "", [yo](const nlohmann::json& r) {
+        if (!yo) return;
+        if (!r.contains("url")) {
+            emit yo->notify(QString::fromStdString(r.value("error", std::string("No se pudo emparejar."))), "error");
+            return;
+        }
+        const std::string aviso = r.value("aviso", std::string());
+        emit yo->mostrarQr(QString::fromStdString(r.value("url", std::string())), "Control web (/control/)",
+                           QString::fromStdString("Abrilo en el navegador del aparato (de la red local; el código vale unos "
+                                                  "minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web." +
+                                                  (aviso.empty() ? std::string() : "\n" + aviso)),
+                           "verde");
+    });
+}
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::carasBotoneraQml() const { return carasBotonera_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }

@@ -82,9 +82,36 @@ void BotoneraGateway::emparejar(const std::string& perfil, const std::string& no
     }
     const std::string codigo = texto(c, "codigo");
     const std::int64_t vence = c.value("vence_ms", std::int64_t{0});
-    sala::pedir(gw_, "GET", "/api/v1/network", {}, [codigo, vence, listo](const std::string& error, const json& r) {
+    baseRedLocal(gw_, [codigo, vence, listo](const json& b) {
+        if (b.value("sin_respuesta", false)) {
+            listo({{"error", texto(b, "error")}});
+            return;
+        }
+        json out{{"codigo", codigo}, {"vence_ms", vence}};
+        for (const char* k : {"huella", "aviso", "error"})
+            if (b.contains(k)) out[k] = b[k];
+        if (out.contains("error")) {
+            listo(out);
+            return;
+        }
+        const std::string url = texto(b, "base") + "botonera/#p=" + codigo;
+        out["url"] = url;
+        out["qr"] = qrDataUrl(url);
+        listo(out);
+    });
+}
+
+std::string BotoneraGateway::qrDataUrl(const std::string& url) {
+    ba::qr::Estilo e;
+    e.correccion = ba::qr::Correccion::Media;
+    const std::string svg = ba::qr::svg(url, e);
+    return "data:image/svg+xml;base64," + QByteArray::fromStdString(svg).toBase64().toStdString();
+}
+
+void BotoneraGateway::baseRedLocal(ConferenceClient& gw, std::function<void(const json&)> listo) {
+    sala::pedir(gw, "GET", "/api/v1/network", {}, [listo](const std::string& error, const json& r) {
         if (!error.empty()) {
-            listo({{"error", "No pude preguntarle al gateway la dirección de la red local."}});
+            listo({{"error", "No pude preguntarle al gateway la dirección de la red local."}, {"sin_respuesta", true}});
             return;
         }
         // Una URL de la red local (no la del túnel), HTTPS si está.
@@ -102,7 +129,7 @@ void BotoneraGateway::emparejar(const std::string& perfil, const std::string& no
             if (!deLan) continue;
             if (base.empty() || (u.rfind("https", 0) == 0 && base.rfind("https", 0) != 0)) base = u;
         }
-        json out{{"codigo", codigo}, {"vence_ms", vence}};
+        json out = json::object();
         const json https = r.value("https", json::object());
         const bool conHttps = https.is_object() && https.value("enabled", false);
         if (conHttps) out["huella"] = texto(https, "fingerprint");
@@ -132,12 +159,7 @@ void BotoneraGateway::emparejar(const std::string& perfil, const std::string& no
             return;
         }
         if (base.back() != '/') base += '/';
-        const std::string url = base + "botonera/#p=" + codigo;
-        out["url"] = url;
-        ba::qr::Estilo e;
-        e.correccion = ba::qr::Correccion::Media;
-        const std::string svg = ba::qr::svg(url, e);
-        out["qr"] = "data:image/svg+xml;base64," + QByteArray::fromStdString(svg).toBase64().toStdString();
+        out["base"] = base;
         listo(out);
     });
 }

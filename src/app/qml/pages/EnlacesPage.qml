@@ -71,6 +71,9 @@ Rectangle {
                 width: scroll.availableWidth
                 spacing: 16
 
+                // Los aparatos del control web: aprobar, perfil y quitar (lo hace una persona).
+                PanelControlWeb { Layout.fillWidth: true }
+
                 Repeater {
                     model: page.grupos()
                     ColumnLayout {
@@ -137,9 +140,10 @@ Rectangle {
                                                 wrapMode: Text.WordWrap
                                             }
                                         }
+                                        // La acción propia de la fila (abrir la consola, emparejar con QR…).
                                         GlassButton {
-                                            visible: fila.s.accion === "Abrir"
-                                            compact: true; text: "Abrir"; icon: "↗"
+                                            visible: fila.s.accion !== "" && fila.s.accion !== "Emparejar"
+                                            compact: true; text: fila.s.accion; icon: fila.s.accion === "Abrir" ? "↗" : "▦"
                                             onClicked: page.en.accion(fila.s.id)
                                         }
                                         GlassButton {
@@ -182,7 +186,7 @@ Rectangle {
                                             // Sin enlace, solo se muestra la línea de afuera para decir que falta el
                                             // túnel (y solo en lo que la sala sirve hacia afuera).
                                             visible: hay || (enl.modelData.remoto && !page.en.hayTunel && (fila.s.local || "") !== ""
-                                                             && ["botonera", "companion", "consola"].indexOf(fila.s.id) < 0)
+                                                             && ["botonera", "companion", "consola", "control"].indexOf(fila.s.id) < 0)
                                             Layout.fillWidth: true
                                             Layout.leftMargin: 22
                                             spacing: 8

@@ -110,6 +110,8 @@ namespace ba::app::control {
 class BusEventos;
 class Botonera;
 class BotoneraGateway;
+class ControlWeb;
+class ControlWebGateway;
 class CarasBotonera;
 class SatelliteServidor;
 class Dsk;
@@ -209,6 +211,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bus READ busQml CONSTANT)
     /// La botonera (superficie de control de tablets y hardware): control/Botonera.
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
+    /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
+    Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
     /// Companion Satellite manejando la botonera (control/SatelliteServidor).
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
     /// Las caras de los botones (foto o video corto): control/CarasBotonera.
@@ -489,6 +493,12 @@ class StudioViewModel : public QObject {
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
     control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
     control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
+    /// El control web (/control/): sus aparatos y el puente con el gateway.
+    control::ControlWeb& controlWeb() { return *controlWeb_; }
+    control::ControlWebGateway& controlWebGateway() { return *controlWebGw_; }
+    QObject* controlWebQml() const;
+    /// Genera el código de un uso del control web y muestra su QR (mostrarQr).
+    Q_INVOKABLE void emparejarControlWebUi();
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
     Q_INVOKABLE QVariantMap apiRemotaUi() const;
     Q_INVOKABLE void setApiRemotaUi(bool activo);
@@ -1056,6 +1066,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::BotoneraGateway> botoneraGw_;
+    std::unique_ptr<control::ControlWeb> controlWeb_;
+    std::unique_ptr<control::ControlWebGateway> controlWebGw_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;

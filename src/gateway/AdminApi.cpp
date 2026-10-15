@@ -294,6 +294,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     }
     // La botonera (superficie de control): la app le pasa credenciales y estado.
     if (botonera_ && botonera_->admin(fd, method, path, body)) return;
+    // El control web (dashboard /control/): credenciales, aprobaciones y lo que se empuja.
+    if (controlWeb_ && controlWeb_->admin(fd, method, path, body)) return;
     // La sesión remota: el origen para armar los links personales (la app agrega
     // /sesion/#i=…&t=…) y después credenciales, mensajes y fotos de la cámara.
     if (path == "/api/v1/sesion/origen" && method == "GET") {

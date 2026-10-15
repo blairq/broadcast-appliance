@@ -659,6 +659,7 @@ int main(int argc, char** argv) {
         sigCfg.eventoWebroot = (guestRoot.parent_path() / "evento").string();
         sigCfg.botoneraWebroot = (guestRoot.parent_path() / "botonera").string();
         sigCfg.sesionWebroot = (guestRoot.parent_path() / "sesion").string();
+        sigCfg.controlWebroot = (guestRoot.parent_path() / "control").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
