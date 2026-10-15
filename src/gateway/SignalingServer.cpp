@@ -411,6 +411,26 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
     fondoTipo_ = std::move(tipo);
 }
 
+bool SignalingServer::setTemaWeb(const std::string& id) {
+    if (id.empty() || id.size() > 40) return false;
+    for (const char ch : id)
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-')) return false;
+    std::lock_guard<std::mutex> l(temaLock_);
+    temaWeb_ = id;
+    return true;
+}
+
+std::string SignalingServer::temaWeb() const {
+    std::lock_guard<std::mutex> l(temaLock_);
+    return temaWeb_;
+}
+
+bool SignalingServer::servirTema(long long fd, const std::string& method, const std::string& path) {
+    if (method != "GET" || path != "/comun/tema.json") return false;
+    http::sendResponse(fd, 200, "application/json", json{{"tema", temaWeb()}}.dump(), "Cache-Control: no-store\r\n");
+    return true;
+}
+
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
     if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && controlListenFd_ < 0 &&
@@ -624,6 +644,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     }
     // La puerta de los aparatos de control (1c): la botonera, el control web y lo
     // común que usan sus páginas. Nada de la sala.
+    if (servirTema(fd, method, path)) return;
     if (soloControl) {
         if (botonera_->atender(fd, method, path, query, headers, body, clientIp, false)) return;
         if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, false)) return;

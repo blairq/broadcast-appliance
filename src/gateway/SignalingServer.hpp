@@ -210,6 +210,10 @@ class SignalingServer {
     /// IP publica del tunel WireGuard: los candidatos ICE de loopback (los que
     /// atiende el puente del tunel) se anuncian con esta IP. Vacio = no.
     void setPublicAddress(const std::string& ip) { publicAddress_ = ip; }
+    /// El tema de las interfaces web de control (lo elige la app: POST /api/v1/tema).
+    /// Las páginas lo leen de /comun/tema.json. :returns: false si el id no vale.
+    bool setTemaWeb(const std::string& id);
+    std::string temaWeb() const;
     /// El teleprompter, para que la API de control (A) le cargue discursos y
     /// lo comande sin pasar por la clave del control remoto.
     Prompter& prompter() { return prompter_; }
@@ -490,6 +494,10 @@ class SignalingServer {
     std::int64_t correccionMs_ = 0;
     proxy::GestorProxy* proxy_ = nullptr;
     std::string publicAddress_;
+    mutable std::mutex temaLock_;
+    std::string temaWeb_ = "neuro-oscuro";
+    /// GET /comun/tema.json (todas las superficies). true si lo atendió.
+    bool servirTema(long long fd, const std::string& method, const std::string& path);
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
     std::function<nlohmann::json(const std::string&)> joinUrl_;

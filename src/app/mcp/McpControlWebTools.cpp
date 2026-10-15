@@ -17,6 +17,7 @@
 
 #include "audio/Mezclador.hpp"
 #include "control/ControlWeb.hpp"
+#include "control/TemasWeb.hpp"
 #include "control/ControlWebGateway.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -198,6 +199,28 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
                                      if (ok) return hacer();
                                      done(ToolResult::error("El operador no aprobó el acceso desde afuera."));
                                  });
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "web_tema";
+        t.title = "Tema de las interfaces web";
+        t.category = "control_web";
+        t.description = "El tema de todas las páginas de control (dashboard, botonera, presidencia, rótulos, "
+                        "corrección): sin `tema`, el actual y los que hay; con `tema` (un id), lo cambia en todos los "
+                        "aparatos sin recargar (como Servicios → Templates o Configuración).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"tema", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("tema")) {
+                const std::string id = a.value("tema", std::string());
+                if (!control::temaWebValido(id)) return done(ToolResult::error("No hay un tema «" + id + "» (web_tema sin nada: la lista)."));
+                vm.setTemaWeb(QString::fromStdString(id));
+            }
+            json lista = json::array();
+            for (const auto& x : control::temasWeb())
+                lista.push_back({{"id", x.id}, {"nombre", x.nombre}, {"descripcion", x.descripcion}});
+            done(ToolResult().data({{"actual", vm.temaWeb().toStdString()}, {"temas", lista}}));
         };
         core.addTool(std::move(t));
     }

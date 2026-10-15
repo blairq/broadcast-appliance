@@ -74,6 +74,8 @@
 #include "control/BotoneraGateway.hpp"
 #include "control/ControlWeb.hpp"
 #include "control/ControlWebGateway.hpp"
+#include "control/TemasWeb.hpp"
+#include "sala/Pedido.hpp"
 #include "asamblea/Debate.hpp"
 #include "control/CarasBotonera.hpp"
 #include "control/BusEventos.hpp"
@@ -1490,6 +1492,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // El control web (dashboard /control/): sus aparatos y el puente con el gateway (como la botonera).
         controlWeb_ = std::make_unique<control::ControlWeb>(rt.dataRoot());
         controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, *cli);
+        // El tema de las páginas web: cada vez que la sala (re)arranca, se lo vuelve a pasar.
+        connect(conference_.get(), &ConferenceViewModel::onlineChanged, this, [this]() {
+            if (static_cast<ConferenceViewModel*>(conference_.get())->online()) mandarTemaWeb();
+        });
         connect(controlWebGw_.get(), &control::ControlWebGateway::aviso, this,
                 [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
         connect(controlWeb_.get(), &control::ControlWeb::solicitudNueva, this,
@@ -3011,6 +3017,10 @@ void StudioViewModel::refrescarAvisos() {
         emit themeChanged();
         emit sceneChanged();
         frames_->setGuests(rt_.config().guests);
+        if (rt_.config().temaWeb != temaWebMandado_) {
+            mandarTemaWeb();
+            emit temaWebChanged();
+        }
         camaras_->sincronizar(); // Mejorar imagen general: rige ya
         video_->setLegalizar(rt_.config().legalizar);
     }
@@ -3387,6 +3397,35 @@ namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::controlWebQml() const { return controlWeb_.get(); }
+
+QString StudioViewModel::temaWeb() const { return qs(rt_.config().temaWeb); }
+
+QVariantList StudioViewModel::temasWeb() const {
+    QVariantList out;
+    for (const auto& t : control::temasWeb())
+        out << QVariantMap{{"id", t.id},       {"nombre", t.nombre},         {"descripcion", t.descripcion},
+                           {"fondo", t.fondo}, {"superficie", t.superficie}, {"texto", t.texto},
+                           {"acento", t.acento}};
+    return out;
+}
+
+void StudioViewModel::setTemaWeb(const QString& id) {
+    const std::string t = id.toStdString();
+    if (!control::temaWebValido(t) || t == rt_.config().temaWeb) return;
+    rt_.config().temaWeb = t;
+    rt_.save();
+    rt_.ajustesAplicados(); // Configuración se entera (y acá, refrescarAvisos lo manda)
+}
+
+void StudioViewModel::mandarTemaWeb() {
+    const std::string t = rt_.config().temaWeb;
+    temaWebMandado_ = t;
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    QPointer<StudioViewModel> yo(this);
+    sala::pedir(cli, "POST", "/api/v1/tema", {{"tema", t}}, [yo](const std::string& err, const nlohmann::json&) {
+        if (yo && !err.empty()) yo->temaWebMandado_.clear(); // se reintenta cuando la sala vuelva
+    });
+}
 
 void StudioViewModel::emparejarControlWebUi() {
     QPointer<StudioViewModel> yo(this);

@@ -930,6 +930,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, out);
         return;
     }
+    if (path == "/api/v1/tema" && method == "POST") {
+        if (!setTemaWeb(req.value("tema", std::string()))) {
+            sendErr(fd, 400, "tema");
+            return;
+        }
+        sendJson(fd, 200, json{{"ok", true}, {"tema", temaWeb()}});
+        return;
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;

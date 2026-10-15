@@ -128,7 +128,4 @@
 :host(ba-tally[estado="aire"]) span { background: var(--aire); color: #fff; box-shadow: 0 0 18px var(--aire); }
 :host(ba-tally[estado="armado"]) span { background: var(--armado); color: #fff; box-shadow: 0 0 12px var(--armado); }
 
-/* --- ba-tema --------------------------------------------------------------- */
-:host(ba-tema) { display: inline-flex; }
-:host(ba-tema) select { font: inherit; font-size: 13px; color: var(--texto); padding: 8px 12px; border-radius: var(--radio-chico); min-height: 38px; cursor: pointer; }
 :host(ba-tarjeta) .ampliar[hidden] { display: none; }

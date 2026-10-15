@@ -213,6 +213,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
+    /// El tema de las interfaces web de control (Servicios → Templates, Configuración).
+    Q_PROPERTY(QString temaWeb READ temaWeb WRITE setTemaWeb NOTIFY temaWebChanged)
+    /// [{id, nombre, descripcion, fondo, superficie, texto, acento}] (control/TemasWeb.hpp).
+    Q_PROPERTY(QVariantList temasWeb READ temasWeb CONSTANT)
     /// Companion Satellite manejando la botonera (control/SatelliteServidor).
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
     /// Las caras de los botones (foto o video corto): control/CarasBotonera.
@@ -499,6 +503,10 @@ class StudioViewModel : public QObject {
     QObject* controlWebQml() const;
     /// Genera el código de un uso del control web y muestra su QR (mostrarQr).
     Q_INVOKABLE void emparejarControlWebUi();
+    QString temaWeb() const;
+    /// Lo guarda (como Configuración) y se lo pasa al gateway: cambia en todas las páginas.
+    void setTemaWeb(const QString& id);
+    QVariantList temasWeb() const;
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
     Q_INVOKABLE QVariantMap apiRemotaUi() const;
     Q_INVOKABLE void setApiRemotaUi(bool activo);
@@ -914,6 +922,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void temaWebChanged();
     void presidenciaHablaChanged();
     void saludChanged();
     void tallyChanged();
@@ -1068,6 +1077,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::BotoneraGateway> botoneraGw_;
     std::unique_ptr<control::ControlWeb> controlWeb_;
     std::unique_ptr<control::ControlWebGateway> controlWebGw_;
+    /// Le pasa el tema web al gateway (al cambiar y cada vez que la sala vuelve).
+    void mandarTemaWeb();
+    std::string temaWebMandado_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;

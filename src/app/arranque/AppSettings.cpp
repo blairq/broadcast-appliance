@@ -232,6 +232,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.video.rango = get(video, "rango", c.video.rango);
     c.legalizar = get<std::string>(video, "legalizar", "no");
     c.placaReposoS = std::clamp(get(video, "placaReposoS", c.placaReposoS), 5, 3600);
+    c.temaWeb = get<std::string>(j.value("web", json::object()), "tema", c.temaWeb);
     {
         const json en = j.value("entradas", json::object());
         c.sinSenalMs = std::clamp(get(en, "sinSenalMs", c.sinSenalMs), 200, 60000);
@@ -419,6 +420,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
           {"replaySegundos", c.replaySegundos},
           {"colchonSeg", c.rec.colchonSeg}}},
         {"disco", {{"apurosS", c.discoApurosS}, {"recuperadoS", c.discoRecuperadoS}}},
+        {"web", {{"tema", c.temaWeb}}},
         {"entradas",
          {{"sinSenalMs", c.sinSenalMs}, {"rearmarSinDatosS", c.rearmarSinDatosS}, {"reintentoMaxMs", c.reintentoEntradaMaxMs}}},
         {"modeloLocal", {{"contexto", c.modeloContexto}, {"capasGpu", c.modeloCapasGpu}}},

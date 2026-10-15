@@ -4,12 +4,13 @@
    Los componentes (neuro.js) no tienen ni un color ni una sombra propios: usan
    MATERIALES (las variables de abajo). Cada tema los define bajo
    [data-tema="<nombre>"] en <html>; cambiar de tema es cambiar ese atributo
-   (BA.tema.poner("neuro-claro")) y todo se repinta al instante, también adentro
+   (lo elige la app: /comun/tema.json) y todo se repinta al instante, también adentro
    de los componentes (las variables CSS atraviesan el Shadow DOM).
 
    Para sumar un tema (p. ej. «glass-neuro»): copiar un bloque, cambiarle el nombre
    y los valores (para vidrio: --superficie translúcida, --filtro con blur, --borde
-   con un filo de luz) y agregarlo a BA.tema.lista en neuro.js. Nada más.
+   con un filo de luz) y sumarlo al catálogo de la app (src/app/control/TemasWeb.hpp),
+   que es de donde se elige. Nada más.
 
    Los materiales:
      --fondo              el fondo de la página
@@ -65,33 +66,35 @@
   --fuente-numeros: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 
+/* Gris perla (no blanco: el blanco encandila en una tablet con el brillo alto), relieve
+   difuso y un acento azul, como el neumorfismo de referencia (assets/medios/estilo.png). */
 [data-tema="neuro-claro"] {
   color-scheme: light;
-  --fondo: #e4e8ef;
-  --superficie: linear-gradient(145deg, #eef1f6, #d7dce5);
-  --superficie-plana: #e4e8ef;
-  --superficie-hundida: #dde2ea;
-  --borde: rgba(255, 255, 255, 0.35);
+  --fondo: #dcdfe4;
+  --superficie: linear-gradient(145deg, #e3e6ea, #d2d5db);
+  --superficie-plana: #dcdfe4;
+  --superficie-hundida: #d5d8de;
+  --borde: rgba(255, 255, 255, 0.22);
   --filtro: none;
-  --relieve: 7px 7px 15px #bcc3cf, -7px -7px 15px #ffffff;
-  --relieve-alto: 10px 10px 22px #b3bac7, -9px -9px 20px #ffffff;
-  --hundido: inset 5px 5px 11px #bcc3cf, inset -5px -5px 11px #ffffff;
-  --hundido-suave: inset 3px 3px 7px #c3c9d4, inset -3px -3px 7px #ffffff;
-  --texto: #20242c;
-  --texto-suave: #4f5664;
-  --texto-tenue: #8a91a0;
-  --acento: #f0631c;
+  --relieve: 8px 8px 18px rgba(146, 153, 166, 0.5), -8px -8px 18px rgba(255, 255, 255, 0.62);
+  --relieve-alto: 11px 11px 24px rgba(140, 147, 160, 0.55), -10px -10px 22px rgba(255, 255, 255, 0.7);
+  --hundido: inset 5px 5px 12px rgba(146, 153, 166, 0.55), inset -5px -5px 12px rgba(255, 255, 255, 0.6);
+  --hundido-suave: inset 3px 3px 8px rgba(150, 157, 170, 0.45), inset -3px -3px 8px rgba(255, 255, 255, 0.55);
+  --texto: #2a2f38;
+  --texto-suave: #5a616e;
+  --texto-tenue: #878e9b;
+  --acento: #3b7ff2;
   --acento-texto: #ffffff;
-  --aire: #e0261b;
+  --aire: #e0362b;
   --armado: #1f9d52;
   --aviso: #c98a0b;
   --ok: #1f9d52;
-  --foco: rgba(240, 99, 28, 0.45);
-  --vu-bajo: #1f9d52;
+  --foco: rgba(59, 127, 242, 0.45);
+  --vu-bajo: #3b9df2;
   --vu-medio: #d99a12;
-  --vu-alto: #e0261b;
-  --radio: 18px;
-  --radio-chico: 12px;
+  --vu-alto: #e0362b;
+  --radio: 20px;
+  --radio-chico: 14px;
   --radio-redondo: 999px;
   --fuente: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --fuente-numeros: "SF Mono", ui-monospace, Menlo, Consolas, monospace;

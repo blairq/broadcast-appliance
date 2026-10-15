@@ -82,6 +82,9 @@ struct AppConfig {
     RecordConfig rec;
     /// Legalizador broadcast-safe en cada entrada (balegal): no | pal | ntsc | rango.
     std::string legalizar = "no";
+    /// El tema de las interfaces web de control (/comun/neuro/temas.css): lo eligen
+    /// Configuración y Servicios → Templates; el gateway se lo pasa a las páginas.
+    std::string temaWeb = "neuro-oscuro";
     int placaReposoS = 120; ///< la placa de una entrada sin uso se desarma a los N s (motor::ponerReposoPlaca)
     // Configuración → Cámaras y entradas (motor::ponerAjustesEntradas)
     int sinSenalMs = 3000;      ///< sin cuadros tanto tiempo: placa «sin señal»

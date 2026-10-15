@@ -17,6 +17,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "ui/AjustesAvanzados.hpp"
+#include "control/TemasWeb.hpp"
 
 namespace ba::app {
 
@@ -36,6 +37,12 @@ QVariantList choices(std::initializer_list<std::pair<const char*, const char*>> 
 
 /// Dónde escucha el gateway: esta máquina, toda la red local, o UNA interfaz
 /// (una de las IPv4 que tiene la máquina ahora; la guardada aunque no esté).
+QVariantList opcionesTemaWeb() {
+    QVariantList out;
+    for (const auto& t : control::temasWeb()) out << QVariantMap{{"value", t.id}, {"label", t.nombre}};
+    return out;
+}
+
 QVariantList opcionesBind(const std::string& actual) {
     QVariantList out = choices({{"127.0.0.1", "Solo esta máquina (vía túnel)"},
                                 {"0.0.0.0", "Red local, todas las interfaces (también sin túnel)"}});
@@ -199,6 +206,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         // --- Apariencia ------------------------------------------------------------
         {"ui.previewWidth", "Apariencia", "Ancho de las vistas previas", "int", {}, 320, 3840, "px", "El tamaño con que se dibujan las vistas previas del programa y las escenas. Más grande se ve mejor y usa más la placa.", "restart", 960},
         {"ui.theme", "Apariencia", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
+        {"web.tema", "Apariencia", "Tema de las interfaces web", "choice", opcionesTemaWeb(), 0, 0, "", "El de todas las páginas de control (dashboard, botonera, presidencia, rótulos, corrección): cambia en todos los aparatos sin recargar. También en Servicios → Templates.", "live", "neuro-oscuro"},
         // --- Sistema y datos -------------------------------------------------------
         {"launcher.shadow", "Sistema y datos", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
         {"launcher.cuelgue", "Sistema y datos", "Colgado si no responde", "int", {}, 2, 120, "s", "Si el programa (o la sala) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa.", "restart", 5},
@@ -364,6 +372,7 @@ QVariantMap SettingsModel::currentBasicos() const {
         {"launcher.shadow", l.shadowCopy},
         {"launcher.recoveryUi", l.recoveryUi},
         {"ui.theme", qs(c.theme)},
+        {"web.tema", qs(c.temaWeb)},
         {"ui.previewWidth", c.previewWidth},
         {"mcp.enabled", c.mcpEnabled},
         {"mcp.port", c.mcpPort},
@@ -609,6 +618,7 @@ QString SettingsModel::apply() {
     c.guestAudio = b("guests.audio");
     c.guestAudioPreset = s("guests.audioPreset");
     c.theme = s("ui.theme");
+    if (control::temaWebValido(s("web.tema"))) c.temaWeb = s("web.tema");
     c.previewWidth = std::clamp(i("ui.previewWidth"), 320, 3840);
     c.mcpEnabled = b("mcp.enabled");
     c.mcpPort = i("mcp.port");

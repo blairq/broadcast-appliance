@@ -17,10 +17,11 @@
      <ba-tarjeta titulo ampliar="/control/#tarjeta=ptz">  ⤢ abre `ampliar` en una pestaña nueva
      <ba-chip estado="ok|aviso|aire|armado|apagado">
      <ba-tally estado="aire|armado|nada" etiqueta>
-     <ba-tema>                                      el selector de tema
-
-   BA.tema: lista, actual(), poner(id). Se recuerda por aparato (localStorage) y
-   acepta ?tema=<id> en la URL.
+   BA.tema: actual(), poner(id). El tema lo elige la APP (Configuración o Servicios →
+   Templates) para todas las páginas: el gateway lo publica en /comun/tema.json y acá
+   se lo lee al abrir, al volver a la pestaña y cada 15 s (cambia sin recargar). Se
+   guarda una copia en el aparato para no pintar el de fábrica un instante al abrir.
+   ?tema=<id> en la URL lo fuerza (para diseñar: muestra.html).
    ============================================================================ */
 (() => {
   "use strict";
@@ -28,23 +29,27 @@
 
   // --- Temas ---------------------------------------------------------------------------
   const CLAVE_TEMA = "ba-tema";
+  const valido = (id) => typeof id === "string" && /^[a-z0-9-]{1,40}$/.test(id);
+  const forzado = new URLSearchParams(location.search).get("tema");
   BA.tema = {
-    lista: [
-      { id: "neuro-oscuro", nombre: "Neumorfismo oscuro" },
-      { id: "neuro-claro", nombre: "Neumorfismo claro" },
-    ],
     actual() { return document.documentElement.dataset.tema || "neuro-oscuro"; },
     poner(id) {
-      if (!BA.tema.lista.some((t) => t.id === id)) return;
+      if (!valido(id) || id === BA.tema.actual()) return;
       document.documentElement.dataset.tema = id;
       try { localStorage.setItem(CLAVE_TEMA, id); } catch (_) {}
       document.dispatchEvent(new CustomEvent("ba-tema", { detail: { tema: id } }));
     },
   };
   (() => {
-    let id = new URLSearchParams(location.search).get("tema");
-    if (!id) { try { id = localStorage.getItem(CLAVE_TEMA); } catch (_) {} }
-    document.documentElement.dataset.tema = BA.tema.lista.some((t) => t.id === id) ? id : "neuro-oscuro";
+    let id = forzado;
+    if (!valido(id)) { try { id = localStorage.getItem(CLAVE_TEMA); } catch (_) {} }
+    document.documentElement.dataset.tema = valido(id) ? id : "neuro-oscuro";
+    if (valido(forzado)) return;
+    const leer = () => fetch("/comun/tema.json", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null)).then((d) => d && BA.tema.poner(d.tema)).catch(() => {});
+    leer();
+    setInterval(leer, 15000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) leer(); });
   })();
 
   // --- Utilidades ------------------------------------------------------------------------
@@ -367,18 +372,6 @@
     }
   }
 
-  // --- Selector de tema ----------------------------------------------------------------------
-  class BaTema extends Base {
-    constructor() {
-      super(`<select class="hundido-suave" title="Tema"></select>`);
-      const sel = this.$("select");
-      for (const t of BA.tema.lista) sel.append(new Option(t.nombre, t.id));
-      sel.value = BA.tema.actual();
-      sel.addEventListener("change", () => BA.tema.poner(sel.value));
-      document.addEventListener("ba-tema", (e) => { sel.value = e.detail.tema; });
-    }
-  }
-
   const definir = (n, c) => { if (!customElements.get(n)) customElements.define(n, c); };
   definir("ba-boton", BaBoton);
   definir("ba-toggle", BaToggle);
@@ -390,5 +383,4 @@
   definir("ba-tarjeta", BaTarjeta);
   definir("ba-chip", BaChip);
   definir("ba-tally", BaTally);
-  definir("ba-tema", BaTema);
 })();

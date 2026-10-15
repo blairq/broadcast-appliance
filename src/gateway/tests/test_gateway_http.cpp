@@ -709,6 +709,21 @@ int main() {
               "la API de control NO sale por la puerta");
     }
 
+    // --- 12c) El tema de las páginas web: lo pone la app, lo leen todas -------
+    {
+        CHECK(jsonBody(httpReq(port, "GET", "/comun/tema.json", "")).value("tema", "") == "neuro-oscuro",
+              "tema de fábrica");
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/tema", bearer, R"({"tema":"../x"})")).find("400") !=
+                  std::string::npos,
+              "un tema con caracteres raros no vale");
+        CHECK(jsonBody(httpReq(aport, "POST", "/api/v1/tema", bearer, R"({"tema":"neuro-claro"})")).value("ok", false),
+              "la app cambia el tema");
+        CHECK(jsonBody(httpReq(port, "GET", "/comun/tema.json", "")).value("tema", "") == "neuro-claro",
+              "las páginas lo leen");
+        CHECK(jsonBody(httpReq(srv.controlPort(), "GET", "/comun/tema.json", "")).value("tema", "") == "neuro-claro",
+              "también por la puerta de los aparatos");
+    }
+
     // --- 13) QR de ingreso --------------------------------------------------
     {
         srv.setJoinUrlProvider([](const std::string& target) -> json {
