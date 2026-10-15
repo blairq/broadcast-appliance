@@ -89,7 +89,38 @@ const char* kSoloEsta = "la sala escucha solo en esta máquina (Configuración �
 
 } // namespace
 
-EnlacesViewModel::EnlacesViewModel(Fuentes f, QObject* parent) : QObject(parent), f_(std::move(f)) {}
+EnlacesViewModel::EnlacesViewModel(Fuentes f, QObject* parent) : QObject(parent), f_(std::move(f)) {
+    releerAprobaciones();
+}
+
+QVariantList EnlacesViewModel::catalogoUi() const {
+    QVariantList out;
+    int i = 0;
+    for (const ServicioEnlace& s : catalogo())
+        out << QVariantMap{{"id", QString::fromLatin1(s.id)}, {"grupo", QString::fromUtf8(s.grupo)}, {"indice", i++}};
+    return out;
+}
+
+QStringList EnlacesViewModel::grupos() const {
+    QStringList out;
+    for (const ServicioEnlace& s : catalogo())
+        if (!out.contains(QString::fromUtf8(s.grupo))) out << QString::fromUtf8(s.grupo);
+    return out;
+}
+
+void EnlacesViewModel::releerAprobaciones() {
+    QVariantMap nuevo;
+    for (const auto& [id, a] : f_.aprobaciones)
+        nuevo[QString::fromStdString(id)] =
+            QVariantMap{{"solicitudes", a.pendientes ? a.pendientes() : QVariantList()},
+                        {"perfilModo", a.perfilModo},
+                        {"perfiles", a.perfilModo == "lista" && a.perfiles ? a.perfiles() : QVariantList()},
+                        {"perfilAyuda", a.perfilAyuda},
+                        {"textoAprobar", a.textoAprobar}};
+    if (nuevo == aprobaciones_) return;
+    aprobaciones_ = nuevo;
+    emit aprobacionesCambio();
+}
 
 bool EnlacesViewModel::hayTunel() const {
     return f_.tunel && f_.tunel().value("estado").toString() == "listo";
@@ -162,16 +193,15 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
     } else if (id == "control") {
         const QVariantMap c = f_.controlWeb ? f_.controlWeb() : QVariantMap();
         const int conectados = c.value("conectados").toInt();
-        const int pendientes = c.value("pendientes").toInt();
         m["local"] = red.isEmpty() ? QVariant() : QVariant(red + "/control/");
         m["remoto"] = afuera.isEmpty() || !c.value("tunel").toBool() ? QVariant() : QVariant(afuera + "/control/");
         m["nota"] = QString("Sin emparejar no entra nadie. Aparatos emparejados: %1%2")
                         .arg(c.value("aparatos").toInt())
                         .arg(c.value("tunel").toBool() ? " · desde afuera, con PIN" : "");
         // El LED: verde si hay algún aparato conectado ahora.
+        // (Los que esperan aprobación los pone abajo, como en todos los que aprueban.)
         poner(!enLinea                ? estado("error", "La sala no responde")
               : soloEstaMaquina(red)  ? estado("aviso", QString("Ningún aparato llega: ") + kSoloEsta)
-              : pendientes > 0        ? estado("aviso", QString::number(pendientes) + " esperan aprobación (abajo)")
               : conectados > 0        ? estado("ok", conectados == 1 ? QString("Un aparato conectado")
                                                                      : QString::number(conectados) + " aparatos conectados")
                                       : estado("apagado", "Ningún aparato conectado ahora"));
@@ -228,6 +258,21 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
                                                                                           : t.value("texto").toString())
                                   : estado("apagado", "Apagado: los enlaces de afuera no andan"));
     }
+
+    // Los pedidos que esperan a una persona: en la fila, para aprobarlos acá. Mientras
+    // haya alguno, el LED queda en ámbar y el estado lo dice (salvo que no ande).
+    m["aprueba"] = false;
+    m["pendientes"] = 0;
+    m["solicitudes"] = QVariantList();
+    if (const auto ap = f_.aprobaciones.find(s.id); ap != f_.aprobaciones.end()) {
+        const Aprobaciones& a = ap->second;
+        const QVariantList sol = a.pendientes ? a.pendientes() : QVariantList();
+        m["aprueba"] = true;
+        m["pendientes"] = static_cast<int>(sol.size());
+        m["solicitudes"] = sol;
+        if (!sol.isEmpty() && m.value("led").toString() != "error")
+            poner(estado("aviso", sol.size() == 1 ? a.unoEspera : a.variosEsperan.arg(sol.size())));
+    }
     return m;
 }
 
@@ -264,6 +309,7 @@ void EnlacesViewModel::refrescar() {
     }
     tuvoTunel_ = tunel;
     tuvoSala_ = f_.salaEnLinea && f_.salaEnLinea();
+    releerAprobaciones();
     emit cambio();
 }
 
@@ -274,6 +320,7 @@ void EnlacesViewModel::avisarCambio() {
         refrescar();
         return;
     }
+    releerAprobaciones();
     emit cambio();
 }
 
@@ -294,6 +341,15 @@ QString EnlacesViewModel::activar(const QString& id, bool activo) {
 
 void EnlacesViewModel::accion(const QString& id) {
     if (id == "control" && f_.emparejarControlWeb) f_.emparejarControlWeb();
+}
+
+QString EnlacesViewModel::resolver(const QString& servicio, const QString& solicitud, bool aprobar,
+                                   const QString& perfil) {
+    const auto ap = f_.aprobaciones.find(servicio.toStdString());
+    if (ap == f_.aprobaciones.end() || !ap->second.resolver) return "«" + servicio + "» no pide aprobaciones.";
+    const QString err = ap->second.resolver(solicitud, aprobar, perfil);
+    avisarCambio(); // la fuente también avisa; por si el pedido ya no estaba
+    return err;
 }
 
 } // namespace ba::app

@@ -127,7 +127,17 @@ QStringList SatelliteServidor::ipPermitidas() const {
 
 QStringList SatelliteServidor::pendientes() const {
     QStringList l;
-    for (const auto& ip : pendientes_) l << QString::fromStdString(ip);
+    for (const auto& [ip, p] : pendientes_) l << QString::fromStdString(ip);
+    return l;
+}
+
+QVariantList SatelliteServidor::solicitudesUi() const {
+    QVariantList l;
+    for (const auto& [ip, p] : pendientes_)
+        l << QVariantMap{{"id", QString::fromStdString(ip)},
+                         {"ip", QString::fromStdString(ip)},
+                         {"nombre", QString::fromStdString(p.aparato)},
+                         {"ms", static_cast<double>(p.ms)}};
     return l;
 }
 
@@ -156,7 +166,7 @@ json SatelliteServidor::estado() const {
     }
     json p = json::array(), pe = json::array();
     for (const auto& ip : permitidas_) p.push_back(ip);
-    for (const auto& ip : pendientes_) pe.push_back(ip);
+    for (const auto& [ip, pd] : pendientes_) pe.push_back(ip);
     return {{"activo", activo_}, {"escuchando", srv_ && srv_->isListening()}, {"puerto", puerto_},
             {"ip_permitidas", p}, {"pendientes", pe}, {"clientes", cs}, {"error", error_.toStdString()}};
 }
@@ -182,6 +192,7 @@ void SatelliteServidor::permitir(const QString& ip, bool si) {
     if (si) {
         permitidas_.insert(i);
         pendientes_.erase(i);
+        rechazadas_.erase(i);
     } else {
         permitidas_.erase(i);
         // Lo que estaba conectado desde esa IP se corta.
@@ -190,6 +201,16 @@ void SatelliteServidor::permitir(const QString& ip, bool si) {
     }
     guardar();
     bot_.auditar("escritorio", si ? "satellite_permitir" : "satellite_quitar", i);
+    emit cambio();
+}
+
+void SatelliteServidor::rechazar(const QString& ip) {
+    const std::string i = ip.trimmed().toStdString();
+    if (i.empty() || pendientes_.erase(i) == 0) return;
+    rechazadas_.insert(i);
+    for (auto& [s, c] : clientes_)
+        if (c.ip == i) s->disconnectFromHost();
+    bot_.auditar("escritorio", "satellite_rechazar", i);
     emit cambio();
 }
 
@@ -298,11 +319,17 @@ void SatelliteServidor::linea(Cliente& c, const std::string& l) {
     if (cmd == "ADD-DEVICE") {
         if (dev.empty() || dev.size() > 64) return enviar(c, "ADD-DEVICE ERROR MESSAGE=\"falta DEVICEID\"");
         if (!permitida(c.ip)) {
-            pendientes_.insert(c.ip);
-            bot_.auditar(c.ip, "satellite_pendiente", dev + " " + arg("PRODUCT_NAME"));
-            emit cambio();
+            if (rechazadas_.count(c.ip) > 0)
+                return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev + " MESSAGE=\"IP rechazada\"");
+            if (pendientes_.count(c.ip) == 0) {
+                const std::string producto = arg("PRODUCT_NAME");
+                pendientes_[c.ip] = {producto.empty() ? dev : producto.substr(0, 60),
+                                     QDateTime::currentMSecsSinceEpoch()};
+                bot_.auditar(c.ip, "satellite_pendiente", dev + " " + producto);
+                emit cambio();
+            }
             return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev +
-                                 " MESSAGE=\"IP no permitida: aprobala en la pagina Botonera (Aparatos)\"");
+                                 " MESSAGE=\"IP no permitida: aprobala en Servicios o en Botonera (Aparatos)\"");
         }
         Aparato ap;
         ap.id = dev;

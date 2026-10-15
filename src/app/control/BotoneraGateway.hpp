@@ -47,8 +47,9 @@ class BotoneraGateway : public QObject {
     void sincronizar();
     /// Un código de un uso para `perfil` y la URL/QR que la tablet abre.
     void emparejar(const std::string& perfil, const std::string& nombre, int venceDias, ListoEmparejar listo);
-    /// Una persona aprueba (o no) la tablet que pidió emparejarse. "" o el error.
-    std::string resolver(const std::string& solicitud, bool aprobar);
+    /// Una persona aprueba (o no) la tablet que pidió emparejarse; `perfil` (id), si
+    /// no va vacío, es el que elige al aprobar. "" o el error.
+    std::string resolver(const std::string& solicitud, bool aprobar, const std::string& perfil = {});
     /// Lo que dice el servidor de la botonera del gateway (conexiones, credenciales,
     /// solicitudes), o "apagado" / "sin respuesta".
     void estado(std::function<void(const json&)> listo);

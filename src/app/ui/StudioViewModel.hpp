@@ -627,7 +627,7 @@ class StudioViewModel : public QObject {
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
     /// Una persona aprueba (o no) la tablet que pidió emparejarse.
-    Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar);
+    Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil = QString());
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).

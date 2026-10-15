@@ -577,26 +577,13 @@ Rectangle {
                 width: parent.width
                 spacing: 12
 
-                // Solicitudes que esperan a una persona.
-                Repeater {
-                    model: page.bot.solicitudes
-                    delegate: Panel {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        padding: 12
-                        implicitHeight: 56
-                        RowLayout {
-                            anchors.fill: parent
-                            spacing: 10
-                            Text {
-                                Layout.fillWidth: true
-                                text: "«" + modelData.nombre + "» (" + modelData.ip + ") pide emparejarse con el perfil «" + modelData.perfil + "»"
-                                color: Theme.amber; font.pixelSize: 14; wrapMode: Text.WordWrap
-                            }
-                            GlassButton { compact: true; text: "Aprobar"; active: true; onClicked: Studio.aprobarTabletUi(modelData.id, true) }
-                            GlassButton { compact: true; text: "Rechazar"; onClicked: Studio.aprobarTabletUi(modelData.id, false) }
-                        }
-                    }
+                // Solicitudes que esperan a una persona (también se aprueban en Servicios).
+                SolicitudesPendientes {
+                    Layout.fillWidth: true
+                    solicitudes: page.bot.solicitudes.map(s => Object.assign({}, s, { perfil: s.perfilId, detalle: "pide emparejarse" }))
+                    perfilModo: "lista"
+                    perfiles: page.bot.perfiles.map(p => ({ id: p.id, nombre: p.nombre }))
+                    onResolver: (id, aprobar, perfil) => Studio.aprobarTabletUi(id, aprobar, perfil)
                 }
 
                 Panel {
@@ -655,7 +642,7 @@ Rectangle {
                                 }
                                 Text {
                                     Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                    text: "Cuando la tablet lo pida, aparece arriba para aprobar. El código sirve una sola vez."
+                                    text: "Cuando la tablet lo pida, aparece arriba (y en Servicios) para aprobar. El código sirve una sola vez."
                                     color: Theme.textFaint; font.pixelSize: 11
                                 }
                             }
@@ -699,14 +686,11 @@ Rectangle {
                                   "Stream Deck, Loupedeck, X-keys o paneles, y apuntalo a la IP de esta máquina. Cada aparato aparece abajo " +
                                   "como uno más. El protocolo no tiene clave: solo se acepta la red local y las IP que permitas acá."
                         }
-                        Repeater {
-                            model: Studio.satellite.pendientes
-                            delegate: RowLayout {
-                                required property string modelData
-                                spacing: 8
-                                Text { text: modelData + " quiere conectar un Satellite"; color: Theme.amber; font.pixelSize: 13 }
-                                GlassButton { compact: true; text: "Permitir"; active: true; onClicked: Studio.satellite.permitir(modelData, true) }
-                            }
+                        SolicitudesPendientes {
+                            Layout.fillWidth: true
+                            solicitudes: Studio.satellite.solicitudes.map(s => Object.assign({}, s, { detalle: "quiere conectar un Satellite" }))
+                            textoAprobar: "Permitir"
+                            onResolver: (ip, aprobar) => aprobar ? Studio.satellite.permitir(ip, true) : Studio.satellite.rechazar(ip)
                         }
                         RowLayout {
                             Layout.fillWidth: true

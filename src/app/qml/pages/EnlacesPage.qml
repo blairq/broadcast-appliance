@@ -5,6 +5,11 @@
 // (con el túnel), para copiar, abrir o mostrar en QR. Los que son uno por
 // persona (integrantes, televisores, invitaciones) llevan a su página.
 //
+// Los que piden la aprobación de una persona por aparato (la tablet de la
+// botonera, el control web, Companion Satellite, el lobby de invitados) muestran
+// en su propia fila los pedidos que esperan, para aprobarlos o rechazarlos acá
+// mismo (SolicitudesPendientes), sin ir a otra página.
+//
 // Todo sale de Studio.enlaces (EnlacesViewModel): la misma lista que el MCP
 // (enlaces_listar / enlace_activar).
 import QtQuick
@@ -23,12 +28,6 @@ Rectangle {
 
     function colorLed(led) {
         return led === "ok" ? Theme.ok : led === "aviso" ? Theme.warn : led === "error" ? Theme.live : Theme.textFaint
-    }
-    function grupos() {
-        const out = []
-        for (const s of page.en.servicios)
-            if (out.indexOf(s.grupo) < 0) out.push(s.grupo)
-        return out
     }
     function irA(id) { ApplicationWindow.window.showPage(Studio.riel.paginaDeId(id)) }
     function verQr(url, nombre, remoto) {
@@ -71,11 +70,10 @@ Rectangle {
                 width: scroll.availableWidth
                 spacing: 16
 
-                // Los aparatos del control web: aprobar, perfil y quitar (lo hace una persona).
-                PanelControlWeb { Layout.fillWidth: true }
-
+                // Las filas salen del catálogo (constante) y el estado de `servicios`: así no se
+                // rehacen con cada cambio y no se pierde el perfil que se está eligiendo.
                 Repeater {
-                    model: page.grupos()
+                    model: page.en.grupos
                     ColumnLayout {
                         id: grupo
                         required property string modelData
@@ -87,11 +85,13 @@ Rectangle {
                             font { pixelSize: 11; weight: Font.DemiBold; letterSpacing: 1.2 }
                         }
                         Repeater {
-                            model: page.en.servicios.filter(s => s.grupo === grupo.modelData)
+                            model: page.en.catalogo.filter(c => c.grupo === grupo.modelData)
                             delegate: Rectangle {
                                 id: fila
                                 required property var modelData
-                                readonly property var s: modelData
+                                readonly property var s: page.en.servicios[modelData.indice]
+                                // Los pedidos que esperan a una persona (solo los que aprueban por aparato).
+                                readonly property var ap: page.en.aprobaciones[modelData.id] || null
                                 Layout.fillWidth: true
                                 implicitHeight: cuerpo.implicitHeight + 24
                                 radius: 12
@@ -236,6 +236,29 @@ Rectangle {
                                                 onClicked: page.verQr(enl.modelData.url, fila.s.nombre, enl.modelData.remoto)
                                             }
                                         }
+                                    }
+                                    // Los pedidos que esperan: se aprueban o rechazan acá mismo.
+                                    SolicitudesPendientes {
+                                        visible: !!fila.ap && fila.ap.solicitudes.length > 0
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: 22
+                                        solicitudes: fila.ap ? fila.ap.solicitudes : []
+                                        perfilModo: fila.ap ? fila.ap.perfilModo : ""
+                                        perfiles: fila.ap ? fila.ap.perfiles : []
+                                        perfilAyuda: fila.ap ? fila.ap.perfilAyuda : ""
+                                        textoAprobar: fila.ap ? fila.ap.textoAprobar : "Aprobar"
+                                        onResolver: (id, aprobar, perfil) => {
+                                            const e = page.en.resolver(fila.modelData.id, id, aprobar, perfil)
+                                            if (e !== "") Studio.notify(e, "error")
+                                        }
+                                    }
+                                    // Los aparatos ya emparejados del control web: perfil y quitar.
+                                    Loader {
+                                        active: fila.modelData.id === "control" && Studio.controlWeb.aparatos.length > 0
+                                        visible: active
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: 22
+                                        sourceComponent: PanelControlWeb {}
                                     }
                                     Text {
                                         visible: (fila.s.nota || "") !== "" && fila.s.nota !== fila.s.estado
