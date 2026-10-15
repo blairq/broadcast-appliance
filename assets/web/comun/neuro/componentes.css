@@ -131,3 +131,4 @@
 /* --- ba-tema --------------------------------------------------------------- */
 :host(ba-tema) { display: inline-flex; }
 :host(ba-tema) select { font: inherit; font-size: 13px; color: var(--texto); padding: 8px 12px; border-radius: var(--radio-chico); min-height: 38px; cursor: pointer; }
+:host(ba-tarjeta) .ampliar[hidden] { display: none; }
