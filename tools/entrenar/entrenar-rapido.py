@@ -135,6 +135,11 @@ def main():
     ap.add_argument("--objetivo", choices=["sft", "dpo", "kto"], default="sft",
                     help="sft: imitar la respuesta; dpo/kto: preferir la buena sobre la mala (preferencias.py)")
     ap.add_argument("--beta", type=float, default=0.1, help="dpo/kto: cuanto se puede alejar de la referencia")
+    ap.add_argument("--nll-buena", type=float, default=0.0,
+                    help="dpo: sumar alfa x NLL por token de la buena (DPO+NLL, «RPO» de Pang et al. 2024):"
+                         " que no se lleve puesta la respuesta correcta")
+    ap.add_argument("--conservar-checkpoints", action="store_true",
+                    help="no borrar los checkpoints viejos (para elegir despues con otra medida)")
     ap.add_argument("--peso-buena", type=float, default=1.0, help="kto: peso de las respuestas buenas")
     ap.add_argument("--peso-mala", type=float, default=1.0, help="kto: peso de las respuestas malas")
     ap.add_argument("--rango", type=int, default=32)
@@ -486,6 +491,9 @@ def main():
             nll, _ = perdida([x for it in sub for x in it["s"]], grad=grad, kv_dado=kv, por_fila=True)
             ref = torch.tensor([it["ref"] for it in sub], device=nll.device)
             perd, m = preferencias.dpo(-nll[0::2], -nll[1::2], ref[:, 0], ref[:, 1], args.beta)
+            if args.nll_buena:
+                n_b = torch.tensor([float(it["s"][0][1]) for it in sub], device=nll.device)
+                perd = perd + args.nll_buena * nll[0::2] / n_b
             return perd.sum(), preferencias.aciertos("dpo", m)
         nll, _ = perdida([it["s"][0] for it in sub], grad=grad, kv_dado=kv, por_fila=True)
         ref = torch.tensor([it["ref"][0] for it in sub], device=nll.device)
@@ -507,7 +515,12 @@ def main():
         ref = torch.tensor([it["ref"] for it in sub], device=nll.device)
         perd, m = preferencias.dpo(-nll[0::2], -nll[1::2], ref[:, 0], ref[:, 1], args.beta)
         s = args.beta * torch.sigmoid(-m)
-        peso = torch.stack([s, -s], 1).flatten()
+        if args.nll_buena:  # + alfa * nll_buena / n_tokens: su derivada es alfa / n_tokens
+            n_b = torch.tensor([float(x[1]) for x in seqs[0::2]], device=nll.device)
+            perd = perd + args.nll_buena * nll[0::2] / n_b
+            peso = torch.stack([s + args.nll_buena / n_b, -s], 1).flatten()
+        else:
+            peso = torch.stack([s, -s], 1).flatten()
         for k, x in enumerate(seqs):
             nk, _ = perdida([x], kv_dado=ch.desde_tensores(modelo.config, hojas), por_fila=True)
             (nk[0] * peso[k].to(nk.device) * escala.to(nk.device)).backward()
@@ -718,7 +731,8 @@ def main():
     plan = {"datos": clave, "base": args.base, "lote": args.lote, "epocas": args.epocas, "lr": args.lr,
             "rango": args.rango, "semilla": args.semilla, "pasos": total, "mundo": mundo}
     if pref:  # sin cambiar el plan de sft: los estados viejos siguen reanudando
-        plan.update(objetivo=args.objetivo, beta=args.beta, pesos_kto=[args.peso_buena, args.peso_mala])
+        plan.update(objetivo=args.objetivo, beta=args.beta, pesos_kto=[args.peso_buena, args.peso_mala],
+                    nll_buena=args.nll_buena)
     desde, t_previo = 0, 0.0
     if args.reanudar and (dir_estado / "estado.pt").exists():
         e = repartido.cargar_estado(dir_estado, modelo, opt)
@@ -826,7 +840,7 @@ def main():
                 mejor, mejor_paso = vl, paso + 1
                 estado_mejor = sd if yo else None
             # quedan los dos ultimos y el mejor
-            if yo:
+            if yo and not args.conservar_checkpoints:
                 import shutil
                 for c in guardados[:-2]:
                     if c.name != f"checkpoint-{mejor_paso}" and c.exists():

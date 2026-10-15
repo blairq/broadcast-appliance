@@ -113,6 +113,21 @@ def igual_arg(esperado, obtenido, prompt, igual):
     return len(e.split()) >= 4 and e not in _norm(prompt.rsplit("Estado:", 1)[-1])
 
 
+def pregunta_de_mas(f, tcc):
+    """La pregunta que haria el modelo si creyera que el nombre de la frase no esta
+    («No encuentro «Laura» en el audio: ¿cuál es?»), para un caso donde SI esta:
+    la mala de un ancla. None si la frase no nombra ninguna entidad del estado."""
+    for m in tc.RE_HUECO.finditer(f.get("plantilla") or ""):
+        t = m.group(1)
+        if t not in tcc.NO_ESTA:
+            continue
+        for e in tc.TIPOS[t]:
+            for d in ([e[1]] if isinstance(e[1], str) else e[1]):
+                if d.lower() in f["frase"].lower():
+                    return tc.llamada(tc.FALTA, {"pregunta": tcc.NO_ESTA[t].format(d=d)})
+    return None
+
+
 def juzgar(f, texto, igual):
     """(bien, motivo) como tc-evaluar: falta pide falta_dato; si no, herramienta y argumentos exactos."""
     h, a = tc.leer(texto)
@@ -232,6 +247,9 @@ def main():
     ap.add_argument("--max-malas", type=int, default=2, help="malas distintas por caso, como mucho")
     ap.add_argument("--sin-compuestas", action="store_true",
                     help="sacar toda frase de dos oraciones (tosco: la mayoria son UN pedido con contexto)")
+    ap.add_argument("--anclas", type=float, default=1.0,
+                    help="pares AL REVES por cada par que empuja a preguntar (sin esto, dpo aprendio a preguntar"
+                         " todo: 109 de 113 fallos de la prueba)")
     ap.add_argument("--validar", type=float, default=0.1, help="porcion de plantillas apartadas para validar")
     ap.add_argument("--placas", default="0,1")
     ap.add_argument("--limite", type=int, default=0, help="solo N casos (prueba)")
@@ -307,6 +325,9 @@ def main():
             validar[p] = int(hashlib.sha256((p + "#pref").encode()).hexdigest()[:8], 16) / 0xFFFFFFFF < args.validar
         return validar[p]
 
+    tcc = modulo("tcc", "tc-corpus.py")
+    anclas_posibles = {"entrenar": [], "validar": []}
+    seleccion = []
     dpo = {"entrenar": [], "validar": []}
     kto = {"entrenar": [], "validar": []}
     buenas_sueltas = {"entrenar": [], "validar": []}
@@ -341,8 +362,15 @@ def main():
                 d["voraz" if j == 0 else "muestras"] += 1
                 if f["frase"] not in d["ejemplos"] and len(d["ejemplos"]) < 3:
                     d["ejemplos"].append(f["frase"])
+        if parte == "validar":
+            seleccion.append(f)
         if not malas:
             buenas_sueltas[parte].append({**base, "completion": f["completion"], "buena": True})
+            if f["tipo"] == "herramienta" and f["herramienta"] != tc.DERIVAR:
+                q = pregunta_de_mas(f, tcc)
+                if q:
+                    anclas_posibles[parte].append({**base, "chosen": f["completion"], "rejected": q + tc.FIN,
+                                                   "motivo": "ancla_no_preguntar", "voraz": False})
             continue
         malas.sort(key=lambda x: not x[2])  # la voraz primero: es la que se ve al aire
         for texto, motivo, es_voraz in malas[:args.max_malas]:
@@ -351,6 +379,28 @@ def main():
                                "voraz": es_voraz})
             kto[parte].append({**base, "completion": rej, "buena": False, "motivo": motivo, "voraz": es_voraz})
         kto[parte].append({**base, "completion": f["completion"], "buena": True})
+    # ANCLAS: por cada par que empuja a PREGUNTAR (inventa o deriva cuando faltaba
+    # el dato), uno al reves sobre un caso que el modelo ya contesta bien: el dato
+    # esta en el estado, la buena es la llamada y la mala es preguntar por ese nombre.
+    # Los «pregunta_de_mas» de verdad ya cuentan como al reves
+    for parte in dpo:
+        hacia = sum(x["motivo"] in ("falta_inventa", "falta_deriva") for x in dpo[parte])
+        reves = sum(x["motivo"] == "pregunta_de_mas" for x in dpo[parte])
+        rnd.shuffle(anclas_posibles[parte])
+        nuevas = anclas_posibles[parte][:max(0, round(args.anclas * hacia) - reves)]
+        dpo[parte] += nuevas
+        kto[parte] += [{**{k: v for k, v in x.items() if k not in ("chosen", "rejected")},
+                        "completion": x["rejected"], "buena": False} for x in nuevas]
+        motivos["ancla_no_preguntar (" + parte + ")"] += len(nuevas)
+    # LA SELECCION: los casos de las plantillas de validar, bien Y mal, como una
+    # prueba de tc-evaluar. Para elegir el checkpoint por lo que hace al aire (la
+    # perdida de los pares no vio que el dpo preguntaba de todo) sin tocar ni la
+    # prueba, ni el banco, ni el examen
+    (sal / "seleccion").mkdir(exist_ok=True)
+    (sal / "seleccion" / "prueba.jsonl").write_text("".join(json.dumps(f, ensure_ascii=False) + "\n"
+                                                           for f in seleccion))
+    (sal / "seleccion" / "huella.json").write_text(json.dumps({"formato": "tc", "prompt": tc.huella(),
+                                                               "de": "seleccion"}, indent=1) + "\n")
     # KTO PAREJO: tantas buenas como malas (las de las frases que fallaron y, para
     # completar, de las que salieron bien)
     for parte in kto:
@@ -376,7 +426,7 @@ def main():
         "voraz_mal": {t: f"{voraz_mal[t]}/{tipos[t]}" for t in tipos},
         "malas_distintas": dict(motivos.most_common()), "malas_por_herramienta": dict(por_herr.most_common(25)),
         "vecinas": dict(vecinas.most_common(25)),
-        "dpo": {p: len(v) for p, v in dpo.items()},
+        "dpo": {p: len(v) for p, v in dpo.items()}, "seleccion": len(seleccion),
         "kto": {p: {"buenas": sum(x["buena"] for x in v), "malas": sum(not x["buena"] for x in v)}
                 for p, v in kto.items()},
         "anotaciones": hashlib.sha256(Path(args.anotaciones).read_bytes()).hexdigest()[:16],
