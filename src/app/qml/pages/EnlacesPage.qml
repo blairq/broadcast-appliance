@@ -12,6 +12,8 @@
 //
 // Todo sale de Studio.enlaces (EnlacesViewModel): la misma lista que el MCP
 // (enlaces_listar / enlace_activar).
+//
+// Pestaña Templates: el tema de todas las interfaces web de control (PanelTemplates).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -23,6 +25,7 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var en: Studio.enlaces
+    property string pestana: "servicios" // servicios | templates
 
     Component.onCompleted: page.en.refrescar()
 
@@ -43,24 +46,42 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             Text { text: "Servicios"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            GlassButton { compact: true; text: "Servicios"; active: page.pestana === "servicios"; onClicked: page.pestana = "servicios" }
+            GlassButton { compact: true; text: "Templates"; active: page.pestana === "templates"; onClicked: page.pestana = "templates" }
             StatusPill {
+                visible: page.pestana === "servicios"
                 text: page.en.hayTunel ? "Con salida a internet" : "Solo red local"
                 dot: page.en.hayTunel ? Theme.ok : Theme.textFaint
                 on: page.en.hayTunel
             }
             Item { Layout.fillWidth: true }
             Text {
+                visible: page.pestana === "servicios"
                 text: "Para copiar, abrir o mostrar en QR. Verde: andando · ámbar: con un problema · rojo: no anda · gris: apagado."
                 color: Theme.textFaint
                 font.pixelSize: 11
                 elide: Text.ElideRight
                 Layout.maximumWidth: 560
             }
-            GlassButton { compact: true; text: "Actualizar"; icon: "↻"; onClicked: page.en.refrescar() }
+            GlassButton {
+                visible: page.pestana === "servicios"
+                compact: true; text: "Actualizar"; icon: "↻"; onClicked: page.en.refrescar()
+            }
+        }
+
+        ScrollView {
+            id: scrollTemplates
+            visible: page.pestana === "templates"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            contentWidth: availableWidth
+            PanelTemplates { width: scrollTemplates.availableWidth }
         }
 
         ScrollView {
             id: scroll
+            visible: page.pestana === "servicios"
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
