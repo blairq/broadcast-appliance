@@ -2278,11 +2278,16 @@ void StudioViewModel::onTick() {
     tiemposCentral();
     rt_.tick();
     // El retorno a los invitados: sin nadie que lo mire hace 10 s, la vista que
-    // baja el programa entero en cada cuadro descansa (ver retornoEnUso). Un
-    // televisor con el programa también mira: sin contarlo, se congelaba.
+    // baja el programa entero en cada cuadro descansa (ver retornoEnUso). Quién
+    // mira lo dice el GATEWAY (cuántas sesiones reciben el programa: invitados,
+    // televisores, la consola de la presidencia…); lo de abajo queda por si la
+    // sala todavía no lo informó. Con una lista de casos acá se escapaba el que
+    // faltaba: la consola de la presidencia se quedaba «esperando el programa».
     {
         auto* conf = static_cast<ConferenceViewModel*>(conference());
-        const bool alguien = (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
+        const int miran = conf != nullptr ? conf->client().miranPrograma() : -1;
+        const bool alguien = miran > 0 ||
+                             (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
                              (sesionRemota_ && sesionRemota_->conectados() > 0) ||
                              (pantallas_ != nullptr && pantallas_->muestraPrograma());
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();

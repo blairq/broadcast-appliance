@@ -462,6 +462,12 @@ void MediaPump::returnAudioThread() {
 /// nucleo, y mirar y que no haya nada no cuesta nada.
 constexpr int kMiradaMs = 4;
 
+int MediaPump::miranPrograma() const {
+    return static_cast<int>(sessionsWhere([](const MediaRoute& r) {
+                                return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+                            }).size());
+}
+
 void MediaPump::returnVideoThread() {
     videoBajadaThread(cfg_.programVideoName, "retorno video", [](const MediaRoute& r) {
         return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;

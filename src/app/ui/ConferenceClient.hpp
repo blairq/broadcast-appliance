@@ -38,6 +38,9 @@ class ConferenceClient : public QObject {
 
     bool online() const { return online_; }
     const QJsonObject& snapshot() const { return snap_; }
+    /// Cuántas sesiones del gateway reciben el programa (evento «programa»); -1 = todavía
+    /// no lo dijo (un gateway que no lo informa).
+    int miranPrograma() const { return online_ ? miranPrograma_ : -1; }
 
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
     void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
@@ -78,6 +81,7 @@ class ConferenceClient : public QObject {
     int port_ = 0;
     bool online_ = false;
     QJsonObject snap_;
+    int miranPrograma_ = -1;
     QTimer retry_;
     QTimer watchdog_;
     int backoffMs_ = 1000;

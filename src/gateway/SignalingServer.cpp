@@ -195,8 +195,20 @@ bool SignalingServer::start() {
     // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
     statsThread_ = std::thread([this] {
         std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
+        int miranAntes = -1;
+        int vueltas = 0;
         while (!stop_.load()) {
             for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // Cuántos reciben el programa: a la app, al cambiar y cada 10 s (por si su
+            // escucha de eventos se reconectó). Sin nadie, deja de bajarlo y descansa.
+            if (pump_ != nullptr) {
+                const int miran = pump_->miranPrograma();
+                if (miran != miranAntes || ++vueltas >= 5) {
+                    miranAntes = miran;
+                    vueltas = 0;
+                    broadcastToHosts("programa", json{{"mirando", miran}});
+                }
+            }
             std::vector<std::pair<std::string, int>> sesiones;
             {
                 std::lock_guard<std::mutex> l(sessLock_);
