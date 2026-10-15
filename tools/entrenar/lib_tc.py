@@ -296,38 +296,70 @@ def normal(s):
 # --- el estado del aparato: sintetico, variado -----------------------------------
 # Cada entidad: (nombre en el aparato, formas en que lo dice el operador). Variados
 # a proposito: el modelo tiene que aprender a COPIAR el nombre del estado, no a
-# memorizar «Música».
-ESCENAS = [("Principal", ["la principal", "principal"]), ("Cierre", ["el cierre", "la del cierre"]),
-           ("Apertura", ["la apertura", "la de apertura"]), ("Entrevista", ["la entrevista", "la de la entrevista"]),
+# memorizar «Música». Ninguna escena se dice como un CONCEPTO del oficio: «la
+# placa» es el cartel de aire_placa, «la tanda» la publicidad, «la cortina» la
+# musica, «el cierre» el momento del evento; con escenas que se decian asi,
+# «cortá directo al cierre» no lo entendia ni un operador (v6b).
+ESCENAS = [("Principal", ["la principal", "principal"]), ("Cierre", ["la escena de cierre", "la del cierre"]),
+           ("Apertura", ["la escena de apertura", "la de apertura"]), ("Entrevista", ["la entrevista", "la de la entrevista"]),
            ("Pantalla completa", ["pantalla completa", "la de pantalla completa"]), ("Pausa", ["la pausa", "la de pausa"]),
-           ("Cortina", ["la cortina", "la de cortina"]), ("Dos cámaras", ["la de dos cámaras", "dos cámaras"]),
-           ("Créditos", ["los créditos", "la de créditos"]), ("Placa", ["la placa", "la de la placa"]),
+           ("Separador", ["el separador", "la del separador"]), ("Dos cámaras", ["la de dos cámaras", "dos cámaras"]),
+           ("Créditos", ["los créditos", "la de créditos"]), ("Mapa", ["el mapa", "la del mapa"]),
            ("Panel", ["el panel", "la del panel"]), ("Juego 1", ["juego uno", "la del juego 1"]),
            ("Debate", ["el debate", "la del debate"]), ("Exterior", ["exteriores", "la de exterior"]),
            ("Noticiero", ["la del noticiero", "noticiero"]), ("Invitados", ["la de invitados", "invitados"]),
-           ("Tanda", ["la tanda", "la de la tanda"]), ("Saludo final", ["el saludo final", "la del saludo"])]
+           ("Móvil", ["el móvil", "la del móvil"]), ("Saludo final", ["el saludo final", "la del saludo"]),
+           # v7: mas escenas, para que acertar sea COPIAR del estado y no recordar el
+           # catalogo (con 18, el modelo «inventaba» una conocida cuando faltaba: 36 %)
+           ("Set 1", ["el set 1", "la del set uno"]), ("Set 2", ["el set 2", "la del set dos"]),
+           ("Plano corto", ["el plano corto", "la del plano corto"]), ("Pantalla partida", ["la pantalla partida", "la partida"]),
+           ("Mesa redonda", ["la mesa redonda", "la de la mesa redonda"]), ("Magazine", ["el magazine", "la del magazine"]),
+           ("Musical", ["la musical", "la del show"]), ("Entrevista doble", ["la entrevista doble", "la de dos invitados"]),
+           ("Cancha", ["la cancha", "la de la cancha"]), ("Columnista", ["la del columnista", "la escena del columnista"]),
+           ("Tribuna", ["la tribuna", "la de la tribuna"]), ("Cocina", ["la cocina", "la de la cocina"]),
+           ("Patio", ["el patio", "la del patio"]), ("Podio", ["la del podio", "la escena del podio"]),
+           ("Mosaico", ["el mosaico", "la del mosaico"]), ("Sorteo", ["el sorteo", "la del sorteo"])]
 AUDIO = [("Música", ["la música", "la musiquita"]), ("Cortina musical", ["la cortina musical", "la cortina"]),
          ("Micro Laura", ["el micro de Laura", "Laura"]), ("Invitado 1 (audio)", ["el invitado 1", "el invitado uno"]),
          ("Invitado 2 (audio)", ["el invitado 2", "el invitado dos"]), ("Video intro", ["el video de intro", "la intro"]),
          ("Audio del escritorio", ["el audio de la compu", "el escritorio"]), ("Micro Martín", ["el micro de Martín", "Martín"]),
          ("Playlist", ["la playlist", "la lista de temas"]), ("Mic 2", ["el mic 2", "el micrófono 2"]),
-         ("Teléfono", ["el teléfono", "la línea"]), ("Cámara 1 (audio)", ["el audio de la cámara 1", "la cámara uno"])]
+         ("Teléfono", ["el teléfono", "la línea"]), ("Cámara 1 (audio)", ["el audio de la cámara 1", "la cámara uno"]),
+         ("Micro Sofía", ["el micro de Sofía", "el de Sofía"]), ("Micro conductor", ["el micro del conductor", "el del conductor"]),
+         ("Ambiente", ["el ambiente", "el micro ambiente"]), ("Micro auxiliar", ["el micro auxiliar", "el auxiliar"]),
+         ("Inalámbrico 1", ["el inalámbrico 1", "el inalámbrico uno"]), ("Inalámbrico 2", ["el inalámbrico 2", "el inalámbrico dos"]),
+         ("Corbatero Juan", ["el corbatero de Juan", "el corbatero"]), ("Efectos", ["los efectos", "la de efectos"]),
+         ("Jingle", ["el jingle", "la del jingle"]), ("Llamada Skype", ["el Skype", "la llamada de Skype"])]
 MICROS = [("Micrófono de MacBook Pro", ["el micrófono de la MacBook", "mi micrófono"]),
           ("Mic operador", ["el mic del operador", "mi mic"]), ("Micrófono USB", ["el micrófono USB", "mi micrófono"])]
 FUENTES = [("Cámara 1", ["la cámara 1", "la uno"]), ("Cámara 2", ["la cámara 2", "la dos"]),
            ("Cámara 3", ["la cámara 3", "la tres"]), ("Pantalla compartida", ["la pantalla compartida", "lo compartido"]),
            ("Logo", ["el logo", "el logo del canal"]), ("Video intro", ["el video de intro", "la intro"]),
            ("Placa de espera", ["la placa de espera", "la placa"]), ("Navegador", ["el navegador", "la web"]),
-           ("Zócalo", ["el zócalo", "el zocalito"]), ("Reloj", ["el reloj", "la hora"])]
+           ("Zócalo", ["el zócalo", "el zocalito"]), ("Reloj", ["el reloj", "la hora"]),
+           ("Cámara 4", ["la cámara 4", "la cámara cuatro"]), ("Cámara cenital", ["la cenital", "la cámara cenital"]),
+           ("Drone", ["el drone", "la del drone"]), ("Celular", ["el celular", "la del celu"]),
+           ("Notebook", ["la notebook del panel", "la compu del panel"]), ("Entrada HDMI", ["la HDMI", "la entrada HDMI"]),
+           ("Videowall", ["el videowall", "la pantalla gigante"]), ("Cámara de mano", ["la cámara de mano", "la de mano"]),
+           ("Pizarra digital", ["la pizarra", "la pizarra digital"]), ("Señal remota", ["la remota", "la señal remota"])]
 PERSONAS = [("Laura Gómez", ["Laura", "Laura Gómez"]), ("Martín", ["Martín", "Martín el invitado"]),
             ("Sofía Ruiz", ["Sofía", "Sofía Ruiz"]), ("Juan Pérez", ["Juan", "Juan Pérez"]),
             ("Invitado 3", ["el invitado 3", "el invitado tres"]), ("Carla", ["Carla"]),
-            ("Diego Fernández", ["Diego", "Diego Fernández"]), ("Ana", ["Ana"])]
+            ("Diego Fernández", ["Diego", "Diego Fernández"]), ("Ana", ["Ana"]),
+            ("Lucía Torres", ["Lucía", "Lucía Torres"]), ("Pablo Méndez", ["Pablo", "Pablo Méndez"]),
+            ("Florencia", ["Flor", "Florencia"]), ("Ramiro Aguirre", ["Ramiro", "Ramiro Aguirre"]),
+            ("Valentina Ríos", ["Valentina", "Valentina Ríos"]), ("Joaquín", ["Joaquín", "Joaco"]),
+            ("Invitada 4", ["la invitada 4", "la invitada cuatro"]), ("Gustavo Paz", ["Gustavo", "Gustavo Paz"])]
 GRAFICOS = [("Zócalo", ["el zócalo"]), ("Logo", ["el logo"]), ("Marcador", ["el marcador", "el resultado"]),
             ("Resultados", ["los resultados"]), ("Clima", ["el clima"]), ("Reloj", ["el reloj"]),
-            ("Cuenta regresiva", ["la cuenta regresiva"]), ("Sponsor", ["el sponsor", "la publicidad"])]
+            ("Cuenta regresiva", ["la cuenta regresiva"]), ("Sponsor", ["el sponsor", "la publicidad"]),
+            ("Tabla de posiciones", ["la tabla de posiciones", "la tabla del torneo"]), ("Hashtag", ["el hashtag", "el numeral"]),
+            ("Dólar", ["el dólar", "la cotización"]), ("Tránsito", ["el tránsito", "el mapa del tránsito"]),
+            ("Cartel del invitado", ["el cartel del invitado", "el nombre del invitado"])]
 CARRUSELES = [("Presentación", ["la presentación"]), ("Sponsors", ["los sponsors"]),
-              ("Fotos del evento", ["las fotos", "las fotos del evento"]), ("Agenda", ["la agenda"])]
+              ("Fotos del evento", ["las fotos", "las fotos del evento"]), ("Agenda", ["la agenda"]),
+              ("Paisajes", ["los paisajes", "las láminas de paisajes"]), ("Menú", ["el menú", "las láminas del menú"]),
+              ("Elecciones", ["las de la elección", "las láminas de la elección"]), ("Historia", ["la historia", "las láminas de historia"])]
 
 # v4: lo que nombran los comandos nuevos (PTZ, teleprompter, medios, preguntas,
 # pantallas, recetas). Cada entrada: (valor que va en los argumentos, como lo dice
@@ -358,8 +390,8 @@ PREGUNTAS = [("q3", ["la de Juan", "la pregunta de Juan"], "¿Cuándo empieza la
              ("q20", ["la última", "la de Diego"], "¿Hay fecha para la próxima sesión?|Diego")]
 PANTALLAS = [("TV del hall", ["la tele del hall", "la del hall"]), ("Pantalla del escenario", ["la pantalla del escenario", "la del escenario"]),
              ("Monitor de prensa", ["el monitor de prensa", "la de prensa"]), ("TV de la entrada", ["la tele de la entrada", "la de la entrada"])]
-RECETAS = [("r1", ["la receta de apertura", "la apertura"], "Apertura"), ("r2", ["la receta de cierre", "la de cierre"], "Cierre"),
-           ("r3", ["la de la tanda", "la receta de la tanda"], "Tanda"), ("r4", ["la de entrevista", "la receta de entrevista"], "Entrevista"),
+RECETAS = [("r1", ["la receta de apertura", "la receta del inicio"], "Apertura"), ("r2", ["la receta de cierre", "la receta del final"], "Cierre"),
+           ("r3", ["la receta de la tanda", "la receta de tanda"], "Tanda"), ("r4", ["la de entrevista", "la receta de entrevista"], "Entrevista"),
            ("r5", ["la de corte a publicidad", "el corte"], "Corte a publicidad")]
 
 # v5: el recinto, el DSK, el orden del dia y el chat del publico. Las bancas y las

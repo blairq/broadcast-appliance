@@ -275,8 +275,9 @@ def main():
                     help="dos plantillas de una herramienta que comparten esta porcion de palabras y piden lo mismo son una")
     ap.add_argument("--parecido", type=float, default=0.6,
                     help="fuera la frase que comparte esta porcion de palabras con una del banco o del examen de su misma respuesta")
-    ap.add_argument("--ausentes", type=float, default=0.35,
-                    help="probabilidad por plantilla de sumar su version con un nombre que no esta en el estado")
+    ap.add_argument("--ausentes", type=float, default=1.0,
+                    help="probabilidad por plantilla de sumar su version con un nombre que no esta en el estado"
+                         " (0,35 hasta la v6b: 1,4 %% del corpus, y el modelo fallaba el 36 %% de esos casos)")
     ap.add_argument("--social", type=int, default=6, help="ejemplos por frase social")
     ap.add_argument("--semilla", type=int, default=13)
     args = ap.parse_args()
