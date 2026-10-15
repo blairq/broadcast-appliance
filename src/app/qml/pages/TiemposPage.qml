@@ -31,6 +31,41 @@ Rectangle {
     property bool soloMedido: false
     property string elegido: ""     ///< el nodo tocado (resalta su camino)
 
+    // --- La línea de tiempo -------------------------------------------------------------
+    /// Los nodos de la línea de tiempo (en el modelo: el asistente también la elige, tiempos_linea).
+    readonly property var serie: page.tm ? page.tm.linea : []
+    readonly property var paleta: ["#4fd8ff", "#ffb347", "#c38bff", "#35c46b", "#ff6b9a", "#f5e663", "#7aa2ff", "#ff7a45"]
+    property string modoLinea: "superpuestas"
+    property bool lineaAcumulado: false
+    property int ventanaS: 60
+    property bool pausada: false
+    property real finPausa: 0
+    property var datosPausa: []
+    property var eventosPausa: []
+    function alternarSerie(id) {
+        const s = page.serie.slice()
+        const i = s.indexOf(id)
+        if (i >= 0) s.splice(i, 1); else s.push(id)
+        page.tm.linea = s
+    }
+    function tituloDe(id) {
+        for (const n of (page.mapa.nodos || [])) if (n.id === id) return n.titulo + (n.medio === "audio" && n.tipo === "entrada" ? " (audio)" : "")
+        for (const s of (page.mapa.salidas || [])) if (s.id === id) return s.titulo
+        return id
+    }
+    /// Las series con sus datos (renovados con cada vuelta del modelo, salvo en pausa).
+    readonly property var seriesVivas: {
+        page.vuelta
+        return page.serie.map((id, i) => ({ id: id, titulo: page.tituloDe(id), color: page.paleta[i % page.paleta.length],
+                                           datos: page.tm ? page.tm.historia(id, page.ventanaS) : [] }))
+    }
+    function pausar() {
+        page.datosPausa = page.seriesVivas
+        page.eventosPausa = page.tm ? page.tm.eventos : []
+        page.finPausa = Date.now()
+        page.pausada = true
+    }
+
     function entradaDe(n) {
         if (n.detalle && n.detalle.entrada) return n.detalle.entrada
         const p = n.id.split(":")
@@ -339,7 +374,9 @@ Rectangle {
                                 y: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).y
                                 resaltada: !!page.camino[modelData.id]
                                 historia: { page.vuelta; return page.tm ? page.tm.historia(modelData.id) : [] }
-                                onElegida: (id) => page.elegido = page.elegido === id ? "" : id
+                                onElegida: (id) => { page.elegido = page.elegido === id ? "" : id; page.alternarSerie(id) }
+                                enLinea: page.serie.indexOf(modelData.id) >= 0
+                                colorLinea: page.paleta[Math.max(0, page.serie.indexOf(modelData.id)) % page.paleta.length]
                                 Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                 Behavior on y { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                             }
@@ -409,6 +446,97 @@ Rectangle {
                         }
                     }
                     Item { Layout.fillHeight: true }
+                }
+            }
+        }
+
+        // --- La línea de tiempo: las tarjetas elegidas, con los eventos abajo --------------------
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: page.serie.length === 0 ? 46 : (page.modoLinea === "apiladas" ? Math.min(420, 90 + 74 * page.serie.length) : 250)
+            Behavior on Layout.preferredHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            radius: 14
+            color: Theme.glassTint
+            border.color: Theme.glassBorder
+            ColumnLayout {
+                anchors { fill: parent; margins: 10 }
+                spacing: 6
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Text { text: "Línea de tiempo"; color: Theme.textDim; font.pixelSize: 11 }
+                    // Las series elegidas (✕ para sacarla).
+                    Repeater {
+                        model: page.serie
+                        delegate: Rectangle {
+                            id: chip
+                            required property var modelData
+                            required property int index
+                            height: 22
+                            width: fila.implicitWidth + 14
+                            radius: 11
+                            color: Qt.rgba(1, 1, 1, 0.06)
+                            border.color: page.paleta[index % page.paleta.length]
+                            Row {
+                                id: fila
+                                anchors.centerIn: parent
+                                spacing: 5
+                                Rectangle { width: 8; height: 8; radius: 4; anchors.verticalCenter: parent.verticalCenter; color: page.paleta[chip.index % page.paleta.length] }
+                                Text { text: page.tituloDe(chip.modelData); color: Theme.text; font.pixelSize: 10 }
+                                Text {
+                                    text: "✕"; color: Theme.textFaint; font.pixelSize: 10
+                                    TapHandler { onTapped: page.alternarSerie(chip.modelData) }
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        visible: page.serie.length === 0
+                        text: "Tocá tarjetas del mapa para sumarlas acá (cada una con su color)."
+                        color: Theme.textFaint; font.pixelSize: 11
+                    }
+                    Item { Layout.fillWidth: true }
+                    GlassButton { compact: true; text: "Superpuestas"; active: page.modoLinea === "superpuestas"; onClicked: page.modoLinea = "superpuestas"; visible: page.serie.length > 0 }
+                    GlassButton { compact: true; text: "Apiladas"; active: page.modoLinea === "apiladas"; onClicked: page.modoLinea = "apiladas"; visible: page.serie.length > 0 }
+                    GlassButton {
+                        compact: true; visible: page.serie.length > 0
+                        text: page.lineaAcumulado ? "Desde la captura" : "Lo que agrega"
+                        onClicked: page.lineaAcumulado = !page.lineaAcumulado
+                        ToolTip.visible: hovered; ToolTip.delay: 300
+                        ToolTip.text: "Lo que agrega cada tarjeta, o todo lo que lleva desde la captura (con la latencia del estudio de referencia)"
+                    }
+                    Repeater {
+                        model: [{ t: "1 min", s: 60 }, { t: "5 min", s: 300 }, { t: "15 min", s: 900 }, { t: "30 min", s: 1800 }]
+                        delegate: GlassButton {
+                            required property var modelData
+                            visible: page.serie.length > 0
+                            compact: true
+                            text: modelData.t
+                            active: page.ventanaS === modelData.s
+                            onClicked: page.ventanaS = modelData.s
+                        }
+                    }
+                    GlassButton {
+                        compact: true; visible: page.serie.length > 0
+                        text: page.pausada ? "Reanudar" : "Pausar"
+                        icon: page.pausada ? "▶" : "⏸"
+                        active: page.pausada
+                        onClicked: if (page.pausada) page.pausada = false; else page.pausar()
+                    }
+                    GlassButton { compact: true; visible: page.serie.length > 0; text: "Limpiar"; onClicked: { page.tm.linea = []; page.pausada = false } }
+                }
+                GraficaLatencia {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: page.serie.length > 0
+                    series: page.pausada ? page.datosPausa : page.seriesVivas
+                    modo: page.modoLinea
+                    verAcumulado: page.lineaAcumulado
+                    ventanaMs: page.ventanaS * 1000
+                    fin: page.pausada ? page.finPausa : (page.vuelta, Date.now())
+                    eventos: page.pausada ? page.eventosPausa : (page.tm ? page.tm.eventos : [])
+                    referencia: (page.mapa.estudio || {}).latencia_ms || 0
+                    onPedirNota: (t) => { nota.t = t; nota.open() }
                 }
             }
         }
@@ -493,6 +621,45 @@ Rectangle {
                                 color: Theme.textDim; font.pixelSize: 10
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // Marcar un momento de la línea de tiempo (queda como evento «nota»; también por MCP).
+    Popup {
+        id: nota
+        property real t: 0
+        anchors.centerIn: parent
+        width: 380
+        modal: true
+        padding: 16
+        onOpened: { campoNota.text = ""; campoNota.forceActiveFocus() }
+        background: Rectangle { radius: 14; color: Theme.panel; border.color: Theme.glassBorder }
+        contentItem: ColumnLayout {
+            spacing: 10
+            Text {
+                text: "Marcar " + (nota.t > 0 ? new Date(nota.t).toLocaleTimeString(Qt.locale(), "HH:mm:ss") : "")
+                color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+            TextField {
+                id: campoNota
+                Layout.fillWidth: true
+                placeholderText: "Qué pasó (p. ej. «se movió el cable de la cámara 2»)"
+                color: Theme.text
+                onAccepted: guardarNota.clicked()
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: nota.close() }
+                GlassButton {
+                    id: guardarNota
+                    compact: true; text: "Marcar"; active: true
+                    onClicked: {
+                        page.tm.agregarEventoUi(nota.t, campoNota.text.trim())
+                        if (page.pausada) page.eventosPausa = page.tm.eventos
+                        nota.close()
                     }
                 }
             }

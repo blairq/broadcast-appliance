@@ -1,7 +1,7 @@
 // Una tarjeta de la página Latencias del pipeline: un nodo del pipeline (entrada, tarjeta, módulo,
 // escena, mezcla, salida) con lo que agrega, lo acumulado desde la captura y su chispa
-// de los últimos 60 s. Se inclina siguiendo al puntero (perspectiva) y al tocarla se
-// da vuelta: el dorso tiene el detalle. Todo sale del nodo (TiemposModel::mapa).
+// de los últimos 60 s. Se inclina siguiendo al puntero (perspectiva); un click la elige
+// (la página muestra su gráfica abajo) y doble click la da vuelta: el dorso tiene el detalle. Todo sale del nodo (TiemposModel::mapa).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -13,6 +13,9 @@ Item {
     /// La historia del nodo ([{t, ms, acumulado}]), la pide la página.
     property var historia: []
     property bool resaltada: false
+    /// Está en la línea de tiempo (con este color).
+    property bool enLinea: false
+    property color colorLinea: "#4fd8ff"
     signal elegida(string id)
 
     width: 196
@@ -76,7 +79,11 @@ Item {
             angle: caja.vuelta ? 180 : 0
             Behavior on angle { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
         }
-        TapHandler { onTapped: { caja.vuelta = !caja.vuelta; t.elegida(t.nodo.id) } }
+        // Un click la elige (la gráfica abajo); doble click la da vuelta (el detalle atrás).
+        TapHandler {
+            onTapped: t.elegida(t.nodo.id)
+            onDoubleTapped: caja.vuelta = !caja.vuelta
+        }
 
         front: Rectangle {
             anchors.fill: parent
@@ -98,6 +105,14 @@ Item {
                     GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.10) }
                     GradientStop { position: 1.0; color: "transparent" }
                 }
+            }
+            // En la línea de tiempo: un punto con su color arriba a la derecha.
+            Rectangle {
+                visible: t.enLinea
+                anchors { right: parent.right; top: parent.top; margins: 9 }
+                width: 10; height: 10; radius: 5
+                color: t.colorLinea
+                border.color: "white"; border.width: 1
             }
             // La franja del medio: cian video, ámbar audio.
             Rectangle { x: 0; y: 14; width: 3; height: parent.height - 28; radius: 1.5; color: t.colorMedio }

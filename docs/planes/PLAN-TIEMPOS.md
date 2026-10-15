@@ -147,6 +147,7 @@ Se llama **«Latencias del pipeline»** (en el riel, «Latencias»; id `latencia
   - filtros: video, audio, solo lo medido;
   - **▶ Analizar**, que corre el nivel 2 en todo lo visible;
   - **⏺ Marca de tiempo**, que corre el nivel 3 y deja elegir dónde leer (programa, TV, YouTube, invitados).
+- **Línea de tiempo (abajo, hecha 2026-10-15):** un click en una tarjeta la suma (o la saca) con su color; superpuestas o apiladas (cada una con su escala); «lo que agrega» o «desde la captura» (con la latencia del estudio de referencia); ventana de 1, 5, 15 o 30 min (se junta siempre, una muestra por segundo); pausar/reanudar; abajo la franja de eventos (conexión y desconexión firmes —5 s—, escena al aire, salidas, latencia del estudio, «llega tarde», rearmes) y un click en un punto marca ese momento con un nombre. Por MCP: `tiempos_linea`, `tiempos_eventos`, `tiempos_evento_agregar`, `tiempos_evento_impacto` (qué nodo cambió cuánto alrededor de un momento).
 - **Columna derecha:** el total de cada salida, de punta a punta, con su desglose al tocarlo («de los 6,2 s hasta YouTube, 5,9 s son de YouTube»).
 - **Abajo, el estado de los análisis:** una fila por análisis con estado (esperando, midiendo con su progreso, listo, falló y por qué), su resultado, cuándo se hizo y «repetir». Queda en la historia del evento, para comparar antes y después de un cambio.
 - **Rendimiento:** la página dibuja solo lo visible y anima con `NumberAnimation`, sin timers de JS. Cerrada no cuesta nada: el modelo deja de pedir datos.

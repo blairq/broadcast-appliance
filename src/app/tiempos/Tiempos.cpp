@@ -176,7 +176,8 @@ json armar(const Fotos& f) {
                              {"con_su_hora", si(e, "ntp_sync")},
                              {"origen", e.value("origen", json())},
                              {"sale", e.value("sale", json())},
-                             {"sin_datos_s", num(e, "sin_datos_s", -1.0)}};
+                             {"sin_datos_s", num(e, "sin_datos_s", -1.0)},
+                             {"rearmada_hace_s", num(e, "rearmada_hace_s", -1.0)}};
             const bool medida = edad.is_object();
             const double total = medida ? num(edad, "p50_ms", 0.0) : -1;
             if (medida) {

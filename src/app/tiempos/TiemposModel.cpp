@@ -31,6 +31,10 @@ TiemposModel::TiemposModel(std::function<Fotos()> fotos, std::filesystem::path a
     connect(&timer_, &QTimer::timeout, this, &TiemposModel::tic);
     muestreo_.setInterval(100);
     connect(&muestreo_, &QTimer::timeout, this, &TiemposModel::muestrear);
+    // La historia larga y los eventos se juntan siempre (una foto por segundo: barato).
+    reloj1s_.setInterval(1000);
+    connect(&reloj1s_, &QTimer::timeout, this, &TiemposModel::cadaSegundo);
+    reloj1s_.start();
     // Los análisis de antes de este evento.
     std::ifstream f(archivo_);
     const json j = json::parse(f, nullptr, false);
@@ -47,17 +51,19 @@ void TiemposModel::setActivo(bool a) {
         timer_.start();
     } else {
         timer_.stop();
-        historia_.clear();
+        historia_.clear(); // la corta; la larga sigue
     }
     emit activoCambio();
 }
 
-bool TiemposModel::rehacer() {
+bool TiemposModel::rehacer(bool avisar) {
     // Una foto con algo inesperado no tumba la página (ni el MCP): queda el último grafo bueno.
     try {
         mapa_ = armar(fotos_());
-        mapaUi_ = aVariant(mapa_).toMap();
-        emit cambio();
+        if (avisar) {
+            mapaUi_ = aVariant(mapa_).toMap();
+            emit cambio();
+        }
         return true;
     } catch (const std::exception& e) {
         qWarning("[tiempos] no se pudo armar el grafo: %s", e.what());
@@ -86,23 +92,189 @@ void TiemposModel::tic() {
         it = vivos.count(it->first) ? std::next(it) : historia_.erase(it);
 }
 
-json TiemposModel::nodo(const std::string& id) const {
+json TiemposModel::nodo(const std::string& id, int segundos) const {
     for (const auto& n : mapa_.value("nodos", json::array()))
         if (n.value("id", std::string()) == id) {
             json out = n;
             json h = json::array();
-            if (const auto it = historia_.find(id); it != historia_.end())
-                for (const auto& m : it->second) h.push_back({{"t_ms", m.t}, {"ms", m.ms}, {"acumulado_ms", m.acumulado}});
+            for (const QVariant& v : historia(QString::fromStdString(id), segundos)) {
+                const QVariantMap m = v.toMap();
+                h.push_back({{"t_ms", m["t"].toLongLong()}, {"ms", m["ms"].toDouble()}, {"acumulado_ms", m["acumulado"].toDouble()}});
+            }
             out["historia"] = h;
             return out;
         }
     return nullptr;
 }
 
-QVariantList TiemposModel::historia(const QString& id) const {
+QVariantList TiemposModel::historia(const QString& id, int segundos) const {
     QVariantList out;
-    if (const auto it = historia_.find(id.toStdString()); it != historia_.end())
-        for (const auto& m : it->second) out << QVariantMap{{"t", m.t}, {"ms", m.ms}, {"acumulado", m.acumulado}};
+    const qint64 desde = QDateTime::currentMSecsSinceEpoch() - static_cast<qint64>(segundos) * 1000;
+    const auto corta = historia_.find(id.toStdString());
+    const auto& fuente = segundos <= kHistoriaS && corta != historia_.end() && corta->second.size() > 1 ? historia_ : larga_;
+    if (const auto it = fuente.find(id.toStdString()); it != fuente.end())
+        for (const auto& m : it->second)
+            if (m.t >= desde) out << QVariantMap{{"t", m.t}, {"ms", m.ms}, {"acumulado", m.acumulado}};
+    return out;
+}
+
+// --- Historia larga y eventos --------------------------------------------------------------
+
+void TiemposModel::cadaSegundo() {
+    if (!activo() && !rehacer(false)) return;
+    const qint64 t = QDateTime::currentMSecsSinceEpoch();
+    std::set<std::string> vivos;
+    for (const auto& n : mapa_["nodos"]) {
+        const std::string id = n.value("id", std::string());
+        vivos.insert(id);
+        if (!n["ms"].is_number()) continue;
+        auto& h = larga_[id];
+        h.push_back({t, n["ms"].get<double>(), n["acumulado_ms"].is_number() ? n["acumulado_ms"].get<double>() : 0.0});
+        while (!h.empty() && t - h.front().t > kHistoriaLargaS * 1000) h.pop_front();
+    }
+    // Lo que ya no está y no tiene nada en la ventana, afuera.
+    for (auto it = larga_.begin(); it != larga_.end();)
+        it = vivos.count(it->first) || (!it->second.empty() && t - it->second.back().t < kHistoriaLargaS * 1000) ? std::next(it)
+                                                                                                                : larga_.erase(it);
+    detectar(t);
+}
+
+void TiemposModel::evento(qint64 t, const std::string& tipo, const std::string& texto, const std::string& entrada) {
+    // En orden de tiempo (uno «firme» se anota en el momento en que empezó, unos segundos atrás).
+    auto it = eventos_.end();
+    while (it != eventos_.begin() && std::prev(it)->value("t", qint64{0}) > t) --it;
+    eventos_.insert(it, json{{"t", t}, {"tipo", tipo}, {"texto", texto}, {"entrada", entrada}});
+    while (!eventos_.empty() && (eventos_.size() > 500 || t - eventos_.front().value("t", qint64{0}) > kHistoriaLargaS * 1000))
+        eventos_.pop_front();
+}
+
+void TiemposModel::detectar(qint64 t) {
+    // Lo de esta foto que importa para los eventos.
+    json ahora{{"activas", json::object()}, {"tarde", json::object()}, {"rearme", json::object()}, {"salidas", json::object()},
+               {"escena", ""}, {"latencia", mapa_.value("estudio", json::object()).value("latencia_ms", 0.0)}};
+    for (const auto& n : mapa_.value("nodos", json::array())) {
+        const std::string tipo = n.value("tipo", std::string());
+        if (tipo == "entrada") {
+            const json d = n.value("detalle", json::object());
+            const std::string e = d.value("entrada", std::string());
+            ahora["activas"][e] = ahora["activas"].value(e, false) || n.value("activo", false);
+            ahora["tarde"][e] = ahora["tarde"].value(e, false) || d.value("llega_tarde", false);
+            const double r = d.value("rearmada_hace_s", -1.0);
+            ahora["rearme"][e] = r >= 0 && r < 2.5;
+        } else if (tipo == "escena") {
+            ahora["escena"] = n.value("titulo", std::string());
+        }
+    }
+    for (const auto& sa : mapa_.value("salidas", json::array())) ahora["salidas"][sa.value("id", std::string())] = sa.value("titulo", std::string());
+    if (previo_.is_null()) { // la primera foto: el punto de partida, sin eventos
+        previo_ = std::move(ahora);
+        return;
+    }
+    const size_t antes = eventos_.size();
+    // Los primeros segundos todo se acomoda (entradas que dan un cuadro y paran, la latencia
+    // del estudio que sube): es el punto de partida, no son eventos.
+    if (arranque_ == 0) arranque_ = t;
+    const bool arrancando = t - arranque_ < kArranqueMs;
+    // Conexión y «llega tarde»: solo cuando el cambio se sostiene kFirmeMs (una entrada sin
+    // nada que se rearma cada 10 s da datos un ratito: eso no es una conexión). El evento
+    // va en el momento en que empezó.
+    const auto firme = [&](const char* clave, const std::string& e, bool ahoraSi, const std::string& si, const std::string& no,
+                           const char* tipoSi, const char* tipoNo) {
+        json& f = firmes_[clave][e];
+        if (!f.is_object()) f = {{"estado", ahoraSi}, {"cand", ahoraSi}, {"desde", t}};
+        if (ahoraSi != f.value("cand", ahoraSi)) {
+            f["cand"] = ahoraSi;
+            f["desde"] = t;
+        }
+        if (f.value("cand", ahoraSi) != f.value("estado", ahoraSi) && t - f.value("desde", t) >= kFirmeMs) {
+            f["estado"] = f["cand"];
+            if (!arrancando) evento(f.value("desde", t), ahoraSi ? tipoSi : tipoNo, e + (ahoraSi ? si : no), e);
+        }
+    };
+    for (const auto& [e, activa] : ahora["activas"].items())
+        firme("activas", e, activa.get<bool>(), ": llegan datos", ": dejaron de llegar datos", "conexion", "desconexion");
+    for (const auto& [e, era] : previo_["activas"].items())
+        if (!ahora["activas"].contains(e)) {
+            if (firmes_["activas"].value(e, json::object()).value("estado", false)) evento(t, "desconexion", e + ": ya no está", e);
+            firmes_["activas"].erase(e);
+        }
+    for (const auto& [e, tarde] : ahora["tarde"].items())
+        firme("tarde", e, tarde.get<bool>(), ": llega tarde a la mezcla", ": volvió a llegar a tiempo", "tarde", "tarde");
+    // Los rearmes, solo de las que estaban andando (las que esperan a alguien se rearman solas cada tanto).
+    for (const auto& [e, r] : ahora["rearme"].items())
+        if (r.get<bool>() && !previo_["rearme"].value(e, false) && firmes_["activas"].value(e, json::object()).value("estado", false))
+            evento(t, "rearme", e + ": se rearmó", e);
+    const std::string esc = ahora.value("escena", std::string()), escAntes = previo_.value("escena", std::string());
+    if (esc != escAntes && !esc.empty() && !arrancando) evento(t, "escena", "Al aire: " + esc);
+    for (const auto& [id, titulo] : ahora["salidas"].items())
+        if (!previo_["salidas"].contains(id)) evento(t, "salida", titulo.get<std::string>() + ": arrancó");
+    for (const auto& [id, titulo] : previo_["salidas"].items())
+        if (!ahora["salidas"].contains(id)) evento(t, "salida", titulo.get<std::string>() + ": paró");
+    const double lat = ahora.value("latencia", 0.0), latAntes = previo_.value("latencia", 0.0);
+    if (!arrancando && std::fabs(lat - latAntes) >= 10.0)
+        evento(t, "latencia", "Latencia del estudio: " + std::to_string(static_cast<int>(std::lround(latAntes))) + " → " +
+                                  std::to_string(static_cast<int>(std::lround(lat))) + " ms");
+    previo_ = std::move(ahora);
+    if (eventos_.size() != antes) emit eventosCambio();
+}
+
+json TiemposModel::eventosJson(int segundos) const {
+    json out = json::array();
+    const qint64 desde = QDateTime::currentMSecsSinceEpoch() - static_cast<qint64>(segundos) * 1000;
+    for (const auto& e : eventos_)
+        if (e.value("t", qint64{0}) >= desde) out.push_back(e);
+    return out;
+}
+
+QVariantList TiemposModel::eventos() const { return aVariant(eventosJson(kHistoriaLargaS)).toList(); }
+
+json TiemposModel::agregarEvento(qint64 t, const std::string& texto, const std::string& quien) {
+    const qint64 ahoraMs = QDateTime::currentMSecsSinceEpoch();
+    if (t <= 0 || t > ahoraMs) t = ahoraMs;
+    // En su lugar (los eventos van en orden de tiempo).
+    json e{{"t", t}, {"tipo", "nota"}, {"texto", texto.empty() ? std::string("nota") : texto}, {"entrada", ""}, {"quien", quien}};
+    auto it = eventos_.begin();
+    while (it != eventos_.end() && it->value("t", qint64{0}) <= t) ++it;
+    eventos_.insert(it, e);
+    emit eventosCambio();
+    return e;
+}
+
+void TiemposModel::borrarEventoUi(double t, const QString& texto) {
+    for (auto it = eventos_.begin(); it != eventos_.end(); ++it)
+        if (it->value("tipo", std::string()) == "nota" && it->value("t", qint64{0}) == static_cast<qint64>(t) &&
+            it->value("texto", std::string()) == texto.toStdString()) {
+            eventos_.erase(it);
+            emit eventosCambio();
+            return;
+        }
+}
+
+json TiemposModel::impacto(qint64 t, int segundos) const {
+    const qint64 v = static_cast<qint64>(std::clamp(segundos, 2, 300)) * 1000;
+    const auto mediana = [](std::vector<double> x) {
+        if (x.empty()) return -1.0;
+        std::sort(x.begin(), x.end());
+        return x[x.size() / 2];
+    };
+    std::map<std::string, std::string> titulos;
+    for (const auto& n : mapa_.value("nodos", json::array())) titulos[n.value("id", std::string())] = n.value("titulo", std::string());
+    json out = json::array();
+    for (const auto& [id, h] : larga_) {
+        std::vector<double> a, d, aa, da;
+        for (const auto& m : h) {
+            if (m.t >= t - v && m.t < t) a.push_back(m.ms), aa.push_back(m.acumulado);
+            else if (m.t >= t && m.t < t + v) d.push_back(m.ms), da.push_back(m.acumulado);
+        }
+        if (a.empty() || d.empty()) continue;
+        const double ma = mediana(a), md = mediana(d), maa = mediana(aa), mda = mediana(da);
+        out.push_back({{"id", id}, {"titulo", titulos.count(id) ? titulos[id] : id}, {"antes_ms", std::round(ma * 10) / 10},
+                       {"despues_ms", std::round(md * 10) / 10}, {"cambio_ms", std::round((md - ma) * 10) / 10},
+                       {"acumulado_antes_ms", std::round(maa * 10) / 10}, {"acumulado_despues_ms", std::round(mda * 10) / 10}});
+    }
+    std::sort(out.begin(), out.end(), [](const json& x, const json& y) {
+        return std::fabs(x["cambio_ms"].get<double>()) > std::fabs(y["cambio_ms"].get<double>());
+    });
     return out;
 }
 
