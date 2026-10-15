@@ -1,0 +1,101 @@
+/* ============================================================================
+   /comun/neuro/temas.css — los TEMAS de las interfaces web de control
+
+   Los componentes (neuro.js) no tienen ni un color ni una sombra propios: usan
+   MATERIALES (las variables de abajo). Cada tema los define bajo
+   [data-tema="<nombre>"] en <html>; cambiar de tema es cambiar ese atributo
+   (BA.tema.poner("neuro-claro")) y todo se repinta al instante, también adentro
+   de los componentes (las variables CSS atraviesan el Shadow DOM).
+
+   Para sumar un tema (p. ej. «glass-neuro»): copiar un bloque, cambiarle el nombre
+   y los valores (para vidrio: --superficie translúcida, --filtro con blur, --borde
+   con un filo de luz) y agregarlo a BA.tema.lista en neuro.js. Nada más.
+
+   Los materiales:
+     --fondo              el fondo de la página
+     --superficie         lo que está en relieve (botones, tarjetas): color o gradiente
+     --superficie-hundida lo apretado, los campos, la canaleta de un fader
+     --borde              un filo (en neumorfismo casi nada; en vidrio, la luz del borde)
+     --filtro             backdrop-filter (vidrio: blur…; si no, none)
+     --relieve            box-shadow de lo que sobresale
+     --relieve-alto       lo mismo, con el puntero encima o en foco
+     --hundido            box-shadow de lo apretado / hundido
+     --hundido-suave      un hundido apenas (campos, pistas)
+     --texto, --texto-suave, --texto-tenue
+     --acento, --acento-texto   el color de la acción (y el texto encima)
+     --aire               tally: al aire (rojo sólido, siempre legible)
+     --armado             tally: armado / preview (verde)
+     --aviso, --ok        estados
+     --foco               el anillo del foco del teclado
+     --vu-bajo, --vu-medio, --vu-alto   el vúmetro
+     --radio, --radio-chico, --radio-redondo
+     --fuente, --fuente-numeros
+   ============================================================================ */
+
+:root,
+[data-tema="neuro-oscuro"] {
+  color-scheme: dark;
+  --fondo: #22252c;
+  --superficie: linear-gradient(145deg, #262a32, #1f2228);
+  --superficie-plana: #23262d;
+  --superficie-hundida: #1d2025;
+  --borde: rgba(255, 255, 255, 0.02);
+  --filtro: none;
+  --relieve: 6px 6px 14px rgba(0, 0, 0, 0.55), -5px -5px 12px rgba(255, 255, 255, 0.045);
+  --relieve-alto: 9px 9px 20px rgba(0, 0, 0, 0.6), -7px -7px 16px rgba(255, 255, 255, 0.06);
+  --hundido: inset 5px 5px 11px rgba(0, 0, 0, 0.6), inset -4px -4px 10px rgba(255, 255, 255, 0.05);
+  --hundido-suave: inset 3px 3px 7px rgba(0, 0, 0, 0.5), inset -3px -3px 7px rgba(255, 255, 255, 0.04);
+  --texto: #eef0f4;
+  --texto-suave: #a7adb9;
+  --texto-tenue: #6d7380;
+  --acento: #ff7a36;
+  --acento-texto: #1a0e06;
+  --aire: #ff3b30;
+  --armado: #34c46b;
+  --aviso: #f5b83d;
+  --ok: #34c46b;
+  --foco: rgba(255, 122, 54, 0.55);
+  --vu-bajo: #34c46b;
+  --vu-medio: #f5b83d;
+  --vu-alto: #ff3b30;
+  --radio: 18px;
+  --radio-chico: 12px;
+  --radio-redondo: 999px;
+  --fuente: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --fuente-numeros: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+[data-tema="neuro-claro"] {
+  color-scheme: light;
+  --fondo: #e4e8ef;
+  --superficie: linear-gradient(145deg, #eef1f6, #d7dce5);
+  --superficie-plana: #e4e8ef;
+  --superficie-hundida: #dde2ea;
+  --borde: rgba(255, 255, 255, 0.35);
+  --filtro: none;
+  --relieve: 7px 7px 15px #bcc3cf, -7px -7px 15px #ffffff;
+  --relieve-alto: 10px 10px 22px #b3bac7, -9px -9px 20px #ffffff;
+  --hundido: inset 5px 5px 11px #bcc3cf, inset -5px -5px 11px #ffffff;
+  --hundido-suave: inset 3px 3px 7px #c3c9d4, inset -3px -3px 7px #ffffff;
+  --texto: #20242c;
+  --texto-suave: #4f5664;
+  --texto-tenue: #8a91a0;
+  --acento: #f0631c;
+  --acento-texto: #ffffff;
+  --aire: #e0261b;
+  --armado: #1f9d52;
+  --aviso: #c98a0b;
+  --ok: #1f9d52;
+  --foco: rgba(240, 99, 28, 0.45);
+  --vu-bajo: #1f9d52;
+  --vu-medio: #d99a12;
+  --vu-alto: #e0261b;
+  --radio: 18px;
+  --radio-chico: 12px;
+  --radio-redondo: 999px;
+  --fuente: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --fuente-numeros: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* El fondo con un poco de profundidad, común a todos los temas (usa sus materiales). */
+html { background: var(--fondo); }
