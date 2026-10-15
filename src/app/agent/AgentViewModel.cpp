@@ -656,6 +656,45 @@ void AgentViewModel::installLatest() {
     install();
 }
 
+void AgentViewModel::installNewest() {
+    if (installing_ || checking_) return;
+    const QString runtime = runtimeOf(provider_);
+    if (runtime.isEmpty()) return;
+    const json base = pinnedPins().value(runtime.toStdString(), json::object());
+    const QString nombre = QString::fromStdString(base.value("nombre", runtime.toStdString()));
+    // Mientras pregunta, la tarjeta ya esta «instalando» (y se puede cancelar).
+    buscandoParaInstalar_ = true;
+    installing_ = true;
+    installProgress_ = 0;
+    installText_ = "Buscando la última versión de " + nombre + "…";
+    emit installChanged();
+    if (checkThread_.joinable()) checkThread_.join();
+    checkThread_ = std::thread([this, runtime, base, nombre]() {
+        QString err;
+        json nueva = fetchLatest(runtime, base, &err);
+        QMetaObject::invokeMethod(this, [this, runtime, nueva, err, nombre]() {
+            if (!buscandoParaInstalar_) return; // se cancelo mientras preguntaba
+            buscandoParaInstalar_ = false;
+            installing_ = false;
+            const std::string v = nueva.is_object() ? nueva.value("version", std::string()) : std::string();
+            if (!err.isEmpty() || v.empty() || platformPin(nueva).empty()) {
+                // Sin red o sin hash para esta plataforma: la que fija el sistema.
+                const QString fijada = pinnedVersion();
+                emit notify("No se pudo saber la última versión de " + nombre +
+                                (err.isEmpty() ? QString() : " (" + err + ")") + ": se instala la " + fijada + ".",
+                            "warn");
+                install();
+                return;
+            }
+            latest_[runtime] = nueva;
+            if (QString::fromStdString(v) == current().value("version").toString())
+                install(); // la ultima es la que ya fija el sistema
+            else
+                installLatest();
+        });
+    });
+}
+
 void AgentViewModel::revertToPinned() {
     if (installing_) return;
     const QString runtime = runtimeOf(provider_);
@@ -861,7 +900,7 @@ void AgentViewModel::install() {
     p.version = version;
     p.yaEsta = [dir]() { return QFileInfo::exists(dir + "/.ok"); };
     QPointer<AgentViewModel> yo(this);
-    p.trabajo = [yo, items, dir, staging, bajado, runtime, exeName, geminiScript](
+    p.trabajo = [yo, items, dir, staging, bajado, runtime, exeName, geminiScript, version = QString::fromStdString(version)](
                     net::Descargas::Contexto& ctx) -> std::string {
         QString err;
         QDir(staging).removeRecursively(); // restos de un intento anterior
@@ -888,7 +927,7 @@ void AgentViewModel::install() {
             // Ya bajado y verificado en un intento anterior: no se rebaja.
             if (!QFileInfo::exists(tmp)) {
                 const std::string e = ctx.bajar(it.url, tmp.toStdString(), 0, 0,
-                                                QString("%1 (%2/%3)").arg(runtime).arg(i + 1).arg(n).toStdString());
+                                                QString("%1 %2 (%3/%4)").arg(runtime, version).arg(i + 1).arg(n).toStdString());
                 if (!e.empty()) {
                     err = ctx.cancelado() ? "Instalacion cancelada." : "No se pudo descargar: " + QString::fromStdString(e);
                     break;
@@ -997,7 +1036,7 @@ void AgentViewModel::install() {
         instalando_.insert(id);
         installing_ = true;
         installProgress_ = 0;
-        installText_ = "En la cola de descargas: " + QString::fromStdString(pin.value("nombre", "")) + " " +
+        installText_ = "Instalando " + QString::fromStdString(pin.value("nombre", "")) + ", versión " +
                        QString::fromStdString(version) + "…";
         emit installChanged();
     } else if (r == net::Descargas::Resultado::YaEsta) {
@@ -1050,6 +1089,12 @@ void AgentViewModel::registrarActualizaciones() {
 }
 
 void AgentViewModel::cancelInstall() {
+    if (buscandoParaInstalar_) { // todavia preguntando cual es la ultima
+        buscandoParaInstalar_ = false;
+        installing_ = !instalando_.empty();
+        installText_ = "Instalacion cancelada.";
+        emit installChanged();
+    }
     for (const std::string& id : std::set<std::string>(instalando_)) net::Descargas::la().cancelar(QString::fromStdString(id));
 }
 

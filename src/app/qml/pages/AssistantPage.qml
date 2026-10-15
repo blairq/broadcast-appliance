@@ -132,12 +132,12 @@ Rectangle {
                        color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                        color: Theme.textDim; font.pixelSize: 13
-                       text: "Se descarga la versión " + (page.cur.version || "") + " (fijada y verificada con SHA-256) dentro de la carpeta portable (Agentes/). Una sola vez; después funciona igual desde el pendrive." }
+                       text: "Se busca la última versión publicada y se descarga, verificada con SHA-256, dentro de la carpeta portable (Agentes/). Si no se puede saber cuál es, la " + (page.cur.version || "") + ". Una sola vez; después funciona igual desde el pendrive." }
                 ProgressBar { Layout.fillWidth: true; visible: ag.installing; from: 0; to: 1; value: ag.installProgress }
                 Text { Layout.alignment: Qt.AlignHCenter; visible: ag.installText !== ""; text: ag.installText; color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    GlassButton { visible: !ag.installing; text: "Instalar"; icon: "⇩"; active: true; onClicked: ag.install() }
+                    GlassButton { visible: !ag.installing; text: "Instalar"; icon: "⇩"; active: true; onClicked: ag.installNewest() }
                     GlassButton { visible: ag.installing; text: "Cancelar"; onClicked: ag.cancelInstall() }
                 }
             }

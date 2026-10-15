@@ -182,6 +182,9 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void setAutoStart(bool on);
     Q_INVOKABLE void setFontSize(int px);
     Q_INVOKABLE void install();
+    /// La primera instalacion: busca la ultima version publicada (con hash para
+    /// esta plataforma) y instala esa; si no se puede saber, la fijada.
+    Q_INVOKABLE void installNewest();
     Q_INVOKABLE void cancelInstall();
     /// Pregunta a la fuente OFICIAL del agente actual cual es su ultima
     /// version, con la URL y el SHA-256 (o SHA-512 de npm) que publica para
@@ -368,6 +371,7 @@ class AgentViewModel : public QObject {
     void seguirInstalacion();
     void registrarActualizaciones();
     bool checking_ = false;
+    bool buscandoParaInstalar_ = false; ///< installNewest() esperando a la fuente
     std::thread checkThread_;
     std::map<QString, nlohmann::json> latest_; ///< runtime -> entrada nueva
     QString lastError_;
