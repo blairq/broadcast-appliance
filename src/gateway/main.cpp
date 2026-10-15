@@ -636,6 +636,9 @@ int main(int argc, char** argv) {
     // 127.0.0.1, que es adonde le reenvían el HTTPS y el túnel de Cloudflare.
     const bool unaInterfaz = cfg.bindAddress != "127.0.0.1" && cfg.bindAddress != "0.0.0.0";
     sigCfg.bindAddress = unaInterfaz ? std::string("127.0.0.1") : cfg.bindAddress;
+    // La sala solo en esta máquina: la botonera y el control web igual tienen que llegar
+    // desde la red local (son para eso). Su propia puerta, que no atiende nada de la sala.
+    sigCfg.controlLan = cfg.bindAddress == "127.0.0.1" && cfg.controlLanPort != 0 && cfg.https;
     sigCfg.webroot = cfg.webroot;
     sigCfg.room = cfg.room;
     sigCfg.maxGuests = cfg.guests;
@@ -725,6 +728,8 @@ int main(int argc, char** argv) {
     }() + "; en el QR: " + (hostLocal.empty() ? std::string("(ninguna)") : hostLocal));
 
     std::unique_ptr<net::TlsTerminator> tls;
+    std::unique_ptr<net::TlsTerminator> tlsAparatos; // la puerta de la botonera y el control web
+    std::vector<std::string> nombresTls;             // los mismos en los dos: el mismo certificado
     bool httpsPorBaWeb = false;
     if (cfg.https) {
         net::TlsTerminator::Config tc;
@@ -737,6 +742,7 @@ int main(int argc, char** argv) {
             tc.names.push_back(cfg.urlHost); // el certificado también para el nombre elegido
         if (!publicHost.empty()) tc.names.push_back(publicHost);
         if (!publicIp.empty() && publicIp != publicHost) tc.names.push_back(publicIp);
+        nombresTls = tc.names;
         tls = std::make_unique<net::TlsTerminator>(tc, logLine);
         // El HTTPS de la red local lo atiende ba-web (gzip, caché, límites; ver más abajo) con
         // este mismo certificado: acá solo se carga. Con WireGuard no: su puente manda la
@@ -1151,6 +1157,14 @@ int main(int argc, char** argv) {
             st["origenSeguro"] =
                 cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
+        // La puerta de la botonera y el control web, si la sala está solo en esta máquina.
+        if (tlsAparatos) {
+            nlohmann::json au = nlohmann::json::array();
+            if (!hostLocal.empty()) au.push_back("https://" + hostLocal + ":" + std::to_string(tlsAparatos->port()) + "/");
+            for (const auto& ip : lanIps)
+                if (ip != hostLocal) au.push_back("https://" + ip + ":" + std::to_string(tlsAparatos->port()) + "/");
+            st["aparatos"] = {{"port", tlsAparatos->port()}, {"urls", au}};
+        }
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},
                                            {"port", tls->port()},
@@ -1199,6 +1213,25 @@ int main(int argc, char** argv) {
     // --- Arranque de los componentes (degradacion elegante).
     if (!server.start()) {
         log.error("senalizacion no arranco; el gateway sigue sin tunel web", -1);
+    }
+    // La puerta de los aparatos de control en la red local (ver SignalingServer.hpp, 1c):
+    // HTTPS en todas las interfaces → la escucha de 127.0.0.1 que solo atiende eso.
+    if (server.controlPort() != 0) {
+        net::TlsTerminator::Config ac;
+        ac.bindAddress = "0.0.0.0";
+        ac.port = cfg.controlLanPort;
+        ac.backendPort = server.controlPort();
+        ac.credentialsDir = ba::platform::credentialsDir().string();
+        ac.names = nombresTls;
+        tlsAparatos = std::make_unique<net::TlsTerminator>(ac, logLine);
+        if (tlsAparatos->start()) {
+            log.info("aparatos: botonera y control web en https://<red local>:" + std::to_string(tlsAparatos->port()));
+        } else {
+            log.warn("aparatos: no arrancó el HTTPS en el puerto " + std::to_string(cfg.controlLanPort) +
+                         " (la botonera y el control web no llegan desde la red)",
+                     -1);
+            tlsAparatos.reset();
+        }
     }
     std::filesystem::path adminFile;
     if (server.adminPort() != 0) {
@@ -1280,6 +1313,7 @@ int main(int argc, char** argv) {
 #endif
     if (wg) wg->stop();
     if (tls) tls->stop();
+    if (tlsAparatos) tlsAparatos->stop();
     if (pinggy) pinggy->stop(); // antes que la escucha del tunel
     if (baWeb) baWeb->stop();   // después de pinggy (ya no le llega nada)
     if (turnSrv) turnSrv->stop();

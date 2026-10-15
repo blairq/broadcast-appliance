@@ -133,6 +133,18 @@ void BotoneraGateway::baseRedLocal(ConferenceClient& gw, std::function<void(cons
         const json https = r.value("https", json::object());
         const bool conHttps = https.is_object() && https.value("enabled", false);
         if (conHttps) out["huella"] = texto(https, "fingerprint");
+        // La sala solo en esta máquina: la botonera y el control web tienen su propia puerta
+        // en la red local (el gateway la abre sola; no atiende nada de la sala).
+        const json aparatos = r.value("aparatos", json::object());
+        if (aparatos.is_object())
+            for (const auto& v : aparatos.value("urls", json::array()))
+                if (v.is_string()) {
+                    std::string b = v.get<std::string>();
+                    if (b.back() != '/') b += '/';
+                    out["base"] = b;
+                    listo(out);
+                    return;
+                }
         if (texto(r, "bindAddress") == "127.0.0.1")
             out["aviso"] = "El gateway escucha solo en esta máquina (127.0.0.1): una tablet no llega. Cambiá la "
                            "dirección de la sala a la red local en Configuración → Red de la sala (cualquiera en la red podría "

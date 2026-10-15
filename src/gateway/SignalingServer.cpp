@@ -191,7 +191,7 @@ bool SignalingServer::start() {
     }
     stop_.store(false);
     guestBoundPort_ = http::localPort(listenFd_);
-    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false);
+    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false, false);
     // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
     statsThread_ = std::thread([this] {
         std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
@@ -231,8 +231,24 @@ bool SignalingServer::start() {
                        -1);
         } else {
             adminBoundPort_ = http::localPort(adminListenFd_);
-            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false);
+            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false, false);
             log_.info("control: API del operador en 127.0.0.1:" + std::to_string(adminBoundPort_));
+        }
+    }
+    // Los aparatos de control de la red local (ver 1c en el header): SIEMPRE loopback;
+    // la red llega por el HTTPS de adelante, que pasa la IP real en PROXY v1.
+    if (cfg_.controlLan) {
+        controlListenFd_ = http::makeListen("127.0.0.1", cfg_.controlPort);
+        if (controlListenFd_ < 0) {
+            log_.error("aparatos: no se pudo abrir 127.0.0.1:" + std::to_string(cfg_.controlPort) +
+                           " (la botonera y el control web no llegan desde la red)",
+                       -1);
+        } else {
+            controlBoundPort_ = http::localPort(controlListenFd_);
+            controlAcceptThread_ =
+                std::thread(&SignalingServer::acceptLoop, this, controlListenFd_, false, false, true);
+            log_.info("aparatos: botonera y control web en 127.0.0.1:" + std::to_string(controlBoundPort_) +
+                      " (solo eso)");
         }
     }
     // La escucha del tunel de pinggy: SIEMPRE loopback (solo ba-pinggy llega
@@ -245,7 +261,7 @@ bool SignalingServer::start() {
                        -1);
         } else {
             tunnelBoundPort_ = http::localPort(tunnelListenFd_);
-            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true);
+            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true, false);
             log_.info("tunel: escucha de pinggy en 127.0.0.1:" + std::to_string(tunnelBoundPort_) +
                       " (todo externo)");
         }
@@ -397,8 +413,9 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
 
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
-    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && activeConns_.load() == 0 &&
-        !acceptThread_.joinable() && !adminAcceptThread_.joinable() && !tunnelAcceptThread_.joinable() &&
+    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && controlListenFd_ < 0 &&
+        activeConns_.load() == 0 && !acceptThread_.joinable() && !adminAcceptThread_.joinable() &&
+        !tunnelAcceptThread_.joinable() && !controlAcceptThread_.joinable() &&
         !statsThread_.joinable()) {
         return;
     }
@@ -409,6 +426,10 @@ void SignalingServer::stop() {
     if (statsThread_.joinable()) statsThread_.join();
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
     if (tunnelAcceptThread_.joinable()) tunnelAcceptThread_.join();
+    if (controlAcceptThread_.joinable()) controlAcceptThread_.join();
+    http::closeFd(controlListenFd_);
+    controlListenFd_ = -1;
+    controlBoundPort_ = 0;
     http::closeFd(listenFd_);
     listenFd_ = -1;
     http::closeFd(adminListenFd_);
@@ -464,7 +485,7 @@ void SignalingServer::closeActiveConns() {
 // Accept + despacho
 // ============================================================================
 
-void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
+void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo, bool soloControl) {
     constexpr int kAcceptPollMs = 200;
     while (!stop_.load(std::memory_order_relaxed)) {
         const int ready = http::waitReadable(listenFd, kAcceptPollMs);
@@ -506,9 +527,9 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
 #endif
         // Ultima red: un JSON con tipos inesperados (nlohmann lanza) no debe
         // tumbar el proceso desde un thread detachado.
-        std::thread([this, fd, clientIp, admin, externo] {
+        std::thread([this, fd, clientIp, admin, externo, soloControl] {
             try {
-                handleConnection(fd, clientIp, admin, externo);
+                handleConnection(fd, clientIp, admin, externo, soloControl);
             } catch (const std::exception& e) {
                 log_.warn(std::string("conexion: excepcion ") + e.what(), -1);
             }
@@ -516,7 +537,8 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
     }
 }
 
-void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo) {
+void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo,
+                                       bool soloControl) {
     // El thread esta detachado: el contador DEBE bajar por cualquier salida.
     struct ConnGuard {
         SignalingServer* self;
@@ -579,7 +601,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     }
 
     // Subida de archivo: el cuerpo va en streaming a disco, NO a memoria.
-    if (!admin && method == "POST" && path == "/api/v1/files") {
+    if (!admin && !soloControl && method == "POST" && path == "/api/v1/files") {
         apiUpload(fd, headers, query);
         return;
     }
@@ -598,6 +620,22 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
 
     if (admin) {
         handleAdmin(fd, method, path, query, headers, body);
+        return;
+    }
+    // La puerta de los aparatos de control (1c): la botonera, el control web y lo
+    // común que usan sus páginas. Nada de la sala.
+    if (soloControl) {
+        if (botonera_->atender(fd, method, path, query, headers, body, clientIp, false)) return;
+        if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, false)) return;
+        if (method == "GET" && path.rfind("/comun/", 0) == 0) {
+            const std::string rel = path.substr(7);
+            if (!rel.empty() && !cfg_.comunWebroot.empty() && serveStatic(fd, cfg_.comunWebroot, rel)) return;
+        }
+        if (method == "GET" && path == "/") {
+            http::sendResponse(fd, 302, "text/plain", "", "Location: /control/\r\n");
+            return;
+        }
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
         return;
     }
     if (method == "POST" && path == "/api/v1/avatar") {

@@ -31,9 +31,17 @@
 //      real llega en una cabecera PROXY v1 (opcional) y es la que cuenta para
 //      los limites por IP y el registro.
 //
+//   1c) APARATOS DE CONTROL — 127.0.0.1:controlPort (solo con Cfg::controlLan):
+//      la puerta de la red local para la botonera y el control web cuando la
+//      sala escucha solo en esta máquina. Adelante va un HTTPS propio en todas
+//      las interfaces (main.cpp, controlLanPort) que reenvía acá con PROXY v1.
+//      Por acá SOLO se atiende /botonera/, /control/ (con sus APIs y
+//      WebSockets) y /comun/: la sala de invitados sigue cerrada a la red.
+//      Son aparatos de la red local por naturaleza (cada uno se empareja y lo
+//      aprueba una persona); lo que pide permiso es el acceso desde afuera.
+//
 //   2) CONTROL DEL OPERADOR — SIEMPRE 127.0.0.1:adminPort (nunca por el
-//      tunel). Es la API de la que cuelgan la vista web (Web/admin) y la vista
-//      Qt de la app. Ver AdminApi.cpp para las rutas.
+//      tunel). Es la API que usa la app. Ver AdminApi.cpp para las rutas.
 //
 //   El estado de la conferencia (lobby, participantes, chat, archivos) vive en
 //   `Room`; este servidor solo traduce entre la red y ese modelo.
@@ -155,6 +163,9 @@ class SignalingServer {
         // --- Escucha del tunel de pinggy (siempre 127.0.0.1, todo externo) ---
         bool tunel = false;         // abrirla (main: pinggy activo)
         uint16_t tunnelPort = 8786; // 0 = puerto efimero (tests)
+        // --- Aparatos de control de la red local (ver 1c; siempre 127.0.0.1) ---
+        bool controlLan = false;     // abrirla (main: la sala escucha solo en esta máquina)
+        uint16_t controlPort = 0;    // 0 = puerto efimero (lo normal: solo lo usa el HTTPS de adelante)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -181,6 +192,8 @@ class SignalingServer {
     uint16_t adminPort() const { return adminBoundPort_; }
     /// Puerto real de la escucha del tunel (0 si no esta abierta).
     uint16_t tunnelPort() const { return tunnelBoundPort_; }
+    /// Puerto real de la escucha de los aparatos de control (0 si no esta abierta).
+    uint16_t controlPort() const { return controlBoundPort_; }
 
     /// La IP de origen de una cabecera PROXY v1 ("PROXY TCP4 <src> <dst> <sp>
     /// <dp>"), en orden de red. TCP6: la IPv4 mapeada (::ffff:a.b.c.d) o, si
@@ -279,8 +292,8 @@ class SignalingServer {
    private:
     // --- Conexiones ---------------------------------------------------------
     /// `externo`: la escucha del tunel (ver el header): toda conexion es de afuera.
-    void acceptLoop(long long listenFd, bool admin, bool externo = false);
-    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo);
+    void acceptLoop(long long listenFd, bool admin, bool externo = false, bool soloControl = false);
+    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo, bool soloControl);
     void trackFd(long long fd);
     void untrackFd(long long fd);
     void closeActiveConns();
@@ -495,6 +508,9 @@ class SignalingServer {
     uint16_t guestBoundPort_ = 0;
     long long tunnelListenFd_ = -1;
     uint16_t tunnelBoundPort_ = 0;
+    long long controlListenFd_ = -1;
+    uint16_t controlBoundPort_ = 0;
+    std::thread controlAcceptThread_;
     std::thread acceptThread_;
     std::thread adminAcceptThread_;
     std::thread tunnelAcceptThread_;

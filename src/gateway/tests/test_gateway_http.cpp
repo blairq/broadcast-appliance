@@ -415,6 +415,9 @@ int main() {
     scfg.adminPort = 0; // idem
     scfg.webroot = BA_TEST_WEBROOT;
     scfg.boardWebroot = BA_TEST_WEBROOT;
+    scfg.comunWebroot = BA_TEST_WEBROOT;
+    scfg.controlWebroot = BA_TEST_WEBROOT;
+    scfg.controlLan = true; // la puerta de los aparatos de control (efimera)
     const std::string kAdmin = "token-de-operador-de-prueba";
     scfg.adminToken = kAdmin;
 
@@ -684,6 +687,26 @@ int main() {
         CHECK(mismo.value("pin", "") == gen.value("pin", "") && !mismo.value("cambio", true),
               "sesión nueva el mismo día: el mismo PIN");
 
+    }
+
+    // --- 12b) La puerta de los aparatos de control: solo botonera, control y /comun/ ---
+    {
+        const uint16_t cport = srv.controlPort();
+        CHECK(cport != 0 && cport != port && cport != aport, "la puerta de los aparatos tiene su puerto");
+        CHECK(statusLine(httpReq(cport, "GET", "/control/", "")).find("200") != std::string::npos,
+              "por la puerta: el control web");
+        CHECK(statusLine(httpReq(cport, "GET", "/comun/index.html", "")).find("200") != std::string::npos,
+              "por la puerta: lo común");
+        const std::string raiz = httpReq(cport, "GET", "/", "");
+        CHECK(statusLine(raiz).find("302") != std::string::npos && raiz.find("Location: /control/") != std::string::npos,
+              "la raíz lleva al control web");
+        CHECK(statusLine(httpReq(cport, "GET", "/index.html", "")).find("404") != std::string::npos,
+              "la página del invitado NO sale por la puerta");
+        CHECK(statusLine(httpPost(cport, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"4455\"}")).find("404") !=
+                  std::string::npos,
+              "entrar a la sala NO sale por la puerta");
+        CHECK(statusLine(httpReq(cport, "GET", "/api/v1/room", bearer)).find("404") != std::string::npos,
+              "la API de control NO sale por la puerta");
     }
 
     // --- 13) QR de ingreso --------------------------------------------------
