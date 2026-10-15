@@ -16,9 +16,9 @@ COMO. Igual que el autoexamen de tc-bucle, con mas casos:
      lote, sobre el mismo cache: cuesta casi lo mismo que una). Una placa por
      proceso; con --placas 0,1 la mitad de los casos en cada una.
   3. cada respuesta se juzga como en tc-evaluar (herramienta, argumentos exactos,
-     falta_dato). La buena es la del corpus; cada mala distinta es un par. Fuera
-     las frases de dos oraciones («¿sigue grabando? Pará»): son dos pedidos y el
-     modelo contesta una llamada; ni se miden ni se entrenan asi.
+     falta_dato). La buena es la del corpus; cada mala distinta es un par. Las
+     anotaciones de DOS pedidos («¿sigue grabando? Pará») ya no estan (ver
+     datos/tc-compuestas-fuera.json): el modelo contesta una llamada.
 
 QUE DEJA, en --salida:
     dpo/{entrenar,validar}.jsonl   {prompt, chosen, rejected} + de donde salio
@@ -87,8 +87,8 @@ def rendir_casos(args, rnd):
 
 
 def compuesta(frase):
-    """Dos oraciones («¿sigue grabando? Pará»): dos pedidos en uno. El modelo
-    contesta UNA llamada, asi que no se mide ni se entrena con eso."""
+    """Dos oraciones. Casi siempre es UN pedido con contexto («¿cómo se ve Laura?
+    Traeme su imagen»); los de dos pedidos se sacaron de las anotaciones."""
     return bool(re.search(r"[?!.]\s+\S", frase))
 
 
@@ -208,7 +208,8 @@ def main():
     ap.add_argument("--temperatura", type=float, default=0.8)
     ap.add_argument("--max-nuevos", type=int, default=120)
     ap.add_argument("--max-malas", type=int, default=2, help="malas distintas por caso, como mucho")
-    ap.add_argument("--con-compuestas", action="store_true", help="no sacar las frases de dos oraciones")
+    ap.add_argument("--sin-compuestas", action="store_true",
+                    help="sacar toda frase de dos oraciones (tosco: la mayoria son UN pedido con contexto)")
     ap.add_argument("--validar", type=float, default=0.1, help="porcion de plantillas apartadas para validar")
     ap.add_argument("--placas", default="0,1")
     ap.add_argument("--limite", type=int, default=0, help="solo N casos (prueba)")
@@ -290,7 +291,7 @@ def main():
     vecinas = collections.Counter()
     n_comp = 0
     for i, f in enumerate(filas):
-        if not args.con_compuestas and compuesta(f["frase"]):
+        if args.sin_compuestas and compuesta(f["frase"]):
             n_comp += 1
             continue
         resp = hechos[i]
@@ -333,7 +334,7 @@ def main():
             rnd.shuffle(lista)
             (sal / nombre / f"{parte}.jsonl").write_text("".join(json.dumps(x, ensure_ascii=False) + "\n"
                                                                 for x in lista))
-    tipos = collections.Counter(f["tipo"] for f in filas if args.con_compuestas or not compuesta(f["frase"]))
+    tipos = collections.Counter(f["tipo"] for f in filas if not (args.sin_compuestas and compuesta(f["frase"])))
     resumen = {
         "modelo": str(Path(args.modelo).expanduser().resolve()), "casos": len(filas) - n_comp,
         "compuestas_fuera": n_comp, "por_tipo": dict(tipos),

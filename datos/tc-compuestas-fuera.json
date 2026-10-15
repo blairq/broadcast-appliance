@@ -1,0 +1,55 @@
+{
+ "fecha": "2026-10-15",
+ "por_que": "dos pedidos en una frase (una consulta y una orden): el modelo contesta UNA llamada; no se entrenan ni se miden asi",
+ "anotaciones": [
+  {
+   "herramienta": "participant_kick",
+   "frase": "¿quién dejó entrar a {persona}? ya está adentro, desconectalo de la reunión",
+   "plantilla": "¿quién dejó entrar a {persona}? ya está adentro, desconectalo de la reunión",
+   "args": {
+    "participant": "{persona}"
+   },
+   "nueva": true,
+   "origen": "tc-completar"
+  },
+  {
+   "herramienta": "record_start",
+   "frase": "¿Todavía no arrancó la grabación? Largala ya",
+   "plantilla": "¿Todavía no arrancó la grabación? Largala ya",
+   "args": {}
+  },
+  {
+   "herramienta": "record_start",
+   "frase": "¿No estamos grabando? Comenzá a grabar en este momento",
+   "plantilla": "¿No estamos grabando? Comenzá a grabar en este momento",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-contraste"
+  },
+  {
+   "herramienta": "record_stop",
+   "frase": "¿sigue grabando? Pará",
+   "plantilla": "¿sigue grabando? Pará",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-completar"
+  },
+  {
+   "herramienta": "speaker_time",
+   "frase": "¿Cuánto le das a Fernández? Ponele 90 segundos",
+   "plantilla": "¿Cuánto le das a {persona}? Ponele 90 segundos",
+   "args": {
+    "participant": "{persona}",
+    "time": "=90"
+   }
+  },
+  {
+   "herramienta": "stream_start",
+   "frase": "¿todavía no estamos en vivo? Arrancá el streaming",
+   "plantilla": "¿todavía no estamos en vivo? Arrancá el streaming",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-completar"
+  }
+ ]
+}
