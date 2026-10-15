@@ -7,19 +7,7 @@
   <link rel="stylesheet" href="temas.css" />
   <link rel="stylesheet" href="neuro.css" />
   <script src="neuro.js"></script>
-  <style>
-    body { padding: 28px clamp(16px, 4vw, 40px) 60px; }
-    header.pagina { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
-    .escenas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-    .mezclador { display: flex; gap: 8px; justify-content: space-between; overflow-x: auto; padding: 6px 2px 4px; }
-    .canal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    .ptz { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; justify-content: center; }
-    .perillas { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-    .lista { display: flex; flex-direction: column; gap: 16px; }
-    .salida { display: flex; align-items: center; gap: 14px; }
-    .salida .numero { font-size: 22px; }
-    .vista { aspect-ratio: 16/9; border-radius: var(--radio-chico); display: grid; place-items: center; color: var(--texto-tenue); margin-bottom: 14px; }
-  </style>
+  <link rel="stylesheet" href="muestra.css" />
 </head>
 <body>
   <header class="pagina">
@@ -31,7 +19,7 @@
     <ba-tema></ba-tema>
   </header>
 
-  <div class="grilla" style="--min: 340px">
+  <div class="grilla ancha">
     <ba-tarjeta titulo="Escenas" ampliar="?tarjeta=escenas">
       <div class="vista hundido-suave panel hundido">Programa</div>
       <div class="escenas">
@@ -42,9 +30,9 @@
         <ba-boton>Placa</ba-boton>
         <ba-boton>Cierre</ba-boton>
       </div>
-      <div class="fila" style="margin-top: 16px">
-        <ba-boton grande variante="aire" confirmar="¿Cortar?" style="flex: 1">CORTE</ba-boton>
-        <ba-boton grande variante="acento" style="flex: 1">AUTO</ba-boton>
+      <div class="fila arriba-16">
+        <ba-boton grande variante="aire" confirmar="¿Cortar?" class="lleno">CORTE</ba-boton>
+        <ba-boton grande variante="acento" class="lleno">AUTO</ba-boton>
       </div>
     </ba-tarjeta>
 
@@ -57,10 +45,10 @@
           <ba-perilla etiqueta="Velocidad" min="0" max="100" valor="60" defecto="50" unidad="%"></ba-perilla>
         </div>
       </div>
-      <p class="suave numero" id="joyTexto" style="text-align:center; margin: 14px 0 0">x 0.00 · y 0.00</p>
+      <p class="suave numero centrado" id="joyTexto">x 0.00 · y 0.00</p>
     </ba-tarjeta>
 
-    <ba-tarjeta titulo="Mezclador" ampliar="?tarjeta=audio" style="grid-column: span 2">
+    <ba-tarjeta titulo="Mezclador" ampliar="?tarjeta=audio" class="ancho-2">
       <div class="mezclador" id="mezclador"></div>
     </ba-tarjeta>
 
@@ -83,30 +71,6 @@
     </ba-tarjeta>
   </div>
 
-  <script>
-    // Los canales del mezclador, con niveles de mentira (para ver los vúmetros andando).
-    const canales = ["Mic 1", "Mic 2", "Atril", "Invitado", "Música", "Video", "Master"];
-    const mez = document.getElementById("mezclador");
-    const faders = canales.map((n, i) => {
-      const c = document.createElement("div");
-      c.className = "canal";
-      c.innerHTML = `<ba-fader etiqueta="${n}" valor="${i === 6 ? 0 : -6 - i}" style="--alto-fader: 200px"></ba-fader>
-                     <ba-boton compacto ${i === 3 ? "activo variante=\"aire\"" : ""}>M</ba-boton>`;
-      mez.append(c);
-      return c.querySelector("ba-fader");
-    });
-    let t = 0;
-    setInterval(() => {
-      t += 0.07;
-      faders.forEach((f, i) => {
-        const base = -28 + 14 * Math.sin(t * (0.8 + i * 0.13) + i) + Math.random() * 6;
-        f.nivel = { rms: base, pico: base + 4 + Math.random() * 3 };
-      });
-    }, 66);
-    document.getElementById("joy").addEventListener("mover", (e) => {
-      document.getElementById("joyTexto").textContent = `x ${e.detail.x.toFixed(2)} · y ${e.detail.y.toFixed(2)}`;
-    });
-    document.getElementById("joy").addEventListener("soltar", () => { document.getElementById("joyTexto").textContent = "x 0.00 · y 0.00"; });
-  </script>
+  <script src="muestra.js"></script>
 </body>
 </html>

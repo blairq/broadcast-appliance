@@ -1,0 +1,19 @@
+/* La página de muestra de los componentes (sin estilos en línea: la CSP de las consolas no los deja). */
+body { padding: 28px clamp(16px, 4vw, 40px) 60px; }
+header.pagina { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+.escenas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.mezclador { display: flex; gap: 8px; justify-content: space-between; overflow-x: auto; padding: 6px 2px 4px; }
+.canal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.ptz { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.perillas { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.lista { display: flex; flex-direction: column; gap: 16px; }
+.salida { display: flex; align-items: center; gap: 14px; }
+.salida .numero { font-size: 22px; }
+.vista { aspect-ratio: 16/9; border-radius: var(--radio-chico); display: grid; place-items: center; color: var(--texto-tenue); margin-bottom: 14px; }
+.grilla.ancha { --min: 340px; }
+.ancho-2 { grid-column: span 2; }
+.lleno { flex: 1; }
+.arriba-16 { margin-top: 16px; }
+.centrado { text-align: center; margin: 14px 0 0; }
+.mezclador ba-fader { --alto-fader: 200px; }
+@media (max-width: 760px) { .ancho-2 { grid-column: auto; } }
