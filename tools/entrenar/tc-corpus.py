@@ -182,6 +182,81 @@ def rendir(h, a, rnd, k, variar):
     return out
 
 
+def anotaciones_entrenables(ruta, copia):
+    """(anotaciones que se entrenan por herramienta, las de herramientas sacadas del
+    perfil). Lo mismo para el corpus y para tc-preferencias."""
+    anot = json.loads(Path(ruta).read_text())
+    # solo lo que VALIDA (esquema, tipo de entidad, STE-ES): lo que el agente no pudo
+    # corregir no se entrena
+    _spec2 = importlib.util.spec_from_file_location("tca", Path(__file__).parent / "tc-anotar.py")
+    tca = importlib.util.module_from_spec(_spec2)
+    _spec2.loader.exec_module(tca)
+    esq = tc.esquemas()
+    descartadas = 0
+    # las de las herramientas que el perfil saco A PROPOSITO (lp.FUERA): no se
+    # entrenan como llamada; en el corpus pasan a ser ejemplos de derivar
+    import lib_prompt as _lp
+    de_fuera = {h: [a for a in anot[h] if "falta" not in a] for h in _lp.FUERA if h in anot}
+    for h in list(anot):
+        buenas = [a for a in anot[h] if h in esq and not tca.validar(a, esq[h], h)]
+        descartadas += len(anot[h]) - len(buenas)
+        anot[h] = buenas
+    print(f"anotaciones descartadas por no validar: {descartadas}")
+    # SIN COPIAS adentro de una herramienta (lib_tc.sin_copias): la copia no le enseña
+    # nada a la nube, solo la aprieta (memoria)
+    copias = 0
+    for h in list(anot):
+        anot[h], cp = tc.sin_copias(anot[h], copia)
+        copias += len(cp)
+    print(f"anotaciones copia de otra de su herramienta: fuera {copias}")
+    return anot, de_fuera
+
+
+def filtro_parecidas(umbral):
+    """parecida(fila): si se parece DEMASIADO a una frase del banco o del examen con
+    la misma respuesta (ver main). Lo mismo para el corpus y para tc-preferencias."""
+    import unicodedata
+
+    def _norm(s):
+        s = unicodedata.normalize("NFKD", s.lower()).encode("ascii", "ignore").decode()
+        return re.sub(r"\W+", " ", s).strip()
+    _mias = set(tc.esquemas().keys())
+    vacias = set("el la los las lo le les de del a al en con por para que y o u un una unos unas es "
+                 "esta este esto eso esa ese se su sus mi me te tu ya ahi aca hay como cual cuales "
+                 "dale eh che ojo rapido porfa bueno ahora toque".split())
+
+    def _toks(x):
+        t = set(x.split())
+        return (t - vacias) or t
+    _por_destino = {}  # destino -> ([tokens], indice palabra -> filas)
+    for f in (RAIZ / "datos/orientacion.jsonl", RAIZ / "datos/entrenamiento/examen.jsonl"):
+        for l in f.read_text().splitlines():
+            if not l.strip():
+                continue
+            x = json.loads(l)
+            # la respuesta bajo ESTE perfil, como la mide tc-evaluar: lo que salio del
+            # perfil es derivar
+            dest = {h for h in ([x["herramienta"]] if x.get("herramienta") else []) + x.get("aceptables", [])
+                    if h in _mias or h == tc.DERIVAR} or {tc.DERIVAR}
+            t = _toks(_norm(x["frase"]))
+            for d in dest:
+                lista, ind = _por_destino.setdefault(d, ([], {}))
+                for w in t:
+                    ind.setdefault(w, []).append(len(lista))
+                lista.append(t)
+
+    def parecida(f):
+        """f: una fila. Su respuesta es su herramienta (falta_dato tambien: el pedido
+        es el de la herramienta) o derivar; la charla no tiene."""
+        if not f.get("frase") or not f.get("herramienta"):
+            return False
+        lista, ind = _por_destino.get(f["herramienta"], ([], {}))
+        t = _toks(_norm(f["frase"]))
+        return bool(t) and any(len(t & lista[i]) / max(len(t), len(lista[i])) >= umbral
+                               for i in {i for w in t for i in ind.get(w, ())})
+    return parecida
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--salida", required=True)
@@ -209,30 +284,7 @@ def main():
     sal = Path(args.salida).expanduser()
     sal.mkdir(parents=True, exist_ok=True)
 
-    anot = json.loads(Path(args.anotaciones).read_text())
-    # solo lo que VALIDA (esquema, tipo de entidad, STE-ES): lo que el agente no pudo
-    # corregir no se entrena
-    _spec2 = importlib.util.spec_from_file_location("tca", Path(__file__).parent / "tc-anotar.py")
-    tca = importlib.util.module_from_spec(_spec2)
-    _spec2.loader.exec_module(tca)
-    esq = tc.esquemas()
-    descartadas = 0
-    # las de las herramientas que el perfil saco A PROPOSITO (lp.FUERA): no se
-    # entrenan como llamada; mas abajo pasan a ser ejemplos de derivar
-    import lib_prompt as _lp
-    de_fuera = {h: [a for a in anot[h] if "falta" not in a] for h in _lp.FUERA if h in anot}
-    for h in list(anot):
-        buenas = [a for a in anot[h] if h in esq and not tca.validar(a, esq[h], h)]
-        descartadas += len(anot[h]) - len(buenas)
-        anot[h] = buenas
-    print(f"anotaciones descartadas por no validar: {descartadas}")
-    # SIN COPIAS adentro de una herramienta (lib_tc.sin_copias): la copia no le enseña
-    # nada a la nube, solo la aprieta (memoria)
-    copias = 0
-    for h in list(anot):
-        anot[h], cp = tc.sin_copias(anot[h], args.copia)
-        copias += len(cp)
-    print(f"anotaciones copia de otra de su herramienta: fuera {copias}")
+    anot, de_fuera = anotaciones_entrenables(args.anotaciones, args.copia)
     ent, prueba = [], []
     for h, lista in sorted(anot.items()):
         for a in lista:
@@ -371,39 +423,7 @@ def main():
     # «desatá el rótulo del que habla») no filtra la respuesta, es un contraste.
     # Sin las palabras vacias ni las muletillas: con ellas «mostrame el mezclador» se
     # parecia a «Mostrame el guion».
-    vacias = set("el la los las lo le les de del a al en con por para que y o u un una unos unas es "
-                 "esta este esto eso esa ese se su sus mi me te tu ya ahi aca hay como cual cuales "
-                 "dale eh che ojo rapido porfa bueno ahora toque".split())
-
-    def _toks(x):
-        t = set(x.split())
-        return (t - vacias) or t
-    _por_destino = {}  # destino -> ([tokens], indice palabra -> filas)
-    for f in (RAIZ / "datos/orientacion.jsonl", RAIZ / "datos/entrenamiento/examen.jsonl"):
-        for l in f.read_text().splitlines():
-            if not l.strip():
-                continue
-            x = json.loads(l)
-            # la respuesta bajo ESTE perfil, como la mide tc-evaluar: lo que salio del
-            # perfil es derivar
-            dest = {h for h in ([x["herramienta"]] if x.get("herramienta") else []) + x.get("aceptables", [])
-                    if h in _mias or h == tc.DERIVAR} or {tc.DERIVAR}
-            t = _toks(_norm(x["frase"]))
-            for d in dest:
-                lista, ind = _por_destino.setdefault(d, ([], {}))
-                for w in t:
-                    ind.setdefault(w, []).append(len(lista))
-                lista.append(t)
-
-    def parecida(f, umbral=args.parecido):
-        """f: una fila. Su respuesta es su herramienta (falta_dato tambien: el pedido
-        es el de la herramienta) o derivar; la charla no tiene."""
-        if not f.get("frase") or not f.get("herramienta"):
-            return False
-        lista, ind = _por_destino.get(f["herramienta"], ([], {}))
-        t = _toks(_norm(f["frase"]))
-        return bool(t) and any(len(t & lista[i]) / max(len(t), len(lista[i])) >= umbral
-                               for i in {i for w in t for i in ind.get(w, ())})
+    parecida = filtro_parecidas(args.parecido)
     n0, p0 = len(ent), len(prueba)
     ent = [f for f in ent if not parecida(f)]
     prueba = [f for f in prueba if not parecida(f)]
