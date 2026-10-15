@@ -61,6 +61,7 @@ int main() {
                                              {{"id", "in"}, {"tipo", "in"}},
                                              {{"id", "t1"}, {"tipo", "texto"}, {"etiqueta", ""}}})}};
 
+    f.enEspera["tarde"] = "el lugar 3 de la sala está vacío (llega la placa)";
     const json g = armar(f);
     std::printf("%s\n", g.dump(1, ' ', false, json::error_handler_t::replace).c_str());
 
@@ -84,6 +85,9 @@ int main() {
     CHECK(ea && cerca((*ea)["ms"], 14.5), "la entrada de audio: 25 − 10,5 del módulo");
     CHECK(e && (*e)["activo"] == true && sr && (*sr)["activo"] == true, "le llegan datos: activa (y sus tarjetas)");
     CHECK(nodo(g, "entrada:mic:audio") && (*nodo(g, "entrada:mic:audio"))["activo"] == false, "sin datos recientes: en reposo");
+    CHECK(nodo(g, "entrada:tarde") && (*nodo(g, "entrada:tarde"))["activo"] == false &&
+              (*nodo(g, "entrada:tarde"))["detalle"].contains("en_espera"),
+          "un lugar de la sala vacío: en reposo aunque llegue la placa, con el motivo");
     const json* tarde = nodo(g, "entrada:tarde");
     CHECK(tarde && (*tarde)["estado"] == "tarde", "la que llega tarde, marcada");
     CHECK(nodo(g, "entrada:muda") == nullptr, "sin video ni audio, no se dibuja");

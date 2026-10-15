@@ -35,6 +35,9 @@ struct Fotos {
     std::map<std::string, std::string> titulos;
     /// El rack de audio de cada fuente (AudioRack::describe), si tiene.
     std::map<std::string, nlohmann::json> racks;
+    /// Entradas que reciben algo pero no son nadie (el lugar de un invitado vacío: llega la
+    /// placa del gateway): cuentan como en reposo. entrada → por qué.
+    std::map<std::string, std::string> enEspera;
 };
 
 /// {nodos: [...], tramos: [...], salidas: [{id, titulo, total_ms, fuente, camino: [ids]}],

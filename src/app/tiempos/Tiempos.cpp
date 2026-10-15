@@ -118,7 +118,8 @@ json armar(const Fotos& f) {
         // Activa: le están llegando datos (las que están en reposo —un invitado sin conectar,
         // una placa que no se usa— la página las esconde salvo que se pidan).
         const double sinDatos = num(e, "sin_datos_s", -1);
-        const bool activa = sinDatos >= 0 && sinDatos < 2.0;
+        const auto espera = f.enEspera.find(id);
+        const bool activa = sinDatos >= 0 && sinDatos < 2.0 && espera == f.enEspera.end();
         const json filtros = e.value("filtros", json::array());
 
         for (const bool esAudio : {false, true}) {
@@ -194,6 +195,7 @@ json armar(const Fotos& f) {
                              {"sale", e.value("sale", json())},
                              {"sin_datos_s", num(e, "sin_datos_s", -1.0)},
                              {"rearmada_hace_s", num(e, "rearmada_hace_s", -1.0)}};
+            if (espera != f.enEspera.end()) ne["detalle"]["en_espera"] = espera->second;
             // La hora que trae, corrida (más de un minuto para un lado u otro): no es una demora,
             // es una fuente con otro reloj. Se marca y no se dibuja el número (estiraría todo).
             const double edadCruda = edad.is_object() ? num(edad, "p50_ms", 0.0) : 0.0;

@@ -1077,6 +1077,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (racks_)
             for (const std::string& s : racks_->fuentesConRack())
                 if (audio::AudioRack* r = racks_->rack(s, false)) f.racks[s] = r->describe();
+        // Los lugares de la sala sin nadie: su entrada recibe la placa del gateway, pero no es nadie.
+        if (conference_) {
+            BroadcastEngine& e = rt_.engine();
+            for (const std::string& n : e.sourceNames()) {
+                const nlohmann::json a = nlohmann::json::parse(e.sourceSettingsJson(n), nullptr, false);
+                if (!a.is_object() || !a.contains("slot")) continue;
+                const std::string canal = a.value("channel", a.value("anillo", std::string("guest")));
+                if (canal != "guest" && canal != "share") continue; // el remoto con la palabra: la sesión remota
+                const int slot = a.value("slot", 0);
+                if (slot > 0 && conference_->participanteEnSlot(slot).isEmpty())
+                    f.enEspera[n] = "el lugar " + std::to_string(slot) + " de la sala está vacío (llega la placa)";
+            }
+        }
         return f;
     }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).

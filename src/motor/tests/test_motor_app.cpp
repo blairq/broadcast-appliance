@@ -255,6 +255,20 @@ int main() {
         CHECK(m.estado()["entradas"]["verde"].value("desfase_video_ms", 0) == 300, "el desfase de video, en el estado");
         CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "con el video atrasado, el programa sigue verde");
     }
+    // Una fuente de POCOS cuadros (como el canal de un invitado vacío: la placa a 5 cps) con el
+    // PTZ digital: el tee de la toma entera trababa la rama principal después del primer cuadro
+    // (pasaba uno por rearme y la entrada aparecía y desaparecía cada 10 s).
+    if (hayFabrica("baptz")) {
+        const json lenta{{"pipeline", "videotestsrc is-live=true pattern=ball ! video/x-raw,width=1280,height=720,framerate=5/1"},
+                         {"normalizar", false},
+                         {"filtros", json{{"video", json::array({{{"id", "ptz"}, {"elemento", "baptz"}}})}}}};
+        CHECK(m.agregarEntrada("lenta", lenta).empty(), "una entrada de 5 cps con PTZ");
+        esperar(4000);
+        const json el = m.estado()["entradas"]["lenta"];
+        std::printf("5 cps con PTZ: cuadros %d, sin datos %.1f s\n", el.value("cuadros", 0), el.value("sin_datos_s", -1.0));
+        CHECK(el.value("cuadros", 0) >= 5, "con el PTZ sigue pasando cuadros (trabado pasaba uno solo)");
+        m.quitarEntrada("lenta");
+    }
     // Una fuente de prueba en vivo (la cámara virtual «pelota») con desfase: sigue dando cuadros
     // (en la prueba de Sincronía y red se quedaba sin datos hasta el rearme, 30 s después).
     {

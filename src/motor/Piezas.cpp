@@ -276,7 +276,11 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
         // La toma tal como llega a este filtro, para otro productor (ver Derivacion).
         if (derivar != nullptr && derivar->ramas.empty() && f.nombre == derivar->antesDe && !derivar->productor.empty()) {
             const std::string tee = std::string(prefijo) + f.nombre + "_antes";
-            r += "tee name=" + tee + " allow-not-linked=true ! ";
+            // Una cola (la del último cuadro, sin demora) también en la rama de siempre: sin ella el
+            // tee le pasaba arriba el pool de esta rama y la otra se quedaba con su último cuadro;
+            // con una fuente de pocos cuadros (el canal de un invitado vacío: la placa a 5 cps) la
+            // rama principal esperaba un búfer libre para siempre (pasaba UN cuadro por rearme).
+            r += "tee name=" + tee + " allow-not-linked=true ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
             derivar->ramas = " " + tee + ". ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! intersink name=" + tee + "_sale producer-name=" +
                              entreComillas(derivar->productor) + " sync=false event-types=\"<>\"";
         }
