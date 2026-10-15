@@ -255,6 +255,11 @@ def main():
     args = ap.parse_args()
     W = Path(args.trabajo).expanduser()
     W.mkdir(parents=True, exist_ok=True)
+    # EL PERFIL A MANO: sin BA_PERFIL todo sale con el reactivo (otras herramientas,
+    # otro orden) y nada falla, solo se entrena y se mide otra cosa
+    if not os.environ.get("BA_PERFIL"):
+        sys.exit("falta BA_PERFIL (el perfil con el que se entrena, p. ej. BA_PERFIL=vivo6)")
+    log(f"perfil {os.environ['BA_PERFIL']} · prompt {tc.huella()}")
     global PARAR
     PARAR = W / "PARAR"
     if PARAR.exists():
