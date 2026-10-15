@@ -165,6 +165,8 @@ class Room {
     void setSinks(Sinks sinks);
     /// Datos que ven los operadores y no el invitado (PIN, enlace de ingreso).
     void setHostInfo(const std::string& pin, const std::string& guestUrl);
+    /// Solo el enlace de invitados (sale de Direcciones: cambia con la red o el túnel).
+    void setGuestUrl(const std::string& guestUrl);
 
     // --- Lado invitado ------------------------------------------------------
     struct Joined {

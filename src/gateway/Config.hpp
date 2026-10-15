@@ -101,7 +101,9 @@ struct Config {
     /// HTTPS de los aparatos de control (botonera, control web) en todas las interfaces,
     /// cuando la sala escucha solo en esta máquina: son de la red local por naturaleza.
     /// 0 = no (entonces solo llegan si la sala se abre a la red).
-    uint16_t controlLanPort = 8790;
+    uint16_t controlLanPort = 8792; // 8790 es el MCP de la app y 8791 el login de Facebook
+    /// La entrada HTTP de la puerta de la sala (televisores, Companion). 0 = no.
+    uint16_t puertaHttpPort = 8793;
     uint16_t rtcPortMin = 40000; // rango UDP de WebRTC (reglas de firewall / tunel)
     uint16_t rtcPortMax = 40099;
     // WireGuard hacia un servidor con IP publica (tunel en espacio de usuario).
@@ -195,6 +197,7 @@ struct Config {
         https = j.value("https", https);
         httpsPort = j.value("httpsPort", httpsPort);
         controlLanPort = j.value("controlLanPort", controlLanPort);
+        puertaHttpPort = j.value("puertaHttpPort", puertaHttpPort);
         rtcPortMin = j.value("rtcPortMin", rtcPortMin);
         rtcPortMax = j.value("rtcPortMax", rtcPortMax);
         if (j.contains("wireguard") && j["wireguard"].is_object()) {

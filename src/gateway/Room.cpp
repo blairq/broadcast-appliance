@@ -67,6 +67,17 @@ void Room::setSinks(Sinks sinks) {
     sinks_ = std::move(sinks);
 }
 
+void Room::setGuestUrl(const std::string& guestUrl) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (guestUrl_ == guestUrl) return;
+        guestUrl_ = guestUrl;
+        out.roomChanged = true;
+    }
+    flush(out);
+}
+
 void Room::setHostInfo(const std::string& pin, const std::string& guestUrl) {
     Out out;
     {

@@ -726,13 +726,24 @@ int main() {
 
     // --- 13) QR de ingreso --------------------------------------------------
     {
-        srv.setJoinUrlProvider([](const std::string& target) -> json {
-            if (target == "remote") return {{"error", "remote"}, {"message", "falta el dominio"}};
-            return {{"url", "https://192.168.1.50:8789/#room=sala-test"}};
+        // Las direcciones (Direcciones.hpp): la sala abierta a la red, sin túnel.
+        srv.setDirecciones([] {
+            ba::gateway::direcciones::Entradas e;
+            e.ips = {"192.168.1.50"};
+            e.bind = "0.0.0.0";
+            e.invitadosHttps = 8789;
+            e.puertaHttps = 8792;
+            e.motivoRemoto = "falta el dominio";
+            return e;
         });
+        CHECK(jsonBody(httpReq(aport, "GET", "/api/v1/direcciones", bearer)).value("seq", 0) > 0,
+              "el catálogo de direcciones, con su número");
         const json qr = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=local", bearer));
-        CHECK(qr.value("ok", false) && qr.value("url", "") == "https://192.168.1.50:8789/#room=sala-test",
+        CHECK(qr.value("ok", false) && qr.value("url", "") == "https://192.168.1.50:8789/invitados/#room=sala-test",
               "QR local con la URL de la red local");
+        CHECK(jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("guestUrl", "") ==
+                  "https://192.168.1.50:8789/invitados/#room=sala-test",
+              "el enlace de invitados de la sala sale del catálogo");
         const int n = qr.value("size", 0);
         bool square = n >= 21 && qr["modules"].size() == static_cast<size_t>(n);
         for (const auto& row : qr["modules"])
@@ -746,7 +757,7 @@ int main() {
         const json qp = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=local&pin=1", bearer));
         const std::string pinNow = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("pin", "");
         CHECK(!pinNow.empty() &&
-                  qp.value("url", "") == "https://192.168.1.50:8789/#room=sala-test&pin=" + pinNow,
+                  qp.value("url", "") == "https://192.168.1.50:8789/invitados/#room=sala-test&pin=" + pinNow,
               "con pin=1 el PIN va en el fragmento del enlace");
         const json rq = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=remote", bearer));
         CHECK(!rq.value("ok", true) && rq.value("message", "") == "falta el dominio",
@@ -806,11 +817,16 @@ int main() {
               "el operador ve la foto");
 
         // Tablero: clave propia, en el enlace que da la API de control.
-        srv.setJoinUrlProvider(
-            [](const std::string&) { return json{{"url", "https://10.0.0.5:8789/#room=sala-test"}}; });
+        srv.setDirecciones([] {
+            ba::gateway::direcciones::Entradas e;
+            e.ips = {"10.0.0.5"};
+            e.bind = "127.0.0.1";
+            e.puertaHttps = 8792;
+            return e;
+        });
         const json link = jsonBody(httpReq(aport, "GET", "/api/v1/board-link?target=local", bearer));
         const std::string url = link.value("url", "");
-        CHECK(url == "https://10.0.0.5:8789/board/#k=" + srv.boardToken() && link.value("size", 0) >= 21,
+        CHECK(url == "https://10.0.0.5:8792/board/#k=" + srv.boardToken() && link.value("size", 0) >= 21,
               "enlace + QR del tablero con su clave en el fragmento");
         CHECK(statusLine(httpReq(port, "GET", "/api/v1/board", "")).find("401") != std::string::npos,
               "el tablero sin clave -> 401");

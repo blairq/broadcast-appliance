@@ -31,14 +31,18 @@
 //      real llega en una cabecera PROXY v1 (opcional) y es la que cuenta para
 //      los limites por IP y el registro.
 //
-//   1c) APARATOS DE CONTROL — 127.0.0.1:controlPort (solo con Cfg::controlLan):
-//      la puerta de la red local para la botonera y el control web cuando la
-//      sala escucha solo en esta máquina. Adelante va un HTTPS propio en todas
-//      las interfaces (main.cpp, controlLanPort) que reenvía acá con PROXY v1.
-//      Por acá SOLO se atiende /botonera/, /control/ (con sus APIs y
-//      WebSockets) y /comun/: la sala de invitados sigue cerrada a la red.
-//      Son aparatos de la red local por naturaleza (cada uno se empareja y lo
-//      aprueba una persona); lo que pide permiso es el acceso desde afuera.
+//   1c) LA PUERTA DE LA SALA (solo con Cfg::controlLan; docs/planes/PLAN-DIRECCIONES.md):
+//      los servicios de la sala (tablets, presidencia, integrantes, televisores,
+//      teleprompter, rótulos, corrección, tablero, público, Companion) son de la
+//      red local por naturaleza y llegan aunque la sala de INVITADOS esté cerrada
+//      a la red. Dos entradas:
+//        - 127.0.0.1:controlPort, detrás del HTTPS propio de main.cpp
+//          (controlLanPort, 8792), que reenvía con PROXY v1;
+//        - puertaHttpBind:puertaHttpPort (8793), HTTP directo (televisores y
+//          Companion no aceptan un certificado propio).
+//      Por acá se atiende TODO menos entrar a la sala como invitado (/invitados/,
+//      /api/join, sus subidas): eso sigue lo que diga «Acceso». Cada superficie
+//      tiene su propia clave o emparejamiento; lo que pide permiso es lo de afuera.
 //
 //   2) CONTROL DEL OPERADOR — SIEMPRE 127.0.0.1:adminPort (nunca por el
 //      tunel). Es la API que usa la app. Ver AdminApi.cpp para las rutas.
@@ -92,6 +96,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Direcciones.hpp"
 #include "Sesion.hpp"
 #include "ControlWeb.hpp"
 #include "Carruseles.hpp"
@@ -164,8 +169,10 @@ class SignalingServer {
         bool tunel = false;         // abrirla (main: pinggy activo)
         uint16_t tunnelPort = 8786; // 0 = puerto efimero (tests)
         // --- Aparatos de control de la red local (ver 1c; siempre 127.0.0.1) ---
-        bool controlLan = false;     // abrirla (main: la sala escucha solo en esta máquina)
+        bool controlLan = false;     // abrir la puerta de la sala (ver 1c)
         uint16_t controlPort = 0;    // 0 = puerto efimero (lo normal: solo lo usa el HTTPS de adelante)
+        std::string puertaHttpBind = "0.0.0.0"; // la IP de «Acceso» si es una sola
+        uint16_t puertaHttpPort = 0;            // 0 = sin la entrada HTTP
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -194,6 +201,10 @@ class SignalingServer {
     uint16_t tunnelPort() const { return tunnelBoundPort_; }
     /// Puerto real de la escucha de los aparatos de control (0 si no esta abierta).
     uint16_t controlPort() const { return controlBoundPort_; }
+    /// Puerto real de la entrada HTTP de la puerta de la sala (0 si no esta abierta).
+    uint16_t puertaHttpPort() const { return puertaHttpBoundPort_; }
+    /// ¿El control web está habilitado desde afuera (túnel, con PIN)?
+    bool controlWebDesdeAfuera() const;
 
     /// La IP de origen de una cabecera PROXY v1 ("PROXY TCP4 <src> <dst> <sp>
     /// <dp>"), en orden de red. TCP6: la IPv4 mapeada (::ffff:a.b.c.d) o, si
@@ -266,11 +277,19 @@ class SignalingServer {
 
     /// Estado de red para la API de control (/api/v1/network).
     void setNetworkStatus(std::function<nlohmann::json()> fn) { networkStatus_ = std::move(fn); }
-    /// URL de ingreso para el QR: target "local" (red local) o "remote"
-    /// (dominio de Cloudflare). Devuelve {url} o {error}.
-    void setJoinUrlProvider(std::function<nlohmann::json(const std::string& target)> fn) {
-        joinUrl_ = std::move(fn);
+    /// Las direcciones de los servicios (Direcciones.hpp): quien junta las entradas
+    /// (main, frescas en cada llamada). Se recalculan cada 2 s; al cambiar, evento
+    /// «direcciones» a la app y `alCambiar` (p. ej. el enlace de invitados de la sala).
+    void setDirecciones(std::function<direcciones::Entradas()> entradas,
+                        std::function<void(const nlohmann::json&)> alCambiar = {}) {
+        direccionesEntradas_ = std::move(entradas);
+        alCambiarDirecciones_ = std::move(alCambiar);
+        recalcularDirecciones();
     }
+    /// El catálogo vigente, con su `seq` (GET /api/v1/direcciones).
+    nlohmann::json direcciones() const;
+    /// El origen de un servicio, "local" o "remote": {origen, url} o {error, message}.
+    nlohmann::json origenDe(const std::string& servicio, const std::string& donde) const;
     /// Genera la configuracion del servidor WireGuard (/api/v1/network/server-config).
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
@@ -500,7 +519,12 @@ class SignalingServer {
     bool servirTema(long long fd, const std::string& method, const std::string& path);
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
-    std::function<nlohmann::json(const std::string&)> joinUrl_;
+    std::function<direcciones::Entradas()> direccionesEntradas_;
+    std::function<void(const nlohmann::json&)> alCambiarDirecciones_;
+    mutable std::mutex direccionesLock_;
+    nlohmann::json direcciones_ = nlohmann::json::object();
+    std::int64_t direccionesSeq_ = 0;
+    void recalcularDirecciones();
     std::function<nlohmann::json()> remotoStatus_;
     std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
@@ -519,6 +543,9 @@ class SignalingServer {
     long long controlListenFd_ = -1;
     uint16_t controlBoundPort_ = 0;
     std::thread controlAcceptThread_;
+    long long puertaHttpFd_ = -1;
+    uint16_t puertaHttpBoundPort_ = 0;
+    std::thread puertaHttpThread_;
     std::thread acceptThread_;
     std::thread adminAcceptThread_;
     std::thread tunnelAcceptThread_;

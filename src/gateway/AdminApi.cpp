@@ -211,14 +211,11 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     // /sesion/#i=…&t=…) y después credenciales, mensajes y fotos de la cámara.
     if (path == "/api/v1/sesion/origen" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "remote";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (out.contains("url")) {
-            std::string origin = out["url"].get<std::string>();
-            if (const size_t sch = origin.find("://"); sch != std::string::npos) {
-                const size_t end = origin.find_first_of("/?#", sch + 3);
-                if (end != std::string::npos) origin.resize(end);
-            }
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        const std::string servicio = q.count("servicio") ? http::urlDecode(q.at("servicio")) : "sesion";
+        json out = origenDe(servicio, target);
+        if (out.contains("origen")) {
+            const std::string origin = out["origen"].get<std::string>();
             out = json{{"ok", true}, {"target", target}, {"origen", origin},
                        {"https", origin.rfind("https://", 0) == 0}};
         } else {
@@ -303,7 +300,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // matriz (filas de '0'/'1'), sin depender de ninguna biblioteca.
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        json out = origenDe("invitados", target);
         if (!out.contains("url")) {
             // 200 con ok=false: falta configuracion, no es una falla de la
             // API; la vista muestra `message` en el lugar del QR.
@@ -311,7 +308,11 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200, out);
             return;
         }
-        std::string url = out["url"].get<std::string>();
+        // La sala va en el fragmento (#room=): la app del invitado la precarga y el
+        // fragmento nunca viaja al servidor.
+        std::string url = out["url"].get<std::string>() + "#room=" + cfg_.room;
+        out["url"] = url;
+        out.erase("origen");
         // Con pin=1 el PIN viaja en el FRAGMENTO del enlace (no llega a ningun
         // servidor ni a sus logs; la app del invitado lo toma y lo borra de la
         // barra de direcciones). Quien tenga el QR entra sin tipear el PIN.
@@ -360,17 +361,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // la clave del tablero en el FRAGMENTO (no viaja en la URL pedida).
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("tablero", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         const std::string url = origin + "/board/#k=" + boardToken();
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
@@ -433,17 +430,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/rotulos-link" && method == "GET") {
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("rotulos", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         // La clave va en el FRAGMENTO: no viaja en la peticion ni queda en los
         // registros de ningun servidor por el que pase el enlace. `conClave=0`
         // la deja afuera: el QR entra a la pagina y la clave se la dice el
@@ -629,17 +622,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/publico-link" && method == "GET") {
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("publico", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         // Con la clave adentro casi siempre: este QR se proyecta en una
         // pantalla o se imprime en el programa, y pedirle a doscientas personas
         // que tipeen una clave es perder a la mitad.
@@ -769,26 +758,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
             return;
         }
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("pantalla", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
-        // Un televisor no tiene donde aceptar un certificado propio, asi que
-        // va por HTTP. Ojo: no alcanza con cambiar el esquema, porque el
-        // enlace de ingreso apunta al puerto de HTTPS y ahi no hay HTTP.
-        if (origin.rfind("https://", 0) == 0) {
-            std::string hostPort = origin.substr(8);
-            const size_t colon = hostPort.rfind(':');
-            const std::string host = colon == std::string::npos ? hostPort : hostPort.substr(0, colon);
-            origin = "http://" + host + ":" + std::to_string(cfg_.port);
-        }
+        std::string origin = out["origen"].get<std::string>();
+        // Un televisor no tiene dónde aceptar un certificado propio: el servicio
+        // «pantalla» ya es la puerta HTTP de la sala (Direcciones.hpp).
         sendJson(fd, 200,
                  json{{"ok", true},
                       {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre) +
@@ -810,25 +788,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/correccion-link" && method == "GET") {
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        std::string aviso;
-        if (!out.contains("url")) {
-            if (target != "local") {
-                out["ok"] = false;
-                sendJson(fd, 200, out);
-                return;
-            }
-            // La sala escucha solo en esta máquina: sirve igual para un corrector en
-            // esta misma computadora (otra pantalla); para otra máquina hay que abrirla.
-            out["url"] = "http://127.0.0.1:" + std::to_string(cfg_.port) + "/";
-            aviso = out.value("message", std::string("la sala escucha solo en esta máquina")) +
-                    " — este enlace sirve solo en esta computadora.";
+        json out = origenDe("correccion", target);
+        if (!out.contains("origen")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        const std::string aviso = out.value("warning", std::string());
+        const std::string origin = out["origen"].get<std::string>();
         const std::string url = origin + "/correccion/#k=" + cfg_.correccionKey;
         const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json rows = json::array();
@@ -851,17 +818,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
         // pegado en una pared no deberia llevarla.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("prompter", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         // La tablet del orador no lleva clave nunca: solo lee.
         const std::string url = origin + "/prompter/" +
                                 (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
@@ -928,6 +891,10 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                                  {"error", ""},
                                  {"turn", {{"publico", ""}, {"tipo", ""}, {"udp", ""}}}};
         sendJson(fd, 200, out);
+        return;
+    }
+    if (path == "/api/v1/direcciones" && method == "GET") {
+        sendJson(fd, 200, direcciones());
         return;
     }
     if (path == "/api/v1/tema" && method == "POST") {

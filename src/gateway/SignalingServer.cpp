@@ -199,6 +199,7 @@ bool SignalingServer::start() {
         int vueltas = 0;
         while (!stop_.load()) {
             for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            recalcularDirecciones(); // la IP de la máquina, el túnel, las puertas: ¿cambió algo?
             // Cuántos reciben el programa: a la app, al cambiar y cada 10 s (por si su
             // escucha de eventos se reconectó). Sin nadie, deja de bajarlo y descansa.
             if (pump_ != nullptr) {
@@ -259,8 +260,20 @@ bool SignalingServer::start() {
             controlBoundPort_ = http::localPort(controlListenFd_);
             controlAcceptThread_ =
                 std::thread(&SignalingServer::acceptLoop, this, controlListenFd_, false, false, true);
-            log_.info("aparatos: botonera y control web en 127.0.0.1:" + std::to_string(controlBoundPort_) +
-                      " (solo eso)");
+            log_.info("puerta de la sala: 127.0.0.1:" + std::to_string(controlBoundPort_) + " (detrás del HTTPS)");
+        }
+        if (cfg_.puertaHttpPort != 0) {
+            puertaHttpFd_ = http::makeListen(cfg_.puertaHttpBind, cfg_.puertaHttpPort);
+            if (puertaHttpFd_ < 0) {
+                log_.error("puerta de la sala: no se pudo abrir " + cfg_.puertaHttpBind + ":" +
+                               std::to_string(cfg_.puertaHttpPort) + " (los televisores y Companion no llegan)",
+                           -1);
+            } else {
+                puertaHttpBoundPort_ = http::localPort(puertaHttpFd_);
+                puertaHttpThread_ = std::thread(&SignalingServer::acceptLoop, this, puertaHttpFd_, false, false, true);
+                log_.info("puerta de la sala: http en " + cfg_.puertaHttpBind + ":" +
+                          std::to_string(puertaHttpBoundPort_));
+            }
         }
     }
     // La escucha del tunel de pinggy: SIEMPRE loopback (solo ba-pinggy llega
@@ -423,6 +436,45 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
     fondoTipo_ = std::move(tipo);
 }
 
+void SignalingServer::recalcularDirecciones() {
+    if (!direccionesEntradas_) return;
+    json nuevo = direcciones::armar(direccionesEntradas_());
+    json enviar;
+    {
+        std::lock_guard<std::mutex> l(direccionesLock_);
+        json viejo = direcciones_;
+        viejo.erase("seq");
+        if (viejo == nuevo) return;
+        nuevo["seq"] = ++direccionesSeq_;
+        direcciones_ = nuevo;
+        enviar = nuevo;
+    }
+    log_.info("direcciones: red " +
+              (enviar["local"].is_object() ? enviar["local"].value("ip", std::string()) : std::string("(ninguna)")) +
+              ", afuera " +
+              (enviar["remoto"].is_object() ? enviar["remoto"].value("url", std::string()) : std::string("(no)")));
+    // El enlace de invitados que muestra la sala (room.guestUrl): el de la red, o el de afuera.
+    {
+        const json loc = direcciones::origenDe(enviar, "invitados", "local");
+        const json rem = direcciones::origenDe(enviar, "invitados", "remote");
+        const json& u = loc.contains("url") ? loc["url"] : rem.contains("url") ? rem["url"] : json();
+        room_.setGuestUrl(u.is_string() ? u.get<std::string>() + "#room=" + cfg_.room : std::string());
+    }
+    if (alCambiarDirecciones_) alCambiarDirecciones_(enviar);
+    broadcastToHosts("direcciones", enviar);
+}
+
+bool SignalingServer::controlWebDesdeAfuera() const { return controlWeb_ && controlWeb_->tunelHabilitado(); }
+
+json SignalingServer::direcciones() const {
+    std::lock_guard<std::mutex> l(direccionesLock_);
+    return direcciones_;
+}
+
+json SignalingServer::origenDe(const std::string& servicio, const std::string& donde) const {
+    return direcciones::origenDe(direcciones(), servicio, donde);
+}
+
 bool SignalingServer::setTemaWeb(const std::string& id) {
     if (id.empty() || id.size() > 40) return false;
     for (const char ch : id)
@@ -445,9 +497,9 @@ bool SignalingServer::servirTema(long long fd, const std::string& method, const 
 
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
-    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && controlListenFd_ < 0 &&
+    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && controlListenFd_ < 0 && puertaHttpFd_ < 0 &&
         activeConns_.load() == 0 && !acceptThread_.joinable() && !adminAcceptThread_.joinable() &&
-        !tunnelAcceptThread_.joinable() && !controlAcceptThread_.joinable() &&
+        !tunnelAcceptThread_.joinable() && !controlAcceptThread_.joinable() && !puertaHttpThread_.joinable() &&
         !statsThread_.joinable()) {
         return;
     }
@@ -459,6 +511,10 @@ void SignalingServer::stop() {
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
     if (tunnelAcceptThread_.joinable()) tunnelAcceptThread_.join();
     if (controlAcceptThread_.joinable()) controlAcceptThread_.join();
+    if (puertaHttpThread_.joinable()) puertaHttpThread_.join();
+    http::closeFd(puertaHttpFd_);
+    puertaHttpFd_ = -1;
+    puertaHttpBoundPort_ = 0;
     http::closeFd(controlListenFd_);
     controlListenFd_ = -1;
     controlBoundPort_ = 0;
@@ -654,22 +710,20 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         handleAdmin(fd, method, path, query, headers, body);
         return;
     }
-    // La puerta de los aparatos de control (1c): la botonera, el control web y lo
-    // común que usan sus páginas. Nada de la sala.
     if (servirTema(fd, method, path)) return;
+    // La puerta de la sala (1c): todo menos ENTRAR A LA SALA COMO INVITADO (eso sigue
+    // lo que diga «Acceso»). La raíz lleva al control web.
     if (soloControl) {
-        if (botonera_->atender(fd, method, path, query, headers, body, clientIp, false)) return;
-        if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, false)) return;
-        if (method == "GET" && path.rfind("/comun/", 0) == 0) {
-            const std::string rel = path.substr(7);
-            if (!rel.empty() && !cfg_.comunWebroot.empty() && serveStatic(fd, cfg_.comunWebroot, rel)) return;
-        }
+        const bool deInvitados = path == "/invitados" || path.rfind("/invitados/", 0) == 0 || path == "/index.html" ||
+                                 path == "/api/join" || path == "/api/v1/files" || path == "/api/v1/avatar";
         if (method == "GET" && path == "/") {
             http::sendResponse(fd, 302, "text/plain", "", "Location: /control/\r\n");
             return;
         }
-        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
-        return;
+        if (deInvitados) {
+            http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+            return;
+        }
     }
     if (method == "POST" && path == "/api/v1/avatar") {
         apiAvatarUpload(fd, headers, body);
