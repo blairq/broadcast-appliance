@@ -1,117 +1,54 @@
-/* Rótulos en el celular: pensado para una mano, de pie, con poca luz. Los
-   botones son grandes a propósito: el que rotula no está mirando la pantalla,
-   está mirando al que habla. */
-:root {
-  --bg: #0d1014;
-  --panel: #161a21;
-  --borde: rgba(255, 255, 255, 0.09);
-  --texto: #e8ecf2;
-  --tenue: #9aa4b2;
-  --acento: #ff6a2b;
-  --aire: #ff3b30;
-}
+/* Rótulos en el celular: pensado para una mano, de pie, con poca luz. Los botones son
+   grandes a propósito: el que rotula no está mirando la pantalla, está mirando al que
+   habla. Con el sistema de diseño de las interfaces de control (/comun/neuro/): todo
+   con los MATERIALES del tema. */
 
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--texto);
-  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  padding-bottom: env(safe-area-inset-bottom);
-}
+body { font-size: 16px; padding-bottom: env(safe-area-inset-bottom); }
 
 .barra {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-top)) 16px;
-  padding-top: calc(12px + env(safe-area-inset-top));
-  background: rgba(13, 16, 20, 0.94);
-  border-bottom: 1px solid var(--borde);
-  backdrop-filter: blur(8px);
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--fondo);
+  box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.45);
 }
-
-.escena { font-weight: 600; }
-.estado { color: var(--tenue); font-size: 13px; }
+.escena { font-weight: 650; flex: 1; }
+.estado { color: var(--texto-suave); font-size: 13px; }
 .estado.mal { color: var(--aire); }
 
-.lista { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
-
-.vacio { color: var(--tenue); padding: 24px 12px; text-align: center; }
+.lista { padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+.vacio { color: var(--texto-tenue); padding: 24px 12px; text-align: center; }
 
 .tarjeta {
-  background: var(--panel);
-  border: 1px solid var(--borde);
-  border-radius: 12px;
-  padding: 14px;
+  background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve);
+  backdrop-filter: var(--filtro); -webkit-backdrop-filter: var(--filtro);
+  border-radius: var(--radio); padding: 16px 18px 18px;
 }
+.tarjeta h2 { margin: 0 0 12px; font-size: 15px; display: flex; align-items: center; gap: 10px; }
 
-.tarjeta h2 {
-  margin: 0 0 10px;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.chip { font-size: 11px; font-weight: 600; color: var(--texto-suave); background: var(--superficie-hundida);
+  box-shadow: var(--hundido-suave); border-radius: var(--radio-redondo); padding: 3px 10px; }
+.chip.aire { color: #fff; background: var(--aire); box-shadow: 0 0 12px var(--aire); }
 
-.chip {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--tenue);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-  padding: 2px 7px;
-}
-.chip.aire { color: #fff; background: var(--aire); }
+label { display: block; margin-bottom: 12px; font-size: 12px; color: var(--texto-suave); }
+input[type="text"], input[type="password"] { display: block; width: 100%; margin-top: 6px; font-size: 17px; /* menos de 16 y el celular hace zoom solo */ }
 
-label { display: block; margin-bottom: 10px; font-size: 12px; color: var(--tenue); }
-
-input[type="text"], input[type="password"] {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-  padding: 12px;
-  font-size: 17px; /* menos de 16 y el celular hace zoom solo al tocarlo */
-  color: var(--texto);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--borde);
-  border-radius: 8px;
-}
-input:focus { outline: 2px solid var(--acento); outline-offset: -1px; }
-
-.botones { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-
+.botones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
 button {
-  padding: 12px 16px;
-  font-size: 15px;
-  color: var(--texto);
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid var(--borde);
-  border-radius: 9px;
-  min-height: 46px;
+  appearance: none; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  padding: 12px 18px; min-height: 48px; border-radius: var(--radio-chico);
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve);
+  transition: box-shadow .12s ease, transform .1s ease;
 }
-button.primario { background: var(--acento); border-color: transparent; color: #fff; font-weight: 600; }
-button:active { transform: scale(0.98); }
+button:active { transform: translateY(1px); background: var(--superficie-hundida); box-shadow: var(--hundido); }
+button.primario { color: var(--acento); }
 
-.aviso { color: var(--tenue); font-size: 13px; }
+.aviso { color: var(--texto-suave); font-size: 13px; }
 
-.pin {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(13, 16, 20, 0.96);
-  padding: 24px;
-}
+.pin { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: var(--fondo); padding: 24px; }
 .pin.hidden { display: none; }
-.pin .caja { max-width: 340px; width: 100%; }
+.pin .caja { max-width: 360px; width: 100%; padding: 26px; border-radius: var(--radio); background: var(--superficie);
+  border: 1px solid var(--borde); box-shadow: var(--relieve); }
 .pin h1 { font-size: 20px; margin: 0 0 8px; }
-.pin p { color: var(--tenue); font-size: 14px; }
-.pin button { width: 100%; margin-top: 12px; background: var(--acento); border-color: transparent; }
+.pin p { color: var(--texto-suave); font-size: 14px; }
+.pin button { width: 100%; margin-top: 14px; color: var(--acento); }
