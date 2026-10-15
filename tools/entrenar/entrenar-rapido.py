@@ -150,6 +150,12 @@ def main():
     ap.add_argument("--lora-fusionado", choices=["si", "no"], default="no",
                     help="cada lineal con LoRA en un kernel de triton (lora_fusionado.py) en vez de base y"
                          " LoRA por separado. Verificado; con el 4B no gana (6,26 vs 6,34 s/paso)")
+    ap.add_argument("--a-ram", choices=["si", "no"], default="no",
+                    help="con --recalcular: la entrada de cada capa del prefijo, guardada para el backward,"
+                         " va a RAM fijada y vuelve justo antes de recalcularla (cache_hibrido.EnRam)")
+    ap.add_argument("--entropia-fusionada", choices=["si", "no"], default="no",
+                    help="perdida y gradiente de la cabeza en el mismo pase, por tandas, sin guardar logits"
+                         " (entropia_fusionada.py)")
     ap.add_argument("--adaptador-inicial", help="arrancar desde este LoRA (carpeta con adapter_model.safetensors)"
                     " en vez de uno nuevo; mismo rango y mismas lineales")
     ap.add_argument("--reanudar", action="store_true", help="seguir desde <salida>/estado/estado.pt")
@@ -282,6 +288,11 @@ def main():
         log(f"LoRA fusionado (base + rango bajo en un kernel): {lora_fusionado.instalar(modelo)} lineales")
     if args.recalcular:
         log(f"recalcular el prefijo capa por capa: {ch.recalcular_por_capa(modelo)} capas")
+        if args.a_ram == "si":
+            ch.a_ram()
+            log("la entrada de cada capa del prefijo, en RAM hasta su backward")
+    elif args.a_ram == "si":
+        raise SystemExit("--a-ram si va con --recalcular")
     entrenables = [p for p in modelo.parameters() if p.requires_grad]
     for p in entrenables:
         p.data = p.data.float()
@@ -313,6 +324,13 @@ def main():
             raiz, n, _ = repartido.repartir(modelo, soltar=True)
             entrenables = [p for p in modelo.parameters() if p.requires_grad]  # ahora son pedazos (DTensor)
             log(f"FSDP2: {n} capas repartidas entre {mundo} placas (cada placa la mitad de cada capa)")
+    if args.entropia_fusionada == "si":
+        import entropia_fusionada
+        cab = (modelo.get_base_model() if hasattr(modelo, "get_base_model") else modelo).lm_head
+        if type(cab.weight) is not torch.nn.Parameter or cab.weight.requires_grad:
+            raise SystemExit(f"--entropia-fusionada: la cabeza es {type(cab.weight).__name__}"
+                             f"{' entrenable' if cab.weight.requires_grad else ''}: va con --pesos enteros y LoRA")
+        log("entropia fusionada: perdida y gradiente de la cabeza en el mismo pase, sin guardar logits")
     opt = torch.optim.AdamW(entrenables, lr=args.lr, weight_decay=0.01, fused=True)
     ids_pre_t = torch.tensor([ids_pre], device=dev)
     Lp = len(ids_pre)
@@ -366,6 +384,9 @@ def main():
             sel = etq != -100
             h_sel, t_sel = hs[sel], etq[sel]
             cabeza_lm = interno.lm_head
+            if args.entropia_fusionada == "si" and grad:
+                suma = entropia_fusionada.perdida_suma(h_sel, cabeza_lm, t_sel)
+                return suma, sel.sum().to(suma.device)
             suma = 0.0
             for i in range(0, h_sel.shape[0], 512):
                 lg = cabeza_lm(h_sel[i:i + 512].to(cabeza_lm.weight.device))

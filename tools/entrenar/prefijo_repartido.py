@@ -223,7 +223,7 @@ class Prefijo:
                   past_key_values=kv, use_cache=True)
         with torch.no_grad(), repartiendo("adelante"):
             for i, capa in enumerate(self.capas):
-                reg.append((capa, i, h, (), kw, ch._foto_capa(kv.layers[i])))
+                reg.append((capa, i, ch.guardar_entrada(h, i), (), kw, ch._foto_capa(kv.layers[i])))
                 _sp["recibidos"] = []
                 h = capa(h, **kw)
                 self.recibidos.append(_sp["recibidos"])

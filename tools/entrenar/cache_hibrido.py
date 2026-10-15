@@ -206,7 +206,7 @@ def recalcular_por_capa(modelo):
         def envuelto(hidden_states, *a, _orig=orig, _idx=idx, _capa=capa, **kw):
             if _recalcular["grabar"] is not None:  # grabando(): ver abajo
                 kv = kw.get("past_key_values")
-                _recalcular["grabar"].append((_capa, _idx, hidden_states.detach(), a, kw,
+                _recalcular["grabar"].append((_capa, _idx, guardar_entrada(hidden_states, _idx), a, kw,
                                               _foto_capa(kv.layers[_idx]) if kv is not None else None))
                 with torch.no_grad():
                     return _orig(hidden_states, *a, **kw)
@@ -253,6 +253,46 @@ class recalculando:
 #   atras_por_capas(reg, kv, [h.grad for h in hojas])
 
 
+# LA ENTRADA DE CADA CAPA, EN RAM (entrenar-rapido --a-ram). Es lo que guarda
+# el prefijo para su backward: capas x tokens x oculto (con el 4B y medio
+# prefijo por placa, ~1 GB por placa). Como el checkpointing de unsloth
+# (unsloth_zoo/gradient_checkpointing, «offloaded»): a RAM fijada sin esperar y
+# de vuelta a la placa justo antes de recalcular la capa. Los buffers fijados se
+# reusan de paso en paso (fijar memoria nueva cada vez es lento); la copia de
+# ida y la de vuelta van en el mismo stream que el calculo, asi que el orden
+# esta garantizado sin sincronizar.
+_a_ram = {"activo": False, "buffers": {}}
+
+
+class EnRam:
+    __slots__ = ("t", "device")
+
+    def __init__(self, h, clave):
+        self.device = h.device
+        k = (clave, tuple(h.shape), h.dtype)
+        b = _a_ram["buffers"].get(k)
+        if b is None:
+            b = _a_ram["buffers"][k] = torch.empty(h.shape, dtype=h.dtype, pin_memory=h.is_cuda)
+        self.t = b.copy_(h, non_blocking=True)
+
+    def traer(self):
+        return self.t.to(self.device, non_blocking=True)
+
+
+def a_ram(activo=True):
+    _a_ram["activo"] = activo
+
+
+def guardar_entrada(h, clave):
+    """La entrada de la capa `clave` para su backward: en la placa o en RAM."""
+    h = h.detach()
+    return EnRam(h, clave) if _a_ram["activo"] else h
+
+
+def _traer(h):
+    return h.traer() if isinstance(h, EnRam) else h
+
+
 class grabando:
     def __enter__(self):
         _recalcular["grabar"] = []
@@ -277,7 +317,7 @@ def atras_por_capas(reg, kv, grads, antes=None, despues=None):
         _poner_capa(kv.layers[idx], foto)  # la capa como estaba antes de correr: vacia
         if antes:
             antes(idx)
-        x = h.detach().requires_grad_(True)
+        x = _traer(h).detach().requires_grad_(True)
         with torch.enable_grad():
             out = capa(x, *a, **kw)
         out = out[0] if isinstance(out, tuple) else out
