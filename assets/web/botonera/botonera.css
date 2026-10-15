@@ -1,110 +1,122 @@
-/* La botonera de la tablet. Sin estilos en línea (la CSP no los deja). */
-:root {
-  --fondo: #0d1014;
-  --panel: #161a21;
-  --texto: #f2f4f7;
-  --tenue: #8a93a3;
-  --borde: rgba(255, 255, 255, 0.10);
-  --ok: #2ecc71;
-  --mal: #e53935;
-  --gap: 8px;
-}
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto);
-  font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; overflow: hidden;
-  touch-action: none; user-select: none; -webkit-user-select: none; }
+/* La botonera de la tablet, con el sistema de diseño de las interfaces de control
+   (/comun/neuro/: temas.css + neuro.css). Las celdas son botones, faders, perillas y
+   medidores neumórficos con los MATERIALES del tema; una celda con color propio (lo
+   manda la app) lo conserva, con el mismo relieve. Sin estilos en línea (la CSP no
+   los deja): lo que cambia lo toca app.js con el.style. */
+:root { --gap: 12px; }
+* { -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
 body { display: flex; flex-direction: column;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
-.barra { display: flex; align-items: center; gap: 12px; padding: 6px 12px; min-height: 40px;
-  border-bottom: 1px solid var(--borde); font-size: 14px; }
-.perfil { font-weight: 600; }
-.pagina { color: var(--tenue); }
+/* --- Barra ------------------------------------------------------------------------- */
+.barra { display: flex; align-items: center; gap: 12px; padding: 10px 16px; min-height: 52px; font-size: 14px; }
+.perfil { font-weight: 650; }
+.pagina { color: var(--texto-suave); }
 .espacio { flex: 1; }
-.conexion { font-size: 18px; }
-.conexion.viva { color: var(--ok); }
-.conexion.apagada { color: var(--mal); animation: titilar 1s steps(2) infinite; }
-.icono { background: none; border: 1px solid var(--borde); color: var(--texto); border-radius: 8px;
-  font-size: 18px; width: 36px; height: 32px; }
+.conexion { font-size: 16px; }
+.conexion.viva { color: var(--ok); text-shadow: 0 0 8px var(--ok); }
+.conexion.apagada { color: var(--aire); animation: titilar 1s steps(2) infinite; }
+.icono { appearance: none; font: inherit; font-size: 17px; width: 40px; height: 36px; border-radius: 11px; cursor: pointer;
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve); }
+.icono:active { box-shadow: var(--hundido); background: var(--superficie-hundida); }
 
-.grilla { flex: 1; display: grid; gap: var(--gap); padding: var(--gap); min-height: 0; }
+/* --- La grilla y las celdas --------------------------------------------------------- */
+.grilla { flex: 1; display: grid; gap: var(--gap); padding: var(--gap) calc(var(--gap) + 4px) calc(var(--gap) + 4px); min-height: 0; }
 
-.celda { position: relative; border-radius: 12px; overflow: hidden; display: flex; align-items: center;
-  justify-content: center; text-align: center; white-space: pre-line; font-weight: 600;
-  border: 1px solid var(--borde); background: #2b2f3a; line-height: 1.15; padding: 6px;
-  transition: transform 60ms ease, filter 60ms ease; }
-.celda.boton.apretada { transform: scale(0.95); filter: brightness(1.35); }
-.celda.activo { box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.85); }
+.celda { position: relative; border-radius: var(--radio-chico); overflow: hidden; display: flex; align-items: center;
+  justify-content: center; text-align: center; white-space: pre-line; font-weight: 650; line-height: 1.15; padding: 8px;
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve);
+  backdrop-filter: var(--filtro); -webkit-backdrop-filter: var(--filtro);
+  transition: transform 70ms ease, box-shadow 120ms ease, filter 70ms ease; }
+.celda.boton.apretada { transform: translateY(1px) scale(0.98); box-shadow: var(--hundido); }
+.celda.boton.apretada:not(.con-fondo) { background: var(--superficie-hundida); }
+.celda.con-fondo.boton.apretada { filter: brightness(0.85); }
+/* Activo (el estado que manda la app: al aire, prendido…): anillo de acento y algo de luz. */
+.celda.activo { box-shadow: var(--relieve), inset 0 0 0 3px var(--acento), 0 0 16px color-mix(in srgb, var(--acento) 45%, transparent); color: var(--acento); }
+.celda.con-fondo.activo { color: inherit; box-shadow: var(--relieve), inset 0 0 0 3px #fff; }
 .celda.titilar { animation: titilar 0.8s steps(2) infinite; }
-.celda.esperando { box-shadow: inset 0 0 0 4px #ffcc00; animation: titilar 0.4s steps(2) infinite; }
+.celda.esperando { box-shadow: var(--relieve), inset 0 0 0 4px var(--aviso); animation: titilar 0.4s steps(2) infinite; }
 .celda .icono-celda { display: block; font-size: 1.6em; margin-bottom: 4px; }
-.celda.texto, .celda.reloj { font-variant-numeric: tabular-nums; }
+.celda.texto, .celda.reloj { font-family: var(--fuente-numeros); font-variant-numeric: tabular-nums; }
 .celda.reloj { font-size: 1.6em; }
+/* Lo que no se aprieta (texto, reloj, medidor) va hundido: se ve que no es un botón. */
+.celda.texto, .celda.reloj, .celda.medidor { box-shadow: var(--hundido-suave); background: var(--superficie-hundida); }
 
-.celda.fader, .celda.medidor { flex-direction: column; justify-content: flex-end; padding: 8px 6px 6px; }
-.fader .riel { position: relative; flex: 1; width: 44%; min-width: 26px; border-radius: 8px;
-  background: rgba(0, 0, 0, 0.45); margin: 4px auto; }
-.fader .relleno { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 8px;
-  background: rgba(255, 255, 255, 0.18); }
-.fader .nivel { position: absolute; right: -10px; bottom: 0; width: 6px; border-radius: 3px; background: var(--ok); }
-.fader .nivel.alto { background: #ffb300; }
-.fader .nivel.pico { background: var(--mal); }
-.fader .mango { position: absolute; left: -12%; right: -12%; height: 22px; border-radius: 6px;
-  background: #e8eaed; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); transform: translateY(50%); }
+/* Fader: la canaleta hundida y la tapa en relieve. */
+.celda.fader, .celda.medidor { flex-direction: column; justify-content: flex-end; padding: 10px 8px 8px; }
+.fader .riel { position: relative; flex: 1; width: 34%; min-width: 22px; border-radius: 11px; margin: 6px auto;
+  background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.fader .relleno { position: absolute; left: 4px; right: 4px; bottom: 4px; border-radius: 8px; background: var(--acento); opacity: 0.35; }
+.fader .nivel { position: absolute; right: -12px; bottom: 0; width: 6px; border-radius: 3px; background: var(--vu-bajo); }
+.fader .nivel.alto { background: var(--vu-medio); }
+.fader .nivel.pico { background: var(--vu-alto); }
+.fader .mango { position: absolute; left: -30%; right: -30%; height: 26px; border-radius: 8px; transform: translateY(50%);
+  background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve); }
+.fader .mango::after { content: ""; position: absolute; left: 22%; right: 22%; top: 12px; height: 2px; border-radius: 1px; background: var(--acento); }
 .fader .rotulo, .medidor .rotulo, .perilla .rotulo { font-size: 0.8em; color: inherit; opacity: 0.9; }
-.fader .valor, .perilla .valor, .medidor .valor { font-size: 0.75em; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.fader .valor, .perilla .valor, .medidor .valor { font-size: 0.75em; opacity: 0.75; font-family: var(--fuente-numeros); font-variant-numeric: tabular-nums; }
 
-.medidor .riel { position: relative; flex: 1; width: 40%; border-radius: 6px; background: rgba(0, 0, 0, 0.45);
-  margin: 4px auto; overflow: hidden; }
-.medidor .relleno { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, #2ecc71, #ffb300 75%, #e53935); }
-.medidor .pico { position: absolute; left: 0; right: 0; height: 3px; background: #fff; }
+.medidor .riel { position: relative; flex: 1; width: 34%; border-radius: 8px; margin: 6px auto; overflow: hidden;
+  background: var(--fondo); box-shadow: var(--hundido-suave); }
+.medidor .relleno { position: absolute; left: 3px; right: 3px; bottom: 3px; border-radius: 5px;
+  background: linear-gradient(to top, var(--vu-bajo), var(--vu-medio) 75%, var(--vu-alto)); }
+.medidor .pico { position: absolute; left: 3px; right: 3px; height: 2px; background: var(--texto); }
 
-.celda.perilla { flex-direction: column; }
-.perilla .disco { width: 64%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #555b66, #23272f);
-  position: relative; border: 2px solid rgba(255, 255, 255, 0.18); }
-.perilla .marca { position: absolute; left: 50%; top: 6%; width: 4px; height: 30%; margin-left: -2px;
-  border-radius: 2px; background: #fff; transform-origin: 50% 147%; }
+/* Perilla: aro hundido, botón en relieve con su marca. */
+.celda.perilla { flex-direction: column; gap: 4px; }
+.perilla .disco { width: 60%; aspect-ratio: 1; border-radius: 50%; position: relative;
+  background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve), 0 0 0 7px var(--superficie-hundida); }
+.perilla .marca { position: absolute; left: 50%; top: 8%; width: 4px; height: 28%; margin-left: -2px;
+  border-radius: 2px; background: var(--acento); transform-origin: 50% 150%; }
 
-.paginas { display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; border-top: 1px solid var(--borde); min-height: 44px; }
+/* --- Páginas ------------------------------------------------------------------------- */
+.paginas { display: flex; gap: 10px; padding: 10px 14px 14px; overflow-x: auto; min-height: 56px; }
 .paginas:empty { display: none; }
-.paginas button { flex: 0 0 auto; background: var(--panel); color: var(--texto); border: 1px solid var(--borde);
-  border-radius: 18px; padding: 6px 16px; font-size: 14px; }
-.paginas button.actual { background: #2f6fde; border-color: #2f6fde; }
+.paginas button { flex: 0 0 auto; appearance: none; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 8px 18px; border-radius: var(--radio-redondo); color: var(--texto-suave);
+  background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve); }
+.paginas button.actual { color: var(--acento); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
 
+/* --- Emparejar, mensajes, confirmar --------------------------------------------------- */
 .panel { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 16px; padding: 24px; background: var(--fondo); text-align: center; }
+  gap: 18px; padding: 24px; background: var(--fondo); text-align: center; }
 .panel h1 { margin: 0; font-size: 22px; }
-.panel p { margin: 0; color: var(--tenue); max-width: 520px; line-height: 1.4; }
-.panel input { font-size: 18px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--borde);
-  background: var(--panel); color: var(--texto); width: min(420px, 90vw); }
-.panel button { font-size: 16px; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--borde);
-  background: var(--panel); color: var(--texto); }
-.panel button.grande { background: #2f6fde; border-color: #2f6fde; font-size: 18px; padding: 12px 24px; }
+.panel p { margin: 0; color: var(--texto-suave); max-width: 520px; line-height: 1.4; }
+.panel input { width: min(420px, 90vw); font-size: 18px; }
+.panel button { appearance: none; font: inherit; font-size: 16px; padding: 12px 20px; border-radius: var(--radio-chico); cursor: pointer;
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve); }
+.panel button:active { box-shadow: var(--hundido); }
+.panel button.grande { color: var(--acento); font-size: 18px; padding: 14px 26px; font-weight: 650; }
 
-.confirmar { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; }
-.confirmar .caja { background: var(--panel); border: 2px solid #ffcc00; border-radius: 16px; padding: 24px;
-  display: flex; flex-direction: column; gap: 14px; width: min(460px, 92vw); text-align: center; }
-.confirmar h2 { margin: 0; color: #ffcc00; }
-.confirmar .si { background: #c62828; color: #fff; border: 0; border-radius: 12px; font-size: 20px; padding: 22px; font-weight: 700; }
-.confirmar .no { background: none; color: var(--texto); border: 1px solid var(--borde); border-radius: 10px; font-size: 16px; padding: 10px; }
-.barra-progreso { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
-.barra-progreso div { height: 100%; width: 0; background: #ffcc00; }
+.confirmar { position: fixed; inset: 0; background: color-mix(in srgb, var(--fondo) 75%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; }
+.confirmar .caja { padding: 26px; display: flex; flex-direction: column; gap: 16px; width: min(460px, 92vw); text-align: center;
+  border-radius: var(--radio); background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve-alto), 0 0 0 3px var(--aviso); }
+.confirmar h2 { margin: 0; color: var(--aviso); }
+.confirmar .si { appearance: none; font: inherit; border: 0; border-radius: var(--radio-chico); font-size: 20px; padding: 24px; font-weight: 750;
+  color: #fff; background: var(--aire); box-shadow: var(--relieve); cursor: pointer; }
+.confirmar .si:active { box-shadow: var(--hundido); }
+.confirmar .no { appearance: none; font: inherit; font-size: 16px; padding: 12px; border-radius: var(--radio-chico); cursor: pointer;
+  color: var(--texto); background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve); }
+.barra-progreso { height: 8px; border-radius: 4px; overflow: hidden; background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.barra-progreso div { height: 100%; width: 0; background: var(--aviso); }
 
-.aviso { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); background: #263238; color: #fff;
-  padding: 10px 18px; border-radius: 10px; font-size: 15px; max-width: 90vw; text-align: center;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5); }
-.aviso.error { background: #8e1b1b; }
+.aviso { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); padding: 12px 20px; border-radius: var(--radio-chico);
+  font-size: 15px; max-width: 90vw; text-align: center; color: var(--texto); background: var(--superficie-plana);
+  border: 1px solid var(--borde); box-shadow: var(--relieve-alto); }
+.aviso.error { color: #fff; background: var(--aire); }
 
 .oculto { display: none !important; }
 @keyframes titilar { 50% { opacity: 0.35; } }
 
-/* Caras, bordes, insignias y atenuado (botonera «Micrófonos de bancas») */
+/* Caras, bordes, insignias y atenuado (botonera «Micrófonos de bancas»). */
 .celda > img.cara { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55;
                     pointer-events: none; z-index: 0; }
-.celda.con-cara > span { position: relative; z-index: 1; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
-.celda.con-borde { box-shadow: inset 0 0 0 4px var(--borde); }
+.celda.con-cara > span { position: relative; z-index: 1; text-shadow: 0 1px 3px #000, 0 0 8px #000; color: #fff; }
+.celda.con-borde { box-shadow: var(--relieve), inset 0 0 0 4px var(--borde-celda); }
 .celda.borde-titila { animation: borde-titila 1s steps(2) infinite; }
-@keyframes borde-titila { 0% { box-shadow: inset 0 0 0 5px var(--borde); } 50% { box-shadow: inset 0 0 0 5px transparent; } }
-.celda .insignia { position: absolute; top: 4px; right: 6px; z-index: 2; min-width: 1.4em; padding: 1px 5px;
-                   border-radius: 9px; background: #ffb300; color: #000; font-weight: 800; font-size: 0.8em; text-align: center; }
-.celda.atenuada { filter: grayscale(1) brightness(0.45); }
+@keyframes borde-titila { 0% { box-shadow: var(--relieve), inset 0 0 0 5px var(--borde-celda); } 50% { box-shadow: var(--relieve), inset 0 0 0 5px transparent; } }
+.celda .insignia { position: absolute; top: 5px; right: 7px; z-index: 2; min-width: 1.4em; padding: 1px 6px;
+                   border-radius: 9px; background: var(--aviso); color: #1a1205; font-weight: 800; font-size: 0.8em; text-align: center; }
+.celda.atenuada { filter: grayscale(1) brightness(0.55); }
