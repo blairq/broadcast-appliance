@@ -50,6 +50,9 @@ ap.add_argument("--lora-fusionado", action="store_true",
 ap.add_argument("--nucleo", choices=["torch", "fla"], default="torch",
                 help="la regla delta: torch (fp32 de verdad: verifica el METODO) o fla (el kernel"
                      " de entrenamiento, con TF32 adentro: mide el error practico)")
+ap.add_argument("--conv-triton", action="store_true", help="las corridas en fp32 con la convolucion de fla")
+ap.add_argument("--compilar", action="store_true", help="las corridas en fp32 con normas y MLP compilados")
+ap.add_argument("--a-ram", action="store_true", help="la entrada de cada capa del prefijo en RAM")
 args = ap.parse_args()
 
 rank = int(os.environ["LOCAL_RANK"])
@@ -59,6 +62,7 @@ dev = torch.device(f"cuda:{rank}")
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 ch.parchear()
+ch.a_ram(args.a_ram)
 from peft import LoraConfig, get_peft_model  # noqa: E402
 from transformers import AutoModelForCausalLM, DynamicCache  # noqa: E402
 
@@ -105,6 +109,11 @@ def cargar(tipo=torch.float32):
     if args.lora_fusionado and tipo == torch.float32:
         import lora_fusionado
         lora_fusionado.instalar(m)
+    if tipo == torch.float32:  # la verdad en fp64 va siempre por torch
+        if args.conv_triton:
+            ch.conv_triton(m)
+        if args.compilar:
+            ch.compilar(m)
     ch.recalcular_por_capa(m)
     if args.nucleo == "torch" or tipo == torch.float64:  # fla no compila en fp64
         from transformers.models.qwen3_5 import modeling_qwen3_5 as q

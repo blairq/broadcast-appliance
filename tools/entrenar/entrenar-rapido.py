@@ -156,6 +156,11 @@ def main():
     ap.add_argument("--entropia-fusionada", choices=["si", "no"], default="no",
                     help="perdida y gradiente de la cabeza en el mismo pase, por tandas, sin guardar logits"
                          " (entropia_fusionada.py)")
+    ap.add_argument("--conv-triton", choices=["si", "no"], default="no",
+                    help="la convolucion corta de la atencion lineal con el kernel de fla (SiLU adentro)"
+                         " en vez de conv1d + silu de torch (cache_hibrido.conv_triton)")
+    ap.add_argument("--compilar", choices=["si", "no"], default="no",
+                    help="torch.compile de las normas y el MLP de cada capa (cache_hibrido.compilar)")
     ap.add_argument("--adaptador-inicial", help="arrancar desde este LoRA (carpeta con adapter_model.safetensors)"
                     " en vez de uno nuevo; mismo rango y mismas lineales")
     ap.add_argument("--reanudar", action="store_true", help="seguir desde <salida>/estado/estado.pt")
@@ -286,6 +291,14 @@ def main():
     if args.lora_fusionado == "si":
         import lora_fusionado
         log(f"LoRA fusionado (base + rango bajo en un kernel): {lora_fusionado.instalar(modelo)} lineales")
+    if args.conv_triton == "si":
+        if not hibrido:
+            raise SystemExit("--conv-triton es para la atencion lineal (Qwen3.5)")
+        log(f"convolucion corta en triton (fla): {ch.conv_triton(modelo)} capas")
+    if args.compilar == "si":
+        if args.lora_fusionado == "si":
+            raise SystemExit("--compilar no va con --lora-fusionado")
+        log(f"compilados (normas y MLP): {ch.compilar(modelo)} modulos")
     if args.recalcular:
         log(f"recalcular el prefijo capa por capa: {ch.recalcular_por_capa(modelo)} capas")
         if args.a_ram == "si":

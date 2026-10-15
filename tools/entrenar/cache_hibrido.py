@@ -28,6 +28,79 @@ def es_hibrido(modelo):
     return bool(tipos) and "linear_attention" in tipos
 
 
+# LA CONVOLUCION CORTA EN TRITON (entrenar-rapido --conv-triton). La atencion
+# lineal pasa q, k y v por una convolucion causal de 4 y un SiLU. Sin el paquete
+# causal-conv1d (pide compilar contra CUDA 13), transformers y nosotros la
+# haciamos en torch: conv1d y silu por separado. flash-linear-attention trae la
+# misma en triton, con el SiLU adentro y estado inicial diferenciable (es la que
+# usa unsloth para Qwen3.5). El estado inicial son las ultimas K entradas, lo
+# mismo que guarda conv_states.
+#
+# OJO, medido con fla 0.5.2: con la entrada o el gradiente NO CONTIGUOS (una
+# vista transpuesta) el gradiente del estado inicial sale mal (la salida y los
+# demas gradientes, bien). Por eso todo entra y vuelve contiguo.
+#
+# Se prende POR CAPA (atributo _conv_triton), no global: verificar-gradiente
+# tiene en el mismo proceso la verdad en fp64, que va en torch.
+
+
+class _GradContiguo(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, y):
+        return y.view_as(y)
+
+    @staticmethod
+    def backward(ctx, g):
+        return g.contiguous()
+
+
+def conv_triton(modelo):
+    """Prende la convolucion de fla en todo el modelo (prefijo de transformers incluido)."""
+    n = 0
+    for m in modelo.modules():
+        if type(m).__name__.endswith("GatedDeltaNet"):
+            m.causal_conv1d_fn = _como_dao
+            m._conv_triton = True
+            n += 1
+    return n
+
+
+def _como_dao(x, weight, bias=None, activation=None, seq_idx=None):
+    """La firma de causal_conv1d_fn (x: B, C, L) que llama transformers sin cache previo."""
+    y = conv_silu_blc(x.transpose(1, 2), weight.unsqueeze(1), bias, None, activation)
+    return y.transpose(1, 2)
+
+
+def conv_silu_blc(mixed, peso, sesgo, estado, activacion="silu"):
+    """silu(conv causal) de mixed (B, L, C) -> (B, L, C) con el kernel de fla.
+    estado: las ultimas K entradas anteriores (B, C, K) o None (ceros)."""
+    from fla.modules.conv import causal_conv1d
+    y, _ = causal_conv1d(mixed.contiguous(), weight=peso.squeeze(1), bias=sesgo,
+                         initial_state=None if estado is None else estado.contiguous(),
+                         activation=activacion)
+    return _GradContiguo.apply(y)
+
+
+# COMPILAR LAS PARTES PUNTO A PUNTO (entrenar-rapido --compilar). Lo que hace
+# el compilador de unsloth: entre multiplicacion y multiplicacion hay cuentas
+# token a token (las normas en fp32, SiLU por la compuerta del MLP, la norma con
+# compuerta de la atencion lineal) que en torch son un kernel y un viaje a
+# memoria cada una. torch.compile las junta. Se compilan esos MODULOS y no la
+# capa entera: la capa toca el cache, manda cosas a la otra placa
+# (prefijo_repartido) y se recalcula con ganchos (recalcular_por_capa), y todo
+# eso cortaria el grafo. dynamic=True: los sufijos cambian de largo en cada paso.
+def compilar(modelo):
+    import torch._dynamo
+    torch._dynamo.config.cache_size_limit = max(torch._dynamo.config.cache_size_limit, 64)
+    n = 0
+    for m in modelo.modules():
+        nombre = type(m).__name__
+        if "Vision" not in nombre and nombre.endswith(("RMSNorm", "RMSNormGated", "MLP")):
+            m.compile(dynamic=True)
+            n += 1
+    return n
+
+
 def parchear():
     from transformers.models.qwen3_5 import modeling_qwen3_5 as q
     if getattr(q.Qwen3_5GatedDeltaNet, "_parche_prefijo", False):
@@ -49,8 +122,11 @@ def parchear():
         K = self.conv_kernel_size
         previo = capa.conv_states.to(mixed.dtype)                         # (B, C, K): entradas anteriores
         x = torch.cat([previo[..., -(K - 1):], mixed], dim=-1)
-        conv = F.conv1d(x, self.conv1d.weight, self.conv1d.bias, groups=x.shape[1])
-        mixed = F.silu(conv).transpose(1, 2)
+        if getattr(self, "_conv_triton", False):
+            mixed = conv_silu_blc(mixed.transpose(1, 2), self.conv1d.weight, self.conv1d.bias, previo)
+        else:
+            conv = F.conv1d(x, self.conv1d.weight, self.conv1d.bias, groups=x.shape[1])
+            mixed = F.silu(conv).transpose(1, 2)
         capa.conv_states = x[..., -K:]
         query, key, value = torch.split(mixed, [self.key_dim, self.key_dim, self.value_dim], dim=-1)
         query = query.reshape(B, L, -1, self.head_k_dim)

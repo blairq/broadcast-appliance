@@ -98,8 +98,12 @@ def _lineal(self, hidden_states, cache_params):
     else:
         halo = _pasar(forma=(B, mixed.shape[1], K - 1), tipo=mixed.dtype, device=mixed.device)
         x = torch.cat([halo, mixed], dim=-1)
-    conv = F.conv1d(x, self.conv1d.weight, self.conv1d.bias, groups=x.shape[1])
-    mixed = F.silu(conv).transpose(1, 2)
+    if getattr(self, "_conv_triton", False):
+        estado = None if rank == 0 else F.pad(halo, (1, 0))  # las K entradas anteriores: la primera no cuenta
+        mixed = ch.conv_silu_blc(mixed.transpose(1, 2), self.conv1d.weight, self.conv1d.bias, estado)
+    else:
+        conv = F.conv1d(x, self.conv1d.weight, self.conv1d.bias, groups=x.shape[1])
+        mixed = F.silu(conv).transpose(1, 2)
     query, key, value = torch.split(mixed, [self.key_dim, self.key_dim, self.value_dim], dim=-1)
     query = query.reshape(B, L, -1, self.head_k_dim)
     key = key.reshape(B, L, -1, self.head_k_dim)
