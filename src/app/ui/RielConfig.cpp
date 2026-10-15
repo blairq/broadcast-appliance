@@ -74,12 +74,13 @@ const std::vector<Grupo>& catalogo() {
           {23, "plugins", "⌬",
            "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones"},
           {13, "registro", "❑", "Registro: todo lo que pasa, de los tres procesos"},
-          {6, "configuracion", "⚙", "Configuración"}}},
-        // Abajo del todo, sola: cualquier enlace o código QR del aparato se busca acá.
-        {"Servicios",
-         {{29, "enlaces", "⇄",
+          {30, "latencias", "⏱",
+           "Latencias del pipeline: cuánto tarda cada cosa, de cada entrada a cada salida (video y audio, "
+           "tarjeta por tarjeta, módulo por módulo), y los análisis"},
+          {29, "enlaces", "⇄",
            "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
-           "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR"}}},
+           "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR"},
+          {6, "configuracion", "⚙", "Configuración"}}},
     };
     return g;
 }

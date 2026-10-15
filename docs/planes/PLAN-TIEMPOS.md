@@ -1,4 +1,4 @@
-# Plan: «Tiempos», el análisis de demoras del pipeline
+# Plan: «Latencias del pipeline», el análisis de demoras
 
 Una página nueva que muestra **cuánto tarda cada cosa**, de cada entrada a cada salida,
 en video y en audio, módulo por módulo y plugin por plugin. Y, en lo más extremo, el
@@ -109,7 +109,7 @@ Mientras hay **algo al aire**, la marca solo se pone con confirmación y queda c
 
 ## La página
 
-Se llama **«Tiempos»**, en el grupo «Señales y equipos» del riel.
+Se llama **«Latencias del pipeline»** (en el riel, «Latencias»; id `latencias`), en el grupo «Sistema». Las herramientas MCP siguen como `tiempos_*`.
 
 ```
 ┌──────┬──────────────────────────────────────────────────────────────┬─────────┐

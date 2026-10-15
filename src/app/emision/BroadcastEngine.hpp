@@ -244,7 +244,7 @@ class BroadcastEngine {
     /// video, los racks, la escucha). nullptr antes de startup.
     motor::Motor* motor() { return motor_.get(); }
     /// La foto de las salidas (transmisiones, grabación, limpia) que publica su hilo:
-    /// no espera a nadie (la página Tiempos la lee seguido).
+    /// no espera a nadie (la página Latencias del pipeline la lee seguido).
     nlohmann::json salidasAhora() const { return fotoSalidas(); }
 
     // --- Escenas ------------------------------------------------------------

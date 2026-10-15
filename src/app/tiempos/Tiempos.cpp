@@ -15,6 +15,17 @@ namespace {
 
 double redondo(double ms) { return std::round(ms * 10.0) / 10.0; }
 
+/// Los filtros que no son tarjetas del grafo (los agregan ControlCamaras, SuperRes…):
+/// un nombre que se entienda en vez del elemento de GStreamer.
+std::string tituloDeElemento(const std::string& e) {
+    static const std::map<std::string, std::string> nombres{
+        {"baptz", "PTZ digital"},       {"baptzgl", "PTZ digital"},  {"bamejora", "Mejorar imagen"},
+        {"basuperres", "Superresolución"}, {"baonnxsr", "Superresolución"}, {"baplugin", "Plugin"},
+        {"barostros", "Rostros"},       {"barack", "Rack de audio"}, {"balimitador", "Limitador"}};
+    const auto it = nombres.find(e);
+    return it != nombres.end() ? it->second : e;
+}
+
 /// Un sí/no de una foto, venga como venga (bool, número o texto): las fotos las arma cada
 /// parte y una que cambie el tipo de un campo no puede tumbar la página.
 bool si(const json& o, const char* k) {
@@ -121,7 +132,7 @@ json armar(const Fotos& f) {
                 p.id = "tarjeta:" + id + ":" + fl.value("id", std::string());
                 p.tipo = "tarjeta";
                 const auto t = f.titulos.find(fl.value("id", std::string()));
-                p.titulo = t != f.titulos.end() && !t->second.empty() ? t->second : fl.value("elemento", std::string());
+                p.titulo = t != f.titulos.end() && !t->second.empty() ? t->second : tituloDeElemento(fl.value("elemento", std::string()));
                 if (fl.contains("ms") && fl["ms"].is_number()) p.ms = fl["ms"].get<double>();
                 p.detalle = {{"elemento", fl.value("elemento", std::string())},
                              {"andando", !fl.contains("andando") || si(fl, "andando")},

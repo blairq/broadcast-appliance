@@ -1078,7 +1078,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             for (const std::string& s : racks_->fuentesConRack())
                 if (audio::AudioRack* r = racks_->rack(s, false)) f.racks[s] = r->describe();
         return f;
-    });
+    }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
         asamblea::Bancas::Ganchos g;
