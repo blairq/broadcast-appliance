@@ -41,6 +41,7 @@ import os
 import random
 import re
 import subprocess
+import unicodedata
 import sys
 import time
 from pathlib import Path
@@ -92,6 +93,26 @@ def compuesta(frase):
     return bool(re.search(r"[?!.]\s+\S", frase))
 
 
+def _norm(x):
+    x = unicodedata.normalize("NFKD", str(x).lower()).encode("ascii", "ignore").decode()
+    return re.sub(r"\W+", " ", x).strip()
+
+
+def igual_arg(esperado, obtenido, prompt, igual):
+    """Como tc-evaluar.igual, y ademas: un texto que solo cambia en mayusculas,
+    tildes o puntuacion es el mismo («¿se acepta al socio?» / «¿Se acepta al
+    socio?», ["sí","no"] / ["Sí","No"]); y un texto LIBRE (4 palabras o mas que no
+    salen del estado: la pregunta de una votacion, lo que se le pregunta a una
+    imagen) no se juzga palabra por palabra. Como negativo de dpo, una respuesta
+    buena dicha de otra forma empujaria contra lo correcto."""
+    if igual(esperado, obtenido):
+        return True
+    e, o = _norm(tc.valor_texto(esperado)), _norm(obtenido)
+    if e == o:
+        return True
+    return len(e.split()) >= 4 and e not in _norm(prompt.rsplit("Estado:", 1)[-1])
+
+
 def juzgar(f, texto, igual):
     """(bien, motivo) como tc-evaluar: falta pide falta_dato; si no, herramienta y argumentos exactos."""
     h, a = tc.leer(texto)
@@ -108,7 +129,8 @@ def juzgar(f, texto, igual):
         if h == tc.DERIVAR:
             return False, "deriva_de_mas"
         return False, "no_deriva" if esperada == tc.DERIVAR else "vecina"
-    if isinstance(a, dict) and set(a) == set(f["args"]) and all(igual(f["args"][k], a[k]) for k in a):
+    if isinstance(a, dict) and set(a) == set(f["args"]) and \
+            all(igual_arg(f["args"][k], a[k], f["prompt"], igual) for k in a):
         return True, "bien"
     return False, "argumentos"
 
@@ -290,6 +312,7 @@ def main():
     buenas_sueltas = {"entrenar": [], "validar": []}
     motivos, por_herr, voraz_mal = collections.Counter(), collections.Counter(), collections.Counter()
     vecinas = collections.Counter()
+    vec_det = collections.defaultdict(lambda: {"voraz": 0, "muestras": 0, "ejemplos": []})
     n_comp = 0
     for i, f in enumerate(filas):
         if args.sin_compuestas and compuesta(f["frase"]):
@@ -312,6 +335,12 @@ def main():
             por_herr[f["herramienta"]] += 1
             if motivo == "vecina":
                 vecinas[f"{f['herramienta']} -> {tc.leer(texto)[0]}"] += 1
+        for j, texto in enumerate(resp):  # cada respuesta (no solo las distintas): cuanto pasa
+            if juzgar(f, texto, igual)[1] == "vecina":
+                d = vec_det[(f["herramienta"], tc.leer(texto)[0])]
+                d["voraz" if j == 0 else "muestras"] += 1
+                if f["frase"] not in d["ejemplos"] and len(d["ejemplos"]) < 3:
+                    d["ejemplos"].append(f["frase"])
         if not malas:
             buenas_sueltas[parte].append({**base, "completion": f["completion"], "buena": True})
             continue
@@ -338,6 +367,7 @@ def main():
         # como el de tc-corpus: entrenar-rapido y tc-evaluar comparan el prompt
         (sal / nombre / "huella.json").write_text(json.dumps({"formato": "tc", "prompt": tc.huella(),
                                                               "de": nombre}, indent=1) + "\n")
+    resumen_modelo = str(Path(args.modelo).expanduser().resolve())
     tipos = collections.Counter(f["tipo"] for f in filas if not (args.sin_compuestas and compuesta(f["frase"])))
     resumen = {
         "modelo": str(Path(args.modelo).expanduser().resolve()), "casos": len(filas) - n_comp,
@@ -352,6 +382,14 @@ def main():
         "anotaciones": hashlib.sha256(Path(args.anotaciones).read_bytes()).hexdigest()[:16],
         "prompt": tc.huella(), "semilla": args.semilla,
     }
+    # LAS VECINAS QUE CONFUNDE, para arreglar en el corpus (copiar a datos/tc-vecinas-pendientes.json)
+    vec = sorted(({"esperada": a, "elegida": b, **v} for (a, b), v in vec_det.items()),
+                 key=lambda x: -(3 * x["voraz"] + x["muestras"]))
+    (sal / "vecinas.json").write_text(json.dumps({
+        "modelo": resumen_modelo, "prompt": tc.huella(),
+        "como": f"tc-preferencias: plantillas entrenadas con estados nuevos; voraz = la respuesta que se ve al aire,"
+                f" muestras = {args.muestras} con temperatura {args.temperatura}",
+        "vecinas": vec}, ensure_ascii=False, indent=1) + "\n")
     (sal / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1) + "\n")
     print(json.dumps({k: resumen[k] for k in ("casos", "compuestas_fuera", "voraz_mal", "malas_distintas", "dpo", "kto")},
                      ensure_ascii=False))

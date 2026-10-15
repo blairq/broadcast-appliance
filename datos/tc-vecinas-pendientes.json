@@ -1,1106 +1,259 @@
 {
- "fecha": "2026-10-15",
- "modelo": "tc-v6b vuelta 2 (sft-base)",
- "como": "tc-preferencias: plantillas entrenadas con estados nuevos; voraz = la respuesta que se ve al aire, muestras = 4 con temperatura 0,8. Sin las frases compuestas (dos oraciones).",
+ "modelo": "/home/usuario/entrenamientos/tc-v6b-pref/sft-base",
+ "prompt": "72dee9f28a580f86",
+ "como": "tc-preferencias: plantillas entrenadas con estados nuevos; voraz = la respuesta que se ve al aire, muestras = 4 con temperatura 0.8",
  "vecinas": [
   {
-   "esperada": "source_update",
-   "elegida": "source_set_property",
-   "voraz": 9,
-   "muestras": 34,
-   "ejemplos": [
-    "Trae la tres al frente, que quede por encima de la camara",
-    "mostrá la hora en la escena del aire",
-    "el reloj tiene mal el nombre, corregilo a «Sánchez» ahora"
-   ]
-  },
-  {
-   "esperada": "speakers_status",
-   "elegida": "debate_estado",
-   "voraz": 8,
-   "muestras": 29,
-   "ejemplos": [
-    "remotos: orden y estado",
-    "¿ya hablaron todos los de la videollamada?",
-    "fila de los remotos"
-   ]
-  },
-  {
-   "esperada": "banca_tiempo",
-   "elegida": "debate_turno",
-   "voraz": 4,
-   "muestras": 12,
-   "ejemplos": [
-    "eh, recortale 2 minutos al que tiene la palabra",
-    "¿le podés estirar 20 segundos al que está con la palabra?",
-    "le faltan 5 segundos, dale 5 más"
-   ]
-  },
-  {
-   "esperada": "rotulo_desvincular",
-   "elegida": "rotulo_vincular",
-   "voraz": 3,
-   "muestras": 13,
-   "ejemplos": [
-    "reactivá el vínculo 2",
-    "eh, que el vinculo 20 ya no pise el zocalo cuando cambia el orador",
-    "reengancha el vinculo 9 que estaba apagado ahora"
-   ]
-  },
-  {
-   "esperada": "banca_terminar",
-   "elegida": "debate_terminar",
-   "voraz": 3,
-   "muestras": 12,
-   "ejemplos": [
-    "terminá la palabra del orador en el recinto",
-    "cerrá el micro del que tiene la palabra",
-    "ojo, terminá la palabra del que habla porfa"
-   ]
-  },
-  {
-   "esperada": "scene_switch",
-   "elegida": "scene_cut",
-   "voraz": 3,
-   "muestras": 11,
-   "ejemplos": [
-    "cortá a la cortina",
-    "Corte seco a la tanda, al toque",
-    "Mandá directo al programa la de cortina, sin armar"
-   ]
-  },
-  {
-   "esperada": "status",
-   "elegida": "stream_salud",
-   "voraz": 2,
-   "muestras": 10,
-   "ejemplos": [
-    "se congeló la imagen en YouTube, revisá si el codificador sigue vivo",
-    "el aire se ve entrecortado, va a los saltos",
-    "¿se cortó el stream o sigue saliendo?"
-   ]
-  },
-  {
-   "esperada": "scene_delete",
-   "elegida": "aire_placa",
-   "voraz": 2,
-   "muestras": 8,
-   "ejemplos": [
-    "Borrame la placa, no la vamos a usar",
-    "Elimina definitivamente la placa"
-   ]
-  },
-  {
-   "esperada": "speaker_on_air",
-   "elegida": "participant_kick",
-   "voraz": 2,
-   "muestras": 8,
-   "ejemplos": [
-    "¿podés sacar a Carla del aire ahora?",
-    "se pasó del tiempo carla, sacalo del aire"
-   ]
-  },
-  {
-   "esperada": "room_pin",
-   "elegida": "room_pin_bloqueos",
-   "voraz": 2,
-   "muestras": 8,
-   "ejemplos": [
-    "eh, se coló uno con el pin de la semana pasada",
-    "el pin de la sala salió en el chat público"
-   ]
-  },
-  {
-   "esperada": "room_set",
-   "elegida": "room_pin_bloqueos",
-   "voraz": 2,
-   "muestras": 7,
-   "ejemplos": [
-    "destraba la sala, falta entrar un invitado",
-    "rapido, Desbloquea la sala, falta que entre el columnista"
-   ]
-  },
-  {
-   "esperada": "status",
-   "elegida": "perfil",
-   "voraz": 2,
-   "muestras": 7,
-   "ejemplos": [
-    "dale, el equipo está re lento, algo lo está ahogando ahora",
-    "cómo está todo: aire, rec, CPU",
-    "el ventilador suena fuerte, ¿cómo está el procesador?"
-   ]
-  },
-  {
-   "esperada": "room_status",
-   "elegida": "bancas_listar",
-   "voraz": 2,
-   "muestras": 7,
-   "ejemplos": [
-    "cuantos estan esperando",
-    "¿quién ocupa el lugar dos en la sala?"
-   ]
-  },
-  {
-   "esperada": "speaker_queue",
-   "elegida": "participant_requeue",
-   "voraz": 2,
-   "muestras": 6,
-   "ejemplos": [
-    "Martín quedó afuera de la fila de los remotos, ponelo en espera",
-    "eh, el invitado tres pidio la palabra: a la fila"
-   ]
-  },
-  {
-   "esperada": "source_add",
-   "elegida": "guest_source_add",
-   "voraz": 2,
+   "esperada": "participant_admit",
+   "elegida": "speaker_on_air",
+   "voraz": 1,
    "muestras": 4,
    "ejemplos": [
-    "agregá la cámara la cámara 3 a invitados a pantalla completa",
-    "metele la placa de espera como cámara a la de invitados, en full"
+    "que pase Diego"
    ]
   },
   {
-   "esperada": "banca_terminar",
-   "elegida": "speaker_next",
+   "esperada": "source_update",
+   "elegida": "scene_switch",
    "voraz": 1,
-   "muestras": 6,
+   "muestras": 4,
    "ejemplos": [
-    "terminá a este orador así sigue el próximo de la cola",
-    "se le acabó el tiempo, cortálo",
-    "ya habló bastante, terminá su turno"
+    "mostrá la tres en la escena del aire"
    ]
   },
   {
-   "esperada": "presidencia_silenciar",
-   "elegida": "presidencia_hablar",
+   "esperada": "preguntas_ver",
+   "elegida": "chat_recientes",
    "voraz": 1,
-   "muestras": 6,
+   "muestras": 4,
    "ejemplos": [
-    "el presidente dice que se callen todos",
-    "callá a todos y que quede solo presidencia",
-    "callá a todos"
+    "¿qué preguntó la gente?"
    ]
   },
   {
-   "esperada": "network_status",
-   "elegida": "acceso_remoto_estado",
+   "esperada": "pregunta_moderar",
+   "elegida": "orden_del_dia_punto",
    "voraz": 1,
-   "muestras": 5,
+   "muestras": 4,
    "ejemplos": [
-    "¿el túnel está levantado y el HTTPS responde?",
-    "pasame el estado del tunel y del HTTPS dale"
+    "al aire la del presupuesto, ya"
    ]
   },
   {
    "esperada": "audio_escuchar",
-   "elegida": "audio_afv",
-   "voraz": 1,
-   "muestras": 5,
-   "ejemplos": [
-    "che, Pasame a PFL el micro de Martín para escucharlo yo",
-    "quiero monitorear el invitado uno por los auris mientras sigue el programa"
-   ]
-  },
-  {
-   "esperada": "capture_source",
-   "elegida": "imagen_analizar",
-   "voraz": 1,
-   "muestras": 5,
-   "ejemplos": [
-    "Una imagen de la hora, a ver si se lee",
-    "en principal el texto se corta por el costado"
-   ]
-  },
-  {
-   "esperada": "aire_placa",
-   "elegida": "salida_limpia",
+   "elegida": "participant_talk",
    "voraz": 1,
    "muestras": 4,
    "ejemplos": [
-    "termino el cuarto intermedio, quiero ver el recinto sin la placa ahora"
+    "antes de subirle volumen, quiero oír Martín yo solo"
    ]
   },
   {
-   "esperada": "gateway_restart",
-   "elegida": "room_set",
+   "esperada": "dsk_listar",
+   "elegida": "source_list",
    "voraz": 1,
-   "muestras": 4,
+   "muestras": 3,
    "ejemplos": [
-    "la sala de invitados quedo tildada, no entra nadie ya"
-   ]
-  },
-  {
-   "esperada": "participant_requeue",
-   "elegida": "speaker_queue",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "dale, Ya hablo Ana, volvelo a poner al fondo de la fila"
-   ]
-  },
-  {
-   "esperada": "presidencia_silenciar",
-   "elegida": "banca_terminar",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "se acopla por todas las bancas, cerra todos los microfonos",
-    "no uno solo, callá a todas las bancas juntas"
-   ]
-  },
-  {
-   "esperada": "audio_set",
-   "elegida": "speaker_on_air",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "martín quedó en mute, no sale al aire"
-   ]
-  },
-  {
-   "esperada": "laminas_ver",
-   "elegida": "laminas_listar",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "Pasame el indice de titulos de la agenda",
-    "qué diapositivas tiene la agenda",
-    "¿Qué contiene las fotos, una por una con título?"
-   ]
-  },
-  {
-   "esperada": "bancas_listar",
-   "elegida": "seguir_microfono_estado",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "¿algun micro de banca esta abierto ahora?"
-   ]
-  },
-  {
-   "esperada": "transition_set",
-   "elegida": "escena_transicion",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "Para el cierre, transición fade de 1500 ms"
-   ]
-  },
-  {
-   "esperada": "scene_take",
-   "elegida": "scene_cut",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "take seco, sin transición, de lo armado"
+    "¿la capa del logo está visible?"
    ]
   },
   {
    "esperada": "room_status",
-   "elegida": "room_pin",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "¿cuál es el pin de la sala ahora?"
-   ]
-  },
-  {
-   "esperada": "participant_admit",
-   "elegida": "invitado_info_aprobar",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "eh, de la sala de espera, aproba la entrada de Laura Gomez"
-   ]
-  },
-  {
-   "esperada": "scene_define",
-   "elegida": "scene_create",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "creá la escena Tarde con fondo, dos cámaras y logo"
-   ]
-  },
-  {
-   "esperada": "speakers_status",
-   "elegida": "bancas_listar",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "mostrame la fila de oradores con la conexion de cada uno ya"
-   ]
-  },
-  {
-   "esperada": "scene_folder",
-   "elegida": "scene_delete",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "Sacá la de la placa de su carpeta en la lista de escenas"
-   ]
-  },
-  {
-   "esperada": "capture_program",
-   "elegida": "imagen_analizar",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "¿se congeló el aire o es mi monitor?"
-   ]
-  },
-  {
-   "esperada": "grafico_en_escena",
-   "elegida": "rotulo_vinculos",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "antes de mandar el rótulo, fijate qué fuentes de gráfico hay colocadas"
-   ]
-  },
-  {
-   "esperada": "capture_multiview",
-   "elegida": "scene_list",
-   "voraz": 1,
-   "muestras": 4,
-   "ejemplos": [
-    "antes de arrancar revisemos todas las escenas juntas, cada una con su nombre"
-   ]
-  },
-  {
-   "esperada": "capture_source",
-   "elegida": "capture_feed",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "captura de noticiero en png, 1920 de ancho"
-   ]
-  },
-  {
-   "esperada": "capture_source",
-   "elegida": "scene_preview",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "¿qué tiene armado la del saludo antes de pasarla?"
-   ]
-  },
-  {
-   "esperada": "presidencia_silenciar",
-   "elegida": "room_set",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "callá el recinto"
-   ]
-  },
-  {
-   "esperada": "grabacion_individual",
-   "elegida": "salida_limpia",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "Pará la grabación por separado del logo del canal"
-   ]
-  },
-  {
-   "esperada": "speaker_time",
-   "elegida": "banca_tiempo",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "dale un minuto más de tiempo al invitado 3",
-    "laura pidio mas, ponele 6:00 en su reloj"
-   ]
-  },
-  {
-   "esperada": "laminas_aplicar",
-   "elegida": "scene_copy",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "Pone la presentacion en la del panel, que tenga su fuente"
-   ]
-  },
-  {
-   "esperada": "speakers_status",
-   "elegida": "room_status",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "¿alguno de los conectados por video tiene el micrófono muteado?"
-   ]
-  },
-  {
-   "esperada": "laminas_ver",
-   "elegida": "laminas_ir",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "¿qué viene después de la que está puesta en las fotos?"
-   ]
-  },
-  {
-   "esperada": "source_list",
-   "elegida": "imagen_analizar",
-   "voraz": 1,
-   "muestras": 3,
-   "ejemplos": [
-    "eh, ¿que texto dice el zocako de la escena del aire?"
-   ]
-  },
-  {
-   "esperada": "grafico_ocultar",
-   "elegida": "grafico_mostrar",
-   "voraz": 1,
-   "muestras": 2,
-   "ejemplos": [
-    "quedo congelado el ultimo cuadro del grafico en la fuente 1, limpiala"
-   ]
-  },
-  {
-   "esperada": "transition_set",
-   "elegida": "escenas_ajustes",
-   "voraz": 1,
-   "muestras": 2,
-   "ejemplos": [
-    "dejá la transición en corte directo"
-   ]
-  },
-  {
-   "esperada": "bancas_listar",
-   "elegida": "room_status",
-   "voraz": 1,
-   "muestras": 2,
-   "ejemplos": [
-    "¿quién habla ahora en el recinto?"
-   ]
-  },
-  {
-   "esperada": "scene_copy",
-   "elegida": "scene_create",
-   "voraz": 1,
-   "muestras": 2,
-   "ejemplos": [
-    "hacé que exista una copia de pantalla completa que se llame Estudio B"
-   ]
-  },
-  {
-   "esperada": "banca_terminar",
-   "elegida": "presidencia_silenciar",
-   "voraz": 1,
-   "muestras": 2,
-   "ejemplos": [
-    "cerrá el micro del orador que está al aire"
-   ]
-  },
-  {
-   "esperada": "speakers_status",
-   "elegida": "speaker_next",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "¿quién viene después en el Zoom?"
-   ]
-  },
-  {
-   "esperada": "speaker_on_air",
-   "elegida": "participant_admit",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "che, al aire el invitado tres, ya"
-   ]
-  },
-  {
-   "esperada": "speaker_queue",
-   "elegida": "debate_iniciar",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "que Juan espeee turno entre los remotos"
-   ]
-  },
-  {
-   "esperada": "source_list",
-   "elegida": "scene_list",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "¿exteriores tiene algun invitado remoto adentro?"
-   ]
-  },
-  {
-   "esperada": "scene_list",
-   "elegida": "debate_estado",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "¿qué escena está al aire ahora?"
-   ]
-  },
-  {
-   "esperada": "source_remove",
-   "elegida": "scene_delete",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "no ocultes el zocalo: borrala de dos camaras directamente ahora"
-   ]
-  },
-  {
-   "esperada": "banca_tiempo",
-   "elegida": "speakers_config",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "che, que el tiempo asignado sea de 5 minutos"
-   ]
-  },
-  {
-   "esperada": "network_status",
-   "elegida": "room_link",
-   "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "¿cuál es la dirección HTTPS para pasarle a los invitados?"
-   ]
-  },
-  {
-   "esperada": "bancas_listar",
    "elegida": "speakers_status",
    "voraz": 1,
-   "muestras": 1,
-   "ejemplos": [
-    "¿quién sigue después del presencial que habla?"
-   ]
-  },
-  {
-   "esperada": "source_set_property",
-   "elegida": "source_properties",
-   "voraz": 0,
    "muestras": 3,
    "ejemplos": [
-    "cambiale la propiedad de formato de video a la fuente la hora",
-    "dale, deja el video de intro a 30 cuadros por segundo",
-    "cambiale la propiedad resolución a la fuente el zócalo, ponela en 1080"
+    "cuantos estan esperando"
    ]
   },
   {
-   "esperada": "stream_stop",
-   "elegida": "stream_destino_borrar",
+   "esperada": "scene_switch",
+   "elegida": "scene_take",
    "voraz": 1,
-   "muestras": 0,
-   "ejemplos": [
-    "rapido, corta la transmision a facebook nomas, youtube sigue al aire"
-   ]
-  },
-  {
-   "esperada": "source_add",
-   "elegida": "scene_define",
-   "voraz": 0,
    "muestras": 3,
    "ejemplos": [
-    "nueva fuente de camara, camara atril, centrada en el panel",
-    "necesito un título nuevo, Sesión Ordinaria, arriba en la de la tanda"
+    "salteá el preview y que el público vea la del cierre ahora"
    ]
   },
   {
-   "esperada": "network_status",
-   "elegida": "room_pin_bloqueos",
-   "voraz": 0,
-   "muestras": 3,
-   "ejemplos": [
-    "los invitados ven el candado tachado en el link"
-   ]
-  },
-  {
-   "esperada": "capture_sequence",
-   "elegida": "capture_source",
-   "voraz": 0,
-   "muestras": 3,
-   "ejemplos": [
-    "dale, la cámara 3 parpadea, por momentos se va a negro"
-   ]
-  },
-  {
-   "esperada": "source_add",
-   "elegida": "scene_copy",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "agregá la cámara la cámara 3 a invitados a pantalla completa"
-   ]
-  },
-  {
-   "esperada": "audio_measure",
-   "elegida": "invitado_prueba",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "el invitado 1 sale entrecortado, diagnosticá su cadena con tono"
-   ]
-  },
-  {
-   "esperada": "bancas_listar",
-   "elegida": "banca_listar",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "¿la banca 7 está ocupada?"
-   ]
-  },
-  {
-   "esperada": "participant_request",
-   "elegida": "participant_requeue",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "Sofía Ruiz sigue con la mano levantada y ya habló"
-   ]
-  },
-  {
-   "esperada": "speaker_move",
-   "elegida": "speaker_queue",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "Martín el invitado queda cuarto en el orden de la fila",
-    "en la cola de oradores, Sofia va tercero"
-   ]
-  },
-  {
-   "esperada": "room_status",
-   "elegida": "chat_history",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "quien hay en el lobby ahora dale"
-   ]
-  },
-  {
-   "esperada": "source_remove",
-   "elegida": "scene_cut",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "no ocultes el zocalo: borrala de dos camaras directamente ahora"
-   ]
-  },
-  {
-   "esperada": "participant_admit",
-   "elegida": "speaker_on_air",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "que pase Juan"
-   ]
-  },
-  {
-   "esperada": "capture_person",
-   "elegida": "participant_request",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "el invitado 3 dice que se le congeló la imagen"
-   ]
-  },
-  {
-   "esperada": "source_list",
-   "elegida": "laminas_ver",
-   "voraz": 0,
-   "muestras": 2,
-   "ejemplos": [
-    "rapido, ¿qué hay puesto ahora en la entrevista?"
-   ]
-  },
-  {
-   "esperada": "presidencia_silenciar",
-   "elegida": "seguir_microfono",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "se escuchan murmullos de varias bancas, callá a todas"
-   ]
-  },
-  {
-   "esperada": "source_list",
-   "elegida": "source_properties",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "¿de qué archivo es la imagen de fondo de la tanda?"
-   ]
-  },
-  {
-   "esperada": "aire_ftb",
-   "elegida": "salida_limpia",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "la salida sigue toda negra y nadie ve nada, recuperala"
-   ]
-  },
-  {
-   "esperada": "rotulo_vincular",
-   "elegida": "debate_config",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "armá el vínculo del debate: rótulo con el que tiene el turno"
-   ]
-  },
-  {
-   "esperada": "speaker_on_air",
-   "elegida": "participant_on_air",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "che, al aire el invitado tres, ya"
-   ]
-  },
-  {
-   "esperada": "scene_take",
-   "elegida": "scene_preview",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "el preview esta listo hace rato y el prigrama no cambio"
-   ]
-  },
-  {
-   "esperada": "capture_source",
-   "elegida": "capture_program",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "captura de noticiero en png, 1920 de ancho"
-   ]
-  },
-  {
-   "esperada": "capture_source",
-   "elegida": "scene_define",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "¿qué tiene armado la del saludo antes de pasarla?"
-   ]
-  },
-  {
-   "esperada": "speakers_status",
-   "elegida": "stream_salud",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "¿ya hablaron todos los de la videollamada?"
-   ]
-  },
-  {
-   "esperada": "debate_estado",
+   "esperada": "votacion_ver",
    "elegida": "orden_del_dia_ver",
-   "voraz": 0,
-   "muestras": 1,
+   "voraz": 1,
+   "muestras": 3,
    "ejemplos": [
-    "¿cuánto tiempo lleva el debate?"
+    "¿qué resultado tuvo la votación del punto anterior?"
    ]
   },
   {
-   "esperada": "banca_tiempo",
-   "elegida": "banana_tiempo",
-   "voraz": 0,
-   "muestras": 1,
+   "esperada": "quorum_estado",
+   "elegida": "orden_del_dia_punto",
+   "voraz": 1,
+   "muestras": 3,
    "ejemplos": [
-    "che, sumale 10 segundos mas, pidio el tiempo"
+    "¿hay número para rmpezar la sesión?"
    ]
   },
   {
-   "esperada": "capture_feed",
-   "elegida": "capture_program",
-   "voraz": 0,
-   "muestras": 1,
+   "esperada": "capture_source",
+   "elegida": "source_list",
+   "voraz": 1,
+   "muestras": 3,
    "ejemplos": [
-    "traeme el cuadro del feed operator, a ver con qué imagen me ven"
-   ]
-  },
-  {
-   "esperada": "capture_sequence",
-   "elegida": "capture_person",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "la imagen de sofia ruiz se traba cada tanto"
-   ]
-  },
-  {
-   "esperada": "participant_requeue",
-   "elegida": "participant_request",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "pide la palabra de nuevo ana, que ya hablo: al final"
-   ]
-  },
-  {
-   "esperada": "participant_admit",
-   "elegida": "participant_requeue",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "me escribe Martín el invitado que sigue clavada en la sala de espera"
-   ]
-  },
-  {
-   "esperada": "speaker_time",
-   "elegida": "participant_talk",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "dale un minuto más de tiempo al invitado 3"
-   ]
-  },
-  {
-   "esperada": "stream_stop",
-   "elegida": "audio_set",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "bajá solo YouTube, Facebook que siga"
+    "¿que tiene armado la del noticiero antes de pasarla?"
    ]
   },
   {
    "esperada": "share_view",
-   "elegida": "imagen_analizar",
-   "voraz": 0,
+   "elegida": "audio_escuchar",
+   "voraz": 1,
    "muestras": 1,
    "ejemplos": [
-    "¿se ve bien la imagen 5 o está pixelada?"
-   ]
-  },
-  {
-   "esperada": "bancas_listar",
-   "elegida": "bankas_listar",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "¿quién habla ahora en el recinto?"
-   ]
-  },
-  {
-   "esperada": "scene_list",
-   "elegida": "source_list",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "ojo, repasame los nombres de todas las tomas"
-   ]
-  },
-  {
-   "esperada": "presidencia_silenciar",
-   "elegida": "debate_terminar",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "se pisan todos, callalos"
-   ]
-  },
-  {
-   "esperada": "scene_export",
-   "elegida": "scene_list",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "eh, ¿que capas de juego uno estan ocultas y donde esta ubicada cada una?"
-   ]
-  },
-  {
-   "esperada": "scene_export",
-   "elegida": "source_list",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "eh, ¿que capas de juego uno estan ocultas y donde esta ubicada cada una?"
-   ]
-  },
-  {
-   "esperada": "source_list",
-   "elegida": "scene_source_list",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "¿exteriores tiene algun invitado remoto adentro?"
-   ]
-  },
-  {
-   "esperada": "capture_feed",
-   "elegida": "guest_source_add",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "se ve todo negro en la camara del lugar 1"
+    "abrime la imagen 7 del invitado en mi monitor, no al aire ahora"
    ]
   },
   {
    "esperada": "scene_list",
    "elegida": "status",
    "voraz": 0,
-   "muestras": 1,
+   "muestras": 2,
    "ejemplos": [
-    "¿qué escena está al aire ahora?"
+    "che, ¿qué escena está al aire ahora?"
    ]
   },
   {
-   "esperada": "capture_person",
-   "elegida": "room_status",
+   "esperada": "orden_del_dia_ver",
+   "elegida": "votacion_ver",
    "voraz": 0,
-   "muestras": 1,
+   "muestras": 2,
    "ejemplos": [
-    "¿esta en camara el invitado 3 o se fue?"
+    "dale, ¿cómo salió la votación del punto anterior? dale"
    ]
   },
   {
-   "esperada": "room_status",
-   "elegida": "capture_people",
+   "esperada": "prompter_estado",
+   "elegida": "prompter_control",
    "voraz": 0,
-   "muestras": 1,
+   "muestras": 2,
    "ejemplos": [
-    "quien hay en el lobby ahora dale"
-   ]
-  },
-  {
-   "esperada": "room_set",
-   "elegida": "room_pin_desbloquear",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "rapido, Desbloquea la sala, falta que entre el columnista"
-   ]
-  },
-  {
-   "esperada": "grafico_en_escena",
-   "elegida": "grafico_listar",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "inventario de graficos animados del programa, con medidas"
-   ]
-  },
-  {
-   "esperada": "banca_tiempo",
-   "elegida": "speaker_time",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "che, que el tiempo asignado sea de 5 minutos"
-   ]
-  },
-  {
-   "esperada": "source_update",
-   "elegida": "source_add",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "Pone el logo del canal adelante de todo en el orden de la de la tanda."
-   ]
-  },
-  {
-   "esperada": "grabacion_individual",
-   "elegida": "record_ajustes",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "Prendé el grabado por separado de cada entrada, que hay que reeditar"
+    "la pantalla de control del prompter está en negro porfa",
+    "el orador dice que no ve nada en el atril porfa"
    ]
   },
   {
    "esperada": "source_list",
-   "elegida": "scene_define",
+   "elegida": "capture_source",
    "voraz": 0,
    "muestras": 1,
    "ejemplos": [
-    "inventario completo de juego uno: cámaras, textos, imágenes, todo"
+    "qué capas tiene la escena del aire"
    ]
   },
   {
-   "esperada": "source_list",
-   "elegida": "scene_export",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "inventario completo de juego uno: cámaras, textos, imágenes, todo"
-   ]
-  },
-  {
-   "esperada": "scene_switch",
-   "elegida": "scene_take",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "Mandá directo al programa la de cortina, sin armar"
-   ]
-  },
-  {
-   "esperada": "speaker_on_air",
-   "elegida": "participant_talk",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "juan sigue en pantalla y ya terminó"
-   ]
-  },
-  {
-   "esperada": "speaker_on_air",
-   "elegida": "speaker_next",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "juan sigue en pantalla y ya terminó"
-   ]
-  },
-  {
-   "esperada": "speakers_config",
-   "elegida": "speaker_time",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "se cortan justo al terminar, dales un minuto de margen"
-   ]
-  },
-  {
-   "esperada": "speakers_config",
-   "elegida": "orden_del_dia_punto",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "se cortan justo al terminar, dales un minuto de margen"
-   ]
-  },
-  {
-   "esperada": "presidencia_silenciar",
-   "elegida": "banca_cortar",
-   "voraz": 0,
-   "muestras": 1,
-   "ejemplos": [
-    "no uno solo, callá a todas las bancas juntas"
-   ]
-  },
-  {
-   "esperada": "bancas_listar",
+   "esperada": "scene_list",
    "elegida": "orden_del_dia_ver",
    "voraz": 0,
    "muestras": 1,
    "ejemplos": [
-    "¿quién sigue después del presencial que habla?"
+    "che, ¿qué escena está al aire ahora?"
    ]
   },
   {
-   "esperada": "source_set_property",
-   "elegida": "mcp_aire_ajustar",
+   "esperada": "participant_request",
+   "elegida": "chat_send",
    "voraz": 0,
    "muestras": 1,
    "ejemplos": [
-    "la placa sin señal: apretá reactivar en esa fuente"
+    "¿le pedís a Ana que baje la mano? ya respondimos su pregunta"
+   ]
+  },
+  {
+   "esperada": "receta_correr",
+   "elegida": "stream_start",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "abrimos la transmision con el corte"
+   ]
+  },
+  {
+   "esperada": "dsk_listar",
+   "elegida": "source_update",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "¿la capa del logo está visible?"
+   ]
+  },
+  {
+   "esperada": "room_status",
+   "elegida": "chat_recientes",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "cuantos estan esperando"
+   ]
+  },
+  {
+   "esperada": "votacion_ver",
+   "elegida": "quorum_estado",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "¿la concejala Ríos ya emitió su voto?"
+   ]
+  },
+  {
+   "esperada": "status",
+   "elegida": "scene_list",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "¿que escena esta saliendo ahora?"
+   ]
+  },
+  {
+   "esperada": "audio_measure",
+   "elegida": "status",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "¿qué le pasa a la línea? no sale al aire"
+   ]
+  },
+  {
+   "esperada": "audio_measure",
+   "elegida": "stream_start",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "¿qué le pasa a la línea? no sale al aire"
+   ]
+  },
+  {
+   "esperada": "orden_del_dia_punto",
+   "elegida": "votacion_abrir",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "el del presupuesto aprobado por unanimidad"
+   ]
+  },
+  {
+   "esperada": "speaker_queue",
+   "elegida": "participant_requeue",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "ana pidio la palabra: a la fila"
+   ]
+  },
+  {
+   "esperada": "quorum_estado",
+   "elegida": "preguntas_ver",
+   "voraz": 0,
+   "muestras": 1,
+   "ejemplos": [
+    "¿hay número para rmpezar la sesión?"
    ]
   }
  ]
