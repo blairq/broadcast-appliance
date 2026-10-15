@@ -186,8 +186,8 @@ Item {
                         id: etiqueta
                         anchors.centerIn: parent
                         text: t.nodo.fuente === "medido" ? "medido" : t.nodo.fuente === "declarado" ? "declarado"
-                            : t.nodo.fuente === "derivacion" ? "no atrasa" : "sin medir"
-                        color: t.nodo.fuente === "medido" ? Theme.ok : Theme.textDim
+                            : t.nodo.fuente === "derivacion" ? "no atrasa" : t.nodo.fuente === "hora_corrida" ? "hora corrida" : "sin medir"
+                        color: t.nodo.fuente === "medido" ? Theme.ok : t.nodo.fuente === "hora_corrida" ? Theme.live : Theme.textDim
                         font.pixelSize: 8
                     }
                 }

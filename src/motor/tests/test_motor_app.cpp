@@ -255,6 +255,28 @@ int main() {
         CHECK(m.estado()["entradas"]["verde"].value("desfase_video_ms", 0) == 300, "el desfase de video, en el estado");
         CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "con el video atrasado, el programa sigue verde");
     }
+    // Una fuente de prueba en vivo (la cámara virtual «pelota») con desfase: sigue dando cuadros
+    // (en la prueba de Sincronía y red se quedaba sin datos hasta el rearme, 30 s después).
+    {
+        const json pelota{{"pipeline", "videotestsrc pattern=ball is-live=true"}};
+        CHECK(m.agregarEntrada("pelota", pelota).empty(), "la cámara virtual pelota");
+        esperar(1500);
+        const auto cuadros = [&m]() { return m.estado()["entradas"]["pelota"].value("cuadros", 0); };
+        const int antes = cuadros();
+        json con = pelota;
+        con["desfase"] = 200; // atrasarla: su hora queda en el futuro y la edad, negativa (el caso de la app)
+        CHECK(m.actualizarEntrada("pelota", con).empty(), "correrla 200 ms");
+        esperar(2500);
+        const json ep = m.estado()["entradas"]["pelota"];
+        std::printf("pelota con desfase: cuadros %d → %d, sin datos hace %.1f s, edad %s\n", antes, ep.value("cuadros", 0),
+                    ep.value("sin_datos_s", -1.0), ep["edad_video"].dump().c_str());
+        const int despues = cuadros();
+        esperar(1000);
+        CHECK(cuadros() > despues + 10, "con el desfase sigue dando cuadros");
+        CHECK(ep.value("sin_datos_s", 99.0) >= 0 && ep.value("sin_datos_s", 99.0) < 1.0, "y no queda «sin datos»");
+        CHECK(ep["edad_video"].is_object(), "y sigue publicando su edad (aunque sea negativa: sale con hora futura)");
+        m.quitarEntrada("pelota");
+    }
     // Nombres que, limpios para GStreamer, quedan iguales («Cam 1» y «Cam-1»: Cam_1), y uno
     // con «@» (las vistas se piden «<qué>@<canal>»). Antes el segundo no entraba al pipeline.
     {

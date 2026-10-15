@@ -10,6 +10,7 @@
 #include "Reloj.hpp"
 
 #include <gst/pbutils/pbutils.h>
+#include <gst/audio/audio.h>
 #include <gst/video/video.h>
 
 #include <algorithm>
@@ -711,6 +712,89 @@ void sinRelojPropio(GstElement* pipeline) {
     }
     g_value_unset(&v);
     gst_iterator_free(it);
+}
+
+namespace {
+// La hora de captura de una fuente de audio, contada por muestras desde el primer bloque
+// (no tiembla) y anclada al reloj del pipeline (el del estudio); si se aleja más de
+// kReanclarNs de lo que da el reloj, se reancla (la placa y el reloj derivan un poco).
+struct HoraAudio {
+    GstClockTime ancla = GST_CLOCK_TIME_NONE; ///< la hora del primer bloque desde el último anclaje
+    guint64 muestras = 0;                     ///< las que pasaron desde el anclaje
+    static constexpr GstClockTime kReanclarNs = 50 * GST_MSECOND;
+};
+
+GstPadProbeReturn ponerHoraAudio(GstPad* pad, GstPadProbeInfo* info, gpointer d) {
+    auto* h = static_cast<HoraAudio*>(d);
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstElement* e = gst_pad_get_parent_element(pad);
+    if (b == nullptr || e == nullptr) {
+        if (e != nullptr) gst_object_unref(e);
+        return GST_PAD_PROBE_OK;
+    }
+    GstClock* reloj = gst_element_get_clock(e);
+    const GstClockTime base = gst_element_get_base_time(e);
+    gst_object_unref(e);
+    if (reloj == nullptr) return GST_PAD_PROBE_OK;
+    const GstClockTime ahora = gst_clock_get_time(reloj);
+    gst_object_unref(reloj);
+    gint rate = 0, canales = 0, bytesPorMuestra = 0;
+    if (GstCaps* c = gst_pad_get_current_caps(pad)) {
+        GstAudioInfo ai;
+        if (gst_audio_info_from_caps(&ai, c)) {
+            rate = GST_AUDIO_INFO_RATE(&ai);
+            canales = GST_AUDIO_INFO_CHANNELS(&ai);
+            bytesPorMuestra = GST_AUDIO_INFO_BPF(&ai);
+        }
+        gst_caps_unref(c);
+    }
+    if (rate <= 0 || bytesPorMuestra <= 0 || ahora < base) return GST_PAD_PROBE_OK;
+    (void)canales;
+    const guint64 n = gst_buffer_get_size(b) / static_cast<guint64>(bytesPorMuestra);
+    const GstClockTime dur = gst_util_uint64_scale(n, GST_SECOND, static_cast<guint64>(rate));
+    const GstClockTime real = ahora - base > dur ? ahora - base - dur : 0; // cuándo empezó a capturarse
+    GstClockTime pts = GST_CLOCK_TIME_IS_VALID(h->ancla)
+                           ? h->ancla + gst_util_uint64_scale(h->muestras, GST_SECOND, static_cast<guint64>(rate))
+                           : GST_CLOCK_TIME_NONE;
+    if (!GST_CLOCK_TIME_IS_VALID(pts) || (pts > real ? pts - real : real - pts) > HoraAudio::kReanclarNs) {
+        h->ancla = real;
+        h->muestras = 0;
+        pts = real;
+    }
+    h->muestras += n;
+    b = gst_buffer_make_writable(b);
+    GST_PAD_PROBE_INFO_DATA(info) = b;
+    GST_BUFFER_PTS(b) = pts;
+    GST_BUFFER_DTS(b) = GST_CLOCK_TIME_NONE;
+    GST_BUFFER_DURATION(b) = dur;
+    return GST_PAD_PROBE_OK;
+}
+} // namespace
+
+int horaDeCapturaEnAudio(GstElement* pipeline) {
+    // osxaudiosrc (y otras) con el reloj del pipeline que no es el de su placa no le ponen
+    // hora a lo que capturan (todo con PTS 0: la «edad» crecía un segundo por segundo y la
+    // mezcla lo veía cada vez más atrasado). Ni slave-method ni do-timestamp lo arreglan.
+    const GType fuenteDeAudio = g_type_from_name("GstAudioBaseSrc");
+    if (fuenteDeAudio == 0) return 0;
+    int n = 0;
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
+    if (it == nullptr) return 0;
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        auto* e = GST_ELEMENT(g_value_get_object(&v));
+        if (g_type_is_a(G_OBJECT_TYPE(e), fuenteDeAudio))
+            if (GstPad* p = gst_element_get_static_pad(e, "src")) {
+                gst_pad_add_probe(p, GST_PAD_PROBE_TYPE_BUFFER, &ponerHoraAudio, new HoraAudio(),
+                                  [](gpointer d) { delete static_cast<HoraAudio*>(d); });
+                gst_object_unref(p);
+                ++n;
+            }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+    return n;
 }
 
 void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes) {

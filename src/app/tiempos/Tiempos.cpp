@@ -14,6 +14,8 @@ using json = nlohmann::json;
 namespace {
 
 double redondo(double ms) { return std::round(ms * 10.0) / 10.0; }
+/// Más que esto (para un lado u otro) no es una demora: la fuente trae la hora de otro reloj.
+constexpr double kHoraCorridaMs = 60000;
 
 /// Los filtros que no son tarjetas del grafo (los agregan ControlCamaras, SuperRes…):
 /// un nombre que se entienda en vez del elemento de GStreamer.
@@ -192,18 +194,34 @@ json armar(const Fotos& f) {
                              {"sale", e.value("sale", json())},
                              {"sin_datos_s", num(e, "sin_datos_s", -1.0)},
                              {"rearmada_hace_s", num(e, "rearmada_hace_s", -1.0)}};
-            const bool medida = edad.is_object();
-            const double total = medida ? num(edad, "p50_ms", 0.0) : -1;
+            // La hora que trae, corrida (más de un minuto para un lado u otro): no es una demora,
+            // es una fuente con otro reloj. Se marca y no se dibuja el número (estiraría todo).
+            const double edadCruda = edad.is_object() ? num(edad, "p50_ms", 0.0) : 0.0;
+            const bool corrida = edad.is_object() && std::fabs(edadCruda) > kHoraCorridaMs;
+            const bool medida = edad.is_object() && !corrida;
+            // El desfase (a mano, sincronizar, el retardo del audio) corre la HORA del cuadro: la edad
+            // medida queda corrida eso (con +200, −196 ms). Lo que tarda de verdad es edad + desfase;
+            // y queda listo para mostrarse recién a su hora (la escena lo espera): el mayor de los dos.
+            const double desfase = num(e, "desfase_ms", 0.0) + num(e, esAudio ? "desfase_audio_ms" : "desfase_video_ms", 0.0);
+            const double total = medida ? num(edad, "p50_ms", 0.0) + desfase : -1;
             if (medida) {
                 // La entrada: lo que no es de sus pasos (captura, decodificación, colas).
                 const double propio = std::max(0.0, total - suma);
                 ne["ms"] = redondo(propio);
-                ne["p95_ms"] = redondo(num(edad, "p95_ms", 0.0));
+                ne["p95_ms"] = redondo(num(edad, "p95_ms", 0.0) + desfase);
                 ne["fuente"] = "medido";
-                ne["estado"] = estadoDe(num(edad, "p95_ms", 0.0), latEstudio, si(e, "llega_tarde"));
+                ne["estado"] = estadoDe(num(edad, "p95_ms", 0.0) + desfase, latEstudio, si(e, "llega_tarde"));
                 ne["detalle"]["edad_ms"] = redondo(total);
+                if (desfase != 0) ne["detalle"]["desfase_ms"] = redondo(desfase);
                 a.acumulado[idE] = propio;
                 ne["acumulado_ms"] = redondo(propio);
+            }
+            if (corrida) {
+                ne["fuente"] = "hora_corrida";
+                ne["estado"] = "tarde";
+                ne["detalle"]["edad_ms"] = redondo(edadCruda);
+                ne["detalle"]["aviso"] = "la hora que trae está corrida " + std::to_string(static_cast<long long>(edadCruda / 1000)) +
+                                         " s del reloj del estudio: no es una demora, es otro reloj";
             }
             a.seguir(idE, {});
             std::string previo = idE;
@@ -221,8 +239,9 @@ json armar(const Fotos& f) {
                 a.seguir(p.id, {previo});
                 previo = p.id;
             }
-            // Lo medido al salir de la entrada manda (los pasos sin medir quedan adentro).
-            if (medida) a.acumulado[previo] = total;
+            // Lo medido al salir de la entrada manda (los pasos sin medir quedan adentro); con
+            // desfase, la escena la tiene recién a su hora.
+            if (medida) a.acumulado[previo] = std::max(total, desfase);
             // Las ramas (escuchan una copia): colgadas de la entrada, sin sumar al camino.
             for (const auto& p : ramas) {
                 json& nr = a.nodo(p.id, p.tipo, p.titulo, 1, medio, activa);

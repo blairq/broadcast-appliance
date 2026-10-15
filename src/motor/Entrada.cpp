@@ -947,7 +947,10 @@ void Entrada::armar() {
             gst_object_unref(e);
         }
     sinRelojPropio(p);
-    if (!medio_) fuentesDePruebaEnHora(p, reloj_.ahora());
+    if (!medio_) {
+        fuentesDePruebaEnHora(p, reloj_.ahora());
+        horaDeCapturaEnAudio(p); // micrófonos y placas: con su hora de captura (sin su reloj no la ponen)
+    }
     if (medio_) {
         // Un archivo: el reloj del estudio pero su propio base_time (los saltos lo cambian).
         gst_pipeline_use_clock(GST_PIPELINE(p), reloj_.clock());
@@ -963,7 +966,7 @@ void Entrada::armar() {
         vistosDatos_ = 0;
         datosDesdeNs_ = ahoraNs();
         edadP50_ = edadP95_ = 0;
-        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = -1;
+        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = std::numeric_limits<double>::quiet_NaN();
         sale_ = json::object();
     }
     pipeline_ = p;
@@ -1116,7 +1119,7 @@ void Entrada::medirLatencia() {
         // Por rama: `edades_` es el video (o el audio, si la entrada no tiene video).
         const auto percentiles = [](const std::deque<double>& d, double& p50, double& p95) {
             if (d.size() < 30) {
-                p50 = p95 = -1;
+                p50 = p95 = std::numeric_limits<double>::quiet_NaN();
                 return;
             }
             std::vector<double> v(d.begin(), d.end());
@@ -1125,7 +1128,7 @@ void Entrada::medirLatencia() {
             p95 = v[v.size() * 95 / 100];
         };
         if (cuadros_ > 0) percentiles(edades_, edadVP50_, edadVP95_);
-        else edadVP50_ = edadVP95_ = -1;
+        else edadVP50_ = edadVP95_ = std::numeric_limits<double>::quiet_NaN();
         percentiles(edadesA_, edadAP50_, edadAP95_);
     }
     // Una fuente en vivo con SUS horas (empieza en 0, como videotestsrc, o un
@@ -1193,7 +1196,7 @@ void Entrada::medirLatencia() {
             edades_.clear();
             edadesA_.clear();
             edadP50_ = edadP95_ = 0;
-        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = -1;
+        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = std::numeric_limits<double>::quiet_NaN();
             medVAntes_ = medAAntes_ = 0;
             return;
         }
@@ -1693,7 +1696,7 @@ json Entrada::estadoYa() const {
         j["edad_p50_ms"] = edadP50_;
         j["edad_p95_ms"] = edadP95_;
         // Cuánto tardó desde la captura hasta salir de la entrada, el video y el audio por separado.
-        const auto edad = [](double p50, double p95) { return p50 < 0 ? json() : json{{"p50_ms", p50}, {"p95_ms", p95}}; };
+        const auto edad = [](double p50, double p95) { return std::isnan(p50) ? json() : json{{"p50_ms", p50}, {"p95_ms", p95}}; };
         j["edad_video"] = edad(edadVP50_, edadVP95_);
         j["edad_audio"] = edad(edadAP50_, edadAP95_);
         j["origen"] = origen_;

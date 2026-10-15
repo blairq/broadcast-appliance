@@ -47,7 +47,9 @@ int main() {
             {"filtros", json::array()}}},
           {"tarde",
            {{"nombre", "Cámara lenta"}, {"video", true}, {"edad_video", {{"p50_ms", 200.0}, {"p95_ms", 300.0}}}, {"llega_tarde", true}}},
-          {"muda", {{"nombre", "sin nada"}, {"video", false}, {"audio", false}}}}},
+          {"muda", {{"nombre", "sin nada"}, {"video", false}, {"audio", false}}},
+          {"corrida", {{"nombre", "Corrida"}, {"video", true}, {"edad_video", {{"p50_ms", 4.0e12}, {"p95_ms", 4.0e12}}}}},
+          {"atrasada", {{"nombre", "Atrasada"}, {"video", true}, {"desfase_ms", 200}, {"edad_video", {{"p50_ms", -196.0}, {"p95_ms", -190.0}}}}}}},
         {"video", {{"al_aire", "Orador"}, {"programa", {{"latencia_salida_ms", 150.0}, {"capas", json::array({{{"entrada", "cam1"}}})}}}}},
         {"programa", {{"latencia_salida_ms", 150.0}}}};
     f.salidas = {{"principal", {{"andando", true}, {"latencia_ms", 450.0}, {"kbps", 6000}, {"perdidos", 0}}},
@@ -85,6 +87,12 @@ int main() {
     const json* tarde = nodo(g, "entrada:tarde");
     CHECK(tarde && (*tarde)["estado"] == "tarde", "la que llega tarde, marcada");
     CHECK(nodo(g, "entrada:muda") == nullptr, "sin video ni audio, no se dibuja");
+    const json* at = nodo(g, "entrada:atrasada");
+    CHECK(at && cerca((*at)["ms"], 4.0) && cerca((*at)["acumulado_ms"], 4.0) && (*at)["detalle"]["desfase_ms"] == 200.0,
+          "con desfase +200 (edad −196): tarda 4 ms de verdad");
+    const json* co = nodo(g, "entrada:corrida");
+    CHECK(co && (*co)["fuente"] == "hora_corrida" && (*co)["ms"].is_null() && (*co)["estado"] == "tarde",
+          "una hora corrida 126 años: marcada, sin número");
     const json* tx = nodo(g, "salida:transmision");
     CHECK(tx && cerca((*tx)["acumulado_ms"], 450.0) && cerca((*tx)["ms"], 300.0), "la transmisión: su latencia es el total");
     CHECK(nodo(g, "salida:grabacion") == nullptr, "la grabación apagada no aparece");

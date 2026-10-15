@@ -178,6 +178,10 @@ nlohmann::json describirCaps(GstCaps* c);
 /// Ningún elemento del pipeline ofrece su reloj (un micrófono que se desenchufa
 /// se llevaría el reloj: CLOCK_LOST y todo trabado).
 void sinRelojPropio(GstElement* pipeline);
+/// Las fuentes de audio del pipeline (las de GstAudioBaseSrc: micrófonos, placas) salen
+/// con la hora de captura en el reloj del pipeline: sin su reloj propio no la ponen (ver
+/// Piezas.cpp). Antes de PLAYING. Cuántas encontró.
+int horaDeCapturaEnAudio(GstElement* pipeline);
 
 /// Las fuentes de prueba en vivo (videotestsrc, audiotestsrc) cuentan su tiempo
 /// desde 0: en un pipeline con el base_time del estudio (de hace rato) salen a

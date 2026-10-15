@@ -334,6 +334,18 @@ Reloj::Reloj(const std::string& tipo, const std::string& servidor, int puerto, i
     } else {
         error_ = "reloj desconocido «" + tipo + "» (sistema, ntp, ptp o red)";
     }
+    // NTP, PTP y el de otro aparato arrancan SIN sincronizar (con la hora de la máquina) y
+    // al sincronizar SALTAN a la suya (NTP cuenta desde 1900): con la base tomada antes, todo
+    // lo medido quedaba corrido ~126 años y las entradas «llegaban tarde» para siempre. Se
+    // espera la sincronización (un rato: es un cambio que pide el operador) y, si no llega,
+    // el del sistema.
+    if (clock_ != nullptr && tipo != "sistema" && !tipo.empty() &&
+        GST_OBJECT_FLAG_IS_SET(clock_, GST_CLOCK_FLAG_NEEDS_STARTUP_SYNC) && !gst_clock_is_synced(clock_) &&
+        !gst_clock_wait_for_sync(clock_, kEsperaSyncNs)) {
+        error_ = "el reloj " + tipo + " no se sincronizó en " + std::to_string(kEsperaSyncNs / GST_SECOND) + " s";
+        gst_object_unref(clock_);
+        clock_ = nullptr;
+    }
     if (clock_ == nullptr) {
         if (error_.empty()) error_ = "no se pudo crear el reloj " + tipo;
         registrar(Nivel::Error, error_ + ": se usa el del sistema");

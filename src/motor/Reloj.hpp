@@ -63,6 +63,9 @@ void registrar(Nivel n, const std::string& texto);
 
 class Reloj {
    public:
+    /// Cuánto se espera que un reloj de red (NTP, PTP, otro aparato) se sincronice antes de
+    /// tomar la hora base; si no, el del sistema.
+    static constexpr GstClockTime kEsperaSyncNs = 3 * GST_SECOND;
     /// `tipo`: sistema (de fábrica), ntp, ptp o red; `servidor`/`puerto`/`dominio` según el tipo.
     explicit Reloj(const std::string& tipo = "sistema", const std::string& servidor = "", int puerto = 0,
                    int dominio = 0);
