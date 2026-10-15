@@ -34,6 +34,17 @@ optimizador, paso, barajado, mejor): lo maximo que se pierde por un corte.
 
     python tools/entrenar/entrenar-rapido.py --fsdp --recalcular --micro 4 \\
         --base Qwen/Qwen3.5-4B --datos <corpus> --salida <adaptador>
+
+PREFERENCIAS (--objetivo dpo|kto, ver preferencias.py). Para reforzar un
+adaptador ya entrenado (--adaptador-inicial) con las respuestas malas del
+propio modelo. Las filas de entrenar/validar.jsonl son, en vez de
+{prompt, completion}:
+    dpo  {prompt, chosen, rejected}     la buena y la mala para la misma frase
+    kto  {prompt, completion, buena}    una respuesta marcada (true/false)
+Antes del primer paso calcula una vez el log p de cada respuesta con el modelo
+de partida (la referencia) y lo deja en <salida>/referencia-<datos>.pt: al
+reanudar se lee de ahi, no se recalcula con el modelo ya movido. El micro-lote
+cuenta pares (dpo) o respuestas (kto). Por defecto lr 2e-5 y una epoca.
 """
 import argparse
 import hashlib
@@ -119,8 +130,13 @@ def main():
     ap.add_argument("--base", default="unsloth/Qwen3-1.7B")
     ap.add_argument("--datos", required=True)
     ap.add_argument("--salida", required=True)
-    ap.add_argument("--epocas", type=float, default=2.0)
-    ap.add_argument("--lr", type=float, default=2e-4)
+    ap.add_argument("--epocas", type=float, help="por defecto 2 (sft) o 1 (dpo, kto)")
+    ap.add_argument("--lr", type=float, help="por defecto 2e-4 (sft) o 2e-5 (dpo, kto)")
+    ap.add_argument("--objetivo", choices=["sft", "dpo", "kto"], default="sft",
+                    help="sft: imitar la respuesta; dpo/kto: preferir la buena sobre la mala (preferencias.py)")
+    ap.add_argument("--beta", type=float, default=0.1, help="dpo/kto: cuanto se puede alejar de la referencia")
+    ap.add_argument("--peso-buena", type=float, default=1.0, help="kto: peso de las respuestas buenas")
+    ap.add_argument("--peso-mala", type=float, default=1.0, help="kto: peso de las respuestas malas")
     ap.add_argument("--rango", type=int, default=32)
     ap.add_argument("--lote", type=int, default=16, help="lote efectivo, repartido entre las placas")
     ap.add_argument("--eval-cada", type=int, default=100)
@@ -167,6 +183,13 @@ def main():
     ap.add_argument("--guardar-cada-min", type=float, default=10.0,
                     help="cada cuantos minutos se guarda el estado para reanudar")
     args = ap.parse_args()
+    pref = args.objetivo != "sft"
+    if args.epocas is None:
+        args.epocas = 1.0 if pref else 2.0
+    if args.lr is None:
+        args.lr = 2e-5 if pref else 2e-4
+    if pref and args.entropia_fusionada == "si":
+        raise SystemExit("--entropia-fusionada da la suma del lote; dpo/kto necesitan el log p de cada respuesta")
     if args.fsdp and "LOCAL_RANK" not in os.environ:
         if not args.micro:
             args.micro = 4
@@ -212,6 +235,33 @@ def main():
             raise SystemExit("una fila no empieza con el prefijo comun: no se puede compartir")
     ids_pre = tok(prefijo, add_special_tokens=False).input_ids
 
+    def armar_pref(filas):
+        """Como armar(), con varias respuestas por fila: {"s": [(ids, n), ...]} (y
+        "buena" en kto). En kto la segunda es la CRUZADA: esta frase con la
+        respuesta de otra fila (fija), para estimar z0."""
+        out, malas = [], 0
+        resp = [f["completion"] for f in filas] if args.objetivo == "kto" else None
+        for k, f in enumerate(filas):
+            suf = f["prompt"][len(prefijo):]
+            a = tok(suf, add_special_tokens=False).input_ids
+            if args.objetivo == "dpo":
+                textos = [f["chosen"], f["rejected"]]
+            else:
+                textos = [f["completion"], resp[(k + len(resp) // 2 + 1) % len(resp)]]
+            s = []
+            for c in textos:
+                b = tok(c, add_special_tokens=False).input_ids
+                s.append((a + b, len(b)))
+            if any(tok(f["prompt"] + c, add_special_tokens=False).input_ids != ids_pre + x
+                   for c, (x, _) in zip(textos[:1] if args.objetivo == "kto" else textos, s)):
+                malas += 1
+                continue
+            it = {"s": s}
+            if args.objetivo == "kto":
+                it["buena"] = bool(f["buena"] if "buena" in f else f["label"])
+            out.append(it)
+        return out, malas
+
     def armar(filas):
         """(ids del sufijo, cuantos de esos son la respuesta). Verifica que partir
         la tokenizacion en prefijo | sufijo | respuesta da lo mismo que el texto
@@ -233,21 +283,29 @@ def main():
     for nombre in ("entrenar.jsonl", "validar.jsonl"):
         clave.update((Path(args.datos) / nombre).read_bytes())
     clave.update(args.base.encode())
+    if pref:
+        clave.update(args.objetivo.encode())
     clave = clave.hexdigest()[:16]
     cache_tok = Path(args.datos) / f".tokens-{clave}.json"
     if cache_tok.exists():
         E, V, me, mv = json.loads(cache_tok.read_text())
     else:
-        E, me = armar(ent)
-        V, mv = armar(val)
+        E, me = (armar_pref if pref else armar)(ent)
+        V, mv = (armar_pref if pref else armar)(val)
         if yo:
             tmp = cache_tok.with_suffix(".tmp")
             tmp.write_text(json.dumps([E, V, me, mv]))
             os.replace(tmp, cache_tok)
     log(f"prefijo {len(ids_pre)} tokens · entrenar {len(E)} · validar {len(V)}"
         f" · descartadas por tokenizacion distinta: {me + mv}")
-    ej_ids, ej_n = E[0]
+    ej_ids, ej_n = E[0]["s"][0] if pref else E[0]
     log("la perdida se calcula sobre:", repr(tok.decode(ej_ids[-ej_n:])))
+    if pref:
+        ej_ids, ej_n = E[0]["s"][1]
+        log(f"  {'la mala' if args.objetivo == 'dpo' else 'la cruzada (para z0)'}:", repr(tok.decode(ej_ids[-ej_n:])))
+        if args.objetivo == "kto":
+            nb = sum(it["buena"] for it in E)
+            log(f"kto: {nb} buenas · {len(E) - nb} malas")
 
     if args.cuatro_bits:
         from transformers import BitsAndBytesConfig
@@ -351,9 +409,10 @@ def main():
     # sus ~8.000 tokens (8.000 x 248k: unos 4 GB) que nadie usaba
     texto = (modelo.get_base_model() if hasattr(modelo, "get_base_model") else modelo).model
 
-    def perdida(lote, grad=True, kv_dado=None):
+    def perdida(lote, grad=True, kv_dado=None, por_fila=False):
         """Prefijo una vez; sufijos en lote sobre el cache expandido. Con kv_dado,
-        el prefijo ya viene hecho (paso_amortizado)."""
+        el prefijo ya viene hecho (paso_amortizado). Con por_fila, en vez de la
+        suma del lote devuelve la de cada secuencia (-log p de su respuesta)."""
         with torch.autocast("cuda", dtype=torch.bfloat16), torch.set_grad_enabled(grad):
             if kv_dado is not None:
                 kv = kv_dado
@@ -397,6 +456,14 @@ def main():
             sel = etq != -100
             h_sel, t_sel = hs[sel], etq[sel]
             cabeza_lm = interno.lm_head
+            if por_fila:
+                fila = sel.nonzero()[:, 0]
+                nll = torch.zeros(len(lote), dtype=torch.float32, device=cabeza_lm.weight.device)
+                for i in range(0, h_sel.shape[0], 512):
+                    lg = cabeza_lm(h_sel[i:i + 512].to(cabeza_lm.weight.device))
+                    ce = F.cross_entropy(lg.float(), t_sel[i:i + 512].to(lg.device), reduction="none")
+                    nll = nll.index_add(0, fila[i:i + 512].to(lg.device), ce)
+                return nll, sel.sum().to(nll.device)
             if args.entropia_fusionada == "si" and grad:
                 suma = entropia_fusionada.perdida_suma(h_sel, cabeza_lm, t_sel)
                 return suma, sel.sum().to(suma.device)
@@ -405,6 +472,36 @@ def main():
                 lg = cabeza_lm(h_sel[i:i + 512].to(cabeza_lm.weight.device))
                 suma = suma + F.cross_entropy(lg.float(), t_sel[i:i + 512].to(lg.device), reduction="sum")
             return suma, sel.sum().to(suma.device)  # con embeddings atados lm_head esta en la placa 0
+
+    import preferencias
+    stats = {"bien": 0, "z0": 0.0}
+
+    def objetivo(sub, kv, grad=True, z0=0.0):
+        """dpo/kto: (suma de la perdida de los items de sub, cuantos van para el lado bueno)."""
+        if args.objetivo == "dpo":
+            nll, _ = perdida([x for it in sub for x in it["s"]], grad=grad, kv_dado=kv, por_fila=True)
+            ref = torch.tensor([it["ref"] for it in sub], device=nll.device)
+            perd, m = preferencias.dpo(-nll[0::2], -nll[1::2], ref[:, 0], ref[:, 1], args.beta)
+            return perd.sum(), preferencias.aciertos("dpo", m)
+        nll, _ = perdida([it["s"][0] for it in sub], grad=grad, kv_dado=kv, por_fila=True)
+        ref = torch.tensor([it["ref"][0] for it in sub], device=nll.device)
+        buena = torch.tensor([it["buena"] for it in sub], device=nll.device)
+        perd, r = preferencias.kto(-nll, ref, buena, z0, args.beta, args.peso_buena, args.peso_mala)
+        return perd.sum(), preferencias.aciertos("kto", r, buena, z0, args.beta)
+
+    def z0_kto(items, ts, tam):
+        """kto: el KL estimado con las respuestas cruzadas, sin gradiente, entre todas
+        las placas (como KTOTrainer: el promedio de lp - ref, no menor que cero)."""
+        s = torch.zeros(2, device=dev)
+        for i in range(0, len(items), tam):
+            sub = items[i:i + tam]
+            nll, _ = perdida([it["s"][1] for it in sub], grad=False,
+                             kv_dado=ch.desde_tensores(modelo.config, ts), por_fila=True)
+            ref = torch.tensor([it["ref"][1] for it in sub], device=nll.device)
+            s += torch.stack([(-nll - ref).sum().to(dev), torch.tensor(float(len(sub)), device=dev)])
+        if dist_on:
+            dist.all_reduce(s)
+        return max(0.0, (s[0] / s[1]).item())
 
     def paso_amortizado(lote, micro):
         """EL PREFIJO UNA SOLA VEZ PARA VARIOS MICRO-LOTES, con el gradiente exacto.
@@ -432,19 +529,29 @@ def main():
                 texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
         ts = pre_rep.juntar(kv0) if pre_rep is not None else ch.tensores(kv0)
         hojas = [t.detach().requires_grad_(t.is_floating_point()) for t in ts]
-        n_total = torch.tensor(float(sum(n for _, n in lote)), device=dev)
+        # sft: promedio por token; dpo/kto: por par o respuesta
+        n_total = torch.tensor(float(len(lote) if pref else sum(n for _, n in lote)), device=dev)
         if dist_on:
             dist.all_reduce(n_total)
         suma_total = 0.0
         if raiz is not None:  # los micro-lotes acumulan sin comunicar; reduce el backward del prefijo
             raiz.set_requires_gradient_sync(False)
+        if pref:
+            z0 = z0_kto(lote, [h.detach() for h in hojas], micro) if args.objetivo == "kto" else 0.0
+            stats["z0"], bien = z0, 0
         for i in range(0, len(lote), micro):
             kv = ch.desde_tensores(modelo.config, hojas)
-            suma, _ = perdida(lote[i:i + micro], kv_dado=kv)
+            if pref:
+                suma, b = objetivo(lote[i:i + micro], kv, z0=z0)
+                bien = bien + b
+            else:
+                suma, _ = perdida(lote[i:i + micro], kv_dado=kv)
             (suma / n_total.to(suma.device) * mundo).backward()
             suma_total = suma_total + suma.detach().to(dev)
         if raiz is not None:
             raiz.set_requires_gradient_sync(True)
+        if pref:
+            stats["bien"] = bien
         if pre_rep is not None:
             # el gradiente del cache, sumado entre placas (el backward del prefijo es
             # lineal en el); cada placa hace el backward de su mitad
@@ -469,14 +576,8 @@ def main():
             return args.lr * (paso + 1) / calor
         return args.lr * 0.5 * (1 + math.cos(math.pi * (paso - calor) / max(1, total - calor)))
 
-    def evaluar():
-        """El prefijo UNA vez para toda la validacion (antes, una vez cada 32
-        ejemplos) y lotes chicos sobre copias de su cache. Cada placa la misma
-        cantidad de lotes: con FSDP cada forward es una comunicacion entre placas."""
-        modelo.eval()
-        mias = V[:len(V) // mundo * mundo][rank::mundo]
-        s = torch.zeros(2, device=dev)
-        tam = max(1, 2 * args.micro) if args.micro else 32
+    def prefijo_sin_grad():
+        """El cache del prefijo sin grafo, para lotes de solo ida (evaluar, referencia)."""
         with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
             kv0 = DynamicCache(config=modelo.config)
             if pre_rep is not None:
@@ -487,15 +588,62 @@ def main():
             else:
                 texto(input_ids=ids_pre_t, past_key_values=kv0, use_cache=True)
                 ts = ch.tensores(kv0)
+        return ts
+
+    def evaluar():
+        """El prefijo UNA vez para toda la validacion (antes, una vez cada 32
+        ejemplos) y lotes chicos sobre copias de su cache. Cada placa la misma
+        cantidad de lotes: con FSDP cada forward es una comunicacion entre placas.
+        Con dpo/kto, la perdida promedio por item; deja en stats cuantos van bien."""
+        modelo.eval()
+        mias = V[:len(V) // mundo * mundo][rank::mundo]
+        s = torch.zeros(3, device=dev)
+        tam = max(1, 2 * args.micro) if args.micro else 32
+        ts = prefijo_sin_grad()
+        with torch.no_grad():
+            if pref:
+                z0 = z0_kto(mias, ts, tam) if args.objetivo == "kto" else 0.0
             for i in range(0, len(mias), tam):
-                a, b = perdida(mias[i:i + tam], grad=False, kv_dado=ch.desde_tensores(modelo.config, ts))
-                s += torch.stack([a.detach(), b.float()]).to(dev)
+                kv = ch.desde_tensores(modelo.config, ts)
+                if pref:
+                    a, b = objetivo(mias[i:i + tam], kv, grad=False, z0=z0)
+                    s += torch.stack([a.detach().float().to(dev), torch.tensor(float(len(mias[i:i + tam])),
+                                      device=dev), b.float().to(dev)])
+                else:
+                    a, b = perdida(mias[i:i + tam], grad=False, kv_dado=kv)
+                    s[:2] += torch.stack([a.detach(), b.float()]).to(dev)
         if dist_on:
             dist.all_reduce(s)
         if raiz is not None:
             repartido.soltar_todo(modelo)
         modelo.train()
+        stats["eval_bien"] = (s[2] / s[1]).item()
         return (s[0] / s[1]).item()
+
+    def calcular_referencia(items):
+        """dpo/kto: -nll de cada respuesta con el modelo de partida. Las secuencias
+        repartidas entre placas (todas la misma cantidad de tandas) y juntadas."""
+        planas = [(k, j) for k, it in enumerate(items) for j in range(len(it["s"]))]
+        mias = planas[rank::mundo]
+        mias += mias[-1:] * (-(-len(planas) // mundo) - len(mias))
+        tam = max(1, 2 * args.micro) if args.micro else 32
+        modelo.eval()
+        ts = prefijo_sin_grad()
+        vals = []
+        with torch.no_grad():
+            for i in range(0, len(mias), tam):
+                nll, _ = perdida([items[k]["s"][j] for k, j in mias[i:i + tam]], grad=False,
+                                 kv_dado=ch.desde_tensores(modelo.config, ts), por_fila=True)
+                vals += (-nll).tolist()
+        todos = [(mias, vals)]
+        if dist_on:
+            todos = [None] * mundo
+            dist.all_gather_object(todos, (mias, vals))
+        if raiz is not None:
+            repartido.soltar_todo(modelo)
+        modelo.train()
+        ref = {tuple(kj): x for m, v in todos for kj, x in zip(m, v)}
+        return [[ref[(k, j)] for j in range(len(it["s"]))] for k, it in enumerate(items)]
 
     import repartido
 
@@ -507,6 +655,29 @@ def main():
             tok.save_pretrained(destino)
         return sd
 
+    if pref:
+        # LA REFERENCIA: el modelo de partida, una vez y a disco. Al reanudar se lee:
+        # recalcularla con el LoRA ya entrenado daria otra referencia (y margen cero)
+        ini = hashlib.sha256(str(Path(args.adaptador_inicial).expanduser().resolve()).encode()
+                             if args.adaptador_inicial else b"base").hexdigest()[:8]
+        arch_ref = Path(args.salida) / f"referencia-{clave}-{ini}.json"
+        if arch_ref.exists():
+            rE, rV = json.loads(arch_ref.read_text())
+            log(f"referencia leida de {arch_ref.name}")
+        elif args.reanudar and (Path(args.salida) / "estado" / "estado.pt").exists():
+            raise SystemExit(f"--reanudar sin {arch_ref}: la referencia ya no se puede recalcular")
+        else:
+            t_ref = time.time()
+            rE, rV = calcular_referencia(E), calcular_referencia(V)
+            if yo:
+                Path(args.salida).mkdir(parents=True, exist_ok=True)
+                tmp = arch_ref.with_suffix(".tmp")
+                tmp.write_text(json.dumps([rE, rV]))
+                os.replace(tmp, arch_ref)
+            log(f"referencia: {sum(map(len, rE)) + sum(map(len, rV))} respuestas en {time.time() - t_ref:.0f} s")
+        for it, r in zip(E + V, rE + rV):
+            it["ref"] = r
+
     rnd = random.Random(args.semilla)
     orden = []
     mejor, mejor_paso = float("inf"), -1
@@ -517,6 +688,8 @@ def main():
     # lo que tiene que coincidir para retomar: los mismos datos y el mismo plan
     plan = {"datos": clave, "base": args.base, "lote": args.lote, "epocas": args.epocas, "lr": args.lr,
             "rango": args.rango, "semilla": args.semilla, "pasos": total, "mundo": mundo}
+    if pref:  # sin cambiar el plan de sft: los estados viejos siguen reanudando
+        plan.update(objetivo=args.objetivo, beta=args.beta, pesos_kto=[args.peso_buena, args.peso_mala])
     desde, t_previo = 0, 0.0
     if args.reanudar and (dir_estado / "estado.pt").exists():
         e = repartido.cargar_estado(dir_estado, modelo, opt)
@@ -550,16 +723,16 @@ def main():
         # cada placa recibe la misma cantidad de tokens (la charla, ~220, iba toda a
         # una y la otra esperaba) y dentro de cada placa los micro-lotes juntan largos
         # parecidos (menos relleno). Son los mismos 16 ejemplos: el gradiente es el mismo
-        lote_ids = sorted(lote_ids, key=lambda i: -len(E[i][0]))
+        lote_ids = sorted(lote_ids, key=lambda i: -(max(len(x) for x, _ in E[i]["s"]) if pref else len(E[i][0])))
         mio = [E[i] for k, i in enumerate(lote_ids)
                if (k % mundo if (k // mundo) % 2 == 0 else mundo - 1 - k % mundo) == rank]
         for g in opt.param_groups:
             g["lr"] = lr_en(paso)
         # con FSDP siempre por aca: es el camino que lleva el cero por la salida del prefijo
-        if args.micro and (args.micro < len(mio) or args.fsdp):
+        if pref or (args.micro and (args.micro < len(mio) or args.fsdp)):
             # si un lote con respuestas largas no entra, se reintenta EL MISMO paso con
             # micro-lotes mas chicos (mismo gradiente) en vez de tirar la corrida
-            micro = args.micro
+            micro = args.micro or len(mio)
             while True:
                 try:
                     suma, n = paso_amortizado(mio, micro)   # ya hizo el backward
@@ -605,12 +778,18 @@ def main():
             log(f"memoria maxima en el primer paso: {' + '.join(f'{x:.1f}' for x in picos)} GiB")
         if yo and (paso + 1) % 10 == 0:
             dt, hechos = time.time() - t0, paso + 1 - desde
-            print(f"paso {paso + 1}/{total} · perdida {(suma / n).item():.4f} · "
+            extra = ""
+            if pref:
+                extra = f"acierto {float(stats['bien']) / len(mio):.0%} · "
+                if args.objetivo == "kto":
+                    extra += f"z0 {stats['z0']:.3f} · "
+            print(f"paso {paso + 1}/{total} · perdida {(suma / n * (mundo if pref else 1)).item():.4f} · {extra}"
                   f"{dt / hechos:.2f} s/paso · faltan {dt / hechos * (total - paso - 1) / 60:.0f} min",
                   flush=True)
         if (paso + 1) % args.eval_cada == 0 or paso + 1 == total:
             vl = evaluar()
-            log(f"  eval paso {paso + 1}: perdida de validacion {vl:.4f}")
+            log(f"  eval paso {paso + 1}: perdida de validacion {vl:.4f}"
+                + (f" · acierto {stats['eval_bien']:.1%}" if pref else ""))
             cp = Path(args.salida) / f"checkpoint-{paso + 1}"
             sd = guardar(cp)
             guardados.append(cp)
