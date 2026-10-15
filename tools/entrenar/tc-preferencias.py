@@ -16,7 +16,9 @@ COMO. Igual que el autoexamen de tc-bucle, con mas casos:
      lote, sobre el mismo cache: cuesta casi lo mismo que una). Una placa por
      proceso; con --placas 0,1 la mitad de los casos en cada una.
   3. cada respuesta se juzga como en tc-evaluar (herramienta, argumentos exactos,
-     falta_dato). La buena es la del corpus; cada mala distinta es un par.
+     falta_dato). La buena es la del corpus; cada mala distinta es un par. Fuera
+     las frases de dos oraciones («¿sigue grabando? Pará»): son dos pedidos y el
+     modelo contesta una llamada; ni se miden ni se entrenan asi.
 
 QUE DEJA, en --salida:
     dpo/{entrenar,validar}.jsonl   {prompt, chosen, rejected} + de donde salio
@@ -37,6 +39,7 @@ import importlib.util
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import time
@@ -81,6 +84,12 @@ def rendir_casos(args, rnd):
     print(f"casos: {len(out)} (fuera {n0 - len(filas)} parecidas al banco o al examen,"
           f" {len(filas) - len(out)} repetidas)", flush=True)
     return out
+
+
+def compuesta(frase):
+    """Dos oraciones («¿sigue grabando? Pará»): dos pedidos en uno. El modelo
+    contesta UNA llamada, asi que no se mide ni se entrena con eso."""
+    return bool(re.search(r"[?!.]\s+\S", frase))
 
 
 def juzgar(f, texto, igual):
@@ -199,6 +208,7 @@ def main():
     ap.add_argument("--temperatura", type=float, default=0.8)
     ap.add_argument("--max-nuevos", type=int, default=120)
     ap.add_argument("--max-malas", type=int, default=2, help="malas distintas por caso, como mucho")
+    ap.add_argument("--con-compuestas", action="store_true", help="no sacar las frases de dos oraciones")
     ap.add_argument("--validar", type=float, default=0.1, help="porcion de plantillas apartadas para validar")
     ap.add_argument("--placas", default="0,1")
     ap.add_argument("--limite", type=int, default=0, help="solo N casos (prueba)")
@@ -278,7 +288,11 @@ def main():
     buenas_sueltas = {"entrenar": [], "validar": []}
     motivos, por_herr, voraz_mal = collections.Counter(), collections.Counter(), collections.Counter()
     vecinas = collections.Counter()
+    n_comp = 0
     for i, f in enumerate(filas):
+        if not args.con_compuestas and compuesta(f["frase"]):
+            n_comp += 1
+            continue
         resp = hechos[i]
         parte = "validar" if en_validar(f) else "entrenar"
         base = {"prompt": f["prompt"], "herramienta": f["herramienta"], "tipo": f["tipo"],
@@ -319,9 +333,10 @@ def main():
             rnd.shuffle(lista)
             (sal / nombre / f"{parte}.jsonl").write_text("".join(json.dumps(x, ensure_ascii=False) + "\n"
                                                                 for x in lista))
-    tipos = collections.Counter(f["tipo"] for f in filas)
+    tipos = collections.Counter(f["tipo"] for f in filas if args.con_compuestas or not compuesta(f["frase"]))
     resumen = {
-        "modelo": str(Path(args.modelo).expanduser().resolve()), "casos": len(filas), "por_tipo": dict(tipos),
+        "modelo": str(Path(args.modelo).expanduser().resolve()), "casos": len(filas) - n_comp,
+        "compuestas_fuera": n_comp, "por_tipo": dict(tipos),
         "muestras": args.muestras, "temperatura": args.temperatura,
         "voraz_mal": {t: f"{voraz_mal[t]}/{tipos[t]}" for t in tipos},
         "malas_distintas": dict(motivos.most_common()), "malas_por_herramienta": dict(por_herr.most_common(25)),
@@ -333,7 +348,7 @@ def main():
         "prompt": tc.huella(), "semilla": args.semilla,
     }
     (sal / "resumen.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1) + "\n")
-    print(json.dumps({k: resumen[k] for k in ("casos", "voraz_mal", "malas_distintas", "dpo", "kto")},
+    print(json.dumps({k: resumen[k] for k in ("casos", "compuestas_fuera", "voraz_mal", "malas_distintas", "dpo", "kto")},
                      ensure_ascii=False))
     print(f"listo: {sal}")
 
