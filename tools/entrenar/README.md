@@ -1,5 +1,9 @@
 # Entrenar el modelo chico de eventos inmediatos
 
+> El modelo actual (Qwen3.5-4B, formato de *tool calling*) se entrena con
+> `tc-bucle.py`: ver [docs/modelos/bucle-tool-calling.md](../../docs/modelos/bucle-tool-calling.md).
+> Lo de abajo es el formato anterior (solo el nombre de la herramienta).
+
 Lo que se quiere: que cuando alguien diga **«está acoplando»**, el aparato
 elija `audio_measure` o `audio_set` en menos de lo que tarda el operador en
 darse vuelta. Hoy eso lo decide un modelo de 1.7B corriendo en la notebook, en

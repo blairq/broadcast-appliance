@@ -7,6 +7,10 @@ pedido completo**, servir de **asistente genérico offline** y atender
 [voz-modelo-local.md](voz-modelo-local.md) y del banco
 ([voz-modelo-local-banco.md](voz-modelo-local-banco.md)).
 
+**El proceso tal como corre hoy** (el bucle de tool calling: scripts, datos,
+perfil, medidas, preferencias y lo aprendido en la v6b) está en
+[bucle-tool-calling.md](bucle-tool-calling.md).
+
 ## Dónde estamos
 
 Hoy son dos llamadas al modelo:
