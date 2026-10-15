@@ -489,6 +489,26 @@ def main():
         perd, r = preferencias.kto(-nll, ref, buena, z0, args.beta, args.peso_buena, args.peso_mala)
         return perd.sum(), preferencias.aciertos("kto", r, buena, z0, args.beta)
 
+    def dpo_por_respuesta(sub, hojas, escala):
+        """DPO con UNA respuesta por backward: la buena y la mala de un par juntas son
+        dos copias del cache del prefijo (como sft con micro 2) y en la placa 1 no
+        entraban. El gradiente de -log sigma(m) respecto del nll de cada respuesta es
+        un peso: +beta*sigma(-m) para la buena y -beta*sigma(-m) para la mala. Se sacan
+        con una pasada sin gradiente y cada respuesta va y vuelve sola con su peso: el
+        mismo gradiente que el par junto."""
+        seqs = [x for it in sub for x in it["s"]]
+        with torch.no_grad():
+            nll, _ = perdida(seqs, grad=False, por_fila=True,
+                             kv_dado=ch.desde_tensores(modelo.config, [h.detach() for h in hojas]))
+        ref = torch.tensor([it["ref"] for it in sub], device=nll.device)
+        perd, m = preferencias.dpo(-nll[0::2], -nll[1::2], ref[:, 0], ref[:, 1], args.beta)
+        s = args.beta * torch.sigmoid(-m)
+        peso = torch.stack([s, -s], 1).flatten()
+        for k, x in enumerate(seqs):
+            nk, _ = perdida([x], kv_dado=ch.desde_tensores(modelo.config, hojas), por_fila=True)
+            (nk[0] * peso[k].to(nk.device) * escala.to(nk.device)).backward()
+        return perd.sum(), preferencias.aciertos("dpo", m)
+
     def z0_kto(items, ts, tam):
         """kto: el KL estimado con las respuestas cruzadas, sin gradiente, entre todas
         las placas (como KTOTrainer: el promedio de lp - ref, no menor que cero)."""
@@ -541,6 +561,11 @@ def main():
             stats["z0"], bien = z0, 0
         for i in range(0, len(lote), micro):
             kv = ch.desde_tensores(modelo.config, hojas)
+            if args.objetivo == "dpo":  # hace su propio backward, respuesta por respuesta
+                suma, b = dpo_por_respuesta(lote[i:i + micro], hojas, mundo / n_total)
+                bien = bien + b
+                suma_total = suma_total + suma.detach().to(dev)
+                continue
             if pref:
                 suma, b = objetivo(lote[i:i + micro], kv, z0=z0)
                 bien = bien + b
