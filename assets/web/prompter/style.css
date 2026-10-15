@@ -50,9 +50,13 @@ html, body {
   white-space: pre-wrap;
   will-change: transform;
 }
-/* Espejado para el vidrio del teleprompter: se invierte el lienzo entero. */
+/* Espejado para el vidrio del teleprompter: se invierte TODO lo que lee el orador en el
+   vidrio (el texto, el mensaje del operador, el cartel «sin discurso»). Los botones del
+   aparato no: los toca quien lo maneja, de frente. */
 .espejado .texto { transform-origin: center; }
-.espejado .lienzo { transform: scaleX(-1); }
+.espejado .lienzo,
+.espejado .aviso,
+.espejado .vacio { transform: scaleX(-1); }
 
 /* La palabra que toca leer, un poco mas viva; lo ya leido, apagado. */
 .texto .leido { opacity: 0.32; }
