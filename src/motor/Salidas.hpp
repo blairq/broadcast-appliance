@@ -114,6 +114,7 @@ class Grabacion {
     std::vector<GstElement*> colchones_, valvulas_; ///< del pipeline (con ref)
     guint64 atrasoNs() const; ///< con mu_ tomado
     std::atomic<std::uint64_t> desbordes_{0}, bytes_{0};
+    std::atomic<std::int64_t> latenciaNs_{0}; ///< la que se le fijó al pipeline (estado: latencia_ms)
     std::atomic<bool> pausada_{false};
     std::string error_, codificador_;
     mutable std::mutex arMu_; ///< archivos_ (lo toca el hilo de datos de splitmuxsink)
@@ -159,6 +160,7 @@ class Transmision {
     int intentos_ = 0;
     std::int64_t reintentoNs_ = 0;
     std::atomic<std::uint64_t> bytes_{0}, cuadros_{0}, perdidos_{0};
+    std::atomic<std::int64_t> latenciaNs_{0}; ///< la que se le fijó al pipeline (estado: latencia_ms)
     std::uint64_t bytesAntes_ = 0;
     std::int64_t medidoNs_ = 0, ultimoDatoNs_ = 0;
     double kbps_ = 0;

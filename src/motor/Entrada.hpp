@@ -283,6 +283,8 @@ class Entrada {
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
+    /// Las mismas edades, el video y el audio por separado (la página Tiempos): -1 = sin datos.
+    double edadVP50_ = -1, edadVP95_ = -1, edadAP50_ = -1, edadAP95_ = -1;
     std::uint64_t consultaNs_ = 0;
     LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
     std::shared_ptr<Rotulo> rotulo_; ///< un rótulo de texto: lo que dibuja (textoDibujado)

@@ -283,6 +283,13 @@ int main() {
     // Con do-timestamp, sus horas son las de captura (como una cámara de verdad).
     CHECK(sv.value("edad_p50_ms", 9999.0) < 500, "sale con la hora del estudio");
     CHECK(!sv.value("llega_tarde", true), "y no queda «llega tarde»");
+    // El video y el audio por separado (la página Tiempos): esta entrada no tiene audio.
+    banco.correr(1200);
+    const json sv2 = v->estado();
+    CHECK(sv2["edad_video"].is_object() && sv2["edad_video"].value("p50_ms", 9999.0) < 500 &&
+              sv2["edad_video"].value("p95_ms", -1.0) >= sv2["edad_video"].value("p50_ms", 0.0),
+          "la edad del video, sola (p50 ≤ p95)");
+    CHECK(sv2["edad_audio"].is_null(), "y sin audio, la del audio vacía");
     banco.entradas.pop_back();
     v.reset();
     // Una imagen (PNG): da cuadros (imagefreeze) con su alfa.

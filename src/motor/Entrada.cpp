@@ -963,6 +963,7 @@ void Entrada::armar() {
         vistosDatos_ = 0;
         datosDesdeNs_ = ahoraNs();
         edadP50_ = edadP95_ = 0;
+        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = -1;
         sale_ = json::object();
     }
     pipeline_ = p;
@@ -1112,6 +1113,20 @@ void Entrada::medirLatencia() {
             edadP50_ = v[v.size() / 2];
             edadP95_ = std::clamp(v[v.size() * 95 / 100], 0.0, 5000.0);
         }
+        // Por rama: `edades_` es el video (o el audio, si la entrada no tiene video).
+        const auto percentiles = [](const std::deque<double>& d, double& p50, double& p95) {
+            if (d.size() < 30) {
+                p50 = p95 = -1;
+                return;
+            }
+            std::vector<double> v(d.begin(), d.end());
+            std::sort(v.begin(), v.end());
+            p50 = v[v.size() / 2];
+            p95 = v[v.size() * 95 / 100];
+        };
+        if (cuadros_ > 0) percentiles(edades_, edadVP50_, edadVP95_);
+        else edadVP50_ = edadVP95_ = -1;
+        percentiles(edadesA_, edadAP50_, edadAP95_);
     }
     // Una fuente en vivo con SUS horas (empieza en 0, como videotestsrc, o un
     // emisor sin hora de captura): lo que entrega está corrido segundos del
@@ -1178,6 +1193,7 @@ void Entrada::medirLatencia() {
             edades_.clear();
             edadesA_.clear();
             edadP50_ = edadP95_ = 0;
+        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = -1;
             medVAntes_ = medAAntes_ = 0;
             return;
         }
@@ -1676,6 +1692,10 @@ json Entrada::estadoYa() const {
         }
         j["edad_p50_ms"] = edadP50_;
         j["edad_p95_ms"] = edadP95_;
+        // Cuánto tardó desde la captura hasta salir de la entrada, el video y el audio por separado.
+        const auto edad = [](double p50, double p95) { return p50 < 0 ? json() : json{{"p50_ms", p50}, {"p95_ms", p95}}; };
+        j["edad_video"] = edad(edadVP50_, edadVP95_);
+        j["edad_audio"] = edad(edadAP50_, edadAP95_);
         j["origen"] = origen_;
         j["sale"] = sale_;
         j["sin_datos_s"] = ultimoDatoNs_ == 0 ? -1.0 : static_cast<double>(ahoraNs() - ultimoDatoNs_) / 1e9;
@@ -1691,6 +1711,7 @@ json Entrada::estadoYa() const {
     j["normalizado"] = normalizar_;
     j["alfa"] = alfa_;
     j["ntp_sync"] = ntpSync_ && !ntpApagadoSolo_;
+    j["ntp_apagado_solo"] = ntpApagadoSolo_; // la hora que mandaba estaba muy corrida: se dejó de usar sola
     j["filtros"] = estadoFiltros();
     return j;
 }

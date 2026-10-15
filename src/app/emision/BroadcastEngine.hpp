@@ -243,6 +243,9 @@ class BroadcastEngine {
     /// El motor de GStreamer, para las piezas que trabajan sobre él (el grafo de
     /// video, los racks, la escucha). nullptr antes de startup.
     motor::Motor* motor() { return motor_.get(); }
+    /// La foto de las salidas (transmisiones, grabación, limpia) que publica su hilo:
+    /// no espera a nadie (la página Tiempos la lee seguido).
+    nlohmann::json salidasAhora() const { return fotoSalidas(); }
 
     // --- Escenas ------------------------------------------------------------
     bool createScene(const std::string& name);

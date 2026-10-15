@@ -155,6 +155,8 @@
 #include "ui/PuestoCorreccion.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
+#include "tiempos/TiemposModel.hpp"
+#include "Motor.hpp"
 #include <QCoreApplication>
 
 namespace ba::app {
@@ -181,7 +183,7 @@ QString hms(std::chrono::steady_clock::time_point since) {
 
 namespace {
 /// ¿Le llegan cuadros a la entrada? El motor publica cuánto hace del último dato
-/// (`sin_datos_s`: -1 si todavía no llegó nada); el de antes, `fps_recibidos`.
+/// (`sin_datos_s`: -1 si todavía no llegó nada).
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
@@ -1060,6 +1062,23 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    // Los tiempos: solo fotos que ya se publican (el motor, las salidas, los grafos, los racks).
+    tiempos_ = std::make_unique<tiempos::TiemposModel>([this]() {
+        tiempos::Fotos f;
+        if (motor::Motor* m = rt_.engine().motor())
+            if (const auto foto = m->instantanea()) f.motor = *foto;
+        f.salidas = rt_.engine().salidasAhora();
+        if (video_)
+            for (const QVariant& v : video_->estudio().value("nodos").toList()) {
+                const QVariantMap n = v.toMap();
+                const QString t = n.value("etiqueta").toString();
+                f.titulos[n.value("id").toString().toStdString()] = (t.isEmpty() ? n.value("titulo").toString() : t).toStdString();
+            }
+        if (racks_)
+            for (const std::string& s : racks_->fuentesConRack())
+                if (audio::AudioRack* r = racks_->rack(s, false)) f.racks[s] = r->describe();
+        return f;
+    });
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
         asamblea::Bancas::Ganchos g;
@@ -2296,6 +2315,7 @@ QObject* StudioViewModel::matriz() const {
 #endif
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
+QObject* StudioViewModel::tiempos() const { return tiempos_.get(); }
 QObject* StudioViewModel::video() const { return video_.get(); }
 QObject* StudioViewModel::red() const { return red_.get(); }
 QObject* StudioViewModel::pluginsQml() const { return plugins_.get(); }

@@ -32,22 +32,24 @@ int main() {
     json ok{{"entrada", "Cam"}, {"lienzo", lienzo},    {"ancho", 1920},
             {"alto", 1080},     {"asincronica", true}, {"desentrelazado", "no"}};
     CHECK(diagnosticar(ok).empty(), "una cámara bien: sin diagnóstico");
-    // Una de red entrelazada, a 25 fps, 601 en HD, con cuadros tarde y reloj sin sincronizar.
+    // Una de red entrelazada, a 25 fps, 601 en HD, que llega tarde y con la hora corrida
+    // (lo que publica el motor: Entrada::estado).
     json mal = ok;
     mal["entrada"] = "Panasonic";
-    mal["gstreamer"] = {{"reloj", "ntp"},
-                        {"reloj_sincronizado", false},
-                        {"fps_recibidos", 25.0},
+    mal["gstreamer"] = {{"origen", {{"fps", 25.0}}},
                         {"entrelazado", true},
                         {"colorimetria", "bt601 (rango limitado)"},
-                        {"recibidos", 100},
-                        {"llegaron_tarde", 20},
-                        {"latencia_ms", 100}};
+                        {"cuadros", 100},
+                        {"ntp_sync", true},
+                        {"edad_p50_ms", -600.0},
+                        {"edad_p95_ms", 420.0},
+                        {"llega_tarde", true},
+                        {"latencia_ms", 430}};
     const json d = diagnosticar(mal);
     std::printf("%s\n", d.dump(1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(hay(d, "entrelazado", "error") && hay(d, "cuadros", "aviso") && hay(d, "color", "aviso") &&
-              hay(d, "reloj", "error") && hay(d, "colchón", "aviso"),
-          "red con problemas: entrelazado, fps, color, reloj y colchón");
+              hay(d, "reloj", "aviso") && hay(d, "colchón", "aviso"),
+          "red con problemas: entrelazado, fps, color, hora corrida y colchón");
     bool arreglo = false;
     for (const auto& x : d)
         if (x.value("tema", "") == "entrelazado")
@@ -64,14 +66,15 @@ int main() {
     // Ya desentrelazada: no se queja más del entrelazado.
     mal["desentrelazado"] = "yadif";
     CHECK(!hay(diagnosticar(mal), "entrelazado", "error"), "desentrelazada: ya no lo marca");
-    // Recién conectada: la ráfaga del arranque llega tarde, no es el colchón.
+    // El colchón: solo si el motor dice que llega tarde; la hora apagada sola es información.
     json nueva = ok;
-    nueva["gstreamer"] = {
-        {"recibidos", 130}, {"recibidos_10s", 130}, {"tarde_10s", 20}, {"latencia_ms", 200}};
-    CHECK(hay(diagnosticar(nueva), "colchón", "info") && !hay(diagnosticar(nueva), "colchón", "aviso"),
-          "arrancando: el colchón es información");
-    nueva["gstreamer"]["recibidos"] = 900;
-    CHECK(hay(diagnosticar(nueva), "colchón", "aviso"), "andando hace rato: el colchón corto es aviso");
+    nueva["gstreamer"] = {{"cuadros", 900}, {"latencia_ms", 200}, {"edad_p50_ms", 80.0}, {"llega_tarde", false}};
+    CHECK(!hay(diagnosticar(nueva), "colchón", "aviso") && !hay(diagnosticar(nueva), "reloj", "aviso"),
+          "llega a tiempo y con la hora bien: nada");
+    nueva["gstreamer"]["llega_tarde"] = true;
+    CHECK(hay(diagnosticar(nueva), "colchón", "aviso"), "llega tarde: el colchón es aviso");
+    nueva["gstreamer"]["ntp_apagado_solo"] = true;
+    CHECK(hay(diagnosticar(nueva), "reloj", "info"), "la hora que se dejó de usar sola: información");
     // Tarjetas: un error y un aviso de 4:2:0.
     json t = ok;
     t["errores_tarjetas"] = {{"cam.gst", "no existe el módulo «x»"}};

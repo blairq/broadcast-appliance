@@ -82,14 +82,15 @@ Además:
 - Mientras no hay análisis, la sonda no está puesta: no cuesta nada.
 
 La marca:
-- **Puntos en binario:** una grilla de 11×8 celdas cuadradas en una esquina, cada una blanca (1) o negra (0).
-  - **4 celdas de referencia** en las esquinas: dos siempre blancas y dos siempre negras. De ahí sale el umbral, así no importa cuánto cambien el brillo o el contraste en el camino.
+- **Puntos en binario:** una grilla de 11×8 celdas cuadradas en una esquina de la imagen de la entrada: **fondo negro y puntos blancos** (1 = punto, 0 = sin punto), lo de más contraste.
+  - **4 celdas de referencia** en las esquinas, siempre con punto, más el borde negro del recuadro. Sirven de umbral (no importa cuánto cambien el brillo o el contraste) y de **marcas para encontrarla**.
   - **84 celdas de datos:**
     - **64 bits: el tiempo del cuadro en nanosegundos**, con toda la resolución del reloj del estudio: el running time (PTS) de ESE cuadro en el reloj de GStreamer, entero, sin redondear y sin vuelta (584 años);
     - 8 bits del número de la entrada;
     - 4 bits de contador de cuadro;
     - 8 bits de CRC. Una lectura que no cierra se descarta: nunca da un número equivocado.
-  - Leer es mirar el brillo en el **centro de cada celda** (88 píxeles por cuadro) y comparar contra el umbral. Como la marca la pone el sistema, se sabe dónde está cada celda, en posición relativa al cuadro: sobrevive a que lo escalen.
+  - Leer es mirar el brillo en el **centro de cada celda** (88 píxeles por cuadro) y comparar contra el umbral.
+  - **Dónde está:** la marca es de la entrada, no de la escena. Para medir, la entrada se pone a pantalla completa y la marca cae en su lugar conocido. Si en cambio aparece achicada o corrida (un multiview, un PIP, una capa de un debate), el lector busca el recuadro negro con sus cuatro esquinas blancas: eso le da el desplazamiento y la escala, y lee las celdas con ese offset. Como la marca lleva el número de la entrada, en un multiview se leen todas a la vez, cada una con su recuadro.
   - Celdas de unos 16 px a 1080p (176×128 px en total), para que sigan teniendo al menos 3 px aun si YouTube baja a 360p, y para que la compresión no las mezcle.
   - El lector anota la hora de llegada en ns del mismo reloj y guarda los pares crudos (marca, llegada). El resultado sale de muchas lecturas: la mediana y la dispersión. La marca es exacta; la precisión de la medición la pone cada cuánto se puede tomar un cuadro en ese punto (en YouTube, uno por segundo).
 - **Dígitos** al lado, solo para mirarlos a ojo. No hace falta OCR.

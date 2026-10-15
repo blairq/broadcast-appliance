@@ -204,7 +204,6 @@ bool VideoGrafos::tieneSenal(const json& st) {
     // caída: 12 s de gracia (una que de verdad se cayó sigue sin señal después).
     const double rearmada = g.value("rearmada_hace_s", -1.0);
     if (rearmada >= 0.0 && rearmada < 12.0) return true;
-    if (g.contains("fps_recibidos")) return st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5;
     const double sin = g.value("sin_datos_s", -1.0);
     return sin >= 0.0 && sin < 1.5;
 }
@@ -1640,8 +1639,6 @@ json VideoGrafos::estadoEntrada(const std::string& entrada) const {
     double latencia = ms + cuadros * cuadroMs;
     if (out.contains("gstreamer"))
         latencia += out["gstreamer"].value("latencia_ms", 0) + out["gstreamer"].value("desfase_ms", 0);
-    if (out.contains("gstreamer") && out["gstreamer"].is_object())
-        latencia += out["gstreamer"].value("compensacion_ms", 0);
     out["latencia_grafo_ms"] = std::round(latencia);
     if (enEntrada_.count(entrada) && !enEntrada_.at(entrada).empty()) {
         json l = json::array();

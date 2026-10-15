@@ -214,15 +214,15 @@ Popup {
                                 spacing: 10
                                 Text { text: fila.modelData.entrada; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } Layout.preferredWidth: 160; elide: Text.ElideRight }
                                 StatusPill {
-                                    text: fila.g.error ? "sin señal" : (fila.modelData.ancho > 0 ? fila.modelData.ancho + "x" + fila.modelData.alto + " · " + Number(fila.g.fps_recibidos || 0).toFixed(1) + " fps" : "conectando…")
+                                    text: fila.g.error ? "sin señal" : (fila.modelData.ancho > 0 ? fila.modelData.ancho + "x" + fila.modelData.alto + " · " + Number((fila.g.origen || {}).fps || 0).toFixed(1) + " fps" : "conectando…")
                                     dot: fila.g.error ? Theme.live : fila.modelData.ancho > 0 ? Theme.ok : Theme.amber
                                     medidaDe: "1920x1080 · 30.0 fps"
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: "colchón " + (fila.g.latencia_ms || 0) + " ms · desfase " + (fila.g.desfase_ms || 0) + " ms · reloj " + (fila.g.reloj || "?") +
-                                          (fila.g.reloj_sincronizado === false ? " (sin sincronizar)" : "") +
-                                          (fila.g.recibidos_10s > 0 ? " · tarde " + Math.round(100 * (fila.g.tarde_10s || 0) / fila.g.recibidos_10s) + "%" : "") +
+                                    text: "colchón " + (fila.g.latencia_ms || 0) + " ms · desfase " + (fila.g.desfase_ms || 0) + " ms · tarda " +
+                                          Math.round(fila.g.edad_p50_ms || 0) + "–" + Math.round(fila.g.edad_p95_ms || 0) + " ms" +
+                                          (fila.g.ntp_sync ? " · con su hora" : "") + (fila.g.llega_tarde ? " · llega tarde" : "") +
                                           (fila.g.normalizado ? " · normalizada" : "") + (fila.g.superres ? " · superres x2" : "")
                                     color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                                 }
@@ -264,8 +264,7 @@ Popup {
                                 Layout.fillWidth: true
                                 Layout.leftMargin: 170
                                 text: "En GStreamer: " + (fila.g.filtros || []).map(f => (f.audio ? "🔊 " : "") + f.elemento +
-                                          (f.ms > 0 ? " " + Number(f.ms).toFixed(0) + " ms" : "") + (f.andando === false ? " (no está)" : "")).join(" → ") +
-                                      (fila.g.compensacion_ms > 0 ? "  ·  audio y video atrasados " + fila.g.compensacion_ms + " ms juntos" : "")
+                                          (f.ms > 0 ? " " + Number(f.ms).toFixed(0) + " ms" : "") + (f.andando === false ? " (no está)" : "")).join(" → ")
                                 color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
                             }
                             // Los filtros de audio de la entrada: tocar uno lo edita; ‹ › lo mueve; ✕ lo saca.

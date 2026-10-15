@@ -967,12 +967,14 @@ void McpService::registerVideoTools() {
                        {"diagnostico", video::diagnosticar(st)}};
                 if (st.contains("gstreamer")) {
                     const json& g = st["gstreamer"];
-                    r["red"] = {{"reloj", g.value("reloj", std::string())},
-                                {"latencia_ms", g.value("latencia_ms", 0)},
+                    r["red"] = {{"latencia_ms", g.value("latencia_ms", 0)},
                                 {"desfase_ms", g.value("desfase_ms", 0)},
-                                {"fps", std::round(g.value("fps_recibidos", 0.0))},
-                                {"normalizada", g.value("normalizado", false)},
-                                {"tarde_10s", g.value("tarde_10s", 0)}};
+                                {"edad_p50_ms", std::round(g.value("edad_p50_ms", 0.0))},
+                                {"edad_p95_ms", std::round(g.value("edad_p95_ms", 0.0))},
+                                {"llega_tarde", g.value("llega_tarde", false)},
+                                {"ntp_sync", g.value("ntp_sync", false)},
+                                {"fps", g.value("origen", json::object()).value("fps", 0.0)},
+                                {"normalizada", g.value("normalizado", false)}};
                     // Cómo llega (antes de normalizar), en una línea.
                     const json o = g.value("origen", json::object());
                     if (!o.empty())
@@ -1897,11 +1899,14 @@ void McpService::registerVideoTools() {
             for (const QString& n : v->entradas()) {
                 const json st = v->estadoEntrada(n.toStdString());
                 if (!st.contains("gstreamer")) continue;
+                // Todas van con el reloj del estudio (el de arriba); de cada una, lo que mide el motor.
+                const json& g = st["gstreamer"];
                 fuentes.push_back({{"entrada", n.toStdString()},
-                                   {"reloj", st["gstreamer"].value("reloj", std::string())},
-                                   {"sincronizado", st["gstreamer"].value("reloj_sincronizado", false)},
-                                   {"latencia_ms", st["gstreamer"].value("latencia_ms", 0)},
-                                   {"desfase_ms", st["gstreamer"].value("desfase_ms", 0)}});
+                                   {"con_su_hora", g.value("ntp_sync", false)},
+                                   {"latencia_ms", g.value("latencia_ms", 0)},
+                                   {"desfase_ms", g.value("desfase_ms", 0)},
+                                   {"edad_p50_ms", g.value("edad_p50_ms", 0.0)},
+                                   {"llega_tarde", g.value("llega_tarde", false)}});
             }
             done(ToolResult().data(
                 {{"reloj", v->reloj()},
