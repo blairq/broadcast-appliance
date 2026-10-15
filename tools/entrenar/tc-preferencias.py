@@ -226,6 +226,7 @@ def main():
     if args.trabajador:
         return trabajador(args)
 
+    tc.mismo_perfil(modelo=Path(args.modelo).expanduser())
     sal = Path(args.salida).expanduser()
     sal.mkdir(parents=True, exist_ok=True)
     rnd = random.Random(args.semilla)
@@ -334,6 +335,9 @@ def main():
             rnd.shuffle(lista)
             (sal / nombre / f"{parte}.jsonl").write_text("".join(json.dumps(x, ensure_ascii=False) + "\n"
                                                                 for x in lista))
+        # como el de tc-corpus: entrenar-rapido y tc-evaluar comparan el prompt
+        (sal / nombre / "huella.json").write_text(json.dumps({"formato": "tc", "prompt": tc.huella(),
+                                                              "de": nombre}, indent=1) + "\n")
     tipos = collections.Counter(f["tipo"] for f in filas if not (args.sin_compuestas and compuesta(f["frase"])))
     resumen = {
         "modelo": str(Path(args.modelo).expanduser().resolve()), "casos": len(filas) - n_comp,

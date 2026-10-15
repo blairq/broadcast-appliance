@@ -223,6 +223,10 @@ def main():
 
     tok = AutoTokenizer.from_pretrained(args.base)
     ent, val = cargar(args.datos, "entrenar.jsonl"), cargar(args.datos, "validar.jsonl")
+    if (Path(args.datos) / "huella.json").exists() and \
+            json.loads((Path(args.datos) / "huella.json").read_text()).get("formato") == "tc":
+        import lib_tc  # el adaptador guarda la huella del perfil de AHORA: que sea la de los datos
+        lib_tc.mismo_perfil(args.datos)
 
     # EL PREFIJO COMUN, sacado de los datos (con o sin etiquetas, es el de ese
     # corpus) y cortado donde empieza el turno del usuario, que es donde lo corta

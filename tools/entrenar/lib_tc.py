@@ -44,6 +44,7 @@ import json
 import random
 import re
 import unicodedata
+from pathlib import Path
 
 import lib_prompt as lp
 
@@ -199,6 +200,24 @@ FIN = "<|im_end|>"
 
 def huella(inv=None):
     return hashlib.sha256(cabeza(inv).encode()).hexdigest()[:16]
+
+
+def mismo_perfil(corpus=None, modelo=None):
+    """Que el prompt de ahora (BA_PERFIL) sea el del corpus y el del modelo. Sin
+    BA_PERFIL la cabeza es la del perfil reactivo: la frase se recorta mal y todo
+    da 0 %, o el modelo ve herramientas que nunca vio, SIN AVISAR."""
+    import lib_prompt as _lp
+    h = huella()
+    if corpus is not None and (Path(corpus) / "huella.json").exists():
+        hc = json.loads((Path(corpus) / "huella.json").read_text()).get("prompt")
+        if hc and hc != h:
+            raise SystemExit(f"{corpus} es del prompt {hc} y el de ahora es {h} (perfil {_lp.PERFIL}):"
+                             f" ¿falta BA_PERFIL=...?")
+    if modelo is not None and (Path(modelo) / "huella-prompt.json").exists():
+        hm = json.loads((Path(modelo) / "huella-prompt.json").read_text()).get("prompt")
+        if hm and hm != _lp.huella()["prompt"]:
+            raise SystemExit(f"{modelo} se entreno con el prompt {hm} y el de ahora es {_lp.huella()['prompt']}"
+                             f" (perfil {_lp.PERFIL}): ¿falta BA_PERFIL=...?")
 
 
 def usuario(estado, frase):

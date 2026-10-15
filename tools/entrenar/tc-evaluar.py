@@ -74,6 +74,7 @@ def main():
     args = ap.parse_args()
     conj = set(args.conjuntos.split(","))
     corpus = Path(args.corpus).expanduser()
+    tc.mismo_perfil(corpus, Path(args.modelo).expanduser())
 
     import torch
     import torch.nn.functional as F
