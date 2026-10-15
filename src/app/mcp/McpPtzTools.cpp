@@ -333,8 +333,9 @@ void McpService::registerPtzTools() {
         t.title = "Ir a un preset o guardarlo";
         t.category = "camaras";
         t.description = "`accion` ir (de fábrica) o guardar el preset `numero` (desde 1) de la cámara "
-                        "`entrada`. Los presets "
-                        "son de lo que mueve el joystick: en la cámara (óptico) o en el recorte (digital).";
+                        "`entrada`. El preset N es la POSICIÓN número N (ptz_posiciones): guardar la regraba "
+                        "donde está ahora (o crea «Preset N»), en la cámara y/o en el recorte, igual en una "
+                        "digital que en una ONVIF/VISCA. Para pedirlas por nombre, ptz_ir_posicion.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "numero"}},
                          {"properties",
@@ -485,9 +486,9 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.readOnly = true;
         t.description =
-            "Las posiciones guardadas de una cámara (o de todas): id, nombre, comentario, la definición en "
-            "que se "
-            "registró, el encuadre digital (x, y, zoom), la memoria de la cámara donde quedó grabada, la "
+            "Las posiciones guardadas de una cámara (o de todas): id, `numero` (su número de preset: "
+            "ptz_preset y los controles por número van a la posición de ese número), nombre, comentario "
+            "(sirven para pedirlas de palabra: «la cámara 2 al atril»), la definición en que se registró, el encuadre digital (x, y, zoom), la memoria de la cámara donde quedó grabada, la "
             "velocidad y los segundos con que se va, y `miniatura_ruta` (la foto JPEG; se puede mirar con "
             "image_view o mandarla a quien la pida).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
@@ -535,6 +536,7 @@ void McpService::registerPtzTools() {
                           {{"entrada", entrada},
                            {"nombre", {{"type", "string"}}},
                            {"comentario", {{"type", "string"}}},
+                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", "su número de preset (si no, el primero libre)"}}},
                            {"velocidad", velocidad},
                            {"segundos", segundos}}}};
         t.examples = {
@@ -543,7 +545,7 @@ void McpService::registerPtzTools() {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             const QVariantMap r =
                 c->crearPosicion(qarg(a, "entrada"), qarg(a, "nombre"), qarg(a, "comentario"),
-                                 a.value("velocidad", 0.0), a.value("segundos", -1.0));
+                                 a.value("velocidad", 0.0), a.value("segundos", -1.0), a.value("numero", 0));
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
         };
@@ -555,7 +557,7 @@ void McpService::registerPtzTools() {
         t.title = "Cambiar una posición";
         t.category = "camaras";
         t.idempotent = true;
-        t.description = "Cambia el `nombre`, el `comentario`, la `velocidad` (0..1) o los `segundos` de una "
+        t.description = "Cambia el `nombre`, el `comentario`, el `numero` de preset, la `velocidad` (0..1) o los `segundos` de una "
                         "posición; con `regrabar: true` la vuelve a registrar donde está ahora la cámara "
                         "(encuadre, memoria, definición y foto); con `miniatura: true` solo saca la foto de nuevo.";
         t.inputSchema = {{"type", "object"},
@@ -565,6 +567,7 @@ void McpService::registerPtzTools() {
                            {"posicion", posicion},
                            {"nombre", {{"type", "string"}}},
                            {"comentario", {{"type", "string"}}},
+                           {"numero", {{"type", "integer"}, {"minimum", 1}}},
                            {"velocidad", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
                            {"segundos", {{"type", "number"}, {"minimum", -1}, {"maximum", 10}}},
                            {"regrabar", {{"type", "boolean"}}},
@@ -574,6 +577,7 @@ void McpService::registerPtzTools() {
             QVariantMap cambios;
             if (a.contains("nombre")) cambios["nombre"] = qarg(a, "nombre");
             if (a.contains("comentario")) cambios["comentario"] = qarg(a, "comentario");
+            if (a.contains("numero")) cambios["numero"] = a.value("numero", 0);
             if (a.contains("regrabar")) cambios["regrabar"] = a.value("regrabar", false);
             if (a.contains("miniatura")) cambios["miniatura"] = a.value("miniatura", false);
             if (a.contains("velocidad")) cambios["velocidad"] = a.value("velocidad", 0.0);

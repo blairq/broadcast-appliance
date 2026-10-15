@@ -86,7 +86,7 @@
     {
       "icono": "▦",
       "titulo": "Con los datos del evento",
-      "prompt": "Mirá el evento abierto (evento_ver) y poné en esta banda su nombre y, de detalle, la fecha y la hora de inicio."
+      "prompt": "Mirá el evento abierto (guion_ver) y poné en esta banda su nombre y, de detalle, la fecha y la hora de inicio."
     }
   ]
 }

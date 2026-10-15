@@ -421,7 +421,7 @@
       "pregunta": "que sigue en el guion",
       "herramientas": [
         "evento_correr",
-        "evento_ver"
+        "guion_ver"
       ]
     },
     {
@@ -593,13 +593,13 @@
     {
       "pregunta": "cuando es el evento",
       "herramientas": [
-        "evento_ver"
+        "guion_ver"
       ]
     },
     {
       "pregunta": "ponele fecha y hora al evento",
       "herramientas": [
-        "evento_guardar"
+        "guion_guardar"
       ]
     },
     {
@@ -757,7 +757,7 @@
       "pregunta": "prepara un evento nuevo de cero",
       "herramientas": [
         "evento_armar",
-        "evento_listar"
+        "guion_listar"
       ]
     },
     {

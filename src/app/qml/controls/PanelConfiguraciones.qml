@@ -2,7 +2,7 @@
 // (escenas, medios, plugins, Cuerpo, botonera, eventos), sin compartir nada. Cambiar de
 // una a otra no copia nada: la app se reinicia con la otra carpeta. Crear sí escribe
 // sus archivos una vez (vacía, copia de la actual, una demo o la de un evento).
-// Lo mismo por MCP: configuraciones_listar, configuracion_crear, configuracion_cambiar.
+// Lo mismo por MCP: eventos_listar, evento_nuevo, evento_cambiar, evento_borrar, evento_recuperar.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -63,7 +63,8 @@ ColumnLayout {
                 GlassButton { compact: true; text: "✕"; visible: !modelData.activa
                               onClicked: ApplicationWindow.window.confirm({
                                   title: "¿Borrar «" + modelData.nombre + "»?",
-                                  text: "Va a la papelera con todo lo suyo (se puede recuperar de Configuraciones/.papelera).",
+                                  text: "Va a la papelera con todo lo suyo: se puede recuperar desde «Papelera», abajo, durante un mes." +
+                                        (modelData.plantilla ? "\n\nEs una plantilla: deja de aparecer en «Evento nuevo › desde una plantilla»." : ""),
                                   accept: "Borrar", reject: "Cancelar",
                                   action: function() { pc.avisar(pc.cf.borrarUi(modelData.nombre)) } }) }
             }
@@ -108,6 +109,49 @@ ColumnLayout {
         Layout.fillWidth: true
         color: Theme.accent; font.pixelSize: 12
         text: "Copiando «" + (c.nombre || "") + "»… " + (c.total > 0 ? Math.min(100, Math.round(100 * c.hechos / c.total)) + " %" : "")
+    }
+
+    // La papelera: lo borrado vuelve con su nombre (si ya está usado, avisa).
+    ColumnLayout {
+        id: papelera
+        Layout.fillWidth: true
+        spacing: 4
+        visible: pc.cf && pc.cf.papelera.length > 0
+        property bool abierta: false
+        readonly property real ocupa: pc.cf ? pc.cf.papelera.reduce((t, p) => t + (p.bytes || 0), 0) : 0
+        RowLayout {
+            spacing: 8
+            GlassButton {
+                compact: true
+                text: (papelera.abierta ? "▾ " : "▸ ") + "Papelera (" + (pc.cf ? pc.cf.papelera.length : 0) + ")" +
+                      (papelera.ocupa > 0 ? " · " + pc.tamano(papelera.ocupa) : "")
+                onClicked: papelera.abierta = !papelera.abierta
+            }
+            GlassButton {
+                compact: true; text: pc.cf && pc.cf.vaciando ? "Vaciando…" : "Vaciar"
+                visible: papelera.abierta; enabled: pc.cf && !pc.cf.vaciando
+                onClicked: ApplicationWindow.window.confirm({
+                    title: "¿Vaciar la papelera?",
+                    text: "Se borra todo de verdad" + (papelera.ocupa > 0 ? " (" + pc.tamano(papelera.ocupa) + ")" : "") +
+                          ": ya no se puede recuperar.",
+                    accept: "Vaciar", reject: "Cancelar",
+                    action: function() { pc.avisar(pc.cf.vaciarPapeleraUi("")) } })
+            }
+            Text { color: Theme.textFaint; font.pixelSize: 11; text: "lo que lleva más de un mes se borra solo" }
+        }
+        Repeater {
+            model: papelera.abierta && pc.cf ? pc.cf.papelera : []
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 10
+                Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textDim; font.pixelSize: 12
+                       text: modelData.nombre + (modelData.borrado_ms > 1 ? "  · borrado el " +
+                             new Date(modelData.borrado_ms).toLocaleString(Qt.locale(), "d/M/yyyy HH:mm") : "  · a medio borrar") +
+                             (modelData.bytes ? " · " + pc.tamano(modelData.bytes) : "") }
+                GlassButton { compact: true; text: "Recuperar"; visible: modelData.borrado_ms !== 1; onClicked: pc.avisar(pc.cf.recuperarUi(modelData.id)) }
+            }
+        }
     }
 
     Dialog {

@@ -133,6 +133,7 @@ int main(int argc, char** argv) {
                            {"n", {{"type", "integer"}, {"minimum", 1}, {"maximum", 5}}}}},
                          {"required", {"text"}}};
         t.examples = {R"({"text": "hola"})"};
+        t.antes = {"eco_viejo"};
         t.run = [](const json& a, Done done) {
             done(ToolResult::ok("eco: " + a["text"].get<std::string>()));
         };
@@ -194,6 +195,15 @@ int main(int argc, char** argv) {
     // --- 3) tools/call -------------------------------------------------------
     r = call(core, req(4, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "hola"}}}}));
     CHECK(textOf(r["result"]) == "eco: hola" && r["result"]["isError"] == false, "llamada sincrona");
+    r = call(core, req(4, "tools/call", {{"name", "eco_viejo"}, {"arguments", {{"text", "hola"}}}}));
+    CHECK(textOf(r["result"]) == "eco: hola" && r["result"]["isError"] == false, "con su nombre viejo, la misma herramienta");
+    CHECK(core.nombreActual("eco_viejo") == "echo" && core.nombreActual("otra") == "otra", "nombreActual");
+    {
+        bool viejoListado = false;
+        const json lista = call(core, req(3, "tools/list")); // con nombre: recorrer un pedazo de un temporal lo usa ya destruido
+        for (const auto& t : lista["result"]["tools"]) viejoListado = viejoListado || t["name"] == "eco_viejo";
+        CHECK(!viejoListado, "el nombre viejo no se lista");
+    }
     r = call(core, req(5, "tools/call", {{"name", "later"}}));
     CHECK(r["result"]["structuredContent"]["ok"] == true, "llamada asincrona con contenido estructurado");
     r = call(core, req(6, "tools/call", {{"name", "echo"}, {"arguments", json::object()}}));

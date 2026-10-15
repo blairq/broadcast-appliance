@@ -47,9 +47,6 @@ const std::vector<Grupo>& catalogo() {
          {{10, "guion", "≣",
            "Evento: el abierto (con sus escenas, mezclador, medios y asamblea), su guion, padrón, orden del día y "
            "web; evento nuevo o abrir otro"},
-          {29, "enlaces", "⛓",
-           "Enlaces: todos los servicios web (invitados, público, teleprompter, rótulos, botonera, sesión remota…) "
-           "con su estado, para activar, copiar, abrir o mostrar en QR"},
           {20, "medios", "♫", "Medios: música, videos, imágenes y presentaciones, con vista previa"},
           {11, "graficos", "◈", "Gráficos animados: zócalos, placas y tickers"},
           {17, "qr", "⊞", "Códigos QR: la biblioteca y el estudio de diseño"},
@@ -78,6 +75,11 @@ const std::vector<Grupo>& catalogo() {
            "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones"},
           {13, "registro", "❑", "Registro: todo lo que pasa, de los tres procesos"},
           {6, "configuracion", "⚙", "Configuración"}}},
+        // Abajo del todo, sola: cualquier enlace o código QR del aparato se busca acá.
+        {"Servicios",
+         {{29, "enlaces", "⇄",
+           "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
+           "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR"}}},
     };
     return g;
 }

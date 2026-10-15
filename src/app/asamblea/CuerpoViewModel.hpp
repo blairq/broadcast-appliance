@@ -33,6 +33,8 @@ class CuerpoViewModel : public QObject {
     Q_INVOKABLE void setNombre(const QString& n);
     /// Crea o cambia (con `id`). "" o el error.
     Q_INVOKABLE QString guardar(const QVariantMap& campos);
+    /// La toma de una banca (cámara y posición; `camara` vacía la saca). "" o el error.
+    Q_INVOKABLE QString setToma(const QString& banca, const QString& camara, const QString& posicion);
     Q_INVOKABLE bool borrar(const QString& id);
     Q_INVOKABLE bool validar(const QString& id);
     /// Importa una planilla CSV. Texto con lo que pasó.

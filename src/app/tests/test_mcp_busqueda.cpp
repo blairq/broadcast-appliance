@@ -5,7 +5,7 @@
 // abajo salieron de probar el buscador anterior y ver qué traía:
 //
 //   "poner musica"      -> scene_switch, guest_source_add, share_take
-//   "silenciar a alguien" -> chat_wait, evento_cue, scene_protect
+//   "silenciar a alguien" -> chat_wait, guion_cue, scene_protect
 //
 // Ninguna de esas era la respuesta. `media_use` y `audio_set` existen y no
 // aparecían, porque su documentación no dice "música" ni "silenciar": la

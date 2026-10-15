@@ -1,4 +1,4 @@
-// Página Enlaces: todos los servicios web del aparato en un lugar.
+// Página Servicios (id «enlaces»): todos los servicios web del aparato y sus QR, en un lugar.
 //
 // ¿Hace falta un enlace? Está acá: cada servicio con su LED de estado, el
 // botón para prenderlo (si se puede), el enlace de la red local y el de afuera
@@ -43,7 +43,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Enlaces"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: "Servicios"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             StatusPill {
                 text: page.en.hayTunel ? "Con salida a internet" : "Solo red local"
                 dot: page.en.hayTunel ? Theme.ok : Theme.textFaint

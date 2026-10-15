@@ -75,15 +75,18 @@ std::string Dsk::definir(int capa, const json& def) {
     json* c = buscar(capa);
     if (c == nullptr) return "la capa va de 1 a 4";
     if (!def.is_object()) return "la definición es un objeto";
+    // Sobre una copia: solo se guarda si el motor la acepta (antes quedaba guardado un
+    // contenido que el motor había rechazado, y el motor seguía con el viejo).
+    json nueva = *c;
     for (const char* k : {"nombre", "contenido", "recuadro", "fijo", "transicion_ms"})
-        if (def.contains(k)) (*c)[k] = def[k];
+        if (def.contains(k)) nueva[k] = def[k];
     std::vector<std::string> cont;
-    for (const auto& n : c->value("contenido", json::array()))
+    for (const auto& n : nueva.value("contenido", json::array()))
         if (n.is_string()) cont.push_back(n.get<std::string>());
-    std::string err;
-    if (!engine_.dskArmar(capa, cont, c->value("recuadro", json::object()))) err = engine_.lastError();
+    if (!engine_.dskArmar(capa, cont, nueva.value("recuadro", json::object()))) return engine_.lastError();
+    *c = std::move(nueva);
     avisar();
-    return err;
+    return {};
 }
 
 std::string Dsk::mostrar(int capa, bool visible, bool confirmada) {

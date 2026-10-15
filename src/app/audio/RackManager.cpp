@@ -765,8 +765,8 @@ bool RackManager::flujoLibre(const std::string& flujo, const std::string& salvoR
 
 std::string RackManager::addTexto(const std::string& source, const std::string& modo,
                                   const std::string& flujo, std::string* error) {
-    AudioRack* r = rack(source, true, error);
-    if (r == nullptr) return {};
+    // El nombre, antes de crear el rack de la fuente (con el nombre ocupado, quedaba un
+    // rack nuevo colgado de la fuente, y guardado).
     std::string nombre = flujo;
     if (nombre.empty()) {
         nombre = source;
@@ -776,6 +776,8 @@ std::string RackManager::addTexto(const std::string& source, const std::string& 
         if (error != nullptr) *error = "ya hay una salida de texto «" + nombre + "»";
         return {};
     }
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
     const std::string id = r->addTexto(modo, nombre);
     markDirty();
     emit changed();

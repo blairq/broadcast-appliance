@@ -286,6 +286,31 @@ class BroadcastEngine {
     /// `contarGrabacion` en false: solo lo que se transmite (el modo en vivo
     /// puede no contar la grabación, Config/modo-vivo.json).
     bool haySalida(bool contarGrabacion = true) const;
+
+    /// LA FUENTE «BANCA CON LA PALABRA» (tipo ba_banca, ajuste `ranura` 1, 2…): en la
+    /// escena muestra la cámara de la banca de esa ranura (1 = quien tiene la
+    /// palabra; en un debate, 1 y 2). La app dice qué hay en cada ranura; sin nada,
+    /// la capa no se dibuja. Con `entera`, la capa toma la toma ENTERA de la cámara
+    /// (antes del PTZ digital) y la recorta ella: una sola cámara muestra varias
+    /// bancas a la vez sin moverse, y el plano general sigue igual.
+    struct RanuraBanca {
+        std::string entrada;          ///< la cámara ("" = nadie en esta ranura)
+        bool entera = false;          ///< recortar la toma entera (posición digital)
+        float recorte[4] = {0, 0, 0, 0}; ///< izquierda, arriba, derecha, abajo (fracciones)
+    };
+    static constexpr const char* kTipoBanca = "ba_banca";
+    /// Cuántas ranuras hay: 1 (quien habla, o el primero de un debate) y 2 (el segundo; el
+    /// debate es de a dos). Si el debate admite más, se sube acá y las Propiedades lo siguen.
+    static constexpr int kRanurasBanca = 2;
+    /// Cambia lo que muestra cada ranura y vuelve a publicar las escenas que las usan.
+    /// `forzar`: aunque no hayan cambiado (el tamaño de la cámara llegó después y el
+    /// recorte, que va en píxeles, recién ahora se puede calcular).
+    void setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar = false);
+    /// Alguna escena tiene una fuente «Banca con la palabra» (así se sabe si dar la
+    /// palabra tiene que mover el recorte o lo hace la fuente).
+    bool hayFuenteBanca() const;
+    /// La primera escena que muestra la ranura `ranura` ("" si ninguna).
+    std::string escenaDeRanura(int ranura) const;
     /// Las fuentes que SE VEN en el programa: las visibles de la escena al aire
     /// y lo que muestran las capas DSK que están arriba.
     std::vector<std::string> fuentesEnPrograma() const;
@@ -669,6 +694,9 @@ class BroadcastEngine {
     // --- El modelo propio (lo que el motor no guarda) ---
     struct Fuente {
         SourceSpec spec;           ///< tipo lógico y ajustes tal como los pidieron
+        /// «Banca con la palabra» (ba_banca): no es una entrada; al publicar la escena
+        /// muestra la ranura que dice (ver setRanurasBanca).
+        bool banca = false;
         bool global = false;       ///< suena siempre (micrófonos, invitados, música)
         int syncMs = 0;
         bool monitor = false;
@@ -694,6 +722,9 @@ class BroadcastEngine {
     nlohmann::json escenaMotor(const EscenaApp& e) const;
     /// entrada -> {compositor, productor} (ver setTraer).
     std::map<std::string, std::pair<std::string, std::string>> traer_;
+    std::vector<RanuraBanca> ranurasBanca_; ///< ver setRanurasBanca
+    /// La ranura de una fuente ba_banca (1 si no dice).
+    int ranuraDe(const Fuente& f) const;
     /// Le manda la escena al motor (si está al aire o armada, cambia andando).
     void publicarEscena(const EscenaApp& e);
     /// Crea la fuente en el motor (si no existe). false + lastError si no se pudo.

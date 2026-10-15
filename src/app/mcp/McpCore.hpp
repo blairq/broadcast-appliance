@@ -90,6 +90,10 @@ struct Tool {
     /// Su efecto lo decide una persona con un click (preguntar al operador,
     /// sugerir respuestas): no necesita aprobacion aunque la sesion este contaminada.
     bool mediated = false;
+    /// Nombres que tuvo antes y siguen andando (modelos entrenados, botoneras, atajos y
+    /// guiones guardados con el viejo): no se listan, pero una llamada con uno de ellos
+    /// es la misma llamada con `name` (callTool lo cambia al empezar).
+    std::vector<std::string> antes;
     std::function<void(const json& args, Done done)> run;
 };
 
@@ -266,6 +270,8 @@ class McpCore {
         return out;
     }
     const Tool* findTool(const std::string& name) const;
+    /// El nombre actual de una herramienta (el mismo si no es uno viejo, ver Tool::antes).
+    std::string nombreActual(const std::string& name) const;
     /// El catálogo para elegir una herramienta a mano (el selector de la
     /// Botonera): [{id, titulo, resumen, herramientas: [{nombre, titulo,
     /// descripcion, etiquetas, ejemplo, solo_lectura, destructiva}]}], en el orden

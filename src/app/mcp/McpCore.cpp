@@ -335,7 +335,14 @@ void McpCore::addPrompt(Prompt prompt) { prompts_.push_back(std::move(prompt)); 
 const Tool* McpCore::findTool(const std::string& name) const {
     for (const Tool& t : tools_)
         if (t.name == name) return &t;
+    for (const Tool& t : tools_)
+        if (std::find(t.antes.begin(), t.antes.end(), name) != t.antes.end()) return &t;
     return nullptr;
+}
+
+std::string McpCore::nombreActual(const std::string& name) const {
+    const Tool* t = findTool(name);
+    return t != nullptr ? t->name : name;
 }
 
 // --- Validacion ---------------------------------------------------------------
@@ -650,7 +657,8 @@ std::string primerTexto(const ToolResult& r) {
 } // namespace
 
 void McpCore::callTool(const json& params, std::function<void(json)> done, const CallContext& ctx) {
-    const std::string name = params["name"].get<std::string>();
+    // Con un nombre viejo, todo lo que sigue (aire, aprobaciones, registro) con el actual.
+    const std::string name = nombreActual(params["name"].get<std::string>());
     const json args = params.contains("arguments") && params["arguments"].is_object() ? params["arguments"]
                                                                                       : json::object();
     // Un aviso que va al final de la respuesta (p. ej. argumentos que no existen).

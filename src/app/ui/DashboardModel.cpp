@@ -29,13 +29,15 @@ constexpr double kMinH = 0.10;
 struct Kind {
     const char* id;
     const char* title;
+    const char* icon; ///< el de la barra de tarjetas (un signo, como los del riel)
 };
 const Kind kKinds[] = {
     // Primera a proposito: es la que se mira todo el tiempo.
-    {"direccion", "Dirección"}, {"aire", "Aire"},         {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
-    {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
-    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"}, {"ptz", "Control PTZ"},
-    {"pdf", "PDF"},
+    {"direccion", "Dirección", "◎"}, {"aire", "Aire", "●"},         {"outputs", "Salidas", "⇪"},
+    {"scenes", "Escenas", "▦"},      {"mixer", "Mezclador", "🎚"},  {"guests", "Invitados", "☺"},
+    {"health", "Sistema", "♥"},      {"monitor", "Monitor", "▭"},   {"sources", "Fuentes", "◉"},
+    {"lobby", "Sala", "☎"},          {"speakers", "Oradores", "✋"}, {"carrusel", "Carrusel", "⟳"},
+    {"ptz", "Control PTZ", "⌖"},     {"pdf", "PDF", "▤"},
 };
 
 } // namespace
@@ -44,6 +46,54 @@ DashboardModel::DashboardModel(std::filesystem::path file, QObject* parent)
     : QAbstractListModel(parent), file_(std::move(file)) {
     windows_ = new OutputWindowsModel([this]() { save(); }, this);
     load();
+    // Qué tipos están en el tablero (la barra de tarjetas los ilumina).
+    connect(this, &QAbstractItemModel::rowsInserted, this, &DashboardModel::tarjetasCambio);
+    connect(this, &QAbstractItemModel::rowsRemoved, this, &DashboardModel::tarjetasCambio);
+    connect(this, &QAbstractItemModel::modelReset, this, &DashboardModel::tarjetasCambio);
+}
+
+QVariantList DashboardModel::tiposDeTarjeta() const {
+    QVariantList out;
+    for (const auto& k : kKinds) {
+        const QString id = QString::fromUtf8(k.id);
+        const bool abierta = std::any_of(cards_.begin(), cards_.end(), [&](const Card& c) { return c.kind == id; });
+        out << QVariantMap{{"kind", id}, {"titulo", QString::fromUtf8(k.title)}, {"icono", QString::fromUtf8(k.icon)},
+                           {"abierta", abierta}};
+    }
+    return out;
+}
+
+bool DashboardModel::alternarTarjeta(const QString& kind) {
+    // A la vista: se oculta (todas las de ese tipo), y se guarda cómo estaba.
+    bool habia = false;
+    for (int row = rowCount() - 1; row >= 0; --row) {
+        if (cards_[static_cast<std::size_t>(row)].kind != kind) continue;
+        habia = true;
+        std::erase_if(ocultas_, [&](const Card& o) { return o.kind == kind; });
+        ocultas_.push_back(cards_[static_cast<std::size_t>(row)]);
+        beginRemoveRows({}, row, row);
+        cards_.erase(cards_.begin() + row);
+        endRemoveRows();
+    }
+    if (habia) {
+        save();
+        return false;
+    }
+    // Oculta: vuelve donde estaba, con lo que mostraba; nunca vista, una nueva.
+    const auto it = std::find_if(ocultas_.begin(), ocultas_.end(), [&](const Card& o) { return o.kind == kind; });
+    if (it == ocultas_.end()) {
+        addCard(kind, kind == "monitor" ? QStringLiteral("program") : QString());
+        return true;
+    }
+    Card c = *it;
+    ocultas_.erase(it);
+    c.id = nextId_++;
+    const int row = rowCount();
+    beginInsertRows({}, row, row);
+    cards_.push_back(c);
+    endInsertRows();
+    save();
+    return true;
 }
 
 void DashboardModel::setBackgroundLayout(const QString& l) {
@@ -431,6 +481,7 @@ void DashboardModel::defaults() {
 
 void DashboardModel::resetLayout() {
     beginResetModel();
+    ocultas_.clear();
     defaults();
     endResetModel();
     emit backgroundChanged();
@@ -456,6 +507,13 @@ void DashboardModel::load() {
                          c.value("h").toDouble(0.25)),
                   c.value("source").toString()};
         cards_.push_back(card);
+    }
+    for (const auto& v : o.value("ocultas").toArray()) {
+        const QJsonObject c = v.toObject();
+        ocultas_.push_back(Card{0, c.value("kind").toString(),
+                                QRectF(c.value("x").toDouble(), c.value("y").toDouble(), c.value("w").toDouble(0.25),
+                                       c.value("h").toDouble(0.25)),
+                                c.value("source").toString()});
     }
     background_.clear();
     for (const auto& v : o.value("background").toArray()) {
@@ -505,9 +563,14 @@ void DashboardModel::save() const {
                                 {"w", w.geometry.width()},
                                 {"h", w.geometry.height()}});
     }
+    QJsonArray ocultas;
+    for (const auto& c : ocultas_)
+        ocultas.append(QJsonObject{{"kind", c.kind}, {"x", c.rect.x()}, {"y", c.rect.y()}, {"w", c.rect.width()},
+                                   {"h", c.rect.height()}, {"source", c.source}});
     const QJsonObject o{{"windows", wins},
                         {"backgroundLayout", layout_},
                         {"cards", cards},
+                        {"ocultas", ocultas},
                         {"background", QJsonArray::fromStringList(background_)},
                         {"backgroundDim", dim_}};
     std::error_code ec;

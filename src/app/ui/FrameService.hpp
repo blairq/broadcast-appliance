@@ -13,6 +13,9 @@
 //   "entrada:X" la entrada de video X tal como sale de sus filtros (con el
 //               recorte del PTZ digital), mientras alguien la pida con
 //               mirarEntrada (la tarjeta PTZ suelta)
+//   "entrada-entera:X" la misma entrada ANTES del recorte del PTZ digital (la
+//               toma entera, para manejar el recorte encima): mirarEntrada
+//               con `entera`
 //
 // Modelo de threading: todo en el thread de la UI; `poll()` lo llama un timer.
 // ============================================================================
@@ -58,7 +61,8 @@ class FrameService : public QObject {
     void setArmada(const QString& escena);
     /// Pide (o suelta) el video en vivo de una entrada en la clave
     /// "entrada:<nombre>". Cuenta pedidos: se renderiza mientras alguien la mire.
-    Q_INVOKABLE void mirarEntrada(const QString& entrada, bool mirar);
+    /// `entera`: la toma antes del recorte del PTZ digital (clave "entrada-entera:X").
+    Q_INVOKABLE void mirarEntrada(const QString& entrada, bool mirar, bool entera = false);
     /// Cambia la cantidad de invitados.
     void setGuests(int guests);
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
@@ -88,7 +92,8 @@ class FrameService : public QObject {
     int lobbySlots_ = 4;
     static constexpr int kBackstageSlots = 8;
     QString armada_;
-    std::map<QString, int> entradas_; ///< entradas pedidas y cuántos las miran
+    /// Las vistas de entradas pedidas ("entrada:X" o "entrada-entera:X") y cuántos las miran.
+    std::map<QString, int> entradas_;
     std::uint64_t vueltas_ = 0;
 };
 

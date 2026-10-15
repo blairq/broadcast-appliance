@@ -112,7 +112,7 @@
     {
       "icono": "⏱",
       "titulo": "Con los datos del evento",
-      "prompt": "Mirá el evento abierto (evento_ver) y poné en esta placa su nombre, «Empezamos a las» con la hora de inicio (y el huso si hay gente de afuera) y, de bajada, la fecha. Dejala armada en el preview."
+      "prompt": "Mirá el evento abierto (guion_ver) y poné en esta placa su nombre, «Empezamos a las» con la hora de inicio (y el huso si hay gente de afuera) y, de bajada, la fecha. Dejala armada en el preview."
     }
   ]
 }

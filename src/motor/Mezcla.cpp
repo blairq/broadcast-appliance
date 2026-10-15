@@ -138,7 +138,8 @@ void Mezcla::aplicarLatencia() {
 void Mezcla::agregar(const std::string& id) {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr || ramas_.count(id) > 0) return;
-    const std::string n = nombreSeguro(id);
+    // Único en el pipeline: limpio, «Mic 1» y «Mic-1» quedaban iguales (y el segundo no entraba).
+    const std::string n = nombreSeguro(id) + "_" + std::to_string(++serieRamas_);
     Rama r;
     r.src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r.vol = gst_element_factory_make("volume", ("vol_" + n).c_str());

@@ -255,6 +255,26 @@ int main() {
         CHECK(m.estado()["entradas"]["verde"].value("desfase_video_ms", 0) == 300, "el desfase de video, en el estado");
         CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "con el video atrasado, el programa sigue verde");
     }
+    // Nombres que, limpios para GStreamer, quedan iguales («Cam 1» y «Cam-1»: Cam_1), y uno
+    // con «@» (las vistas se piden «<qué>@<canal>»). Antes el segundo no entraba al pipeline.
+    {
+        CHECK(m.agregarEntrada("Cam 1", color("#FF0000")).empty(), "la entrada «Cam 1»");
+        CHECK(m.agregarEntrada("Cam-1", color("#0000FF")).empty(), "la entrada «Cam-1»");
+        CHECK(m.agregarEntrada("Cam@Sala", color("#00FF00")).empty(), "la entrada «Cam@Sala»");
+        m.definirEscena({{"nombre", "Parecidas"},
+                         {"capas", {{{"entrada", "Cam 1"}, {"x", 0}, {"y", 0}, {"ancho", 160}, {"alto", 180}},
+                                    {{"entrada", "Cam-1"}, {"x", 160}, {"y", 0}, {"ancho", 160}, {"alto", 180}, {"orden", 1}}}}});
+        CHECK(m.verPedir("escena:Parecidas@prueba", 320, 180).empty(), "ver la escena con «Cam 1» y «Cam-1»");
+        CHECK(m.verPedir("entrada:Cam@Sala@prueba", 160, 90).empty(), "ver una entrada con «@» en el nombre");
+        esperar(1500);
+        const Px a = mirar(m, "escena:Parecidas@prueba", 80, 90), b = mirar(m, "escena:Parecidas@prueba", 240, 90);
+        std::printf("Cam 1 | Cam-1: %s | %s\n", txt(a).c_str(), txt(b).c_str());
+        CHECK(a.r > 200 && a.b < 60 && b.b > 200 && b.r < 60, "las dos se ven, cada una en su lugar");
+        CHECK(igual(mirar(m, "entrada:Cam@Sala@prueba", 80, 45), 0, 255, 0), "la de «@» se ve (y no otra)");
+        m.verSoltar("escena:Parecidas@prueba");
+        m.verSoltar("entrada:Cam@Sala@prueba");
+        for (const char* e : {"Cam 1", "Cam-1", "Cam@Sala"}) m.quitarEntrada(e);
+    }
     // El PTZ digital conserva el encuadre cuando la cadena de la entrada se rearma (M6.8).
     if (hayFabrica("baptz") && hayFabrica("bacolor")) {
         const json ptz = json{{"video", json::array({{{"id", "ptz"}, {"elemento", "baptz"}}})}};
@@ -271,6 +291,32 @@ int main() {
         std::printf("PTZ x2, borde derecho: %s\n", txt(der).c_str());
         CHECK(der.g > 120 && der.r < 80 && der.b < 80, "con el zoom, a la derecha la barra verde");
         m.verSoltar("escena:Cam");
+        // La toma ENTERA (antes del recorte: el panel PTZ la muestra para manejar el
+        // recorte encima): con el mismo zoom, el borde derecho es la última barra, la azul.
+        CHECK(m.verPedir("entrada-entera:cam", 320, 180).empty(), "ver la toma entera");
+        esperar(1500);
+        const Px entera = mirar(m, "entrada-entera:cam", 310, 40);
+        std::printf("PTZ x2, toma entera, borde derecho: %s\n", txt(entera).c_str());
+        CHECK(entera.b > 120 && entera.r < 80 && entera.g < 80, "la toma entera no tiene el recorte (a la derecha, la azul)");
+        m.verSoltar("entrada-entera:cam");
+        // La MISMA cámara dos veces en una escena (dos bancas recortadas de una toma): cada
+        // capa con su recorte. Antes la segunda chocaba de nombre con la primera y la app se caía.
+        {
+            const json sale = m.estado()["entradas"]["cam"].value("sale", json::object());
+            const int w = sale.value("ancho", 320), h = sale.value("alto", 240);
+            const json izq{{"entrada", "cam"}, {"productor", "cam:entera:video"}, {"x", 0}, {"y", 0}, {"ancho", 160}, {"alto", 180},
+                           {"orden", 0}, {"recorte", {{"izq", 0}, {"arr", 0}, {"der", w * 6 / 7}, {"aba", h / 2}}}};
+            const json der{{"entrada", "cam"}, {"productor", "cam:entera:video"}, {"x", 160}, {"y", 0}, {"ancho", 160}, {"alto", 180},
+                           {"orden", 1}, {"recorte", {{"izq", w * 6 / 7}, {"arr", 0}, {"der", 0}, {"aba", h / 2}}}};
+            m.definirEscena({{"nombre", "Dos"}, {"capas", {izq, der}}});
+            CHECK(m.verPedir("escena:Dos", 320, 180).empty(), "ver una escena con la misma cámara dos veces");
+            esperar(1500);
+            const Px a = mirar(m, "escena:Dos", 80, 90), b = mirar(m, "escena:Dos", 240, 90);
+            std::printf("misma cámara dos veces: izquierda %s, derecha %s\n", txt(a).c_str(), txt(b).c_str());
+            CHECK(a.r > 150 && a.g > 150 && a.b > 150, "la misma cámara dos veces: a la izquierda, la primera barra (gris claro)");
+            CHECK(b.b > 120 && b.r < 80 && b.g < 80, "y a la derecha, la última (azul)");
+            m.verSoltar("escena:Dos");
+        }
         CHECK(m.propiedadEntrada("cam", "ba_f_ptz", "ir", "0.3,0.3,3,0").empty(), "ir a un encuadre");
         esperar(300);
         json p = m.propiedadesEntrada("cam", "ba_f_ptz");

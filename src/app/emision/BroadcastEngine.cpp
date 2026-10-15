@@ -685,7 +685,12 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         setError("vista previa de escena: el motor no arranco");
         return false;
     }
-    const std::string base = escena(name) != nullptr ? "escena:" + name : sources_.count(name) > 0 ? "entrada:" + name : "";
+    // «entera:X»: la entrada X antes del recorte del PTZ digital (la toma entera).
+    const bool entera = name.rfind("entera:", 0) == 0 && sources_.count(name.substr(7)) > 0;
+    const std::string base = entera                     ? "entrada-entera:" + name.substr(7)
+                             : escena(name) != nullptr  ? "escena:" + name
+                             : sources_.count(name) > 0 ? "entrada:" + name
+                                                        : "";
     if (base.empty()) {
         setError("vista previa de escena: no existe '" + name + "'");
         return false;
@@ -836,7 +841,7 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
         if (viva != capturas_.end()) motor_->verSoltar(clave);
         if (!motor_->verPedir(clave, w, h).empty()) {
             capturas_.erase(clave);
-            return "'" + clave.substr(0, clave.find('@')) + "' no tiene imagen";
+            return "'" + clave.substr(0, clave.rfind('@')) + "' no tiene imagen";
         }
         capturas_[clave] = {w, h, ahora};
     }
@@ -858,7 +863,7 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
     if (!ok) {
         motor_->verSoltar(clave);
         capturas_.erase(clave);
-        return "'" + clave.substr(0, clave.find('@')) + "' no dio imagen (sin señal o apagada)";
+        return "'" + clave.substr(0, clave.rfind('@')) + "' no dio imagen (sin señal o apagada)";
     }
     aRgba(c, rgba);
     width = c.ancho;
@@ -1877,7 +1882,8 @@ nlohmann::json BroadcastEngine::cleanFeedEstado() const {
 bool BroadcastEngine::haySalida(bool contarGrabacion) const {
     const json f = fotoSalidas();
     if (f.value("principal", json::object()).value("andando", false)) return true;
-    for (const auto& [id, x] : f.value("extras", json::object()).items())
+    const json extras = f.value("extras", json::object()); // con nombre: .items() de un temporal lo usa destruido
+    for (const auto& [id, x] : extras.items())
         if (x.value("andando", false)) return true;
     // La señal limpia se transmite (tiene destino) o se graba.
     const json limpio = f.value("limpio", json::object());
@@ -1889,8 +1895,20 @@ bool BroadcastEngine::haySalida(bool contarGrabacion) const {
 std::vector<std::string> BroadcastEngine::fuentesEnPrograma() const {
     std::vector<std::string> out;
     if (const EscenaApp* e = escena(currentScene_))
-        for (const auto& i : e->items)
-            if (i.visible) out.push_back(i.fuente);
+        for (const auto& i : e->items) {
+            if (!i.visible) continue;
+            // «Banca con la palabra»: lo que se ve es su cámara. Recortada de la toma
+            // entera (digital) no cuenta: mover el PTZ de esa cámara no la cambia.
+            const auto f = sources_.find(i.fuente);
+            if (f != sources_.end() && f->second.banca) {
+                const int r = ranuraDe(f->second);
+                if (r >= 1 && r <= static_cast<int>(ranurasBanca_.size()) && !ranurasBanca_[r - 1].entrada.empty() &&
+                    !ranurasBanca_[r - 1].entera)
+                    out.push_back(ranurasBanca_[r - 1].entrada);
+                continue;
+            }
+            out.push_back(i.fuente);
+        }
     for (const std::string& f : fuentesDsk()) out.push_back(f);
     return out;
 }

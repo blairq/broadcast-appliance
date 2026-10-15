@@ -131,8 +131,20 @@ Popup {
                 Celda { campo: "cargo_oficial"; valor: fila.modelData.cargo_oficial || ""; Layout.preferredWidth: 130 }
                 Celda { campo: "bloque"; valor: fila.modelData.bloque || ""; Layout.preferredWidth: 120 }
                 Celda { campo: "distrito"; valor: fila.modelData.distrito || ""; Layout.preferredWidth: 100 }
-                Celda { campo: "camara"; valor: fila.ptz.camara || ""; Layout.preferredWidth: 110 }
-                Celda { campo: "posicion"; valor: fila.ptz.posicion || ""; Layout.preferredWidth: 100 }
+                // La toma es de SU BANCA (cámara y posición, de listas): queda en la banca aunque cambie la persona.
+                SelectorToma {
+                    enabled: !fila.modelData.nuevo && (fila.modelData.banca || "") !== ""
+                    camara: fila.ptz.camara || ""
+                    posicion: fila.ptz.posicion || ""
+                    anchoCamara: 110; anchoPosicion: 100
+                    onElegido: (c, p) => {
+                        const e = pop.cu.guardar({ id: fila.modelData.id, camara: c, posicion: p })
+                        if (e !== "") Studio.notify(e, "error")
+                    }
+                    ToolTip.visible: hovered && (fila.modelData.banca || "") === ""; ToolTip.text: "Primero su banca: la toma es de la banca"
+                    property bool hovered: false
+                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
+                }
                 Celda { campo: "microfono"; valor: fila.mic.fuente || ""; Layout.preferredWidth: 110 }
                 StatusPill {
                     visible: !fila.modelData.nuevo

@@ -22,6 +22,8 @@ QJsonObject Posicion::json() const {
     if (velocidad > 0) j["velocidad"] = velocidad;
     if (segundos >= 0) j["segundos"] = segundos;
     if (!miniatura.isEmpty()) j["miniatura"] = miniatura;
+    if (interna) j["interna"] = true;
+    if (numero > 0) j["numero"] = numero;
     if (ancho > 0 && alto > 0) j["definicion"] = QJsonObject{{"ancho", ancho}, {"alto", alto}};
     if (digital) j["digital"] = QJsonObject{{"x", x}, {"y", y}, {"zoom", zoom}};
     if (tieneCamara()) {
@@ -43,6 +45,8 @@ Posicion Posicion::desdeJson(const QJsonObject& j) {
     p.velocidad = j.value("velocidad").toDouble(0);
     p.segundos = j.value("segundos").toDouble(-1);
     p.miniatura = j.value("miniatura").toString();
+    p.interna = j.value("interna").toBool();
+    p.numero = j.value("numero").toInt();
     const QJsonObject d = j.value("definicion").toObject();
     p.ancho = d.value("ancho").toInt();
     p.alto = d.value("alto").toInt();
@@ -98,8 +102,27 @@ QString Posiciones::validarNombre(const QString& nombre, const QString& excepto)
     return {};
 }
 
+Posicion* Posiciones::porNumero(int numero) {
+    if (numero <= 0) return nullptr;
+    for (Posicion& p : lista_)
+        if (p.numero == numero && !p.interna) return &p;
+    return nullptr;
+}
+
+int Posiciones::numeroLibre() const {
+    QSet<int> usados;
+    for (const Posicion& p : lista_)
+        usados.insert(p.numero);
+    int n = 1;
+    while (usados.contains(n)) ++n;
+    return n;
+}
+
 Posicion& Posiciones::agregar(Posicion p) {
     p.id = QString::number(siguiente_++);
+    // La interna (la foto del panel) no ocupa un número: no se la llama como preset.
+    if (p.interna) p.numero = 0;
+    else if (p.numero <= 0 || porNumero(p.numero) != nullptr) p.numero = numeroLibre();
     p.nombre = p.nombre.trimmed();
     p.creada = p.modificada = ahora();
     lista_.append(p);
@@ -140,6 +163,24 @@ void Posiciones::cargar(const QJsonArray& a) {
         siguiente_ = std::max(siguiente_, p.id.toInt() + 1);
         lista_.append(p);
     }
+    // Las de antes del número (o con uno repetido): el primero libre, en orden.
+    QSet<int> vistos;
+    for (Posicion& p : lista_) {
+        if (p.interna) {
+            p.numero = 0;
+            continue;
+        }
+        if (p.numero > 0 && !vistos.contains(p.numero)) {
+            vistos.insert(p.numero);
+            continue;
+        }
+        p.numero = 0;
+    }
+    for (Posicion& p : lista_)
+        if (p.numero == 0 && !p.interna) {
+            p.numero = numeroLibre();
+            vistos.insert(p.numero);
+        }
 }
 
 } // namespace ba::app::ptz

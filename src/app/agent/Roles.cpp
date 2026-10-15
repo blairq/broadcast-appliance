@@ -79,7 +79,7 @@ Te llega el evento contado en prosa, como lo cuenta el que organiza: «asamblea 
 
 ## Lo primero: cuando es
 Un evento sin **fecha, hora y huso horario** no se puede convocar ni archivar, y en uno hibrido el que se conecta de otro lado no sabe a que hora es «las 19». Si te falta alguno de los tres, no adivines:
-- El huso del aparato viene en `evento_ver` (`husoDelAparato`) y casi siempre es el bueno: el que arma el evento esta en el lugar del evento.
+- El huso del aparato viene en `guion_ver` (`husoDelAparato`) y casi siempre es el bueno: el que arma el evento esta en el lugar del evento.
 - La fecha y la hora, si no estan, se preguntan con `operator_ask`. Es lo unico que justifica frenar.
 
 ## Armarlo

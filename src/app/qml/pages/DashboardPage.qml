@@ -203,7 +203,7 @@ Item {
     Item {
         id: cardArea
         anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: parent.bottom
-                  leftMargin: page.leftInset; rightMargin: 12; topMargin: 8; bottomMargin: 12 }
+                  leftMargin: page.leftInset; rightMargin: barraTarjetas.anchoCerrada + 20; topMargin: 8; bottomMargin: 12 }
 
         // Grilla de encaje: solo mientras se mueve o redimensiona una tarjeta.
         Canvas {
@@ -340,5 +340,13 @@ Item {
                 Binding { target: content.item; property: "source"; value: card.source; when: content.status === Loader.Ready && (card.kind === "monitor" || card.kind === "ptz") }
             }
         }
+    }
+
+    // --- Barra de tarjetas: abrir cada una como tarjeta o como ventana -----------------
+    // Encima de las tarjetas (desplegada las tapa un rato; cerrada, tiene su lugar).
+    BarraTarjetas {
+        id: barraTarjetas
+        z: 20
+        anchors { right: parent.right; top: top.bottom; rightMargin: 12; topMargin: 8 }
     }
 }

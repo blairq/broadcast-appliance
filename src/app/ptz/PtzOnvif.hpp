@@ -51,6 +51,11 @@ class PtzOnvif : public PtzBackend {
     void borrarPosicion(int n, const QString& token) override;
     QVariantMap motor() const override { return motor_; }
     QVariantMap funciones() const override { return funciones_; }
+    QList<QPair<QString, QString>> presetsConNombre() const override {
+        QList<QPair<QString, QString>> out;
+        for (const auto& p : presets_) out.append({p.token, p.nombre});
+        return out;
+    }
     bool apuntar(double u, double v, double ancho, double alto) override;
 
     /// El device_service de un host ("192.168.1.20" o una URL completa).

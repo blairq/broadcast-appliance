@@ -215,18 +215,18 @@
       "id": "evento",
       "titulo": "Guion del evento",
       "herramientas": [
-        "evento_abrir",
+        "guion_abrir",
         "evento_armar",
-        "evento_bloque",
+        "guion_bloque",
         "evento_capitulos",
         "evento_correr",
-        "evento_cue",
+        "guion_cue",
         "evento_ensayo_rapido",
-        "evento_guardar",
+        "guion_guardar",
         "evento_informe",
-        "evento_listar",
+        "guion_listar",
         "evento_revisar",
-        "evento_ver"
+        "guion_ver"
       ]
     },
     {
@@ -5731,7 +5731,7 @@
       ]
     },
     {
-      "nombre": "evento_abrir",
+      "nombre": "guion_abrir",
       "titulo": "Abrir un evento",
       "categoria": "evento",
       "descripcion": "Abre un evento guardado, o crea uno nuevo si se pasa `nombre` en vez de `carpeta`.",
@@ -5879,7 +5879,7 @@
       ]
     },
     {
-      "nombre": "evento_bloque",
+      "nombre": "guion_bloque",
       "titulo": "Agregar o cambiar un bloque",
       "categoria": "evento",
       "descripcion": "Agrega un bloque al final del guion, lo renombra, lo mueve o lo saca.",
@@ -5996,7 +5996,7 @@
       ]
     },
     {
-      "nombre": "evento_cue",
+      "nombre": "guion_cue",
       "titulo": "Agregar o cambiar un cue",
       "categoria": "evento",
       "descripcion": "Agrega un cue a un bloque, le cambia los datos, lo mueve de lugar o lo saca.",
@@ -6099,7 +6099,7 @@
       ]
     },
     {
-      "nombre": "evento_guardar",
+      "nombre": "guion_guardar",
       "titulo": "Guardar el guion",
       "categoria": "evento",
       "descripcion": "Escribe el guion en la carpeta del evento, respaldando antes el que estaba.",
@@ -6167,7 +6167,7 @@
       ]
     },
     {
-      "nombre": "evento_listar",
+      "nombre": "guion_listar",
       "titulo": "Eventos que hay",
       "categoria": "evento",
       "descripcion": "Los eventos guardados, con su fecha, su duracion prevista y cuantos cues tiene cada uno.",
@@ -6215,7 +6215,7 @@
       ]
     },
     {
-      "nombre": "evento_ver",
+      "nombre": "guion_ver",
       "titulo": "El guion abierto",
       "categoria": "evento",
       "descripcion": "El guion completo del evento abierto: bloques con su hora prevista y sus cues, cada uno con tipo, duracion, si encadena solo y que le falta para poder ejecutarse.",

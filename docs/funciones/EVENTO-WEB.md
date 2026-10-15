@@ -133,7 +133,7 @@ Lo demás del estado (cada cosa es `null` o vacía si no hay; la página no mues
 
 ### La asamblea
 
-Con «Es una sesión de asamblea» prendido (Guion → Página web, o `evento_guardar {"asamblea": true}`):
+Con «Es una sesión de asamblea» prendido (Guion → Página web, o `guion_guardar {"asamblea": true}`):
 
 ```json
 "asamblea": {

@@ -140,6 +140,9 @@ class Entrada {
     /// pico (lo más alto de 300 ms) y RMS (300 ms); -100 si hace más de 1 s que no llega.
     void nivelAudio(float pico[2], float rms[2]) const;
     std::string productorVideo() const { return id_ + ":video"; }
+    /// La toma ENTERA, antes del recorte del PTZ digital (para verla al lado de lo
+    /// recortado y manejar el recorte encima). Sin filtro PTZ, la misma de siempre.
+    std::string productorEntera() const { return hayEntera_ ? id_ + ":entera:video" : productorVideo(); }
     /// ¿Está mostrando la placa «sin señal»?
     bool enPlaca() const;
     std::string productorAudio() const { return id_ + ":audio"; }
@@ -180,6 +183,7 @@ class Entrada {
     bool enPlacaSinLock() const;
     void desarmarSalida();
     /// El productor que escribe la cadena (la que se rearma): el crudo si hay placa.
+    bool hayEntera_ = false; ///< la cadena tiene la derivación antes del PTZ (productorEntera)
     std::string productorCrudoVideo() const { return conPlaca_ ? id_ + ":crudo:video" : id_ + ":video"; }
     static GstPadProbeReturn alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer d);
 

@@ -31,6 +31,9 @@ namespace ba::app::mcp {
 
 namespace {
 const char* const kRemoto1 = "Remoto con la palabra";
+// La fuente «Banca con la palabra» (BroadcastEngine::kTipoBanca), ranuras 1 y 2.
+const char* const kBanca1 = "Banca con la palabra";
+const char* const kBanca2 = "Banca con la palabra 2";
 const char* const kRemoto2 = "Remoto con la palabra 2";
 
 bool tiene(const std::vector<std::string>& v, const std::string& x) { return std::find(v.begin(), v.end(), x) != v.end(); }
@@ -112,9 +115,9 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
         if (cc != nullptr && !posiciones[c].count(pos)) posicionRara.push_back(banca + " (" + c + "/" + pos + ")");
     }
     if (!sinPreset.empty())
-        falta("camaras", std::to_string(sinPreset.size()) + " banca(s) sin preset de cámara: al darles la palabra no se muestra a nadie.",
-              "Apuntá la PTZ a cada banca, guardá la posición (ptz_posicion_crear) y anotala en el Cuerpo "
-              "(integrante_editar {id, camara, posicion}).");
+        falta("camaras", std::to_string(sinPreset.size()) + " banca(s) sin toma de cámara: al darles la palabra no se muestra a nadie.",
+              "Apuntá la PTZ a cada banca, guardá la posición (ptz_posicion_crear) y asociala a la banca "
+              "(banca_toma {banca, camara, posicion}).");
     if (!camaraRara.empty())
         falta("camaras", "Bancas con una cámara que no existe: " + camaraRara.front() + (camaraRara.size() > 1 ? " y otras" : "") + ".",
               "Corregí la cámara en el Cuerpo o agregá esa entrada.");
@@ -132,19 +135,28 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
                 aviso("camaras", std::to_string(bancas.size()) + " bancas usan la misma posición («" + cp +
                                      "»): al darle la palabra a una no se la encuadra a ella, se ve el plano entero.",
                       "Una posición por banca (o por grupo chico de bancas vecinas): apuntá la PTZ, ptz_posicion_crear "
-                      "{entrada, nombre: \"Banca N\"} e integrante_editar {id, camara, posicion}.");
+                      "{entrada, nombre: \"Banca N\"} y banca_toma {banca, camara, posicion}.");
     }
     if (!posicionRara.empty())
         aviso("camaras", "Bancas con una posición PTZ que la cámara no tiene: " + posicionRara.front() + (posicionRara.size() > 1 ? " y otras" : "") + ".",
               "ptz_posicion_crear en esa cámara con ese nombre.");
 
-    // 4. LAS ESCENAS: cada cámara de bancas en alguna escena, el remoto, el debate.
+    // 4. LAS ESCENAS: la del orador (la fuente «Banca con la palabra»; si no, cada cámara de
+    // bancas en alguna escena), el remoto, el debate.
     const auto camaras = camarasDeBancas(cuerpo);
-    for (const auto& [c, n] : camaras)
-        if (eng.sourceExists(c) && escenasCon(eng, c).empty())
-            falta("escenas", "Ninguna escena muestra la cámara «" + c + "» (la de " + std::to_string(n) +
-                                 " banca(s)): al darles la palabra no hay qué armar.",
-                  "asamblea_escenas_base (las propone y las crea con crear: true) o scene_define con esa cámara.");
+    if (!eng.escenaDeRanura(1).empty()) {
+        // Dar la palabra arma la escena con la ranura 1: no hace falta una por cámara.
+    } else if (!camaras.empty()) {
+        aviso("escenas", "No hay una escena con la fuente «Banca con la palabra»: dar la palabra arma la primera escena "
+                         "que tenga esa cámara (puede ser cualquiera) y, con una cámara digital, mueve el recorte de "
+                         "todas sus escenas (también el plano general).",
+              "asamblea_escenas_base {crear: true}: crea «Asamblea · Orador» y las del debate con esa fuente.");
+        for (const auto& [c, n] : camaras)
+            if (eng.sourceExists(c) && escenasCon(eng, c).empty())
+                falta("escenas", "Ninguna escena muestra la cámara «" + c + "» (la de " + std::to_string(n) +
+                                     " banca(s)): al darles la palabra no hay qué armar.",
+                      "asamblea_escenas_base (las propone y las crea con crear: true).");
+    }
     auto* sr = vm.sesionRemota();
     bool hayRemotos = false;
     if (sr != nullptr)
@@ -244,10 +256,10 @@ void McpService::registerAsambleaTools() {
         t.category = "asamblea";
         t.description =
             "Propone las escenas que necesita una asamblea, armadas con las cámaras y entradas que hay: «Asamblea · "
-            "Plano general» (la cámara `general`), una por cada cámara de bancas que no esté en ninguna escena "
-            "(«Asamblea · <cámara>»: al darle la palabra a una banca se arma la de su cámara), «Asamblea · Remoto» "
-            "(el remoto con la palabra) y las del debate: dos remotos lado a lado, sala y remoto lado a lado, y dos de "
-            "la sala con el plano general. Sin `crear` solo dice lo que haría; con `crear: true` crea las que falten "
+            "Plano general» (la cámara `general`), «Asamblea · Orador» (la fuente «Banca con la palabra»: la toma de la "
+            "banca de quien habla; dar la palabra arma esta), «Asamblea · Remoto» (el remoto con la palabra) y las del "
+            "debate: dos remotos lado a lado, sala y remoto lado a lado, y dos de la sala lado a lado (ranuras 1 y 2 de "
+            "la fuente de banca). Sin `crear` solo dice lo que haría; con `crear: true` crea las que falten "
             "(nunca pisa una que existe) y deja las del debate en debate_config. Mostrale al operador la propuesta antes "
             "de crear.";
         t.inputSchema = {{"type", "object"},
@@ -279,16 +291,18 @@ void McpService::registerAsambleaTools() {
             const auto izq = [](const std::string& f) { return json{{"nombre", f}, {"x", 0}, {"y", 0.25}, {"w", 0.5}, {"h", 0.5}}; };
             const auto der = [](const std::string& f) { return json{{"nombre", f}, {"x", 0.5}, {"y", 0.25}, {"w", 0.5}, {"h", 0.5}}; };
             if (!general.empty()) agregar("Asamblea · Plano general", json::array({entera(general)}), "el recinto entero");
-            for (const auto& [c, n] : camaras)
-                if (eng.sourceExists(c) && escenasCon(eng, c).empty() && c != general)
-                    agregar("Asamblea · " + c, json::array({entera(c)}), "las " + std::to_string(n) + " banca(s) de esa cámara");
+            // El orador: la fuente «Banca con la palabra» (la cámara y la toma de la banca de
+            // quien habla, sola). Con cámaras digitales recorta la toma entera: una sola
+            // cámara da el plano general y las bancas a la vez.
+            const bool hayTomas = !camaras.empty();
+            if (hayTomas) agregar("Asamblea · Orador", json::array({entera(kBanca1)}), "la banca de quien tiene la palabra");
             const bool r1 = eng.sourceExists(kRemoto1), r2 = eng.sourceExists(kRemoto2);
             if (r1) agregar("Asamblea · Remoto", json::array({entera(kRemoto1)}), "el remoto con la palabra");
             if (r1 && r2) agregar("Asamblea · Debate remotos", json::array({izq(kRemoto1), der(kRemoto2)}), "debate entre dos remotos");
-            if (r1 && !general.empty())
-                agregar("Asamblea · Debate sala y remoto", json::array({izq(general), der(kRemoto1)}), "debate entre uno de la sala y un remoto");
-            if (!general.empty())
-                agregar("Asamblea · Debate sala", json::array({entera(general)}), "debate entre dos de la sala (el plano general)");
+            if (r1 && hayTomas)
+                agregar("Asamblea · Debate sala y remoto", json::array({izq(kBanca1), der(kRemoto1)}), "debate entre uno de la sala y un remoto");
+            if (hayTomas)
+                agregar("Asamblea · Debate sala", json::array({izq(kBanca1), der(kBanca2)}), "debate entre dos de la sala, cada uno en su banca");
             if (plan.empty())
                 return done(ToolResult::error("no hay cámaras de bancas en el Cuerpo ni entradas de remotos: cargá el preset "
                                               "de cada banca primero (asamblea_revisar)"));
@@ -310,6 +324,11 @@ void McpService::registerAsambleaTools() {
                     spec.name = f["nombre"];
                     spec.id = eng.sourceTypeId(spec.name); // ya existe: se agrega la misma (compartida)
                     spec.settingsJson = "{}";
+                    // La fuente de banca, la primera vez: ranura 1 (quien habla) o 2 (el otro del debate).
+                    if (!eng.sourceExists(spec.name) && (spec.name == kBanca1 || spec.name == kBanca2)) {
+                        spec.id = BroadcastEngine::kTipoBanca;
+                        spec.settingsJson = json{{"ranura", spec.name == kBanca1 ? 1 : 2}}.dump();
+                    }
                     spec.visible = true;
                     spec.rect = CanvasRect{f.value("x", 0.0f), f.value("y", 0.0f), f.value("w", 1.0f), f.value("h", 1.0f)};
                     if (!rt.addSource(sc, spec)) errores.push_back(sc + " / " + spec.name + ": " + rt.lastError());

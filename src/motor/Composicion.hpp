@@ -79,6 +79,11 @@ struct Capa {
     bool contener = false;
     std::string productor;         ///< si no está vacío, lee este productor (p. ej. «video:programa» en el multiview)
     SombraCapa sombra;
+    /// Cómo se la reconoce en la escena (su rama y sus elementos): la entrada; si la
+    /// misma entrada está más de una vez (dos bancas de una cámara recortada distinto),
+    /// «entrada#2», «entrada#3»... (Escena::desdeJson). Vacía = la entrada.
+    std::string clave;
+    const std::string& claveCapa() const { return clave.empty() ? entrada : clave; }
 };
 
 struct Escena {
@@ -90,6 +95,10 @@ struct Escena {
     int lienzoAncho = 0, lienzoAlto = 0;
     nlohmann::json filtros = nlohmann::json::array();
     static Escena desdeJson(const nlohmann::json& j);
+    /// Una clave distinta para cada capa (Capa::clave): la misma entrada dos veces, o una
+    /// entrada que se llama justo como la clave de otra («cam#2»). desdeJson ya la llama;
+    /// quien arma una Escena a mano, también.
+    void asignarClaves();
     nlohmann::json aJson() const;
 };
 
@@ -149,6 +158,7 @@ class Composicion {
    private:
     struct Rama {
         std::string entrada, productor;
+        std::string clave; ///< la de su capa (Capa::claveCapa): una entrada puede estar dos veces
         GstElement* src = nullptr;
         GstElement* recorte = nullptr; ///< videocrop (CPU), gltransformation (GL) o d3d12convert (D3D12: aplica la meta de recorte)
         GstElement* subir = nullptr;   ///< glupload / d3d12upload (gpu)
@@ -163,6 +173,9 @@ class Composicion {
         GstPad* pad = nullptr;
         int generacion = 0;
         std::atomic<bool> listo{false}; ///< ya pasó su primer cuadro (lo pone el hilo de datos)
+        /// GL: llegó el tamaño de la fuente (al negociar, o porque cambió): tic() vuelve a
+        /// calcular el recorte, que va en fracciones de ese tamaño. Lo pone el hilo de datos.
+        std::atomic<bool> tamanoNuevo{false};
         double alfaHacia = 1.0;
         int orden = 0;
         GstElement* mx = nullptr;   ///< el compositor donde está (el de la escena o el del DSK)
@@ -179,9 +192,13 @@ class Composicion {
     /// GPU: el recorte (y lo que saca la cortina por la derecha) con gltransformation (GL)
     /// o con la meta de recorte que aplica d3d12convert (D3D12), y la caja en el lienzo
     /// (con «contener» y recorte, la calcula a mano).
-    void recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int alto);
+    /// false si hay recorte pero todavía no se sabe el tamaño de la fuente (la rama no
+    /// negoció): cuando llegue, tic() lo pone (Rama::tamanoNuevo).
+    bool recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int alto);
     /// D3D12: marca en cada cuadro la ventana de la rama (y anota el tamaño de la fuente).
     static GstPadProbeReturn marcarRecorte(GstPad* pad, GstPadProbeInfo* info, gpointer d);
+    /// GL: avisa (Rama::tamanoNuevo) cada vez que la fuente negocia un tamaño.
+    static GstPadProbeReturn avisarTamano(GstPad* pad, GstPadProbeInfo* info, gpointer d);
     Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
     /// Antes de una escena nueva: las capas de la actual bajan a su orden (las nuevas van en 5000 + orden).
     void bajarViejas();
@@ -205,7 +222,8 @@ class Composicion {
     GstElement* dskMx_ = nullptr;          ///< el compositor del DSK (nullptr sin DSK)
     std::map<std::string, Rama*> dsk_;     ///< las capas del DSK por nombre
     mutable std::mutex mu_;
-    std::map<std::string, Rama*> ramas_; ///< clave: <generación>/<entrada>
+    unsigned serieRamas_ = 0; ///< sufijo de los nombres de elementos (únicos aunque dos claves se limpien igual)
+    std::map<std::string, Rama*> ramas_; ///< clave: <generación>/<clave de la capa>
     int generacion_ = 0;
     Escena escena_;
     // La transición en curso

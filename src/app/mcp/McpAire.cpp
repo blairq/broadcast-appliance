@@ -32,6 +32,7 @@ const std::map<std::string, std::string>& fijas() {
         {"ptz_mover", "mueve una cámara (si está al aire, se ve)"},
         {"ptz_preset", "lleva una cámara a un preset (si está al aire, se ve)"},
         {"ptz_ir_posicion", "lleva una cámara a una posición (si está al aire, se ve)"},
+        {"enfocar", "lleva una cámara a una banca, persona o posición (si está al aire, se ve)"},
         {"ptz_apuntar", "apunta una cámara (si está al aire, se ve)"},
         {"ptz_encuadre", "reencuadra una cámara (si está al aire, se ve)"},
         {"ptz_seguir", "una cámara sigue a alguien (si está al aire, se ve)"},
@@ -79,7 +80,8 @@ bool condicionFija(const std::string& h, const json& a) {
 
 bool esAireSi(const std::string& h) {
     return h == "settings_set" || h == "audio_set" || h == "speaker_on_air" || h == "aire_ftb" ||
-           h == "aire_placa" || h == "chat_overlay_add" || h == "banca_al_aire" || h.rfind("ptz_", 0) == 0;
+           h == "aire_placa" || h == "chat_overlay_add" || h == "banca_al_aire" || h == "enfocar" ||
+           h.rfind("ptz_", 0) == 0;
 }
 
 } // namespace
@@ -112,7 +114,8 @@ bool McpAire::esDeAire(const std::string& h, const json& args) const {
         case ClaseAire::Aire: return true;
         case ClaseAire::AireSi:
             // PTZ: el interlock ya frena la cámara al aire; si se pide `forzar`, es de aire.
-            if (h.rfind("ptz_", 0) == 0) return args.value("forzar", false) && (condicion_ ? condicion_(h, args) : true);
+            if (h.rfind("ptz_", 0) == 0 || h == "enfocar")
+                return args.value("forzar", false) && (condicion_ ? condicion_(h, args) : true);
             return condicionFija(h, args);
     }
     return false;

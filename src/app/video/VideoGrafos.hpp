@@ -345,7 +345,15 @@ class VideoGrafos : public QObject {
     /// Suma a `escena` una fuente que ya existe (la misma, no otra copia). "" o el error.
     std::string sumarAEscena(const std::string& nombre, const std::string& escena);
     /// Crea la escena si no existe. true si existe (o se creó).
-    bool asegurarEscena(const std::string& escena);
+    bool asegurarEscena(const std::string& escena, bool* creada = nullptr);
+    /// Una escena que creó un pedido (asegurarEscena) y quedó vacía porque el pedido falló
+    /// después: se va al salir de la función (sin dejar escenas vacías sueltas).
+    struct EscenaNueva {
+        VideoGrafos& grafos;
+        std::string nombre;
+        bool creada = false;
+        ~EscenaNueva();
+    };
     /// Muestra u oculta una fuente en una escena.
     bool mostrarEnEscena(const std::string& nombre, const std::string& escena, bool visible);
     /// Un mosaico (o imagen en imagen, o lado a lado) de `entradas` en `escena`,
@@ -447,6 +455,8 @@ class VideoGrafos : public QObject {
     /// parte del estudio, activas.
     void actualizarEstudio();
     /// A las salidas sin nombre les pone uno (único entre las fuentes).
+    /// "" o el error: dos salidas (o compositores) con el mismo nombre, o dos tomas iguales en una entrada.
+    static std::string nombresRepetidos(const GrafoVideo& g);
     void nombrarSalidas(GrafoVideo& g) const;
     nlohmann::json conPublicadas(nlohmann::json d) const;
     /// Los errores de las tarjetas de `entrada` (de su filtro): {id: motivo}.

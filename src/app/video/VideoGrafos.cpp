@@ -543,7 +543,9 @@ nlohmann::json VideoGrafos::demorasDe(const std::string& entrada) const {
 
 std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f) {
     GrafoVideo antes = grafo_;
-    const std::string error = f(grafo_);
+    std::string error = f(grafo_);
+    // Uno que ya venía repetido (guardado así de antes) no traba los demás cambios.
+    if (error.empty() && nombresRepetidos(antes).empty()) error = nombresRepetidos(grafo_);
     if (!error.empty()) {
         grafo_ = antes;
         return error;
@@ -555,6 +557,22 @@ std::string VideoGrafos::editar(const std::function<std::string(GrafoVideo&)>& f
             aplicar(e.toStdString());
         actualizarEstudio();
         emit cambio();
+    }
+    return {};
+}
+
+std::string VideoGrafos::nombresRepetidos(const GrafoVideo& g) {
+    // Las salidas (y compositores) son fuentes por su nombre, de todo el estudio: dos con
+    // el mismo y una le robaba el video a la otra. Las tomas, por entrada.
+    std::set<std::string> salidas;
+    std::set<std::pair<std::string, std::string>> tomas;
+    for (const auto& n : g.nodos()) {
+        const std::string nombre = n.params.value("nombre", std::string());
+        if (nombre.empty()) continue; // nombrarSalidas le pone uno libre
+        if ((n.tipo == "salida" || n.tipo == "compositor" || n.tipo == "panoramica") && !salidas.insert(nombre).second)
+            return "ya hay una salida que se llama «" + nombre + "»: cada una con su nombre";
+        if (n.tipo == "toma" && !tomas.insert({n.grupo, nombre}).second)
+            return "esa entrada ya tiene una toma «" + nombre + "»";
     }
     return {};
 }
@@ -1680,7 +1698,8 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     if (!rt_.engine().sourceTypeId(nombre).empty())
         return "ya hay una fuente que se llama «" + nombre + "» (y no es de red)";
     if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
-    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+    EscenaNueva escenaNueva{*this, escena};
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
     json ajustes = relojParaFuente();
     ajustes["uri"] = uri;
     ajustes["audio"] = audio != 0;
@@ -1755,7 +1774,8 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
     if (!rt_.engine().sourceTypeId(nombre).empty())
         return "ya hay una fuente que se llama «" + nombre + "» (y no es de GStreamer)";
     if (escena.empty()) return "falta `escena`: dónde ponerla (para no tocar la que está al aire sin querer)";
-    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+    EscenaNueva escenaNueva{*this, escena};
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
     json todo = relojParaFuente();
     todo.update(ajustes);
     if (!todo.contains("normalizar")) todo["normalizar"] = false;
@@ -2144,12 +2164,24 @@ std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& fi
         return "«" + entrada + "» no es una entrada de GStreamer (red, pipeline o plugin)";
     if (!filtros.is_array()) return "`filtros` tiene que ser una lista de {elemento, propiedades}";
     json limpios = json::array();
+    // Los id, únicos (se editan y se nombran por él): uno repetido es un error; los que
+    // faltan, «a0», «a1»… sin repetir uno que vino puesto.
+    std::set<std::string> ids;
+    for (const auto& f : filtros)
+        if (f.is_object() && f.contains("id") && f["id"].is_string())
+            if (!ids.insert(f["id"].get<std::string>()).second) return "dos filtros con el id «" + f["id"].get<std::string>() + "»";
     int i = 0;
     for (const auto& f : filtros) {
         const std::string el = f.is_object() ? f.value("elemento", std::string()) : std::string();
         if (el.empty()) return "a un filtro le falta `elemento`";
         if (!hayElemento(el.c_str())) return "GStreamer no tiene el elemento «" + el + "»";
-        json x = {{"id", f.value("id", "a" + std::to_string(i++))}, {"elemento", el}};
+        std::string id = f.contains("id") && f["id"].is_string() ? f["id"].get<std::string>() : std::string();
+        if (id.empty()) {
+            do id = "a" + std::to_string(i++);
+            while (ids.count(id) > 0);
+            ids.insert(id);
+        }
+        json x = {{"id", id}, {"elemento", el}};
         json pr = json::object();
         for (const auto obj_ = f.value("propiedades", json::object()); const auto& [k, v] : obj_.items())
             pr[k] = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -2543,7 +2575,8 @@ json VideoGrafos::entradasDeHost(const std::string& host) const {
 
 std::string VideoGrafos::sumarAEscena(const std::string& nombre, const std::string& escena) {
     if (rt_.engine().sourceTypeId(nombre).empty()) return "no existe «" + nombre + "»";
-    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+    EscenaNueva escenaNueva{*this, escena};
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
     SourceSpec spec;
     spec.id = rt_.engine().sourceTypeId(nombre);
     spec.name = nombre;
@@ -2552,13 +2585,20 @@ std::string VideoGrafos::sumarAEscena(const std::string& nombre, const std::stri
     return {};
 }
 
-bool VideoGrafos::asegurarEscena(const std::string& escena) {
+bool VideoGrafos::asegurarEscena(const std::string& escena, bool* creada) {
+    if (creada != nullptr) *creada = false;
     if (escena.empty()) return false;
     for (const auto& n : rt_.engine().sceneNames())
         if (n == escena) return true;
     const bool ok = rt_.addScene(escena);
     if (ok) rt_.save();
+    if (creada != nullptr) *creada = ok;
     return ok;
+}
+
+VideoGrafos::EscenaNueva::~EscenaNueva() {
+    // La creó este pedido y no le quedó nada adentro: el pedido falló después.
+    if (creada && grafos.rt_.engine().sceneSources(nombre).empty() && grafos.rt_.removeScene(nombre)) grafos.rt_.save();
 }
 
 bool VideoGrafos::mostrarEnEscena(const std::string& nombre, const std::string& escena, bool visible) {
@@ -2663,7 +2703,8 @@ std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras
     if (!err.empty()) return err;
     json ocultas = json::array();
     if (!escena.empty()) {
-        if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+        EscenaNueva escenaNueva{*this, escena};
+        if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
         const std::string pe = ponerEnEscena(id, escena);
         if (!pe.empty() && pe.find("ya hay") == std::string::npos) return pe;
         for (const auto& e : camaras)
@@ -2735,7 +2776,8 @@ std::string VideoGrafos::disponerEn(GrafoVideo& g, const std::string& comp, cons
     // Las capas se mezclan clave por clave: primero se borran todas las que
     // había (si no, quedaría el `orden` de un pip o la opacidad de antes).
     json borrar = json::object();
-    for (const auto& [puerto, k] : n->params.value("capas", json::object()).items()) borrar[puerto] = nullptr;
+    const json capasAntes = n->params.value("capas", json::object()); // con nombre: .items() de un temporal lo usa destruido
+    for (const auto& [puerto, k] : capasAntes.items()) borrar[puerto] = nullptr;
     if (!borrar.empty() && !g.ajustar(comp, json{{"capas", borrar}}, &e)) return e;
     if (!capas.empty() && !g.ajustar(comp, json{{"capas", capas}}, &e)) return e;
     return {};
@@ -2757,7 +2799,8 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
                                       const std::string& disposicion, const std::string& nombre,
                                       bool ocultarSueltas, json* hecho) {
     if (escena.empty()) return "falta `escena`";
-    if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+    EscenaNueva escenaNueva{*this, escena};
+    if (!asegurarEscena(escena, &escenaNueva.creada)) return "no se pudo crear la escena «" + escena + "»";
     if (entradas.size() < 2) return "hacen falta al menos dos entradas";
     for (const auto& e : entradas)
         if (!esEntrada(e)) return "«" + e + "» no es una entrada de video";

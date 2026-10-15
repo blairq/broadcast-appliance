@@ -183,8 +183,8 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
   (`Config/historico.json`), iniciar/terminar/mover/crear carpeta/ficha; revisa
   cada minuto; correr el guion de verdad (no en ensayo) lo pone en curso.
 - MCP: `evento_en_curso`, `evento_iniciar`, `evento_terminar` (también prende o
-  apaga el automático), `evento_carpeta`, `evento_ficha`; `evento_listar` con
-  grupo, estado y carpetas; `evento_abrir` con `en_carpeta`.
+  apaga el automático), `guion_carpeta`, `evento_ficha`; `guion_listar` con
+  grupo, estado y carpetas; `guion_abrir` con `en_carpeta`.
 - Página Evento: franja «En curso» (Poner en curso este, Terminar, Carpeta…,
   Jornada automática), el selector con la carpeta de cada evento, «Evento nuevo»
   con carpeta. La página Histórico completa es H6.

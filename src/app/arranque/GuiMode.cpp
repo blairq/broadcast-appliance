@@ -403,11 +403,14 @@ int runGui(int argc, char** argv) {
                                            ctx);
             };
             g.deAireAhora = [&mcpService](const std::string& h, const nlohmann::json& args) {
-                return mcpService.core().hayAire() && mcpService.core().aire().esDeAire(h, args);
+                return mcpService.core().hayAire() && mcpService.core().aire().esDeAire(mcpService.core().nombreActual(h), args);
             };
             g.herramientas = [&mcpService]() {
                 std::set<std::string> out;
-                for (const auto& t : mcpService.core().tools()) out.insert(t.name);
+                for (const auto& t : mcpService.core().tools()) {
+                    out.insert(t.name);
+                    out.insert(t.antes.begin(), t.antes.end()); // celdas guardadas con un nombre viejo
+                }
                 return out;
             };
             g.catalogo = [&mcpService]() { return mcpService.core().catalogo(); };

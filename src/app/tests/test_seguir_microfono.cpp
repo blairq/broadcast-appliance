@@ -97,6 +97,43 @@ int main(int argc, char** argv) {
     esperar(300);
     CHECK(seg.estado()["propuesta"].is_null(), "conferencia: al cerrar se va la propuesta");
     CHECK(!seg.configurar({{"fuente", "otra"}}).empty(), "fuente inválida");
+
+    // ENFOCAR: banca, persona o posición, con la toma de la banca.
+    {
+        asamblea::Cuerpo cu(d / "cuerpo2.json");
+        cu.guardar({{"nombre", "Pepito López"}, {"banca", "10"}}, &err);
+        cu.guardar({{"nombre", "Ana López Ruiz"}, {"banca", "11"}}, &err);
+        cu.guardar({{"nombre", "Julián Ferreyra"}, {"banca", "12"}}, &err);
+        cu.setToma("10", "Sala", "Banca 10");
+        cu.setToma("12", "Sala", "Banca 12");
+        cu.setToma("20", "Sala", "Banca 20"); // vacía
+        std::vector<std::pair<std::string, std::string>> movidas;
+        asamblea::Bancas::Ganchos gg;
+        gg.irAPosicion = [&](const std::string& c, const std::string& p) { movidas.emplace_back(c, p); return std::string(); };
+        gg.camaraAlAire = [](const std::string&) { return false; };
+        gg.posicionesConNombre = [](const std::string& n) {
+            std::vector<std::pair<std::string, std::string>> v;
+            if (n == "presidencia") v.emplace_back("Sala", "Presidencia");
+            return v;
+        };
+        asamblea::Bancas b(cu, gg);
+        CHECK(b.resolver("banca 10").value("posicion", std::string()) == "Banca 10", "enfocar: «banca 10»");
+        CHECK(b.resolver("a la banca 20").value("tipo", std::string()) == "banca", "enfocar: una banca vacía con toma");
+        CHECK(b.resolver("Pepito López").value("banca", std::string()) == "10", "enfocar: por el nombre");
+        CHECK(b.resolver("julian").value("banca", std::string()) == "12", "enfocar: una palabra del nombre, sin tildes");
+        CHECK(b.resolver("lopez").contains("candidatos"), "enfocar: «López» es de dos: pregunta cuál");
+        CHECK(b.resolver("Ana López").value("error", std::string()).find("banca 11") != std::string::npos,
+              "enfocar: la banca 11 sin toma lo dice");
+        CHECK(b.resolver("Presidencia").value("tipo", std::string()) == "posicion", "enfocar: el nombre de una posición");
+        CHECK(b.enfocar("consejero Ferreyra").isEmpty() && !movidas.empty() && movidas.back().second == "Banca 12",
+              "enfocar: mueve a la toma de la banca");
+        // Con la fuente de banca recortando (digital), dar la palabra no mueve la cámara.
+        gg.laEncuadraLaFuente = [](const std::string&, const std::string&) { return true; };
+        asamblea::Bancas b2(cu, gg);
+        movidas.clear();
+        CHECK(b2.alAire("10").isEmpty() && movidas.empty(), "con la fuente de banca, dar la palabra no mueve la cámara");
+        CHECK(b2.prepararToma("12").isEmpty() && movidas.empty(), "ni prepararla para el debate");
+    }
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;
 }

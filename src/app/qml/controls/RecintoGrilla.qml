@@ -344,8 +344,9 @@ ColumnLayout {
                 Item { Layout.fillHeight: true; visible: !celda.ancha }
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 10
                        visible: celda.ancha || (celda.height > 70 && !celda.chica)
-                       text: celda.i && celda.i.preset_ptz && celda.i.preset_ptz.camara ? "🎥 " + celda.i.preset_ptz.posicion : "sin preset"
-                       color: celda.i && celda.i.preset_ptz && celda.i.preset_ptz.camara ? Theme.textDim : Theme.amber }
+                       // La toma es de la banca (también de una vacía).
+                       text: celda.l && celda.l.toma ? "🎥 " + celda.l.toma.posicion : "sin toma"
+                       color: celda.l && celda.l.toma ? Theme.textDim : Theme.amber }
             }
         }
         MouseArea {
@@ -512,8 +513,10 @@ ColumnLayout {
                    onTriggered: { rec.aviso = ""; Studio.cuerpo.capturarFoto(menu.i.id) } }
         MenuItem { text: "Subir su foto…"; enabled: menu.i !== null
                    onTriggered: { subirFoto.deId = menu.i.id; subirFoto.open() } }
-        MenuItem { text: "Apuntar la cámara"; enabled: menu.i !== null
-                   onTriggered: rec.aviso = Studio.bancas.apuntar(menu.l.banca) }
+        MenuItem { text: "Toma de la banca (cámara y posición)…"
+                   onTriggered: tomaBanca.abrir(menu.l) }
+        MenuItem { text: "Apuntar la cámara"; enabled: !!(menu.l && menu.l.toma)
+                   onTriggered: rec.aviso = Studio.bancas.enfocar("banca " + menu.l.banca, false) }
         MenuItem { text: "Al aire (arma su cámara)"; enabled: menu.i !== null
                    onTriggered: { const e = Studio.bancas.alAire(menu.l.banca, "armar"); rec.aviso = e !== "" ? e : Studio.bancas.ultimoAviso() } }
         MenuItem { text: "Sumar a la fila"; enabled: menu.i !== null
@@ -523,5 +526,41 @@ ColumnLayout {
         MenuItem { text: "Terminar (cierra su micrófono)"
                    enabled: menu.i !== null && rec.b.al_aire && rec.b.al_aire.id === menu.i.id
                    onTriggered: Studio.bancas.terminar() }
+    }
+
+    // La toma de una banca: la cámara y la posición que la enfocan (es de la banca,
+    // aunque esté vacía o cambie quién se sienta).
+    Popup {
+        id: tomaBanca
+        property var l: null
+        function abrir(l) { tomaBanca.l = l; open() }
+        anchors.centerIn: Overlay.overlay
+        modal: true
+        padding: 16
+        background: Rectangle { radius: 12; color: Theme.panel; border.color: Qt.rgba(1, 1, 1, 0.12) }
+        ColumnLayout {
+            spacing: 10
+            Text {
+                text: "Toma de la banca " + (tomaBanca.l ? tomaBanca.l.banca : "")
+                      + (tomaBanca.l && tomaBanca.l.integrante ? " — " + tomaBanca.l.integrante.nombre : "")
+                color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
+            }
+            Text {
+                Layout.maximumWidth: 360
+                wrapMode: Text.WordWrap
+                text: "La cámara y la posición que la enfocan. Las usan dar la palabra, el debate, «enfocar banca N» y la fuente «Banca con la palabra». Las posiciones se guardan en Cámaras PTZ."
+                color: Theme.textDim; font.pixelSize: 11
+            }
+            SelectorToma {
+                camara: tomaBanca.l && tomaBanca.l.toma ? tomaBanca.l.toma.camara : ""
+                posicion: tomaBanca.l && tomaBanca.l.toma ? tomaBanca.l.toma.posicion : ""
+                anchoCamara: 170; anchoPosicion: 160
+                onElegido: (c, p) => {
+                    const e = Studio.cuerpo.setToma(tomaBanca.l.banca, c, p)
+                    if (e !== "") rec.aviso = e
+                }
+            }
+            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: "Listo"; onClicked: tomaBanca.close() }
+        }
     }
 }

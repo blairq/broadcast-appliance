@@ -632,7 +632,7 @@ endif()
 
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
-        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp)
+        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
         target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_link_libraries(test_escucha PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)

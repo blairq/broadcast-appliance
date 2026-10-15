@@ -211,13 +211,13 @@ void McpService::registerProcedimientoTools() {
         t.examples = {R"({})", R"({"musica_espera": "espera.mp3", "musica_cierre": "cierre.mp3", "al_aire": true})"};
         t.run = [&core](const json& a, Done done) {
             leerVarias(core,
-                       {{"ev", {"evento_ver", json::object()}},
+                       {{"ev", {"guion_ver", json::object()}},
                         {"esc", {"scene_list", json::object()}},
                         {"web", {"evento_web", json{{"accion", "ver"}}}}},
                        [&core, a, done](std::shared_ptr<std::map<std::string, Resp>> r) {
                            const json ev = (*r)["ev"].datos;
                            if (!(*r)["ev"].ok || ev.value("abierto", std::string()).empty())
-                               return done(ToolResult::error("No hay un evento abierto (evento_abrir o evento_armar)."));
+                               return done(ToolResult::error("No hay un evento abierto (guion_abrir o evento_armar)."));
                            const json g = ev.value("guion", json::object());
                            const std::string husoAparato = ev.value("husoDelAparato", std::string());
                            const std::string nombre = g.value("nombre", std::string("El evento"));
@@ -316,12 +316,12 @@ void McpService::registerProcedimientoTools() {
                                    dibujar(kFteAntes, "antes-de-empezar", vAntes);
                                    dibujar(kFteFin, "fin-transmision", vFin);
                                    if (conGuion && !hayPrevia) {
-                                       // al final y después al principio (evento_bloque agrega al final)
-                                       p2.push_back({"agregar el bloque «Previa»", "evento_bloque", {{"nombre", "Previa"}}});
-                                       p2.push_back({"llevar «Previa» al principio", "evento_bloque", {{"indice", nBloques}, {"mover", 0}}});
+                                       // al final y después al principio (guion_bloque agrega al final)
+                                       p2.push_back({"agregar el bloque «Previa»", "guion_bloque", {{"nombre", "Previa"}}});
+                                       p2.push_back({"llevar «Previa» al principio", "guion_bloque", {{"indice", nBloques}, {"mover", 0}}});
                                        const auto cue = [&](json c) {
                                            c["bloque"] = 0;
-                                           p2.push_back({"cue de la previa", "evento_cue", c});
+                                           p2.push_back({"cue de la previa", "guion_cue", c});
                                        };
                                        cue({{"tipo", "escena"},
                                             {"datos", {{"escena", kEscAjuste}}},
@@ -340,10 +340,10 @@ void McpService::registerProcedimientoTools() {
                                    }
                                    if (conGuion && !hayCierre) {
                                        const int idx = nBloques + ((conGuion && !hayPrevia) ? 1 : 0);
-                                       p2.push_back({"agregar el bloque «Cierre»", "evento_bloque", {{"nombre", "Cierre"}}});
+                                       p2.push_back({"agregar el bloque «Cierre»", "guion_bloque", {{"nombre", "Cierre"}}});
                                        const auto cue = [&](json c) {
                                            c["bloque"] = idx;
-                                           p2.push_back({"cue del cierre", "evento_cue", c});
+                                           p2.push_back({"cue del cierre", "guion_cue", c});
                                        };
                                        if (!mCierre.empty())
                                            cue({{"tipo", "musica"}, {"datos", {{"archivo", mCierre}}}, {"texto", "Música de cierre."}});
@@ -355,7 +355,7 @@ void McpService::registerProcedimientoTools() {
                                             {"texto", "Cortar la transmisión y la grabación (stream_stop, record_stop) y terminar el evento (evento_terminar)."}});
                                    }
                                    if (conGuion && (!hayPrevia || !hayCierre))
-                                       p2.push_back({"guardar el guion", "evento_guardar", json::object()});
+                                       p2.push_back({"guardar el guion", "guion_guardar", json::object()});
                                    if (a.value("al_aire", false))
                                        p2.push_back({"señal de ajuste al aire", "scene_switch", {{"name", kEscAjuste}}});
                                    else
@@ -402,10 +402,10 @@ void McpService::registerProcedimientoTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"tipo", {{"type", "string"}, {"enum", {"salon", "asamblea"}}}}}}};
         t.run = [&core](const json& a, Done done) {
-            leerVarias(core, {{"ev", {"evento_ver", json::object()}}}, [&core, a, done](std::shared_ptr<std::map<std::string, Resp>> r0) {
+            leerVarias(core, {{"ev", {"guion_ver", json::object()}}}, [&core, a, done](std::shared_ptr<std::map<std::string, Resp>> r0) {
                 const json ev = (*r0)["ev"].datos;
                 if (!(*r0)["ev"].ok || ev.value("abierto", std::string()).empty())
-                    return done(ToolResult::error("No hay un evento abierto (evento_abrir o evento_armar)."));
+                    return done(ToolResult::error("No hay un evento abierto (guion_abrir o evento_armar)."));
                 const json g = ev.value("guion", json::object());
                 const std::string tipo = a.value("tipo", std::string(g.value("asamblea", false) ? "asamblea" : "salon"));
                 const bool asamblea = tipo == "asamblea";
@@ -439,11 +439,11 @@ void McpService::registerProcedimientoTools() {
                     // --- el evento ---
                     if (g.value("fecha", std::string()).empty() || g.value("inicio", std::string()).empty())
                         item("evento", "fecha y hora", "falta", "El evento no tiene fecha u hora de inicio: la placa de espera y la página no pueden decir cuándo empieza.",
-                             "evento_guardar o evento_armar con fecha, inicio y huso");
+                             "guion_guardar o evento_armar con fecha, inicio y huso");
                     else
                         item("evento", "fecha y hora", "ok", g.value("fecha", std::string()) + " " + g.value("inicio", std::string()), "");
                     if (g.value("huso", std::string()).empty())
-                        item("evento", "huso horario", "aviso", "Sin huso: el que se conecta de otro lado no sabe a qué hora es.", "evento_guardar {huso}");
+                        item("evento", "huso horario", "aviso", "Sin huso: el que se conecta de otro lado no sabe a qué hora es.", "guion_guardar {huso}");
 
                     // --- el guion ---
                     if (no("rev")) item("guion", "revisión", "aviso", "No se pudo revisar el guion: " + (*r)["rev"].texto, "evento_revisar");
@@ -460,13 +460,13 @@ void McpService::registerProcedimientoTools() {
                                      aparato ? std::string("revisión del aparato")
                                              : "bloque " + std::to_string(b + 1) + ", cue " + std::to_string(x.value("cue", 0) + 1),
                                      grave ? "falta" : "aviso", x.value("texto", std::string()),
-                                     aparato ? "ver el detalle" : "evento_cue (arreglarlo) y evento_revisar");
+                                     aparato ? "ver el detalle" : "guion_cue (arreglarlo) y evento_revisar");
                             }
                         }
                         if (rev.value("reparos", json::array()).empty()) item("guion", "revisión", "ok", "Sin reparos.", "");
                     }
                     const int nb = static_cast<int>(g.value("bloques", json::array()).size());
-                    if (nb == 0) item("guion", "bloques", "falta", "El guion está vacío.", "evento_armar o evento_bloque");
+                    if (nb == 0) item("guion", "bloques", "falta", "El guion está vacío.", "evento_armar o guion_bloque");
                     if (indiceDeBloque(g, "Previa") < 0 || indiceDeBloque(g, "Cierre") < 0)
                         item("guion", "previa y cierre", "aviso", "Faltan los bloques «Previa» (señal de ajuste, espera) y/o «Cierre» (placa de fin).",
                              "evento_preparar");

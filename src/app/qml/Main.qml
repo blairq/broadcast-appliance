@@ -333,6 +333,8 @@ ApplicationWindow {
     Component { id: cmpPanelPtz;       PtzContent {} }
     // El Mezclador: entradas, salidas y la matriz (controls/PanelMezclador.qml).
     Component { id: cmpPanelMezclador; PanelMezclador {} }
+    // Cualquier tarjeta del tablero en su ventana (la barra de tarjetas): «tarjeta:<kind>».
+    Component { id: cmpPanelTarjeta;   TarjetaEnVentana {} }
 
     function componenteDePanel(id) {
         return id === "padron" ? cmpPanelPadron
@@ -340,7 +342,8 @@ ApplicationWindow {
              : id === "votacion" ? cmpPanelVotacion
              : id === "carrusel" ? cmpPanelCarrusel
              : id === "mezclador" ? cmpPanelMezclador
-             : id.startsWith("ptz:") ? cmpPanelPtz : null
+             : id.startsWith("ptz:") ? cmpPanelPtz
+             : id.startsWith("tarjeta:") ? cmpPanelTarjeta : null
     }
 
     function sacarPanel(id, titulo) {

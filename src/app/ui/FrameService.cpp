@@ -78,19 +78,27 @@ void FrameService::setArmada(const QString& escena) {
     if (escena.isEmpty()) slots_.erase("armada");
 }
 
-void FrameService::mirarEntrada(const QString& entrada, bool mirar) {
+namespace {
+/// "entrada:X" → lo que se le pide al motor: "X"; "entrada-entera:X" → "entera:X".
+std::string vistaDeEntrada(const QString& clave) {
+    return clave.startsWith("entrada-entera:") ? "entera:" + clave.mid(15).toStdString() : clave.mid(8).toStdString();
+}
+} // namespace
+
+void FrameService::mirarEntrada(const QString& entrada, bool mirar, bool entera) {
     if (entrada.isEmpty()) return;
-    int& n = entradas_[entrada];
-    const std::string canal = "entrada:" + entrada.toStdString();
+    const QString clave = (entera ? "entrada-entera:" : "entrada:") + entrada;
+    int& n = entradas_[clave];
+    const std::string canal = clave.toStdString();
     if (mirar) {
         // 960 de ancho, como la armada: para apuntar alcanza y sobra.
-        if (n++ == 0) engine_.enableScenePreview(canal, entrada.toStdString(), 960);
+        if (n++ == 0) engine_.enableScenePreview(canal, vistaDeEntrada(clave), 960);
         return;
     }
     if (n > 0 && --n == 0) {
         engine_.disableScenePreview(canal);
-        entradas_.erase(entrada);
-        slots_.erase("entrada:" + entrada);
+        entradas_.erase(clave);
+        slots_.erase(clave);
     }
 }
 
@@ -153,13 +161,12 @@ void FrameService::poll() {
     ++vueltas_;
     // Entradas que pidió alguien (mirarEntrada). Si la entrada se borró y
     // volvió, el canal se vuelve a tomar.
-    for (auto& [entrada, n] : entradas_) {
-        const std::string canal = "entrada:" + entrada.toStdString();
+    for (auto& [key, n] : entradas_) {
+        const std::string canal = key.toStdString();
         if (engine_.scenePreviewName(canal).empty()) {
             if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
-            engine_.enableScenePreview(canal, entrada.toStdString(), 960);
+            engine_.enableScenePreview(canal, vistaDeEntrada(key), 960);
         }
-        const QString key = "entrada:" + entrada;
         if (engine_.renderScenePreview(canal, buf, w, h, stride, slots_[key].serieMotor)) tomar(key);
     }
     // Canales de memoria compartida (con resuscripcion si el escritor cambia):

@@ -295,6 +295,9 @@ void McpService::registerLaminaTools() {
                     ToolResult::error("Hace falta un nombre: sin nombre no se lo puede volver a encontrar."));
                 return;
             }
+            // Las imágenes, revisadas antes de crear nada (una que no es texto dejaba el carrusel vacío creado).
+            for (const auto& v : a.value("imagenes", json::array()))
+                if (!v.is_string()) return done(ToolResult::error("`imagenes` es una lista de rutas (texto)."));
             bool nuevo = false;
             if (cc->fuenteDe(n).isEmpty() && !cc->existe(n)) {
                 if (!cc->crear(n)) {

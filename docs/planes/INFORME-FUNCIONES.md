@@ -637,7 +637,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **Cómo se usa.** Página **Guion** (`EventoPage.qml`). Tarjeta Dirección.
 
-**MCP.** `evento_listar`, `evento_abrir`, `evento_armar`, `evento_ver`, `evento_bloque`, `evento_cue`, `evento_guardar`, `evento_revisar`, `evento_ensayo_rapido`, `evento_correr`, `evento_informe`, `evento_capitulos`.
+**MCP.** `guion_listar`, `guion_abrir`, `evento_armar`, `guion_ver`, `guion_bloque`, `guion_cue`, `guion_guardar`, `evento_revisar`, `evento_ensayo_rapido`, `evento_correr`, `evento_informe`, `evento_capitulos`.
 
 **Archivos.** `src/app/evento/Evento.*`, `EventoStore.*`, `src/app/ui/EventoViewModel.cpp` (~1108-1360 ejecución), `docs/funciones/EVENTOS.md`, `docs/funciones/EVENTO-COMPLETO.md`.
 
@@ -1057,18 +1057,18 @@ Orden por categoría y nombre. "Para qué sirve" es el título con que cada herr
 | `scene_take` | escenas | TAKE: sacar al aire la escena armada | modifica |
 | `transition_set` | escenas | Transicion entre escenas | modifica |
 | `status` | estado | Estado general | lee |
-| `evento_abrir` | evento | Abrir un evento | modifica |
+| `guion_abrir` | evento | Abrir un evento | modifica |
 | `evento_armar` | evento | Armar un evento entero de una vez | modifica |
-| `evento_bloque` | evento | Agregar o cambiar un bloque | modifica |
+| `guion_bloque` | evento | Agregar o cambiar un bloque | modifica |
 | `evento_capitulos` | evento | Los capitulos de la grabacion | lee |
 | `evento_correr` | evento | Correr el guion | modifica |
-| `evento_cue` | evento | Agregar o cambiar un cue | modifica |
+| `guion_cue` | evento | Agregar o cambiar un cue | modifica |
 | `evento_ensayo_rapido` | evento | Ensayo acelerado | lee |
-| `evento_guardar` | evento | Guardar el guion | modifica |
+| `guion_guardar` | evento | Guardar el guion | modifica |
 | `evento_informe` | evento | Informe del evento | lee |
-| `evento_listar` | evento | Eventos que hay | lee |
+| `guion_listar` | evento | Eventos que hay | lee |
 | `evento_revisar` | evento | Revision previa | modifica |
-| `evento_ver` | evento | El guion abierto | lee |
+| `guion_ver` | evento | El guion abierto | lee |
 | `facebook_chat` | facebook | Comentarios del vivo | modifica |
 | `facebook_live_create` | facebook | Crear un vivo y transmitir | modifica |
 | `facebook_live_end` | facebook | Terminar un vivo | modifica |

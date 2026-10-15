@@ -51,6 +51,8 @@ class Configuraciones : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList lista READ listaUi NOTIFY cambio)
     Q_PROPERTY(QString activa READ activaUi NOTIFY cambio)
+    Q_PROPERTY(QVariantList papelera READ papeleraUi NOTIFY cambio)
+    Q_PROPERTY(bool vaciando READ vaciando NOTIFY cambio)
     Q_PROPERTY(QVariantList demos READ demosUi CONSTANT)
     /// La copia que se está haciendo: {nombre, hechos, total} (bytes), o vacío.
     Q_PROPERTY(QVariantMap copia READ copia NOTIFY copiaCambio)
@@ -118,6 +120,17 @@ class Configuraciones : public QObject {
     std::string describir(const std::string& nombre, const std::string& descripcion);
     /// A la papelera (Configuraciones/.papelera/): nunca la activa.
     std::string borrar(const std::string& nombre);
+    /// Lo que está en la papelera, lo último primero: [{id (la carpeta en .papelera),
+    /// nombre (el que tenía), borrado_ms}].
+    json papelera() const;
+    /// Saca `id` de la papelera con su nombre de antes (o `como`, si ese ya está usado).
+    std::string recuperar(const std::string& id, const std::string& como = {});
+    /// Borra de verdad `id` de la papelera (vacío: todo), en otro hilo. "" si arrancó, o el error.
+    std::string vaciarPapelera(const std::string& id = {});
+    /// Borra lo que lleva más de `dias` en la papelera (en otro hilo); cuántos. Al arrancar.
+    int vaciarViejos(int dias);
+    static constexpr int kDiasPapelera = 30;
+    bool vaciando() const { return vaciando_; }
 
     QVariantList listaUi() const;
     QString activaUi() const { return QString::fromStdString(activa()); }
@@ -140,6 +153,9 @@ class Configuraciones : public QObject {
     Q_INVOKABLE QString renombrarUi(const QString& de, const QString& a);
     Q_INVOKABLE QString describirUi(const QString& nombre, const QString& descripcion);
     Q_INVOKABLE QString borrarUi(const QString& nombre);
+    QVariantList papeleraUi() const;
+    Q_INVOKABLE QString recuperarUi(const QString& id);
+    Q_INVOKABLE QString vaciarPapeleraUi(const QString& id);
     /// Reinicia con la que esté anotada (después de activar por MCP).
     QString reiniciar() { return reiniciar_ ? reiniciar_() : QStringLiteral("no se puede reiniciar desde acá"); }
 
@@ -175,6 +191,10 @@ class Configuraciones : public QObject {
     /// La carpeta de donde se copia `desde` ("" en `de` si no se copia nada). "" o el error.
     std::string origenDe(const std::string& desde, std::filesystem::path* de) const;
     QVariantMap copia_;
+    bool vaciando_ = false;
+    /// El error si `nombre` es el que se está creando o del que se copia ("" si no).
+    std::string enUsoPorLaCopia(const std::string& nombre) const;
+    void vaciar(const std::vector<std::string>& ids);
     std::shared_ptr<std::atomic<std::uintmax_t>> copiaContador_;
     QTimer progresoCopia_; ///< mientras copia, avisa el progreso
     static std::string nombreValido(const std::string& nombre);

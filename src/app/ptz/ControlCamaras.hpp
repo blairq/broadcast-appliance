@@ -21,6 +21,11 @@
 // Los filtros se ponen y se sacan solos: cada 1,5 s (y cuando cambian las
 // entradas) se revisa que cada entrada tenga lo que le corresponde. Así una
 // entrada nueva ya tiene su PTZ, y un cambio en Configuración rige enseguida.
+//
+// La implementación va en tres archivos (y lo de adentro, en ControlCamarasCamara.hpp):
+// ControlCamaras.cpp (lo que se muestra, entradas, órdenes, configuración, disco),
+// ControlCamarasPosiciones.cpp (posiciones, presets, miniaturas) y ControlCamarasFoto.cpp
+// (la foto del panel y apuntar haciendo click en ella).
 
 #pragma once
 
@@ -32,6 +37,7 @@
 #include <QVariantMap>
 
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -90,6 +96,9 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE QString parar(const QString& entrada);
     Q_INVOKABLE QString enfocar(const QString& entrada, double velocidad);
     Q_INVOKABLE QString autoFoco(const QString& entrada, bool automatico);
+    /// El preset `numero` es la POSICIÓN de ese número (Posiciones): ir a ella, o
+    /// regrabarla (si no hay, se crea «Preset N»). Sin posición con ese número, ir
+    /// usa el preset propio de la cámara, si tiene.
     Q_INVOKABLE QString irPreset(const QString& entrada, int numero);
     Q_INVOKABLE QString guardarPreset(const QString& entrada, int numero);
     Q_INVOKABLE QString home(const QString& entrada);
@@ -132,9 +141,11 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE QVariantList posiciones(const QString& entrada) const;
     /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
     /// nombre. {ok, error, aviso, id}.
+    /// `numero`: su número de preset (0 = el primero libre).
     Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre,
-                                          const QString& comentario, double velocidad = 0, double segundos = -1);
-    /// cambios: {nombre?, comentario?, velocidad? (0..1, 0 = la de la cámara),
+                                          const QString& comentario, double velocidad = 0, double segundos = -1,
+                                          int numero = 0);
+    /// cambios: {nombre?, comentario?, numero? (su número de preset, libre), velocidad? (0..1, 0 = la de la cámara),
     /// segundos? (-1 = sin fijar), regrabar?: bool (vuelve a registrar donde
     /// está ahora, con foto nueva), miniatura?: bool (solo la foto)}. {ok, error, aviso}.
     Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre,
@@ -146,10 +157,36 @@ class ControlCamaras : public QObject {
     /// {ok, error, aviso}.
     Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre,
                                         double segundos = -1);
+    /// De una posición: {existe, id, nombre, digital (tiene encuadre digital), x, y,
+    /// zoom, motorizada (tiene memoria en una cámara con motor)}. Para la fuente
+    /// «Banca con la palabra»: con digital, recorta la toma entera sin mover nada.
+    Q_INVOKABLE QVariantMap datosPosicion(const QString& entrada, const QString& idONombre) const;
+    /// Las posiciones con ese nombre (sin tildes ni mayúsculas) en TODAS las cámaras:
+    /// [{entrada, id, nombre}]. Para «enfocar Presidencia» sin decir qué cámara.
+    Q_INVOKABLE QVariantList buscarPosicion(const QString& nombre) const;
+    /// La cámara solo tiene PTZ digital (sin motor).
+    Q_INVOKABLE bool soloDigital(const QString& entrada) const;
+    /// Deja de seguir con el seguimiento de caras (lo pone quien lo maneja): al ir a
+    /// una posición a pedido, el seguimiento no tiene que pelearle.
+    void setDejarDeSeguir(std::function<void(const QString&)> fn) { dejarDeSeguir_ = std::move(fn); }
+
     /// Saca la foto de la posición: lo que muestra la entrada AHORA, 320 px de
     /// ancho, en Miniaturas/ptz/. "" o el error. Se llama sola al crear o
     /// regrabar (un rato después, cuando el recorte ya llegó).
     Q_INVOKABLE QString capturarMiniatura(const QString& entrada, const QString& idONombre);
+
+    // --- La foto del panel PTZ (cámaras motorizadas) ----------------------------
+    /// Saca una foto de lo que muestra la entrada y anota dónde está la cabeza
+    /// (en una memoria interna de la cámara, si tiene): tocar la foto lleva la
+    /// cámara ahí (apuntarEnFoto). {ok, error, aviso}.
+    Q_INVOKABLE QVariantMap sacarFoto(const QString& entrada);
+    /// {hay, url, conMemoria (puede volver a donde se sacó), movida (se movió desde
+    /// entonces), cuando}.
+    Q_INVOKABLE QVariantMap foto(const QString& entrada) const;
+    /// Apunta al punto (u, v) de la FOTO (y, con ancho/alto, encuadra ese cuadro):
+    /// si la cámara no se movió desde la foto, ya; si se movió, primero vuelve a
+    /// donde estaba (su memoria) y después apunta. "" o el error.
+    Q_INVOKABLE QString apuntarEnFoto(const QString& entrada, double u, double v, double ancho, double alto);
 
     /// Para MCP: el estado de una entrada (o de todas), como json.
     QJsonObject estadoJson(const QString& entrada = {}) const;
@@ -184,11 +221,15 @@ class ControlCamaras : public QObject {
     std::filesystem::path carpetaMiniaturas() const;
     /// La foto de un preset (de la cámara o digital): Miniaturas/ptz/<clave>-preset-<cam|dig>-<n>.jpg.
     QString nombreFotoPreset(const Camara& c, bool digital, int n) const;
-    /// Saca la foto del preset `n` (lo que muestra la entrada ahora).
-    void fotoPreset(const QString& entrada, bool digital, int n);
-    /// n -> url de la foto de cada preset que tiene una.
-    QVariantMap fotosPresets(const Camara& c, bool digital) const;
+    /// Los presets de antes (los digitales del filtro y los de la cámara con foto)
+    /// pasan a ser posiciones con su número. true si migró alguno.
+    bool migrarPresets(Camara& c, const QJsonObject& digitales);
+    /// Los presets que la cámara trae con nombre (ONVIF) y todavía no son posiciones.
+    void importarPresetsDeLaCamara(Camara& c);
+    /// Un nombre que no esté en la cámara: `base`, o «base (2)»...
+    QString nombreLibre(const Camara& c, const QString& base) const;
 
+    std::function<void(const QString&)> dejarDeSeguir_;
     bool interlockActivo_ = true;
     bool seguirSuavePermitido_ = true;
     AppRuntime& rt_;

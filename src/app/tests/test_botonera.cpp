@@ -182,6 +182,16 @@ int main(int argc, char** argv) {
     nuevas.push_back("banca_terminar");
     nuevas.push_back("audio_set");
     CHECK(bot.editarPerfil(pid, {{"herramientas_permitidas", nuevas}}, true).empty(), "una persona sí");
+    // Con un error en el medio no queda nada cambiado a medias.
+    {
+        const std::string nombreAntes = bot.perfil(pid).value("nombre", std::string());
+        CHECK(!bot.editarPerfil(pid, {{"nombre", "Otro"}, {"herramientas_permitidas", "no-lista"}}, true).empty(),
+              "perfil con un dato mal: error");
+        CHECK(bot.perfil(pid).value("nombre", std::string()) == nombreAntes, "y el nombre no cambió");
+        const int colAntes = bot.perfil(pid)["paginas"][0].value("columnas", 0);
+        CHECK(!bot.editarPagina(pid, pag, {{"columnas", 8}, {"filas", 0}}).empty(), "página con filas 0: error");
+        CHECK(bot.perfil(pid)["paginas"][0].value("columnas", 0) == colAntes, "y las columnas no cambiaron");
+    }
     llamadas.clear();
     bot.entrada("hw1", {{"type", "presionar"}, {"x", 3}, {"y", 3}});
     CHECK(llamadas.size() == 1, "ahora corre");

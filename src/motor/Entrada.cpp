@@ -525,6 +525,7 @@ void Entrada::leer(const json& a) {
     alfa_ = alfaTipo || (fl.is_object() && fl.value("alfa", false));
     for (auto& f : leerFiltros(comoJson(a.value("filtros_audio", json()))))
         filtrosA_.push_back(std::move(f));
+    nombresUnicos(filtrosA_); // las dos listas de audio, juntas
 }
 
 bool Entrada::daVideo() const {
@@ -701,7 +702,9 @@ void Entrada::armar() {
         if (!sr.elemento.empty()) filtrosV.push_back(std::move(sr));
     }
     const bool usaGpu = gpuVideo();
-    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, usaGpu);
+    // La toma entera, antes del recorte del PTZ digital (productorEntera).
+    Derivacion entera{"ptz", id_ + ":entera:video", ""};
+    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, usaGpu, &entera);
     const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
     if (!cadenaV.empty() && !usaGpu) {
         // ANTES de `videorate` (no se procesa cada cuadro repetido), con una cola que
@@ -814,6 +817,9 @@ void Entrada::armar() {
             completo += std::string(completo.empty() ? "" : " ") + descripcionAudio_ + " ! queue ! " + cadenaA +
                         "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
     }
+    // La rama de la toma entera, si la rama de video quedó armada con su tee.
+    hayEntera_ = !entera.ramas.empty() && completo.find("name=ba_f_ptz_antes ") != std::string::npos;
+    if (hayEntera_) completo += entera.ramas;
     // La cadena entera al registro, una vez por cambio (con los reintentos no se repite):
     // es lo primero que hace falta cuando una entrada no anda.
     if (completo != cadenaRegistrada_) {

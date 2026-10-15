@@ -1160,6 +1160,11 @@ class StudioViewModel : public QObject {
     /// Lee a los demás servicios: se arma al final del constructor y, declarado
     /// último, se destruye antes que ellos.
     std::unique_ptr<EnlacesViewModel> enlaces_;
+    /// La fuente «Banca con la palabra»: qué cámara y qué recorte va en cada ranura
+    /// (1 = quien tiene la palabra; en un debate, A y B). Se recalcula con cada
+    /// cambio de la fila, del debate, del cuerpo o de las posiciones de las cámaras.
+    void actualizarRanurasBanca(bool forzar = false);
+    QTimer ranurasTarde_; ///< una vuelta más, cuando ya se sabe el tamaño de la cámara
 };
 
 } // namespace ba::app

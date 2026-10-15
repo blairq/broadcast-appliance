@@ -695,6 +695,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (!error.isEmpty()) emit notify("No se pudo crear «" + nombre + "»: " + error, "error");
                 else if (!abriendo) emit notify("Evento «" + nombre + "» listo: abrilo con «Abrir otro…»", "info");
             });
+    // Lo que lleva más de un mes en la papelera de eventos se va (con grabaciones, son GB).
+    if (const int n = configuraciones_->vaciarViejos(Configuraciones::kDiasPapelera); n > 0)
+        qInfo("[eventos] papelera: %d con más de %d días, borrados", n, Configuraciones::kDiasPapelera);
     marca("system");
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
         emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");
@@ -1108,6 +1111,22 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.filaCambio = [this](const std::vector<std::string>& cola, const std::string& alAire) {
             if (sesionRemota_) sesionRemota_->fila(cola, alAire);
         };
+        // La fuente «Banca con la palabra»: si la toma es digital y hay escenas con la
+        // fuente, ella la recorta de la toma entera (no se mueve nada).
+        g.laEncuadraLaFuente = [this](const std::string& c, const std::string& p) {
+            if (!rt_.engine().hayFuenteBanca()) return false;
+            const QVariantMap d = camaras_->datosPosicion(QString::fromStdString(c), QString::fromStdString(p));
+            return d.value("existe").toBool() && d.value("digital").toBool() && !d.value("motorizada").toBool();
+        };
+        g.escenaDeRanura = [this](int n) { return rt_.engine().escenaDeRanura(n); };
+        g.posicionesConNombre = [this](const std::string& nombre) {
+            std::vector<std::pair<std::string, std::string>> out;
+            for (const QVariant& v : camaras_->buscarPosicion(QString::fromStdString(nombre))) {
+                const QVariantMap m = v.toMap();
+                out.emplace_back(m.value("entrada").toString().toStdString(), m.value("nombre").toString().toStdString());
+            }
+            return out;
+        };
         bancas_ = std::make_unique<asamblea::Bancas>(cuerpo_->cuerpo(), g);
         // El debate entre dos: reusa lo de la fila (micrófonos, cámaras, escenas, remotos).
         {
@@ -1122,7 +1141,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             };
             gd.microfono = g.microfono;
             gd.microfonoBanca = g.microfonoBanca;
-            gd.apuntar = [this](const std::string& id) { return bancas_->apuntar(QString::fromStdString(id)).toStdString(); };
+            // Cada lado lista: lo que la fuente de banca recorta no se mueve (dos bancas de la
+            // misma cámara digital se ven a la vez); una motorizada, sí.
+            gd.apuntar = [this](const std::string& id) { return bancas_->prepararToma(QString::fromStdString(id)).toStdString(); };
             gd.armar = g.armar;
             gd.cortar = g.cortar;
             gd.terminarOrador = [this]() { bancas_->terminar(); };
@@ -1475,6 +1496,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
+    // Ir a una posición a pedido (enfocar, dar la palabra, un preset) corta el
+    // seguimiento de caras de esa cámara: si no, se pelean.
+    camaras_->setDejarDeSeguir([this](const QString& e) {
+        if (seguidor_) seguidor_->dejar(e);
+    });
     seguidor_->setGrafos(video_.get());
     marca("seguidor");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
@@ -1632,6 +1658,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
             connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
         }
+    }
+    // La fuente «Banca con la palabra»: lo que muestra cada ranura sigue a la fila y al debate.
+    if (bancas_) {
+        ranurasTarde_.setSingleShot(true);
+        ranurasTarde_.setInterval(1500);
+        connect(&ranurasTarde_, &QTimer::timeout, this, [this]() { actualizarRanurasBanca(true); });
+        const auto ranuras = [this]() {
+            actualizarRanurasBanca();
+            ranurasTarde_.start();
+        };
+        connect(bancas_.get(), &asamblea::Bancas::cambio, this, ranuras);
+        if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, ranuras);
+        if (cuerpo_) connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, ranuras);
+        if (camaras_) connect(camaras_.get(), &ptz::ControlCamaras::cambio, this, ranuras);
+        QTimer::singleShot(0, this, ranuras);
     }
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
@@ -2357,6 +2398,52 @@ QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
+
+void StudioViewModel::actualizarRanurasBanca(bool forzar) {
+    if (!bancas_ || !cuerpo_) return;
+    // Quién va en cada ranura: en un debate, A y B; si no, quien tiene la palabra. Al
+    // que habla desde el navegador no se le pone cámara (tiene la suya: el remoto).
+    std::vector<std::string> ids;
+    if (debate_ && debate_->activo()) {
+        // Los de la sala, en orden (ranura 1 y 2): con uno remoto, el de la sala va en
+        // la 1 (la escena «sala y remoto» es banca 1 + el remoto).
+        if (!debate_->aEsRemoto()) ids.push_back(debate_->idA());
+        if (!debate_->bEsRemoto()) ids.push_back(debate_->idB());
+    } else {
+        const std::string id = bancas_->alAireId();
+        bool remoto = false;
+        if (sesionRemota_ && !id.empty()) {
+            const std::vector<std::string> conPalabra = sesionRemota_->conPalabraTodos();
+            remoto = std::find(conPalabra.begin(), conPalabra.end(), id) != conPalabra.end();
+        }
+        ids.push_back(remoto ? std::string() : id);
+    }
+    if (ids.size() > static_cast<std::size_t>(BroadcastEngine::kRanurasBanca)) ids.resize(BroadcastEngine::kRanurasBanca);
+    std::vector<BroadcastEngine::RanuraBanca> ranuras;
+    for (const std::string& id : ids) {
+        BroadcastEngine::RanuraBanca r;
+        const nlohmann::json i = id.empty() ? nlohmann::json::object() : cuerpo_->cuerpo().buscar(id);
+        const nlohmann::json t = i.value("preset_ptz", nlohmann::json::object()); // la toma de su banca
+        const QString camara = QString::fromStdString(t.value("camara", std::string()));
+        if (!camara.isEmpty()) {
+            r.entrada = camara.toStdString();
+            const QVariantMap d = camaras_->datosPosicion(camara, QString::fromStdString(t.value("posicion", std::string())));
+            // Digital (sin motor): la ventana de la posición, recortada de la toma entera.
+            // Motorizada: la cámara entera (la cabeza ya fue a la posición al dar la palabra).
+            if (d.value("existe").toBool() && d.value("digital").toBool() && !d.value("motorizada").toBool()) {
+                const double z = std::max(1.0, d.value("zoom").toDouble());
+                const double x = d.value("x").toDouble(), y = d.value("y").toDouble(), m = 0.5 / z;
+                r.entera = d.value("recorteDigital").toBool();
+                r.recorte[0] = static_cast<float>(std::max(0.0, x - m));
+                r.recorte[1] = static_cast<float>(std::max(0.0, y - m));
+                r.recorte[2] = static_cast<float>(std::max(0.0, 1.0 - (x + m)));
+                r.recorte[3] = static_cast<float>(std::max(0.0, 1.0 - (y + m)));
+            }
+        }
+        ranuras.push_back(r);
+    }
+    rt_.engine().setRanurasBanca(std::move(ranuras), forzar);
+}
 QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::medios() const { return medios_.get(); }

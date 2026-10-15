@@ -5,6 +5,7 @@
 #include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
 
+#include <set>
 #include <thread>
 #include "Reloj.hpp"
 
@@ -82,7 +83,22 @@ std::vector<Filtro> leerFiltros(const json& lista) {
         }
         if (!f.elemento.empty()) out.push_back(std::move(f));
     }
+    nombresUnicos(out);
     return out;
+}
+
+void nombresUnicos(std::vector<Filtro>& v) {
+    // Limpio, «eq-1» y «eq.1» quedan iguales (y dos sin id, en dos listas, «0»): el
+    // segundo elemento no entraba al pipeline. «_antes» es de la derivación (cadenaDe).
+    std::set<std::string> usados;
+    for (Filtro& f : v) {
+        std::string n = f.nombre;
+        if (n.size() >= 6 && n.compare(n.size() - 6, 6, "_antes") == 0) n += "_f";
+        const std::string base = n;
+        for (int i = 2; usados.count(n) > 0; ++i) n = base + "_" + std::to_string(i);
+        f.nombre = n;
+        usados.insert(n);
+    }
 }
 
 namespace {
@@ -205,8 +221,9 @@ std::string memoriaPropia(const std::string& fabrica) {
 } // namespace
 
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos, bool desdeGpu) {
+                     std::vector<std::string>& avisos, bool desdeGpu, Derivacion* derivar) {
     std::string r;
+    if (derivar != nullptr) derivar->ramas.clear();
     // La memoria del motor (GLMemory o D3D12Memory) y dónde está el video en este punto.
     const std::string memMotor = !desdeGpu ? "" : gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
     bool enGpu = desdeGpu;
@@ -255,6 +272,13 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                                  "»: va en memoria de sistema");
         }
         const std::string elem = f.elemento + " name=" + prefijo + f.nombre + " ! ";
+        // La toma tal como llega a este filtro, para otro productor (ver Derivacion).
+        if (derivar != nullptr && derivar->ramas.empty() && f.nombre == derivar->antesDe && !derivar->productor.empty()) {
+            const std::string tee = std::string(prefijo) + f.nombre + "_antes";
+            r += "tee name=" + tee + " allow-not-linked=true ! ";
+            derivar->ramas = " " + tee + ". ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! intersink name=" + tee + "_sale producer-name=" +
+                             entreComillas(derivar->productor) + " sync=false event-types=\"<>\"";
+        }
         if (desdeGpu) {
             if (hayPuente && f.memoria == memMotor) {
                 // En la memoria del motor: si ya está ahí, sin puente.
