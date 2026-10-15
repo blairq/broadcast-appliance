@@ -1020,6 +1020,14 @@ endif()
     target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_botonera COMMAND test_botonera)
+    # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
+    # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
+    add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp
+                   mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
+    target_include_directories(test_control_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_control_web PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_control_web PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_control_web COMMAND test_control_web)
     add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp asamblea/SeguirMicrofono.cpp
                    asamblea/SeguirMicrofono.hpp asamblea/Bancas.cpp asamblea/Bancas.hpp asamblea/Cuerpo.cpp
                    control/BusEventos.cpp control/BusEventos.hpp)

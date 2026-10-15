@@ -113,6 +113,8 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     botonera_->setCaras(cfg_.carasBotonera);
     sesion_ = std::make_unique<SesionBorde>(cfg_.sesionWebroot, log_,
                                             [this](const json& d) { broadcastToHosts("sesion", d); });
+    controlWeb_ = std::make_unique<ControlWebBorde>(cfg_.controlWebroot, log_,
+                                                    [this](const json& d) { broadcastToHosts("control", d); });
     // R3: el micrófono y la cámara del remoto con la palabra van a la app por el
     // mismo WebRTC que los invitados (una sesión del pool, ruta «Remoto»).
     {
@@ -611,6 +613,8 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     if (botonera_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     // La sesión remota (página y su WebSocket), también antes que la sala.
     if (sesion_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    // El control web (dashboard /control/, emparejar y /ws?control), también antes que la sala.
+    if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     if (path == "/api/ice" && method == "GET" && !admin) {
         // Los servidores ICE (TURN de la caja) para el RTCPeerConnection del
         // navegador. Sin servidor TURN (o sin setIce): lo de siempre, sin ICE.

@@ -870,6 +870,22 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     });
 }
 
+void McpCore::pedirAprobacion(const std::string& herramienta, const json& args, const std::string& motivo,
+                              std::function<void(bool)> decide) {
+    if (sinAprobaciones_) {
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "MODO PRUEBA: " + herramienta + " sigue sin la aprobación de una persona (" + motivo + ")");
+        decide(true);
+        return;
+    }
+    const Tool* t = findTool(herramienta);
+    if (!approver_ || t == nullptr) {
+        decide(false);
+        return;
+    }
+    approver_(*t, args, motivo, std::move(decide));
+}
+
 json McpCore::resourceList() const {
     json list = json::array();
     for (const HelpTopic& t : topics_) {

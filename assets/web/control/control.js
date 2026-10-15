@@ -70,7 +70,7 @@
   }
 
   // --- La conexión -----------------------------------------------------------------------
-  let ws = null, autenticado = false, espera = 1000, siguienteId = 1;
+  let ws = null, autenticado = false, espera = 1000, siguienteId = 1, latido = 0;
   const pendientes = new Map(); // id → {resolver, rechazar, herramienta, args}
   const temasMirados = new Set();
   BA.control = { herramientas: [], perfil: [], estado: {} };
@@ -83,9 +83,16 @@
     }
     const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws?control";
     ws = new WebSocket(url);
-    ws.onopen = () => { espera = 1000; ws.send(JSON.stringify({ tipo: "auth", token })); };
+    ws.onopen = () => {
+      espera = 1000;
+      ws.send(JSON.stringify({ type: "auth", token }));
+      // El gateway corta a los 30 s sin nada: un ping cada 20.
+      clearInterval(latido);
+      latido = setInterval(() => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" })); }, 20000);
+    };
     ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (_) { return; } recibir(m); };
     ws.onclose = () => {
+      clearInterval(latido);
       autenticado = false;
       estadoConexion(false);
       for (const [, p] of pendientes) p.rechazar(new Error("se cortó la conexión"));
@@ -101,7 +108,7 @@
   }
 
   function recibir(m) {
-    switch (m.tipo) {
+    switch (m.type) {
       case "auth":
         if (!m.ok) {
           guardar(CLAVE_TOKEN, null);
@@ -113,11 +120,17 @@
         autenticado = true;
         sinMensaje();
         estadoConexion(true);
-        BA.control.herramientas = m.herramientas || [];
         BA.control.perfil = m.perfil || [];
         $("aparato").textContent = m.nombre ? "· " + m.nombre : "";
-        armarTablero();
-        if (temasMirados.size) ws.send(JSON.stringify({ tipo: "mirar", temas: [...temasMirados] }));
+        herramientasNuevas = m.herramientas || [];
+        if (!m.mas) listasLasHerramientas();
+        break;
+      case "herramientas": // las tandas que siguen al auth (el catálogo no entra en un mensaje)
+        herramientasNuevas = herramientasNuevas.concat(m.herramientas || []);
+        if (!m.mas) listasLasHerramientas();
+        break;
+      case "mirando":
+        for (const r of m.rechazados || []) console.warn("tema rechazado", r.tema, r.error);
         break;
       case "estado":
         BA.control.estado[m.tema] = m.datos;
@@ -137,7 +150,7 @@
         if (!p) return;
         pedirConfirmacion(m.texto || "Esto cambia lo que está al aire.").then((si) => {
           if (!si) { pendientes.delete(m.id); p.rechazar(new Error("cancelado")); return; }
-          ws.send(JSON.stringify({ tipo: "llamar", id: m.id, herramienta: p.herramienta, args: p.args, confirmado: true }));
+          ws.send(JSON.stringify({ type: "llamar", id: m.id, herramienta: p.herramienta, args: p.args, confirmado: true }));
         });
         break;
       }
@@ -147,12 +160,21 @@
     }
   }
 
+  // Con el catálogo entero (y cada vez que la app lo vuelve a mandar: cambió el perfil).
+  let herramientasNuevas = [];
+  function listasLasHerramientas() {
+    BA.control.herramientas = herramientasNuevas;
+    herramientasNuevas = [];
+    armarTablero();
+    if (temasMirados.size) ws.send(JSON.stringify({ type: "mirar", temas: [...temasMirados] }));
+  }
+
   // Llamar una herramienta de la app: una promesa con lo que devuelve.
   BA.control.llamar = (herramienta, args = {}) => new Promise((resolver, rechazar) => {
     if (!ws || ws.readyState !== WebSocket.OPEN || !autenticado) { rechazar(new Error("sin conexión con la app")); return; }
     const id = siguienteId++;
     pendientes.set(id, { resolver, rechazar, herramienta, args });
-    ws.send(JSON.stringify({ tipo: "llamar", id, herramienta, args }));
+    ws.send(JSON.stringify({ type: "llamar", id, herramienta, args }));
   });
   // Lo mismo, avisando si falla (para los botones).
   BA.control.hacer = (herramienta, args) =>
@@ -163,7 +185,7 @@
   function mirar(temas) {
     let nuevos = false;
     for (const t of temas) if (!temasMirados.has(t)) { temasMirados.add(t); nuevos = true; }
-    if (nuevos && autenticado) ws.send(JSON.stringify({ tipo: "mirar", temas: [...temasMirados] }));
+    if (nuevos && autenticado) ws.send(JSON.stringify({ type: "mirar", temas: [...temasMirados] }));
   }
 
   // --- Confirmar ------------------------------------------------------------------------

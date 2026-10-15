@@ -191,6 +191,12 @@ class McpCore {
     using Approver = std::function<void(const Tool& tool, const json& args, const std::string& reason,
                                         std::function<void(bool approved)> decide)>;
     void setApprover(Approver fn) { approver_ = std::move(fn); }
+    /// Que una persona apruebe algo que una herramienta solo hace con permiso
+    /// explícito (p. ej. ampliar el perfil de un aparato del control web): la
+    /// misma tarjeta que la salvaguarda. Sin a quién preguntar, no; en modo
+    /// prueba (--test), sí (y queda en el registro).
+    void pedirAprobacion(const std::string& herramienta, const json& args, const std::string& motivo,
+                         std::function<void(bool approved)> decide);
 
     /// --- Guardas de aire (McpAire) --------------------------------------------
     /// Mientras `hayAire()` (transmitiendo, grabando o la sesión en vivo), una

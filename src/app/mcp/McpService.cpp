@@ -61,6 +61,7 @@
 #include "audio/Matriz.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "mcp/McpBotoneraTools.hpp"
+#include "mcp/McpControlWebTools.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
@@ -779,6 +780,8 @@ void McpService::registerTools() {
                       "Todos los ajustes del appliance (video, codificación, sala, red...).");
     // La botonera y el bus de eventos (ver McpBotoneraTools.cpp).
     registerBotoneraTools(core_, vm_);
+    // El control web (dashboard /control/): sus aparatos (ver McpControlWebTools.cpp).
+    registerControlWebTools(core_, vm_);
     // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
     if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) {
         registerEventoTools(core_, *ev, vm_, [this](const std::string& id) {

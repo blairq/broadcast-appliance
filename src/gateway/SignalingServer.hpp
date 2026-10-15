@@ -85,6 +85,7 @@
 
 #include "Botonera.hpp"
 #include "Sesion.hpp"
+#include "ControlWeb.hpp"
 #include "Carruseles.hpp"
 #include "MediaRoute.hpp"
 #include "Preguntas.hpp"
@@ -150,6 +151,7 @@ class SignalingServer {
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
         std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
         std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
+        std::string controlWebroot;  // Web/control (el dashboard web del operador, /control/)
         // --- Escucha del tunel de pinggy (siempre 127.0.0.1, todo externo) ---
         bool tunel = false;         // abrirla (main: pinggy activo)
         uint16_t tunnelPort = 8786; // 0 = puerto efimero (tests)
@@ -444,6 +446,8 @@ class SignalingServer {
     std::unique_ptr<BotoneraBorde> botonera_;
     /// La sesión remota (integrantes desde afuera): borde de red, ver Sesion.hpp.
     std::unique_ptr<SesionBorde> sesion_;
+    /// El control web (/control/ y /ws?control): borde de red, ver ControlWeb.hpp.
+    std::unique_ptr<ControlWebBorde> controlWeb_;
     Preguntas preguntas_;
     Votacion votacion_;
     mutable std::mutex publicoM_;

@@ -56,6 +56,8 @@ class ConferenceClient : public QObject {
     /// Lo que mandó el corrector de subtítulos desde /correccion/ (T44): {id, texto?, descartar}.
     void correccionEvento(const QJsonObject& ev);
     void sesionEvento(const QJsonObject& ev);
+    /// El control web (/control/, /ws?control): solicitud, conexión o entrada de un aparato.
+    void controlEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

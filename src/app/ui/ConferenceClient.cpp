@@ -110,6 +110,8 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit correccionEvento(obj);
     } else if (event == "sesion") {
         emit sesionEvento(obj);
+    } else if (event == "control") {
+        emit controlEvento(obj);
     }
 }
 

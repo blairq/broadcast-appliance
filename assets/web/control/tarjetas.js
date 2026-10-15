@@ -198,7 +198,8 @@
           this.chipGrab.textContent = d.recording ? "Grabando " + (d.recordTime || "") : "Sin grabar";
           return;
         }
-        const ds = d.destinos || [];
+        // El tema «salidas» junta dos herramientas: {stream_salud, record_disco}.
+        const ds = ((d && d.stream_salud) || d || {}).destinos || [];
         if (!ds.length) { vacio(this.destinos, "Sin destinos configurados."); return; }
         sincronizar(this.destinos, ds.map((x) => x.id), () => {
           const f = el("div", "fila destino");
@@ -221,7 +222,9 @@
       herramientas: ["dsk_mostrar"],
       crear(c, api) { this.api = api; this.lista = el("div", "columna"); c.append(this.lista); },
       actualizar(_, d) {
-        const capas = (Array.isArray(d) ? d : d.capas || []).filter((x) => x && (x.nombre || (x.contenido || []).length));
+        // El tema «graficos» junta dos herramientas: {dsk_listar, grafico_en_escena}.
+        const l = (d && d.dsk_listar) || d || {};
+        const capas = (Array.isArray(l) ? l : l.capas || []).filter((x) => x && (x.nombre || (x.contenido || []).length));
         if (!capas.length) { vacio(this.lista, "Sin capas definidas."); return; }
         sincronizar(this.lista, capas.map((x) => String(x.capa)), (k) => {
           const t = el("ba-toggle");

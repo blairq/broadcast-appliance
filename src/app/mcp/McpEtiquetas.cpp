@@ -31,6 +31,7 @@ const Fila kFamilias[] = {
     {"speakers_", "orador expositor panelista fila cola turno backstage"},
     {"ui_", "interfaz pantalla ventana app vista pestaña navegar"},
     {"dashboard_", "tablero dashboard tablet panel control remoto botonera"},
+    {"control_web_", "control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"},
     {"youtube_", "youtube yt google transmitir stream vivo directo plataforma red social"},
     {"twitch_", "twitch transmitir stream vivo directo plataforma red social gaming"},
     {"facebook_", "facebook meta fb transmitir stream vivo directo plataforma red social"},

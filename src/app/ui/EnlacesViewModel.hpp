@@ -66,6 +66,10 @@ class EnlacesViewModel : public QObject {
         std::function<QString()> origenLocal;
         /// {hay (la web generada), evento (el abierto)}
         std::function<QVariantMap()> webEvento;
+        /// El control web (/control/): {conectados, aparatos, pendientes, tunel}.
+        std::function<QVariantMap()> controlWeb;
+        /// Genera el código de un uso y muestra el QR para emparejar un aparato.
+        std::function<void()> emparejarControlWeb;
     };
 
     explicit EnlacesViewModel(Fuentes f, QObject* parent = nullptr);
