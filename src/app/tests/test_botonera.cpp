@@ -245,6 +245,27 @@ int main(int argc, char** argv) {
     for (const auto& d : bot.dispositivos()) CHECK(!d.contains("hash") && !d.contains("sal"), "la lista no muestra hashes");
     CHECK(bot.revocar(ap["dispositivo"]) == 1 && bot.credencialesParaGateway().empty(), "revocar");
 
+    // Al aprobar, la persona puede elegir otro perfil que el del código (Servicios).
+    {
+        std::string otro;
+        CHECK(bot.crearPerfil({{"nombre", "Otro puesto"}}, "", &otro).empty() && !otro.empty(), "un segundo perfil");
+        const std::string c2 = bot.nuevoCodigo(pid, "iPad 2", 30)["codigo"];
+        CHECK(bot.solicitud("s3", c2, "iPad 2", "10.0.0.4").empty(), "pide con el perfil del código");
+        const QVariantList sol = bot.solicitudesUi();
+        CHECK(sol.size() == 1 && sol[0].toMap().value("perfilId").toString().toStdString() == pid &&
+                  sol[0].toMap().value("ms").toDouble() > 0,
+              "la solicitud trae el id del perfil y cuándo pidió");
+        CHECK(bot.resolverSolicitud("s3", true, "no-existe").contains("error") && bot.solicitudesUi().size() == 1,
+              "un perfil que no existe no aprueba (y el pedido sigue)");
+        const json ap2 = bot.resolverSolicitud("s3", true, otro);
+        CHECK(ap2["aprobada"] == true, "aprobada con otro perfil");
+        bool conOtro = false;
+        for (const auto& d : bot.dispositivos())
+            if (d.value("id", std::string()) == ap2.value("dispositivo", std::string())) conOtro = d.value("perfil", std::string()) == otro;
+        CHECK(conOtro, "el aparato queda con el perfil elegido al aprobar");
+        CHECK(bot.revocar(ap2["dispositivo"]) == 1, "revocar el segundo");
+    }
+
     // API remota HTTP (T59): el acceso es un aparato más; el gateway solo acepta su
     // token con la API prendida, y la app rechaza otro perfil u otra página.
     {

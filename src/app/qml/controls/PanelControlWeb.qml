@@ -1,8 +1,9 @@
-// Los aparatos del control web (dashboard /control/): los que piden entrar y los
-// emparejados, con su perfil. Lo hace una PERSONA: aprobar, cambiar el perfil
-// (las categorías de herramientas que puede usar: «todo» o «escenas, audio, camaras»)
-// y quitar. Todo sale de Studio.controlWeb (control/ControlWeb): la misma lista que
-// el MCP (control_web_aparatos), que solo puede achicar perfiles.
+// Los aparatos emparejados del control web (dashboard /control/), con su perfil.
+// Lo hace una PERSONA: cambiar el perfil (las categorías de herramientas que puede
+// usar: «todo» o «escenas, audio, camaras») y quitar. Va en la fila «Control web»
+// de Servicios; los que piden entrar se aprueban ahí mismo, arriba de esta lista
+// (SolicitudesPendientes). Todo sale de Studio.controlWeb (control/ControlWeb): la
+// misma lista que el MCP (control_web_aparatos), que solo puede achicar perfiles.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -11,55 +12,13 @@ import BA
 ColumnLayout {
     id: raiz
     readonly property var cw: Studio.controlWeb
-    visible: cw && (cw.solicitudes.length > 0 || cw.aparatos.length > 0)
+    visible: cw && cw.aparatos.length > 0
     spacing: 8
 
     Text {
-        text: "CONTROL WEB · APARATOS"
-        color: Theme.textDim
-        font { pixelSize: 11; weight: Font.DemiBold; letterSpacing: 1.2 }
-    }
-
-    // Los que esperan a una persona.
-    Repeater {
-        model: raiz.cw ? raiz.cw.solicitudes : []
-        delegate: Panel {
-            id: sol
-            required property var modelData
-            Layout.fillWidth: true
-            padding: 12
-            implicitHeight: filaSol.implicitHeight + 2 * padding
-            RowLayout {
-                id: filaSol
-                anchors.fill: parent
-                spacing: 10
-                Text {
-                    Layout.fillWidth: true
-                    text: "«" + sol.modelData.nombre + "» (" + sol.modelData.ip + ") pide entrar al control web"
-                    color: Theme.amber; font.pixelSize: 14; wrapMode: Text.WordWrap
-                }
-                Text { text: "Perfil"; color: Theme.textDim; font.pixelSize: 12 }
-                TextField {
-                    id: perfilSol
-                    Layout.preferredWidth: 200
-                    text: sol.modelData.perfil
-                    placeholderText: "todo, o: escenas, audio"
-                    color: Theme.text
-                    font.pixelSize: 12
-                }
-                GlassButton {
-                    compact: true; text: "Aprobar"; active: true
-                    onClicked: {
-                        const e = raiz.cw.aprobarUi(sol.modelData.id, true, perfilSol.text)
-                        Studio.notify(e !== "" ? e : "Aparato emparejado.", e !== "" ? "error" : "ok")
-                    }
-                }
-                GlassButton {
-                    compact: true; text: "Rechazar"
-                    onClicked: raiz.cw.aprobarUi(sol.modelData.id, false, "")
-                }
-            }
-        }
+        text: "Emparejados"
+        color: Theme.textFaint
+        font.pixelSize: 11
     }
 
     // Los emparejados.

@@ -1693,10 +1693,113 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         f.controlWeb = [this]() -> QVariantMap {
             return {{"conectados", controlWeb_->conectados()},
                     {"aparatos", controlWeb_->aparatosUi().size()},
-                    {"pendientes", controlWeb_->solicitudesUi().size()},
                     {"tunel", controlWeb_->tunel()}};
         };
         f.emparejarControlWeb = [this]() { emparejarControlWebUi(); };
+        // Los pedidos de aprobación por aparato: se aprueban en la misma fila de Servicios.
+        // Lo hace la persona que está en la consola (el asistente va por sus herramientas).
+        {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                for (const QVariant& v : botonera_->solicitudesUi()) {
+                    QVariantMap m = v.toMap();
+                    m["perfil"] = m.value("perfilId");
+                    m["detalle"] = "pide emparejarse";
+                    out << m;
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
+                const std::string e = botoneraGw_->resolver(sol.toStdString(), aprobar, perfil.toStdString());
+                if (e.empty()) emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
+                return qs(e);
+            };
+            a.perfilModo = "lista";
+            a.perfiles = [this]() {
+                QVariantList out;
+                for (const QVariant& v : botonera_->perfilesUi()) {
+                    const QVariantMap p = v.toMap();
+                    out << QVariantMap{{"id", p.value("id")}, {"nombre", p.value("nombre")}};
+                }
+                return out;
+            };
+            f.aprobaciones["botonera"] = std::move(a);
+        }
+        {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                for (const QVariant& v : controlWeb_->solicitudesUi()) {
+                    QVariantMap m = v.toMap();
+                    m["detalle"] = "pide entrar al control web";
+                    out << m;
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
+                const QString e = controlWeb_->aprobarUi(sol, aprobar, perfil);
+                if (e.isEmpty()) emit notify(aprobar ? "Aparato emparejado." : "Pedido rechazado.", aprobar ? "ok" : "info");
+                return e;
+            };
+            a.perfilModo = "texto";
+            a.perfilAyuda = "todo, o: escenas, audio";
+            f.aprobaciones["control"] = std::move(a);
+        }
+        if (satellite_) {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                for (const QVariant& v : satellite_->solicitudesUi()) {
+                    QVariantMap m = v.toMap();
+                    m["detalle"] = "quiere conectar un Satellite";
+                    out << m;
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& ip, bool aprobar, const QString&) -> QString {
+                if (!satellite_->pendientes().contains(ip)) return "Ese pedido ya no está.";
+                if (aprobar)
+                    satellite_->permitir(ip, true);
+                else
+                    satellite_->rechazar(ip);
+                return {};
+            };
+            a.textoAprobar = "Permitir";
+            a.unoEspera = "Una IP pide conectar: permitila acá abajo";
+            a.variosEsperan = "%1 IP piden conectar: permitilas acá abajo";
+            f.aprobaciones["satellite"] = std::move(a);
+        }
+        {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                const auto* l = qobject_cast<const JsonListModel*>(conference_->waiting());
+                if (l == nullptr) return out;
+                for (const QJsonValue& v : l->items()) {
+                    const QJsonObject p = v.toObject();
+                    out << QVariantMap{{"id", p.value("uid").toString()},
+                                       {"nombre", p.value("name").toString()},
+                                       {"ip", QString()},
+                                       {"ms", p.value("joinedMs").toDouble()},
+                                       {"detalle", p.value("info").toString().isEmpty()
+                                                       ? QString("espera en el lobby")
+                                                       : "espera en el lobby · " + p.value("info").toString()}};
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& uid, bool aprobar, const QString&) -> QString {
+                if (aprobar)
+                    conference_->admit(uid);
+                else
+                    conference_->reject(uid);
+                return {};
+            };
+            a.textoAprobar = "Admitir";
+            a.unoEspera = "Una persona espera en el lobby: admitila acá abajo";
+            a.variosEsperan = "%1 personas esperan en el lobby: admitilas acá abajo";
+            f.aprobaciones["invitados"] = std::move(a);
+        }
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };
@@ -1707,6 +1810,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(controlWeb_.get(), &control::ControlWeb::aparatosCambio, e, avisar);
         connect(controlWeb_.get(), &control::ControlWeb::solicitudesCambio, e, avisar);
         connect(controlWeb_.get(), &control::ControlWeb::conexionesCambio, e, avisar);
+        connect(botonera_.get(), &control::Botonera::solicitudesCambio, e, avisar);
+        connect(botonera_.get(), &control::Botonera::cambio, e, avisar); // los nombres de los perfiles
         if (evento_) {
             connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
             connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
@@ -3472,8 +3577,8 @@ void StudioViewModel::emparejarTabletUi(const QString& perfil, const QString& no
     });
 }
 
-void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
-    const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar);
+void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil) {
+    const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar, perfil.toStdString());
     if (!e.empty()) {
         emit notify(qs(e), "error");
         return;

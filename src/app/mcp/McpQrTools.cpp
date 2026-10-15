@@ -328,7 +328,10 @@ void McpService::registerQrTools() {
             "consola. De cada uno: `led` (ok, aviso, apagado, error) y `estado` en palabras, si se puede "
             "prender o apagar (`activable`, `activo`), el enlace de la red local (`local`) y el de afuera "
             "(`remoto`, solo con el túnel andando). Los que son por persona (`porPersona`) no traen enlace: "
-            "se dan en su página (`pagina`). Para pasarle uno al operador, `qr_mostrar` con ese enlace.";
+            "se dan en su página (`pagina`). Para pasarle uno al operador, `qr_mostrar` con ese enlace. Los que "
+            "piden aprobación por aparato (`aprueba`: botonera, control, satellite, invitados) traen cuántos "
+            "esperan (`pendientes`) y quiénes (`solicitudes`): solo para informar; los aprueba el operador en "
+            "Servicios (el control web, también con control_web_resolver, que pide su aprobación).";
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         StudioViewModel* vmp = &vm_;
         t.run = [vmp](const json&, Done done) {

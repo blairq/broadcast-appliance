@@ -164,8 +164,8 @@ void BotoneraGateway::baseRedLocal(ConferenceClient& gw, std::function<void(cons
     });
 }
 
-std::string BotoneraGateway::resolver(const std::string& solicitud, bool aprobar) {
-    const json r = bot_.resolverSolicitud(solicitud, aprobar);
+std::string BotoneraGateway::resolver(const std::string& solicitud, bool aprobar, const std::string& perfil) {
+    const json r = bot_.resolverSolicitud(solicitud, aprobar, perfil);
     if (r.contains("error")) return texto(r, "error");
     json cuerpo{{"solicitud", solicitud}, {"estado", aprobar ? "aprobada" : "rechazada"}};
     if (aprobar) {

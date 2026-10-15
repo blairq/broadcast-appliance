@@ -1430,10 +1430,12 @@ std::string Botonera::solicitud(const std::string& sol, const std::string& codig
     return {};
 }
 
-json Botonera::resolverSolicitud(const std::string& sol, bool aprobar) {
+json Botonera::resolverSolicitud(const std::string& sol, bool aprobar, const std::string& perfil) {
     auto it = solicitudes_.find(sol);
     if (it == solicitudes_.end()) return {{"error", "no hay esa solicitud"}};
-    const Solicitud s = it->second;
+    if (aprobar && !perfil.empty() && buscarPerfil(perfil) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
+    Solicitud s = it->second;
+    if (aprobar && !perfil.empty()) s.perfil = perfil;
     solicitudes_.erase(it);
     emit solicitudesCambio();
     if (!aprobar) {
@@ -1723,6 +1725,8 @@ QVariantList Botonera::solicitudesUi() const {
         out.append(QVariantMap{{"id", QString::fromStdString(id)},
                                {"nombre", QString::fromStdString(s.nombre)},
                                {"ip", QString::fromStdString(s.ip)},
+                               {"ms", static_cast<double>(s.ms)},
+                               {"perfilId", QString::fromStdString(s.perfil)},
                                {"perfil", QString::fromStdString(p != nullptr ? p->value("nombre", std::string()) : s.perfil)}});
     }
     return out;
