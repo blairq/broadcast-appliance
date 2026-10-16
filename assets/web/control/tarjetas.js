@@ -23,7 +23,16 @@
   };
   const maxDb = (v) => (Array.isArray(v) ? Math.max(...v, -100) : typeof v === "number" ? v : -100);
   const ms = (v) => (v === null || v === undefined ? "—" : v >= 1000 ? (v / 1000).toFixed(2) + " s" : Math.round(v) + " ms");
-  const vacio = (contenido, texto) => contenido.replaceChildren(el("p", "vacio", texto));
+  // Las actualizaciones NUNCA rehacen el DOM (la app empuja hasta 30 veces por segundo):
+  // un componente nuevo nace sin su hoja de estilos un instante, cambia de tamaño y empuja
+  // todo lo que tiene abajo. Se crea una vez y después solo se le cambia lo que cambió.
+  const vacio = (contenido, texto) => {
+    const c = contenido.firstElementChild;
+    if (contenido.children.length === 1 && c.classList.contains("vacio") && !c.dataset.clave) { if (c.textContent !== texto) c.textContent = texto; return; }
+    contenido.replaceChildren(el("p", "vacio", texto));
+  };
+  const texto = (e, t) => { if (e.textContent !== t) e.textContent = t; };
+  const attr = (e, k, v) => { if (e.getAttribute(k) !== v) e.setAttribute(k, v); };
   // Reutilizar elementos por clave (no rehacer el DOM en cada empuje: el dedo pierde el control).
   const sincronizar = (cont, claves, crear, actualizar) => {
     const vivos = new Map([...cont.children].map((c) => [c.dataset.clave, c]));
@@ -142,18 +151,21 @@
       crear(c, api) {
         this.api = api;
         this.loud = el("div", "fila loudness");
+        this.chips = ["M", "S", "I", "TP"].map((k) => { const ch = el("ba-chip"); ch.dataset.k = k; this.loud.append(ch); return ch; });
+        this.objetivo = el("span", "suave");
+        this.loud.append(this.objetivo);
         this.canales = el("div", "canales");
         c.append(this.loud, this.canales);
       },
       actualizar(_, d) {
         const l = d.loudness || {};
-        this.loud.replaceChildren(
-          ...[["M", l.m], ["S", l.s], ["I", l.i], ["TP", l.tp]].map(([k, v]) => {
-            const ch = el("ba-chip"); ch.setAttribute("estado", l.fuera_de_objetivo ? "aviso" : "ok");
-            ch.textContent = k + " " + (v > -100 ? v.toFixed(1) : "—");
-            return ch;
-          }),
-          el("span", "suave", l.objetivo ? "objetivo " + l.objetivo.lufs + " LUFS" : ""));
+        const vals = { M: l.m, S: l.s, I: l.i, TP: l.tp };
+        for (const ch of this.chips) {
+          const v = vals[ch.dataset.k];
+          attr(ch, "estado", l.fuera_de_objetivo ? "aviso" : "ok");
+          texto(ch, ch.dataset.k + " " + (v > -100 ? v.toFixed(1) : "—"));
+        }
+        texto(this.objetivo, l.objetivo ? "objetivo " + l.objetivo.lufs + " LUFS" : "");
         const entradas = d.entradas || [];
         sincronizar(this.canales, entradas.map((e) => e.nombre), (nombre) => {
           const canal = el("div", "canal");
@@ -168,10 +180,11 @@
         }, (canal, nombre) => {
           const e = entradas.find((x) => x.nombre === nombre);
           // Mientras el dedo lo mueve (o recién), no se pisa con lo que dice la app.
-          if (!canal.fader.dataset.tocando || Date.now() - canal.fader.dataset.tocando > 800) canal.fader.valor = e.volumen_db;
+          if ((!canal.fader.dataset.tocando || Date.now() - canal.fader.dataset.tocando > 800) && canal.fader.valor !== e.volumen_db)
+            canal.fader.valor = e.volumen_db;
           canal.fader.nivel = { rms: maxDb(e.rms_db), pico: maxDb(e.pico_db) };
-          canal.mute.toggleAttribute("activo", !!e.mute);
-          canal.mute.setAttribute("variante", e.mute ? "aire" : "");
+          if (canal.mute.hasAttribute("activo") !== !!e.mute) canal.mute.toggleAttribute("activo", !!e.mute);
+          attr(canal.mute, "variante", e.mute ? "aire" : "");
         });
       },
     },
@@ -274,7 +287,8 @@
         this.campoChat.addEventListener("keydown", (e) => { if (e.key === "Enter") mandar(); });
         escribir.append(this.campoChat, boton("Enviar", mandar, { compacto: true, variante: "acento" }));
         const col1 = el("div", "columna"), col2 = el("div", "columna");
-        col1.append(el("h3", "", "Esperan"), this.esperan, el("h3", "", "Adentro"), this.adentro);
+        this.todos = boton("Admitir a todos", () => api.hacer("participant_admit_all", {}), { compacto: true, variante: "armado", clase: "oculto" });
+        col1.append(el("h3", "", "Esperan"), this.todos, this.esperan, el("h3", "", "Adentro"), this.adentro);
         col2.append(el("h3", "", "Chat"), this.chat, escribir, el("h3", "", "Archivos compartidos"), this.archivos);
         const dos = el("div", "dos-columnas"); dos.append(col1, col2);
         c.append(cab, enlace, this.enlace, dos);
@@ -302,35 +316,52 @@
         const ps = d.participants || [];
         const esperan = ps.filter((p) => p.state === "waiting");
         const adentro = ps.filter((p) => p.state === "admitted");
-        const persona = (p, espera) => {
+        // Una fila por persona, por su id: se crea una vez y se le cambia el texto y el estado.
+        const persona = (espera) => (id) => {
           const f = el("div", "fila persona");
-          const nombre = el("div", "lleno");
-          nombre.append(el("strong", "", p.name || p.id), el("span", "suave", " " + [p.slot ? "lugar " + p.slot : "", p.hand ? "✋ pide la palabra" : "", p.talk ? "🎙 hablando" : "", p.connected === false ? "desconectado" : ""].filter(Boolean).join(" · ")));
+          f.nombre = el("strong"); f.det = el("span", "suave");
+          const nombre = el("div", "lleno"); nombre.append(f.nombre, f.det);
           f.append(nombre);
-          if (espera) f.append(boton("Admitir", () => this.api.hacer("participant_admit", { participant: p.id }), { compacto: true, variante: "armado" }),
-                               boton("✕", () => this.api.hacer("participant_reject", { participant: p.id }), { compacto: true }));
-          else f.append(boton(p.talk ? "🎙 Callar" : "🎙 Hablar", () => this.api.hacer("participant_talk", { participant: p.id, on: !p.talk }), { compacto: true, activo: !!p.talk, variante: p.talk ? "aire" : "" }),
-                        boton("Sacar", () => this.api.hacer("participant_kick", { participant: p.id }), { compacto: true, confirmar: "¿Sacarlo de la sala?" }));
+          if (espera) f.append(boton("Admitir", () => this.api.hacer("participant_admit", { participant: id }), { compacto: true, variante: "armado" }),
+                               boton("✕", () => this.api.hacer("participant_reject", { participant: id }), { compacto: true }));
+          else {
+            f.hablar = boton("🎙 Hablar", () => this.api.hacer("participant_talk", { participant: id, on: !f.p.talk }), { compacto: true });
+            f.append(f.hablar, boton("Sacar", () => this.api.hacer("participant_kick", { participant: id }), { compacto: true, confirmar: "¿Sacarlo de la sala?" }));
+          }
           return f;
         };
-        const todos = esperan.length > 1 ? [boton("Admitir a todos", () => this.api.hacer("participant_admit_all", {}), { compacto: true, variante: "armado" })] : [];
-        esperan.length ? this.esperan.replaceChildren(...todos, ...esperan.map((p) => persona(p, true))) : vacio(this.esperan, "Nadie esperando.");
-        adentro.length ? this.adentro.replaceChildren(...adentro.map((p) => persona(p, false))) : vacio(this.adentro, "Nadie adentro.");
+        const pintar = (lista) => (f, id) => {
+          const p = lista.find((x) => x.id === id); f.p = p;
+          texto(f.nombre, p.name || p.id);
+          texto(f.det, " " + [p.slot ? "lugar " + p.slot : "", p.hand ? "✋ pide la palabra" : "", p.talk ? "🎙 hablando" : "", p.connected === false ? "desconectado" : ""].filter(Boolean).join(" · "));
+          if (f.hablar) {
+            texto(f.hablar, p.talk ? "🎙 Callar" : "🎙 Hablar");
+            if (f.hablar.hasAttribute("activo") !== !!p.talk) f.hablar.toggleAttribute("activo", !!p.talk);
+            attr(f.hablar, "variante", p.talk ? "aire" : "");
+          }
+        };
+        this.todos.classList.toggle("oculto", esperan.length < 2);
+        esperan.length ? sincronizar(this.esperan, esperan.map((p) => p.id), persona(true), pintar(esperan)) : vacio(this.esperan, "Nadie esperando.");
+        adentro.length ? sincronizar(this.adentro, adentro.map((p) => p.id), persona(false), pintar(adentro)) : vacio(this.adentro, "Nadie adentro.");
         // El chat: los últimos 30, lo nuevo abajo.
         const msgs = (d.chat || []).slice(-30);
-        if (msgs.length) {
+        const firma = JSON.stringify(msgs);
+        if (firma === this.firmaChat) { /* igual que antes: no se toca */ }
+        else if ((this.firmaChat = firma) && msgs.length) {
           const abajo = this.chat.scrollTop + this.chat.clientHeight >= this.chat.scrollHeight - 8;
           this.chat.replaceChildren(...msgs.map((m) => { const x = el("div", "mensaje"); x.append(el("strong", "", (m.fromName || "Operador") + ": "), document.createTextNode(m.text || "")); return x; }));
           if (abajo) this.chat.scrollTop = this.chat.scrollHeight;
         } else vacio(this.chat, "Sin mensajes.");
         const shares = d.shares || [];
-        shares.length ? this.archivos.replaceChildren(...shares.map((x) => {
+        shares.length ? sincronizar(this.archivos, shares.map((x) => x.id), (id) => {
           const f = el("div", "fila persona");
-          f.append(el("span", "lleno", (x.name || x.id) + " · " + (x.participantName || "")),
-                   boton("Tomar", () => this.api.hacer("share_take", { id: x.id }).then(() => this.api.avisar("Agregado a la escena")), { compacto: true, variante: "acento" }),
-                   boton("Borrar", () => this.api.hacer("share_delete", { id: x.id }), { compacto: true, confirmar: "¿Borrarlo?" }));
+          f.nombre = el("span", "lleno");
+          f.append(f.nombre,
+                   boton("Tomar", () => this.api.hacer("share_take", { id }).then(() => this.api.avisar("Agregado a la escena")), { compacto: true, variante: "acento" }),
+                   boton("Borrar", () => this.api.hacer("share_delete", { id }), { compacto: true, confirmar: "¿Borrarlo?" }));
           return f;
-        })) : vacio(this.archivos, "Nadie compartió nada.");
+        }, (f, id) => { const x = shares.find((y) => y.id === id); texto(f.nombre, (x.name || x.id) + " · " + (x.participantName || "")); })
+                      : vacio(this.archivos, "Nadie compartió nada.");
       },
     },
 
@@ -353,7 +384,9 @@
         modo.append(this.modo);
         this.modoFila = modo;
         this.fila = el("ol", "fila-oradores");
-        this.quien.append(el("strong", "", "Nadie tiene la palabra"));
+        this.quienNombre = el("strong", "", "Nadie tiene la palabra");
+        this.quienResta = el("span", "numero restante");
+        this.quien.append(this.quienNombre, this.quienResta);
         this.fila.append(el("li", "vacio", "Nadie pidió la palabra."));
         c.append(this.quien, acc, this.modoFila, this.tiempo, el("h3", "", "En la fila"), this.fila);
       },
@@ -362,10 +395,14 @@
         if (typeof d.defaultTime === "number") this.tiempo.valor = d.defaultTime;
         const actual = d.al_aire || d.onAir || d.actual || (d.speakersOnAir || [])[0];
         const nombre = actual ? (actual.nombre || actual.name || actual) : "Nadie tiene la palabra";
-        this.quien.replaceChildren(el("strong", "", String(nombre)),
-          el("span", "numero restante", d.restante_s !== undefined ? Math.floor(d.restante_s / 60) + ":" + String(Math.floor(d.restante_s % 60)).padStart(2, "0") : ""));
-        const cola = d.cola || d.queue || d.order || [];
-        cola.length ? this.fila.replaceChildren(...cola.map((p) => el("li", "", p.nombre || p.name || String(p)))) : this.fila.replaceChildren(el("li", "vacio", "Nadie pidió la palabra."));
+        texto(this.quienNombre, String(nombre));
+        texto(this.quienResta, d.restante_s !== undefined ? Math.floor(d.restante_s / 60) + ":" + String(Math.floor(d.restante_s % 60)).padStart(2, "0") : "");
+        const cola = (d.cola || d.queue || d.order || []).map((p) => p.nombre || p.name || String(p));
+        const firma = cola.join("\n");
+        if (firma !== this.firmaCola) {
+          this.firmaCola = firma;
+          cola.length ? this.fila.replaceChildren(...cola.map((n) => el("li", "", n))) : this.fila.replaceChildren(el("li", "vacio", "Nadie pidió la palabra."));
+        }
       },
     },
 
@@ -400,21 +437,32 @@
     {
       id: "latencias", titulo: "Latencias", temas: ["latencias"],
       herramientas: [],
-      crear(c) { this.salidas = el("div", "columna"); this.lentos = el("div", "columna"); c.append(this.salidas, el("h3", "", "Lo que más tarda"), this.lentos); },
+      crear(c) {
+        this.salidas = el("div", "columna");
+        const est = el("div", "fila"); this.estudio = el("span", "numero");
+        est.append(el("span", "suave", "Estudio"), el("span", "espacio"), this.estudio);
+        this.lista = el("div", "columna");
+        this.salidas.append(est, this.lista);
+        this.lentos = el("div", "columna");
+        c.append(this.salidas, el("h3", "", "Lo que más tarda"), this.lentos);
+      },
       actualizar(_, d) {
         const es = d.estudio || {};
-        const s = (d.salidas || []).map((x) => {
-          const f = el("div", "fila"); f.append(el("strong", "", x.titulo), el("span", "espacio"), el("span", "numero grande-num", ms(x.total_ms)));
-          return f;
-        });
-        const est = el("div", "fila"); est.append(el("span", "suave", "Estudio"), el("span", "espacio"), el("span", "numero", ms(es.latencia_ms) + " (tope " + ms(es.tope_ms) + ")"));
-        this.salidas.replaceChildren(est, ...s);
+        texto(this.estudio, ms(es.latencia_ms) + " (tope " + ms(es.tope_ms) + ")");
+        const salidas = d.salidas || [];
+        sincronizar(this.lista, salidas.map((x) => x.titulo), () => {
+          const f = el("div", "fila"); f.t = el("strong"); f.v = el("span", "numero grande-num");
+          f.append(f.t, el("span", "espacio"), f.v); return f;
+        }, (f, k) => { const x = salidas.find((y) => y.titulo === k); texto(f.t, k); texto(f.v, ms(x.total_ms)); });
         const nodos = (d.nodos || []).filter((n) => n.activo !== false && typeof n.ms === "number").sort((a, b) => b.ms - a.ms).slice(0, 5);
-        this.lentos.replaceChildren(...nodos.map((n) => {
-          const f = el("div", "fila"); const ch = el("ba-chip"); ch.setAttribute("estado", n.estado === "tarde" ? "aire" : n.estado === "justo" ? "aviso" : "ok");
-          ch.textContent = n.titulo; f.append(ch, el("span", "espacio"), el("span", "numero", ms(n.ms)));
-          return f;
-        }));
+        sincronizar(this.lentos, nodos.map((n) => n.id || n.titulo), () => {
+          const f = el("div", "fila"); f.ch = el("ba-chip"); f.v = el("span", "numero");
+          f.append(f.ch, el("span", "espacio"), f.v); return f;
+        }, (f, k) => {
+          const n = nodos.find((y) => (y.id || y.titulo) === k);
+          attr(f.ch, "estado", n.estado === "tarde" ? "aire" : n.estado === "justo" ? "aviso" : "ok");
+          texto(f.ch, n.titulo); texto(f.v, ms(n.ms));
+        });
       },
     },
 
@@ -422,18 +470,25 @@
     {
       id: "estado", titulo: "Estado", temas: ["estado"],
       herramientas: [],
-      crear(c) { this.grilla = el("div", "grilla-estado"); c.append(this.grilla); },
+      crear(c) {
+        this.grilla = el("div", "grilla-estado");
+        this.datos = {};
+        for (const k of ["CPU", "Cuadros", "Perdidos", "Transmisión", "Grabación", "Sala", "Gateway", "Interfaz"]) {
+          const x = el("div", "dato"); x.v = el("strong", "numero", "—");
+          x.append(el("span", "suave", k), x.v); this.grilla.append(x); this.datos[k] = x;
+        }
+        c.append(this.grilla);
+      },
       actualizar(_, d) {
-        const dato = (k, v, mal) => { const x = el("div", "dato" + (mal ? " mal" : "")); x.append(el("span", "suave", k), el("strong", "numero", v)); return x; };
-        this.grilla.replaceChildren(
-          dato("CPU", Math.round(d.cpuPercent || 0) + " %", d.cpuPercent > 85),
-          dato("Cuadros", (d.fps || 0).toFixed(0) + " fps"),
-          dato("Perdidos", String(d.droppedFrames || 0), d.droppedFrames > 0),
-          dato("Transmisión", d.streamKbps ? d.streamKbps + " kbps" : "—"),
-          dato("Grabación", d.recording ? d.recordTime || "sí" : "—"),
-          dato("Sala", d.room ? (d.room.inside || 0) + " adentro · " + (d.room.waiting || 0) + " esperan" : "—"),
-          dato("Gateway", d.gatewayAlive ? "vivo" : "caído", !d.gatewayAlive),
-          dato("Interfaz", d.latido && d.latido.ui_viva ? "viva" : "trabada", d.latido && !d.latido.ui_viva));
+        const dato = (k, v, mal) => { const x = this.datos[k]; texto(x.v, v); if (x.classList.contains("mal") !== !!mal) x.classList.toggle("mal", !!mal); };
+        dato("CPU", Math.round(d.cpuPercent || 0) + " %", d.cpuPercent > 85);
+        dato("Cuadros", (d.fps || 0).toFixed(0) + " fps");
+        dato("Perdidos", String(d.droppedFrames || 0), d.droppedFrames > 0);
+        dato("Transmisión", d.streamKbps ? d.streamKbps + " kbps" : "—");
+        dato("Grabación", d.recording ? d.recordTime || "sí" : "—");
+        dato("Sala", d.room ? (d.room.inside || 0) + " adentro · " + (d.room.waiting || 0) + " esperan" : "—");
+        dato("Gateway", d.gatewayAlive ? "vivo" : "caído", !d.gatewayAlive);
+        dato("Interfaz", d.latido && d.latido.ui_viva ? "viva" : "trabada", d.latido && !d.latido.ui_viva);
       },
     },
   ];
