@@ -205,6 +205,8 @@ class SignalingServer {
     uint16_t puertaHttpPort() const { return puertaHttpBoundPort_; }
     /// ¿El control web está habilitado desde afuera (túnel, con PIN)?
     bool controlWebDesdeAfuera() const;
+    /// ¿Hay una página del evento publicada en la raíz?
+    bool eventoWebPublicado() const { return eventoWebActivo() && !cfg_.eventoWebroot.empty(); }
 
     /// La IP de origen de una cabecera PROXY v1 ("PROXY TCP4 <src> <dst> <sp>
     /// <dp>"), en orden de red. TCP6: la IPv4 mapeada (::ffff:a.b.c.d) o, si

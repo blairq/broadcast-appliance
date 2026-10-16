@@ -41,6 +41,7 @@ namespace ba::app {
 
 namespace sala {
 class EnlacesSala;
+class Direcciones;
 }
 struct ServicioEnlace; ///< una fila del catálogo (EnlacesViewModel.cpp)
 
@@ -101,8 +102,8 @@ class EnlacesViewModel : public QObject {
         /// {activo, puerto, error}
         std::function<QVariantMap()> satellite;
         std::function<QString(bool)> activarSatellite;
-        /// La dirección de la sala en la red local (http://ip:puerto), "" si no hay.
-        std::function<QString()> origenLocal;
+        /// Las direcciones de los servicios (la única fuente de los enlaces).
+        std::function<const sala::Direcciones*()> direcciones;
         /// {hay (la web generada), evento (el abierto)}
         std::function<QVariantMap()> webEvento;
         /// El control web (/control/): {conectados, aparatos, tunel}.

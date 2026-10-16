@@ -440,6 +440,7 @@ const Fila kPropias[] = {
     {"room_set", "configurar sala cupo cerrar abrir limite"},
     {"room_pin", "pin clave codigo de acceso contrasena de la sala"},
     {"room_link", "enlace invitacion link para entrar compartir acceso url de la sala"},
+    {"direcciones", "direccion ip url enlace link red local tunel afuera puerto donde entra 127.0.0.1 localhost pinggy"},
     {"web_tema", "tema apariencia estilo template plantilla neumorfismo claro oscuro paginas web tablet botonera presidencia colores"},
     {"qr_mostrar", "qr codigo qr mostrar el qr pasame el qr escanear celular copiar url link enlace portapapeles ventana"},
     {"participant_admit",

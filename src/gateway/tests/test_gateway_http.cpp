@@ -700,8 +700,10 @@ int main() {
         const std::string raiz = httpReq(cport, "GET", "/", "");
         CHECK(statusLine(raiz).find("302") != std::string::npos && raiz.find("Location: /control/") != std::string::npos,
               "la raíz lleva al control web");
-        CHECK(statusLine(httpReq(cport, "GET", "/index.html", "")).find("404") != std::string::npos,
+        CHECK(statusLine(httpReq(cport, "GET", "/invitados/", "")).find("404") != std::string::npos,
               "la página del invitado NO sale por la puerta");
+        CHECK(statusLine(httpReq(cport, "GET", "/board/", "")).find("200") != std::string::npos,
+              "por la puerta: los demás servicios de la sala (el tablero)");
         CHECK(statusLine(httpPost(cport, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"4455\"}")).find("404") !=
                   std::string::npos,
               "entrar a la sala NO sale por la puerta");

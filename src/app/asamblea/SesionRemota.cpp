@@ -133,7 +133,7 @@ json SesionRemota::armarAcceso(const json& i, const std::string& token, const st
     json out{{"id", i.value("id", std::string())}, {"pin", pin}, {"nombre", i.value("nombre", std::string())},
              {"banca", i.value("banca", std::string())}, {"fijo", accesoFijo_}, {"pin_en_qr", pinEnQr_}};
     const std::string frag = "/sesion/#i=" + out["id"].get<std::string>() + "&t=" + token;
-    out["link"] = origen_.empty() ? frag : origen_ + frag;
+    ponerLinks(out, frag);
     // Con el PIN adentro, el link solo alcanza para entrar: es la credencial entera.
     if (pinEnQr_) out["link_con_pin"] = out["link"].get<std::string>() + "&p=" + pin;
     const std::string enQr = pinEnQr_ ? out["link_con_pin"].get<std::string>() : out["link"].get<std::string>();
@@ -148,7 +148,9 @@ json SesionRemota::armarAcceso(const json& i, const std::string& token, const st
         out["qr"] = filas;
     } catch (...) {
     }
-    if (origen_.empty()) out["aviso"] = "Falta el origen público (el gateway no contestó): completá el comienzo del link.";
+    if (origen().empty())
+        out["aviso"] = motivoOrigen_.empty() ? std::string("La sala todavía no dio su dirección: completá el comienzo del link.")
+                                             : motivoOrigen_;
     return out;
 }
 
@@ -251,7 +253,7 @@ json SesionRemota::generarClave(const std::string& id, const std::string& usuari
     emit credencialesCambio();
     emit cambio();
     return {{"usuario", usuario}, {"clave", clave}, {"id", id}, {"nombre", i.value("nombre", std::string())},
-            {"entrar", (origen_.empty() ? std::string() : origen_) + "/sesion/"}};
+            {"entrar", origen() + "/sesion/"}};
 }
 
 std::string SesionRemota::setDatos(const std::string& id, const json& datos) {
@@ -293,10 +295,18 @@ json SesionRemota::paraGateway() const {
     return out;
 }
 
-void SesionRemota::setOrigen(const std::string& o) {
-    if (o == origen_) return;
-    origen_ = o;
+void SesionRemota::setOrigenes(const std::string& local, const std::string& remoto, const std::string& motivo) {
+    if (local == origenLocal_ && remoto == origenRemoto_ && motivo == motivoOrigen_) return;
+    origenLocal_ = local;
+    origenRemoto_ = remoto;
+    motivoOrigen_ = motivo;
     emit cambio();
+}
+
+void SesionRemota::ponerLinks(json& out, const std::string& frag) const {
+    // El link de la red local primero (los de la sala); el de afuera, aparte y rotulado.
+    out["link"] = origen().empty() ? frag : origen() + frag;
+    if (!origenLocal_.empty() && !origenRemoto_.empty()) out["link_remoto"] = origenRemoto_ + frag;
 }
 
 // --- Estado ---------------------------------------------------------------------------
@@ -633,9 +643,10 @@ void SesionRemota::info(const json& campos) {
 json SesionRemota::generarConsola(const std::string& nombre) {
     // Sin origen el link sería «/presidencia/#…» (sin https ni dirección): un QR que no
     // abre nada. Mejor decirlo que entregar una credencial rota (y se ve una sola vez).
-    if (origen_.empty())
-        return {{"error", "Todavía no hay una dirección para el link: ni el túnel está listo ni la sala escucha en la "
-                          "red local. Esperá unos segundos a que conecte el túnel (Servicios) y probá de nuevo."}};
+    if (origen().empty())
+        return {{"error", motivoOrigen_.empty() ? std::string("La sala todavía no dio su dirección: esperá unos segundos y "
+                                                              "probá de nuevo.")
+                                                : "Todavía no hay una dirección para el link: " + motivoOrigen_}};
     const std::string id = hexAleatorio(4);
     const std::string token = hexAleatorio(32);
     const quint32 n = QRandomGenerator::system()->bounded(1000000u);
@@ -652,7 +663,8 @@ json SesionRemota::generarConsola(const std::string& nombre) {
     emit credencialesCambio();
     emit cambio();
     const std::string frag = "/presidencia/#c=" + id + "&t=" + token;
-    json out{{"id", id}, {"pin", pin}, {"nombre", consolas_[id]["nombre"]}, {"link", origen_ + frag}};
+    json out{{"id", id}, {"pin", pin}, {"nombre", consolas_[id]["nombre"]}};
+    ponerLinks(out, frag);
     try {
         const auto qr = qrcodegen::QrCode::encodeText(out["link"].get<std::string>().c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json filas = json::array();

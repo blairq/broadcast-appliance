@@ -15,7 +15,9 @@ ScrollView {
     readonly property var w: ev.web || ({})
     readonly property var sitio: w.sitio || ({})
     readonly property var ar: Studio.accesoRemoto
-    readonly property string urlPublica: ar && ar.estado && ar.estado.pinggy ? (ar.estado.pinggy.urlPublica || "") : ""
+    // La dirección pública la decide la sala (sala/Direcciones): el túnel que esté listo.
+    readonly property var dirEventoSala: Studio.direcciones && Studio.direcciones.porId.evento ? Studio.direcciones.porId.evento : ({})
+    readonly property string urlPublica: dirEventoSala.remoto || ""
     readonly property string dirEvento: sitio.subdominio ? sitio.subdominio + ".a.pinggy.link" : ""
     readonly property bool esLaDelEvento: dirEvento !== "" && urlPublica.indexOf("//" + dirEvento) >= 0
     /// Lo pide la página (EventoPage.pedirAsistente).
@@ -64,7 +66,7 @@ ScrollView {
                 Text {
                     Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13
                     color: pw.urlPublica !== "" ? Theme.text : Theme.textFaint
-                    text: pw.urlPublica !== "" ? pw.urlPublica : "sin dirección pública (prendé pinggy en Configuración)"
+                    text: pw.urlPublica !== "" ? pw.urlPublica : (pw.dirEventoSala.motivo_remoto || "sin dirección pública (prendé el acceso remoto en Configuración)")
                 }
                 GlassButton { compact: true; text: "Abrir"; enabled: pw.urlPublica !== ""; onClicked: Qt.openUrlExternally(pw.urlPublica) }
             }

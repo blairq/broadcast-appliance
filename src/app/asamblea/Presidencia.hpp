@@ -94,12 +94,8 @@ class Presidencia : public QObject {
     /// operador (su micrófono de la sala) en su celular. "" o el error.
     std::string hablarARemoto(const std::string& integrante, bool activo);
 
-    /// Le vuelve a decir todo al gateway (credenciales, vistas, quién tiene la palabra, origen).
+    /// Le vuelve a decir todo al gateway (credenciales, vistas, quién tiene la palabra).
     void sincronizar();
-    /// Le pide al gateway el origen de los links (el del túnel si hay; si no, el de la red
-    /// local). Al conectarse y cada 15 s: el túnel suele aparecer después que la sala, y
-    /// sin esto los links quedaban sin «https://…» hasta reiniciar.
-    void refrescarOrigen();
 
    signals:
     /// Algo para el operador (la interfaz lo muestra).
@@ -132,7 +128,6 @@ class Presidencia : public QObject {
     bool presidenciaHabla_ = false;
     bool prioridadCentral_ = false; ///< el botón de prioridad del presidente, como lo vio la última vez
     QTimer consolaTimer_;
-    QTimer origenTimer_;
     std::string firmaVistas_;
     QStringList mediosPendientes_;
     bool mediosProgramados_ = false;

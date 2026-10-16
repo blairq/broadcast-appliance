@@ -7,6 +7,7 @@
 
 #include <QPointer>
 
+#include "sala/Direcciones.hpp"
 #include "sala/EnlacesSala.hpp"
 
 namespace ba::app {
@@ -79,13 +80,6 @@ const ServicioEnlace* buscar(const QString& id) {
 
 QVariantMap estado(const char* led, const QString& texto) { return {{"led", led}, {"estado", texto}}; }
 
-/// Un enlace que solo abre en esta máquina (la sala escucha en 127.0.0.1): para
-/// otro dispositivo no sirve.
-bool soloEstaMaquina(const QString& url) {
-    return url.contains("://127.0.0.1") || url.contains("://localhost");
-}
-
-const char* kSoloEsta = "la sala escucha solo en esta máquina (Configuración → Gateway → Acceso: «Red local»)";
 
 } // namespace
 
@@ -123,7 +117,8 @@ void EnlacesViewModel::releerAprobaciones() {
 }
 
 bool EnlacesViewModel::hayTunel() const {
-    return f_.tunel && f_.tunel().value("estado").toString() == "listo";
+    const sala::Direcciones* d = f_.direcciones ? f_.direcciones() : nullptr;
+    return d != nullptr && !d->remoto().isEmpty();
 }
 
 QVariantList EnlacesViewModel::servicios() const {
@@ -136,9 +131,16 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
     const QString id = QString::fromLatin1(s.id);
     const bool enLinea = f_.salaEnLinea && f_.salaEnLinea();
     const QVariantMap t = f_.tunel ? f_.tunel() : QVariantMap();
-    const bool tunel = t.value("estado").toString() == "listo";
-    const QString afuera = tunel ? t.value("url").toString() : QString();
-    const QString red = f_.origenLocal ? f_.origenLocal() : QString();
+    // Los enlaces salen de las direcciones (el gateway): la red local y, aparte, afuera.
+    const sala::Direcciones* d = f_.direcciones ? f_.direcciones() : nullptr;
+    const auto dir = [d](const char* servicio, bool afuera) -> QVariant {
+        const std::string u = d != nullptr ? d->url(servicio, afuera) : std::string();
+        return u.empty() ? QVariant() : QVariant(QString::fromStdString(u));
+    };
+    const auto porQue = [d, enLinea](const char* servicio) {
+        if (!enLinea || d == nullptr) return QString("La sala no responde");
+        return QString::fromStdString(d->motivo(servicio, false));
+    };
     const auto it = urls_.find(s.id);
     const QVariantMap pedido = it != urls_.end() ? it->second : QVariantMap();
 
@@ -163,17 +165,13 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
         if (!enLinea) return estado("error", "La sala no responde");
         const QString local = m.value("local").toString();
         const QString nota = m.value("nota").toString();
-        const bool hayLocal = !local.isEmpty() && !soloEstaMaquina(local);
         const bool hayAfuera = !m.value("remoto").toString().isEmpty();
-        if (hayLocal) return estado("ok", hayAfuera ? "Andando, en la red local y desde afuera" : "Andando en la red local");
-        // Por qué no hay enlace en la red local: lo de 127.0.0.1 se dice claro; si no, lo que dijo la sala.
-        const bool soloAca = soloEstaMaquina(local) || soloEstaMaquina(red);
-        const QString porQue = soloAca ? QString(kSoloEsta) : nota;
+        if (!local.isEmpty()) return estado("ok", hayAfuera ? "Andando, en la red local y desde afuera" : "Andando en la red local");
+        // Por qué no hay enlace en la red local: lo que dijo la sala.
         if (*s.sala != '\0') m["nota"] = QVariant(); // ya queda dicho en el estado: no se repite abajo
-        if (porQue.isEmpty() && local.isEmpty()) return estado("aviso", "Pidiendo el enlace…");
-        if (hayAfuera) return estado("aviso", "Anda desde afuera; en la red local no: " + porQue);
-        if (!local.isEmpty()) return estado("aviso", "Solo en esta máquina: " + porQue);
-        return estado("aviso", porQue);
+        if (nota.isEmpty()) return estado("aviso", "Pidiendo el enlace…");
+        if (hayAfuera) return estado("aviso", "Anda desde afuera; en la red local no: " + nota);
+        return estado("aviso", nota);
     };
     const auto deLaSala = segunEnlaces;
 
@@ -185,23 +183,23 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
     } else if (std::string(s.sala).size() > 0) {
         poner(deLaSala());
     } else if (id == "botonera") {
-        m["local"] = red.isEmpty() ? QVariant() : QVariant(red + "/botonera/");
+        m["local"] = dir("botonera", false);
         m["nota"] = "Se abre con el QR de emparejar (Botonera → Generar QR); sin el código no entra.";
-        poner(!enLinea              ? estado("error", "La sala no responde")
-              : soloEstaMaquina(red) ? estado("aviso", QString("Ninguna tablet llega: ") + kSoloEsta)
-                                     : estado("ok", "Lista para emparejar (solo red local)"));
+        poner(!enLinea                   ? estado("error", "La sala no responde")
+              : m.value("local").isNull() ? estado("aviso", "Ninguna tablet llega: " + porQue("botonera"))
+                                          : estado("ok", "Lista para emparejar (solo red local)"));
     } else if (id == "control") {
         const QVariantMap c = f_.controlWeb ? f_.controlWeb() : QVariantMap();
         const int conectados = c.value("conectados").toInt();
-        m["local"] = red.isEmpty() ? QVariant() : QVariant(red + "/control/");
-        m["remoto"] = afuera.isEmpty() || !c.value("tunel").toBool() ? QVariant() : QVariant(afuera + "/control/");
+        m["local"] = dir("control", false);
+        m["remoto"] = dir("control", true); // solo si está habilitado desde afuera (lo decide el gateway)
         m["nota"] = QString("Sin emparejar no entra nadie. Aparatos emparejados: %1%2")
                         .arg(c.value("aparatos").toInt())
                         .arg(c.value("tunel").toBool() ? " · desde afuera, con PIN" : "");
         // El LED: verde si hay algún aparato conectado ahora.
         // (Los que esperan aprobación los pone abajo, como en todos los que aprueban.)
         poner(!enLinea                ? estado("error", "La sala no responde")
-              : soloEstaMaquina(red)  ? estado("aviso", QString("Ningún aparato llega: ") + kSoloEsta)
+              : m.value("local").isNull() ? estado("aviso", "Ningún aparato llega: " + porQue("control"))
               : conectados > 0        ? estado("ok", conectados == 1 ? QString("Un aparato conectado")
                                                                      : QString::number(conectados) + " aparatos conectados")
                                       : estado("apagado", "Ningún aparato conectado ahora"));
@@ -219,7 +217,7 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
         const QVariantMap a = f_.satellite ? f_.satellite() : QVariantMap();
         m["activable"] = true;
         m["activo"] = a.value("activo").toBool();
-        const QString host = QString(red).remove("http://").remove("https://").section(':', 0, 0);
+        const QString host = d != nullptr ? d->ip() : QString();
         m["nota"] = "En Companion: Satellite → " + (host.isEmpty() ? QString("esta máquina") : host) + ", puerto " +
                     QString::number(a.value("puerto").toInt()) + " (TCP).";
         poner(!a.value("error").toString().isEmpty() ? estado("error", a.value("error").toString())
@@ -227,15 +225,17 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
                                                                     QString::number(a.value("puerto").toInt()))
                                                      : estado("apagado", "Apagado"));
     } else if (id == "sesion" || id == "presidencia") {
-        const QString ruta = id == "sesion" ? "/sesion/" : "/presidencia/";
-        m["local"] = red.isEmpty() ? QVariant() : QVariant(red + ruta);
-        m["remoto"] = afuera.isEmpty() ? QVariant() : QVariant(afuera + ruta);
-        m["nota"] = "Sin credencial no entra nadie: se dan en Asamblea → Conexiones remotas.";
+        const char* sv = id == "sesion" ? "sesion" : "presidencia";
+        m["local"] = dir(sv, false);
+        m["remoto"] = dir(sv, true);
+        m["nota"] = m.value("local").isNull() ? QVariant(porQue(sv))
+                                              : QVariant("Sin credencial no entra nadie: se dan en Asamblea → Conexiones remotas.");
         poner(segunEnlaces());
     } else if (id == "web") {
         const QVariantMap w = f_.webEvento ? f_.webEvento() : QVariantMap();
-        m["local"] = red.isEmpty() || !w.value("hay").toBool() ? QVariant() : QVariant(red + "/");
-        m["remoto"] = afuera.isEmpty() || !w.value("hay").toBool() ? QVariant() : QVariant(afuera + "/");
+        m["local"] = w.value("hay").toBool() ? dir("evento", false) : QVariant();
+        m["remoto"] = w.value("hay").toBool() ? dir("evento", true) : QVariant();
+        if (m.value("local").isNull()) m["nota"] = porQue("evento");
         if (!w.value("hay").toBool())
             poner(estado("apagado", w.value("evento").toString().isEmpty()
                                         ? QString("No hay un evento abierto")

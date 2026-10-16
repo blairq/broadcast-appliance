@@ -15,7 +15,7 @@ bool esDeEstaMaquina(const std::string& h) {
     return h.empty() || h == "localhost" || h.rfind("127.", 0) == 0 || h == "0.0.0.0" || h == "::1";
 }
 
-enum class Puerta { Sala, SalaHttp, Invitados };
+enum class Puerta { Sala, SalaHttp, Invitados, Evento };
 
 struct Servicio {
     const char* id;
@@ -44,6 +44,7 @@ const std::vector<Servicio>& servicios() {
         {"pantalla", "Televisores de la sala", "/pantalla/", Puerta::SalaHttp, false,
          "Los televisores van por la red local."},
         {"companion", "API de Companion", "/", Puerta::SalaHttp, false, "Companion va por la red local."},
+        {"evento", "Página del evento", "/", Puerta::Evento, true, ""},
     };
     return s;
 }
@@ -74,10 +75,14 @@ json armar(const Entradas& e) {
             motivoSala = "La puerta de la sala no está abierta (ver el registro del gateway).";
     }
     if (!host.empty()) {
+        // Con una IP elegida en «Acceso», la puerta escucha solo en esa: es la única que sirve.
         json ips = json::array();
-        for (const auto& ip : e.ips)
-            if (!esDeEstaMaquina(ip)) ips.push_back(ip);
-        out["local"] = {{"ip", host}, {"ips", ips}, {"https", httpsSala}, {"http", httpSala}};
+        if (!esDeEstaMaquina(e.bind))
+            ips.push_back(e.bind);
+        else
+            for (const auto& ip : e.ips)
+                if (!esDeEstaMaquina(ip)) ips.push_back(ip);
+        out["local"] = {{"ip", host}, {"ips", ips}, {"https", httpsSala}, {"http", httpSala}, {"huella", e.huella}};
     } else {
         out["local"] = nullptr;
     }
@@ -114,6 +119,8 @@ json armar(const Entradas& e) {
                 f["motivo_local"] = "La sala de invitados escucha solo en esta máquina (Configuración → Red de la "
                                     "sala → Acceso): por la red local no entran; desde afuera, por el túnel.";
             }
+        } else if (s.puerta == Puerta::Evento && !e.eventoWeb) {
+            f["motivo_local"] = "No hay una página del evento publicada (Evento → Web del evento).";
         } else {
             const std::string& base = s.puerta == Puerta::SalaHttp ? httpSala : httpsSala;
             if (!base.empty())
@@ -123,7 +130,9 @@ json armar(const Entradas& e) {
         }
         // Afuera
         const bool afuera = s.afuera && (std::string(s.id) != "control" || e.controlRemoto);
-        if (!afuera) {
+        if (s.puerta == Puerta::Evento && !e.eventoWeb) {
+            f["motivo_remoto"] = f["motivo_local"];
+        } else if (!afuera) {
             f["motivo_remoto"] = std::string(s.id) == "control"
                                      ? "El control web desde afuera está apagado (se habilita con PIN)."
                                      : std::string(s.sinAfuera);

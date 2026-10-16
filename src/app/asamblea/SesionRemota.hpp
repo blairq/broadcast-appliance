@@ -85,8 +85,12 @@ class SesionRemota : public QObject {
     bool tieneCredencial(const std::string& integrante) const;
     /// La lista que va al gateway: [{id, nombre, banca, sal, hash_token, hash_pin}].
     json paraGateway() const;
-    void setOrigen(const std::string& origen);
-    std::string origen() const { return origen_; }
+    /// Los orígenes de los links (sala/Direcciones): el de la red local (el que va en el
+    /// link y el QR) y, aparte, el de afuera (el túnel). `motivo`: por qué no hay ninguno.
+    void setOrigenes(const std::string& local, const std::string& remoto, const std::string& motivo = {});
+    /// El que se usa: el de la red local; sin él, el de afuera.
+    std::string origen() const { return origenLocal_.empty() ? origenRemoto_ : origenLocal_; }
+    std::string origenRemoto() const { return origenRemoto_; }
 
     // --- Estado ---------------------------------------------------------------------
     /// Un aviso del gateway (evento SSE "sesion"): conexion, entrada, intento, bloqueo.
@@ -178,7 +182,7 @@ class SesionRemota : public QObject {
 
     // --- Para la interfaz --------------------------------------------------------------
     QVariantList participantesUi() const;
-    QString origenUi() const { return QString::fromStdString(origen_); }
+    QString origenUi() const { return QString::fromStdString(origen()); }
     Q_INVOKABLE QVariantMap generarUi(const QString& integrante, bool forzar = false);
     Q_INVOKABLE bool revocarUi(const QString& integrante);
     Q_INVOKABLE QVariantMap generarClaveUi(const QString& integrante, const QString& usuario);
@@ -250,7 +254,9 @@ class SesionRemota : public QObject {
     json credenciales_ = json::object(); // id -> {sal, hash_token, hash_pin, creado_ms}
     std::map<std::string, Estado> estado_;
     json registro_ = json::array();
-    std::string origen_;
+    std::string origenLocal_, origenRemoto_, motivoOrigen_;
+    /// El link (`frag` sobre el origen que corresponde) y, si hay túnel, el de afuera aparte.
+    void ponerLinks(json& out, const std::string& frag) const;
     int graciaS_ = 120;
     int votoSegundos_ = 60;
     std::map<QString, QByteArray> fotos_;

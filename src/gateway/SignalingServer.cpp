@@ -714,9 +714,10 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     // La puerta de la sala (1c): todo menos ENTRAR A LA SALA COMO INVITADO (eso sigue
     // lo que diga «Acceso»). La raíz lleva al control web.
     if (soloControl) {
-        const bool deInvitados = path == "/invitados" || path.rfind("/invitados/", 0) == 0 || path == "/index.html" ||
-                                 path == "/api/join" || path == "/api/v1/files" || path == "/api/v1/avatar";
-        if (method == "GET" && path == "/") {
+        const bool deInvitados = path == "/invitados" || path.rfind("/invitados/", 0) == 0 || path == "/api/join" ||
+                                 path == "/api/v1/files" || path == "/api/v1/avatar";
+        // La raíz: la página del evento si hay una publicada; si no, el control web.
+        if (method == "GET" && (path == "/" || path == "/index.html") && !(eventoWebActivo() && !cfg_.eventoWebroot.empty())) {
             http::sendResponse(fd, 302, "text/plain", "", "Location: /control/\r\n");
             return;
         }

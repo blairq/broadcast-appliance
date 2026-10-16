@@ -44,6 +44,8 @@ struct Entradas {
     std::string estadoRemoto;     ///< listo | reconectando
     std::string motivoRemoto;     ///< por qué no hay remoto (si no hay)
     bool controlRemoto = false;   ///< el control web habilitado desde afuera (con PIN)
+    bool eventoWeb = false;       ///< hay una página del evento publicada (la raíz)
+    std::string huella;           ///< SHA-256 del certificado de la puerta (el mismo de la sala)
 };
 
 /// El host de la red local para los enlaces: el elegido (si no es de esta misma

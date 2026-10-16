@@ -1116,14 +1116,6 @@ int main(int argc, char** argv) {
             st["origenSeguro"] =
                 cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
-        // La puerta de la botonera y el control web, si la sala está solo en esta máquina.
-        if (tlsAparatos) {
-            nlohmann::json au = nlohmann::json::array();
-            if (!hostLocal.empty()) au.push_back("https://" + hostLocal + ":" + std::to_string(tlsAparatos->port()) + "/");
-            for (const auto& ip : lanIps)
-                if (ip != hostLocal) au.push_back("https://" + ip + ":" + std::to_string(tlsAparatos->port()) + "/");
-            st["aparatos"] = {{"port", tlsAparatos->port()}, {"urls", au}};
-        }
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},
                                            {"port", tls->port()},
@@ -1236,6 +1228,8 @@ int main(int argc, char** argv) {
                 e.motivoRemoto = "El túnel todavía no está listo (" + pinggy->estado().estado + ").";
             }
             e.controlRemoto = server.controlWebDesdeAfuera();
+            e.eventoWeb = server.eventoWebPublicado();
+            e.huella = tlsAparatos ? tlsAparatos->fingerprint() : std::string();
             return e;
         });
 

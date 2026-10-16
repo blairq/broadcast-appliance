@@ -75,6 +75,7 @@
 #include "control/ControlWeb.hpp"
 #include "control/ControlWebGateway.hpp"
 #include "control/TemasWeb.hpp"
+#include "sala/Direcciones.hpp"
 #include "sala/Pedido.hpp"
 #include "asamblea/Debate.hpp"
 #include "control/CarasBotonera.hpp"
@@ -304,6 +305,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
     marca("conference");
+    direcciones_ = std::make_unique<sala::Direcciones>(conference_->client());
     // El cupo es del modelo; acá solo se muestra lo que pasó.
     cupoSala_ = std::make_unique<sala::CupoSala>(rt, conference_->client());
     cupoSala_->alAvisar([this](const std::string& texto, bool error) {
@@ -317,6 +319,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, conference_->client());
+    accesoRemoto_->setDirecciones(direcciones_.get());
     accesoRemoto_->setEnVivo([this]() { return modoVivo(); });
     // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un
     // modelo aparte (como el MCP), así no se pisa lo que el operador tenga a medio editar.
@@ -1242,6 +1245,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ordenDia_ = std::make_unique<asamblea::OrdenDelDia>(rt.dataRoot(), *bus_);
         // La banca virtual (sesión remota, en la sala o afuera): docs/funciones/SESION-REMOTA.md.
         sesionRemota_ = std::make_unique<asamblea::SesionRemota>(cuerpo_->cuerpo(), rt.dataRoot());
+        // Los orígenes de los links de integrantes y presidencia: los de sala/Direcciones (la
+        // red local para los de la sala; el túnel, aparte).
+        {
+            const auto origenes = [this]() {
+                sesionRemota_->setOrigenes(direcciones_->origen("sesion"), direcciones_->origen("sesion", true),
+                                           direcciones_->motivo("sesion"));
+            };
+            connect(direcciones_.get(), &sala::Direcciones::cambio, sesionRemota_.get(), origenes);
+            origenes();
+        }
         // Los presentes con voto salen del padrón del evento abierto (o de la central),
         // más los habilitados por la banca virtual, sin contar a nadie dos veces.
         quorum_ = std::make_unique<asamblea::Quorum>(rt.dataRoot(), [this]() {
@@ -1691,7 +1704,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         f.activarSatellite = [this](bool on) -> QString {
             return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : QString("No disponible.");
         };
-        f.origenLocal = [this]() { return joinUrl(); };
+        f.direcciones = [this]() -> const sala::Direcciones* { return direcciones_.get(); };
         f.webEvento = [this]() -> QVariantMap {
             if (!evento_) return {};
             return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
@@ -1810,6 +1823,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         auto* e = enlaces_.get();
         const auto avisar = [e]() { e->avisarCambio(); };
         connect(conference_.get(), &ConferenceViewModel::onlineChanged, e, avisar);
+        // Cambiaron las direcciones (la red, el túnel, una puerta): los enlaces se vuelven a pedir.
+        connect(direcciones_.get(), &sala::Direcciones::cambio, e, &EnlacesViewModel::refrescar);
         connect(conference_.get(), &ConferenceViewModel::roomChanged, e, avisar);
         if (accesoRemoto_) connect(accesoRemoto_.get(), &AccesoRemoto::estadoChanged, e, avisar);
         if (satellite_) connect(satellite_.get(), &control::SatelliteServidor::cambio, e, avisar);
@@ -2406,30 +2421,7 @@ bool StudioViewModel::streamKeyAvailable() const {
 }
 bool StudioViewModel::streamKeySaved() const { return rt_.streamKeySaved(); }
 QString StudioViewModel::room() const { return qs(const_cast<AppRuntime&>(rt_).gateway().room); }
-QString StudioViewModel::joinUrl() const {
-    const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();
-    QString host = "127.0.0.1";
-    if (g.bindAddress != "127.0.0.1") {
-        // Red local: la primera IPv4 no loopback. Se relee cada 5 s como mucho: esto lo
-        // evalúa QML con cada statusChanged (10 veces por segundo) y pedirle las
-        // interfaces al sistema no es gratis.
-        static QString cache;
-        static qint64 cuando = 0;
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if (cache.isEmpty() || ahora - cuando > 5000) {
-            cache.clear();
-            for (const QHostAddress& a : QNetworkInterface::allAddresses()) {
-                if (a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLoopback()) {
-                    cache = a.toString();
-                    break;
-                }
-            }
-            cuando = ahora;
-        }
-        if (!cache.isEmpty()) host = cache;
-    }
-    return QString("http://%1:%2").arg(host).arg(g.port);
-}
+QObject* StudioViewModel::direccionesQml() const { return direcciones_.get(); }
 int StudioViewModel::guests() const { return rt_.config().guests; }
 QString StudioViewModel::theme() const { return qs(rt_.config().theme); }
 
@@ -3704,20 +3696,8 @@ QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
 }
 
 QString StudioViewModel::urlApiRemota() const {
-    for (const QNetworkInterface& ifc : QNetworkInterface::allInterfaces()) {
-        const auto f = ifc.flags();
-        if (!f.testFlag(QNetworkInterface::IsUp) || !f.testFlag(QNetworkInterface::IsRunning) ||
-            f.testFlag(QNetworkInterface::IsLoopBack))
-            continue;
-        for (const QNetworkAddressEntry& e : ifc.addressEntries()) {
-            const QHostAddress ip = e.ip();
-            if (ip.protocol() != QAbstractSocket::IPv4Protocol) continue;
-            const quint32 v = ip.toIPv4Address();
-            const bool privada = (v >> 24) == 10 || (v >> 20) == (172u << 4 | 1) || (v >> 16) == (192u << 8 | 168);
-            if (privada) return "http://" + ip.toString() + ":" + QString::number(rt_.gateway().port);
-        }
-    }
-    return {};
+    // La dirección la decide la sala (sala/Direcciones): la puerta HTTP en la red local.
+    return qs(direcciones_->origen("companion"));
 }
 
 QVariantMap StudioViewModel::apiRemotaUi() const {
@@ -3727,9 +3707,7 @@ QVariantMap StudioViewModel::apiRemotaUi() const {
                                    {"nombre", qs(a.value("nombre", std::string()))},
                                    {"perfil", qs(a.value("perfil", std::string()))}});
     QVariantMap out{{"activo", botonera_->apiRemotaActiva()}, {"accesos", accesos}, {"url", urlApiRemota()}};
-    if (rt_.gateway().bindAddress == "127.0.0.1")
-        out["aviso"] = "La sala escucha solo en esta máquina: Companion en otra no llega. Abrila a la red local en "
-                       "Configuración → Red de la sala.";
+    if (urlApiRemota().isEmpty()) out["aviso"] = qs(direcciones_->motivo("companion"));
     return out;
 }
 

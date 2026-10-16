@@ -75,6 +75,7 @@ class BancoSuperRes;
 } // namespace ba::app::video
 namespace ba::app::sala {
 class CupoSala;
+class Direcciones;
 class VotacionSala;
 class PreguntasSala;
 class SeguridadSala;
@@ -272,7 +273,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool streamKeyAvailable READ streamKeyAvailable NOTIFY statusChanged)
     Q_PROPERTY(bool streamKeySaved READ streamKeySaved NOTIFY statusChanged)
     Q_PROPERTY(QString room READ room NOTIFY statusChanged)
-    Q_PROPERTY(QString joinUrl READ joinUrl NOTIFY statusChanged)
+    /// Las direcciones de los servicios (sala/Direcciones): la única fuente de los enlaces.
+    Q_PROPERTY(QObject* direcciones READ direccionesQml CONSTANT)
     Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
     /// Arrancó con --test: el MCP no pide aprobaciones (la interfaz lo avisa siempre).
@@ -660,7 +662,8 @@ class StudioViewModel : public QObject {
     bool streamKeyAvailable() const;
     bool streamKeySaved() const;
     QString room() const;
-    QString joinUrl() const;
+    QObject* direccionesQml() const;
+    sala::Direcciones& direcciones() { return *direcciones_; }
     int guests() const;
     QString theme() const;
 
@@ -984,6 +987,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
     std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
+    std::unique_ptr<sala::Direcciones> direcciones_; ///< idem: el catálogo de direcciones del gateway
     std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
     std::unique_ptr<sala::PreguntasSala> preguntas_; ///< ídem
     std::unique_ptr<sala::SeguridadSala> seguridad_; ///< ídem

@@ -72,9 +72,7 @@ void Presidencia::conectar() {
     connect(&p_.sala, &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (on) sincronizar();
     });
-    origenTimer_.setInterval(15000);
-    connect(&origenTimer_, &QTimer::timeout, this, &Presidencia::refrescarOrigen);
-    origenTimer_.start();
+
     // La consola web de la presidencia: el estado (como mucho 4 veces por segundo) y lo que pide.
     consolaTimer_.setSingleShot(true);
     consolaTimer_.setInterval(250);
@@ -333,25 +331,7 @@ void Presidencia::sincronizar() {
     json ids = json::array();
     for (const auto& i : p_.sesion.conPalabraTodos()) ids.push_back(i);
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/medios", {{"ids", ids}, {"seq", ++mediosSeq_}}, sinRespuesta);
-    refrescarOrigen();
-}
-
-void Presidencia::refrescarOrigen() {
-    if (!p_.sala.online()) return;
-    // El origen de los links: el del túnel si hay; si no, el de la red local (HTTPS); si
-    // no hay ninguno, vacío (los links no se arman con un origen viejo que ya no anda).
-    QPointer<Presidencia> yo(this);
-    sala::pedir(p_.sala, "GET", "/api/v1/sesion/origen?target=remote", {}, [yo](const std::string& e, const json& r) {
-        if (!yo) return;
-        if (e.empty() && r.value("ok", false)) {
-            yo->p_.sesion.setOrigen(r.value("origen", std::string()));
-            return;
-        }
-        sala::pedir(yo->p_.sala, "GET", "/api/v1/sesion/origen?target=local", {}, [yo](const std::string& e2, const json& r2) {
-            if (!yo || !e2.empty()) return; // la sala no contestó: se queda con el que tenía
-            yo->p_.sesion.setOrigen(r2.value("ok", false) ? r2.value("origen", std::string()) : std::string());
-        });
-    });
+    // Los orígenes de los links los pone StudioViewModel desde sala/Direcciones.
 }
 
 void Presidencia::mandarMedios(const QStringList& ids) {

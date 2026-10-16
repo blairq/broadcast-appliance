@@ -87,7 +87,7 @@ void ControlWebGateway::emparejar(const json& perfil, const std::string& nombre,
     }
     const std::string codigo = texto(c, "codigo");
     const json base = {{"codigo", codigo}, {"vence_ms", c.value("vence_ms", std::int64_t{0})}, {"perfil", c["perfil"]}};
-    BotoneraGateway::baseRedLocal(gw_, [base, codigo, listo](const json& b) {
+    BotoneraGateway::baseRedLocal(gw_, "control", [base, codigo, listo](const json& b) {
         if (b.value("sin_respuesta", false)) {
             listo({{"error", texto(b, "error")}});
             return;

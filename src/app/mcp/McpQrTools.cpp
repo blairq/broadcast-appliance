@@ -17,6 +17,7 @@
 #include "ui/EnlacesViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/QrViewModel.hpp"
+#include "sala/Direcciones.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -341,6 +342,25 @@ void McpService::registerQrTools() {
                                                                            {"hay_tunel", e->hayTunel()}});
             done(ToolResult().data(json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false)));
         };
+        core_.addTool(std::move(t));
+    }
+    // --- Las direcciones de los servicios (sala/Direcciones: la única fuente) --------
+    {
+        Tool t;
+        t.name = "direcciones";
+        t.title = "Las direcciones de los servicios (red local y afuera)";
+        t.category = "qr";
+        t.readOnly = true;
+        t.description =
+            "De dónde sale TODO enlace: lo calcula la sala con lo que sabe (dónde escucha, la IP de la máquina, si el "
+            "túnel está listo). `local`: la IP de la red y la puerta de la sala; `remoto`: el túnel (o null). Por "
+            "servicio (invitados, sesion, presidencia, botonera, control, prompter, rotulos, correccion, tablero, "
+            "publico, pantalla, companion, evento): `local` (la de la red; nunca 127.0.0.1), `remoto` (por el túnel) "
+            "y, si falta alguno, `motivo_local`/`motivo_remoto`. Para los de la sala, pasá el local; el remoto es "
+            "para quien está afuera. Los enlaces con clave (tablero, prompter, rótulos…) dalos con su herramienta.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        StudioViewModel* vmp = &vm_;
+        t.run = [vmp](const json&, Done done) { done(ToolResult().data(vmp->direcciones().catalogo())); };
         core_.addTool(std::move(t));
     }
     {

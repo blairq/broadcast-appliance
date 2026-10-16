@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     // La consola de la presidencia: sin origen no se entrega un link roto («/presidencia/#…»).
     CHECK(s.generarConsola("Presidencia").contains("error") && s.consolas().empty(),
           "sin origen, el acceso a la consola no se crea");
-    s.setOrigen("https://sesion.ejemplo.org");
+    s.setOrigenes("https://sesion.ejemplo.org", "");
     {
         const json k = s.generarConsola("Presidencia");
         CHECK(k.value("link", std::string()).rfind("https://sesion.ejemplo.org/presidencia/#c=", 0) == 0,

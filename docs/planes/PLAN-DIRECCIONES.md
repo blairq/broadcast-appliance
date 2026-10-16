@@ -84,18 +84,20 @@ las siguen agregando sus endpoints, sobre el origen del catálogo.
 ## Fases
 
 - **D0** ✅ La puerta de los aparatos pasa de 8790 (chocaba con el MCP) a 8792.
-- **D1** Gateway: `Direcciones` (función pura `armar(Entradas) → catálogo`, con
+- **D1** ✅ Gateway: `Direcciones` (función pura `armar(Entradas) → catálogo`, con
   tests), entradas frescas (IP cada 10 s, túnel listo de verdad), evento al
   cambiar, `GET /api/v1/direcciones`. Los `*-link`, `/sesion/origen`, `bestUrl`
   y `/network` salen del catálogo (se borran `hostLocal` fijo, el `bestUrl`
   calculado una vez, el 127.0.0.1 de `correccion-link`, la reescritura de
   `cast-link`).
-- **D2** Gateway: la puerta de la sala (HTTPS 8792 + HTTP 8793) atiende todo
+- **D2** ✅ Gateway: la puerta de la sala (HTTPS 8792 + HTTP 8793) atiende todo
   menos la entrada de invitados.
-- **D3** App: modelo `sala::Direcciones`; Servicios, tarjeta de invitados,
+- **D3** ✅ App: modelo `sala::Direcciones`; Servicios, tarjeta de invitados,
   Pantallas, Presidencia/integrantes (local primero, remoto aparte), botonera y
   control web, Companion, Evento web, QR guardados y el MCP le piden a él. Se
-  borran `joinUrl`, `urlApiRemota`, `baseRedLocal`, `refrescarOrigen`, los
-  enlaces de `AccesoRemoto`, `puertoWeb`.
+  borran `joinUrl`, `refrescarOrigen` y el 8787 fijo de las pantallas;
+  `urlApiRemota`, `baseRedLocal` y los enlaces de `AccesoRemoto` leen del catálogo.
+  Queda a propósito: `EventoViewModel::enlaceDeCue` (abre el teleprompter en ESTA
+  máquina, 127.0.0.1 es correcto ahí) y la elección de IP por subred del televisor.
 - **D4** Pruebas: tests del catálogo (sala local/red/una IP, con y sin túnel,
   IP que cambia, urlHost raro), e2e por MCP, y mirar Servicios con la app.

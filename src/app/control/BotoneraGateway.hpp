@@ -54,10 +54,10 @@ class BotoneraGateway : public QObject {
     /// solicitudes), o "apagado" / "sin respuesta".
     void estado(std::function<void(const json&)> listo);
 
-    /// La dirección de la red local de la sala (no la del túnel; HTTPS si está),
-    /// terminada en «/»: {base, huella?, aviso?} o {error, sin_respuesta?}. La usan
-    /// los emparejamientos de la botonera y del control web.
-    static void baseRedLocal(ConferenceClient& gw, std::function<void(const json&)> listo);
+    /// El origen de la red local de `servicio` (botonera, control) según la sala
+    /// (src/gateway/Direcciones), terminado en «/»: {base, huella?} o {error, sin_respuesta?}.
+    /// La usan los emparejamientos de la botonera y del control web.
+    static void baseRedLocal(ConferenceClient& gw, const std::string& servicio, std::function<void(const json&)> listo);
     /// El QR de `url` como data URL de un SVG.
     static std::string qrDataUrl(const std::string& url);
 
