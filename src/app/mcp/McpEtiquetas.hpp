@@ -30,6 +30,7 @@ namespace ba::app::mcp {
 
 /// Los términos con los que se pediría `nombre`. Vacío si no está etiquetada.
 /// Incluye los de su familia (`youtube_*`, `audio_*`...) más los propios.
-std::vector<std::string> etiquetasDe(const std::string& nombre);
+/// `antes`: los nombres que tuvo (Tool::antes); suman sus familias y etiquetas.
+std::vector<std::string> etiquetasDe(const std::string& nombre, const std::vector<std::string>& antes = {});
 
 } // namespace ba::app::mcp

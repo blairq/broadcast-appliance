@@ -74,9 +74,15 @@ def del_codigo(nombres):
             linea = txt.count("\n", 0, m.start()) + 1
             # La categoria se declara despues del nombre, en el mismo bloque.
             cuerpo = txt[m.end():txt.find("core_.addTool", m.end())]
-            cat = re.search(r'\w+\.category\s*=\s*"([a-z_]+)"', cuerpo)
-            donde[m.group(1)] = {"archivo": rel, "linea": linea,
-                                 "categoria": cat.group(1) if cat else None}
+            # un literal, o una constante del mismo archivo (`t.category = kCat`)
+            cat = re.search(r'\w+\.category\s*=\s*(?:"([a-z_]+)"|([A-Za-z_]\w*))', cuerpo)
+            valor = None
+            if cat and cat.group(1):
+                valor = cat.group(1)
+            elif cat:
+                c = re.search(r'\b' + re.escape(cat.group(2)) + r'\s*(?:=|\{)\s*"([a-z_]+)"', txt)
+                valor = c.group(1) if c else None
+            donde[m.group(1)] = {"archivo": rel, "linea": linea, "categoria": valor}
         for m in re.finditer(r'addCategory\(\s*\n?\s*"([a-z_]+)",\s*\n?\s*"([^"]*)"', txt):
             categorias[m.group(1)] = m.group(2)
 
@@ -142,19 +148,27 @@ def roles():
     return out
 
 
-def nombres_viejos():
-    """Los nombres que una herramienta tuvo antes (Tool::antes, y la tabla de
-    renombres en bloque de McpRenombres.cpp): el inventario anterior los tiene
-    como herramientas, pero hoy son la misma con otro nombre."""
+def antes_por_herramienta():
+    """{nombre de hoy: [nombres que tuvo]}: Tool::antes (declarado despues de
+    t.name en el mismo bloque) y la tabla de renombres en bloque de
+    McpRenombres.cpp. El inventario anterior los tiene como herramientas, pero
+    hoy son la misma con otro nombre; y sus familias de etiquetas siguen valiendo."""
     import re
-    out = set()
+    out = {}
     for f in (RAIZ / "src/app/mcp").glob("*.cpp"):
         s = f.read_text(encoding="utf-8", errors="replace")
-        for lista in re.findall(r"\.antes\s*=\s*\{([^}]*)\}", s):
-            out |= set(re.findall(r'"([a-z0-9_]+)"', lista))
+        for m in re.finditer(r"\.antes\s*=\s*\{([^}]*)\}", s):
+            nombre = re.findall(r't\.name\s*=\s*"([a-z0-9_]+)"', s[:m.start()])
+            if nombre:
+                out.setdefault(nombre[-1], []).extend(re.findall(r'"([a-z0-9_]+)"', m.group(1)))
         if f.name == "McpRenombres.cpp":
-            out |= {v for v, _ in re.findall(r'\{"([a-z0-9_]+)",\s*"([a-z0-9_]+)"\}', s)}
+            for viejo, nuevo in re.findall(r'\{"([a-z0-9_]+)",\s*"([a-z0-9_]+)"\}', s):
+                out.setdefault(nuevo, []).append(viejo)
     return out
+
+
+def nombres_viejos():
+    return {v for vs in antes_por_herramienta().values() for v in vs}
 
 
 def desde_codigo(anterior):
@@ -209,6 +223,7 @@ def main():
     comunes = set(juegos.get("(comunes a todos)", []))
 
     fuera = []
+    antes = antes_por_herramienta()
     for t in herr:
         n = t["name"]
         d = donde.get(n, {})
@@ -216,7 +231,9 @@ def main():
         tags = {"propias": exactas.get(n, ""),
                 # Las de su familia: «pantalla_» vale para todas las de
                 # pantallas. Es como el buscador las junta.
-                "porPrefijo": " · ".join(v for pre, v in sorted(prefijos.items()) if n.startswith(pre))}
+                # (y las de las familias de sus nombres viejos, como el buscador)
+                "porPrefijo": " · ".join(v for pre, v in sorted(prefijos.items())
+                                         if any(x.startswith(pre) for x in [n] + antes.get(n, [])))}
         puede = sorted(r for r, cs in juegos.items()
                        if r != "(comunes a todos)" and cat and (cat in cs or cat in comunes))
         a = t.get("annotations", {})

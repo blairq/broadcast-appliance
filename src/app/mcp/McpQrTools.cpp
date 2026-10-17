@@ -372,7 +372,8 @@ void McpService::registerQrTools() {
             "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
             "sala con llave), `companion` (la API HTTP de la botonera), `satellite` "
             "(Companion Satellite) o `tunel` (la salida a internet: reinicia la sala, los invitados se "
-            "reconectan).";
+            "reconectan). Es el interruptor de la lista de servicios; para ajustar uno con sus opciones: la "
+            "sala con room_set (lobby, cupo, `locked`) y el túnel con acceso_remoto_configurar.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "activo"}},
                          {"properties",

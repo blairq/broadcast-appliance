@@ -829,14 +829,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.description = "Crea una carpeta para agrupar guiones (dentro del evento abierto), o mueve un guion a otra carpeta.";
         t.details =
-            "Las carpetas son carpetas de verdad dentro de Eventos/, anidadas con «/» (\"2026/Octubre\", "
-            "\"Consejo/Ordinarias\"). Con `crear` crea una; con `evento` y `a` lleva ese evento a la carpeta "
-            "`a` (se crea si no está; \"\" es la raíz). Mover no cambia nada del evento, ni si está en curso.";
+            "Las carpetas son carpetas de verdad, anidadas con «/» (\"2026/Octubre\", "
+            "\"Consejo/Ordinarias\"). Con `crear` crea una; con `guion` y `a` lleva ese guion a la carpeta "
+            "`a` (se crea si no está; \"\" es la raíz). Mover no cambia nada del guion, ni si está en curso.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"crear", {{"type", "string"}, {"description", "Carpeta a crear."}}},
-              {"evento", {{"type", "string"}, {"description", "Evento a mover (ruta de guion_listar)."}}},
+              {"guion", {{"type", "string"}, {"description", "Guion a mover (ruta de guion_listar)."}}},
               {"a", {{"type", "string"}, {"description", "Carpeta destino."}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("crear")) {
@@ -844,8 +844,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (c.isEmpty()) return done(ToolResult::error("No se pudo crear la carpeta."));
                 return done(ToolResult::ok("Carpeta: " + c.toStdString()));
             }
-            const std::string e = a.value("evento", std::string());
-            if (e.empty() || !a.contains("a")) return done(ToolResult::error("Pasá `crear`, o `evento` y `a`."));
+            // `evento` es el nombre de antes del parametro (evento_carpeta): sigue andando
+            const std::string e = a.value("guion", a.value("evento", std::string()));
+            if (e.empty() || !a.contains("a")) return done(ToolResult::error("Pasá `crear`, o `guion` y `a`."));
             const QString n = ev.moverEvento(QString::fromStdString(e), QString::fromStdString(a.value("a", std::string())));
             if (n.isEmpty()) return done(ToolResult::error("No se pudo mover '" + e + "'."));
             done(ToolResult::ok("Movido: " + n.toStdString()));

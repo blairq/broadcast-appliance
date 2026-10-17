@@ -246,7 +246,7 @@ json McpCore::catalogo() const {
             }
         }
         std::string etiquetas;
-        for (const auto& e : etiquetasDe(t.name)) etiquetas += (etiquetas.empty() ? "" : " ") + e;
+        for (const auto& e : etiquetasDe(t.name, t.antes)) etiquetas += (etiquetas.empty() ? "" : " ") + e;
         // El primer ejemplo, si es JSON: precarga los argumentos.
         std::string ejemplo;
         for (const auto& e : t.examples)
@@ -1022,7 +1022,7 @@ void McpCore::armarIndice() const {
         d.clase = "herramienta";
         d.nombre = t.name;
         d.titulo = t.title;
-        d.etiquetas = etiquetasDe(t.name);
+        d.etiquetas = etiquetasDe(t.name, t.antes);
         if (d.etiquetas.empty()) sinEtiquetas.push_back(t.name);
         d.cuerpo = t.description + " " + t.details;
         indice_->agregar(std::move(d));

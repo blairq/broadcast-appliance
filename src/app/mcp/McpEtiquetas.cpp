@@ -46,6 +46,10 @@ const Fila kFamilias[] = {
     {"receta_", "receta automatizacion macro secuencia guardada atajo"},
     {"agente_", "agente automatico rol ia bot trabajador delegar encargar"},
     {"modelo_local_", "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"},
+    {"acceso_remoto_", "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet "
+                       "que entren de afuera conectarse de lejos"},
+    {"descarga_", "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"},
+    {"descargas_", "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"},
     {"voz_", "voz hablar escuchar dictado microfono en voz alta asistente por voz"},
     {"prompter_", "teleprompter prompter apuntador discurso texto orador leer guion"},
     {"pantalla_", "pantalla televisor tv monitor chromecast proyector cartel proyectar castear"},
@@ -440,6 +444,10 @@ const Fila kPropias[] = {
     {"room_set", "configurar sala cupo cerrar abrir limite"},
     {"room_pin", "pin clave codigo de acceso contrasena de la sala"},
     {"room_link", "enlace invitacion link para entrar compartir acceso url de la sala"},
+    {"enlaces_listar", "enlaces links servicios web urls que esta prendido estado de los servicios lista de enlaces"},
+    {"enlace_activar", "prender apagar habilitar deshabilitar servicio web companion satellite tunel abrir cerrar la sala"},
+    {"multiview", "multiview multivista muro mosaico de camaras ver varias fuentes juntas pantalla dividida"},
+    {"diag_probar_caida", "probar una caida volcado crash dump prueba de errores"},
     {"direcciones", "direccion ip url enlace link red local tunel afuera puerto donde entra 127.0.0.1 localhost pinggy"},
     {"web_tema", "tema apariencia estilo template plantilla neumorfismo claro oscuro paginas web tablet botonera presidencia colores"},
     {"qr_mostrar", "qr codigo qr mostrar el qr pasame el qr escanear celular copiar url link enlace portapapeles ventana"},
@@ -788,7 +796,7 @@ const Fila kPropias[] = {
     {"evento_en_curso", "que evento esta en curso historico jornada del dia registro"},
     {"evento_iniciar", "empezar evento poner en curso registrar historico"},
     {"evento_terminar", "terminar cerrar evento en curso historico automatico"},
-    {"guion_carpeta", "carpeta mover ordenar eventos agrupar archivo historico"},
+    {"guion_carpeta", "carpeta mover ordenar guiones agrupar archivo historico"},
     {"evento_ficha", "ficha evento lugar etiquetas notas estado historico"},
     {"guion_bloque", "bloque del guion seccion agregar mover"},
     {"configuraciones_listar", "que configuraciones hay perfiles demo"},
@@ -1028,11 +1036,18 @@ const std::map<std::string, std::vector<std::string>>& tabla() {
 
 } // namespace
 
-std::vector<std::string> etiquetasDe(const std::string& nombre) {
+std::vector<std::string> etiquetasDe(const std::string& nombre, const std::vector<std::string>& antes) {
     std::vector<std::string> out;
+    // la familia del nombre de hoy y la de cada nombre viejo: al renombrar
+    // (capture_program -> foto_programa, evento_cue -> guion_cue) la herramienta
+    // no pierde las palabras de su familia
+    std::vector<std::string> nombres{nombre};
+    nombres.insert(nombres.end(), antes.begin(), antes.end());
     for (const Fila& f : kFamilias) {
         const std::string clave = f.clave;
-        if (nombre.compare(0, clave.size(), clave) != 0) continue;
+        if (std::none_of(nombres.begin(), nombres.end(),
+                         [&](const std::string& n) { return n.compare(0, clave.size(), clave) == 0; }))
+            continue;
         std::string cur;
         for (const char* p = f.terminos;; ++p) {
             if (*p == ' ' || *p == 0) {
@@ -1044,8 +1059,9 @@ std::vector<std::string> etiquetasDe(const std::string& nombre) {
             }
         }
     }
-    if (const auto it = tabla().find(nombre); it != tabla().end())
-        out.insert(out.end(), it->second.begin(), it->second.end());
+    for (const std::string& n : nombres)
+        if (const auto it = tabla().find(n); it != tabla().end())
+            out.insert(out.end(), it->second.begin(), it->second.end());
     std::sort(out.begin(), out.end());
     out.erase(std::unique(out.begin(), out.end()), out.end());
     return out;

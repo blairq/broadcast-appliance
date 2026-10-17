@@ -6,7 +6,7 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-10-17T02:14:13+00:00",
+  "generado": "2026-10-17T02:44:21+00:00",
   "fuente": "codigo",
   "cuantas": 697,
   "repetidas": [],
@@ -158,8 +158,18 @@
         "audio_rack_vigia",
         "audio_show",
         "audio_sources",
+        "calibracion_agregar",
+        "calibracion_aplicar",
+        "calibracion_crear",
+        "calibracion_editar",
+        "calibracion_medicion",
+        "calibracion_medir",
+        "calibracion_sala",
+        "calibracion_sustitucion",
+        "calibracion_ver",
         "mezclador_analisis_lsp",
         "mezclador_estado",
+        "mezclador_pestana",
         "traducir"
       ]
     },
@@ -1637,7 +1647,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1674,7 +1684,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1711,7 +1721,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1740,7 +1750,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1769,7 +1779,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -1798,7 +1808,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"
       },
       "donde": {
         "archivo": "src/app/mcp/McpModeloTools.cpp",
@@ -5824,6 +5834,402 @@
       ]
     },
     {
+      "nombre": "calibracion_agregar",
+      "titulo": "Agregar un parlante, un micrófono o un punto",
+      "categoria": "audio_rack",
+      "descripcion": "`que`: parlante (`dispositivo` = id de una salida de calibracion_ver.salidas y `canal` 0 = izquierdo, 1 = derecho, -1 = todos), microfono (`dispositivo` = id de una entrada y `canal`; `calibracion`: plano, modelo con `modelo` (sm58, sm57…) o archivo con `archivo` = ruta al .txt del fabricante) o punto (`tipo`: escucha, cerca —a ~1 m de un parlante—, pared o microfono —donde está uno de la mesa—). `x`, `y` en metros desde la esquina del frente izquierdo (x a lo largo).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "que"
+        ],
+        "properties": {
+          "que": {
+            "type": "string",
+            "enum": [
+              "parlante",
+              "microfono",
+              "punto"
+            ]
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "dispositivo": {
+            "type": "string"
+          },
+          "canal": {
+            "type": "integer"
+          },
+          "calibracion": {
+            "type": "string",
+            "enum": [
+              "plano",
+              "modelo",
+              "archivo"
+            ]
+          },
+          "modelo": {
+            "type": "string"
+          },
+          "archivo": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "escucha",
+              "cerca",
+              "pared",
+              "microfono"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion parlante microfono punto escucha croquis agregar sm58 medicion",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 224
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_aplicar",
+      "titulo": "Aplicar (o sacar) el EQ de sala",
+      "categoria": "audio_rack",
+      "descripcion": "Pone los filtros de la propuesta del `parlante` en un ecualizador paramétrico de LSP («eq-sala») en el rack de `fuente` (la entrada que alimenta ese parlante, de mezclador_estado.entradas). Con `revertir: true` saca el EQ de sala de esa fuente. Los retardos y niveles propuestos no se aplican solos: se informan.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "fuente"
+        ],
+        "properties": {
+          "parlante": {
+            "type": "string"
+          },
+          "fuente": {
+            "type": "string"
+          },
+          "revertir": {
+            "type": "boolean"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion aplicar eq sala ecualizador revertir sacar",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 388
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_crear",
+      "titulo": "Empezar (o abrir) una sesión de calibración",
+      "categoria": "audio_rack",
+      "descripcion": "Una sesión nueva para la sala de `largo` × `ancho` × `alto` metros, o con `abrir` una guardada (su id, de calibracion_ver.sesiones).",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "largo": {
+            "type": "number",
+            "description": "m"
+          },
+          "ancho": {
+            "type": "number",
+            "description": "m"
+          },
+          "alto": {
+            "type": "number",
+            "description": "m"
+          },
+          "abrir": {
+            "type": "string",
+            "description": "id de una sesión guardada"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion sala nueva sesion medidas largo ancho alto abrir",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 177
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_editar",
+      "titulo": "Mover o quitar algo del croquis; cambiar la calibración de un micrófono",
+      "categoria": "audio_rack",
+      "descripcion": "Con `x`, `y`: mueve el parlante, micrófono o punto `id`. Con `quitar: true`: lo saca (sus mediciones quedan pero no entran al análisis). Con `calibracion` (y `modelo`/`archivo`): cambia la del micrófono. Con `borrar_medicion: true`, `id` es una medición y se borra.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "quitar": {
+            "type": "boolean"
+          },
+          "borrar_medicion": {
+            "type": "boolean"
+          },
+          "calibracion": {
+            "type": "string",
+            "enum": [
+              "plano",
+              "modelo",
+              "archivo"
+            ]
+          },
+          "modelo": {
+            "type": "string"
+          },
+          "archivo": {
+            "type": "string"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion mover quitar punto parlante microfono calibracion borrar medicion",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 266
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_medicion",
+      "titulo": "Una medición entera",
+      "categoria": "audio_rack",
+      "descripcion": "Todo lo de la medición `id`: llegada, SNR, RT por banda, C50, polaridad, respuesta en tercios.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion medicion resultado respuesta rt60 c50 llegada",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 352
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_medir",
+      "titulo": "Medir un parlante en un punto (barrido: SUENA)",
+      "categoria": "audio_rack",
+      "descripcion": "Saca un barrido exponencial (20 Hz-20 kHz, `duracion_s` 1-15, de fábrica 4) por la salida del `parlante` a `nivel_db` dBFS (de fábrica -20, nunca más de -6) y graba el `microfono` puesto en el `punto`. Espera y devuelve la medición: llegada del directo (ms), relación señal/ruido de la respuesta impulsiva (dB, hace falta 40 o más), RT60 (LSP), EDT/T20/T30 por octava, C50, polaridad y la respuesta en tercios. `etapa`: antes (de fábrica), verificacion (después de aplicar) o sustitucion (para calibrar un micrófono contra otro).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "parlante",
+          "punto",
+          "microfono"
+        ],
+        "properties": {
+          "parlante": {
+            "type": "string"
+          },
+          "punto": {
+            "type": "string"
+          },
+          "microfono": {
+            "type": "string"
+          },
+          "etapa": {
+            "type": "string",
+            "enum": [
+              "antes",
+              "verificacion",
+              "sustitucion"
+            ]
+          },
+          "duracion_s": {
+            "type": "number"
+          },
+          "nivel_db": {
+            "type": "number"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion medir barrido sweep respuesta impulsiva punto parlante microfono rt60 snr",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 297
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_sala",
+      "titulo": "Medidas de la sala y curva objetivo",
+      "categoria": "audio_rack",
+      "descripcion": "Cambia las medidas (m) y/o la pendiente de la curva objetivo (dB/octava: 0 plana, -0,8 de fábrica para palabra en sala, como propone Toole).",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "largo": {
+            "type": "number"
+          },
+          "ancho": {
+            "type": "number"
+          },
+          "alto": {
+            "type": "number"
+          },
+          "pendiente_db_oct": {
+            "type": "number"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion medidas sala curva objetivo pendiente",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 198
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_sustitucion",
+      "titulo": "Calibrar un micrófono contra uno de referencia",
+      "categoria": "audio_rack",
+      "descripcion": "La corrección del `microfono` (un SM58, por ejemplo) por sustitución: el mismo parlante y el mismo punto medidos con un micrófono de medición (`con_referencia`, id de esa medición) y con él (`con_microfono`). Queda guardada en el micrófono y vale en esa orientación.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "microfono",
+          "con_referencia",
+          "con_microfono"
+        ],
+        "properties": {
+          "microfono": {
+            "type": "string"
+          },
+          "con_referencia": {
+            "type": "string"
+          },
+          "con_microfono": {
+            "type": "string"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion microfono sustitucion referencia umik sm58 corregir",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 368
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "calibracion_ver",
+      "titulo": "La calibración de sala: sesión, análisis, propuesta y verificación",
+      "categoria": "audio_rack",
+      "descripcion": "Lo mismo que la pestaña Calibración del Mezclador: la sesión abierta (sala, parlantes, micrófonos, puntos y mediciones), el análisis (RT60 por banda, frecuencia de Schroeder, por parlante el promedio espacial, los modos confirmados con su modo teórico, los pozos, la llegada y el nivel), la propuesta (cada filtro con su motivo, lo que NO se corrige y por qué, retardos, niveles, polaridad) y la verificación (antes contra después). También las sesiones guardadas, los dispositivos y los modelos de micrófono conocidos.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "soloLectura": true,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "calibracion sala acustica ecualizacion analisis modos rt60 reverberacion schroeder propuesta verificacion eq",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 107
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
       "nombre": "mezclador_analisis_lsp",
       "titulo": "Abrir un analizador de LSP sobre una entrada",
       "categoria": "audio_rack",
@@ -5884,6 +6290,55 @@
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
         "linea": 33
+      },
+      "roles": [
+        "asistente",
+        "tecnico"
+      ]
+    },
+    {
+      "nombre": "mezclador_pestana",
+      "titulo": "Mostrar la consola o la calibración en la ventana del Mezclador",
+      "categoria": "audio_rack",
+      "descripcion": "Cambia la pestaña de la ventana del Mezclador: consola (tiras, salidas, matriz) o calibracion (croquis, mediciones, curvas, propuesta). Para que el operador vea lo que se le explica.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "pestana"
+        ],
+        "properties": {
+          "pestana": {
+            "type": "string",
+            "enum": [
+              "consola",
+              "calibracion"
+            ]
+          },
+          "matriz": {
+            "type": "boolean",
+            "description": "en consola: la matriz desplegada abajo"
+          },
+          "vista": {
+            "type": "string",
+            "enum": [
+              "respuesta",
+              "impulso",
+              "rt",
+              "propuesta"
+            ],
+            "description": "en calibracion: curvas, impulso y ETC, RT60 por banda o la propuesta"
+          }
+        }
+      },
+      "soloLectura": false,
+      "destructiva": false,
+      "etiquetas": {
+        "propias": "mezclador pestana consola calibracion mostrar ventana",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
+        "linea": 83
       },
       "roles": [
         "asistente",
@@ -10511,7 +10966,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada  cortar ahora disparar el plano preparado mesa switcher",
-        "porPrefijo": ""
+        "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
@@ -11485,7 +11940,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1457
+        "linea": 1458
       },
       "roles": [
         "asistente",
@@ -11572,7 +12027,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1620
+        "linea": 1621
       },
       "roles": [
         "asistente",
@@ -11614,7 +12069,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1214
+        "linea": 1215
       },
       "roles": [
         "asistente",
@@ -11638,7 +12093,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1239
+        "linea": 1240
       },
       "roles": [
         "asistente",
@@ -11738,7 +12193,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1324
+        "linea": 1325
       },
       "roles": [
         "asistente",
@@ -11786,7 +12241,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1260
+        "linea": 1261
       },
       "roles": [
         "asistente",
@@ -11814,7 +12269,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1427
+        "linea": 1428
       },
       "roles": [
         "asistente",
@@ -11838,7 +12293,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1410
+        "linea": 1411
       },
       "roles": [
         "asistente",
@@ -11879,7 +12334,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 857
+        "linea": 858
       },
       "roles": [
         "asistente",
@@ -11936,7 +12391,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1291
+        "linea": 1292
       },
       "roles": [
         "asistente",
@@ -12045,7 +12500,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1165
+        "linea": 1166
       },
       "roles": [
         "asistente",
@@ -12273,7 +12728,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "abrir evento cargar guion",
-        "porPrefijo": ""
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
@@ -12314,11 +12769,11 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "bloque del guion seccion agregar mover",
-        "porPrefijo": ""
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 905
+        "linea": 906
       },
       "roles": [
         "asistente",
@@ -12337,9 +12792,9 @@
             "type": "string",
             "description": "Carpeta a crear."
           },
-          "evento": {
+          "guion": {
             "type": "string",
-            "description": "Evento a mover (ruta de guion_listar)."
+            "description": "Guion a mover (ruta de guion_listar)."
           },
           "a": {
             "type": "string",
@@ -12350,8 +12805,8 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "carpeta mover ordenar eventos agrupar archivo historico",
-        "porPrefijo": ""
+        "propias": "carpeta mover ordenar guiones agrupar archivo historico",
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
@@ -12430,11 +12885,11 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "cue paso accion del guion agregar editar",
-        "porPrefijo": ""
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 940
+        "linea": 941
       },
       "roles": [
         "asistente",
@@ -12482,11 +12937,11 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "guardar el guion del evento ponerle fecha hora y huso horario cambiarle el titulo",
-        "porPrefijo": ""
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1101
+        "linea": 1102
       },
       "roles": [
         "asistente",
@@ -12511,7 +12966,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que eventos hay guiones guardados",
-        "porPrefijo": ""
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
@@ -12535,7 +12990,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que sigue en el guion que viene ahora proximo bloque proximo cue ver el guion del  evento leer rundown cuando es el evento que dia a que hora arranca",
-        "porPrefijo": ""
+        "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
@@ -13552,7 +14007,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en  la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador codigo qr  captura de pantalla capturar una aplicacion ventana",
-        "porPrefijo": ""
+        "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
@@ -13582,7 +14037,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que hay adentro de la escena que tiene la escena que capas tiene contenido de la escena  listar fuentes de una escena que hay adentro",
-        "porPrefijo": ""
+        "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
@@ -14687,7 +15142,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "ver una fuente revisar antes de poner al aire",
-        "porPrefijo": ""
+        "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
@@ -14745,7 +15200,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "ver a una persona invitado invitada camara de alguien cara como esta saliendo  como sale como se ve el invitado mostrame al invitado mostrame a la invitada",
-        "porPrefijo": ""
+        "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
@@ -14792,7 +15247,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "quedamos sin imagen no hay imagen pantalla en blanco se fue la imagen que esta al  aire que se ve ahora salida programa",
-        "porPrefijo": ""
+        "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
@@ -14845,7 +15300,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "todas las escenas de una grilla multiview",
-        "porPrefijo": ""
+        "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
@@ -14901,7 +15356,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala",
-        "porPrefijo": ""
+        "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
         "archivo": "src/app/mcp/McpImageTools.cpp",
@@ -15266,7 +15721,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "multiview multivista muro mosaico de camaras ver varias fuentes juntas pantalla dividida",
         "porPrefijo": ""
       },
       "donde": {
@@ -15694,7 +16149,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que laminas tiene cuantas diapositivas de que trata cada una",
-        "porPrefijo": "carrusel rotacion pasos secuencia pantalla cartelera"
+        "porPrefijo": "carrusel rotacion pasos secuencia pantalla cartelera · lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira  slide placa volver atras saltar"
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
@@ -15719,7 +16174,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que carruseles de laminas hay presentaciones cargadas",
-        "porPrefijo": ""
+        "porPrefijo": "lamina diapositiva presentacion powerpoint pptx pdf carrusel imagenes tira  slide placa volver atras saltar"
       },
       "donde": {
         "archivo": "src/app/mcp/McpLaminaTools.cpp",
@@ -16314,7 +16769,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "musica cancion tema pista de audio video clip poner musica poner musica de fondo musica de fondo poner  una cancion un video poner musica reproducir cancion video al aire cortina",
-        "porPrefijo": ""
+        "porPrefijo": "medio archivo video musica audio cancion tema clip pelicula reproducir"
       },
       "donde": {
         "archivo": "src/app/mcp/McpMediaTools.cpp",
@@ -17206,7 +17661,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "quien esta en la fila estado de oradores",
-        "porPrefijo": ""
+        "porPrefijo": "orador expositor panelista fila cola turno backstage"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -17604,7 +18059,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1948
+        "linea": 1949
       },
       "roles": [
         "asistente",
@@ -17653,7 +18108,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1893
+        "linea": 1894
       },
       "roles": [
         "asistente",
@@ -17731,7 +18186,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1801
+        "linea": 1802
       },
       "roles": [
         "asistente",
@@ -17809,7 +18264,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1851
+        "linea": 1852
       },
       "roles": [
         "asistente",
@@ -17874,7 +18329,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 2014
+        "linea": 2015
       },
       "roles": [
         "asistente",
@@ -17931,7 +18386,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpEventoTools.cpp",
-        "linea": 1745
+        "linea": 1746
       },
       "roles": [
         "asistente",
@@ -19759,7 +20214,7 @@
       "nombre": "enlace_activar",
       "titulo": "Prender o apagar un servicio web",
       "categoria": "qr",
-      "descripcion": "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la sala con llave), `companion` (la API HTTP de la botonera), `satellite` (Companion Satellite) o `tunel` (la salida a internet: reinicia la sala, los invitados se reconectan).",
+      "descripcion": "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la sala con llave), `companion` (la API HTTP de la botonera), `satellite` (Companion Satellite) o `tunel` (la salida a internet: reinicia la sala, los invitados se reconectan). Es el interruptor de la lista de servicios; para ajustar uno con sus opciones: la sala con room_set (lobby, cupo, `locked`) y el túnel con acceso_remoto_configurar.",
       "esquema": {
         "type": "object",
         "required": [
@@ -19784,7 +20239,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "prender apagar habilitar deshabilitar servicio web companion satellite tunel abrir cerrar la sala",
         "porPrefijo": ""
       },
       "donde": {
@@ -19808,7 +20263,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "enlaces links servicios web urls que esta prendido estado de los servicios lista de enlaces",
         "porPrefijo": ""
       },
       "donde": {
@@ -20604,7 +21059,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "quien esta en camara quien aparece reconocer a alguien identificar cara",
-        "porPrefijo": ""
+        "porPrefijo": "rostro cara persona quien es reconocer identificar nombre cargo libreta  caras conocidas quien llego quien esta"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRostroTools.cpp",
@@ -20954,7 +21409,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -20990,7 +21445,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "conectar vpn internet afuera tunel prender apagar desconectar pinggy cloudflare sacar la sala",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21061,7 +21516,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21091,7 +21546,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "pinggy api key armar todo solo token automatico subdominio fijo cambiar subdominio elegir nombre dns tunel pro sin entrar al panel",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21116,7 +21571,7 @@
       "destructiva": true,
       "etiquetas": {
         "propias": "pinggy cortar bajar tunel matar sesion activa otro equipo mismo token liberar",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21148,7 +21603,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21180,7 +21635,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21205,7 +21660,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "pinggy tunel acceso remoto desde afuera internet url publica enlace externo dns cname dominio propio subdominio turn invitados de afuera",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21230,7 +21685,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21266,7 +21721,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": ""
+        "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21377,7 +21832,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "ver archivo mirar adjunto abrir subida revisar lo que mando antes de ponerlo",
-        "porPrefijo": ""
+        "porPrefijo": "archivo compartido adjunto subida documento foto pdf"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -21539,7 +21994,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "que me dijo que dijo que escribio leer lo que mandaron que contesto historial  conversacion que dijeron leer chat",
-        "porPrefijo": ""
+        "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpRoomTools.cpp",
@@ -23366,7 +23821,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "probar una caida volcado crash dump prueba de errores",
         "porPrefijo": ""
       },
       "donde": {
@@ -27014,7 +27469,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "chat mensajes recientes publico destacar",
-        "porPrefijo": ""
+        "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
         "archivo": "src/app/mcp/McpYouTubeTools.cpp",
@@ -27574,421 +28029,6 @@
       "roles": [
         "asistente"
       ]
-    },
-    {
-      "nombre": "calibracion_agregar",
-      "titulo": "Agregar un parlante, un micrófono o un punto",
-      "categoria": null,
-      "descripcion": "`que`: parlante (`dispositivo` = id de una salida de calibracion_ver.salidas y `canal` 0 = izquierdo, 1 = derecho, -1 = todos), microfono (`dispositivo` = id de una entrada y `canal`; `calibracion`: plano, modelo con `modelo` (sm58, sm57…) o archivo con `archivo` = ruta al .txt del fabricante) o punto (`tipo`: escucha, cerca —a ~1 m de un parlante—, pared o microfono —donde está uno de la mesa—). `x`, `y` en metros desde la esquina del frente izquierdo (x a lo largo).",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "que"
-        ],
-        "properties": {
-          "que": {
-            "type": "string",
-            "enum": [
-              "parlante",
-              "microfono",
-              "punto"
-            ]
-          },
-          "nombre": {
-            "type": "string"
-          },
-          "dispositivo": {
-            "type": "string"
-          },
-          "canal": {
-            "type": "integer"
-          },
-          "calibracion": {
-            "type": "string",
-            "enum": [
-              "plano",
-              "modelo",
-              "archivo"
-            ]
-          },
-          "modelo": {
-            "type": "string"
-          },
-          "archivo": {
-            "type": "string"
-          },
-          "tipo": {
-            "type": "string",
-            "enum": [
-              "escucha",
-              "cerca",
-              "pared",
-              "microfono"
-            ]
-          },
-          "x": {
-            "type": "number"
-          },
-          "y": {
-            "type": "number"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion parlante microfono punto escucha croquis agregar sm58 medicion",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 224
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_aplicar",
-      "titulo": "Aplicar (o sacar) el EQ de sala",
-      "categoria": null,
-      "descripcion": "Pone los filtros de la propuesta del `parlante` en un ecualizador paramétrico de LSP («eq-sala») en el rack de `fuente` (la entrada que alimenta ese parlante, de mezclador_estado.entradas). Con `revertir: true` saca el EQ de sala de esa fuente. Los retardos y niveles propuestos no se aplican solos: se informan.",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "fuente"
-        ],
-        "properties": {
-          "parlante": {
-            "type": "string"
-          },
-          "fuente": {
-            "type": "string"
-          },
-          "revertir": {
-            "type": "boolean"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion aplicar eq sala ecualizador revertir sacar",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 388
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_crear",
-      "titulo": "Empezar (o abrir) una sesión de calibración",
-      "categoria": null,
-      "descripcion": "Una sesión nueva para la sala de `largo` × `ancho` × `alto` metros, o con `abrir` una guardada (su id, de calibracion_ver.sesiones).",
-      "esquema": {
-        "type": "object",
-        "properties": {
-          "nombre": {
-            "type": "string"
-          },
-          "largo": {
-            "type": "number",
-            "description": "m"
-          },
-          "ancho": {
-            "type": "number",
-            "description": "m"
-          },
-          "alto": {
-            "type": "number",
-            "description": "m"
-          },
-          "abrir": {
-            "type": "string",
-            "description": "id de una sesión guardada"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion sala nueva sesion medidas largo ancho alto abrir",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 177
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_editar",
-      "titulo": "Mover o quitar algo del croquis; cambiar la calibración de un micrófono",
-      "categoria": null,
-      "descripcion": "Con `x`, `y`: mueve el parlante, micrófono o punto `id`. Con `quitar: true`: lo saca (sus mediciones quedan pero no entran al análisis). Con `calibracion` (y `modelo`/`archivo`): cambia la del micrófono. Con `borrar_medicion: true`, `id` es una medición y se borra.",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "id"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "x": {
-            "type": "number"
-          },
-          "y": {
-            "type": "number"
-          },
-          "quitar": {
-            "type": "boolean"
-          },
-          "borrar_medicion": {
-            "type": "boolean"
-          },
-          "calibracion": {
-            "type": "string",
-            "enum": [
-              "plano",
-              "modelo",
-              "archivo"
-            ]
-          },
-          "modelo": {
-            "type": "string"
-          },
-          "archivo": {
-            "type": "string"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion mover quitar punto parlante microfono calibracion borrar medicion",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 266
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_medicion",
-      "titulo": "Una medición entera",
-      "categoria": null,
-      "descripcion": "Todo lo de la medición `id`: llegada, SNR, RT por banda, C50, polaridad, respuesta en tercios.",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "id"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          }
-        }
-      },
-      "soloLectura": true,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion medicion resultado respuesta rt60 c50 llegada",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 352
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_medir",
-      "titulo": "Medir un parlante en un punto (barrido: SUENA)",
-      "categoria": null,
-      "descripcion": "Saca un barrido exponencial (20 Hz-20 kHz, `duracion_s` 1-15, de fábrica 4) por la salida del `parlante` a `nivel_db` dBFS (de fábrica -20, nunca más de -6) y graba el `microfono` puesto en el `punto`. Espera y devuelve la medición: llegada del directo (ms), relación señal/ruido de la respuesta impulsiva (dB, hace falta 40 o más), RT60 (LSP), EDT/T20/T30 por octava, C50, polaridad y la respuesta en tercios. `etapa`: antes (de fábrica), verificacion (después de aplicar) o sustitucion (para calibrar un micrófono contra otro).",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "parlante",
-          "punto",
-          "microfono"
-        ],
-        "properties": {
-          "parlante": {
-            "type": "string"
-          },
-          "punto": {
-            "type": "string"
-          },
-          "microfono": {
-            "type": "string"
-          },
-          "etapa": {
-            "type": "string",
-            "enum": [
-              "antes",
-              "verificacion",
-              "sustitucion"
-            ]
-          },
-          "duracion_s": {
-            "type": "number"
-          },
-          "nivel_db": {
-            "type": "number"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion medir barrido sweep respuesta impulsiva punto parlante microfono rt60 snr",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 297
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_sala",
-      "titulo": "Medidas de la sala y curva objetivo",
-      "categoria": null,
-      "descripcion": "Cambia las medidas (m) y/o la pendiente de la curva objetivo (dB/octava: 0 plana, -0,8 de fábrica para palabra en sala, como propone Toole).",
-      "esquema": {
-        "type": "object",
-        "properties": {
-          "largo": {
-            "type": "number"
-          },
-          "ancho": {
-            "type": "number"
-          },
-          "alto": {
-            "type": "number"
-          },
-          "pendiente_db_oct": {
-            "type": "number"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion medidas sala curva objetivo pendiente",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 198
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_sustitucion",
-      "titulo": "Calibrar un micrófono contra uno de referencia",
-      "categoria": null,
-      "descripcion": "La corrección del `microfono` (un SM58, por ejemplo) por sustitución: el mismo parlante y el mismo punto medidos con un micrófono de medición (`con_referencia`, id de esa medición) y con él (`con_microfono`). Queda guardada en el micrófono y vale en esa orientación.",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "microfono",
-          "con_referencia",
-          "con_microfono"
-        ],
-        "properties": {
-          "microfono": {
-            "type": "string"
-          },
-          "con_referencia": {
-            "type": "string"
-          },
-          "con_microfono": {
-            "type": "string"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion microfono sustitucion referencia umik sm58 corregir",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 368
-      },
-      "roles": []
-    },
-    {
-      "nombre": "calibracion_ver",
-      "titulo": "La calibración de sala: sesión, análisis, propuesta y verificación",
-      "categoria": null,
-      "descripcion": "Lo mismo que la pestaña Calibración del Mezclador: la sesión abierta (sala, parlantes, micrófonos, puntos y mediciones), el análisis (RT60 por banda, frecuencia de Schroeder, por parlante el promedio espacial, los modos confirmados con su modo teórico, los pozos, la llegada y el nivel), la propuesta (cada filtro con su motivo, lo que NO se corrige y por qué, retardos, niveles, polaridad) y la verificación (antes contra después). También las sesiones guardadas, los dispositivos y los modelos de micrófono conocidos.",
-      "esquema": {
-        "type": "object",
-        "properties": {}
-      },
-      "soloLectura": true,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "calibracion sala acustica ecualizacion analisis modos rt60 reverberacion schroeder propuesta verificacion eq",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 107
-      },
-      "roles": []
-    },
-    {
-      "nombre": "mezclador_pestana",
-      "titulo": "Mostrar la consola o la calibración en la ventana del Mezclador",
-      "categoria": null,
-      "descripcion": "Cambia la pestaña de la ventana del Mezclador: consola (tiras, salidas, matriz) o calibracion (croquis, mediciones, curvas, propuesta). Para que el operador vea lo que se le explica.",
-      "esquema": {
-        "type": "object",
-        "required": [
-          "pestana"
-        ],
-        "properties": {
-          "pestana": {
-            "type": "string",
-            "enum": [
-              "consola",
-              "calibracion"
-            ]
-          },
-          "matriz": {
-            "type": "boolean",
-            "description": "en consola: la matriz desplegada abajo"
-          },
-          "vista": {
-            "type": "string",
-            "enum": [
-              "respuesta",
-              "impulso",
-              "rt",
-              "propuesta"
-            ],
-            "description": "en calibracion: curvas, impulso y ETC, RT60 por banda o la propuesta"
-          }
-        }
-      },
-      "soloLectura": false,
-      "destructiva": false,
-      "etiquetas": {
-        "propias": "mezclador pestana consola calibracion mostrar ventana",
-        "porPrefijo": ""
-      },
-      "donde": {
-        "archivo": "src/app/mcp/McpCalibracionTools.cpp",
-        "linea": 83
-      },
-      "roles": []
     }
   ]
 }
