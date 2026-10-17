@@ -5,12 +5,12 @@
  "prompt": "51559fd7c42f585f",
  "fecha": "2026-10-17",
  "resumen": {
-  "cdnv_mediana": 0.0064,
-  "cdnv_peor": 0.3002,
-  "pares_sobre_objetivo": 340,
+  "cdnv_mediana": 0.0059,
+  "cdnv_peor": 0.2973,
+  "pares_sobre_objetivo": 311,
   "pares_medidos": 5886,
-  "dim_mediana": 2.88,
-  "fuera_de_su_grupo": 233
+  "dim_mediana": 2.85,
+  "fuera_de_su_grupo": 214
  },
  "herramientas": {
   "aire_ftb": {
@@ -25,8 +25,8 @@
    "n": 23,
    "dim": 2.32,
    "peor": {
-    "cdnv": 0.03473315262603953,
-    "con": "stream_stop"
+    "cdnv": 0.03375200654971939,
+    "con": "source_update"
    }
   },
   "audio_escuchar": {
@@ -38,10 +38,10 @@
    }
   },
   "audio_measure": {
-   "n": 22,
-   "dim": 3.26,
+   "n": 21,
+   "dim": 3.6,
    "peor": {
-    "cdnv": 0.04067626752997255,
+    "cdnv": 0.03715408304788454,
     "con": "audio_sincro"
    }
   },
@@ -63,17 +63,17 @@
   },
   "banca_al_aire": {
    "n": 19,
-   "dim": 3.9,
+   "dim": 3.84,
    "peor": {
-    "cdnv": 0.13692805727249815,
-    "con": "speaker_next"
+    "cdnv": 0.13972669818658057,
+    "con": "banca_cola"
    }
   },
   "banca_cola": {
    "n": 19,
-   "dim": 3.39,
+   "dim": 3.16,
    "peor": {
-    "cdnv": 0.12583362775208412,
+    "cdnv": 0.13972669818658057,
     "con": "banca_al_aire"
    }
   },
@@ -81,7 +81,7 @@
    "n": 18,
    "dim": 2.83,
    "peor": {
-    "cdnv": 0.08332499138964514,
+    "cdnv": 0.06515105664198767,
     "con": "banca_cola"
    }
   },
@@ -103,26 +103,26 @@
   },
   "chat_a_preguntas": {
    "n": 19,
-   "dim": 3.93,
+   "dim": 3.38,
    "peor": {
-    "cdnv": 0.07058096214189781,
-    "con": "chat_destacar"
+    "cdnv": 0.037514417010408266,
+    "con": "pregunta_moderar"
    }
   },
   "chat_destacar": {
    "n": 19,
-   "dim": 1.86,
+   "dim": 2.1,
    "peor": {
-    "cdnv": 0.07058096214189781,
-    "con": "chat_a_preguntas"
+    "cdnv": 0.03403940562099371,
+    "con": "chat_send"
    }
   },
   "chat_quitar_destacado": {
    "n": 22,
    "dim": 2.57,
    "peor": {
-    "cdnv": 0.03418149017174404,
-    "con": "chat_a_preguntas"
+    "cdnv": 0.03031440925795198,
+    "con": "chat_send"
    }
   },
   "chat_send": {
@@ -137,15 +137,15 @@
    "n": 15,
    "dim": 2.6,
    "peor": {
-    "cdnv": 0.08769235932696542,
+    "cdnv": 0.08635455538114296,
     "con": "foto_invitado"
    }
   },
   "crear_fuente": {
    "n": 21,
-   "dim": 2.49,
+   "dim": 2.54,
    "peor": {
-    "cdnv": 0.19111431883681623,
+    "cdnv": 0.1803765645287812,
     "con": "guest_source_add"
    }
   },
@@ -153,7 +153,7 @@
    "n": 21,
    "dim": 2.05,
    "peor": {
-    "cdnv": 0.05756820659343179,
+    "cdnv": 0.06261520938342764,
     "con": "debate_turno"
    }
   },
@@ -161,7 +161,7 @@
    "n": 19,
    "dim": 1.97,
    "peor": {
-    "cdnv": 0.15161750545480154,
+    "cdnv": 0.15102783607373477,
     "con": "debate_turno"
    }
   },
@@ -169,15 +169,15 @@
    "n": 21,
    "dim": 2.58,
    "peor": {
-    "cdnv": 0.09902420237662866,
+    "cdnv": 0.10888946141261557,
     "con": "debate_turno"
    }
   },
   "debate_turno": {
    "n": 21,
-   "dim": 3.36,
+   "dim": 2.71,
    "peor": {
-    "cdnv": 0.15161750545480154,
+    "cdnv": 0.15102783607373477,
     "con": "debate_iniciar"
    }
   },
@@ -185,8 +185,8 @@
    "n": 78,
    "dim": 7.3,
    "peor": {
-    "cdnv": 0.06341268810619854,
-    "con": "room_status"
+    "cdnv": 0.06273927374296785,
+    "con": "publico_chat_leer"
    }
   },
   "documento_abrir": {
@@ -209,7 +209,7 @@
    "n": 21,
    "dim": 2.88,
    "peor": {
-    "cdnv": 0.047109219479669326,
+    "cdnv": 0.0325953667733583,
     "con": "escena_fuentes_ver"
    }
   },
@@ -217,15 +217,15 @@
    "n": 19,
    "dim": 3.31,
    "peor": {
-    "cdnv": 0.029522910439410875,
-    "con": "escena_fuentes_ver"
+    "cdnv": 0.021952834418139305,
+    "con": "source_update"
    }
   },
   "escena_fuentes_ver": {
    "n": 25,
-   "dim": 4.74,
+   "dim": 4.84,
    "peor": {
-    "cdnv": 0.09118735799067702,
+    "cdnv": 0.08448946328638414,
     "con": "scene_list"
    }
   },
@@ -241,15 +241,15 @@
    "n": 20,
    "dim": 3.93,
    "peor": {
-    "cdnv": 0.25186846417417136,
+    "cdnv": 0.2389821556411017,
     "con": "foto_invitado"
    }
   },
   "foto_invitado": {
    "n": 18,
-   "dim": 2.84,
+   "dim": 2.76,
    "peor": {
-    "cdnv": 0.30023127558760077,
+    "cdnv": 0.2972543796307875,
     "con": "foto_todos_invitados"
    }
   },
@@ -273,7 +273,7 @@
    "n": 25,
    "dim": 1.99,
    "peor": {
-    "cdnv": 0.30023127558760077,
+    "cdnv": 0.2972543796307875,
     "con": "foto_invitado"
    }
   },
@@ -297,15 +297,15 @@
    "n": 18,
    "dim": 6.32,
    "peor": {
-    "cdnv": 0.07544472267824563,
+    "cdnv": 0.08157653287918296,
     "con": "grafico_ocultar"
    }
   },
   "grafico_ocultar": {
    "n": 17,
-   "dim": 2.81,
+   "dim": 2.85,
    "peor": {
-    "cdnv": 0.07544472267824563,
+    "cdnv": 0.08157653287918296,
     "con": "grafico_mostrar"
    }
   },
@@ -313,7 +313,7 @@
    "n": 21,
    "dim": 5.04,
    "peor": {
-    "cdnv": 0.19111431883681623,
+    "cdnv": 0.1803765645287812,
     "con": "crear_fuente"
    }
   },
@@ -353,7 +353,7 @@
    "n": 19,
    "dim": 3.1,
    "peor": {
-    "cdnv": 0.025944597876765094,
+    "cdnv": 0.026255742627865397,
     "con": "crear_fuente"
    }
   },
@@ -361,23 +361,23 @@
    "n": 25,
    "dim": 1.87,
    "peor": {
-    "cdnv": 0.011126983825455516,
-    "con": "audio_measure"
+    "cdnv": 0.010832191021624454,
+    "con": "derivar"
    }
   },
   "orden_del_dia_punto": {
    "n": 20,
    "dim": 2.6,
    "peor": {
-    "cdnv": 0.0477265256068231,
+    "cdnv": 0.04438939822833194,
     "con": "orden_del_dia_ver"
    }
   },
   "orden_del_dia_ver": {
-   "n": 22,
-   "dim": 3.21,
+   "n": 23,
+   "dim": 3.05,
    "peor": {
-    "cdnv": 0.0477265256068231,
+    "cdnv": 0.04438939822833194,
     "con": "orden_del_dia_punto"
    }
   },
@@ -439,10 +439,10 @@
   },
   "participant_requeue": {
    "n": 22,
-   "dim": 3.33,
+   "dim": 3.28,
    "peor": {
-    "cdnv": 0.06268734452620253,
-    "con": "banca_cola"
+    "cdnv": 0.05856685639104558,
+    "con": "speaker_on_air"
    }
   },
   "participant_talk": {
@@ -457,15 +457,15 @@
    "n": 21,
    "dim": 5.78,
    "peor": {
-    "cdnv": 0.10132579825058213,
+    "cdnv": 0.09230750773255375,
     "con": "pdf_escena_ver"
    }
   },
   "pdf_escena_ver": {
    "n": 21,
-   "dim": 1.94,
+   "dim": 1.88,
    "peor": {
-    "cdnv": 0.10132579825058213,
+    "cdnv": 0.09230750773255375,
     "con": "pdf_escena_poner"
    }
   },
@@ -513,15 +513,15 @@
    "n": 17,
    "dim": 2.27,
    "peor": {
-    "cdnv": 0.13948997742162375,
+    "cdnv": 0.16472631026630122,
     "con": "prompter_control"
    }
   },
   "prompter_control": {
    "n": 19,
-   "dim": 2.13,
+   "dim": 2.14,
    "peor": {
-    "cdnv": 0.13948997742162375,
+    "cdnv": 0.16472631026630122,
     "con": "prompter_cargar"
    }
   },
@@ -529,8 +529,8 @@
    "n": 23,
    "dim": 1.96,
    "peor": {
-    "cdnv": 0.058559967195729354,
-    "con": "prompter_cargar"
+    "cdnv": 0.12735260529019796,
+    "con": "prompter_control"
    }
   },
   "ptz_caras_ubicar": {
@@ -614,10 +614,10 @@
    }
   },
   "ptz_seguir": {
-   "n": 20,
-   "dim": 3.98,
+   "n": 19,
+   "dim": 3.99,
    "peor": {
-    "cdnv": 0.09108923831945469,
+    "cdnv": 0.09188562932249589,
     "con": "recinto_apuntar"
    }
   },
@@ -633,7 +633,7 @@
    "n": 21,
    "dim": 1.98,
    "peor": {
-    "cdnv": 0.04549250773176646,
+    "cdnv": 0.04508949034675625,
     "con": "votacion_recuento"
    }
   },
@@ -655,9 +655,9 @@
   },
   "recinto_bancas_ver": {
    "n": 23,
-   "dim": 3.63,
+   "dim": 3.59,
    "peor": {
-    "cdnv": 0.039320589167783415,
+    "cdnv": 0.03832454438045624,
     "con": "recinto_apuntar"
    }
   },
@@ -689,15 +689,15 @@
    "n": 20,
    "dim": 3.39,
    "peor": {
-    "cdnv": 0.03267876373218728,
-    "con": "room_status"
+    "cdnv": 0.0213983564899343,
+    "con": "imagen_preguntar"
    }
   },
   "room_link": {
    "n": 21,
    "dim": 2.69,
    "peor": {
-    "cdnv": 0.05068284106382933,
+    "cdnv": 0.05243982550723475,
     "con": "room_status"
    }
   },
@@ -705,15 +705,15 @@
    "n": 25,
    "dim": 3.26,
    "peor": {
-    "cdnv": 0.024985144146426306,
+    "cdnv": 0.02654752627233568,
     "con": "room_status"
    }
   },
   "room_status": {
    "n": 21,
-   "dim": 5.19,
+   "dim": 4.98,
    "peor": {
-    "cdnv": 0.06341268810619854,
+    "cdnv": 0.05848073167292884,
     "con": "derivar"
    }
   },
@@ -737,7 +737,7 @@
    "n": 21,
    "dim": 2.34,
    "peor": {
-    "cdnv": 0.09118735799067702,
+    "cdnv": 0.08448946328638414,
     "con": "escena_fuentes_ver"
    }
   },
@@ -793,7 +793,7 @@
    "n": 21,
    "dim": 2.51,
    "peor": {
-    "cdnv": 0.0423220645913064,
+    "cdnv": 0.039579137397668177,
     "con": "participant_requeue"
    }
   },
@@ -801,7 +801,7 @@
    "n": 22,
    "dim": 5.08,
    "peor": {
-    "cdnv": 0.13692805727249815,
+    "cdnv": 0.09577420794866241,
     "con": "banca_al_aire"
    }
   },
@@ -809,8 +809,8 @@
    "n": 17,
    "dim": 4.13,
    "peor": {
-    "cdnv": 0.08924022445849088,
-    "con": "banca_al_aire"
+    "cdnv": 0.08102986603596107,
+    "con": "speaker_queue"
    }
   },
   "speaker_presenter": {
@@ -833,8 +833,8 @@
    "n": 18,
    "dim": 1.96,
    "peor": {
-    "cdnv": 0.06636048349435208,
-    "con": "banca_al_aire"
+    "cdnv": 0.04287775112530603,
+    "con": "banca_cola"
    }
   },
   "status": {
@@ -849,15 +849,15 @@
    "n": 17,
    "dim": 1.94,
    "peor": {
-    "cdnv": 0.0865417001545825,
-    "con": "stream_stop"
+    "cdnv": 0.0670500465973321,
+    "con": "scene_switch"
    }
   },
   "stream_stop": {
    "n": 25,
-   "dim": 3.13,
+   "dim": 3.06,
    "peor": {
-    "cdnv": 0.0865417001545825,
+    "cdnv": 0.051425203393379394,
     "con": "stream_start"
    }
   },
@@ -871,17 +871,17 @@
   },
   "votacion_abrir": {
    "n": 20,
-   "dim": 1.82,
+   "dim": 2.01,
    "peor": {
-    "cdnv": 0.042583906531747484,
+    "cdnv": 0.03448825300804574,
     "con": "votacion_recuento"
    }
   },
   "votacion_recuento": {
-   "n": 24,
-   "dim": 3.76,
+   "n": 23,
+   "dim": 3.4,
    "peor": {
-    "cdnv": 0.04549250773176646,
+    "cdnv": 0.04508949034675625,
     "con": "quorum_presentes"
    }
   }

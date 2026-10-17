@@ -24,3 +24,5 @@ Cómo decidir:
 - Preferí «queda» o «reescribir» antes que «sacar»: sacar solo si es ambigua o repetida.
 
 Una línea JSON por caso, nada más en el archivo. No dejes ningún caso sin línea.
+
+Si el caso trae `juez`: un juez que NO sabía a qué herramienta estaba asignada la frase eligió `juez` entre las dos (o "NINGUNA": no pudo decidir). Si eligió la otra, lo más probable es «mover». Si dijo NINGUNA, «reescribir» diciendo lo que la separa, o «sacar» si de verdad es ambigua. «queda» solo si estás seguro de que el juez se equivocó.

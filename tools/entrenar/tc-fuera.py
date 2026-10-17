@@ -57,6 +57,56 @@ def llamadas(lista):
     return sum(1 for a in lista if a.get("plantilla") and "falta" not in a)
 
 
+def juzgar(casos, anot, fichas, tmp, reusar):
+    """El juez a ciegas: cada frase (rendida, sin el estado) con sus dos opciones
+    mezcladas. Para las de derivar la opcion es la otra o NINGUNA (no es de este
+    modelo). Devuelve (los que no coinciden, con «juez»; {id: veredicto} de los
+    confirmados)."""
+    import random
+    geo = _modulo("geo", "tc-geometria.py")
+    rnd = random.Random(17)
+    lotes, por_n = [], {}
+    for i in range(0, len(casos), 15):
+        frases, hs = [], set()
+        for c in casos[i:i + 15]:
+            h, j = c["id"].rsplit("#", 1)
+            u, _ = geo.usuario_de(h, anot[h][int(j)])
+            frase = (u or c["plantilla"]).split("Pedido: ", 1)[-1]
+            ops = [c["otra"]["real"]] + ([] if h == tc.DERIVAR else [h])
+            rnd.shuffle(ops)
+            n = len(por_n)
+            por_n[n] = c
+            frases.append({"id": n, "frase": frase, "opciones": ops})
+            hs |= set(ops)
+        lotes.append({"herramientas": {o: fichas[o]["description"] for o in sorted(hs)}, "frases": frases})
+    trabajos = []
+    for k, lote in enumerate(lotes):
+        f = tmp / f"juez-{k}.json"
+        if not reusar:
+            f.write_text(json.dumps(lote, ensure_ascii=False, indent=1))
+        trabajos.append(agente.Trabajo("juez.md", f, tmp / f"juez-{k}.jsonl", ["id", "herramienta"]))
+    if not reusar:
+        agente.correr_lotes(trabajos, paralelo=4)
+    ver = {}
+    for t in trabajos:
+        if Path(t.salida).exists():
+            for l in Path(t.salida).read_text().splitlines():
+                try:
+                    d = json.loads(l)
+                    ver[int(d["id"])] = d["herramienta"]
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    continue
+    disputados, confirmadas = [], {}
+    for n, c in por_n.items():
+        h = c["suya"]["real"]
+        v = ver.get(n)
+        if v is not None and (v == h or (h == tc.DERIVAR and v == "NINGUNA")):
+            confirmadas[c["id"]] = v
+        else:
+            disputados.append({**c, "juez": v or "NINGUNA"})
+    return disputados, confirmadas
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--geometria", required=True, help="diagnostico de tc-geometria.py --json (fuera_de_su_grupo)")
@@ -64,6 +114,9 @@ def main():
     ap.add_argument("--grupo", type=int, default=10, help="casos por agente")
     ap.add_argument("--aplicar", action="store_true")
     ap.add_argument("--reusar", help="carpeta de una corrida anterior (/tmp/tc-fuera-...): sus decisiones, sin agentes")
+    ap.add_argument("--juez", action="store_true",
+                    help="antes, un juez A CIEGAS (consignas/juez.md) elige entre las dos sin saber cual es la asignada:"
+                         " si coincide, la frase queda confirmada; si no, va al agente con el veredicto")
     args = ap.parse_args()
     tca = _modulo("tca", "tc-anotar.py")
     fichas, esquemas = tc.fichas(), tc.esquemas()
@@ -109,9 +162,13 @@ def main():
                       **({"falta": a["falta"]} if "falta" in a else {"args": a.get("args", {})}),
                       "suya": ficha(h), "otra": ficha(b)})
     casos.sort(key=lambda c: (c["suya"]["real"], c["otra"]["real"]))
+    tmp = Path(args.reusar) if args.reusar else Path(tempfile.mkdtemp(prefix="tc-fuera-"))
+    confirmadas = {}
+    if args.juez:
+        casos, confirmadas = juzgar(casos, anot, fichas, tmp, args.reusar)
+        print(f"juez a ciegas: {len(confirmadas)} confirmadas (coincide con la asignada), {len(casos)} van al agente")
     print(f"casos para el agente: {len(casos)}")
 
-    tmp = Path(args.reusar) if args.reusar else Path(tempfile.mkdtemp(prefix="tc-fuera-"))
     trabajos = []
     for i in range(0, len(casos), args.grupo):
         f = tmp / f"lote-{i}.json"
@@ -136,6 +193,11 @@ def main():
     cuenta = collections.Counter()
     sacar_pend = []
     por_id = {c["id"]: c for c in casos}
+    for cid, juez in confirmadas.items():
+        h, j = cid.rsplit("#", 1)
+        cuenta["confirmada por el juez: queda"] += 1
+        informe.append({"id": cid, "herramienta": h, "plantilla": anot[h][int(j)]["plantilla"],
+                        "decision": "juez", "juez": juez, "final": "queda (confirmada por el juez)"})
     for cid, c in por_id.items():
         h, j = cid.rsplit("#", 1)
         j = int(j)

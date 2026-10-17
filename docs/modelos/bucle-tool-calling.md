@@ -287,7 +287,7 @@ Cuando lo nuevo queda afinado, se suma a `tc-congeladas.json` y se saca otra fot
 | `tc-parejo.py` | cada herramienta entre `--min` y `--max` frases (20–25), todas distintas |
 | `tc-contraste.py` | frases que separan a las vecinas que el modelo confunde, sin salir de 18–25 |
 | `tc-geometria.py` | el diagnóstico CDNV (`--json`), la poda y los filtros |
-| `tc-fuera.py` | las frases que caen en el grupo de otra herramienta: quedan, se mueven, se reescriben diciendo lo que las separa, o salen (de dos parecidas, una sola). El 17/10/2026 bajó de 363 a 233 (14,7 % → 9,5 %) y los pares sobre el objetivo de 813 a 340; los cambios en `datos/tc-fuera-cambios.json` |
+| `tc-fuera.py` | las frases que caen en el grupo de otra herramienta: quedan, se mueven, se reescriben diciendo lo que las separa, o salen (de dos parecidas, una sola). Con `--juez`, antes del agente, un juez ciego (no sabe a cuál está asignada) elige entre las dos; las que confirma quedan sin más. El 17/10/2026, en dos pasadas: 363 → 233 → 214 (14,7 % → 9,5 % → 8,7 %), pares sobre el objetivo 813 → 340 → 311, CDNV mediana 0,0108 → 0,0059. De las 214 que quedan, 196 las confirmó el juez (la confusión es del modelo base, que agrupa por palabras de contexto) y 24 son de `derivar`, parecidas a propósito. Seguir bajando sería escribir para el instrumento y no para el operador. Los cambios en `datos/tc-fuera-cambios.json` (`pasada_1`, `pasada_2_juez`) |
 | `ste_es.py` | el diccionario STE-ES y el verificador de frases |
 | `tc-charla.py` | la charla general (respuestas del Qwen base) |
 | `tools/dev/renombrar-herramientas.py` | renombres entre el entrenamiento y la app |

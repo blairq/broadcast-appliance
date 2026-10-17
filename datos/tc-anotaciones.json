@@ -1036,14 +1036,6 @@
    }
   },
   {
-   "frase": "entra un ruido feo al aire, testeá módulo por módulo con señal de prueba",
-   "plantilla": "entra un ruido feo al aire, testeá módulo por módulo con señal de prueba",
-   "args": {
-    "source": "{audio_operador}",
-    "tipo": "respuesta"
-   }
-  },
-  {
    "frase": "estamos saliendo sin audio, medí la cadena entera con señal de prueba",
    "plantilla": "estamos saliendo sin audio, medí la cadena entera con señal de prueba",
    "args": {
@@ -1641,12 +1633,13 @@
   },
   {
    "frase": "{banca} al aire ya, que no hay más tiempo",
-   "plantilla": "{banca} al aire ya, que no hay más tiempo",
+   "nueva": true,
+   "origen": "tc-nuevas",
+   "plantilla": "{banca} al aire ya desde su banca, cámara y micrófono, que no hay más tiempo",
    "args": {
     "banca": "{banca}"
    },
-   "nueva": true,
-   "origen": "tc-nuevas"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "al aire ya",
@@ -1894,12 +1887,13 @@
   },
   {
    "frase": "que {banca} quede esperando su turno para hablar",
-   "plantilla": "que {banca} quede esperando su turno para hablar",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "sumá a {banca} a la cola presencial, que espere su turno sin salir al aire",
    "args": {
     "agregar": "{banca}"
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "¿podés inscribir a {banca} en la lista de oradores?",
@@ -3018,12 +3012,13 @@
   },
   {
    "frase": "agregá el mensaje de Juan para que lo lean",
-   "plantilla": "agregá {mensaje} para que lo lean",
+   "nueva": true,
+   "origen": "tc-nuevas",
+   "plantilla": "agregá {mensaje} a la cola de preguntas para que lo lean",
    "args": {
     "mensaje_id": "{mensaje}"
    },
-   "nueva": true,
-   "origen": "tc-nuevas"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "hay una pregunta en el chat de Twitch, encolá lo que escribió Carla",
@@ -3287,12 +3282,13 @@
   },
   {
    "frase": "para la próxima pregunta necesito {mensaje} en destacado",
-   "plantilla": "para la próxima pregunta necesito {mensaje} en destacado",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "para la próxima pregunta, destacá {mensaje} en el overlay del chat",
    "args": {
     "key": "{mensaje}"
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "que aparezca resaltado {mensaje} en los overlays",
@@ -4102,13 +4098,14 @@
   },
   {
    "frase": "Agregá la fuente Cam 1 también en la escena Debate",
-   "plantilla": "creá una fuente de cámara nueva, {fuente}, en {escena}",
+   "duda": "El tipo solo se infiere del nombre 'Cam 1'; con otro nombre de fuente no vale",
+   "plantilla": "creá {fuente} como fuente de cámara nueva del estudio en {escena}",
    "args": {
     "type": "camara",
     "name": "{fuente}",
     "scene": "{escena}"
    },
-   "duda": "El tipo solo se infiere del nombre 'Cam 1'; con otro nombre de fuente no vale"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "agregá una fuente nueva",
@@ -4961,13 +4958,14 @@
   },
   {
    "frase": "el A pidió un minuto y medio más, dáselo con la palabra",
-   "plantilla": "el A pidió un minuto y medio más, dáselo con la palabra",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "en el debate, el A pidió un minuto y medio más: dale la palabra con ese tiempo",
    "args": {
     "turno": "a",
     "sumar": 90
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "hablan los dos juntos y sumales un minuto",
@@ -4981,12 +4979,13 @@
   },
   {
    "frase": "nadie con la palabra mientras presidencia ordena la sala",
-   "plantilla": "nadie con la palabra mientras presidencia ordena la sala",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "en el debate, nadie con la palabra mientras presidencia ordena la sala",
    "args": {
     "turno": "nadie"
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "¿le das el turno al B? el A ya terminó",
@@ -4999,13 +4998,14 @@
   },
   {
    "frase": "turno del B con diez segundos menos",
-   "plantilla": "turno del B con diez segundos menos",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "en el debate que está corriendo, turno del B con diez segundos menos",
    "args": {
     "turno": "b",
     "sumar": -10
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "se cayó el remoto, que no hable nadie en el debate hasta que vuelva",
@@ -5018,13 +5018,14 @@
   },
   {
    "frase": "palabra para ambos y dos minutos extra",
-   "plantilla": "palabra para ambos y dos minutos extra",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "en el debate en curso, palabra para ambos y dos minutos extra",
    "args": {
     "turno": "ambos",
     "sumar": 120
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   }
  ],
  "derivar": [
@@ -6556,13 +6557,14 @@
   },
   {
    "frase": "en la escena panel falta algo, ¿qué capas quedaron?",
-   "plantilla": "en {escena} falta algo, ¿qué capas quedaron?",
+   "tipo_nueva": "sintoma",
+   "nueva": true,
+   "origen": "tc-sumar",
+   "plantilla": "en {escena} falta algo, ¿qué fuentes quedaron adentro de la escena?",
    "args": {
     "scene": "{escena}"
    },
-   "tipo_nueva": "sintoma",
-   "nueva": true,
-   "origen": "tc-sumar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "¿{escena} tiene algún invitado remoto adentro?",
@@ -7141,13 +7143,14 @@
   },
   {
    "frase": "¿está en cámara Juli o se fue?",
-   "plantilla": "¿está en cámara {persona} o se fue?",
+   "tipo_nueva": "pregunta",
+   "nueva": true,
+   "origen": "tc-sumar",
+   "plantilla": "¿{persona} sigue en cámara o se fue? sacale una foto a su cámara",
    "args": {
     "participant": "{persona}"
    },
-   "tipo_nueva": "pregunta",
-   "nueva": true,
-   "origen": "tc-sumar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "¿qué está compartiendo Martín en pantalla?",
@@ -8611,12 +8614,13 @@
   },
   {
    "frase": "quedó colgado el zócalo animado del intendente, que la fuente 6 no muestre nada",
-   "plantilla": "quedó colgado el zócalo animado del intendente, que la fuente 6 no muestre nada",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "quedó colgado el zócalo animado del intendente, dejá transparente la fuente 6",
    "args": {
     "fuente": 6
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   }
  ],
  "guest_source_add": [
@@ -10734,6 +10738,14 @@
    "args": {},
    "nueva": true,
    "origen": "tc-completar"
+  },
+  {
+   "frase": "¿qué resultado tuvo la votación del punto anterior?",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "¿qué resultado tuvo la votación del punto anterior?",
+   "args": {},
+   "fuera": "2026-10-17 desde votacion_recuento"
   }
  ],
  "pantalla_mostrar": [
@@ -12402,12 +12414,13 @@
   },
   {
    "frase": "Ya pasó {persona}: reanotalo último en la fila",
-   "plantilla": "Ya pasó {persona}: reanotalo último en la fila",
+   "nueva": true,
+   "origen": "tc-contraste",
+   "plantilla": "{persona} ya terminó de hablar: reanotalo último en la fila",
    "args": {
     "participant": "{persona}"
    },
-   "nueva": true,
-   "origen": "tc-contraste"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "Pide la palabra de nuevo {persona}, que ya habló: al final",
@@ -12931,10 +12944,11 @@
   },
   {
    "frase": "¿qué parte de la hoja enfoca el PDF ampliado?",
-   "plantilla": "¿qué parte de la hoja enfoca el PDF ampliado?",
-   "args": {},
    "nueva": true,
-   "origen": "tc-completar"
+   "origen": "tc-completar",
+   "plantilla": "¿qué parte de la página tiene ampliada la fuente PDF de la escena?",
+   "args": {},
+   "fuera": "2026-10-17 reescrita"
   }
  ],
  "persona_identificar": [
@@ -14021,12 +14035,13 @@
   },
   {
    "frase": "avisale al orador que le quedan dos minutos",
-   "plantilla": "avisale al orador que le quedan dos minutos",
+   "nueva": true,
+   "origen": "tc-nuevas",
+   "plantilla": "avisale al orador en el prompter que le quedan dos minutos",
    "args": {
     "aviso": "Quedan dos minutos"
    },
-   "nueva": true,
-   "origen": "tc-nuevas"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "avisale a la oradora que cierre ya",
@@ -14131,11 +14146,11 @@
    "frase": "ya se recompuso, destapá la pantalla del orador",
    "nueva": true,
    "origen": "tc-completar",
-   "plantilla": "ya se recompuso, destapá el texto del prompter",
+   "fuera": "2026-10-17 reescrita",
+   "plantilla": "ya se recompuso, desactivá el pánico del prompter",
    "args": {
     "panico": false
-   },
-   "fuera": "2026-10-17 reescrita"
+   }
   },
   {
    "frase": "terminaron los aplausos, que siga corriendo el texto",
@@ -16646,16 +16661,6 @@
    "origen": "tc-nuevas"
   },
   {
-   "frase": "pará el seguimiento de {camara}",
-   "plantilla": "pará el seguimiento de {camara}",
-   "args": {
-    "entrada": "{camara}",
-    "parar": true
-   },
-   "nueva": true,
-   "origen": "tc-nuevas"
-  },
-  {
    "frase": "seguí a {persona}",
    "plantilla": "seguí a {persona}",
    "falta": "¿con qué cámara?",
@@ -17443,10 +17448,11 @@
   },
   {
    "frase": "¿están todas las bancas conectadas?",
-   "plantilla": "¿están todas las bancas conectadas?",
-   "args": {},
    "nueva": true,
-   "origen": "tc-nuevas"
+   "origen": "tc-nuevas",
+   "plantilla": "en el recinto, ¿están conectadas todas las bancas presenciales?",
+   "args": {},
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "listame los presenciales",
@@ -18720,9 +18726,9 @@
    "frase": "¿quién ocupa el lugar dos en la sala?",
    "nueva": true,
    "origen": "tc-completar",
-   "plantilla": "¿quién ocupa el lugar dos en la videollamada?",
-   "args": {},
-   "fuera": "2026-10-17 reescrita"
+   "fuera": "2026-10-17 reescrita",
+   "plantilla": "¿qué participante de la sala ocupa el lugar dos?",
+   "args": {}
   },
   {
    "frase": "¿cuántos están adentro y cuántos quedaron en el lobby?",
@@ -24498,12 +24504,13 @@
   },
   {
    "frase": "bajá solo YouTube, Facebook que siga",
-   "plantilla": "bajá solo YouTube, Facebook que siga",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "bajá del aire solo YouTube, Facebook que siga",
    "args": {
     "destino": "youtube"
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "se levantó la sesión, dejá de emitir",
@@ -24562,12 +24569,13 @@
   },
   {
    "frase": "dejá de emitir a Instagram, lo demás sigue",
-   "plantilla": "dejá de emitir a Instagram, lo demás sigue",
+   "nueva": true,
+   "origen": "tc-contraste",
+   "plantilla": "cortá la transmisión a Instagram, lo demás sigue al aire",
    "args": {
     "destino": "Instagram"
    },
-   "nueva": true,
-   "origen": "tc-contraste"
+   "fuera": "2026-10-17 reescrita"
   },
   {
    "frase": "hay un reclamo de derechos, dejá de transmitir",
@@ -25055,7 +25063,9 @@
   },
   {
    "frase": "preguntale a la sala qué tema sigue: becas, obras o salud",
-   "plantilla": "preguntale a la sala qué tema sigue: becas, obras o salud",
+   "nueva": true,
+   "origen": "tc-completar",
+   "plantilla": "abrí votación para la sala: ¿qué tema sigue? becas, obras o salud",
    "args": {
     "pregunta": "¿Qué tema sigue?",
     "opciones": [
@@ -25064,8 +25074,7 @@
      "Salud"
     ]
    },
-   "nueva": true,
-   "origen": "tc-completar"
+   "fuera": "2026-10-17 reescrita"
   }
  ],
  "votacion_recuento": [
@@ -25208,15 +25217,6 @@
    "frase": "¿la concejala Ríos ya emitió su voto?",
    "plantilla": "¿la concejala Ríos ya emitió su voto?",
    "args": {},
-   "nueva": true,
-   "origen": "tc-completar"
-  },
-  {
-   "frase": "¿qué resultado tuvo la votación del punto anterior?",
-   "plantilla": "¿qué resultado tuvo la votación del punto anterior?",
-   "args": {
-    "historial": true
-   },
    "nueva": true,
    "origen": "tc-completar"
   },
