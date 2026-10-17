@@ -6,7 +6,7 @@
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
-  "generado": "2026-10-17T02:44:21+00:00",
+  "generado": "2026-10-17T02:56:25+00:00",
   "fuente": "codigo",
   "cuantas": 697,
   "repetidas": [],
@@ -1646,7 +1646,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "actualizar instalar version nueva",
         "porPrefijo": "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"
       },
       "donde": {
@@ -1683,7 +1683,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "cancelar parar cortar la descarga",
         "porPrefijo": "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"
       },
       "donde": {
@@ -1720,7 +1720,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "reintentar volver a bajar fallo",
         "porPrefijo": "descarga bajar actualizar actualizacion version nueva modelo agente cola de descargas"
       },
       "donde": {
@@ -1749,7 +1749,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "buscar actualizaciones hay version nueva chequear",
         "porPrefijo": "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"
       },
       "donde": {
@@ -1778,7 +1778,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "estado progreso avance cuanto falta velocidad",
         "porPrefijo": "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"
       },
       "donde": {
@@ -1807,7 +1807,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "limpiar historial borrar la lista terminadas",
         "porPrefijo": "descargas bajar actualizaciones version nueva modelos agentes cola de descargas que se esta bajando"
       },
       "donde": {
@@ -1844,7 +1844,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "cargar activar usar prender el modelo local",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -1891,7 +1891,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "ajustes sesgo derivar mtp al arrancar configurar el modelo",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -1920,7 +1920,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "apagar liberar memoria gpu",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -1957,7 +1957,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "bajar descargar instalar un modelo catalogo",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -1994,7 +1994,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "borrar eliminar desinstalar liberar espacio disco",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -2028,7 +2028,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "cancelar la descarga del modelo parar la bajada",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -2106,7 +2106,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "probar una frase que herramienta elige clasificar test",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -2135,7 +2135,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "que modelos hay instalados cargado estado vision",
         "porPrefijo": "modelo local ia de esta maquina qwen motor local bajar modelo sin internet"
       },
       "donde": {
@@ -2489,7 +2489,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "elegir la voz que contesta hablante velocidad sintesis tts",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2533,7 +2533,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "tratar como dictado como si lo dijera el operador atender un pedido",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2579,7 +2579,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "acciones automaticas sin confirmar sin preguntar permitir",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2615,7 +2615,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "decir hablar decirle al operador por los auriculares avisar en voz",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2648,7 +2648,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "microfono del operador mic de cabina talkback hablarle al lobby",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2681,7 +2681,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "leer el teleprompter en voz alta locutor virtual",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2735,7 +2735,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "voz a texto dictado transcribir subtitular reconocimiento de voz stt",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -2776,7 +2776,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "transcripcion lo que se dijo texto transcripto ultimas frases",
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
@@ -3971,7 +3971,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "subir bajar volumen silenciar mutear desmutear callar cerrar abrir el micro mic acople satura fuerte despacio nivel db",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4153,7 +4153,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "agregar crear bus salida virtual entrada virtual envio mix menos",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4188,7 +4188,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "placa de sonido a donde sale dispositivo de la salida virtual",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4219,7 +4219,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "quitar borrar eliminar bus virtual",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4254,7 +4254,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "renombrar cambiar el nombre bus pista",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4474,7 +4474,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "dispositivos placas de sonido auriculares salidas del equipo",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4703,7 +4703,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "catalogo de filtros lsp compresor compuerta ecualizador que filtros hay",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4952,7 +4952,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "restablecer resetear interfaz lsp ventanas zoom escala",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -4976,7 +4976,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "matriz de mezcla ruteo envios a donde va cada fuente buses pistas",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -5030,7 +5030,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "cruce rutear mandar una fuente a un bus envio enviar a una pista",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -5064,7 +5064,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "entradas y salidas del equipo enchufado parlantes placa usb canales",
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista  se escucha se oye suena"
       },
       "donde": {
@@ -6423,7 +6423,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "",
-        "porPrefijo": "indice catalogo guia empezar"
+        "porPrefijo": "ayuda guia como se hace no se como catalogo de herramientas"
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
@@ -6460,7 +6460,7 @@
       "destructiva": false,
       "etiquetas": {
         "propias": "buscar herramienta encontrar funcion que hay para",
-        "porPrefijo": "indice catalogo guia empezar"
+        "porPrefijo": "ayuda guia como se hace no se como catalogo de herramientas"
       },
       "donde": {
         "archivo": "src/app/mcp/McpCore.cpp",
@@ -8312,7 +8312,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "parar la camara frenar el movimiento",
+        "propias": "parar la camara frenar el movimiento  detener stop dejar quieta la camara frenar ptz",
         "porPrefijo": ""
       },
       "donde": {
@@ -9131,7 +9131,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "aparatos emparejados tablets conectadas solicitudes dashboard web",
         "porPrefijo": "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador  permisos computadora maquina pc · control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"
       },
       "donde": {
@@ -9162,7 +9162,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "emparejar vincular una tablet un celular codigo qr dashboard",
         "porPrefijo": "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador  permisos computadora maquina pc · control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"
       },
       "donde": {
@@ -9197,7 +9197,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "permisos perfil categorias que puede usar el aparato",
         "porPrefijo": "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador  permisos computadora maquina pc · control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"
       },
       "donde": {
@@ -9225,7 +9225,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "quitar revocar desvincular sacarle el acceso a un aparato",
         "porPrefijo": "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador  permisos computadora maquina pc · control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"
       },
       "donde": {
@@ -9263,7 +9263,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "aprobar rechazar solicitud pedido de acceso de un aparato",
         "porPrefijo": "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador  permisos computadora maquina pc · control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"
       },
       "donde": {
@@ -9294,7 +9294,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "control web desde afuera tunel pin dashboard remoto",
         "porPrefijo": "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador  permisos computadora maquina pc · control web dashboard consola navegador tablet notebook aparato emparejar qr perfil permisos red local"
       },
       "donde": {
@@ -11003,7 +11003,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "copiar duplicar clonar escena",
+        "propias": "copiar duplicar clonar escena  hacer otra igual copia",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
@@ -11170,7 +11170,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "borrar eliminar quitar escena",
+        "propias": "borrar eliminar quitar escena  eliminar la escena",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
@@ -11399,7 +11399,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "renombrar cambiar nombre escena",
+        "propias": "renombrar cambiar nombre escena  rebautizar ponerle otro nombre",
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
@@ -11998,7 +11998,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "bitacora historial que paso registro cronologia log del evento",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -12132,7 +12132,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "configuracion con la que se hizo el evento foto de la config",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -12188,7 +12188,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "correr el guion arrancar avanzar pausar el evento",
+        "propias": "correr el guion arrancar avanzar pausar el evento  ejecutar siguiente cue",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -12358,7 +12358,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "grabaciones archivos vivos transcripciones capitulos del evento",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -12471,7 +12471,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "preparar senal de ajuste barras tono placa antes de empezar fin de transmision",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -12527,7 +12527,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "sellos integridad no se toco intacto sha256",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -12592,7 +12592,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "verificar lista de control checklist esta todo listo para salir chequeo",
         "porPrefijo": "evento guion rundown escaleta programa del dia bloque cue orden del evento produccion"
       },
       "donde": {
@@ -13652,7 +13652,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "vivos de facebook transmisiones lista estado",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13713,7 +13713,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "conectar la cuenta de facebook iniciar sesion login",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13736,7 +13736,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "desconectar la cuenta de facebook cerrar sesion",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13803,7 +13803,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "configurar la app de meta id clave secreta",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13826,7 +13826,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "estado de facebook conectado pagina",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13865,7 +13865,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "editar borrar un video de facebook titulo descripcion",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13898,7 +13898,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "subir un video a facebook publicar la grabacion",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -13928,7 +13928,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "videos de la pagina de facebook lista",
         "porPrefijo": "facebook meta fb transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -14153,7 +14153,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "quitar sacar borrar fuente",
+        "propias": "quitar sacar borrar fuente  eliminar sacar de la escena",
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
@@ -14355,7 +14355,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano  sombra paralela resplandor brillo borde difuso desvanecido transparencia opacidad efectos redondear  esquinas redondeadas bordes redondos",
+        "propias": "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano  sombra paralela resplandor brillo borde difuso desvanecido transparencia opacidad efectos redondear  esquinas redondeadas bordes redondos  agrandar achicar recuadro pip esquina visibilidad orden de capas adelante atras",
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
@@ -15032,7 +15032,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "varias capturas seguidas ver que cambia movimiento",
+        "propias": "varias capturas seguidas ver que cambia movimiento  cuadros seguidos congelado trabado titila varias fotos",
         "porPrefijo": "captura pantallazo screenshot foto imagen mirar ver revisar vista previa como se ve"
       },
       "donde": {
@@ -15393,7 +15393,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "mirar la imagen que se ve ahi que hay en camara revisar visualmente  analizar captura vision hay alguien cuadro negro se lee el rotulo",
+        "propias": "mirar la imagen que se ve ahi que hay en camara revisar visualmente  analizar captura vision hay alguien cuadro negro se lee el rotulo  preguntarle a la imagen contar personas leer el texto de la imagen",
         "porPrefijo": ""
       },
       "donde": {
@@ -17179,7 +17179,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "fila banca agregar quitar orador presencial",
+        "propias": "fila banca agregar quitar orador presencial  anotar en la fila pedir la palabra lista de oradores presenciales",
         "porPrefijo": ""
       },
       "donde": {
@@ -17495,7 +17495,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "orden del dia puntos uso de la palabra tiempos capitulos",
+        "propias": "orden del dia puntos uso de la palabra tiempos capitulos  que se trata ahora punto actual temario",
         "porPrefijo": ""
       },
       "donde": {
@@ -17635,7 +17635,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "terminar orador presencial banca",
+        "propias": "terminar orador presencial banca  cortar quitar la palabra terminar el turno del que habla en el recinto concejal",
         "porPrefijo": ""
       },
       "donde": {
@@ -17851,7 +17851,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "poner orador al aire darle el aire a quien habla",
+        "propias": "poner orador al aire darle el aire a quien habla  dar el aire al orador remoto",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
@@ -17920,7 +17920,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "fila cola de oradores agregar sacar",
+        "propias": "fila cola de oradores agregar sacar  anotar en la lista de oradores remotos cola",
         "porPrefijo": "orador expositor panelista disertante fila cola turno atril escenario"
       },
       "donde": {
@@ -18759,7 +18759,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "dejar de mostrar apagar la proyeccion cortar el casteo",
+        "propias": "dejar de mostrar apagar la proyeccion cortar el casteo  sacar de la pantalla apagar la tele dejar de proyectar",
         "porPrefijo": "pantalla televisor tv monitor chromecast proyector cartel proyectar castear"
       },
       "donde": {
@@ -21293,7 +21293,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "quien esta esperando en el lobby reconocer identificar caras",
         "porPrefijo": "rostro cara persona quien es reconocer identificar nombre cargo libreta  caras conocidas quien llego quien esta"
       },
       "donde": {
@@ -21408,7 +21408,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "clave token api key guardar credencial cloudflare",
         "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
@@ -21515,7 +21515,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "configurar prender apagar el tunel region dominio turn",
         "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
@@ -21602,7 +21602,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "instrucciones dns cname para el administrador del dominio",
         "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
@@ -21634,7 +21634,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "verificar el dns cname apunta bien",
         "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
@@ -21684,7 +21684,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "panel de la cuenta tuneles activos",
         "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
@@ -21720,7 +21720,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "probar una direccion subdominio disponible",
         "porPrefijo": "acceso remoto desde afuera tunel pinggy dominio propio direccion publica internet  que entren de afuera conectarse de lejos"
       },
       "donde": {
@@ -21831,7 +21831,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "ver archivo mirar adjunto abrir subida revisar lo que mando antes de ponerlo",
+        "propias": "ver archivo mirar adjunto abrir subida revisar lo que mando antes de ponerlo  ver la imagen compartida mostrar lo que subio el invitado archivo compartido pixelada",
         "porPrefijo": "archivo compartido adjunto subida documento foto pdf"
       },
       "donde": {
@@ -22225,7 +22225,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "ficha datos nombre cargo informacion de la persona",
+        "propias": "ficha datos nombre cargo informacion de la persona  perfil del invitado cambiarle el nombre",
         "porPrefijo": "invitado participante persona asistente publico gente lobby entrar admitir"
       },
       "donde": {
@@ -22547,7 +22547,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "bloqueados por pin mal desbloquear destrabar ip",
         "porPrefijo": "sala videollamada reunion conferencia webrtc invitados lobby"
       },
       "donde": {
@@ -22928,7 +22928,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "empezar a grabar arrancar grabacion rec",
+        "propias": "empezar a grabar arrancar grabacion rec  grabar empezar la grabacion",
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
@@ -22951,7 +22951,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar  de grabar frena la grabacion  cortar la grabacion terminar de grabar",
+        "propias": "para frena detene la grabacion cortar de grabar parar grabacion para la grabacion parar  de grabar frena la grabacion  cortar la grabacion terminar de grabar  detener terminar la grabacion stop",
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
@@ -23306,7 +23306,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "parar terminar cortar bajar del aire bajanos del aire bajalo del aire  sacanos del aire cortar la transmision fin de transmision",
+        "propias": "parar terminar cortar bajar del aire bajanos del aire bajalo del aire  sacanos del aire cortar la transmision fin de transmision  terminar la transmision dejar de transmitir cortar el streaming",
         "porPrefijo": "transmitir emitir salir al aire vivo directo rtmp stream broadcast"
       },
       "donde": {
@@ -25068,7 +25068,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "conectar la cuenta de twitch iniciar sesion login",
         "porPrefijo": "twitch transmitir stream vivo directo plataforma red social gaming"
       },
       "donde": {
@@ -25091,7 +25091,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "desconectar la cuenta de twitch cerrar sesion",
         "porPrefijo": "twitch transmitir stream vivo directo plataforma red social gaming"
       },
       "donde": {
@@ -25124,7 +25124,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "configurar la app de twitch id de cliente",
         "porPrefijo": "twitch transmitir stream vivo directo plataforma red social gaming"
       },
       "donde": {
@@ -25147,7 +25147,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "estado de twitch conectado canal",
         "porPrefijo": "twitch transmitir stream vivo directo plataforma red social gaming"
       },
       "donde": {
@@ -25205,7 +25205,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "borrar vods videos del canal de twitch",
         "porPrefijo": "twitch transmitir stream vivo directo plataforma red social gaming"
       },
       "donde": {
@@ -25235,7 +25235,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "vods videos del canal de twitch lista",
         "porPrefijo": "twitch transmitir stream vivo directo plataforma red social gaming"
       },
       "donde": {
@@ -27240,7 +27240,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "ayuda de una tarjeta de video parametros que hace gstreamer",
         "porPrefijo": "video camara webcam dispositivo entrada"
       },
       "donde": {
@@ -27468,7 +27468,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "chat mensajes recientes publico destacar",
+        "propias": "chat mensajes recientes publico destacar  comentarios del publico chat del vivo leer el chat lo que escribe la gente",
         "porPrefijo": "chat mensaje texto escribir conversacion comentario"
       },
       "donde": {
@@ -27654,7 +27654,7 @@
       "soloLectura": true,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "eventos en vivo de youtube transmisiones programadas lista",
         "porPrefijo": "youtube yt google transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -27742,7 +27742,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "editar un evento de youtube titulo privacidad pasar a vivo terminar borrar",
         "porPrefijo": "youtube yt google transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -27773,7 +27773,7 @@
       "soloLectura": false,
       "destructiva": false,
       "etiquetas": {
-        "propias": "",
+        "propias": "conectar la cuenta de youtube iniciar sesion google login",
         "porPrefijo": "youtube yt google transmitir stream vivo directo plataforma red social"
       },
       "donde": {
@@ -27796,7 +27796,7 @@
       "soloLectura": false,
       "destructiva": true,
       "etiquetas": {
-        "propias": "",
+        "propias": "desconectar la cuenta de youtube cerrar sesion",
         "porPrefijo": "youtube yt google transmitir stream vivo directo plataforma red social"
       },
       "donde": {

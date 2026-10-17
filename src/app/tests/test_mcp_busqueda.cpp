@@ -293,6 +293,10 @@ void velocidad(const Indice& i) {
     }
 }
 
+// Los pisos de la bateria de intencion, en %: medidos el 17/10/2026, con margen.
+constexpr int PISO_INTENCION_8 = 85; // 518/595 = 87 % (antes de la revision: 494, 83 %)
+constexpr int PISO_INTENCION_1 = 55; // 345/595 = 58 % (antes: 321, 54 %)
+
 int main() {
     // EL LOCALE DE LA APP. Qt pone el del sistema (UTF-8) y con él `tolower` e
     // `isalnum` rompían las tildes: «música» no encontraba nada en la app y acá
@@ -392,6 +396,44 @@ int main() {
         // al modelo. Si no esta ahi, el modelo no puede elegirla: no la vio.
         CHECK(n >= 50, "el corpus tiene suficientes preguntas como para medir algo");
         CHECK(en8 == n, "todas las preguntas encuentran su herramienta entre las primeras 8");
+    }
+
+    // --- La bateria de INTENCION: verbo + objeto del diccionario STE-ES -------
+    // Las preguntas de arriba se escribieron mirando las etiquetas y llegaban
+    // todas; con frases que no (el verbo y el objeto de cada sentido del
+    // diccionario: «apuntar camara a una posicion guardada»), audio_set no
+    // aparecia ni entre las ocho con «poner volumen de una fuente de audio».
+    // El piso es el que se midio al revisar las etiquetas (17/10/2026), con
+    // margen: bajarlo tiene que ser una decision, no un descuido.
+    {
+        std::vector<Caso> casos;
+        std::ifstream f(BA_STE_ES);
+        CHECK(static_cast<bool>(f), "se puede abrir datos/ste-es.json");
+        if (f) {
+            nlohmann::json j;
+            f >> j;
+            for (const auto& e : j.value("entradas", nlohmann::json::array()))
+                for (const auto& sentido : e.value("sentidos", nlohmann::json::array())) {
+                    Caso c;
+                    c.pregunta = e.value("palabra", std::string()) + " " + sentido.value("objeto", std::string());
+                    for (const auto& h : sentido.value("herramientas", nlohmann::json::array()))
+                        c.herramientas.push_back(h.get<std::string>());
+                    if (!c.herramientas.empty() && !sentido.value("objeto", std::string()).empty())
+                        casos.push_back(std::move(c));
+                }
+        }
+        const Indice ic = armarIndiceCon(casos);
+        int en1 = 0, en8 = 0;
+        for (const Caso& c : casos) {
+            const int p = puestoDeAlguna(ic, c, 8);
+            en1 += p == 0;
+            en8 += p >= 0;
+        }
+        const int n = static_cast<int>(casos.size());
+        std::printf("  intencion (%d, verbo + objeto de STE-ES): primera %d/%d | primeras 8 %d/%d\n", n, en1, n, en8, n);
+        CHECK(n >= 400, "el diccionario tiene suficientes sentidos como para medir algo");
+        CHECK(en8 * 100 >= n * PISO_INTENCION_8, "la herramienta del sentido entre las primeras 8 (piso)");
+        CHECK(en1 * 100 >= n * PISO_INTENCION_1, "la herramienta del sentido primera (piso)");
     }
 
     // --- El nombre exacto siempre gana --------------------------------------

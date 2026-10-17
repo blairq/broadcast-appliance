@@ -610,7 +610,8 @@ endif()
     target_link_libraries(test_mcp_busqueda PRIVATE nlohmann_json::nlohmann_json)
     # El corpus de preguntas lo comparten este test y tools/entrenar/bateria-modelo.py.
     target_compile_definitions(test_mcp_busqueda PRIVATE
-        BA_CORPUS_PREGUNTAS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos/preguntas.json")
+        BA_CORPUS_PREGUNTAS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos/preguntas.json"
+        BA_STE_ES="${CMAKE_CURRENT_SOURCE_DIR}/../../datos/ste-es.json")
     add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
 
     # YouTube: cliente OAuth + Data API contra un Google falso, y HTTPS real.
