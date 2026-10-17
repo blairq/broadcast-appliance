@@ -27,7 +27,12 @@ Claude Desktop (u otro cliente con stdio):
 ```
 Se activa y desactiva en Configuración → **Asistente (MCP)**.
 
-## Qué puede hacer (170 herramientas)
+## Qué puede hacer (697 herramientas)
+
+El inventario completo, con lo que dice cada una, sus etiquetas de búsqueda y
+en qué archivo vive: [`docs/mcp.json`](../mcp.json) (se regenera con
+`tools/docs/mcp-inventario.py --desde-codigo`, sin la app andando). Lo de abajo
+es un resumen por categoría.
 
 | Categoría | Herramientas |
 |---|---|
@@ -147,13 +152,40 @@ asistente se ve en la app al instante (y queda guardado).
   facebook, equipo, entradas, medios, operador, alertas, diagnostico,
   recetas);
   `help {"tool": ...}`: ficha con argumentos, ejemplos y esquema.
-- `help_search {"query": ...}`: búsqueda por palabras (tolera tildes).
+- `help_search {"query": ...}`: búsqueda por palabras (tolera tildes); ver
+  «Cómo busca» abajo. La usa el asistente grande con su propia consulta, y las
+  personas en el selector de herramientas (botoneras, atajos).
 - Recursos MCP: `ba://ayuda/<tema>`, `ba://ayuda/herramienta/<nombre>`, y el
   estado vivo `ba://estado`, `ba://escenas`, `ba://sala`, `ba://config`.
 - Prompts MCP (guías paso a paso): `director`, `salir_al_aire`,
   `conducir_oradores`, `armar_escena`, `diagnostico`.
 - Los errores explican qué pasó y cómo seguir (argumento faltante, persona
   ambigua, escena inexistente con la lista de las que hay...).
+
+### Cómo busca
+
+`McpIndice.cpp`: un índice invertido sobre cada herramienta, con pesos por campo
+(nombre 6, etiquetas 5, título 3, descripción 0,6), idf, coincidencia por
+prefijo (desde 4 letras, con descuento) y bonos por nombre o título exactos.
+
+- **Las etiquetas** (`McpEtiquetas.cpp`) son las palabras con que una persona
+  pide la herramienta, no las de su documentación: por familia (prefijo del
+  nombre: `audio_`, `scene_`...) y propias. Toda herramienta tiene etiquetas
+  propias (desde el 17/10/2026; antes 74 tenían solo las de su familia, entre
+  ellas `audio_set`).
+- **Nombres viejos**: una herramienta renombrada sigue andando con su nombre
+  anterior (`Tool::antes`, y la tabla `McpRenombres.cpp` para las renombradas
+  en bloque) y conserva las palabras de la familia de ese nombre.
+- **El voseo**: el imperativo va a su infinitivo («pará» → parar, «mostrámela»
+  → mostrar) y se busca por la raíz con el descuento del prefijo, para que el
+  verbo de los nombres (`*_quitar`) no le gane al objeto. «no», «se» y «para»
+  NO son palabras vacías («no se escucha», «para la grabación»).
+
+Cuánto encuentra, con frases que no miran las etiquetas: `tools/dev/medir-busqueda.py`
+(las preguntas del test, verbo + objeto de STE-ES, las frases de cabina del
+corpus y el banco solo para medir; `--arnes` compara con el C++). El 17/10/2026,
+la herramienta correcta entre las 8 primeras: test 168/168, intención 91 %,
+cabina 78 %, banco 74 %.
 
 ## Imágenes
 
@@ -227,3 +259,7 @@ aprobación; políticas siempre/nunca; sin nadie a quien preguntar, bloqueado.
 `test_mcp`: protocolo (negociación, herramientas, validación, ayuda,
 recursos, prompts, lotes), transporte HTTP (token, Origin, 202/405/404/400,
 sesión) y el puente `ba-mcp` de punta a punta.
+
+`test_mcp_busqueda`: el buscador. Toda herramienta con etiquetas, las preguntas
+del corpus compartido entre las 8 primeras, y la batería de intención de STE-ES
+con piso (85 % entre las 8, 55 % primera).

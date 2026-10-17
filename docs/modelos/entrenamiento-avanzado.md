@@ -8,12 +8,17 @@ pedido completo**, servir de **asistente genérico offline** y atender
 ([voz-modelo-local-banco.md](voz-modelo-local-banco.md)).
 
 **El proceso tal como corre hoy** (el bucle de tool calling: scripts, datos,
-perfil, medidas, preferencias y lo aprendido en la v6b) está en
-[bucle-tool-calling.md](bucle-tool-calling.md).
+perfil, medidas, preferencias y lo aprendido hasta la v7) está en
+[bucle-tool-calling.md](bucle-tool-calling.md); el índice de la carpeta, en
+[README.md](README.md).
 
-## Dónde estamos
+## De dónde se partió
 
-Hoy son dos llamadas al modelo:
+> Así era con el formato de *solo nombres* (hasta el 01/10/2026). Desde la v2
+> el modelo contesta herramienta y argumentos en una sola respuesta (tool
+> calling); lo de abajo es el punto de partida y por qué se cambió.
+
+Eran dos llamadas al modelo:
 
 1. **Elegir** (`elegir`): con el prompt fijo con el que se entrenó (las fichas
    de las 84 herramientas, `tools/entrenar/lib_prompt.py`) y una gramática que solo deja
@@ -355,7 +360,7 @@ posibles (más `derivar`):
 
 ### 8. Empaquetar, verificar y subir
 
-- Repos con tarjeta (también versionada en `docs/modelos/`), licencia,
+- Repos con tarjeta (también versionada en `docs/modelos/publicados/`), licencia,
   `prompt.json`, firma y, si hay, equivalencias. El catálogo de la app
   (`datos/modelos-catalogo.json`) se actualiza al subir.
 - **Espacio**: antes de cada etapa la fábrica estima lo que va a ocupar y

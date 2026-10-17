@@ -4,10 +4,11 @@ El modelo local (Qwen3.5-4B + LoRA) contesta cada pedido del operador con una
 llamada en el formato nativo de *tool calling* de Qwen3.5 (herramienta y
 argumentos), con `falta_dato` cuando el pedido no alcanza, con `derivar` cuando
 no es suyo, o con texto cuando es charla. Este documento cuenta **el proceso
-completo tal como corre ahora (v6b → v7)**: qué scripts se usan, en qué orden,
+completo tal como corre ahora (hasta la v7, 16/10/2026)**: qué scripts se usan, en qué orden,
 qué archivos tocan, cómo se mide, y lo que se aprendió en el camino.
 
-Lo que no se repite acá:
+Índice de toda la carpeta (qué documento es de qué formato, los modelos
+publicados): [README.md](README.md). Lo que no se repite acá:
 
 - el método general, las dos placas (FSDP2, prefijo compartido, recálculo por
   capa) y la exportación: [entrenamiento-avanzado.md](entrenamiento-avanzado.md);
@@ -246,8 +247,9 @@ Para reforzar un adaptador ya entrenado con los errores **del propio modelo**.
    - `seleccion/prueba.jsonl`: los casos de las plantillas de validar, bien y
      mal, para elegir el checkpoint sin tocar prueba, banco ni examen;
    - `vecinas.json` y `resumen.json` (errores por clase y por herramienta).
-2. **Entrenar** — `entrenar-rapido.py --objetivo dpo|kto --adaptador-inicial
-   <sft>` (`preferencias.py`: las fórmulas de TRL). La referencia (log p con
+2. **Entrenar, elegir y medir** — `tc-dpo.sh <trabajo> <sft> <corpus>` hace
+   las tres cosas; adentro, `entrenar-rapido.py --objetivo dpo|kto
+   --adaptador-inicial <sft>` (`preferencias.py`: las fórmulas de TRL). La referencia (log p con
    el modelo de partida) se calcula una vez y queda en disco para retomar. En
    DPO cada respuesta hace su backward sola con su peso exacto (la buena y la
    mala juntas no entraban en la placa 1). `--nll-buena α` suma α·NLL por token
@@ -325,28 +327,62 @@ del prefijo compartido con el de la secuencia entera (`ingenuo.py`).
 ## Dónde quedan las cosas
 
 ```
-~/entrenamientos/tc-v7/           el bucle en curso
-    bucle.log, bucle.pid
+~/entrenamientos/tc-v7/              la v7 (terminada: 3 vueltas, la mejor la 0)
+    bucle.log
     vuelta-N/{corpus, adaptador, medidas.json, autoexamen*, arreglos*, geometria.json}
-    mejor/                        el mejor adaptador + medidas.json + puntaje.json
-~/entrenamientos/tc-v6b/mejor     el mejor de la v6b (vuelta 2)
-~/entrenamientos/tc-v6b-pref/     DPO: sft-base (copia de la v6b), pares, intento1, dpo2
-~/entrenamientos/unsloth-studio/  exportaciones para el Studio
+    mejor/                           el mejor adaptador + medidas.json + puntaje.json
+~/entrenamientos/tc-v6b/mejor        el mejor de la v6b (vuelta 2): el candidato a publicar
+~/entrenamientos/tc-v6b-pref/        DPO: sft-base (copia de la v6b v2), pares, intento1/, dpo2/
+~/entrenamientos/comparar-ausentes/  v6b v2 contra v7 v0 en los mismos 2.614 casos nuevos
+~/entrenamientos/fabrica/v5-4b/      la fabrica de la v5 publicada (GGUF, MLX, medidas)
+~/entrenamientos/unsloth-studio/     exportaciones para el Studio
 ```
 
-## Resultados hasta ahora
+## Resultados
 
-| | v5 | v6b v0 | v6b v1 | **v6b v2** |
+Todo lo registrado en `datos/bitacora-tc.jsonl` y en las tarjetas
+(`publicados/`). Banco: muestra de 500 en el bucle, completo (1.423) en las
+tarjetas. **El 14/10 cambió el evaluador** (`falta_dato` entra en el árbol de la
+elección y se repite sin él): la cobertura de antes y la de después no se
+comparan. La v5 publicada no se midió con el evaluador nuevo.
+
+Con el evaluador anterior:
+
+| | cobertura | precisión | derivado | acierto | examen | prueba: herr. / args / falta |
+|---|---|---|---|---|---|---|
+| v3 publicada (bf16, banco completo) | 76,6 | 92,7 | 87,9 | 83,3 | 65,7 | 95,8 / 91,8 / 87,8 |
+| v4 vuelta 0 | 78,1 | 89,6 | 84,4 | 79,8 | 65,7 | 95,6 / 91,2 / 91,1 |
+| v5 vuelta 0 | 64,4 | 96,1 | 91,9 | 84,8 | 72,4 | 92,1 / 87,5 / 94,1 |
+| **v5 vuelta 1 (publicada)** | 74,6 | 88,6 | 93,2 | 86,8 | 68,6 | 94,5 / 91,1 / 92,6 |
+| v5 vuelta 2 | 70,3 | 88,0 | 93,2 | 85,8 | 77,1 | 91,8 / 87,5 / 89,7 |
+
+Con el evaluador nuevo (desde el 14/10):
+
+| | cobertura | precisión | derivado | acierto | examen | prueba: herr. / args / falta | puntaje |
+|---|---|---|---|---|---|---|---|
+| v6b vuelta 0 | 86,2 | 81,1 | 91,5 | 86,2 | 73,3 | 91,1 / 89,3 / 75,0 | 3,335 |
+| v6b vuelta 1 | 85,4 | 81,0 | 90,7 | 85,4 | 72,4 | 91,0 / 91,5 / 62,5 | 3,280 |
+| **v6b vuelta 2** | 90,2 | **82,9** | 91,2 | **87,2** | 73,3 | **93,0 / 92,1** / 70,8 | **3,378** |
+| v7 vuelta 0 | **92,7** | 77,2 | 89,9 | 85,4 | 75,2 | 89,6 / 88,8 / 66,7 | 3,282 |
+| v7 vuelta 1 | 89,4 | 76,4 | 89,7 | 84,4 | 73,3 | 87,6 / 88,1 / 58,3 | 3,199 |
+| v7 vuelta 2 | 90,2 | 72,1 | 90,7 | 84,4 | **76,2** | 88,1 / 87,0 / 62,5 | 3,189 |
+
+Nombres ausentes (lo que la v7 vino a arreglar, y que ni la prueba ni el banco
+miden): los mismos 2.614 casos nuevos, solo la respuesta voraz, % de error:
+
+| | nombre ausente | pedido normal | frase incompleta | derivar |
 |---|---|---|---|---|
-| banco: acierto | 87,8 | 86,2 | 85,4 | **87,2** |
-| banco: cobertura / precisión | 92,7 / 78,1 | 86,2 / 81,1 | 85,4 / 81,0 | **90,2 / 82,9** |
-| examen: acierto | 71,4 | 73,3 | 72,4 | **73,3** |
-| prueba: herramienta / args | — | 91,1 / 89,3 | 91,0 / 91,5 | **93,0 / 92,1** |
-| prueba: falta dato | — | 18/24 | 15/24 | 17/24 |
-| charla: llamadas | 0 | 0 | 0 | 0 |
-| puntaje | — | 3,335 | 3,280 | **3,378** |
+| v6b vuelta 2 | 33,7 | 2,6 | 3,1 | 0 |
+| v7 vuelta 0 | **14,9** | 2,8 | 5,6 | 0 |
 
-## Lo que se aprendió en la v6b (y cambió para la v7)
+**Hoy:** el mejor en el uso común (el banco) es la **v6b vuelta 2**; la v7
+pregunta bien cuando el dato falta (la mitad de errores) pero elige peor la
+herramienta, y sus vueltas de arreglos la empeoraron (precisión 77 → 76 → 72).
+Nada de esto se publicó; lo publicado es la v5.
+
+## Lo que se aprendió
+
+### En la v6b (y cambió para la v7)
 
 1. **El error grande era el nombre ausente.** Con estados nuevos el modelo
    fallaba el 36 % de los pedidos que nombran algo que no está en el estado
@@ -369,12 +405,39 @@ del prefijo compartido con el de la secuencia entera (`ingenuo.py`).
 5. **El perfil se pone a mano** y ahora se controla (arriba).
 6. **DPO necesita contrapesos** en cada eje que empuja (arriba).
 
+### En la v7
+
+1. **Más nombres y más ausentes funcionan para lo que apuntaban**: el error con
+   un nombre que no está bajó de 34 % a 15 %.
+2. **Pero la elección empeoró**: precisión en el banco 82,9 → 77,2, y cada
+   vuelta de arreglos del agente la bajó más. El autoexamen y los arreglos
+   ayudaban en la v6b y en la v7 no: lo que suma el agente no mejora.
+3. **El formato de una sola llamada es el límite.** El de solo nombres elegía
+   con 93–95 % de precisión; el de tool calling, con la misma metodología de
+   corpus, se quedó en 77–93 %. La literatura (DualTune, arXiv 2510.00229)
+   separa elegir la herramienta de armar los argumentos, con un LoRA para cada
+   uno; es la opción A de «Pendiente».
+
 ## Pendiente
 
-- Las 28 vecinas de `datos/tc-vecinas-pendientes.json`: las debería encontrar
-  el autoexamen; si siguen después de la vuelta 0 de la v7, a mano.
+- **Decidir la arquitectura**: (A) dos pasos, la elección con salida restringida
+  y las etiquetas del formato de solo nombres (93–95 %) y después argumentos,
+  falta dato y derivar con la herramienta fija; o (B) una sola llamada, con
+  nombres de función elegidos por geometría y la elección pesando más.
+  Primero: medir el modelo de solo nombres con las 108 de vivo6.
+- **Por qué cayó la precisión de la v7** desde la vuelta 0: qué herramientas del
+  banco confunde que la v6b no.
+- **Medir v5, v6b y v7 con el evaluador nuevo y el banco completo**, cada uno en
+  un worktree del commit de su corpus (los controles de huella no dejan medir
+  con el prompt de hoy).
+- **Para publicar la v6b vuelta 2**: exportar y medir GGUF y MLX
+  (`fabricar-modelo.py`), que la app mande el prompt de vivo6 y la clave
+  «documentos» del estado, y corregir el catálogo y la tarjeta de la v5.
+- Las 28 vecinas de `datos/tc-vecinas-pendientes.json` (medidas con la v6b).
 - Medir memoria y velocidad de las opciones de Unsloth con el 4B y prender las
   que ganen; ver por qué `--a-ram` gastó más con DPO.
 - «Argumentos exactos» en `tc-evaluar` con el texto libre normalizado (rompe la
   comparación con las vueltas anteriores: decidir cuándo).
-- Si se vuelve a DPO: anclas para derivar y casos de derivar en la selección.
+- Si se vuelve a DPO: anclas para derivar y casos de derivar en la selección;
+  `tc-dpo.sh` no se corrió todavía entero (es el `dpo2.sh` del intento 2).
+

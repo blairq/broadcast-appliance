@@ -1283,16 +1283,16 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
             (d / "modelo.json").write_text(json.dumps(mj, ensure_ascii=False, indent=1))
             # copia versionada en el repo del aparato (texto chico, como la tarjeta)
             (RAIZ / "docs" / "modelos").mkdir(parents=True, exist_ok=True)
-            (RAIZ / "docs" / "modelos" / f"{repo}.modelo.json").write_text(json.dumps(mj, ensure_ascii=False, indent=1))
+            (RAIZ / "docs" / "modelos" / "publicados" / f"{repo}.modelo.json").write_text(json.dumps(mj, ensure_ascii=False, indent=1))
             (d / ".gitattributes").write_text("*.safetensors filter=lfs diff=lfs merge=lfs -text\n"
                                               "*.gguf filter=lfs diff=lfs merge=lfs -text\n")
             (d / "README.md").write_text(self.tarjeta(formato, repo), encoding="utf-8")
             repos.append(str(d))
         self.man["repos"] = repos
         # LA TARJETA NO SE PIERDE: ademas de ir en cada repo, queda VERSIONADA en
-        # docs/modelos/ (texto chico) con un resumen de lo que define al modelo.
-        # Los pesos no: pesan gigas y van a Hugging Face (.gitignore los excluye).
-        doc = RAIZ / "docs" / "modelos"
+        # docs/modelos/publicados/ (texto chico) con un resumen de lo que define al
+        # modelo. Los pesos no: pesan gigas y van a Hugging Face (.gitignore los excluye).
+        doc = RAIZ / "docs" / "modelos" / "publicados"
         doc.mkdir(parents=True, exist_ok=True)
         for d in repos:
             shutil.copy(Path(d) / "README.md", doc / f"{Path(d).name}.md")
@@ -1302,7 +1302,7 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
         resumen["perfil"] = {k: v for k, v in self.man["perfil"].items() if k != "equivalencias"}
         resumen["repos"] = [Path(d).name for d in repos]
         (doc / f"{nombre}.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1))
-        log(f"tarjeta versionada en docs/modelos/{nombre}*")
+        log(f"tarjeta versionada en docs/modelos/publicados/{nombre}*")
         (self.dir / "empaquetado").write_text("ok")
         for d in repos:
             log(f"repo armado: {d}")

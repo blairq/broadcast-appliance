@@ -1,5 +1,7 @@
 # El bucle de corpus: una frase entra sólo si mejora la geometría
 
+> **Estado (17/10/2026):** el método (la geometría CDNV, los datos apartados, el triage) se sigue usando en el formato de *tool calling* (`tc-geometria.py`, los filtros del bucle). Los números y los scripts `bucle-corpus.py`/`afinar-grupos.py` son del formato de *solo nombres*. Lo de hoy: [bucle-tool-calling.md](bucle-tool-calling.md).
+
 `tools/entrenar/bucle-corpus.py`
 
 Es la herramienta con la que se cura el corpus de entrenamiento del modelo

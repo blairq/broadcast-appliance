@@ -1,5 +1,7 @@
 # Banco de voz: el detalle por herramienta
 
+> **Estado (17/10/2026):** datos de la corrida de la v5; no se volvió a correr con la v6b ni la v7.
+
 Corrida completa v5 (84 herramientas × 3 frases, con el aparato andando), generada con `tools/entrenar/voz-banco-informe.py build/voz-banco-v5.json`. Resumen y conclusiones en [voz-modelo-local.md](voz-modelo-local.md).
 
 | | frases | % |

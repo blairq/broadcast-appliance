@@ -1,5 +1,7 @@
 # El modelo chico que atiende los eventos inmediatos
 
+> **Estado (17/10/2026):** historia del formato de *solo nombres* (el modelo elegía el nombre de la herramienta con salida restringida). El modelo de hoy contesta en *tool calling*: ver [bucle-tool-calling.md](bucle-tool-calling.md) y el [índice](README.md).
+
 Cuando alguien grita **«está acoplando»**, el aparato tiene que elegir la
 herramienta antes de que el operador se dé vuelta. Eso no lo puede hacer un
 modelo remoto: la ida y vuelta se come el presupuesto. Tiene que correr acá.

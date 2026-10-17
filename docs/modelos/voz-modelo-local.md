@@ -1,5 +1,7 @@
 # Lo dictado y el modelo local: de la frase a la acción
 
+> **Estado (17/10/2026):** el camino de la voz en la app sigue así; las medidas son de la v5. El entrenamiento de hoy: [bucle-tool-calling.md](bucle-tool-calling.md).
+
 Qué pasa cuando el operador dicta algo (F9 o el botón 🎙 de la barra del
 asistente), cómo el modelo local lo convierte en una acción con sus datos, y
 lo que se midió con el aparato andando.
