@@ -20,6 +20,10 @@
 // una prueba (test_mcp_busqueda) que falla si una herramienta registrada no
 // tiene etiquetas: agregar una nueva y no etiquetarla rompe la compilación de
 // la suite, no queda para después.
+//
+// CUANTO ENCUENTRA, con frases que no miran las etiquetas (verbo + objeto de
+// STE-ES, las de cabina del corpus, el banco solo para medir):
+// tools/dev/medir-busqueda.py, después de regenerar docs/mcp.json.
 // ============================================================================
 #pragma once
 

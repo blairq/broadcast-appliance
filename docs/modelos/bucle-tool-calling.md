@@ -304,7 +304,23 @@ BA_PERFIL=vivo6 CUDA_VISIBLE_DEVICES=1 .venv-entrenar/bin/python tools/entrenar/
 # pares de preferencia con los errores de un modelo
 BA_PERFIL=vivo6 .venv-entrenar/bin/python tools/entrenar/tc-preferencias.py \
     --modelo ~/entrenamientos/tc-v6b-pref/sft-base --salida ~/entrenamientos/tc-v6b-pref/pares
+
+# DPO de punta a punta sobre esos pares: entrenar, elegir el checkpoint con la
+# seleccion y medir (LR, EPOCAS, BETA, NLL, EVAL por variable)
+BA_PERFIL=vivo6 tools/entrenar/tc-dpo.sh ~/entrenamientos/tc-v6b-pref \
+    ~/entrenamientos/tc-v6b-pref/sft-base ~/entrenamientos/tc-v6b/vuelta-2/corpus
+
+# comparar dos modelos en los MISMOS casos nuevos (nombres ausentes incluidos):
+# solo la voraz; el segundo reusa los casos del primero
+BA_PERFIL=vivo6 .venv-entrenar/bin/python tools/entrenar/tc-preferencias.py --modelo <A> --salida <dir>/a --muestras 0
+mkdir -p <dir>/b && cp <dir>/a/casos.jsonl <dir>/b/
+BA_PERFIL=vivo6 .venv-entrenar/bin/python tools/entrenar/tc-preferencias.py --modelo <B> --salida <dir>/b --muestras 0
 ```
+
+Para probar cambios de `entrenar-rapido` sin el 4B ni molestar a otra corrida:
+`tools/entrenar/pruebas/` arma un Qwen3.5 de juguete (`juguete.py`), pares de
+juguete (`datos.py`), topea la memoria de la placa (`tope.py`) y compara el log p
+del prefijo compartido con el de la secuencia entera (`ingenuo.py`).
 
 ## Dónde quedan las cosas
 
