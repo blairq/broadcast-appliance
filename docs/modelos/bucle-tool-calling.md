@@ -287,6 +287,7 @@ Cuando lo nuevo queda afinado, se suma a `tc-congeladas.json` y se saca otra fot
 | `tc-parejo.py` | cada herramienta entre `--min` y `--max` frases (20–25), todas distintas |
 | `tc-contraste.py` | frases que separan a las vecinas que el modelo confunde, sin salir de 18–25 |
 | `tc-geometria.py` | el diagnóstico CDNV (`--json`), la poda y los filtros |
+| `tc-fuera.py` | las frases que caen en el grupo de otra herramienta: quedan, se mueven, se reescriben diciendo lo que las separa, o salen (de dos parecidas, una sola). El 17/10/2026 bajó de 363 a 233 (14,7 % → 9,5 %) y los pares sobre el objetivo de 813 a 340; los cambios en `datos/tc-fuera-cambios.json` |
 | `ste_es.py` | el diccionario STE-ES y el verificador de frases |
 | `tc-charla.py` | la charla general (respuestas del Qwen base) |
 | `tools/dev/renombrar-herramientas.py` | renombres entre el entrenamiento y la app |
