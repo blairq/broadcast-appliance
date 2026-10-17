@@ -79,13 +79,16 @@ def main():
     rea = _modulo("rea", "tc-reasignar.py")
     fichas, esquemas = tc.fichas(), tc.esquemas()
     mias = [h for h in fichas if h not in (tc.DERIVAR, tc.FALTA)]
+    # las congeladas (datos/tc-congeladas.json) no se tocan: son vecinas, nada mas
+    editables = [h for h in mias if h not in tc.congeladas()]
+    print(f"{len(mias)} herramientas, {len(editables)} editables ({len(mias) - len(editables)} congeladas)")
     anot = json.loads(ANOT.read_text())
     tmp = Path(tempfile.mkdtemp(prefix="tc-parejo-"))
     print(f"trabajo: {tmp}")
 
     # 1. limpiar
     inval = cop = sin_falta = 0
-    for h in mias:
+    for h in editables:
         buenas = [a for a in anot.get(h, []) if not tca.validar(a, esquemas[h], h)]
         inval += len(anot.get(h, [])) - len(buenas)
         anot[h], cp = tc.sin_copias(buenas)
@@ -114,7 +117,7 @@ def main():
 
     # 2. completar
     for vuelta in range(args.vueltas):
-        faltan = {h: args.objetivo - n(h) for h in mias if n(h) < args.min}
+        faltan = {h: args.objetivo - n(h) for h in editables if n(h) < args.min}
         if not faltan:
             break
         print(f"vuelta {vuelta}: {len(faltan)} herramientas cortas: "
@@ -193,8 +196,8 @@ def main():
     print(f"podar: {res}")
     sale = json.loads((tmp / "poda.json").read_text())
     for h, pls in sale.items():
-        if h not in mias:
-            continue  # derivar no se empareja: sale de otras fuentes
+        if h not in editables:
+            continue  # derivar no se empareja (sale de otras fuentes); las congeladas no se podan
         fuera = set(pls)
         anot[h] = [a for a in anot[h] if a.get("plantilla") not in fuera]
 

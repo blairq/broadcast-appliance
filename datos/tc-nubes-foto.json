@@ -1,0 +1,889 @@
+{
+ "foto": "vivo6-base-2026-10-17",
+ "archivo": "/home/usuario/entrenamientos/nubes/vivo6-base-2026-10-17.pt",
+ "modelo": "Qwen/Qwen3.5-4B",
+ "prompt": "51559fd7c42f585f",
+ "fecha": "2026-10-17",
+ "resumen": {
+  "cdnv_mediana": 0.0108,
+  "cdnv_peor": 0.3749,
+  "pares_sobre_objetivo": 813,
+  "pares_medidos": 5886,
+  "dim_mediana": 2.79,
+  "fuera_de_su_grupo": 363
+ },
+ "herramientas": {
+  "aire_ftb": {
+   "n": 21,
+   "dim": 1.73,
+   "peor": {
+    "cdnv": 0.04284919710803043,
+    "con": "aire_placa"
+   }
+  },
+  "aire_placa": {
+   "n": 23,
+   "dim": 2.3,
+   "peor": {
+    "cdnv": 0.0471979409290568,
+    "con": "source_update"
+   }
+  },
+  "audio_escuchar": {
+   "n": 24,
+   "dim": 2.2,
+   "peor": {
+    "cdnv": 0.09267502247540149,
+    "con": "audio_sincro"
+   }
+  },
+  "audio_measure": {
+   "n": 22,
+   "dim": 3.32,
+   "peor": {
+    "cdnv": 0.06608446429763125,
+    "con": "participant_request"
+   }
+  },
+  "audio_set": {
+   "n": 20,
+   "dim": 2.57,
+   "peor": {
+    "cdnv": 0.1252185127895383,
+    "con": "source_update"
+   }
+  },
+  "audio_sincro": {
+   "n": 19,
+   "dim": 2.2,
+   "peor": {
+    "cdnv": 0.12255199810270152,
+    "con": "audio_set"
+   }
+  },
+  "banca_al_aire": {
+   "n": 19,
+   "dim": 4.54,
+   "peor": {
+    "cdnv": 0.1608090484971307,
+    "con": "speaker_next"
+   }
+  },
+  "banca_cola": {
+   "n": 19,
+   "dim": 4.37,
+   "peor": {
+    "cdnv": 0.13008099347355107,
+    "con": "banca_al_aire"
+   }
+  },
+  "banca_tiempo": {
+   "n": 18,
+   "dim": 2.42,
+   "peor": {
+    "cdnv": 0.10463836438785072,
+    "con": "banca_cola"
+   }
+  },
+  "carrusel_laminas_ver": {
+   "n": 20,
+   "dim": 2.52,
+   "peor": {
+    "cdnv": 0.04078550346202795,
+    "con": "compartida_revisar"
+   }
+  },
+  "carruseles_listar": {
+   "n": 25,
+   "dim": 2.24,
+   "peor": {
+    "cdnv": 0.03557908792566589,
+    "con": "carrusel_laminas_ver"
+   }
+  },
+  "chat_a_preguntas": {
+   "n": 19,
+   "dim": 3.93,
+   "peor": {
+    "cdnv": 0.07058096214189781,
+    "con": "chat_destacar"
+   }
+  },
+  "chat_destacar": {
+   "n": 19,
+   "dim": 1.86,
+   "peor": {
+    "cdnv": 0.07058096214189781,
+    "con": "chat_a_preguntas"
+   }
+  },
+  "chat_quitar_destacado": {
+   "n": 22,
+   "dim": 2.57,
+   "peor": {
+    "cdnv": 0.036204213979407505,
+    "con": "chat_send"
+   }
+  },
+  "chat_send": {
+   "n": 19,
+   "dim": 3.17,
+   "peor": {
+    "cdnv": 0.1517774958454579,
+    "con": "participant_talk"
+   }
+  },
+  "compartida_revisar": {
+   "n": 15,
+   "dim": 3.47,
+   "peor": {
+    "cdnv": 0.2789124198407259,
+    "con": "foto_fuente"
+   }
+  },
+  "crear_fuente": {
+   "n": 23,
+   "dim": 2.53,
+   "peor": {
+    "cdnv": 0.3045121985770007,
+    "con": "guest_source_add"
+   }
+  },
+  "debate_estado": {
+   "n": 21,
+   "dim": 2.05,
+   "peor": {
+    "cdnv": 0.04886901580414543,
+    "con": "debate_turno"
+   }
+  },
+  "debate_iniciar": {
+   "n": 19,
+   "dim": 1.97,
+   "peor": {
+    "cdnv": 0.1413188619243037,
+    "con": "debate_turno"
+   }
+  },
+  "debate_terminar": {
+   "n": 21,
+   "dim": 2.13,
+   "peor": {
+    "cdnv": 0.08834049137409375,
+    "con": "debate_turno"
+   }
+  },
+  "debate_turno": {
+   "n": 22,
+   "dim": 3.14,
+   "peor": {
+    "cdnv": 0.1413188619243037,
+    "con": "debate_iniciar"
+   }
+  },
+  "derivar": {
+   "n": 79,
+   "dim": 7.38,
+   "peor": {
+    "cdnv": 0.07297037087256543,
+    "con": "compartida_revisar"
+   }
+  },
+  "documento_abrir": {
+   "n": 23,
+   "dim": 2.3,
+   "peor": {
+    "cdnv": 0.019105894257378884,
+    "con": "record_stop"
+   }
+  },
+  "documentos_listar": {
+   "n": 25,
+   "dim": 3.37,
+   "peor": {
+    "cdnv": 0.03110611255595661,
+    "con": "pdf_escena_ver"
+   }
+  },
+  "dsk_capas_ver": {
+   "n": 21,
+   "dim": 2.88,
+   "peor": {
+    "cdnv": 0.1216419017120007,
+    "con": "escena_fuentes_ver"
+   }
+  },
+  "dsk_mostrar": {
+   "n": 19,
+   "dim": 3.31,
+   "peor": {
+    "cdnv": 0.06110071622132008,
+    "con": "escena_fuentes_ver"
+   }
+  },
+  "escena_fuentes_ver": {
+   "n": 26,
+   "dim": 3.94,
+   "peor": {
+    "cdnv": 0.1216419017120007,
+    "con": "dsk_capas_ver"
+   }
+  },
+  "evento_correr": {
+   "n": 22,
+   "dim": 1.84,
+   "peor": {
+    "cdnv": 0.039542278273333696,
+    "con": "record_stop"
+   }
+  },
+  "foto_fuente": {
+   "n": 21,
+   "dim": 5.05,
+   "peor": {
+    "cdnv": 0.3384328731313723,
+    "con": "foto_programa"
+   }
+  },
+  "foto_invitado": {
+   "n": 19,
+   "dim": 2.77,
+   "peor": {
+    "cdnv": 0.374885220660044,
+    "con": "foto_todos_invitados"
+   }
+  },
+  "foto_programa": {
+   "n": 24,
+   "dim": 2.06,
+   "peor": {
+    "cdnv": 0.3384328731313723,
+    "con": "foto_fuente"
+   }
+  },
+  "foto_todas_escenas": {
+   "n": 23,
+   "dim": 1.97,
+   "peor": {
+    "cdnv": 0.21752675984091346,
+    "con": "foto_fuente"
+   }
+  },
+  "foto_todos_invitados": {
+   "n": 25,
+   "dim": 1.83,
+   "peor": {
+    "cdnv": 0.374885220660044,
+    "con": "foto_invitado"
+   }
+  },
+  "grafico_en_escena": {
+   "n": 23,
+   "dim": 2.74,
+   "peor": {
+    "cdnv": 0.1104370898284784,
+    "con": "grafico_listar"
+   }
+  },
+  "grafico_listar": {
+   "n": 21,
+   "dim": 1.73,
+   "peor": {
+    "cdnv": 0.1104370898284784,
+    "con": "grafico_en_escena"
+   }
+  },
+  "grafico_mostrar": {
+   "n": 18,
+   "dim": 3.12,
+   "peor": {
+    "cdnv": 0.132341354560494,
+    "con": "grafico_ocultar"
+   }
+  },
+  "grafico_ocultar": {
+   "n": 17,
+   "dim": 2.5,
+   "peor": {
+    "cdnv": 0.132341354560494,
+    "con": "grafico_mostrar"
+   }
+  },
+  "guest_source_add": {
+   "n": 21,
+   "dim": 4.81,
+   "peor": {
+    "cdnv": 0.3045121985770007,
+    "con": "crear_fuente"
+   }
+  },
+  "imagen_preguntar": {
+   "n": 25,
+   "dim": 4.13,
+   "peor": {
+    "cdnv": 0.109796631447757,
+    "con": "foto_invitado"
+   }
+  },
+  "invitados_chat_leer": {
+   "n": 20,
+   "dim": 3.25,
+   "peor": {
+    "cdnv": 0.07333258567590152,
+    "con": "publico_chat_leer"
+   }
+  },
+  "laminas_buscar": {
+   "n": 22,
+   "dim": 4.39,
+   "peor": {
+    "cdnv": 0.04064433549757484,
+    "con": "carrusel_laminas_ver"
+   }
+  },
+  "laminas_ir": {
+   "n": 21,
+   "dim": 3.7,
+   "peor": {
+    "cdnv": 0.02721184861593239,
+    "con": "derivar"
+   }
+  },
+  "medio_poner": {
+   "n": 19,
+   "dim": 3.1,
+   "peor": {
+    "cdnv": 0.028378406332167868,
+    "con": "grafico_mostrar"
+   }
+  },
+  "mixer_list": {
+   "n": 25,
+   "dim": 1.8,
+   "peor": {
+    "cdnv": 0.05957837686909942,
+    "con": "status"
+   }
+  },
+  "orden_del_dia_punto": {
+   "n": 20,
+   "dim": 2.6,
+   "peor": {
+    "cdnv": 0.044446322268326795,
+    "con": "orden_del_dia_ver"
+   }
+  },
+  "orden_del_dia_ver": {
+   "n": 23,
+   "dim": 2.6,
+   "peor": {
+    "cdnv": 0.04951737905387582,
+    "con": "votacion_recuento"
+   }
+  },
+  "pantalla_mostrar": {
+   "n": 23,
+   "dim": 3.97,
+   "peor": {
+    "cdnv": 0.06461089834760106,
+    "con": "pantalla_parar"
+   }
+  },
+  "pantalla_parar": {
+   "n": 19,
+   "dim": 3.53,
+   "peor": {
+    "cdnv": 0.06461089834760106,
+    "con": "pantalla_mostrar"
+   }
+  },
+  "participant_admit": {
+   "n": 19,
+   "dim": 2.59,
+   "peor": {
+    "cdnv": 0.10628842191854543,
+    "con": "participant_talk"
+   }
+  },
+  "participant_admit_all": {
+   "n": 21,
+   "dim": 1.94,
+   "peor": {
+    "cdnv": 0.07653050756054385,
+    "con": "participant_admit"
+   }
+  },
+  "participant_kick": {
+   "n": 19,
+   "dim": 3.51,
+   "peor": {
+    "cdnv": 0.06164291203032265,
+    "con": "chat_send"
+   }
+  },
+  "participant_reject": {
+   "n": 19,
+   "dim": 2.51,
+   "peor": {
+    "cdnv": 0.09071373943883607,
+    "con": "chat_send"
+   }
+  },
+  "participant_request": {
+   "n": 17,
+   "dim": 2.79,
+   "peor": {
+    "cdnv": 0.14137071119456615,
+    "con": "chat_send"
+   }
+  },
+  "participant_requeue": {
+   "n": 22,
+   "dim": 3.33,
+   "peor": {
+    "cdnv": 0.07114744595771964,
+    "con": "banca_cola"
+   }
+  },
+  "participant_talk": {
+   "n": 17,
+   "dim": 4.33,
+   "peor": {
+    "cdnv": 0.1517774958454579,
+    "con": "chat_send"
+   }
+  },
+  "pdf_escena_poner": {
+   "n": 21,
+   "dim": 5.78,
+   "peor": {
+    "cdnv": 0.09643846323796525,
+    "con": "pdf_escena_ver"
+   }
+  },
+  "pdf_escena_ver": {
+   "n": 21,
+   "dim": 1.84,
+   "peor": {
+    "cdnv": 0.09643846323796525,
+    "con": "pdf_escena_poner"
+   }
+  },
+  "persona_identificar": {
+   "n": 24,
+   "dim": 3.8,
+   "peor": {
+    "cdnv": 0.09489175901380237,
+    "con": "imagen_preguntar"
+   }
+  },
+  "pregunta_moderar": {
+   "n": 17,
+   "dim": 2.86,
+   "peor": {
+    "cdnv": 0.06906176121828043,
+    "con": "derivar"
+   }
+  },
+  "preguntas_ver": {
+   "n": 23,
+   "dim": 2.37,
+   "peor": {
+    "cdnv": 0.041514818294575255,
+    "con": "publico_chat_leer"
+   }
+  },
+  "presidencia_callar_todos": {
+   "n": 22,
+   "dim": 2.84,
+   "peor": {
+    "cdnv": 0.10703120313755746,
+    "con": "recinto_orador_terminar"
+   }
+  },
+  "preview_al_aire": {
+   "n": 25,
+   "dim": 2.74,
+   "peor": {
+    "cdnv": 0.16967514452064567,
+    "con": "scene_switch"
+   }
+  },
+  "prompter_cargar": {
+   "n": 17,
+   "dim": 2.27,
+   "peor": {
+    "cdnv": 0.04313746409325412,
+    "con": "prompter_control"
+   }
+  },
+  "prompter_control": {
+   "n": 19,
+   "dim": 1.98,
+   "peor": {
+    "cdnv": 0.06290993275898968,
+    "con": "pantalla_parar"
+   }
+  },
+  "prompter_estado": {
+   "n": 23,
+   "dim": 1.97,
+   "peor": {
+    "cdnv": 0.05583314364776666,
+    "con": "prompter_control"
+   }
+  },
+  "ptz_caras_ubicar": {
+   "n": 19,
+   "dim": 2.04,
+   "peor": {
+    "cdnv": 0.07838775215631509,
+    "con": "persona_identificar"
+   }
+  },
+  "ptz_encuadre": {
+   "n": 20,
+   "dim": 3.55,
+   "peor": {
+    "cdnv": 0.08696725763532755,
+    "con": "source_update"
+   }
+  },
+  "ptz_foco": {
+   "n": 19,
+   "dim": 2.94,
+   "peor": {
+    "cdnv": 0.039693583628528054,
+    "con": "source_update"
+   }
+  },
+  "ptz_inicio": {
+   "n": 19,
+   "dim": 3.22,
+   "peor": {
+    "cdnv": 0.23260387839223443,
+    "con": "ptz_ir_posicion"
+   }
+  },
+  "ptz_ir_posicion": {
+   "n": 20,
+   "dim": 4.14,
+   "peor": {
+    "cdnv": 0.3248881799059866,
+    "con": "recinto_apuntar"
+   }
+  },
+  "ptz_mover": {
+   "n": 21,
+   "dim": 2.98,
+   "peor": {
+    "cdnv": 0.18001377211771394,
+    "con": "ptz_parar"
+   }
+  },
+  "ptz_parar": {
+   "n": 22,
+   "dim": 3.17,
+   "peor": {
+    "cdnv": 0.18001377211771394,
+    "con": "ptz_mover"
+   }
+  },
+  "ptz_posicion_crear": {
+   "n": 20,
+   "dim": 3.04,
+   "peor": {
+    "cdnv": 0.09391777435903843,
+    "con": "ptz_ir_posicion"
+   }
+  },
+  "ptz_posiciones": {
+   "n": 22,
+   "dim": 2.23,
+   "peor": {
+    "cdnv": 0.06914778425553528,
+    "con": "recinto_apuntar"
+   }
+  },
+  "ptz_preset": {
+   "n": 19,
+   "dim": 3.52,
+   "peor": {
+    "cdnv": 0.2430070949875479,
+    "con": "ptz_ir_posicion"
+   }
+  },
+  "ptz_seguir": {
+   "n": 20,
+   "dim": 3.87,
+   "peor": {
+    "cdnv": 0.12028692215759632,
+    "con": "recinto_apuntar"
+   }
+  },
+  "publico_chat_leer": {
+   "n": 21,
+   "dim": 3.01,
+   "peor": {
+    "cdnv": 0.07333258567590152,
+    "con": "invitados_chat_leer"
+   }
+  },
+  "quorum_presentes": {
+   "n": 21,
+   "dim": 2.12,
+   "peor": {
+    "cdnv": 0.06985675328258367,
+    "con": "votacion_recuento"
+   }
+  },
+  "receta_correr": {
+   "n": 20,
+   "dim": 2.76,
+   "peor": {
+    "cdnv": 0.04434487625339015,
+    "con": "record_stop"
+   }
+  },
+  "recinto_apuntar": {
+   "n": 18,
+   "dim": 3.13,
+   "peor": {
+    "cdnv": 0.3248881799059866,
+    "con": "ptz_ir_posicion"
+   }
+  },
+  "recinto_bancas_ver": {
+   "n": 23,
+   "dim": 3.63,
+   "peor": {
+    "cdnv": 0.03964867132240983,
+    "con": "recinto_apuntar"
+   }
+  },
+  "recinto_orador_terminar": {
+   "n": 21,
+   "dim": 3.01,
+   "peor": {
+    "cdnv": 0.10703120313755746,
+    "con": "presidencia_callar_todos"
+   }
+  },
+  "record_start": {
+   "n": 21,
+   "dim": 1.85,
+   "peor": {
+    "cdnv": 0.060847488132785184,
+    "con": "record_stop"
+   }
+  },
+  "record_stop": {
+   "n": 22,
+   "dim": 1.91,
+   "peor": {
+    "cdnv": 0.060847488132785184,
+    "con": "record_start"
+   }
+  },
+  "remotos_fila_ver": {
+   "n": 21,
+   "dim": 3.11,
+   "peor": {
+    "cdnv": 0.03777084662171254,
+    "con": "invitados_chat_leer"
+   }
+  },
+  "room_link": {
+   "n": 21,
+   "dim": 2.69,
+   "peor": {
+    "cdnv": 0.0519209582104689,
+    "con": "room_status"
+   }
+  },
+  "room_set": {
+   "n": 25,
+   "dim": 2.44,
+   "peor": {
+    "cdnv": 0.05231677568034359,
+    "con": "room_status"
+   }
+  },
+  "room_status": {
+   "n": 20,
+   "dim": 4.96,
+   "peor": {
+    "cdnv": 0.06188579098406694,
+    "con": "derivar"
+   }
+  },
+  "rotulo_desvincular": {
+   "n": 20,
+   "dim": 2.66,
+   "peor": {
+    "cdnv": 0.09556744024199075,
+    "con": "rotulo_vincular"
+   }
+  },
+  "rotulo_vincular": {
+   "n": 18,
+   "dim": 5.83,
+   "peor": {
+    "cdnv": 0.09556744024199075,
+    "con": "rotulo_desvincular"
+   }
+  },
+  "scene_list": {
+   "n": 22,
+   "dim": 2.13,
+   "peor": {
+    "cdnv": 0.12138199771239236,
+    "con": "escena_fuentes_ver"
+   }
+  },
+  "scene_preview": {
+   "n": 20,
+   "dim": 2.53,
+   "peor": {
+    "cdnv": 0.0934562550845077,
+    "con": "scene_switch"
+   }
+  },
+  "scene_switch": {
+   "n": 22,
+   "dim": 3.86,
+   "peor": {
+    "cdnv": 0.16967514452064567,
+    "con": "preview_al_aire"
+   }
+  },
+  "share_list": {
+   "n": 22,
+   "dim": 1.57,
+   "peor": {
+    "cdnv": 0.04739415332369495,
+    "con": "compartida_revisar"
+   }
+  },
+  "share_take": {
+   "n": 21,
+   "dim": 2.31,
+   "peor": {
+    "cdnv": 0.09103520948475088,
+    "con": "preview_al_aire"
+   }
+  },
+  "source_remove": {
+   "n": 20,
+   "dim": 5.23,
+   "peor": {
+    "cdnv": 0.1796076186477501,
+    "con": "source_update"
+   }
+  },
+  "source_update": {
+   "n": 21,
+   "dim": 5.64,
+   "peor": {
+    "cdnv": 0.1796076186477501,
+    "con": "source_remove"
+   }
+  },
+  "speaker_move": {
+   "n": 21,
+   "dim": 2.51,
+   "peor": {
+    "cdnv": 0.056796785495724755,
+    "con": "banca_cola"
+   }
+  },
+  "speaker_next": {
+   "n": 21,
+   "dim": 5.14,
+   "peor": {
+    "cdnv": 0.1608090484971307,
+    "con": "banca_al_aire"
+   }
+  },
+  "speaker_on_air": {
+   "n": 17,
+   "dim": 3.84,
+   "peor": {
+    "cdnv": 0.12085330176134752,
+    "con": "banca_al_aire"
+   }
+  },
+  "speaker_presenter": {
+   "n": 20,
+   "dim": 1.71,
+   "peor": {
+    "cdnv": 0.06864031904320189,
+    "con": "speaker_on_air"
+   }
+  },
+  "speaker_queue": {
+   "n": 22,
+   "dim": 3.91,
+   "peor": {
+    "cdnv": 0.09078113795638566,
+    "con": "speaker_on_air"
+   }
+  },
+  "speaker_time": {
+   "n": 18,
+   "dim": 1.96,
+   "peor": {
+    "cdnv": 0.07228436963561528,
+    "con": "banca_cola"
+   }
+  },
+  "status": {
+   "n": 25,
+   "dim": 3.78,
+   "peor": {
+    "cdnv": 0.05957837686909942,
+    "con": "mixer_list"
+   }
+  },
+  "stream_start": {
+   "n": 17,
+   "dim": 1.86,
+   "peor": {
+    "cdnv": 0.08546409257725532,
+    "con": "scene_switch"
+   }
+  },
+  "stream_stop": {
+   "n": 25,
+   "dim": 3.3,
+   "peor": {
+    "cdnv": 0.08243447959633163,
+    "con": "stream_start"
+   }
+  },
+  "transition_set": {
+   "n": 17,
+   "dim": 1.76,
+   "peor": {
+    "cdnv": 0.040057618165678814,
+    "con": "preview_al_aire"
+   }
+  },
+  "votacion_abrir": {
+   "n": 20,
+   "dim": 1.82,
+   "peor": {
+    "cdnv": 0.058327959213522615,
+    "con": "votacion_recuento"
+   }
+  },
+  "votacion_recuento": {
+   "n": 24,
+   "dim": 3.36,
+   "peor": {
+    "cdnv": 0.06985675328258367,
+    "con": "quorum_presentes"
+   }
+  }
+ }
+}

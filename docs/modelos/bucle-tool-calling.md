@@ -224,6 +224,60 @@ bien (ver abajo).
   geometría: cae en su grupo (o corrige un error visto), suma variedad, no
   acerca a la vecina.
 
+## Congeladas y la foto de las nubes
+
+Las preguntas de las 108 herramientas de vivo6 se afinaron unas siete veces, y
+cada tanda que volvía a pasar por todas rompía algo que ya estaba bien (la v7).
+Desde el 17/10/2026:
+
+- **Congeladas** (`datos/tc-congeladas.json`): las herramientas cuyas preguntas
+  ya se dan por buenas. Nadie las reescribe: el agente de `tc-bucle` deja sus
+  fallos en `vuelta-N/fallos-congeladas.json` sin tocarlas, y `tc-parejo`,
+  `tc-contraste` y `tc-reasignar` trabajan solo sobre las demás (las congeladas
+  siguen como vecinas y como fichas para comparar, pero no se mueve nada hacia
+  ellas). Sacar una de la lista es descongelarla, a propósito.
+- **La foto de las nubes**: los vectores de cada frase de las congeladas, con el
+  modelo base, guardados una vez (`~/entrenamientos/nubes/<foto>.pt`; el
+  resumen versionado en `datos/tc-nubes-foto.json`). Sacarla tarda ~10 minutos.
+- **Una herramienta nueva** se mide solo contra la foto: se calculan sus frases
+  (con el prompt de hoy, que ya tiene su ficha) y se comparan con todas las
+  nubes guardadas: su peor vecina y la CDNV, las frases que caen en otro grupo,
+  y los tres filtros para las candidatas. Las demás no se recalculan.
+- **El control de deriva**: sumar fichas al prompt corre el estado oculto de
+  las frases viejas. Cada `--contra` recalcula 5 frases por nube congelada y
+  mide cuánto se corrió cada centro (sobre la distancia a su vecina más
+  cercana). **Las que se corrieron más de 0,15 se recalculan enteras** con el
+  prompt de hoy; las quietas salen de la foto. Si se corrió más de la mitad,
+  avisa que conviene sacar otra foto.
+- **Lo que mostró al probarlo** (dos fichas nuevas de cámaras, `enfocar` y
+  `banca_toma`): la deriva no es un corrimiento común que se pueda restar. Se
+  mueven las VECINAS de lo nuevo (`recinto_apuntar` 0,84 de la distancia a su
+  vecina, las `ptz_*` 0,5–0,7): con otra opción en el prompt, el modelo ve
+  distinto «apuntá la cámara a…». Por eso no alcanza con medir lo nuevo contra
+  una foto vieja: su zona se recalcula.
+- **Cuánto rinde** (mismo caso, contra recalcular todo con el prompt nuevo): el
+  diagnóstico de lo nuevo sale idéntico (`enfocar`: peor vecina
+  `recinto_apuntar`, CDNV 0,459 en los dos), el total casi igual (806 contra 811
+  pares sobre el objetivo, la misma peor vecina en 104 de 110), pero el tiempo
+  baja poco: 269 s contra 339 s, porque con dos fichas se corrió la mitad de las
+  nubes. **Recalcular todo tarda menos de 6 minutos: el cálculo nunca fue el
+  problema.** Con el mismo prompt, `--contra` da lo de la foto en 13 s.
+- **Para qué sirve entonces**: la lista de congeladas (lo que ahorra trabajo es
+  no reescribir sus preguntas) y el informe de deriva, que dice qué
+  herramientas viejas mueve una nueva. Con una herramienta nueva, lo simple y
+  exacto es recalcular todo; `--contra` cuando además se quiere ver qué se
+  movió.
+
+```bash
+# la foto (una vez, o cuando el control diga que ya no vale)
+BA_PERFIL=vivo6 tools/entrenar/tc-geometria.py --modelo Qwen/Qwen3.5-4B --foto-guardar vivo6-base-2026-10-17
+# lo nuevo contra la foto (por defecto, las del perfil que no estan en ella)
+BA_PERFIL=<perfil con las nuevas> tools/entrenar/tc-geometria.py --modelo Qwen/Qwen3.5-4B \
+    --contra vivo6-base-2026-10-17 [--nuevas a,b] [--json geo.json] [--filtrar candidatas.jsonl ...]
+```
+
+Cuando lo nuevo queda afinado, se suma a `tc-congeladas.json` y se saca otra foto.
+
 ## Curar el corpus fuera del bucle
 
 | script | para qué |

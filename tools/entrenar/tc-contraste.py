@@ -97,6 +97,11 @@ def main():
         vec[b].append(a)
     if args.solo:
         vec = {h: v for h, v in vec.items() if h in set(args.solo.split(","))}
+    # las congeladas (datos/tc-congeladas.json) no reciben frases ni se podan;
+    # siguen siendo la vecina contra la que se contrasta lo nuevo
+    cong = tc.congeladas()
+    print(f"congeladas fuera: {sorted(h for h in vec if h in cong)[:12]}{'...' if sum(h in cong for h in vec) > 12 else ''}")
+    vec = {h: v for h, v in vec.items() if h not in cong}
     print(f"{len(ps)} pares, {len(vec)} herramientas:")
     for a, b, w in ps:
         print(f"   {w:5.1f}  {tc.a_modelo(a)} / {tc.a_modelo(b)}")

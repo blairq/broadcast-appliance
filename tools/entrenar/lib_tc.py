@@ -221,6 +221,13 @@ def mismo_perfil(corpus=None, modelo=None):
                              f" se entreno: medirlo en un worktree de ese commit)")
 
 
+def congeladas():
+    """Las herramientas cuyas preguntas ya se dan por buenas (datos/tc-congeladas.json):
+    ningun script las reescribe; siguen contando como vecinas de lo nuevo."""
+    f = Path(__file__).resolve().parents[2] / "datos" / "tc-congeladas.json"
+    return set(json.loads(f.read_text()).get("herramientas", [])) if f.exists() else set()
+
+
 def usuario(estado, frase):
     if estado:
         return f"Estado: {json.dumps(estado, ensure_ascii=False, separators=(',', ':'))}\nPedido: {frase}"

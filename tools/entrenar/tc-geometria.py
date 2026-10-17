@@ -99,6 +99,7 @@ class Medidor:
                                                           device_map={"": dispositivo}).eval()
             self.tok = AutoTokenizer.from_pretrained(modelo)
             firma_m = modelo
+        self.firma_m = firma_m
         self.dev = self.m.device
         ch.parchear()
         self.cab = tc.cabeza()
@@ -181,7 +182,7 @@ def nubes(med, anot=None, herramientas=None):
     torch = med.t
     anot = json.loads(ANOT.read_text()) if anot is None else anot
     mias = set(tc.esquemas()) if herramientas is None else set(herramientas)
-    grupos, etiq = collections.defaultdict(list), collections.defaultdict(list)
+    grupos, etiq, usuarios = collections.defaultdict(list), collections.defaultdict(list), collections.defaultdict(list)
     for h, lista in sorted(anot.items()):
         if h not in mias:
             continue
@@ -193,10 +194,119 @@ def nubes(med, anot=None, herramientas=None):
                 continue
             grupos[destino].append(med.h(u))
             etiq[destino].append({"herramienta": h, "plantilla": a["plantilla"], "agente": bool(a.get("nueva"))})
+            usuarios[destino].append(u)
     med.guardar()
     geo = Geometria(torch, dict(grupos))
     geo.medibles = {h for h, g in grupos.items() if len(g) >= 3}
+    geo.usuarios = dict(usuarios)
     return geo, dict(etiq)
+
+
+# --- LA FOTO DE LAS NUBES ---------------------------------------------------------
+# Las nubes de las herramientas CONGELADAS (datos/tc-congeladas.json) no cambian si
+# no cambian sus frases: se guardan una vez (--foto-guardar) y lo nuevo se mide
+# contra ellas (--contra), calculando solo sus frases. La aproximacion: al sumar
+# fichas al prompt, el estado oculto de las frases viejas se corre un poco; el
+# control de deriva lo mide en cada --contra (5 frases por herramienta) y avisa
+# si la foto ya no vale. Lo que mostro al probarlo (17/10/2026, dos fichas nuevas de
+# camaras): la deriva NO es un corrimiento comun que se pueda restar; se mueven las
+# vecinas de lo nuevo (recinto_apuntar 0,84 de la distancia a su vecina, las ptz
+# 0,5-0,7). Por eso --contra recalcula las que se corrieron mas de CORRIDA y usa la
+# foto solo para las quietas.
+NUBES = Path.home() / "entrenamientos" / "nubes"
+CORRIDA = 0.15
+RESUMEN_FOTO = RAIZ / "datos" / "tc-nubes-foto.json"
+
+
+def sacar_foto(med, nombre, objetivo):
+    import datetime
+    torch = med.t
+    geo, etiq = nubes(med)
+    d = diagnostico(geo, etiq, objetivo)
+    NUBES.mkdir(parents=True, exist_ok=True)
+    archivo = NUBES / f"{nombre}.pt"
+    torch.save({"modelo": med.firma_m, "prompt": tc.huella(), "fecha": datetime.date.today().isoformat(),
+                "grupos": {h: {"vectores": geo.P[h], "usuarios": geo.usuarios[h], "etiq": etiq[h]} for h in geo.hs}},
+               archivo)
+    RESUMEN_FOTO.write_text(json.dumps({
+        "foto": nombre, "archivo": str(archivo), "modelo": med.firma_m, "prompt": tc.huella(),
+        "fecha": datetime.date.today().isoformat(), "resumen": resumen(d),
+        "herramientas": d["por_herramienta"]}, ensure_ascii=False, indent=1) + "\n")
+    return archivo, d
+
+
+def cargar_foto(nombre):
+    archivo = Path(nombre).expanduser()
+    if not archivo.exists():
+        archivo = NUBES / f"{nombre}.pt"
+    import torch
+    return torch.load(archivo)
+
+
+def nuevas_de(foto, pedidas):
+    """Las pedidas, o (por defecto) las del perfil de hoy que no estan en la foto."""
+    return set(pedidas) if pedidas else (set(tc.esquemas()) - set(foto["grupos"]) - {tc.FALTA})
+
+
+def nubes_con_foto(med, foto, nuevas, recalcular=()):
+    """Las nubes de la foto y, recalculadas con el prompt de hoy, las de `nuevas` y
+    las de `recalcular` (las que el control de deriva vio corridas). Las de la foto
+    que ya no estan en el perfil se dejan afuera."""
+    torch = med.t
+    perfil = set(tc.esquemas()) | {tc.DERIVAR}
+    nuevas = set(nuevas) | set(recalcular)
+    geo_n, etiq_n = nubes(med, herramientas=nuevas) if nuevas else (None, {})
+    grupos, etiq, usuarios = {}, {}, {}
+    for h, g in foto["grupos"].items():
+        if h in perfil and h not in nuevas:
+            grupos[h] = list(g["vectores"])
+            etiq[h] = g["etiq"]
+            usuarios[h] = g["usuarios"]
+    if geo_n is not None:
+        for h in geo_n.hs:
+            grupos[h] = list(geo_n.P[h])
+            etiq[h] = etiq_n[h]
+            usuarios[h] = geo_n.usuarios[h]
+    geo = Geometria(torch, grupos)
+    geo.medibles = {h for h, g in grupos.items() if len(g) >= 3}
+    geo.usuarios = usuarios
+    return geo, etiq
+
+
+def deriva(med, foto, por_herramienta=5, nuevas=()):
+    """Cuanto se corrio la foto con el prompt de hoy: se recalculan `por_herramienta`
+    frases de cada nube congelada (siempre las mismas) y se comparan con las guardadas.
+      misma_asignacion  fraccion que cae en el mismo centro (de la foto) que antes
+      corrimiento       |centro nuevo - centro viejo| de esas frases, sobre la
+                        distancia a la vecina mas cercana (0 = nada; 1 = llega a la vecina)"""
+    torch = med.t
+    hs = sorted(h for h in foto["grupos"] if h not in set(nuevas) and h in set(tc.esquemas()) | {tc.DERIVAR})
+    C = torch.stack([foto["grupos"][h]["vectores"].mean(0) for h in hs])
+    total = iguales = 0
+    cosenos, corr = [], {}
+    for k, h in enumerate(hs):
+        g = foto["grupos"][h]
+        idx = sorted(range(len(g["usuarios"])), key=lambda i: hashlib.sha1(g["usuarios"][i].encode()).hexdigest())
+        idx = idx[:por_herramienta]
+        viejos = g["vectores"][idx]
+        nuevos = torch.stack([med.h(g["usuarios"][i]) for i in idx])
+        cosenos += torch.nn.functional.cosine_similarity(viejos, nuevos, dim=1).tolist()
+        a_v = torch.cdist(viejos, C).argmin(1)
+        a_n = torch.cdist(nuevos, C).argmin(1)
+        total += len(idx)
+        iguales += int((a_v == a_n).sum())
+        dist = (C - C[k]).norm(dim=1)
+        dist[k] = float("inf")
+        corr[h] = float((nuevos.mean(0) - viejos.mean(0)).norm() / dist.min())
+    med.guardar()
+    v = sorted(corr.values())
+    p95 = v[int(0.95 * (len(v) - 1))] if v else 0.0
+    return {"prompt_foto": foto["prompt"], "prompt_hoy": tc.huella(), "frases": total,
+            "misma_asignacion": round(iguales / max(1, total), 4),
+            "coseno_medio": round(sum(cosenos) / max(1, len(cosenos)), 5), "coseno_min": round(min(cosenos or [1]), 5),
+            "corrimiento_mediana": round(v[len(v) // 2], 4) if v else 0.0, "corrimiento_p95": round(p95, 4),
+            "peores": sorted(corr.items(), key=lambda x: -x[1])[:5], "por_herramienta": corr,
+            "vale": iguales / max(1, total) >= 0.98 and p95 <= 0.10}
 
 
 def fuera_de_su_grupo(geo, etiq):
@@ -325,9 +435,37 @@ def main():
     ap.add_argument("--podar", type=int, help="dejar cada herramienta en N frases, sacando las que menos suman")
     ap.add_argument("--salida-poda", help="con --podar: json {herramienta: [plantillas que salen]}")
     ap.add_argument("--topes", help="con --podar: json {herramienta: N} (el tope de la nube: sin las de falta)")
+    ap.add_argument("--foto-guardar", metavar="NOMBRE",
+                    help="calcular todas las nubes y guardarlas en ~/entrenamientos/nubes/NOMBRE.pt (y el resumen en"
+                         " datos/tc-nubes-foto.json)")
+    ap.add_argument("--contra", metavar="FOTO", help="usar las nubes de la foto y calcular solo lo nuevo (con control de deriva)")
+    ap.add_argument("--nuevas", help="con --contra: herramientas a recalcular (separadas por coma); por defecto, las del"
+                                     " perfil que no estan en la foto")
     args = ap.parse_args()
     med = Medidor(args.modelo)
-    geo, etiq = nubes(med)
+    if args.foto_guardar:
+        archivo, d = sacar_foto(med, args.foto_guardar, args.objetivo)
+        print(json.dumps(resumen(d), ensure_ascii=False))
+        print(f"foto: {archivo} ({len(d['por_herramienta'])} nubes) · resumen en {RESUMEN_FOTO.relative_to(RAIZ)}")
+        return
+    nuevas = set()
+    der = None
+    if args.contra:
+        foto = cargar_foto(args.contra)
+        nuevas = nuevas_de(foto, [x for x in (args.nuevas or "").split(",") if x])
+        der = deriva(med, foto, nuevas=nuevas)
+        corridas = sorted(h for h, c in der["por_herramienta"].items() if c > CORRIDA)
+        geo, etiq = nubes_con_foto(med, foto, nuevas, recalcular=corridas)
+        der["recalculadas"] = corridas
+        print(f"foto {args.contra} (prompt {der['prompt_foto']}, hoy {der['prompt_hoy']}) · nuevas: {sorted(nuevas)}")
+        print(f"deriva: {der['frases']} frases de control · misma asignacion {der['misma_asignacion']:.1%} · "
+              f"corrimiento mediana {der['corrimiento_mediana']:.3f} p95 {der['corrimiento_p95']:.3f} · "
+              f"recalculadas {len(corridas)} de {len(der['por_herramienta'])} (corridas > {CORRIDA}): "
+              + (", ".join(corridas[:10]) + ("..." if len(corridas) > 10 else "") if corridas else "ninguna")
+              + ("" if len(corridas) < len(der["por_herramienta"]) / 2 else
+                 " · se corrio mas de la mitad: conviene sacar otra foto con --foto-guardar"))
+    else:
+        geo, etiq = nubes(med)
     if args.filtrar:
         cands = []
         for l in Path(args.filtrar).read_text().splitlines():
@@ -351,7 +489,19 @@ def main():
         print(f"poda a {args.podar}: salen {sum(map(len, sale.values()))} de {len(sale)} herramientas")
         return
     d = diagnostico(geo, etiq, args.objetivo)
+    if der is not None:
+        d["deriva"] = der
+        d["nuevas"] = sorted(nuevas)
     print(json.dumps(resumen(d), ensure_ascii=False))
+    if nuevas:
+        print("las nuevas:")
+        for h in sorted(nuevas):
+            ph = d["por_herramienta"].get(h)
+            caen = [x["cae_en"] for x in d["fuera_de_su_grupo"] if x["destino"] == h]
+            reciben = [x["destino"] for x in d["fuera_de_su_grupo"] if x["cae_en"] == h]
+            print(f"  {h:26} n {ph['n'] if ph else '-':>3} · peor vecina {ph['peor']['con'] if ph else '-'} "
+                  f"cdnv {ph['peor']['cdnv'] if ph else float('nan'):.3f} · caen en otra {len(caen)} "
+                  f"{dict(collections.Counter(caen))} · reciben {len(reciben)}")
     print("peores pares:")
     for p in d["peores_pares"][:12]:
         print(f"  {p['a']:26} {p['b']:26} cdnv {p['cdnv']:.3f} (cota {100 * p['cota_error']:.0f} %)")

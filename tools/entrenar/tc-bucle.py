@@ -173,6 +173,15 @@ def arreglar(fallos, dir_, adaptador, v):
         if f["herramienta"] not in funcs:
             continue
         por_h.setdefault(f["herramienta"], []).append(f)
+    # LAS CONGELADAS NO SE REESCRIBEN (datos/tc-congeladas.json): sus preguntas ya
+    # se afinaron varias veces y cada vuelta que las tocaba rompia algo (la v7).
+    # Sus fallos quedan anotados para mirarlos, no van al agente.
+    cong = {h: v for h, v in por_h.items() if h in tc.congeladas()}
+    if cong:
+        (dir_ / "fallos-congeladas.json").write_text(json.dumps(cong, ensure_ascii=False, indent=1))
+        log(f"congeladas con fallos (no se tocan): {len(cong)} herramientas, {sum(map(len, cong.values()))} fallos"
+            f" -> {dir_ / 'fallos-congeladas.json'}")
+    por_h = {h: v for h, v in por_h.items() if h not in cong}
     if not por_h:
         return 0
     diag = geometria(adaptador, dir_ / "geometria.json", v)

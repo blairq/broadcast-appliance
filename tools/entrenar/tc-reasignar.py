@@ -82,6 +82,10 @@ def main():
     esquemas = tc.esquemas()
     anot = json.loads(ANOT.read_text())
     gs = grupos(diag, set(fichas), args.cdnv_min, args.fuera_min, args.tope)
+    # las congeladas (datos/tc-congeladas.json) estan en el grupo como fichas (para
+    # comparar), pero sus anotaciones no se mueven ni se sacan, y no reciben nada
+    cong = tc.congeladas()
+    gs = [g for g in gs if any(h not in cong for h in g)]
     print(f"{len(gs)} grupos:")
     for g in gs:
         print("  ", " · ".join(f"{h}" + (f" ({tc.a_modelo(h)})" if tc.a_modelo(h) != h else "") for h in g))
@@ -93,7 +97,8 @@ def main():
                                   "esquema": esquemas[h]} for h in g],
                 "anotaciones": [{"id": f"{h}#{j}", "real": h, "plantilla": a["plantilla"],
                                  **({"falta": a["falta"]} if "falta" in a else {"args": a.get("args", {})})}
-                                for h in g for j, a in enumerate(anot.get(h, [])) if a.get("plantilla")]}
+                                for h in g if h not in cong for j, a in enumerate(anot.get(h, []))
+                                if a.get("plantilla")]}
         f = tmp / f"grupo-{i}.json"
         f.write_text(json.dumps(lote, ensure_ascii=False, indent=1))
         trabajos.append(agente.Trabajo("tc-reasignar.md", f, tmp / f"salida-{i}.jsonl", ["id", "decision"]))
@@ -124,6 +129,11 @@ def main():
                 dec = d.get("decision")
                 if dec == "queda":
                     cuenta["queda"] += 1
+                    continue
+                if dec == "mover" and d.get("a") in cong:
+                    cuenta["a una congelada: queda"] += 1
+                    informe.append({"id": f"{h}#{j}", "plantilla": a["plantilla"], "a": d["a"],
+                                    "queda": "la destino esta congelada"})
                     continue
                 if dec == "mover" and d.get("a") in g and d["a"] != h:
                     m = {k: v for k, v in a.items() if k not in ("args", "falta")}
