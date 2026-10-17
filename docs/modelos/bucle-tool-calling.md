@@ -173,16 +173,22 @@ queda sin memoria lo relanza desde el último estado con micro-lotes a la mitad
 por paso, ~6 h por vuelta). Guarda `estado/estado.pt` cada 10 minutos y en cada
 evaluación.
 
-Opciones tomadas de Unsloth, **apagadas por defecto** (verificadas con
-`verificar-gradiente.py` en las dos placas y los dos modos, todavía sin medir
-memoria y velocidad con el 4B):
+Opciones tomadas de Unsloth (y una propia), todas **apagadas por defecto**. El
+gradiente está verificado con `verificar-gradiente.py` en las dos placas y los
+dos modos; lo que cambia es si sirvieron cuando se probaron con el 4B:
 
-| opción | qué hace |
-|---|---|
-| `--a-ram si` | la entrada de cada capa del prefijo, en RAM hasta su backward (ojo: con DPO se quedó sin memoria ANTES que sin ella; sin investigar) |
-| `--entropia-fusionada si` | pérdida y gradiente de la cabeza por tandas, sin guardar logits (`entropia_fusionada.py`); no va con dpo/kto |
-| `--conv-triton si` | la convolución corta de la atención lineal con el kernel de fla (arregla un bug de fla 0.5.2 con tensores no contiguos) |
-| `--compilar si` | `torch.compile` de normas y MLP de cada capa |
+| opción | qué hace | recomendación |
+|---|---|---|
+| `--lora-fusionado si` | base y rango bajo de LoRA en un solo kernel | **no usar**: medido con el 4B, no ganó (6,26 contra 6,34 s/paso, dentro del ruido) |
+| `--a-ram si` | la entrada de cada capa del prefijo, en RAM hasta su backward | **no usar**: la única vez que se usó (DPO, 4B, dos placas) se quedó sin memoria en el paso 1, antes que sin ella. Tendría que ahorrar y gastó más; sin investigar |
+| `--entropia-fusionada si` | pérdida y gradiente de la cabeza por tandas, sin guardar logits (`entropia_fusionada.py`); no va con dpo/kto | sin medir con el 4B: la candidata a dejar entrar micro 2 en la placa 1 |
+| `--conv-triton si` | la convolución corta de la atención lineal con el kernel de fla (corrige un bug de fla 0.5.2 con tensores no contiguos: el gradiente del estado inicial salía con 140 % de error) | sin medir con el 4B |
+| `--compilar si` | `torch.compile` de normas y MLP de cada capa | sin medir con el 4B |
+
+Lo que sí rinde son las propias de arriba (prefijo compartido, las dos placas,
+recálculo): ~6 h por vuelta contra ~25–30 h estimadas para Unsloth Studio con
+una placa. Antes de prender una de las «sin medir» en `tc-bucle`, medirla: 30
+pasos con el 4B, memoria y s/paso, sola y junto a las otras.
 
 ### 3. Medir — `tc-evaluar.py`
 
@@ -254,6 +260,11 @@ Para reforzar un adaptador ya entrenado con los errores **del propio modelo**.
    DPO cada respuesta hace su backward sola con su peso exacto (la buena y la
    mala juntas no entraban en la placa 1). `--nll-buena α` suma α·NLL por token
    de la buena (DPO+NLL, «RPO»).
+
+> **No usar para el modelo que se publica** mientras no se resuelva lo de abajo:
+> los dos intentos salieron peor que el SFT del que partían. Queda para
+> experimentar (con anclas en cada eje que se empuja y la selección con casos
+> de derivar). KTO está implementado pero nunca se entrenó con datos reales.
 
 Lo que dieron (sobre la v6b vuelta 2):
 
