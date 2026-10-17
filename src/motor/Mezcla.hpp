@@ -120,6 +120,7 @@ class Mezcla {
     std::int64_t masterDesdeNs_ = 0, masterNs_ = 0;
     nlohmann::json loudness_ = nlohmann::json::object();
     mutable std::mutex mu_;
+    unsigned serieRamas_ = 0; ///< sufijo de los nombres de elementos (únicos aunque dos ids se limpien igual)
     std::map<std::string, Rama> ramas_;
     std::int64_t latenciaNs_ = -1;
     std::int64_t salidaNs_ = 0;

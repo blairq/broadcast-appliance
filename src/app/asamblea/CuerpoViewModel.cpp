@@ -158,6 +158,10 @@ QString CuerpoViewModel::guardar(const QVariantMap& campos) {
     return {};
 }
 
+QString CuerpoViewModel::setToma(const QString& banca, const QString& camara, const QString& posicion) {
+    return QString::fromStdString(c_->setToma(banca.toStdString(), camara.toStdString(), posicion.toStdString()));
+}
+
 bool CuerpoViewModel::borrar(const QString& id) {
     return c_->borrar(id.toStdString());
 }

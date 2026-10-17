@@ -61,7 +61,7 @@ Es el arreglo más barato de la lista y destraba todo lo demás. **Va primero.**
 arranque como instante absoluto con desfasaje, que es lo único que le sirve al
 que está afuera. Un formato mal escrito se rechaza en vez de guardarse, y la
 validación es de calendario y no de rango —un 31 de abril pasa cualquier
-chequeo de «día entre 1 y 31»—. En `evento_guardar` y en la página del evento.
+chequeo de «día entre 1 y 31»—. En `guion_guardar` y en la página del evento.
 
 ## 2. El padrón — **hecho**
 

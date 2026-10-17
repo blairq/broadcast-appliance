@@ -31,9 +31,21 @@
 //      real llega en una cabecera PROXY v1 (opcional) y es la que cuenta para
 //      los limites por IP y el registro.
 //
+//   1c) LA PUERTA DE LA SALA (solo con Cfg::controlLan; docs/planes/PLAN-DIRECCIONES.md):
+//      los servicios de la sala (tablets, presidencia, integrantes, televisores,
+//      teleprompter, rótulos, corrección, tablero, público, Companion) son de la
+//      red local por naturaleza y llegan aunque la sala de INVITADOS esté cerrada
+//      a la red. Dos entradas:
+//        - 127.0.0.1:controlPort, detrás del HTTPS propio de main.cpp
+//          (controlLanPort, 8792), que reenvía con PROXY v1;
+//        - puertaHttpBind:puertaHttpPort (8793), HTTP directo (televisores y
+//          Companion no aceptan un certificado propio).
+//      Por acá se atiende TODO menos entrar a la sala como invitado (/invitados/,
+//      /api/join, sus subidas): eso sigue lo que diga «Acceso». Cada superficie
+//      tiene su propia clave o emparejamiento; lo que pide permiso es lo de afuera.
+//
 //   2) CONTROL DEL OPERADOR — SIEMPRE 127.0.0.1:adminPort (nunca por el
-//      tunel). Es la API de la que cuelgan la vista web (Web/admin) y la vista
-//      Qt de la app. Ver AdminApi.cpp para las rutas.
+//      tunel). Es la API que usa la app. Ver AdminApi.cpp para las rutas.
 //
 //   El estado de la conferencia (lobby, participantes, chat, archivos) vive en
 //   `Room`; este servidor solo traduce entre la red y ese modelo.
@@ -84,7 +96,9 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Direcciones.hpp"
 #include "Sesion.hpp"
+#include "ControlWeb.hpp"
 #include "Carruseles.hpp"
 #include "MediaRoute.hpp"
 #include "Preguntas.hpp"
@@ -118,7 +132,6 @@ class SignalingServer {
         int maxGuests = 4;
         // --- API de control (loopback siempre) ---
         uint16_t adminPort = 8788; // 0 = puerto efimero (tests)
-        std::string adminWebroot;  // Web/admin (consola web)
         std::string adminToken;    // Bearer / cookie de la consola; vacio = sin API de control
         int maxSharesPerGuest = 20;
         std::string boardWebroot;    // Web/board (tablero de oradores)
@@ -151,9 +164,15 @@ class SignalingServer {
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
         std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
         std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
+        std::string controlWebroot;  // Web/control (el dashboard web del operador, /control/)
         // --- Escucha del tunel de pinggy (siempre 127.0.0.1, todo externo) ---
         bool tunel = false;         // abrirla (main: pinggy activo)
         uint16_t tunnelPort = 8786; // 0 = puerto efimero (tests)
+        // --- Aparatos de control de la red local (ver 1c; siempre 127.0.0.1) ---
+        bool controlLan = false;     // abrir la puerta de la sala (ver 1c)
+        uint16_t controlPort = 0;    // 0 = puerto efimero (lo normal: solo lo usa el HTTPS de adelante)
+        std::string puertaHttpBind = "0.0.0.0"; // la IP de «Acceso» si es una sola
+        uint16_t puertaHttpPort = 0;            // 0 = sin la entrada HTTP
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -180,6 +199,14 @@ class SignalingServer {
     uint16_t adminPort() const { return adminBoundPort_; }
     /// Puerto real de la escucha del tunel (0 si no esta abierta).
     uint16_t tunnelPort() const { return tunnelBoundPort_; }
+    /// Puerto real de la escucha de los aparatos de control (0 si no esta abierta).
+    uint16_t controlPort() const { return controlBoundPort_; }
+    /// Puerto real de la entrada HTTP de la puerta de la sala (0 si no esta abierta).
+    uint16_t puertaHttpPort() const { return puertaHttpBoundPort_; }
+    /// ¿El control web está habilitado desde afuera (túnel, con PIN)?
+    bool controlWebDesdeAfuera() const;
+    /// ¿Hay una página del evento publicada en la raíz?
+    bool eventoWebPublicado() const { return eventoWebActivo() && !cfg_.eventoWebroot.empty(); }
 
     /// La IP de origen de una cabecera PROXY v1 ("PROXY TCP4 <src> <dst> <sp>
     /// <dp>"), en orden de red. TCP6: la IPv4 mapeada (::ffff:a.b.c.d) o, si
@@ -196,6 +223,10 @@ class SignalingServer {
     /// IP publica del tunel WireGuard: los candidatos ICE de loopback (los que
     /// atiende el puente del tunel) se anuncian con esta IP. Vacio = no.
     void setPublicAddress(const std::string& ip) { publicAddress_ = ip; }
+    /// El tema de las interfaces web de control (lo elige la app: POST /api/v1/tema).
+    /// Las páginas lo leen de /comun/tema.json. :returns: false si el id no vale.
+    bool setTemaWeb(const std::string& id);
+    std::string temaWeb() const;
     /// El teleprompter, para que la API de control (A) le cargue discursos y
     /// lo comande sin pasar por la clave del control remoto.
     Prompter& prompter() { return prompter_; }
@@ -248,11 +279,19 @@ class SignalingServer {
 
     /// Estado de red para la API de control (/api/v1/network).
     void setNetworkStatus(std::function<nlohmann::json()> fn) { networkStatus_ = std::move(fn); }
-    /// URL de ingreso para el QR: target "local" (red local) o "remote"
-    /// (dominio de Cloudflare). Devuelve {url} o {error}.
-    void setJoinUrlProvider(std::function<nlohmann::json(const std::string& target)> fn) {
-        joinUrl_ = std::move(fn);
+    /// Las direcciones de los servicios (Direcciones.hpp): quien junta las entradas
+    /// (main, frescas en cada llamada). Se recalculan cada 2 s; al cambiar, evento
+    /// «direcciones» a la app y `alCambiar` (p. ej. el enlace de invitados de la sala).
+    void setDirecciones(std::function<direcciones::Entradas()> entradas,
+                        std::function<void(const nlohmann::json&)> alCambiar = {}) {
+        direccionesEntradas_ = std::move(entradas);
+        alCambiarDirecciones_ = std::move(alCambiar);
+        recalcularDirecciones();
     }
+    /// El catálogo vigente, con su `seq` (GET /api/v1/direcciones).
+    nlohmann::json direcciones() const;
+    /// El origen de un servicio, "local" o "remote": {origen, url} o {error, message}.
+    nlohmann::json origenDe(const std::string& servicio, const std::string& donde) const;
     /// Genera la configuracion del servidor WireGuard (/api/v1/network/server-config).
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
@@ -278,8 +317,8 @@ class SignalingServer {
    private:
     // --- Conexiones ---------------------------------------------------------
     /// `externo`: la escucha del tunel (ver el header): toda conexion es de afuera.
-    void acceptLoop(long long listenFd, bool admin, bool externo = false);
-    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo);
+    void acceptLoop(long long listenFd, bool admin, bool externo = false, bool soloControl = false);
+    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo, bool soloControl);
     void trackFd(long long fd);
     void untrackFd(long long fd);
     void closeActiveConns();
@@ -396,8 +435,6 @@ class SignalingServer {
     void adminEvents(long long fd);
     void adminShareContent(long long fd, const std::string& id);
     void broadcastToHosts(const std::string& event, const nlohmann::json& data);
-    std::string issueLoginCode();
-    bool redeemLoginCode(const std::string& code);
 
     struct SseConn {
         long long fd = -1;
@@ -405,8 +442,6 @@ class SignalingServer {
     };
     std::vector<std::shared_ptr<SseConn>> sse_;
     std::mutex sseLock_;
-    std::map<std::string, long long> loginCodes_; // code -> vence (ms)
-    std::mutex loginLock_;
 
     Cfg cfg_;
     TokenAuth& auth_;
@@ -449,6 +484,8 @@ class SignalingServer {
     std::unique_ptr<BotoneraBorde> botonera_;
     /// La sesión remota (integrantes desde afuera): borde de red, ver Sesion.hpp.
     std::unique_ptr<SesionBorde> sesion_;
+    /// El control web (/control/ y /ws?control): borde de red, ver ControlWeb.hpp.
+    std::unique_ptr<ControlWebBorde> controlWeb_;
     Preguntas preguntas_;
     Votacion votacion_;
     mutable std::mutex publicoM_;
@@ -478,9 +515,18 @@ class SignalingServer {
     std::int64_t correccionMs_ = 0;
     proxy::GestorProxy* proxy_ = nullptr;
     std::string publicAddress_;
+    mutable std::mutex temaLock_;
+    std::string temaWeb_ = "neuro-oscuro";
+    /// GET /comun/tema.json (todas las superficies). true si lo atendió.
+    bool servirTema(long long fd, const std::string& method, const std::string& path);
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
-    std::function<nlohmann::json(const std::string&)> joinUrl_;
+    std::function<direcciones::Entradas()> direccionesEntradas_;
+    std::function<void(const nlohmann::json&)> alCambiarDirecciones_;
+    mutable std::mutex direccionesLock_;
+    nlohmann::json direcciones_ = nlohmann::json::object();
+    std::int64_t direccionesSeq_ = 0;
+    void recalcularDirecciones();
     std::function<nlohmann::json()> remotoStatus_;
     std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
@@ -496,6 +542,12 @@ class SignalingServer {
     uint16_t guestBoundPort_ = 0;
     long long tunnelListenFd_ = -1;
     uint16_t tunnelBoundPort_ = 0;
+    long long controlListenFd_ = -1;
+    uint16_t controlBoundPort_ = 0;
+    std::thread controlAcceptThread_;
+    long long puertaHttpFd_ = -1;
+    uint16_t puertaHttpBoundPort_ = 0;
+    std::thread puertaHttpThread_;
     std::thread acceptThread_;
     std::thread adminAcceptThread_;
     std::thread tunnelAcceptThread_;

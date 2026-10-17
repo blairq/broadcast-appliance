@@ -31,8 +31,11 @@ Dialog {
         escena: "Escena", archivo: "Archivo (de los medios del evento)", accion: "Qué hace",
         repetir: "En bucle", alAire: "Ponerlo al aire en su escena", discurso: "Discurso",
         arrancar: "Arrancarlo al cargarlo", participante: "Quién habla", fuente: "Fuente",
-        grafico: "Gráfico", pantalla: "Pantalla", contenido: "Qué muestra", db: "Volumen (dB)"
+        grafico: "Gráfico", pantalla: "Pantalla", contenido: "Qué muestra", db: "Volumen (dB)",
+        seVa: "Cuándo se va de la pantalla"
     })
+    // Listas cerradas (no se escribe otra cosa).
+    readonly property var kCerrados: ["accion", "seVa"]
 
     function abrir(b, c) { dlg.bloque = b; dlg.cue = c; open() }
     function poner(campo, valor) {
@@ -110,7 +113,7 @@ Dialog {
                         id: combo
                         visible: !campo.siNo && campo.opciones.length > 0
                         Layout.fillWidth: true
-                        editable: campo.modelData !== "accion"
+                        editable: dlg.kCerrados.indexOf(campo.modelData) < 0
                         model: campo.opciones
                         textRole: "texto"
                         valueRole: "valor"
@@ -154,6 +157,9 @@ Dialog {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 2
+                        // Los milisegundos de «cuándo se va» valen solo si se va sola (o si la cue
+                        // deja decidir al gráfico): con «al avanzar» o «queda» no se usan.
+                        visible: modelData.clave !== "salidaEn" || ["", "sola"].indexOf(dlg.c.datos.seVa || "") >= 0
                         Text {
                             text: (modelData.titulo || modelData.clave) + (modelData.tipo === "ms" ? " (milisegundos)" : "")
                             color: Theme.textDim; font.pixelSize: 11

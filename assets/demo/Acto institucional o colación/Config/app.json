@@ -14,7 +14,7 @@
       1
      ],
      "settings": {
-      "color": 4280951584,
+      "color": 4281211405,
       "width": 1920,
       "height": 1080
      },
@@ -23,19 +23,23 @@
      "muted": false
     },
     {
-     "id": "text_ft2_source_v2",
-     "name": "Título",
+     "id": "ba_grafico",
+     "name": "Placa de espera",
      "rect": [
-      0.06,
-      0.34,
-      0.88,
-      0.16
+      0.08333333333333331,
+      0.21296296296296297,
+      0.8333333333333334,
+      0.5740740740740741
      ],
      "settings": {
-      "text": "‹Acto›",
-      "font": {
-       "face": "Helvetica",
-       "size": 96
+      "grafico": "espera",
+      "ancho": 1600,
+      "alto": 620,
+      "alAbrir": true,
+      "bucle": false,
+      "valores": {
+       "titulo": "‹Acto›",
+       "bajada": "Empezamos a las ‹hora›"
       }
      },
      "visible": true,
@@ -43,24 +47,23 @@
      "muted": false
     },
     {
-     "id": "text_ft2_source_v2",
-     "name": "Empezamos",
+     "id": "image_source",
+     "name": "Bandera",
      "rect": [
-      0.06,
-      0.52,
-      0.88,
-      0.08
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
      ],
      "settings": {
-      "text": "Empezamos a las ‹hora›",
-      "font": {
-       "face": "Helvetica",
-       "size": 48
-      }
+      "file": "Media/bandera-malvinas.png"
      },
      "visible": true,
      "volume": 1.0,
-     "muted": false
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -107,6 +110,43 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -124,7 +164,7 @@
       1
      ],
      "settings": {
-      "color": 4280951584,
+      "color": 4281211405,
       "width": 1920,
       "height": 1080
      },
@@ -173,6 +213,43 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -190,7 +267,7 @@
       1
      ],
      "settings": {
-      "color": 4280951584,
+      "color": 4281211405,
       "width": 1920,
       "height": 1080
      },
@@ -243,6 +320,43 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -260,7 +374,7 @@
       1
      ],
      "settings": {
-      "color": 4280951584,
+      "color": 4281211405,
       "width": 1920,
       "height": 1080
      },
@@ -363,6 +477,43 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -404,6 +555,25 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -438,18 +608,37 @@
      "name": "Placa",
      "rect": [
       0.0,
-      0.0,
+      0.33333333333333337,
       1.0,
-      1.0
+      0.3333333333333333
      ],
      "settings": {
       "grafico": "placa-titulo",
       "ancho": 1920,
-      "alto": 1080
+      "alto": 360
      },
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -467,7 +656,7 @@
       1
      ],
      "settings": {
-      "color": 4280951584,
+      "color": 4281211405,
       "width": 1920,
       "height": 1080
      },
@@ -476,24 +665,44 @@
      "muted": false
     },
     {
-     "id": "text_ft2_source_v2",
-     "name": "Gracias",
+     "id": "ba_grafico",
+     "name": "Placa de cierre",
      "rect": [
-      0.06,
-      0.4,
-      0.88,
-      0.14
+      0.08333333333333331,
+      0.21296296296296297,
+      0.8333333333333334,
+      0.5740740740740741
      ],
      "settings": {
-      "text": "¡Gracias por acompañarnos!",
-      "font": {
-       "face": "Helvetica",
-       "size": 88
-      }
+      "grafico": "cierre",
+      "ancho": 1600,
+      "alto": 620,
+      "alAbrir": true,
+      "bucle": false,
+      "valores": {}
      },
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -545,7 +754,7 @@
      "id": "image_source",
      "name": "Escudo",
      "rect": [
-      0.88,
+      0.02,
       0.03,
       0.1,
       0.17
@@ -556,6 +765,43 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   },
@@ -602,6 +848,43 @@
      "visible": true,
      "volume": 1.0,
      "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Placa",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Bandera",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
     }
    ]
   }

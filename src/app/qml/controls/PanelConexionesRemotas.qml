@@ -338,7 +338,18 @@ ColumnLayout {
                     }
                 }
             }
+            Text { visible: !!credencial.datos.link_remoto; color: Theme.textDim; font.pixelSize: 11
+                   text: "En la red de la sala (el QR es este):" }
             TextField { id: campoLink; Layout.preferredWidth: 420; readOnly: true; text: credencial.datos.link || ""; font.pixelSize: 11 }
+            // Desde afuera (por el túnel), aparte: para quien no está en la sala.
+            Text { visible: !!credencial.datos.link_remoto; color: Theme.textDim; font.pixelSize: 11
+                   text: "Desde afuera (por internet):" }
+            RowLayout {
+                visible: !!credencial.datos.link_remoto
+                TextField { Layout.preferredWidth: 330; readOnly: true; text: credencial.datos.link_remoto || ""; font.pixelSize: 11 }
+                GlassButton { text: "Copiar"; compact: true
+                              onClicked: { Studio.copiar(credencial.datos.link_remoto); Studio.notify("Link de afuera copiado", "ok") } }
+            }
             RowLayout {
                 Text { color: Theme.textDim; font.pixelSize: 13; text: "PIN" }
                 Text { color: Theme.text; font.pixelSize: 26; font.weight: Font.Black; font.letterSpacing: 4; text: credencial.datos.pin || "" }

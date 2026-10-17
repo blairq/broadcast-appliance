@@ -29,6 +29,30 @@ std::string aU8(const fs::path& p) {
     return std::string(u.begin(), u.end());
 }
 
+/// El guion `ruta` pasa a llamarse `nombre`, en una carpeta con ese nombre (la arma el
+/// almacén, como a uno nuevo) a la que se mudan sus cosas. Devuelve la ruta que queda
+/// (la vieja si algo falla: mejor con el nombre de la plantilla que sin guion).
+std::string renombrarGuion(evento::EventoStore& store, const fs::path& raiz, const std::string& ruta,
+                           const std::string& nombre) {
+    bool ok = false;
+    evento::Evento ev = store.cargar(ruta, &ok);
+    if (!ok) return ruta;
+    ev.nombre = nombre;
+    std::string err;
+    const std::string nueva = store.crear(nombre, &err);
+    if (nueva.empty()) return ruta;
+    std::error_code ec;
+    for (const auto& x : fs::directory_iterator(raiz / ruta, ec)) {
+        const fs::path destino = raiz / nueva / x.path().filename();
+        fs::remove_all(destino, ec); // el esqueleto vacío que armó crear
+        fs::rename(x.path(), destino, ec);
+        if (ec) return ruta;
+    }
+    fs::remove_all(raiz / ruta, ec);
+    store.guardar(nueva, ev, &err);
+    return nueva;
+}
+
 json leerJson(const fs::path& p) {
     std::ifstream f(p);
     json j = json::parse(f, nullptr, false);
@@ -143,6 +167,8 @@ void Configuraciones::medir() {
             if (!e.is_directory() || n.empty() || n[0] == '.') continue;
             t[n] = {bytesDe(e.path()), bytesDe(e.path() / "Recordings")};
         }
+        for (const auto& e : fs::directory_iterator(raiz / ".papelera", ec))
+            if (e.is_directory()) t[".papelera/" + aU8(e.path().filename())] = {bytesDe(e.path()), 0};
         QMetaObject::invokeMethod(
             QCoreApplication::instance(),
             [yo, t = std::move(t)]() mutable {
@@ -334,6 +360,11 @@ std::string Configuraciones::crearEvento(const std::string& nombre, const std::s
     std::string ruta = store.enCurso();
     if (ruta.empty()) {
         ruta = store.ultimoTocado();
+        // El guion de una plantilla se llama como ella («‹Asamblea General›», un texto
+        // para completar): toma el nombre del evento nuevo, y su carpeta también (con
+        // ese nombre salen la web, el padrón y las grabaciones).
+        if (!ruta.empty() && !de.empty() && leerJson(de / "configuracion.json").value("plantilla", false))
+            ruta = renombrarGuion(store, dst / "Eventos", ruta, nombre);
         std::string e2;
         if (!ruta.empty()) store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
     }
@@ -369,7 +400,10 @@ QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString&
         const auto it = tamanos_.find(aU8(de.filename()));
         if (it != tamanos_.end()) total = it->second.total;
     }
-    copia_ = QVariantMap{{"nombre", nombre}, {"hechos", 0.0}, {"total", static_cast<double>(total)}};
+    // `origen`: el evento del que se copia (si es uno de la lista): no se borra ni se renombra mientras tanto.
+    const std::string origen = !de.empty() && de.parent_path() == datos() / "Configuraciones" ? aU8(de.filename()) : std::string();
+    copia_ = QVariantMap{{"nombre", nombre}, {"origen", QString::fromStdString(origen)}, {"hechos", 0.0},
+                         {"total", static_cast<double>(total)}};
     emit copiaCambio();
     progresoCopia_.start();
     QPointer<Configuraciones> yo(this);
@@ -629,7 +663,7 @@ std::string Configuraciones::plantillaDesdeActual(const std::string& nombre, con
 
 std::string Configuraciones::activar(const std::string& nombre) {
     std::error_code ec;
-    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ninguna configuración «" + nombre + "»";
+    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
     escribirJson(datos() / "configuraciones.json", {{"activa", nombre}});
     emit cambio();
     return {};
@@ -637,10 +671,11 @@ std::string Configuraciones::activar(const std::string& nombre) {
 
 std::string Configuraciones::renombrar(const std::string& de, const std::string& a) {
     if (const std::string e = nombreValido(a); !e.empty()) return e;
-    if (de == activa()) return "la activa no se renombra (cambiá a otra primero)";
+    if (de == activa()) return "el evento abierto no se renombra (abrí otro primero)";
+    if (const std::string e = enUsoPorLaCopia(de); !e.empty()) return e;
     std::error_code ec;
-    if (!fs::is_directory(carpeta(de), ec)) return "no hay ninguna configuración «" + de + "»";
-    if (fs::exists(carpeta(a), ec)) return "ya hay una configuración «" + a + "»";
+    if (!fs::is_directory(carpeta(de), ec)) return "no hay ningún evento «" + de + "»";
+    if (fs::exists(carpeta(a), ec)) return "ya hay un evento «" + a + "»";
     fs::rename(carpeta(de), carpeta(a), ec);
     if (ec) return "no se pudo renombrar: " + ec.message();
     emit cambio();
@@ -649,7 +684,7 @@ std::string Configuraciones::renombrar(const std::string& de, const std::string&
 
 std::string Configuraciones::describir(const std::string& nombre, const std::string& descripcion) {
     std::error_code ec;
-    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ninguna configuración «" + nombre + "»";
+    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
     json meta = leerJson(carpeta(nombre) / "configuracion.json");
     meta["descripcion"] = descripcion;
     escribirJson(carpeta(nombre) / "configuracion.json", meta);
@@ -658,14 +693,119 @@ std::string Configuraciones::describir(const std::string& nombre, const std::str
 }
 
 std::string Configuraciones::borrar(const std::string& nombre) {
-    if (nombre == activa()) return "la activa no se borra (cambiá a otra primero)";
+    if (nombre == activa()) return "el evento abierto no se borra (abrí otro primero)";
+    if (const std::string e = enUsoPorLaCopia(nombre); !e.empty()) return e;
     std::error_code ec;
-    if (nombreValido(nombre) != "" || !fs::is_directory(carpeta(nombre), ec)) return "no hay ninguna configuración «" + nombre + "»";
+    if (nombreValido(nombre) != "" || !fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
     const fs::path pap = datos() / "Configuraciones" / ".papelera" /
                          deU8(nombre + "-" + std::to_string(QDateTime::currentSecsSinceEpoch()));
     fs::create_directories(pap.parent_path(), ec);
     fs::rename(carpeta(nombre), pap, ec);
     if (ec) return "no se pudo mover a la papelera: " + ec.message();
+    emit cambio();
+    return {};
+}
+
+namespace {
+// «<nombre>-<segundos>» (como lo deja borrar): el nombre y cuándo; sin sufijo, la carpeta entera.
+// «.borrando»: lo deja vaciar mientras lo borra (o si se cortó la app a mitad): vale como muy viejo.
+std::pair<std::string, long long> enPapelera(const std::string& id) {
+    if (id.size() > 9 && id.compare(id.size() - 9, 9, ".borrando") == 0) return {id.substr(0, id.size() - 9), 1};
+    const auto guion = id.rfind('-');
+    if (guion == std::string::npos || guion == 0 || guion + 1 == id.size() ||
+        id.find_first_not_of("0123456789", guion + 1) != std::string::npos)
+        return {id, 0};
+    return {id.substr(0, guion), std::stoll(id.substr(guion + 1)) * 1000};
+}
+} // namespace
+
+std::string Configuraciones::enUsoPorLaCopia(const std::string& nombre) const {
+    if (copia_.isEmpty()) return {};
+    const QString n = QString::fromStdString(nombre);
+    if (copia_.value("nombre").toString() == n) return "«" + nombre + "» se está creando (copiando): esperá a que termine";
+    if (copia_.value("origen").toString() == n)
+        return "se está copiando «" + nombre + "» a «" + copia_.value("nombre").toString().toStdString() +
+               "»: esperá a que termine";
+    return {};
+}
+
+json Configuraciones::papelera() const {
+    json out = json::array();
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(datos() / "Configuraciones" / ".papelera", ec)) {
+        if (!e.is_directory()) continue;
+        const std::string id = aU8(e.path().filename());
+        const auto [n, ms] = enPapelera(id);
+        if (ms == 1 && vaciando_) continue; // se está borrando ahora
+        out.push_back({{"id", id}, {"nombre", n}, {"borrado_ms", ms}});
+        std::lock_guard<std::mutex> l(tamanosM_);
+        if (const auto it = tamanos_.find(".papelera/" + id); it != tamanos_.end()) out.back()["bytes"] = it->second.total;
+    }
+    std::sort(out.begin(), out.end(), [](const json& a, const json& b) { return a["borrado_ms"] > b["borrado_ms"]; });
+    return out;
+}
+
+std::string Configuraciones::vaciarPapelera(const std::string& id) {
+    if (vaciando_) return "ya se está vaciando la papelera";
+    std::vector<std::string> ids;
+    for (const json& p : papelera())
+        if (id.empty() || p.value("id", std::string()) == id) ids.push_back(p.value("id", std::string()));
+    if (ids.empty()) return id.empty() ? "la papelera está vacía" : "no hay nada «" + id + "» en la papelera";
+    vaciar(ids);
+    return {};
+}
+
+int Configuraciones::vaciarViejos(int dias) {
+    if (vaciando_) return 0;
+    const long long limite = (QDateTime::currentSecsSinceEpoch() - static_cast<long long>(dias) * 86400) * 1000;
+    std::vector<std::string> ids;
+    for (const json& p : papelera())
+        if (const long long ms = p.value("borrado_ms", 0LL); ms > 0 && ms < limite) ids.push_back(p.value("id", std::string()));
+    if (!ids.empty()) vaciar(ids);
+    return static_cast<int>(ids.size());
+}
+
+void Configuraciones::vaciar(const std::vector<std::string>& ids) {
+    // Con grabaciones son GB: en otro hilo. Antes se renombran (así ya no figuran ni se recuperan a medias).
+    const fs::path pap = datos() / "Configuraciones" / ".papelera";
+    std::vector<fs::path> aBorrar;
+    std::error_code ec;
+    for (const std::string& id : ids) {
+        const fs::path p = pap / deU8(id);
+        fs::path tmp = p;
+        tmp += ".borrando";
+        fs::rename(p, tmp, ec);
+        aBorrar.push_back(ec ? p : tmp);
+    }
+    vaciando_ = true;
+    emit cambio();
+    QPointer<Configuraciones> yo(this);
+    QThreadPool::globalInstance()->start([yo, aBorrar]() {
+        std::error_code e2;
+        for (const fs::path& p : aBorrar) fs::remove_all(p, e2);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo]() {
+                if (!yo) return;
+                yo->vaciando_ = false;
+                emit yo->cambio();
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+std::string Configuraciones::recuperar(const std::string& id, const std::string& como) {
+    std::error_code ec;
+    const fs::path de = datos() / "Configuraciones" / ".papelera" / deU8(id);
+    if (id.empty() || id.find_first_of("/\\") != std::string::npos || id.find("..") != std::string::npos ||
+        !fs::is_directory(de, ec))
+        return "no hay nada «" + id + "» en la papelera";
+    if (enPapelera(id).second == 1) return "eso quedó a medio borrar: no se puede recuperar";
+    const std::string n = como.empty() ? enPapelera(id).first : como;
+    if (const std::string e = nombreValido(n); !e.empty()) return e;
+    if (fs::exists(carpeta(n), ec)) return "ya hay un evento «" + n + "»: recuperalo con otro nombre";
+    fs::rename(de, carpeta(n), ec);
+    if (ec) return "no se pudo sacar de la papelera: " + ec.message();
     emit cambio();
     return {};
 }
@@ -678,6 +818,9 @@ QVariantList aQvl(const json& j) {
 
 QVariantList Configuraciones::listaUi() const { return aQvl(listar()); }
 QVariantList Configuraciones::demosUi() const { return aQvl(demos()); }
+QVariantList Configuraciones::papeleraUi() const { return aQvl(papelera()); }
+QString Configuraciones::recuperarUi(const QString& id) { return QString::fromStdString(recuperar(id.toStdString())); }
+QString Configuraciones::vaciarPapeleraUi(const QString& id) { return QString::fromStdString(vaciarPapelera(id.toStdString())); }
 QString Configuraciones::crearUi(const QString& n, const QString& d, const QString& desc) {
     return QString::fromStdString(crear(n.toStdString(), d.toStdString(), desc.toStdString()));
 }

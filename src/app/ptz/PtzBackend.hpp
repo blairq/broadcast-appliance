@@ -21,6 +21,9 @@
 
 #pragma once
 
+#include <QList>
+#include <QPair>
+
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
@@ -81,6 +84,9 @@ class PtzBackend : public QObject {
     virtual QVariantMap motor() const { return {}; }
     /// Lo que la cámara dice que puede (por protocolo), con cómo se maneja cada eje.
     virtual QVariantMap funciones() const { return {}; }
+    /// Los presets que la cámara ya trae, con su nombre (ONVIF: los grabados desde su
+    /// web): {token, nombre}. ControlCamaras los suma a las posiciones.
+    virtual QList<QPair<QString, QString>> presetsConNombre() const { return {}; }
     /// La cámara identifica sus memorias con un token que elige ella (ONVIF).
     virtual bool usaTokens() const { return false; }
     /// Graba donde está ahora en la memoria `n` (o, con tokens, en una nueva

@@ -486,18 +486,28 @@ std::string Plugins::escribir(const std::string& id, const json& archivos, const
     if (!man.contains("nombre")) man["nombre"] = id;
     if (!man.contains("version")) man["version"] = "1.0";
     if (!man.contains("dependencias")) man["dependencias"] = json::array();
+    // Todo revisado antes de escribir nada: a medias quedaba una carpeta sin plugin.json
+    // (o un plugin con la mitad del código nuevo).
+    if (archivos.is_object())
+        for (const auto& [ruta, contenido] : archivos.items())
+            if (rutaValida(ruta) && ruta != "plugin.json" && !contenido.is_string())
+                return "el contenido de «" + ruta + "» tiene que ser texto";
+    std::error_code ec;
+    // Si falla el disco a mitad de uno nuevo, no queda nada.
+    const auto fallo = [&](const std::string& e) {
+        if (nuevo) fs::remove_all(dir, ec);
+        return e;
+    };
     json escritos = json::array();
     if (archivos.is_object()) {
         for (const auto& [ruta, contenido] : archivos.items()) {
             if (!rutaValida(ruta) || ruta == "plugin.json") continue;
-            if (!contenido.is_string()) return "el contenido de «" + ruta + "» tiene que ser texto";
-            if (!escribirTexto(dir / ruta, contenido.get<std::string>()))
-                return "no se pudo escribir «" + ruta + "»";
+            if (!escribirTexto(dir / ruta, contenido.get<std::string>())) return fallo("no se pudo escribir «" + ruta + "»");
             escritos.push_back(ruta);
         }
     }
-    if (!escribirTexto(dir / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) return "no se pudo escribir plugin.json";
-    std::error_code ec;
+    if (!escribirTexto(dir / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))
+        return fallo("no se pudo escribir plugin.json");
     fs::create_directories(dir / "datos", ec);
     if (hecho != nullptr)
         *hecho = {{"id", id},

@@ -290,6 +290,25 @@
           },
           "visible": false,
           "volume": 1.0
+        },
+        {
+          "id": "image_source",
+          "name": "Bandera",
+          "rect": [
+            0.875,
+            0.025,
+            0.11,
+            0.11842735042735042
+          ],
+          "settings": {
+            "file": "Media/bandera-malvinas.png"
+          },
+          "visible": true,
+          "volume": 1.0,
+          "muted": false,
+          "efectos": {
+            "opacidad": 0.85
+          }
         }
       ]
     },
@@ -313,6 +332,25 @@
           },
           "visible": true,
           "volume": 1.0
+        },
+        {
+          "id": "image_source",
+          "name": "Bandera",
+          "rect": [
+            0.875,
+            0.025,
+            0.11,
+            0.11842735042735042
+          ],
+          "settings": {
+            "file": "Media/bandera-malvinas.png"
+          },
+          "visible": true,
+          "volume": 1.0,
+          "muted": false,
+          "efectos": {
+            "opacidad": 0.85
+          }
         }
       ]
     },
@@ -343,6 +381,25 @@
           },
           "visible": true,
           "volume": 1.0
+        },
+        {
+          "id": "image_source",
+          "name": "Bandera",
+          "rect": [
+            0.875,
+            0.025,
+            0.11,
+            0.11842735042735042
+          ],
+          "settings": {
+            "file": "Media/bandera-malvinas.png"
+          },
+          "visible": true,
+          "volume": 1.0,
+          "muted": false,
+          "efectos": {
+            "opacidad": 0.85
+          }
         }
       ]
     },
@@ -397,6 +454,25 @@
           },
           "visible": true,
           "volume": 1.0
+        },
+        {
+          "id": "image_source",
+          "name": "Bandera",
+          "rect": [
+            0.875,
+            0.025,
+            0.11,
+            0.11842735042735042
+          ],
+          "settings": {
+            "file": "Media/bandera-malvinas.png"
+          },
+          "visible": true,
+          "volume": 1.0,
+          "muted": false,
+          "efectos": {
+            "opacidad": 0.85
+          }
         }
       ]
     },
@@ -444,6 +520,25 @@
           },
           "visible": true,
           "volume": 1.0
+        },
+        {
+          "id": "image_source",
+          "name": "Bandera",
+          "rect": [
+            0.875,
+            0.025,
+            0.11,
+            0.11842735042735042
+          ],
+          "settings": {
+            "file": "Media/bandera-malvinas.png"
+          },
+          "visible": true,
+          "volume": 1.0,
+          "muted": false,
+          "efectos": {
+            "opacidad": 0.85
+          }
         }
       ]
     },
@@ -467,6 +562,25 @@
           },
           "visible": true,
           "volume": 1.0
+        },
+        {
+          "id": "image_source",
+          "name": "Bandera",
+          "rect": [
+            0.875,
+            0.025,
+            0.11,
+            0.11842735042735042
+          ],
+          "settings": {
+            "file": "Media/bandera-malvinas.png"
+          },
+          "visible": true,
+          "volume": 1.0,
+          "muted": false,
+          "efectos": {
+            "opacidad": 0.85
+          }
         }
       ]
     }

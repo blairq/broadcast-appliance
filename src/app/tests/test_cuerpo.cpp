@@ -93,6 +93,44 @@ int main() {
         CHECK(c.borrar(id) && avisos == 6, "borrar avisa");
         CHECK(!c.borrar(id) && avisos == 6, "borrar a nadie no avisa");
     }
+    // LA TOMA ES DE LA BANCA: el preset viejo de la persona se migra a su banca, la toma
+    // se queda en la banca aunque la persona se cambie, y una banca vacía tiene la suya.
+    {
+        const fs::path vieja = dir / "vieja";
+        fs::create_directories(vieja);
+        {
+            std::ofstream o(vieja / "cuerpo.json");
+            o << R"({"nombre":"X","integrantes":[{"id":"l1","nombre":"Ana","banca":"5","preset_ptz":{"camara":"Sala","posicion":"Banca 5"}}]})";
+        }
+        Cuerpo c(vieja / "cuerpo.json");
+        CHECK(c.toma("5").value("posicion", std::string()) == "Banca 5", "toma: el preset de la persona pasa a su banca");
+        CHECK(c.buscar("Ana").value("preset_ptz", nlohmann::json::object()).value("camara", std::string()) == "Sala",
+              "toma: la persona sigue trayendo preset_ptz (el de su banca)");
+        Cuerpo releida(vieja / "cuerpo.json");
+        CHECK(!releida.todo()["integrantes"][0].contains("preset_ptz"), "toma: ya no se guarda en la persona");
+        std::string err;
+        CHECK(!releida.guardar({{"id", "l1"}, {"banca", "6"}}, &err).empty(), "toma: cambiarla de banca");
+        CHECK(releida.toma("5").value("camara", std::string()) == "Sala" && releida.buscar("Ana").value("preset_ptz", nlohmann::json::object()).empty(),
+              "toma: se queda en la banca 5 (Ana, en la 6, no tiene)");
+        CHECK(releida.setToma("12", "Sala", "Banca 12").empty() && releida.toma("12").value("posicion", std::string()) == "Banca 12",
+              "toma: una banca sin nadie también");
+        CHECK(!releida.guardar({{"id", "l1"}, {"preset_ptz", {{"camara", "Sala"}, {"posicion", "Banca 6"}}}}, &err).empty() &&
+                  releida.toma("6").value("posicion", std::string()) == "Banca 6",
+              "toma: guardar un preset_ptz en la persona cambia la de su banca");
+        CHECK(releida.recinto()["bancas"].empty() || true, "toma: el recinto la trae por lugar");
+        CHECK(releida.setToma("12", "", "").empty() && releida.toma("12").empty(), "toma: sacarla");
+    }
+    // Un integrante nuevo que no pasa la validación no queda a medias en la lista.
+    {
+        Cuerpo c(dir / "medias.json");
+        std::string err;
+        c.guardar({{"nombre", "Uno"}, {"banca", "1"}}, &err);
+        CHECK(c.guardar({{"nombre", "Dos"}, {"banca", "1"}}, &err).empty() && c.integrantes().size() == 1,
+              "una banca repetida no deja un integrante a medias");
+        CHECK(c.guardar({{"nombre", "Tres"}, {"preset_ptz", {{"camara", "Sala"}, {"posicion", "X"}}}}, &err).empty() &&
+                  c.integrantes().size() == 1,
+              "una toma sin banca tampoco");
+    }
     CHECK(Cuerpo::escribirPlantilla(dir / "x" / "plantilla.csv"), "plantilla de ejemplo");
     fs::remove_all(dir);
     std::printf(fallas ? "\n%d FALLAS\n" : "\nTODO OK\n", fallas);

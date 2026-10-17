@@ -1109,6 +1109,7 @@ void McpService::registerRoomTools() {
                          (!remoto ? std::string(" Es la dirección de la red local: para alguien de afuera, "
                                                 "room_link {\"target\": \"remote\"}.")
                                   : std::string()) + ")");
+                res.structured = json{{"url", url}, {"remoto", remoto}};
                 const std::string png = qrPng(json(e.filas));
                 if (!png.empty()) res.image(png, "image/png");
                 done(res);

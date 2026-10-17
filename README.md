@@ -127,8 +127,8 @@ Los procesos están **implementados** y corren en Linux (nativo) y en Windows
   herramientas).
 - **`ba-gateway`** (Proceso B): la sala de videoconferencia. `Room` (lobby,
   participantes, chat, archivos, rutas de medios), `SignalingServer` (HTTP +
-  WebSocket de invitados) y `AdminApi` (API de control REST + SSE, de la que
-  cuelgan la consola web `Web/admin/` y la vista Qt), `Webrtc` (libwebrtc real,
+  WebSocket de invitados) y `AdminApi` (API de control REST + SSE, solo en
+  127.0.0.1, la usa la app), `Webrtc` (libwebrtc real,
   también en Linux), `MediaPump` (IPC ↔ WebRTC por ruta), `TlsTerminator`
   (HTTPS), `WgDevice` + `IpStack` (WireGuard + lwIP en espacio de usuario) y
   `Cloudflared`. Ver [`docs/funciones/CONFERENCIA.md`](docs/funciones/CONFERENCIA.md).
@@ -389,9 +389,9 @@ Los invitados entran por el enlace de la página **Sala** de la app (o
 `https://127.0.0.1:8789`): nombre, sala y PIN → **lobby** (el operador los ve y
 les habla en privado; ellos solo ven al operador) → admitidos a la sala, con
 cámara, micrófono, **pantalla o ventana compartida**, archivos para mostrar,
-chat y mano levantada. El operador maneja todo desde la página Sala o desde la
-**consola web** (`http://127.0.0.1:8788/admin/`, botón "Abrir consola web"):
-las dos son clientes de la misma API de control.
+chat y mano levantada. El operador maneja todo desde la página Sala o desde el
+**dashboard web** (`/control/`: Servicios → Control web, se empareja con un QR
+y se aprueba en la app; anda en celular o tablet).
 
 - **WebRTC real** en Linux: `make deps-webrtc BA_WEBRTC_TARGET=linux` y
   `make build` compilan el gateway con libwebrtc (estático, sin dependencias
@@ -745,7 +745,7 @@ tarballs ya verificados de `extern/.downloads`.
 │   ├── gst-plugins/          # plugins de GStreamer propios
 │   └── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
 ├── assets/                   # assets de despliegue (no se compilan)
-│   └── web/                  #   apps web: invitado, admin, pizarra (las sirve B)
+│   └── web/                  #   apps web: invitado, control, pizarra (las sirve B)
 ├── packaging/                # flatpak (manifiesto) + .desktop
 ├── docs/                     # documentación (mapa en docs/README.md)
 ├── tests/                    # suite Python de invariantes del repo (pytest)

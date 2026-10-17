@@ -39,6 +39,8 @@
 #include <string>
 
 #include <QBuffer>
+#include <QDir>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -201,6 +203,16 @@ int main(int argc, char** argv) {
     }
 #endif
     QGuiApplication app(argc, argv);
+    // Las tipografías del bundle (data/fonts), como la interfaz: un gráfico tiene que
+    // verse igual en cualquier máquina, no con la letra que tenga instalada el sistema
+    // (que en otra PC puede no estar, y el texto cambia de ancho y se sale).
+    for (const QString& dir : {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),
+                               QCoreApplication::applicationDirPath() + "/../../data/fonts"}) {
+        const QStringList fonts = QDir(dir).entryList({"*.ttf", "*.otf"}, QDir::Files);
+        for (const QString& f : fonts)
+            QFontDatabase::addApplicationFont(dir + "/" + f);
+        if (!fonts.isEmpty()) break;
+    }
 
     // El registro: este proceso lo levanta la app por una tuberia, asi que su
     // stderr no lo lee nadie. Sin archivo propio, un gráfico que revienta no

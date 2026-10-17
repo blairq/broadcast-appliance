@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Componentes de control</title>
+  <link rel="stylesheet" href="temas.css" />
+  <link rel="stylesheet" href="neuro.css" />
+  <script src="neuro.js"></script>
+  <link rel="stylesheet" href="muestra.css" />
+</head>
+<body>
+  <header class="pagina">
+    <h1>Componentes de control</h1>
+    <ba-chip estado="ok">Conectado</ba-chip>
+    <ba-tally estado="aire"></ba-tally>
+    <span class="espacio"></span>
+    <!-- Para diseñar: ?tema=<id> fuerza uno (en las páginas de verdad lo elige la app). -->
+    <a class="suave" href="?tema=neuro-oscuro">Oscuro</a>
+    <a class="suave" href="?tema=neuro-claro">Claro</a>
+  </header>
+
+  <div class="grilla ancha">
+    <ba-tarjeta titulo="Escenas" ampliar="?tarjeta=escenas">
+      <div class="vista hundido-suave panel hundido">Programa</div>
+      <div class="escenas">
+        <ba-boton activo variante="aire">Orador</ba-boton>
+        <ba-boton activo variante="armado">Plano general</ba-boton>
+        <ba-boton>Debate</ba-boton>
+        <ba-boton>Remoto</ba-boton>
+        <ba-boton>Placa</ba-boton>
+        <ba-boton>Cierre</ba-boton>
+      </div>
+      <div class="fila arriba-16">
+        <ba-boton grande variante="aire" confirmar="¿Cortar?" class="lleno">CORTE</ba-boton>
+        <ba-boton grande variante="acento" class="lleno">AUTO</ba-boton>
+      </div>
+    </ba-tarjeta>
+
+    <ba-tarjeta titulo="Cámara PTZ" ampliar="?tarjeta=ptz">
+      <ba-boton slot="acciones" compacto>Cámara 1 ▾</ba-boton>
+      <div class="ptz">
+        <ba-joystick id="joy"></ba-joystick>
+        <div class="perillas">
+          <ba-perilla etiqueta="Zoom" min="1" max="10" valor="2.5" paso="0.1" defecto="1" unidad="×"></ba-perilla>
+          <ba-perilla etiqueta="Velocidad" min="0" max="100" valor="60" defecto="50" unidad="%"></ba-perilla>
+        </div>
+      </div>
+      <p class="suave numero centrado" id="joyTexto">x 0.00 · y 0.00</p>
+    </ba-tarjeta>
+
+    <ba-tarjeta titulo="Mezclador" ampliar="?tarjeta=audio" class="ancho-2">
+      <div class="mezclador" id="mezclador"></div>
+    </ba-tarjeta>
+
+    <ba-tarjeta titulo="Salidas" ampliar="?tarjeta=salidas">
+      <div class="lista">
+        <div class="salida"><ba-chip estado="aire">YouTube</ba-chip><span class="espacio"></span><span class="numero">6 012</span><span class="suave">kbps</span></div>
+        <div class="salida"><ba-chip estado="apagado">Grabación</ba-chip><span class="espacio"></span><ba-boton compacto variante="aire" confirmar="¿Grabar?">⏺ Grabar</ba-boton></div>
+        <ba-slider etiqueta="Bitrate" min="1000" max="12000" paso="500" valor="6000" unidad="kbps"></ba-slider>
+      </div>
+    </ba-tarjeta>
+
+    <ba-tarjeta titulo="Ajustes">
+      <div class="lista">
+        <ba-toggle encendido etiqueta="Subtítulos en vivo"></ba-toggle>
+        <ba-toggle etiqueta="Mute general"></ba-toggle>
+        <ba-slider etiqueta="Latencia del estudio" min="0" max="500" paso="10" valor="180" unidad="ms"></ba-slider>
+        <input type="text" placeholder="Un campo de texto" />
+        <div class="fila"><ba-boton mantener id="ptt">🎙 Mantener para hablar</ba-boton><ba-boton redondo>⚙</ba-boton></div>
+      </div>
+    </ba-tarjeta>
+  </div>
+
+  <script src="muestra.js"></script>
+</body>
+</html>

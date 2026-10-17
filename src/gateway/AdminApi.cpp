@@ -2,21 +2,16 @@
 // src/gateway/AdminApi.cpp — API de control de la sala (operador)
 //
 // Proposito:
-//   La UNICA forma de operar la conferencia. De esta API cuelgan la consola
-//   web (Web/admin) y la vista Qt de la app; ninguna tiene logica propia de
-//   sala, asi que cualquier otra vista futura se hace igual.
+//   La UNICA forma de operar la conferencia. De esta API cuelga la vista Qt de
+//   la app (que es la que la expone al resto: el MCP y el dashboard web /control/);
+//   ninguna vista tiene logica propia de sala.
 //
 //   Escucha SIEMPRE en 127.0.0.1 (puerto `adminPort`, 8788 por defecto).
 //
-// Autenticacion:
-//   - `Authorization: Bearer <token>` (la app Qt; el token lo publica B en
-//     Runtime/gateway-admin.json (dentro del bundle) con permisos solo-usuario), o
-//   - cookie `ba_admin` (la consola web). Se obtiene con un codigo de un solo
-//     uso (POST /api/v1/login-code -> GET /admin/login?code=...) o pegando el
-//     token en la consola (POST /api/v1/login).
-//   Con cookie, toda escritura exige ademas la cabecera `X-BA-Admin: 1`: un
-//   sitio ajeno no puede mandarla sin un preflight CORS que aca no se
-//   responde (defensa CSRF), y la cookie es SameSite=Strict.
+// Autenticacion: `Authorization: Bearer <token>` (la app Qt; el token lo publica
+//   B en Runtime/gateway-admin.json (dentro del bundle) con permisos solo-usuario).
+//   No hay cookie ni página propia: la vieja consola web (/admin/) se reemplazó por
+//   el dashboard /control/, que habla con la app (no con esta API).
 //
 // Rutas (JSON; errores {ok:false, error}):
 //   GET    /api/v1/room                    estado completo (snapshot)
@@ -60,9 +55,6 @@
 //   POST   /api/v1/chat                    {text, to?}
 //   GET    /api/v1/shares/<id>/content     el archivo (vista previa)
 //   DELETE /api/v1/shares/<id>
-//   POST   /api/v1/login-code              -> {code, url} (consola web)
-//   POST   /api/v1/login                   {token} -> cookie
-//   GET    /admin/...                      consola web (estatico)
 // ============================================================================
 
 #include <algorithm>
@@ -133,24 +125,6 @@ bool sameSecret(const std::string& a, const std::string& b) {
     return diff == 0;
 }
 
-std::string cookieValue(const std::string& headers, const std::string& name) {
-    const std::string all = http::getHeader(headers, "Cookie");
-    size_t i = 0;
-    while (i < all.size()) {
-        while (i < all.size() && (all[i] == ' ' || all[i] == ';'))
-            ++i;
-        const size_t eq = all.find('=', i);
-        if (eq == std::string::npos) break;
-        const size_t end = all.find(';', eq);
-        const std::string k = all.substr(i, eq - i);
-        const std::string v = all.substr(eq + 1, end == std::string::npos ? std::string::npos : end - eq - 1);
-        if (k == name) return v;
-        if (end == std::string::npos) break;
-        i = end + 1;
-    }
-    return {};
-}
-
 void sendJson(long long fd, int code, const json& j) {
     http::sendResponse(fd, code, "application/json", j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
@@ -170,40 +144,12 @@ void sendRoomResult(long long fd, int err) {
     }
 }
 
-const char* kCookieName = "ba_admin";
-
 } // namespace
 
 bool SignalingServer::adminAuthorized(const std::string& headers, const std::string& method) const {
     const std::string auth = http::getHeader(headers, "Authorization");
-    if (auth.rfind("Bearer ", 0) == 0 && sameSecret(auth.substr(7), cfg_.adminToken)) return true;
-    if (sameSecret(cookieValue(headers, kCookieName), cfg_.adminToken)) {
-        // Con cookie, las escrituras piden la cabecera anti-CSRF.
-        if (method == "GET" || method == "HEAD") return true;
-        return http::getHeader(headers, "X-BA-Admin") == "1";
-    }
-    return false;
-}
-
-std::string SignalingServer::issueLoginCode() {
-    std::string code;
-    if (!ba::security::randomSecretHex(16, code)) return {};
-    std::lock_guard<std::mutex> lock(loginLock_);
-    const long long now = nowMsA();
-    for (auto it = loginCodes_.begin(); it != loginCodes_.end();) {
-        it = (it->second <= now) ? loginCodes_.erase(it) : std::next(it);
-    }
-    loginCodes_[code] = now + ba::ajustes::sAMs("room.adminCodigoS", 120); // para abrir el navegador
-    return code;
-}
-
-bool SignalingServer::redeemLoginCode(const std::string& code) {
-    std::lock_guard<std::mutex> lock(loginLock_);
-    const auto it = loginCodes_.find(code);
-    if (it == loginCodes_.end()) return false;
-    const bool ok = it->second > nowMsA();
-    loginCodes_.erase(it); // un solo uso, valga o no
-    return ok;
+    (void)method;
+    return auth.rfind("Bearer ", 0) == 0 && sameSecret(auth.substr(7), cfg_.adminToken);
 }
 
 std::string SignalingServer::changePin(const std::string& pin) {
@@ -242,48 +188,13 @@ void SignalingServer::guardarPinDeHoy(const std::string& pin) {
 void SignalingServer::handleAdmin(long long fd, const std::string& method, const std::string& path,
                                   const std::string& query, const std::string& headers,
                                   const std::string& body) {
-    // --- Sin autenticacion: salud, consola web estatica y login -------------
+    // --- Sin autenticacion: la salud ------------------------------------------
     if (path == "/healthz") {
         http::sendResponse(fd, 200, "text/plain", "ok\n");
         return;
     }
-    const std::string cookieAttrs = "; Path=/; HttpOnly; SameSite=Strict";
-    if (path == "/admin/login" && method == "GET") {
-        const auto q = http::parseQuery(query);
-        const std::string code = q.count("code") ? http::urlDecode(q.at("code")) : "";
-        if (!redeemLoginCode(code)) {
-            http::sendResponse(fd, 302, "text/plain", "codigo vencido\n", "Location: /admin/\r\n");
-            return;
-        }
-        http::sendResponse(fd, 302, "text/plain", "ok\n",
-                           "Set-Cookie: " + std::string(kCookieName) + "=" + cfg_.adminToken + cookieAttrs +
-                               "\r\nLocation: /admin/\r\n");
-        return;
-    }
-    if (path == "/api/v1/login" && method == "POST") {
-        const json req = json::parse(body, nullptr, false);
-        const std::string tok = req.is_object() ? req.value("token", "") : "";
-        if (!sameSecret(tok, cfg_.adminToken)) {
-            sendErr(fd, 401, "auth");
-            return;
-        }
-        http::sendResponse(fd, 200, "application/json", R"({"ok":true})",
-                           "Set-Cookie: " + std::string(kCookieName) + "=" + cfg_.adminToken + cookieAttrs +
-                               "\r\n");
-        return;
-    }
-    if (path == "/admin" || path.rfind("/admin/", 0) == 0) {
-        if (method != "GET") {
-            sendErr(fd, 405, "method");
-            return;
-        }
-        std::string rel = path.size() > 7 ? path.substr(7) : std::string();
-        if (rel.empty()) rel = "index.html";
-        serveStatic(fd, cfg_.adminWebroot, rel);
-        return;
-    }
     if (path == "/" && method == "GET") {
-        http::sendResponse(fd, 302, "text/plain", "", "Location: /admin/\r\n");
+        http::sendResponse(fd, 200, "text/plain", "API de control de la sala (solo para la app).\n");
         return;
     }
 
@@ -294,18 +205,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     }
     // La botonera (superficie de control): la app le pasa credenciales y estado.
     if (botonera_ && botonera_->admin(fd, method, path, body)) return;
+    // El control web (dashboard /control/): credenciales, aprobaciones y lo que se empuja.
+    if (controlWeb_ && controlWeb_->admin(fd, method, path, body)) return;
     // La sesión remota: el origen para armar los links personales (la app agrega
     // /sesion/#i=…&t=…) y después credenciales, mensajes y fotos de la cámara.
     if (path == "/api/v1/sesion/origen" && method == "GET") {
         const auto q = http::parseQuery(query);
-        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "remote";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (out.contains("url")) {
-            std::string origin = out["url"].get<std::string>();
-            if (const size_t sch = origin.find("://"); sch != std::string::npos) {
-                const size_t end = origin.find_first_of("/?#", sch + 3);
-                if (end != std::string::npos) origin.resize(end);
-            }
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        const std::string servicio = q.count("servicio") ? http::urlDecode(q.at("servicio")) : "sesion";
+        json out = origenDe(servicio, target);
+        if (out.contains("origen")) {
+            const std::string origin = out["origen"].get<std::string>();
             out = json{{"ok", true}, {"target", target}, {"origen", origin},
                        {"https", origin.rfind("https://", 0) == 0}};
         } else {
@@ -390,7 +300,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // matriz (filas de '0'/'1'), sin depender de ninguna biblioteca.
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        json out = origenDe("invitados", target);
         if (!out.contains("url")) {
             // 200 con ok=false: falta configuracion, no es una falla de la
             // API; la vista muestra `message` en el lugar del QR.
@@ -398,7 +308,11 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200, out);
             return;
         }
-        std::string url = out["url"].get<std::string>();
+        // La sala va en el fragmento (#room=): la app del invitado la precarga y el
+        // fragmento nunca viaja al servidor.
+        std::string url = out["url"].get<std::string>() + "#room=" + cfg_.room;
+        out["url"] = url;
+        out.erase("origen");
         // Con pin=1 el PIN viaja en el FRAGMENTO del enlace (no llega a ningun
         // servidor ni a sus logs; la app del invitado lo toma y lo borra de la
         // barra de direcciones). Quien tenga el QR entra sin tipear el PIN.
@@ -447,17 +361,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // la clave del tablero en el FRAGMENTO (no viaja en la URL pedida).
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("tablero", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         const std::string url = origin + "/board/#k=" + boardToken();
         const qrcodegen::QrCode qr =
             qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
@@ -520,17 +430,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/rotulos-link" && method == "GET") {
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("rotulos", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         // La clave va en el FRAGMENTO: no viaja en la peticion ni queda en los
         // registros de ningun servidor por el que pase el enlace. `conClave=0`
         // la deja afuera: el QR entra a la pagina y la clave se la dice el
@@ -716,17 +622,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/publico-link" && method == "GET") {
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("publico", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         // Con la clave adentro casi siempre: este QR se proyecta en una
         // pantalla o se imprime en el programa, y pedirle a doscientas personas
         // que tipeen una clave es perder a la mitad.
@@ -856,26 +758,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
             return;
         }
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("pantalla", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
-        // Un televisor no tiene donde aceptar un certificado propio, asi que
-        // va por HTTP. Ojo: no alcanza con cambiar el esquema, porque el
-        // enlace de ingreso apunta al puerto de HTTPS y ahi no hay HTTP.
-        if (origin.rfind("https://", 0) == 0) {
-            std::string hostPort = origin.substr(8);
-            const size_t colon = hostPort.rfind(':');
-            const std::string host = colon == std::string::npos ? hostPort : hostPort.substr(0, colon);
-            origin = "http://" + host + ":" + std::to_string(cfg_.port);
-        }
+        std::string origin = out["origen"].get<std::string>();
+        // Un televisor no tiene dónde aceptar un certificado propio: el servicio
+        // «pantalla» ya es la puerta HTTP de la sala (Direcciones.hpp).
         sendJson(fd, 200,
                  json{{"ok", true},
                       {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre) +
@@ -897,25 +788,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/correccion-link" && method == "GET") {
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        std::string aviso;
-        if (!out.contains("url")) {
-            if (target != "local") {
-                out["ok"] = false;
-                sendJson(fd, 200, out);
-                return;
-            }
-            // La sala escucha solo en esta máquina: sirve igual para un corrector en
-            // esta misma computadora (otra pantalla); para otra máquina hay que abrirla.
-            out["url"] = "http://127.0.0.1:" + std::to_string(cfg_.port) + "/";
-            aviso = out.value("message", std::string("la sala escucha solo en esta máquina")) +
-                    " — este enlace sirve solo en esta computadora.";
+        json out = origenDe("correccion", target);
+        if (!out.contains("origen")) {
+            out["ok"] = false;
+            sendJson(fd, 200, out);
+            return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        const std::string aviso = out.value("warning", std::string());
+        const std::string origin = out["origen"].get<std::string>();
         const std::string url = origin + "/correccion/#k=" + cfg_.correccionKey;
         const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
         json rows = json::array();
@@ -938,17 +818,13 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         // La clave puede ir DENTRO del enlace (se entra sin tipear) o no: un QR
         // pegado en una pared no deberia llevarla.
         const bool conClave = !q.count("conClave") || http::urlDecode(q.at("conClave")) != "0";
-        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
-        if (!out.contains("url")) {
+        json out = origenDe("prompter", target);
+        if (!out.contains("origen")) {
             out["ok"] = false;
             sendJson(fd, 200, out);
             return;
         }
-        std::string origin = out["url"].get<std::string>();
-        if (const size_t s = origin.find("://"); s != std::string::npos) {
-            const size_t end = origin.find_first_of("/?#", s + 3);
-            if (end != std::string::npos) origin.resize(end);
-        }
+        std::string origin = out["origen"].get<std::string>();
         // La tablet del orador no lleva clave nunca: solo lee.
         const std::string url = origin + "/prompter/" +
                                 (control ? (conClave ? "#control&k=" + cfg_.prompterKey : "#control") : "");
@@ -1017,6 +893,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, out);
         return;
     }
+    if (path == "/api/v1/direcciones" && method == "GET") {
+        sendJson(fd, 200, direcciones());
+        return;
+    }
+    if (path == "/api/v1/tema" && method == "POST") {
+        if (!setTemaWeb(req.value("tema", std::string()))) {
+            sendErr(fd, 400, "tema");
+            return;
+        }
+        sendJson(fd, 200, json{{"ok", true}, {"tema", temaWeb()}});
+        return;
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;
@@ -1052,20 +940,6 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendRoomResult(fd, room_.chatFromHost(req.value("to", "all"), req.value("text", ""), nowMsA()));
         return;
     }
-    if (path == "/api/v1/login-code" && method == "POST") {
-        const std::string code = issueLoginCode();
-        if (code.empty()) {
-            sendErr(fd, 500, "entropy");
-            return;
-        }
-        sendJson(fd, 200,
-                 json{{"ok", true},
-                      {"code", code},
-                      {"url",
-                       "http://127.0.0.1:" + std::to_string(adminBoundPort_) + "/admin/login?code=" + code}});
-        return;
-    }
-
     // /api/v1/participants/<id>/<accion>
     static const std::string kPart = "/api/v1/participants/";
     if (path.rfind(kPart, 0) == 0 && method == "GET") {

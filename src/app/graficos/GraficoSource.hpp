@@ -18,6 +18,8 @@
 // ============================================================================
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -40,6 +42,12 @@ struct InstanciaInfo {
     int alto = 220;
     bool reproduciendo = false;
     int cuadros = 0;
+    /// Arranca sola al abrir el evento (un logo, una placa de espera), sin que la
+    /// dispare nadie: ajuste `alAbrir` de la fuente, con sus `valores`.
+    bool alAbrir = false;
+    /// Se repite sin parar (la bandera que flamea): ajuste `bucle`.
+    bool bucle = false;
+    nlohmann::json valores = nlohmann::json::object();
 };
 
 /// Registra el tipo de fuente (propiedades). Se llama una vez al arrancar.

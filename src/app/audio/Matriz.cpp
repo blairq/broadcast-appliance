@@ -520,7 +520,13 @@ QString Matriz::agregarSalidaVirtual(const QString& nombre, const QString& dispo
         nombre.trimmed().isEmpty() ? "Salida virtual " + std::to_string(n) : nombre.trimmed().toStdString();
     b->tipo = "salida";
     buses_.push_back(std::move(b));
-    setDispositivo(QString::fromStdString(buses_.back()->id), dispositivo);
+    // Con un dispositivo que no anda, no queda un bus mudo guardado como si estuviera bien.
+    if (const QString e = setDispositivo(QString::fromStdString(buses_.back()->id), dispositivo); !e.isEmpty()) {
+        buses_.pop_back();
+        armarPlan(); // setDispositivo ya lo había armado con el bus adentro
+        emit cambio();
+        return e;
+    }
     armarPlan();
     guardar();
     emit cambio();

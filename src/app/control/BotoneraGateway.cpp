@@ -82,68 +82,65 @@ void BotoneraGateway::emparejar(const std::string& perfil, const std::string& no
     }
     const std::string codigo = texto(c, "codigo");
     const std::int64_t vence = c.value("vence_ms", std::int64_t{0});
-    sala::pedir(gw_, "GET", "/api/v1/network", {}, [codigo, vence, listo](const std::string& error, const json& r) {
-        if (!error.empty()) {
-            listo({{"error", "No pude preguntarle al gateway la dirección de la red local."}});
+    baseRedLocal(gw_, "botonera", [codigo, vence, listo](const json& b) {
+        if (b.value("sin_respuesta", false)) {
+            listo({{"error", texto(b, "error")}});
             return;
         }
-        // Una URL de la red local (no la del túnel), HTTPS si está.
-        std::vector<std::string> lan;
-        for (const auto& v : r.value("lan", json::array()))
-            if (v.is_string()) lan.push_back(v.get<std::string>());
-        const json urls = r.value("urls", json::array());
-        std::string base;
-        for (const auto& v : urls) {
-            if (!v.is_string()) continue;
-            const std::string u = v.get<std::string>();
-            const bool deLan = std::any_of(lan.begin(), lan.end(), [&](const std::string& ip) {
-                return u.find("//" + ip + ":") != std::string::npos || u.find("//" + ip + "/") != std::string::npos;
-            });
-            if (!deLan) continue;
-            if (base.empty() || (u.rfind("https", 0) == 0 && base.rfind("https", 0) != 0)) base = u;
-        }
         json out{{"codigo", codigo}, {"vence_ms", vence}};
-        const json https = r.value("https", json::object());
-        const bool conHttps = https.is_object() && https.value("enabled", false);
-        if (conHttps) out["huella"] = texto(https, "fingerprint");
-        if (texto(r, "bindAddress") == "127.0.0.1")
-            out["aviso"] = "El gateway escucha solo en esta máquina (127.0.0.1): una tablet no llega. Cambiá la "
-                           "dirección de la sala a la red local en Configuración → Red de la sala (cualquiera en la red podría "
-                           "ver las páginas públicas; la botonera igual pide su token).";
-        // El gateway escucha solo en esta máquina: la URL igual se arma con la IP
-        // de la red (anda en cuanto se abra el gateway a la red; el aviso lo dice).
-        if (base.empty() && !lan.empty()) {
-            if (conHttps) {
-                base = "https://" + lan.front() + ":" + std::to_string(https.value("port", 8789)) + "/";
-            } else {
-                for (const auto& v : urls) {
-                    if (!v.is_string()) continue;
-                    const QUrl u(QString::fromStdString(v.get<std::string>()));
-                    if (u.scheme() == "http" && u.port() > 0) {
-                        base = "http://" + lan.front() + ":" + std::to_string(u.port()) + "/";
-                        break;
-                    }
-                }
-            }
-        }
-        if (base.empty()) {
-            out["error"] = "No encontré una dirección de la red local para la tablet (¿está conectada la red?).";
+        for (const char* k : {"huella", "aviso", "error"})
+            if (b.contains(k)) out[k] = b[k];
+        if (out.contains("error")) {
             listo(out);
             return;
         }
-        if (base.back() != '/') base += '/';
-        const std::string url = base + "botonera/#p=" + codigo;
+        const std::string url = texto(b, "base") + "botonera/#p=" + codigo;
         out["url"] = url;
-        ba::qr::Estilo e;
-        e.correccion = ba::qr::Correccion::Media;
-        const std::string svg = ba::qr::svg(url, e);
-        out["qr"] = "data:image/svg+xml;base64," + QByteArray::fromStdString(svg).toBase64().toStdString();
+        out["qr"] = qrDataUrl(url);
         listo(out);
     });
 }
 
-std::string BotoneraGateway::resolver(const std::string& solicitud, bool aprobar) {
-    const json r = bot_.resolverSolicitud(solicitud, aprobar);
+std::string BotoneraGateway::qrDataUrl(const std::string& url) {
+    ba::qr::Estilo e;
+    e.correccion = ba::qr::Correccion::Media;
+    const std::string svg = ba::qr::svg(url, e);
+    return "data:image/svg+xml;base64," + QByteArray::fromStdString(svg).toBase64().toStdString();
+}
+
+void BotoneraGateway::baseRedLocal(ConferenceClient& gw, const std::string& servicio,
+                                   std::function<void(const json&)> listo) {
+    // La dirección la decide la sala (src/gateway/Direcciones): la de la red local de ese
+    // servicio, por la puerta de la sala. Se pide en el momento (es lo que va en el QR).
+    sala::pedir(gw, "GET", "/api/v1/direcciones", {}, [servicio, listo](const std::string& error, const json& r) {
+        if (!error.empty() || !r.is_object()) {
+            listo({{"error", "No pude preguntarle a la sala su dirección en la red local."}, {"sin_respuesta", true}});
+            return;
+        }
+        for (const auto& s : r.value("servicios", json::array())) {
+            if (s.value("id", std::string()) != servicio) continue;
+            const json& u = s["local"];
+            if (!u.is_string()) {
+                listo({{"error", s.value("motivo_local", std::string("No hay dirección en la red local."))}});
+                return;
+            }
+            std::string base = u.get<std::string>();
+            if (const size_t sch = base.find("://"); sch != std::string::npos) {
+                const size_t fin = base.find('/', sch + 3);
+                if (fin != std::string::npos) base.resize(fin);
+            }
+            json out{{"base", base + "/"}};
+            const json local = r.value("local", json());
+            if (local.is_object() && !local.value("huella", std::string()).empty()) out["huella"] = local["huella"];
+            listo(out);
+            return;
+        }
+        listo({{"error", "La sala no informó la dirección de «" + servicio + "»."}});
+    });
+}
+
+std::string BotoneraGateway::resolver(const std::string& solicitud, bool aprobar, const std::string& perfil) {
+    const json r = bot_.resolverSolicitud(solicitud, aprobar, perfil);
     if (r.contains("error")) return texto(r, "error");
     json cuerpo{{"solicitud", solicitud}, {"estado", aprobar ? "aprobada" : "rechazada"}};
     if (aprobar) {

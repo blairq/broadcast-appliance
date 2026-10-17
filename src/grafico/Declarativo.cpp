@@ -49,8 +49,10 @@ QString pesoDeTexto(const QString& p) {
     return "Font.Normal";
 }
 
-/// La familia tipográfica viaja con el bundle; el respaldo es por si falta.
-constexpr const char* kFuente = R"("Inter, Noto Sans, DejaVu Sans, Sans")";
+/// La familia tipográfica viaja con el bundle (data/fonts, la carga main.cpp). UN nombre:
+/// font.family no acepta una lista con comas como CSS; con «Inter, Noto Sans, ...» (Inter
+/// ni siquiera viene) caía a la letra del sistema, distinta en cada máquina.
+constexpr const char* kFuente = R"("Noto Sans")";
 
 /// Ancla una capa por los bordes que declare. Se aceptan `izquierda`,
 /// `derecha`, `arriba` y `abajo`, en píxeles desde ese borde.

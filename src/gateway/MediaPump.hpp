@@ -111,6 +111,11 @@ class MediaPump {
 
     void start();
     void stop();
+    /// Cuántas sesiones reciben el programa ahora (invitados, la fila, televisores, la
+    /// consola de la presidencia: toda ruta Program o Backstage). Es lo que la app usa
+    /// para saber si puede dejar de bajarle el programa (BroadcastEngine::retornoEnUso):
+    /// el que lo sabe de verdad es el gateway, no una lista de casos en la app.
+    int miranPrograma() const;
 
     /// Crea los canales (cámara, pantalla, audio) de los lugares hasta `slots`
     /// (a lo sumo kMaxInvitados) que todavía no estén. Se llama al subir el cupo,

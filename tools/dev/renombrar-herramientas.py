@@ -58,9 +58,11 @@ def main():
     args = ap.parse_args()
     perfil = json.loads((RAIZ / f"datos/perfiles/{args.perfil}.json").read_text())
     ren = perfil["renombres"]
-    # etiquetas que ya se usaron y se cambiaron otra vez: alias del nombre de hoy
-    anteriores = {v: ren[r] for v, r in perfil.get("renombres_anteriores", {}).items()}
-    patron = re.compile(r"(?<![\w-])(" + "|".join(sorted(map(re.escape, ren), key=len, reverse=True)) + r")(?![\w-])")
+    # nombres que ya se usaron (en la app o en modelos publicados): {viejo: el real de
+    # hoy, o un nombre de «renombres» que todavia se va a cambiar}
+    anteriores = {v: ren.get(r, r) for v, r in perfil.get("renombres_anteriores", {}).items()}
+    patron = re.compile(r"(?<![\w-])(" + "|".join(sorted(map(re.escape, ren), key=len, reverse=True)) + r")(?![\w-])") \
+        if ren else re.compile(r"(?!x)x")
     cambios, por = 0, {}
     for f, p in archivos(args.solo_app):
         try:
@@ -79,11 +81,15 @@ def main():
     print(f"{cambios} reemplazos en {len(por)} archivos" + ("" if args.aplicar else " (sin aplicar)"))
     if args.aplicar:
         filas = "\n".join(f'        {{"{v}", "{n}"}},' for v, n in sorted((ren | anteriores).items()))
-        ALIAS.write_text(f'''// Nombres VIEJOS de herramientas que siguen andando como alias del nombre de hoy:
-// lo guardado con el nombre viejo (recetas, botoneras, disparadores) y los modelos
-// ya publicados que lo escriben. Lo escribe tools/dev/renombrar-herramientas.py
-// (perfil {args.perfil}); no aparecen en tools/list ni en el buscador.
+        ALIAS.write_text(f'''// Nombres VIEJOS de herramientas renombradas en bloque desde el perfil de
+// entrenamiento: van a Tool::antes de la de hoy, como los que cada herramienta
+// declara al definirse. Lo guardado con el nombre viejo (recetas, botoneras,
+// disparadores) y los modelos ya publicados que lo escriben siguen andando. Lo
+// escribe tools/dev/renombrar-herramientas.py (perfil {args.perfil}); no aparecen
+// en tools/list ni en el buscador.
 #include "McpRenombres.hpp"
+
+#include <QDebug>
 
 namespace ba::app::mcp {{
 
@@ -91,13 +97,15 @@ void registrarRenombres(McpCore& core) {{
     static const std::pair<const char*, const char*> kRenombres[] = {{
 {filas}
     }};
-    for (const auto& [viejo, nuevo] : kRenombres) core.addAlias(viejo, nuevo);
+    for (const auto& [viejo, nuevo] : kRenombres)
+        if (!core.agregarNombreAnterior(nuevo, viejo))
+            qWarning("McpRenombres: no existe la herramienta %s (nombre viejo %s)", nuevo, viejo);
 }}
 
 }} // namespace ba::app::mcp
 ''', encoding="utf-8")
         ALIAS.with_suffix(".hpp").write_text('''#pragma once
-// Los nombres viejos de herramientas como alias del de hoy (ver McpRenombres.cpp).
+// Los nombres viejos de herramientas renombradas, a Tool::antes (ver McpRenombres.cpp).
 #include "McpCore.hpp"
 
 namespace ba::app::mcp {

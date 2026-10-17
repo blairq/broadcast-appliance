@@ -22,7 +22,7 @@
 //               el sender Spout BA.Guest.<n> para A).
 //
 // Espectadores (relay estilo SFU):
-//   Las vistas web (consola del operador, tablero de oradores) ven el video de
+//   Las vistas web (tablero de oradores, presidencia) ven el video de
 //   los invitados SIN que el invitado suba una copia por espectador y SIN que B
 //   re-codifique: B toma los cuadros CODIFICADOS tal como llegan (antes del
 //   decodificador, que sigue alimentando a A) y reenvia esos mismos bytes a la

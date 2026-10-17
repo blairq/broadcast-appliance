@@ -11,8 +11,7 @@
 //     vigia que corta si el servidor deja de latir (B manda ": ping" cada 15 s).
 //   - Acciones: POST/DELETE con Bearer.
 //
-// La consola web consume EXACTAMENTE la misma API: ninguna de las dos vistas
-// tiene logica de sala propia.
+// La vista no tiene logica de sala propia: todo lo decide B.
 // ============================================================================
 #pragma once
 
@@ -39,6 +38,9 @@ class ConferenceClient : public QObject {
 
     bool online() const { return online_; }
     const QJsonObject& snapshot() const { return snap_; }
+    /// Cuántas sesiones del gateway reciben el programa (evento «programa»); -1 = todavía
+    /// no lo dijo (un gateway que no lo informa).
+    int miranPrograma() const { return online_ ? miranPrograma_ : -1; }
 
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
     void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
@@ -57,6 +59,10 @@ class ConferenceClient : public QObject {
     /// Lo que mandó el corrector de subtítulos desde /correccion/ (T44): {id, texto?, descartar}.
     void correccionEvento(const QJsonObject& ev);
     void sesionEvento(const QJsonObject& ev);
+    /// El control web (/control/, /ws?control): solicitud, conexión o entrada de un aparato.
+    void controlEvento(const QJsonObject& ev);
+    /// El catálogo de direcciones de los servicios cambió (sala/Direcciones).
+    void direccionesEvento(const QJsonObject& catalogo);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 
@@ -77,6 +83,7 @@ class ConferenceClient : public QObject {
     int port_ = 0;
     bool online_ = false;
     QJsonObject snap_;
+    int miranPrograma_ = -1;
     QTimer retry_;
     QTimer watchdog_;
     int backoffMs_ = 1000;

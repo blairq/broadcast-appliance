@@ -801,21 +801,21 @@
 {"frase": "Listame los últimos videos del canal", "herramienta": "youtube_videos"}
 {"frase": "Pasame el enlace del video que subimos ayer", "herramienta": "youtube_videos"}
 {"frase": "¿Cuántos comentarios y me gusta sacó lo último que subimos?", "herramienta": "youtube_videos"}
-{"frase": "Abrí el evento del congreso", "herramienta": "evento_abrir"}
-{"frase": "Cargame el evento de la gala de anoche", "herramienta": "evento_abrir"}
-{"frase": "Arrancá un evento nuevo que se llame Cierre de campaña", "herramienta": "evento_abrir"}
-{"frase": "Poné el evento de la jornada del viernes", "herramienta": "evento_abrir"}
-{"frase": "Quiero trabajar con el evento guardado del aniversario", "herramienta": "evento_abrir"}
+{"frase": "Abrí el evento del congreso", "herramienta": "guion_abrir"}
+{"frase": "Cargame el evento de la gala de anoche", "herramienta": "guion_abrir"}
+{"frase": "Arrancá un evento nuevo que se llame Cierre de campaña", "herramienta": "guion_abrir"}
+{"frase": "Poné el evento de la jornada del viernes", "herramienta": "guion_abrir"}
+{"frase": "Quiero trabajar con el evento guardado del aniversario", "herramienta": "guion_abrir"}
 {"frase": "Armame el evento completo: sábado 20, tres bloques de veinte minutos y cinco invitados", "herramienta": "evento_armar"}
 {"frase": "Te paso fecha, bloques con duración y la lista de gente, armalo de una", "herramienta": "evento_armar"}
 {"frase": "Hacé el evento entero de una vez con este programa", "herramienta": "evento_armar"}
 {"frase": "Creá la gala del jueves con apertura, premios y cierre, y los oradores", "herramienta": "evento_armar"}
 {"frase": "De una: evento, bloques y gente, todo junto", "herramienta": "evento_armar"}
-{"frase": "Agregá un bloque de cierre al guion", "herramienta": "evento_bloque"}
-{"frase": "Renombrá el segundo bloque a Entrevistas", "herramienta": "evento_bloque"}
-{"frase": "Mové el bloque de premios antes del de música", "herramienta": "evento_bloque"}
-{"frase": "Sacá el bloque del sorteo, no va", "herramienta": "evento_bloque"}
-{"frase": "Falta un bloque al final para los créditos", "herramienta": "evento_bloque"}
+{"frase": "Agregá un bloque de cierre al guion", "herramienta": "guion_bloque"}
+{"frase": "Renombrá el segundo bloque a Entrevistas", "herramienta": "guion_bloque"}
+{"frase": "Mové el bloque de premios antes del de música", "herramienta": "guion_bloque"}
+{"frase": "Sacá el bloque del sorteo, no va", "herramienta": "guion_bloque"}
+{"frase": "Falta un bloque al final para los créditos", "herramienta": "guion_bloque"}
 {"frase": "¿Me das los timestamps del programa para YouTube?", "herramienta": "evento_capitulos"}
 {"frase": "Los capítulos de la grabación, para pegar", "herramienta": "evento_capitulos"}
 {"frase": "Armá el índice con el minuto de cada bloque", "herramienta": "evento_capitulos"}
@@ -824,41 +824,41 @@
 {"frase": "Volvé al cue anterior", "herramienta": "evento_correr"}
 {"frase": "Pausá el guion un toque", "herramienta": "evento_correr"}
 {"frase": "Saltá al cue doce", "herramienta": "evento_correr"}
-{"frase": "Agregá un cue de placa en el bloque de apertura", "herramienta": "evento_cue"}
-{"frase": "Cambiale la duración al cue tres, que sean cuarenta segundos", "herramienta": "evento_cue"}
-{"frase": "Sacá el cue del video institucional", "herramienta": "evento_cue"}
-{"frase": "Mové ese cue al bloque de cierre", "herramienta": "evento_cue"}
-{"frase": "En el bloque dos falta un cue para el zócalo del ministro", "herramienta": "evento_cue"}
+{"frase": "Agregá un cue de placa en el bloque de apertura", "herramienta": "guion_cue"}
+{"frase": "Cambiale la duración al cue tres, que sean cuarenta segundos", "herramienta": "guion_cue"}
+{"frase": "Sacá el cue del video institucional", "herramienta": "guion_cue"}
+{"frase": "Mové ese cue al bloque de cierre", "herramienta": "guion_cue"}
+{"frase": "En el bloque dos falta un cue para el zócalo del ministro", "herramienta": "guion_cue"}
 {"frase": "Pasá todo el guion rapidito a ver si cada cue anda", "herramienta": "evento_ensayo_rapido"}
 {"frase": "Ensayo acelerado, sin tocar nada", "herramienta": "evento_ensayo_rapido"}
 {"frase": "¿Se puede ejecutar todo el guion? Chequealo de una sin esperar tiempos", "herramienta": "evento_ensayo_rapido"}
 {"frase": "Hacé la pasada rápida del guion entero", "herramienta": "evento_ensayo_rapido"}
 {"frase": "Simulá el guion completo al toque, sin disparar nada", "herramienta": "evento_ensayo_rapido"}
-{"frase": "Guardá el guion", "herramienta": "evento_guardar"}
-{"frase": "Salvá los cambios del guion antes de seguir", "herramienta": "evento_guardar"}
-{"frase": "Dejá guardado el guion como está", "herramienta": "evento_guardar"}
-{"frase": "¿Guardaste el guion? Hacelo ahora", "herramienta": "evento_guardar"}
-{"frase": "Guardame lo que cambiamos del programa", "herramienta": "evento_guardar"}
+{"frase": "Guardá el guion", "herramienta": "guion_guardar"}
+{"frase": "Salvá los cambios del guion antes de seguir", "herramienta": "guion_guardar"}
+{"frase": "Dejá guardado el guion como está", "herramienta": "guion_guardar"}
+{"frase": "¿Guardaste el guion? Hacelo ahora", "herramienta": "guion_guardar"}
+{"frase": "Guardame lo que cambiamos del programa", "herramienta": "guion_guardar"}
 {"frase": "¿Cuánto duró de verdad cada bloque?", "herramienta": "evento_informe"}
 {"frase": "Pasame el informe del evento", "herramienta": "evento_informe"}
 {"frase": "Contra lo previsto, ¿cuánto nos pasamos en cada cue?", "herramienta": "evento_informe"}
 {"frase": "Quiero ver previsto contra real de todo el programa", "herramienta": "evento_informe"}
 {"frase": "Informe de cómo salió la gala", "herramienta": "evento_informe"}
-{"frase": "¿Qué eventos hay guardados?", "herramienta": "evento_listar"}
-{"frase": "Listame los eventos", "herramienta": "evento_listar"}
-{"frase": "¿Cuántos cues tiene cada evento que tenemos?", "herramienta": "evento_listar"}
-{"frase": "Mostrame los eventos con su fecha", "herramienta": "evento_listar"}
-{"frase": "¿Tenemos armado algún evento para el mes que viene?", "herramienta": "evento_listar"}
+{"frase": "¿Qué eventos hay guardados?", "herramienta": "guion_listar"}
+{"frase": "Listame los eventos", "herramienta": "guion_listar"}
+{"frase": "¿Cuántos cues tiene cada evento que tenemos?", "herramienta": "guion_listar"}
+{"frase": "Mostrame los eventos con su fecha", "herramienta": "guion_listar"}
+{"frase": "¿Tenemos armado algún evento para el mes que viene?", "herramienta": "guion_listar"}
 {"frase": "Revisá el guion antes de arrancar, a ver qué falta", "herramienta": "evento_revisar"}
 {"frase": "¿Hay algún cue incompleto o escena que no existe?", "herramienta": "evento_revisar"}
 {"frase": "Fijate si hay bloques vacíos en el guion", "herramienta": "evento_revisar"}
 {"frase": "Chequeo previo del guion: ¿qué impide correrlo?", "herramienta": "evento_revisar"}
 {"frase": "Antes del aire, buscá problemas en el guion", "herramienta": "evento_revisar"}
-{"frase": "Mostrame el guion", "herramienta": "evento_ver"}
-{"frase": "¿Qué cues tiene el bloque de apertura?", "herramienta": "evento_ver"}
-{"frase": "Leeme el guion completo con los horarios", "herramienta": "evento_ver"}
-{"frase": "¿Cómo quedó el guion abierto?", "herramienta": "evento_ver"}
-{"frase": "Pasame la escaleta entera", "herramienta": "evento_ver"}
+{"frase": "Mostrame el guion", "herramienta": "guion_ver"}
+{"frase": "¿Qué cues tiene el bloque de apertura?", "herramienta": "guion_ver"}
+{"frase": "Leeme el guion completo con los horarios", "herramienta": "guion_ver"}
+{"frase": "¿Cómo quedó el guion abierto?", "herramienta": "guion_ver"}
+{"frase": "Pasame la escaleta entera", "herramienta": "guion_ver"}
 {"frase": "Poné el carrusel de la presentación en la escena de pantalla completa", "herramienta": "laminas_aplicar"}
 {"frase": "Meté el carrusel de logos en la escena Principal", "herramienta": "laminas_aplicar"}
 {"frase": "Que las láminas del informe se vean en la escena de la charla", "herramienta": "laminas_aplicar"}

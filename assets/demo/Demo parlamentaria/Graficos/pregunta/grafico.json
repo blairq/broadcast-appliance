@@ -108,5 +108,6 @@
       "titulo": "Acortar la que está",
       "prompt": "La pregunta que tiene puesta es muy larga y se sale de la caja: acortala y volvé a sacarla al aire."
     }
-  ]
+  ],
+  "seVa": "al-avanzar"
 }

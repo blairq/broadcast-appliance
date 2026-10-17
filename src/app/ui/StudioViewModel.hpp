@@ -65,6 +65,9 @@ class ObjetivoLoudness;
 namespace ba::app::ptz {
 class ControlCamaras;
 } // namespace ba::app::ptz
+namespace ba::app::tiempos {
+class TiemposModel;
+} // namespace ba::app::tiempos
 namespace ba::app::video {
 class VideoGrafos;
 class SuperRes;
@@ -72,6 +75,7 @@ class BancoSuperRes;
 } // namespace ba::app::video
 namespace ba::app::sala {
 class CupoSala;
+class Direcciones;
 class VotacionSala;
 class PreguntasSala;
 class SeguridadSala;
@@ -107,6 +111,8 @@ namespace ba::app::control {
 class BusEventos;
 class Botonera;
 class BotoneraGateway;
+class ControlWeb;
+class ControlWebGateway;
 class CarasBotonera;
 class SatelliteServidor;
 class Dsk;
@@ -139,6 +145,7 @@ class GraficoViewModel;
 class RotuladorViewModel;
 class PrompterViewModel;
 class PantallasViewModel;
+class EnlacesViewModel;
 class QrViewModel;
 class PersonasViewModel;
 class Seguidor;
@@ -177,6 +184,10 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// Sale algo (transmisión, grabación o señal limpia) y si eso incluye una
+    /// transmisión: lo mismo que mira la PTZ, las alertas y los candados.
+    Q_PROPERTY(bool alAire READ alAire NOTIFY statusChanged)
+    Q_PROPERTY(bool transmitiendo READ transmitiendo NOTIFY statusChanged)
     /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
     Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY statusChanged)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
@@ -201,6 +212,12 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bus READ busQml CONSTANT)
     /// La botonera (superficie de control de tablets y hardware): control/Botonera.
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
+    /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
+    Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
+    /// El tema de las interfaces web de control (Servicios → Templates, Configuración).
+    Q_PROPERTY(QString temaWeb READ temaWeb WRITE setTemaWeb NOTIFY temaWebChanged)
+    /// [{id, nombre, descripcion, fondo, superficie, texto, acento}] (control/TemasWeb.hpp).
+    Q_PROPERTY(QVariantList temasWeb READ temasWeb CONSTANT)
     /// Companion Satellite manejando la botonera (control/SatelliteServidor).
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
     /// Las caras de los botones (foto o video corto): control/CarasBotonera.
@@ -256,7 +273,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool streamKeyAvailable READ streamKeyAvailable NOTIFY statusChanged)
     Q_PROPERTY(bool streamKeySaved READ streamKeySaved NOTIFY statusChanged)
     Q_PROPERTY(QString room READ room NOTIFY statusChanged)
-    Q_PROPERTY(QString joinUrl READ joinUrl NOTIFY statusChanged)
+    /// Las direcciones de los servicios (sala/Direcciones): la única fuente de los enlaces.
+    Q_PROPERTY(QObject* direcciones READ direccionesQml CONSTANT)
     Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
     /// Arrancó con --test: el MCP no pide aprobaciones (la interfaz lo avisa siempre).
@@ -286,6 +304,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* pantallas READ pantallas CONSTANT)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
+    /// Todos los enlaces del aparato, con su estado y su botón de activar (página Enlaces).
+    Q_PROPERTY(QObject* enlaces READ enlacesQml CONSTANT)
     /// La libreta de personas (rostros). Existe siempre: sin los modelos
     /// vendoreados avisa por qué, que es mejor que una lista vacía.
     Q_PROPERTY(QObject* personas READ personas CONSTANT)
@@ -335,6 +355,8 @@ class StudioViewModel : public QObject {
     /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
     /// ptz/ControlCamaras.hpp.
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
+    /// La página «Tiempos»: el grafo de demoras de cada entrada a cada salida.
+    Q_PROPERTY(QObject* tiempos READ tiempos CONSTANT)
     /// Analizar las caras de una cámara y seguir a una con el PTZ (ui/Seguidor).
     Q_PROPERTY(QObject* seguidor READ seguidor CONSTANT)
     /// Los equipos: detectores, catálogo y acciones (dispositivos/Dispositivos).
@@ -402,7 +424,10 @@ class StudioViewModel : public QObject {
     /// Vuelve a poner el FTB y la placa como estaban (Runtime/placa.json): tras una caída.
     void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
-    Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
+    /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
+    bool alAire() const;
+    /// Se transmite algo (la principal, una extra o la señal limpia).
+    bool transmitiendo() const;
     /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
     /// programa, fila de oradores) y los integrantes de la sesión remota.
     QVariantMap impactoDeCerrar() const;
@@ -474,6 +499,16 @@ class StudioViewModel : public QObject {
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
     control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
     control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
+    /// El control web (/control/): sus aparatos y el puente con el gateway.
+    control::ControlWeb& controlWeb() { return *controlWeb_; }
+    control::ControlWebGateway& controlWebGateway() { return *controlWebGw_; }
+    QObject* controlWebQml() const;
+    /// Genera el código de un uso del control web y muestra su QR (mostrarQr).
+    Q_INVOKABLE void emparejarControlWebUi();
+    QString temaWeb() const;
+    /// Lo guarda (como Configuración) y se lo pasa al gateway: cambia en todas las páginas.
+    void setTemaWeb(const QString& id);
+    QVariantList temasWeb() const;
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
     Q_INVOKABLE QVariantMap apiRemotaUi() const;
     Q_INVOKABLE void setApiRemotaUi(bool activo);
@@ -594,7 +629,7 @@ class StudioViewModel : public QObject {
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
     /// Una persona aprueba (o no) la tablet que pidió emparejarse.
-    Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar);
+    Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil = QString());
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
@@ -627,7 +662,8 @@ class StudioViewModel : public QObject {
     bool streamKeyAvailable() const;
     bool streamKeySaved() const;
     QString room() const;
-    QString joinUrl() const;
+    QObject* direccionesQml() const;
+    sala::Direcciones& direcciones() { return *direcciones_; }
     int guests() const;
     QString theme() const;
 
@@ -648,6 +684,8 @@ class StudioViewModel : public QObject {
     QObject* prompter() const;
     QObject* pantallas() const;
     QObject* qr() const;
+    QObject* enlacesQml() const;
+    EnlacesViewModel* enlacesVm() const { return enlaces_.get(); }
     QObject* personas() const;
     QObject* publico() const;
     QObject* medios() const;
@@ -703,6 +741,8 @@ class StudioViewModel : public QObject {
     QObject* matriz() const;
     QObject* mezcladorQml() const;
     QObject* camaras() const;
+    QObject* tiempos() const;
+    tiempos::TiemposModel* tiemposModel() const { return tiempos_.get(); }
     QObject* video() const;
     video::VideoGrafos* videoGrafos() const { return video_.get(); }
     QObject* red() const;
@@ -885,6 +925,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void temaWebChanged();
     void presidenciaHablaChanged();
     void saludChanged();
     void tallyChanged();
@@ -946,6 +987,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
     std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
+    std::unique_ptr<sala::Direcciones> direcciones_; ///< idem: el catálogo de direcciones del gateway
     std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
     std::unique_ptr<sala::PreguntasSala> preguntas_; ///< ídem
     std::unique_ptr<sala::SeguridadSala> seguridad_; ///< ídem
@@ -978,6 +1020,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<audio::Matriz> matriz_;
     std::unique_ptr<audio::Mezclador> mezclador_;
     std::unique_ptr<ptz::ControlCamaras> camaras_;
+    std::unique_ptr<tiempos::TiemposModel> tiempos_;
     std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<red::Red> red_;
     std::unique_ptr<plugins::Plugins> plugins_;
@@ -1036,6 +1079,11 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::BotoneraGateway> botoneraGw_;
+    std::unique_ptr<control::ControlWeb> controlWeb_;
+    std::unique_ptr<control::ControlWebGateway> controlWebGw_;
+    /// Le pasa el tema web al gateway (al cambiar y cada vez que la sala vuelve).
+    void mandarTemaWeb();
+    std::string temaWebMandado_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
@@ -1145,6 +1193,14 @@ class StudioViewModel : public QObject {
     void leerMultiviews() const;
     int indiceMultiview(const QString& id) const;
     void guardarMultiviews();
+    /// Lee a los demás servicios: se arma al final del constructor y, declarado
+    /// último, se destruye antes que ellos.
+    std::unique_ptr<EnlacesViewModel> enlaces_;
+    /// La fuente «Banca con la palabra»: qué cámara y qué recorte va en cada ranura
+    /// (1 = quien tiene la palabra; en un debate, A y B). Se recalcula con cada
+    /// cambio de la fila, del debate, del cuerpo o de las posiciones de las cámaras.
+    void actualizarRanurasBanca(bool forzar = false);
+    QTimer ranurasTarde_; ///< una vuelta más, cuando ya se sabe el tamaño de la cámara
 };
 
 } // namespace ba::app

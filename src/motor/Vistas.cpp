@@ -90,8 +90,9 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
 }
 
 namespace {
+// «<qué>@<canal>»: el canal lo pone la app (sin «@»); el nombre de la entrada o escena sí puede tenerlo.
 std::string base(const std::string& clave) {
-    const auto a = clave.find('@');
+    const auto a = clave.rfind('@');
     return a == std::string::npos ? clave : clave.substr(0, a);
 }
 } // namespace
@@ -102,6 +103,7 @@ std::set<std::string> Vistas::entradasEnUso() const {
     for (const auto& [clave, u] : vistas_) {
         const std::string b = base(clave);
         if (b.rfind("entrada:", 0) == 0) out.insert(b.substr(8));
+        else if (b.rfind("entrada-entera:", 0) == 0) out.insert(b.substr(15));
     }
     return out;
 }
@@ -220,7 +222,8 @@ void Vistas::tic() {
         // Lo que mira cambió de latencia, o todavía no existía (se pidió antes de armarse).
         std::int64_t lat = 0;
         const std::string prod = resolver_(base(clave), &lat);
-        if (u->pipeline == nullptr && !prod.empty()) {
+        // (o lo que mira pasó a ser otro productor: la toma entera aparece o se va con el filtro PTZ)
+        if ((u->pipeline == nullptr && !prod.empty()) || (u->pipeline != nullptr && !prod.empty() && prod != u->productor)) {
             armar(clave, *u);
             continue;
         }

@@ -53,6 +53,9 @@ struct Filtro {
 
 /// [{"id","elemento","memoria","memoria_salida","propiedades":{…}}] -> filtros.
 std::vector<Filtro> leerFiltros(const nlohmann::json& lista);
+/// Que cada filtro tenga su nombre de elemento (dos ids distintos pueden limpiarse igual;
+/// al juntar dos listas, también). Ya lo hace leerFiltros con cada lista.
+void nombresUnicos(std::vector<Filtro>& v);
 /// Lo que obliga a rearmar: qué elementos, en qué orden, y las propiedades que no cambian andando.
 std::string firmaDe(const std::vector<Filtro>& v, const std::vector<Filtro>& a, bool alfa);
 /// Las propiedades de un filtro sobre su elemento (las que no tiene, a `avisos`).
@@ -102,8 +105,21 @@ std::string aSistemaEscalado(const std::string& formato, int ancho, int alto);
 /// los filtros de esa memoria (o los que tienen su par «<elemento>gl» / «<elemento>d3d12»,
 /// como baptz) trabajan ahí sin bajar, y solo se baja para los de CPU. Puede
 /// terminar en sistema: el que sigue sube (la subida deja pasar lo que ya está en la GPU).
+///
+/// DERIVACIÓN (`derivar`): antes del filtro de ese nombre, un `tee` cuya otra salida
+/// publica lo que llega hasta ahí en el productor `derivar->productor` (la toma
+/// entera, antes del recorte del PTZ digital). La rama se agrega en
+/// `derivar->ramas` (va al final de la descripción, como otro segmento); sin ese
+/// filtro en la cadena, queda vacía. La rama lleva una cola que descarta lo viejo:
+/// sin ella, el intersink frenaba al tee y la cadena principal dejaba de dar
+/// cuadros (lo prueba test_motor_app).
+struct Derivacion {
+    std::string antesDe;   ///< el nombre del filtro («ptz»)
+    std::string productor; ///< el intersink de la rama
+    std::string ramas;     ///< (salida) lo que hay que sumar a la descripción
+};
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos, bool desdeGpu = false);
+                     std::vector<std::string>& avisos, bool desdeGpu = false, Derivacion* derivar = nullptr);
 /// Entre comillas para gst_parse_launch (los id de Windows traen \\ y #).
 std::string entreComillas(const std::string& v);
 
@@ -162,6 +178,10 @@ nlohmann::json describirCaps(GstCaps* c);
 /// Ningún elemento del pipeline ofrece su reloj (un micrófono que se desenchufa
 /// se llevaría el reloj: CLOCK_LOST y todo trabado).
 void sinRelojPropio(GstElement* pipeline);
+/// Las fuentes de audio del pipeline (las de GstAudioBaseSrc: micrófonos, placas) salen
+/// con la hora de captura en el reloj del pipeline: sin su reloj propio no la ponen (ver
+/// Piezas.cpp). Antes de PLAYING. Cuántas encontró.
+int horaDeCapturaEnAudio(GstElement* pipeline);
 
 /// Las fuentes de prueba en vivo (videotestsrc, audiotestsrc) cuentan su tiempo
 /// desde 0: en un pipeline con el base_time del estudio (de hace rato) salen a

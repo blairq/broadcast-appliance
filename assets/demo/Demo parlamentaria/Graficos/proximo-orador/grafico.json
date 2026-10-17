@@ -116,5 +116,6 @@
       "titulo": "El próximo de la sala",
       "prompt": "Mirá los invitados que están en el lobby de la sala y poné en esta tarjeta el que sigue en la lista."
     }
-  ]
+  ],
+  "seVa": "al-avanzar"
 }

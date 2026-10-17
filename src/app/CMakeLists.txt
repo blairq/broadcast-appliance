@@ -632,7 +632,7 @@ endif()
 
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
-        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp)
+        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
         target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_link_libraries(test_escucha PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
@@ -820,6 +820,10 @@ endif()
     target_include_directories(test_bitacora PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_bitacora PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_bitacora COMMAND test_bitacora)
+    add_executable(test_tiempos tests/test_tiempos.cpp tiempos/Tiempos.cpp)
+    target_include_directories(test_tiempos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_tiempos PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_tiempos COMMAND test_tiempos)
     add_executable(test_fotos_config tests/test_fotos_config.cpp evento/FotosConfig.cpp)
     target_include_directories(test_fotos_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_fotos_config PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
@@ -1016,6 +1020,14 @@ endif()
     target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_botonera COMMAND test_botonera)
+    # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
+    # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
+    add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp
+                   mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
+    target_include_directories(test_control_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_control_web PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_control_web PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_control_web COMMAND test_control_web)
     add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp asamblea/SeguirMicrofono.cpp
                    asamblea/SeguirMicrofono.hpp asamblea/Bancas.cpp asamblea/Bancas.hpp asamblea/Cuerpo.cpp
                    control/BusEventos.cpp control/BusEventos.hpp)

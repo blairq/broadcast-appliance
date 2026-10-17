@@ -61,9 +61,11 @@ void RespaldoEntradas::revisar() {
         emit sinSenalCambio(sinSenal_);
     }
     // Una entrada AL AIRE sin señal: lo que se configuró (avisar, armar o cortar al respaldo).
+    // Al aire = se ve en el programa (escena o capa DSK, el recuadro de LSA también) Y el
+    // programa sale; si no se transmite ni graba, nada (si después sale, avisa entonces).
+    if (!rt_.engine().haySalida()) return;
     const nlohmann::json resp = leer();
-    auto alAire = rt_.engine().sceneSources(rt_.engine().currentScene());
-    for (const std::string& f : rt_.engine().fuentesDsk()) alAire.push_back(f); // el recuadro de LSA también
+    const auto alAire = rt_.engine().fuentesEnPrograma();
     QStringList perdidas; // las de solo avisar, juntas en un aviso
     for (const QString& e : sin) {
         if (hecho_.contains(e)) continue;

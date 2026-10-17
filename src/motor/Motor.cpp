@@ -59,11 +59,13 @@ std::string Motor::iniciar() {
             if (lat != nullptr) *lat = it->second.comp->latenciaSalidaNs();
             return it->second.comp->productor();
         }
-        if (clave.rfind("entrada:", 0) == 0) {
-            auto it = canales_.find(clave.substr(8));
+        if (clave.rfind("entrada:", 0) == 0 || clave.rfind("entrada-entera:", 0) == 0) {
+            // «entrada-entera:»: la toma antes del recorte del PTZ digital (Entrada::productorEntera).
+            const bool entera = clave.rfind("entrada-entera:", 0) == 0;
+            auto it = canales_.find(clave.substr(entera ? 15 : 8));
             if (it == canales_.end() || !it->second.entrada->daVideo()) return {};
             if (lat != nullptr) *lat = std::max<std::int64_t>(reloj_->latencia(), it->second.entrada->latenciaPropia());
-            return it->second.entrada->productorVideo();
+            return entera ? it->second.entrada->productorEntera() : it->second.entrada->productorVideo();
         }
         return {};
     });
@@ -632,9 +634,10 @@ std::string Motor::multiviewYa(bool activo, int ancho, int alto) {
     lz.alto = mvAlto_;
     vMulti_ = std::make_unique<Composicion>(*reloj_, lz, "multiview");
     if (!vMulti_->anda()) return "el multiview no arrancó: " + vMulti_->error();
-    // Los tres colores del tally, compartidos por todos los recuadros.
+    // Los tres colores del tally, compartidos por todos los recuadros. Los ids internos
+    // llevan «:», que las entradas de la gente no pueden tener: nunca chocan con una.
     for (const auto& [n, c] : std::vector<std::pair<std::string, std::string>>{
-             {"mv_rojo", "#E0242F"}, {"mv_verde", "#2FBF3A"}, {"mv_gris", "#3A3A40"}})
+             {"mv:rojo", "#E0242F"}, {"mv:verde", "#2FBF3A"}, {"mv:gris", "#3A3A40"}})
         mvAux_[n] = std::make_unique<Entrada>(*reloj_, lz, n, json{{"tipo", "color"}, {"color", c}, {"ancho", 64}, {"alto", 36}});
     actualizarMultiview();
     return {};
@@ -652,7 +655,7 @@ void Motor::actualizarMultiview() {
     e.nombre = "multiview";
     Lienzo lz = cfg_.lienzo;
     const auto nombre = [&](const std::string& celda, const std::string& texto, int x, int y, int w, int h) {
-        const std::string id = "mv_nombre_" + celda;
+        const std::string id = "mv:nombre:" + celda;
         const json aj{{"tipo", "texto"}, {"texto", texto}, {"tamano", std::max(9, h / 12)}, {"ancho", w}, {"alto", h / 5},
                       {"vertical", "abajo"}, {"color", "#FFFFFF"}};
         auto& p = mvAux_[id];
@@ -669,7 +672,7 @@ void Motor::actualizarMultiview() {
     const auto celda = [&](const std::string& id, const std::string& productor, const std::string& texto, const char* tally,
                            int x, int y, int w, int h) {
         Capa t;
-        t.entrada = "tally_" + id;
+        t.entrada = "tally:" + id;
         t.productor = std::string(tally) + ":video";
         t.x = x;
         t.y = y;
@@ -678,7 +681,7 @@ void Motor::actualizarMultiview() {
         t.orden = 1;
         e.capas.push_back(t);
         Capa c;
-        c.entrada = "celda_" + id;
+        c.entrada = "celda:" + id;
         c.productor = productor;
         c.x = x + borde;
         c.y = y + borde;
@@ -688,16 +691,18 @@ void Motor::actualizarMultiview() {
         e.capas.push_back(c);
         nombre(id, texto, x + borde, y + borde, w - 2 * borde, h - 2 * borde);
     };
-    celda("preview", "video:preview", "PREVIEW" + (armada_.empty() ? std::string() : " · " + armada_), "mv_verde", 0, 0, W / 2, H / 2);
-    celda("programa", "video:programa", "PROGRAMA" + (alAire_.empty() ? std::string() : " · " + alAire_), "mv_rojo", W / 2, 0, W / 2, H / 2);
+    // Las dos fijas con «:» en el id (una entrada que se llame «preview» no las pisa).
+    celda(":preview", "video:preview", "PREVIEW" + (armada_.empty() ? std::string() : " · " + armada_), "mv:verde", 0, 0, W / 2, H / 2);
+    celda(":programa", "video:programa", "PROGRAMA" + (alAire_.empty() ? std::string() : " · " + alAire_), "mv:rojo", W / 2, 0, W / 2, H / 2);
     int i = 0;
     for (const auto& [id, c] : canales_) {
         if (!c.entrada->daVideo() || c.interna || i >= 8) continue;
-        const char* tally = alAire.count(id) > 0 ? "mv_rojo" : armada.count(id) > 0 ? "mv_verde" : "mv_gris";
+        const char* tally = alAire.count(id) > 0 ? "mv:rojo" : armada.count(id) > 0 ? "mv:verde" : "mv:gris";
         celda(id, c.entrada->productorVideo(), c.entrada->estado().value("nombre", id), tally, (i % 4) * W / 4,
               H / 2 + (i / 4) * H / 4, W / 4, H / 4);
         ++i;
     }
+    e.asignarClaves();
     vMulti_->mostrar(e);
 }
 
@@ -706,7 +711,7 @@ std::string Motor::verPedirYa(const std::string& clave, int ancho, int alto) {
     // del motor hace lo mismo en el tic; al revés se trababan).
     BA_CANDADO(mu_);
     if (!vistas_) return "el motor no está andando";
-    const std::string b = clave.substr(0, clave.find('@'));
+    const std::string b = clave.substr(0, clave.rfind('@')); // el nombre puede tener «@»; el canal, no
     if (b.rfind("escena:", 0) == 0 && usarEscena(b.substr(7)).empty()) return "no hay una escena «" + b.substr(7) + "»";
     const std::string e = vistas_->pedir(clave, ancho, alto);
     actualizarUso();
@@ -716,7 +721,7 @@ std::string Motor::verPedirYa(const std::string& clave, int ancho, int alto) {
 void Motor::verSoltarYa(const std::string& clave) {
     BA_CANDADO(mu_);
     if (vistas_) vistas_->soltar(clave);
-    const std::string b = clave.substr(0, clave.find('@'));
+    const std::string b = clave.substr(0, clave.rfind('@')); // el nombre puede tener «@»; el canal, no
     if (b.rfind("escena:", 0) == 0) soltarEscena(b.substr(7));
 }
 

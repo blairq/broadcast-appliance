@@ -30,6 +30,20 @@ namespace ba::motor {
 
 /// Inicia GStreamer con el entorno del bundle (una vez). false + motivo si no hay.
 bool iniciarGStreamer(std::string* error = nullptr);
+/// Lo mismo, pero gst_init corre en otro hilo y este llama a `esperando` cada
+/// ~100 ms hasta que termine (el arranque: que el cartel de carga se repinte y la
+/// app siga latiendo mientras GStreamer rehace su lista de plugins, que la primera
+/// vez en una PC puede tardar minutos; ver platform/GstEntorno.hpp).
+bool iniciarGStreamer(std::string* error, const std::function<void()>& esperando);
+/// Mientras GStreamer rehace su lista de plugins (la primera vez en una PC): cuántos
+/// va a revisar, en cuál va (1 = el primero) y cuál es (el archivo). total == 0:
+/// no está rehaciéndola.
+struct ProgresoGst {
+    int total = 0;
+    int revisados = 0;
+    std::string actual;
+};
+ProgresoGst progresoGStreamer();
 /// Saca del registro los plugins que meten código del sistema en el proceso
 /// (DirectShow: le ofrece a decodebin cualquier códec instalado, como los LAV
 /// del K-Lite). Por si quedó el .dll de una versión vieja. Después de gst_init.
@@ -49,6 +63,9 @@ void registrar(Nivel n, const std::string& texto);
 
 class Reloj {
    public:
+    /// Cuánto se espera que un reloj de red (NTP, PTP, otro aparato) se sincronice antes de
+    /// tomar la hora base; si no, el del sistema.
+    static constexpr GstClockTime kEsperaSyncNs = 3 * GST_SECOND;
     /// `tipo`: sistema (de fábrica), ntp, ptp o red; `servidor`/`puerto`/`dominio` según el tipo.
     explicit Reloj(const std::string& tipo = "sistema", const std::string& servidor = "", int puerto = 0,
                    int dominio = 0);

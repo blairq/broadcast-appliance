@@ -18,6 +18,9 @@
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
+#include "platform/Paths.hpp"
+
+#include <filesystem>
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 #include "video/FuentesCaptura.hpp"
@@ -231,6 +234,33 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
     for (std::size_t i = 0; i < e.items.size(); ++i) {
         const Item& it = e.items[i];
         const auto fu = sources_.find(it.fuente);
+        // «Banca con la palabra»: la cámara de la banca de su ranura (o nada).
+        if (fu != sources_.end() && fu->second.banca) {
+            const int r = ranuraDe(fu->second);
+            if (r < 1 || r > static_cast<int>(ranurasBanca_.size()) || ranurasBanca_[r - 1].entrada.empty()) continue;
+            const RanuraBanca& rb = ranurasBanca_[r - 1];
+            json c{{"entrada", rb.entrada},
+                   {"x", static_cast<int>(std::lround(it.rect.x * W))},
+                   {"y", static_cast<int>(std::lround(it.rect.y * H))},
+                   {"ancho", std::max(2, static_cast<int>(std::lround(it.rect.w * W)))},
+                   {"alto", std::max(2, static_cast<int>(std::lround(it.rect.h * H)))},
+                   {"orden", static_cast<int>(i)},
+                   {"visible", it.visible},
+                   {"contener", true}};
+            if (it.efectos.opacidad < 1.0f) c["alfa"] = it.efectos.opacidad;
+            if (const json s = it.efectos.sombraMotor(); !s.is_null()) c["sombra"] = s;
+            // La toma entera (antes del PTZ digital), recortada acá: no mueve la cámara.
+            if (rb.entera) c["productor"] = rb.entrada + ":entera:video";
+            const json sale = entradas.contains(rb.entrada) ? entradas[rb.entrada].value("sale", json::object()) : json::object();
+            const int w = sale.value("ancho", 0), h = sale.value("alto", 0);
+            if (w > 0 && h > 0 && rb.recorte[0] + rb.recorte[1] + rb.recorte[2] + rb.recorte[3] > 0) {
+                auto px = [](float f, int total) { return static_cast<int>(std::lround(std::clamp(f, 0.0f, 0.95f) * total)); };
+                c["recorte"] = {{"izq", px(rb.recorte[0], w)}, {"arr", px(rb.recorte[1], h)}, {"der", px(rb.recorte[2], w)},
+                                {"aba", px(rb.recorte[3], h)}};
+            }
+            capas.push_back(c);
+            continue;
+        }
         const bool comp = fu != sources_.end() && !fu->second.compProductor.empty();
         json c{{"entrada", comp ? kPrefijoCompositor + it.fuente : it.fuente},
                {"x", static_cast<int>(std::lround(it.rect.x * W))},
@@ -266,6 +296,46 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
     return {{"nombre", e.nombre}, {"capas", capas}};
 }
 
+int BroadcastEngine::ranuraDe(const Fuente& f) const {
+    const json a = json::parse(f.spec.settingsJson.empty() ? "{}" : f.spec.settingsJson, nullptr, false);
+    // Número (o texto, si vino de un formulario). Una que no existe (0: no se dibuja), no la 1: repetiría al que habla.
+    const json r = a.is_object() ? a.value("ranura", json(1)) : json(1);
+    const int n = r.is_number() ? r.get<int>() : r.is_string() ? std::atoi(r.get<std::string>().c_str()) : 1;
+    return n < 1 ? 1 : n <= kRanurasBanca ? n : 0;
+}
+
+void BroadcastEngine::setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar) {
+    const auto igual = [](const RanuraBanca& a, const RanuraBanca& b) {
+        return a.entrada == b.entrada && a.entera == b.entera && std::equal(std::begin(a.recorte), std::end(a.recorte), std::begin(b.recorte));
+    };
+    if (!forzar && ranuras.size() == ranurasBanca_.size() &&
+        std::equal(ranuras.begin(), ranuras.end(), ranurasBanca_.begin(), igual))
+        return;
+    ranurasBanca_ = std::move(ranuras);
+    for (const EscenaApp& e : scenes_)
+        for (const Item& i : e.items) {
+            const auto f = sources_.find(i.fuente);
+            if (f != sources_.end() && f->second.banca) {
+                publicarEscena(e);
+                break;
+            }
+        }
+}
+
+bool BroadcastEngine::hayFuenteBanca() const {
+    return !escenaDeRanura(0).empty();
+}
+
+std::string BroadcastEngine::escenaDeRanura(int ranura) const {
+    // 0: cualquier ranura.
+    for (const EscenaApp& e : scenes_)
+        for (const Item& i : e.items) {
+            const auto f = sources_.find(i.fuente);
+            if (f != sources_.end() && f->second.banca && (ranura == 0 || ranuraDe(f->second) == ranura)) return e.nombre;
+        }
+    return {};
+}
+
 void BroadcastEngine::setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor) {
     const auto antes = traer_.find(entrada);
     if (compositor.empty() && productor.empty()) {
@@ -295,6 +365,10 @@ bool BroadcastEngine::createScene(const std::string& name) {
         setError("createScene: sin motor, nombre vacio o repetido: '" + name + "'");
         return false;
     }
+    if (name.rfind("__", 0) == 0) { // las internas (kPrefijoCompositor) viven en el mismo lugar del motor
+        setError("los nombres de escena que empiezan con «__» son internos");
+        return false;
+    }
     scenes_.push_back(EscenaApp{name, {}});
     publicarEscena(scenes_.back());
     return true;
@@ -320,6 +394,10 @@ bool BroadcastEngine::removeScene(const std::string& name) {
 bool BroadcastEngine::renameScene(const std::string& from, const std::string& to) {
     if (to.empty() || escena(to) != nullptr) {
         setError("renameScene: nombre vacio o repetido");
+        return false;
+    }
+    if (to.rfind("__", 0) == 0) {
+        setError("los nombres de escena que empiezan con «__» son internos");
         return false;
     }
     EscenaApp* e = escena(from);
@@ -418,6 +496,20 @@ bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     return true;
 }
 
+namespace {
+/// Una ruta de archivo de una fuente (imagen, video) RELATIVA es relativa a la carpeta del
+/// evento: así una plantilla trae sus archivos (Media/bandera.gif) y un evento sigue
+/// andando en un pendrive aunque cambie la letra de la unidad o la carpeta. Antes quedaba
+/// relativa a la carpeta de trabajo del proceso, que la app no fija.
+std::string rutaDelEvento(const std::string& r) {
+    if (r.empty()) return r;
+    const std::filesystem::path p(std::u8string(r.begin(), r.end()));
+    if (p.is_absolute()) return r;
+    const std::u8string u = (ba::platform::configRoot() / p).lexically_normal().u8string();
+    return std::string(u.begin(), u.end());
+}
+} // namespace
+
 bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
     const json in = s.is_object() ? s : json::object();
@@ -431,6 +523,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         a = in;
         a["medio"] = true;
         a["nombre"] = spec.name;
+        if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = rutaDelEvento(a["local_file"]);
         return true;
     }
     if (id == "ffmpeg_source") {
@@ -438,6 +531,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         if (in.value("is_local_file", true)) {
             a = in;
             a["medio"] = true;
+            if (a.contains("local_file") && a["local_file"].is_string()) a["local_file"] = rutaDelEvento(a["local_file"]);
             return true;
         }
         a = {{"uri", in.value("input", std::string())}, {"nombre", spec.name}, {"audio", true}};
@@ -473,7 +567,7 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         return true;
     }
     if (id == "image_source") {
-        a = {{"tipo", "imagen"}, {"archivo", in.value("file", std::string())}};
+        a = {{"tipo", "imagen"}, {"archivo", rutaDelEvento(in.value("file", std::string()))}};
         return true;
     }
     if (esPantalla(id)) {
@@ -514,6 +608,16 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         const json s = json::parse(spec.settingsJson, nullptr, false);
         spec.id = inputs::kMicType;
         spec.settingsJson = inputs::ajustesAudioAnillo("guest", s.is_object() ? s.value("slot", 1) : 1);
+    }
+    if (spec.id == kTipoBanca) {
+        // «Banca con la palabra»: no hay entrada en el motor; la escena la resuelve al publicarse.
+        Fuente f;
+        f.spec = spec;
+        f.global = global;
+        f.banca = true;
+        sources_[spec.name] = f;
+        ordenFuentes_.push_back(spec.name);
+        return true;
     }
     if (spec.id == kTipoCompositor || spec.id == kTipoSalida) {
         // Una escena interna del motor (sus capas: las entradas que junta; la
@@ -573,7 +677,7 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
     if (!it->second.compProductor.empty()) {
         motor_->soltarEscena(kPrefijoCompositor + nombre);
         motor_->quitarEscena(kPrefijoCompositor + nombre);
-    } else
+    } else if (!it->second.banca)
         motor_->quitarEntrada(nombre);
     fuentes::baja(nombre);
     sources_.erase(it);
@@ -838,6 +942,15 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
     if (!todo.is_object()) todo = json::object();
     todo.update(nuevos);
     it->second.spec.settingsJson = todo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    if (it->second.banca) { // otra ranura: las escenas que la muestran se vuelven a publicar
+        for (const EscenaApp& e : scenes_)
+            for (const Item& i : e.items)
+                if (i.fuente == name) {
+                    publicarEscena(e);
+                    break;
+                }
+        return true;
+    }
     if (!it->second.compProductor.empty()) {
         motor_->definirEscena(escenaCompositor(name, configDe(it->second.spec.id, todo)));
         return true;
@@ -865,6 +978,7 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
             {"screen_capture", "Captura de pantalla", true, false},
             {video::kTipoVentana, "Captura de una aplicación", true, false},
             {"ba_qr", "Código QR (Público, Sala, uno guardado…)", true, false},
+            {kTipoBanca, "Banca con la palabra (asamblea: la cámara de quien habla)", true, false},
             {"ba_pdf", "PDF (una página por vez)", true, false},
             {"ba_app", "Lo que pinta la app", true, false}};
 }
@@ -874,7 +988,7 @@ bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
     SourceSpec s;
     s.id = typeId;
     json a;
-    return typeId == inputs::kMicType || typeId == inputs::kMedioType || typeId == "ba_guest_audio" ||
+    return typeId == kTipoBanca || typeId == inputs::kMicType || typeId == inputs::kMedioType || typeId == "ba_guest_audio" ||
            typeId == "ba_guest_video" || typeId == "ba_ndi_input" || typeId == inputs::kVideoType ||
            typeId == inputs::kAudioInLibobs || ajustesMotor(s, a);
 }

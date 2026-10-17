@@ -434,8 +434,11 @@ std::string Botonera::crearPerfil(const json& p, const std::string& plantilla, s
 }
 
 std::string Botonera::editarPerfil(const std::string& id, const json& c, bool humano) {
-    json* p = buscarPerfil(id);
-    if (p == nullptr) return "no hay un perfil «" + id + "»";
+    json* orig = buscarPerfil(id);
+    if (orig == nullptr) return "no hay un perfil «" + id + "»";
+    // Sobre una copia: con un error en el medio no queda nada a medias (se guardaba con el próximo cambio).
+    json copia = *orig;
+    json* p = &copia;
     if (c.contains("nombre") && c["nombre"].is_string()) (*p)["nombre"] = c["nombre"];
     if (c.contains("herramientas_permitidas")) {
         if (!c["herramientas_permitidas"].is_array()) return "herramientas_permitidas es una lista";
@@ -456,6 +459,7 @@ std::string Botonera::editarPerfil(const std::string& id, const json& c, bool hu
         if (v && !humano && !p->value("puede_editar", false)) return "solo una persona puede habilitar la edición desde el aparato";
         (*p)["puede_editar"] = v;
     }
+    *orig = std::move(copia);
     guardar();
     auditar(humano ? "escritorio" : "asistente", "editar_perfil", id + " " + c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     sucio_ = true;
@@ -495,13 +499,13 @@ std::string Botonera::crearPagina(const std::string& perfil, const std::string& 
 std::string Botonera::editarPagina(const std::string& perfil, const std::string& pagina, const json& c) {
     json* g = buscarPagina(perfil, pagina);
     if (g == nullptr) return "no hay esa página";
+    // Todo revisado antes de cambiar nada.
+    for (const char* k : {"columnas", "filas"})
+        if (c.contains(k))
+            if (const int v = c.value(k, 0); v < 1 || v > 16) return std::string(k) + " va de 1 a 16";
     if (c.contains("nombre") && c["nombre"].is_string()) (*g)["nombre"] = c["nombre"];
     for (const char* k : {"columnas", "filas"})
-        if (c.contains(k)) {
-            const int v = c.value(k, 0);
-            if (v < 1 || v > 16) return std::string(k) + " va de 1 a 16";
-            (*g)[k] = v;
-        }
+        if (c.contains(k)) (*g)[k] = c.value(k, 0);
     guardar();
     sucio_ = true;
     emit cambio();
@@ -1426,10 +1430,12 @@ std::string Botonera::solicitud(const std::string& sol, const std::string& codig
     return {};
 }
 
-json Botonera::resolverSolicitud(const std::string& sol, bool aprobar) {
+json Botonera::resolverSolicitud(const std::string& sol, bool aprobar, const std::string& perfil) {
     auto it = solicitudes_.find(sol);
     if (it == solicitudes_.end()) return {{"error", "no hay esa solicitud"}};
-    const Solicitud s = it->second;
+    if (aprobar && !perfil.empty() && buscarPerfil(perfil) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
+    Solicitud s = it->second;
+    if (aprobar && !perfil.empty()) s.perfil = perfil;
     solicitudes_.erase(it);
     emit solicitudesCambio();
     if (!aprobar) {
@@ -1719,6 +1725,8 @@ QVariantList Botonera::solicitudesUi() const {
         out.append(QVariantMap{{"id", QString::fromStdString(id)},
                                {"nombre", QString::fromStdString(s.nombre)},
                                {"ip", QString::fromStdString(s.ip)},
+                               {"ms", static_cast<double>(s.ms)},
+                               {"perfilId", QString::fromStdString(s.perfil)},
                                {"perfil", QString::fromStdString(p != nullptr ? p->value("nombre", std::string()) : s.perfil)}});
     }
     return out;

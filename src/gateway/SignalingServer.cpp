@@ -113,6 +113,8 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     botonera_->setCaras(cfg_.carasBotonera);
     sesion_ = std::make_unique<SesionBorde>(cfg_.sesionWebroot, log_,
                                             [this](const json& d) { broadcastToHosts("sesion", d); });
+    controlWeb_ = std::make_unique<ControlWebBorde>(cfg_.controlWebroot, log_,
+                                                    [this](const json& d) { broadcastToHosts("control", d); });
     // R3: el micrófono y la cámara del remoto con la palabra van a la app por el
     // mismo WebRTC que los invitados (una sesión del pool, ruta «Remoto»).
     {
@@ -189,12 +191,25 @@ bool SignalingServer::start() {
     }
     stop_.store(false);
     guestBoundPort_ = http::localPort(listenFd_);
-    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false);
+    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false, false);
     // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
     statsThread_ = std::thread([this] {
         std::map<std::string, int64_t> anotada; // pantalla -> la última vez que su salida fue al log
+        int miranAntes = -1;
+        int vueltas = 0;
         while (!stop_.load()) {
             for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            recalcularDirecciones(); // la IP de la máquina, el túnel, las puertas: ¿cambió algo?
+            // Cuántos reciben el programa: a la app, al cambiar y cada 10 s (por si su
+            // escucha de eventos se reconectó). Sin nadie, deja de bajarlo y descansa.
+            if (pump_ != nullptr) {
+                const int miran = pump_->miranPrograma();
+                if (miran != miranAntes || ++vueltas >= 5) {
+                    miranAntes = miran;
+                    vueltas = 0;
+                    broadcastToHosts("programa", json{{"mirando", miran}});
+                }
+            }
             std::vector<std::pair<std::string, int>> sesiones;
             {
                 std::lock_guard<std::mutex> l(sessLock_);
@@ -229,8 +244,36 @@ bool SignalingServer::start() {
                        -1);
         } else {
             adminBoundPort_ = http::localPort(adminListenFd_);
-            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false);
+            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false, false);
             log_.info("control: API del operador en 127.0.0.1:" + std::to_string(adminBoundPort_));
+        }
+    }
+    // Los aparatos de control de la red local (ver 1c en el header): SIEMPRE loopback;
+    // la red llega por el HTTPS de adelante, que pasa la IP real en PROXY v1.
+    if (cfg_.controlLan) {
+        controlListenFd_ = http::makeListen("127.0.0.1", cfg_.controlPort);
+        if (controlListenFd_ < 0) {
+            log_.error("aparatos: no se pudo abrir 127.0.0.1:" + std::to_string(cfg_.controlPort) +
+                           " (la botonera y el control web no llegan desde la red)",
+                       -1);
+        } else {
+            controlBoundPort_ = http::localPort(controlListenFd_);
+            controlAcceptThread_ =
+                std::thread(&SignalingServer::acceptLoop, this, controlListenFd_, false, false, true);
+            log_.info("puerta de la sala: 127.0.0.1:" + std::to_string(controlBoundPort_) + " (detrás del HTTPS)");
+        }
+        if (cfg_.puertaHttpPort != 0) {
+            puertaHttpFd_ = http::makeListen(cfg_.puertaHttpBind, cfg_.puertaHttpPort);
+            if (puertaHttpFd_ < 0) {
+                log_.error("puerta de la sala: no se pudo abrir " + cfg_.puertaHttpBind + ":" +
+                               std::to_string(cfg_.puertaHttpPort) + " (los televisores y Companion no llegan)",
+                           -1);
+            } else {
+                puertaHttpBoundPort_ = http::localPort(puertaHttpFd_);
+                puertaHttpThread_ = std::thread(&SignalingServer::acceptLoop, this, puertaHttpFd_, false, false, true);
+                log_.info("puerta de la sala: http en " + cfg_.puertaHttpBind + ":" +
+                          std::to_string(puertaHttpBoundPort_));
+            }
         }
     }
     // La escucha del tunel de pinggy: SIEMPRE loopback (solo ba-pinggy llega
@@ -243,7 +286,7 @@ bool SignalingServer::start() {
                        -1);
         } else {
             tunnelBoundPort_ = http::localPort(tunnelListenFd_);
-            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true);
+            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true, false);
             log_.info("tunel: escucha de pinggy en 127.0.0.1:" + std::to_string(tunnelBoundPort_) +
                       " (todo externo)");
         }
@@ -393,10 +436,70 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
     fondoTipo_ = std::move(tipo);
 }
 
+void SignalingServer::recalcularDirecciones() {
+    if (!direccionesEntradas_) return;
+    json nuevo = direcciones::armar(direccionesEntradas_());
+    json enviar;
+    {
+        std::lock_guard<std::mutex> l(direccionesLock_);
+        json viejo = direcciones_;
+        viejo.erase("seq");
+        if (viejo == nuevo) return;
+        nuevo["seq"] = ++direccionesSeq_;
+        direcciones_ = nuevo;
+        enviar = nuevo;
+    }
+    log_.info("direcciones: red " +
+              (enviar["local"].is_object() ? enviar["local"].value("ip", std::string()) : std::string("(ninguna)")) +
+              ", afuera " +
+              (enviar["remoto"].is_object() ? enviar["remoto"].value("url", std::string()) : std::string("(no)")));
+    // El enlace de invitados que muestra la sala (room.guestUrl): el de la red, o el de afuera.
+    {
+        const json loc = direcciones::origenDe(enviar, "invitados", "local");
+        const json rem = direcciones::origenDe(enviar, "invitados", "remote");
+        const json& u = loc.contains("url") ? loc["url"] : rem.contains("url") ? rem["url"] : json();
+        room_.setGuestUrl(u.is_string() ? u.get<std::string>() + "#room=" + cfg_.room : std::string());
+    }
+    if (alCambiarDirecciones_) alCambiarDirecciones_(enviar);
+    broadcastToHosts("direcciones", enviar);
+}
+
+bool SignalingServer::controlWebDesdeAfuera() const { return controlWeb_ && controlWeb_->tunelHabilitado(); }
+
+json SignalingServer::direcciones() const {
+    std::lock_guard<std::mutex> l(direccionesLock_);
+    return direcciones_;
+}
+
+json SignalingServer::origenDe(const std::string& servicio, const std::string& donde) const {
+    return direcciones::origenDe(direcciones(), servicio, donde);
+}
+
+bool SignalingServer::setTemaWeb(const std::string& id) {
+    if (id.empty() || id.size() > 40) return false;
+    for (const char ch : id)
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-')) return false;
+    std::lock_guard<std::mutex> l(temaLock_);
+    temaWeb_ = id;
+    return true;
+}
+
+std::string SignalingServer::temaWeb() const {
+    std::lock_guard<std::mutex> l(temaLock_);
+    return temaWeb_;
+}
+
+bool SignalingServer::servirTema(long long fd, const std::string& method, const std::string& path) {
+    if (method != "GET" || path != "/comun/tema.json") return false;
+    http::sendResponse(fd, 200, "application/json", json{{"tema", temaWeb()}}.dump(), "Cache-Control: no-store\r\n");
+    return true;
+}
+
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
-    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && activeConns_.load() == 0 &&
-        !acceptThread_.joinable() && !adminAcceptThread_.joinable() && !tunnelAcceptThread_.joinable() &&
+    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && controlListenFd_ < 0 && puertaHttpFd_ < 0 &&
+        activeConns_.load() == 0 && !acceptThread_.joinable() && !adminAcceptThread_.joinable() &&
+        !tunnelAcceptThread_.joinable() && !controlAcceptThread_.joinable() && !puertaHttpThread_.joinable() &&
         !statsThread_.joinable()) {
         return;
     }
@@ -407,6 +510,14 @@ void SignalingServer::stop() {
     if (statsThread_.joinable()) statsThread_.join();
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
     if (tunnelAcceptThread_.joinable()) tunnelAcceptThread_.join();
+    if (controlAcceptThread_.joinable()) controlAcceptThread_.join();
+    if (puertaHttpThread_.joinable()) puertaHttpThread_.join();
+    http::closeFd(puertaHttpFd_);
+    puertaHttpFd_ = -1;
+    puertaHttpBoundPort_ = 0;
+    http::closeFd(controlListenFd_);
+    controlListenFd_ = -1;
+    controlBoundPort_ = 0;
     http::closeFd(listenFd_);
     listenFd_ = -1;
     http::closeFd(adminListenFd_);
@@ -462,7 +573,7 @@ void SignalingServer::closeActiveConns() {
 // Accept + despacho
 // ============================================================================
 
-void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
+void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo, bool soloControl) {
     constexpr int kAcceptPollMs = 200;
     while (!stop_.load(std::memory_order_relaxed)) {
         const int ready = http::waitReadable(listenFd, kAcceptPollMs);
@@ -504,9 +615,9 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
 #endif
         // Ultima red: un JSON con tipos inesperados (nlohmann lanza) no debe
         // tumbar el proceso desde un thread detachado.
-        std::thread([this, fd, clientIp, admin, externo] {
+        std::thread([this, fd, clientIp, admin, externo, soloControl] {
             try {
-                handleConnection(fd, clientIp, admin, externo);
+                handleConnection(fd, clientIp, admin, externo, soloControl);
             } catch (const std::exception& e) {
                 log_.warn(std::string("conexion: excepcion ") + e.what(), -1);
             }
@@ -514,7 +625,8 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
     }
 }
 
-void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo) {
+void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo,
+                                       bool soloControl) {
     // El thread esta detachado: el contador DEBE bajar por cualquier salida.
     struct ConnGuard {
         SignalingServer* self;
@@ -577,7 +689,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     }
 
     // Subida de archivo: el cuerpo va en streaming a disco, NO a memoria.
-    if (!admin && method == "POST" && path == "/api/v1/files") {
+    if (!admin && !soloControl && method == "POST" && path == "/api/v1/files") {
         apiUpload(fd, headers, query);
         return;
     }
@@ -598,6 +710,22 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         handleAdmin(fd, method, path, query, headers, body);
         return;
     }
+    if (servirTema(fd, method, path)) return;
+    // La puerta de la sala (1c): todo menos ENTRAR A LA SALA COMO INVITADO (eso sigue
+    // lo que diga «Acceso»). La raíz lleva al control web.
+    if (soloControl) {
+        const bool deInvitados = path == "/invitados" || path.rfind("/invitados/", 0) == 0 || path == "/api/join" ||
+                                 path == "/api/v1/files" || path == "/api/v1/avatar";
+        // La raíz: la página del evento si hay una publicada; si no, el control web.
+        if (method == "GET" && (path == "/" || path == "/index.html") && !(eventoWebActivo() && !cfg_.eventoWebroot.empty())) {
+            http::sendResponse(fd, 302, "text/plain", "", "Location: /control/\r\n");
+            return;
+        }
+        if (deInvitados) {
+            http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+            return;
+        }
+    }
     if (method == "POST" && path == "/api/v1/avatar") {
         apiAvatarUpload(fd, headers, body);
         return;
@@ -611,6 +739,8 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     if (botonera_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     // La sesión remota (página y su WebSocket), también antes que la sala.
     if (sesion_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    // El control web (dashboard /control/, emparejar y /ws?control), también antes que la sala.
+    if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     if (path == "/api/ice" && method == "GET" && !admin) {
         // Los servidores ICE (TURN de la caja) para el RTCPeerConnection del
         // navegador. Sin servidor TURN (o sin setIce): lo de siempre, sin ICE.

@@ -22,7 +22,8 @@ Conmutador::Conmutador(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(r
             if (x.is_string()) afv_.insert(QString::fromStdString(x.get<std::string>()));
         // El nivel al que vuelve cada fuente AFV cuando entra (el del operador): sin
         // esto, tras reiniciar el primer fundido subía a 0 dB.
-        for (const auto& [f, v] : j.value("afv_niveles", nlohmann::json::object()).items())
+        const nlohmann::json niveles = j.value("afv_niveles", nlohmann::json::object()); // .items() de un temporal: UB
+        for (const auto& [f, v] : niveles.items())
             if (v.is_number()) afvVolumen_[QString::fromStdString(f)] = v.get<float>();
     }
 }

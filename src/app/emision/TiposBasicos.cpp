@@ -5,6 +5,7 @@
 // nombres de ajustes que ya tienen los app.json, que vienen de OBS). Los demás
 // tipos se editan igual con sus ajustes tal cual (PropertiesModel).
 // ============================================================================
+#include "emision/BroadcastEngine.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 
@@ -65,6 +66,23 @@ void registrarTiposBasicos() {
             return std::vector<Prop>{{"local_file", "Archivo", "path"},
                                      {"looping", "Repetir", "bool"},
                                      {"clear_on_media_end", "Desaparecer al terminar", "bool"}};
+        };
+        fuentes::registrar(t);
+    }
+    {
+        // La escena la resuelve al publicarse (la toma de la banca de su ranura).
+        Tipo t;
+        t.id = BroadcastEngine::kTipoBanca;
+        t.nombre = "Banca con la palabra";
+        t.defectos = {{"ranura", 1}};
+        t.props = [](const json&) {
+            Prop p{"ranura", "Muestra", "list"};
+            p.opciones = json::array({{{"value", 1}, {"label", "Quien tiene la palabra (en un debate, el primero)"}}});
+            for (int r = 2; r <= BroadcastEngine::kRanurasBanca; ++r)
+                p.opciones.push_back({{"value", r}, {"label", r == 2 ? std::string("El segundo de un debate")
+                                                                     : "El " + std::to_string(r) + "º de un debate"}});
+            p.ayuda = "La cámara y la posición de cada banca se eligen en Asamblea › Recinto (la toma de la banca).";
+            return std::vector<Prop>{p};
         };
         fuentes::registrar(t);
     }

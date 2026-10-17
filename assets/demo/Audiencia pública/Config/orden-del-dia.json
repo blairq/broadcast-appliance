@@ -1,0 +1,32 @@
+{
+ "puntos": [
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 1,
+   "resultado": "",
+   "titulo": "Lectura del objeto de la audiencia y de las reglas"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 2,
+   "resultado": "",
+   "titulo": "Exposición de los inscriptos"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 3,
+   "resultado": "",
+   "titulo": "Cierre y próximos pasos"
+  }
+ ],
+ "tramos": []
+}

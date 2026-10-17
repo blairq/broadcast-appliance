@@ -14,7 +14,8 @@
 //
 // El protocolo NO tiene autenticación: se acepta solo desde la red local y de
 // las IP que una persona permitió (la primera vez que una IP nueva agrega un
-// aparato, queda en «pendientes» para aprobarla en la página Botonera). Todo
+// aparato, queda en «pendientes» para aprobarla en la página Botonera o en
+// Servicios; si la rechaza, no vuelve a pedir hasta que se reinicie). Todo
 // queda en la auditoría de la botonera. Apagado de fábrica.
 //
 // Config/botonera-satellite.json: {activo, puerto, ip_permitidas[]}.
@@ -29,6 +30,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -48,6 +50,8 @@ class SatelliteServidor : public QObject {
     Q_PROPERTY(int puerto READ puerto NOTIFY cambio)
     Q_PROPERTY(QStringList ipPermitidas READ ipPermitidas NOTIFY cambio)
     Q_PROPERTY(QStringList pendientes READ pendientes NOTIFY cambio)
+    /// Los pedidos que esperan a una persona: [{id (la IP), ip, nombre (el aparato), ms}].
+    Q_PROPERTY(QVariantList solicitudes READ solicitudesUi NOTIFY cambio)
     Q_PROPERTY(QVariantList clientes READ clientesUi NOTIFY cambio)
     Q_PROPERTY(QString error READ error NOTIFY cambio)
    public:
@@ -59,6 +63,7 @@ class SatelliteServidor : public QObject {
     int puerto() const { return puerto_; }
     QStringList ipPermitidas() const;
     QStringList pendientes() const;
+    QVariantList solicitudesUi() const;
     QString error() const { return error_; }
     QVariantList clientesUi() const;
     json estado() const;
@@ -67,6 +72,9 @@ class SatelliteServidor : public QObject {
     Q_INVOKABLE QString configurar(bool activo, int puerto);
     /// Una persona permite (o saca) una IP.
     Q_INVOKABLE void permitir(const QString& ip, bool si);
+    /// Una persona rechaza el pedido de una IP: sale de pendientes y no vuelve a
+    /// pedir hasta que se reinicie el programa (o se la permita a mano).
+    Q_INVOKABLE void rechazar(const QString& ip);
     /// Las IP permitidas, todas juntas (solo una persona: amplía el acceso).
     Q_INVOKABLE void setIpPermitidas(const QStringList& ips);
 
@@ -114,7 +122,12 @@ class SatelliteServidor : public QObject {
     bool activo_ = false;
     int puerto_ = 16622;
     std::set<std::string> permitidas_;
-    std::set<std::string> pendientes_;
+    struct Pedido {
+        std::string aparato; ///< PRODUCT_NAME (o DEVICEID) del primero que pidió
+        std::int64_t ms = 0;
+    };
+    std::map<std::string, Pedido> pendientes_; ///< ip -> el pedido
+    std::set<std::string> rechazadas_;         ///< en esta corrida: no vuelven a pedir
     QString error_;
     std::unique_ptr<QTcpServer> srv_;
     std::map<QTcpSocket*, Cliente> clientes_;

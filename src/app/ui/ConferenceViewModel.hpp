@@ -249,8 +249,6 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void removeShare(const QString& id);
     /// Copia el archivo a <datos>/Media y lo agrega a la escena actual.
     Q_INVOKABLE void takeShare(const QString& id);
-    /// Abre la consola web (codigo de un solo uso -> navegador).
-    Q_INVOKABLE void openWebConsole();
     /// Nombre de un participante por id (para el chat).
     Q_INVOKABLE QString nameOf(const QString& id) const;
     /// Los mensajes de UN hilo. `uid` vacio = el de la sala (lo que ve todo el

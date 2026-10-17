@@ -82,8 +82,6 @@ class ControlSala {
     /// Avisa cada fuente nueva que entra por tomarArchivo (para que la vista
     /// recargue sus listas, venga de la GUI o del MCP).
     void setAlTomarArchivo(std::function<void()> f) { alTomarArchivo_ = std::move(f); }
-    /// Un código de un solo uso para entrar a la consola web (la respuesta trae `url`).
-    void codigoConsolaWeb(Listo listo);
 
     // --- Proxy y red -----------------------------------------------------------
     /// Lo que dice la sala del proxy, más la configuración guardada

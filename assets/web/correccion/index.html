@@ -3,10 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0c0f" />
+  <meta name="theme-color" content="#22252c" />
   <title>Corrección de subtítulos</title>
   <link rel="apple-touch-icon" href="/comun/icono-180.png">
+  <link rel="stylesheet" href="/comun/neuro/temas.css" />
+  <link rel="stylesheet" href="/comun/neuro/neuro.css" />
   <link rel="stylesheet" href="style.css" />
+  <script src="/comun/neuro/neuro.js"></script>
 </head>
 <body>
   <!--
@@ -17,8 +20,10 @@
     salen solas cuando se termina el tiempo.
   -->
   <header>
-    <h1>Subtítulos <span id="estado" class="estado">conectando…</span></h1>
-    <p class="ayuda">Enter aprueba (con lo que escribiste) · Esc descarta · ↑ ↓ cambian de frase</p>
+    <div>
+      <h1>Subtítulos <span id="estado" class="estado">conectando…</span></h1>
+      <p class="ayuda">Enter aprueba (con lo que escribiste) · Esc descarta · ↑ ↓ cambian de frase</p>
+    </div>
   </header>
   <main id="lista" class="lista"></main>
   <p id="vacio" class="vacio">No hay frases esperando.</p>

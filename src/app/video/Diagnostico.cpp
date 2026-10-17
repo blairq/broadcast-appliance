@@ -57,8 +57,7 @@ json diagnosticar(const json& e) {
 
     // 2) Cuadros por segundo.
     const double fpsOrigen = o.value("fps", 0.0);
-    const double fps =
-        g.value("fps_recibidos", 0.0) > 0 && !normalizado ? g.value("fps_recibidos", 0.0) : fpsOrigen;
+    const double fps = fpsOrigen; // cómo llega (antes de normalizar), del motor
     if (o.value("fps_variable", false) && !normalizado)
         agregar(out, "aviso", "cuadros", "manda cuadros a ritmo variable: con movimiento puede tironear",
                 "normalizarla (`video_entrada_red {\"nombre\": \"" + nombre + "\", \"normalizar\": true}`)");
@@ -122,22 +121,8 @@ json diagnosticar(const json& e) {
                 "en un compositor la capa la encaja sola (ajuste «encajar»); en una escena, ajustar la "
                 "fuente con `source_update`");
 
-    // 6) Red: reloj y colchón.
+    // 6) Red: reloj y colchón (con lo que mide el motor: Entrada::medirLatencia).
     if (esGst) {
-        if (!g.value("reloj_sincronizado", true))
-            agregar(out, "error", "reloj",
-                    "el reloj «" + g.value("reloj", std::string()) +
-                        "» todavía no está sincronizado: los cuadros salen a "
-                        "destiempo",
-                    "esperar unos segundos; si no sincroniza, revisar `video_reloj` (servidor y puerto "
-                    "accesibles)");
-        // Los cuadros tarde de los ÚLTIMOS 10 s (los del arranque no cuentan).
-        const double recibidos = g.value("recibidos_10s", g.value("recibidos", 0.0)),
-                     tarde = g.value("tarde_10s", g.value("llegaron_tarde", 0.0));
-        // El reloj del que manda corrido: los cuadros llegan con mucho más
-        // adelanto que la latencia (o con atraso), y la entrada sale desfasada.
-        const double adelanto = g.value("adelanto_ms", 0.0),
-                     lat = g.value("latencia_ms", 0.0) + g.value("desfase_ms", 0.0);
         if (g.value("ntp_apagado_solo", false))
             agregar(out, "info", "reloj",
                     "la hora que mandaba «" + nombre +
@@ -146,38 +131,24 @@ json diagnosticar(const json& e) {
                     "poner en hora la cámara (NTP); para volver a usar su hora: `video_entrada_red "
                     "{\"nombre\": \"" +
                         nombre + "\", \"ntp_sync\": true}`");
-        if (g.value("recibidos", 0.0) > 30 && adelanto - lat > 250)
+        // La hora de captura que manda, corrida: sus cuadros «llegan antes de capturarse»
+        // (edad negativa) y la entrada sale atrasada eso.
+        const double edad = g.value("edad_p50_ms", 0.0);
+        if (g.value("ntp_sync", false) && g.value("cuadros", 0.0) > 30 && edad < -250)
             agregar(out, "aviso", "reloj",
-                    "los cuadros llegan ~" + n0(adelanto - lat) +
-                        " ms antes de lo que deberían: la hora de captura que manda «" + nombre +
+                    "los cuadros llegan ~" + n0(-edad) +
+                        " ms antes de su hora de captura: la hora que manda «" + nombre +
                         "» (RTCP/NTP) no coincide con la del estudio, y la entrada sale ATRASADA esos ms",
                     "poner en hora la cámara (NTP), o no usar su hora: `video_entrada_red {\"nombre\": \"" +
                         nombre +
                         "\", \"ntp_sync\": false}` (después, si hace falta, alinear con video_sincronia)");
-        // Recién conectada (todo lo recibido entra en la ventana de 10 s): la
-        // ráfaga del arranque llega tarde siempre; no es el colchón.
-        const bool arrancando = g.contains("recibidos_10s") && g.value("recibidos", 0.0) < 1.3 * recibidos;
-        if (arrancando && recibidos > 30 && tarde / recibidos > 0.05)
-            agregar(out, "info", "colchón",
-                    "recién conectada: el " + n0(100 * tarde / recibidos) +
-                        "% de los cuadros del arranque llegó tarde (la "
-                        "ráfaga inicial, es normal)",
-                    "no tocar el colchón todavía: volver a mirar con `video_estado` en 10 s");
-        else if (recibidos > 30 && tarde / recibidos > 0.05)
+        // Necesita más colchón que el tope del estudio: sus cuadros llegan tarde a la mezcla.
+        if (g.value("llega_tarde", false))
             agregar(out, "aviso", "colchón",
-                    "en los últimos 10 s el " + n0(100 * tarde / recibidos) +
-                        "% de los cuadros llegó tarde: el colchón (" + n0(g.value("latencia_ms", 0.0)) +
-                        " ms) es corto para esta red",
-                    "subir su colchón: `video_entrada_red {\"nombre\": \"" + nombre +
-                        "\", \"latencia_ms\": …}` (sobre la que ya existe, la actualiza), o para todas "
-                        "`video_reloj "
-                        "{\"latencia_ms\": …}`");
-        if (g.value("descartados", 0.0) > 0)
-            agregar(
-                out, "aviso", "colchón",
-                "se descartaron cuadros porque el colchón se llenó: el reloj de la fuente y el del estudio "
-                "no coinciden",
-                "usar el mismo reloj en el que manda y en el estudio (`video_reloj`), o bajar la latencia");
+                    "necesita " + n0(g.value("latencia_ms", 0.0)) + " ms de colchón (tarda hasta " +
+                        n0(g.value("edad_p95_ms", 0.0)) +
+                        " ms en llegar) y el estudio tiene un tope menor: sus cuadros llegan tarde a la mezcla",
+                    "subir el tope del estudio (`estudio_latencia`), o mejorar la red de la cámara");
     }
 
     // 7) Lo que dicen las tarjetas.

@@ -95,10 +95,15 @@ struct Config {
     int pinIntentos = 5;        // PIN mal tantas veces desde una IP: se la bloquea
     int pinBloqueoS = 60;       // por cuánto
     nlohmann::json ajustes = nlohmann::json::object(); // los avanzados (ba::ajustes), de gateway.json
-    std::string adminWebroot;  // Web/admin (consola web del operador)
     // --- Acceso directo de invitados ----------------------------------------
     bool https = true;           // HTTPS propio (camara/micro exigen pagina segura)
     uint16_t httpsPort = 8789;   // en bindAddress (8443 suele estar tomado: LXD, etc.)
+    /// HTTPS de los aparatos de control (botonera, control web) en todas las interfaces,
+    /// cuando la sala escucha solo en esta máquina: son de la red local por naturaleza.
+    /// 0 = no (entonces solo llegan si la sala se abre a la red).
+    uint16_t controlLanPort = 8792; // 8790 es el MCP de la app y 8791 el login de Facebook
+    /// La entrada HTTP de la puerta de la sala (televisores, Companion). 0 = no.
+    uint16_t puertaHttpPort = 8793;
     uint16_t rtcPortMin = 40000; // rango UDP de WebRTC (reglas de firewall / tunel)
     uint16_t rtcPortMax = 40099;
     // WireGuard hacia un servidor con IP publica (tunel en espacio de usuario).
@@ -191,6 +196,8 @@ struct Config {
         backstagePreviews = j.value("backstagePreviews", backstagePreviews);
         https = j.value("https", https);
         httpsPort = j.value("httpsPort", httpsPort);
+        controlLanPort = j.value("controlLanPort", controlLanPort);
+        puertaHttpPort = j.value("puertaHttpPort", puertaHttpPort);
         rtcPortMin = j.value("rtcPortMin", rtcPortMin);
         rtcPortMax = j.value("rtcPortMax", rtcPortMax);
         if (j.contains("wireguard") && j["wireguard"].is_object()) {
@@ -354,7 +361,6 @@ struct Config {
         const std::filesystem::path web =
             std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";
         if (webroot.empty()) webroot = utf8(web / "guest");
-        if (adminWebroot.empty()) adminWebroot = utf8(web / "admin");
         // Lo de la configuración activa (Configuraciones/<nombre>/): su Config/ y lo que comparten los invitados.
         const std::filesystem::path conf = ba::platform::configRoot().empty() ? root : ba::platform::configRoot();
         if (sharesDir.empty()) sharesDir = utf8(conf / "Shares");

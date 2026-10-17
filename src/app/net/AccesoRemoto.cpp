@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "net/AccesoRemoto.hpp"
+#include "sala/Direcciones.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "net/AsyncHttp.hpp"
@@ -227,23 +228,7 @@ void AccesoRemoto::aplicarEstado(bool ok, const QVariantMap& r) {
     const QVariantMap p = r.value("pinggy").toMap();
     m["pinggy"] = p;
 
-    // La dirección de cada página, a partir de la pública.
-    QString base = p.value("urlPublica").toString();
-    if (base.isEmpty())
-        for (const QVariant& u : p.value("urls").toList())
-            if (u.toString().startsWith("https://")) {
-                base = u.toString();
-                break;
-            }
-    while (base.endsWith('/')) base.chop(1);
-    QVariantList enl;
-    if (!base.isEmpty()) {
-        const QString sala = QString::fromStdString(rt_.gateway().room);
-        enl << QVariantMap{{"nombre", "Invitados"}, {"url", base + "/invitados/#room=" + sala}}
-            << QVariantMap{{"nombre", "Sesión remota (integrantes)"}, {"url", base + "/sesion/"}}
-            << QVariantMap{{"nombre", "Público"}, {"url", base + "/publico/"}}
-            << QVariantMap{{"nombre", "Botonera (tablets)"}, {"url", base + "/botonera/"}};
-    }
+    const QVariantList enl = enlacesDeAfuera();
     const bool cambio = m != estado_ || enl != enlaces_;
     estado_ = m;
     enlaces_ = enl;
@@ -721,6 +706,33 @@ void AccesoRemoto::cortarTunelesDeLaCuenta() {
         self->ponerCuenta("ok", QString("Pedí cortar %1 túnel%2 de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).")
                                     .arg(n).arg(n == 1 ? "" : "es"));
     });
+}
+
+void AccesoRemoto::setDirecciones(const sala::Direcciones* d) {
+    dir_ = d;
+    if (d == nullptr) return;
+    connect(d, &sala::Direcciones::cambio, this, [this]() {
+        const QVariantList enl = enlacesDeAfuera();
+        if (enl == enlaces_) return;
+        enlaces_ = enl;
+        emit estadoChanged();
+    });
+}
+
+QVariantList AccesoRemoto::enlacesDeAfuera() const {
+    // Los de afuera los decide la sala (sala/Direcciones): solo los servicios que se
+    // atienden por el túnel (la botonera nunca) y solo con el túnel listo de verdad.
+    QVariantList enl;
+    if (dir_ == nullptr) return enl;
+    const QString sala = QString::fromStdString(rt_.gateway().room);
+    for (const auto& s : dir_->catalogo().value("servicios", nlohmann::json::array())) {
+        const nlohmann::json& u = s["remoto"];
+        if (!u.is_string()) continue;
+        QString url = QString::fromStdString(u.get<std::string>());
+        if (s.value("id", std::string()) == "invitados") url += "#room=" + sala;
+        enl << QVariantMap{{"nombre", QString::fromStdString(s.value("nombre", std::string()))}, {"url", url}};
+    }
+    return enl;
 }
 
 } // namespace ba::app

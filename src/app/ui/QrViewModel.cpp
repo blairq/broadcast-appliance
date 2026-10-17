@@ -431,7 +431,15 @@ void QrViewModel::resolver() {
         };
     };
     sala::EnlacesSala& enlaces = d_->sala->enlaces();
-    enlaces.ingreso(false, true, guardar("sala"));
+    // Los invitados: el de la red local; si la sala no los recibe por la red, el de afuera.
+    {
+        sala::EnlacesSala* en = &enlaces;
+        const auto alGuardar = guardar("sala");
+        enlaces.ingreso(false, true, [en, alGuardar](const sala::Enlace& e) {
+            if (e.ok) return alGuardar(e);
+            en->ingreso(true, true, alGuardar);
+        });
+    }
     enlaces.prompter(false, "orador", true, guardar("prompter"));
     enlaces.rotulos(false, true, guardar("rotulos"));
     enlaces.publico(false, guardar("publico"));

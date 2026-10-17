@@ -90,6 +90,10 @@ struct Tool {
     /// Su efecto lo decide una persona con un click (preguntar al operador,
     /// sugerir respuestas): no necesita aprobacion aunque la sesion este contaminada.
     bool mediated = false;
+    /// Nombres que tuvo antes y siguen andando (modelos entrenados, botoneras, atajos y
+    /// guiones guardados con el viejo): no se listan, pero una llamada con uno de ellos
+    /// es la misma llamada con `name` (callTool lo cambia al empezar).
+    std::vector<std::string> antes;
     std::function<void(const json& args, Done done)> run;
 };
 
@@ -187,6 +191,12 @@ class McpCore {
     using Approver = std::function<void(const Tool& tool, const json& args, const std::string& reason,
                                         std::function<void(bool approved)> decide)>;
     void setApprover(Approver fn) { approver_ = std::move(fn); }
+    /// Que una persona apruebe algo que una herramienta solo hace con permiso
+    /// explícito (p. ej. ampliar el perfil de un aparato del control web): la
+    /// misma tarjeta que la salvaguarda. Sin a quién preguntar, no; en modo
+    /// prueba (--test), sí (y queda en el registro).
+    void pedirAprobacion(const std::string& herramienta, const json& args, const std::string& motivo,
+                         std::function<void(bool approved)> decide);
 
     /// --- Guardas de aire (McpAire) --------------------------------------------
     /// Mientras `hayAire()` (transmitiendo, grabando o la sesión en vivo), una
@@ -266,15 +276,11 @@ class McpCore {
         return out;
     }
     const Tool* findTool(const std::string& name) const;
-    /// Un nombre VIEJO que sigue funcionando (recetas, botoneras y disparadores
-    /// guardados, modelos ya publicados que lo escriben): llama a la herramienta
-    /// `nuevo`. No aparece en tools/list ni en el buscador.
-    void addAlias(const std::string& viejo, const std::string& nuevo) { alias_[viejo] = nuevo; }
-    /// El nombre de hoy de `name` (el mismo si no es un alias).
-    std::string nombreActual(const std::string& name) const {
-        const auto it = alias_.find(name);
-        return it == alias_.end() ? name : it->second;
-    }
+    /// El nombre actual de una herramienta (el mismo si no es uno viejo, ver Tool::antes).
+    std::string nombreActual(const std::string& name) const;
+    /// Suma `viejo` a Tool::antes de la herramienta `actual` (la tabla de renombres
+    /// de McpRenombres.cpp, despues de registrarlas todas). false si no existe.
+    bool agregarNombreAnterior(const std::string& actual, const std::string& viejo);
     /// El catálogo para elegir una herramienta a mano (el selector de la
     /// Botonera): [{id, titulo, resumen, herramientas: [{nombre, titulo,
     /// descripcion, etiquetas, ejemplo, solo_lectura, destructiva}]}], en el orden
@@ -344,7 +350,6 @@ class McpCore {
     std::string instructions_;
     std::vector<Category> categories_;
     std::vector<Tool> tools_;
-    std::map<std::string, std::string> alias_; ///< nombre viejo -> nombre de hoy
     std::vector<HelpTopic> topics_;
     /// El indice de busqueda: se arma solo la primera vez que se busca, y de
     /// nuevo si aparecieron herramientas (las extensiones se registran

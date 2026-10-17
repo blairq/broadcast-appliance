@@ -55,7 +55,7 @@ No se mueven carpetas: cambia lo que significan y cómo se muestran.
 
 - `evento_nuevo {nombre, desde: "cero"|"actual"|"<evento>"|"plantilla:<nombre>"}` y
   `evento_cambiar {nombre}` (sobre configuracion_crear/cambiar, que quedan como alias).
-- `evento_abrir` deja de crear carpetas: abre el guion del evento en curso.
+- `guion_abrir` deja de crear carpetas: abre el guion del evento en curso.
 - En sus instrucciones: «evento nuevo / arrancar de cero» = `evento_nuevo`, nunca editar
   las escenas del abierto; preguntar desde dónde si no lo dijeron.
 

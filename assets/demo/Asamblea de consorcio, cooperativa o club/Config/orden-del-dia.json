@@ -1,0 +1,41 @@
+{
+ "puntos": [
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 1,
+   "resultado": "",
+   "titulo": "Designación de quien preside la asamblea"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 2,
+   "resultado": "",
+   "titulo": "Rendición de cuentas y balance del ejercicio"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 3,
+   "resultado": "",
+   "titulo": "Presupuesto y expensas"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 4,
+   "resultado": "",
+   "titulo": "‹Otros puntos›"
+  }
+ ],
+ "tramos": []
+}

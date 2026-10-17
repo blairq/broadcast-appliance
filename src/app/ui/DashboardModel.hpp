@@ -18,6 +18,8 @@
 #include <QRect>
 #include <QRectF>
 #include <QStringList>
+#include <QVariantList>
+#include <QVariantMap>
 
 #include <filesystem>
 #include <functional>
@@ -80,6 +82,8 @@ class DashboardModel : public QAbstractListModel {
     Q_PROPERTY(
         QString backgroundLayout READ backgroundLayout WRITE setBackgroundLayout NOTIFY backgroundChanged)
     Q_PROPERTY(QObject* windows READ windows CONSTANT)
+    /// Para la barra de tarjetas: [{kind, titulo, icono, abierta (hay una en el tablero)}].
+    Q_PROPERTY(QVariantList tiposDeTarjeta READ tiposDeTarjeta NOTIFY tarjetasCambio)
    public:
     enum Roles { IdRole = Qt::UserRole + 1, KindRole, XRole, YRole, WRole, HRole, SourceRole, TitleRole };
 
@@ -99,6 +103,11 @@ class DashboardModel : public QAbstractListModel {
     /// Tipos de tarjeta que se pueden agregar.
     QStringList cardKinds() const;
     Q_INVOKABLE QString kindTitle(const QString& kind) const;
+    QVariantList tiposDeTarjeta() const;
+    /// La barra de tarjetas: si hay una de ese tipo en el tablero, la oculta (y se
+    /// acuerda dónde estaba); si no, la muestra donde estaba la última vez (o
+    /// centrada). true si quedó a la vista.
+    Q_INVOKABLE bool alternarTarjeta(const QString& kind);
 
     /// Agrega una tarjeta (`source`: clave de video para "monitor").
     Q_INVOKABLE void addCard(const QString& kind, const QString& source = {});
@@ -124,6 +133,7 @@ class DashboardModel : public QAbstractListModel {
 
    signals:
     void backgroundChanged();
+    void tarjetasCambio();
 
    private:
     struct Card {
@@ -139,6 +149,8 @@ class DashboardModel : public QAbstractListModel {
 
     std::filesystem::path file_;
     std::vector<Card> cards_;
+    /// Las ocultas con la barra: dónde estaban y qué mostraban, para volver igual.
+    std::vector<Card> ocultas_;
     QStringList background_;
     double dim_ = 0.35;
     QString layout_ = "grid";

@@ -1,6 +1,7 @@
 {
   "nombre": "Placa de título",
   "descripcion": "La placa de apertura de un bloque: una banda a media altura con el título y una bajada. Ocupa toda la pantalla, así que va sola en su fuente.",
+  "seVa": "al-avanzar",
   "ancho": 1920,
   "alto": 1080,
   "parametros": [

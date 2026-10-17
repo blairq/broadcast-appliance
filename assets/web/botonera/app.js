@@ -221,8 +221,10 @@
   }, 1000 / 16);
 
   function estilo(el, c) {
-    el.style.background = c.fondo || "#2b2f3a";
-    el.style.color = c.color || "#fff";
+    // Sin color propio, el material del tema (temas.css); con color, el que manda la app.
+    el.style.background = c.fondo || "";
+    el.style.color = c.color || "";
+    el.classList.toggle("con-fondo", !!c.fondo);
     el.classList.toggle("titilar", !!c.titilar);
     el.classList.toggle("activo", !!c.activo);
     // La cara (data: URL que viene con la celda), el borde que puede titilar solo,
@@ -255,7 +257,7 @@
       cara.remove();
     }
     el.classList.toggle("con-cara", !!src);
-    el.style.setProperty("--borde", c.borde || "transparent");
+    el.style.setProperty("--borde-celda", c.borde || "transparent");
     el.classList.toggle("con-borde", !!c.borde);
     el.classList.toggle("borde-titila", !!c.borde_titilar);
     el.classList.toggle("atenuada", !!c.atenuar);

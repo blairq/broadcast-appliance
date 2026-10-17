@@ -1,16 +1,10 @@
 // Tarjeta «Control PTZ»: mover una cámara desde el tablero (Studio.camaras).
 //
 // En el tablero es chica: la cámara, el joystick, el zoom y las posiciones
-// guardadas. Sacada a su ventana (⧉, PanelWindow con id «ptz:<entrada>")
-// suma la imagen en vivo de la cámara, y sobre ella se apunta con el mouse:
-//
-//   clic            ese punto va al centro
-//   arrastrar       un cuadro: se centra en él y se acerca hasta llenarlo
-//   rueda           zoom
-//   doble clic      cuadro completo (digital)
-//
-// Lo hace lo que mueve el joystick (ControlCamaras::apuntar): el PTZ digital,
-// exacto; una cámara motorizada, aproximado.
+// guardadas. Sacada a su ventana (⧉, PanelWindow con id «ptz:<entrada>") es el
+// panel completo (controls/PtzVentana.qml): la toma entera con el recuadro del
+// PTZ digital, o la imagen en vivo y una foto para apuntar en una cámara
+// motorizada; los puntos prefijados a la vista y la configuración desplegable.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -26,6 +20,9 @@ Item {
     property string panelId: ""
     property bool enVentana: false
 
+    /// La tarjeta misma, con otro nombre: `Joystick { tarjeta: t }` buscaría `t`
+    /// primero en el Joystick (que tiene uno) y se enlazaría consigo mismo.
+    readonly property var estaTarjeta: t
     readonly property var cc: Studio.camaras
     readonly property string entrada: {
         if (panelId.startsWith("ptz:")) return panelId.slice(4)
@@ -72,18 +69,38 @@ Item {
     onEntradaChanged: { leerPosiciones(); mirar() }
     Connections { target: t.cc; function onCambio() { t.leerPosiciones() } }
 
-    // La imagen en vivo se pide solo afuera del tablero (renderizarla cuesta).
+    // La imagen en vivo se pide solo afuera del tablero (renderizarla cuesta). Con el
+    // PTZ digital, también la toma entera (antes del recorte), para manejarlo encima.
     property string mirando: ""
+    property string mirandoEntera: ""
     function mirar() {
         const quiero = t.enVentana ? t.entrada : ""
-        if (quiero === t.mirando) return
-        if (t.mirando !== "") Studio.frames.mirarEntrada(t.mirando, false)
-        if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
-        t.mirando = quiero
+        if (quiero !== t.mirando) {
+            if (t.mirando !== "") Studio.frames.mirarEntrada(t.mirando, false)
+            if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
+            t.mirando = quiero
+        }
+        const entera = t.enVentana && t.mueveDigital ? t.entrada : ""
+        if (entera !== t.mirandoEntera) {
+            if (t.mirandoEntera !== "") Studio.frames.mirarEntrada(t.mirandoEntera, false, true)
+            if (entera !== "") Studio.frames.mirarEntrada(entera, true, true)
+            t.mirandoEntera = entera
+        }
     }
     onEnVentanaChanged: mirar()
+    onMueveDigitalChanged: mirar()
     Component.onCompleted: { leerPosiciones(); mirar() }
-    Component.onDestruction: if (t.mirando !== "") Studio.frames.mirarEntrada(t.mirando, false)
+    Component.onDestruction: {
+        if (t.mirando !== "") Studio.frames.mirarEntrada(t.mirando, false)
+        if (t.mirandoEntera !== "") Studio.frames.mirarEntrada(t.mirandoEntera, false, true)
+    }
+
+    // En su ventana: el panel completo (imágenes, puntos a la vista, configuración).
+    Loader {
+        anchors.fill: parent
+        active: t.enVentana && t.cam !== null
+        sourceComponent: PtzVentana { tarjeta: estaTarjeta }
+    }
 
     Timer {
         interval: 150; repeat: true
@@ -94,6 +111,7 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
+        visible: !t.enVentana || t.cam === null
 
         // --- Cámara, qué se mueve, sacar a ventana ---------------------------------------
         RowLayout {
@@ -152,227 +170,12 @@ Item {
             color: Theme.textDim; font.pixelSize: 12
         }
 
-        // --- La imagen, para apuntar (solo en ventana) -----------------------------------
-        Rectangle {
-            id: vista
-            visible: t.enVentana && t.cam !== null
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumHeight: 160
-            radius: 10; color: "black"; clip: true
-
-            VideoItem { id: video; anchors.fill: parent; source: "entrada:" + t.entrada; fillMode: VideoItem.Fit }
-            Text {
-                visible: !video.hasFrame
-                anchors.centerIn: parent
-                text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 13
-            }
-
-            // Donde cae la imagen dentro del rectángulo (Fit deja bandas).
-            readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
-            readonly property real iw: Math.min(width, height * aspecto)
-            readonly property real ih: iw / aspecto
-            readonly property real ix: (width - iw) / 2
-            readonly property real iy: (height - ih) / 2
-            function u(x) { return Math.max(0, Math.min(1, (x - ix) / iw)) }
-            function v(y) { return Math.max(0, Math.min(1, (y - iy) / ih)) }
-
-            // El cuadro que se dibuja.
-            Rectangle {
-                id: cuadro
-                visible: false
-                color: Qt.rgba(1, 0.42, 0.17, 0.15)
-                border { color: Theme.accent; width: 2 }
-            }
-            // Las caras analizadas (y la que se sigue), sobre la imagen. Tocar una la elige.
-            Repeater {
-                model: t.caras
-                delegate: Rectangle {
-                    required property var modelData
-                    required property int index
-                    readonly property bool esObjetivo: t.siguiendo !== null &&
-                        (t.siguiendo.id ? modelData.id === t.siguiendo.id
-                                        : Math.abs(modelData.x + modelData.ancho / 2 - t.siguiendo.x) < 0.06 && Math.abs(modelData.y + modelData.alto / 2 - t.siguiendo.y) < 0.06)
-                    x: vista.ix + modelData.x * vista.iw
-                    y: vista.iy + modelData.y * vista.ih
-                    width: modelData.ancho * vista.iw
-                    height: modelData.alto * vista.ih
-                    z: 2
-                    color: "transparent"
-                    border.width: esObjetivo || index === t.elegida ? 3 : 2
-                    border.color: esObjetivo ? Theme.ok : index === t.elegida ? Theme.accent : (modelData.nombre ? "#4fc3f7" : Qt.rgba(1, 1, 1, 0.7))
-                    Text {
-                        anchors { left: parent.left; bottom: parent.top; bottomMargin: 2 }
-                        text: (parent.esObjetivo ? "◎ " : "") + t.nombreCara(modelData, index)
-                        color: parent.border.color; font.pixelSize: 11; font.weight: Font.DemiBold
-                        style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.8)
-                    }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: t.elegida = index
-                        // Doble clic: seguirla ya.
-                        onDoubleClicked: { t.elegida = index; t.seguirElegida() }
-                    }
-                }
-            }
-            // Cómo se usa (abajo, chico).
-            Text {
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
-                z: 3
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                text: "Clic: apuntar · arrastrar: encuadrar · clic derecho o Alt+clic: seguir a esa cara"
-                color: Qt.rgba(1, 1, 1, 0.55); font.pixelSize: 10
-                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
-            }
-            // La mira en el centro: ahí va lo que se toque.
-            Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
-            Rectangle { anchors.centerIn: parent; width: 1; height: 18; color: Qt.rgba(1, 1, 1, 0.35) }
-
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.CrossCursor
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                property point desde
-                onPressed: (m) => { desde = Qt.point(m.x, m.y); cuadro.visible = false }
-                onPositionChanged: (m) => {
-                    if (!pressed) return
-                    if (Math.abs(m.x - desde.x) < 6 && Math.abs(m.y - desde.y) < 6) return
-                    cuadro.x = Math.min(m.x, desde.x); cuadro.y = Math.min(m.y, desde.y)
-                    cuadro.width = Math.abs(m.x - desde.x); cuadro.height = Math.abs(m.y - desde.y)
-                    cuadro.visible = true
-                }
-                onReleased: (m) => {
-                    // Alt+clic o clic derecho: SEGUIR a la cara más cercana a ese punto
-                    // (la tarjeta Seguimiento del pipeline la mantiene encuadrada).
-                    if (m.button === Qt.RightButton || (m.modifiers & Qt.AltModifier)) {
-                        cuadro.visible = false
-                        t.avisar(t.sg ? t.sg.seguirPunto(t.entrada, vista.u(m.x), vista.v(m.y)) : "El seguimiento no está disponible")
-                        return
-                    }
-                    if (cuadro.visible) {
-                        cuadro.visible = false
-                        const cx = cuadro.x + cuadro.width / 2, cy = cuadro.y + cuadro.height / 2
-                        t.avisar(t.cc.apuntar(t.entrada, vista.u(cx), vista.v(cy),
-                                              cuadro.width / vista.iw, cuadro.height / vista.ih))
-                    } else {
-                        t.avisar(t.cc.apuntar(t.entrada, vista.u(m.x), vista.v(m.y), 0, 0))
-                    }
-                }
-                onDoubleClicked: if (t.mueveDigital) t.avisar(t.cc.encuadre(t.entrada, 0.5, 0.5, 1, 0.8))
-                onWheel: (w) => {
-                    if (t.mueveDigital) {
-                        const z = t.pos.zoom || 1
-                        t.avisar(t.cc.encuadre(t.entrada, t.pos.x || 0.5, t.pos.y || 0.5,
-                                               Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
-                    } else {
-                        t.avisar(t.cc.mover(t.entrada, 0, 0, (w.angleDelta.y > 0 ? 1 : -1) * t.velocidad))
-                        pararZoom.restart()
-                    }
-                }
-            }
-            Timer { id: pararZoom; interval: 180; onTriggered: t.cc.parar(t.entrada) }
-
-            Text {
-                anchors { left: parent.left; bottom: parent.bottom; margins: 8 }
-                text: "clic: centrar · arrastrar: encuadrar · rueda: zoom" +
-                      (t.mueveDigital ? " · doble clic: cuadro completo" : " (aproximado en cámaras motorizadas)")
-                color: Qt.rgba(1, 1, 1, 0.6); font.pixelSize: 10
-                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
-            }
-            Text {
-                visible: t.mueveDigital && t.pos.zoom !== undefined
-                anchors { right: parent.right; bottom: parent.bottom; margins: 8 }
-                text: (t.pos.zoom || 1).toFixed(2) + "×"
-                color: Theme.text; font.pixelSize: 11
-                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
-            }
-        }
-
-        // --- Rostros y seguimiento (en ventana) -----------------------------------------------
-        RowLayout {
-            visible: t.enVentana && t.cam !== null
-            Layout.fillWidth: true
-            spacing: 6
-            GlassButton {
-                compact: true
-                text: t.analizando ? "Analizando…" : "Analizar rostros"
-                icon: "☻"
-                enabled: !t.analizando && t.sg && t.sg.disponible
-                onClicked: { t.analizando = true; t.sg.analizar(t.entrada) }
-                ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: t.sg && t.sg.disponible ? "Busca las caras en la imagen y reconoce a las que conoce (Personas)" : "Este programa se armó sin reconocimiento de rostros"
-            }
-            ComboBox {
-                id: elegirCara
-                Layout.fillWidth: true
-                Layout.minimumWidth: 140
-                model: t.caras.map((c, i) => t.nombreCara(c, i))
-                currentIndex: t.elegida
-                displayText: t.elegida >= 0 && t.elegida < t.caras.length ? t.nombreCara(t.caras[t.elegida], t.elegida)
-                                                                           : (t.caras.length ? "¿A quién seguir?" : "Sin caras analizadas")
-                onActivated: (i) => t.elegida = i
-                enabled: t.caras.length > 0
-            }
-            GlassButton {
-                compact: true
-                text: t.siguiendo ? "Dejar de seguir" : "Tracking"
-                icon: t.siguiendo ? "■" : "◎"
-                active: t.siguiendo !== null
-                enabled: t.sg && t.sg.disponible
-                onClicked: t.siguiendo ? t.sg.dejar(t.entrada) : t.seguirElegida()
-                ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "La cámara sigue a la persona elegida y la mantiene en el centro (con el motor si tiene; si no, con el recorte)"
-            }
-        }
-        Text {
-            visible: t.enVentana && t.siguiendo !== null
-            Layout.fillWidth: true
-            text: t.siguiendo ? "Siguiendo a " + (t.siguiendo.nombre || "la cara elegida") + " — " + t.siguiendo.estado : ""
-            color: t.siguiendo && t.siguiendo.estado.startsWith("perdida") ? Theme.warn : Theme.ok
-            font.pixelSize: 11; elide: Text.ElideRight
-        }
-
         // --- Joystick y zoom -----------------------------------------------------------------
         RowLayout {
             visible: t.cam !== null
             Layout.fillWidth: true
             spacing: 10
-            Rectangle {
-                id: pad
-                property real px: 0
-                property real py: 0
-                Layout.preferredWidth: 120; Layout.preferredHeight: 120
-                radius: 60
-                color: Qt.rgba(1, 1, 1, 0.05); border.color: Qt.rgba(1, 1, 1, 0.18)
-                Rectangle {
-                    width: 36; height: 36; radius: 18
-                    color: area.pressed ? Theme.accent : Qt.rgba(1, 1, 1, 0.22)
-                    x: pad.width / 2 - width / 2 + pad.px * (pad.width / 2 - 18)
-                    y: pad.height / 2 - height / 2 - pad.py * (pad.height / 2 - 18)
-                }
-                Timer {
-                    interval: 60; repeat: true; running: area.pressed
-                    onTriggered: t.cc.mover(t.entrada, pad.px * t.velocidad, pad.py * t.velocidad, 0)
-                }
-                MouseArea {
-                    id: area
-                    anchors.fill: parent
-                    preventStealing: true
-                    function leer(m) {
-                        let dx = (m.x - pad.width / 2) / (pad.width / 2 - 18)
-                        let dy = -(m.y - pad.height / 2) / (pad.height / 2 - 18)
-                        const r = Math.sqrt(dx * dx + dy * dy)
-                        if (r > 1) { dx /= r; dy /= r }
-                        pad.px = Math.abs(dx) < 0.08 ? 0 : dx
-                        pad.py = Math.abs(dy) < 0.08 ? 0 : dy
-                    }
-                    onPressed: (m) => { leer(m); t.avisar(t.cc.mover(t.entrada, pad.px * t.velocidad, pad.py * t.velocidad, 0)) }
-                    onPositionChanged: (m) => leer(m)
-                    onReleased: { pad.px = 0; pad.py = 0; t.cc.parar(t.entrada) }
-                    onCanceled: { pad.px = 0; pad.py = 0; t.cc.parar(t.entrada) }
-                }
-            }
+            Joystick { tarjeta: estaTarjeta; Layout.preferredWidth: 120; Layout.preferredHeight: 120 }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 6

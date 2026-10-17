@@ -447,7 +447,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             auto* ev = static_cast<EventoViewModel*>(vm.evento());
             if (ev == nullptr || ev->abierto().isEmpty())
                 return done(ToolResult::error(
-                    "No hay evento abierto: el acta es de un evento. Abri uno con `evento_abrir`."));
+                    "No hay evento abierto: el acta es de un evento. Abri uno con `guion_abrir`."));
             ConferenceViewModel* conf = salaDe();
             if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
 

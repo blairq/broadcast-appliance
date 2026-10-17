@@ -525,6 +525,7 @@ void Entrada::leer(const json& a) {
     alfa_ = alfaTipo || (fl.is_object() && fl.value("alfa", false));
     for (auto& f : leerFiltros(comoJson(a.value("filtros_audio", json()))))
         filtrosA_.push_back(std::move(f));
+    nombresUnicos(filtrosA_); // las dos listas de audio, juntas
 }
 
 bool Entrada::daVideo() const {
@@ -701,7 +702,9 @@ void Entrada::armar() {
         if (!sr.elemento.empty()) filtrosV.push_back(std::move(sr));
     }
     const bool usaGpu = gpuVideo();
-    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, usaGpu);
+    // La toma entera, antes del recorte del PTZ digital (productorEntera).
+    Derivacion entera{"ptz", id_ + ":entera:video", ""};
+    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, usaGpu, &entera);
     const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
     if (!cadenaV.empty() && !usaGpu) {
         // ANTES de `videorate` (no se procesa cada cuadro repetido), con una cola que
@@ -814,6 +817,9 @@ void Entrada::armar() {
             completo += std::string(completo.empty() ? "" : " ") + descripcionAudio_ + " ! queue ! " + cadenaA +
                         "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
     }
+    // La rama de la toma entera, si la rama de video quedó armada con su tee.
+    hayEntera_ = !entera.ramas.empty() && completo.find("name=ba_f_ptz_antes ") != std::string::npos;
+    if (hayEntera_) completo += entera.ramas;
     // La cadena entera al registro, una vez por cambio (con los reintentos no se repite):
     // es lo primero que hace falta cuando una entrada no anda.
     if (completo != cadenaRegistrada_) {
@@ -941,7 +947,10 @@ void Entrada::armar() {
             gst_object_unref(e);
         }
     sinRelojPropio(p);
-    if (!medio_) fuentesDePruebaEnHora(p, reloj_.ahora());
+    if (!medio_) {
+        fuentesDePruebaEnHora(p, reloj_.ahora());
+        horaDeCapturaEnAudio(p); // micrófonos y placas: con su hora de captura (sin su reloj no la ponen)
+    }
     if (medio_) {
         // Un archivo: el reloj del estudio pero su propio base_time (los saltos lo cambian).
         gst_pipeline_use_clock(GST_PIPELINE(p), reloj_.clock());
@@ -957,6 +966,7 @@ void Entrada::armar() {
         vistosDatos_ = 0;
         datosDesdeNs_ = ahoraNs();
         edadP50_ = edadP95_ = 0;
+        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = std::numeric_limits<double>::quiet_NaN();
         sale_ = json::object();
     }
     pipeline_ = p;
@@ -1106,6 +1116,20 @@ void Entrada::medirLatencia() {
             edadP50_ = v[v.size() / 2];
             edadP95_ = std::clamp(v[v.size() * 95 / 100], 0.0, 5000.0);
         }
+        // Por rama: `edades_` es el video (o el audio, si la entrada no tiene video).
+        const auto percentiles = [](const std::deque<double>& d, double& p50, double& p95) {
+            if (d.size() < 30) {
+                p50 = p95 = std::numeric_limits<double>::quiet_NaN();
+                return;
+            }
+            std::vector<double> v(d.begin(), d.end());
+            std::sort(v.begin(), v.end());
+            p50 = v[v.size() / 2];
+            p95 = v[v.size() * 95 / 100];
+        };
+        if (cuadros_ > 0) percentiles(edades_, edadVP50_, edadVP95_);
+        else edadVP50_ = edadVP95_ = std::numeric_limits<double>::quiet_NaN();
+        percentiles(edadesA_, edadAP50_, edadAP95_);
     }
     // Una fuente en vivo con SUS horas (empieza en 0, como videotestsrc, o un
     // emisor sin hora de captura): lo que entrega está corrido segundos del
@@ -1172,6 +1196,7 @@ void Entrada::medirLatencia() {
             edades_.clear();
             edadesA_.clear();
             edadP50_ = edadP95_ = 0;
+        edadVP50_ = edadVP95_ = edadAP50_ = edadAP95_ = std::numeric_limits<double>::quiet_NaN();
             medVAntes_ = medAAntes_ = 0;
             return;
         }
@@ -1670,6 +1695,10 @@ json Entrada::estadoYa() const {
         }
         j["edad_p50_ms"] = edadP50_;
         j["edad_p95_ms"] = edadP95_;
+        // Cuánto tardó desde la captura hasta salir de la entrada, el video y el audio por separado.
+        const auto edad = [](double p50, double p95) { return std::isnan(p50) ? json() : json{{"p50_ms", p50}, {"p95_ms", p95}}; };
+        j["edad_video"] = edad(edadVP50_, edadVP95_);
+        j["edad_audio"] = edad(edadAP50_, edadAP95_);
         j["origen"] = origen_;
         j["sale"] = sale_;
         j["sin_datos_s"] = ultimoDatoNs_ == 0 ? -1.0 : static_cast<double>(ahoraNs() - ultimoDatoNs_) / 1e9;
@@ -1685,6 +1714,7 @@ json Entrada::estadoYa() const {
     j["normalizado"] = normalizar_;
     j["alfa"] = alfa_;
     j["ntp_sync"] = ntpSync_ && !ntpApagadoSolo_;
+    j["ntp_apagado_solo"] = ntpApagadoSolo_; // la hora que mandaba estaba muy corrida: se dejó de usar sola
     j["filtros"] = estadoFiltros();
     return j;
 }

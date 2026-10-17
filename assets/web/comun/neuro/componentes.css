@@ -1,0 +1,131 @@
+/* ============================================================================
+   /comun/neuro/componentes.css — el estilo de los componentes de neuro.js
+
+   Cada componente lo enlaza adentro de su Shadow DOM (<link>): así funciona con la
+   CSP estricta de las consolas (default-src 'self': nada de <style> en línea). Es UN
+   archivo para todos, así que cada regla va limitada a su componente con :host(ba-…).
+   Solo materiales del tema (temas.css): nada de colores fijos salvo el blanco del
+   texto sobre el tally lleno.
+   ============================================================================ */
+
+/* --- Lo común ----------------------------------------------------------------- */
+:host { font-family: var(--fuente); color: var(--texto); -webkit-tap-highlight-color: transparent; }
+:host([hidden]) { display: none !important; }
+.relieve { background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve);
+               backdrop-filter: var(--filtro); -webkit-backdrop-filter: var(--filtro); }
+.hundido { background: var(--superficie-hundida); box-shadow: var(--hundido); border: 1px solid var(--borde); }
+.hundido-suave { background: var(--superficie-hundida); box-shadow: var(--hundido-suave); border: 1px solid var(--borde); }
+:focus { outline: none; }
+.numero { font-family: var(--fuente-numeros); font-variant-numeric: tabular-nums; }
+.etiqueta { font-size: 12px; color: var(--texto-suave); letter-spacing: 0.02em; }
+
+/* --- ba-boton -------------------------------------------------------------- */
+:host(ba-boton) { display: inline-block; }
+:host(ba-boton) button { appearance: none; -webkit-appearance: none; margin: 0; font: inherit; outline: none; box-sizing: border-box; background: var(--superficie); border: 1px solid var(--borde); box-shadow: var(--relieve); backdrop-filter: var(--filtro); -webkit-backdrop-filter: var(--filtro); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+                 min-height: 46px; min-width: 46px; padding: 0 20px; border-radius: var(--radio-chico); cursor: pointer;
+                 font-weight: 600; font-size: 15px; color: var(--texto); user-select: none; -webkit-user-select: none;
+                 transition: box-shadow .14s ease, transform .1s ease, color .14s; width: 100%; }
+:host(ba-boton[compacto]) button { min-height: 38px; min-width: 38px; padding: 0 14px; font-size: 13px; }
+:host(ba-boton[redondo]) button { border-radius: var(--radio-redondo); padding: 0; }
+:host(ba-boton[grande]) button { min-height: 64px; font-size: 18px; border-radius: var(--radio); }
+:host(ba-boton) button:hover { box-shadow: var(--relieve-alto); }
+:host(ba-boton) button:active, :host(ba-boton[activo]) button, :host(ba-boton) button.apretado { box-shadow: var(--hundido); background: var(--superficie-hundida); transform: translateY(1px); }
+:host(ba-boton) button:focus-visible { box-shadow: var(--relieve), 0 0 0 3px var(--foco); }
+:host(ba-boton[activo]) button { color: var(--acento); }
+:host(ba-boton[variante="acento"]) button { color: var(--acento); }
+:host(ba-boton[variante="aire"]) button { color: var(--aire); }
+:host(ba-boton[variante="armado"]) button { color: var(--armado); }
+:host(ba-boton[variante="peligro"]) button { color: var(--aire); }
+:host(ba-boton[activo][variante="aire"]) button { background: var(--aire); color: #fff; box-shadow: var(--hundido), 0 0 18px var(--aire); }
+:host(ba-boton[activo][variante="armado"]) button { background: var(--armado); color: #fff; box-shadow: var(--hundido), 0 0 14px var(--armado); }
+:host(ba-boton[activo][variante="acento"]) button { background: var(--acento); color: var(--acento-texto); }
+:host(ba-boton[deshabilitado]) button { opacity: .38; cursor: default; pointer-events: none; }
+:host(ba-boton) button.armado-confirmar { color: var(--aire); animation: latir 0.8s ease-in-out infinite alternate; }
+@keyframes latir { from { box-shadow: var(--relieve); } to { box-shadow: var(--relieve), 0 0 0 3px var(--aire); } }
+
+/* --- ba-toggle ------------------------------------------------------------- */
+:host(ba-toggle) { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; min-height: 44px; }
+:host(ba-toggle) .pista { width: 58px; height: 32px; border-radius: var(--radio-redondo); position: relative; transition: background .2s; }
+:host(ba-toggle) .perilla { position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; transition: left .2s ease, background .2s; }
+:host(ba-toggle[encendido]) .pista { background: var(--acento); box-shadow: var(--hundido-suave); }
+:host(ba-toggle[encendido]) .perilla { left: 30px; }
+:host(ba-toggle) .pista:focus-visible { box-shadow: var(--hundido-suave), 0 0 0 3px var(--foco); }
+
+/* --- ba-slider ------------------------------------------------------------- */
+:host(ba-slider) { display: block; min-width: 160px; }
+:host(ba-slider) .cabeza { display: flex; justify-content: space-between; margin-bottom: 10px; }
+:host(ba-slider) .valor { font-size: 13px; color: var(--texto); }
+:host(ba-slider) .pista { position: relative; height: 14px; border-radius: var(--radio-redondo); touch-action: none; cursor: pointer; }
+:host(ba-slider) .lleno { position: absolute; left: 3px; top: 3px; bottom: 3px; border-radius: var(--radio-redondo); background: var(--acento); opacity: .85; }
+:host(ba-slider) .perilla { position: absolute; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; }
+:host(ba-slider) .perilla::after { content: ""; position: absolute; inset: 10px; border-radius: 50%; background: var(--acento); opacity: .9; }
+:host(ba-slider) .pista:focus-visible .perilla { box-shadow: var(--relieve), 0 0 0 3px var(--foco); }
+
+/* --- ba-vumetro ------------------------------------------------------------ */
+:host(ba-vumetro) { display: block; width: 14px; height: 160px; }
+:host(ba-vumetro[orientacion="horizontal"]) { width: 160px; height: 14px; }
+:host(ba-vumetro) .caja { position: relative; width: 100%; height: 100%; border-radius: 7px; overflow: hidden; }
+:host(ba-vumetro) .barra { position: absolute; inset: 3px; border-radius: 4px; background: linear-gradient(to top, var(--vu-bajo) 0%, var(--vu-bajo) 70%, var(--vu-medio) 85%, var(--vu-alto) 100%); clip-path: inset(100% 0 0 0); }
+:host(ba-vumetro[orientacion="horizontal"]) .barra { background: linear-gradient(to right, var(--vu-bajo) 0%, var(--vu-bajo) 70%, var(--vu-medio) 85%, var(--vu-alto) 100%); clip-path: inset(0 100% 0 0); }
+:host(ba-vumetro) .pico { position: absolute; left: 3px; right: 3px; height: 2px; background: var(--texto); opacity: .85; }
+:host(ba-vumetro[orientacion="horizontal"]) .pico { top: 3px; bottom: 3px; width: 2px; height: auto; left: 0; right: auto; }
+
+/* --- ba-fader -------------------------------------------------------------- */
+:host(ba-fader) { display: inline-flex; flex-direction: column; align-items: center; gap: 10px; width: 78px; }
+:host(ba-fader) .cuerpo { display: flex; gap: 10px; height: var(--alto-fader, 220px); }
+:host(ba-fader) .pista { position: relative; width: 18px; height: 100%; border-radius: 9px; touch-action: none; cursor: pointer; }
+:host(ba-fader) .cero { position: absolute; left: -8px; right: -8px; height: 1px; background: var(--texto-tenue); }
+:host(ba-fader) .tapa { position: absolute; left: 50%; width: 44px; height: 26px; margin: -13px 0 0 -22px; border-radius: 8px; }
+:host(ba-fader) .tapa::after { content: ""; position: absolute; left: 8px; right: 8px; top: 12px; height: 2px; background: var(--acento); border-radius: 1px; }
+:host(ba-fader) .pista:focus-visible .tapa { box-shadow: var(--relieve), 0 0 0 3px var(--foco); }
+:host(ba-fader) ba-vumetro { height: 100%; width: 12px; }
+:host(ba-fader) .valor { font-size: 12px; min-height: 16px; }
+:host(ba-fader) .etiqueta { max-width: 78px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --- ba-perilla ------------------------------------------------------------ */
+:host(ba-perilla) { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; width: 88px; user-select: none; }
+:host(ba-perilla) .aro { position: relative; width: 72px; height: 72px; border-radius: 50%; touch-action: none; cursor: ns-resize; }
+:host(ba-perilla) svg { position: absolute; inset: -6px; width: 84px; height: 84px; pointer-events: none; }
+:host(ba-perilla) .base { fill: none; stroke: var(--superficie-hundida); stroke-width: 4; stroke-linecap: round; }
+:host(ba-perilla) .arco { fill: none; stroke: var(--acento); stroke-width: 4; stroke-linecap: round; }
+:host(ba-perilla) .boton { position: absolute; inset: 9px; border-radius: 50%; }
+:host(ba-perilla) .marca { position: absolute; left: 50%; top: 6px; width: 3px; height: 12px; margin-left: -1.5px; border-radius: 2px; background: var(--acento); transform-origin: 50% 21px; }
+:host(ba-perilla) .aro:focus-visible .boton { box-shadow: var(--relieve), 0 0 0 3px var(--foco); }
+:host(ba-perilla) .valor { font-size: 12px; }
+
+/* --- ba-joystick ----------------------------------------------------------- */
+:host(ba-joystick) { display: inline-block; width: var(--lado, 200px); height: var(--lado, 200px); }
+:host(ba-joystick) .base { position: relative; width: 100%; height: 100%; border-radius: 50%; touch-action: none; cursor: grab; }
+:host(ba-joystick) .cruz { position: absolute; inset: 18%; border-radius: 50%; border: 1px dashed var(--texto-tenue); opacity: .5; }
+:host(ba-joystick) .palanca { position: absolute; left: 50%; top: 50%; width: 38%; height: 38%; margin: -19% 0 0 -19%; border-radius: 50%; transition: transform .18s ease; }
+:host(ba-joystick) .palanca::after { content: ""; position: absolute; inset: 32%; border-radius: 50%; background: var(--acento); opacity: .85; }
+:host(ba-joystick) .base.agarrado { cursor: grabbing; }
+:host(ba-joystick) .base.agarrado .palanca { transition: none; }
+
+/* --- ba-tarjeta ------------------------------------------------------------ */
+:host(ba-tarjeta) { display: block; }
+:host(ba-tarjeta) .tarjeta { border-radius: var(--radio); padding: 16px 18px 18px; height: 100%; display: flex; flex-direction: column; }
+:host(ba-tarjeta) header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; min-height: 30px; }
+:host(ba-tarjeta) h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--texto-suave); font-weight: 650; flex: 1; }
+:host(ba-tarjeta) .ampliar { all: unset; cursor: pointer; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--texto-suave); font-size: 15px; }
+:host(ba-tarjeta) .ampliar:hover { color: var(--acento); box-shadow: var(--relieve-alto); }
+:host(ba-tarjeta) .ampliar:active { box-shadow: var(--hundido-suave); }
+:host(ba-tarjeta) .contenido { flex: 1; min-height: 0; }
+
+/* --- ba-chip --------------------------------------------------------------- */
+:host(ba-chip) { display: inline-flex; }
+:host(ba-chip) span { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: var(--radio-redondo); font-size: 12px; font-weight: 600; color: var(--texto-suave); }
+:host(ba-chip) i { width: 8px; height: 8px; border-radius: 50%; background: var(--texto-tenue); }
+:host(ba-chip[estado="ok"]) i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+:host(ba-chip[estado="aviso"]) i { background: var(--aviso); box-shadow: 0 0 8px var(--aviso); }
+:host(ba-chip[estado="aire"]) i { background: var(--aire); box-shadow: 0 0 10px var(--aire); }
+:host(ba-chip[estado="armado"]) i { background: var(--armado); box-shadow: 0 0 8px var(--armado); }
+:host(ba-chip[estado="aire"]) span { color: var(--aire); }
+
+/* --- ba-tally -------------------------------------------------------------- */
+:host(ba-tally) { display: inline-flex; }
+:host(ba-tally) span { padding: 6px 14px; border-radius: var(--radio-chico); font-weight: 800; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-tenue); }
+:host(ba-tally[estado="aire"]) span { background: var(--aire); color: #fff; box-shadow: 0 0 18px var(--aire); }
+:host(ba-tally[estado="armado"]) span { background: var(--armado); color: #fff; box-shadow: 0 0 12px var(--armado); }
+
+:host(ba-tarjeta) .ampliar[hidden] { display: none; }

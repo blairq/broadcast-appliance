@@ -1,0 +1,27 @@
+{
+  "nombre": "Bandera argentina",
+  "descripcion": "La bandera flameando, chica y con transparencia: una mosca para arriba a la derecha. Va en bucle (la vuelta dura lo mismo que una onda, sin saltos).",
+  "ancho": 240,
+  "alto": 160,
+  "duracionMs": 2000,
+  "parametros": [
+    {
+      "clave": "opacidad",
+      "titulo": "Opacidad",
+      "tipo": "numero",
+      "porDefecto": 0.82,
+      "minimo": 0.2,
+      "maximo": 1,
+      "ayuda": "1 = sólida. Una mosca suele ir entre 0.7 y 0.9 para no tapar."
+    },
+    {
+      "clave": "ondas",
+      "titulo": "Cuánto flamea",
+      "tipo": "numero",
+      "porDefecto": 1,
+      "minimo": 0,
+      "maximo": 2,
+      "ayuda": "0 = quieta; 1 = viento suave; 2 = viento fuerte."
+    }
+  ]
+}

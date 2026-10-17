@@ -30,6 +30,9 @@ namespace ba::app {
 
 class AppRuntime;
 class ConferenceClient;
+namespace sala {
+class Direcciones;
+}
 
 class AccesoRemoto : public QObject {
     Q_OBJECT
@@ -66,6 +69,8 @@ class AccesoRemoto : public QObject {
 
     QVariantMap estado() const { return estado_; }
     QVariantList enlaces() const { return enlaces_; }
+    /// De dónde salen los enlaces de afuera (sala/Direcciones): la única fuente.
+    void setDirecciones(const sala::Direcciones* d);
     bool tokenGuardado() const;
     bool apiKeyGuardada() const;
     bool clavesIguales() const;
@@ -151,6 +156,8 @@ class AccesoRemoto : public QObject {
     int observador_ = -1;          ///< AppRuntime::observar (Ajustes: cambió pinggy o Cloudflare)
     QVariantMap estado_;
     QVariantList enlaces_;
+    const sala::Direcciones* dir_ = nullptr;
+    QVariantList enlacesDeAfuera() const;
     QVariantMap dns_;
     QVariantMap panel_;
     QVariantMap prueba_;

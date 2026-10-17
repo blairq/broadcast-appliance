@@ -47,7 +47,16 @@ int main(int argc, char** argv) {
     int cortes = 0;
     QObject::connect(&s, &asamblea::SesionRemota::cortar, [&](const QString&, const QString&) { ++cortes; });
 
-    s.setOrigen("https://sesion.ejemplo.org");
+    // La consola de la presidencia: sin origen no se entrega un link roto («/presidencia/#…»).
+    CHECK(s.generarConsola("Presidencia").contains("error") && s.consolas().empty(),
+          "sin origen, el acceso a la consola no se crea");
+    s.setOrigenes("https://sesion.ejemplo.org", "");
+    {
+        const json k = s.generarConsola("Presidencia");
+        CHECK(k.value("link", std::string()).rfind("https://sesion.ejemplo.org/presidencia/#c=", 0) == 0,
+              "el link de la consola lleva el origen");
+        s.revocarConsola(k.value("id", std::string()));
+    }
     const json c = s.generar(ana);
     CHECK(c.value("pin", std::string()).size() == 6, "PIN de 6 dígitos");
     const std::string link = c.value("link", std::string());

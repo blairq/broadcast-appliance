@@ -74,7 +74,11 @@ Item {
             Text { text: "Escena: " + Studio.currentScene + "   ·   " + Studio.canvasLabel; color: Theme.textDim; font.pixelSize: 12 }
         }
         Item { Layout.fillWidth: true }
-        StatusPill { text: Studio.streaming ? "AL AIRE  " + Studio.streamTime : "FUERA DEL AIRE"; dot: Theme.live; on: Studio.streaming; pulse: true }
+        // Al aire = sale algo (Studio.alAire), igual que el cartel de arriba de las otras páginas.
+        StatusPill { text: Studio.reconnecting ? "RECONECTANDO"
+                           : Studio.transmitiendo ? "AL AIRE" + (Studio.streaming ? "  " + Studio.streamTime : "")
+                           : Studio.alAire ? "AL AIRE · GRABANDO" : "FUERA DEL AIRE"
+                     dot: Studio.reconnecting ? Theme.amber : Theme.live; on: Studio.alAire || Studio.reconnecting; pulse: true }
         StatusPill { text: Studio.recording ? "REC  " + Studio.recordTime : "REC"; dot: Theme.accent; on: Studio.recording; pulse: true }
         // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
         // una cifra a dos se ensancha y encoge varias veces por segundo,
@@ -199,7 +203,7 @@ Item {
     Item {
         id: cardArea
         anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: parent.bottom
-                  leftMargin: page.leftInset; rightMargin: 12; topMargin: 8; bottomMargin: 12 }
+                  leftMargin: page.leftInset; rightMargin: barraTarjetas.anchoCerrada + 20; topMargin: 8; bottomMargin: 12 }
 
         // Grilla de encaje: solo mientras se mueve o redimensiona una tarjeta.
         Canvas {
@@ -336,5 +340,13 @@ Item {
                 Binding { target: content.item; property: "source"; value: card.source; when: content.status === Loader.Ready && (card.kind === "monitor" || card.kind === "ptz") }
             }
         }
+    }
+
+    // --- Barra de tarjetas: abrir cada una como tarjeta o como ventana -----------------
+    // Encima de las tarjetas (desplegada las tapa un rato; cerrada, tiene su lugar).
+    BarraTarjetas {
+        id: barraTarjetas
+        z: 20
+        anchors { right: parent.right; top: top.bottom; rightMargin: 12; topMargin: 8 }
     }
 }

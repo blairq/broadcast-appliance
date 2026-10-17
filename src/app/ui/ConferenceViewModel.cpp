@@ -694,15 +694,6 @@ void ConferenceViewModel::desbloquearPin(const QString& ip) {
 
 void ConferenceViewModel::removeShare(const QString& id) { control_->borrarArchivo(ss(id)); }
 
-void ConferenceViewModel::openWebConsole() {
-    QPointer<ConferenceViewModel> yo(this);
-    control_->codigoConsolaWeb([yo](const std::string& err, const nlohmann::json& r) {
-        if (!yo) return;
-        if (err.empty() && QDesktopServices::openUrl(QUrl(qs(r.value("url", std::string()))))) return;
-        emit yo->notify("No se pudo abrir la consola web", "error");
-    });
-}
-
 void ConferenceViewModel::takeShare(const QString& id) {
     // Las reglas (copia propia en Media/, el nombre, el tipo de fuente) son del
     // modelo, el mismo que usa el MCP (share_take).

@@ -54,6 +54,13 @@ class Bancas : public QObject {
         std::function<void(const std::string& id, bool palabra, int segundos)> palabraRemota;
         /// La fila cambió (para avisarle a cada remoto su turno).
         std::function<void(const std::vector<std::string>& cola, const std::string& alAire)> filaCambio;
+        /// La fuente «Banca con la palabra» ya encuadra esta toma recortando la toma
+        /// entera (posición digital, hay escenas con la fuente): no hay que mover nada.
+        std::function<bool(const std::string& camara, const std::string& posicion)> laEncuadraLaFuente;
+        /// La escena que muestra la ranura `n` de la fuente de banca ("" si ninguna).
+        std::function<std::string(int ranura)> escenaDeRanura;
+        /// Las posiciones con ese nombre en todas las cámaras: [{camara, posicion}].
+        std::function<std::vector<std::pair<std::string, std::string>>(const std::string& nombre)> posicionesConNombre;
     };
     Bancas(Cuerpo& cuerpo, Ganchos g, QObject* parent = nullptr);
 
@@ -73,6 +80,19 @@ class Bancas : public QObject {
     /// sin armar ni abrir micrófonos. No mueve la cámara que está al aire.
     /// "" o el error.
     Q_INVOKABLE QString apuntar(const QString& clave);
+    /// Para el debate: deja lista la toma de la banca. Si la fuente de banca la
+    /// encuadra sola (digital), no mueve nada; si es motorizada, la mueve (si no
+    /// está al aire). "" o el error.
+    Q_INVOKABLE QString prepararToma(const QString& clave);
+    /// ENFOCAR: lleva la cámara a lo que se pida, de palabra: «banca 10», «10»,
+    /// «Pepito López» (o solo «López», sin tildes) o el nombre de una posición de
+    /// cualquier cámara («Presidencia»). Solo apunta (no da la palabra). Con la
+    /// cámara al aire no se mueve salvo `forzar`. "" o el error.
+    Q_INVOKABLE QString enfocar(const QString& que, bool forzar = false);
+    /// Lo que entendería `enfocar`, sin mover nada: {tipo: banca|persona|posicion,
+    /// banca?, integrante?: {id, nombre}, camara, posicion} o {error, candidatos?}.
+    nlohmann::json resolver(const std::string& que) const;
+
     /// La primera de la fila al aire.
     Q_INVOKABLE QString siguiente(const QString& modo = "armar");
     /// El tiempo de cada uno al darle la palabra (de fábrica, 3 minutos). Se guarda.

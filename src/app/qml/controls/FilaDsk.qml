@@ -24,7 +24,7 @@ Flow {
                 text: "Es una capa fija (por ejemplo, el intérprete de lengua de señas): sale de la transmisión.",
                 accept: "Bajarla", reject: "Cancelar", action: () => hacer(true)
             })
-        else if (subir && Studio.alAire())
+        else if (subir && Studio.alAire)
             ApplicationWindow.window.confirm({
                 title: "¿Subir «" + c.nombre + "»?", text: "Se ve en la transmisión y en la grabación.",
                 accept: "Subir", reject: "Cancelar", action: () => hacer(false)

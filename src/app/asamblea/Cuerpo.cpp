@@ -60,16 +60,76 @@ std::vector<std::string> campos(const std::string& linea, char sep) {
     return out;
 }
 
-const char* kCampos[] = {"persona_id", "nombre", "cargo_oficial", "bloque", "distrito",
-                         "banca",      "foto",   "preset_ptz",    "microfono", "dcn_unidad"};
+// (preset_ptz no: es la toma de la banca, ver Cuerpo::guardar.)
+const char* kCampos[] = {"persona_id", "nombre", "cargo_oficial", "bloque",    "distrito",
+                         "banca",      "foto",   "microfono",     "dcn_unidad"};
 
 } // namespace
+
+std::string Cuerpo::normalizar(const std::string& s) { return plano(s); }
 
 Cuerpo::Cuerpo(fs::path config) : archivo_(std::move(config)) {
     std::ifstream f(archivo_);
     const json j = json::parse(f, nullptr, false);
     datos_ = j.is_object() ? j : json{{"nombre", ""}, {"integrantes", json::array()}};
     if (!datos_.contains("integrantes") || !datos_["integrantes"].is_array()) datos_["integrantes"] = json::array();
+    if (!datos_.contains("tomas") || !datos_["tomas"].is_object()) datos_["tomas"] = json::object();
+    // Antes la toma era de la persona: pasa a su banca (una vez; la de la banca gana).
+    bool migro = false;
+    for (auto& i : datos_["integrantes"]) {
+        if (!i.contains("preset_ptz")) continue;
+        const json p = i["preset_ptz"];
+        const std::string banca = i.value("banca", std::string());
+        if (p.is_object() && !p.value("camara", std::string()).empty() && !banca.empty() && toma(banca).empty())
+            datos_["tomas"][banca] = {{"camara", p.value("camara", std::string())}, {"posicion", p.value("posicion", std::string())}};
+        i.erase("preset_ptz");
+        migro = true;
+    }
+    if (migro) guardarArchivo();
+}
+
+std::string Cuerpo::claveToma(const std::string& banca) const {
+    const std::string k = plano(banca);
+    if (k.empty()) return {};
+    const json tomas = datos_.value("tomas", json::object()); // (no recorrer un temporal)
+    for (const auto& [clave, v] : tomas.items())
+        if (plano(clave) == k) return clave;
+    return {};
+}
+
+json Cuerpo::toma(const std::string& banca) const {
+    const std::string k = claveToma(banca);
+    if (k.empty()) return json::object();
+    const json t = datos_["tomas"][k];
+    return t.is_object() && !t.value("camara", std::string()).empty() ? t : json::object();
+}
+
+std::string Cuerpo::ponerToma(const std::string& banca, const std::string& camara, const std::string& posicion) {
+    if (plano(banca).empty()) return "falta la banca";
+    if (!camara.empty() && posicion.empty()) return "falta la posición de la cámara";
+    const std::string ya = claveToma(banca);
+    if (!ya.empty()) datos_["tomas"].erase(ya);
+    if (!camara.empty()) datos_["tomas"][ya.empty() ? banca : ya] = {{"camara", camara}, {"posicion", posicion}};
+    return {};
+}
+
+std::string Cuerpo::setToma(const std::string& banca, const std::string& camara, const std::string& posicion) {
+    const std::string e = ponerToma(banca, camara, posicion);
+    if (e.empty()) guardarArchivo();
+    return e;
+}
+
+json Cuerpo::conToma(json i) const {
+    if (!i.is_object()) return i;
+    const json t = toma(i.value("banca", std::string()));
+    if (!t.empty()) i["preset_ptz"] = t;
+    return i;
+}
+
+json Cuerpo::integrantes() const {
+    json out = json::array();
+    for (const auto& i : datos_.value("integrantes", json::array())) out.push_back(conToma(i));
+    return out;
 }
 
 void Cuerpo::guardarArchivo() const {
@@ -93,6 +153,7 @@ json Cuerpo::recinto(bool completo) const {
     std::vector<std::string> ubicadas;
     for (const auto& b : r.value("bancas", json::array())) {
         json lugar{{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}};
+        if (const json t = toma(lugar["banca"].get<std::string>()); !t.empty()) lugar["toma"] = t;
         ubicadas.push_back(plano(lugar["banca"].get<std::string>()));
         if (completo) {
             const json i = buscar(lugar["banca"].get<std::string>());
@@ -198,7 +259,7 @@ json Cuerpo::buscar(const std::string& clave) const {
     for (const auto& i : datos_["integrantes"])
         if (i.value("id", std::string()) == clave || plano(i.value("banca", std::string())) == k ||
             plano(i.value("nombre", std::string())) == k)
-            return i;
+            return conToma(i);
     return json::object();
 }
 
@@ -207,6 +268,29 @@ std::string Cuerpo::guardar(const json& c, std::string* error) {
     json* x = nullptr;
     for (auto& i : datos_["integrantes"])
         if (!id.empty() && i.value("id", std::string()) == id) x = &i;
+    // Todo lo que puede fallar, ANTES de crear: un integrante nuevo que no pasa la
+    // validación no tiene que quedar a medias en la lista (se guardaba con el próximo cambio).
+    if (c.contains("banca") && !c.value("banca", std::string()).empty()) {
+        const json otro = buscar(c.value("banca", std::string()));
+        if (!otro.empty() && otro.value("id", std::string()) != id &&
+            plano(otro.value("banca", std::string())) == plano(c.value("banca", std::string()))) {
+            if (error) *error = "la banca «" + c.value("banca", std::string()) + "» ya es de " + otro.value("nombre", std::string());
+            return {};
+        }
+    }
+    if (c.contains("preset_ptz") && c["preset_ptz"].is_object() && !c["preset_ptz"].value("camara", std::string()).empty()) {
+        const std::string banca = c.contains("banca") ? c.value("banca", std::string())
+                                  : x != nullptr      ? (*x).value("banca", std::string())
+                                                      : std::string();
+        if (banca.empty()) {
+            if (error) *error = "sin banca no hay toma de cámara: poné primero su banca";
+            return {};
+        }
+        if (c["preset_ptz"].value("posicion", std::string()).empty()) {
+            if (error) *error = "falta la posición de la cámara";
+            return {};
+        }
+    }
     if (x == nullptr) {
         if (c.value("nombre", std::string()).empty()) {
             if (error) *error = "falta el nombre";
@@ -221,14 +305,12 @@ std::string Cuerpo::guardar(const json& c, std::string* error) {
         datos_["integrantes"].push_back(json{{"id", id}});
         x = &datos_["integrantes"].back();
     }
-    // La banca es única: si otra la tiene, error.
-    if (c.contains("banca") && !c.value("banca", std::string()).empty()) {
-        const json otro = buscar(c.value("banca", std::string()));
-        if (!otro.empty() && otro.value("id", std::string()) != id &&
-            plano(otro.value("banca", std::string())) == plano(c.value("banca", std::string()))) {
-            if (error) *error = "la banca «" + c.value("banca", std::string()) + "» ya es de " + otro.value("nombre", std::string());
-            return {};
-        }
+    // La toma (preset_ptz) es de la banca: la de este integrante, la nueva si la cambia.
+    if (c.contains("preset_ptz")) {
+        const std::string banca = c.contains("banca") ? c.value("banca", std::string()) : (*x).value("banca", std::string());
+        const json p = c["preset_ptz"].is_object() ? c["preset_ptz"] : json::object();
+        // (Validado arriba: no falla.) Se guarda abajo, con lo demás.
+        if (!banca.empty()) ponerToma(banca, p.value("camara", std::string()), p.value("posicion", std::string()));
     }
     bool cambioVisible = false;
     for (const char* k : kCampos)

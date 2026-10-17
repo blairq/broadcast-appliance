@@ -174,8 +174,10 @@ class Botonera : public QObject {
     /// "" o el error (código inválido, vencido o ya usado).
     std::string solicitud(const std::string& solicitud, const std::string& codigo, const std::string& nombre,
                    const std::string& ip);
-    /// Aprueba (genera el token y devuelve {dispositivo, token}) o rechaza.
-    json resolverSolicitud(const std::string& solicitud, bool aprobar);
+    /// Aprueba (genera el token y devuelve {dispositivo, token}) o rechaza. `perfil`
+    /// (id), si no va vacío, reemplaza al del código: la persona que aprueba elige
+    /// con qué perfil entra el aparato.
+    json resolverSolicitud(const std::string& solicitud, bool aprobar, const std::string& perfil = {});
 
     // --- Lo que llega de un aparato ----------------------------------------------------
     /// {type: presionar|soltar|valor|girar|pagina|confirmar|hola, x, y, v, delta, id}.

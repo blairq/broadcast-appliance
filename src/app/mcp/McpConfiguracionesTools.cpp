@@ -104,6 +104,65 @@ void McpService::registerConfiguracionesTools() {
     }
     {
         Tool t;
+        t.name = "evento_borrar";
+        t.title = "Borrar un evento (a la papelera)";
+        t.category = "eventos";
+        t.destructive = true;
+        t.description = "Manda el evento `nombre` a la papelera con TODO lo suyo (escenas, medios, grabaciones, "
+                        "historial…). El abierto no se borra, ni uno que se esté copiando. Se puede recuperar con "
+                        "evento_recuperar hasta que se vacíe la papelera (sola, al mes). Confirmá con el operador cuál "
+                        "es antes: el nombre exacto sale de eventos_listar (si es plantilla, decíselo).";
+        t.inputSchema = {{"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
+        t.run = [cf](const json& a, Done done) {
+            const std::string n = a.value("nombre", std::string());
+            bool eraPlantilla = false;
+            for (const json& e : cf->listar())
+                if (e.value("nombre", std::string()) == n) eraPlantilla = e.value("plantilla", false);
+            if (const std::string e = cf->borrar(n); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("«" + n + "» quedó en la papelera (evento_recuperar lo devuelve; a los " +
+                                std::to_string(Configuraciones::kDiasPapelera) + " días se borra solo)." +
+                                (eraPlantilla ? " Era plantilla: ya no aparece en «Evento nuevo › desde una plantilla»."
+                                              : ""))
+                     .data({{"eventos", cf->listar()}, {"papelera", cf->papelera()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_recuperar";
+        t.title = "Recuperar un evento borrado";
+        t.category = "eventos";
+        t.description = "Sin `id`: lo que hay en la papelera (lo último primero). Con `id` (de esa lista): lo vuelve a "
+                        "la lista de eventos con su nombre de antes, o con `como` si ese nombre ya está usado.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"id", {{"type", "string"}}}, {"como", {{"type", "string"}}}}}};
+        t.run = [cf](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            if (id.empty()) return done(ToolResult().data({{"papelera", cf->papelera()}}));
+            if (const std::string e = cf->recuperar(id, a.value("como", std::string())); !e.empty())
+                return done(ToolResult::error(e));
+            done(ToolResult::ok("Recuperado.").data({{"eventos", cf->listar()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_papelera_vaciar";
+        t.title = "Vaciar la papelera de eventos (borrar de verdad)";
+        t.category = "eventos";
+        t.destructive = true;
+        t.description = "Borra DEFINITIVAMENTE de la papelera el `id` (de evento_recuperar), o todo si no viene: libera "
+                        "el disco y ya no se puede recuperar. Pedile confirmación al operador (con cuánto ocupa).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [cf](const json& a, Done done) {
+            if (const std::string e = cf->vaciarPapelera(a.value("id", std::string())); !e.empty())
+                return done(ToolResult::error(e));
+            done(ToolResult::ok("Borrando (en segundo plano)."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "configuraciones_listar";
         t.title = "Las configuraciones";
         t.category = "configuraciones";

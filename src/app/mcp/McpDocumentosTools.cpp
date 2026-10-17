@@ -28,7 +28,7 @@ void McpService::registerDocumentosTools() {
     const json relaciones = {
         {"puntos", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", "números de punto del orden del día"}}},
         {"secciones", {{"type", "array"}, {"items", {{"type", "string"}}},
-                       {"description", "secciones del guion: el id del bloque (evento_ver) o su número"}}},
+                       {"description", "secciones del guion: el id del bloque (guion_ver) o su número"}}},
         {"publico", {{"type", "boolean"}, {"description", "si la web del evento lo muestra y deja bajar (por defecto sí)"}}},
         {"pagina_tapa", {{"type", "integer"}, {"description", "la página del PDF que hace de carátula (1 = la primera); se rehace la miniatura"}}}};
     {

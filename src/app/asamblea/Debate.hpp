@@ -87,6 +87,12 @@ class Debate : public QObject {
     }
     bool activo() const { return activo_; }
     bool participa(const std::string& id) const { return activo_ && (id == a_ || id == b_); }
+    /// Los dos del debate (ids del Cuerpo) y si hablan desde el navegador: la fuente
+    /// «Banca con la palabra» muestra A en la ranura 1 y B en la 2.
+    std::string idA() const { return activo_ ? a_ : std::string(); }
+    std::string idB() const { return activo_ ? b_ : std::string(); }
+    bool aEsRemoto() const { return aRemoto_; }
+    bool bEsRemoto() const { return bRemoto_; }
 
     /// {escenas: {sala_sala, sala_remoto, remoto_remoto}, turno_s, directo}: se mezcla y se guarda.
     std::string configurar(const json& cambios);

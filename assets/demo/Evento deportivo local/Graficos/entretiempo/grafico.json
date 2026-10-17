@@ -1,0 +1,47 @@
+{
+  "nombre": "Entretiempo",
+  "descripcion": "La placa del entretiempo. Estilo «Deportivo».",
+  "categoria": "De la plantilla",
+  "ancho": 1600,
+  "alto": 620,
+  "duracionMs": 2000,
+  "parametros": [
+    {
+      "clave": "etiqueta",
+      "titulo": "Etiqueta",
+      "tipo": "texto",
+      "porDefecto": "Entretiempo",
+      "ayuda": "El renglón chico de arriba, en mayúsculas."
+    },
+    {
+      "clave": "titulo",
+      "titulo": "Título",
+      "tipo": "texto",
+      "porDefecto": "‹Local› 0 - 0 ‹Visitante›",
+      "ayuda": ""
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Bajada",
+      "tipo": "texto",
+      "porDefecto": "Ya vuelve el segundo tiempo",
+      "ayuda": ""
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "ayuda": "El color del evento.",
+      "porDefecto": "#22c55e"
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ]
+}

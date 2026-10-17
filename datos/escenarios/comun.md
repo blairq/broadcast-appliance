@@ -45,7 +45,7 @@ Siempre, en cualquier evento:
 7. La página web del evento (evento_web): título, descripción, imagen liviana, documentos.
 8. Música (media_list, playlist_crear), logos y escudos (capas DSK: dsk_definir), traducción
    (traduccion_agregar) si hace falta.
-9. El guion con sus cues (evento_cue) y la lista de chequeo (evento_verificar).
+9. El guion con sus cues (guion_cue) y la lista de chequeo (evento_verificar).
 
 ## 3. Verificá ANTES de invitar a nadie
 

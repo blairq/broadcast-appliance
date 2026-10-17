@@ -1,14 +1,8 @@
-// Zócalo: el nombre y el cargo de quien habla.
-//
-// Entra deslizándose de izquierda a derecha, el texto aparece escalonado
-// detrás, y con `salidaEn` se va con desenfoque.
-//
-// Todo lo que el operador puede cambiar está declarado como propiedad acá
-// arriba, y repetido en grafico.json: de ahí salen el formulario de la
-// interfaz, los campos del cue del guion y el esquema de la herramienta MCP.
+// Zócalo «Neón»: el nombre y el cargo de quien habla, abajo a la izquierda.
+// Generado por tools/generar/plantillas.py para la plantilla «Transmisión de juegos (streamer)» (no editar acá:
+// se regenera; para cambiarlo, el molde tools/generar/graficos-plantilla/zocalo.qml).
 import QtQuick
 import QtQuick.Effects
-import QtQuick.Shapes
 
 Item {
     id: raiz
@@ -16,130 +10,170 @@ Item {
     height: 220
 
     // --- Parámetros -----------------------------------------------------------
-    property string nombre: "Nombre Apellido"
-    property string cargo: "Cargo o procedencia"
-    property color acento: "#ff6a2b"
-    property int duracionEntrada: 450
-    /// Cuándo empieza a irse, en ms desde el principio. 0 = se queda.
+    property string nombre: "‹Nombre›"
+    property string cargo: "‹Cargo›"
+    property color acento: "#a855f7"
+    property int duracionEntrada: 500
+    /// Cuándo empieza a irse, en ms desde que entró. 0 = se queda.
     property int salidaEn: 0
 
-    // El contenido se dibuja a través del efecto, así que este item no se
-    // mueve nunca: quien se desliza es el MultiEffect. Mover el ORIGEN de un
-    // efecto no mueve nada, porque el efecto lo muestrea en su propio
-    // rectángulo — cuesta un rato darse cuenta.
+    // --- Estilo de la plantilla -------------------------------------------------
+    readonly property string forma: "neon"
+    readonly property string entrada: "crece"
+    readonly property color panel: "#0a0014"
+    readonly property color acento2: "#22d3ee"
+    readonly property color texto: "#ffffff"
+    readonly property color texto2: "#67e8f9"
+    readonly property string familia: "Rubik"
+    readonly property string familiaTitulo: "Rubik"
+    readonly property real alto: 124
+    readonly property real ancho: Math.min(width - 40, Math.max(txtNombre.implicitWidth, txtCargo.implicitWidth) + 96)
+
     Item {
         id: contenido
         width: raiz.width
         height: raiz.height
         visible: false
 
-        // La barra de acento, en vector (Shape): escala sin pixelarse y se le
-        // puede animar la forma.
-        Shape {
-            id: barra
-            x: 0
-            anchors { bottom: parent.bottom; bottomMargin: 30 }
-            width: 12
-            height: 120
-            ShapePath {
-                fillColor: raiz.acento
-                strokeWidth: 0
-                startX: 0; startY: 0
-                PathLine { x: 12; y: 0 }
-                PathLine { x: 12; y: 120 }
-                PathLine { x: 0; y: 120 }
-                PathLine { x: 0; y: 0 }
-            }
-        }
-
+        // El panel. En «diagonal» va inclinado (el texto no).
         Rectangle {
             id: fondo
-            anchors { left: barra.right; bottom: parent.bottom; bottomMargin: 30 }
-            width: Math.max(txtNombre.implicitWidth, txtCargo.implicitWidth) + 56
-            height: 120
-            color: "#12151a"
-            opacity: 0.93
+            x: raiz.forma === "diagonal" ? 18 : 0
+            y: raiz.height - raiz.alto - 30
+            width: raiz.ancho
+            height: raiz.alto
+            radius: raiz.forma === "pildora" ? height / 2 : 12
+            color: raiz.panel
+            opacity: 0.94
+            border.width: raiz.forma === "neon" ? 2 : 0
+            border.color: raiz.acento
+            antialiasing: true
+            transform: Matrix4x4 {
+                matrix: raiz.forma === "diagonal" ? Qt.matrix4x4(1, -0.22, 0, raiz.alto * 0.22, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+                                                  : Qt.matrix4x4()
+            }
         }
-
+        // El acento: barra a la izquierda (barra, neon), punto (pildora), franja inclinada (diagonal).
+        Rectangle {
+            visible: raiz.forma === "barra" || raiz.forma === "diagonal"
+            x: raiz.forma === "diagonal" ? fondo.x - 4 : 0
+            y: fondo.y
+            width: raiz.forma === "diagonal" ? 14 : 10
+            height: raiz.alto
+            color: raiz.acento
+            antialiasing: true
+            transform: Matrix4x4 {
+                matrix: raiz.forma === "diagonal" ? Qt.matrix4x4(1, -0.22, 0, raiz.alto * 0.22, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+                                                  : Qt.matrix4x4()
+            }
+        }
+        Rectangle {
+            visible: raiz.forma === "pildora"
+            x: fondo.x + 26
+            y: fondo.y + fondo.height / 2 - 11
+            width: 22; height: 22; radius: 11
+            color: raiz.acento
+        }
         Text {
             id: txtNombre
-            anchors { left: fondo.left; leftMargin: 28; top: fondo.top; topMargin: 20 }
+            x: fondo.x + (raiz.forma === "pildora" ? 64 : raiz.forma === "diagonal" ? 52 : 34)
+            y: fondo.y + 18
             text: raiz.nombre
-            color: "white"
-            font { family: "Inter, Noto Sans, DejaVu Sans, Sans"; pixelSize: 44; weight: Font.DemiBold }
-            // Sobre transparencia el suavizado subpíxel deja flecos de color.
+            color: raiz.texto
+            font { family: raiz.familiaTitulo; pixelSize: 44; weight: Font.Bold; italic: raiz.forma === "diagonal" }
             renderType: Text.QtRendering
             opacity: 0
         }
-
+        // «filete»: una línea fina del segundo color entre el nombre y el cargo.
+        Rectangle {
+            id: filete
+            visible: raiz.forma === "filete"
+            x: txtNombre.x
+            y: txtNombre.y + txtNombre.height + 2
+            width: 0
+            height: 2
+            color: raiz.acento2
+        }
         Text {
             id: txtCargo
-            anchors { left: fondo.left; leftMargin: 28; top: txtNombre.bottom; topMargin: 2 }
+            x: txtNombre.x
+            y: txtNombre.y + txtNombre.height + (raiz.forma === "filete" ? 8 : 0)
             text: raiz.cargo
-            color: "#b9c0c6"
-            font { family: "Inter, Noto Sans, DejaVu Sans, Sans"; pixelSize: 24 }
+            color: raiz.texto2
+            font { family: raiz.familia; pixelSize: 24; letterSpacing: raiz.forma === "filete" ? 1.5 : 0;
+                   capitalization: raiz.forma === "filete" ? Font.AllUppercase : Font.MixedCase }
             renderType: Text.QtRendering
             opacity: 0
         }
     }
 
-    // Esto es lo que se ve: el contenido pasado por el efecto. Se desliza y se
-    // desvanece ACÁ.
-    MultiEffect {
-        id: efecto
-        source: contenido
+    // Lo que se ve: el contenido por el efecto (sombra; en «neon», un halo del acento).
+    Item {
+        id: marco
         width: raiz.width
         height: raiz.height
-        blurEnabled: blur > 0
-        blurMax: 48
+        clip: raiz.entrada === "revela"
+        property real revelado: 1
+        MultiEffect {
+            id: efecto
+            source: contenido
+            width: raiz.width
+            height: raiz.height
+            x: raiz.entrada === "revela" ? -raiz.width * (1 - marco.revelado) : 0
+            shadowEnabled: true
+            shadowColor: raiz.forma === "neon" ? raiz.acento : "#000000"
+            shadowBlur: raiz.forma === "neon" ? 0.9 : 0.5
+            shadowOpacity: raiz.forma === "neon" ? 0.9 : 0.45
+            shadowVerticalOffset: raiz.forma === "neon" ? 0 : 4
+            blurEnabled: blur > 0
+            blurMax: 40
+            transformOrigin: Item.BottomLeft
+        }
     }
 
-    // --- La animación -----------------------------------------------------------
-    // Arranca sola al crearse: el motor dibuja adelantando el reloj, así que
-    // el instante 0 es el principio de esto.
+    // --- La entrada ---------------------------------------------------------------
     SequentialAnimation {
         running: true
-
         ParallelAnimation {
-            // El conjunto entra desde fuera de cuadro, hacia la derecha.
+            NumberAnimation { target: efecto; property: "opacity"; from: 0; to: 1; duration: Math.round(raiz.duracionEntrada * 0.6) }
             NumberAnimation {
-                target: efecto; property: "x"
-                from: -raiz.width * 0.5; to: 0
-                duration: raiz.duracionEntrada
-                easing.type: Easing.OutCubic
+                target: marco; property: "x"; easing.type: Easing.OutCubic; duration: raiz.duracionEntrada
+                from: raiz.entrada === "desliza" ? -raiz.width * 0.4 : 0; to: 0
             }
             NumberAnimation {
-                target: efecto; property: "opacity"
-                from: 0; to: 1
-                duration: Math.round(raiz.duracionEntrada * 0.6)
+                target: marco; property: "y"; easing.type: Easing.OutCubic; duration: raiz.duracionEntrada
+                from: raiz.entrada === "sube" ? 70 : 0; to: 0
+            }
+            NumberAnimation {
+                target: efecto; property: "scale"; easing.type: Easing.OutBack; duration: raiz.duracionEntrada
+                from: raiz.entrada === "crece" ? 0.82 : 1; to: 1
+            }
+            NumberAnimation {
+                target: marco; property: "revelado"; easing.type: Easing.InOutCubic; duration: raiz.duracionEntrada
+                from: raiz.entrada === "revela" ? 0 : 1; to: 1
             }
             SequentialAnimation {
                 PauseAnimation { duration: Math.round(raiz.duracionEntrada * 0.45) }
-                NumberAnimation {
-                    target: txtNombre; property: "opacity"
-                    to: 1; duration: 220; easing.type: Easing.OutQuad
-                }
+                NumberAnimation { target: txtNombre; property: "opacity"; to: 1; duration: 240 }
             }
             SequentialAnimation {
-                PauseAnimation { duration: Math.round(raiz.duracionEntrada * 0.7) }
-                NumberAnimation {
-                    target: txtCargo; property: "opacity"
-                    to: 1; duration: 220; easing.type: Easing.OutQuad
-                }
+                PauseAnimation { duration: Math.round(raiz.duracionEntrada * 0.6) }
+                NumberAnimation { target: filete; property: "width"; to: txtNombre.implicitWidth; duration: 360; easing.type: Easing.OutCubic }
+            }
+            SequentialAnimation {
+                PauseAnimation { duration: Math.round(raiz.duracionEntrada * 0.75) }
+                NumberAnimation { target: txtCargo; property: "opacity"; to: 1; duration: 240 }
             }
         }
     }
 
-    // La salida es su propia animación: corre solo si se pidió.
+    // --- La salida ------------------------------------------------------------------
     SequentialAnimation {
         running: raiz.salidaEn > 0
         PauseAnimation { duration: Math.max(0, raiz.salidaEn) }
         ParallelAnimation {
-            NumberAnimation { target: efecto; property: "blur"; to: 1.0; duration: 320 }
-            NumberAnimation {
-                target: efecto; property: "opacity"
-                to: 0; duration: 320; easing.type: Easing.InQuad
-            }
+            NumberAnimation { target: efecto; property: "blur"; to: 1.0; duration: 400 }
+            NumberAnimation { target: efecto; property: "opacity"; to: 0; duration: 400; easing.type: Easing.InQuad }
         }
     }
 }

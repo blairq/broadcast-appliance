@@ -45,20 +45,6 @@ Rectangle {
     // Lo que puede lo que mueve el joystick ahora.
     readonly property var caps: cam === null ? ({}) : (mueveDigital ? cam.capacidadesDigital : cam.capacidades)
     property real velocidad: 0.6
-    property bool guardando: false
-    // Las fotos de los presets de lo que mueve el joystick (n -> url).
-    readonly property var fotosPresets: cam === null ? ({}) : ((mueveDigital ? cam.fotosPresetsDigitales : cam.fotosPresetsCamara) || ({}))
-    // Los presets se muestran de a 16: el bloque siguiente aparece cuando se
-    // usa el último del anterior (o con «16 más»), hasta lo que admite.
-    property int presetsExtra: 0
-    readonly property int presetsVisibles: {
-        const max = page.caps.presets || 0
-        let usado = 0
-        if (page.cam && page.mueveDigital)
-            for (const n of page.cam.presetsDigitales) usado = Math.max(usado, n)
-        for (const k in page.fotosPresets) usado = Math.max(usado, parseInt(k))
-        return Math.min(max, (Math.floor(usado / 16) + 1 + page.presetsExtra) * 16)
-    }
     property string error: ""
     property var pos: ({})
     // La grilla del recinto en lugar del control de una cámara.
@@ -95,7 +81,7 @@ Rectangle {
             page.verRecinto = false
         }
     }
-    onSelChanged: { page.ptzMsg = ""; page.redTick++; page.presetsExtra = 0; mirar() }
+    onSelChanged: { page.ptzMsg = ""; page.redTick++; mirar() }
     // La imagen en vivo de la elegida, solo mientras se ve la página (renderizarla cuesta).
     property string mirando: ""
     function mirar() {
@@ -509,51 +495,6 @@ Rectangle {
                             }
                         }
 
-                        // Presets.
-                        RowLayout {
-                            visible: (page.caps.presets || 0) > 0
-                            spacing: 8
-                            Text { text: page.mueveDigital ? "Presets digitales" : "Presets de la cámara"; color: Theme.textDim; font.pixelSize: 12 }
-                            Item { Layout.fillWidth: true }
-                            GlassButton { compact: true; text: "16 más"; visible: page.presetsVisibles < (page.caps.presets || 0)
-                                          onClicked: page.presetsExtra++ }
-                            GlassButton { compact: true; text: page.guardando ? "Tocá un número para guardar" : "Guardar…"
-                                          active: page.guardando; onClicked: page.guardando = !page.guardando }
-                        }
-                        GridLayout {
-                            visible: (page.caps.presets || 0) > 0
-                            columns: 8
-                            rowSpacing: 6; columnSpacing: 6
-                            Repeater {
-                                model: page.presetsVisibles
-                                delegate: Rectangle {
-                                    required property int index
-                                    readonly property int numero: index + 1
-                                    readonly property string foto: page.fotosPresets[String(numero)] || ""
-                                    readonly property bool lleno: foto !== "" || !page.mueveDigital || (page.cam && page.cam.presetsDigitales.indexOf(numero) >= 0)
-                                    width: 64; height: 40; radius: 8; clip: true
-                                    color: pm.pressed ? Theme.accent : page.guardando ? Qt.rgba(1, 0.42, 0.17, 0.14)
-                                                                                     : lleno ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.03)
-                                    border.color: page.guardando ? Theme.accent : Qt.rgba(1, 1, 1, lleno ? 0.22 : 0.08)
-                                    // La foto del lugar, sacada al guardar.
-                                    Image { anchors.fill: parent; anchors.margins: 1; visible: foto !== ""; source: foto
-                                            fillMode: Image.PreserveAspectCrop; asynchronous: true; opacity: pm.pressed ? 0.5 : 1 }
-                                    Text { anchors { centerIn: foto === "" ? parent : undefined; left: foto !== "" ? parent.left : undefined
-                                                     bottom: foto !== "" ? parent.bottom : undefined; margins: 3 }
-                                           text: numero; color: lleno || page.guardando ? Theme.text : Theme.textFaint
-                                           font { pixelSize: foto !== "" ? 11 : 15; weight: Font.DemiBold }
-                                           style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, foto !== "" ? 0.8 : 0) }
-                                    MouseArea {
-                                        id: pm
-                                        anchors.fill: parent
-                                        onClicked: {
-                                            if (page.guardando) { page.avisar(page.cc.guardarPreset(page.sel, numero)); page.guardando = false }
-                                            else page.siNoAlAire(function() { page.avisar(page.cc.irPreset(page.sel, numero)) })
-                                        }
-                                    }
-                                }
-                            }
-                        }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
                                color: page.error !== "" ? Theme.live : Theme.textFaint
                                text: page.error !== "" ? page.error
@@ -565,13 +506,13 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: posCol.implicitHeight + 64
-                    title: "Posiciones (" + (page.cam ? page.cam.posiciones.length : 0) + ")"
+                    title: "Posiciones y presets (" + (page.cam ? page.cam.posiciones.length : 0) + ")"
                     ColumnLayout {
                         id: posCol
                         anchors.fill: parent
                         spacing: 8
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "Guarda donde está ahora la cámara con un nombre: el encuadre digital y, si es motorizada, una memoria de la cámara. Se vuelve con «Ir»." }
+                               text: "Guarda donde está ahora la cámara con un nombre: el encuadre digital y, si es motorizada (ONVIF, VISCA, Panasonic), una memoria de la cámara; igual en todas. Cada una tiene su número de preset (los controles y botones que llaman por número van a esa). El nombre y el comentario sirven para pedirla de palabra." }
                         RowLayout {
                             Layout.fillWidth: true
                             TextField { id: posNombre; Layout.preferredWidth: 180; placeholderText: "Nombre (p. ej. Atril)" }
@@ -615,7 +556,12 @@ Rectangle {
                                     spacing: 4
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        Text { text: "#" + filaPos.modelData.id; color: Theme.textFaint; font.pixelSize: 11 }
+                                        // Su número de preset (editable).
+                                        Text { visible: !filaPos.editando; text: "N.º " + (filaPos.modelData.numero || "—"); color: Theme.accentSoft
+                                               font { pixelSize: 12; weight: Font.DemiBold } }
+                                        SpinBox { id: edNumero; visible: filaPos.editando; from: 1; to: 999; editable: true
+                                                  value: filaPos.modelData.numero || 1; Layout.preferredWidth: 96
+                                                  ToolTip.visible: hovered; ToolTip.text: "Número de preset (único en la cámara)" }
                                         Text { visible: !filaPos.editando; text: filaPos.modelData.nombre; color: Theme.text
                                                font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true; elide: Text.ElideRight }
                                         TextField { id: edNombre; visible: filaPos.editando; Layout.preferredWidth: 180; text: filaPos.modelData.nombre }
@@ -633,7 +579,7 @@ Rectangle {
                                                       onClicked: {
                                                           if (filaPos.editando) {
                                                               const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id,
-                                                                                               {nombre: edNombre.text, comentario: edComentario.text,
+                                                                                               {nombre: edNombre.text, comentario: edComentario.text, numero: edNumero.value,
                                                                                                 velocidad: edVelocidad.value, segundos: edSegundos.value / 10})
                                                               page.avisar(r.ok ? "" : r.error)
                                                               if (r.ok) filaPos.editando = false

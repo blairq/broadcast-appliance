@@ -1,6 +1,7 @@
 {
   "nombre": "Próximo orador",
   "descripcion": "La tarjeta de «a continuación»: quién sigue y sobre qué habla. Entra desde la derecha; se suele poner arriba a la derecha del cuadro.",
+  "seVa": "al-avanzar",
   "ancho": 780,
   "alto": 300,
   "parametros": [

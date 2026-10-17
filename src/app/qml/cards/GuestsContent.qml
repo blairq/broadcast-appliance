@@ -10,9 +10,11 @@ Item {
     readonly property var acceso: Studio.accesoRemoto
     readonly property var cx: acceso ? acceso.conexion : ({})
     readonly property var formas: acceso ? acceso.formasDeConectar : []
-    // El link que conviene pasar: el de internet si la sala sale por un túnel; si no, el local.
-    readonly property string link: cx.estado === "listo" && cx.url ? cx.url.replace(/\/$/, "") + "/invitados/#room=" + Studio.room
-                                                                  : Studio.joinUrl
+    // El link que conviene pasar lo decide la sala (sala/Direcciones en el gateway): el de
+    // la red local si los invitados entran por ahí; si no, el de afuera (el túnel).
+    readonly property var dirInvitados: Studio.direcciones && Studio.direcciones.porId.invitados
+                                        ? Studio.direcciones.porId.invitados : ({})
+    readonly property string link: Studio.conference.guestUrl
     // Mientras se ve, el estado del túnel se consulta cada 5 s.
     Binding { target: tarjeta.acceso; property: "siguiendo"; value: tarjeta.visible; when: !!tarjeta.acceso }
     function conectar(id) {
@@ -57,16 +59,19 @@ Item {
                 Layout.fillWidth: true
                 readOnly: true
                 text: tarjeta.link
+                // Sin enlace, por qué (lo dice la sala): nunca un 127.0.0.1 que no le sirve a nadie.
+                placeholderText: tarjeta.dirInvitados.motivo_local || tarjeta.dirInvitados.motivo_remoto || ""
                 font.pixelSize: 11
                 selectByMouse: true
             }
             GlassButton {
                 text: "Copiar"; compact: true
+                enabled: tarjeta.link !== ""
                 onClicked: { Studio.copiar(tarjeta.link); Studio.notify("Link copiado", "ok") }
             }
             GlassButton {
                 text: "QR"; icon: "⊞"; compact: true
-                onClicked: qrDlg.show(tarjeta.cx.estado === "listo" ? "remote" : "local")
+                onClicked: qrDlg.show(tarjeta.dirInvitados.local ? "local" : "remote")
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: "El código para escanear: adentro se elige red local o por internet, y si va el PIN."
             }

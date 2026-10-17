@@ -1,6 +1,7 @@
 {
   "nombre": "Pregunta del público",
   "descripcion": "La pregunta que llegó por chat, con quién la mandó. El texto corta por palabras, así que aguanta preguntas largas.",
+  "seVa": "al-avanzar",
   "ancho": 1120,
   "alto": 380,
   "parametros": [

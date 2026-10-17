@@ -108,6 +108,14 @@ int main() {
         gst_object_unref(a);
         gst_object_unref(b);
     }
+    // Un reloj de red que no se sincroniza (NTP a una dirección que no contesta): el del
+    // sistema, con el error, y una base sana (antes quedaba la de antes de sincronizar y,
+    // al sincronizar, todo corrido ~126 años).
+    {
+        Reloj ntp("ntp", "10.255.255.1", 123);
+        CHECK(!ntp.error().empty(), "NTP que no contesta: dice por qué");
+        CHECK(ntp.ahora() < 10 * GST_SECOND, "y la hora del estudio arranca de cero (no salta)");
+    }
     // El tope: una que pasa no arrastra.
     reloj.anotar("x", 100 * GST_MSECOND);
     reloj.anotar("y", 900 * GST_MSECOND);
@@ -283,8 +291,30 @@ int main() {
     // Con do-timestamp, sus horas son las de captura (como una cámara de verdad).
     CHECK(sv.value("edad_p50_ms", 9999.0) < 500, "sale con la hora del estudio");
     CHECK(!sv.value("llega_tarde", true), "y no queda «llega tarde»");
+    // El video y el audio por separado (la página Tiempos): esta entrada no tiene audio.
+    banco.correr(1200);
+    const json sv2 = v->estado();
+    CHECK(sv2["edad_video"].is_object() && sv2["edad_video"].value("p50_ms", 9999.0) < 500 &&
+              sv2["edad_video"].value("p95_ms", -1.0) >= sv2["edad_video"].value("p50_ms", 0.0),
+          "la edad del video, sola (p50 ≤ p95)");
+    CHECK(sv2["edad_audio"].is_null(), "y sin audio, la del audio vacía");
     banco.entradas.pop_back();
     v.reset();
+    // Un micrófono de verdad (si la máquina tiene uno): sin su reloj propio, osxaudiosrc
+    // daba todos los bloques con PTS 0 y la edad crecía un segundo por segundo.
+    if (hayFabrica("osxaudiosrc")) {
+        auto mic = std::make_unique<Entrada>(reloj, lienzo, "mic", json{{"pipeline", ""}, {"pipeline_audio", "osxaudiosrc"}, {"audio", true}}); // como la app (InputSpecs::audioInputSpec)
+        banco.entradas.push_back(mic.get());
+        banco.correr(2500);
+        const json em = mic->estado();
+        std::printf("micrófono: bloques %d, edad del audio %s\n", em.value("bloques_audio", 0),
+                    em["edad_audio"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+        if (em.value("bloques_audio", 0) > 50)
+            CHECK(em["edad_audio"].is_object() && std::fabs(em["edad_audio"].value("p50_ms", 1e9)) < 1000,
+                  "el micrófono sale con la hora del estudio (su edad no crece)");
+        banco.entradas.pop_back();
+        mic.reset();
+    }
     // Una imagen (PNG): da cuadros (imagefreeze) con su alfa.
     {
         const std::string png = (std::filesystem::temp_directory_path() / "ba_test_motor.png").string();

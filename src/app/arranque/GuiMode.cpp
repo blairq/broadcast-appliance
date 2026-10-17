@@ -87,8 +87,10 @@ class CartelDeCarga : public QRasterWindow {
         logo_ = QImage(":/icons/broadcast-appliance-256.png");
     }
 
-    void ponerEstado(const QString& que) {
+    void ponerEstado(const QString& que, const QString& detalle = {}, double parte = -1) {
         estado_ = que;
+        detalle_ = detalle;
+        parte_ = parte;
         update();
         // El hilo está ocupado arrancando el motor: se pinta ya, sin esperar al lazo.
         QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
@@ -162,6 +164,23 @@ class CartelDeCarga : public QRasterWindow {
         p.setBrush(acento);
         const double avance = std::min(1.0, 0.08 + 0.92 * (1.0 - 1.0 / (1.0 + pasos_ * 0.12)));
         p.drawRoundedRect(QRect(barra.x(), barra.y(), static_cast<int>(barra.width() * avance), barra.height()), 2, 2);
+        // Una etapa larga que se puede contar (los plugins de video: «37 de 312»):
+        // qué está haciendo, en chico, y cuánto lleva en una barra fina propia.
+        if (!detalle_.isEmpty()) {
+            f.setPixelSize(12);
+            p.setFont(f);
+            p.setPen(tenue);
+            p.drawText(QRect(m, 206, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                       p.fontMetrics().elidedText(detalle_, Qt::ElideMiddle, width() - m * 2));
+        }
+        if (parte_ >= 0) {
+            const QRect fina(m, 228, width() - m * 2, 2);
+            p.setPen(Qt::NoPen);
+            p.setBrush(borde);
+            p.drawRect(fina);
+            p.setBrush(tenue);
+            p.drawRect(QRect(fina.x(), fina.y(), static_cast<int>(fina.width() * std::min(1.0, parte_)), fina.height()));
+        }
 
         // Quién lo hizo.
         f.setPixelSize(12);
@@ -183,6 +202,8 @@ class CartelDeCarga : public QRasterWindow {
    private:
     QImage logo_;
     QString estado_;
+    QString detalle_;
+    double parte_ = -1;
     bool pintado_ = false;
 };
 
@@ -218,10 +239,10 @@ int runGui(int argc, char** argv) {
     // El cartel de carga, ANTES que todo lo demás (ver CartelDeCarga).
     auto cartel = std::make_unique<CartelDeCarga>();
     cartel->mostrar();
-    arranque::oyente() = [c = QPointer<CartelDeCarga>(cartel.get())](const std::string& que) {
+    arranque::oyente() = [c = QPointer<CartelDeCarga>(cartel.get())](const arranque::Aviso& a) {
         if (!c) return; // un arranque que falló y salió antes: el cartel ya no está
-        ++c->pasos_;
-        c->ponerEstado(QString::fromStdString(que));
+        if (a.paso) ++c->pasos_;
+        c->ponerEstado(QString::fromStdString(a.que), QString::fromStdString(a.detalle), a.parte);
     };
 
     AppRuntime rt;
@@ -382,11 +403,14 @@ int runGui(int argc, char** argv) {
                                            ctx);
             };
             g.deAireAhora = [&mcpService](const std::string& h, const nlohmann::json& args) {
-                return mcpService.core().hayAire() && mcpService.core().aire().esDeAire(h, args);
+                return mcpService.core().hayAire() && mcpService.core().aire().esDeAire(mcpService.core().nombreActual(h), args);
             };
             g.herramientas = [&mcpService]() {
                 std::set<std::string> out;
-                for (const auto& t : mcpService.core().tools()) out.insert(t.name);
+                for (const auto& t : mcpService.core().tools()) {
+                    out.insert(t.name);
+                    out.insert(t.antes.begin(), t.antes.end()); // celdas guardadas con un nombre viejo
+                }
                 return out;
             };
             g.catalogo = [&mcpService]() { return mcpService.core().catalogo(); };

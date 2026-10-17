@@ -4,6 +4,7 @@
  "inicio": "",
  "huso": "",
  "nota": "Hasta unas 10 personas, presencial, remota o mixta. Poco montaje, que ande y quede grabada.",
+ "asamblea": false,
  "autoAceptar": [],
  "bloques": [
   {
@@ -49,8 +50,7 @@
       "valores": {
        "titulo": "‹Reunión›",
        "bajada": "‹Bajada›",
-       "acento": "#ff6a2b",
-       "salidaEn": 4500
+       "acento": "#f59e0b"
       }
      },
      "duracionSeg": 0,
@@ -77,7 +77,7 @@
       "valores": {
        "nombre": "‹Quien conduce›",
        "cargo": "‹Cargo o rol›",
-       "acento": "#ff6a2b",
+       "acento": "#f59e0b",
        "salidaEn": 0
       }
      },
@@ -138,7 +138,7 @@
    ]
   },
   {
-   "id": "b18-g",
+   "id": "b19-g",
    "nombre": "Cierre",
    "nota": "",
    "cues": [
@@ -179,6 +179,21 @@
       "escena": "Cierre"
      },
      "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c18-g",
+     "tipo": "grafico",
+     "texto": "Placa de cierre: dónde ver la grabación",
+     "datos": {
+      "fuente": "Placa de cierre",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "¡Gracias por acompañarnos!",
+       "bajada": "‹Dónde queda la grabación›"
+      }
+     },
+     "duracionSeg": 0,
      "automatico": false
     }
    ]

@@ -447,6 +447,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     reloj_.adoptar(p);
     const std::int64_t lat = std::max(f.latVideoNs, f.latAudioNs) + margenSalidaNs();
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(lat));
+    latenciaNs_ = lat;
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = "la grabación no arrancó";
         gst_element_set_state(p, GST_STATE_NULL);
@@ -541,7 +542,8 @@ json Grabacion::estado() const {
             {"atraso_s", static_cast<double>(atrasoNs()) / 1e9},
             {"desbordes", desbordes_.load()},
             {"bytes", bytes_.load()},
-            {"pausada", pausada_.load()}};
+            {"pausada", pausada_.load()},
+            {"latencia_ms", static_cast<double>(latenciaNs_.load()) / 1e6}}; // la fijada al pipeline (Tiempos)
 }
 
 guint64 Grabacion::atrasoNs() const {
@@ -659,6 +661,7 @@ std::string Transmision::armar() {
     reloj_.adoptar(p);
     const std::int64_t lat = std::max(fuentes_.latVideoNs, fuentes_.latAudioNs) + margenSalidaNs();
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(lat));
+    latenciaNs_ = lat;
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         gst_element_set_state(p, GST_STATE_NULL);
         gst_object_unref(p);
@@ -784,7 +787,8 @@ json Transmision::estado() const {
             {"perdidos", perdidos_.load()},
             {"error", error_},
             {"codificador", codificador_},
-            {"url", sinClave(cfg_.url)}};
+            {"url", sinClave(cfg_.url)},
+            {"latencia_ms", static_cast<double>(latenciaNs_.load()) / 1e6}}; // la fijada al pipeline (Tiempos)
 }
 
 } // namespace ba::motor

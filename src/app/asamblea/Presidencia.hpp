@@ -94,7 +94,7 @@ class Presidencia : public QObject {
     /// operador (su micrófono de la sala) en su celular. "" o el error.
     std::string hablarARemoto(const std::string& integrante, bool activo);
 
-    /// Le vuelve a decir todo al gateway (credenciales, vistas, quién tiene la palabra, origen).
+    /// Le vuelve a decir todo al gateway (credenciales, vistas, quién tiene la palabra).
     void sincronizar();
 
    signals:

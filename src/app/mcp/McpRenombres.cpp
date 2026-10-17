@@ -1,8 +1,12 @@
-// Nombres VIEJOS de herramientas que siguen andando como alias del nombre de hoy:
-// lo guardado con el nombre viejo (recetas, botoneras, disparadores) y los modelos
-// ya publicados que lo escriben. Lo escribe tools/dev/renombrar-herramientas.py
-// (perfil vivo6); no aparecen en tools/list ni en el buscador.
+// Nombres VIEJOS de herramientas renombradas en bloque desde el perfil de
+// entrenamiento: van a Tool::antes de la de hoy, como los que cada herramienta
+// declara al definirse. Lo guardado con el nombre viejo (recetas, botoneras,
+// disparadores) y los modelos ya publicados que lo escriben siguen andando. Lo
+// escribe tools/dev/renombrar-herramientas.py (perfil vivo6); no aparecen
+// en tools/list ni en el buscador.
 #include "McpRenombres.hpp"
+
+#include <QDebug>
 
 namespace ba::app::mcp {
 
@@ -36,7 +40,9 @@ void registrarRenombres(McpCore& core) {
         {"speakers_status", "remotos_fila_ver"},
         {"votacion_ver", "votacion_recuento"},
     };
-    for (const auto& [viejo, nuevo] : kRenombres) core.addAlias(viejo, nuevo);
+    for (const auto& [viejo, nuevo] : kRenombres)
+        if (!core.agregarNombreAnterior(nuevo, viejo))
+            qWarning("McpRenombres: no existe la herramienta %s (nombre viejo %s)", nuevo, viejo);
 }
 
 } // namespace ba::app::mcp

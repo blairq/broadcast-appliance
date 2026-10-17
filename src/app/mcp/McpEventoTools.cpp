@@ -15,6 +15,7 @@
 // asistente las descubre sin nadie que se las explique.
 // ============================================================================
 #include "mcp/McpEventoTools.hpp"
+#include "arranque/Configuraciones.hpp"
 #include "mcp/McpAsamblea.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -71,18 +72,20 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     // --- Ver ------------------------------------------------------------------
     {
         Tool t;
-        t.name = "evento_listar";
-        t.title = "Eventos que hay";
+        t.name = "guion_listar";
+        t.antes = {"evento_listar"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
+        t.title = "Los guiones del evento abierto";
         t.category = "evento";
         t.readOnly = true;
         t.description =
-            "Los eventos guardados, con su fecha, su duracion prevista y cuantos cues tiene cada uno.";
+            "Los guiones guardados DENTRO del evento abierto, con su fecha, su duracion prevista y cuantos cues "
+            "tiene cada uno. Los eventos (cada uno con sus escenas, medios, asamblea…) son eventos_listar.";
         t.details =
             "Un evento es el guion de lo que va a pasar: bloques (apertura, discurso, cierre) y dentro "
             "de cada uno los cues concretos (poner una escena, arrancar un tema, dar la palabra).\n\n"
             "Cada evento vive en su propia carpeta dentro de Eventos/, con su musica, sus videos y sus "
             "discursos adentro, para poder llevarselo entero a otra maquina.\n\n"
-            "Usalo para saber sobre que evento trabajar antes de llamar a evento_abrir.\n\n"
+            "Usalo para saber sobre que evento trabajar antes de llamar a guion_abrir.\n\n"
             "Los eventos se ordenan en carpetas (`grupo`, p. ej. \"2026/Octubre\"); `carpeta` es la ruta "
             "completa y es lo que piden las otras herramientas. `estado` es el del historico: "
             "planificado, en_curso o terminado; `en_curso` marca el que recibe todo lo que pasa "
@@ -180,7 +183,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                                       {"facebook", {{"type", "string"}}}}}}}}}};
         t.run = [&ev, &vm](const json& a, Done done) {
             const std::string acc = a.value("accion", std::string("ver"));
-            if (ev.abierto().isEmpty()) return done(ToolResult::error("No hay ningún evento abierto: evento_abrir."));
+            if (ev.abierto().isEmpty()) return done(ToolResult::error("No hay ningún evento abierto: guion_abrir."));
             if (acc == "ver") return done(ToolResult().data(qvToJson(ev.web())));
             if (acc == "generar") {
                 const QVariantMap r = ev.generarWeb(a.value("sobrescribir", false));
@@ -236,7 +239,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
     {
         Tool t;
-        t.name = "evento_ver";
+        t.name = "guion_ver";
+        t.antes = {"evento_ver"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = "El guion abierto";
         t.category = "evento";
         t.readOnly = true;
@@ -251,7 +255,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "`cuando` es el arranque como instante absoluto con desfasaje "
             "(\"2026-09-24T19:00:00-03:00\"): es lo unico que le sirve a alguien que esta en otro huso. "
             "Viene vacio si falta la fecha o la hora.\n\n"
-            "Si no hay ningun evento abierto, `bloques` viene vacio: abri uno con evento_abrir.";
+            "Si no hay ningun evento abierto, `bloques` viene vacio: abri uno con guion_abrir.";
         t.run = [&ev](const json&, Done done) {
             done(ToolResult().data(json{{"abierto", ev.abierto().toStdString()},
                                         {"sinGuardar", ev.sucio()},
@@ -262,13 +266,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
     {
         Tool t;
-        t.name = "evento_abrir";
-        t.title = "Abrir un evento";
+        t.name = "guion_abrir";
+        t.antes = {"evento_abrir"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
+        t.title = "Abrir o crear un guion (dentro del evento abierto)";
         t.category = "evento";
-        t.description = "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). Para "
-                        "un evento nuevo de verdad —sus propias escenas, mezclador, medios, asamblea— es evento_nuevo.";
+        t.description = "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). NO "
+                        "cambia de evento: para pasar a otro evento (sus escenas, mezclador, medios, asamblea) es "
+                        "evento_cambiar, y para uno nuevo, evento_nuevo.";
         t.details =
-            "Con `carpeta` abre uno que ya existe (el nombre exacto que devuelve evento_listar).\n"
+            "Con `carpeta` abre uno que ya existe (el nombre exacto que devuelve guion_listar).\n"
             "Con `nombre` crea uno nuevo con ese titulo y lo deja abierto; si ya hay uno con ese nombre "
             "NO lo pisa, crea otro al lado.\n\n"
             "Lo que se este editando sin guardar se guarda antes de cambiar de evento.";
@@ -279,20 +285,27 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"nombre", {{"type", "string"}, {"description", "Crear uno nuevo con este titulo."}}},
               {"en_carpeta",
                {{"type", "string"}, {"description", "Al crear: en qué carpeta (\"2026/Octubre\"); se crea si no está."}}}}}};
-        t.run = [&ev](const json& a, Done done) {
+        t.run = [&ev, &vm](const json& a, Done done) {
             if (a.contains("nombre")) {
-                const QString c = ev.crear(QString::fromStdString(a["nombre"].get<std::string>()),
-                                           QString::fromStdString(a.value("en_carpeta", std::string())));
-                if (c.isEmpty()) return done(ToolResult::error("No se pudo crear el evento."));
-                return done(ToolResult::ok("Evento creado y abierto: " + c.toStdString()));
+                // Con el nombre de otro EVENTO casi seguro querían pasar a él, no un guion con ese título acá.
+                const std::string n = a["nombre"].get<std::string>();
+                if (const Configuraciones* cf = vm.configuraciones())
+                    for (const json& e : cf->listar())
+                        if (e.value("nombre", std::string()) == n)
+                            return done(ToolResult::error(
+                                "«" + n + "» es un evento, no un guion: para pasar a él, evento_cambiar (reinicia la "
+                                "app). Para un guion con ese título acá adentro, ponele otro nombre."));
+                const QString c = ev.crear(QString::fromStdString(n), QString::fromStdString(a.value("en_carpeta", std::string())));
+                if (c.isEmpty()) return done(ToolResult::error("No se pudo crear el guion."));
+                return done(ToolResult::ok("Guion creado y abierto (en este mismo evento): " + c.toStdString()));
             }
             const std::string c = a.value("carpeta", std::string());
             if (c.empty())
                 return done(ToolResult::error("Pasa `carpeta` (uno que exista) o `nombre` (uno nuevo)."));
             if (!ev.abrir(QString::fromStdString(c)))
                 return done(
-                    ToolResult::error("No se pudo abrir '" + c + "' (evento_listar muestra los que hay)."));
-            done(ToolResult::ok("Evento abierto: " + c));
+                    ToolResult::error("No se pudo abrir '" + c + "' (guion_listar muestra los que hay)."));
+            done(ToolResult::ok("Guion abierto: " + c));
         };
         core.addTool(std::move(t));
     }
@@ -346,7 +359,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"evento", {{"type", "string"}, {"description", "La carpeta del evento (evento_listar)."}}},
+             {{"evento", {{"type", "string"}, {"description", "La carpeta del evento (guion_listar)."}}},
               {"tipos", {{"type", "array"}, {"items", {{"type", "string"}, {"enum", {"bus", "mcp", "botonera", "guion", "aviso", "evento"}}}}}},
               {"texto", {{"type", "string"}}},
               {"desde", {{"type", {"integer", "string"}}}},
@@ -542,7 +555,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "segundo plano, sellos.json. Verificar relee todo, también las grabaciones: con gigas tarda.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"evento"}},
-                         {"properties", {{"evento", {{"type", "string"}, {"description", "La carpeta (evento_listar)."}}}}}};
+                         {"properties", {{"evento", {{"type", "string"}, {"description", "La carpeta (guion_listar)."}}}}}};
         t.run = [&ev](const json& a, Done done) {
             const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
             if (dir.empty()) return done(ToolResult::error("no hay un evento «" + a.value("evento", std::string()) + "»"));
@@ -764,7 +777,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.category = "evento";
         t.description = "Pone un evento en curso (el que estaba se termina): desde ahora todo lo que pasa es de ese evento.";
         t.details =
-            "`carpeta` es la ruta que da evento_listar. Si el evento ya había empezado antes, conserva cuándo "
+            "`carpeta` es la ruta que da guion_listar. Si el evento ya había empezado antes, conserva cuándo "
             "empezó. Para dejar de registrar en uno, evento_terminar.";
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"carpeta", {{"type", "string"}, {"description", "El evento."}}}}},
@@ -772,7 +785,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.run = [&ev](const json& a, Done done) {
             const std::string c = a.value("carpeta", std::string());
             if (!ev.iniciarEvento(QString::fromStdString(c)))
-                return done(ToolResult::error("No se pudo poner en curso '" + c + "' (evento_listar muestra los que hay)."));
+                return done(ToolResult::error("No se pudo poner en curso '" + c + "' (guion_listar muestra los que hay)."));
             done(ToolResult::ok("En curso: " + c));
         };
         core.addTool(std::move(t));
@@ -810,10 +823,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
     {
         Tool t;
-        t.name = "evento_carpeta";
-        t.title = "Ordenar eventos en carpetas";
+        t.name = "guion_carpeta";
+        t.antes = {"evento_carpeta"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
+        t.title = "Ordenar los guiones en carpetas";
         t.category = "evento";
-        t.description = "Crea una carpeta para agrupar eventos, o mueve un evento a otra carpeta.";
+        t.description = "Crea una carpeta para agrupar guiones (dentro del evento abierto), o mueve un guion a otra carpeta.";
         t.details =
             "Las carpetas son carpetas de verdad dentro de Eventos/, anidadas con «/» (\"2026/Octubre\", "
             "\"Consejo/Ordinarias\"). Con `crear` crea una; con `evento` y `a` lleva ese evento a la carpeta "
@@ -822,7 +836,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             {"type", "object"},
             {"properties",
              {{"crear", {{"type", "string"}, {"description", "Carpeta a crear."}}},
-              {"evento", {{"type", "string"}, {"description", "Evento a mover (ruta de evento_listar)."}}},
+              {"evento", {{"type", "string"}, {"description", "Evento a mover (ruta de guion_listar)."}}},
               {"a", {{"type", "string"}, {"description", "Carpeta destino."}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("crear")) {
@@ -888,7 +902,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     // --- Armar ----------------------------------------------------------------
     {
         Tool t;
-        t.name = "evento_bloque";
+        t.name = "guion_bloque";
+        t.antes = {"evento_bloque"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = "Agregar o cambiar un bloque";
         t.category = "evento";
         t.description = "Agrega un bloque al final del guion, lo renombra, lo mueve o lo saca.";
@@ -922,7 +937,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
     {
         Tool t;
-        t.name = "evento_cue";
+        t.name = "guion_cue";
+        t.antes = {"evento_cue"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = "Agregar o cambiar un cue";
         t.category = "evento";
         t.description = "Agrega un cue a un bloque, le cambia los datos, lo mueve de lugar o lo saca.";
@@ -939,15 +955,20 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "                                        false lo deja cargado sin cortar a esa escena.\n"
             "  teleprompter  {discurso}            un archivo de Discursos/\n"
             "  orador        {participante}        ademas necesita duracionSeg > 0\n"
-            "  grafico       {fuente, grafico, valores, duracionMs, repetir, accion}\n"
+            "  grafico       {fuente, grafico, valores, seVa, duracionMs, repetir, accion}\n"
             "                                        `fuente` es el nombre de la fuente «Grafico\n"
             "                                        animado» de la escena (DONDE se ve); `grafico` es\n"
             "                                        cual de los guardados; `valores` son sus parametros\n"
             "                                        {clave: texto} (los que no pongas quedan en el valor\n"
             "                                        por defecto). OJO: `valores` y `grafico`, NO\n"
             "                                        `parametros`/`nombre` como en grafico_mostrar.\n"
-            "                                        Cuánto queda en pantalla: `salidaEn` (ms) DENTRO de\n"
-            "                                        `valores` (0 = se queda hasta un cue `ocultar`).\n"
+            "                                        CUÁNDO SE VA: `seVa` = al-avanzar (sale con su\n"
+            "                                        animación cuando el guion pasa a otra cue: títulos\n"
+            "                                        y placas), sola (a los `salidaEn` ms, DENTRO de\n"
+            "                                        `valores`) o queda (hasta un cue `ocultar`: un\n"
+            "                                        marcador, un zócalo fijo). Sin `seVa`: sola si trae\n"
+            "                                        salidaEn > 0; si no, lo que diga la ficha del\n"
+            "                                        gráfico (`seVa`; placas y títulos: al-avanzar).\n"
             "                                        `duracionMs` no hace falta. Y `duracionSeg` del cue\n"
             "                                        es solo para los tiempos del guion, no del gráfico.\n"
             "                                        accion: mostrar (por defecto), ocultar, o\n"
@@ -1012,7 +1033,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                     {"video", {"archivo", "accion", "repetir", "alAire"}},
                     {"teleprompter", {"discurso", "arrancar"}},
                     {"orador", {"participante"}},
-                    {"grafico", {"fuente", "grafico", "valores", "duracionMs", "repetir", "accion", "vinculo"}},
+                    {"grafico", {"fuente", "grafico", "valores", "seVa", "duracionMs", "repetir", "accion", "vinculo"}},
                     {"pantalla", {"pantalla", "contenido", "tipo", "pie"}},
                     {"audio", {"accion", "fuente", "db"}},
                     {"pausa", {}}, {"espera", {}}, {"nota", {}}};
@@ -1077,7 +1098,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
     {
         Tool t;
-        t.name = "evento_guardar";
+        t.name = "guion_guardar";
+        t.antes = {"evento_guardar"}; // trabaja sobre el guion, no sobre el evento (eventos_listar, evento_cambiar)
         t.title = "Guardar el guion";
         t.category = "evento";
         t.description = "Escribe el guion en la carpeta del evento, respaldando antes el que estaba.";
@@ -1091,7 +1113,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "lado puede saber que hora es para el: sin eso, \"empieza 19:00\" no lo ubica.\n\n"
             "El huso se guarda POR NOMBRE y no por desfasaje (-03:00): el desfasaje cambia con el "
             "horario de verano, asi que uno escrito hoy miente para un evento de dentro de tres meses. "
-            "Si no sabes cual poner, el del aparato es un buen valor: viene en evento_ver.\n\n"
+            "Si no sabes cual poner, el del aparato es un buen valor: viene en guion_ver.\n\n"
             "Un formato mal escrito se RECHAZA en vez de guardarse: una fecha que no se entiende no se "
             "ignora sola, se lee mal.";
         t.inputSchema = {
@@ -1207,7 +1229,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (!ev.marcarChequeo(QString::fromStdString(a.value("item", std::string())), a.value("hecho", false),
                                   QString::fromStdString(a.value("nota", std::string())),
                                   QString::fromStdString(a.value("texto", std::string()))))
-                return done(ToolResult::error("No hay un evento abierto (evento_abrir)."));
+                return done(ToolResult::error("No hay un evento abierto (guion_abrir)."));
             done(ToolResult().text("Anotado."));
         };
         core.addTool(std::move(t));
@@ -1545,7 +1567,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         QVariantMap campos{{"texto", QString::fromStdString(c.value("texto", std::string()))},
                                            {"duracionSeg", c.value("duracionSeg", 0)},
                                            {"automatico", c.value("automatico", false)}};
-                        // Como evento_cue: lo propio del tipo va en `datos` (antes se
+                        // Como guion_cue: lo propio del tipo va en `datos` (antes se
                         // mezclaba con los campos del cue y la escena quedaba sin nombre).
                         if (c.contains("datos") && c["datos"].is_object()) campos["datos"] = aVariantMap(c["datos"]);
                         ev.editarCue(bi, ci++, campos);
@@ -1654,7 +1676,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
                      "que entran por la puerta y para los que entran por la sala: es una sola lista.");
 
     const auto sinEvento = [](Done& done) {
-        done(ToolResult::error("No hay ningun evento abierto: abri uno con evento_abrir."));
+        done(ToolResult::error("No hay ningun evento abierto: abri uno con guion_abrir."));
     };
     const auto aMapaQt = [](const json& j) {
         QVariantMap m;

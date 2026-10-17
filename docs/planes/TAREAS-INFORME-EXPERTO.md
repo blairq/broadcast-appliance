@@ -1026,7 +1026,7 @@
   - Back-timing: `hora_fin_prevista` del evento, restante del bloque y "para terminar a las HH:MM te quedan X".
 - **MCP.**
   - Herramientas nuevas: `media_restante`, `playlist_crear {items}`, `playlist_control {play|next|stop, auto_next}`.
-  - `evento_ver` incluye `hora_fin_prevista`, `restante_bloque_s` y `back_timing_s`.
+  - `guion_ver` incluye `hora_fin_prevista`, `restante_bloque_s` y `back_timing_s`.
 - **GUI.**
   - En la tarjeta Dirección, un contador grande del medio al aire (en rojo en los últimos 10 s), el restante del bloque y la hora de fin.
   - En Medios, una vista de playlist simple.

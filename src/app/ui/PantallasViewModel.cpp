@@ -265,10 +265,11 @@ struct PantallasViewModel::Impl {
     std::vector<Destino> destinos;
     std::atomic<bool> buscando{false};
     QString aviso;
-    /// Las IP de esta máquina y el puerto HTTP del gateway, que se preguntan
-    /// una vez y se refrescan al buscar.
+    /// Las IP de esta máquina por las que la sala atiende y el puerto de su puerta HTTP
+    /// (src/gateway/Direcciones: la red local, sin certificado), que se preguntan y se
+    /// refrescan al buscar. 0 = la sala no tiene la puerta HTTP abierta.
     QStringList misIps;
-    int puertoWeb = 8787;
+    int puertoWeb = 0;
     /// El origen con certificado de verdad (un tunel), si lo hay. Ver `urlDe`:
     /// sin esto no se le puede mostrar una pagina NUESTRA a un Chromecast.
     QString origenSeguro;
@@ -283,8 +284,14 @@ struct PantallasViewModel::Impl {
         sala->control().verRed([this, despues](const std::string& error, const nlohmann::json& r) {
             if (!error.empty()) return;
             misIps.clear();
-            for (const auto& v : r.value("lan", nlohmann::json::array()))
-                if (v.is_string()) misIps << QString::fromStdString(v.get<std::string>());
+            puertoWeb = 0;
+            const nlohmann::json loc = r.value("direcciones", nlohmann::json::object()).value("local", nlohmann::json());
+            if (loc.is_object()) {
+                for (const auto& v : loc.value("ips", nlohmann::json::array()))
+                    if (v.is_string()) misIps << QString::fromStdString(v.get<std::string>());
+                const QUrl http(QString::fromStdString(loc.value("http", std::string())));
+                puertoWeb = http.port(0);
+            }
             const auto o = r.find("origenSeguro");
             origenSeguro = o != r.end() && o->is_string() ? QString::fromStdString(o->get<std::string>()) : QString();
             if (despues) despues();
@@ -531,7 +538,7 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
         ip = ipParaAlcanzar(d_->misIps, d->host);
     else if (!d_->misIps.isEmpty())
         ip = d_->misIps.first();
-    if (ip.isEmpty()) return {};
+    if (ip.isEmpty() || d_->puertoWeb <= 0) return {};
     const QString base = "http://" + ip + ":" + QString::number(d_->puertoWeb);
 
     if (tipo == "prompter") return base + "/prompter/";
@@ -914,7 +921,7 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     // después se lo manda: si fuera al revés, abriría una lista que no está.
     publicar(carrusel, idPantalla);
     const QString ip = ipParaAlcanzar(d_->misIps, d->host);
-    if (ip.isEmpty())
+    if (ip.isEmpty() || d_->puertoWeb <= 0)
         return "Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.";
     const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) +
                         "/pantalla/carrusel/?id=" + QString::fromUtf8(QUrl::toPercentEncoding(carrusel));

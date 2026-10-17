@@ -5,10 +5,12 @@
 #include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
 
+#include <set>
 #include <thread>
 #include "Reloj.hpp"
 
 #include <gst/pbutils/pbutils.h>
+#include <gst/audio/audio.h>
 #include <gst/video/video.h>
 
 #include <algorithm>
@@ -82,7 +84,22 @@ std::vector<Filtro> leerFiltros(const json& lista) {
         }
         if (!f.elemento.empty()) out.push_back(std::move(f));
     }
+    nombresUnicos(out);
     return out;
+}
+
+void nombresUnicos(std::vector<Filtro>& v) {
+    // Limpio, «eq-1» y «eq.1» quedan iguales (y dos sin id, en dos listas, «0»): el
+    // segundo elemento no entraba al pipeline. «_antes» es de la derivación (cadenaDe).
+    std::set<std::string> usados;
+    for (Filtro& f : v) {
+        std::string n = f.nombre;
+        if (n.size() >= 6 && n.compare(n.size() - 6, 6, "_antes") == 0) n += "_f";
+        const std::string base = n;
+        for (int i = 2; usados.count(n) > 0; ++i) n = base + "_" + std::to_string(i);
+        f.nombre = n;
+        usados.insert(n);
+    }
 }
 
 namespace {
@@ -205,8 +222,9 @@ std::string memoriaPropia(const std::string& fabrica) {
 } // namespace
 
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos, bool desdeGpu) {
+                     std::vector<std::string>& avisos, bool desdeGpu, Derivacion* derivar) {
     std::string r;
+    if (derivar != nullptr) derivar->ramas.clear();
     // La memoria del motor (GLMemory o D3D12Memory) y dónde está el video en este punto.
     const std::string memMotor = !desdeGpu ? "" : gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
     bool enGpu = desdeGpu;
@@ -255,6 +273,17 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                                  "»: va en memoria de sistema");
         }
         const std::string elem = f.elemento + " name=" + prefijo + f.nombre + " ! ";
+        // La toma tal como llega a este filtro, para otro productor (ver Derivacion).
+        if (derivar != nullptr && derivar->ramas.empty() && f.nombre == derivar->antesDe && !derivar->productor.empty()) {
+            const std::string tee = std::string(prefijo) + f.nombre + "_antes";
+            // Una cola (la del último cuadro, sin demora) también en la rama de siempre: sin ella el
+            // tee le pasaba arriba el pool de esta rama y la otra se quedaba con su último cuadro;
+            // con una fuente de pocos cuadros (el canal de un invitado vacío: la placa a 5 cps) la
+            // rama principal esperaba un búfer libre para siempre (pasaba UN cuadro por rearme).
+            r += "tee name=" + tee + " allow-not-linked=true ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
+            derivar->ramas = " " + tee + ". ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! intersink name=" + tee + "_sale producer-name=" +
+                             entreComillas(derivar->productor) + " sync=false event-types=\"<>\"";
+        }
         if (desdeGpu) {
             if (hayPuente && f.memoria == memMotor) {
                 // En la memoria del motor: si ya está ahí, sin puente.
@@ -687,6 +716,89 @@ void sinRelojPropio(GstElement* pipeline) {
     }
     g_value_unset(&v);
     gst_iterator_free(it);
+}
+
+namespace {
+// La hora de captura de una fuente de audio, contada por muestras desde el primer bloque
+// (no tiembla) y anclada al reloj del pipeline (el del estudio); si se aleja más de
+// kReanclarNs de lo que da el reloj, se reancla (la placa y el reloj derivan un poco).
+struct HoraAudio {
+    GstClockTime ancla = GST_CLOCK_TIME_NONE; ///< la hora del primer bloque desde el último anclaje
+    guint64 muestras = 0;                     ///< las que pasaron desde el anclaje
+    static constexpr GstClockTime kReanclarNs = 50 * GST_MSECOND;
+};
+
+GstPadProbeReturn ponerHoraAudio(GstPad* pad, GstPadProbeInfo* info, gpointer d) {
+    auto* h = static_cast<HoraAudio*>(d);
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    GstElement* e = gst_pad_get_parent_element(pad);
+    if (b == nullptr || e == nullptr) {
+        if (e != nullptr) gst_object_unref(e);
+        return GST_PAD_PROBE_OK;
+    }
+    GstClock* reloj = gst_element_get_clock(e);
+    const GstClockTime base = gst_element_get_base_time(e);
+    gst_object_unref(e);
+    if (reloj == nullptr) return GST_PAD_PROBE_OK;
+    const GstClockTime ahora = gst_clock_get_time(reloj);
+    gst_object_unref(reloj);
+    gint rate = 0, canales = 0, bytesPorMuestra = 0;
+    if (GstCaps* c = gst_pad_get_current_caps(pad)) {
+        GstAudioInfo ai;
+        if (gst_audio_info_from_caps(&ai, c)) {
+            rate = GST_AUDIO_INFO_RATE(&ai);
+            canales = GST_AUDIO_INFO_CHANNELS(&ai);
+            bytesPorMuestra = GST_AUDIO_INFO_BPF(&ai);
+        }
+        gst_caps_unref(c);
+    }
+    if (rate <= 0 || bytesPorMuestra <= 0 || ahora < base) return GST_PAD_PROBE_OK;
+    (void)canales;
+    const guint64 n = gst_buffer_get_size(b) / static_cast<guint64>(bytesPorMuestra);
+    const GstClockTime dur = gst_util_uint64_scale(n, GST_SECOND, static_cast<guint64>(rate));
+    const GstClockTime real = ahora - base > dur ? ahora - base - dur : 0; // cuándo empezó a capturarse
+    GstClockTime pts = GST_CLOCK_TIME_IS_VALID(h->ancla)
+                           ? h->ancla + gst_util_uint64_scale(h->muestras, GST_SECOND, static_cast<guint64>(rate))
+                           : GST_CLOCK_TIME_NONE;
+    if (!GST_CLOCK_TIME_IS_VALID(pts) || (pts > real ? pts - real : real - pts) > HoraAudio::kReanclarNs) {
+        h->ancla = real;
+        h->muestras = 0;
+        pts = real;
+    }
+    h->muestras += n;
+    b = gst_buffer_make_writable(b);
+    GST_PAD_PROBE_INFO_DATA(info) = b;
+    GST_BUFFER_PTS(b) = pts;
+    GST_BUFFER_DTS(b) = GST_CLOCK_TIME_NONE;
+    GST_BUFFER_DURATION(b) = dur;
+    return GST_PAD_PROBE_OK;
+}
+} // namespace
+
+int horaDeCapturaEnAudio(GstElement* pipeline) {
+    // osxaudiosrc (y otras) con el reloj del pipeline que no es el de su placa no le ponen
+    // hora a lo que capturan (todo con PTS 0: la «edad» crecía un segundo por segundo y la
+    // mezcla lo veía cada vez más atrasado). Ni slave-method ni do-timestamp lo arreglan.
+    const GType fuenteDeAudio = g_type_from_name("GstAudioBaseSrc");
+    if (fuenteDeAudio == 0) return 0;
+    int n = 0;
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
+    if (it == nullptr) return 0;
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        auto* e = GST_ELEMENT(g_value_get_object(&v));
+        if (g_type_is_a(G_OBJECT_TYPE(e), fuenteDeAudio))
+            if (GstPad* p = gst_element_get_static_pad(e, "src")) {
+                gst_pad_add_probe(p, GST_PAD_PROBE_TYPE_BUFFER, &ponerHoraAudio, new HoraAudio(),
+                                  [](gpointer d) { delete static_cast<HoraAudio*>(d); });
+                gst_object_unref(p);
+                ++n;
+            }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+    return n;
 }
 
 void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes) {

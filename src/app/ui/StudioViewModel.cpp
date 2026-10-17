@@ -13,6 +13,7 @@
 #include "escenas/RespaldoEntradas.hpp"
 #include "escenas/AjustesEscenas.hpp"
 #include "arranque/ModoVivoConfig.hpp"
+#include "ui/EnlacesViewModel.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
@@ -71,6 +72,11 @@
 #include "agent/Notificador.hpp"
 #include "control/Botonera.hpp"
 #include "control/BotoneraGateway.hpp"
+#include "control/ControlWeb.hpp"
+#include "control/ControlWebGateway.hpp"
+#include "control/TemasWeb.hpp"
+#include "sala/Direcciones.hpp"
+#include "sala/Pedido.hpp"
 #include "asamblea/Debate.hpp"
 #include "control/CarasBotonera.hpp"
 #include "control/BusEventos.hpp"
@@ -103,6 +109,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "graficos/GraficoSource.hpp"
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
 #include "evento/FotosConfig.hpp"
@@ -153,6 +160,8 @@
 #include "ui/PuestoCorreccion.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
+#include "tiempos/TiemposModel.hpp"
+#include "Motor.hpp"
 #include <QCoreApplication>
 
 namespace ba::app {
@@ -179,7 +188,7 @@ QString hms(std::chrono::steady_clock::time_point since) {
 
 namespace {
 /// ¿Le llegan cuadros a la entrada? El motor publica cuánto hace del último dato
-/// (`sin_datos_s`: -1 si todavía no llegó nada); el de antes, `fps_recibidos`.
+/// (`sin_datos_s`: -1 si todavía no llegó nada).
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
@@ -296,6 +305,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
     marca("conference");
+    direcciones_ = std::make_unique<sala::Direcciones>(conference_->client());
     // El cupo es del modelo; acá solo se muestra lo que pasó.
     cupoSala_ = std::make_unique<sala::CupoSala>(rt, conference_->client());
     cupoSala_->alAvisar([this](const std::string& texto, bool error) {
@@ -309,6 +319,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, conference_->client());
+    accesoRemoto_->setDirecciones(direcciones_.get());
     accesoRemoto_->setEnVivo([this]() { return modoVivo(); });
     // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un
     // modelo aparte (como el MCP), así no se pisa lo que el operador tenga a medio editar.
@@ -693,6 +704,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (!error.isEmpty()) emit notify("No se pudo crear «" + nombre + "»: " + error, "error");
                 else if (!abriendo) emit notify("Evento «" + nombre + "» listo: abrilo con «Abrir otro…»", "info");
             });
+    // Lo que lleva más de un mes en la papelera de eventos se va (con grabaciones, son GB).
+    if (const int n = configuraciones_->vaciarViejos(Configuraciones::kDiasPapelera); n > 0)
+        qInfo("[eventos] papelera: %d con más de %d días, borrados", n, Configuraciones::kDiasPapelera);
     marca("system");
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
         emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");
@@ -1055,6 +1069,36 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    // Los tiempos: solo fotos que ya se publican (el motor, las salidas, los grafos, los racks).
+    tiempos_ = std::make_unique<tiempos::TiemposModel>([this]() {
+        tiempos::Fotos f;
+        if (motor::Motor* m = rt_.engine().motor())
+            if (const auto foto = m->instantanea()) f.motor = *foto;
+        f.salidas = rt_.engine().salidasAhora();
+        if (video_)
+            for (const QVariant& v : video_->estudio().value("nodos").toList()) {
+                const QVariantMap n = v.toMap();
+                const QString t = n.value("etiqueta").toString();
+                f.titulos[n.value("id").toString().toStdString()] = (t.isEmpty() ? n.value("titulo").toString() : t).toStdString();
+            }
+        if (racks_)
+            for (const std::string& s : racks_->fuentesConRack())
+                if (audio::AudioRack* r = racks_->rack(s, false)) f.racks[s] = r->describe();
+        // Los lugares de la sala sin nadie: su entrada recibe la placa del gateway, pero no es nadie.
+        if (conference_) {
+            BroadcastEngine& e = rt_.engine();
+            for (const std::string& n : e.sourceNames()) {
+                const nlohmann::json a = nlohmann::json::parse(e.sourceSettingsJson(n), nullptr, false);
+                if (!a.is_object() || !a.contains("slot")) continue;
+                const std::string canal = a.value("channel", a.value("anillo", std::string("guest")));
+                if (canal != "guest" && canal != "share") continue; // el remoto con la palabra: la sesión remota
+                const int slot = a.value("slot", 0);
+                if (slot > 0 && conference_->participanteEnSlot(slot).isEmpty())
+                    f.enEspera[n] = "el lugar " + std::to_string(slot) + " de la sala está vacío (llega la placa)";
+            }
+        }
+        return f;
+    }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
         asamblea::Bancas::Ganchos g;
@@ -1106,6 +1150,22 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.filaCambio = [this](const std::vector<std::string>& cola, const std::string& alAire) {
             if (sesionRemota_) sesionRemota_->fila(cola, alAire);
         };
+        // La fuente «Banca con la palabra»: si la toma es digital y hay escenas con la
+        // fuente, ella la recorta de la toma entera (no se mueve nada).
+        g.laEncuadraLaFuente = [this](const std::string& c, const std::string& p) {
+            if (!rt_.engine().hayFuenteBanca()) return false;
+            const QVariantMap d = camaras_->datosPosicion(QString::fromStdString(c), QString::fromStdString(p));
+            return d.value("existe").toBool() && d.value("digital").toBool() && !d.value("motorizada").toBool();
+        };
+        g.escenaDeRanura = [this](int n) { return rt_.engine().escenaDeRanura(n); };
+        g.posicionesConNombre = [this](const std::string& nombre) {
+            std::vector<std::pair<std::string, std::string>> out;
+            for (const QVariant& v : camaras_->buscarPosicion(QString::fromStdString(nombre))) {
+                const QVariantMap m = v.toMap();
+                out.emplace_back(m.value("entrada").toString().toStdString(), m.value("nombre").toString().toStdString());
+            }
+            return out;
+        };
         bancas_ = std::make_unique<asamblea::Bancas>(cuerpo_->cuerpo(), g);
         // El debate entre dos: reusa lo de la fila (micrófonos, cámaras, escenas, remotos).
         {
@@ -1120,7 +1180,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             };
             gd.microfono = g.microfono;
             gd.microfonoBanca = g.microfonoBanca;
-            gd.apuntar = [this](const std::string& id) { return bancas_->apuntar(QString::fromStdString(id)).toStdString(); };
+            // Cada lado lista: lo que la fuente de banca recorta no se mueve (dos bancas de la
+            // misma cámara digital se ven a la vez); una motorizada, sí.
+            gd.apuntar = [this](const std::string& id) { return bancas_->prepararToma(QString::fromStdString(id)).toStdString(); };
             gd.armar = g.armar;
             gd.cortar = g.cortar;
             gd.terminarOrador = [this]() { bancas_->terminar(); };
@@ -1183,6 +1245,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ordenDia_ = std::make_unique<asamblea::OrdenDelDia>(rt.dataRoot(), *bus_);
         // La banca virtual (sesión remota, en la sala o afuera): docs/funciones/SESION-REMOTA.md.
         sesionRemota_ = std::make_unique<asamblea::SesionRemota>(cuerpo_->cuerpo(), rt.dataRoot());
+        // Los orígenes de los links de integrantes y presidencia: los de sala/Direcciones (la
+        // red local para los de la sala; el túnel, aparte).
+        {
+            const auto origenes = [this]() {
+                sesionRemota_->setOrigenes(direcciones_->origen("sesion"), direcciones_->origen("sesion", true),
+                                           direcciones_->motivo("sesion"));
+            };
+            connect(direcciones_.get(), &sala::Direcciones::cambio, sesionRemota_.get(), origenes);
+            origenes();
+        }
         // Los presentes con voto salen del padrón del evento abierto (o de la central),
         // más los habilitados por la banca virtual, sin contar a nadie dos veces.
         quorum_ = std::make_unique<asamblea::Quorum>(rt.dataRoot(), [this]() {
@@ -1284,10 +1356,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), video_.get());
     {
         video::BancoSuperRes::Entorno en;
-        en.alAire = [this]() {
-            const auto s = rt_.engine().status();
-            return s.streaming || s.recording;
-        };
+        en.alAire = [this]() { return rt_.engine().haySalida(); };
         en.fps = [this]() {
             const auto& v = rt_.engine().videoConfig();
             return std::make_pair(v.fpsNum, v.fpsDen);
@@ -1433,6 +1502,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             else if (origen == "satellite" && satellite_)
                 satellite_->mensaje(dev.toStdString(), msg);
         });
+        // El control web (dashboard /control/): sus aparatos y el puente con el gateway (como la botonera).
+        controlWeb_ = std::make_unique<control::ControlWeb>(rt.dataRoot());
+        controlWebGw_ = std::make_unique<control::ControlWebGateway>(*controlWeb_, *cli);
+        // El tema de las páginas web: cada vez que la sala (re)arranca, se lo vuelve a pasar.
+        connect(conference_.get(), &ConferenceViewModel::onlineChanged, this, [this]() {
+            if (static_cast<ConferenceViewModel*>(conference_.get())->online()) mandarTemaWeb();
+        });
+        connect(controlWebGw_.get(), &control::ControlWebGateway::aviso, this,
+                [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
+        connect(controlWeb_.get(), &control::ControlWeb::solicitudNueva, this,
+                [this](const QString&, const QString& nombre, const QString& ip) {
+                    emit notify("«" + nombre + "» (" + ip + ") pide entrar al control web: aprobalo en Servicios → Control web.",
+                                "warn");
+                });
         connect(botonera_.get(), &control::Botonera::solicitudNueva, this,
                 [this](const QString&, const QString& nombre, const QString& perfil, const QString& ip) {
                     emit notify("«" + nombre + "» (" + ip + ") pide emparejarse como botonera con el perfil «" + perfil +
@@ -1476,6 +1559,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
+    // Ir a una posición a pedido (enfocar, dar la palabra, un preset) corta el
+    // seguimiento de caras de esa cámara: si no, se pelean.
+    camaras_->setDejarDeSeguir([this](const QString& e) {
+        if (seguidor_) seguidor_->dejar(e);
+    });
     seguidor_->setGrafos(video_.get());
     marca("seguidor");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
@@ -1590,6 +1678,181 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (avisosPendientes_.fetch_or(bit) == 0)
             QMetaObject::invokeMethod(this, &StudioViewModel::refrescarAvisos, Qt::QueuedConnection);
     });
+    // Todos los enlaces del aparato (página Enlaces y MCP enlaces_*): cómo preguntar y
+    // prender cada servicio, sin que el modelo conozca sus clases.
+    {
+        EnlacesViewModel::Fuentes f;
+        f.enlaces = [this]() { return &conference_->enlaces(); };
+        f.salaEnLinea = [this]() { return conference_->online(); };
+        f.salaCerrada = [this]() { return conference_->locked(); };
+        f.cerrarSala = [this](bool on) { conference_->setLocked(on); };
+        f.tunel = [this]() { return accesoRemoto_ ? accesoRemoto_->conexion() : QVariantMap(); };
+        f.activarTunel = [this](bool on) -> QString {
+            if (!accesoRemoto_) return "No disponible.";
+            if (!on) return accesoRemoto_->desconectar();
+            const QVariantList formas = accesoRemoto_->formasDeConectar();
+            if (formas.isEmpty())
+                return "No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.";
+            return accesoRemoto_->conectar(formas.first().toMap().value("id").toString());
+        };
+        f.apiRemota = [this]() { return apiRemotaUi(); };
+        f.activarApiRemota = [this](bool on) { setApiRemotaUi(on); };
+        f.satellite = [this]() -> QVariantMap {
+            if (!satellite_) return {};
+            return {{"activo", satellite_->activo()}, {"puerto", satellite_->puerto()}, {"error", satellite_->error()}};
+        };
+        f.activarSatellite = [this](bool on) -> QString {
+            return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : QString("No disponible.");
+        };
+        f.direcciones = [this]() -> const sala::Direcciones* { return direcciones_.get(); };
+        f.webEvento = [this]() -> QVariantMap {
+            if (!evento_) return {};
+            return {{"hay", evento_->web().value("hay").toBool()}, {"evento", evento_->abierto()}};
+        };
+        f.controlWeb = [this]() -> QVariantMap {
+            return {{"conectados", controlWeb_->conectados()},
+                    {"aparatos", controlWeb_->aparatosUi().size()},
+                    {"tunel", controlWeb_->tunel()}};
+        };
+        f.emparejarControlWeb = [this]() { emparejarControlWebUi(); };
+        // Los pedidos de aprobación por aparato: se aprueban en la misma fila de Servicios.
+        // Lo hace la persona que está en la consola (el asistente va por sus herramientas).
+        {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                for (const QVariant& v : botonera_->solicitudesUi()) {
+                    QVariantMap m = v.toMap();
+                    m["perfil"] = m.value("perfilId");
+                    m["detalle"] = "pide emparejarse";
+                    out << m;
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
+                const std::string e = botoneraGw_->resolver(sol.toStdString(), aprobar, perfil.toStdString());
+                if (e.empty()) emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
+                return qs(e);
+            };
+            a.perfilModo = "lista";
+            a.perfiles = [this]() {
+                QVariantList out;
+                for (const QVariant& v : botonera_->perfilesUi()) {
+                    const QVariantMap p = v.toMap();
+                    out << QVariantMap{{"id", p.value("id")}, {"nombre", p.value("nombre")}};
+                }
+                return out;
+            };
+            f.aprobaciones["botonera"] = std::move(a);
+        }
+        {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                for (const QVariant& v : controlWeb_->solicitudesUi()) {
+                    QVariantMap m = v.toMap();
+                    m["detalle"] = "pide entrar al control web";
+                    out << m;
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
+                const QString e = controlWeb_->aprobarUi(sol, aprobar, perfil);
+                if (e.isEmpty()) emit notify(aprobar ? "Aparato emparejado." : "Pedido rechazado.", aprobar ? "ok" : "info");
+                return e;
+            };
+            a.perfilModo = "texto";
+            a.perfilAyuda = "todo, o: escenas, audio";
+            f.aprobaciones["control"] = std::move(a);
+        }
+        if (satellite_) {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                for (const QVariant& v : satellite_->solicitudesUi()) {
+                    QVariantMap m = v.toMap();
+                    m["detalle"] = "quiere conectar un Satellite";
+                    out << m;
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& ip, bool aprobar, const QString&) -> QString {
+                if (!satellite_->pendientes().contains(ip)) return "Ese pedido ya no está.";
+                if (aprobar)
+                    satellite_->permitir(ip, true);
+                else
+                    satellite_->rechazar(ip);
+                return {};
+            };
+            a.textoAprobar = "Permitir";
+            a.unoEspera = "Una IP pide conectar: permitila acá abajo";
+            a.variosEsperan = "%1 IP piden conectar: permitilas acá abajo";
+            f.aprobaciones["satellite"] = std::move(a);
+        }
+        {
+            EnlacesViewModel::Aprobaciones a;
+            a.pendientes = [this]() {
+                QVariantList out;
+                const auto* l = qobject_cast<const JsonListModel*>(conference_->waiting());
+                if (l == nullptr) return out;
+                for (const QJsonValue& v : l->items()) {
+                    const QJsonObject p = v.toObject();
+                    out << QVariantMap{{"id", p.value("uid").toString()},
+                                       {"nombre", p.value("name").toString()},
+                                       {"ip", QString()},
+                                       {"ms", p.value("joinedMs").toDouble()},
+                                       {"detalle", p.value("info").toString().isEmpty()
+                                                       ? QString("espera en el lobby")
+                                                       : "espera en el lobby · " + p.value("info").toString()}};
+                }
+                return out;
+            };
+            a.resolver = [this](const QString& uid, bool aprobar, const QString&) -> QString {
+                if (aprobar)
+                    conference_->admit(uid);
+                else
+                    conference_->reject(uid);
+                return {};
+            };
+            a.textoAprobar = "Admitir";
+            a.unoEspera = "Una persona espera en el lobby: admitila acá abajo";
+            a.variosEsperan = "%1 personas esperan en el lobby: admitilas acá abajo";
+            f.aprobaciones["invitados"] = std::move(a);
+        }
+        enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
+        auto* e = enlaces_.get();
+        const auto avisar = [e]() { e->avisarCambio(); };
+        connect(conference_.get(), &ConferenceViewModel::onlineChanged, e, avisar);
+        // Cambiaron las direcciones (la red, el túnel, una puerta): los enlaces se vuelven a pedir.
+        connect(direcciones_.get(), &sala::Direcciones::cambio, e, &EnlacesViewModel::refrescar);
+        connect(conference_.get(), &ConferenceViewModel::roomChanged, e, avisar);
+        if (accesoRemoto_) connect(accesoRemoto_.get(), &AccesoRemoto::estadoChanged, e, avisar);
+        if (satellite_) connect(satellite_.get(), &control::SatelliteServidor::cambio, e, avisar);
+        connect(controlWeb_.get(), &control::ControlWeb::aparatosCambio, e, avisar);
+        connect(controlWeb_.get(), &control::ControlWeb::solicitudesCambio, e, avisar);
+        connect(controlWeb_.get(), &control::ControlWeb::conexionesCambio, e, avisar);
+        connect(botonera_.get(), &control::Botonera::solicitudesCambio, e, avisar);
+        connect(botonera_.get(), &control::Botonera::cambio, e, avisar); // los nombres de los perfiles
+        if (evento_) {
+            connect(evento_.get(), &EventoViewModel::webChanged, e, avisar);
+            connect(evento_.get(), &EventoViewModel::guionChanged, e, avisar);
+        }
+    }
+    // La fuente «Banca con la palabra»: lo que muestra cada ranura sigue a la fila y al debate.
+    if (bancas_) {
+        ranurasTarde_.setSingleShot(true);
+        ranurasTarde_.setInterval(1500);
+        connect(&ranurasTarde_, &QTimer::timeout, this, [this]() { actualizarRanurasBanca(true); });
+        const auto ranuras = [this]() {
+            actualizarRanurasBanca();
+            ranurasTarde_.start();
+        };
+        connect(bancas_.get(), &asamblea::Bancas::cambio, this, ranuras);
+        if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, ranuras);
+        if (cuerpo_) connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, ranuras);
+        if (camaras_) connect(camaras_.get(), &ptz::ControlCamaras::cambio, this, ranuras);
+        QTimer::singleShot(0, this, ranuras);
+    }
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
@@ -1598,6 +1861,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     QTimer::singleShot(ba::ajustes::entero("arranque.restaurarPlacaMs", 1500), this, [this]() {
         restaurarPlaca();
         if (dsk_) dsk_->restaurar();
+        // Los gráficos que arrancan solos al abrir el evento (ajuste `alAbrir` de la
+        // fuente): el logo que flamea en bucle, la placa de espera. Sin esto, una
+        // plantilla con su bandera la mostraba recién cuando alguien la disparaba.
+        if (emisor_)
+            for (const auto& g : graficos::instancias()) {
+                if (!g.alAbrir || g.reproduciendo) continue;
+                const QJsonObject v = QJsonDocument::fromJson(QByteArray::fromStdString(g.valores.dump())).object();
+                const QString e = emisor_->mostrar(QString::fromStdString(g.grafico), v, g.id, 0, g.bucle);
+                if (!e.isEmpty())
+                    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "graficos", 0, "«" + g.nombre + "» no arrancó al abrir: " + e.toStdString());
+            }
     });
 }
 
@@ -2019,11 +2293,16 @@ void StudioViewModel::onTick() {
     tiemposCentral();
     rt_.tick();
     // El retorno a los invitados: sin nadie que lo mire hace 10 s, la vista que
-    // baja el programa entero en cada cuadro descansa (ver retornoEnUso). Un
-    // televisor con el programa también mira: sin contarlo, se congelaba.
+    // baja el programa entero en cada cuadro descansa (ver retornoEnUso). Quién
+    // mira lo dice el GATEWAY (cuántas sesiones reciben el programa: invitados,
+    // televisores, la consola de la presidencia…); lo de abajo queda por si la
+    // sala todavía no lo informó. Con una lista de casos acá se escapaba el que
+    // faltaba: la consola de la presidencia se quedaba «esperando el programa».
     {
         auto* conf = static_cast<ConferenceViewModel*>(conference());
-        const bool alguien = (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
+        const int miran = conf != nullptr ? conf->client().miranPrograma() : -1;
+        const bool alguien = miran > 0 ||
+                             (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
                              (sesionRemota_ && sesionRemota_->conectados() > 0) ||
                              (pantallas_ != nullptr && pantallas_->muestraPrograma());
         const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
@@ -2142,30 +2421,7 @@ bool StudioViewModel::streamKeyAvailable() const {
 }
 bool StudioViewModel::streamKeySaved() const { return rt_.streamKeySaved(); }
 QString StudioViewModel::room() const { return qs(const_cast<AppRuntime&>(rt_).gateway().room); }
-QString StudioViewModel::joinUrl() const {
-    const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();
-    QString host = "127.0.0.1";
-    if (g.bindAddress != "127.0.0.1") {
-        // Red local: la primera IPv4 no loopback. Se relee cada 5 s como mucho: esto lo
-        // evalúa QML con cada statusChanged (10 veces por segundo) y pedirle las
-        // interfaces al sistema no es gratis.
-        static QString cache;
-        static qint64 cuando = 0;
-        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-        if (cache.isEmpty() || ahora - cuando > 5000) {
-            cache.clear();
-            for (const QHostAddress& a : QNetworkInterface::allAddresses()) {
-                if (a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLoopback()) {
-                    cache = a.toString();
-                    break;
-                }
-            }
-            cuando = ahora;
-        }
-        if (!cache.isEmpty()) host = cache;
-    }
-    return QString("http://%1:%2").arg(host).arg(g.port);
-}
+QObject* StudioViewModel::direccionesQml() const { return direcciones_.get(); }
 int StudioViewModel::guests() const { return rt_.config().guests; }
 QString StudioViewModel::theme() const { return qs(rt_.config().theme); }
 
@@ -2201,6 +2457,7 @@ QObject* StudioViewModel::matriz() const {
 #endif
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
+QObject* StudioViewModel::tiempos() const { return tiempos_.get(); }
 QObject* StudioViewModel::video() const { return video_.get(); }
 QObject* StudioViewModel::red() const { return red_.get(); }
 QObject* StudioViewModel::pluginsQml() const { return plugins_.get(); }
@@ -2302,6 +2559,53 @@ QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
+QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
+
+void StudioViewModel::actualizarRanurasBanca(bool forzar) {
+    if (!bancas_ || !cuerpo_) return;
+    // Quién va en cada ranura: en un debate, A y B; si no, quien tiene la palabra. Al
+    // que habla desde el navegador no se le pone cámara (tiene la suya: el remoto).
+    std::vector<std::string> ids;
+    if (debate_ && debate_->activo()) {
+        // Los de la sala, en orden (ranura 1 y 2): con uno remoto, el de la sala va en
+        // la 1 (la escena «sala y remoto» es banca 1 + el remoto).
+        if (!debate_->aEsRemoto()) ids.push_back(debate_->idA());
+        if (!debate_->bEsRemoto()) ids.push_back(debate_->idB());
+    } else {
+        const std::string id = bancas_->alAireId();
+        bool remoto = false;
+        if (sesionRemota_ && !id.empty()) {
+            const std::vector<std::string> conPalabra = sesionRemota_->conPalabraTodos();
+            remoto = std::find(conPalabra.begin(), conPalabra.end(), id) != conPalabra.end();
+        }
+        ids.push_back(remoto ? std::string() : id);
+    }
+    if (ids.size() > static_cast<std::size_t>(BroadcastEngine::kRanurasBanca)) ids.resize(BroadcastEngine::kRanurasBanca);
+    std::vector<BroadcastEngine::RanuraBanca> ranuras;
+    for (const std::string& id : ids) {
+        BroadcastEngine::RanuraBanca r;
+        const nlohmann::json i = id.empty() ? nlohmann::json::object() : cuerpo_->cuerpo().buscar(id);
+        const nlohmann::json t = i.value("preset_ptz", nlohmann::json::object()); // la toma de su banca
+        const QString camara = QString::fromStdString(t.value("camara", std::string()));
+        if (!camara.isEmpty()) {
+            r.entrada = camara.toStdString();
+            const QVariantMap d = camaras_->datosPosicion(camara, QString::fromStdString(t.value("posicion", std::string())));
+            // Digital (sin motor): la ventana de la posición, recortada de la toma entera.
+            // Motorizada: la cámara entera (la cabeza ya fue a la posición al dar la palabra).
+            if (d.value("existe").toBool() && d.value("digital").toBool() && !d.value("motorizada").toBool()) {
+                const double z = std::max(1.0, d.value("zoom").toDouble());
+                const double x = d.value("x").toDouble(), y = d.value("y").toDouble(), m = 0.5 / z;
+                r.entera = d.value("recorteDigital").toBool();
+                r.recorte[0] = static_cast<float>(std::max(0.0, x - m));
+                r.recorte[1] = static_cast<float>(std::max(0.0, y - m));
+                r.recorte[2] = static_cast<float>(std::max(0.0, 1.0 - (x + m)));
+                r.recorte[3] = static_cast<float>(std::max(0.0, 1.0 - (y + m)));
+            }
+        }
+        ranuras.push_back(r);
+    }
+    rt_.engine().setRanurasBanca(std::move(ranuras), forzar);
+}
 QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::medios() const { return medios_.get(); }
@@ -2815,6 +3119,10 @@ void StudioViewModel::refrescarAvisos() {
         emit themeChanged();
         emit sceneChanged();
         frames_->setGuests(rt_.config().guests);
+        if (rt_.config().temaWeb != temaWebMandado_) {
+            mandarTemaWeb();
+            emit temaWebChanged();
+        }
         camaras_->sincronizar(); // Mejorar imagen general: rige ya
         video_->setLegalizar(rt_.config().legalizar);
     }
@@ -3190,6 +3498,53 @@ void StudioViewModel::publicarEventos() {
 namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
+QObject* StudioViewModel::controlWebQml() const { return controlWeb_.get(); }
+
+QString StudioViewModel::temaWeb() const { return qs(rt_.config().temaWeb); }
+
+QVariantList StudioViewModel::temasWeb() const {
+    QVariantList out;
+    for (const auto& t : control::temasWeb())
+        out << QVariantMap{{"id", t.id},       {"nombre", t.nombre},         {"descripcion", t.descripcion},
+                           {"fondo", t.fondo}, {"superficie", t.superficie}, {"texto", t.texto},
+                           {"acento", t.acento}};
+    return out;
+}
+
+void StudioViewModel::setTemaWeb(const QString& id) {
+    const std::string t = id.toStdString();
+    if (!control::temaWebValido(t) || t == rt_.config().temaWeb) return;
+    rt_.config().temaWeb = t;
+    rt_.save();
+    rt_.ajustesAplicados(); // Configuración se entera (y acá, refrescarAvisos lo manda)
+}
+
+void StudioViewModel::mandarTemaWeb() {
+    const std::string t = rt_.config().temaWeb;
+    temaWebMandado_ = t;
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    QPointer<StudioViewModel> yo(this);
+    sala::pedir(cli, "POST", "/api/v1/tema", {{"tema", t}}, [yo](const std::string& err, const nlohmann::json&) {
+        if (yo && !err.empty()) yo->temaWebMandado_.clear(); // se reintenta cuando la sala vuelva
+    });
+}
+
+void StudioViewModel::emparejarControlWebUi() {
+    QPointer<StudioViewModel> yo(this);
+    controlWebGw_->emparejar(nullptr, "", [yo](const nlohmann::json& r) {
+        if (!yo) return;
+        if (!r.contains("url")) {
+            emit yo->notify(QString::fromStdString(r.value("error", std::string("No se pudo emparejar."))), "error");
+            return;
+        }
+        const std::string aviso = r.value("aviso", std::string());
+        emit yo->mostrarQr(QString::fromStdString(r.value("url", std::string())), "Control web (/control/)",
+                           QString::fromStdString("Abrilo en el navegador del aparato (de la red local; el código vale unos "
+                                                  "minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web." +
+                                                  (aviso.empty() ? std::string() : "\n" + aviso)),
+                           "verde");
+    });
+}
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::carasBotoneraQml() const { return carasBotonera_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
@@ -3258,8 +3613,8 @@ void StudioViewModel::emparejarTabletUi(const QString& perfil, const QString& no
     });
 }
 
-void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
-    const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar);
+void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil) {
+    const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar, perfil.toStdString());
     if (!e.empty()) {
         emit notify(qs(e), "error");
         return;
@@ -3341,20 +3696,8 @@ QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
 }
 
 QString StudioViewModel::urlApiRemota() const {
-    for (const QNetworkInterface& ifc : QNetworkInterface::allInterfaces()) {
-        const auto f = ifc.flags();
-        if (!f.testFlag(QNetworkInterface::IsUp) || !f.testFlag(QNetworkInterface::IsRunning) ||
-            f.testFlag(QNetworkInterface::IsLoopBack))
-            continue;
-        for (const QNetworkAddressEntry& e : ifc.addressEntries()) {
-            const QHostAddress ip = e.ip();
-            if (ip.protocol() != QAbstractSocket::IPv4Protocol) continue;
-            const quint32 v = ip.toIPv4Address();
-            const bool privada = (v >> 24) == 10 || (v >> 20) == (172u << 4 | 1) || (v >> 16) == (192u << 8 | 168);
-            if (privada) return "http://" + ip.toString() + ":" + QString::number(rt_.gateway().port);
-        }
-    }
-    return {};
+    // La dirección la decide la sala (sala/Direcciones): la puerta HTTP en la red local.
+    return qs(direcciones_->origen("companion"));
 }
 
 QVariantMap StudioViewModel::apiRemotaUi() const {
@@ -3364,9 +3707,7 @@ QVariantMap StudioViewModel::apiRemotaUi() const {
                                    {"nombre", qs(a.value("nombre", std::string()))},
                                    {"perfil", qs(a.value("perfil", std::string()))}});
     QVariantMap out{{"activo", botonera_->apiRemotaActiva()}, {"accesos", accesos}, {"url", urlApiRemota()}};
-    if (rt_.gateway().bindAddress == "127.0.0.1")
-        out["aviso"] = "La sala escucha solo en esta máquina: Companion en otra no llega. Abrila a la red local en "
-                       "Configuración → Red de la sala.";
+    if (urlApiRemota().isEmpty()) out["aviso"] = qs(direcciones_->motivo("companion"));
     return out;
 }
 
@@ -3604,10 +3945,14 @@ nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
 
 namespace ba::app {
 
+bool StudioViewModel::alAire() const { return rt_.engine().haySalida(); }
+bool StudioViewModel::transmitiendo() const { return rt_.engine().haySalida(false); }
+
 bool StudioViewModel::modoVivo() const {
+    // En vivo = sale algo de verdad (una transmisión; la grabación, si el ajuste
+    // la cuenta). Correr el guion del evento sin transmitir no es estar al aire.
     if (!modoVivoCfg_->activo()) return false;
-    const bool evento = evento_ != nullptr && evento_->property("enVivo").toBool();
-    return streaming_ || evento || (modoVivoCfg_->incluirGrabando() && recording_);
+    return rt_.engine().haySalida(modoVivoCfg_->incluirGrabando());
 }
 
 bool StudioViewModel::paginaBloqueada(const QString& id) const {

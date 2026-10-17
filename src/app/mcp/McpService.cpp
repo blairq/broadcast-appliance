@@ -12,6 +12,7 @@
 #include "escenas/Conmutador.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "mcp/McpService.hpp"
+#include "ptz/ControlCamaras.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
 #include "asamblea/Debate.hpp"
 #include "asamblea/Presidencia.hpp"
@@ -61,6 +62,7 @@
 #include "audio/Matriz.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "mcp/McpBotoneraTools.hpp"
+#include "mcp/McpControlWebTools.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
@@ -569,6 +571,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerCalibracionTools();
     registerPtzTools();
     registerVideoTools();
+    registerTiemposTools();
     registerRedTools();
     registerPluginTools();
     registerDcnTools();
@@ -587,7 +590,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     // McpCore en cada initialize, porque depende del rol del cliente) y
     // cuesta unos 400 tokens.
     applySecurity();
-    // Con todas las herramientas ya registradas (ver verificarJuegos).
+    // Con todas las herramientas ya registradas (ver verificarJuegos). Los nombres
+    // viejos de las renombradas en bloque van a su Tool::antes, y para eso tienen
+    // que existir (ver McpRenombres.cpp).
+    registrarRenombres(core_);
     core_.verificarJuegos();
 }
 
@@ -662,18 +668,14 @@ void McpService::applySecurity() {
     // Guardas de aire (McpAire): qué es "hay aire" y cuándo una PTZ cuenta
     // (la cámara está en la escena al aire).
     core_.aire().cargar(rt_.dataRoot() / "Config" / "mcp-aire.json");
-    const auto hayAire = [this]() {
-        const EngineStatus st = rt_.engine().status();
-        if (st.streaming || st.recording) return true;
-        auto* ev = static_cast<EventoViewModel*>(vm_.evento());
-        return ev != nullptr && ev->enVivo();
-    };
+    // Hay aire = sale algo (transmisión, grabación, señal limpia); el guion del
+    // evento corriendo sin salida no lo es.
+    const auto hayAire = [this]() { return rt_.engine().haySalida(); };
     core_.setHayAire(hayAire);
     core_.aire().setCondicion([this](const std::string&, const json& a) {
         const std::string e = a.value("entrada", std::string());
         if (e.empty()) return true;
-        const auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
-        return std::find(ss.begin(), ss.end(), e) != ss.end();
+        return rt_.engine().fuenteAlAire(e);
     });
     // El guion del evento llama herramientas (p. ej. el cue Pantalla): lo corre
     // el operador, así que cuenta como una persona.
@@ -782,6 +784,8 @@ void McpService::registerTools() {
                       "Todos los ajustes del appliance (video, codificación, sala, red...).");
     // La botonera y el bus de eventos (ver McpBotoneraTools.cpp).
     registerBotoneraTools(core_, vm_);
+    // El control web (dashboard /control/): sus aparatos (ver McpControlWebTools.cpp).
+    registerControlWebTools(core_, vm_);
     // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
     if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) {
         registerEventoTools(core_, *ev, vm_, [this](const std::string& id) {
@@ -799,11 +803,6 @@ void McpService::registerTools() {
     // Las preguntas del publico: viven en B, y esto es el lado de A que las
     // modera (ver McpPreguntaTools.cpp).
     registerPreguntaTools(core_, vm_, rt_);
-
-    // Los nombres viejos de las herramientas renombradas (v6) siguen andando: lo
-    // guardado con ellos (recetas, botoneras, disparadores) y los modelos
-    // publicados que los escriben (ver McpRenombres.cpp).
-    registrarRenombres(core_);
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
@@ -3119,13 +3118,91 @@ void McpService::registerTools() {
         t.name = "recinto_apuntar";
         t.title = "Apuntar la cámara a una banca";
         t.category = "camaras";
-        t.description = "Lleva la PTZ al preset de la banca (por banca, id o nombre) para tenerla lista, sin armar ni "
-                        "abrir micrófonos. No mueve la cámara que está al aire. Para ponerla al aire: banca_al_aire.";
+        t.description = "Lleva la PTZ a la toma de la banca (por banca, id o nombre) para tenerla lista, sin armar ni "
+                        "abrir micrófonos. No mueve la cámara que está al aire. Para ponerla al aire: banca_al_aire; "
+                        "para pedirlo de palabra (banca, persona o posición): enfocar.";
         t.inputSchema = {{"type", "object"}, {"required", {"banca"}}, {"properties", {{"banca", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const QString e = vm.bancas().apuntar(QString::fromStdString(a.value("banca", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok("Cámara en camino a la banca " + a.value("banca", std::string()) + "."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "enfocar";
+        t.title = "Enfocar una banca, a una persona o una posición";
+        t.category = "camaras";
+        t.description =
+            "Lleva la cámara a lo que se pida DE PALABRA: «banca 10», «10», el nombre de un integrante "
+            "(«Pepito López», o solo «López»; sin importar tildes ni mayúsculas) o el nombre de una "
+            "posición de cualquier cámara («Presidencia», «Plano general»). La banca usa SU toma (cámara "
+            "y posición de la banca, configuradas en las bancas). Solo apunta: no da la palabra (eso es "
+            "banca_al_aire, que además abre el micrófono, arranca el reloj y arma la escena del orador). "
+            "Con la cámara al aire no se mueve, salvo `forzar` (pide confirmación). `solo_ver`: dice qué "
+            "entendió (banca, persona o posición, y qué cámara) sin mover nada; si es ambiguo, da los "
+            "candidatos.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"que"}},
+                         {"properties",
+                          {{"que", {{"type", "string"}, {"description", "«banca 10», un nombre o el de una posición"}}},
+                           {"forzar", {{"type", "boolean"}}},
+                           {"solo_ver", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"que": "banca 10"})", R"({"que": "Pepito López"})", R"({"que": "Presidencia"})"};
+        t.run = [&vm](const json& a, Done done) {
+            const std::string que = a.value("que", std::string());
+            const json r = vm.bancas().resolver(que);
+            if (a.value("solo_ver", false) || r.contains("error")) {
+                if (r.contains("error") && !a.value("solo_ver", false)) {
+                    ToolResult e = ToolResult::error(r.value("error", std::string()));
+                    e.structured = r;
+                    return done(e);
+                }
+                return done(ToolResult().data(r));
+            }
+            const QString e = vm.bancas().enfocar(QString::fromStdString(que), a.value("forzar", false));
+            if (!e.isEmpty()) {
+                ToolResult err = ToolResult::error(e.toStdString());
+                err.structured = json{{"camara_al_aire", e.contains("al aire")}, {"entendido", r}};
+                return done(err);
+            }
+            done(ToolResult::ok("Enfocando: " + r.value("posicion", std::string()) + " (" + r.value("camara", std::string()) + ").")
+                     .data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "banca_toma";
+        t.title = "La cámara y la posición de una banca";
+        t.category = "asamblea";
+        t.idempotent = true;
+        t.description =
+            "Asocia la banca `banca` a una cámara (`camara`, la entrada) y a una de sus posiciones "
+            "(`posicion`, nombre o id: ptz_posiciones las da). La toma es de la BANCA, no de la persona: "
+            "si alguien cambia de banca, queda. La usan banca_al_aire, el debate, enfocar y la fuente "
+            "«Banca con la palabra». `camara` vacía la saca.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"banca", "camara"}},
+                         {"properties",
+                          {{"banca", {{"type", "string"}}}, {"camara", {{"type", "string"}}}, {"posicion", {{"type", "string"}}}}}};
+        t.examples = {R"({"banca": "10", "camara": "Cámara del recinto", "posicion": "Banca 10"})"};
+        t.run = [&vm](const json& a, Done done) {
+            const std::string banca = a.value("banca", std::string()), camara = a.value("camara", std::string()),
+                              posicion = a.value("posicion", std::string());
+            if (!camara.empty()) {
+                auto* cc = qobject_cast<ptz::ControlCamaras*>(vm.camaras());
+                const QVariantMap d = cc ? cc->datosPosicion(QString::fromStdString(camara), QString::fromStdString(posicion))
+                                         : QVariantMap{};
+                if (!d.value("existe").toBool())
+                    return done(ToolResult::error("«" + camara + "» no tiene una posición «" + posicion +
+                                                  "» (ptz_posiciones da las que hay; ptz_posicion_crear la crea)"));
+            }
+            const std::string e = vm.cuerpo().cuerpo().setToma(banca, camara, posicion);
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok(camara.empty() ? "La banca " + banca + " quedó sin toma."
+                                               : "Banca " + banca + ": " + posicion + " (" + camara + ")."));
         };
         core_.addTool(std::move(t));
     }

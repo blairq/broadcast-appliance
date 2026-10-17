@@ -94,5 +94,6 @@
       "titulo": "Volvemos en 15",
       "prompt": "Sacá al aire la placa de cuarto intermedio con «Volvemos a las HH:MM» (ahora más 15 minutos, usá {hora})."
     }
-  ]
+  ],
+  "seVa": "al-avanzar"
 }

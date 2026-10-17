@@ -53,6 +53,8 @@
 // ============================================================================
 #pragma once
 
+#include <limits>
+
 #include "Piezas.hpp"
 
 #include <gst/gst.h>
@@ -140,6 +142,9 @@ class Entrada {
     /// pico (lo más alto de 300 ms) y RMS (300 ms); -100 si hace más de 1 s que no llega.
     void nivelAudio(float pico[2], float rms[2]) const;
     std::string productorVideo() const { return id_ + ":video"; }
+    /// La toma ENTERA, antes del recorte del PTZ digital (para verla al lado de lo
+    /// recortado y manejar el recorte encima). Sin filtro PTZ, la misma de siempre.
+    std::string productorEntera() const { return hayEntera_ ? id_ + ":entera:video" : productorVideo(); }
     /// ¿Está mostrando la placa «sin señal»?
     bool enPlaca() const;
     std::string productorAudio() const { return id_ + ":audio"; }
@@ -180,6 +185,7 @@ class Entrada {
     bool enPlacaSinLock() const;
     void desarmarSalida();
     /// El productor que escribe la cadena (la que se rearma): el crudo si hay placa.
+    bool hayEntera_ = false; ///< la cadena tiene la derivación antes del PTZ (productorEntera)
     std::string productorCrudoVideo() const { return conPlaca_ ? id_ + ":crudo:video" : id_ + ":video"; }
     static GstPadProbeReturn alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer d);
 
@@ -279,6 +285,10 @@ class Entrada {
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
+    /// Las mismas edades, el video y el audio por separado (la página Latencias): NaN = sin
+    /// datos (una edad NEGATIVA vale: con desfase hacia adelante el cuadro sale con hora futura).
+    double edadVP50_ = std::numeric_limits<double>::quiet_NaN(), edadVP95_ = std::numeric_limits<double>::quiet_NaN(),
+           edadAP50_ = std::numeric_limits<double>::quiet_NaN(), edadAP95_ = std::numeric_limits<double>::quiet_NaN();
     std::uint64_t consultaNs_ = 0;
     LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
     std::shared_ptr<Rotulo> rotulo_; ///< un rótulo de texto: lo que dibuja (textoDibujado)

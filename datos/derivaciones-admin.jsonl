@@ -411,39 +411,39 @@
 {"frase": "Acomodá todas las ventanas entre los monitores", "herramienta": "ventanas_ordenar"}
 {"frase": "¿Podés repartir las ventanas para que no queden una arriba de la otra?", "herramienta": "ventanas_ordenar"}
 {"frase": "Tengo todas las ventanas amontonadas en una pantalla, ordenalas en el puesto", "herramienta": "ventanas_ordenar"}
-{"frase": "Abrime el evento del congreso de cardiología que guardamos la semana pasada", "herramienta": "evento_abrir"}
-{"frase": "¿Me podés abrir el evento de la presentación del libro para seguir trabajándolo?", "herramienta": "evento_abrir"}
-{"frase": "Mañana hacemos una charla nueva, creame un evento que se llame Charla de Innovación", "herramienta": "evento_abrir"}
+{"frase": "Abrime el evento del congreso de cardiología que guardamos la semana pasada", "herramienta": "guion_abrir"}
+{"frase": "¿Me podés abrir el evento de la presentación del libro para seguir trabajándolo?", "herramienta": "guion_abrir"}
+{"frase": "Mañana hacemos una charla nueva, creame un evento que se llame Charla de Innovación", "herramienta": "guion_abrir"}
 {"frase": "Armame el evento del viernes completo: fecha, los cuatro bloques con sus tiempos y los oradores", "herramienta": "evento_armar"}
 {"frase": "¿Podés dejarme listo todo el evento del sábado de una, con bloques, horarios y la lista de invitados?", "herramienta": "evento_armar"}
 {"frase": "Te paso el cronograma del foro de mañana, cargalo entero así ya tenemos el evento hecho", "herramienta": "evento_armar"}
-{"frase": "Agregale al guion un bloque al final que se llame Cierre y agradecimientos", "herramienta": "evento_bloque"}
-{"frase": "¿Podés mover el bloque de entrevistas para que quede antes del de preguntas?", "herramienta": "evento_bloque"}
-{"frase": "El panel de sponsors se cayó del programa, sacá ese bloque del guion", "herramienta": "evento_bloque"}
+{"frase": "Agregale al guion un bloque al final que se llame Cierre y agradecimientos", "herramienta": "guion_bloque"}
+{"frase": "¿Podés mover el bloque de entrevistas para que quede antes del de preguntas?", "herramienta": "guion_bloque"}
+{"frase": "El panel de sponsors se cayó del programa, sacá ese bloque del guion", "herramienta": "guion_bloque"}
 {"frase": "Pasame los capítulos de la grabación para pegarlos en la descripción de YouTube", "herramienta": "evento_capitulos"}
 {"frase": "¿Me armás las marcas de tiempo de cada bloque para subir el video?", "herramienta": "evento_capitulos"}
 {"frase": "Vamos a subir el programa de ayer y queremos que tenga el índice por bloques en la descripción", "herramienta": "evento_capitulos"}
 {"frase": "Arrancá el guion que ya estamos por salir al aire", "herramienta": "evento_correr"}
 {"frase": "¿Podés pasar al cue siguiente del guion? El conductor ya terminó de hablar", "herramienta": "evento_correr"}
 {"frase": "Antes del vivo quiero hacer un ensayo recorriendo el guion sin que salga nada al aire", "herramienta": "evento_correr"}
-{"frase": "¿Le podés cambiar la duración al cue del video institucional a dos minutos?", "herramienta": "evento_cue"}
-{"frase": "Ese cue del aplauso grabado ya no va, sacalo del bloque de cierre", "herramienta": "evento_cue"}
+{"frase": "¿Le podés cambiar la duración al cue del video institucional a dos minutos?", "herramienta": "guion_cue"}
+{"frase": "Ese cue del aplauso grabado ya no va, sacalo del bloque de cierre", "herramienta": "guion_cue"}
 {"frase": "Pasame el guion entero de una a ver si todos los cues se pueden ejecutar", "herramienta": "evento_ensayo_rapido"}
 {"frase": "¿Podés hacer una pasada rápida del guion completo sin esperar los tiempos ni tocar nada?", "herramienta": "evento_ensayo_rapido"}
 {"frase": "No tenemos tiempo para ensayar en tiempo real, chequeá de corrido si cada cue va a funcionar", "herramienta": "evento_ensayo_rapido"}
-{"frase": "Guardá el guion así como está ahora", "herramienta": "evento_guardar"}
-{"frase": "¿Me guardás los cambios que le hicimos al guion del evento?", "herramienta": "evento_guardar"}
-{"frase": "Antes de cerrar todo por hoy, dejá guardado el guion por si se corta la luz", "herramienta": "evento_guardar"}
+{"frase": "Guardá el guion así como está ahora", "herramienta": "guion_guardar"}
+{"frase": "¿Me guardás los cambios que le hicimos al guion del evento?", "herramienta": "guion_guardar"}
+{"frase": "Antes de cerrar todo por hoy, dejá guardado el guion por si se corta la luz", "herramienta": "guion_guardar"}
 {"frase": "Haceme el informe del evento de hoy con lo previsto contra lo que duró cada bloque", "herramienta": "evento_informe"}
 {"frase": "¿Cuánto nos pasamos en cada bloque respecto de lo que teníamos planeado?", "herramienta": "evento_informe"}
 {"frase": "El cliente quiere saber cuánto duró realmente cada parte del programa, sacame ese reporte", "herramienta": "evento_informe"}
-{"frase": "Mostrame los eventos que tenemos guardados con sus fechas", "herramienta": "evento_listar"}
-{"frase": "¿Qué eventos hay cargados y cuánto dura cada uno?", "herramienta": "evento_listar"}
+{"frase": "Mostrame los eventos que tenemos guardados con sus fechas", "herramienta": "guion_listar"}
+{"frase": "¿Qué eventos hay cargados y cuánto dura cada uno?", "herramienta": "guion_listar"}
 {"frase": "Revisá el guion y decime qué le falta para poder correrlo", "herramienta": "evento_revisar"}
 {"frase": "Antes del programa de mañana quiero asegurarme de que el guion no tenga errores ni bloques vacíos", "herramienta": "evento_revisar"}
-{"frase": "Mostrame el guion completo del evento que tenemos abierto", "herramienta": "evento_ver"}
-{"frase": "¿Cómo quedó el guion? Quiero ver los bloques con sus horas y los cues", "herramienta": "evento_ver"}
-{"frase": "El productor me pide repasar la escaleta, pasame el guion con todos los cues", "herramienta": "evento_ver"}
+{"frase": "Mostrame el guion completo del evento que tenemos abierto", "herramienta": "guion_ver"}
+{"frase": "¿Cómo quedó el guion? Quiero ver los bloques con sus horas y los cues", "herramienta": "guion_ver"}
+{"frase": "El productor me pide repasar la escaleta, pasame el guion con todos los cues", "herramienta": "guion_ver"}
 {"frase": "¿Le podés agregar la placa del sponsor al carrusel de la entrada?", "herramienta": "carrusel_armar"}
 {"frase": "En el recreo queremos que las teles vayan rotando avisos, preparame esa secuencia", "herramienta": "carrusel_armar"}
 {"frase": "¿Cuánto tarda en dar la vuelta completa el carrusel del lobby?", "herramienta": "carrusel_listar"}
@@ -594,15 +594,15 @@
 {"frase": "Se puede cortar la luz, salvá la config del aparato", "herramienta": "app_save"}
 {"frase": "Decime qué monitores hay conectados y qué ventanas de salida abiertas", "herramienta": "dashboard_list"}
 {"frase": "¿Qué tipos de tarjeta puedo sumar al tablero?", "herramienta": "dashboard_list"}
-{"frase": "Agregá un bloque nuevo al final del guion que se llame Cierre", "herramienta": "evento_bloque"}
-{"frase": "Sacá del guion el bloque de deportes, se cayó", "herramienta": "evento_bloque"}
-{"frase": "El bloque de noticias va antes en el guion, corrélo", "herramienta": "evento_bloque"}
-{"frase": "Ese cue del bloque dos sobra, volalo del guion", "herramienta": "evento_cue"}
-{"frase": "Pasá el cue del zócalo al bloque de entrevistas", "herramienta": "evento_cue"}
-{"frase": "Mostrame el guion completo del evento", "herramienta": "evento_ver"}
-{"frase": "¿Qué cues del rundown no están listos para ejecutarse?", "herramienta": "evento_ver"}
-{"frase": "¿A qué hora está previsto cada bloque del guion?", "herramienta": "evento_ver"}
-{"frase": "Leeme el rundown de hoy con las duraciones", "herramienta": "evento_ver"}
+{"frase": "Agregá un bloque nuevo al final del guion que se llame Cierre", "herramienta": "guion_bloque"}
+{"frase": "Sacá del guion el bloque de deportes, se cayó", "herramienta": "guion_bloque"}
+{"frase": "El bloque de noticias va antes en el guion, corrélo", "herramienta": "guion_bloque"}
+{"frase": "Ese cue del bloque dos sobra, volalo del guion", "herramienta": "guion_cue"}
+{"frase": "Pasá el cue del zócalo al bloque de entrevistas", "herramienta": "guion_cue"}
+{"frase": "Mostrame el guion completo del evento", "herramienta": "guion_ver"}
+{"frase": "¿Qué cues del rundown no están listos para ejecutarse?", "herramienta": "guion_ver"}
+{"frase": "¿A qué hora está previsto cada bloque del guion?", "herramienta": "guion_ver"}
+{"frase": "Leeme el rundown de hoy con las duraciones", "herramienta": "guion_ver"}
 {"frase": "Mostrame el árbol de carpetas de archivos con cuántos tiene cada una", "herramienta": "media_carpetas"}
 {"frase": "¿En qué carpeta de medios quedaron los videos del evento pasado?", "herramienta": "media_carpetas"}
 {"frase": "Antes de ordenar los archivos, pasame la estructura de carpetas", "herramienta": "media_carpetas"}
@@ -642,10 +642,10 @@
 {"frase": "Quitá esa tarjeta del tablero, la de arriba a la derecha", "herramienta": "dashboard_card"}
 {"frase": "Volvé el dashboard a la disposición de fábrica, con las tarjetas originales", "herramienta": "dashboard_card"}
 {"frase": "Sumame al panel una tarjeta nueva para ver el programa", "herramienta": "dashboard_card"}
-{"frase": "¿Qué eventos tenemos guardados y cuántos cues tiene cada uno?", "herramienta": "evento_listar"}
-{"frase": "Pasame la lista de eventos con fecha y duración prevista", "herramienta": "evento_listar"}
-{"frase": "Fijate qué eventos hay cargados para esta semana", "herramienta": "evento_listar"}
-{"frase": "¿Cuánto dura el evento del jueves según lo guardado?", "herramienta": "evento_listar"}
+{"frase": "¿Qué eventos tenemos guardados y cuántos cues tiene cada uno?", "herramienta": "guion_listar"}
+{"frase": "Pasame la lista de eventos con fecha y duración prevista", "herramienta": "guion_listar"}
+{"frase": "Fijate qué eventos hay cargados para esta semana", "herramienta": "guion_listar"}
+{"frase": "¿Cuánto dura el evento del jueves según lo guardado?", "herramienta": "guion_listar"}
 {"frase": "La extensión del clima quedó apagada al arrancar, volvé a cargarla", "herramienta": "ext_prender"}
 {"frase": "¿Por qué no aparece la tarjeta de la extensión? Reactivala", "herramienta": "ext_prender"}
 {"frase": "Arrancó el equipo y la extensión de redes quedó muerta, levantala", "herramienta": "ext_prender"}
@@ -937,12 +937,12 @@
 {"frase": "Quiero dos feeds de fondo detrás de las tarjetas del tablero", "herramienta": "dashboard_background"}
 {"frase": "Resetá el tablero a la disposición de tarjetas por defecto", "herramienta": "dashboard_card"}
 {"frase": "¿Me sumás al tablero una tarjeta para ver la cámara del invitado?", "herramienta": "dashboard_card"}
-{"frase": "Agregá un cue al bloque dos: entrevista al intendente", "herramienta": "evento_cue"}
-{"frase": "Mové el cue del sorteo al final del bloque tres", "herramienta": "evento_cue"}
-{"frase": "Cambiale la duración al cue de la apertura en la escaleta", "herramienta": "evento_cue"}
-{"frase": "Sacá de la escaleta el cue del móvil, se cayó", "herramienta": "evento_cue"}
-{"frase": "Listame los eventos con fecha y duración prevista", "herramienta": "evento_listar"}
-{"frase": "Fijate si ya está guardado el evento del viernes", "herramienta": "evento_listar"}
+{"frase": "Agregá un cue al bloque dos: entrevista al intendente", "herramienta": "guion_cue"}
+{"frase": "Mové el cue del sorteo al final del bloque tres", "herramienta": "guion_cue"}
+{"frase": "Cambiale la duración al cue de la apertura en la escaleta", "herramienta": "guion_cue"}
+{"frase": "Sacá de la escaleta el cue del móvil, se cayó", "herramienta": "guion_cue"}
+{"frase": "Listame los eventos con fecha y duración prevista", "herramienta": "guion_listar"}
+{"frase": "Fijate si ya está guardado el evento del viernes", "herramienta": "guion_listar"}
 {"frase": "La extensión del clima quedó apagada al arrancar, prendela", "herramienta": "ext_prender"}
 {"frase": "Volvé a cargar la extensión que el arranque deshabilitó", "herramienta": "ext_prender"}
 {"frase": "¿Por qué no está la extensión de estadísticas? Activala de nuevo", "herramienta": "ext_prender"}
@@ -1063,11 +1063,11 @@
 {"frase": "¿Qué feeds están de fondo en el dashboard ahora?", "herramienta": "dashboard_background"}
 {"frase": "Poné de fondo del tablero dos videos en mosaico", "herramienta": "dashboard_background"}
 {"frase": "El fondo del tablero está muy brillante, bajale la luz al video", "herramienta": "dashboard_background"}
-{"frase": "Agregá un cue de la entrevista al bloque dos de la escaleta", "herramienta": "evento_cue"}
-{"frase": "Mové el cue del informe del clima antes de la tanda", "herramienta": "evento_cue"}
-{"frase": "Sacá el cue del móvil del bloque tres, se cayó la nota", "herramienta": "evento_cue"}
-{"frase": "Cambiale la duración al cue de apertura, son dos minutos", "herramienta": "evento_cue"}
-{"frase": "Meté un cue nuevo de VTR al final del segundo bloque", "herramienta": "evento_cue"}
+{"frase": "Agregá un cue de la entrevista al bloque dos de la escaleta", "herramienta": "guion_cue"}
+{"frase": "Mové el cue del informe del clima antes de la tanda", "herramienta": "guion_cue"}
+{"frase": "Sacá el cue del móvil del bloque tres, se cayó la nota", "herramienta": "guion_cue"}
+{"frase": "Cambiale la duración al cue de apertura, son dos minutos", "herramienta": "guion_cue"}
+{"frase": "Meté un cue nuevo de VTR al final del segundo bloque", "herramienta": "guion_cue"}
 {"frase": "Poné la cortina musical de la carpeta de medios de fondo en la apertura", "herramienta": "media_use"}
 {"frase": "Usá el video institucional del archivo de medios en la escena de tanda", "herramienta": "media_use"}
 {"frase": "Poneme la imagen del sponsor de la carpeta de medios abajo a la izquierda", "herramienta": "media_use"}
@@ -1112,11 +1112,11 @@
 {"frase": "Subile el nivel al generador de seno a menos 12 dB", "herramienta": "audio_generator"}
 {"frase": "¿Podés crear un oscilador de ruido blanco para probar el compresor?", "herramienta": "audio_generator"}
 {"frase": "Cambiale la frecuencia al tono de prueba a 440 Hz", "herramienta": "audio_generator"}
-{"frase": "Agregá un cue de entrevista al bloque dos de la escaleta", "herramienta": "evento_cue"}
-{"frase": "Subí el cue del móvil de exteriores arriba de la pausa en el bloque tres", "herramienta": "evento_cue"}
-{"frase": "Borrá el cue de la nota de deportes, se cayó", "herramienta": "evento_cue"}
-{"frase": "Corregí la duración del cue del informe del clima en la escaleta, son dos minutos", "herramienta": "evento_cue"}
-{"frase": "¿Me sumás un cue de separador musical al final del primer bloque?", "herramienta": "evento_cue"}
+{"frase": "Agregá un cue de entrevista al bloque dos de la escaleta", "herramienta": "guion_cue"}
+{"frase": "Subí el cue del móvil de exteriores arriba de la pausa en el bloque tres", "herramienta": "guion_cue"}
+{"frase": "Borrá el cue de la nota de deportes, se cayó", "herramienta": "guion_cue"}
+{"frase": "Corregí la duración del cue del informe del clima en la escaleta, son dos minutos", "herramienta": "guion_cue"}
+{"frase": "¿Me sumás un cue de separador musical al final del primer bloque?", "herramienta": "guion_cue"}
 {"frase": "Dame una vista previa del gráfico de resultados en varios cuadros de la animación, sin emitir", "herramienta": "grafico_probar"}
 {"frase": "Quiero ver en privado cómo queda la animación del marcador antes de usarla", "herramienta": "grafico_probar"}
 {"frase": "Renderizame fotogramas de prueba del gráfico de encuesta, que nadie lo vea", "herramienta": "grafico_probar"}

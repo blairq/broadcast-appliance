@@ -1,0 +1,70 @@
+/* ============================================================================
+   /comun/neuro/neuro.css — lo base de una página de control (va con temas.css)
+
+   Tipografía, el fondo, y unas pocas piezas de armado que no son componentes
+   (grillas, filas, títulos, el panel en relieve). Todo con los materiales del
+   tema: nada de colores acá.
+   ============================================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  font-family: var(--fuente);
+  color: var(--texto);
+  background: var(--fondo);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1.35;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+h1 { font-size: 22px; }
+h2 { font-size: 16px; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--texto-suave); font-weight: 600; }
+
+.suave { color: var(--texto-suave); }
+.tenue { color: var(--texto-tenue); }
+.numero { font-family: var(--fuente-numeros); font-variant-numeric: tabular-nums; }
+
+/* Un panel en relieve (lo que no es una tarjeta con título). */
+.panel {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  backdrop-filter: var(--filtro);
+  -webkit-backdrop-filter: var(--filtro);
+  box-shadow: var(--relieve);
+  border-radius: var(--radio);
+  padding: 18px;
+}
+.panel.hundido { background: var(--superficie-hundida); box-shadow: var(--hundido); }
+
+/* Armado */
+.fila { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.columna { display: flex; flex-direction: column; gap: 14px; }
+.grilla { display: grid; gap: 22px; grid-template-columns: repeat(auto-fill, minmax(var(--min, 300px), 1fr)); }
+.espacio { flex: 1; }
+
+/* Campos de texto: hundidos. */
+input[type="text"], input[type="number"], input[type="password"], input[type="search"], select, textarea {
+  font: inherit;
+  color: var(--texto);
+  background: var(--superficie-hundida);
+  box-shadow: var(--hundido-suave);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  padding: 12px 14px;
+  min-height: 44px;
+  outline: none;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { box-shadow: var(--hundido-suave), 0 0 0 3px var(--foco); }
+::placeholder { color: var(--texto-tenue); }
+
+/* El borde de tally de toda la pantalla (lo pone la página: body.aire / body.armado). */
+body.aire { box-shadow: inset 0 0 0 4px var(--aire); }
+body.armado { box-shadow: inset 0 0 0 4px var(--armado); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

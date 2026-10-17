@@ -1,102 +1,41 @@
 {
   "nombre": "Placa de título",
-  "descripcion": "La placa de apertura de un bloque: una banda a media altura con el título y una bajada. Ocupa toda la pantalla, así que va sola en su fuente.",
+  "descripcion": "La apertura de un bloque: una banda a media altura con el título y una bajada. Estilo «Vecinal».",
+  "seVa": "al-avanzar",
+  "categoria": "De la plantilla",
   "ancho": 1920,
-  "alto": 1080,
+  "alto": 360,
+  "duracionMs": 2000,
   "parametros": [
     {
       "clave": "titulo",
       "titulo": "Título",
       "tipo": "texto",
-      "porDefecto": "Título del bloque",
-      "ayuda": "Se ve muy grande. Más de 34 caracteres se sale de la banda: si no entra, pasá parte a la bajada."
+      "porDefecto": "‹Título›",
+      "ayuda": "Más de 34 caracteres se recorta."
     },
     {
       "clave": "bajada",
       "titulo": "Bajada",
       "tipo": "texto",
-      "porDefecto": "La línea chica que explica de qué se trata",
-      "ayuda": "El renglón gris de abajo, que entra un poco después. Puede ir vacío."
+      "porDefecto": "‹Bajada›",
+      "ayuda": ""
     },
     {
       "clave": "acento",
       "titulo": "Color de acento",
       "tipo": "color",
-      "porDefecto": "#ff6a2b",
-      "ayuda": "La línea fina de arriba de la banda."
+      "ayuda": "El color del evento.",
+      "porDefecto": "#16a34a"
     },
     {
       "clave": "salidaEn",
       "titulo": "Cuándo se va",
       "tipo": "ms",
-      "porDefecto": 4000,
+      "porDefecto": 0,
       "minimo": 0,
       "maximo": 60000,
-      "ayuda": "Una placa de apertura no se queda: 3 a 5 segundos alcanzan para leerla."
-    }
-  ],
-  "declarativo": {
-    "ancho": 1920,
-    "alto": 1080,
-    "entrada": {
-      "efecto": "aparece",
-      "duracion": 600
-    },
-    "salida": {
-      "efecto": "desenfoca",
-      "duracion": 420
-    },
-    "capas": [
-      {
-        "tipo": "panel",
-        "izquierda": 0,
-        "arriba": 410,
-        "ancho": 1920,
-        "alto": 264,
-        "color": "#0d1014",
-        "opacidad": 0.92
-      },
-      {
-        "tipo": "barra",
-        "izquierda": 0,
-        "arriba": 410,
-        "ancho": 1920,
-        "alto": 6,
-        "color": "{acento}"
-      },
-      {
-        "tipo": "texto",
-        "id": "titulo",
-        "izquierda": 150,
-        "arriba": 466,
-        "valor": "{titulo}",
-        "tamano": 84,
-        "peso": "negrita"
-      },
-      {
-        "tipo": "texto",
-        "id": "bajada",
-        "izquierda": 154,
-        "arriba": 604,
-        "valor": "{bajada}",
-        "tamano": 34,
-        "peso": "liviana",
-        "color": "#9aa4b2",
-        "ancho": 1500,
-        "aparece": 380
-      }
-    ]
-  },
-  "acciones": [
-    {
-      "icono": "≣",
-      "titulo": "El bloque que arranca",
-      "prompt": "Mirá el guion del evento y poné en esta placa el nombre del bloque que está por empezar como título, y una bajada corta de qué se trata. Sacala al aire."
-    },
-    {
-      "icono": "⏱",
-      "titulo": "Cuatro segundos",
-      "prompt": "Sacala al aire y que se vaya sola a los 4 segundos, que es una placa de apertura y no se queda."
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
     }
   ]
 }

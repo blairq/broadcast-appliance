@@ -86,5 +86,6 @@
   "huso": "America/Argentina/Buenos_Aires",
   "inicio": "18:00",
   "nombre": "Sesión ordinaria (demo)",
-  "nota": ""
+  "nota": "",
+  "asamblea": true
 }

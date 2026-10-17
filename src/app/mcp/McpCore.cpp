@@ -333,10 +333,25 @@ void McpCore::addResource(Resource resource) { resources_.push_back(std::move(re
 void McpCore::addPrompt(Prompt prompt) { prompts_.push_back(std::move(prompt)); }
 
 const Tool* McpCore::findTool(const std::string& name) const {
-    const std::string n = nombreActual(name);
     for (const Tool& t : tools_)
-        if (t.name == n) return &t;
+        if (t.name == name) return &t;
+    for (const Tool& t : tools_)
+        if (std::find(t.antes.begin(), t.antes.end(), name) != t.antes.end()) return &t;
     return nullptr;
+}
+
+std::string McpCore::nombreActual(const std::string& name) const {
+    const Tool* t = findTool(name);
+    return t != nullptr ? t->name : name;
+}
+
+bool McpCore::agregarNombreAnterior(const std::string& actual, const std::string& viejo) {
+    for (Tool& t : tools_) {
+        if (t.name != actual) continue;
+        if (std::find(t.antes.begin(), t.antes.end(), viejo) == t.antes.end()) t.antes.push_back(viejo);
+        return true;
+    }
+    return false;
 }
 
 // --- Validacion ---------------------------------------------------------------
@@ -651,8 +666,7 @@ std::string primerTexto(const ToolResult& r) {
 } // namespace
 
 void McpCore::callTool(const json& params, std::function<void(json)> done, const CallContext& ctx) {
-    // Un nombre viejo (alias) se atiende con el de hoy: las guardas de rol y de
-    // aire y el registro hablan del nombre actual.
+    // Con un nombre viejo, todo lo que sigue (aire, aprobaciones, registro) con el actual.
     const std::string name = nombreActual(params["name"].get<std::string>());
     const json args = params.contains("arguments") && params["arguments"].is_object() ? params["arguments"]
                                                                                       : json::object();
@@ -863,6 +877,22 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                 "segui con otra cosa."));
         }
     });
+}
+
+void McpCore::pedirAprobacion(const std::string& herramienta, const json& args, const std::string& motivo,
+                              std::function<void(bool)> decide) {
+    if (sinAprobaciones_) {
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "MODO PRUEBA: " + herramienta + " sigue sin la aprobación de una persona (" + motivo + ")");
+        decide(true);
+        return;
+    }
+    const Tool* t = findTool(herramienta);
+    if (!approver_ || t == nullptr) {
+        decide(false);
+        return;
+    }
+    approver_(*t, args, motivo, std::move(decide));
 }
 
 json McpCore::resourceList() const {

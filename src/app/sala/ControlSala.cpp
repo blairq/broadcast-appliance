@@ -176,10 +176,6 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
     return t;
 }
 
-void ControlSala::codigoConsolaWeb(Listo listo) {
-    pedir(sala_, "POST", "/api/v1/login-code", nlohmann::json::object(), std::move(listo));
-}
-
 void ControlSala::verProxy(Listo listo) {
     pedir(sala_, "GET", "/api/v1/proxy", {}, [this, listo](const std::string& err, const nlohmann::json& r) {
         nlohmann::json out = r.is_object() ? r : nlohmann::json::object();

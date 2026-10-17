@@ -253,6 +253,36 @@ void pruebaPosiciones() {
     Posicion c;
     c.nombre = "Tribuna";
     CHECK(otra.agregar(c).id == "3", "Posiciones: un id borrado no se reusa");
+
+    // El número de preset: cada posición tiene uno (los presets SON las posiciones).
+    Posiciones nums;
+    Posicion p1;
+    p1.nombre = "Uno";
+    Posicion p5;
+    p5.nombre = "Cinco";
+    p5.numero = 5;
+    Posicion foto;
+    foto.nombre = "·foto del panel";
+    foto.interna = true;
+    CHECK(nums.agregar(p1).numero == 1, "Presets: el primer número libre");
+    CHECK(nums.agregar(p5).numero == 5, "Presets: el número pedido, si está libre");
+    CHECK(nums.agregar(foto).numero == 0, "Presets: la foto del panel no ocupa un número");
+    Posicion otraCinco;
+    otraCinco.nombre = "Otra";
+    otraCinco.numero = 5;
+    CHECK(nums.agregar(otraCinco).numero == 2, "Presets: un número ocupado pasa al primero libre");
+    CHECK(nums.porNumero(5) && nums.porNumero(5)->nombre == "Cinco" && !nums.porNumero(0),
+          "Presets: buscar por número");
+    // Las de antes del número (o repetidas) reciben uno al cargar.
+    QJsonArray viejas;
+    viejas.append(QJsonObject{{"id", "1"}, {"nombre", "Atril"}});
+    viejas.append(QJsonObject{{"id", "2"}, {"nombre", "Mesa"}, {"numero", 3}});
+    viejas.append(QJsonObject{{"id", "3"}, {"nombre", "Tribuna"}, {"numero", 3}});
+    Posiciones cargadas;
+    cargadas.cargar(viejas);
+    CHECK(cargadas.buscar("Atril")->numero == 1 && cargadas.buscar("Mesa")->numero == 3 &&
+              cargadas.buscar("Tribuna")->numero == 2,
+          "Presets: al cargar, las sin número o repetidas toman el primero libre");
 }
 
 // --- 2. Cámaras falsas ---------------------------------------------------------------

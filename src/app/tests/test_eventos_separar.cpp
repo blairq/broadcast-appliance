@@ -10,6 +10,7 @@
 #include <string>
 
 #include <QCoreApplication>
+#include <QThread>
 
 #include "arranque/Configuraciones.hpp"
 #include "evento/EventoStore.hpp"
@@ -90,6 +91,67 @@ int main(int argc, char** argv) {
         CHECK(!fs::exists(c / "Logs") && !fs::exists(c / "Runtime"), "sin lo de la app andando");
         ba::evento::EventoStore copia(c / "Eventos");
         CHECK(copia.enCurso() == dos, "su evento en curso es el de la copia (no uno nuevo vacío)");
+
+        // Borrar va a la papelera y se recupera con su nombre (o con otro si ya está usado).
+        escribir(datos / "configuraciones.json", R"({"activa": "Principal"})");
+        CHECK(!cf.borrar("Principal").empty(), "el abierto no se borra");
+        CHECK(!cf.borrar("No existe").empty(), "uno que no existe, error");
+        CHECK(cf.borrar("Copia de trabajo").empty(), "borra uno");
+        CHECK(!fs::exists(c), "ya no está en la lista");
+        const auto pap = cf.papelera();
+        CHECK(pap.size() == 1 && pap[0]["nombre"] == "Copia de trabajo" && pap[0]["borrado_ms"].get<long long>() > 0,
+              "queda en la papelera con su nombre y cuándo");
+        const std::string id = pap[0]["id"].get<std::string>();
+        CHECK(!cf.recuperar("../Principal").empty() && !cf.recuperar("nada").empty(), "solo lo que está en la papelera");
+        fs::create_directories(c);
+        CHECK(!cf.recuperar(id).empty(), "si el nombre está usado, no pisa");
+        fs::remove_all(c);
+        CHECK(cf.recuperar(id).empty() && fs::exists(c / "Recordings" / "grabacion.mp4"), "vuelve con todo lo suyo");
+        CHECK(cf.papelera().empty(), "la papelera queda vacía");
+        CHECK(cf.borrar("Copia de trabajo").empty() && cf.recuperar(cf.papelera()[0]["id"].get<std::string>(), "Otra").empty() &&
+                  fs::exists(datos / "Configuraciones" / "Otra"),
+              "se recupera con otro nombre");
+
+        // Vaciar: en otro hilo; lo viejo se va al arrancar; lo que se copia no se borra.
+        const auto esperar = [&cf]() {
+            for (int i = 0; i < 200 && cf.vaciando(); ++i) {
+                QCoreApplication::processEvents();
+                QThread::msleep(10);
+            }
+        };
+        CHECK(cf.borrar("Otra").empty(), "borra otra vez");
+        const fs::path dirPap = datos / "Configuraciones" / ".papelera";
+        fs::create_directories(dirPap / "Viejo-1000");          // borrado en 1970: muy viejo
+        fs::create_directories(dirPap / "Medio.borrando");      // un vaciado que se cortó
+        CHECK(cf.recuperar("Medio.borrando").size() > 0, "lo que quedó a medio borrar no se recupera");
+        CHECK(cf.vaciarViejos(30) == 2, "lo de más de un mes (y lo de a medias) se va");
+        esperar();
+        CHECK(!fs::exists(dirPap / "Viejo-1000") && !fs::exists(dirPap / "Medio.borrando.borrando") && !fs::exists(dirPap / "Medio.borrando"),
+              "borrado de verdad");
+        CHECK(cf.papelera().size() == 1, "lo reciente se queda");
+        CHECK(cf.vaciarPapelera("nada").size() > 0, "un id que no está, error");
+        CHECK(cf.vaciarPapelera().empty(), "vacía todo");
+        CHECK(!cf.vaciarPapelera().empty() || cf.vaciando(), "mientras vacía no arranca otra vez");
+        esperar();
+        CHECK(cf.papelera().empty() && fs::is_empty(dirPap), "la papelera queda vacía");
+        CHECK(cf.vaciarPapelera() == "la papelera está vacía", "vacía, avisa");
+
+        // Una copia en curso: ni el origen ni el destino se borran o renombran.
+        escribir(a / "Recordings" / "grande.bin", std::string(4 << 20, 'x'));
+        CHECK(cf.nuevoEventoAparte("Copia lenta", "Principal", false, {}).isEmpty(), "arranca la copia");
+        escribir(datos / "configuraciones.json", R"({"activa": "Otro"})"); // que Principal no sea el abierto
+        const bool copiando = !cf.copia().isEmpty();
+        if (copiando) {
+            CHECK(!cf.borrar("Principal").empty(), "el origen de la copia no se borra");
+            CHECK(!cf.renombrar("Principal", "X").empty(), "ni se renombra");
+            CHECK(!cf.borrar("Copia lenta").empty(), "ni el que se está creando");
+        }
+        for (int i = 0; i < 500 && !cf.copia().isEmpty(); ++i) {
+            QCoreApplication::processEvents();
+            QThread::msleep(10);
+        }
+        CHECK(cf.copia().isEmpty() && fs::exists(datos / "Configuraciones" / "Copia lenta"), "terminó la copia");
+        CHECK(cf.borrar("Principal").empty(), "después sí se borra");
     }
 
     fs::remove_all(datos);

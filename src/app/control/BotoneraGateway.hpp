@@ -47,11 +47,19 @@ class BotoneraGateway : public QObject {
     void sincronizar();
     /// Un código de un uso para `perfil` y la URL/QR que la tablet abre.
     void emparejar(const std::string& perfil, const std::string& nombre, int venceDias, ListoEmparejar listo);
-    /// Una persona aprueba (o no) la tablet que pidió emparejarse. "" o el error.
-    std::string resolver(const std::string& solicitud, bool aprobar);
+    /// Una persona aprueba (o no) la tablet que pidió emparejarse; `perfil` (id), si
+    /// no va vacío, es el que elige al aprobar. "" o el error.
+    std::string resolver(const std::string& solicitud, bool aprobar, const std::string& perfil = {});
     /// Lo que dice el servidor de la botonera del gateway (conexiones, credenciales,
     /// solicitudes), o "apagado" / "sin respuesta".
     void estado(std::function<void(const json&)> listo);
+
+    /// El origen de la red local de `servicio` (botonera, control) según la sala
+    /// (src/gateway/Direcciones), terminado en «/»: {base, huella?} o {error, sin_respuesta?}.
+    /// La usan los emparejamientos de la botonera y del control web.
+    static void baseRedLocal(ConferenceClient& gw, const std::string& servicio, std::function<void(const json&)> listo);
+    /// El QR de `url` como data URL de un SVG.
+    static std::string qrDataUrl(const std::string& url);
 
    signals:
     /// Algo para contarle al operador (texto, nivel: info|aviso|error).

@@ -6,10 +6,18 @@
 // de cada banca y el sistema de conferencia del recinto.
 //
 // Config/cuerpo.json: {nombre, integrantes: [{id, persona_id?, nombre,
-// cargo_oficial, bloque, distrito, banca, preset_ptz: {camara, posicion},
-// microfono: {fuente}, foto, dcn_unidad (la unidad de la central Bosch DCN de
-// esa banca), validado_por, validado_en}],
-// recinto: {filas, columnas, bancas: [{banca, fila, columna}]}}.
+// cargo_oficial, bloque, distrito, banca, microfono: {fuente}, foto,
+// dcn_unidad (la unidad de la central Bosch DCN de esa banca), validado_por,
+// validado_en}], recinto: {filas, columnas, bancas: [{banca, fila, columna}]},
+// tomas: {"<banca>": {camara, posicion}}}.
+//
+// LA TOMA ES DE LA BANCA, no de la persona: la cámara y la posición (de
+// ControlCamaras) que la enfocan. Si alguien cambia de banca, la toma se queda
+// en la banca; una banca vacía también tiene la suya. Para quien ya lo leía, un
+// integrante sigue trayendo `preset_ptz` ({camara, posicion}): es la toma de su
+// banca, calculada. Guardar un `preset_ptz` en un integrante (la planilla, el
+// panel, el MCP) cambia la toma de su banca. Los cuerpo.json de antes (con el
+// preset en la persona) se migran solos al abrir.
 //
 // EL RECINTO es la grilla de bancas como se ven desde la cabina: tocar una
 // banca la lleva al preset de su cámara (la reusan la página PTZ, la fila de
@@ -32,9 +40,12 @@ class Cuerpo {
    public:
     using json = nlohmann::json;
     explicit Cuerpo(std::filesystem::path config);
+    /// Minúsculas, sin tildes ni espacios a los costados: como se comparan bancas y nombres.
+    static std::string normalizar(const std::string& s);
 
     json todo() const { return datos_; }
-    json integrantes() const { return datos_.value("integrantes", json::array()); }
+    /// Cada uno con `preset_ptz`: la toma de su banca.
+    json integrantes() const;
     std::string nombre() const { return datos_.value("nombre", std::string()); }
     /// Crea (o renombra) el cuerpo. No borra integrantes.
     void setNombre(const std::string& n);
@@ -47,6 +58,13 @@ class Cuerpo {
     bool borrar(const std::string& id);
     /// Marca a un integrante como validado por `quien` (ahora).
     bool validar(const std::string& id, const std::string& quien);
+
+    /// La toma de una banca: {camara, posicion}, o {} si no tiene.
+    json toma(const std::string& banca) const;
+    /// Todas: {"<banca>": {camara, posicion}}.
+    json tomas() const { return datos_.value("tomas", json::object()); }
+    /// Cambia la toma de una banca (`camara` vacía la saca). "" o el error.
+    std::string setToma(const std::string& banca, const std::string& camara, const std::string& posicion);
 
     /// El recinto. Con `completo`, cada lugar trae su integrante ({id, nombre,
     /// bloque, preset_ptz, validado}) y `sin_lugar` las bancas del cuerpo que
@@ -73,6 +91,12 @@ class Cuerpo {
 
    private:
     void guardarArchivo() const;
+    /// Cambia la toma sin guardar (setToma y guardar guardan, y avisan, una vez).
+    std::string ponerToma(const std::string& banca, const std::string& camara, const std::string& posicion);
+    /// El integrante con `preset_ptz` = la toma de su banca.
+    json conToma(json integrante) const;
+    /// La clave de `tomas` de esa banca (la escrita, comparada sin tildes ni mayúsculas).
+    std::string claveToma(const std::string& banca) const;
     std::filesystem::path archivo_;
     json datos_;
     std::function<void()> alCambiar_;

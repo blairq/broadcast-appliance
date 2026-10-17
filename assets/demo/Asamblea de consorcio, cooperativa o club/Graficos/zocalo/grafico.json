@@ -1,39 +1,39 @@
 {
   "nombre": "Zócalo",
-  "descripcion": "El nombre y el cargo de quien habla, abajo a la izquierda.",
+  "descripcion": "El nombre y el cargo de quien habla, abajo a la izquierda. Estilo «Vecinal».",
+  "categoria": "De la plantilla",
   "ancho": 900,
   "alto": 220,
-  "duracionEntradaMs": 450,
+  "duracionMs": 2000,
   "parametros": [
     {
       "clave": "nombre",
       "titulo": "Nombre",
       "tipo": "texto",
-      "porDefecto": "Nombre Apellido",
-      "ayuda": "Se ve grande, en blanco. Más de 30 caracteres empieza a quedar apretado."
+      "porDefecto": "‹Nombre›",
+      "ayuda": "Más de 30 caracteres empieza a quedar apretado."
     },
     {
       "clave": "cargo",
       "titulo": "Cargo o procedencia",
       "tipo": "texto",
-      "porDefecto": "Cargo o procedencia",
-      "ayuda": "El renglón chico de abajo. Puede ir vacío."
+      "porDefecto": "‹Cargo›",
+      "ayuda": "El renglón chico. Puede ir vacío."
     },
     {
       "clave": "acento",
       "titulo": "Color de acento",
       "tipo": "color",
-      "porDefecto": "#ff6a2b",
-      "ayuda": "La barrita de la izquierda. Conviene el color del evento."
+      "ayuda": "El color del evento.",
+      "porDefecto": "#16a34a"
     },
     {
       "clave": "duracionEntrada",
       "titulo": "Cuánto tarda en entrar",
       "tipo": "ms",
-      "porDefecto": 450,
       "minimo": 150,
       "maximo": 1500,
-      "ayuda": "Menos de 250 ms se lee como un salto; más de 800 se hace lento."
+      "porDefecto": 600
     },
     {
       "clave": "salidaEn",
@@ -43,28 +43,6 @@
       "minimo": 0,
       "maximo": 60000,
       "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
-    }
-  ],
-  "acciones": [
-    {
-      "icono": "◉",
-      "titulo": "El que está hablando",
-      "prompt": "Poné en este zócalo el nombre y el cargo del invitado que está al aire ahora, y sacalo al aire. Si hay más de uno hablando, usá el que tenga el micrófono abierto."
-    },
-    {
-      "icono": "≣",
-      "titulo": "El del guion",
-      "prompt": "Mirá el guion del evento, buscá el cue de orador que está corriendo y poné en este zócalo el nombre y el cargo de esa persona."
-    },
-    {
-      "icono": "⏱",
-      "titulo": "Que se vaya solo",
-      "prompt": "Sacalo al aire y que se vaya solo a los 6 segundos."
-    },
-    {
-      "icono": "✦",
-      "titulo": "Corregir el cargo",
-      "prompt": "El cargo que tiene puesto está mal o quedó largo: acortalo a menos de 40 caracteres sin que pierda sentido, y volvé a sacarlo al aire."
     }
   ]
 }

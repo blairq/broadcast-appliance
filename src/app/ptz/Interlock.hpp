@@ -30,7 +30,7 @@ inline QString motivoInterlock(const QString& entrada, bool alAire, const Ajuste
                                const QString& modo) {
     if (entrada.isEmpty() || !alAire || !ajuste.activo || forzar) return {};
     if (modo == QLatin1String(kMovimientoSeguirSuave) && ajuste.seguirSuavePermitido) return {};
-    return QStringLiteral("La cámara «%1» está AL AIRE: moverla se ve en la transmisión.").arg(entrada);
+    return QStringLiteral("La cámara «%1» está AL AIRE: moverla se ve en lo que sale (transmisión o grabación).").arg(entrada);
 }
 
 } // namespace ba::app::ptz

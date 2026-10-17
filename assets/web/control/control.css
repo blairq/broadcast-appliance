@@ -1,0 +1,101 @@
+/* El dashboard web: el armado del tablero y las piezas de cada tarjeta. Todo con los
+   MATERIALES del tema (/comun/neuro/temas.css); los controles son los componentes de
+   neuro.js. Sin estilos en línea (la CSP no los deja). */
+
+body { padding-bottom: env(safe-area-inset-bottom); }
+.oculto { display: none !important; }
+
+/* --- Barra ----------------------------------------------------------------------------- */
+.barra { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: calc(12px + env(safe-area-inset-top)) clamp(16px, 3vw, 28px) 12px; background: var(--fondo);
+  box-shadow: 0 10px 18px -12px rgba(0, 0, 0, 0.5); }
+.marca { display: inline-flex; align-items: center; gap: 10px; font-size: 18px; }
+.punto-marca { width: 26px; height: 26px; border-radius: 50%; background: var(--superficie-hundida); box-shadow: var(--hundido-suave); position: relative; }
+.punto-marca::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--acento); box-shadow: 0 0 10px var(--acento); }
+
+/* --- El tablero ---------------------------------------------------------------------------- */
+.tablero { display: grid; gap: 24px; padding: 22px clamp(16px, 3vw, 28px) 40px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); align-items: start; }
+.tablero > .ancha { grid-column: span 2; }
+@media (max-width: 820px) { .tablero > .ancha { grid-column: auto; } }
+
+/* Una sola tarjeta (#tarjeta=…): a pantalla completa, sin la barra de tarjetas. */
+.una-tarjeta #botonTarjetas { display: none; }
+.una-tarjeta .tablero { grid-template-columns: 1fr; min-height: calc(100vh - 80px); }
+.una-tarjeta .tablero > * { grid-column: 1 !important; }
+.una-tarjeta .canales ba-fader { --alto-fader: 46vh; }
+.una-tarjeta ba-joystick { --lado: min(56vw, 46vh); }
+.una-tarjeta .grilla-escenas { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+
+.contenido-tarjeta { display: flex; flex-direction: column; gap: 16px; }
+.contenido-tarjeta h3 { margin: 4px 0 0; }
+.vacio { color: var(--texto-tenue); font-size: 14px; margin: 4px 0; }
+.lleno { flex: 1; }
+.numero { font-family: var(--fuente-numeros); font-variant-numeric: tabular-nums; }
+.grande-num { font-size: 22px; }
+
+/* --- Escenas ----------------------------------------------------------------------------- */
+.estado-escenas { gap: 10px; }
+.grilla-escenas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.grilla-escenas ba-boton { display: block; }
+.acciones-escenas ba-boton { min-width: 140px; }
+
+/* --- PTZ --------------------------------------------------------------------------------- */
+.selector-camara { flex: 1; min-width: 160px; }
+.ptz-cuerpo { display: flex; gap: 26px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 6px 0; }
+.ptz-cuerpo .zoom { gap: 14px; }
+.ptz-cuerpo .zoom ba-boton { min-width: 120px; }
+.posiciones { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* --- Mezclador ------------------------------------------------------------------------------ */
+.loudness { gap: 8px; }
+.canales { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 8px; }
+.canal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+
+/* --- Salidas y listas ------------------------------------------------------------------------ */
+.destino, .grabacion, .persona { gap: 10px; }
+.persona { padding: 10px 14px; border-radius: var(--radio-chico); background: var(--superficie); box-shadow: var(--relieve); border: 1px solid var(--borde); }
+.avisos { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* --- Oradores ---------------------------------------------------------------------------- */
+.orador-actual { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px;
+  border-radius: var(--radio-chico); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.orador-actual strong { font-size: 18px; }
+.orador-actual .restante { font-size: 26px; color: var(--acento); }
+.fila-oradores { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; color: var(--texto-suave); }
+
+/* --- Estado ------------------------------------------------------------------------------- */
+.grilla-estado { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.dato { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--radio-chico);
+  background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.dato strong { font-size: 18px; }
+.dato.mal strong { color: var(--aire); }
+
+/* --- Menú de tarjetas, paneles, confirmar, aviso ------------------------------------------- */
+/* El scroll va en .lista-tarjetas, con margen para el relieve de los controles: un
+   contenedor con scroll recorta lo que sobresale de su caja (las sombras, el resalte). */
+.menu-tarjetas { position: fixed; z-index: 8; top: 76px; right: clamp(16px, 3vw, 28px); display: flex; flex-direction: column; gap: 8px;
+  max-height: calc(100vh - 100px); min-width: 280px; padding: 18px 8px 10px; }
+.menu-tarjetas h3 { margin: 0 12px; }
+.lista-tarjetas { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding: 8px 10px 12px; }
+.lista-tarjetas ba-toggle { padding: 4px 12px; border-radius: var(--radio-chico); transition: background .15s; }
+.lista-tarjetas ba-toggle:hover { background: var(--superficie-hundida); }
+.cubre { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: color-mix(in srgb, var(--fondo) 82%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.caja { width: min(480px, 92vw); display: flex; flex-direction: column; gap: 16px; text-align: center; }
+.caja h1 { font-size: 22px; }
+.caja.confirmar { box-shadow: var(--relieve-alto), 0 0 0 3px var(--aire); }
+.caja.confirmar h2 { color: var(--aire); font-size: 20px; }
+.aviso { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 30; padding: 13px 22px; border-radius: var(--radio-chico);
+  color: var(--texto); background: var(--superficie-plana); box-shadow: var(--relieve-alto); border: 1px solid var(--borde); font-weight: 600; max-width: 90vw; }
+.aviso.error { color: #fff; background: var(--aire); }
+
+/* --- Sala ----------------------------------------------------------------------------------- */
+.sala-cabeza, .sala-enlace { gap: 12px; }
+.enlace-qr { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.enlace-qr .qr { width: 200px; height: 200px; border-radius: var(--radio-chico); background: #fff; padding: 10px; box-shadow: var(--relieve); }
+.dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 900px) { .dos-columnas { grid-template-columns: 1fr; } }
+.chat { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding: 10px 12px;
+  border-radius: var(--radio-chico); background: var(--superficie-hundida); box-shadow: var(--hundido-suave); }
+.chat .mensaje { font-size: 14px; }

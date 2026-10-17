@@ -606,14 +606,9 @@ int main(int argc, char** argv) {
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;
     Room room(roomCfg);
-    // La señalización siempre se alcanza en 127.0.0.1 (con «red local» escucha
-    // en todas; con una IP elegida, en 127.0.0.1: ver sigCfg).
-    const std::string guestUrl = "http://127.0.0.1:" + std::to_string(cfg.port) + "/";
-    // El enlace que copia el operador lleva la sala en el fragmento (#room=),
-    // igual que el QR: el invitado no tiene que tipear un dato que no conoce.
-    // Los invitados entran por /invitados/: la raíz es de la página del evento cuando
-    // hay uno con sitio (ver SignalingServer, «la página del evento en vivo»).
-    room.setHostInfo(roomPin, guestUrl + "invitados/#room=" + cfg.room);
+    // El enlace de invitados lo pone Direcciones (más abajo, setDirecciones): cambia con
+    // la red y el túnel. Lleva la sala en el fragmento (#room=).
+    room.setHostInfo(roomPin, "");
 
     // Archivos que comparten los invitados: de B, se limpian en cada arranque
     // (A copia lo que toma a su propia carpeta de medios).
@@ -636,13 +631,19 @@ int main(int argc, char** argv) {
     // 127.0.0.1, que es adonde le reenvían el HTTPS y el túnel de Cloudflare.
     const bool unaInterfaz = cfg.bindAddress != "127.0.0.1" && cfg.bindAddress != "0.0.0.0";
     sigCfg.bindAddress = unaInterfaz ? std::string("127.0.0.1") : cfg.bindAddress;
+    // La puerta de la sala (SignalingServer.hpp, 1c): los servicios de la sala llegan por la
+    // red local aunque la sala de invitados esté cerrada. En la IP de «Acceso» si es una
+    // sola; si no, en todas.
+    const std::string puertaBind = unaInterfaz ? cfg.bindAddress : std::string("0.0.0.0");
+    sigCfg.controlLan = (cfg.controlLanPort != 0 && cfg.https) || cfg.puertaHttpPort != 0;
+    sigCfg.puertaHttpBind = puertaBind;
+    sigCfg.puertaHttpPort = cfg.puertaHttpPort;
     sigCfg.webroot = cfg.webroot;
     sigCfg.room = cfg.room;
     sigCfg.maxGuests = cfg.guests;
     sigCfg.pinIntentos = cfg.pinIntentos;
     sigCfg.pinBloqueoS = cfg.pinBloqueoS;
     sigCfg.adminPort = cfg.adminPort;
-    sigCfg.adminWebroot = cfg.adminWebroot;
     // Las caras propias de los botones (fotos y videos cortos): <datos>/Media/botonera.
     sigCfg.carasBotonera = (pathFromUtf8(cfg.configDir).parent_path() / "Media" / "botonera").string();
     {
@@ -659,6 +660,7 @@ int main(int argc, char** argv) {
         sigCfg.eventoWebroot = (guestRoot.parent_path() / "evento").string();
         sigCfg.botoneraWebroot = (guestRoot.parent_path() / "botonera").string();
         sigCfg.sesionWebroot = (guestRoot.parent_path() / "sesion").string();
+        sigCfg.controlWebroot = (guestRoot.parent_path() / "control").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
@@ -725,6 +727,8 @@ int main(int argc, char** argv) {
     }() + "; en el QR: " + (hostLocal.empty() ? std::string("(ninguna)") : hostLocal));
 
     std::unique_ptr<net::TlsTerminator> tls;
+    std::unique_ptr<net::TlsTerminator> tlsAparatos; // la puerta de la botonera y el control web
+    std::vector<std::string> nombresTls;             // los mismos en los dos: el mismo certificado
     bool httpsPorBaWeb = false;
     if (cfg.https) {
         net::TlsTerminator::Config tc;
@@ -737,6 +741,7 @@ int main(int argc, char** argv) {
             tc.names.push_back(cfg.urlHost); // el certificado también para el nombre elegido
         if (!publicHost.empty()) tc.names.push_back(publicHost);
         if (!publicIp.empty() && publicIp != publicHost) tc.names.push_back(publicIp);
+        nombresTls = tc.names;
         tls = std::make_unique<net::TlsTerminator>(tc, logLine);
         // El HTTPS de la red local lo atiende ba-web (gzip, caché, límites; ver más abajo) con
         // este mismo certificado: acá solo se carga. Con WireGuard no: su puente manda la
@@ -824,16 +829,6 @@ int main(int argc, char** argv) {
 #endif
     }
 
-    // Enlace para los invitados: el mas util que haya.
-    std::string bestUrl = guestUrl;
-    if (!publicHost.empty() && wg) {
-        bestUrl = (tls ? "https://" : "http://") + publicHost + "/";
-    } else if (tls && cfg.bindAddress != "127.0.0.1" && !hostLocal.empty()) {
-        bestUrl = "https://" + hostLocal + ":" + std::to_string(tls->port()) + "/";
-    } else if (tls) {
-        bestUrl = "https://127.0.0.1:" + std::to_string(tls->port()) + "/";
-    }
-    room.setHostInfo(roomPin, bestUrl + "invitados/#room=" + cfg.room);
 
     server.setServerConfigGenerator([&](const nlohmann::json& req) {
         // Claves NUEVAS para el servidor + su wg0.conf con las redirecciones
@@ -1083,46 +1078,10 @@ int main(int argc, char** argv) {
             {"precedencia", nlohmann::json::array({"pinggy", "cloudflare", "wireguard"})}};
     });
 
-    server.setJoinUrlProvider([&](const std::string& target) -> nlohmann::json {
-        // La sala va en el fragmento (#room=): la app del invitado la precarga
-        // y el fragmento nunca viaja al servidor. El PIN NO va en el QR.
-        const std::string frag = "invitados/#room=" + cfg.room;
-        if (target == "remote") {
-            // pinggy primero si esta listo (ver la precedencia arriba).
-            if (const std::string pg = urlPinggy(); !pg.empty()) return {{"url", pg + "/" + frag}};
-            if (!cfg.tunnelHostname.empty()) return {{"url", "https://" + cfg.tunnelHostname + "/" + frag}};
-            if (wg && !publicHost.empty())
-                return {{"url", (tls ? "https://" : "http://") + publicHost + "/" + frag}};
-            if (pinggy)
-                return {{"error", "remote"},
-                        {"message", "El tunel de pinggy todavia no esta listo (" + pinggy->estado().estado +
-                                        "). Mira Configuracion > Acceso remoto."}};
-            return {
-                {"error", "remote"},
-                {"message",
-                 "Falta el acceso remoto: pinggy (Configuracion > Acceso remoto) o el dominio del tunel de "
-                 "Cloudflare (Configuracion > Gateway > Dominio publico)."}};
-        }
-        if (cfg.bindAddress == "127.0.0.1") {
-            return {{"error", "local"},
-                    {"message", "El gateway solo escucha en esta maquina: elegi 'Red local' o una IP en "
-                                "Configuracion > Gateway > Acceso."}};
-        }
-        if (hostLocal.empty()) {
-            return {{"error", "local"},
-                    {"message", "No encontre ninguna IP de red en esta maquina: elegila o escribila en "
-                                "Configuracion > Gateway > Direccion para el QR."}};
-        }
-        const std::string& ip = hostLocal;
-        if (tls) return {{"url", "https://" + ip + ":" + std::to_string(tls->port()) + "/" + frag}};
-        return {{"url", "http://" + ip + ":" + std::to_string(cfg.port) + "/" + frag},
-                {"warning", "Sin HTTPS el navegador no da camara ni microfono por la red local."}};
-    });
-
     server.setNetworkStatus([&]() {
         nlohmann::json st;
         nlohmann::json urls = nlohmann::json::array();
-        urls.push_back(guestUrl);
+        urls.push_back("http://127.0.0.1:" + std::to_string(cfg.port) + "/"); // diagnóstico: los enlaces salen de «direcciones»
         if (tls) {
             urls.push_back("https://127.0.0.1:" + std::to_string(tls->port()) + "/");
             if (!hostLocal.empty() && cfg.bindAddress != "127.0.0.1")
@@ -1135,7 +1094,13 @@ int main(int argc, char** argv) {
         if (!publicHost.empty() && wg) urls.push_back((tls ? "https://" : "http://") + publicHost + "/");
         if (const std::string pg = urlPinggy(); !pg.empty()) urls.push_back(pg + "/");
         st["urls"] = urls;
-        st["bestUrl"] = bestUrl;
+        // El enlace de invitados, del catálogo (Direcciones.hpp): el de la red o el de afuera.
+        {
+            const nlohmann::json loc = server.origenDe("invitados", "local");
+            const nlohmann::json rem = server.origenDe("invitados", "remote");
+            st["bestUrl"] = loc.contains("url") ? loc["url"] : rem.contains("url") ? rem["url"] : nlohmann::json("");
+        }
+        st["direcciones"] = server.direcciones();
         st["lan"] = lanIps;
         st["urlHost"] = hostLocal;
         // El origen con certificado DE VERDAD, si lo hay. Importa para los
@@ -1200,6 +1165,74 @@ int main(int argc, char** argv) {
     if (!server.start()) {
         log.error("senalizacion no arranco; el gateway sigue sin tunel web", -1);
     }
+    // La puerta de la sala, HTTPS (ver SignalingServer.hpp, 1c): en la red → la escucha
+    // de 127.0.0.1 que atiende todo menos la entrada de invitados.
+    if (server.controlPort() != 0 && cfg.https && cfg.controlLanPort != 0) {
+        net::TlsTerminator::Config ac;
+        ac.bindAddress = puertaBind;
+        ac.port = cfg.controlLanPort;
+        ac.backendPort = server.controlPort();
+        ac.credentialsDir = ba::platform::credentialsDir().string();
+        ac.names = nombresTls;
+        tlsAparatos = std::make_unique<net::TlsTerminator>(ac, logLine);
+        if (tlsAparatos->start()) {
+            log.info("puerta de la sala: https en " + puertaBind + ":" + std::to_string(tlsAparatos->port()));
+        } else {
+            log.warn("puerta de la sala: no arrancó el HTTPS en el puerto " + std::to_string(cfg.controlLanPort) +
+                         " (los servicios de la sala no llegan por HTTPS desde la red)",
+                     -1);
+            tlsAparatos.reset();
+        }
+    }
+    // --- Las direcciones de los servicios (Direcciones.hpp): UNA fuente para todo enlace,
+    // QR y aviso. Las entradas se toman frescas cada vez (el gateway las mira cada 2 s);
+    // las IP de la máquina se releen cada 10 s (cambio de wifi, DHCP).
+    struct {
+        std::mutex m;
+        std::vector<std::string> ips;
+        std::chrono::steady_clock::time_point cuando{};
+    } ipsFrescas;
+    server.setDirecciones(
+        [&]() {
+            direcciones::Entradas e;
+            {
+                std::lock_guard<std::mutex> l(ipsFrescas.m);
+                const auto ahora = std::chrono::steady_clock::now();
+                if (ipsFrescas.ips.empty() || ahora - ipsFrescas.cuando > std::chrono::seconds(10)) {
+                    ipsFrescas.ips = net::localIPv4s();
+                    ipsFrescas.cuando = ahora;
+                }
+                e.ips = ipsFrescas.ips;
+            }
+            e.urlHost = cfg.urlHost;
+            e.bind = cfg.bindAddress;
+            e.puertaHttps = tlsAparatos ? tlsAparatos->port() : 0;
+            e.puertaHttp = server.puertaHttpPort();
+            // Los invitados por la red: solo si «Acceso» abre la sala (con una IP elegida, la
+            // señalización queda en 127.0.0.1 y por la red solo está el HTTPS).
+            e.invitadosHttps = cfg.bindAddress != "127.0.0.1" && tls ? tls->port() : 0;
+            e.invitadosHttp = cfg.bindAddress == "0.0.0.0" && !tls ? cfg.port : 0;
+            // Afuera: solo un túnel listo de verdad (pinggy listo o reconectando con su URL;
+            // Cloudflare con cloudflared andando, no «hay un nombre guardado»; WireGuard arriba).
+            if (const std::string pg = urlPinggy(); !pg.empty()) {
+                e.remoto = pg;
+                e.via = "pinggy";
+                e.estadoRemoto = pinggy->estado().estado;
+            } else if (cfg.tunnel && !cfg.tunnelHostname.empty() && cloudflared.running()) {
+                e.remoto = "https://" + cfg.tunnelHostname;
+                e.via = "cloudflare";
+            } else if (wg && !publicHost.empty() && wg->stats().up) {
+                e.remoto = (tls ? "https://" : "http://") + publicHost;
+                e.via = "wireguard";
+            } else if (pinggy) {
+                e.motivoRemoto = "El túnel todavía no está listo (" + pinggy->estado().estado + ").";
+            }
+            e.controlRemoto = server.controlWebDesdeAfuera();
+            e.eventoWeb = server.eventoWebPublicado();
+            e.huella = tlsAparatos ? tlsAparatos->fingerprint() : std::string();
+            return e;
+        });
+
     std::filesystem::path adminFile;
     if (server.adminPort() != 0) {
         const auto dir = ba::platform::stateDir(); // dentro del bundle portable
@@ -1280,6 +1313,7 @@ int main(int argc, char** argv) {
 #endif
     if (wg) wg->stop();
     if (tls) tls->stop();
+    if (tlsAparatos) tlsAparatos->stop();
     if (pinggy) pinggy->stop(); // antes que la escucha del tunel
     if (baWeb) baWeb->stop();   // después de pinggy (ya no le llega nada)
     if (turnSrv) turnSrv->stop();

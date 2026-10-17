@@ -41,6 +41,10 @@ class Catalogo {
     QJsonArray lista() const;
     /// El `grafico.json` de uno. Vacío = no existe (o el nombre no sirve).
     QJsonObject ficha(const QString& nombre) const;
+    /// Cuándo se va una cue del guion que no lo dice: `seVa` de su ficha («al-avanzar»,
+    /// «sola», «queda»); si la ficha no dice (la copia de un evento de antes), el de la
+    /// ficha de fábrica con ese nombre; si tampoco, «queda».
+    QString seVaDe(const QString& nombre) const;
     /// Los valores por defecto que declara una ficha (solo los que tienen
     /// `porDefecto`: un null en un parámetro de un QML escrito a mano falla).
     static QJsonObject valoresPorDefecto(const QJsonObject& ficha);

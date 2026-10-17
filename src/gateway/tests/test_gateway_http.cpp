@@ -8,8 +8,7 @@
 //   2. /api/join con PIN correcto/incorrecto.
 //   3. Upgrade WS: cabeceras en cualquier capitalizacion, Sec-WebSocket-Accept
 //      del RFC 6455 (el valor de la cabecera no se altera) y anti-replay.
-//   4. API de control: Bearer, cookie (solo lectura sin X-BA-Admin: CSRF) y
-//      que NO exista en la superficie de invitados.
+//   4. API de control: solo Bearer, y que NO exista en la superficie de invitados.
 //   5. Lobby: el invitado espera, el operador lo ve por SSE, un offer desde el
 //      lobby se ignora, admitir por la API le da su slot.
 //   6. Offer fragmentado (FIN=0 + continuaciones) -> answer.
@@ -20,7 +19,7 @@
 //  10. Reconexion: el corte conserva el slot; resume con clave mala -> 401,
 //      con la buena vuelve a su slot.
 //  11. Sala cerrada -> 423; lobby apagado -> admision directa.
-//  12. Cambio de PIN y login de la consola web con codigo de un solo uso.
+//  12. Cambio de PIN (uno por dia).
 //  13. QR de ingreso (URL local/remota, PIN opcional en el fragmento).
 //  14. Modo oradores: admitir = a la fila (backstage) con info y contacto,
 //      aviso "speaker" al invitado, al aire por la API, foto (JPEG chico,
@@ -415,8 +414,10 @@ int main() {
     scfg.port = 0;      // efimero: nada de pelear por un puerto fijo en CI
     scfg.adminPort = 0; // idem
     scfg.webroot = BA_TEST_WEBROOT;
-    scfg.adminWebroot = BA_TEST_WEBROOT; // alcanza para probar el estatico
     scfg.boardWebroot = BA_TEST_WEBROOT;
+    scfg.comunWebroot = BA_TEST_WEBROOT;
+    scfg.controlWebroot = BA_TEST_WEBROOT;
+    scfg.controlLan = true; // la puerta de los aparatos de control (efimera)
     const std::string kAdmin = "token-de-operador-de-prueba";
     scfg.adminToken = kAdmin;
 
@@ -502,15 +503,6 @@ int main() {
         const std::string ok = httpReq(aport, "GET", "/api/v1/room", bearer);
         CHECK(statusLine(ok).find("200") != std::string::npos, "con Bearer -> 200");
         CHECK(jsonBody(ok).value("pin", "") == "", "el PIN lo informa main (aca no se seteo)");
-        const std::string cookie = "Cookie: ba_admin=" + kAdmin + "\r\n";
-        CHECK(statusLine(httpReq(aport, "GET", "/api/v1/room", cookie)).find("200") != std::string::npos,
-              "cookie sirve para leer");
-        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/room", cookie, "{\"locked\":false}")).find("401") !=
-                  std::string::npos,
-              "con cookie, escribir sin X-BA-Admin -> 401 (CSRF)");
-        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/room", cookie + "X-BA-Admin: 1\r\n", "{}"))
-                      .find("200") != std::string::npos,
-              "con cookie + X-BA-Admin -> 200");
         CHECK(statusLine(httpReq(port, "GET", "/api/v1/room", bearer)).find("404") != std::string::npos,
               "la API de control NO existe en la superficie de invitados");
     }
@@ -680,7 +672,7 @@ int main() {
         closeTestFd(dani.fd);
     }
 
-    // --- 12) PIN y login de la consola web ----------------------------------
+    // --- 12) PIN de la sala ----------------------------------
     {
         const json pin = jsonBody(httpReq(aport, "POST", "/api/v1/pin", bearer, R"({"pin":"4455"})"));
         CHECK(pin.value("pin", "") == "4455", "cambiar el PIN");
@@ -695,29 +687,65 @@ int main() {
         CHECK(mismo.value("pin", "") == gen.value("pin", "") && !mismo.value("cambio", true),
               "sesión nueva el mismo día: el mismo PIN");
 
-        const json code = jsonBody(httpReq(aport, "POST", "/api/v1/login-code", bearer));
-        const std::string c = code.value("code", "");
-        CHECK(!c.empty(), "codigo de un solo uso para la consola");
-        const std::string login = httpReq(aport, "GET", "/admin/login?code=" + c, "");
-        CHECK(login.find("Set-Cookie: ba_admin=" + kAdmin) != std::string::npos, "el codigo da la cookie");
-        CHECK(login.find("HttpOnly") != std::string::npos &&
-                  login.find("SameSite=Strict") != std::string::npos,
-              "cookie HttpOnly + SameSite=Strict");
-        const std::string again = httpReq(aport, "GET", "/admin/login?code=" + c, "");
-        CHECK(again.find("Set-Cookie") == std::string::npos, "el codigo no sirve dos veces");
-        CHECK(statusLine(httpReq(aport, "GET", "/admin/", "")).find("200") != std::string::npos,
-              "la consola web se sirve");
+    }
+
+    // --- 12b) La puerta de los aparatos de control: solo botonera, control y /comun/ ---
+    {
+        const uint16_t cport = srv.controlPort();
+        CHECK(cport != 0 && cport != port && cport != aport, "la puerta de los aparatos tiene su puerto");
+        CHECK(statusLine(httpReq(cport, "GET", "/control/", "")).find("200") != std::string::npos,
+              "por la puerta: el control web");
+        CHECK(statusLine(httpReq(cport, "GET", "/comun/index.html", "")).find("200") != std::string::npos,
+              "por la puerta: lo común");
+        const std::string raiz = httpReq(cport, "GET", "/", "");
+        CHECK(statusLine(raiz).find("302") != std::string::npos && raiz.find("Location: /control/") != std::string::npos,
+              "la raíz lleva al control web");
+        CHECK(statusLine(httpReq(cport, "GET", "/invitados/", "")).find("404") != std::string::npos,
+              "la página del invitado NO sale por la puerta");
+        CHECK(statusLine(httpReq(cport, "GET", "/board/", "")).find("200") != std::string::npos,
+              "por la puerta: los demás servicios de la sala (el tablero)");
+        CHECK(statusLine(httpPost(cport, "/api/join", "{\"room\":\"sala-test\",\"pin\":\"4455\"}")).find("404") !=
+                  std::string::npos,
+              "entrar a la sala NO sale por la puerta");
+        CHECK(statusLine(httpReq(cport, "GET", "/api/v1/room", bearer)).find("404") != std::string::npos,
+              "la API de control NO sale por la puerta");
+    }
+
+    // --- 12c) El tema de las páginas web: lo pone la app, lo leen todas -------
+    {
+        CHECK(jsonBody(httpReq(port, "GET", "/comun/tema.json", "")).value("tema", "") == "neuro-oscuro",
+              "tema de fábrica");
+        CHECK(statusLine(httpReq(aport, "POST", "/api/v1/tema", bearer, R"({"tema":"../x"})")).find("400") !=
+                  std::string::npos,
+              "un tema con caracteres raros no vale");
+        CHECK(jsonBody(httpReq(aport, "POST", "/api/v1/tema", bearer, R"({"tema":"neuro-claro"})")).value("ok", false),
+              "la app cambia el tema");
+        CHECK(jsonBody(httpReq(port, "GET", "/comun/tema.json", "")).value("tema", "") == "neuro-claro",
+              "las páginas lo leen");
+        CHECK(jsonBody(httpReq(srv.controlPort(), "GET", "/comun/tema.json", "")).value("tema", "") == "neuro-claro",
+              "también por la puerta de los aparatos");
     }
 
     // --- 13) QR de ingreso --------------------------------------------------
     {
-        srv.setJoinUrlProvider([](const std::string& target) -> json {
-            if (target == "remote") return {{"error", "remote"}, {"message", "falta el dominio"}};
-            return {{"url", "https://192.168.1.50:8789/#room=sala-test"}};
+        // Las direcciones (Direcciones.hpp): la sala abierta a la red, sin túnel.
+        srv.setDirecciones([] {
+            ba::gateway::direcciones::Entradas e;
+            e.ips = {"192.168.1.50"};
+            e.bind = "0.0.0.0";
+            e.invitadosHttps = 8789;
+            e.puertaHttps = 8792;
+            e.motivoRemoto = "falta el dominio";
+            return e;
         });
+        CHECK(jsonBody(httpReq(aport, "GET", "/api/v1/direcciones", bearer)).value("seq", 0) > 0,
+              "el catálogo de direcciones, con su número");
         const json qr = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=local", bearer));
-        CHECK(qr.value("ok", false) && qr.value("url", "") == "https://192.168.1.50:8789/#room=sala-test",
+        CHECK(qr.value("ok", false) && qr.value("url", "") == "https://192.168.1.50:8789/invitados/#room=sala-test",
               "QR local con la URL de la red local");
+        CHECK(jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("guestUrl", "") ==
+                  "https://192.168.1.50:8789/invitados/#room=sala-test",
+              "el enlace de invitados de la sala sale del catálogo");
         const int n = qr.value("size", 0);
         bool square = n >= 21 && qr["modules"].size() == static_cast<size_t>(n);
         for (const auto& row : qr["modules"])
@@ -731,7 +759,7 @@ int main() {
         const json qp = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=local&pin=1", bearer));
         const std::string pinNow = jsonBody(httpReq(aport, "GET", "/api/v1/room", bearer)).value("pin", "");
         CHECK(!pinNow.empty() &&
-                  qp.value("url", "") == "https://192.168.1.50:8789/#room=sala-test&pin=" + pinNow,
+                  qp.value("url", "") == "https://192.168.1.50:8789/invitados/#room=sala-test&pin=" + pinNow,
               "con pin=1 el PIN va en el fragmento del enlace");
         const json rq = jsonBody(httpReq(aport, "GET", "/api/v1/qr?target=remote", bearer));
         CHECK(!rq.value("ok", true) && rq.value("message", "") == "falta el dominio",
@@ -791,11 +819,16 @@ int main() {
               "el operador ve la foto");
 
         // Tablero: clave propia, en el enlace que da la API de control.
-        srv.setJoinUrlProvider(
-            [](const std::string&) { return json{{"url", "https://10.0.0.5:8789/#room=sala-test"}}; });
+        srv.setDirecciones([] {
+            ba::gateway::direcciones::Entradas e;
+            e.ips = {"10.0.0.5"};
+            e.bind = "127.0.0.1";
+            e.puertaHttps = 8792;
+            return e;
+        });
         const json link = jsonBody(httpReq(aport, "GET", "/api/v1/board-link?target=local", bearer));
         const std::string url = link.value("url", "");
-        CHECK(url == "https://10.0.0.5:8789/board/#k=" + srv.boardToken() && link.value("size", 0) >= 21,
+        CHECK(url == "https://10.0.0.5:8792/board/#k=" + srv.boardToken() && link.value("size", 0) >= 21,
               "enlace + QR del tablero con su clave en el fragmento");
         CHECK(statusLine(httpReq(port, "GET", "/api/v1/board", "")).find("401") != std::string::npos,
               "el tablero sin clave -> 401");
