@@ -149,7 +149,7 @@ def main():
     # chocar con ninguno de los ~206 nombres restantes. Dos niveles:
     #
     #   · exacto: una etiqueta igual al nombre de otra herramienta rompe el
-    #     registro del MCP el dia que se renombre (paso: speakers_status -> status,
+    #     registro del MCP el dia que se renombre (paso: remotos_fila_ver -> status,
     #     y `status` ya es una herramienta).
     #   · primer token: si esto anda y se extiende a las 292, una etiqueta que
     #     comparte primer token con un nombre del resto habria que cambiarla de
@@ -263,7 +263,7 @@ def main():
     # LAS FORZADAS QUE SOBREVIVIERON. El bucle de arriba saltea las herramientas
     # que no tienen ningun par entre los que entran al objetivo, y si una de esas
     # arrancaba prohibida se quedaba con su etiqueta prohibida: paso con
-    # chat_history -> chat, que choca con chat_overlay_add. A esas se les da el
+    # invitados_chat_leer -> chat, que choca con chat_overlay_add. A esas se les da el
     # candidato libre mas cercano a su propia nube, que es lo mejor que se puede
     # hacer sin un par que optimizar.
     for h in sorted(forzadas):

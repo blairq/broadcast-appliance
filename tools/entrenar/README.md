@@ -71,7 +71,7 @@ vecinas**, por una palabra de superficie:
     poné al aire la apertura       -> speaker_on_air   (por «on_air» en el nombre)
     cortá a la cámara 2            -> transition_set   (por «corta» -> corte)
     dejá preparada la del cierre   -> scene_switch     (armar contra tomar)
-    qué hay adentro de la escena   -> capture_source
+    qué hay adentro de la escena   -> foto_fuente
 
 Eso **no se arregla con volumen**. Por eso el corpus tiene pares escritos para
 distinguir a las vecinas, y no sólo más paráfrasis de lo mismo.

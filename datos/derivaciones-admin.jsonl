@@ -87,9 +87,9 @@
 {"frase": "Sumale a la conductora la pose de perfil que se ve ahora en la cámara dos.", "herramienta": "rostro_sumar"}
 {"frase": "¿Podés agregarle otra foto al intendente con este ángulo nuevo?", "herramienta": "rostro_sumar"}
 {"frase": "Al columnista no lo reconoce cuando mira de costado, guardale esta cara también.", "herramienta": "rostro_sumar"}
-{"frase": "Decime quién aparece ahora en la cámara del invitado uno.", "herramienta": "rostro_ver"}
-{"frase": "¿Quién es la persona que está en el programa ahora mismo?", "herramienta": "rostro_ver"}
-{"frase": "No reconozco al que se sentó en el panel, fijate en la cámara a quién se parece.", "herramienta": "rostro_ver"}
+{"frase": "Decime quién aparece ahora en la cámara del invitado uno.", "herramienta": "persona_identificar"}
+{"frase": "¿Quién es la persona que está en el programa ahora mismo?", "herramienta": "persona_identificar"}
+{"frase": "No reconozco al que se sentó en el panel, fijate en la cámara a quién se parece.", "herramienta": "persona_identificar"}
 {"frase": "Cargá el discurso de apertura en el teleprompter del atril.", "herramienta": "prompter_cargar"}
 {"frase": "¿Podés mandar el texto del intendente a la pantalla del orador?", "herramienta": "prompter_cargar"}
 {"frase": "En cinco minutos habla la ministra, dejale su discurso listo en el prompter.", "herramienta": "prompter_cargar"}
@@ -489,9 +489,9 @@
 {"frase": "Abrí una votación para elegir el tema del próximo programa, con tres opciones", "herramienta": "votacion_abrir"}
 {"frase": "¿Podés lanzar una encuesta al público sobre si les gustó la charla?", "herramienta": "votacion_abrir"}
 {"frase": "La asamblea tiene que aprobar el balance, poné la moción a votar ahora", "herramienta": "votacion_abrir"}
-{"frase": "Decime cómo va la votación y quiénes faltan votar", "herramienta": "votacion_ver"}
-{"frase": "¿Ya votaron todos? Si es así cerrá la encuesta", "herramienta": "votacion_ver"}
-{"frase": "Se terminó el tiempo para votar, cerrala y pasame el recuento final", "herramienta": "votacion_ver"}
+{"frase": "Decime cómo va la votación y quiénes faltan votar", "herramienta": "votacion_recuento"}
+{"frase": "¿Ya votaron todos? Si es así cerrá la encuesta", "herramienta": "votacion_recuento"}
+{"frase": "Se terminó el tiempo para votar, cerrala y pasame el recuento final", "herramienta": "votacion_recuento"}
 {"frase": "¿Dónde está guardado el video de apertura del congreso?", "herramienta": "media_find"}
 {"frase": "Listame los videos e imágenes que tenemos en medios", "herramienta": "media_list"}
 {"frase": "¿Qué grabaciones hay de los últimos días?", "herramienta": "media_list"}
@@ -499,8 +499,8 @@
 {"frase": "Mové todas las fotos del evento a una carpeta nueva que se llame Galería", "herramienta": "media_ordenar"}
 {"frase": "¿Podés renombrar el video final.mp4 a Apertura 2026?", "herramienta": "media_ordenar"}
 {"frase": "Hay un montón de placas viejas que no usamos más, mandalas a la papelera", "herramienta": "media_ordenar"}
-{"frase": "¿Podés meter la música de fondo en la escena de espera?", "herramienta": "media_use"}
-{"frase": "Para la pausa necesitamos el video institucional en la escena de tanda, cargalo", "herramienta": "media_use"}
+{"frase": "¿Podés meter la música de fondo en la escena de espera?", "herramienta": "medio_poner"}
+{"frase": "Para la pausa necesitamos el video institucional en la escena de tanda, cargalo", "herramienta": "medio_poner"}
 {"frase": "Mostrame la imagen de la placa de cierre así veo si es esa", "herramienta": "media_view"}
 {"frase": "¿Cómo se ve el fondo nuevo que subieron? Quiero verlo antes de usarlo", "herramienta": "media_view"}
 {"frase": "Hay dos logos con nombres parecidos y no sé cuál es el bueno, mostrámelos", "herramienta": "media_view"}
@@ -675,10 +675,10 @@
 {"frase": "Dá de alta a la ministra en la libreta con su cargo", "herramienta": "rostro_guardar"}
 {"frase": "Guardá la cara del invitado dos en su ficha de la libreta", "herramienta": "rostro_guardar"}
 {"frase": "Anotá a este señor como vocero, con una nota", "herramienta": "rostro_guardar"}
-{"frase": "¿Quién es el que aparece en la cámara dos?", "herramienta": "rostro_ver"}
-{"frase": "Identificá las caras que se ven en el programa", "herramienta": "rostro_ver"}
-{"frase": "Fijate a quién se parece el invitado tres y con cuánta confianza", "herramienta": "rostro_ver"}
-{"frase": "No reconozco al tipo de la armada, ¿quién es?", "herramienta": "rostro_ver"}
+{"frase": "¿Quién es el que aparece en la cámara dos?", "herramienta": "persona_identificar"}
+{"frase": "Identificá las caras que se ven en el programa", "herramienta": "persona_identificar"}
+{"frase": "Fijate a quién se parece el invitado tres y con cuánta confianza", "herramienta": "persona_identificar"}
+{"frase": "No reconozco al tipo de la armada, ¿quién es?", "herramienta": "persona_identificar"}
 {"frase": "Acreditá al intendente, llegó recién por la puerta principal", "herramienta": "padron_acreditar"}
 {"frase": "Marcá en el padrón que la consejera ya se fue", "herramienta": "padron_acreditar"}
 {"frase": "Llegó el invitado por el acceso de prensa, dejalo registrado", "herramienta": "padron_acreditar"}
@@ -742,9 +742,9 @@
 {"frase": "Explicame qué herramientas hay para manejar oradores", "herramienta": "help"}
 {"frase": "No sé por dónde arrancar, dame la guía de uso", "herramienta": "help"}
 {"frase": "¿Hay ayuda sobre cómo trabajar con imágenes?", "herramienta": "help"}
-{"frase": "Poné la música de fondo de la carpeta de medios", "herramienta": "media_use"}
-{"frase": "Tirá el video de apertura que está en los archivos, arriba a la derecha", "herramienta": "media_use"}
-{"frase": "Metele el archivo de la cortina musical a la escena de pausa", "herramienta": "media_use"}
+{"frase": "Poné la música de fondo de la carpeta de medios", "herramienta": "medio_poner"}
+{"frase": "Tirá el video de apertura que está en los archivos, arriba a la derecha", "herramienta": "medio_poner"}
+{"frase": "Metele el archivo de la cortina musical a la escena de pausa", "herramienta": "medio_poner"}
 {"frase": "¿Qué monitores tengo conectados a la compu?", "herramienta": "monitors"}
 {"frase": "¿Qué resolución y cuántos Hz tiene el monitor principal?", "herramienta": "monitors"}
 {"frase": "No aparece el segundo monitor, fijate cuáles detecta", "herramienta": "monitors"}
@@ -952,7 +952,7 @@
 {"frase": "¿Cómo se ve el gráfico del marcador con estos datos? Solo de prueba", "herramienta": "grafico_probar"}
 {"frase": "Revisá si a los invitados en espera les anda cámara y micro", "herramienta": "invitado_chequeo"}
 {"frase": "Chequeá a la gente de la sala de espera, qué les digo si algo falla", "herramienta": "invitado_chequeo"}
-{"frase": "¿Me colocás la placa de sponsors de la carpeta en la escena dos?", "herramienta": "media_use"}
+{"frase": "¿Me colocás la placa de sponsors de la carpeta en la escena dos?", "herramienta": "medio_poner"}
 {"frase": "Mostrame la imagen de la carpeta de medios, a ver si es el logo correcto", "herramienta": "media_view"}
 {"frase": "¿Es esta la placa que buscamos? Abrí el archivo de medios para verla", "herramienta": "media_view"}
 {"frase": "Confirmá mirando la imagen de la biblioteca de medios que sea la de sponsors", "herramienta": "media_view"}
@@ -972,9 +972,9 @@
 {"frase": "Sumale a la ficha del intendente la cara que se ve ahora en la cámara uno", "herramienta": "rostro_sumar"}
 {"frase": "Agregale otra pose a la ficha de la conductora con este cuadro", "herramienta": "rostro_sumar"}
 {"frase": "¿Le aportó algo esta toma de perfil a la ficha de Juan?", "herramienta": "rostro_sumar"}
-{"frase": "Identificá las caras en el programa, sin poner nada en pantalla", "herramienta": "rostro_ver"}
-{"frase": "¿A quién se parece el invitado 3? Decime con qué confianza", "herramienta": "rostro_ver"}
-{"frase": "Reconocé quién está en la armada", "herramienta": "rostro_ver"}
+{"frase": "Identificá las caras en el programa, sin poner nada en pantalla", "herramienta": "persona_identificar"}
+{"frase": "¿A quién se parece el invitado 3? Decime con qué confianza", "herramienta": "persona_identificar"}
+{"frase": "Reconocé quién está en la armada", "herramienta": "persona_identificar"}
 {"frase": "¿Qué páginas muestra la barra lateral? Sacá la de ajustes", "herramienta": "ui_barra"}
 {"frase": "Quiero la barra de navegación más ancha y con la página de invitados", "herramienta": "ui_barra"}
 {"frase": "Mostrale un aviso al operador: faltan dos minutos", "herramienta": "ui_notify"}
@@ -1068,11 +1068,11 @@
 {"frase": "Sacá el cue del móvil del bloque tres, se cayó la nota", "herramienta": "guion_cue"}
 {"frase": "Cambiale la duración al cue de apertura, son dos minutos", "herramienta": "guion_cue"}
 {"frase": "Meté un cue nuevo de VTR al final del segundo bloque", "herramienta": "guion_cue"}
-{"frase": "Poné la cortina musical de la carpeta de medios de fondo en la apertura", "herramienta": "media_use"}
-{"frase": "Usá el video institucional del archivo de medios en la escena de tanda", "herramienta": "media_use"}
-{"frase": "Poneme la imagen del sponsor de la carpeta de medios abajo a la izquierda", "herramienta": "media_use"}
-{"frase": "Cargá el mp3 de la música de fondo en la escena de cierre", "herramienta": "media_use"}
-{"frase": "Traé el clip del gol de la carpeta de medios a la escena de repetición", "herramienta": "media_use"}
+{"frase": "Poné la cortina musical de la carpeta de medios de fondo en la apertura", "herramienta": "medio_poner"}
+{"frase": "Usá el video institucional del archivo de medios en la escena de tanda", "herramienta": "medio_poner"}
+{"frase": "Poneme la imagen del sponsor de la carpeta de medios abajo a la izquierda", "herramienta": "medio_poner"}
+{"frase": "Cargá el mp3 de la música de fondo en la escena de cierre", "herramienta": "medio_poner"}
+{"frase": "Traé el clip del gol de la carpeta de medios a la escena de repetición", "herramienta": "medio_poner"}
 {"frase": "¿Qué monitores tiene conectados esta compu y con qué resolución?", "herramienta": "monitors"}
 {"frase": "Listame las pantallas físicas del puesto y cuál es la principal", "herramienta": "monitors"}
 {"frase": "¿A cuántos hercios anda el monitor de la derecha?", "herramienta": "monitors"}
@@ -1152,11 +1152,11 @@
 {"frase": "Enriquecé la ficha facial del consejero con la cara de la armada y decime si aportó", "herramienta": "rostro_sumar"}
 {"frase": "¿Le sirvió esa pose con anteojos a la ficha del invitado o ya la tenía?", "herramienta": "rostro_sumar"}
 {"frase": "Entrená un poco más el rostro del intendente con el primer plano de ahora", "herramienta": "rostro_sumar"}
-{"frase": "¿Quién es el tipo que aparece en la cámara del invitado? Reconocé la cara", "herramienta": "rostro_ver"}
-{"frase": "Identificá las caras del program y decime a quién se parece cada una", "herramienta": "rostro_ver"}
-{"frase": "Pasá reconocimiento facial en la armada, ¿con cuánta confianza es la senadora?", "herramienta": "rostro_ver"}
-{"frase": "No sé quién se sentó en la mesa, reconocé el rostro de la cámara tres", "herramienta": "rostro_ver"}
-{"frase": "Buscame caras en el feed del móvil y decime quiénes son", "herramienta": "rostro_ver"}
+{"frase": "¿Quién es el tipo que aparece en la cámara del invitado? Reconocé la cara", "herramienta": "persona_identificar"}
+{"frase": "Identificá las caras del program y decime a quién se parece cada una", "herramienta": "persona_identificar"}
+{"frase": "Pasá reconocimiento facial en la armada, ¿con cuánta confianza es la senadora?", "herramienta": "persona_identificar"}
+{"frase": "No sé quién se sentó en la mesa, reconocé el rostro de la cámara tres", "herramienta": "persona_identificar"}
+{"frase": "Buscame caras en el feed del móvil y decime quiénes son", "herramienta": "persona_identificar"}
 {"frase": "Tirame una notificación en la app que diga que arrancamos en cinco", "herramienta": "ui_notify"}
 {"frase": "Mandá un toast al operador avisando que se cortó el móvil", "herramienta": "ui_notify"}
 {"frase": "¿Me dejás un aviso emergente en la interfaz cuando termine el render?", "herramienta": "ui_notify"}

@@ -23,7 +23,7 @@
   },
   {
    "esperada": "preguntas_ver",
-   "elegida": "chat_recientes",
+   "elegida": "publico_chat_leer",
    "voraz": 1,
    "muestras": 4,
    "ejemplos": [
@@ -49,8 +49,8 @@
    ]
   },
   {
-   "esperada": "dsk_listar",
-   "elegida": "source_list",
+   "esperada": "dsk_capas_ver",
+   "elegida": "escena_fuentes_ver",
    "voraz": 1,
    "muestras": 3,
    "ejemplos": [
@@ -59,7 +59,7 @@
   },
   {
    "esperada": "room_status",
-   "elegida": "speakers_status",
+   "elegida": "remotos_fila_ver",
    "voraz": 1,
    "muestras": 3,
    "ejemplos": [
@@ -68,7 +68,7 @@
   },
   {
    "esperada": "scene_switch",
-   "elegida": "scene_take",
+   "elegida": "preview_al_aire",
    "voraz": 1,
    "muestras": 3,
    "ejemplos": [
@@ -76,7 +76,7 @@
    ]
   },
   {
-   "esperada": "votacion_ver",
+   "esperada": "votacion_recuento",
    "elegida": "orden_del_dia_ver",
    "voraz": 1,
    "muestras": 3,
@@ -85,7 +85,7 @@
    ]
   },
   {
-   "esperada": "quorum_estado",
+   "esperada": "quorum_presentes",
    "elegida": "orden_del_dia_punto",
    "voraz": 1,
    "muestras": 3,
@@ -94,8 +94,8 @@
    ]
   },
   {
-   "esperada": "capture_source",
-   "elegida": "source_list",
+   "esperada": "foto_fuente",
+   "elegida": "escena_fuentes_ver",
    "voraz": 1,
    "muestras": 3,
    "ejemplos": [
@@ -103,7 +103,7 @@
    ]
   },
   {
-   "esperada": "share_view",
+   "esperada": "compartida_revisar",
    "elegida": "audio_escuchar",
    "voraz": 1,
    "muestras": 1,
@@ -122,7 +122,7 @@
   },
   {
    "esperada": "orden_del_dia_ver",
-   "elegida": "votacion_ver",
+   "elegida": "votacion_recuento",
    "voraz": 0,
    "muestras": 2,
    "ejemplos": [
@@ -140,8 +140,8 @@
    ]
   },
   {
-   "esperada": "source_list",
-   "elegida": "capture_source",
+   "esperada": "escena_fuentes_ver",
+   "elegida": "foto_fuente",
    "voraz": 0,
    "muestras": 1,
    "ejemplos": [
@@ -176,7 +176,7 @@
    ]
   },
   {
-   "esperada": "dsk_listar",
+   "esperada": "dsk_capas_ver",
    "elegida": "source_update",
    "voraz": 0,
    "muestras": 1,
@@ -186,7 +186,7 @@
   },
   {
    "esperada": "room_status",
-   "elegida": "chat_recientes",
+   "elegida": "publico_chat_leer",
    "voraz": 0,
    "muestras": 1,
    "ejemplos": [
@@ -194,8 +194,8 @@
    ]
   },
   {
-   "esperada": "votacion_ver",
-   "elegida": "quorum_estado",
+   "esperada": "votacion_recuento",
+   "elegida": "quorum_presentes",
    "voraz": 0,
    "muestras": 1,
    "ejemplos": [
@@ -248,7 +248,7 @@
    ]
   },
   {
-   "esperada": "quorum_estado",
+   "esperada": "quorum_presentes",
    "elegida": "preguntas_ver",
    "voraz": 0,
    "muestras": 1,

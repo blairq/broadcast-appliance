@@ -380,7 +380,7 @@ def main():
     # sobre `filas`, que todavia tiene repetidos y todavia incluye el octavo
     # que se va a validacion. Una herramienta que llegaba justo a 14 terminaba
     # con 9 o 10 en entrenar.jsonl. Medido cuando se descubrio: 38 de las 85
-    # herramientas por debajo del minimo, y dos de ellas —laminas_listar con
+    # herramientas por debajo del minimo, y dos de ellas —carruseles_listar con
     # 10 y laminas_aplicar con 9— eran fallos del examen de v6.
     #
     # Asi que el piso se aplica sobre el conteo EFECTIVO: descontando los
@@ -445,7 +445,7 @@ def main():
     # Y SE PARTE POR HERRAMIENTA, que es lo que faltaba. Cortando un octavo del
     # monton entero, a una herramienta con dos semillas le podia tocar que se
     # fuera una: perdia la mitad de lo que tenia. Asi quedaban herramientas con
-    # nueve ejemplos aunque el piso dijera catorce, y dos de esas —laminas_listar
+    # nueve ejemplos aunque el piso dijera catorce, y dos de esas —carruseles_listar
     # y laminas_aplicar— fueron fallos medidos de v6.
     #
     # Las flacas no donan: una herramienta con menos de ocho semillas se queda

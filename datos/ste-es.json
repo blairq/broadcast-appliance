@@ -476,7 +476,7 @@
    ],
    "significado": "ver un archivo compartido por un invitado antes de ponerlo al aire",
    "herramientas": [
-    "share_view"
+    "compartida_revisar"
    ]
   },
   {
@@ -599,7 +599,7 @@
      "objeto": "fuente nueva en una escena",
      "ejemplo": "poné un logo arriba de todo en la escena Apertura",
      "herramientas": [
-      "source_add"
+      "crear_fuente"
      ]
     },
     {
@@ -767,7 +767,7 @@
      "objeto": "video o audio de la biblioteca de medios",
      "ejemplo": "poné el video de apertura",
      "herramientas": [
-      "media_use"
+      "medio_poner"
      ]
     },
     {
@@ -902,28 +902,28 @@
      "objeto": "foto del programa",
      "ejemplo": "sacame una foto del programa",
      "herramientas": [
-      "capture_program"
+      "foto_programa"
      ]
     },
     {
      "objeto": "foto de una fuente o escena",
      "ejemplo": "sacame una foto de la fuente Pizarra",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
      "objeto": "fotos de todas las personas",
      "ejemplo": "sacales una foto a todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
      "objeto": "multiview",
      "ejemplo": "sacame el multiview de todas las escenas",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
@@ -972,7 +972,7 @@
      "objeto": "imagen de una persona",
      "ejemplo": "sacame una imagen de Ramiro",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
@@ -1007,7 +1007,7 @@
      "objeto": "un orador presencial del aire",
      "ejemplo": "sacá a Pérez del aire",
      "herramientas": [
-      "banca_terminar"
+      "recinto_orador_terminar"
      ]
     }
    ]
@@ -1106,35 +1106,35 @@
      "objeto": "fotos de todas las personas (pasame)",
      "ejemplo": "pasame fotos de todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
      "objeto": "imagen de una persona (pasame)",
      "ejemplo": "pasame la imagen de Ana",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
      "objeto": "foto del programa (pasame)",
      "ejemplo": "pasame una foto del programa",
      "herramientas": [
-      "capture_program"
+      "foto_programa"
      ]
     },
     {
      "objeto": "foto de una fuente o escena (pasame)",
      "ejemplo": "pasame una foto de la escena Panel",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
      "objeto": "chat reciente (pasame)",
      "ejemplo": "pasame los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -1148,14 +1148,14 @@
      "objeto": "carruseles (pasame)",
      "ejemplo": "pasame los carruseles de la biblioteca",
      "herramientas": [
-      "laminas_listar"
+      "carruseles_listar"
      ]
     },
     {
      "objeto": "láminas de un carrusel (pasame)",
      "ejemplo": "pasame las láminas del carrusel Ventas",
      "herramientas": [
-      "laminas_ver"
+      "carrusel_laminas_ver"
      ]
     },
     {
@@ -1204,7 +1204,7 @@
      "objeto": "fuentes de una escena (pasame)",
      "ejemplo": "pasame las fuentes de la escena Panel",
      "herramientas": [
-      "source_list"
+      "escena_fuentes_ver"
      ]
     },
     {
@@ -1267,7 +1267,7 @@
      "objeto": "lo que está en preview (al aire)",
      "ejemplo": "mandá al aire lo que está en preview",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
@@ -1330,14 +1330,14 @@
      "objeto": "multiview (mandame)",
      "ejemplo": "mandame el multiview",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
      "objeto": "fotos de todas las personas (mandame)",
      "ejemplo": "mandame fotos de todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
@@ -1365,7 +1365,7 @@
      "objeto": "cámara PTZ a la posición de inicio",
      "ejemplo": "mandá la cámara 1 a la posición de inicio",
      "herramientas": [
-      "ptz_home"
+      "ptz_inicio"
      ]
     }
    ]
@@ -1393,7 +1393,7 @@
      "objeto": "take (preview al aire)",
      "ejemplo": "tirá el take",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
@@ -1435,7 +1435,7 @@
      "objeto": "multiview (tirame)",
      "ejemplo": "tirame el multiview",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
@@ -1449,7 +1449,7 @@
      "objeto": "foto de una fuente o escena (tirame)",
      "ejemplo": "tirame una foto de la escena Panel",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
@@ -1502,14 +1502,14 @@
      "objeto": "multiview",
      "ejemplo": "dame el multiview de todas las escenas",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
      "objeto": "chat reciente",
      "ejemplo": "dame los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -1565,7 +1565,7 @@
      "objeto": "estado de la fila de oradores",
      "ejemplo": "dame el estado de la fila de oradores",
      "herramientas": [
-      "speakers_status"
+      "remotos_fila_ver"
      ]
     },
     {
@@ -1600,42 +1600,42 @@
      "objeto": "take (preview al aire)",
      "ejemplo": "dale take a la escena armada",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
      "objeto": "take (preview al aire)",
      "ejemplo": "ahora sí, dale take a la escena armada",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
      "objeto": "take (preview al aire)",
      "ejemplo": "dale al take de la escena armada",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
      "objeto": "take (preview al aire)",
      "ejemplo": "dale el take ahora",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
      "objeto": "take (preview al aire)",
      "ejemplo": "dale take a lo que ya estaba armado",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
      "objeto": "take (preview al aire)",
      "ejemplo": "dale take a lo que está en el bus de preview",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
@@ -1794,35 +1794,35 @@
      "objeto": "imágenes de todas las personas (mostrame)",
      "ejemplo": "mostrame a todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
      "objeto": "imagen de una persona (mostrame)",
      "ejemplo": "mostrame la cámara de Ana",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
      "objeto": "programa (mostrame)",
      "ejemplo": "mostrame lo que sale en el programa",
      "herramientas": [
-      "capture_program"
+      "foto_programa"
      ]
     },
     {
      "objeto": "fuente o escena (mostrame)",
      "ejemplo": "mostrame la escena Panel antes de ponerla",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
      "objeto": "chat reciente (mostrame)",
      "ejemplo": "mostrame los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -1836,7 +1836,7 @@
      "objeto": "láminas de un carrusel (mostrame)",
      "ejemplo": "mostrame las láminas del carrusel Ventas",
      "herramientas": [
-      "laminas_ver"
+      "carrusel_laminas_ver"
      ]
     },
     {
@@ -1864,14 +1864,14 @@
      "objeto": "archivo compartido (mostrame)",
      "ejemplo": "mostrame la foto que compartió Ana",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
      "objeto": "fuentes de una escena (mostrame)",
      "ejemplo": "mostrame las fuentes de la escena Panel",
      "herramientas": [
-      "source_list"
+      "escena_fuentes_ver"
      ]
     },
     {
@@ -1892,7 +1892,7 @@
      "objeto": "estado de la fila (mostrame)",
      "ejemplo": "mostrame el estado de la fila de oradores",
      "herramientas": [
-      "speakers_status"
+      "remotos_fila_ver"
      ]
     },
     {
@@ -1920,7 +1920,7 @@
      "objeto": "las bancas del recinto (mostrame)",
      "ejemplo": "mostrame las bancas",
      "herramientas": [
-      "bancas_listar"
+      "recinto_bancas_ver"
      ]
     },
     {
@@ -1934,21 +1934,21 @@
      "objeto": "los mensajes del chat del público (mostrame)",
      "ejemplo": "mostrame lo último del chat",
      "herramientas": [
-      "chat_recientes"
+      "publico_chat_leer"
      ]
     },
     {
      "objeto": "las capas del DSK (mostrame)",
      "ejemplo": "mostrame las capas",
      "herramientas": [
-      "dsk_listar"
+      "dsk_capas_ver"
      ]
     },
     {
      "objeto": "las caras que ve una cámara (mostrame)",
      "ejemplo": "mostrame las caras de la dos",
      "herramientas": [
-      "ptz_rostros"
+      "ptz_caras_ubicar"
      ]
     },
     {
@@ -2047,14 +2047,14 @@
      "objeto": "ver a una persona (dejame)",
      "ejemplo": "dejame ver la cámara de Ana",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
      "objeto": "ver un archivo compartido (dejame)",
      "ejemplo": "dejame ver la foto que compartió Ana",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
@@ -2144,14 +2144,14 @@
      "objeto": "imágenes de todas las personas (traeme)",
      "ejemplo": "traeme fotos de todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
      "objeto": "imagen de una persona (traeme)",
      "ejemplo": "traeme la imagen de Ana",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
@@ -2217,7 +2217,7 @@
      "objeto": "fuente nueva en una escena",
      "ejemplo": "metele un texto a la escena Apertura",
      "herramientas": [
-      "source_add"
+      "crear_fuente"
      ]
     },
     {
@@ -2293,7 +2293,7 @@
      "objeto": "fuente nueva en una escena",
      "ejemplo": "sumá un logo a la escena Apertura",
      "herramientas": [
-      "source_add"
+      "crear_fuente"
      ]
     },
     {
@@ -2328,7 +2328,7 @@
      "objeto": "un mensaje del chat a la cola de preguntas",
      "ejemplo": "sumá el mensaje de Juan a las preguntas",
      "herramientas": [
-      "pregunta_desde_chat"
+      "chat_a_preguntas"
      ]
     },
     {
@@ -2376,7 +2376,7 @@
      "objeto": "fuente nueva en una escena",
      "ejemplo": "agregá un zócalo a la escena Panel",
      "herramientas": [
-      "source_add"
+      "crear_fuente"
      ]
     },
     {
@@ -2397,7 +2397,7 @@
      "objeto": "video o audio de la biblioteca a una escena",
      "ejemplo": "agregá la música de fondo a la escena Panel",
      "herramientas": [
-      "media_use"
+      "medio_poner"
      ]
     },
     {
@@ -2411,7 +2411,7 @@
      "objeto": "un mensaje del chat a la cola de preguntas",
      "ejemplo": "agregá lo que escribió Carla a las preguntas",
      "herramientas": [
-      "pregunta_desde_chat"
+      "chat_a_preguntas"
      ]
     },
     {
@@ -2636,7 +2636,7 @@
      "objeto": "el micrófono del orador presencial (termina su turno)",
      "ejemplo": "cortale el micrófono a Pérez",
      "herramientas": [
-      "banca_terminar"
+      "recinto_orador_terminar"
      ]
     }
    ]
@@ -2909,7 +2909,7 @@
      "objeto": "el turno del orador presencial",
      "ejemplo": "terminá el turno de Pérez",
      "herramientas": [
-      "banca_terminar"
+      "recinto_orador_terminar"
      ]
     },
     {
@@ -2964,7 +2964,7 @@
      "objeto": "archivo compartido (para verlo)",
      "ejemplo": "abrime la foto que compartió Ana",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
@@ -3060,7 +3060,7 @@
      "objeto": "todos los micrófonos del recinto",
      "ejemplo": "cerrá todos los micrófonos del recinto",
      "herramientas": [
-      "presidencia_silenciar"
+      "presidencia_callar_todos"
      ]
     },
     {
@@ -3074,7 +3074,7 @@
      "objeto": "el turno del orador presencial",
      "ejemplo": "cerrá el turno de Pérez",
      "herramientas": [
-      "banca_terminar"
+      "recinto_orador_terminar"
      ]
     }
    ]
@@ -3539,7 +3539,7 @@
      "objeto": "take",
      "ejemplo": "hacé el take",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
@@ -3615,7 +3615,7 @@
      "objeto": "multiview",
      "ejemplo": "armame el multiview de todas las escenas",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
@@ -3677,7 +3677,7 @@
      "objeto": "fuente nueva en una escena (texto, título, zócalo, cámara, color)",
      "ejemplo": "creá un zócalo nuevo en la escena Panel",
      "herramientas": [
-      "source_add"
+      "crear_fuente"
      ]
     }
    ]
@@ -3758,35 +3758,35 @@
      "objeto": "programa",
      "ejemplo": "capturá el programa",
      "herramientas": [
-      "capture_program"
+      "foto_programa"
      ]
     },
     {
      "objeto": "fuente o escena",
      "ejemplo": "capturá la escena Panel",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
      "objeto": "una persona",
      "ejemplo": "capturá la cámara de Ana",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
      "objeto": "todas las personas",
      "ejemplo": "capturá a todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
      "objeto": "multiview",
      "ejemplo": "capturá el multiview",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
@@ -3860,7 +3860,7 @@
      "objeto": "imagen con una pregunta concreta",
      "ejemplo": "mirá en la cámara 2 si se ve el logo",
      "herramientas": [
-      "imagen_analizar"
+      "imagen_preguntar"
      ]
     },
     {
@@ -3888,7 +3888,7 @@
      "objeto": "estado de la fila de oradores",
      "ejemplo": "mirá el estado de la fila de oradores",
      "herramientas": [
-      "speakers_status"
+      "remotos_fila_ver"
      ]
     }
    ]
@@ -3907,14 +3907,14 @@
      "objeto": "fuente o escena (imagen)",
      "ejemplo": "fijate cómo se ve la escena Panel",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
      "objeto": "chat reciente",
      "ejemplo": "fijate los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -3956,7 +3956,7 @@
      "objeto": "estado de la fila de oradores",
      "ejemplo": "fijate cuánto le queda al orador al aire",
      "herramientas": [
-      "speakers_status"
+      "remotos_fila_ver"
      ]
     },
     {
@@ -4005,7 +4005,7 @@
      "objeto": "tiempo usado o restante de un orador de la fila",
      "ejemplo": "fijate cuánto tiempo lleva usado el orador al aire",
      "herramientas": [
-      "speakers_status"
+      "remotos_fila_ver"
      ]
     }
    ]
@@ -4025,7 +4025,7 @@
      "objeto": "chat reciente",
      "ejemplo": "revisá los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -4039,7 +4039,7 @@
      "objeto": "escena antes de ponerla (imagen)",
      "ejemplo": "revisá la imagen de la escena Panel",
      "herramientas": [
-      "capture_source"
+      "foto_fuente"
      ]
     },
     {
@@ -4053,14 +4053,14 @@
      "objeto": "archivo compartido antes de ponerlo al aire",
      "ejemplo": "dejame revisar la foto que nos compartió la entrevistada",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
      "objeto": "archivo compartido antes de ponerlo al aire",
      "ejemplo": "revisá la foto compartida antes de ponerla",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     }
    ]
@@ -4094,21 +4094,21 @@
      "objeto": "archivo compartido antes de ponerlo al aire",
      "ejemplo": "quiero chequear la foto compartida antes de sacarla al aire",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
      "objeto": "archivo compartido antes de ponerlo al aire",
      "ejemplo": "quiero chequear lo que compartió el médico sin sacarlo al aire",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
      "objeto": "archivo compartido antes de ponerlo al aire",
      "ejemplo": "chequeá la imagen que nos compartió el del móvil antes de usarla",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     }
    ]
@@ -4128,7 +4128,7 @@
      "objeto": "chat reciente",
      "ejemplo": "leeme los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -4197,14 +4197,14 @@
      "objeto": "respuesta sobre una imagen (decime)",
      "ejemplo": "decime si en la cámara 2 se ve el logo",
      "herramientas": [
-      "imagen_analizar"
+      "imagen_preguntar"
      ]
     },
     {
      "objeto": "carruseles (decime)",
      "ejemplo": "decime qué carruseles hay en la biblioteca",
      "herramientas": [
-      "laminas_listar"
+      "carruseles_listar"
      ]
     },
     {
@@ -4239,7 +4239,7 @@
      "objeto": "fuentes de una escena (decime)",
      "ejemplo": "decime qué fuentes tiene la escena Panel",
      "herramientas": [
-      "source_list"
+      "escena_fuentes_ver"
      ]
     },
     {
@@ -4285,14 +4285,14 @@
      "objeto": "carruseles",
      "ejemplo": "listame los carruseles de la biblioteca",
      "herramientas": [
-      "laminas_listar"
+      "carruseles_listar"
      ]
     },
     {
      "objeto": "láminas de un carrusel",
      "ejemplo": "listame las láminas del carrusel Ventas",
      "herramientas": [
-      "laminas_ver"
+      "carrusel_laminas_ver"
      ]
     },
     {
@@ -4327,7 +4327,7 @@
      "objeto": "fuentes de una escena",
      "ejemplo": "listame las fuentes de la escena Panel",
      "herramientas": [
-      "source_list"
+      "escena_fuentes_ver"
      ]
     },
     {
@@ -4348,7 +4348,7 @@
      "objeto": "las bancas del recinto",
      "ejemplo": "listá las bancas",
      "herramientas": [
-      "bancas_listar"
+      "recinto_bancas_ver"
      ]
     },
     {
@@ -4380,7 +4380,7 @@
      "objeto": "carruseles",
      "ejemplo": "enumerame los carruseles de la biblioteca",
      "herramientas": [
-      "laminas_listar"
+      "carruseles_listar"
      ]
     },
     {
@@ -4394,7 +4394,7 @@
      "objeto": "fuentes de una escena",
      "ejemplo": "enumerame las fuentes de la escena Panel",
      "herramientas": [
-      "source_list"
+      "escena_fuentes_ver"
      ]
     }
    ]
@@ -4413,7 +4413,7 @@
      "objeto": "chat reciente",
      "ejemplo": "repasemos los últimos mensajes del chat",
      "herramientas": [
-      "chat_history"
+      "invitados_chat_leer"
      ]
     },
     {
@@ -4427,14 +4427,14 @@
      "objeto": "carruseles",
      "ejemplo": "repasame los carruseles de la biblioteca",
      "herramientas": [
-      "laminas_listar"
+      "carruseles_listar"
      ]
     },
     {
      "objeto": "láminas de un carrusel",
      "ejemplo": "repasame las láminas del carrusel Ventas",
      "herramientas": [
-      "laminas_ver"
+      "carrusel_laminas_ver"
      ]
     },
     {
@@ -4474,7 +4474,7 @@
      "objeto": "imagen con una pregunta concreta",
      "ejemplo": "analizá la imagen del programa: ¿se ve negro?",
      "herramientas": [
-      "imagen_analizar"
+      "imagen_preguntar"
      ]
     }
    ]
@@ -4694,7 +4694,7 @@
      "objeto": "archivo de la biblioteca de medios",
      "ejemplo": "cargá la música de fondo",
      "herramientas": [
-      "media_use"
+      "medio_poner"
      ]
     },
     {
@@ -4755,7 +4755,7 @@
      "objeto": "a la escena anterior (la que quedó en preview)",
      "ejemplo": "volvé a la escena anterior con el take",
      "herramientas": [
-      "scene_take"
+      "preview_al_aire"
      ]
     },
     {
@@ -4797,7 +4797,7 @@
      "objeto": "cámara PTZ al centro (home)",
      "ejemplo": "volvé la cámara 3 al centro, sin zoom",
      "herramientas": [
-      "ptz_home"
+      "ptz_inicio"
      ]
     },
     {
@@ -4870,21 +4870,21 @@
      "objeto": "ver el multiview",
      "ejemplo": "quiero ver el multiview",
      "herramientas": [
-      "capture_multiview"
+      "foto_todas_escenas"
      ]
     },
     {
      "objeto": "fotos de todas las personas",
      "ejemplo": "quiero fotos de todas las personas de la sala",
      "herramientas": [
-      "capture_people"
+      "foto_todos_invitados"
      ]
     },
     {
      "objeto": "ver a una persona",
      "ejemplo": "quiero ver la cámara de Ana",
      "herramientas": [
-      "capture_person"
+      "foto_invitado"
      ]
     },
     {
@@ -4961,7 +4961,7 @@
      "objeto": "ver un archivo compartido",
      "ejemplo": "quiero ver la foto que compartió Ana",
      "herramientas": [
-      "share_view"
+      "compartida_revisar"
      ]
     },
     {
@@ -5094,10 +5094,10 @@
    "significado": "contar elementos (escenas, láminas, fuentes, gráficos en escenas, personas en una imagen)",
    "herramientas": [
     "scene_list",
-    "laminas_ver",
-    "source_list",
+    "carrusel_laminas_ver",
+    "escena_fuentes_ver",
     "grafico_en_escena",
-    "imagen_analizar"
+    "imagen_preguntar"
    ]
   },
   {
@@ -5105,9 +5105,9 @@
    "forma": "¿cuántos … hay?",
    "significado": "contar elementos (carruseles, invitados en la sala, oradores en la fila)",
    "herramientas": [
-    "laminas_listar",
+    "carruseles_listar",
     "room_status",
-    "speakers_status",
+    "remotos_fila_ver",
     "status"
    ]
   },
@@ -5117,9 +5117,9 @@
    "significado": "listar lo que existe o está disponible",
    "herramientas": [
     "grafico_listar",
-    "laminas_listar",
+    "carruseles_listar",
     "share_list",
-    "source_list",
+    "escena_fuentes_ver",
     "source_types",
     "rotulo_vinculos",
     "grafico_en_escena"
@@ -5154,7 +5154,7 @@
    "forma": "¿qué láminas tiene …?",
    "significado": "ver las láminas de un carrusel en orden",
    "herramientas": [
-    "laminas_ver"
+    "carrusel_laminas_ver"
    ]
   },
   {
@@ -5162,7 +5162,7 @@
    "forma": "¿cuál lámina está puesta en …?",
    "significado": "saber qué lámina de un carrusel está puesta ahora",
    "herramientas": [
-    "laminas_ver"
+    "carrusel_laminas_ver"
    ]
   },
   {
@@ -5178,7 +5178,7 @@
    "forma": "¿qué se ve en …?",
    "significado": "describir lo que se ve en una cámara, escena o en el programa",
    "herramientas": [
-    "imagen_analizar"
+    "imagen_preguntar"
    ]
   },
   {
@@ -5186,7 +5186,7 @@
    "forma": "¿se ve … en …?",
    "significado": "contestar una pregunta concreta sobre una imagen",
    "herramientas": [
-    "imagen_analizar"
+    "imagen_preguntar"
    ]
   },
   {
@@ -5194,11 +5194,11 @@
    "forma": "¿cómo se ve …?",
    "significado": "traer la imagen de algo para mirarla",
    "herramientas": [
-    "capture_program",
-    "capture_source",
-    "capture_person",
+    "foto_programa",
+    "foto_fuente",
+    "foto_invitado",
     "capture_feed",
-    "capture_multiview"
+    "foto_todas_escenas"
    ]
   },
   {
@@ -5206,7 +5206,7 @@
    "forma": "¿qué está saliendo al aire?",
    "significado": "saber qué sale ahora en el programa",
    "herramientas": [
-    "capture_program",
+    "foto_programa",
     "status"
    ]
   },
@@ -5241,7 +5241,7 @@
    "significado": "saber qué personas hay en la sala, el lobby o la fila",
    "herramientas": [
     "room_status",
-    "speakers_status"
+    "remotos_fila_ver"
    ]
   },
   {
@@ -5249,7 +5249,7 @@
    "forma": "¿quién sigue en la fila?",
    "significado": "saber el orden de la fila de oradores",
    "herramientas": [
-    "speakers_status"
+    "remotos_fila_ver"
    ]
   },
   {
@@ -5257,7 +5257,7 @@
    "forma": "¿cuánto le queda a …?",
    "significado": "saber el tiempo restante de un orador al aire",
    "herramientas": [
-    "speakers_status"
+    "remotos_fila_ver"
    ]
   },
   {
@@ -5268,7 +5268,7 @@
     "status",
     "network_status",
     "room_status",
-    "speakers_status"
+    "remotos_fila_ver"
    ]
   },
   {
@@ -5348,7 +5348,7 @@
    "forma": "¿qué escribió … en el chat?",
    "significado": "leer los mensajes recientes del chat",
    "herramientas": [
-    "chat_history"
+    "invitados_chat_leer"
    ]
   },
   {
@@ -6462,7 +6462,7 @@
      "objeto": "cámara PTZ a home (inicio: centrada, sin zoom)",
      "ejemplo": "llevá la cámara 2 a home",
      "herramientas": [
-      "ptz_home"
+      "ptz_inicio"
      ]
     }
    ]
@@ -7058,7 +7058,7 @@
      "objeto": "fuente nueva en una escena",
      "ejemplo": "añadí la fuente de video Cortina a la escena Apertura en full",
      "herramientas": [
-      "source_add"
+      "crear_fuente"
      ]
     }
    ]
@@ -7073,7 +7073,7 @@
    ],
    "significado": "listar las fuentes (capas) de una escena, de abajo hacia arriba",
    "herramientas": [
-    "source_list"
+    "escena_fuentes_ver"
    ]
   },
   {
@@ -7263,7 +7263,7 @@
    ],
    "significado": "cerrar los micrófonos de todo el recinto desde la presidencia",
    "herramientas": [
-    "presidencia_silenciar"
+    "presidencia_callar_todos"
    ]
   },
   {

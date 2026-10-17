@@ -59,7 +59,7 @@ def tool(n,a=None):
     return (not r.get("isError",False)), v
 TODAS={t["name"]:t for t in _call("tools/list",{})["result"]["tools"]}
 SEM=json.load(open(os.path.join(RAIZ,"datos","semillas-reactivas.json")))["herramientas"]
-EJEC={"audio_set","audio_escuchar","scene_switch","scene_preview","scene_take","transition_set",
+EJEC={"audio_set","audio_escuchar","scene_switch","scene_preview","preview_al_aire","transition_set",
       "grafico_mostrar","grafico_ocultar","laminas_ir","speaker_next","speaker_time","speaker_on_air","speaker_move",
       "speaker_presenter","speaker_queue","scene_folder","scene_move","scene_protect"}
 for n,t in TODAS.items():
@@ -75,7 +75,7 @@ def pedir(d):
 while json.loads(p.stdout.readline()).get("ev")!="listo": pass
 
 def estado():
-    _,sl=tool("scene_list"); _,src=tool("source_list"); _,mx=tool("mixer_list"); _,rs=tool("room_status"); _,gr=tool("grafico_listar"); _,la=tool("laminas_listar")
+    _,sl=tool("scene_list"); _,src=tool("escena_fuentes_ver"); _,mx=tool("mixer_list"); _,rs=tool("room_status"); _,gr=tool("grafico_listar"); _,la=tool("carruseles_listar")
     return {"escena_actual":sl.get("current"),"escena_armada":sl.get("armada",""),
             "escenas":[e["name"] for e in sl.get("scenes",[])],
             "fuentes_de_la_escena_actual":[{"nombre":s["name"],"visible":s.get("visible",True)} for s in src.get("sources",[])],
@@ -88,8 +88,8 @@ def estado_para(h, E):
     def con(*ks): return {k: E[k] for k in ks if k in E}
     if h.startswith(("scene_","transition_")): return con("escena_actual","escena_armada","escenas")
     if h.startswith(("audio","mixer_")): return con("audio")
-    if h.startswith(("source_","capture_source")): return con("escena_actual","escenas","fuentes_de_la_escena_actual","audio")
-    if h.startswith(("participant_","speaker_","chat_","capture_person")): return con("participantes")
+    if h.startswith(("source_","foto_fuente")): return con("escena_actual","escenas","fuentes_de_la_escena_actual","audio")
+    if h.startswith(("participant_","speaker_","chat_","foto_invitado")): return con("participantes")
     if h.startswith(("grafico_","rotulo_")): return con("graficos","escena_actual")
     if h.startswith("laminas_"): return con("carruseles","escenas","escena_actual")
     return E
@@ -101,10 +101,10 @@ def nombres(E, herr, clave=""):
     gente=[x["nombre"] for x in E["participantes"] if x["nombre"]]; graf=[g for g in E["graficos"] if g]
     if "scene" in clave.lower() or herr.startswith("scene_") and clave in ("name","to","from","nombre"): return escenas
     if herr.startswith("audio") or herr=="mixer_list": return audio
-    if herr.startswith(("source_","capture_source")): return fuentes+audio
+    if herr.startswith(("source_","foto_fuente")): return fuentes+audio
     if herr.startswith(("grafico_","rotulo_")): return graf
     if herr.startswith("laminas_") and clave=="carrusel": return E.get("carruseles",[])
-    if herr.startswith(("participant_","speaker_","capture_person")): return gente
+    if herr.startswith(("participant_","speaker_","foto_invitado")): return gente
     return escenas+fuentes+audio+gente+graf
 def ajustar(v, cand):
     """El nombre que existe: igual (sin mayúsculas ni acentos), contenido sin ambigüedad, o muy parecido."""

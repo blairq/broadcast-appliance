@@ -12,7 +12,7 @@ Con eso se puntua cada uno de los 86 nombres enteros y se elige el mejor. O sea
 el mismo examen, 28 veces, una por capa.
 
 Se puntua el nombre COMPLETO y no el primer token: `capture_feed` y
-`capture_program` comparten el primero, asi que mirar solo ese no decide nada.
+`foto_programa` comparten el primero, asi que mirar solo ese no decide nada.
 El prompt se lee una vez y se reusa su cache para los 86 nombres.
 
 LO QUE HAY QUE MIRAR. Si la curva sube y baja —pico en 24, caida en 28— hay dos

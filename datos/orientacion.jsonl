@@ -113,10 +113,10 @@
 {"frase": "¿Qué etiquetas tiene el canal?", "herramienta": "twitch_channel"}
 {"frase": "¿Existe la categoría Deportes? Buscala", "herramienta": "twitch_channel"}
 {"frase": "El idioma del canal pasalo a español", "herramienta": "twitch_channel"}
-{"frase": "¿Qué está diciendo el chat de Twitch?", "herramienta": "twitch_chat", "aceptables": ["chat_recientes", "twitch_chat"]}
+{"frase": "¿Qué está diciendo el chat de Twitch?", "herramienta": "twitch_chat", "aceptables": ["publico_chat_leer", "twitch_chat"]}
 {"frase": "Escribí en el chat: arrancamos en 5", "herramienta": "twitch_chat"}
 {"frase": "Prendé el chat de Twitch", "herramienta": "twitch_chat"}
-{"frase": "Leeme los últimos 20 mensajes del chat", "herramienta": "twitch_chat", "aceptables": ["chat_recientes", "twitch_chat"]}
+{"frase": "Leeme los últimos 20 mensajes del chat", "herramienta": "twitch_chat", "aceptables": ["publico_chat_leer", "twitch_chat"]}
 {"frase": "Apagá el chat del canal", "herramienta": "twitch_chat"}
 {"frase": "Salimos por Twitch, dale", "herramienta": "twitch_live_start"}
 {"frase": "Arrancá la transmisión a Twitch con título 'Noche de goles'", "herramienta": "twitch_live_start"}
@@ -212,15 +212,15 @@
 {"frase": "Sumá la pantalla compartida del invitado 1 a la escena Panel", "herramienta": "guest_source_add"}
 {"frase": "Agregá al del slot 4 a la escena principal", "herramienta": "guest_source_add"}
 {"frase": "Quiero al invitado de la sala en la escena Debate", "herramienta": "guest_source_add"}
-{"frase": "Agregá un zócalo nuevo en la escena Noticias", "herramienta": "source_add"}
-{"frase": "Poné el logo del canal en la escena principal", "herramienta": "source_add"}
-{"frase": "Sumá un fondo de color azul a la escena Cierre", "herramienta": "source_add"}
-{"frase": "Meté el video de apertura en la escena Intro", "herramienta": "source_add"}
-{"frase": "¿Qué hay adentro de la escena Noticias?", "herramienta": "source_list"}
-{"frase": "Listame las capas de la escena principal", "herramienta": "source_list"}
-{"frase": "¿Está visible el logo en la escena Panel?", "herramienta": "source_list"}
-{"frase": "¿Qué fuentes tiene la escena Entrevista y en qué orden?", "herramienta": "source_list"}
-{"frase": "¿Qué está silenciado en la escena Debate?", "herramienta": "source_list"}
+{"frase": "Agregá un zócalo nuevo en la escena Noticias", "herramienta": "crear_fuente"}
+{"frase": "Poné el logo del canal en la escena principal", "herramienta": "crear_fuente"}
+{"frase": "Sumá un fondo de color azul a la escena Cierre", "herramienta": "crear_fuente"}
+{"frase": "Meté el video de apertura en la escena Intro", "herramienta": "crear_fuente"}
+{"frase": "¿Qué hay adentro de la escena Noticias?", "herramienta": "escena_fuentes_ver"}
+{"frase": "Listame las capas de la escena principal", "herramienta": "escena_fuentes_ver"}
+{"frase": "¿Está visible el logo en la escena Panel?", "herramienta": "escena_fuentes_ver"}
+{"frase": "¿Qué fuentes tiene la escena Entrevista y en qué orden?", "herramienta": "escena_fuentes_ver"}
+{"frase": "¿Qué está silenciado en la escena Debate?", "herramienta": "escena_fuentes_ver"}
 {"frase": "¿Qué opciones tiene la fuente Cámara 1?", "herramienta": "source_properties"}
 {"frase": "Todas las propiedades del navegador del marcador", "herramienta": "source_properties"}
 {"frase": "¿Qué resoluciones puedo elegir en la captura de la placa?", "herramienta": "source_properties"}
@@ -378,11 +378,11 @@
 {"frase": "¿A qué hora cierra el banco?", "herramienta": "derivar"}
 {"frase": "Llamá un taxi para las 10", "herramienta": "derivar"}
 {"frase": "Subilo un poco", "herramienta": "derivar"}
-{"frase": "¿Qué pusieron en el chat recién?", "herramienta": "chat_history"}
-{"frase": "Leeme los últimos mensajes del chat", "herramienta": "chat_history"}
-{"frase": "¿Alguien escribió algo en el chat de la sala?", "herramienta": "chat_history"}
-{"frase": "Me perdí el chat, ¿qué dijeron los invitados?", "herramienta": "chat_history"}
-{"frase": "Mostrame lo último que se habló por chat", "herramienta": "chat_history"}
+{"frase": "¿Qué pusieron en el chat recién?", "herramienta": "invitados_chat_leer"}
+{"frase": "Leeme los últimos mensajes del chat", "herramienta": "invitados_chat_leer"}
+{"frase": "¿Alguien escribió algo en el chat de la sala?", "herramienta": "invitados_chat_leer"}
+{"frase": "Me perdí el chat, ¿qué dijeron los invitados?", "herramienta": "invitados_chat_leer"}
+{"frase": "Mostrame lo último que se habló por chat", "herramienta": "invitados_chat_leer"}
 {"frase": "Escribile a todos en el chat que arrancamos en cinco", "herramienta": "chat_send"}
 {"frase": "Mandale por chat a Laura que se prepare", "herramienta": "chat_send"}
 {"frase": "Poné en el chat: silencien los micros por favor", "herramienta": "chat_send"}
@@ -473,11 +473,11 @@
 {"frase": "Ese audio que mandaron, metelo al aire", "herramienta": "share_take"}
 {"frase": "La imagen compartida de recién, a la escena", "herramienta": "share_take"}
 {"frase": "Tomá el archivo del invitado 2 y ponelo al aire", "herramienta": "share_take"}
-{"frase": "Mostrame la foto que mandó Ana antes de salir", "herramienta": "share_view"}
-{"frase": "Quiero revisar la imagen compartida primero", "herramienta": "share_view"}
-{"frase": "¿Qué es ese archivo que subieron? Dejame verlo", "herramienta": "share_view"}
-{"frase": "Antes de ponerla, ¿cómo es la imagen del invitado?", "herramienta": "share_view"}
-{"frase": "Previsualizame lo que compartió Pedro", "herramienta": "share_view"}
+{"frase": "Mostrame la foto que mandó Ana antes de salir", "herramienta": "compartida_revisar"}
+{"frase": "Quiero revisar la imagen compartida primero", "herramienta": "compartida_revisar"}
+{"frase": "¿Qué es ese archivo que subieron? Dejame verlo", "herramienta": "compartida_revisar"}
+{"frase": "Antes de ponerla, ¿cómo es la imagen del invitado?", "herramienta": "compartida_revisar"}
+{"frase": "Previsualizame lo que compartió Pedro", "herramienta": "compartida_revisar"}
 {"frase": "Armá un carrusel con el QR diez segundos y el reloj treinta", "herramienta": "carrusel_armar"}
 {"frase": "Al carrusel del hall agregale un cartel de bienvenida", "herramienta": "carrusel_armar"}
 {"frase": "Hacé una rotación: mensaje, QR, reloj", "herramienta": "carrusel_armar"}
@@ -574,10 +574,10 @@
 {"frase": "¿Esta pose le aporta algo a la ficha del ministro?", "herramienta": "rostro_sumar"}
 {"frase": "Guardale otra cara a Carla con lo que se ve ahora", "herramienta": "rostro_sumar"}
 {"frase": "Otra pose más para la ficha 3", "herramienta": "rostro_sumar"}
-{"frase": "¿Quién aparece en el programa?", "herramienta": "rostro_ver"}
-{"frase": "Reconocé la cara del guest:2", "herramienta": "rostro_ver"}
-{"frase": "¿A quién se parece el que está en cámara?", "herramienta": "rostro_ver"}
-{"frase": "Decime quién está en cuadro, sin poner nada al aire", "herramienta": "rostro_ver"}
+{"frase": "¿Quién aparece en el programa?", "herramienta": "persona_identificar"}
+{"frase": "Reconocé la cara del guest:2", "herramienta": "persona_identificar"}
+{"frase": "¿A quién se parece el que está en cámara?", "herramienta": "persona_identificar"}
+{"frase": "Decime quién está en cuadro, sin poner nada al aire", "herramienta": "persona_identificar"}
 {"frase": "Armá el acta del evento", "herramienta": "evento_acta"}
 {"frase": "Generá el acta con los presentes y las votaciones", "herramienta": "evento_acta"}
 {"frase": "Necesito el acta con quórum para cerrar", "herramienta": "evento_acta"}
@@ -593,9 +593,9 @@
 {"frase": "La de Jorge ya fue respondida, marcala", "herramienta": "pregunta_moderar"}
 {"frase": "Elegí la próxima pregunta para el conductor", "herramienta": "pregunta_moderar"}
 {"frase": "Sacá del aire la pregunta, ya la contestaron", "herramienta": "pregunta_moderar"}
-{"frase": "Metele a la cola la pregunta que hicieron en YouTube", "herramienta": "pregunta_sumar", "aceptables": ["pregunta_desde_chat", "pregunta_sumar"]}
+{"frase": "Metele a la cola la pregunta que hicieron en YouTube", "herramienta": "pregunta_sumar", "aceptables": ["chat_a_preguntas", "pregunta_sumar"]}
 {"frase": "Uno del salón preguntó por el presupuesto, agregala", "herramienta": "pregunta_sumar"}
-{"frase": "Sumá la pregunta que llegó por el chat de la sala", "herramienta": "pregunta_sumar", "aceptables": ["pregunta_desde_chat", "pregunta_sumar"]}
+{"frase": "Sumá la pregunta que llegó por el chat de la sala", "herramienta": "pregunta_sumar", "aceptables": ["chat_a_preguntas", "pregunta_sumar"]}
 {"frase": "Anotá en la cola lo que dijo la señora de la tercera fila", "herramienta": "pregunta_sumar"}
 {"frase": "Cargá una pregunta de YouTube: ¿cuándo abre la inscripción?", "herramienta": "pregunta_sumar"}
 {"frase": "¿Qué preguntas mandó el público?", "herramienta": "preguntas_ver"}
@@ -611,10 +611,10 @@
 {"frase": "Largá una encuesta de qué tema sigue", "herramienta": "votacion_abrir"}
 {"frase": "Poné a votar la moción con dos opciones", "herramienta": "votacion_abrir"}
 {"frase": "Abrí la votación del punto 4", "herramienta": "votacion_abrir"}
-{"frase": "¿Cómo va la votación?", "herramienta": "votacion_ver"}
-{"frase": "¿Quiénes faltan votar?", "herramienta": "votacion_ver"}
-{"frase": "Dame el recuento de la encuesta", "herramienta": "votacion_ver"}
-{"frase": "Terminá la encuesta y decime el resultado", "herramienta": "votacion_ver"}
+{"frase": "¿Cómo va la votación?", "herramienta": "votacion_recuento"}
+{"frase": "¿Quiénes faltan votar?", "herramienta": "votacion_recuento"}
+{"frase": "Dame el recuento de la encuesta", "herramienta": "votacion_recuento"}
+{"frase": "Terminá la encuesta y decime el resultado", "herramienta": "votacion_recuento"}
 {"frase": "Pasame pico, RMS y LUFS de la salida del rack", "herramienta": "audio_analyze"}
 {"frase": "Analizá el espectro a la entrada del micro 2 diez segundos", "herramienta": "audio_analyze"}
 {"frase": "Quiero los números crudos después del ecualizador", "herramienta": "audio_analyze"}
@@ -726,8 +726,8 @@
 {"frase": "Sumá la caja del chat en vivo a la escena principal", "herramienta": "chat_overlay_add"}
 {"frase": "¿Podemos mostrar en pantalla lo que escribe la gente en Twitch?", "herramienta": "chat_overlay_add"}
 {"frase": "Metele el chat en pantalla a la escena del panel", "herramienta": "chat_overlay_add"}
-{"frase": "¿Qué está diciendo la gente en el chat?", "herramienta": "youtube_chat", "aceptables": ["chat_recientes", "youtube_chat"]}
-{"frase": "Leeme los últimos diez mensajes del chat del vivo", "herramienta": "youtube_chat", "aceptables": ["chat_recientes", "youtube_chat"]}
+{"frase": "¿Qué está diciendo la gente en el chat?", "herramienta": "youtube_chat", "aceptables": ["publico_chat_leer", "youtube_chat"]}
+{"frase": "Leeme los últimos diez mensajes del chat del vivo", "herramienta": "youtube_chat", "aceptables": ["publico_chat_leer", "youtube_chat"]}
 {"frase": "Mandá un saludo en el chat: arrancamos en cinco minutos", "herramienta": "youtube_chat"}
 {"frase": "Escribí en el chat que se corta un toque la señal", "herramienta": "youtube_chat"}
 {"frase": "El chat, que lo lea del evento de la mañana, no del otro", "herramienta": "youtube_chat"}
@@ -890,21 +890,21 @@
 {"frase": "Saltá a la placa tres del carrusel del informe", "herramienta": "laminas_ir"}
 {"frase": "Al aire la diapo número ocho", "herramienta": "laminas_ir"}
 {"frase": "La primera lámina, ya", "herramienta": "laminas_ir"}
-{"frase": "¿Qué carruseles tenemos?", "herramienta": "laminas_listar"}
-{"frase": "Listame los carruseles de la biblioteca", "herramienta": "laminas_listar"}
-{"frase": "¿Qué carrusel está abierto ahora?", "herramienta": "laminas_listar"}
-{"frase": "¿Cuántas láminas tiene cada carrusel?", "herramienta": "laminas_listar"}
-{"frase": "Mostrame los carruseles disponibles", "herramienta": "laminas_listar"}
+{"frase": "¿Qué carruseles tenemos?", "herramienta": "carruseles_listar"}
+{"frase": "Listame los carruseles de la biblioteca", "herramienta": "carruseles_listar"}
+{"frase": "¿Qué carrusel está abierto ahora?", "herramienta": "carruseles_listar"}
+{"frase": "¿Cuántas láminas tiene cada carrusel?", "herramienta": "carruseles_listar"}
+{"frase": "Mostrame los carruseles disponibles", "herramienta": "carruseles_listar"}
 {"frase": "¿Cuál es la próxima lámina que falta etiquetar?", "herramienta": "laminas_sin_analizar"}
 {"frase": "Pasame la siguiente placa sin analizar", "herramienta": "laminas_sin_analizar"}
 {"frase": "¿Queda alguna lámina sin mirar?", "herramienta": "laminas_sin_analizar"}
 {"frase": "Dame la ruta de la primera diapo sin etiquetas", "herramienta": "laminas_sin_analizar"}
 {"frase": "Seguimos etiquetando: ¿cuál sigue?", "herramienta": "laminas_sin_analizar"}
-{"frase": "¿Qué láminas tiene el carrusel del informe?", "herramienta": "laminas_ver"}
-{"frase": "Mostrame las placas del carrusel en orden", "herramienta": "laminas_ver"}
-{"frase": "¿Cuál lámina está puesta ahora en el de sponsors?", "herramienta": "laminas_ver"}
-{"frase": "Pasame los números y títulos de las diapos", "herramienta": "laminas_ver"}
-{"frase": "Listame las láminas de la presentación del ministro", "herramienta": "laminas_ver"}
+{"frase": "¿Qué láminas tiene el carrusel del informe?", "herramienta": "carrusel_laminas_ver"}
+{"frase": "Mostrame las placas del carrusel en orden", "herramienta": "carrusel_laminas_ver"}
+{"frase": "¿Cuál lámina está puesta ahora en el de sponsors?", "herramienta": "carrusel_laminas_ver"}
+{"frase": "Pasame los números y títulos de las diapos", "herramienta": "carrusel_laminas_ver"}
+{"frase": "Listame las láminas de la presentación del ministro", "herramienta": "carrusel_laminas_ver"}
 {"frase": "Que Laura vuelva a la cola, al fondo", "herramienta": "participant_requeue"}
 {"frase": "El que terminó, otra vez a la fila, último", "herramienta": "participant_requeue"}
 {"frase": "Pérez quiere hablar de nuevo, ponelo al final", "herramienta": "participant_requeue"}
@@ -941,11 +941,11 @@
 {"frase": "Que roten solos cuando se les acaba el tiempo, con diez segundos de margen", "herramienta": "speakers_config"}
 {"frase": "Apagá el modo oradores", "herramienta": "speakers_config"}
 {"frase": "Poné que al sacar a uno entre el siguiente automáticamente", "herramienta": "speakers_config"}
-{"frase": "¿Cómo viene la fila de oradores?", "herramienta": "speakers_status"}
-{"frase": "¿Cuánto le queda al que está hablando?", "herramienta": "speakers_status"}
-{"frase": "¿Quién sigue y quién ya habló?", "herramienta": "speakers_status"}
-{"frase": "¿Se pasó de tiempo el orador?", "herramienta": "speakers_status"}
-{"frase": "Estado de la fila", "herramienta": "speakers_status"}
+{"frase": "¿Cómo viene la fila de oradores?", "herramienta": "remotos_fila_ver"}
+{"frase": "¿Cuánto le queda al que está hablando?", "herramienta": "remotos_fila_ver"}
+{"frase": "¿Quién sigue y quién ya habló?", "herramienta": "remotos_fila_ver"}
+{"frase": "¿Se pasó de tiempo el orador?", "herramienta": "remotos_fila_ver"}
+{"frase": "Estado de la fila", "herramienta": "remotos_fila_ver"}
 {"frase": "Pasame la invitación de Marta con el QR", "herramienta": "invitacion"}
 {"frase": "Necesito el link de acreditación del concejal", "herramienta": "invitacion"}
 {"frase": "Mandame el texto de invitación para Juan Pérez", "herramienta": "invitacion"}
@@ -1126,11 +1126,11 @@
 {"frase": "poné Mesa central ahora mismo", "herramienta": "scene_switch"}
 {"frase": "corte a la placa, sin preview", "herramienta": "scene_switch"}
 {"frase": "¡cámara 1 al aire ya!", "herramienta": "scene_switch"}
-{"frase": "take", "herramienta": "scene_take"}
-{"frase": "dale take", "herramienta": "scene_take"}
-{"frase": "sacá lo que está en preview", "herramienta": "scene_take"}
-{"frase": "mandá el previo al aire", "herramienta": "scene_take"}
-{"frase": "take, vamos", "herramienta": "scene_take"}
+{"frase": "take", "herramienta": "preview_al_aire"}
+{"frase": "dale take", "herramienta": "preview_al_aire"}
+{"frase": "sacá lo que está en preview", "herramienta": "preview_al_aire"}
+{"frase": "mandá el previo al aire", "herramienta": "preview_al_aire"}
+{"frase": "take, vamos", "herramienta": "preview_al_aire"}
 {"frase": "poné fundido de medio segundo entre escenas", "herramienta": "transition_set"}
 {"frase": "las transiciones que sean corte seco", "herramienta": "transition_set"}
 {"frase": "el fade está muy lento, bajalo a 300 ms", "herramienta": "transition_set"}
@@ -1252,45 +1252,45 @@
 {"frase": "quiero ver el preview del lobby", "herramienta": "capture_feed"}
 {"frase": "¿qué me está llegando del backstage?", "herramienta": "capture_feed"}
 {"frase": "¿con qué me ve el lobby a mí?", "herramienta": "capture_feed"}
-{"frase": "multiview de escenas", "herramienta": "capture_multiview"}
-{"frase": "una foto de todas las escenas juntas, con la del aire marcada", "herramienta": "capture_multiview"}
-{"frase": "quiero ver las escenas todas de una", "herramienta": "capture_multiview"}
-{"frase": "grilla con todas las escenas, dale", "herramienta": "capture_multiview"}
-{"frase": "mostrame a todos los de la sala", "herramienta": "capture_people"}
-{"frase": "¿quiénes están en el lobby y adentro? con imagen", "herramienta": "capture_people"}
-{"frase": "fotos de toda la gente conectada", "herramienta": "capture_people"}
-{"frase": "quiero ver a todos los invitados, lobby y fila incluidos", "herramienta": "capture_people"}
-{"frase": "una imagen de cada persona de la sala", "herramienta": "capture_people"}
-{"frase": "mostrame a Martina", "herramienta": "capture_person"}
-{"frase": "¿cómo se ve Pérez?", "herramienta": "capture_person"}
-{"frase": "quiero ver a la invitada de Rosario, con su pantalla", "herramienta": "capture_person"}
-{"frase": "imagen de Juan Carlos", "herramienta": "capture_person"}
-{"frase": "¿está bien encuadrado el doctor? mostrámelo", "herramienta": "capture_person"}
-{"frase": "¿qué está saliendo al aire?", "herramienta": "capture_program"}
-{"frase": "fijate si el aire está en negro", "herramienta": "capture_program"}
-{"frase": "¿se congeló la salida?", "herramienta": "capture_program"}
-{"frase": "foto del programa", "herramienta": "capture_program"}
-{"frase": "mostrame el PGM ahora", "herramienta": "capture_program"}
+{"frase": "multiview de escenas", "herramienta": "foto_todas_escenas"}
+{"frase": "una foto de todas las escenas juntas, con la del aire marcada", "herramienta": "foto_todas_escenas"}
+{"frase": "quiero ver las escenas todas de una", "herramienta": "foto_todas_escenas"}
+{"frase": "grilla con todas las escenas, dale", "herramienta": "foto_todas_escenas"}
+{"frase": "mostrame a todos los de la sala", "herramienta": "foto_todos_invitados"}
+{"frase": "¿quiénes están en el lobby y adentro? con imagen", "herramienta": "foto_todos_invitados"}
+{"frase": "fotos de toda la gente conectada", "herramienta": "foto_todos_invitados"}
+{"frase": "quiero ver a todos los invitados, lobby y fila incluidos", "herramienta": "foto_todos_invitados"}
+{"frase": "una imagen de cada persona de la sala", "herramienta": "foto_todos_invitados"}
+{"frase": "mostrame a Martina", "herramienta": "foto_invitado"}
+{"frase": "¿cómo se ve Pérez?", "herramienta": "foto_invitado"}
+{"frase": "quiero ver a la invitada de Rosario, con su pantalla", "herramienta": "foto_invitado"}
+{"frase": "imagen de Juan Carlos", "herramienta": "foto_invitado"}
+{"frase": "¿está bien encuadrado el doctor? mostrámelo", "herramienta": "foto_invitado"}
+{"frase": "¿qué está saliendo al aire?", "herramienta": "foto_programa"}
+{"frase": "fijate si el aire está en negro", "herramienta": "foto_programa"}
+{"frase": "¿se congeló la salida?", "herramienta": "foto_programa"}
+{"frase": "foto del programa", "herramienta": "foto_programa"}
+{"frase": "mostrame el PGM ahora", "herramienta": "foto_programa"}
 {"frase": "tomá diez cuadros del programa, uno por segundo", "herramienta": "capture_sequence"}
 {"frase": "¿el video de la apertura avanza o está trabado? sacale varios cuadros seguidos", "herramienta": "capture_sequence"}
 {"frase": "secuencia de la cámara 2 para ver si el invitado mueve la boca", "herramienta": "capture_sequence"}
 {"frase": "capturá una ráfaga de la transición", "herramienta": "capture_sequence"}
 {"frase": "varios cuadros de Pérez para ver si está hablando", "herramienta": "capture_sequence"}
-{"frase": "mostrame cómo quedó la escena Panel", "herramienta": "capture_source"}
-{"frase": "foto de la cámara 3 aunque no esté al aire", "herramienta": "capture_source"}
-{"frase": "¿cómo se ve el zócalo antes de salir?", "herramienta": "capture_source"}
-{"frase": "revisá la escena Entrevista antes de meterla", "herramienta": "capture_source"}
-{"frase": "quiero ver la fuente del logo", "herramienta": "capture_source"}
+{"frase": "mostrame cómo quedó la escena Panel", "herramienta": "foto_fuente"}
+{"frase": "foto de la cámara 3 aunque no esté al aire", "herramienta": "foto_fuente"}
+{"frase": "¿cómo se ve el zócalo antes de salir?", "herramienta": "foto_fuente"}
+{"frase": "revisá la escena Entrevista antes de meterla", "herramienta": "foto_fuente"}
+{"frase": "quiero ver la fuente del logo", "herramienta": "foto_fuente"}
 {"frase": "captura de la app", "herramienta": "capture_ui"}
 {"frase": "sacale foto a todas las ventanas de la aplicación, incluidas las de salida", "herramienta": "capture_ui"}
 {"frase": "screenshot de la aplicación con las ventanas sueltas", "herramienta": "capture_ui"}
 {"frase": "¿qué está viendo el operador? captura de la ventana principal", "herramienta": "capture_ui"}
 {"frase": "captura de todas las ventanas abiertas de la app", "herramienta": "capture_ui"}
-{"frase": "¿el invitado de la cámara 2 tiene anteojos?", "herramienta": "imagen_analizar"}
-{"frase": "¿qué dice el cartel que se ve en el programa?", "herramienta": "imagen_analizar"}
-{"frase": "fijate si en la cámara 1 hay alguien parado", "herramienta": "imagen_analizar"}
-{"frase": "¿el zócalo del aire está en rojo o azul?", "herramienta": "imagen_analizar"}
-{"frase": "¿cuántas personas hay en la escena Mesa?", "herramienta": "imagen_analizar"}
+{"frase": "¿el invitado de la cámara 2 tiene anteojos?", "herramienta": "imagen_preguntar"}
+{"frase": "¿qué dice el cartel que se ve en el programa?", "herramienta": "imagen_preguntar"}
+{"frase": "fijate si en la cámara 1 hay alguien parado", "herramienta": "imagen_preguntar"}
+{"frase": "¿el zócalo del aire está en rojo o azul?", "herramienta": "imagen_preguntar"}
+{"frase": "¿cuántas personas hay en la escena Mesa?", "herramienta": "imagen_preguntar"}
 {"frase": "si hay silencio al aire, avisame", "herramienta": "alert_create"}
 {"frase": "vigilá que no sature el audio", "herramienta": "alert_create"}
 {"frase": "si se cae un invitado quiero saberlo", "herramienta": "alert_create"}
@@ -1344,11 +1344,11 @@
 {"frase": "renombrá placa1.png a placa-lluvia.png", "herramienta": "media_ordenar"}
 {"frase": "tirá a la papelera los videos viejos del evento", "herramienta": "media_ordenar"}
 {"frase": "pasá las fotos de invitados a su carpeta", "herramienta": "media_ordenar"}
-{"frase": "poné el logo arriba a la derecha en la escena Mesa", "herramienta": "media_use"}
-{"frase": "meté música de fondo en la apertura", "herramienta": "media_use"}
-{"frase": "colgá la placa de lluvia en la escena Tanda", "herramienta": "media_use"}
-{"frase": "poné el video del resumen en Panel", "herramienta": "media_use"}
-{"frase": "sumá el fondo azul a la escena Entrevista", "herramienta": "media_use"}
+{"frase": "poné el logo arriba a la derecha en la escena Mesa", "herramienta": "medio_poner"}
+{"frase": "meté música de fondo en la apertura", "herramienta": "medio_poner"}
+{"frase": "colgá la placa de lluvia en la escena Tanda", "herramienta": "medio_poner"}
+{"frase": "poné el video del resumen en Panel", "herramienta": "medio_poner"}
+{"frase": "sumá el fondo azul a la escena Entrevista", "herramienta": "medio_poner"}
 {"frase": "mostrame la imagen logo-sponsor.png", "herramienta": "media_view"}
 {"frase": "¿esta es la placa correcta? dejame verla", "herramienta": "media_view"}
 {"frase": "abrí la foto del invitado a ver si es esa", "herramienta": "media_view"}

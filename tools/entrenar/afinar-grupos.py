@@ -279,7 +279,7 @@ def aplicar(args):
                 propio = (v - X.mean(0)).norm().item()
                 # Con menos de 8 frases el centro del grupo no representa nada (es
                 # un hueco: el modelo no aprendio el concepto) y toda frase nueva
-                # «cae mas cerca» de otro. Paso con imagen_analizar: 4 frases y
+                # «cae mas cerca» de otro. Paso con imagen_preguntar: 4 frases y
                 # 36 rechazos de pedidos correctos. Ahi esta prueba no se aplica.
                 if cerca[0] < propio and len(textos) >= 8:
                     rechazadas.append((h, fr, f"cae mas cerca de {cerca[1]}"))

@@ -14,7 +14,7 @@ atribucion directa al logit, y como la suma de todas las contribuciones da la
 diferencia final, se puede auditar que cierre.
 
 SE MIRA EN LA POSICION DONDE LOS NOMBRES SE SEPARAN, no en la ultima del
-prompt: si comparten prefijo (capture_feed y capture_program), la decision no
+prompt: si comparten prefijo (capture_feed y foto_programa), la decision no
 existe hasta el segundo token.
 
 LA HIPOTESIS QUE TAMBIEN PRUEBA. Si las ultimas capas estuvieran aplicando el

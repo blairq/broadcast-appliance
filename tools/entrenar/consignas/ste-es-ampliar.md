@@ -9,7 +9,7 @@ Para cada caso decidí UNA de tres cosas y escribí una línea JSON en `salida.j
    Si el verbo ya está en el diccionario con OTRO significado, no lo dupliques: es una palabra de muchos sentidos (2) o la frase está mal (3).
 
 2. Falta un sentido de una palabra de muchos sentidos (existente o nueva):
-{"tipo": "sentido", "palabra": "sacar", "formas": ["sacá", "sacame"], "objeto": "una imagen o captura", "ejemplo": "sacame una imagen de la cámara 2", "herramientas": ["capture_source"]}
+{"tipo": "sentido", "palabra": "sacar", "formas": ["sacá", "sacame"], "objeto": "una imagen o captura", "ejemplo": "sacame una imagen de la cámara 2", "herramientas": ["foto_fuente"]}
 
 3. La frase usa una palabra en un sentido que no es el suyo, o no tiene núcleo (orden sin verbo), o pide dos cosas: no se arregla el diccionario, se marca la frase:
 {"tipo": "frase_mal", "herramienta": "audio_analyze", "frase": "<la frase>", "regla": "R1|R2|R3|R7", "motivo": "…", "propuesta": "<la frase reescrita en STE-ES, con el mismo pedido>"}

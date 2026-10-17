@@ -973,7 +973,7 @@ con otras fichas es otro modelo, aunque siga contestando.
         # frases para «Probar»: de las SEMILLAS de entrenamiento (nunca del banco ni del examen)
         sem = json.loads((RAIZ / "datos/semillas-reactivas.json").read_text())["herramientas"]
         prueba = []
-        for h in ("audio_set", "scene_take", "grafico_mostrar", "laminas_ir", "speaker_on_air"):
+        for h in ("audio_set", "preview_al_aire", "grafico_mostrar", "laminas_ir", "speaker_on_air"):
             fs = sem.get(h, {}).get("frases", [])
             if fs and h in nombres:
                 prueba.append({"frase": fs[0], "herramienta": h})

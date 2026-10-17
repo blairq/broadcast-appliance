@@ -5,11 +5,11 @@ El archivo `lote.txt` (JSON) trae `herramientas`: cada una con su nombre `real`,
 Para CADA anotación escribí UNA línea en `salida.jsonl`:
 
 - Está bien donde está:
-  {"id": "chat_history#3", "decision": "queda"}
+  {"id": "invitados_chat_leer#3", "decision": "queda"}
 - Pide lo que hace OTRA herramienta del grupo: movela, con los argumentos de ESA herramienta (su esquema; los mismos huecos que la plantilla):
-  {"id": "chat_history#5", "decision": "mover", "a": "chat_recientes", "plantilla": "<la misma plantilla>", "args": {}}
+  {"id": "invitados_chat_leer#5", "decision": "mover", "a": "publico_chat_leer", "plantilla": "<la misma plantilla>", "args": {}}
 - No se puede saber cuál quiere (las dos serían razonables y la frase no dice nada que las separe): sacala.
-  {"id": "bancas_listar#2", "decision": "sacar", "motivo": "«¿quién se anotó?» vale para el recinto y para los remotos"}
+  {"id": "recinto_bancas_ver#2", "decision": "sacar", "motivo": "«¿quién se anotó?» vale para el recinto y para los remotos"}
 
 Cómo decidir:
 - Leé la frase como la diría un operador de cabina que NO ve la pantalla. Lo que manda es lo que pide, no la palabra suelta: «identificá a la persona de la cámara 3» es identificar a alguien, no ubicar caras en el cuadro.

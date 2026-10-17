@@ -204,7 +204,7 @@ def fichas(inv=None):
         desc = re.split(r"(?<=[.!?])\s", h["descripcion"].replace("\n", " "))[0][:180]
         if USAR_ETIQUETAS:
             # Las descripciones nombran a OTRAS herramientas por su nombre real
-            # («queda armada para el proximo `scene_take`»). Con el diccionario
+            # («queda armada para el proximo `preview_al_aire`»). Con el diccionario
             # prendido el modelo contesta `take`, asi que las fichas tienen que
             # hablar el mismo idioma que la respuesta.
             for real in sorted(etiquetas(), key=len, reverse=True):

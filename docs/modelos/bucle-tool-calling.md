@@ -35,8 +35,36 @@ Desde entonces hay controles:
 | `tc-preferencias.py` | contra la huella del adaptador | frena |
 | `entrenar-rapido.py` | contra `huella.json` de los datos (formato tc) | frena |
 
-La huella del prompt de vivo6 es `72dee9f28a580f86` (`lib_tc.huella()`); el
-bucle la anota al arrancar.
+La huella del prompt de vivo6 es `51559fd7c42f585f` desde el 16/10/2026
+(`lib_tc.huella()`; antes `72dee9f28a580f86`: cambiaron 4 fichas en el código,
+ver abajo); el bucle la anota al arrancar.
+
+## Los nombres de las herramientas (normalizados el 16/10/2026)
+
+Hay **un solo nombre** por herramienta, el mismo en la app, en `docs/mcp.json`,
+en los datos (anotaciones, banco, examen, semillas, STE-ES, etiquetas) y en lo
+que ve y escribe el modelo. Los nombres anteriores siguen andando en la app como
+`Tool::antes`: cada herramienta declara los suyos al definirse, y los 27 que se
+cambiaron en bloque desde el perfil están en `src/app/mcp/McpRenombres.cpp`
+(los carga `McpCore::agregarNombreAnterior` después de registrar todas).
+
+- Para renombrar: elegir el nombre en `renombres` del perfil y correr
+  `tools/dev/renombrar-herramientas.py --perfil vivo6 --aplicar`. Reemplaza en
+  código, pruebas, ayuda, datos y scripts, y regenera la tabla de la app.
+  Después pasar el par a `renombres_anteriores` y dejar `renombres` vacío.
+- Los archivos sin versionar de `datos/entrenamiento/` (el examen y el corpus de
+  solo nombres) el script no los ve: renombrarlos en el lugar, sin regenerar
+  el examen.
+- `renombres_anteriores` ({viejo: real}) es lo que usa `lib_tc.a_real` para leer
+  lo que escriben los modelos entrenados antes.
+- `docs/mcp.json` se regenera con `tools/docs/mcp-inventario.py --desde-codigo`
+  (sin la app andando); no arrastra los nombres viejos como herramientas aparte.
+
+Al normalizar, el prompt de vivo6 cambió en 4 fichas que el código ya tenía y el
+inventario no (las posiciones y presets PTZ y la toma de la banca que trajo
+master; `speaker_time` con el signo). Los modelos de antes (v5, v6b, v7) se miden
+en un worktree del commit de su corpus: los controles de huella no los dejan
+medir con el prompt nuevo.
 
 ## El mapa
 

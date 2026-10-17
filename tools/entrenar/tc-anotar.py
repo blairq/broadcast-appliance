@@ -52,17 +52,17 @@ RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "
 # agent/ArgumentosLocales.cpp): un audio_set no recibe el nombre de una persona
 ENTIDADES = [  # v5 primero: el primer prefijo que coincide manda (chat_destacar no es de personas)
              (("banca_", "recinto_", "debate_"), {"banca"}), (("dsk_",), {"capa"}), (("orden_del_dia_",), {"punto"}),
-             (("chat_destacar", "chat_quitar_destacado", "pregunta_desde_chat"), {"mensaje"}),
+             (("chat_destacar", "chat_quitar_destacado", "chat_a_preguntas"), {"mensaje"}),
              (("ptz_seguir",), {"camara", "persona"}),
              # v6: la documentacion del evento y el PDF en escena
              (("documento_abrir", "pdf_escena_"), {"documento", "fuente"}), (("documentos_listar",), {"punto"}),
              (("scene_", "transition_"), {"escena"}), (("audio", "mixer_"), {"audio", "audio_operador"}),
-             (("source_", "capture_source"), {"fuente", "audio", "audio_operador", "escena"}),
-             (("participant_", "speaker_", "capture_person", "chat_"), {"persona"}),
+             (("source_", "foto_fuente"), {"fuente", "audio", "audio_operador", "escena"}),
+             (("participant_", "speaker_", "foto_invitado", "chat_"), {"persona"}),
              (("grafico_", "rotulo_"), {"grafico", "escena"}), (("laminas_",), {"carrusel", "escena"}),
              # v4: los comandos nuevos
-             (("ptz_",), {"camara", "posicion"}), (("rostro_ver",), {"camara"}), (("prompter_",), {"discurso"}),
-             (("media_use",), {"medio", "escena"}), (("pregunta_moderar",), {"pregunta"}),
+             (("ptz_",), {"camara", "posicion"}), (("persona_identificar",), {"camara"}), (("prompter_",), {"discurso"}),
+             (("medio_poner",), {"medio", "escena"}), (("pregunta_moderar",), {"pregunta"}),
              (("pantalla_",), {"pantalla", "carrusel"}), (("receta_",), {"receta"})]
 
 

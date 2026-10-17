@@ -142,6 +142,21 @@ def roles():
     return out
 
 
+def nombres_viejos():
+    """Los nombres que una herramienta tuvo antes (Tool::antes, y la tabla de
+    renombres en bloque de McpRenombres.cpp): el inventario anterior los tiene
+    como herramientas, pero hoy son la misma con otro nombre."""
+    import re
+    out = set()
+    for f in (RAIZ / "src/app/mcp").glob("*.cpp"):
+        s = f.read_text(encoding="utf-8", errors="replace")
+        for lista in re.findall(r"\.antes\s*=\s*\{([^}]*)\}", s):
+            out |= set(re.findall(r'"([a-z0-9_]+)"', lista))
+        if f.name == "McpRenombres.cpp":
+            out |= {v for v, _ in re.findall(r'\{"([a-z0-9_]+)",\s*"([a-z0-9_]+)"\}', s)}
+    return out
+
+
 def desde_codigo(anterior):
     """Las herramientas en la forma de tools/list, leidas del codigo; las que no
     se pueden leer, del inventario anterior del aparato (si estan)."""
@@ -168,8 +183,9 @@ def desde_codigo(anterior):
                      "annotations": {"readOnlyHint": c["soloLectura"], "destructiveHint": c["destructiva"],
                                      "idempotentHint": c["idempotente"], "openWorldHint": c["mundoAbierto"]}})
         origen[n] = "codigo"
+    antes = nombres_viejos()
     for n, v in sorted(viejo.items()):  # registradas sin nombre literal (el rack de audio, en un bucle)
-        if n not in cod:
+        if n not in cod and n not in antes:  # un nombre viejo no es otra herramienta
             herr.append({"name": n, "title": v.get("titulo", ""), "description": v.get("descripcion", ""),
                          "inputSchema": v.get("esquema", {}),
                          "annotations": {"readOnlyHint": v.get("soloLectura", False),

@@ -14,7 +14,7 @@ Escribí en `salida.jsonl` una línea JSON por entrada, de estos tipos:
    - Incluí TODAS las palabras de la lista de choques que sean verbos u órdenes (poner, sacar, pasar, mandar, tirar, dar/dale, cambiar, mostrar, dejar…).
 
 3. Consulta (cómo se pregunta algo, para que nunca suene a orden):
-{"tipo": "consulta", "forma": "¿cuántas … hay?", "significado": "contar elementos", "herramientas": ["scene_list", "source_list"]}
+{"tipo": "consulta", "forma": "¿cuántas … hay?", "significado": "contar elementos", "herramientas": ["scene_list", "escena_fuentes_ver"]}
 
 4. Término canónico (un término por cosa del aparato, con sinónimos del oficio cerrados):
 {"tipo": "termino", "concepto": "texto sobreimpreso con nombre o cargo", "canonico": "zócalo", "sinonimos": ["rótulo", "graph", "sobreimpreso"]}

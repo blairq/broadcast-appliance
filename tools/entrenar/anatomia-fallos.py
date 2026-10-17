@@ -121,7 +121,7 @@ def main():
         """En que capa gana `b` sobre `a`, mirando donde los nombres se SEPARAN.
 
         OJO CON EL PRIMER TOKEN. Si los dos nombres arrancan igual —capture_feed
-        y capture_program comparten `capture`— comparar el primer token es
+        y foto_programa comparten `capture`— comparar el primer token es
         comparar un token consigo mismo, y da siempre empate. La primera
         version de esto hacia justo eso, y los 6 «nunca estuvo adelante» que
         informaba eran los 6 pares de la misma familia: un artefacto, no un

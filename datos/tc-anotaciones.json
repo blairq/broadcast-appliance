@@ -1955,7 +1955,7 @@
    "origen": "bucle"
   }
  ],
- "banca_terminar": [
+ "recinto_orador_terminar": [
   {
    "frase": "terminá la palabra del que habla",
    "plantilla": "terminá la palabra del que habla",
@@ -2282,7 +2282,7 @@
    "origen": "tc-completar"
   }
  ],
- "bancas_listar": [
+ "recinto_bancas_ver": [
   {
    "frase": "¿quiénes están en el recinto?",
    "plantilla": "¿quiénes están en el recinto?",
@@ -2635,7 +2635,7 @@
    "origen": "bucle"
   }
  ],
- "capture_multiview": [
+ "foto_todas_escenas": [
   {
    "frase": "quiero el multiview",
    "plantilla": "quiero el multiview",
@@ -2786,7 +2786,7 @@
    "origen": "tc-contraste"
   }
  ],
- "capture_people": [
+ "foto_todos_invitados": [
   {
    "frase": "pasame una imagen de cada persona de la sala, con nombre y estado",
    "plantilla": "pasame una imagen de cada persona de la sala, con nombre y estado",
@@ -2953,7 +2953,7 @@
    "origen": "tc-contraste"
   }
  ],
- "capture_person": [
+ "foto_invitado": [
   {
    "frase": "quiero ver a Marta sola, cómo sale en su cámara ahora",
    "plantilla": "quiero ver solo a {persona}, cómo sale en su cámara ahora",
@@ -3137,7 +3137,7 @@
    "origen": "tc-contraste"
   }
  ],
- "capture_program": [
+ "foto_programa": [
   {
    "frase": "sacame una foto de lo que está saliendo",
    "plantilla": "sacame una foto de lo que está saliendo",
@@ -3453,7 +3453,7 @@
    "origen": "tc-sumar"
   }
  ],
- "capture_source": [
+ "foto_fuente": [
   {
    "frase": "mostrame cómo quedó esa fuente",
    "plantilla": "mostrame cómo quedó esa fuente",
@@ -3973,7 +3973,7 @@
    "origen": "tc-contraste"
   }
  ],
- "chat_history": [
+ "invitados_chat_leer": [
   {
    "frase": "Repasemos el chat: los últimos diez, de quién y a quién",
    "plantilla": "Repasemos el chat: los últimos diez, de quién y a quién",
@@ -4028,7 +4028,7 @@
    "nueva": true,
    "origen": "tc-nuevas",
    "args": {},
-   "movida_de": "chat_recientes"
+   "movida_de": "publico_chat_leer"
   },
   {
    "frase": "¿algún invitado avisó por chat que se le corta el audio?",
@@ -4286,7 +4286,7 @@
    "origen": "tc-contraste"
   }
  ],
- "chat_recientes": [
+ "publico_chat_leer": [
   {
    "frase": "¿qué escribió el chat en los últimos minutos?",
    "plantilla": "¿qué escribió el público en el chat de YouTube en los últimos minutos?",
@@ -6565,7 +6565,7 @@
    "origen": "tc-completar"
   }
  ],
- "dsk_listar": [
+ "dsk_capas_ver": [
   {
    "frase": "¿qué capas hay arriba?",
    "plantilla": "¿qué capas hay arriba?",
@@ -8221,7 +8221,7 @@
     "scene": "{escena}",
     "layout": "left"
    },
-   "movida_de": "source_add"
+   "movida_de": "crear_fuente"
   },
   {
    "frase": "sumá la cámara del invitado a la escena",
@@ -8292,7 +8292,7 @@
    "origen": "tc-contraste"
   }
  ],
- "imagen_analizar": [
+ "imagen_preguntar": [
   {
    "frase": "Mirá el programa y decime qué se ve",
    "plantilla": "Mirá el programa y decime qué se ve",
@@ -9142,7 +9142,7 @@
    "origen": "bucle"
   }
  ],
- "laminas_listar": [
+ "carruseles_listar": [
   {
    "frase": "qué carruseles hay en la biblioteca y cuál está abierto",
    "plantilla": "qué carruseles hay en la biblioteca y cuál está abierto",
@@ -9298,7 +9298,7 @@
    "origen": "tc-completar"
   }
  ],
- "laminas_ver": [
+ "carrusel_laminas_ver": [
   {
    "frase": "qué láminas tiene",
    "plantilla": "qué láminas tiene",
@@ -9478,24 +9478,24 @@
    "origen": "tc-completar"
   }
  ],
- "media_use": [
+ "medio_poner": [
   {
    "frase": "agregá una fuente de imagen con el logo en la escena al aire",
    "plantilla": "agregá una fuente de imagen con el logo en la escena al aire",
    "falta": "¿Qué archivo de imagen es el logo?",
-   "movida_de": "source_add"
+   "movida_de": "crear_fuente"
   },
   {
    "frase": "poné una imagen arriba a la derecha",
    "plantilla": "poné una imagen arriba a la derecha",
    "falta": "¿Qué imagen?",
-   "movida_de": "source_add"
+   "movida_de": "crear_fuente"
   },
   {
    "frase": "Agregá una imagen del sponsor en pip-br en la escena Principal",
    "plantilla": "Agregá una imagen del sponsor en pip-br en {escena}",
    "falta": "¿Qué archivo de imagen del sponsor?",
-   "movida_de": "source_add"
+   "movida_de": "crear_fuente"
   },
   {
    "frase": "música de fondo en loop con ambiente.mp3",
@@ -12578,7 +12578,7 @@
    "origen": "tc-completar"
   }
  ],
- "pregunta_desde_chat": [
+ "chat_a_preguntas": [
   {
    "frase": "sumá el mensaje de Juan a la cola de preguntas",
    "plantilla": "sumá {mensaje} a la cola de preguntas",
@@ -13125,7 +13125,7 @@
    "origen": "tc-completar"
   }
  ],
- "presidencia_silenciar": [
+ "presidencia_callar_todos": [
   {
    "frase": "callá a todos",
    "plantilla": "callá a todos",
@@ -14247,7 +14247,7 @@
    "origen": "tc-completar"
   }
  ],
- "ptz_home": [
+ "ptz_inicio": [
   {
    "frase": "la tres a home",
    "plantilla": "{camara} a home",
@@ -15790,7 +15790,7 @@
    "origen": "tc-completar"
   }
  ],
- "ptz_rostros": [
+ "ptz_caras_ubicar": [
   {
    "frase": "¿qué caras ves en la {camara}?",
    "plantilla": "¿qué caras ves en {camara}?",
@@ -16206,7 +16206,7 @@
    "origen": "bucle"
   }
  ],
- "quorum_estado": [
+ "quorum_presentes": [
   {
    "frase": "¿cuántos presentes hay?",
    "plantilla": "¿cuántos presentes hay?",
@@ -17623,7 +17623,7 @@
    "origen": "tc-completar"
   }
  ],
- "rostro_ver": [
+ "persona_identificar": [
   {
    "frase": "¿quién está en la dos?",
    "plantilla": "¿quién está en {camara}?",
@@ -17787,7 +17787,7 @@
    "args": {
     "feed": "{camara}"
    },
-   "movida_de": "ptz_rostros"
+   "movida_de": "ptz_caras_ubicar"
   },
   {
    "frase": "¿reconoce a alguien {camara}?",
@@ -17797,7 +17797,7 @@
    "args": {
     "feed": "{camara}"
    },
-   "movida_de": "ptz_rostros"
+   "movida_de": "ptz_caras_ubicar"
   },
   {
    "frase": "¿a quién reconocés en {camara}?",
@@ -17807,7 +17807,7 @@
    "args": {
     "feed": "{camara}"
    },
-   "movida_de": "ptz_rostros"
+   "movida_de": "ptz_caras_ubicar"
   },
   {
    "plantilla": "¿quién es la persona que está en el podio?",
@@ -20573,7 +20573,7 @@
    "origen": "tc-contraste"
   }
  ],
- "scene_take": [
+ "preview_al_aire": [
   {
    "frase": "mandá al aire la escena armada",
    "plantilla": "mandá al aire la escena armada",
@@ -21235,7 +21235,7 @@
    "origen": "tc-completar"
   }
  ],
- "share_view": [
+ "compartida_revisar": [
   {
    "frase": "mostrame el archivo que compartió el invitado, sin ponerlo",
    "plantilla": "mostrame el archivo que compartió el invitado, sin ponerlo",
@@ -21407,7 +21407,7 @@
    "origen": "tc-completar"
   }
  ],
- "source_add": [
+ "crear_fuente": [
   {
    "frase": "agregá la fuente de cámara Cam 3 a esta escena, arriba de todo",
    "plantilla": "agregá la fuente de cámara {fuente} a esta escena, arriba de todo",
@@ -21693,7 +21693,7 @@
    "origen": "bucle"
   }
  ],
- "source_list": [
+ "escena_fuentes_ver": [
   {
    "frase": "qué capas tiene la escena del aire",
    "plantilla": "qué capas tiene la escena del aire",
@@ -24066,7 +24066,7 @@
    "origen": "tc-sumar"
   }
  ],
- "speakers_status": [
+ "remotos_fila_ver": [
   {
    "frase": "mostrame la fila de oradores con la conexión de cada uno",
    "plantilla": "mostrame la fila de oradores con la conexión de cada uno",
@@ -25131,7 +25131,7 @@
    "origen": "tc-completar"
   }
  ],
- "votacion_ver": [
+ "votacion_recuento": [
   {
    "frase": "¿cómo va la votación?",
    "plantilla": "¿cómo va la votación?",

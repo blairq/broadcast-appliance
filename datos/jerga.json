@@ -140,7 +140,7 @@
       "mandá el PP",
       "poné el PG"
     ],
-    "scene_take": [
+    "preview_al_aire": [
       "dale take",
       "tomá",
       "tirala",
@@ -185,7 +185,7 @@
       "arrancá el registro",
       "dale rec"
     ],
-    "capture_program": [
+    "foto_programa": [
       "cómo está saliendo el PGM",
       "mostrame el programa",
       "qué hay en el aire"

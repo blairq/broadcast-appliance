@@ -191,7 +191,7 @@ def main():
 
     # LOS CANDIDATOS SALEN DE LA FICHA DE CADA HERRAMIENTA, no del vocabulario
     # entero. Buscar entre 16.177 palabras por afinidad con la ficha es
-    # demasiado ruidoso: daba `chat_history -> departureday` y
+    # demasiado ruidoso: daba `invitados_chat_leer -> departureday` y
     # `audio_analyze -> pot`. Las palabras que la herramienta usa PARA
     # describirse son las que de verdad tienen que ver con ella, y encima
     # quedan legibles para el que despues lee un log.

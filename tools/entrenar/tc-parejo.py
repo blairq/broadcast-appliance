@@ -2,7 +2,7 @@
 """El corpus PAREJO: cada herramienta del perfil con --min a --max frases, todas distintas.
 
 POR QUE. Despues de reasignar (tc-reasignar.py) algunas herramientas quedaron con 2
-o 6 frases (speakers_status, bancas_listar: casi todo lo que tenian valia tambien
+o 6 frases (remotos_fila_ver, recinto_bancas_ver: casi todo lo que tenian valia tambien
 para la vecina) y otras siguen con 40 (source_update). Una nube de 2 puntos no se
 puede medir ni aprender; una de 40 con la mitad de variantes pesa el doble sin
 enseñar mas.

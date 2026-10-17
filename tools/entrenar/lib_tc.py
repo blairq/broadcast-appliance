@@ -139,14 +139,14 @@ def compactar(esq, prof=0):
     return out
 
 
-# LA CAPA DE TRADUCCION (v6). El modelo ve y escribe una ETIQUETA cuando el nombre
-# del MCP se pisaba con el de otra herramienta (chat_history / chat_recientes,
-# bancas_listar / speakers_status...: los pares con CDNV mas alta en el modelo base
-# y los que el base y v4 confundian igual). Todo lo de adentro (anotaciones, banco,
-# examen, esquemas, fallos) sigue con el nombre REAL: la etiqueta solo existe en el
-# prompt y en la respuesta. La app traduce con modelo.json (endpoints[].etiqueta).
+# LOS NOMBRES (normalizados el 16/10/2026). En la v6 el modelo veia una ETIQUETA
+# cuando el nombre del MCP se pisaba con el de otra (chat_history / chat_recientes,
+# bancas_listar / speakers_status...) y una capa traducia en los dos sentidos. Esas
+# 26 herramientas se renombraron en la app (los viejos siguen andando: Tool::antes,
+# src/app/mcp/McpRenombres.cpp) y en los datos: hoy el nombre que ve el modelo ES el
+# real, y «renombres» del perfil queda vacio. «renombres_anteriores» ({viejo: real})
+# sirve para leer lo que escriben los modelos entrenados antes (v5, v6b, v7...).
 _A_MODELO = dict(getattr(lp, "RENOMBRES", {}))
-# las etiquetas anteriores tambien se leen (fuente_crear, de la vuelta 0 de la v6)
 _A_REAL = dict(getattr(lp, "ANTERIORES", {})) | {v: k for k, v in _A_MODELO.items()}
 _DESCRIPCIONES = dict(getattr(lp, "DESCRIPCIONES", {}))
 
@@ -160,7 +160,7 @@ def a_real(nombre):
 
 
 def _en_idioma_del_modelo(texto):
-    """Las descripciones nombran a otras herramientas («la `key` de chat_recientes»):
+    """Las descripciones nombran a otras herramientas («la `key` de publico_chat_leer»):
     que hablen el mismo idioma que la respuesta."""
     for real in sorted(_A_MODELO, key=len, reverse=True):
         texto = re.sub(rf"\b{re.escape(real)}\b", _A_MODELO[real], texto)
@@ -212,12 +212,13 @@ def mismo_perfil(corpus=None, modelo=None):
         hc = json.loads((Path(corpus) / "huella.json").read_text()).get("prompt")
         if hc and hc != h:
             raise SystemExit(f"{corpus} es del prompt {hc} y el de ahora es {h} (perfil {_lp.PERFIL}):"
-                             f" ¿falta BA_PERFIL=...?")
+                             f" ¿falta BA_PERFIL=...? (o cambiaron las fichas del MCP: medir en un worktree del commit del corpus)")
     if modelo is not None and (Path(modelo) / "huella-prompt.json").exists():
         hm = json.loads((Path(modelo) / "huella-prompt.json").read_text()).get("prompt")
         if hm and hm != _lp.huella()["prompt"]:
             raise SystemExit(f"{modelo} se entreno con el prompt {hm} y el de ahora es {_lp.huella()['prompt']}"
-                             f" (perfil {_lp.PERFIL}): ¿falta BA_PERFIL=...?")
+                             f" (perfil {_lp.PERFIL}): ¿falta BA_PERFIL=...? (o cambiaron las fichas del MCP desde que"
+                             f" se entreno: medirlo en un worktree de ese commit)")
 
 
 def usuario(estado, frase):
@@ -532,17 +533,17 @@ def estado_para(h, est):
     argumentos::estadoPara (src/app/agent/ArgumentosLocales.cpp)."""
     def con(*claves):
         return {k: est[k] for k in claves if k in est}
-    if empieza(h, ("scene_", "transition_")):
+    if empieza(h, ("scene_", "transition_", "preview_al_aire")):
         return con("escena_actual", "escena_armada", "escenas")
     if empieza(h, ("audio", "mixer_")):
         return con("audio")
-    if empieza(h, ("source_", "capture_source")):
+    if empieza(h, ("source_", "foto_fuente", "crear_fuente", "escena_fuentes_ver")):
         return con("escena_actual", "escenas", "fuentes_de_la_escena_actual", "audio")
-    if empieza(h, ("participant_", "speaker_", "chat_", "capture_person")):
+    if empieza(h, ("participant_", "speaker_", "chat_", "foto_invitado", "invitados_chat_leer", "publico_chat_leer")):
         return con("participantes")
     if empieza(h, ("grafico_", "rotulo_")):
         return con("graficos", "escena_actual")
-    if empieza(h, ("laminas_",)):
+    if empieza(h, ("laminas_", "carrusel_laminas_ver", "carruseles_listar")):
         return con("carruseles", "escenas", "escena_actual")
     return est
 

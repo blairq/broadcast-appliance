@@ -2,8 +2,8 @@
 """Cada anotacion a la herramienta que de verdad hace lo que pide.
 
 POR QUE. Las pasadas sin entrenar (Qwen base y v4 sobre las 2.083 frases) y la
-geometria (tc-geometria.py con el base) marcaron los mismos pares: chat_history /
-chat_recientes, bancas_listar / speakers_status, rostro_ver / ptz_rostros, las
+geometria (tc-geometria.py con el base) marcaron los mismos pares: invitados_chat_leer /
+publico_chat_leer, recinto_bancas_ver / remotos_fila_ver, persona_identificar / ptz_caras_ubicar, las
 capture_*... En esos pares hay frases que piden lo de la OTRA herramienta, y frases
 que valen para las dos sin decir cual. Entrenar con eso no enseña nada: aprieta las
 dos nubes una contra la otra.
