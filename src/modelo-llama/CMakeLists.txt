@@ -17,7 +17,7 @@ else()
     set(_ba_llama "${CMAKE_SOURCE_DIR}/extern/llamacpp-linux")
 endif()
 if(NOT EXISTS "${_ba_llama}/include/llama.h")
-    message(STATUS "ba-modelo (llama.cpp): sin ${_ba_llama} (tools/deps/llamacpp-lib.sh): sin modelo local en esta plataforma")
+    ba_falta("Modelo local (llama.cpp)" "falta ${_ba_llama} (tools/deps/llamacpp-lib.sh)")
     return()
 endif()
 

@@ -169,11 +169,14 @@ if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
     endif()
     # El texto del overlay: Pango + Cairo, los mismos que usa textoverlay (vienen
     # con GStreamer). Sin ellos, el overlay anda sin texto.
+    # En Windows BA_GST_LIBDIR es bin/ (las DLL); las bibliotecas para enlazar (.lib)
+    # están en lib/. Sin esto el texto se apagaba solo en Windows.
     get_filename_component(_ba_gst_inc "${BA_GST_LIBDIR}/../include" ABSOLUTE)
-    find_library(_ba_pangocairo NAMES pangocairo-1.0 PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
-    find_library(_ba_pango NAMES pango-1.0 PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
-    find_library(_ba_cairo NAMES cairo PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
-    find_library(_ba_gobject NAMES gobject-2.0 PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
+    get_filename_component(_ba_gst_lib "${BA_GST_LIBDIR}/../lib" ABSOLUTE)
+    find_library(_ba_pangocairo NAMES pangocairo-1.0 PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_library(_ba_pango NAMES pango-1.0 PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_library(_ba_cairo NAMES cairo PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_library(_ba_gobject NAMES gobject-2.0 PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
     if(_ba_pangocairo AND _ba_pango AND _ba_cairo AND EXISTS "${_ba_gst_inc}/pango-1.0/pango/pangocairo.h")
         target_include_directories(gstbarostros PRIVATE "${_ba_gst_inc}/pango-1.0" "${_ba_gst_inc}/cairo"
                                    "${_ba_gst_inc}/harfbuzz" "${_ba_gst_inc}/freetype2" "${_ba_gst_inc}/fribidi")
@@ -181,7 +184,7 @@ if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
         target_compile_definitions(gstbarostros PRIVATE BA_ROSTROS_TEXTO=1)
         message(STATUS "barostros: con texto en el overlay (Pango + Cairo)")
     else()
-        message(STATUS "barostros: sin Pango/Cairo, el overlay va sin texto")
+        ba_falta("Texto de los rostros (barostros)" "no encontré Pango/Cairo en el GStreamer (${BA_GST_LIBDIR})")
     endif()
 endif()
 

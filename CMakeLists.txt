@@ -253,6 +253,8 @@ endif()
 # enable_testing() + include(CTest) habilitan `ctest` y el target `test`.
 enable_testing()
 include(CTest)
+# Lo que el programa tiene que traer: si falta algo, la configuración frena (ver el archivo).
+include(${CMAKE_SOURCE_DIR}/cmake/BaRequisitos.cmake)
 
 # --- Componentes ------------------------------------------------------------
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
@@ -262,6 +264,7 @@ if(BA_WIN_STATIC_PART)
     add_subdirectory(src/core)
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
+    ba_revisar_requisitos()
     return()
 endif()
 
@@ -300,6 +303,8 @@ add_subdirectory(src/web)
 # con `make deps-pinggy`. Fuera del sub-build /MT de Windows: no enlaza ba_core.
 if(EXISTS "${CMAKE_SOURCE_DIR}/extern/pinggy")
     add_subdirectory(src/pinggy)
+else()
+    ba_falta("Túnel de pinggy (ba-pinggy)" "falta extern/pinggy ('make deps-pinggy')")
 endif()
 # El motor de emisión es GStreamer (src/motor) y sus plugins propios: la app
 # los necesita (sin GStreamer, ba-app se compila sin motor: solo herramientas).
@@ -398,7 +403,7 @@ if(EXISTS "${BA_CLOUDFLARED_BIN}")
     install(PROGRAMS "${BA_CLOUDFLARED_BIN}" DESTINATION bin/64bit)
     message(STATUS "ba-bundle: cloudflared incluido (${BA_CLOUDFLARED_BIN})")
 else()
-    message(STATUS "ba-bundle: sin cloudflared (sin tunel); 'make deps-cloudflared-host' lo baja")
+    ba_falta("Túnel de Cloudflare (cloudflared)" "falta el binario ('make deps-cloudflared-host')")
 endif()
 
 # ba-modelo (el modelo local en la Mac: MLX, ver src/modelo-mac) si se compilo
@@ -422,7 +427,7 @@ if(APPLE)
         endif()
         message(STATUS "ba-bundle: ba-modelo incluido (modelo local con MLX)")
     else()
-        message(STATUS "ba-bundle: sin ba-modelo (sin modelo local); 'make modelo-mac' lo compila")
+        ba_falta("Modelo local con MLX (ba-modelo)" "no está compilado ('make modelo-mac')")
     endif()
 endif()
 
@@ -442,3 +447,6 @@ endif()
 if(APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaMacBundle.cmake)
 endif()
+
+# Al final: si a algo de lo de arriba le faltó una parte, acá frena (cmake/BaRequisitos.cmake).
+ba_revisar_requisitos()

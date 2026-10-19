@@ -119,12 +119,25 @@ endif()
 set(BA_MDNS_DIR "${CMAKE_SOURCE_DIR}/extern/libmicrodns")
 
 # --- mDNS para buscar Chromecast (src/app/pantallas) --------------------------
-# La misma libmicrodns que usa NDI, pero como objetivo propio: buscar
-# televisores tiene que andar igual en las tres plataformas. En Linux se usa el
-# .a de extern/terceros-linux (los terceros compilados, el nombre es histórico)
-# si está; si no (y en macOS), se compila del fuente vendoreado, que es el mismo.
+# UNA libmicrodns (ba_mdns) para los tres sistemas: la usan la búsqueda de
+# televisores y NDI. En Linux, el .a de extern/terceros-linux (los terceros
+# compilados, el nombre es histórico) si está; si no (y en macOS), del fuente
+# vendoreado; en Windows, del mismo fuente con su compat (inet, poll) y Winsock.
+# Antes Windows la compilaba aparte solo para NDI y la búsqueda quedaba afuera.
 set(BA_MDNS_OK OFF)
-if(NOT WIN32 AND EXISTS "${BA_TERCEROS}/lib/libmicrodns.a")
+if(WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
+    add_library(ba_mdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
+                               "${BA_MDNS_DIR}/compat/compat.c" "${BA_MDNS_DIR}/compat/inet.c"
+                               "${BA_MDNS_DIR}/compat/poll.c")
+    target_include_directories(ba_mdns PUBLIC "${BA_MDNS_DIR}/include"
+                               PRIVATE "${CMAKE_SOURCE_DIR}/cmake/ndi-win" "${BA_MDNS_DIR}" "${BA_MDNS_DIR}/compat")
+    target_compile_definitions(ba_mdns PRIVATE HAVE_CONFIG_H _UNICODE=1 UNICODE=1 _CRT_NONSTDC_NO_DEPRECATE
+                                               _CRT_SECURE_NO_DEPRECATE)
+    target_compile_options(ba_mdns PRIVATE -w /FIstdlib.h) # compat/ usa malloc sin incluirlo
+    target_link_libraries(ba_mdns PUBLIC ws2_32 iphlpapi)
+    install(FILES "${BA_MDNS_DIR}/COPYING" DESTINATION data/licencias RENAME libmicrodns-LGPL.txt)
+    set(BA_MDNS_OK ON)
+elseif(NOT WIN32 AND EXISTS "${BA_TERCEROS}/lib/libmicrodns.a")
     add_library(ba_mdns INTERFACE)
     target_include_directories(ba_mdns INTERFACE "${BA_TERCEROS}/include")
     target_link_libraries(ba_mdns INTERFACE "${BA_TERCEROS}/lib/libmicrodns.a")
@@ -156,17 +169,7 @@ if(APPLE AND BA_HAVE_MOTOR AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv.
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt COMPONENT bundle)
 endif()
 # El enlace con ba-app va mas abajo, cuando el objetivo ya existe.
-if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
-    add_library(ba_microdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
-                                   "${BA_MDNS_DIR}/compat/compat.c" "${BA_MDNS_DIR}/compat/inet.c"
-                                   "${BA_MDNS_DIR}/compat/poll.c")
-    target_include_directories(ba_microdns PUBLIC "${BA_MDNS_DIR}/include"
-                               PRIVATE "${CMAKE_SOURCE_DIR}/cmake/ndi-win" "${BA_MDNS_DIR}" "${BA_MDNS_DIR}/compat")
-    target_compile_definitions(ba_microdns PRIVATE HAVE_CONFIG_H _UNICODE=1 UNICODE=1 _CRT_NONSTDC_NO_DEPRECATE
-                                                   _CRT_SECURE_NO_DEPRECATE)
-    target_compile_options(ba_microdns PRIVATE -w /FIstdlib.h) # compat/ usa malloc sin incluirlo
-    target_link_libraries(ba_microdns PUBLIC ws2_32 iphlpapi)
-
+if(BA_HAVE_MOTOR AND WIN32 AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c")
     # Sin poll() en Windows: el compat/poll.c de la propia libNoIDea (el de VLC).
     add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
                                  "${BA_NOIDEA_DIR}/extensions/discovery.c" "${BA_NOIDEA_DIR}/compat/poll.c")
@@ -176,14 +179,16 @@ if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "
                                PRIVATE "${BA_NOIDEA_DIR}/src")
     target_compile_definitions(ba_noidea PUBLIC NOIDEA_EXT_DISCOVERY NOIDEA_STATIC)
     target_compile_options(ba_noidea PRIVATE -w)
-    target_link_libraries(ba_noidea PUBLIC ba_microdns ws2_32)
+    target_link_libraries(ba_noidea PUBLIC ba_mdns ws2_32)
 
     set(BA_HAVE_NDI ON)
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt)
-    install(FILES "${BA_MDNS_DIR}/COPYING" DESTINATION data/licencias RENAME libmicrodns-LGPL.txt)
 endif()
 if(NOT BA_HAVE_NDI)
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/NdiSource\\.cpp$")
+    if(BA_HAVE_MOTOR)
+        ba_falta("Entradas NDI" "falta libNoIDea o libmicrodns (tools/deps/ndi-src.sh)")
+    endif()
 endif()
 
 # --- Plugins de audio CLAP (LSP) ---------------------------------------------
@@ -362,7 +367,7 @@ if(BA_MDNS_OK)
     target_compile_definitions(ba-app PRIVATE BA_HAVE_MDNS=1)
     message(STATUS "ba-app: busqueda de Chromecast por mDNS")
 else()
-    message(STATUS "ba-app: sin mDNS (los televisores se agregan a mano por IP)")
+    ba_falta("Búsqueda de televisores (mDNS)" "no se encontró libmicrodns (extern/libmicrodns, tools/deps/ndi-src.sh)")
 endif()
 # Raices de Mozilla para ese HTTPS (make deps-cacert): viajan en el bundle.
 if(EXISTS "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
@@ -1144,7 +1149,7 @@ endif()
     endif()
 else()
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=0)
-    message(STATUS "ba-app: sin Qt vendoreado -> solo modo consola ('make deps-qt-host' lo baja)")
+    ba_falta("Interfaz (Qt)" "falta el Qt vendoreado ('make deps-qt-host')")
 endif()
 
 # --- Instalación ------------------------------------------------------------

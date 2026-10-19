@@ -98,7 +98,7 @@ elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-
     endif()
     message(STATUS "GStreamer: ${_g}")
 else()
-    message(STATUS "GStreamer: no está (make deps-gstreamer-macos / -linux / -win); se compila sin él")
+    ba_falta("Motor de video (GStreamer)" "no está ('make deps-gstreamer-macos' / '-linux' / '-win')")
 endif()
 
 # Que un binario encuentre las bibliotecas de GStreamer: en el árbol de build

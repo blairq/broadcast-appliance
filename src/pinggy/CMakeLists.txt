@@ -23,7 +23,7 @@ else()
 endif()
 set(BA_PINGGY_DIR "${CMAKE_SOURCE_DIR}/extern/pinggy/${_pg_plat}")
 if(NOT EXISTS "${BA_PINGGY_DIR}/pinggy.h")
-    message(STATUS "ba-pinggy: falta extern/pinggy/${_pg_plat} ('make deps-pinggy'): sin túnel de pinggy")
+    ba_falta("Túnel de pinggy (ba-pinggy)" "falta extern/pinggy/${_pg_plat} ('make deps-pinggy')")
     return()
 endif()
 
