@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <set>
 
 namespace ba::app::tiempos {
@@ -36,6 +38,21 @@ bool si(const json& o, const char* k) {
     return v.is_boolean() ? v.get<bool>() : v.is_number() ? v.get<double>() != 0 : v.is_string() ? !v.get<std::string>().empty() : false;
 }
 /// Lo mismo para un número (texto que no es número: 0).
+std::string fabricaDe(const json& el) { return el.value("fabrica", el.value("nombre", std::string())); }
+/// Sube o baja de la GPU, o cambia el formato o el tamaño: lo mete la cadena para que lo que
+/// sigue reciba lo que acepta.
+bool esConversor(const json& el) {
+    const std::string f = fabricaDe(el);
+    for (const char* x : {"upload", "download", "convert", "scale"})
+        if (f.find(x) != std::string::npos) return true;
+    return false;
+}
+/// Colas y capsfilter: no hacen nada con el cuadro (las colas, si retienen, se ven igual).
+bool esDePaso(const json& el) {
+    const std::string f = fabricaDe(el);
+    return f.find("capsfilter") != std::string::npos || f.find("queue") != std::string::npos;
+}
+
 /// Los elementos medidos de cada tarjeta (por su instancia en el pipeline): los suyos (los
 /// que empiezan con su nombre: algunas arman más de uno, como el PTZ con su tee) y los
 /// conversores que la cadena metió justo antes —subir o bajar de la GPU, cambiar el
@@ -56,10 +73,8 @@ std::map<std::string, json> elementosPorTarjeta(const json& analisis, const std:
             v.push_back(el);
             continue;
         }
-        const std::string fab = el.value("fabrica", nombre);
-        const auto tiene = [&](const char* x) { return fab.find(x) != std::string::npos; };
-        if (tiene("upload") || tiene("download") || tiene("convert") || tiene("scale")) pendientes.push_back(el);
-        else if (!tiene("capsfilter") && !tiene("queue")) pendientes = json::array();
+        if (esConversor(el)) pendientes.push_back(el);
+        else if (!esDePaso(el)) pendientes = json::array();
     }
     return r;
 }
@@ -158,6 +173,18 @@ json armar(const Fotos& f) {
             for (const auto& fl : e.value("filtros", json::array()))
                 if (!fl.value("instancia", std::string()).empty()) inst.push_back(fl["instancia"].get<std::string>());
             deTarjeta = elementosPorTarjeta(*analisis, inst);
+        }
+        json diagnostico;
+        if (analisis != nullptr) {
+            std::map<std::string, TarjetaEnPipeline> tj;
+            for (const auto& fl : filtros) {
+                const std::string i = fl.value("instancia", std::string());
+                if (i.empty()) continue;
+                const auto t = f.titulos.find(fl.value("id", std::string()));
+                tj[i] = {"tarjeta:" + id + ":" + fl.value("id", std::string()),
+                         t != f.titulos.end() && !t->second.empty() ? t->second : tituloDeElemento(fl.value("elemento", std::string()))};
+            }
+            diagnostico = diagnosticar(*analisis, tj);
         }
 
         for (const bool esAudio : {false, true}) {
@@ -264,7 +291,10 @@ json armar(const Fotos& f) {
                              {"rearmada_hace_s", num(e, "rearmada_hace_s", -1.0)}};
             // El recorrido medido de la entrada (todos sus elementos, la memoria de cada paso
             // y los cruces GPU↔memoria): lo que muestra la tarjeta al tocarla.
-            if (analisis != nullptr) ne["detalle"]["pipeline"] = *analisis;
+            if (analisis != nullptr) {
+                ne["detalle"]["pipeline"] = *analisis;
+                ne["detalle"]["diagnostico"] = diagnostico;
+            }
             if (espera != f.enEspera.end()) ne["detalle"]["en_espera"] = espera->second;
             // La hora que trae, corrida (más de un minuto para un lado u otro): no es una demora,
             // es una fuente con otro reloj. Se marca y no se dibuja el número (estiraría todo).
@@ -429,6 +459,181 @@ json armar(const Fotos& f) {
             {"tramos", a.tramos},
             {"salidas", salidas},
             {"estudio", {{"latencia_ms", latEstudio}, {"tope_ms", num(estudio, "tope_ms", 0.0)}}}};
+}
+
+namespace {
+bool gpu(const std::string& m) { return m == "gl" || m == "d3d12" || m == "d3d11" || m == "cuda" || m == "va"; }
+std::string nombreMemoria(const std::string& m) {
+    if (m == "gl") return "GPU (GL)";
+    if (m == "d3d12") return "GPU (D3D12)";
+    if (m == "d3d11") return "GPU (D3D11)";
+    if (m == "cuda") return "GPU (CUDA)";
+    if (m == "va") return "GPU (VA)";
+    if (m == "dmabuf") return "DMABuf";
+    if (m == "sistema") return "RAM";
+    return m;
+}
+std::string msTexto(double ms) {
+    char b[32];
+    std::snprintf(b, sizeof b, ms < 10 ? "%.1f ms" : "%.0f ms", ms);
+    return b;
+}
+} // namespace
+
+json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPipeline>& tarjetas) {
+    const json elems = pipeline.value("elementos", json::array());
+    // De quién es cada elemento (los suyos y los conversores que pide).
+    std::vector<std::string> inst;
+    for (const auto& [i, t] : tarjetas) inst.push_back(i);
+    std::map<std::string, std::string> duenio; // elemento → instancia
+    for (const auto& [i, lista] : elementosPorTarjeta(pipeline, inst))
+        for (const auto& el : lista) duenio[el.value("nombre", std::string())] = i;
+    const auto tarjetasDe = [&](const std::vector<std::string>& nombres) {
+        json r = json::array();
+        std::vector<std::string> vistas;
+        for (const auto& n : nombres) {
+            const auto d = duenio.find(n);
+            if (d == duenio.end() || std::find(vistas.begin(), vistas.end(), d->second) != vistas.end()) continue;
+            vistas.push_back(d->second);
+            const auto t = tarjetas.find(d->second);
+            if (t != tarjetas.end()) r.push_back({{"id", t->second.id}, {"titulo", t->second.titulo}});
+        }
+        return r;
+    };
+    const auto quien = [&](const json& el) {
+        const std::string n = el.value("nombre", std::string());
+        const auto d = duenio.find(n);
+        if (d != duenio.end())
+            if (const auto t = tarjetas.find(d->second); t != tarjetas.end()) return "«" + t->second.titulo + "»";
+        return "«" + n + "»";
+    };
+    // El período de un cuadro (de las caps: «… 30 fps»).
+    double cuadro = 0;
+    for (const auto& el : elems) {
+        const std::string c = el.value("caps_salida", std::string());
+        const auto p = c.find(" fps");
+        if (p == std::string::npos) continue;
+        const auto i = c.rfind(' ', p - 1);
+        const double fps = std::atof(c.substr(i + 1, p - i - 1).c_str());
+        if (fps > 0) {
+            cuadro = 1000.0 / fps;
+            break;
+        }
+    }
+    json hallazgos = json::array();
+    const auto hallazgo = [&](const char* tipo, const char* gravedad, const std::string& texto, double ms,
+                              const std::vector<std::string>& nombres) {
+        hallazgos.push_back({{"tipo", tipo}, {"gravedad", gravedad}, {"texto", texto}, {"ms", redondo(ms)},
+                             {"elementos", nombres}, {"tarjetas", tarjetasDe(nombres)}});
+    };
+
+    // 1) Baja de la GPU y vuelve a subir: lo del medio trabaja en RAM.
+    double total = 0;
+    int cruces = 0, idas = 0;
+    int bajo = -1;
+    for (int i = 0; i < static_cast<int>(elems.size()); ++i) {
+        const json& el = elems[static_cast<size_t>(i)];
+        total += el.value("agrega_ms", 0.0);
+        const std::string cruce = el.value("cruce", std::string());
+        if (cruce.empty()) continue;
+        ++cruces;
+        if (cruce == "baja") {
+            bajo = i;
+            continue;
+        }
+        if (bajo < 0) continue;
+        ++idas;
+        const json& b = elems[static_cast<size_t>(bajo)];
+        std::vector<std::string> nombres{b.value("nombre", std::string())};
+        double ms = b.value("agrega_ms", 0.0) + el.value("agrega_ms", 0.0);
+        std::string porque;
+        for (int k = bajo + 1; k < i; ++k) {
+            const json& m = elems[static_cast<size_t>(k)];
+            nombres.push_back(m.value("nombre", std::string()));
+            if (esConversor(m)) {
+                ms += m.value("agrega_ms", 0.0);
+                continue;
+            }
+            if (esDePaso(m)) continue;
+            bool puedeGpu = false, cualquiera = false;
+            for (const auto& x : m.value("puede_entrada", json::array())) {
+                puedeGpu = puedeGpu || gpu(x.get<std::string>());
+                cualquiera = cualquiera || x == "cualquiera";
+            }
+            porque += (porque.empty() ? "" : "; ") + quien(m) +
+                      (puedeGpu ? " puede trabajar en la GPU pero negoció RAM (lo que tiene al lado la obligó)"
+                       : cualquiera ? " acepta cualquier memoria pero negoció RAM"
+                                    : " trabaja en RAM: sus pads solo aceptan memoria del sistema");
+        }
+        nombres.push_back(el.value("nombre", std::string()));
+        hallazgo("ida_y_vuelta", "aviso",
+                 "El video baja de la " + nombreMemoria(b.value("memoria_entrada", std::string())) + " en «" +
+                     b.value("nombre", std::string()) + "» y vuelve a subir en «" + el.value("nombre", std::string()) +
+                     "»" + (porque.empty() ? "" : ": " + porque) + ". Cada cruce copia el cuadro entero (" + msTexto(ms) +
+                     " entre bajar y subir, más CPU y ancho de memoria).",
+                 ms, nombres);
+        bajo = -1;
+    }
+    if (bajo >= 0) {
+        const json& b = elems[static_cast<size_t>(bajo)];
+        hallazgo("termina_en_ram", "info",
+                 "Desde «" + b.value("nombre", std::string()) + "» el video sigue en RAM hasta la salida de la entrada (" +
+                     quien(b) + " lo bajó de la GPU y nadie lo vuelve a subir).",
+                 b.value("agrega_ms", 0.0), {b.value("nombre", std::string())});
+    }
+
+    // 2) Lo que retiene, 3) lo que declara contra lo que mide, 4) conversiones en la CPU.
+    for (const auto& el : elems) {
+        if (!el.contains("agrega_ms")) continue;
+        const std::string n = el.value("nombre", std::string());
+        const double ms = el.value("agrega_ms", 0.0);
+        const double umbral = cuadro > 0 ? cuadro * 1.5 : 40.0;
+        if (ms > umbral) {
+            const bool mucho = cuadro > 0 ? ms > cuadro * 3 : ms > 100;
+            std::string t = quien(el) + " agrega " + msTexto(ms);
+            if (cuadro > 0) t += " (≈" + std::to_string(static_cast<int>(ms / cuadro + 0.5)) + " cuadros)";
+            t += el.contains("nivel_cola_ms") ? ": la cola guarda " + msTexto(el.value("nivel_cola_ms", 0.0)) + " de video"
+                 : ": tarda o retiene cuadros (un filtro temporal que guarda cuadros cuenta aunque procese rápido)";
+            hallazgo("retiene", mucho ? "problema" : "aviso", t, ms, {n});
+        }
+        if (el.contains("declara_ms") && !esDePaso(el)) {
+            const double dec = el.value("declara_ms", 0.0);
+            const double tol = std::max(5.0, cuadro * 0.5);
+            if (ms - dec > tol && ms > 5)
+                hallazgo("declara_menos", "aviso",
+                         quien(el) + " tarda " + msTexto(ms) + " pero le declara " + msTexto(dec) +
+                             " al pipeline: la compensación del estudio no lo sabe; si lo que falta se acerca al colchón "
+                             "de la entrada, llega tarde a la mezcla.",
+                         ms - dec, {n});
+            else if (dec - ms > std::max(20.0, cuadro))
+                hallazgo("declara_de_mas", "info",
+                         quien(el) + " declara " + msTexto(dec) + " pero tarda " + msTexto(ms) +
+                             ": el estudio espera de más por él.",
+                         dec - ms, {n});
+        }
+        const std::string fab = fabricaDe(el);
+        const bool deGpu = fab.rfind("gl", 0) == 0 || fab.rfind("d3d", 0) == 0 || fab.rfind("cuda", 0) == 0 ||
+                           fab.rfind("va", 0) == 0;
+        if (esConversor(el) && !deGpu && !gpu(el.value("memoria_entrada", std::string())) && ms >= 1.0 &&
+            el.value("caps_entrada", std::string()) != el.value("caps_salida", std::string()))
+            hallazgo("conversion_cpu", ms >= 5 ? "aviso" : "info",
+                     "«" + n + "» convierte en la CPU (" + el.value("caps_entrada", std::string()) + " → " +
+                         el.value("caps_salida", std::string()) + "): " + msTexto(ms) +
+                         (duenio.count(n) ? "; lo pide " + quien(el) : std::string()),
+                     ms, {n});
+    }
+    const auto peso = [](const json& h) {
+        const std::string g = h.value("gravedad", std::string());
+        return g == "problema" ? 0 : g == "aviso" ? 1 : 2;
+    };
+    std::stable_sort(hallazgos.begin(), hallazgos.end(), [&](const json& a, const json& b) {
+        if (peso(a) != peso(b)) return peso(a) < peso(b);
+        return a.value("ms", 0.0) > b.value("ms", 0.0);
+    });
+    return {{"resumen",
+             {{"elementos", elems.size()}, {"total_ms", redondo(total)}, {"cruces", cruces}, {"idas_y_vueltas", idas},
+              {"cuadro_ms", redondo(cuadro)}}},
+            {"hallazgos", hallazgos}};
 }
 
 } // namespace ba::app::tiempos

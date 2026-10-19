@@ -55,6 +55,10 @@ class CatalogoGst {
     /// opciones:[{valor, nick, descripcion}], enVivo}]. `actuales` pisa los
     /// valores de fábrica.
     nlohmann::json propiedades(const std::string& elemento, const nlohmann::json& actuales) const;
+    /// Cómo trabaja por dentro (de su fábrica): {existe, clase, descripcion, autor, plugin,
+    /// memorias: {entrada, salida} (lo que aceptan sus pads: "gl", "d3d12"…, "sistema",
+    /// "cualquiera"), gpu: true si sabe trabajar en la GPU}. {existe: false} si no está.
+    nlohmann::json interior(const std::string& elemento) const;
 
    private:
     void iniciar();

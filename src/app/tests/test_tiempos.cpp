@@ -138,6 +138,50 @@ int main() {
               "la tarjeta sin instancia sigue con lo que informa");
         const json* e2 = nodo(g2, "entrada:cam1");
         CHECK(e2 && (*e2)["detalle"]["pipeline"]["cruces"].size() == 2, "la entrada guarda su recorrido");
+        CHECK(e2 && (*e2)["detalle"]["diagnostico"]["hallazgos"].is_array(), "y su diagnóstico");
+    }
+
+    // El diagnóstico: lo que un asistente (o el operador) necesita leer del recorrido.
+    {
+        const json pl = {
+            {"elementos",
+             json::array({
+                 {{"nombre", "src"}, {"fabrica", "v4l2src"}, {"caps_salida", "video/x-raw NV12 1920x1080 30 fps"}, {"memoria_salida", "sistema"}},
+                 {{"nombre", "videoconvert0"}, {"fabrica", "videoconvert"}, {"agrega_ms", 6.0}, {"memoria_entrada", "sistema"},
+                  {"memoria_salida", "sistema"}, {"caps_entrada", "video/x-raw NV12 1920x1080 30 fps"},
+                  {"caps_salida", "video/x-raw RGBA 1920x1080 30 fps"}},
+                 {{"nombre", "gluploadelement0"}, {"fabrica", "glupload"}, {"agrega_ms", 1.0}, {"memoria_entrada", "sistema"},
+                  {"memoria_salida", "gl"}, {"cruce", "sube"}},
+                 {{"nombre", "ba_f_ptz"}, {"fabrica", "baptz"}, {"agrega_ms", 0.5}, {"memoria_entrada", "gl"}, {"memoria_salida", "gl"},
+                  {"puede_entrada", {"gl"}}},
+                 {{"nombre", "gldownloadelement0"}, {"fabrica", "gldownload"}, {"agrega_ms", 2.0}, {"memoria_entrada", "gl"},
+                  {"memoria_salida", "sistema"}, {"cruce", "baja"}},
+                 {{"nombre", "ba_f_disolver"}, {"fabrica", "bamovimiento"}, {"agrega_ms", 800.0}, {"declara_ms", 0.0},
+                  {"memoria_entrada", "sistema"}, {"memoria_salida", "sistema"}, {"puede_entrada", {"sistema"}}},
+                 {{"nombre", "gluploadelement1"}, {"fabrica", "glupload"}, {"agrega_ms", 1.5}, {"memoria_entrada", "sistema"},
+                  {"memoria_salida", "gl"}, {"cruce", "sube"}},
+             })}};
+        const json d = diagnosticar(pl, {{"ba_f_ptz", {"tarjeta:cam:ptz", "PTZ digital"}},
+                                         {"ba_f_disolver", {"tarjeta:cam:disolver", "Disolución por movimiento"}}});
+        std::printf("%s\n", d.dump(1, ' ', false, json::error_handler_t::replace).c_str());
+        const auto de = [&](const std::string& tipo) -> const json* {
+            for (const auto& h : d["hallazgos"])
+                if (h["tipo"] == tipo) return &h;
+            return nullptr;
+        };
+        CHECK(d["hallazgos"].size() > 0 && d["hallazgos"][0]["tipo"] == "retiene" && d["hallazgos"][0]["gravedad"] == "problema",
+              "lo primero: la disolución que retiene 800 ms (≈24 cuadros)");
+        const json* iv = de("ida_y_vuelta");
+        CHECK(iv && cerca((*iv)["ms"], 3.5) && (*iv)["tarjetas"].size() == 1 && (*iv)["tarjetas"][0]["titulo"] == "Disolución por movimiento" &&
+                  (*iv)["texto"].get<std::string>().find("solo aceptan memoria del sistema") != std::string::npos,
+              "la ida y vuelta: la culpa es de la disolución (solo RAM), 2 + 1,5 ms de copias");
+        const json* dm = de("declara_menos");
+        CHECK(dm && cerca((*dm)["ms"], 800.0), "declara 0 y tarda 800: el estudio no lo compensa");
+        const json* cv = de("conversion_cpu");
+        CHECK(cv && (*cv)["gravedad"] == "aviso" && (*cv)["texto"].get<std::string>().find("NV12") != std::string::npos,
+              "videoconvert NV12 → RGBA en la CPU, 6 ms");
+        CHECK(d["resumen"]["idas_y_vueltas"] == 1 && d["resumen"]["cruces"] == 3 && cerca(d["resumen"]["cuadro_ms"], 33.3),
+              "el resumen: 3 cruces, 1 ida y vuelta, cuadros de 33 ms");
     }
     // Campos con otro tipo (gpu como texto, un número como texto, un bool como número): no se cae.
     Fotos raro = f;

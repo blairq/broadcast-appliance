@@ -53,12 +53,58 @@ void TiemposModel::enHilo(std::function<void()> f) {
     hilo_ = std::thread(std::move(f));
 }
 
-json TiemposModel::pipeline(const std::string& entrada) const {
-    const auto it = pipelines_.find(entrada);
-    return it == pipelines_.end() ? json() : it->second;
+bool TiemposModel::existeEntrada(const std::string& entrada) const {
+    const Fotos f = fotos_();
+    return f.motor.contains("entradas") && f.motor["entradas"].is_object() && f.motor["entradas"].contains(entrada);
 }
 
-QVariantMap TiemposModel::pipelineUi(const QString& entrada) const { return aVariant(pipeline(entrada.toStdString())).toMap(); }
+json TiemposModel::recorrido(const std::string& entrada) {
+    if (pipelines_.find(entrada) == pipelines_.end()) return nullptr;
+    if (!activo()) rehacer(false);
+    if (!mapa_.contains("nodos") || !mapa_["nodos"].is_array()) return nullptr;
+    const json* ne = nullptr; // apunta adentro de mapa_ (no de una copia: se usa después del for)
+    for (const auto& n : mapa_["nodos"])
+        if (n["id"] == "entrada:" + entrada || (ne == nullptr && n["id"] == "entrada:" + entrada + ":audio")) ne = &n;
+    if (ne == nullptr || !(*ne)["detalle"].contains("pipeline")) return nullptr;
+    const json& pl = (*ne)["detalle"]["pipeline"];
+    const json& dg = (*ne)["detalle"].value("diagnostico", json::object());
+    // Las tarjetas medidas y de quién es cada elemento.
+    json tarjetas = json::array();
+    std::map<std::string, std::string> duenio;
+    const std::string pre = "tarjeta:" + entrada + ":";
+    for (const auto& n : mapa_["nodos"]) {
+        const std::string id = n.value("id", std::string());
+        const json& d = n.value("detalle", json::object());
+        if (id.rfind(pre, 0) != 0 || !d.value("medido_sondas", false)) continue;
+        json nombres = json::array();
+        for (const auto& el : d.value("elementos", json::array())) {
+            nombres.push_back(el.value("nombre", std::string()));
+            duenio[el.value("nombre", std::string())] = id;
+        }
+        tarjetas.push_back({{"id", id}, {"titulo", n.value("titulo", std::string())}, {"ms", n["ms"]},
+                            {"ms_por_cuadro", d.value("ms_por_cuadro", json())}, {"elemento", d.value("elemento", std::string())},
+                            {"memoria_entrada", d.value("memoria_entrada", std::string())},
+                            {"memoria_salida", d.value("memoria_salida", std::string())},
+                            {"cruces", d.value("cruces", json::array())}, {"elementos", nombres}});
+    }
+    json elementos = json::array();
+    for (json el : pl.value("elementos", json::array())) {
+        const auto d = duenio.find(el.value("nombre", std::string()));
+        if (d != duenio.end()) el["tarjeta"] = d->second;
+        elementos.push_back(std::move(el));
+    }
+    const qint64 t = pl.value("t_ms", qint64{0});
+    return {{"entrada", entrada},
+            {"t_ms", t},
+            {"hace_s", t > 0 ? (QDateTime::currentMSecsSinceEpoch() - t) / 1000 : -1},
+            {"segundos", pl.value("segundos", 0.0)},
+            {"rearmada", pl.value("rearmada", false)},
+            {"resumen", dg.value("resumen", json::object())},
+            {"hallazgos", dg.value("hallazgos", json::array())},
+            {"tarjetas", tarjetas},
+            {"cruces", pl.value("cruces", json::array())},
+            {"elementos", elementos}};
+}
 
 void TiemposModel::setActivo(bool a) {
     if (a == activo()) return;

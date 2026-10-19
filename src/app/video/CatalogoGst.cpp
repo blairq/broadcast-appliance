@@ -11,6 +11,8 @@
 
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>
+
+#include "Sondas.hpp"
 #endif
 
 namespace ba::app::video {
@@ -265,6 +267,36 @@ json CatalogoGst::modulo(const std::string& elemento) const {
     for (const auto& m : modulos())
         if (m.value("elemento", "") == elemento) return m;
     return json::object();
+}
+
+json CatalogoGst::interior(const std::string& elemento) const {
+#if defined(BA_HAVE_GST)
+    if (!disponible_) return {{"existe", false}};
+    GstElementFactory* f = gst_element_factory_find(elemento.c_str());
+    if (f == nullptr) return {{"existe", false}};
+    const auto meta = [f](const char* k) {
+        const gchar* v = gst_element_factory_get_metadata(f, k);
+        return std::string(v != nullptr ? v : "");
+    };
+    const auto ent = ::ba::motor::memoriasPosibles(f, GST_PAD_SINK), sal = ::ba::motor::memoriasPosibles(f, GST_PAD_SRC);
+    bool gpu = false;
+    for (const auto& m : ent) gpu = gpu || ::ba::motor::esGpu(m);
+    for (const auto& m : sal) gpu = gpu || ::ba::motor::esGpu(m);
+    GstPlugin* pl = gst_plugin_feature_get_plugin(GST_PLUGIN_FEATURE(f));
+    const std::string plugin = pl != nullptr ? gst_plugin_get_name(pl) : "";
+    if (pl != nullptr) gst_object_unref(pl);
+    gst_object_unref(f);
+    return {{"existe", true},
+            {"clase", meta(GST_ELEMENT_METADATA_KLASS)},
+            {"descripcion", meta(GST_ELEMENT_METADATA_DESCRIPTION)},
+            {"autor", meta(GST_ELEMENT_METADATA_AUTHOR)},
+            {"plugin", plugin},
+            {"memorias", {{"entrada", ent}, {"salida", sal}}},
+            {"gpu", gpu}};
+#else
+    (void)elemento;
+    return {{"existe", false}};
+#endif
 }
 
 json CatalogoGst::propiedades(const std::string& elemento, const json& actuales) const {

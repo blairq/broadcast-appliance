@@ -137,6 +137,9 @@ std::string capsCortas(GstCaps* caps) {
     int w = 0, h = 0;
     if (gst_structure_get_int(s, "width", &w) && gst_structure_get_int(s, "height", &h))
         out += " " + std::to_string(w) + "x" + std::to_string(h);
+    int num = 0, den = 0;
+    if (gst_structure_get_fraction(s, "framerate", &num, &den) && num > 0 && den > 0)
+        out += " " + std::to_string(static_cast<int>(static_cast<double>(num) / den + 0.5)) + " fps";
     int rate = 0, ch = 0;
     if (gst_structure_get_int(s, "rate", &rate)) out += " " + std::to_string(rate) + " Hz";
     if (gst_structure_get_int(s, "channels", &ch)) out += " " + std::to_string(ch) + " ch";
@@ -145,10 +148,10 @@ std::string capsCortas(GstCaps* caps) {
 
 } // namespace
 
-std::string memoriaDe(GstCaps* caps) {
-    if (caps == nullptr || gst_caps_get_size(caps) == 0) return {};
-    GstCapsFeatures* f = gst_caps_get_features(caps, 0);
+namespace {
+std::string memoriaDeFeatures(GstCapsFeatures* f) {
     if (f == nullptr) return "sistema";
+    if (gst_caps_features_is_any(f)) return "cualquiera";
     const auto tiene = [f](const char* m) { return gst_caps_features_contains(f, m) != FALSE; };
     if (tiene("memory:GLMemory")) return "gl";
     if (tiene("memory:D3D12Memory")) return "d3d12";
@@ -157,6 +160,46 @@ std::string memoriaDe(GstCaps* caps) {
     if (tiene("memory:VAMemory") || tiene("memory:VASurface")) return "va";
     if (tiene("memory:DMABuf")) return "dmabuf";
     return "sistema";
+}
+
+/// La latencia mínima (ms) que contesta una consulta de latencia a `pad` (peer: al de enfrente). <0 si no contesta.
+double latenciaMs(GstPad* pad, bool peer) {
+    if (pad == nullptr) return -1;
+    GstQuery* q = gst_query_new_latency();
+    double ms = -1;
+    if ((peer ? gst_pad_peer_query(pad, q) : gst_pad_query(pad, q)) != FALSE) {
+        gboolean vivo = FALSE;
+        GstClockTime min = 0, max = 0;
+        gst_query_parse_latency(q, &vivo, &min, &max);
+        if (min != GST_CLOCK_TIME_NONE) ms = static_cast<double>(min) / 1e6;
+    }
+    gst_query_unref(q);
+    return ms;
+}
+} // namespace
+
+std::string memoriaDe(GstCaps* caps) {
+    if (caps == nullptr || gst_caps_get_size(caps) == 0) return {};
+    return memoriaDeFeatures(gst_caps_get_features(caps, 0));
+}
+
+std::vector<std::string> memoriasPosibles(GstElementFactory* fabrica, GstPadDirection dir) {
+    std::vector<std::string> out;
+    if (fabrica == nullptr) return out;
+    const auto sumar = [&out](const std::string& m) {
+        if (std::find(out.begin(), out.end(), m) == out.end()) out.push_back(m);
+    };
+    for (const GList* l = gst_element_factory_get_static_pad_templates(fabrica); l != nullptr; l = l->next) {
+        auto* t = static_cast<GstStaticPadTemplate*>(l->data);
+        if (t->direction != dir) continue;
+        GstCaps* c = gst_static_caps_get(&t->static_caps);
+        if (c == nullptr) continue;
+        if (gst_caps_is_any(c)) sumar("cualquiera");
+        else
+            for (guint i = 0; i < gst_caps_get_size(c); ++i) sumar(memoriaDeFeatures(gst_caps_get_features(c, i)));
+        gst_caps_unref(c);
+    }
+    return out;
 }
 
 bool esGpu(const std::string& m) { return m == "gl" || m == "d3d12" || m == "d3d11" || m == "cuda" || m == "va"; }
@@ -246,6 +289,16 @@ json Sondas::terminar() {
         if (!ent.empty() && !sal.empty()) {
             f["agrega_ms"] = redondo(std::max(0.0, mediana(sal) - mediana(ent)));
             f["agrega_p95_ms"] = redondo(std::max(0.0, percentil(sal, 0.95) - percentil(ent, 0.95)));
+        }
+        // Lo que el elemento sabe usar (sus templates) y la latencia que declara.
+        if (GstElementFactory* fab = e.el != nullptr ? gst_element_get_factory(e.el) : nullptr) {
+            f["puede_entrada"] = memoriasPosibles(fab, GST_PAD_SINK);
+            f["puede_salida"] = memoriasPosibles(fab, GST_PAD_SRC);
+        }
+        if (e.salida && e.salida->pad != nullptr) {
+            const double hasta = latenciaMs(e.salida->pad, false);
+            const double antes = e.entrada && e.entrada->pad != nullptr ? latenciaMs(e.entrada->pad, true) : 0.0;
+            if (hasta >= 0 && antes >= 0) f["declara_ms"] = redondo(std::max(0.0, hasta - antes));
         }
         // Las colas: cuánto tienen guardado ahora.
         if (e.el != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(e.el), "current-level-time") != nullptr) {

@@ -93,9 +93,13 @@ class TiemposModel : public QObject {
     Q_INVOKABLE QString analizarEntradaUi(const QString& entrada, int segundos) {
         return analizar(segundos, {}, {entrada.toStdString()});
     }
-    /// El último análisis por elemento de una entrada (null si no hay).
-    nlohmann::json pipeline(const std::string& entrada) const;
-    Q_INVOKABLE QVariantMap pipelineUi(const QString& entrada) const;
+    /// El último análisis por elemento de una entrada, para leerlo (el MCP): {entrada, t_ms,
+    /// hace_s, segundos, rearmada, resumen, hallazgos, tarjetas: [{id, titulo, ms,
+    /// ms_por_cuadro, memoria_entrada, memoria_salida, cruces, elementos}], elementos: [cada
+    /// uno con su tarjeta]}. null si esa entrada no se analizó.
+    nlohmann::json recorrido(const std::string& entrada);
+    /// ¿Existe esa entrada en el motor?
+    bool existeEntrada(const std::string& entrada) const;
     Q_INVOKABLE void borrarAnalisis();
 
     static constexpr int kPeriodoMs = 200;

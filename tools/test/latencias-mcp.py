@@ -135,6 +135,24 @@ def main():
             d = n.get("detalle", {})
             print(f'   tarjeta {n["titulo"][:28]:28} {n.get("ms") or 0:7.1f} ms  {d.get("memoria_entrada", "")}→{d.get("memoria_salida", "")}'
                   f'  {" ".join(d.get("cruces", []))}')
+
+    print("\n== Lo que lee el asistente: tiempos_pipeline y tiempos_plugin")
+    rp = m.tool("tiempos_pipeline", {"entrada": CAM, "segundos": 4})
+    t.paso("tiempos_pipeline", rp, cumple=lambda r: len(r.get("elementos", [])) > 0)
+    for h in rp.get("hallazgos", []):
+        print(f'   [{h["gravedad"]}] {h["texto"][:170]}')
+    t.paso("hallazgo: la superres baja y sube el video", {"_texto": ""},
+           cumple=lambda _: any(h["tipo"] == "ida_y_vuelta" and any("Superres" in x["titulo"] for x in h["tarjetas"])
+                                for h in rp.get("hallazgos", [])))
+    t.paso("tiempos_pipeline sin medir (el último)", m.tool("tiempos_pipeline", {"entrada": CAM, "medir": False}),
+           cumple=lambda r: r.get("t_ms") == rp.get("t_ms"))
+    pg = m.tool("tiempos_plugin", {"entrada": CAM, "tarjeta": "Superresolución"})
+    t.paso("tiempos_plugin de la superres", pg, cumple=lambda r: "interior" in r and "en_uso" in r)
+    print("   interior:", json.dumps(pg.get("interior", {}), ensure_ascii=False)[:200])
+    print("   en uso:", json.dumps({k: pg.get("en_uso", {}).get(k) for k in ("ms", "ms_por_cuadro", "memoria_entrada", "memoria_salida", "cruces")}, ensure_ascii=False))
+    t.paso("tiempos_plugin de un elemento suelto (glcolorbalance sabe GPU)", m.tool("tiempos_plugin", {"elemento": "glcolorbalance"}),
+           cumple=lambda r: r.get("interior", {}).get("gpu") is True)
+    t.paso("tiempos_plugin de algo que no existe", m.tool("tiempos_plugin", {"elemento": "noexiste"}), ok_esperado=False)
     print("\ncapturas:", salida)
 
     # --- Volver y limpiar ---------------------------------------------------------------

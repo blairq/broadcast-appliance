@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace ba::motor {
 
@@ -38,7 +39,11 @@ class Sondas {
     /// Saca las sondas y devuelve lo medido, de la fuente a la salida:
     /// {elementos: [{nombre, fabrica, medio, agrega_ms, agrega_p95_ms, edad_entrada_ms,
     ///               edad_salida_ms, cuadros, memoria_entrada, memoria_salida, caps_entrada,
-    ///               caps_salida, cruce?: "baja"|"sube", nivel_cola_ms?}],
+    ///               caps_salida, cruce?: "baja"|"sube", nivel_cola_ms?,
+    ///               puede_entrada/puede_salida: las memorias que aceptan sus pads (los
+    ///               templates: lo que el elemento SABE usar, no lo que negoció),
+    ///               declara_ms?: la latencia que le declara al pipeline (la consulta de
+    ///               latencia: con eso compensa el estudio; si mide más, llega tarde)}],
     ///  cruces: [{elemento, que: "baja"|"sube", de, a}], segundos}
     nlohmann::json terminar();
 
@@ -52,5 +57,8 @@ class Sondas {
 std::string memoriaDe(GstCaps* caps);
 /// ¿Esa memoria es de la GPU?
 bool esGpu(const std::string& memoria);
+/// Las memorias que aceptan los pads de una dirección de una fábrica (sus templates):
+/// "gl", "d3d12"…, "sistema", o "cualquiera" (caps ANY). Vacío si no tiene pads así.
+std::vector<std::string> memoriasPosibles(GstElementFactory* fabrica, GstPadDirection dir);
 
 } // namespace ba::motor

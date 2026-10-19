@@ -432,6 +432,11 @@ Rectangle {
                     width: Math.min(420, parent.width - 220)
                     tm: page.tm
                     entrada: page.recorridoDe
+                    detalle: {
+                        const ns = page.mapa.nodos || []
+                        const n = ns.find(x => x.id === "entrada:" + page.recorridoDe) || ns.find(x => x.id === "entrada:" + page.recorridoDe + ":audio")
+                        return n ? n.detalle : ({})
+                    }
                     titulo: page.tituloDe("entrada:" + page.recorridoDe) || page.recorridoDe
                     resaltar: page.recorridoElementos
                     onCerrar: page.recorridoDe = ""

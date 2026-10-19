@@ -10,6 +10,10 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "tiempos/TiemposModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "video/CatalogoGst.hpp"
+#include "video/VideoGrafos.hpp"
+
+#include <QPointer>
 
 namespace ba::app::mcp {
 
@@ -171,6 +175,131 @@ void McpService::registerTiemposTools() {
             const json n = tm->nodo(a.value("id", std::string()), a.value("segundos", 60));
             if (n.is_null()) return done(ToolResult::error("no hay un nodo «" + a.value("id", std::string()) + "» (tiempos_mapa da los que hay)"));
             done(ToolResult().data(n));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "tiempos_pipeline";
+        t.title = "La cadena de una entrada por dentro (elemento por elemento)";
+        t.category = "tiempos";
+        t.description =
+            "Analiza el pipeline de UNA `entrada` (el nombre de tiempos_mapa / video_estado) durante `segundos` (de "
+            "fábrica 5): pone una sonda en cada elemento y devuelve:\n"
+            "- `hallazgos`, ya razonados y ordenados por gravedad, cada uno con la tarjeta culpable: ida_y_vuelta (el "
+            "video baja de la GPU y vuelve a subir: lo del medio trabaja en RAM, y dice si es porque el plugin solo "
+            "acepta RAM o porque negoció RAM pudiendo GPU), termina_en_ram, retiene (agrega más de cuadro y medio: tarda "
+            "o guarda cuadros), declara_menos (tarda más de lo que le declara al pipeline: el estudio no lo compensa y "
+            "puede llegar tarde a la mezcla), declara_de_mas, conversion_cpu (cambia formato o tamaño en la CPU);\n"
+            "- `tarjetas`: lo medido de cada tarjeta (sus elementos y los conversores que pide), su memoria de "
+            "entrada/salida y sus cruces;\n"
+            "- `elementos`, de la fuente a la salida: agrega_ms (mediana; cuenta lo que retiene), agrega_p95_ms, "
+            "declara_ms, memoria_entrada/memoria_salida (lo que negoció: gl, d3d12, d3d11, cuda, va, dmabuf, sistema), "
+            "puede_entrada/puede_salida (lo que SABE usar: sus pad templates), caps, cruce (baja/sube), nivel_cola_ms y "
+            "a qué tarjeta pertenece.\n"
+            "`medir: false` devuelve el último análisis sin volver a medir. No cambia nada del aire; fuera del análisis "
+            "no cuesta nada. Para entender un plugin en particular: tiempos_plugin.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}}},
+                           {"medir", {{"type", "boolean"}, {"description", "de fábrica, sí; false: el último análisis"}}},
+                           {"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 30}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1"})", R"({"entrada": "Cámara 1", "medir": false})"};
+        t.run = [tm](const json& a, Done done) {
+            const std::string e = a.value("entrada", std::string());
+            if (!tm->existeEntrada(e)) return done(ToolResult::error("no existe la entrada «" + e + "» (tiempos_mapa o video_estado dan las que hay)"));
+            if (!a.value("medir", true)) {
+                const json r = tm->recorrido(e);
+                if (r.is_null()) return done(ToolResult::error("«" + e + "» todavía no se analizó: tiempos_pipeline con medir true"));
+                return done(ToolResult().data(r));
+            }
+            QPointer<tiempos::TiemposModel> vivo = tm;
+            const QString err = tm->analizar(std::clamp(a.value("segundos", 5), 2, 30), [vivo, e, done](const json& an) {
+                if (!vivo) return done(ToolResult::error("se cerró el análisis"));
+                const json r = vivo->recorrido(e);
+                if (r.is_null())
+                    return done(ToolResult::error(an.value("error", std::string("no se pudo medir «" + e + "»: ¿la entrada está andando?"))));
+                done(ToolResult().data(r));
+            }, {e});
+            if (!err.isEmpty()) done(ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        const QPointer<video::VideoGrafos> v = vm_.videoGrafos();
+        Tool t;
+        t.name = "tiempos_plugin";
+        t.title = "Cómo trabaja un plugin (y cómo trabaja en esta cadena)";
+        t.category = "tiempos";
+        t.readOnly = true;
+        t.description =
+            "Cómo trabaja un plugin de video por dentro. Con `elemento` (la fábrica de GStreamer, p. ej. videobalance, "
+            "bavtsuperres, glcolorbalance): su documentación, clase, plugin, las memorias que aceptan sus pads "
+            "(`memorias.entrada` / `memorias.salida`: gl, d3d12, cuda… = sabe trabajar en la GPU; solo «sistema» = "
+            "trabaja en RAM y obliga a bajar el video de la GPU) y sus propiedades. Con `entrada` + `tarjeta` (el id o "
+            "el título de la tarjeta en esa entrada) suma `en_uso`: lo que hace AHÍ según el último tiempos_pipeline "
+            "(ms medidos contra los que informa, la memoria que negoció, los conversores que pide, la latencia que "
+            "declara contra la que mide) y los `hallazgos` que la nombran. Para comparar alternativas: tiempos_plugin de "
+            "cada una y mirar `gpu`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"elemento", {{"type", "string"}}}, {"entrada", {{"type", "string"}}}, {"tarjeta", {{"type", "string"}}}}}};
+        t.examples = {R"({"elemento": "videobalance"})", R"({"entrada": "Cámara 1", "tarjeta": "Superresolución"})"};
+        t.run = [tm, v](const json& a, Done done) {
+            std::string el = a.value("elemento", std::string());
+            const std::string e = a.value("entrada", std::string()), tj = a.value("tarjeta", std::string());
+            json out = json::object();
+            if (!e.empty() && !tj.empty()) {
+                const auto minus = [](std::string x) {
+                    for (auto& ch : x) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                    return x;
+                };
+                const json mapa = tm->ahora();
+                const std::string pre = "tarjeta:" + e + ":";
+                const json nodos = mapa.value("nodos", json::array());
+                const json* n = nullptr; // apunta adentro de `nodos` (se usa después del for)
+                for (const auto& x : nodos) {
+                    const std::string id = x.value("id", std::string());
+                    if (id.rfind(pre, 0) != 0) continue;
+                    if (id == pre + tj || minus(x.value("titulo", std::string())) == minus(tj)) n = &x;
+                }
+                if (n == nullptr) return done(ToolResult::error("no hay una tarjeta «" + tj + "» en «" + e + "» (tiempos_mapa da las que hay)"));
+                const json& d = (*n)["detalle"];
+                if (el.empty()) el = d.value("elemento", std::string());
+                json uso = {{"id", (*n)["id"]}, {"titulo", (*n)["titulo"]}, {"ms", (*n)["ms"]}, {"fuente", (*n)["fuente"]},
+                            {"medido_por_elemento", d.value("medido_sondas", false)}};
+                for (const char* k : {"ms_por_cuadro", "memoria_entrada", "memoria_salida", "cruces", "elementos", "caps",
+                                      "motor-usado", "proveedor-usado", "error", "andando"})
+                    if (d.contains(k)) uso[k] = d[k];
+                if (!d.value("medido_sondas", false))
+                    uso["nota"] = "sin análisis por elemento: tiempos_pipeline {\"entrada\": \"" + e + "\"} para medirla por dentro";
+                json hall = json::array();
+                const json r = tm->recorrido(e);
+                if (!r.is_null())
+                    for (const auto& h : r.value("hallazgos", json::array()))
+                        for (const auto& t2 : h.value("tarjetas", json::array()))
+                            if (t2.value("id", std::string()) == (*n)["id"].get<std::string>()) hall.push_back(h);
+                uso["hallazgos"] = hall;
+                out["en_uso"] = uso;
+            }
+            if (el.empty()) return done(ToolResult::error("hace falta `elemento`, o `entrada` y `tarjeta`"));
+            out["elemento"] = el;
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const video::CatalogoGst& c = v->gst();
+            if (!c.disponible()) return done(ToolResult::error("GStreamer no está disponible: " + c.error()));
+            const json in = c.interior(el);
+            if (!in.value("existe", false) && !out.contains("en_uso"))
+                return done(ToolResult::error("no existe el elemento «" + el + "» (video_modulos con buscar)"));
+            out["interior"] = in;
+            const json doc = c.modulo(el);
+            if (!doc.empty()) out["documentacion"] = doc;
+            json props = json::array();
+            for (const auto& p : c.propiedades(el, json::object()))
+                props.push_back({{"nombre", p.value("nombre", std::string())}, {"descripcion", p.value("descripcion", std::string())},
+                                 {"en_vivo", p.value("enVivo", false)}, {"defecto", p.value("defecto", json())}});
+            out["propiedades"] = props;
+            done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));
     }

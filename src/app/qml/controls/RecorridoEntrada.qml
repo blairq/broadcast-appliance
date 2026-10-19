@@ -18,22 +18,17 @@ Rectangle {
     signal cerrar()
 
     readonly property bool midiendo: tm && tm.analisis.length > 0 && tm.analisis[0].estado === "midiendo"
-    readonly property var pl: { if (!tm) return ({}); tm.analisis; return tm.pipelineUi(r.entrada) }
-    readonly property var elementos: (pl && pl.elementos) || []
-    readonly property var cruces: (pl && pl.cruces) || []
+    /// El detalle del nodo de la entrada (de TiemposModel::mapa): `pipeline` (lo medido) y
+    /// `diagnostico` (resumen y hallazgos, ver tiempos::diagnosticar).
+    property var detalle: ({})
+    readonly property var pl: (detalle && detalle.pipeline) || ({})
+    readonly property var diag: (detalle && detalle.diagnostico) || ({})
+    readonly property var elementos: pl.elementos || []
+    readonly property var hallazgos: diag.hallazgos || []
     readonly property real maximo: {
         let m = 1
         for (const e of elementos) m = Math.max(m, e.agrega_ms || 0)
         return m
-    }
-    readonly property int idaYVuelta: {
-        // Baja de la GPU y vuelve a subir: el cuadro hace el viaje dos veces.
-        let n = 0, bajo = false
-        for (const c of cruces) {
-            if (c.que === "baja") bajo = true
-            else if (c.que === "sube" && bajo) { ++n; bajo = false }
-        }
-        return n
     }
     function ms(v) { return v === null || v === undefined ? "—" : (v >= 1000 ? (v / 1000).toFixed(2) + " s" : Number(v).toFixed(v < 10 ? 1 : 0) + " ms") }
     function nombreMemoria(m) {
@@ -77,24 +72,32 @@ Rectangle {
                 : "Analizar pone una sonda en cada elemento del pipeline de esta entrada unos segundos: cuánto agrega cada uno (lo que tarda y lo que retiene) y dónde el video baja de la GPU a la memoria o vuelve a subir. Fuera del análisis no cuesta nada."
             color: Theme.textFaint; font.pixelSize: 10
         }
-        // El resumen: cuántos cruces y si hay ida y vuelta.
+        // El resumen y lo que se ve (del modelo: tiempos::diagnosticar).
         Text {
             visible: r.elementos.length > 0
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             textFormat: Text.RichText
             text: {
-                const partes = []
-                partes.push(r.cruces.length === 0 ? "sin cruces de memoria"
-                            : r.cruces.length + (r.cruces.length === 1 ? " cruce" : " cruces") + " de memoria")
-                if (r.idaYVuelta > 0)
-                    partes.push("<font color='" + Theme.amber + "'>el video baja de la GPU y vuelve a subir"
-                                + (r.idaYVuelta > 1 ? " (" + r.idaYVuelta + " veces)" : "") + ": rompe la cadena en la GPU</font>")
+                const s = r.diag.resumen || {}
+                const partes = [r.elementos.length + " elementos", r.ms(s.total_ms) + " en total"]
+                partes.push(!s.cruces ? "sin cruces de memoria" : s.cruces + (s.cruces === 1 ? " cruce" : " cruces") + " de memoria")
                 if (r.pl.rearmada) partes.push("<font color='" + Theme.amber + "'>la entrada se rearmó en medio del análisis</font>")
                 if (r.pl.t_ms) partes.push("hace " + Math.max(0, Math.round((Date.now() - r.pl.t_ms) / 1000)) + " s")
                 return partes.join(" · ")
             }
             color: Theme.textDim; font.pixelSize: 10
+        }
+        Repeater {
+            model: r.hallazgos
+            delegate: Text {
+                required property var modelData
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: (modelData.gravedad === "problema" ? "● " : modelData.gravedad === "aviso" ? "▲ " : "· ") + modelData.texto
+                color: modelData.gravedad === "problema" ? Theme.live : modelData.gravedad === "aviso" ? Theme.amber : Theme.textDim
+                font.pixelSize: 10
+            }
         }
         // Los elementos, de la fuente a la salida.
         ListView {
@@ -169,6 +172,8 @@ Rectangle {
                         ToolTip.visible: maFila.containsMouse
                         ToolTip.text: "p95 " + r.ms(fila.modelData.agrega_p95_ms) + " · " + (fila.modelData.cuadros || 0) + " cuadros"
                                       + (fila.modelData.nivel_cola_ms !== undefined ? " · la cola guarda " + r.ms(fila.modelData.nivel_cola_ms) : "")
+                                      + (fila.modelData.declara_ms !== undefined ? " · declara " + r.ms(fila.modelData.declara_ms) : "")
+                                      + ((fila.modelData.puede_entrada || []).length ? " · acepta " + fila.modelData.puede_entrada.map(r.nombreMemoria).join(", ") : "")
                     }
                 }
                 MouseArea { id: maFila; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }

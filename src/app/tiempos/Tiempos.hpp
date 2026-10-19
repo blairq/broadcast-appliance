@@ -45,6 +45,23 @@ struct Fotos {
 
 /// {nodos: [...], tramos: [...], salidas: [{id, titulo, total_ms, fuente, camino: [ids]}],
 ///  estudio: {latencia_ms, tope_ms}}. Ver el encabezado para cómo se cuenta.
+/// El nodo de cada entrada analizada trae en su detalle `pipeline` (lo medido) y
+/// `diagnostico` (ver diagnosticar).
 nlohmann::json armar(const Fotos& f);
+
+/// Una tarjeta en el pipeline: su nodo y su título (por su instancia, ba_f_<nombre>).
+struct TarjetaEnPipeline {
+    std::string id, titulo;
+};
+/// Lo que se ve en el recorrido medido de una entrada (motor::Sondas), con la tarjeta a la
+/// que corresponde cada cosa (sus elementos y los conversores que pide):
+/// {resumen: {elementos, total_ms, cruces, idas_y_vueltas, cuadro_ms},
+///  hallazgos: [{tipo, gravedad: "problema"|"aviso"|"info", texto, ms, elementos, tarjetas: [{id, titulo}]}]}
+/// tipos: ida_y_vuelta (baja de la GPU y vuelve a subir: lo del medio trabaja en RAM, por
+/// sus pads o por lo que negoció), termina_en_ram, retiene (agrega más de un cuadro y medio),
+/// declara_menos / declara_de_mas (lo que le dice al pipeline contra lo que mide: con eso
+/// compensa el estudio), conversion_cpu (convierte formato o tamaño en la CPU).
+/// Ordenados por gravedad y por ms.
+nlohmann::json diagnosticar(const nlohmann::json& pipeline, const std::map<std::string, TarjetaEnPipeline>& tarjetas);
 
 } // namespace ba::app::tiempos

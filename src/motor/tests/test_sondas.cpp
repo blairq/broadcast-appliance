@@ -74,6 +74,10 @@ int main() {
         check(ms > 15 && ms < 30, "identity sleep-time=20 ms mide ≈20 ms (midió " + std::to_string(ms) + ")");
         check(f.value("cuadros", 0) > 30, "anotó cuadros");
         check(f.value("memoria_entrada", std::string()) == "sistema", "memoria del sistema");
+        check(f.value("caps_salida", std::string()).find("25 fps") != std::string::npos, "los cuadros por segundo en las caps");
+        // identity no le declara al pipeline lo que duerme: declara 0 y mide 20 (lo que ve el diagnóstico).
+        check(f.contains("declara_ms") && f.value("declara_ms", -1.0) < 1, "identity declara 0 ms (midió " + f.value("declara_ms", json()).dump() + ")");
+        check(f.value("puede_entrada", json::array()).dump().find("cualquiera") != std::string::npos, "identity acepta cualquier memoria (caps ANY)");
     }
     // 2) Lo que RETIENE: una cola que no suelta nada hasta tener 300 ms adentro.
     {
@@ -102,6 +106,8 @@ int main() {
             check(baja.value("cruce", std::string()) == "baja" && baja.value("memoria_salida", std::string()) == "sistema",
                   "gldownload: baja a la memoria del sistema");
             check(r.value("cruces", json::array()).size() == 2, "dos cruces en la cadena");
+            check(sube.value("puede_salida", json::array()).dump().find("cualquiera") != std::string::npos,
+                  "glupload saca cualquier memoria (video/x-raw(ANY))");
         }
     }
     std::printf("test_sondas: %s\n", fallos == 0 ? "OK" : "FALLAS");
