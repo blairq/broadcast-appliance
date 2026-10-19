@@ -690,7 +690,9 @@ void McpService::applySecurity() {
                            },
                            CallContext{"evento", "", "evento", true});
         });
-    if (auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent())) {
+    for (QObject* o : {vm_.agent(), vm_.agenteAutomatizacion()}) {
+        auto* ag = static_cast<agent::AgentViewModel*>(o);
+        if (ag == nullptr) continue;
         ag->setHayAire(hayAire);
         ag->setAireInfo([this]() {
             const json j{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}};

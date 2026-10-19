@@ -1,7 +1,12 @@
 // Pagina Asistente: chat con el LLM que maneja la app por MCP. A la izquierda
-// la terminal con la interfaz oficial del agente (Claude Code, Gemini CLI u
-// opencode); a la derecha el proveedor/modelo, pedidos rapidos y las
-// disparadores (alertas) con sus avisos. Todo sale de Studio.agent.
+// la terminal con la interfaz oficial del agente (Claude Code, Antigravity,
+// opencode o pi); a la derecha el proveedor/modelo, pedidos rapidos y las
+// disparadores (alertas) con sus avisos.
+//
+// DOS asistentes, uno por pestaña, cada uno con su motor, su terminal y su charla:
+// «Evento» (Studio.agent: con el que se arma y se trabaja el evento) y
+// «Automatización» (Studio.agenteAutomatizacion: el que atiende las alertas del
+// sistema, siempre levantado, para que no caigan en la charla del evento).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -12,7 +17,9 @@ Rectangle {
     id: page
     color: Theme.bg
     property real leftInset: 92
-    readonly property var ag: Studio.agent
+    /// La pestaña elegida: evento | automatizacion.
+    property string pestana: "evento"
+    readonly property var ag: pestana === "automatizacion" ? Studio.agenteAutomatizacion : Studio.agent
     readonly property var cur: ag.current
     readonly property color termBg: "#0d1016"
     property string keyError: ""
@@ -63,6 +70,20 @@ Rectangle {
                         }
                     }
                     Text { text: "✦"; color: Theme.accent; font.pixelSize: 16; Layout.leftMargin: 6 }
+                    // Los dos asistentes: el del evento y el de automatización (las alertas).
+                    GlassButton {
+                        compact: true; text: "Evento"; active: page.pestana === "evento"
+                        onClicked: page.pestana = "evento"
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "El asistente con el que se arma y se trabaja el evento"
+                    }
+                    GlassButton {
+                        compact: true; text: "Automatización"; active: page.pestana === "automatizacion"
+                        icon: Studio.agenteAutomatizacion && Studio.agenteAutomatizacion.running ? "●" : ""
+                        onClicked: page.pestana = "automatizacion"
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "El asistente que atiende las alertas del sistema (siempre levantado): no interrumpe la charla del evento"
+                    }
                     Text { text: (page.cur.agentName || "Asistente") + (ag.model !== "" ? "  ·  " + ag.model : "")
                            color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text { text: page.cur.name || ""; color: Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
@@ -318,6 +339,7 @@ Rectangle {
                             Text { text: "Arrancar solo al abrir la app"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
                         }
                         RowLayout {
+                            visible: page.pestana === "automatizacion" // la charla del evento no recibe avisos
                             Toggle { checked: ag.alertsToChat; onToggled: (wanted) => ag.setAlertsToChat(wanted) }
                             Text { text: "Avisos de los disparadores al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }

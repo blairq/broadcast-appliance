@@ -364,9 +364,11 @@ int runGui(int argc, char** argv) {
                 return m;
             });
         }
-        auto* agentVm = static_cast<agent::AgentViewModel*>(vm.agent());
-        agentVm->setSystemPrompt([&mcpService]() { return mcpService.agentPrompt(); });
-        agentVm->setMcpReady([&mcpService]() { return mcpService.port() != 0; });
+        for (QObject* o : {vm.agent(), vm.agenteAutomatizacion()}) {
+            auto* agentVm = static_cast<agent::AgentViewModel*>(o);
+            agentVm->setSystemPrompt([&mcpService]() { return mcpService.agentPrompt(); });
+            agentVm->setMcpReady([&mcpService]() { return mcpService.port() != 0; });
+        }
         // Los plugins de Python llaman herramientas del servidor (lo mismo que
         // puede el asistente) y arrancan los que estaban prendidos.
         if (auto* pl = vm.plugins()) {
@@ -445,7 +447,8 @@ int runGui(int argc, char** argv) {
         // El servidor arranca DESPUES de que la interfaz se dibujo, asi que hay
         // que avisar: si no, la pestaña Asistente se queda con el cartel de
         // «MCP apagado» que evaluo antes de tiempo.
-        agentVm->avisarMcpCambio();
+        for (QObject* o : {vm.agent(), vm.agenteAutomatizacion()})
+            static_cast<agent::AgentViewModel*>(o)->avisarMcpCambio();
         // Diagnostico: --ui-snapshot=<png> guarda una captura a los 6 s
         // (--ui-snapshot-delay=<ms> para cambiarlo).
         int snapshotDelayMs = 6000;

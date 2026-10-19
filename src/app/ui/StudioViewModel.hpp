@@ -332,6 +332,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* facebook READ facebook CONSTANT)
     Q_PROPERTY(QObject* system READ system CONSTANT)
     Q_PROPERTY(QObject* agent READ agent CONSTANT)
+    /// El asistente de automatización: otra instancia (su motor, su terminal, su charla)
+    /// que atiende las alertas para que no caigan en la charla del evento.
+    Q_PROPERTY(QObject* agenteAutomatizacion READ agenteAutomatizacion CONSTANT)
     /// El modelo local (Configuración -> Modelos locales): ver agent/ModelosLocales.hpp.
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
     /// La cola única de descargas (Descargas, arriba a la derecha): ver net/Descargas.hpp.
@@ -709,6 +712,7 @@ class StudioViewModel : public QObject {
     QObject* facebook() const;
     QObject* system() const;
     QObject* agent() const;
+    QObject* agenteAutomatizacion() const;
     QObject* modelos() const;
     QObject* descargas() const;
     QVariantMap multiview() const;
@@ -1152,6 +1156,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y conmutador_
     void revisarSenales();
     std::unique_ptr<agent::AgentViewModel> agent_;
+    std::unique_ptr<agent::AgentViewModel> agenteAuto_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;
     std::unique_ptr<agent::ModelosLocales> modelos_;

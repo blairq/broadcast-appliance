@@ -103,6 +103,15 @@ void McpService::registerAssistantTools() {
         };
         core_.addTool(std::move(t));
     }
+    // Hay DOS asistentes (cada uno con su motor, su terminal y su charla): «evento» (de
+    // fábrica) y «automatizacion» (el que atiende las alertas). `asistente` elige cuál.
+    auto* agAuto = static_cast<agent::AgentViewModel*>(vm_.agenteAutomatizacion());
+    const auto elegir = [ag, agAuto](const json& a) {
+        return a.value("asistente", std::string()) == "automatizacion" && agAuto != nullptr ? agAuto : ag;
+    };
+    const json propAsistente = {{"type", "string"},
+                                {"enum", {"evento", "automatizacion"}},
+                                {"description", "Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas)."}};
     {
         Tool t;
         t.name = "assistant_status";
@@ -111,7 +120,9 @@ void McpService::registerAssistantTools() {
         t.readOnly = true;
         t.description =
             "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.";
-        t.run = [ag](const json&, Done done) {
+        t.inputSchema = {{"type", "object"}, {"properties", {{"asistente", propAsistente}}}};
+        t.run = [elegir](const json& a, Done done) {
+            auto* ag = elegir(a);
             done(ToolResult().data(json{{"provider", ag->provider().toStdString()},
                                         {"current", qvToJson(ag->current())},
                                         {"model", ag->model().toStdString()},
@@ -146,8 +157,10 @@ void McpService::registerAssistantTools() {
                             {{"type", "string"}, {"enum", idsDeProveedores(ag)}}},
                            {"model", {{"type", "string"}}},
                            {"autoStart", {{"type", "boolean"}}},
-                           {"alertsToChat", {{"type", "boolean"}}}}}};
-        t.run = [ag](const json& a, Done done) {
+                           {"alertsToChat", {{"type", "boolean"}}},
+                           {"asistente", propAsistente}}}};
+        t.run = [elegir](const json& a, Done done) {
+            auto* ag = elegir(a);
             if (a.contains("provider")) ag->setProvider(QString::fromStdString(a["provider"]));
             if (a.contains("model")) ag->setModel(QString::fromStdString(a["model"]));
             if (a.contains("autoStart")) ag->setAutoStart(a["autoStart"].get<bool>());
@@ -167,8 +180,9 @@ void McpService::registerAssistantTools() {
             "Descarga el agente del proveedor elegido (version fijada, SHA-256) a la carpeta portable. "
             "Con wait=true espera a que termine (max. 15 min).";
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"wait", {{"type", "boolean"}, {"default", false}}}}}};
-        t.run = [ag](const json& a, Done done) {
+                         {"properties", {{"wait", {{"type", "boolean"}, {"default", false}}}, {"asistente", propAsistente}}}};
+        t.run = [elegir](const json& a, Done done) {
+            auto* ag = elegir(a);
             if (ag->installed()) return done(ToolResult::ok("Ya esta instalado."));
             ag->install();
             if (!a.value("wait", false))
@@ -194,9 +208,10 @@ void McpService::registerAssistantTools() {
         t.description = "action: start | stop | restart.";
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart"}}}}}},
+            {"properties", {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart"}}}}, {"asistente", propAsistente}}},
             {"required", {"action"}}};
-        t.run = [ag](const json& a, Done done) {
+        t.run = [elegir](const json& a, Done done) {
+            auto* ag = elegir(a);
             const std::string act = a["action"];
             if (act == "start") ag->start();
             if (act == "stop") ag->stop();
@@ -217,8 +232,9 @@ void McpService::registerAssistantTools() {
         t.description = "Escribe el texto en el prompt del agente de la pestaña y lo manda (como si lo "
                         "tipeara la persona).";
         t.inputSchema = {
-            {"type", "object"}, {"properties", {{"text", {{"type", "string"}}}}}, {"required", {"text"}}};
-        t.run = [ag](const json& a, Done done) {
+            {"type", "object"}, {"properties", {{"text", {{"type", "string"}}}, {"asistente", propAsistente}}}, {"required", {"text"}}};
+        t.run = [elegir](const json& a, Done done) {
+            auto* ag = elegir(a);
             if (!ag->running())
                 return done(ToolResult::error("El asistente no esta corriendo (assistant_run)."));
             ag->send(QString::fromStdString(a["text"]));

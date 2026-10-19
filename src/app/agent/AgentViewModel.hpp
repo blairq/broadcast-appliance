@@ -42,6 +42,7 @@
 #include <atomic>
 #include <QTimer>
 
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -103,8 +104,14 @@ class AgentViewModel : public QObject {
     /// (Credenciales/agentes/<motor>), al lado del login. Se recalcula con
     /// `revisarLimpieza`.
     Q_PROPERTY(QVariantList limpieza READ limpieza NOTIFY limpiezaChanged)
+    /// Cuál de los asistentes es: "evento" (con el que se arma y se trabaja el evento)
+    /// o "automatizacion" (el que atiende las alertas del sistema, siempre levantado,
+    /// para que no caigan en la charla del otro). Cada uno con su motor, su terminal,
+    /// su conversación y su configuración.
+    Q_PROPERTY(QString instancia READ instancia CONSTANT)
    public:
-    AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* parent = nullptr);
+    AgentViewModel(AppRuntime& rt, AlertEngine& alerts, const QString& instancia = "evento", QObject* parent = nullptr);
+    QString instancia() const { return instancia_; }
     ~AgentViewModel() override;
 
     QObject* session() const { return session_.get(); }
@@ -351,8 +358,7 @@ class AgentViewModel : public QObject {
     std::function<QString(const QString&, QString*, QString*)> ggufChat_;
     std::function<void(const QString&)> bajarModelo_;
     // El llama-server del chat del modelo local (pi): lo levanta start(), lo baja stop().
-    QProcess* servidor_ = nullptr;
-    quint16 puertoServidor_ = 0;
+    quint16 puertoServidor_ = 0; ///< el del llama-server compartido (ServidorModeloLocal)
     QString ggufActual_; ///< el .gguf que cargó el servidor (su carpeta trae el prompt.json)
     QString rutaServidorLocal() const;
     void arrancarServidorLocal(std::function<void()> listo);
@@ -362,6 +368,9 @@ class AgentViewModel : public QObject {
     QString provider_ = "claude-cuenta";
     QString model_;
     bool alertsToChat_ = true;
+    QString instancia_ = "evento";
+    /// Config/asistente.json (evento, el de siempre) o Config/asistente-<instancia>.json.
+    std::filesystem::path archivoConfig() const;
     bool autoStart_ = false;
     int fontSize_ = 15;
     bool installing_ = false;

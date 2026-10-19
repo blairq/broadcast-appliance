@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AgentViewModel.hpp"
+#include "agent/ServidorModeloLocal.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
@@ -244,12 +245,14 @@ QString findFile(const QString& root, const QString& name) {
 
 } // namespace
 
-AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* parent)
-    : QObject(parent), rt_(rt), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()) {
+AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, const QString& instancia, QObject* parent)
+    : QObject(parent), rt_(rt), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()),
+      instancia_(instancia) {
     g_raiz = rt.dataRoot(); // ver g_raiz: `modelosDe` es estatica
     loadConfig();
     connect(&net::Descargas::la(), &net::Descargas::cambio, this, &AgentViewModel::seguirInstalacion);
-    registrarActualizaciones();
+    // El buscador de versiones nuevas es uno («agente»): lo registra el del evento.
+    if (instancia_ == "evento") registrarActualizaciones();
     connect(session_.get(), &term::TerminalSession::runningChanged, this, &AgentViewModel::runningChanged);
     connect(session_.get(), &term::TerminalSession::finished, this, [this](int code) {
         const bool expected = expectedStop_;
@@ -257,7 +260,8 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
         if (!expected && code != 0) setError(QString("El agente termino (codigo %1).").arg(code));
         pararServidorLocal(); // el chat del modelo local terminó: su llama-server también
     });
-    connect(&alerts_, &AlertEngine::fired, this, &AgentViewModel::onAlert);
+    // Las alertas: solo el de automatización (el del evento ya no las recibe).
+    if (instancia_ == "automatizacion") connect(&alerts_, &AlertEngine::fired, this, &AgentViewModel::onAlert);
     // Arranque automatico cuando todo este listo (GuiMode conecta el MCP despues).
     QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
         if (autoStart_ && reanudar_.isEmpty() && installed() && mcpReady() && !running()) start(); // (retomar: reanudarAlArrancar)
@@ -279,21 +283,30 @@ AgentViewModel::~AgentViewModel() {
 
 // --- Configuracion -------------------------------------------------------------------
 
+std::filesystem::path AgentViewModel::archivoConfig() const {
+    return rt_.dataRoot() / "Config" /
+           (instancia_ == "evento" ? std::string("asistente.json") : "asistente-" + instancia_.toStdString() + ".json");
+}
+
 void AgentViewModel::loadConfig() {
-    std::ifstream in(rt_.dataRoot() / "Config" / "asistente.json");
+    // Las alertas van SOLO al asistente de automatización (siempre levantado): nunca
+    // más se pegan en la charla del evento.
+    alertsToChat_ = instancia_ == "automatizacion";
+    if (instancia_ == "automatizacion") autoStart_ = true;
+    std::ifstream in(archivoConfig());
     const json j = json::parse(in, nullptr, false);
     if (!j.is_object()) return;
     const QString p = QString::fromStdString(j.value("provider", std::string("claude-cuenta")));
     if (findProvider(p) != nullptr) provider_ = p;
     const json models = j.value("models", json::object());
     model_ = QString::fromStdString(models.value(provider_.toStdString(), std::string()));
-    alertsToChat_ = j.value("alertsToChat", true);
-    autoStart_ = j.value("autoStart", false);
+    if (instancia_ == "automatizacion") alertsToChat_ = j.value("alertsToChat", true);
+    autoStart_ = j.value("autoStart", instancia_ == "automatizacion");
     fontSize_ = j.value("fontSize", 15);
 }
 
 void AgentViewModel::saveConfig() const {
-    const auto path = rt_.dataRoot() / "Config" / "asistente.json";
+    const auto path = archivoConfig();
     std::ifstream in(path);
     json j = json::parse(in, nullptr, false);
     if (!j.is_object()) j = json::object();
@@ -513,7 +526,7 @@ void AgentViewModel::clearKey() {
 }
 
 void AgentViewModel::setAlertsToChat(bool on) {
-    alertsToChat_ = on;
+    alertsToChat_ = on && instancia_ == "automatizacion"; // la charla del evento, nunca
     saveConfig();
     emit configChanged();
 }
@@ -1220,6 +1233,18 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     // consola: es el asistente del operador, no un agente de un tiro.
     // El control del sistema solo para el asistente del operador (los roles
     // automáticos corren solos, sin nadie que apruebe cada paso).
+    // El de automatización: su carpeta, y lo que es (atiende avisos; no la charla del evento).
+    if (instancia_ == "automatizacion")
+        return prepareWorkspaceEn(
+            root + "/Runtime/agente-automatizacion", provider_, model_, {"--rol", "asistente"},
+            prompt + "\n\n# Sos el asistente de AUTOMATIZACIÓN del evento\n"
+                     "No charlás con el operador sobre cómo armar el evento (eso es la otra pestaña). Te llegan "
+                     "los AVISOS AUTOMÁTICOS del sistema (disparadores: audio, sala, salidas, disco, oradores…). "
+                     "Por cada aviso: revisá con las herramientas qué pasó, resolvé lo que esté acordado y sea "
+                     "seguro, y dejá un resumen corto de qué viste y qué hiciste. Si algo puede afectar el aire, "
+                     "proponelo y no lo hagas solo. Si llegan varios a la vez y tu motor lo permite, atendelos "
+                     "en paralelo con subagentes.",
+            error, true, true);
     return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"}, prompt,
                               error, true, true);
 }
@@ -1768,7 +1793,6 @@ QString AgentViewModel::rutaServidorLocal() const {
 }
 
 void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
-    pararServidorLocal();
     QString falta, repoParaBajar;
     const QString gguf = ggufChat_ ? ggufChat_(model_, &falta, &repoParaBajar) : QString();
     ggufActual_ = gguf;
@@ -1777,86 +1801,37 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
         if (!repoParaBajar.isEmpty() && bajarModelo_) bajarModelo_(repoParaBajar);
         return;
     }
-    if (!QFileInfo::exists(rutaServidorLocal())) {
-        setError("Falta llama-server en el programa (" + rutaServidorLocal() + ").");
-        return;
-    }
-    // Un puerto libre de esta máquina (solo 127.0.0.1).
-    {
-        QTcpServer t;
-        t.listen(QHostAddress::LocalHost, 0);
-        puertoServidor_ = t.serverPort();
-    }
-    servidor_ = new QProcess(this);
-    const QString logs = QString::fromStdWString((ba::platform::dataRoot() / "Logs").wstring());
-    QDir().mkpath(logs);
-    servidor_->setProcessChannelMode(QProcess::MergedChannels);
-    servidor_->setStandardOutputFile(logs + "/llama-server.log", QIODevice::Truncate);
-    servidor_->setWorkingDirectory(QFileInfo(rutaServidorLocal()).absolutePath());
-    // Todas las capas a la GPU (Vulkan en Windows y Linux, Metal en la Mac). El
-    // contexto: las fichas de sus herramientas ocupan ~10k; 32k entra en una placa
-    // de 8 GB con el modelo de 4B (sus capas lineales casi no guardan contexto).
-    servidor_->start(rutaServidorLocal(), {"-m", QDir::toNativeSeparators(gguf), "--host", "127.0.0.1", "--port",
-                                           QString::number(puertoServidor_), "--jinja", "-ngl", QString::number(rt_.config().modeloCapasGpu), "-c",
-                                           QString::number(rt_.config().modeloContexto), // Configuración → Modelos locales
-                                           "--alias", "local", "--no-webui",
-                                           // Se entrenó para contestar sin razonar (su prompt cierra el
-                                           // <think> vacío): razonando, se enrosca y no termina.
-                                           "--reasoning", "off"});
-    // Sin MTP, a propósito (pedido del dueño, 2026-10-11): sin --spec-type
-    // draft-mtp llama.cpp ni carga la cabeza («unused tensor … nextn: ignoring»),
-    // no gasta memoria. Medido en la Mac: con 3 borradores, +30 % en llamadas a
-    // herramientas pero MÁS LENTO en texto libre.
-    if (!servidor_->waitForStarted(10000)) {
-        setError("No arrancó llama-server: " + servidor_->errorString());
-        pararServidorLocal();
-        return;
-    }
-    installText_ = "Cargando el modelo local…";
-    emit installChanged();
-    // Listo cuando /health contesta 200 (el modelo cargado); hasta 3 minutos.
-    auto* red = new QNetworkAccessManager(servidor_);
-    auto* reloj = new QTimer(servidor_);
-    auto intentos = std::make_shared<int>(0);
-    connect(reloj, &QTimer::timeout, servidor_, [this, red, reloj, intentos, listo]() {
-        if (servidor_ == nullptr) return;
-        if (servidor_->state() == QProcess::NotRunning) {
-            reloj->stop();
-            setError("llama-server se cerró al cargar el modelo (ver Logs/llama-server.log).");
-            pararServidorLocal();
-            return;
-        }
-        if (++*intentos > ba::ajustes::entero("modelo.cargaS", 180) * 2) { // cada 500 ms
-            reloj->stop();
-            setError("El modelo local no terminó de cargar en 3 minutos (ver Logs/llama-server.log).");
-            pararServidorLocal();
-            return;
-        }
-        QNetworkReply* r = red->get(QNetworkRequest(QUrl(QString("http://127.0.0.1:%1/health").arg(puertoServidor_))));
-        connect(r, &QNetworkReply::finished, servidor_, [this, r, reloj, listo]() {
-            r->deleteLater();
-            if (r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200 || !reloj->isActive()) return;
-            reloj->stop();
-            installText_ = "Modelo local listo.";
-            emit installChanged();
+    // UN llama-server para los dos asistentes (evento y automatización): si el otro ya
+    // lo tiene cargado con este modelo, se usa el mismo (ver ServidorModeloLocal).
+    ServidorModeloLocal::Pedido pedido;
+    pedido.ejecutable = rutaServidorLocal();
+    pedido.gguf = gguf;
+    pedido.capasGpu = rt_.config().modeloCapasGpu;
+    pedido.contexto = rt_.config().modeloContexto; // Configuración → Modelos locales
+    pedido.logs = QString::fromStdWString((ba::platform::dataRoot() / "Logs").wstring());
+    pedido.cargaS = ba::ajustes::entero("modelo.cargaS", 180);
+    QPointer<AgentViewModel> yo(this);
+    ServidorModeloLocal::el().pedir(
+        this, pedido,
+        [yo, listo](quint16 puerto, const QString& error) {
+            if (!yo) return;
+            if (!error.isEmpty()) {
+                yo->setError(error);
+                return;
+            }
+            yo->puertoServidor_ = puerto;
+            yo->installText_ = "Modelo local listo.";
+            emit yo->installChanged();
             listo();
+        },
+        [yo](const QString& t) {
+            if (!yo) return;
+            yo->installText_ = t;
+            emit yo->installChanged();
         });
-    });
-    reloj->start(500);
 }
 
-void AgentViewModel::pararServidorLocal() {
-    if (servidor_ == nullptr) return;
-    QProcess* p = servidor_;
-    servidor_ = nullptr;
-    p->disconnect(this);
-    if (p->state() != QProcess::NotRunning) {
-        p->terminate();
-        if (!p->waitForFinished(3000)) p->kill();
-        p->waitForFinished(2000);
-    }
-    p->deleteLater();
-}
+void AgentViewModel::pararServidorLocal() { ServidorModeloLocal::el().soltar(this); }
 
 void AgentViewModel::lanzarSesion() {
     QString err;

@@ -917,9 +917,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             emit alarmasCambio();
         });
         alerts_->start(250);
-        agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
+        agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_, "evento");
+        // El de automatización: el que recibe las alertas (siempre levantado).
+        agenteAuto_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_, "automatizacion");
         marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        connect(agenteAuto_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
         // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>, ver
         // el reinicio de Configuraciones): el asistente arranca con ella y se muestra.
         for (const QString& a : QCoreApplication::arguments())
@@ -927,15 +930,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
         // asistente se entera por él, sin que cada llamador se acuerde de avisar.
         connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
+        connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agenteAuto_.get(), &agent::AgentViewModel::alertsChanged);
         // Los roles automaticos: un disparo que un rol activo reclama va a un
         // agente de un tiro y NO al chat del asistente interactivo.
         roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
         marca("roles");
         despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
         agent_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
+        agenteAuto_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
         marca("despachador");
         connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
-        agent_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
+        // Las alertas las recibe el de automatización: él se las ofrece primero a los roles
+        // (una sola vez por alerta; el del evento ya no las mira).
+        agenteAuto_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });
         // El modelo local: sus archivos en Modelos/ (portable), el motor junto a ba-app.
         modelos_ =
             std::make_unique<agent::ModelosLocales>(rt.dataRoot(), QCoreApplication::applicationDirPath());
@@ -956,11 +963,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 v->atenderDesde(texto, quien, disparador);
             });
             // El chat del modelo local (pi + llama-server): qué .gguf y cómo bajar el que falta.
-            agent_->setModeloChat(
-                [m = modelos_.get()](const QString& pedido, QString* falta, QString* repo) {
-                    return m->ggufParaChat(pedido, falta, repo);
-                },
-                [m = modelos_.get()](const QString& repo) { m->descargar(repo); });
+            for (agent::AgentViewModel* a : {agent_.get(), agenteAuto_.get()})
+                a->setModeloChat(
+                    [m = modelos_.get()](const QString& pedido, QString* falta, QString* repo) {
+                        return m->ggufParaChat(pedido, falta, repo);
+                    },
+                    [m = modelos_.get()](const QString& repo) { m->descargar(repo); });
+            agenteAuto_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
+                v->atenderDesde(texto, quien, disparador);
+            });
             v->setAsistenteGrande([a = agent_.get()]() { return a->asistenteGrande(); });
             v->setAsistenteLocal([a = agent_.get()]() { return a->asistenteLocal(); });
         }
@@ -2438,6 +2449,7 @@ QObject* StudioViewModel::twitch() const { return twitch_.get(); }
 QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
+QObject* StudioViewModel::agenteAutomatizacion() const { return agenteAuto_.get(); }
 QObject* StudioViewModel::modelos() const { return modelos_.get(); }
 QObject* StudioViewModel::descargas() const { return &net::Descargas::la(); }
 QObject* StudioViewModel::voz() const { return voz_.get(); }
