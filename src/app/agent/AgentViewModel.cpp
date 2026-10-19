@@ -764,12 +764,17 @@ QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const
         return base + "/" + fijada;
     }
     // Quedo una instalacion de otra version (p. ej. se actualizo el sistema):
-    // sirve igual. Se usa la mas nueva por orden de version.
+    // sirve igual, la mas nueva por orden de version, PERO SOLO DE LA MISMA VERSION
+    // MAYOR que la fijada. Con otra mayor la forma de lanzarlo puede no servir (pasó:
+    // opencode 1.x no entiende el --standalone de la 2 y se caía una y otra vez):
+    // entonces no hay instalación usable y se pide instalar la fijada.
+    const int mayorFijada = QVersionNumber::fromString(fijada).majorVersion();
     QStringList versiones = QDir(base).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     std::sort(versiones.begin(), versiones.end(), [](const QString& a, const QString& b) {
         return QVersionNumber::fromString(a) < QVersionNumber::fromString(b);
     });
     for (auto it = versiones.crbegin(); it != versiones.crend(); ++it) {
+        if (!fijada.isEmpty() && QVersionNumber::fromString(*it).majorVersion() != mayorFijada) continue;
         QString e;
         if (leerOk(base + "/" + *it, &e)) {
             if (exeOut != nullptr)
