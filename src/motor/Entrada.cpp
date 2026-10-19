@@ -580,7 +580,35 @@ void Entrada::actualizarYa(const json& ajustes) {
     armar();
 }
 
+void Entrada::analizarEmpezar() {
+    std::lock_guard<std::timed_mutex> l(mu_);
+    sondas_.reset();
+    analisisCortado_ = nullptr;
+    if (pipeline_ != nullptr) sondas_ = std::make_unique<Sondas>(pipeline_);
+}
+
+nlohmann::json Entrada::analizarTerminar() {
+    std::lock_guard<std::timed_mutex> l(mu_);
+    if (sondas_) {
+        nlohmann::json r = sondas_->terminar();
+        sondas_.reset();
+        return r;
+    }
+    if (!analisisCortado_.is_null()) {
+        nlohmann::json r = analisisCortado_;
+        analisisCortado_ = nullptr;
+        return r;
+    }
+    return {{"error", "no hay un análisis en curso en esta entrada"}};
+}
+
 void Entrada::desarmar() {
+    // Un análisis en curso: las sondas se sacan ANTES de destruir el pipeline.
+    if (sondas_) {
+        analisisCortado_ = sondas_->terminar();
+        analisisCortado_["rearmada"] = true;
+        sondas_.reset();
+    }
     if (pipeline_ != nullptr) {
         guardarEstados();
         gst_element_set_state(pipeline_, GST_STATE_NULL);

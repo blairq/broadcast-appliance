@@ -1336,6 +1336,29 @@ void Motor::publicarInstantanea() {
     instantanea_ = std::move(foto);
 }
 
+std::string Motor::analizarEmpezar(const std::string& entrada) {
+    std::shared_ptr<Entrada> e;
+    {
+        std::lock_guard<std::recursive_mutex> l(mu_);
+        const auto it = canales_.find(entrada);
+        if (it == canales_.end() || !it->second.entrada) return "no existe la entrada «" + entrada + "»";
+        e = it->second.entrada;
+    }
+    e->analizarEmpezar();
+    return {};
+}
+
+json Motor::analizarTerminar(const std::string& entrada) {
+    std::shared_ptr<Entrada> e;
+    {
+        std::lock_guard<std::recursive_mutex> l(mu_);
+        const auto it = canales_.find(entrada);
+        if (it == canales_.end() || !it->second.entrada) return {{"error", "no existe la entrada «" + entrada + "»"}};
+        e = it->second.entrada;
+    }
+    return e->analizarTerminar();
+}
+
 json Motor::estado() const {
     BA_CANDADO(mu_);
     json entradas = json::object();

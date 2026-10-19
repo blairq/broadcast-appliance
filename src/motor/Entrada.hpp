@@ -56,6 +56,7 @@
 #include <limits>
 
 #include "Piezas.hpp"
+#include "Sondas.hpp"
 
 #include <gst/gst.h>
 
@@ -124,6 +125,11 @@ class Entrada {
     std::string propiedad(const std::string& elemento, const std::string& prop, const std::string& valor);
     /// Las propiedades legibles de un elemento de la cadena (vacío si no está).
     nlohmann::json leerPropiedades(const std::string& elemento) const;
+    /// Análisis por elemento (Sondas.hpp): empezar pone las sondas en su pipeline;
+    /// terminar las saca y devuelve cuánto agregó cada elemento y en qué memoria va. Si
+    /// la entrada se rearmó en el medio, lo medido hasta ahí con `rearmada: true`.
+    void analizarEmpezar();
+    nlohmann::json analizarTerminar();
     /// El canal de control: un evento «ba/control» (GST_EVENT_CUSTOM_DOWNSTREAM_OOB)
     /// con estos campos recorre la cadena; cada elemento que lo entiende lo usa.
     /// Se recuerda (se suma a lo anterior): una cadena rearmada lo recibe de nuevo.
@@ -236,6 +242,8 @@ class Entrada {
 
     // Lo armado
     GstElement* pipeline_ = nullptr;
+    std::unique_ptr<Sondas> sondas_;   ///< el análisis en curso (nullptr = ninguno)
+    nlohmann::json analisisCortado_;   ///< lo medido si se rearmó durante el análisis
     GstElement* salidaV_ = nullptr; ///< el pipeline fijo con la placa (fallbackswitch)
     bool conPlaca_ = false;          ///< lleva placa (aunque esté desarmada por falta de uso)
     std::int64_t sinUsoDesdeUs_ = 0; ///< desde cuándo nadie la usa (0: la usan)

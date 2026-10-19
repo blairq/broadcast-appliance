@@ -187,6 +187,12 @@ class Motor {
     bool empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride);
 
     nlohmann::json estado() const;
+    /// Análisis por elemento de una entrada (Sondas.hpp, docs/planes/PLAN-TIEMPOS.md T3):
+    /// empezar pone las sondas; terminar las saca y devuelve cuánto agrega cada elemento y
+    /// en qué memoria va (GPU o sistema), con los cruces. Pueden esperar el candado de la
+    /// entrada (un rearmado): llamarlas fuera del hilo de la interfaz.
+    std::string analizarEmpezar(const std::string& entrada);
+    nlohmann::json analizarTerminar(const std::string& entrada);
     /// La última foto de `estado()` que publicó el bucle del motor (cada ~100 ms).
     /// NO toma el candado: es lo que lee la interfaz (los vúmetros la leen cada
     /// 100 ms; con `estado()` cualquier espera del candado congelaba la app).
