@@ -39,92 +39,122 @@
   },
   "opencode": {
     "nombre": "opencode",
-    "version": "1.18.31",
-    "fuente": "https://github.com/sst/opencode/releases/tag/v1.18.31",
+    "version": "2.0.32",
+    "fuente": "https://registry.npmjs.org/@opencode/cli/2.0.32",
+    "_comentario": "OpenCode 2: un binario autónomo por plataforma en npm (@opencode/cli-<plataforma>), verificado con la integridad SHA-512 de npm. Se lanza con --standalone (sin el servicio de fondo).",
     "plataformas": {
       "linux-x64": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-linux-x64.tar.gz",
-        "sha256": "e9312be75ed803b7415fc2aeabda1f4fe938912a39673762dc0c38c0e11ebde4",
+        "url": "https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-2.0.32.tgz",
+        "sha512": "Q50ofBQ3gdwjD6ZQhrVR8fVlm8D2xPMshy4dynY6l6b+qLdKgBSJ9WpoaDyrQX1YWmf2s7IN4RbXmoXXdJitDA==",
         "tipo": "archivo",
-        "exe": "opencode"
+        "exe": "opencode",
+        "npm": "@opencode/cli-linux-x64"
       },
       "linux-x64-baseline": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-linux-x64-baseline.tar.gz",
-        "sha256": "b283e8dbe9e6fc224bb4b79992ce3bd2174b8b7b0c3e7d1b4e6024a1d11edc84",
+        "url": "https://registry.npmjs.org/@opencode/cli-linux-x64-baseline/-/cli-linux-x64-baseline-2.0.32.tgz",
+        "sha512": "NrB4iglJb7vGZWJ6B0qVH1EMHhWBZ4ADsAG9W0xLanzgxJ6eLEEsGBvxRX0cm/KPag5E/N0yZGsDVDZYcnz/OQ==",
         "tipo": "archivo",
-        "exe": "opencode"
+        "exe": "opencode",
+        "npm": "@opencode/cli-linux-x64-baseline"
       },
       "linux-arm64": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-linux-arm64.tar.gz",
-        "sha256": "d4e332f46b227448582c0d9fc75f6f826dfe95c9f751bc2011fc4d937a042be6",
+        "url": "https://registry.npmjs.org/@opencode/cli-linux-arm64/-/cli-linux-arm64-2.0.32.tgz",
+        "sha512": "YR5O03irvmot/G0f8W49ehvhn5uqCFN3vf9JTsChvf47W6ldjKCNvsaCSXS2SP26dPOUMQBn7WqbKnyHzrNR5w==",
         "tipo": "archivo",
-        "exe": "opencode"
+        "exe": "opencode",
+        "npm": "@opencode/cli-linux-arm64"
       },
       "win-x64": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-windows-x64.zip",
-        "sha256": "0ecd7ffc7f26390ce7799e7bcd409e4f11c410144308a6a5b0fcdce63d871006",
+        "url": "https://registry.npmjs.org/@opencode/cli-windows-x64/-/cli-windows-x64-2.0.32.tgz",
+        "sha512": "5VdKolj2/NkSk3BuM4qeiYpnNnGRT7szmd2RIv3+aSDPMwD9yRySYkJ2f1WIM7dTDfO5lZHAXVoipt6+i6AD4A==",
         "tipo": "archivo",
-        "exe": "opencode.exe"
+        "exe": "opencode.exe",
+        "npm": "@opencode/cli-windows-x64"
       },
       "win-x64-baseline": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-windows-x64-baseline.zip",
-        "sha256": "7c4fc9be7124df5e7c42184b99e8d8540fb0863bb0378b0c4219d9567b2d8434",
+        "url": "https://registry.npmjs.org/@opencode/cli-windows-x64-baseline/-/cli-windows-x64-baseline-2.0.32.tgz",
+        "sha512": "8vim3HxOdy5VaL686BvwozryJCaiet5PiMIC/Ir9rP6h9m+qtd9KBV/2Hd2yuXvpq8ykNlFgHziAqwfsbkyrQg==",
         "tipo": "archivo",
-        "exe": "opencode.exe"
+        "exe": "opencode.exe",
+        "npm": "@opencode/cli-windows-x64-baseline"
+      },
+      "win-arm64": {
+        "url": "https://registry.npmjs.org/@opencode/cli-windows-arm64/-/cli-windows-arm64-2.0.32.tgz",
+        "sha512": "T1UGNtrcgDoovpRD3nLqpfZoUh8+pDPlEewALD3QIUOLvuHyy4kUAFra6lLl5kitzqHN5Lm+2iQKX5F81A5hGw==",
+        "tipo": "archivo",
+        "exe": "opencode.exe",
+        "npm": "@opencode/cli-windows-arm64"
       },
       "mac-arm64": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-darwin-arm64.zip",
-        "sha256": "caf7f31fa1aec2353ea859d4ef9ab824c6273d941b016e88d51193fa3028d34e",
+        "url": "https://registry.npmjs.org/@opencode/cli-darwin-arm64/-/cli-darwin-arm64-2.0.32.tgz",
+        "sha512": "wASwXBsWaOAYcZrh4ZLl4oaVxPCUAGVb7zZvXBBF8TjWE4uWgY0D2tj6gn80JfcO3b/s9woM6dP/gKqYKK2EdQ==",
         "tipo": "archivo",
-        "exe": "opencode"
+        "exe": "opencode",
+        "npm": "@opencode/cli-darwin-arm64"
       },
       "mac-x64": {
-        "url": "https://github.com/sst/opencode/releases/download/v1.18.31/opencode-darwin-x64.zip",
-        "sha256": "f8510eaf400f07c3a2014e3a517e3650c705bcd6ac3e6740351b723ee685042f",
+        "url": "https://registry.npmjs.org/@opencode/cli-darwin-x64/-/cli-darwin-x64-2.0.32.tgz",
+        "sha512": "sDtaUjCuG9Bcu2SEIRM0RMVheyZC0IWIyz+esmTAf6b7FZ4+ARI/Ze09VWHDuwns5Pi5eW47Njkw3xlHOimE5Q==",
         "tipo": "archivo",
-        "exe": "opencode"
+        "exe": "opencode",
+        "npm": "@opencode/cli-darwin-x64"
+      },
+      "mac-x64-baseline": {
+        "url": "https://registry.npmjs.org/@opencode/cli-darwin-x64-baseline/-/cli-darwin-x64-baseline-2.0.32.tgz",
+        "sha512": "r/T6QeDkYqzDHdI6VclvlJXqU6j0tbBmsP1+a1S+AyZxqEsY4vm9veFaoT5WQ/ekGH4TsAp3x0XtyF/m8eLFoQ==",
+        "tipo": "archivo",
+        "exe": "opencode",
+        "npm": "@opencode/cli-darwin-x64-baseline"
       }
     }
   },
-  "gemini": {
-    "nombre": "Gemini CLI",
-    "version": "0.60.0",
-    "fuente": "https://registry.npmjs.org/@google/gemini-cli/0.60.0 + https://nodejs.org/dist/v24.21.0/SHASUMS256.txt",
-    "paquete": {
-      "url": "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-0.60.0.tgz",
-      "sha256": "cecb24eabf2eb23f0f49bf131cddd640e65017336b6298da9297bdf9d213cc0b",
-      "script": "package/bundle/gemini.js"
-    },
+  "antigravity": {
+    "nombre": "Antigravity CLI",
+    "version": "1.4.2",
+    "fuente": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/",
+    "_comentario": "El agente de Google (reemplaza al Gemini CLI): un binario por plataforma, del manifiesto oficial con su SHA-512 (acá en base64). Sin llavero: ver AgentViewModel::baseLaunch.",
     "plataformas": {
       "linux-x64": {
-        "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz",
-        "sha256": "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6",
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/linux-x64/cli_linux_x64.tar.gz",
+        "sha512": "Sjk6/BNpzulOgXwbQwyRKNArEuvU1XA6zlzUeyMz4hbWc/sAl8v3GV91exEBY7qYUOnuo/27rd1LJWaLgsA/BQ==",
         "tipo": "archivo",
-        "exe": "node-v24.21.0-linux-x64/bin/node"
+        "exe": "antigravity",
+        "manifiesto": "linux_amd64"
       },
       "linux-arm64": {
-        "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-arm64.tar.xz",
-        "sha256": "6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2",
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/linux-arm/cli_linux_arm64.tar.gz",
+        "sha512": "9GVUaNMwPmA5y88aMHaePLXE4W0Un7oNCOg/kfDysHy2I6StuGFcp6j8c78kRTAeDhq4LqifaqRMvZqelnA+GQ==",
         "tipo": "archivo",
-        "exe": "node-v24.21.0-linux-arm64/bin/node"
+        "exe": "antigravity",
+        "manifiesto": "linux_arm64"
       },
       "win-x64": {
-        "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
-        "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-        "tipo": "archivo",
-        "exe": "node-v24.21.0-win-x64/node.exe"
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/windows-x64/cli_windows_x64.exe",
+        "sha512": "4mT8IbunoQWwPh7bB2Jv513GO8xhut/VxrV1xXEVUj78pPFYuXa0RdvHFkUhODqbPY7dsW9j6Xgjqdi1LL2syg==",
+        "tipo": "binario",
+        "exe": "antigravity.exe",
+        "manifiesto": "windows_amd64"
+      },
+      "win-arm64": {
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/windows-arm/cli_windows_arm64.exe",
+        "sha512": "Kj3t5oyWEPKQ4mkpdfXt0rKlIK3cf0K/sysy0mIQ4xXcxcDsoOjmPVvQ471+Q0U5d5sp8pGXqBq5ESJFcKTUNg==",
+        "tipo": "binario",
+        "exe": "antigravity.exe",
+        "manifiesto": "windows_arm64"
       },
       "mac-arm64": {
-        "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-arm64.tar.gz",
-        "sha256": "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057",
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/darwin-arm/cli_mac_arm64.tar.gz",
+        "sha512": "KK608KTFDYxZGwmMObmoWwnGNzI15D4nZp6EV4z+oWFul+HurkD46WlQpl+2tR+N2RlImLS8afEIRCXXirzUQg==",
         "tipo": "archivo",
-        "exe": "node-v24.21.0-darwin-arm64/bin/node"
+        "exe": "antigravity",
+        "manifiesto": "darwin_arm64"
       },
       "mac-x64": {
-        "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-darwin-x64.tar.gz",
-        "sha256": "1462cb3b3046b815cf8ea436d3da450ec1a9f11dac7e5a46b0ada5305d7e8097",
+        "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/darwin-x64/cli_mac_x64.tar.gz",
+        "sha512": "xcUReRcuZJ1wW4aZT5+lQuamJiduUp50clc7PfE5pxUAQkJQIT/1pJi33+xjX7KhAiJEMe/KBUsaCVXIWPHFtQ==",
         "tipo": "archivo",
-        "exe": "node-v24.21.0-darwin-x64/bin/node"
+        "exe": "antigravity",
+        "manifiesto": "darwin_amd64"
       }
     }
   },

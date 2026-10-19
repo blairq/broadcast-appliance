@@ -108,7 +108,7 @@ const Canal* canalElegido(const ModeloPropio& mp, const QString& modelo) {
 
 struct Provider {
     const char* id;
-    const char* runtime; ///< claude | gemini | opencode
+    const char* runtime; ///< claude | antigravity | opencode | pi
     const char* name;
     const char* auth;    ///< cuenta | api
     const char* keyName; ///< credencial (vacio si no usa clave)
@@ -142,26 +142,27 @@ const std::vector<Provider>& providerTable() {
          "usarla: "
          "respondé que sí.",
          {"opus", "sonnet", "haiku"}},
+        // Gemini con Antigravity CLI (el agente de Google que reemplazó al Gemini CLI).
         {"gemini-cuenta",
-         "gemini",
-         "Gemini — cuenta de Google",
+         "antigravity",
+         "Gemini — cuenta de Google (Antigravity)",
          "cuenta",
          "",
          "",
-         "https://gemini.google.com/",
-         "Sin clave de API: al arrancar elegí «Sign in with Google» y la cuenta (se abre el navegador). Con "
-         "Gemini "
-         "Pro/Ultra (o el plan gratis) según tu cuenta.",
-         {"gemini-2.5-pro", "gemini-2.5-flash"}},
+         "https://antigravity.google/",
+         "Sin clave de API: la primera vez elegí «Google OAuth», abrí el enlace, entrá con tu cuenta de "
+         "Google y pegá el código en la terminal. La sesión queda en la carpeta portable (nunca en el "
+         "llavero del sistema). El modelo se elige con /model.",
+         {}},
         {"gemini-api",
-         "gemini",
-         "Gemini — clave de API",
+         "antigravity",
+         "Gemini — clave de API (Antigravity)",
          "api",
          "gemini-api-key",
          "GEMINI_API_KEY",
          "https://aistudio.google.com/apikey",
-         "Pegá una clave de Google AI Studio.",
-         {"gemini-2.5-pro", "gemini-2.5-flash"}},
+         "Pegá una clave de Google AI Studio: Antigravity va directo a la API de Gemini, sin iniciar sesión.",
+         {}},
         {"opencode-go",
          "opencode",
          "OpenCode Go",
@@ -873,10 +874,12 @@ void AgentViewModel::install() {
                              (dir + "/" + runtime + "/package/node_modules/" +
                               QString::fromStdString(dep.value("nombre", std::string()))).toStdString()});
     } else {
+        // SHA-256 (Claude, agentes.json) o SHA-512 en base64 (opencode desde npm, Antigravity).
         items.push_back({plat.value("url", ""), plat.value("sha256", ""), plat.value("tipo", "archivo"),
                          plat.value("tipo", "") == "binario"
                              ? (dir + "/" + QString::fromStdString(plat.value("exe", ""))).toStdString()
-                             : dir.toStdString()});
+                             : dir.toStdString(),
+                         plat.value("sha512", "")});
     }
     const QString exeName = QString::fromStdString(plat.value("exe", ""));
     // Gemini y pi corren un script de su paquete de npm: si una version nueva lo
@@ -933,7 +936,7 @@ void AgentViewModel::install() {
                     break;
                 }
             }
-            aviso("Verificando (SHA-256)…");
+            aviso("Verificando…");
             // SHA-256 (agentes.json, GitHub, Claude) o SHA-512 (npm). Sin
             // ninguno no se instala: nunca un archivo sin verificar.
             bool coincide = false;
@@ -1371,30 +1374,33 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         if (control) servidores["control"] = mcpControl;
         writeText(root + "/Credenciales/agentes/pi/mcp.json",
                   QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
-    } else if (runtime == "gemini") {
-        // Ajustes del usuario de Gemini (en su HOME portable), sin pisar lo que ya tenga.
-        const QString home = root + "/Credenciales/agentes/gemini";
-        const QString path = home + "/.gemini/settings.json";
-        json s = json::object();
+    } else if (runtime == "antigravity") {
+        // Antigravity lee los MCP de <HOME>/.gemini/config/mcp_config.json (el formato de
+        // Claude) y sus ajustes de <HOME>/.gemini/antigravity-cli/settings.json; HOME es su
+        // perfil portable.
+        const QString home = root + "/Credenciales/agentes/antigravity";
+        json servidores{{"broadcast", mcpStdio}};
+        servidores["broadcast"]["disabled"] = false;
+        if (control) {
+            servidores["control"] = mcpControl;
+            servidores["control"]["disabled"] = false;
+        }
+        writeText(home + "/.gemini/config/mcp_config.json",
+                  QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+        // Con clave de API: modelProvider «gemini» (y GEMINI_API_KEY en el entorno); con la
+        // cuenta, el login de Google. Sin pisar lo demás que ya tenga.
+        const QString path = home + "/.gemini/antigravity-cli/settings.json";
+        json st = json::object();
         {
             QFile f(path);
-            if (f.open(QIODevice::ReadOnly)) s = json::parse(f.readAll().toStdString(), nullptr, false);
-            if (!s.is_object()) s = json::object();
+            if (f.open(QIODevice::ReadOnly)) st = json::parse(f.readAll().toStdString(), nullptr, false);
+            if (!st.is_object()) st = json::object();
         }
-        s["mcpServers"]["broadcast"] = mcpStdio;
-        s["mcpServers"]["broadcast"]["trust"] = true;
-        // El control del escritorio: `trust` false hace que Gemini pregunte antes de cada acción.
-        if (control) {
-            s["mcpServers"]["control"] = mcpControl;
-            s["mcpServers"]["control"]["trust"] = !ctl.preguntar;
-        } else if (s["mcpServers"].contains("control")) {
-            s["mcpServers"].erase("control");
-        }
-        s["security"]["auth"]["selectedType"] =
-            prov != nullptr && QString(prov->auth) == "api" ? "gemini-api-key" : "oauth-personal";
-        s["tools"]["exclude"] = json::array({"run_shell_command", "write_file", "replace"});
-        s["general"]["disableAutoUpdate"] = true;
-        writeText(path, QByteArray::fromStdString(s.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+        if (prov != nullptr && QString(prov->auth) == "api")
+            st["modelProvider"] = "gemini";
+        else
+            st.erase("modelProvider");
+        writeText(path, QByteArray::fromStdString(st.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     }
     return ws;
 }
@@ -1446,15 +1452,33 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         if (!modelo.isEmpty()) o.args << "--model" << modelo;
         o.env["CLAUDE_CONFIG_DIR"] = profile;
         o.env["DISABLE_AUTOUPDATER"] = "1";
-    } else if (runtime == "gemini") {
-        o.program = dir + "/node/" +
-                    (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "")) : exeInstalado);
-        o.args = {dir + "/gemini/" +
-                  QString::fromStdString(pin.value("paquete", json::object()).value("script", ""))};
-        if (!modelo.isEmpty()) o.args << "-m" << modelo;
-        o.env["HOME"] = profile;
-        o.env["USERPROFILE"] = profile;
-        o.env["NO_UPDATE_NOTIFIER"] = "1";
+    } else if (runtime == "antigravity") {
+        o.program =
+            dir + "/" +
+            (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "antigravity")) : exeInstalado);
+        if (!modelo.isEmpty()) o.args << "--model" << modelo;
+        // La versión es la fijada y verificada: que no se reemplace sola.
+        o.env["AGY_CLI_DISABLE_AUTO_UPDATE"] = "1";
+#ifdef __APPLE__
+        // EL LLAVERO, NUNCA: Antigravity guarda el login con go-keyring, que llama a
+        // /usr/bin/security por su ruta (el `security` propio del PATH no sirve). Dentro de
+        // un sandbox que no lo deja ejecutar, Antigravity ve el llavero «no disponible» y
+        // guarda la sesión en un archivo de su HOME (el perfil portable). Probado
+        // (2026-10-19): «OS credential manager unavailable … falling back to file-based
+        // secret storage».
+        {
+            const QString sb = profile + "/sin-llavero.sb";
+            // Solo eso: el resto del sistema (red, certificados, terminal) queda como siempre.
+            writeText(sb, "(version 1)\n(allow default)\n(deny process-exec (literal \"/usr/bin/security\"))\n");
+            o.args.prepend(o.program);
+            o.args.prepend(sb);
+            o.args.prepend("-f");
+            o.program = "/usr/bin/sandbox-exec";
+        }
+#elif !defined(_WIN32)
+        // Linux: el llavero es el Secret Service por D-Bus; sin el bus, al archivo.
+        o.unsetEnv << "DBUS_SESSION_BUS_ADDRESS";
+#endif
     } else if (runtime == "pi") {
         // pi (el chat del modelo local) con el Node fijado; le habla al llama-server
         // que levantó start() (ver arrancarServidorLocal). Todo en su perfil portable.
@@ -1513,6 +1537,9 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         o.env["XDG_STATE_HOME"] = profile + "/state";
         o.env["XDG_CACHE_HOME"] = root + "/Cache/opencode";
         o.env["OPENCODE_DISABLE_AUTOUPDATE"] = "1";
+        // OpenCode 2 arranca un servicio de fondo que queda corriendo; con --standalone usa
+        // un servidor propio que muere con él (nada del agente queda andando en el sistema).
+        o.args << "--standalone";
     } else if (error != nullptr) {
         *error = "Proveedor desconocido: " + proveedor;
     }
@@ -1589,10 +1616,6 @@ void AgentViewModel::aislarEnLaCarpetaDeDatos(term::Pty::Options& o, const QStri
         o.env["PATH"] = bin + (path.isEmpty() ? QString() : ":" + path);
     }
 #endif
-    // Gemini CLI: su login y los tokens de MCP a archivo (en el HOME del perfil), nunca
-    // al llavero del sistema.
-    o.env["GEMINI_FORCE_FILE_STORAGE"] = "true";
-    o.env["GEMINI_FORCE_ENCRYPTED_FILE_STORAGE"] = "true";
 }
 
 term::Pty::Options AgentViewModel::launchOptions(QString* error) {
@@ -1663,10 +1686,10 @@ Motores AgentViewModel::motores() {
 term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, QString* error) {
     const QString proveedor = l.proveedor.isEmpty() ? provider_ : l.proveedor;
     const QString runtime = runtimeOf(proveedor);
-    if (runtime == "gemini") {
-        // Gemini CLI tiene modo no interactivo, pero no lo probamos con el
-        // MCP ni con su salida: hasta entonces, los roles no lo usan.
-        if (error != nullptr) *error = "Los roles automaticos todavia no pueden usar Gemini.";
+    if (runtime == "antigravity") {
+        // Antigravity tiene modo no interactivo (-p, --output-format stream-json), pero no
+        // está probado con el MCP ni con su salida: hasta entonces, los roles no lo usan.
+        if (error != nullptr) *error = "Los roles automaticos todavia no pueden usar Gemini (Antigravity).";
         return {};
     }
     if (runtime.isEmpty()) {
@@ -1690,7 +1713,7 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
                << "mcp__broadcast" << "--disallowedTools" << "Bash" << "PowerShell" << "Edit" << "Write"
                << "NotebookEdit" << "WebFetch" << "WebSearch";
     } else if (runtime == "opencode") {
-        o.args = {"run", "--format", "json"};
+        o.args = {"run", "--standalone", "--format", "json"};
         if (!l.modelo.isEmpty()) o.args << "--model" << l.modelo;
         // El mensaje PRIMERO y los adjuntos al final. `-f` toma una LISTA, así
         // que si va antes se traga el mensaje como si fuera otro archivo:
@@ -2057,14 +2080,16 @@ std::vector<std::string> chatsDe(const std::string& runtime) {
     if (runtime == "claude")
         return {"projects", "sessions", "session-env", "shell-snapshots", "todos", "file-history", "paste-cache",
                 "debug", "backups", "history.jsonl", "statsig", "telemetry", "cache", "Library/Caches"};
-    if (runtime == "gemini") return {".gemini/tmp", ".gemini/history", ".gemini/logs"};
+    if (runtime == "antigravity")
+        return {".gemini/antigravity-cli/cache", ".gemini/antigravity-cli/crashes", ".gemini/antigravity-cli/implicit",
+                ".gemini/antigravity-cli/conversation_summaries.db", ".gemini/antigravity", "Library/Caches"};
     if (runtime == "pi") return {"sessions", "mcp.log", "mcp.log.1"};
     if (runtime == "opencode")
         return {"data/opencode/storage", "data/opencode/log", "data/opencode/snapshot", "state"};
     return {};
 }
 
-const char* const kMotores[] = {"claude", "gemini", "opencode", "pi"};
+const char* const kMotores[] = {"claude", "antigravity", "opencode", "pi"};
 
 } // namespace
 

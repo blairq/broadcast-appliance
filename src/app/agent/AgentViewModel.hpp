@@ -9,8 +9,8 @@
 //
 //   claude-cuenta   Claude Code con la suscripcion Pro/Max (login en la TUI)
 //   claude-api      Claude Code con clave de API de Anthropic
-//   gemini-cuenta   Gemini CLI con la cuenta de Google (login en la TUI)
-//   gemini-api      Gemini CLI con clave de API de Google AI Studio
+//   gemini-cuenta   Antigravity CLI con la cuenta de Google (login en la TUI)
+//   gemini-api      Antigravity CLI con clave de API de Google AI Studio
 //   opencode-go     opencode con la suscripcion OpenCode Go (/connect)
 //   openrouter      opencode con clave de OpenRouter
 //
@@ -97,7 +97,7 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QVariantList alerts READ alerts NOTIFY alertsChanged)
     Q_PROPERTY(QVariantList events READ events NOTIFY alertsChanged)
-    /// LIMPIEZA: por cada motor de agente (claude, gemini, opencode) lo que ocupa
+    /// LIMPIEZA: por cada motor de agente (claude, antigravity, opencode, pi) lo que ocupa
     /// en el disco: [{runtime, versiones: [{version, bytes, enUso}], bytesPrograma,
     /// bytesChats, bytesPerfil, enUso}]. Los chats se acumulan en su perfil
     /// (Credenciales/agentes/<motor>), al lado del login. Se recalcula con
@@ -277,7 +277,7 @@ class AgentViewModel : public QObject {
     term::Pty::Options launchOptionsHeadless(const Lanzamiento& l, QString* error);
     /// Lo que el Despachador necesita de esta clase.
     Motores motores();
-    /// "claude" | "gemini" | "opencode" | "" (proveedor desconocido).
+    /// "claude" | "antigravity" | "opencode" | "pi" | "" (proveedor desconocido).
     static QString runtimeDe(const QString& proveedor);
     /// Los modelos que ofrece un proveedor (vacio: se escribe a mano).
     static QStringList modelosDe(const QString& proveedor);

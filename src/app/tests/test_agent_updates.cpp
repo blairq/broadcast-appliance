@@ -54,7 +54,7 @@ int main() {
     }
 
     int respondieron = 0;
-    for (const char* runtime : {"claude", "opencode", "gemini"}) {
+    for (const char* runtime : {"claude", "opencode", "antigravity"}) {
         const json base = pins.value(runtime, json::object());
         std::string err;
         const json nueva = ultimaPublicada(runtime, base, &err);
@@ -75,7 +75,9 @@ int main() {
         bool todas = true;
         for (const auto& [clave, p] : plats.items()) {
             const std::string url = p.value("url", std::string());
-            const bool hash = std::string(runtime) == "gemini" || esHex64(p.value("sha256", std::string()));
+            // SHA-256 en hex (Claude) o SHA-512 en base64 (opencode desde npm, Antigravity).
+            const bool hash = esHex64(p.value("sha256", std::string())) ||
+                              QByteArray::fromBase64(QByteArray::fromStdString(p.value("sha512", std::string()))).size() == 64;
             if (url.rfind("https://", 0) != 0 || !hash || p.value("exe", std::string()).empty()) {
                 std::printf("   plataforma %s incompleta\n", clave.c_str());
                 todas = false;
@@ -84,31 +86,6 @@ int main() {
         CHECK(todas, "cada plataforma con url https, hash y ejecutable");
         CHECK(plats.contains("mac-arm64") && plats.contains("linux-x64") && plats.contains("win-x64"),
               "estan las tres plataformas del aparato");
-
-        if (std::string(runtime) == "gemini") {
-            const json pkg = nueva.value("paquete", json::object());
-            const std::string sha512 = pkg.value("sha512", std::string());
-            CHECK(!sha512.empty() && !pkg.contains("sha256"), "el paquete trae la integridad SHA-512 de npm");
-            // Se baja y se verifica igual que lo hace la instalacion.
-            ba::app::net::HttpRequest req;
-            req.url = pkg.value("url", std::string());
-            req.responseFile = std::string(BA_TEST_TMP) + "/gemini-cli.tgz";
-            const auto res = ba::app::net::HttpsClient::download(req);
-            if (res.error.empty()) {
-                std::ifstream f(req.responseFile, std::ios::binary);
-                std::stringstream b;
-                b << f.rdbuf();
-                const std::string datos = b.str();
-                const QByteArray h =
-                    QCryptographicHash::hash(QByteArray(datos.data(), static_cast<qsizetype>(datos.size())),
-                                             QCryptographicHash::Sha512)
-                        .toBase64();
-                CHECK(h == QByteArray::fromStdString(sha512), "el paquete bajado coincide con su SHA-512");
-                std::remove(req.responseFile.c_str());
-            } else {
-                std::printf("no se pudo bajar el paquete: %s\n", res.error.c_str());
-            }
-        }
     }
     if (respondieron == 0) {
         std::printf("SALTEADO: ninguna fuente respondio (sin red)\n");

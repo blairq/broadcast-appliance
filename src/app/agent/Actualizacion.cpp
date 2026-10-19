@@ -3,6 +3,8 @@
 // ============================================================================
 #include "agent/Actualizacion.hpp"
 
+#include <QByteArray>
+
 #include <algorithm>
 #include <cctype>
 #include <map>
@@ -88,56 +90,61 @@ json ultimaPublicada(const std::string& runtime, const json& base, std::string* 
         out["fuente"] = raiz + "/" + v + "/manifest.json";
         out["plataformas"] = nuevas;
     } else if (runtime == "opencode") {
-        // El release de GitHub: cada archivo trae su digest SHA-256.
-        const std::string fuente = base.value("fuente", std::string());
-        const std::string pre = "https://github.com/";
-        const auto rel = fuente.find("/releases/");
-        if (fuente.rfind(pre, 0) != 0 || rel == std::string::npos)
-            return fallo("no se reconoce la fuente de opencode");
-        const std::string repo = fuente.substr(pre.size(), rel - pre.size());
-        const auto r = getJson("https://api.github.com/repos/" + repo + "/releases/latest");
+        // OpenCode 2: el paquete @opencode/cli de npm y uno por plataforma
+        // (@opencode/cli-<plataforma>), cada uno con su integridad SHA-512.
+        const auto r = getJson("https://registry.npmjs.org/@opencode/cli/latest");
         const json j = json::parse(r.body, nullptr, false);
-        if (r.status != 200 || !j.is_object()) return fallo("no se pudo leer el ultimo release de opencode");
-        std::string v = j.value("tag_name", std::string());
-        if (!v.empty() && v[0] == 'v') v.erase(0, 1);
+        if (r.status != 200 || !j.is_object()) return fallo("no se pudo leer la ultima version de opencode");
+        const std::string v = j.value("version", std::string());
         if (!pareceVersion(v)) return fallo("version de opencode no reconocida");
         json nuevas = json::object();
         for (const auto& [clave, pin] : basePlats.items()) {
-            // Los archivos se llaman igual en cada release (opencode-darwin-arm64.zip...).
-            const std::string url = pin.value("url", std::string());
-            const std::string archivo = url.substr(url.find_last_of('/') + 1);
-            for (const auto& a : j.value("assets", json::array())) {
-                if (a.value("name", std::string()) != archivo) continue;
-                const std::string d = a.value("digest", std::string());
-                if (d.rfind("sha256:", 0) != 0 || d.size() != 7 + 64) break; // sin hash: esa plataforma no
-                json e = pin;
-                e["url"] = a.value("browser_download_url", std::string());
-                e["sha256"] = d.substr(7);
-                nuevas[clave] = e;
-                break;
-            }
+            const std::string npm = pin.value("npm", std::string());
+            if (npm.empty()) continue;
+            const auto rp = getJson("https://registry.npmjs.org/" + npm + "/" + v);
+            const json m = json::parse(rp.body, nullptr, false);
+            if (rp.status != 200 || !m.is_object()) continue;
+            const json dist = m.value("dist", json::object());
+            const std::string integ = dist.value("integrity", std::string());
+            if (integ.rfind("sha512-", 0) != 0) continue; // sin hash: esa plataforma no
+            json e = pin;
+            e["url"] = dist.value("tarball", std::string());
+            e.erase("sha256");
+            e["sha512"] = integ.substr(7);
+            nuevas[clave] = e;
         }
         out["version"] = v;
-        out["fuente"] = "https://github.com/" + repo + "/releases/tag/" + j.value("tag_name", std::string());
+        out["fuente"] = "https://registry.npmjs.org/@opencode/cli/" + v;
         out["plataformas"] = nuevas;
-    } else if (runtime == "gemini") {
-        // El paquete de npm (con su integridad SHA-512). Node queda el fijado.
-        const auto r = getJson("https://registry.npmjs.org/@google/gemini-cli/latest");
-        const json j = json::parse(r.body, nullptr, false);
-        if (r.status != 200 || !j.is_object())
-            return fallo("no se pudo leer la ultima version de Gemini CLI");
-        const std::string v = j.value("version", std::string());
-        const json dist = j.value("dist", json::object());
-        const std::string integ = dist.value("integrity", std::string());
-        if (!pareceVersion(v) || integ.rfind("sha512-", 0) != 0)
-            return fallo("npm no publico la integridad de Gemini CLI");
-        json pkg = base.value("paquete", json::object());
-        pkg["url"] = dist.value("tarball", std::string());
-        pkg.erase("sha256");
-        pkg["sha512"] = integ.substr(7);
+    } else if (runtime == "antigravity") {
+        // El manifiesto oficial de cada plataforma: version, url y SHA-512 (en hex; aca en
+        // base64, como lo espera el instalador).
+        const std::string raiz = base.value("fuente", std::string());
+        if (raiz.rfind("https://", 0) != 0) return fallo("no se reconoce la fuente de Antigravity");
+        std::string v;
+        json nuevas = json::object();
+        for (const auto& [clave, pin] : basePlats.items()) {
+            const std::string man = pin.value("manifiesto", std::string());
+            if (man.empty()) continue;
+            const auto rm = getJson(raiz + man + ".json");
+            const json m = json::parse(rm.body, nullptr, false);
+            if (rm.status != 200 || !m.is_object()) continue;
+            const std::string hex = m.value("sha512", std::string()), url = m.value("url", std::string()),
+                              mv = m.value("version", std::string());
+            if (hex.size() != 128 || url.rfind("https://", 0) != 0 || !pareceVersion(mv)) continue;
+            if (v.empty()) v = mv;
+            if (mv != v) continue; // todas de la misma version
+            const QByteArray b64 = QByteArray::fromHex(QByteArray::fromStdString(hex)).toBase64();
+            json e = pin;
+            e["url"] = url;
+            e.erase("sha256");
+            e["sha512"] = b64.toStdString();
+            nuevas[clave] = e;
+        }
+        if (v.empty()) return fallo("no se pudo leer el manifiesto de Antigravity");
         out["version"] = v;
-        out["fuente"] = "https://registry.npmjs.org/@google/gemini-cli/" + v;
-        out["paquete"] = pkg;
+        out["fuente"] = raiz;
+        out["plataformas"] = nuevas;
     } else {
         return fallo("no se sabe buscar actualizaciones de " + runtime);
     }

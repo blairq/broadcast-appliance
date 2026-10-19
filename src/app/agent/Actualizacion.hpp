@@ -8,9 +8,9 @@
 //
 //   claude    el bucket oficial: <raiz>/latest y <raiz>/<v>/manifest.json, que
 //             trae el checksum SHA-256 de cada plataforma;
-//   opencode  el ultimo release de GitHub: cada archivo trae su digest SHA-256;
-//   gemini    el paquete de npm con su integridad SHA-512 (node queda el
-//             fijado).
+//   opencode  el paquete de npm @opencode/cli y uno por plataforma, con su
+//             integridad SHA-512;
+//   antigravity  el manifiesto oficial de cada plataforma (SHA-512).
 //
 // Una plataforma cuya fuente no publica hash no entra: nunca se instala algo
 // sin verificar. No instala nada: solo pregunta (bloquea en la red; va en un
@@ -24,7 +24,7 @@
 
 namespace ba::app::agent {
 
-/// :param runtime: claude | opencode | gemini.
+/// :param runtime: claude | opencode | antigravity.
 /// :param base: su entrada de agentes.json (de ahi salen la fuente, los
 ///        nombres de los archivos y el ejecutable de cada plataforma).
 /// :param err: que fallo, si devuelve vacio.

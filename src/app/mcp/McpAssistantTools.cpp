@@ -29,7 +29,7 @@ json idsDeProveedores(agent::AgentViewModel* ag) {
 void McpService::registerAssistantTools() {
     core_.addCategory(
         "asistente", "Pestaña Asistente",
-        "El agente de IA que corre en la pestaña Asistente (Claude Code, Gemini CLI u opencode): "
+        "El agente de IA que corre en la pestaña Asistente (Claude Code, Antigravity para Gemini u opencode): "
         "proveedor, modelo, instalación, arrancar/detener y mandarle pedidos.");
     auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
     {
@@ -63,7 +63,7 @@ void McpService::registerAssistantTools() {
         t.title = "Limpiar los asistentes";
         t.category = "asistente";
         t.description =
-            "Lo que ocupan los asistentes (Claude Code, Gemini CLI, opencode) y su limpieza: los chats guardados "
+            "Lo que ocupan los asistentes (Claude Code, Antigravity, opencode) y su limpieza: los chats guardados "
             "que se acumulan, las versiones viejas del programa, o reinstalar si algo falla.";
         t.details =
             "Sin `accion` (o `ver`): por motor, las versiones instaladas (cuál se usa), lo que ocupa el "
@@ -79,7 +79,7 @@ void McpService::registerAssistantTools() {
             {"type", "object"},
             {"properties",
              {{"accion", {{"type", "string"}, {"enum", {"ver", "chats", "versiones", "reinstalar", "de_cero"}}}},
-              {"motor", {{"type", "string"}, {"enum", {"", "claude", "gemini", "opencode"}}}}}}};
+              {"motor", {{"type", "string"}, {"enum", {"", "claude", "antigravity", "opencode", "pi"}}}}}}};
         t.run = [ag](const json& a, Done done) {
             const std::string accion = a.value("accion", std::string("ver"));
             const QString motor = QString::fromStdString(a.value("motor", std::string()));
