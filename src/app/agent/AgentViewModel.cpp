@@ -294,7 +294,14 @@ void AgentViewModel::loadConfig() {
     alertsToChat_ = instancia_ == "automatizacion";
     if (instancia_ == "automatizacion") autoStart_ = true;
     std::ifstream in(archivoConfig());
-    const json j = json::parse(in, nullptr, false);
+    json j = json::parse(in, nullptr, false);
+    // El de automatización sin configuración propia: arranca con el motor que ya usa el
+    // del evento (no con uno de fábrica que capaz no está instalado ni con sesión).
+    if (!j.is_object() && instancia_ != "evento") {
+        std::ifstream ev(rt_.dataRoot() / "Config" / "asistente.json");
+        const json e = json::parse(ev, nullptr, false);
+        if (e.is_object()) j = json{{"provider", e.value("provider", std::string())}, {"models", e.value("models", json::object())}};
+    }
     if (!j.is_object()) return;
     const QString p = QString::fromStdString(j.value("provider", std::string("claude-cuenta")));
     if (findProvider(p) != nullptr) provider_ = p;
