@@ -195,9 +195,20 @@ def main():
         args.lr = 2e-5 if pref else 2e-4
     if pref and args.entropia_fusionada == "si":
         raise SystemExit("--entropia-fusionada da la suma del lote; dpo/kto necesitan el log p de cada respuesta")
+    if args.fsdp and "LOCAL_RANK" not in os.environ and not args.micro:
+        args.micro = 4
+    if "LOCAL_RANK" not in os.environ and not args.reanudar:
+        # los parametros junto al adaptador: los lee el sistema de analisis (capas-guardar.py)
+        Path(args.salida).mkdir(parents=True, exist_ok=True)
+        try:
+            commit = subprocess.run(["git", "-C", str(Path(__file__).parent), "rev-parse", "--short", "HEAD"],
+                                    capture_output=True, text=True).stdout.strip()
+        except OSError:
+            commit = ""
+        (Path(args.salida) / "parametros.json").write_text(json.dumps(
+            {"fecha": time.strftime("%Y-%m-%dT%H:%M:%S"), "commit": commit, "perfil": os.environ.get("BA_PERFIL"),
+             "args": vars(args)}, ensure_ascii=False, indent=1))
     if args.fsdp and "LOCAL_RANK" not in os.environ:
-        if not args.micro:
-            args.micro = 4
         return supervisar(args)
 
     import torch

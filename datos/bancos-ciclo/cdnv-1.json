@@ -1,0 +1,163 @@
+{
+ "banco": 1,
+ "antes": {
+  "cdnv_mediana": 0.0059,
+  "cdnv_peor": 0.2973,
+  "pares_sobre_objetivo": 311,
+  "pares_medidos": 5886,
+  "dim_mediana": 2.85,
+  "fuera_de_su_grupo": 214
+ },
+ "despues": {
+  "cdnv_mediana": 0.0065,
+  "cdnv_peor": 0.3235,
+  "pares_sobre_objetivo": 359,
+  "pares_medidos": 5886,
+  "dim_mediana": 2.85,
+  "fuera_de_su_grupo": 235
+ },
+ "empujadas": [
+  {
+   "herramienta": "foto_invitado",
+   "plantilla": "traeme la pantalla que {persona} está compartiendo en vivo ahora",
+   "cae_en": "compartida_revisar"
+  },
+  {
+   "herramienta": "record_start",
+   "plantilla": "no está grabando nada y arrancó la entrevista",
+   "cae_en": "record_stop"
+  },
+  {
+   "herramienta": "speaker_next",
+   "plantilla": "que pase el que sigue",
+   "cae_en": "speaker_time"
+  }
+ ],
+ "aprendidas_fuera_de_su_grupo": [
+  {
+   "herramienta": "audio_escuchar",
+   "plantilla": "¿Podés ponerme en el retorno {audio}? Quiero chequear cómo entra antes de salir",
+   "cae_en": "ptz_ir_posicion"
+  },
+  {
+   "herramienta": "carruseles_listar",
+   "plantilla": "Antes del acto quiero ver qué presentaciones hay cargadas en la biblioteca, por arriba nomás.",
+   "cae_en": "prompter_cargar"
+  },
+  {
+   "herramienta": "crear_fuente",
+   "plantilla": "Armame un fondo de color negro en {escena}, nuevo, que no hay",
+   "cae_en": "source_update"
+  },
+  {
+   "herramienta": "crear_fuente",
+   "plantilla": "¿Podés agregar {camara} como fuente en {escena}? No está",
+   "cae_en": "guest_source_add"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "Armame las bancas del recinto, que cambiaron de lugar dos concejales.",
+   "cae_en": "recinto_bancas_ver"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "Me mandaron una pregunta por WhatsApp para el concejal, metela en la cola.",
+   "cae_en": "pregunta_moderar"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "Probá el modelo local con «corta a la dos» a ver qué entiende",
+   "cae_en": "scene_switch"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "Sacá a {persona} del cuerpo, renunció a {banca} la semana pasada.",
+   "cae_en": "banca_cola"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "¿A qué hora termina la sesión de hoy según el orden del día?",
+   "cae_en": "orden_del_dia_ver"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "¿A qué hora termina la sesión según el orden del día?",
+   "cae_en": "orden_del_dia_ver"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "¿Cuánto disco nos queda para grabar? La sesión viene larga",
+   "cae_en": "status"
+  },
+  {
+   "herramienta": "derivar",
+   "plantilla": "¿Estamos en modo en vivo o todavía en ensayo?",
+   "cae_en": "status"
+  },
+  {
+   "herramienta": "foto_fuente",
+   "plantilla": "Mostrame cómo queda {escena} entera antes de mandarla al aire.",
+   "cae_en": "source_update"
+  },
+  {
+   "herramienta": "foto_invitado",
+   "plantilla": "Pasame una foto de cómo se ve {persona} ahora en la sala.",
+   "cae_en": "foto_todos_invitados"
+  },
+  {
+   "herramienta": "foto_invitado",
+   "plantilla": "¿Qué cara tiene {persona}? Sacame una captura de esa persona.",
+   "cae_en": "ptz_caras_ubicar"
+  },
+  {
+   "herramienta": "grafico_listar",
+   "plantilla": "Pasame la lista de placas gráficas que hay y qué campos lleva cada una.",
+   "cae_en": "escena_fuentes_ver"
+  },
+  {
+   "herramienta": "imagen_preguntar",
+   "plantilla": "Fijate en {camara} si {persona} está sentada en {banca} o se levantó.",
+   "cae_en": "persona_identificar"
+  },
+  {
+   "herramienta": "imagen_preguntar",
+   "plantilla": "Mirá {camara} y decime si el que habla tiene el micro cerca de la boca o lo tiene lejos.",
+   "cae_en": "persona_identificar"
+  },
+  {
+   "herramienta": "participant_reject",
+   "plantilla": "{persona} que está esperando con nombre raro no entra, rebotalo.",
+   "cae_en": "participant_talk"
+  },
+  {
+   "herramienta": "participant_talk",
+   "plantilla": "Cortá el retorno mío con {persona}, ya le avisé lo que tenía que avisarle.",
+   "cae_en": "scene_switch"
+  },
+  {
+   "herramienta": "preguntas_ver",
+   "plantilla": "¿Cuántas consultas de la audiencia hay acumuladas? Tirame la lista",
+   "cae_en": "publico_chat_leer"
+  },
+  {
+   "herramienta": "recinto_apuntar",
+   "plantilla": "¿Podés ir preparando el tiro sobre {banca}? Todavía no sale",
+   "cae_en": "banca_al_aire"
+  },
+  {
+   "herramienta": "remotos_fila_ver",
+   "plantilla": "Pasame cómo está la lista de los que entran por video, quién está listo y quién no.",
+   "cae_en": "room_status"
+  },
+  {
+   "herramienta": "share_take",
+   "plantilla": "Agarrá {medio} que subió la de protocolo y metelo en la escena que está saliendo.",
+   "cae_en": "medio_poner"
+  },
+  {
+   "herramienta": "source_update",
+   "plantilla": "Escondeme {fuente} que ya terminó de hablar",
+   "cae_en": "source_remove"
+  }
+ ]
+}

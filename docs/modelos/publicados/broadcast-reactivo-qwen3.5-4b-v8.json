@@ -1,0 +1,477 @@
+{
+ "base": "Qwen/Qwen3.5-4B",
+ "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+ "base_licencia": "apache-2.0",
+ "corpus_firma": "353a42f881a5116f",
+ "corpus_ejemplos": 12974,
+ "repo_commit": "4996673d",
+ "arquitectura": {
+  "tipo": "qwen3_5",
+  "pesos_gb": 9.3,
+  "capas": 32,
+  "atencion_lineal": true,
+  "mtp": 1,
+  "vision": true,
+  "modo": "repartir",
+  "extra": []
+ },
+ "entrenamiento": {
+  "modo": "repartir",
+  "adaptador_de": "/home/usuario/entrenamientos/tc-v8/vuelta-0/adaptador",
+  "lote": 8,
+  "lr": 0.0002,
+  "lora_r": 32,
+  "epocas": 2.0
+ },
+ "medidas": {
+  "bf16": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      307,
+      343
+     ],
+     "precision": [
+      235,
+      307
+     ],
+     "derivado": [
+      973,
+      1080
+     ],
+     "acierto": [
+      1208,
+      1423
+     ],
+     "pregunta": [
+      0,
+      343
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     71,
+     75
+    ],
+    "precision": [
+     56,
+     71
+    ],
+    "derivado": [
+     25,
+     30
+    ],
+    "acierto": [
+     81,
+     105
+    ],
+    "pregunta": [
+     0,
+     75
+    ]
+   },
+   "prueba": {
+    "casos": 188,
+    "conteos": {
+     "formato": [
+      188,
+      188
+     ],
+     "herramienta": [
+      173,
+      188
+     ],
+     "args_exactos": [
+      146,
+      164
+     ],
+     "falta_dato": [
+      20,
+      24
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9202127659574468,
+    "args_exactos": 0.8902439024390244,
+    "falta_dato": 0.8333333333333334
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.4213377001972164,
+    "llamadas_en_charla": 0.0
+   }
+  },
+  "mlx-q4": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      110,
+      123
+     ],
+     "precision": [
+      86,
+      110
+     ],
+     "derivado": [
+      340,
+      377
+     ],
+     "acierto": [
+      426,
+      500
+     ],
+     "pregunta": [
+      0,
+      123
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     73,
+     75
+    ],
+    "precision": [
+     58,
+     73
+    ],
+    "derivado": [
+     22,
+     30
+    ],
+    "acierto": [
+     80,
+     105
+    ],
+    "pregunta": [
+     0,
+     75
+    ]
+   },
+   "prueba": {
+    "casos": 188,
+    "conteos": {
+     "formato": [
+      188,
+      188
+     ],
+     "herramienta": [
+      172,
+      188
+     ],
+     "args_exactos": [
+      148,
+      164
+     ],
+     "falta_dato": [
+      18,
+      24
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9148936170212766,
+    "args_exactos": 0.9024390243902439,
+    "falta_dato": 0.75
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.5477207737396986,
+    "llamadas_en_charla": 0.0
+   }
+  },
+  "mlx-q4-fp16": {
+   "banco": {
+    "0": {
+     "cobertura": [
+      110,
+      123
+     ],
+     "precision": [
+      86,
+      110
+     ],
+     "derivado": [
+      340,
+      377
+     ],
+     "acierto": [
+      426,
+      500
+     ],
+     "pregunta": [
+      0,
+      123
+     ]
+    }
+   },
+   "examen": {
+    "cobertura": [
+     73,
+     75
+    ],
+    "precision": [
+     58,
+     73
+    ],
+    "derivado": [
+     22,
+     30
+    ],
+    "acierto": [
+     80,
+     105
+    ],
+    "pregunta": [
+     0,
+     75
+    ]
+   },
+   "prueba": {
+    "casos": 188,
+    "conteos": {
+     "formato": [
+      188,
+      188
+     ],
+     "herramienta": [
+      172,
+      188
+     ],
+     "args_exactos": [
+      148,
+      164
+     ],
+     "falta_dato": [
+      18,
+      24
+     ]
+    },
+    "formato": 1.0,
+    "herramienta": 0.9148936170212766,
+    "args_exactos": 0.9024390243902439,
+    "falta_dato": 0.75
+   },
+   "charla": {
+    "casos": 300,
+    "nll_por_token": 0.5475258524368136,
+    "llamadas_en_charla": 0.0
+   }
+  }
+ },
+ "mtp": {
+  "pasos_mtp": 3,
+  "antes": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.076398879382146,
+    "por_paso": [
+     0.8352388884682366,
+     0.8369126887367533,
+     0.8703962703962704
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.2823559473616968,
+    "por_paso": [
+     0.6837868915293216,
+     0.5796907806833365,
+     0.5632262474367737
+    ]
+   }
+  },
+  "despues": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.2270008328916484,
+    "por_paso": [
+     0.8634814870901795,
+     0.8744333635539437,
+     0.9002152852529601
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.698607384694008,
+    "por_paso": [
+     0.7688769643541586,
+     0.7271956595456087,
+     0.7153459420636821
+    ]
+   }
+  },
+  "pasos": 3234,
+  "paso_elegido": 3100,
+  "despues_q8": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.228212311652911,
+    "por_paso": [
+     0.8641629438933899,
+     0.8739922094392608,
+     0.9003551059937588
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.6963076529960393,
+    "por_paso": [
+     0.7674715727609557,
+     0.7275352471547477,
+     0.7161352193718533
+    ]
+   }
+  },
+  "despues_q4": {
+   "nombres": {
+    "aceptados_por_ciclo": 2.22192776557886,
+    "por_paso": [
+     0.8632543348224426,
+     0.8709414112098676,
+     0.9020222774954039
+    ]
+   },
+   "texto": {
+    "aceptados_por_ciclo": 1.689919509390571,
+    "por_paso": [
+     0.7659384182956432,
+     0.7266382978723405,
+     0.7126022126022126
+    ]
+   }
+  },
+  "aceptacion_antes": 0.8352388884682366,
+  "aceptacion_despues": 0.8634814870901795,
+  "texto_respuestas": 2280
+ },
+ "perfil": {
+  "nombre": "vivo6",
+  "categorias": [
+   "audio",
+   "escenas",
+   "fuentes",
+   "sala",
+   "oradores",
+   "imagenes",
+   "estado",
+   "salidas",
+   "graficos",
+   "laminas"
+  ],
+  "entradas": [
+   "pedidos"
+  ],
+  "herramientas": [
+   "aire_ftb",
+   "aire_placa",
+   "audio_escuchar",
+   "audio_measure",
+   "audio_set",
+   "audio_sincro",
+   "banca_al_aire",
+   "banca_cola",
+   "banca_tiempo",
+   "carrusel_laminas_ver",
+   "carruseles_listar",
+   "chat_a_preguntas",
+   "chat_destacar",
+   "chat_quitar_destacado",
+   "chat_send",
+   "compartida_revisar",
+   "crear_fuente",
+   "debate_estado",
+   "debate_iniciar",
+   "debate_terminar",
+   "debate_turno",
+   "documento_abrir",
+   "documentos_listar",
+   "dsk_capas_ver",
+   "dsk_mostrar",
+   "escena_fuentes_ver",
+   "evento_correr",
+   "foto_fuente",
+   "foto_invitado",
+   "foto_programa",
+   "foto_todas_escenas",
+   "foto_todos_invitados",
+   "grafico_en_escena",
+   "grafico_listar",
+   "grafico_mostrar",
+   "grafico_ocultar",
+   "guest_source_add",
+   "imagen_preguntar",
+   "invitados_chat_leer",
+   "laminas_buscar",
+   "laminas_ir",
+   "medio_poner",
+   "mixer_list",
+   "orden_del_dia_punto",
+   "orden_del_dia_ver",
+   "pantalla_mostrar",
+   "pantalla_parar",
+   "participant_admit",
+   "participant_admit_all",
+   "participant_kick",
+   "participant_reject",
+   "participant_request",
+   "participant_requeue",
+   "participant_talk",
+   "pdf_escena_poner",
+   "pdf_escena_ver",
+   "persona_identificar",
+   "pregunta_moderar",
+   "preguntas_ver",
+   "presidencia_callar_todos",
+   "preview_al_aire",
+   "prompter_cargar",
+   "prompter_control",
+   "prompter_estado",
+   "ptz_caras_ubicar",
+   "ptz_encuadre",
+   "ptz_foco",
+   "ptz_inicio",
+   "ptz_ir_posicion",
+   "ptz_mover",
+   "ptz_parar",
+   "ptz_posicion_crear",
+   "ptz_posiciones",
+   "ptz_preset",
+   "ptz_seguir",
+   "publico_chat_leer",
+   "quorum_presentes",
+   "receta_correr",
+   "recinto_apuntar",
+   "recinto_bancas_ver",
+   "recinto_orador_terminar",
+   "record_start",
+   "record_stop",
+   "remotos_fila_ver",
+   "room_link",
+   "room_set",
+   "room_status",
+   "rotulo_desvincular",
+   "rotulo_vincular",
+   "scene_list",
+   "scene_preview",
+   "scene_switch",
+   "share_list",
+   "share_take",
+   "source_remove",
+   "source_update",
+   "speaker_move",
+   "speaker_next",
+   "speaker_on_air",
+   "speaker_presenter",
+   "speaker_queue",
+   "speaker_time",
+   "status",
+   "stream_start",
+   "stream_stop",
+   "transition_set",
+   "votacion_abrir",
+   "votacion_recuento"
+  ],
+  "prompt": "51559fd7c42f585f",
+  "etiquetas": null,
+  "formato": "tc"
+ },
+ "repos": [
+  "broadcast-reactivo-qwen3.5-4b-v8-mlx-q4",
+  "broadcast-reactivo-qwen3.5-4b-v8-GGUF"
+ ]
+}

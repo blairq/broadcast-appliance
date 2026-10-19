@@ -12,10 +12,12 @@
 set -u
 W="${1:?uso: tc-parar.sh <carpeta del trabajo>}"
 W="${W%/}"
-[ -f "$W/bucle.pid" ] || { echo "no hay $W/bucle.pid: ¿esta corriendo ahi?"; exit 1; }
-PID=$(cat "$W/bucle.pid")
+# el bucle (tc-bucle.py) deja bucle.pid; el ciclo de bancos (tc-ciclo.py), ciclo.pid
+PIDF="$W/bucle.pid"; [ -f "$PIDF" ] || PIDF="$W/ciclo.pid"
+[ -f "$PIDF" ] || { echo "no hay $W/bucle.pid ni $W/ciclo.pid: ¿esta corriendo ahi?"; exit 1; }
+PID=$(cat "$PIDF")
 if ! kill -0 "$PID" 2>/dev/null; then
-    echo "el bucle ($PID) ya no corre"
+    echo "el proceso ($PID) ya no corre"
     exit 0
 fi
 touch "$W/PARAR"
@@ -38,4 +40,7 @@ else
 fi
 for _ in $(seq 1 30); do kill -0 "$PID" 2>/dev/null || break; sleep 1; done
 kill -0 "$PID" 2>/dev/null && { [ "$PGID" = "$PID" ] && kill -KILL -- "-$PGID" || kill -KILL "$PID"; }
-echo "parado. Para seguir: tools/entrenar/tc-bucle.py --trabajo $W --retomar"
+case "$PIDF" in
+    *ciclo.pid) echo "parado. Para seguir: el mismo comando de tc-ciclo.py (retoma solo)" ;;
+    *) echo "parado. Para seguir: tools/entrenar/tc-bucle.py --trabajo $W --retomar" ;;
+esac

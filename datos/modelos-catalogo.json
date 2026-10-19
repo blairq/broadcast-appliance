@@ -2,68 +2,6 @@
  "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face. Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los que existen y son publicos. Los de voz (tipo voz/vad) son de terceros: fijados por commit o por URL y sha256, se agregan a mano. Los de traducción (tipo traduccion) son paquetes de Argos Translate (OPUS-MT), por URL y sha256: los usa agent/Traductor.",
  "modelos": [
   {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-mlx-q4",
-   "revision": "9d6735987c36c0532778ad4f9d926aafc5242204",
-   "formato": "mlx",
-   "plataformas": [
-    "mac-arm64"
-   ],
-   "archivo": null,
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "3f9122d8064004c5",
-   "tamano_gb": 3.43,
-   "precision": 91.4,
-   "derivado": 87.5,
-   "examen": 64.8,
-   "fecha": "2026-10-03"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-GGUF",
-   "revision": "20fb8f4a4aad6176eb46d5afc149775f7ed1a8e7",
-   "formato": "gguf",
-   "plataformas": [
-    "linux-x64",
-    "win-x64"
-   ],
-   "archivo": "broadcast-reactivo-qwen3.5-4b-v3-Q4_K_M.gguf",
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "3f9122d8064004c5",
-   "tamano_gb": 2.78,
-   "precision": 92.7,
-   "derivado": 87.9,
-   "examen": 65.7,
-   "fecha": "2026-10-03"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v4-mlx-q4",
-   "revision": "",
-   "formato": "mlx",
-   "plataformas": [
-    "mac-arm64"
-   ],
-   "archivo": null,
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "nota": "todavía sin publicar: la app no lo muestra hasta que exista en Hugging Face; fabricar-modelo.py completa revision y métricas al subir"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v4-GGUF",
-   "revision": "",
-   "formato": "gguf",
-   "plataformas": [
-    "linux-x64",
-    "win-x64"
-   ],
-   "archivo": "broadcast-reactivo-qwen3.5-4b-v4-Q4_K_M.gguf",
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "nota": "todavía sin publicar: la app no lo muestra hasta que exista en Hugging Face; fabricar-modelo.py completa revision y métricas al subir"
-  },
-  {
    "repo": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
    "tipo": "voz",
    "formato": "onnx",
@@ -720,6 +658,49 @@
    "licencia": "apache-2.0",
    "tamano_gb": 5.04,
    "fecha": "2026-10-11"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v8-mlx-q4",
+   "formato": "mlx",
+   "revision": "ccc1a14943e2034b34d5346662b9cec09c242cfa",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "vivo6",
+   "herramientas": 108,
+   "prompt": "51559fd7c42f585f",
+   "tamano_gb": 3.19,
+   "precision": 78.2,
+   "derivado": 90.2,
+   "examen": 76.2,
+   "fecha": "2026-10-18",
+   "version": "8",
+   "formato_llamada": "qwen3.5-tool-call-xml",
+   "manifiesto": "modelo.json"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v8-GGUF",
+   "formato": "gguf",
+   "revision": "8ba980b1f530768177dea5204828af2247820c88",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-v8-Q4_K_M.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "vivo6",
+   "herramientas": 108,
+   "prompt": "51559fd7c42f585f",
+   "tamano_gb": 2.59,
+   "precision": 76.5,
+   "derivado": 90.1,
+   "examen": 77.1,
+   "fecha": "2026-10-18",
+   "version": "8",
+   "formato_llamada": "qwen3.5-tool-call-xml",
+   "manifiesto": "modelo.json"
   }
  ]
 }

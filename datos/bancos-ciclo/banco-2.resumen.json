@@ -1,0 +1,21 @@
+{
+ "numero": 2,
+ "estilo": "el productor o director del evento: no tocás los equipos, pedís por el resultado («que se vea...», «que no se escuche...»), de forma indirecta y a veces explicando el motivo.",
+ "casos": 384,
+ "propias": 282,
+ "derivar": 102,
+ "herramientas_sin_frases": [
+  "grafico_ocultar",
+  "speaker_on_air",
+  "speaker_time"
+ ],
+ "escritas": 468,
+ "descartadas": {
+  "vacia o repetida": 1,
+  "parecida al banco final, examen, corpus u otro intermedio": 40,
+  "el revisor eligio otra": 30,
+  "ambigua para el revisor": 13
+ },
+ "costo_usd": 4.42,
+ "perfil": "51559fd7c42f585f"
+}

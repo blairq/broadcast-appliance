@@ -10,6 +10,7 @@ pregunta si falta un dato y deriva al asistente grande lo que no es suyo.
 |---|---|---|
 | **entrenar hoy** (scripts, datos, perfil, medidas, recetas, resultados) | [bucle-tool-calling.md](bucle-tool-calling.md) | vigente (17/10/2026) |
 | el método y las decisiones de fondo (las dos placas, FSDP2, prefijo compartido, exportar, qué entrenar y por qué) | [entrenamiento-avanzado.md](entrenamiento-avanzado.md) | vigente |
+| **el ciclo de bancos**: aprender de los errores en frases de operador (bancos intermedios, aprendidas, pasos) | [ciclo-de-bancos.md](ciclo-de-bancos.md) | nuevo (18/10/2026); el ciclo todavía no corrió |
 | la geometría (CDNV) para curar el corpus y la metodología de datos apartados | [bucle-corpus.md](bucle-corpus.md) | el método sigue (tc-geometria); los números son del formato de solo nombres |
 | cómo se definió la tarea y lo que se midió al principio | [modelo-local.md](modelo-local.md) | historia: formato de solo nombres (73–84 herramientas) |
 | lo dictado: de la voz a la acción, con el aparato andando | [voz-modelo-local.md](voz-modelo-local.md) | el camino de la app; las medidas son de la v5 |

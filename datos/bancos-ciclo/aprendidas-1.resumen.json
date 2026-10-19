@@ -1,0 +1,31 @@
+{
+ "banco": 1,
+ "errores": 79,
+ "cdnv_antes": {
+  "cdnv_mediana": 0.0059,
+  "cdnv_peor": 0.2973,
+  "pares_sobre_objetivo": 311,
+  "pares_medidos": 5886,
+  "dim_mediana": 2.85,
+  "fuera_de_su_grupo": 214
+ },
+ "cdnv_despues": {
+  "cdnv_mediana": 0.0065,
+  "cdnv_peor": 0.3235,
+  "pares_sobre_objetivo": 359,
+  "pares_medidos": 5886,
+  "dim_mediana": 2.85,
+  "fuera_de_su_grupo": 235
+ },
+ "empujadas": 3,
+ "con_eje": 59,
+ "variaciones": 0,
+ "descentrado_mediana": null,
+ "descartes": {
+  "el eje no valida": 20,
+  "variacion parecida al banco final, examen o un intermedio futuro": 13,
+  "variacion lejos del eje o hacia la confusion": 222,
+  "sin variaciones centradas (queda solo el eje)": 59
+ },
+ "costo_usd": 2.44
+}

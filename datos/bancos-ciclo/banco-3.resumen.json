@@ -1,0 +1,19 @@
+{
+ "numero": 3,
+ "estilo": "alguien nuevo en la cabina, que viene de una radio o un canal chico: hablás coloquial, preguntás mucho, describís las cosas en vez de nombrarlas y a veces usás mal una palabra técnica.",
+ "casos": 357,
+ "propias": 261,
+ "derivar": 96,
+ "herramientas_sin_frases": [
+  "grafico_ocultar",
+  "speaker_time"
+ ],
+ "escritas": 468,
+ "descartadas": {
+  "parecida al banco final, examen, corpus u otro intermedio": 61,
+  "el revisor eligio otra": 39,
+  "ambigua para el revisor": 11
+ },
+ "costo_usd": 4.39,
+ "perfil": "51559fd7c42f585f"
+}

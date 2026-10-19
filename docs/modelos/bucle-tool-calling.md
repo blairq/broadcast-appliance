@@ -287,6 +287,12 @@ Cuando lo nuevo queda afinado, se suma a `tc-congeladas.json` y se saca otra fot
 | `tc-parejo.py` | cada herramienta entre `--min` y `--max` frases (20–25), todas distintas |
 | `tc-contraste.py` | frases que separan a las vecinas que el modelo confunde, sin salir de 18–25 |
 | `tc-geometria.py` | el diagnóstico CDNV (`--json`), la poda y los filtros |
+| `tc-capas.py` | las nubes en las 33 salidas (embeddings + 32 capas) para el corpus (las anotaciones) y el banco, con el estado de la evaluación: en qué capa se separa cada herramienta y si las erradas tuvieron la correcta y la perdieron. v8 vuelta 0: la decisión se arma de golpe en las capas 18–20; las nubes del corpus se achican hasta el final (CDNV 0,29 → 0,056) y el banco queda a 2,7 radios de su nube (memoriza más de lo que generaliza) |
+| `capas-guardar.py` | guarda un análisis de `tc-capas` versionado en `~/entrenamientos/analisis/` (o `BA_ANALISIS`): el corpus (sin perder nada, el prompt común una vez: 704 MB → 5 MB), las anotaciones, el banco, los parámetros de entrenamiento (`parametros.json`, que `entrenar-rapido` escribe desde el 17/10/2026) y las medidas. Corpus y banco van una vez por versión (por su huella). Si falta el análisis, lo mide |
+| `capas-web.py` | el visor (http://127.0.0.1:8770): la pila de capas en 3D (three.js), los hilos por herramienta con su nube y su CDNV, la ficha de cada análisis, las versiones, y las frases de corpus, anotaciones y banco de cada hilo |
+| `tc-banco-escribir.py` | escribe un banco intermedio del ciclo de bancos (`datos/bancos-ciclo/banco-N.jsonl`, N = 1..3): pedidos de operador de cero, con agentes y una voz distinta por banco, un revisor ciego y afuera lo parecido al banco final, al examen, al corpus y a los otros bancos. Ver [ciclo-de-bancos.md](ciclo-de-bancos.md) |
+| `tc-aprendidas.py` | lo que el modelo erró en un banco intermedio, hecho corpus: la frase tal cual (el eje) y variaciones elegidas para que el eje quede en el centro de su nube, filtradas por el CDNV contra todo el corpus acumulado (`datos/tc-aprendidas.json`, `datos/bancos-ciclo/cdnv-N.json`). `tc-corpus.py --aprendidas` las suma. Ver [ciclo-de-bancos.md](ciclo-de-bancos.md) |
+| `tc-ciclo.py` | el ciclo de bancos: por paso, corpus 0 + aprendidas → entrenar desde la base → medir con el banco final entero, el examen y el banco intermedio → guardar el análisis → aprender. Se retoma solo; `touch <trabajo>/PARAR` para pausar. Ver [ciclo-de-bancos.md](ciclo-de-bancos.md) |
 | `tc-fuera.py` | las frases que caen en el grupo de otra herramienta: quedan, se mueven, se reescriben diciendo lo que las separa, o salen (de dos parecidas, una sola). Con `--juez`, antes del agente, un juez ciego (no sabe a cuál está asignada) elige entre las dos; las que confirma quedan sin más. El 17/10/2026, en dos pasadas: 363 → 233 → 214 (14,7 % → 9,5 % → 8,7 %), pares sobre el objetivo 813 → 340 → 311, CDNV mediana 0,0108 → 0,0059. De las 214 que quedan, 196 las confirmó el juez (la confusión es del modelo base, que agrupa por palabras de contexto) y 24 son de `derivar`, parecidas a propósito. Seguir bajando sería escribir para el instrumento y no para el operador. Los cambios en `datos/tc-fuera-cambios.json` (`pasada_1`, `pasada_2_juez`) |
 | `ste_es.py` | el diccionario STE-ES y el verificador de frases |
 | `tc-charla.py` | la charla general (respuestas del Qwen base) |
@@ -352,6 +358,11 @@ prefijo: es para probar, no para entrenar en serio.
 # lanzar un bucle (deja <trabajo>/bucle.pid y bucle.log)
 BA_PERFIL=vivo6 nohup .venv-entrenar/bin/python tools/entrenar/tc-bucle.py \
     --trabajo ~/entrenamientos/tc-v7 --vueltas 3 > ~/entrenamientos/tc-v7/bucle.log 2>&1 &
+
+# analizar las capas de un adaptador y verlo (mide en la placa 0: con el bucle andando, pararlo antes)
+BA_PERFIL=vivo6 .venv-entrenar/bin/python tools/entrenar/capas-guardar.py \
+    --modelo ~/entrenamientos/tc-v8/vuelta-1/adaptador --grupo v8 --nombre "v8 vuelta 1"
+.venv-entrenar/bin/python tools/entrenar/capas-web.py   # http://127.0.0.1:8770
 
 # pararlo sin perder nada (las placas guardan estado en ~30 s)
 tools/entrenar/tc-parar.sh ~/entrenamientos/tc-v7

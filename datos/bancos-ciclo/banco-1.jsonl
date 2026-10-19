@@ -1,0 +1,392 @@
+{"frase": "Fundí la salida a negro al cierre, sin tocarme las escenas.", "herramienta": "aire_ftb", "banco": 1}
+{"frase": "¡Negro ya, todo afuera, que se coló una puteada!", "herramienta": "aire_ftb", "banco": 1}
+{"frase": "¿Podés tapar el programa con negro un toque mientras acomodan la mesa?", "herramienta": "aire_ftb", "banco": 1}
+{"frase": "Mandá una placa de cuarto intermedio, se levantan todos", "herramienta": "aire_placa", "banco": 1}
+{"frase": "Poné 'Volvemos enseguida' encima de todo con el escudo del concejo", "herramienta": "aire_placa", "banco": 1}
+{"frase": "Van a hacer un minuto de silencio, tapá con un cartel que lo diga", "herramienta": "aire_placa", "banco": 1}
+{"frase": "Dale, mandame al monitor la música de la PC 2, no la estoy oyendo", "herramienta": "audio_escuchar", "banco": 1}
+{"frase": "Pasame el micro de Juan a mis auriculares que quiero ver si sigue el zumbido", "herramienta": "audio_escuchar", "banco": 1}
+{"frase": "¿Podés ponerme en el retorno la línea del invitado remoto? Quiero chequear cómo entra antes de salir", "herramienta": "audio_escuchar", "banco": 1}
+{"frase": "El que está hablando no se escucha nada, ¿me medís cómo están entrando los niveles ahora?", "herramienta": "audio_measure", "banco": 1}
+{"frase": "Hay un zumbido de fondo hace un rato, revisame el sonido en este momento a ver de dónde sale.", "herramienta": "audio_measure", "banco": 1}
+{"frase": "¡Está acoplando! Fijate qué pasa con el audio ya.", "herramienta": "audio_measure", "banco": 1}
+{"frase": "La música de fondo está muy arriba, bajala un toque", "herramienta": "audio_set", "banco": 1}
+{"frase": "Mutealo al micro de Juan que está tosiendo en el aire", "herramienta": "audio_set", "banco": 1}
+{"frase": "No se escucha nada al que está remoto, ¿le subís el volumen?", "herramienta": "audio_set", "banco": 1}
+{"frase": "El audio de la cámara 2 va adelantado, se ve el labio después. Atrasalo unos 80 milisegundos.", "herramienta": "audio_sincro", "banco": 1}
+{"frase": "El micro de Juan no coincide con la imagen, ¿le metés delay para que quede en sincro?", "herramienta": "audio_sincro", "banco": 1}
+{"frase": "La videollamada llega con el sonido corrido respecto al video, emparejalo.", "herramienta": "audio_sincro", "banco": 1}
+{"frase": "Necesito que vaya al aire la banca de la Fernández, cámara a su lugar y escena arriba", "herramienta": "banca_al_aire", "banco": 1}
+{"frase": "Pidió la palabra el concejal de la banca 7, ¿me lo sacás al aire con su plano?", "herramienta": "banca_al_aire", "banco": 1}
+{"frase": "Poneme al aire la banca de Gómez, rápido que ya arranca", "herramienta": "banca_al_aire", "banco": 1}
+{"frase": "Sacá la banca 7 de la cola, ya no quiere hablar.", "herramienta": "banca_cola", "banco": 1}
+{"frase": "Pasame el orden de las placas del carrusel Votación, con número y título, que no me acuerdo cuál sigue.", "herramienta": "carrusel_laminas_ver", "banco": 1}
+{"frase": "¿Qué láminas tiene el carrusel de la apertura y en cuál estamos parados?", "herramienta": "carrusel_laminas_ver", "banco": 1}
+{"frase": "Antes del acto quiero ver qué presentaciones hay cargadas en la biblioteca, por arriba nomás.", "herramienta": "carruseles_listar", "banco": 1}
+{"frase": "Decime cuál carrusel está abierto ahora y cuántas placas trae cada uno de la biblioteca.", "herramienta": "carruseles_listar", "banco": 1}
+{"frase": "¿Qué carruseles tengo armados? No me abras las láminas, solo la lista.", "herramienta": "carruseles_listar", "banco": 1}
+{"frase": "El último del chat está bueno, metelo en la lista para que lo lea el moderador", "herramienta": "chat_a_preguntas", "banco": 1}
+{"frase": "Ese mensaje del chat que pregunta por el presupuesto, pasalo a la cola de preguntas", "herramienta": "chat_a_preguntas", "banco": 1}
+{"frase": "¿Me subís a preguntas el comentario de la vecina de Villa Real que acaba de entrar en el chat?", "herramienta": "chat_a_preguntas", "banco": 1}
+{"frase": "Dale, marcá como destacado el último que escribió el público, el del saludo al intendente.", "herramienta": "chat_destacar", "banco": 1}
+{"frase": "Ese comentario de la vecina de Barrio Norte, subilo destacado en pantalla.", "herramienta": "chat_destacar", "banco": 1}
+{"frase": "Necesito que el mensaje que preguntó por el presupuesto salga resaltado en el overlay del chat.", "herramienta": "chat_destacar", "banco": 1}
+{"frase": "Bajame del destacado el comentario ese del vecino, ya está.", "herramienta": "chat_quitar_destacado", "banco": 1}
+{"frase": "Limpiá todos los mensajes fijados del chat que arrancamos el cuarto intermedio.", "herramienta": "chat_quitar_destacado", "banco": 1}
+{"frase": "¿Me sacás el de la señora que quedó resaltado en pantalla? Ya lo leyeron.", "herramienta": "chat_quitar_destacado", "banco": 1}
+{"frase": "Escribile a Juan por privado que tiene el micro abierto y se escucha todo.", "herramienta": "chat_send", "banco": 1}
+{"frase": "Mandale a todos por chat que en cinco minutos volvemos del cuarto intermedio.", "herramienta": "chat_send", "banco": 1}
+{"frase": "¿Podés avisarle a la sala por mensaje que se cortó la transmisión y ya la retomamos?", "herramienta": "chat_send", "banco": 1}
+{"frase": "Dejame ver el gráfico que compartió el secretario, no sea cosa que salga cualquier cosa.", "herramienta": "compartida_revisar", "banco": 1}
+{"frase": "El invitado mandó una foto, mostrámela antes de que la pongamos al aire.", "herramienta": "compartida_revisar", "banco": 1}
+{"frase": "¿Qué es esa imagen que subió la vecina por la llamada? Quiero chequearla primero.", "herramienta": "compartida_revisar", "banco": 1}
+{"frase": "Armame un fondo de color negro en la escena de cortina, nuevo, que no hay", "herramienta": "crear_fuente", "banco": 1}
+{"frase": "Meteme un zócalo nuevo en la escena Mesa que diga 'Sesión ordinaria'", "herramienta": "crear_fuente", "banco": 1}
+{"frase": "¿Podés agregar la cámara 3 como fuente en la escena Plano general? No está", "herramienta": "crear_fuente", "banco": 1}
+{"frase": "El del lado B del debate, ¿por qué canal entra?", "herramienta": "debate_estado", "banco": 1}
+{"frase": "Fijate si el cara a cara es los dos en sala o uno está conectado de afuera", "herramienta": "debate_estado", "banco": 1}
+{"frase": "¿Quiénes están enfrentados ahora en el debate?", "herramienta": "debate_estado", "banco": 1}
+{"frase": "Armame el mano a mano entre Gómez y la concejala Ríos", "herramienta": "debate_iniciar", "banco": 1}
+{"frase": "Necesito que abras un cruce entre los dos remotos, Pérez y Salvatierra", "herramienta": "debate_iniciar", "banco": 1}
+{"frase": "Van a discutir la banca 3 con el que está conectado por Zoom, poneme el debate", "herramienta": "debate_iniciar", "banco": 1}
+{"frase": "Fin del contrapunto entre Gómez y la de Zoom, apagá todo eso y dejame la central limpia.", "herramienta": "debate_terminar", "banco": 1}
+{"frase": "Listo, se terminó el cara a cara, cerrá a los dos y volvé la central a como estaba.", "herramienta": "debate_terminar", "banco": 1}
+{"frase": "Necesito que des por cerrado el debate, sacale la palabra también al que está conectado de afuera.", "herramienta": "debate_terminar", "banco": 1}
+{"frase": "Ahora van cruzados, ¿podés habilitar a los dos debatientes a la vez?", "herramienta": "debate_turno", "banco": 1}
+{"frase": "Cortá los dos micros del debate, que nadie tenga turno que vamos a pausa", "herramienta": "debate_turno", "banco": 1}
+{"frase": "Dale la palabra al candidato A", "herramienta": "debate_turno", "banco": 1}
+{"frase": "Abrime el medidor de loudness en la entrada del micro de Juan", "herramienta": "derivar", "banco": 1}
+{"frase": "Abrime el vectorscopio que la cámara 2 la veo medio verde.", "herramienta": "derivar", "banco": 1}
+{"frase": "Acomodame las ventanas en los tres monitores que quedó todo encimado.", "herramienta": "derivar", "banco": 1}
+{"frase": "Agregá Salvatierra al diccionario del subtitulado, que lo escribe mal", "herramienta": "derivar", "banco": 1}
+{"frase": "Agregá un bloque nuevo en el guion para el cuarto intermedio.", "herramienta": "derivar", "banco": 1}
+{"frase": "Armame el informe de cómo salió la transmisión de hoy, con la audiencia y todo.", "herramienta": "derivar", "banco": 1}
+{"frase": "Armame la cadena de tarjetas para la entrada de la cámara 3 de una.", "herramienta": "derivar", "banco": 1}
+{"frase": "Armame las bancas del recinto, que cambiaron de lugar dos concejales.", "herramienta": "derivar", "banco": 1}
+{"frase": "Armame un plugin que ponga el nombre del orador abajo automático", "herramienta": "derivar", "banco": 1}
+{"frase": "Armame una escena nueva en blanco que se llame 'Intervalo'", "herramienta": "derivar", "banco": 1}
+{"frase": "Armame una receta nueva que haga zoom a la cámara 1 y después cambie a Mesa, guardala para después.", "herramienta": "derivar", "banco": 1}
+{"frase": "Borrame la página tres de la botonera, que esos botones ya no van.", "herramienta": "derivar", "banco": 1}
+{"frase": "Borrá el evento de la sesión de prueba del martes, no sirve.", "herramienta": "derivar", "banco": 1}
+{"frase": "Borrá el plugin de superresolución que instalamos, está comiendo GPU", "herramienta": "derivar", "banco": 1}
+{"frase": "Borrá la receta de la sesión ordinaria, esa ya no la usamos.", "herramienta": "derivar", "banco": 1}
+{"frase": "Borrá ya los subtítulos de pantalla, que salieron cualquier cosa", "herramienta": "derivar", "banco": 1}
+{"frase": "Cambiale el nombre a la escena Mesa, ponele Mesa Directiva.", "herramienta": "derivar", "banco": 1}
+{"frase": "Cambiale el nombre a la pantalla del fondo, ponele Pantalla Recinto.", "herramienta": "derivar", "banco": 1}
+{"frase": "Cambiale el nombre a la página de la botonera, ponele Concejo", "herramienta": "derivar", "banco": 1}
+{"frase": "Cambiale el título al video de ayer en Facebook, que salió con la fecha mal", "herramienta": "derivar", "banco": 1}
+{"frase": "Cambiame la resolución de salida del stream a 1080p60", "herramienta": "derivar", "banco": 1}
+{"frase": "Cambiame la resolución de salida del streaming a 1080p.", "herramienta": "derivar", "banco": 1}
+{"frase": "Che, ¿a qué hora es el partido hoy? Para saber si cortamos antes.", "herramienta": "derivar", "banco": 1}
+{"frase": "Che, ¿sabés si alguien trajo pilas AA para los inalámbricos?", "herramienta": "derivar", "banco": 1}
+{"frase": "Configurame los presets y la velocidad del PTZ de la cámara 2.", "herramienta": "derivar", "banco": 1}
+{"frase": "Creame una entrada de barras de color para probar la salida.", "herramienta": "derivar", "banco": 1}
+{"frase": "Creame una escena nueva que se llame Votación con la cámara 2 y el zócalo.", "herramienta": "derivar", "banco": 1}
+{"frase": "Decile al de prensa que prepare el resumen de la sesión", "herramienta": "derivar", "banco": 1}
+{"frase": "Dejá configurado que el programa arranque solo cuando prendo la máquina a la mañana", "herramienta": "derivar", "banco": 1}
+{"frase": "Dejá una marca acá en el log, que justo arrancó la votación.", "herramienta": "derivar", "banco": 1}
+{"frase": "Desconectame la cuenta de Twitch, que la vamos a cambiar.", "herramienta": "derivar", "banco": 1}
+{"frase": "Desenchufá la cámara 3 del mezclador en el grafo, que tiene ruido", "herramienta": "derivar", "banco": 1}
+{"frase": "El invitado del chat pregunta a qué hora vuelve el cuarto intermedio, ¿qué le contesto?", "herramienta": "derivar", "banco": 1}
+{"frase": "El invitado por Zoom no escucha al presidente, armale el retorno.", "herramienta": "derivar", "banco": 1}
+{"frase": "Está saturando el micro del presidente, ponele un limitador al master.", "herramienta": "derivar", "banco": 1}
+{"frase": "Exportame el plugin de la votación que lo quiero llevar al aparato del salón auditorio", "herramienta": "derivar", "banco": 1}
+{"frase": "Fijate la forma de onda, me parece que la cámara 1 está quemada.", "herramienta": "derivar", "banco": 1}
+{"frase": "Fijate qué permisos tiene el control del sistema, que no me deja tocar nada.", "herramienta": "derivar", "banco": 1}
+{"frase": "Fijate si hay alguna cámara nueva conectada a la red, enchufaron una PTZ recién.", "herramienta": "derivar", "banco": 1}
+{"frase": "Fijate si los módulos del rack de audio están todos vivos, que uno parpadeaba.", "herramienta": "derivar", "banco": 1}
+{"frase": "Fijate si los videos que bajamos ayer tienen actualización.", "herramienta": "derivar", "banco": 1}
+{"frase": "Hacé la transición a la cámara 2 a mano, lenta, con la palanca.", "herramienta": "derivar", "banco": 1}
+{"frase": "Hacé que cuando diga 'corte' se ejecute solo, sin preguntarme.", "herramienta": "derivar", "banco": 1}
+{"frase": "Hacé que el audio de cada micro se abra solo cuando corto a su cámara", "herramienta": "derivar", "banco": 1}
+{"frase": "Instalá la superresolución esa del catálogo para la cámara 2", "herramienta": "derivar", "banco": 1}
+{"frase": "La cámara nueva que enchufamos a la red, ¿qué IP tiene y cómo la conecto?", "herramienta": "derivar", "banco": 1}
+{"frase": "Listame los equipos que encontró en la red, quiero ver si aparece la cámara nueva.", "herramienta": "derivar", "banco": 1}
+{"frase": "Mandale un mensaje al público en el chat de YouTube que ya empezamos.", "herramienta": "derivar", "banco": 1}
+{"frase": "Mandá un mensaje en el chat de YouTube avisando que arrancamos en cinco.", "herramienta": "derivar", "banco": 1}
+{"frase": "Me mandaron una pregunta por WhatsApp para el concejal, metela en la cola.", "herramienta": "derivar", "banco": 1}
+{"frase": "Me tira error el pipeline, fijate qué plugin de GStreamer me falta instalar.", "herramienta": "derivar", "banco": 1}
+{"frase": "Medime el parlante del fondo de la sala, tirá un barrido desde la última fila.", "herramienta": "derivar", "banco": 1}
+{"frase": "Necesito el usuario y la clave del concejal Ramírez que no puede entrar.", "herramienta": "derivar", "banco": 1}
+{"frase": "Pasale el link y el PIN a la concejala Gómez, que no puede entrar a la sesión.", "herramienta": "derivar", "banco": 1}
+{"frase": "Pasame el link de la consola de presidencia para que el presidente maneje la sesión.", "herramienta": "derivar", "banco": 1}
+{"frase": "Pedile al de sonido que suba el micro de Juan en la consola.", "herramienta": "derivar", "banco": 1}
+{"frase": "Pedí un café a la cantina que esto va para largo.", "herramienta": "derivar", "banco": 1}
+{"frase": "Pegame las cámaras 1, 2 y 3 en una sola panorámica del recinto", "herramienta": "derivar", "banco": 1}
+{"frase": "Ponele una mano al ajuste de la cámara 1 en el panel de configuración, el balance de blancos está corrido.", "herramienta": "derivar", "banco": 1}
+{"frase": "Poné la foto del intendente en el botón 3 de la botonera.", "herramienta": "derivar", "banco": 1}
+{"frase": "Preguntale al operador de piso si arrancamos ya o esperamos al presidente.", "herramienta": "derivar", "banco": 1}
+{"frase": "Probá el modelo local con «corta a la dos» a ver qué entiende", "herramienta": "derivar", "banco": 1}
+{"frase": "Quitá el módulo de compresor del micro de la presidencia, está metiendo ruido.", "herramienta": "derivar", "banco": 1}
+{"frase": "Rotame el token del MCP que creo que se filtró.", "herramienta": "derivar", "banco": 1}
+{"frase": "Sacame la página de micrófonos a una ventana aparte, que la quiero en el otro monitor", "herramienta": "derivar", "banco": 1}
+{"frase": "Sacame una captura de la interfaz del programa, de las ventanas, no de lo que sale al aire.", "herramienta": "derivar", "banco": 1}
+{"frase": "Sacá a Ramírez del cuerpo, renunció a la banca la semana pasada.", "herramienta": "derivar", "banco": 1}
+{"frase": "Sacá la tablet del operador de sonido del control web, ya no la usa.", "herramienta": "derivar", "banco": 1}
+{"frase": "Se colgó el plugin de los zócalos, reinicialo.", "herramienta": "derivar", "banco": 1}
+{"frase": "Subile el volumen a los auriculares de cabina, que no escucho nada.", "herramienta": "derivar", "banco": 1}
+{"frase": "Subí el PDF del orden del día nuevo que me mandaron", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora arranca el partido de hoy? Che, y pedí unos cafés para la cabina.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora arranca la sesión del jueves?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora arranca la sesión ordinaria del jueves?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora es la sesión del jueves que viene?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora termina la sesión de hoy más o menos?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora termina la sesión de hoy según el orden del día?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora termina la sesión del concejo hoy?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora termina la sesión hoy?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora termina la sesión hoy? Tengo que avisar al móvil.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿A qué hora termina la sesión según el orden del día?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cuál es la diferencia entre bitrate constante y variable para streamear?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cuánto aguanta la batería del inalámbrico de mano con pilas nuevas?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cuánto ancho de banda necesito para sacar en 1080p sin que se corte?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cuánto disco nos queda para grabar? La sesión viene larga", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cómo se arma la cabina para una sesión ordinaria del concejo? Pasame la guía.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cómo se configura el bitrate para YouTube? Se nos pixela todo.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cómo se configura un preset nuevo en la PTZ? Nunca lo hice", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Cómo se usa esto? Pasame la ayuda del aparato.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿El certificado del proxy de transmision.concejo está vigente?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿En qué carpeta y en qué formato graba esto? Cambialo a mp4", "herramienta": "derivar", "banco": 1}
+{"frase": "¿En qué parte del pipeline el video pasa de la placa a la CPU? Se está trabando todo.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Esta máquina se banca la superresolución en la cámara 2 o se nos va a arrastrar?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Estamos en modo en vivo o todavía en ensayo?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Este plugin de subtítulos se puede usar al aire o no está aprobado?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Hay alguna versión nueva del programa para bajar? Instalala.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿La botonera del Satellite está conectada? No me responde ningún botón", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué acciones de un golpe tengo armadas? Listámelas.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué cámaras tenemos conectadas y cuáles son PTZ?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué están viendo los remotos en el celular ahora mismo?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué guía hay para cuando es un acto escolar y no una sesión?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué hay cargado en las celdas de la página 2 de la botonera?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué pantallas y qué aplicaciones puedo capturar en esta máquina?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué placa de video está usando el runtime para el escalado, la NVIDIA o la Intel?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué plugins de superresolución tenemos instalados? La cámara vieja se ve pixelada.", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué páginas tiene armadas el perfil de la botonera de sesiones?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Qué salidas SDI o NDI tenemos disponibles para mandarle señal al canal?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Sabés a qué hora termina la sesión hoy?", "herramienta": "derivar", "banco": 1}
+{"frase": "¿Saltó algún aviso en los últimos minutos? Me pareció ver algo en rojo.", "herramienta": "derivar", "banco": 1}
+{"frase": "Abrime el PDF del orden del día que lo tengo que chequear ya.", "herramienta": "documento_abrir", "banco": 1}
+{"frase": "Mostrame el archivo ese del proyecto de ordenanza que cargaron recién, el de la pestaña de documentos.", "herramienta": "documento_abrir", "banco": 1}
+{"frase": "Necesito ver el expediente 245 en pantalla acá en la máquina, ¿me lo levantás en el visor?", "herramienta": "documento_abrir", "banco": 1}
+{"frase": "Fijate si cargaron el expediente del presupuesto entre los archivos de hoy", "herramienta": "documentos_listar", "banco": 1}
+{"frase": "Pasame la lista de los PDF del evento, cuáles son públicos y a qué punto del orden del día van", "herramienta": "documentos_listar", "banco": 1}
+{"frase": "¿Qué documentos hay subidos para esta sesión?", "herramienta": "documentos_listar", "banco": 1}
+{"frase": "Decime qué capas tengo fijas por arriba de las escenas, que veo un reloj raro", "herramienta": "dsk_capas_ver", "banco": 1}
+{"frase": "Fijate qué hay cargado en el DSK y si el logo está arriba", "herramienta": "dsk_capas_ver", "banco": 1}
+{"frase": "¿La intérprete de señas está puesta encima o se cayó?", "herramienta": "dsk_capas_ver", "banco": 1}
+{"frase": "Bajá la capa del logo, que tapa la votación", "herramienta": "dsk_mostrar", "banco": 1}
+{"frase": "Necesito el graf de 'en vivo' arriba, con fundido", "herramienta": "dsk_mostrar", "banco": 1}
+{"frase": "Fijate qué hay cargado en la escena Recinto, cámara por cámara, que algo sobra.", "herramienta": "escena_fuentes_ver", "banco": 1}
+{"frase": "Listame lo que compone la escena del zócalo, quiero saber si está el micro de Juan ahí adentro.", "herramienta": "escena_fuentes_ver", "banco": 1}
+{"frase": "¿Qué fuentes tiene metidas adentro la escena Mesa?", "herramienta": "escena_fuentes_ver", "banco": 1}
+{"frase": "Pasá al cue siguiente del guion.", "herramienta": "evento_correr", "banco": 1}
+{"frase": "Pausá el guion acá hasta que vuelva el intendente, después saltamos directo al cue del himno.", "herramienta": "evento_correr", "banco": 1}
+{"frase": "Uy, volvé atrás uno que nos adelantamos.", "herramienta": "evento_correr", "banco": 1}
+{"frase": "Fijate si el zócalo de texto se está viendo bien, pasame una captura de esa fuente.", "herramienta": "foto_fuente", "banco": 1}
+{"frase": "Mostrame cómo queda la escena Mesa entera antes de mandarla al aire.", "herramienta": "foto_fuente", "banco": 1}
+{"frase": "Sacame un still de la cámara 2 a ver cómo está encuadrada.", "herramienta": "foto_fuente", "banco": 1}
+{"frase": "Fijate cómo está la concejala Gómez, ¿tiene la cámara prendida? Mostrame una imagen de ella.", "herramienta": "foto_invitado", "banco": 1}
+{"frase": "Pasame una foto de cómo se ve Juan Pérez ahora en la sala.", "herramienta": "foto_invitado", "banco": 1}
+{"frase": "¿Qué cara tiene el participante 14? Sacame una captura de esa persona.", "herramienta": "foto_invitado", "banco": 1}
+{"frase": "Me dicen que la salida está en negro, fijate con una captura de lo que va al aire.", "herramienta": "foto_programa", "banco": 1}
+{"frase": "Pasame un cuadro de la salida de programa, quiero ver si el encuadre quedó torcido o si se congeló.", "herramienta": "foto_programa", "banco": 1}
+{"frase": "Mostrame todas las escenas juntas en una imagen, quiero ver cuál está al aire.", "herramienta": "foto_todas_escenas", "banco": 1}
+{"frase": "Necesito ver la grilla completa de escenas de un golpe, con los nombres, antes de arrancar.", "herramienta": "foto_todas_escenas", "banco": 1}
+{"frase": "Pasame un vistazo general de todas las escenas, a ver cómo quedaron armadas.", "herramienta": "foto_todas_escenas", "banco": 1}
+{"frase": "Fijate en qué escena quedó el gráfico animado del resultado y de qué tamaño está", "herramienta": "grafico_en_escena", "banco": 1}
+{"frase": "Pasame el id del gráfico animado que está puesto en la escena Votación", "herramienta": "grafico_en_escena", "banco": 1}
+{"frase": "Fijate qué datos le puedo pasar al gráfico de votación antes de armarlo.", "herramienta": "grafico_listar", "banco": 1}
+{"frase": "Pasame la lista de placas gráficas que hay y qué campos lleva cada una.", "herramienta": "grafico_listar", "banco": 1}
+{"frase": "¿Qué gráficos tengo cargados para tirar al aire?", "herramienta": "grafico_listar", "banco": 1}
+{"frase": "Armame el gráfico de la votación y tiralo animado en la escena Mesa.", "herramienta": "grafico_mostrar", "banco": 1}
+{"frase": "Necesito el gráfico animado de afirmativos y negativos en pantalla, en la escena de cierre.", "herramienta": "grafico_mostrar", "banco": 1}
+{"frase": "¿Podés dibujar las barras de presupuesto por área y meterlas en la escena Resultados?", "herramienta": "grafico_mostrar", "banco": 1}
+{"frase": "Escondeme ese gráfico que quedó colgado arriba", "herramienta": "grafico_ocultar", "banco": 1}
+{"frase": "Mandame al invitado del lugar 3 a la escena Mesa, dale que ya arranca.", "herramienta": "guest_source_add", "banco": 1}
+{"frase": "Necesito que el concejal que está conectado remoto, el del lugar 1, aparezca en la escena Debate.", "herramienta": "guest_source_add", "banco": 1}
+{"frase": "¿Podés colgar la pantalla compartida del que entró en el slot 2 en la escena Presentación?", "herramienta": "guest_source_add", "banco": 1}
+{"frase": "Fijate en la cámara 2 si la concejala Ruiz está sentada en su banca o se levantó.", "herramienta": "imagen_preguntar", "banco": 1}
+{"frase": "Mirá la cámara del atril y decime si el que habla tiene el micro cerca de la boca o lo tiene lejos.", "herramienta": "imagen_preguntar", "banco": 1}
+{"frase": "¿El zócalo que está saliendo en el programa tiene bien escrito el apellido?", "herramienta": "imagen_preguntar", "banco": 1}
+{"frase": "Fijate si alguno de los remotos mandó algo en el chat interno, que el concejal Gómez dijo que me avisaba.", "herramienta": "invitados_chat_leer", "banco": 1}
+{"frase": "Necesito los últimos mensajes que se pasaron los invitados entre ellos, con la hora.", "herramienta": "invitados_chat_leer", "banco": 1}
+{"frase": "¿Qué me escribió el invitado de Zoom por privado? Leémelo.", "herramienta": "invitados_chat_leer", "banco": 1}
+{"frase": "Buscame en el carrusel las que digan presupuesto, rápido", "herramienta": "laminas_buscar", "banco": 1}
+{"frase": "Necesito encontrar las placas que tengan fotos de la plaza, no me acuerdo en qué número están", "herramienta": "laminas_buscar", "banco": 1}
+{"frase": "¿Hay alguna lámina con el escudo de la ciudad? Fijate", "herramienta": "laminas_buscar", "banco": 1}
+{"frase": "Mandá la lámina 4 al aire", "herramienta": "laminas_ir", "banco": 1}
+{"frase": "Volvé a la primera del carrusel", "herramienta": "laminas_ir", "banco": 1}
+{"frase": "¿Podés poner la doce? La del orden del día", "herramienta": "laminas_ir", "banco": 1}
+{"frase": "Cargá el video institucional que subimos ayer en la escena Intervalo, que lo pasamos en el corte.", "herramienta": "medio_poner", "banco": 1}
+{"frase": "Meteme la cortina musical de apertura en la escena Mesa, está en la carpeta musica/cortinas.", "herramienta": "medio_poner", "banco": 1}
+{"frase": "Poné el logo del concejo, el png de la biblioteca, en la escena Cierre.", "herramienta": "medio_poner", "banco": 1}
+{"frase": "Leeme los faders del mezclador, quiero ver si el micro de Juan está muy arriba.", "herramienta": "mixer_list", "banco": 1}
+{"frase": "Necesito una foto del audio: cómo está cada canal en el mixer.", "herramienta": "mixer_list", "banco": 1}
+{"frase": "¿Cómo están los niveles de la consola ahora? Solo mirá, no muevas nada.", "herramienta": "mixer_list", "banco": 1}
+{"frase": "Arrancamos con el punto 3, ponelo en tratamiento", "herramienta": "orden_del_dia_punto", "banco": 1}
+{"frase": "El punto 5 lo pasan para la próxima, marcalo así", "herramienta": "orden_del_dia_punto", "banco": 1}
+{"frase": "Ya votaron, cerrame el punto que estábamos tratando como aprobado", "herramienta": "orden_del_dia_punto", "banco": 1}
+{"frase": "Fijate si el expediente de la plaza ya se votó o lo mandaron a comisión.", "herramienta": "orden_del_dia_ver", "banco": 1}
+{"frase": "Necesito saber cuántos puntos quedan pendientes antes del cuarto intermedio, rápido.", "herramienta": "orden_del_dia_ver", "banco": 1}
+{"frase": "¿En qué punto del orden del día estamos? Pasame cómo viene.", "herramienta": "orden_del_dia_ver", "banco": 1}
+{"frase": "En el monitor de la entrada poné el cartel de 'sesión en curso'", "herramienta": "pantalla_mostrar", "banco": 1}
+{"frase": "Fijate si podés tirar el resultado de la votación en el televisor de la sala de prensa", "herramienta": "pantalla_mostrar", "banco": 1}
+{"frase": "Mandá el QR de la transmisión a la tele del hall", "herramienta": "pantalla_mostrar", "banco": 1}
+{"frase": "Cortá lo que está saliendo en el monitor de sala, que quede el fondo de siempre.", "herramienta": "pantalla_parar", "banco": 1}
+{"frase": "La pantalla del recinto sigue mostrando la votación, volvela a como estaba.", "herramienta": "pantalla_parar", "banco": 1}
+{"frase": "¿Podés liberar la tele del hall? Que deje de mostrar y vuelva a su fondo.", "herramienta": "pantalla_parar", "banco": 1}
+{"frase": "Hacelo pasar al concejal Gómez que está esperando en el lobby.", "herramienta": "participant_admit", "banco": 1}
+{"frase": "Hay uno en la sala de espera hace rato, ¿lo dejás entrar?", "herramienta": "participant_admit", "banco": 1}
+{"frase": "Necesito que entre la secretaria a la llamada, está trabada afuera esperando que la admitan.", "herramienta": "participant_admit", "banco": 1}
+{"frase": "Dale, hacé pasar a todos los que están esperando, que arrancamos.", "herramienta": "participant_admit_all", "banco": 1}
+{"frase": "Están los concejales colgados en la sala de espera, metelos a todos adentro ya.", "herramienta": "participant_admit_all", "banco": 1}
+{"frase": "¿Podés vaciar el lobby? Que entren todos de una, en el orden que llegaron.", "herramienta": "participant_admit_all", "banco": 1}
+{"frase": "Ese que está metiendo ruido adentro de la reunión, echalo ya", "herramienta": "participant_kick", "banco": 1}
+{"frase": "Rajá al que entró a la sala con el nombre 'iPhone', no es de la sesión", "herramienta": "participant_kick", "banco": 1}
+{"frase": "Sacá de la videollamada a Pérez que ya terminó y se quedó conectado", "herramienta": "participant_kick", "banco": 1}
+{"frase": "El que se coló en la espera hace un rato, ese no pasa, cerrale y que se vaya del lobby.", "herramienta": "participant_reject", "banco": 1}
+{"frase": "Ese que está esperando con nombre raro no entra, rebotalo.", "herramienta": "participant_reject", "banco": 1}
+{"frase": "Necesito que le niegues la entrada al tal Gómez, no está en la lista de oradores.", "herramienta": "participant_reject", "banco": 1}
+{"frase": "El de la remota sigue compartiendo el PowerPoint y ya terminó, que corte de compartir.", "herramienta": "participant_request", "banco": 1}
+{"frase": "¿Podés pedirle a la invitada de Zoom que apague la cámara? Está comiendo en cuadro.", "herramienta": "participant_request", "banco": 1}
+{"frase": "El que acaba de hablar quiere replicar, reencolalo al final.", "herramienta": "participant_requeue", "banco": 1}
+{"frase": "Martínez ya terminó su turno pero pidió de nuevo la palabra, mandalo al fondo de la fila.", "herramienta": "participant_requeue", "banco": 1}
+{"frase": "Necesito que la concejala Gómez, que ya habló, quede última otra vez para el cierre.", "herramienta": "participant_requeue", "banco": 1}
+{"frase": "Abrime el talkback con el invitado que está en el lobby, le quiero avisar que entra en dos minutos.", "herramienta": "participant_talk", "banco": 1}
+{"frase": "Cortá el retorno mío con el de la sala de espera, ya le avisé lo que tenía que avisarle.", "herramienta": "participant_talk", "banco": 1}
+{"frase": "Necesito hablar en privado con Marta que está esperando conectada, sin que salga al aire.", "herramienta": "participant_talk", "banco": 1}
+{"frase": "Pasá a la página 7 del documento que está en pantalla.", "herramienta": "pdf_escena_poner", "banco": 1}
+{"frase": "Poné el proyecto de ordenanza 145 en el PDF de la escena Mesa.", "herramienta": "pdf_escena_poner", "banco": 1}
+{"frase": "¿Podés cargar el acta de la sesión anterior en la fuente PDF, desde la primera hoja?", "herramienta": "pdf_escena_poner", "banco": 1}
+{"frase": "Decime en cuál de los PDF de las escenas estamos parados ahora, que perdí el hilo.", "herramienta": "pdf_escena_ver", "banco": 1}
+{"frase": "Fijate qué documento quedó cargado en la pantalla del expediente y en qué hoja va, de cuántas.", "herramienta": "pdf_escena_ver", "banco": 1}
+{"frase": "Che, el invitado que entró recién por el feed del estudio, ¿sabés quién es?", "herramienta": "persona_identificar", "banco": 1}
+{"frase": "Decime quién es la señora de saco rojo que está en el plano general, nada más, no toques nada.", "herramienta": "persona_identificar", "banco": 1}
+{"frase": "¿Quién es el que aparece en la cámara 3? No lo tengo en la lista.", "herramienta": "persona_identificar", "banco": 1}
+{"frase": "Esa que acaba de contestar el intendente, marcala como respondida.", "herramienta": "pregunta_moderar", "banco": 1}
+{"frase": "La pregunta de Rosa ya está en cola, mandala al aire.", "herramienta": "pregunta_moderar", "banco": 1}
+{"frase": "Volá la pregunta del insulto de la cola, no va.", "herramienta": "pregunta_moderar", "banco": 1}
+{"frase": "Fijate cuál es la próxima pregunta del público que tengo que pasarle al conductor", "herramienta": "preguntas_ver", "banco": 1}
+{"frase": "¿Cuántas consultas de la audiencia hay acumuladas? Tirame la lista", "herramienta": "preguntas_ver", "banco": 1}
+{"frase": "¿Qué preguntas mandó la gente hasta ahora?", "herramienta": "preguntas_ver", "banco": 1}
+{"frase": "Se armó lío en el recinto, cerrame todos los micros menos presidencia ya", "herramienta": "presidencia_callar_todos", "banco": 1}
+{"frase": "Silencio general en la central, que quede nada más la presidencia", "herramienta": "presidencia_callar_todos", "banco": 1}
+{"frase": "¿Podés dejar abierto solo el de la presidenta y cortarle al que está hablando?", "herramienta": "presidencia_callar_todos", "banco": 1}
+{"frase": "Dale, mandá lo que tengo en preview.", "herramienta": "preview_al_aire", "banco": 1}
+{"frase": "Ya armé la Plano General en previo, sacala al aire con la transición.", "herramienta": "preview_al_aire", "banco": 1}
+{"frase": "¿Podés hacer el corte a la que está preparada? Ya terminó de hablar la presidenta.", "herramienta": "preview_al_aire", "banco": 1}
+{"frase": "Cargale el discurso del intendente en el prompter, que arranca en dos minutos.", "herramienta": "prompter_cargar", "banco": 1}
+{"frase": "Mandá este texto a la pantallita del atril para que lo lea la conductora.", "herramienta": "prompter_cargar", "banco": 1}
+{"frase": "¿Podés ponerle la intro del programa en el teleprompter al presentador?", "herramienta": "prompter_cargar", "banco": 1}
+{"frase": "Bajale la velocidad al teleprompter que el intendente lee lento.", "herramienta": "prompter_control", "banco": 1}
+{"frase": "Mandale un mensaje en el prompter a la conductora: 'redondeá, 30 segundos'.", "herramienta": "prompter_control", "banco": 1}
+{"frase": "Che, ¿qué discurso quedó cargado en el teleprompter y está conectada la pantalla del atril?", "herramienta": "prompter_estado", "banco": 1}
+{"frase": "Fijate cuánto le queda al intendente en el texto, que me piden cortar a las y media", "herramienta": "prompter_estado", "banco": 1}
+{"frase": "¿El prompter ya está andando o sigue parado?", "herramienta": "prompter_estado", "banco": 1}
+{"frase": "Necesito saber cuántas caras agarra la PTZ del estrado y dónde están, para cerrar el plano.", "herramienta": "ptz_caras_ubicar", "banco": 1}
+{"frase": "¿Dónde quedó la cara del que habla en la PTZ 1? Decime la posición en el cuadro.", "herramienta": "ptz_caras_ubicar", "banco": 1}
+{"frase": "Abrí el recorte de la general a cuadro completo, despacito, en cuatro segundos.", "herramienta": "ptz_encuadre", "banco": 1}
+{"frase": "En la cámara 2 cerrame sobre el presidente, zoom por tres, centrado arriba a la izquierda.", "herramienta": "ptz_encuadre", "banco": 1}
+{"frase": "Necesito que me acerques digital a la banca de la derecha, que el orador quedó chiquito.", "herramienta": "ptz_encuadre", "banco": 1}
+{"frase": "Entrada está fuera de foco, la gente está en la puerta: llevalo un toque más cerca a mano.", "herramienta": "ptz_foco", "banco": 1}
+{"frase": "La cámara de la entrada está bailando con el foco, apagale el autofoco.", "herramienta": "ptz_foco", "banco": 1}
+{"frase": "¿Podés volver a poner en automático el enfoque de la cámara de entrada?", "herramienta": "ptz_foco", "banco": 1}
+{"frase": "La cámara de la entrada mandala a home, quedó toda torcida", "herramienta": "ptz_inicio", "banco": 1}
+{"frase": "Necesito que la de la puerta vuelva a cero, alguien le metió zoom a fondo", "herramienta": "ptz_inicio", "banco": 1}
+{"frase": "¿Podés resetear la PTZ de entrada a fábrica, centrada y sin zoom?", "herramienta": "ptz_inicio", "banco": 1}
+{"frase": "Habla Laura, apuntá la PTZ 1 a su preset ya", "herramienta": "ptz_ir_posicion", "banco": 1}
+{"frase": "Llevame la 2 al atril, rápido, en dos segundos", "herramienta": "ptz_ir_posicion", "banco": 1}
+{"frase": "¿Podés mandar la cámara del fondo a la panorámica que tenemos guardada? Despacito, tipo diez segundos", "herramienta": "ptz_ir_posicion", "banco": 1}
+{"frase": "Subí la 3 un poquito que le corta la cabeza al orador", "herramienta": "ptz_mover", "banco": 1}
+{"frase": "¿Me cerrás un poco el zoom de la PTZ 1? Despacito, medio segundo nomás", "herramienta": "ptz_mover", "banco": 1}
+{"frase": "Necesito que la cámara 1 deje de hacer zoom y de girar, cortale todo el movimiento.", "herramienta": "ptz_parar", "banco": 1}
+{"frase": "Pará el paneo de la cámara del estrado, quedate donde está.", "herramienta": "ptz_parar", "banco": 1}
+{"frase": "¡Frená la 3 que se sigue moviendo sola!", "herramienta": "ptz_parar", "banco": 1}
+{"frase": "Así como está la PTZ del fondo, dejala memorizada como 'Mesa completa', comentario: plano general para votaciones", "herramienta": "ptz_posicion_crear", "banco": 1}
+{"frase": "Guardá este encuadre de la cámara 2 como 'Atril', es el plano del orador", "herramienta": "ptz_posicion_crear", "banco": 1}
+{"frase": "Me gusta cómo quedó la 3 apuntando a la bandera, registrala como preset 'Bandera'", "herramienta": "ptz_posicion_crear", "banco": 1}
+{"frase": "Necesito ver todas las posiciones memorizadas de las PTZ, de todas las cámaras.", "herramienta": "ptz_posiciones", "banco": 1}
+{"frase": "¿En qué número quedó grabado el plano de la presidencia en la cámara del fondo?", "herramienta": "ptz_posiciones", "banco": 1}
+{"frase": "¿Qué presets tiene guardados la cámara 1? Pasame los números.", "herramienta": "ptz_posiciones", "banco": 1}
+{"frase": "Llevá la cámara 2 al preset 3, plano de la presidencia.", "herramienta": "ptz_preset", "banco": 1}
+{"frase": "Engánchale el tracking a la 2 sobre el que está en el atril, que no lo pierda", "herramienta": "ptz_seguir", "banco": 1}
+{"frase": "Que la cámara 4 lo siga al intendente, que no para de caminar", "herramienta": "ptz_seguir", "banco": 1}
+{"frase": "¿Podés poner la PTZ del escenario en seguimiento de cara? La oradora se mueve mucho", "herramienta": "ptz_seguir", "banco": 1}
+{"frase": "Fijate si alguien en los comentarios de Face se está quejando del audio.", "herramienta": "publico_chat_leer", "banco": 1}
+{"frase": "Pasame lo que escribieron los espectadores en Twitch y la web, a ver cuáles tenemos marcados.", "herramienta": "publico_chat_leer", "banco": 1}
+{"frase": "¿Qué está diciendo la gente en YouTube? Leeme los últimos.", "herramienta": "publico_chat_leer", "banco": 1}
+{"frase": "Decime cuántos concejales hay sentados con voto y cuántos faltan para sesionar.", "herramienta": "quorum_presentes", "banco": 1}
+{"frase": "Se levantaron varios de la bancada, fijate si todavía nos da el número para seguir.", "herramienta": "quorum_presentes", "banco": 1}
+{"frase": "¿Hay quórum o no? Que quieren arrancar la sesión.", "herramienta": "quorum_presentes", "banco": 1}
+{"frase": "Dale play a la receta Cierre, que se terminó el acto.", "herramienta": "receta_correr", "banco": 1}
+{"frase": "¿Podés tirar la secuencia que armamos para el cuarto intermedio? Toda, en orden.", "herramienta": "receta_correr", "banco": 1}
+{"frase": "Apuntá la cámara a Fernández pero no le abras el micro todavía", "herramienta": "recinto_apuntar", "banco": 1}
+{"frase": "Dejame la PTZ lista en la banca 7, que después habla", "herramienta": "recinto_apuntar", "banco": 1}
+{"frase": "¿Podés ir preparando el tiro sobre la presidenta del bloque? Todavía no sale", "herramienta": "recinto_apuntar", "banco": 1}
+{"frase": "Mostrame las bancas y cómo viene la lista de oradores presenciales.", "herramienta": "recinto_bancas_ver", "banco": 1}
+{"frase": "¿Quién tiene la palabra en el recinto y hace cuánto que está hablando?", "herramienta": "recinto_bancas_ver", "banco": 1}
+{"frase": "Cortale al concejal Ruiz, ya se pasó del tiempo. Solo a él, los demás que sigan.", "herramienta": "recinto_orador_terminar", "banco": 1}
+{"frase": "¿Podés cerrar la banca 7? Terminó de hablar y le sigue corriendo el reloj.", "herramienta": "recinto_orador_terminar", "banco": 1}
+{"frase": "Dale REC que arrancamos", "herramienta": "record_start", "banco": 1}
+{"frase": "Necesito que quede guardada la sesión en disco desde este momento", "herramienta": "record_start", "banco": 1}
+{"frase": "Listo, cerrá el archivo de la grabación, que el acto terminó y lo tengo que pasar.", "herramienta": "record_stop", "banco": 1}
+{"frase": "Pará la grabación, ya se levantó la sesión.", "herramienta": "record_stop", "banco": 1}
+{"frase": "¿Podés cortar el REC? Se nos llena el disco.", "herramienta": "record_stop", "banco": 1}
+{"frase": "Fijate cuánto le queda al concejal que está hablando desde la videollamada, que el presidente me hace señas.", "herramienta": "remotos_fila_ver", "banco": 1}
+{"frase": "Pasame cómo está la lista de los que entran por video, quién está listo y quién no.", "herramienta": "remotos_fila_ver", "banco": 1}
+{"frase": "¿Cuántos remotos tengo esperando por Zoom y en qué orden vienen?", "herramienta": "remotos_fila_ver", "banco": 1}
+{"frase": "Necesito el enlace de afuera, el de Cloudflare, que se conecta un concejal desde Córdoba.", "herramienta": "room_link", "banco": 1}
+{"frase": "Pasame el link de la sala para el periodista que está acá en la red del edificio.", "herramienta": "room_link", "banco": 1}
+{"frase": "¿Cuál es la dirección pública para que entre el invitado que está en su casa?", "herramienta": "room_link", "banco": 1}
+{"frase": "Poneme lobby, que cada invitado que entre quede esperando hasta que yo lo deje pasar.", "herramienta": "room_set", "banco": 1}
+{"frase": "¿Podés limitar a seis los invitados conectados? Más no entran en el mosaico.", "herramienta": "room_set", "banco": 1}
+{"frase": "¿Cuál es el PIN de la sala? Me lo pide un concejal que no puede entrar", "herramienta": "room_status", "banco": 1}
+{"frase": "Apagame la asociación del rótulo con la cámara 2 pero no la borres, que después la vuelvo a usar.", "herramienta": "rotulo_desvincular", "banco": 1}
+{"frase": "Sacale el vínculo al zócalo del micro de Juan, que ya no habla él ahí.", "herramienta": "rotulo_desvincular", "banco": 1}
+{"frase": "¿Podés romper el enlace entre el nombre de la concejala Pérez y su banca? Lo cambiaron de lugar.", "herramienta": "rotulo_desvincular", "banco": 1}
+{"frase": "Colgale el zócalo con nombre y cargo al que está hablando y que se actualice solo cuando cambie.", "herramienta": "rotulo_vincular", "banco": 1}
+{"frase": "Engancháme los rótulos a los oradores así no los cambio a mano cada vez que pasa uno.", "herramienta": "rotulo_vincular", "banco": 1}
+{"frase": "Necesito el graph de nombre de la concejala Pérez abajo mientras tiene la palabra.", "herramienta": "rotulo_vincular", "banco": 1}
+{"frase": "¿Cuál escena tengo al aire ahora según el listado? Decímela con el resto de las que hay.", "herramienta": "scene_list", "banco": 1}
+{"frase": "¿En qué carpeta quedó la escena Mesa? No la encuentro.", "herramienta": "scene_list", "banco": 1}
+{"frase": "Cargá la de la cámara 2 en previo, que la mando yo cuando termine éste.", "herramienta": "scene_preview", "banco": 1}
+{"frase": "Dejame la escena Plano General armada en preview.", "herramienta": "scene_preview", "banco": 1}
+{"frase": "¿Me ponés la escena Votación en el bus de preview así la reviso antes de salir?", "herramienta": "scene_preview", "banco": 1}
+{"frase": "Mandá la apertura al aire directo, sin preview, que arrancamos", "herramienta": "scene_switch", "banco": 1}
+{"frase": "Necesito que pongas la escena Mesa en programa ahora mismo", "herramienta": "scene_switch", "banco": 1}
+{"frase": "¡Corta a la 3, ya!", "herramienta": "scene_switch", "banco": 1}
+{"frase": "Decime qué hay compartido hasta ahora, quién lo mandó y los ids.", "herramienta": "share_list", "banco": 1}
+{"frase": "Fijate si la concejala Pérez subió el video que dijo, y cuánto pesa.", "herramienta": "share_list", "banco": 1}
+{"frase": "Agarrá el audio del himno que subió la de protocolo y metelo en la escena que está saliendo.", "herramienta": "share_take", "banco": 1}
+{"frase": "La foto que mandó el intendente, ponela al aire.", "herramienta": "share_take", "banco": 1}
+{"frase": "Necesito que tomes el archivo 14 de los compartidos y lo mandes a la escena en vivo ya.", "herramienta": "share_take", "banco": 1}
+{"frase": "Ese zócalo que quedó colgado en la escena Entrevista, borralo de ahí.", "herramienta": "source_remove", "banco": 1}
+{"frase": "Necesito que quites el reloj de la escena Votación, ya no va.", "herramienta": "source_remove", "banco": 1}
+{"frase": "Sacale la cámara 3 a la escena Mesa, en las otras dejala.", "herramienta": "source_remove", "banco": 1}
+{"frase": "Escondeme el zócalo de abajo que ya terminó de hablar", "herramienta": "source_update", "banco": 1}
+{"frase": "Necesito el logo más chico y tirado a la esquina de arriba a la derecha, que tapa la cara del presidente", "herramienta": "source_update", "banco": 1}
+{"frase": "¿Podés cambiarle el texto al título? Poné 'Sesión Ordinaria 14 de octubre'", "herramienta": "source_update", "banco": 1}
+{"frase": "El que está tercero en la fila pasalo al quinto, que pidió hablar después", "herramienta": "speaker_move", "banco": 1}
+{"frase": "Necesito que Gómez quede segundo en el orden de la palabra, adelantalo", "herramienta": "speaker_move", "banco": 1}
+{"frase": "Subí a la concejala Ramírez al primer lugar de la lista de oradores", "herramienta": "speaker_move", "banco": 1}
+{"frase": "Siguiente concejal, rápido que el presidente ya lo nombró.", "herramienta": "speaker_next", "banco": 1}
+{"frase": "¿Podés darle la palabra al próximo orador? Ya se le venció el tiempo a este.", "herramienta": "speaker_next", "banco": 1}
+{"frase": "La conductora queda fija como presentadora, los oradores van rotando al lado de ella.", "herramienta": "speaker_presenter", "banco": 1}
+{"frase": "Poné al presidente del concejo como presentador, que tenga su lugar propio todo el acto.", "herramienta": "speaker_presenter", "banco": 1}
+{"frase": "¿Podés dejar a Martín de anfitrión fijo en pantalla mientras pasan los invitados?", "herramienta": "speaker_presenter", "banco": 1}
+{"frase": "La secretaria acaba de entrar a la reunión y pide la palabra, sumala a la lista de oradores remotos.", "herramienta": "speaker_queue", "banco": 1}
+{"frase": "Pérez ya está conectado en la sala virtual pero no figura para hablar, anotalo en la fila.", "herramienta": "speaker_queue", "banco": 1}
+{"frase": "¿Podés poner en cola al invitado que entró recién por video? Todavía no le tocó nunca.", "herramienta": "speaker_queue", "banco": 1}
+{"frase": "Dame un pantallazo general del equipo: qué escena sale, cuánto llevamos de transmisión y niveles", "herramienta": "status", "banco": 1}
+{"frase": "Se está trabando la imagen, decime fps, cuadros perdidos y cómo está la CPU", "herramienta": "status", "banco": 1}
+{"frase": "Arrancá el stream ya que la sesión empieza en un minuto.", "herramienta": "stream_start", "banco": 1}
+{"frase": "Dale, salimos al aire. Largá la transmisión.", "herramienta": "stream_start", "banco": 1}
+{"frase": "¿Podés empezar a mandar señal a YouTube? Ya está todo listo.", "herramienta": "stream_start", "banco": 1}
+{"frase": "Necesito que dejemos de salir en vivo, terminamos el acto", "herramienta": "stream_stop", "banco": 1}
+{"frase": "¿Podés bajar la transmisión? El intendente pidió que no salga esto", "herramienta": "stream_stop", "banco": 1}
+{"frase": "Esa transición está muy lenta, bajala a medio segundo y dejala en barrido.", "herramienta": "transition_set", "banco": 1}
+{"frase": "Poneme un fundido de un segundo entre escenas, que el corte seco queda horrible.", "herramienta": "transition_set", "banco": 1}
+{"frase": "¿Podés cambiar la transición a corte? Dale, rápido que arrancan.", "herramienta": "transition_set", "banco": 1}
+{"frase": "Necesito que la gente en la página pueda votar qué tema tratamos primero: tránsito, salud o seguridad", "herramienta": "votacion_abrir", "banco": 1}
+{"frase": "¿Lanzás una encuesta rápida en la web de la audiencia? Que elijan entre la banda local y el coro", "herramienta": "votacion_abrir", "banco": 1}
+{"frase": "Fijate quiénes faltan votar del expediente este, que el presidente quiere cerrar.", "herramienta": "votacion_recuento", "banco": 1}
+{"frase": "Pasame el resultado de la encuesta del público, cómo quedó.", "herramienta": "votacion_recuento", "banco": 1}

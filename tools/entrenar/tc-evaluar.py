@@ -71,6 +71,11 @@ def main():
     ap.add_argument("--tipo", choices=["bf16", "fp16"], default="bf16", help="fp16: ver si desborda (M1/M2)")
     ap.add_argument("--con-falta", action="store_true",
                     help="dejar elegir falta_dato en banco/examen (diagnostico: cuanto pregunta)")
+    ap.add_argument("--banco", default=str(RAIZ / "datos/orientacion.jsonl"),
+                    help="el archivo del conjunto «banco» (los intermedios de tc-ciclo: datos/bancos-ciclo/banco-N.jsonl)")
+    ap.add_argument("--amortiguar", default="",
+                    help="capa:alfa,... (p. ej. 28:0.5,32:0.5): esas capas suman solo alfa de su cambio, h + alfa*(capa(h) - h);"
+                         " las capas se cuentan de 1 a N, como las salidas de tc-capas.py (experimento, 17/10/2026)")
     args = ap.parse_args()
     conj = set(args.conjuntos.split(","))
     corpus = Path(args.corpus).expanduser()
@@ -94,6 +99,23 @@ def main():
         tok = AutoTokenizer.from_pretrained(args.modelo)
     modelo.eval()
     dev = modelo.device
+    if args.amortiguar:
+        # SUAVIZAR UNA CAPA: las de atencion completa (4, 8, ..., 32 en Qwen3.5) rotan el espacio
+        # entero y las frases dudosas se mueven mas ahi; esto les deja hacer solo una parte
+        n_capas = modelo.config.get_text_config().num_hidden_layers
+        capas = next(m for n, m in modelo.named_modules() if n.endswith("layers") and len(m) == n_capas)
+
+        def gancho(alfa):
+            def f(mod, a, kw, out):
+                h = a[0] if a else kw["hidden_states"]
+                if isinstance(out, tuple):
+                    return (h + alfa * (out[0] - h),) + tuple(out[1:])
+                return h + alfa * (out - h)
+            return f
+        for par in args.amortiguar.split(","):
+            c, alfa = par.split(":")
+            capas[int(c) - 1].register_forward_hook(gancho(float(alfa)), with_kwargs=True)
+        print(f"amortiguadas: {args.amortiguar}", flush=True)
     if ch.es_hibrido(modelo):
         ch.parchear()
     cab = tc.cabeza()
@@ -297,7 +319,7 @@ def main():
         print(f"{nombre}: {json.dumps(med[nombre])} · {time.time() - t0:.0f} s", flush=True)
 
     if "banco" in conj:
-        eleccion("banco", RAIZ / "datos/orientacion.jsonl")
+        eleccion("banco", Path(args.banco).expanduser())
     if "examen" in conj:
         eleccion("examen", RAIZ / "datos/entrenamiento/examen.jsonl")
 

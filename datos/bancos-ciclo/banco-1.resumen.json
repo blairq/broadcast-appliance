@@ -1,0 +1,22 @@
+{
+ "numero": 1,
+ "estilo": "un operador de cabina con años de oficio: hablás corto y directo, con jerga técnica y apuro.",
+ "casos": 392,
+ "propias": 283,
+ "derivar": 109,
+ "herramientas_sin_frases": [
+  "banca_tiempo",
+  "foto_todos_invitados",
+  "speaker_on_air",
+  "speaker_time"
+ ],
+ "escritas": 468,
+ "descartadas": {
+  "vacia o repetida": 4,
+  "parecida al banco final, examen, corpus u otro intermedio": 29,
+  "el revisor eligio otra": 32,
+  "ambigua para el revisor": 11
+ },
+ "costo_usd": 4.36,
+ "perfil": "51559fd7c42f585f"
+}

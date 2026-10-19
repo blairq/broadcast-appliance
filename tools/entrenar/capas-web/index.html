@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análisis de capas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Mesa de cabina: la pila de capas como anillos de vectorscopio a la izquierda; panel de controles y lecturas a la derecha. */
+:root {
+  --fondo: #0e1214;
+  --panel: #151b1e;
+  --linea: #263035;
+  --texto: #d6dfdc;
+  --tenue: #8b9a97;
+  --ambar: #e3a63b;
+  --tally: #ff5a47;
+  --verde: #6fcf97;
+  --f-titulo: "Saira Condensed", "Arial Narrow", sans-serif;
+  --f-texto: "IBM Plex Sans", system-ui, sans-serif;
+  --f-dato: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
+body { background: var(--fondo); color: var(--texto); font-family: var(--f-texto); font-size: 14px; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 390px; height: 100%; }
+.escena { position: relative; min-width: 0; min-height: 420px; }
+#lienzo { position: absolute; inset: 0; width: 100%; height: 100%; }
+.etiquetas { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.etq { position: absolute; transform: translate(-50%, -50%); font: 500 11px var(--f-dato); padding: 1px 5px; border-radius: 3px; background: rgba(14,18,20,.78); white-space: nowrap; }
+.etq.capa { transform: translate(6px, -50%); color: var(--tenue); background: none; padding: 0; }
+.etq.capa b { color: var(--ambar); font-weight: 500; }
+.info { position: absolute; left: 16px; bottom: 16px; right: 16px; max-width: 560px; background: rgba(21,27,30,.92); border: 1px solid var(--linea); border-radius: 4px; padding: 8px 10px; font-size: 13px; }
+.info:empty { display: none; }
+.info .q { font-family: var(--f-dato); color: var(--tenue); font-size: 12px; margin-top: 3px; }
+.ayuda { position: absolute; left: 16px; top: 12px; color: var(--tenue); font: 12px var(--f-dato); pointer-events: none; }
+aside { background: var(--panel); border-left: 1px solid var(--linea); overflow-y: auto; padding-inline: 16px; padding-block: 14px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+h1 { font-family: var(--f-titulo); font-weight: 700; font-size: 26px; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.sub { color: var(--tenue); font-size: 12.5px; margin-top: 2px; }
+h2 { font-family: var(--f-titulo); font-weight: 500; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--tenue); margin: 0 0 6px; }
+.fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button, select { font: inherit; color: var(--texto); background: #1d2529; border: 1px solid var(--linea); border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--tenue); }
+button:focus-visible, select:focus-visible, input:focus-visible + span { outline: 2px solid var(--ambar); outline-offset: 1px; }
+button.on { border-color: var(--ambar); color: var(--ambar); }
+.chico { padding: 3px 7px; font-size: 12px; }
+select { max-width: 100%; min-width: 0; flex: 1; }
+.chk { display: flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; }
+.capas { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 3px; }
+.capas label { position: relative; cursor: pointer; }
+.capas input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.capas span { display: block; text-align: center; font: 500 12px var(--f-dato); padding: 4px 0; border: 1px solid var(--linea); border-radius: 3px; color: var(--tenue); font-variant-numeric: tabular-nums; }
+.capas input:checked + span { border-color: var(--ambar); color: #101416; background: var(--ambar); }
+.capas .zona span { border-bottom: 2px solid var(--verde); }
+.punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.leyenda { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; font-size: 12.5px; }
+.leyenda div { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.grupo-lista { display: flex; flex-direction: column; gap: 3px; font: 12px var(--f-dato); }
+.grupo-lista div { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.grupo-lista div:hover { color: var(--ambar); }
+svg text { fill: var(--tenue); font: 10px var(--f-dato); }
+.tipos { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.tipos div { display: flex; justify-content: space-between; gap: 8px; }
+.tipos b { font-family: var(--f-dato); font-variant-numeric: tabular-nums; }
+.erradas { display: flex; flex-direction: column; gap: 2px; }
+.err { display: grid; grid-template-columns: minmax(0, 1fr) 84px; gap: 6px; padding: 5px 6px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; }
+.err:hover { background: #1b2226; }
+.err.sel { border-color: var(--ambar); }
+.err .fr { font-size: 12.5px; }
+.err .md { font: 11px var(--f-dato); color: var(--tenue); overflow-wrap: anywhere; }
+.err .md em { color: var(--tally); font-style: normal; }
+.err .md i { color: var(--verde); font-style: normal; }
+.fijos { display: flex; flex-direction: column; gap: 6px; }
+.fijo { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; font: 12px var(--f-dato); }
+.fijo button { padding: 1px 7px; }
+.fijo svg { display: block; }
+.etq.cdnv { transform: translate(8px, -50%); background: rgba(14,18,20,.6); font-size: 10px; }
+.lista-preg { display: flex; flex-direction: column; gap: 1px; max-height: 320px; overflow-y: auto; }
+.preg { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 6px; padding: 4px 6px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; font-size: 12.5px; }
+.preg:hover { background: #1b2226; }
+.preg.sel { border-color: var(--ambar); }
+.preg .md { font: 11px var(--f-dato); color: var(--tenue); overflow-wrap: anywhere; }
+.preg .md em { color: var(--tally); font-style: normal; }
+.preg .md i { color: var(--verde); font-style: normal; }
+.pest button { padding: 2px 8px; font-size: 12px; }
+.nube { cursor: help; border-bottom: 1px dotted currentColor; }
+.nube:hover { background: rgba(227,166,59,.15); }
+.cargando { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tenue); font-family: var(--f-dato); }
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 64vh auto; height: auto; }
+  aside { border-left: 0; border-top: 1px solid var(--linea); overflow: visible; }
+}
+.barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-inline: 16px; padding-block: 8px; border-bottom: 1px solid var(--linea); background: var(--panel); }
+.barra .marca { font-family: var(--f-titulo); font-weight: 700; font-size: 18px; letter-spacing: .04em; }
+.barra select { flex: 0 1 420px; }
+.barra .sub { margin: 0; }
+body { margin: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.app { height: 100%; min-height: 0; }
+.ficha { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; font-size: 12.5px; margin: 0; }
+.ficha dt { color: var(--tenue); }
+.ficha dd { margin: 0; font-family: var(--f-dato); overflow-wrap: anywhere; }
+.ficha dd button { padding: 0 6px; font-size: 11px; margin-left: 4px; }
+.capa-sup { position: fixed; inset: 56px 16px 16px 16px; background: var(--panel); border: 1px solid var(--linea); border-radius: 6px; z-index: 5; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.capa-sup header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-inline: 14px; padding-block: 10px; border-bottom: 1px solid var(--linea); }
+.capa-sup header h2 { margin: 0; }
+.capa-sup .cuerpo { overflow: auto; padding-inline: 14px; padding-block: 10px; }
+table { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+th { color: var(--tenue); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
+td.n { font-family: var(--f-dato); font-variant-numeric: tabular-nums; text-align: right; }
+tr.fila-a { cursor: pointer; }
+tr.fila-a:hover td { background: #1b2226; }
+tr.actual td { color: var(--ambar); }
+.pest { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.lista-frases { font-size: 12.5px; display: flex; flex-direction: column; }
+.lista-frases div { padding: 3px 0; border-bottom: 1px solid #1d2529; }
+.lista-frases code { font-family: var(--f-dato); color: var(--tenue); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="barra">
+  <span class="marca">Análisis de capas</span>
+  <select id="elegir" aria-label="análisis"></select>
+  <button id="verVersiones">versiones</button>
+  <span class="sub" id="donde"></span>
+</div>
+
+<div class="app">
+  <div class="escena">
+    <canvas id="lienzo"></canvas>
+    <div class="etiquetas" id="etiquetas"></div>
+    <div class="ayuda">arrastrá para girar · rueda para acercar · clic en una errada para seguirla</div>
+    <div class="info" id="info"></div>
+    <div class="cargando" id="cargando">cargando los estados…</div>
+  </div>
+  <aside>
+    <div>
+      <h1 id="titulo">Nubes por capa</h1>
+      <div class="sub" id="sub"></div>
+    </div>
+
+    <section>
+      <h2>Ficha del análisis</h2>
+      <dl class="ficha" id="ficha"></dl>
+    </section>
+
+    <section>
+      <h2>Capas a mostrar</h2>
+      <div class="capas" id="capas"></div>
+      <div class="fila" style="margin-top:6px">
+        <button class="chico" data-p="todas">todas</button>
+        <button class="chico" data-p="ninguna">ninguna</button>
+        <button class="chico" data-p="cada4">cada 4</button>
+        <button class="chico" data-p="giro">17 a 21</button>
+        <button class="chico" data-p="final">20, 26, 32</button>
+      </div>
+      <div class="sub" style="margin-top:6px">E son los embeddings (antes de la capa 1); 1 a 32, la salida de cada capa. Subrayadas en verde: donde se arma la decisión (18 a 20).</div>
+    </section>
+
+    <section>
+      <h2>Qué mostrar</h2>
+      <div class="fila">
+        <button id="mTodas">todas</button>
+        <button id="mGrupo" class="on">un grupo</button>
+        <button id="mHerr">una herramienta</button>
+        <button id="mPreg">una pregunta</button>
+      </div>
+      <div class="fila" style="margin-top:6px"><select id="herr" aria-label="herramienta"></select></div>
+      <div class="fila" style="margin-top:8px; gap:14px">
+        <label class="chk"><input type="checkbox" id="vCorpus" checked> corpus</label>
+        <label class="chk"><input type="checkbox" id="vOk" checked> banco acertadas</label>
+        <label class="chk"><input type="checkbox" id="vErr" checked> banco erradas</label>
+        <label class="chk"><input type="checkbox" id="vHilos" checked> hilos de los centros</label>
+      </div>
+      <div class="leyenda" style="margin-top:8px">
+        <div><span class="punto" style="background:#8b9a97;width:6px;height:6px"></span> frase del corpus</div>
+        <div><span class="punto" style="background:#8b9a97;box-shadow:0 0 0 2px #d6dfdc"></span> banco, acertó</div>
+        <div><span class="punto" style="background:#8b9a97;box-shadow:0 0 0 3px #ff5a47"></span> banco, erró</div>
+        <div><span class="punto" style="background:#8b9a97;box-shadow:0 0 0 3px #5fb0e8"></span> la eligió sin ser suya</div>
+        <div>color = herramienta esperada</div>
+        <div><span class="punto" style="background:#6fcf97"></span> / <span class="punto" style="background:#ff5a47"></span> errada: esperada / elegida</div>
+      </div>
+      <div class="grupo-lista" id="grupoLista" style="margin-top:8px"></div>
+    </section>
+
+    <section id="secPreg">
+      <h2 id="pregTitulo">Preguntas</h2>
+      <div class="pest" id="pregFiltros"></div>
+      <div class="fila" style="margin-bottom:6px">
+        <button class="chico" id="pregAnt" aria-label="pregunta anterior">◀</button>
+        <button class="chico" id="pregSig" aria-label="pregunta siguiente">▶</button>
+        <span class="sub" id="pregPos"></span>
+      </div>
+      <div class="lista-preg" id="pregLista"></div>
+    </section>
+
+    <section>
+      <h2>Hilos fijados</h2>
+      <div class="fijos" id="fijos"><span class="sub">Pasá el mouse por un punto para ver su hilo; clic para fijarlo.</span></div>
+    </section>
+
+    <section>
+      <h2>Acierto al centro por capa</h2>
+      <svg id="curvas" viewBox="0 0 340 170" width="100%" role="img" aria-label="curvas por capa"></svg>
+      <div class="sub">Cada frase va a la nube del corpus más cercana en esa capa. Clic en el gráfico para prender o apagar esa capa.</div>
+    </section>
+
+    <section>
+      <h2>Las que erra el modelo</h2>
+      <div class="tipos" id="tipos"></div>
+      <div class="erradas" id="erradas" style="margin-top:8px"></div>
+    </section>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const $ = (id) => document.getElementById(id);
+const json = u => fetch(u).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || r.status))));
+const esc0 = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const IDX = await json("/api/indice");
+$("donde").textContent = IDX.base;
+if (!IDX.analisis.length) {
+  $("cargando").textContent = "Todavía no hay análisis guardados: correr tools/entrenar/capas-guardar.py";
+  throw new Error("sin analisis");
+}
+const pedido = new URLSearchParams(location.search).get("a");
+const AID = IDX.analisis.some(a => a.id === pedido) ? pedido : IDX.analisis[IDX.analisis.length - 1].id;
+{ // el selector, por grupo
+  const grupos = {};
+  IDX.analisis.forEach(a => (grupos[a.grupo || "sin grupo"] ||= []).push(a));
+  $("elegir").innerHTML = Object.entries(grupos).map(([g, as]) => `<optgroup label="${esc0(g)}">` + as.map(a =>
+    `<option value="${a.id}" ${a.id === AID ? "selected" : ""}>${a.id} · ${esc0(a.nombre)} · corpus c${a.corpus.numero} · banco b${a.banco.numero}</option>`).join("") + "</optgroup>").join("");
+  $("elegir").onchange = e => location.search = "?a=" + e.target.value;
+}
+const [vista, curvas, META] = await Promise.all(["vista", "curvas", "meta"].map(n => json(`/api/analisis/${AID}/${n}.json`)));
+$("cargando").remove();
+$("titulo").textContent = `${META.id} · ${META.nombre}`;
+
+// --- la ventana de arriba (versiones, frases de un hilo) ---
+function abrir(titulo, html) {
+  $("supTitulo").textContent = titulo; $("supCuerpo").innerHTML = html; $("sup").hidden = false;
+}
+$("supCerrar").onclick = () => $("sup").hidden = true;
+addEventListener("keydown", e => {
+  if (e.key === "Escape") $("sup").hidden = true;
+  if (e.target.closest?.("input, select")) return;
+  if (modo === "pregunta" && e.key === "ArrowRight") paso(1);
+  if (modo === "pregunta" && e.key === "ArrowLeft") paso(-1);
+});
+
+// --- la ficha ---
+const pct = x => x == null ? "—" : (x * 100).toFixed(1);
+const A = META.parametros?.args || {};
+const lora = META.parametros?.lora || {};
+const vc = IDX.corpus.find(c => c.version === META.corpus.version) || {};
+const vb = IDX.banco.find(b => b.version === META.banco.version) || {};
+const med = META.medidas || {};
+const filaF = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+$("ficha").innerHTML = [
+  filaF("fecha", esc0(META.fecha?.replace("T", " "))),
+  filaF("modelo", esc0(META.modelo.replace(/^.*entrenamientos\//, ""))),
+  filaF("corpus", `c${META.corpus.numero} · ${META.corpus.version}<br>${vc.filas ? Object.entries(vc.filas).map(([a, n]) => `${a.replace(".jsonl", "")} ${n}`).join(" · ") : ""}`),
+  filaF("anotaciones", esc0(META.anotaciones || "—")),
+  filaF("banco", `b${META.banco.numero} · ${META.banco.version}<br>${vb.casos ?? "?"} casos, ${META.banco.limite} medidos`),
+  filaF("entrenamiento", esc0([A.base, A.objetivo || "sft", A.epocas && `${A.epocas} épocas`, A.lr && `lr ${A.lr}`,
+    A.lote && `lote ${A.lote}`, A.micro && `micro ${A.micro}`, A.semilla && `semilla ${A.semilla}`].filter(Boolean).join(" · ") || "—")),
+  filaF("LoRA", esc0(lora.r ? `r ${lora.r} · alfa ${lora.lora_alpha} · dropout ${lora.lora_dropout} · ${lora.target_modules?.length} módulos` : "—")),
+  filaF("parámetros de", esc0(META.parametros?.origen || "—")),
+  filaF("banco (modelo)", `precisión ${pct(med.banco?.precision)} · cobertura ${pct(med.banco?.cobertura)} · acierto ${pct(med.banco?.acierto)}`),
+  filaF("examen", `acierto ${pct(med.examen?.acierto)} · precisión ${pct(med.examen?.precision)}`),
+  filaF("prueba", `herramienta ${pct(med.prueba?.herramienta)} · falta dato ${pct(med.prueba?.falta_dato)}`),
+  filaF("commit · perfil", esc0(`${META.commit || "—"} · ${META.perfil || "—"}`)),
+  META.nota ? filaF("nota", esc0(META.nota)) : "",
+  filaF("", `<button id="verParams">todos los parámetros</button>`),
+].join("");
+$("verParams").onclick = () => abrir(`Parámetros de ${META.id}`,
+  `<pre style="font:12px var(--f-dato);white-space:pre-wrap">${esc0(JSON.stringify(META.parametros, null, 1))}</pre>`);
+
+// --- las versiones: todos los analisis en una tabla ---
+$("verVersiones").onclick = () => {
+  const filas = IDX.analisis.slice().reverse().map(a => {
+    const x = a.parametros?.args || {}, m = a.medidas || {};
+    return `<tr class="fila-a ${a.id === AID ? "actual" : ""}" data-id="${a.id}">
+      <td class="n">${a.id}</td><td>${esc0(a.grupo)}</td><td>${esc0(a.nombre)}</td><td>${esc0(a.fecha?.slice(0, 16).replace("T", " "))}</td>
+      <td>c${a.corpus.numero} <code>${a.corpus.version.slice(0, 8)}</code></td><td>b${a.banco.numero} <code>${a.banco.version.slice(0, 8)}</code></td>
+      <td class="n">${x.epocas ?? "—"}</td><td class="n">${x.lr ?? "—"}</td>
+      <td class="n">${pct(m.banco?.precision)}</td><td class="n">${pct(m.banco?.acierto)}</td><td class="n">${pct(m.examen?.acierto)}</td>
+      <td class="n">${Object.values(a.erradas || {}).reduce((s, n) => s + n, 0) || "—"}</td></tr>`;
+  }).join("");
+  const cs = IDX.corpus.map(c => `<tr><td class="n">c${c.numero}</td><td><code>${c.version}</code></td><td>${esc0(c.fecha?.slice(0, 16).replace("T", " "))}</td>
+    <td>${esc0(c.origen.replace(/^.*entrenamientos\//, ""))}</td><td class="n">${c.filas?.["entrenar.jsonl"] ?? "—"}</td><td><code>${esc0(c.anotaciones || "—")}</code></td></tr>`).join("");
+  const bs = IDX.banco.map(b => `<tr><td class="n">b${b.numero}</td><td><code>${b.version}</code></td><td>${esc0(b.fecha?.slice(0, 16).replace("T", " "))}</td><td class="n">${b.casos}</td></tr>`).join("");
+  abrir("Versiones", `
+    <h2>Análisis</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>id</th><th>grupo</th><th>nombre</th><th>fecha</th><th>corpus</th><th>banco</th>
+      <th>épocas</th><th>lr</th><th>banco precisión</th><th>banco acierto</th><th>examen acierto</th><th>erradas</th></tr></thead><tbody>${filas}</tbody></table></div>
+    <h2 style="margin-top:18px">Versiones del corpus</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>huella</th><th>fecha</th><th>de dónde</th><th>filas</th><th>anotaciones</th></tr></thead><tbody>${cs}</tbody></table></div>
+    <h2 style="margin-top:18px">Versiones del banco</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>huella</th><th>fecha</th><th>casos</th></tr></thead><tbody>${bs}</tbody></table></div>`);
+  $("supCuerpo").querySelectorAll("tr.fila-a").forEach(tr => tr.onclick = () => location.search = "?a=" + tr.dataset.id);
+};
+
+// --- las frases de un hilo: el corpus de entrenamiento, las anotaciones y el banco de ESTE analisis ---
+async function verHilo(h, que) {
+  abrir(`${h}`, "cargando…");
+  const pest = ["entrenamiento", "anotaciones", "banco"].map(p => `<button class="${p === que ? "on" : ""}" data-p="${p}">${p}</button>`).join("");
+  let cuerpo = "";
+  try {
+    if (que === "entrenamiento") {
+      const fs = await json(`/api/corpus/${META.corpus.version}/frases?h=${encodeURIComponent(h)}`);
+      cuerpo = `<div class="sub">${fs.length} filas de entrenar.jsonl (corpus c${META.corpus.numero})</div><div class="lista-frases">` +
+        fs.map(f => `<div>«${esc0(f.frase)}» <code>${esc0(f.tipo)} · ${esc0(f.plantilla || "")} ${f.args ? esc0(JSON.stringify(f.args)) : ""}</code></div>`).join("") + "</div>";
+    } else if (que === "anotaciones") {
+      const an = await json(`/api/corpus/${META.corpus.version}/anotaciones?h=${encodeURIComponent(h)}`);
+      cuerpo = `<div class="sub">${an.length} anotaciones (${esc0(META.anotaciones || "")}): las plantillas de las que salen las nubes</div><div class="lista-frases">` +
+        an.map(a => `<div>${esc0(a.plantilla || "")} <code>${a.falta ? "falta " + esc0(a.falta) : esc0(JSON.stringify(a.args || {}))}</code></div>`).join("") + "</div>";
+    } else {
+      const cs = await json(`/api/banco/${META.banco.version}/casos?h=${encodeURIComponent(h)}`);
+      const err = new Set(P.filter(p => p.b && !p.ok && p.t === h).map(p => p.f));
+      const med = new Set(P.filter(p => p.b && p.t === h).map(p => p.f));
+      cuerpo = `<div class="sub">${cs.length} casos del banco b${META.banco.numero}; ${med.size} entraron en la muestra medida, ${err.size} errados</div><div class="lista-frases">` +
+        cs.map(c => `<div>${err.has(c.frase) ? '<span style="color:var(--tally)">✕</span> ' : med.has(c.frase) ? '<span style="color:var(--verde)">✓</span> ' : ""}«${esc0(c.frase)}» <code>${esc0((c.aceptables || [c.herramienta]).join(" / "))}</code></div>`).join("") + "</div>";
+    }
+  } catch (e) { cuerpo = `<div class="sub">No se pudo leer: ${esc0(e.message)}</div>`; }
+  $("supCuerpo").innerHTML = `<div class="pest">${pest}</div>${cuerpo}`;
+  $("supCuerpo").querySelectorAll(".pest button").forEach(b => b.onclick = () => verHilo(h, b.dataset.p));
+}
+
+
+const D = vista.dims, L = vista.capas.length, P = vista.puntos, N = P.length;
+const R = 1.6, SEP = 0.32, Y0 = -(L - 1) * SEP / 2;   // radio del anillo, separacion entre capas
+const yDe = l => Y0 + l * SEP;
+const nombreCapa = l => l === 0 ? "E" : String(l);
+const capas = vista.capas.map(c => {
+  const b = atob(c.q), f = new Float32Array(b.length);
+  for (let i = 0; i < b.length; i++) f[i] = ((b.charCodeAt(i) << 24) >> 24) * c.escala;
+  return f;
+});
+const nCorpus = P.filter(p => !p.b).length, nErr = P.filter(p => p.b && !p.ok).length;
+$("sub").textContent = `${curvas.modelo.replace(/^.*entrenamientos\//, "")} · ${nCorpus} frases del corpus · ${N - nCorpus} del banco (${nErr} erradas) · embeddings + 32 capas`;
+
+// herramientas y colores
+const herrs = [...new Set(P.map(p => p.t))].sort();
+const hIdx = Object.fromEntries(herrs.map((h, i) => [h, i]));
+const colTodas = herrs.map((h, i) => h === "derivar" ? new THREE.Color("#9aa3a0") : new THREE.Color().setHSL(((i * 137.508) % 360) / 360, 0.62, 0.6));
+const PALETA = ["#e3a63b", "#5fb0e8", "#6fcf97", "#c58cf0", "#f07f9c", "#5fd6c8", "#d9d16a", "#9aa3a0"].map(c => new THREE.Color(c));
+const errPorH = {};
+P.forEach(p => { if (p.b && !p.ok) errPorH[p.t] = (errPorH[p.t] || 0) + 1; });
+const sel = $("herr");
+herrs.forEach(h => { const o = document.createElement("option"); o.value = h; o.textContent = h + (errPorH[h] ? `  (${errPorH[h]} erradas)` : ""); sel.append(o); });
+
+// centros del corpus en 16 dims (ultima capa) para elegir las vecinas
+const cenFinal = (() => {
+  const X = capas[L - 1], c = herrs.map(() => new Float32Array(D)), n = herrs.map(() => 0);
+  P.forEach((p, i) => { if (p.b) return; const k = hIdx[p.t]; n[k]++; for (let d = 0; d < D; d++) c[k][d] += X[i * D + d]; });
+  c.forEach((v, k) => { for (let d = 0; d < D; d++) v[d] /= Math.max(1, n[k]); });
+  return c;
+})();
+const dist2 = (a, b) => { let s = 0; for (let d = 0; d < D; d++) s += (a[d] - b[d]) ** 2; return s; };
+
+// --- proyeccion al plano de cada anillo: PCA de 2 ejes de lo visible, alineada con la capa de abajo ---
+function pca2(X, idx) {
+  const m = new Float64Array(D);
+  idx.forEach(i => { for (let d = 0; d < D; d++) m[d] += X[i * D + d]; });
+  m.forEach((v, d) => m[d] = v / idx.length);
+  const C = Array.from({ length: D }, () => new Float64Array(D));
+  idx.forEach(i => { for (let a = 0; a < D; a++) { const xa = X[i * D + a] - m[a]; for (let b = a; b < D; b++) C[a][b] += xa * (X[i * D + b] - m[b]); } });
+  for (let a = 0; a < D; a++) for (let b = 0; b < a; b++) C[a][b] = C[b][a];
+  const vecs = [];
+  for (let k = 0; k < 2; k++) {
+    let v = new Float64Array(D).map((_, d) => Math.sin(d * 1.7 + k * 3.1) + 0.01);
+    for (let it = 0; it < 80; it++) {
+      const w = new Float64Array(D);
+      for (let a = 0; a < D; a++) for (let b = 0; b < D; b++) w[a] += C[a][b] * v[b];
+      vecs.forEach(u => { let p = 0; for (let d = 0; d < D; d++) p += w[d] * u[d]; for (let d = 0; d < D; d++) w[d] -= p * u[d]; });
+      const n = Math.hypot(...w) || 1; v = w.map(x => x / n);
+    }
+    vecs.push(v);
+  }
+  return { m, vecs };
+}
+let plano = [];      // plano[l] = Float32Array(N*2): x,z en el anillo l (radio <= R)
+let visibles = [];
+function proyectar() {
+  plano = [];
+  let prev = null;
+  for (let l = 0; l < L; l++) {
+    const X = capas[l], { m, vecs } = pca2(X, visibles), out = new Float32Array(N * 2);
+    visibles.forEach(i => { for (let k = 0; k < 2; k++) { let s = 0; for (let d = 0; d < D; d++) s += (X[i * D + d] - m[d]) * vecs[k][d]; out[i * 2 + k] = s; } });
+    if (prev) for (let k = 0; k < 2; k++) {
+      let s = 0; visibles.forEach(i => s += out[i * 2 + k] * prev[i * 2 + k]);
+      if (s < 0) visibles.forEach(i => out[i * 2 + k] *= -1);
+    }
+    // que el 97 % de los puntos quede adentro del anillo
+    const r = visibles.map(i => Math.hypot(out[i * 2], out[i * 2 + 1])).sort((a, b) => a - b);
+    const e = (r[Math.floor(r.length * 0.97)] || 1) / (R * 0.92);
+    for (let i = 0; i < out.length; i++) out[i] /= e;
+    // los que quedan afuera se apoyan en el borde
+    visibles.forEach(i => { const h = Math.hypot(out[i * 2], out[i * 2 + 1]); if (h > R) { out[i * 2] *= R / h; out[i * 2 + 1] *= R / h; } });
+    plano.push(out); prev = out;
+  }
+}
+
+// --- three ---
+const lienzo = $("lienzo"), escena = lienzo.parentElement;
+const render = new THREE.WebGLRenderer({ canvas: lienzo, antialias: true });
+render.setPixelRatio(Math.min(devicePixelRatio, 2));
+render.setClearColor(0x0e1214);
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(40, 1, 0.01, 200);
+cam.position.set(9, 5.5, 10.5);
+const ctl = new OrbitControls(cam, lienzo);
+ctl.enableDamping = true; ctl.target.set(0, 0, 0);
+
+// los anillos: disco translucido + borde + reticula de vectorscopio
+const anillos = [];
+for (let l = 0; l < L; l++) {
+  const g = new THREE.Group();
+  const zona = l >= 18 && l <= 20;
+  const disco = new THREE.Mesh(new THREE.RingGeometry(0.04, R, 96), new THREE.MeshBasicMaterial({
+    color: zona ? 0x6fcf97 : 0x8b9a97, transparent: true, opacity: zona ? 0.07 : 0.045, side: THREE.DoubleSide, depthWrite: false }));
+  disco.rotation.x = -Math.PI / 2; g.add(disco);
+  const borde = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 96 }, (_, i) => new THREE.Vector3(Math.cos(i / 96 * Math.PI * 2) * R, 0, Math.sin(i / 96 * Math.PI * 2) * R))),
+    new THREE.LineBasicMaterial({ color: zona ? 0x6fcf97 : 0x8b9a97, transparent: true, opacity: 0.35 }));
+  g.add(borde);
+  const cruz = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-R, 0, 0), new THREE.Vector3(R, 0, 0), new THREE.Vector3(0, 0, -R), new THREE.Vector3(0, 0, R)]),
+    new THREE.LineBasicMaterial({ color: 0x8b9a97, transparent: true, opacity: 0.12 }));
+  g.add(cruz);
+  g.position.y = yDe(l); g.renderOrder = 0;
+  scene.add(g); anillos.push(g);
+}
+// eje central
+scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, yDe(0), 0), new THREE.Vector3(0, yDe(L - 1), 0)]),
+  new THREE.LineBasicMaterial({ color: 0x263035 })));
+
+// puntos: N por capa, todas las capas en una sola geometria
+const M = N * L;
+const geo = new THREE.BufferGeometry();
+const pos = new Float32Array(M * 3), col = new Float32Array(M * 3), tam = new Float32Array(M), tipo = new Float32Array(M), luz = new Float32Array(M).fill(1);
+geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+geo.setAttribute("tam", new THREE.BufferAttribute(tam, 1));
+geo.setAttribute("tipo", new THREE.BufferAttribute(tipo, 1));
+geo.setAttribute("luz", new THREE.BufferAttribute(luz, 1));
+const mat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  uniforms: { escala: { value: 300 } },
+  vertexShader: `attribute float tam; attribute float tipo; attribute float luz; attribute vec3 color; varying vec3 vC; varying float vT; varying float vL;
+    uniform float escala;
+    void main(){ vC = color; vT = tipo; vL = luz; vec4 mv = modelViewMatrix * vec4(position,1.0);
+      gl_PointSize = tam * escala / -mv.z * (luz > 0.5 ? 1.0 : 0.8); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `varying vec3 vC; varying float vT; varying float vL;
+    void main(){ float r = length(gl_PointCoord - 0.5) * 2.0; if (r > 1.0) discard;
+      if (vL < 0.5) { gl_FragColor = vec4(vC, 0.12 * (1.0 - r * r)); return; }
+      if (vT < 0.5) { gl_FragColor = vec4(vC, 0.6 * (1.0 - r * r)); return; }
+      if (vT < 1.5) { gl_FragColor = r > 0.72 ? vec4(0.84,0.87,0.86,0.95) : vec4(vC, 0.95); return; }
+      if (vT < 2.5) { gl_FragColor = r > 0.55 ? vec4(1.0,0.35,0.28,1.0) : vec4(vC, 1.0); return; }
+      if (vT > 3.5) { gl_FragColor = r > 0.55 ? vec4(0.37,0.69,0.91,1.0) : vec4(vC, 1.0); return; }
+      gl_FragColor = r > 0.5 ? vec4(0.89,0.65,0.23,1.0) : (r > 0.35 ? vec4(0.05,0.07,0.08,1.0) : vec4(vC,1.0)); }`
+});
+const nube = new THREE.Points(geo, mat);
+nube.renderOrder = 2;
+scene.add(nube);
+const hilos = new THREE.Group(); scene.add(hilos);
+
+// --- estado ---
+let modo = "grupo", grupo = [], marcada = -1, encima = null, previa = -1;
+let foco = null;    // una errada elegida: {esperada, elegida}
+let nubeHover = null;  // el mouse sobre un nombre de herramienta en una lista: {h, rol: "esperada" | "elegida"}
+const fijos = [];   // herramientas con el hilo fijado
+const VERDE = new THREE.Color("#6fcf97"), ROJO = new THREE.Color("#ff5a47"), GRIS = new THREE.Color("#5c6966");
+const activos = () => new Set([...fijos, ...(encima ? [encima] : []), ...(nubeHover ? [nubeHover.h] : []),
+  ...(foco ? [foco.esperada, foco.elegida].filter(h => h in hIdx) : []),
+  ...(modo === "pregunta" && marcada >= 0 ? [P[marcada].t] : [])]);
+const colorH = h => nubeHover && h === nubeHover.h ? (nubeHover.rol === "esperada" ? VERDE : ROJO)
+  : foco && h === foco.esperada ? VERDE : foco && h === foco.elegida ? ROJO
+  : modo === "todas" ? colTodas[hIdx[h]] : grupo.includes(h) ? PALETA[grupo.indexOf(h) % 7] : GRIS;
+const vis = { corpus: true, ok: true, err: true, hilos: true };
+const prendida = new Array(L).fill(false);
+[0, 8, 16, 18, 19, 20, 24, 28, 32].forEach(l => prendida[l] = true);
+let colorDe = new Array(N);
+
+function vecinas(h) {
+  const k = hIdx[h];
+  const cerca = herrs.map((x, j) => [dist2(cenFinal[k], cenFinal[j]), x]).filter(x => x[1] !== h).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  const elegidas = P.filter(p => p.b && !p.ok && p.t === h && p.el in hIdx).map(p => p.el);
+  const extra = marcada >= 0 && P[marcada].el in hIdx ? [P[marcada].el] : [];
+  return [h, ...new Set([...extra, ...elegidas, ...cerca])].slice(0, 6);
+}
+// lo que pertenece a una herramienta: su corpus, su banco y las del banco que la eligieron sin ser suyas
+const deLaHerr = (i, h) => P[i].t === h || (P[i].b && !P[i].ok && P[i].el === h);
+function armar(rehacerLista = true) {
+  const h = sel.value;
+  const nubesFoco = foco ? [foco.esperada, foco.elegida].filter(x => x in hIdx) : [];
+  if (modo === "todas") {
+    grupo = []; visibles = P.map((_, i) => i);
+  } else if (modo === "grupo") {
+    grupo = vecinas(h);
+    const g = new Set([...grupo, ...nubesFoco]);
+    visibles = P.map((p, i) => i).filter(i => g.has(P[i].t) || i === marcada);
+  } else if (modo === "herramienta") {
+    const otras = [...new Set(P.filter((p, i) => deLaHerr(i, h) && p.t !== h).map(p => p.t))];
+    grupo = [h, ...otras];
+    const g = new Set(nubesFoco);
+    visibles = P.map((p, i) => i).filter(i => deLaHerr(i, h) || (!P[i].b && g.has(P[i].t)) || i === marcada);
+  } else {   // una pregunta: la frase, y las nubes del corpus de lo esperado (y de lo elegido)
+    const p = P[marcada];
+    grupo = [p.t, ...(p.b && !p.ok && p.el in hIdx ? [p.el] : [])];
+    const g = new Set(grupo);
+    visibles = P.map((q, i) => i).filter(i => (!P[i].b && g.has(P[i].t)) || i === marcada);
+  }
+  if (nubeHover && modo !== "todas") {
+    const v = new Set(visibles);
+    P.forEach((q, i) => { if (!q.b && q.t === nubeHover.h) v.add(i); });
+    visibles = [...v];
+  }
+  P.forEach((p, i) => colorDe[i] = colorH(p.t));
+  proyectar();
+  for (let l = 0; l < L; l++) for (let i = 0; i < N; i++) {
+    const j = l * N + i;
+    pos[j * 3] = plano[l][i * 2] || 0; pos[j * 3 + 1] = yDe(l); pos[j * 3 + 2] = plano[l][i * 2 + 1] || 0;
+    const c = colorDe[i]; col[j * 3] = c.r; col[j * 3 + 1] = c.g; col[j * 3 + 2] = c.b;
+  }
+  geo.attributes.position.needsUpdate = geo.attributes.color.needsUpdate = true;
+  geo.computeBoundingSphere();
+  pintar();
+  $("grupoLista").innerHTML = modo !== "todas" ? grupo.map((x, k) =>
+    `<div data-h="${x}"><span class="punto" style="background:#${colorH(x).getHexString()}"></span>${x}${k === 0 ? " · la elegida" : ""}${errPorH[x] ? ` · ${errPorH[x]} erradas` : ""}</div>`).join("") : "";
+  $("grupoLista").querySelectorAll("div").forEach(d => d.onclick = () => { sel.value = d.dataset.h; marcada = -1; foco = null; if (modo === "pregunta") modo = "herramienta"; armar(); });
+  for (const [id, m] of [["mTodas", "todas"], ["mGrupo", "grupo"], ["mHerr", "herramienta"], ["mPreg", "pregunta"]]) $(id).classList.toggle("on", modo === m);
+  if (rehacerLista) listaPreguntas();
+}
+function pintar() {
+  const enVista = new Set(visibles), act = activos();
+  for (let l = 0; l < L; l++) {
+    anillos[l].visible = prendida[l];
+    for (let i = 0; i < N; i++) {
+      const p = P[i], j = l * N + i;
+      let t = p.b ? (p.ok ? 1 : 2) : 0, s = p.b ? (p.ok ? 0.06 : 0.08) : 0.035;
+      if (modo === "herramienta" && p.b && !p.ok && p.t !== sel.value) t = 4;
+      if (modo === "todas") s *= 0.75;
+      let ver = prendida[l] && enVista.has(i) && (p.b ? (p.ok ? vis.ok : vis.err) : vis.corpus);
+      if (i === marcada || i === previa) { t = 3; s = 0.13; ver = prendida[l]; }
+      tam[j] = ver ? s : 0; tipo[j] = t;
+      luz[j] = i === marcada || i === previa ? 1
+        : nubeHover ? (p.t === nubeHover.h ? 1 : 0)
+        : modo === "pregunta" || previa >= 0 ? 0
+        : !act.size || act.has(p.t) ? 1 : 0;
+    }
+  }
+  geo.attributes.tam.needsUpdate = geo.attributes.tipo.needsUpdate = geo.attributes.luz.needsUpdate = true;
+  armarHilos();
+  armarTubos();
+}
+// hilos: el centro de cada nube del grupo subiendo por las capas prendidas, y el recorrido de la marcada
+function centro(l, h) {
+  let x = 0, z = 0, n = 0;
+  P.forEach((q, i) => { if (!q.b && q.t === h) { x += plano[l][i * 2]; z += plano[l][i * 2 + 1]; n++; } });
+  return n ? [x / n, z / n] : null;
+}
+function armarHilos() {
+  hilos.clear();
+  const ls = [...Array(L).keys()].filter(l => prendida[l]);
+  if (ls.length < 2) return;
+  if (vis.hilos && modo !== "todas") grupo.forEach(h => {
+    const pts = ls.map(l => { const c = centro(l, h); return c && new THREE.Vector3(c[0], yDe(l), c[1]); }).filter(Boolean);
+    if (pts.length > 1) hilos.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: colorH(h), transparent: true, opacity: 0.7 })));
+  });
+  for (const i of [marcada, previa]) {
+    if (i < 0 || !visibles.includes(i)) continue;
+    const pts = ls.map(l => new THREE.Vector3(plano[l][i * 2], yDe(l), plano[l][i * 2 + 1]));
+    hilos.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xe3a63b })));
+  }
+}
+
+// CDNV de cada herramienta contra su vecina mas cercana, por capa, en las 16 dims
+const cdnvCapa = capas.map(X => {
+  const K = herrs.length, c = herrs.map(() => new Float64Array(D)), n = new Array(K).fill(0), v = new Float64Array(K);
+  P.forEach((p, i) => { if (p.b) return; const k = hIdx[p.t]; n[k]++; for (let d = 0; d < D; d++) c[k][d] += X[i * D + d]; });
+  c.forEach((x, k) => { for (let d = 0; d < D; d++) x[d] /= Math.max(1, n[k]); });
+  P.forEach((p, i) => { if (p.b) return; const k = hIdx[p.t]; for (let d = 0; d < D; d++) v[k] += (X[i * D + d] - c[k][d]) ** 2; });
+  for (let k = 0; k < K; k++) v[k] /= Math.max(1, n[k]);
+  return herrs.map((_, a) => {
+    let peor = 0, con = null;
+    for (let b = 0; b < K; b++) {
+      if (b === a || !n[a] || !n[b]) continue;
+      const x = (v[a] + v[b]) / (2 * dist2(c[a], c[b]) + 1e-9);
+      if (x > peor) { peor = x; con = herrs[b]; }
+    }
+    return [peor, con];
+  });
+});
+const cdnvDe = (h, l) => cdnvCapa[l][hIdx[h]];
+
+// la nube de un hilo en el anillo l: centro y elipse (1,5 desvios) de sus frases del corpus
+function elipse(l, h) {
+  let x = 0, z = 0, n = 0;
+  P.forEach((q, i) => { if (!q.b && q.t === h) { x += plano[l][i * 2]; z += plano[l][i * 2 + 1]; n++; } });
+  if (n < 2) return null;
+  x /= n; z /= n;
+  let sxx = 0, szz = 0, sxz = 0;
+  P.forEach((q, i) => { if (!q.b && q.t === h) { const a = plano[l][i * 2] - x, b = plano[l][i * 2 + 1] - z; sxx += a * a; szz += b * b; sxz += a * b; } });
+  sxx /= n; szz /= n; sxz /= n;
+  const tr = (sxx + szz) / 2, dt = Math.sqrt(Math.max(0, ((sxx - szz) / 2) ** 2 + sxz * sxz));
+  const l1 = tr + dt, l2 = Math.max(1e-6, tr - dt), th = 0.5 * Math.atan2(2 * sxz, sxx - szz);
+  return { x, z, a: 1.5 * Math.sqrt(l1) + 0.02, b: 1.5 * Math.sqrt(l2) + 0.02, th };
+}
+const SEG = 48;
+function contorno(e, y) {   // por angulo del mundo, asi el tubo no se retuerce entre capas
+  return Array.from({ length: SEG }, (_, k) => {
+    const f = k / SEG * Math.PI * 2, u = f - e.th;
+    const r = 1 / Math.sqrt((Math.cos(u) / e.a) ** 2 + (Math.sin(u) / e.b) ** 2);
+    return new THREE.Vector3(e.x + r * Math.cos(f), y, e.z + r * Math.sin(f));
+  });
+}
+const tubos = new THREE.Group(); scene.add(tubos);
+let etqCdnv = [];
+function armarTubos() {
+  tubos.children.forEach(o => o.geometry?.dispose());
+  tubos.clear(); etqCdnv = [];
+  const ls = [...Array(L).keys()].filter(l => prendida[l]);
+  for (const h of activos()) {
+    const color = colorH(h), es = ls.map(l => [l, elipse(l, h)]).filter(x => x[1]);
+    if (!es.length) continue;
+    // la linea del centro
+    tubos.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(es.map(([l, e]) => new THREE.Vector3(e.x, yDe(l), e.z))),
+      new THREE.LineBasicMaterial({ color, linewidth: 2 })));
+    // los contornos por capa y el tubo entre capas vecinas
+    const cs = es.map(([l, e]) => contorno(e, yDe(l)));
+    cs.forEach(c => tubos.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(c), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55 }))));
+    const vtx = [];
+    for (let j = 0; j + 1 < cs.length; j++) for (let k = 0; k < SEG; k++) {
+      const a = cs[j][k], b = cs[j][(k + 1) % SEG], c = cs[j + 1][k], d = cs[j + 1][(k + 1) % SEG];
+      vtx.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, b.x, b.y, b.z, d.x, d.y, d.z, c.x, c.y, c.z);
+    }
+    if (cs.length === 1) {   // una sola capa: el disco de la elipse
+      const c = cs[0], o = es[0][1];
+      for (let k = 0; k < SEG; k++) { const a = c[k], b = c[(k + 1) % SEG]; vtx.push(o.x, a.y, o.z, a.x, a.y, a.z, b.x, b.y, b.z); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(vtx, 3));
+    const tubo = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.13, side: THREE.DoubleSide, depthWrite: false }));
+    tubo.renderOrder = 1; tubos.add(tubo);
+    es.forEach(([l, e]) => etqCdnv.push({ x: e.x + e.a * 0.2, y: yDe(l), z: e.z, color, t: cdnvDe(h, l)[0].toFixed(3) }));
+  }
+  dibujarFijos();
+}
+function chispaCdnv(h, color) {
+  const w = 120, hh = 26, v = herrs.length ? [...Array(L).keys()].map(l => cdnvDe(h, l)[0]) : [];
+  const mx = Math.max(...v.slice(1), 0.05);
+  const pts = v.map((x, l) => `${(l / (L - 1) * w).toFixed(1)},${(hh - 2 - Math.min(x, mx) / mx * (hh - 4)).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${w} ${hh}" width="${w}" height="${hh}" aria-label="CDNV por capa"><polyline fill="none" stroke="#${color.getHexString()}" stroke-width="1.4" points="${pts}"/></svg>`;
+}
+function dibujarFijos() {
+  const caja = $("fijos");
+  if (!fijos.length) { caja.innerHTML = `<span class="sub">Pasá el mouse por un punto para ver su hilo; clic para fijarlo.</span>`; return; }
+  caja.innerHTML = fijos.map(h => {
+    const c = colorH(h), [x, con] = cdnvDe(h, L - 1);
+    return `<div class="fijo"><span class="punto" style="background:#${c.getHexString()}"></span>
+      <div style="min-width:0"><div style="overflow-wrap:anywhere">${h}</div><div class="sub">CDNV final ${x.toFixed(3)} con ${con}</div>${chispaCdnv(h, c)}
+      <div class="fila" style="gap:4px;margin-top:3px"><button class="chico" data-ver="${h}" data-q="entrenamiento">corpus</button><button class="chico" data-ver="${h}" data-q="anotaciones">anotaciones</button><button class="chico" data-ver="${h}" data-q="banco">banco</button></div></div>
+      <button data-h="${h}" aria-label="soltar ${h}">×</button></div>`;
+  }).join("") + `<div><button class="chico" id="soltarTodos">soltar todos</button></div>`;
+  caja.querySelectorAll("button[data-h]").forEach(b => b.onclick = () => { fijos.splice(fijos.indexOf(b.dataset.h), 1); pintar(); });
+  $("soltarTodos").onclick = () => { fijos.length = 0; pintar(); };
+  caja.querySelectorAll("button[data-ver]").forEach(b => b.onclick = () => verHilo(b.dataset.ver, b.dataset.q));
+}
+
+// etiquetas: numero de capa al borde de cada anillo, nombre de la nube arriba de todo
+const etqDiv = $("etiquetas");
+function etiquetas() {
+  const w = lienzo.clientWidth, h = lienzo.clientHeight, out = [];
+  const lado = new THREE.Vector3().subVectors(cam.position, ctl.target); lado.y = 0; lado.normalize();
+  const der = new THREE.Vector3(lado.z, 0, -lado.x);
+  for (let l = 0; l < L; l++) {
+    if (!prendida[l]) continue;
+    const v = new THREE.Vector3(der.x * R * -1.04, yDe(l), der.z * R * -1.04).project(cam);
+    if (v.z < 1) out.push(`<div class="etq capa" style="left:${(v.x + 1) / 2 * w}px;top:${(1 - v.y) / 2 * h}px">capa <b>${nombreCapa(l)}</b></div>`);
+  }
+  const arriba = [...Array(L).keys()].filter(l => prendida[l]).pop();
+  if (modo === "grupo" && arriba != null) grupo.forEach((g, k) => {
+    const c = centro(arriba, g); if (!c) return;
+    const v = new THREE.Vector3(c[0], yDe(arriba) + 0.12, c[1]).project(cam);
+    if (v.z < 1) out.push(`<div class="etq" style="left:${(v.x + 1) / 2 * w}px;top:${(1 - v.y) / 2 * h}px;color:#${PALETA[k].getHexString()}">${g}</div>`);
+  });
+  etqCdnv.forEach(e => {
+    const v = new THREE.Vector3(e.x, e.y, e.z).project(cam);
+    if (v.z < 1) out.push(`<div class="etq cdnv" style="left:${(v.x + 1) / 2 * w}px;top:${(1 - v.y) / 2 * h}px;color:#${e.color.getHexString()}">${e.t}</div>`);
+  });
+  etqDiv.innerHTML = out.join("");
+}
+
+// hover y clic
+const ray = new THREE.Raycaster(); ray.params.Points.threshold = 0.035;
+const mouse = new THREE.Vector2();
+function tocado(filtro) {
+  ray.setFromCamera(mouse, cam);
+  return ray.intersectObject(nube).find(x => tam[x.index] > 0 && filtro(x.index % N));
+}
+lienzo.addEventListener("pointermove", e => {
+  const r = lienzo.getBoundingClientRect();
+  mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  const hit = tocado(() => true);
+  const h = hit ? P[hit.index % N].t : null;
+  if (h !== encima) { encima = h; pintar(); }
+  if (!hit) { $("info").innerHTML = ""; return; }
+  mostrar(hit.index % N, Math.floor(hit.index / N));
+});
+lienzo.addEventListener("pointerleave", () => { if (encima) { encima = null; pintar(); } });
+let arrastre = 0;
+lienzo.addEventListener("pointerdown", e => arrastre = e.clientX + e.clientY);
+lienzo.addEventListener("click", e => {
+  if (Math.abs(e.clientX + e.clientY - arrastre) > 4) return;   // fue un giro, no un clic
+  const hit = tocado(() => true); if (!hit) return;
+  const i = hit.index % N, h = P[i].t;
+  if (P[i].b && !P[i].ok) return enfocar(i);
+  if (fijos.includes(h)) fijos.splice(fijos.indexOf(h), 1); else fijos.push(h);
+  pintar();
+});
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const detPorFrase = Object.fromEntries((curvas.detalle || []).map(d => [d.frase, d]));
+function mostrar(i, l) {
+  const p = P[i], d = detPorFrase[p.f];
+  const capa = l != null ? ` · capa ${nombreCapa(l)}` : "";
+  const puesto = d && l != null ? ` · ahí la correcta va ${d.rango_por_capa[l] + 1}ª` : "";
+  const cd = l != null ? cdnvDe(p.t, l) : null;
+  const cdt = cd && cd[1] ? `<div class="q">hilo ${esc(p.t)} · CDNV en esta capa ${cd[0].toFixed(3)} con ${esc(cd[1])}</div>` : "";
+  $("info").innerHTML = p.b
+    ? `«${esc(p.f)}»<div class="q">banco · esperada ${esc(p.t)} · ${p.ok ? "acertó" : `eligió <span style="color:var(--tally)">${esc(p.el)}</span>`}${capa}${puesto}</div>`
+    : `«${esc(p.f)}»<div class="q">corpus · ${esc(p.t)}${capa}</div>`;
+  $("info").innerHTML += cdt;
+}
+
+// casillas de capas
+const caja = $("capas");
+caja.innerHTML = [...Array(L).keys()].map(l =>
+  `<label class="${l >= 18 && l <= 20 ? "zona" : ""}"><input type="checkbox" id="c${l}" data-l="${l}" ${prendida[l] ? "checked" : ""} aria-label="capa ${nombreCapa(l)}"><span>${nombreCapa(l)}</span></label>`).join("");
+caja.querySelectorAll("input").forEach(c => c.onchange = () => { prendida[+c.dataset.l] = c.checked; pintar(); marcador(); });
+function fijarCapas(f) { for (let l = 0; l < L; l++) { prendida[l] = f(l); $("c" + l).checked = prendida[l]; } pintar(); marcador(); }
+document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => fijarCapas({
+  todas: () => true, ninguna: () => false, cada4: l => l % 4 === 0, giro: l => l >= 17 && l <= 21, final: l => [20, 26, 32].includes(l)
+}[b.dataset.p]));
+
+// --- curvas ---
+const svg = $("curvas"), W = 340, H = 170, m = { l: 30, r: 8, t: 8, b: 22 };
+const xs = l => m.l + l / (L - 1) * (W - m.l - m.r), ys = v => m.t + (1 - v) * (H - m.t - m.b);
+const series = [
+  ["corpus_al_centroide", "corpus", "#8b9a97"],
+  ["banco_al_centroide_acertadas", "banco acertadas", "#d6dfdc"],
+  ["banco_al_centroide_erradas", "banco erradas", "#ff5a47"],
+  ["erradas_cerca_de_la_elegida", "erradas: en la nube que eligió", "#e3a63b"],
+];
+function dibujarCurvas() {
+  let s = "";
+  for (let l = 0; l < L; l++) if (prendida[l]) s += `<rect x="${xs(l) - 3}" y="${m.t}" width="6" height="${H - m.t - m.b}" fill="#e3a63b" fill-opacity=".12"/>`;
+  for (const v of [0, 0.25, 0.5, 0.75, 1]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(v)}" y2="${ys(v)}" stroke="#263035"/><text x="${m.l - 4}" y="${ys(v) + 3}" text-anchor="end">${v * 100}%</text>`;
+  for (const l of [0, 8, 16, 24, 32]) s += `<text x="${xs(l)}" y="${H - 6}" text-anchor="middle">${nombreCapa(l)}</text>`;
+  series.forEach(([k, , c]) => {
+    const d = curvas.curvas[k]; if (!d) return;
+    s += `<polyline fill="none" stroke="${c}" stroke-width="1.8" points="${d.map((v, l) => `${xs(l).toFixed(1)},${ys(v).toFixed(1)}`).join(" ")}"/>`;
+    s += `<circle cx="${xs(L - 1)}" cy="${ys(d[L - 1])}" r="2.5" fill="${c}"/>`;
+  });
+  svg.innerHTML = s;
+}
+const marcador = dibujarCurvas;
+svg.insertAdjacentHTML("afterend", `<div class="leyenda" style="margin-top:4px">${series.map(([, n, c]) => `<div><span class="punto" style="background:${c}"></span>${n}</div>`).join("")}</div>`);
+svg.addEventListener("click", e => {
+  const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W;
+  const l = Math.max(0, Math.min(L - 1, Math.round((x - m.l) / (W - m.l - m.r) * (L - 1))));
+  prendida[l] = !prendida[l]; $("c" + l).checked = prendida[l]; pintar(); marcador();
+});
+
+// --- las erradas ---
+$("tipos").innerHTML = Object.entries(curvas.erradas || {}).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<div><span>${esc(t)}</span><b>${n}</b></div>`).join("");
+const idxBanco = {}; P.forEach((p, i) => { if (p.b) idxBanco[p.f] = i; });
+function chispa(r) {
+  const w = 84, h = 22, top = 10;
+  const pts = r.map((v, l) => `${(l / (r.length - 1) * w).toFixed(1)},${(Math.min(v, top) / top * (h - 2) + 1).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-label="puesto de la correcta por capa"><line x1="0" x2="${w}" y1="1" y2="1" stroke="#6fcf97" stroke-opacity=".5"/><polyline fill="none" stroke="#e3a63b" stroke-width="1.3" points="${pts}"/></svg>`;
+}
+$("erradas").innerHTML = (curvas.detalle || []).map(d =>
+  `<div class="err" data-i="${idxBanco[d.frase] ?? -1}" tabindex="0">
+     <div><div class="fr">«${esc(d.frase)}»</div>
+     <div class="md">esperada ${d.aceptables.map(a => `<i class="nube" data-nube="${esc(a)}" data-rol="esperada">${esc(a)}</i>`).join(" / ")} · eligió <em class="nube" data-nube="${esc(d.elegida)}" data-rol="elegida">${esc(d.elegida)}</em></div></div>
+     ${chispa(d.rango_por_capa)}</div>`).join("");
+$("erradas").querySelectorAll(".err").forEach(el => {
+  const go = () => { const i = +el.dataset.i; if (i >= 0) enfocar(i); };
+  el.onclick = go; el.onkeydown = e => { if (e.key === "Enter") go(); };
+  el.onmouseenter = () => previsualizar(+el.dataset.i);
+  el.onmouseleave = () => previsualizar(-1);
+});
+// pasar el mouse por el nombre de una herramienta (esperada en verde, elegida en rojo): su nube
+function conNubes(caja) {
+  caja.querySelectorAll(".nube").forEach(el => {
+    el.onmouseenter = () => { if (!(el.dataset.nube in hIdx)) return; nubeHover = { h: el.dataset.nube, rol: el.dataset.rol }; armar(false); };
+    el.onmouseleave = () => { if (!nubeHover) return; nubeHover = null; armar(false); };
+  });
+}
+conNubes($("erradas"));
+function enfocar(i) {
+  marcada = i; previa = -1;
+  foco = P[i].b && !P[i].ok ? { esperada: P[i].t, elegida: P[i].el } : null;
+  if (modo !== "todas" && !(modo === "herramienta" && deLaHerr(i, sel.value))) sel.value = P[i].t;
+  document.querySelectorAll(".err").forEach(e => e.classList.toggle("sel", +e.dataset.i === i));
+  armar(); mostrar(i);
+}
+// pasar el mouse por una frase de una lista: se ve sola, con su recorrido
+function previsualizar(i) {
+  if (i === previa) return;
+  previa = i >= 0 && visibles.includes(i) ? i : -1;
+  pintar();
+  if (i >= 0) mostrar(i);
+}
+
+// --- las preguntas de la herramienta elegida, una por una ---
+let filtroPreg = "todas";
+const claseDe = (i, h) => !P[i].b ? "corpus" : P[i].t !== h ? "eligio" : P[i].ok ? "ok" : "err";
+const NOMBRES_PREG = { todas: "todas", corpus: "corpus", ok: "acertadas", err: "erradas", eligio: "la eligió sin ser suya" };
+const MARCA_PREG = { corpus: '<span class="punto" style="background:#8b9a97;width:6px;height:6px;margin:4px"></span>',
+  ok: '<span style="color:var(--texto)">✓</span>', err: '<span style="color:var(--tally)">✕</span>', eligio: '<span style="color:#5fb0e8">↪</span>' };
+let pregIdx = [];
+function listaPreguntas() {
+  const h = sel.value;
+  $("secPreg").hidden = modo === "todas";
+  if (modo === "todas") return;
+  const todas = P.map((_, i) => i).filter(i => deLaHerr(i, h));
+  const n = { todas: todas.length };
+  todas.forEach(i => n[claseDe(i, h)] = (n[claseDe(i, h)] || 0) + 1);
+  $("pregTitulo").textContent = `Preguntas de ${h}`;
+  $("pregFiltros").innerHTML = Object.keys(NOMBRES_PREG).filter(k => n[k]).map(k =>
+    `<button class="${k === filtroPreg ? "on" : ""}" data-f="${k}">${NOMBRES_PREG[k]} ${n[k]}</button>`).join("");
+  $("pregFiltros").querySelectorAll("button").forEach(b => b.onclick = () => { filtroPreg = b.dataset.f; listaPreguntas(); });
+  if (!n[filtroPreg]) filtroPreg = "todas";
+  pregIdx = todas.filter(i => filtroPreg === "todas" || claseDe(i, h) === filtroPreg)
+    .sort((a, b) => ["err", "eligio", "ok", "corpus"].indexOf(claseDe(a, h)) - ["err", "eligio", "ok", "corpus"].indexOf(claseDe(b, h)));
+  $("pregLista").innerHTML = pregIdx.map(i => {
+    const p = P[i], c = claseDe(i, h);
+    const md = c === "err" ? `eligió <em class="nube" data-nube="${esc(p.el)}" data-rol="elegida">${esc(p.el)}</em>`
+      : c === "eligio" ? `esperaba <i class="nube" data-nube="${esc(p.t)}" data-rol="esperada">${esc(p.t)}</i>` : c === "ok" ? "banco, acertó" : "corpus";
+    return `<div class="preg ${i === marcada ? "sel" : ""}" data-i="${i}" tabindex="0">${MARCA_PREG[c]}<div>«${esc(p.f)}»<div class="md">${md}</div></div></div>`;
+  }).join("");
+  const k = pregIdx.indexOf(marcada);
+  $("pregPos").textContent = k >= 0 ? `${k + 1} de ${pregIdx.length}` : `${pregIdx.length} frases`;
+  $("pregLista").querySelectorAll(".preg").forEach(el => {
+    const i = +el.dataset.i;
+    el.onclick = () => { modo = "pregunta"; enfocar(i); };
+    el.onkeydown = e => { if (e.key === "Enter") { modo = "pregunta"; enfocar(i); } };
+    el.onmouseenter = () => previsualizar(i);
+    el.onmouseleave = () => previsualizar(-1);
+  });
+  $("pregLista").querySelector(".preg.sel")?.scrollIntoView({ block: "nearest" });
+  conNubes($("pregLista"));
+}
+function paso(d) {
+  if (!pregIdx.length) return;
+  const k = pregIdx.indexOf(marcada);
+  const j = k < 0 ? 0 : (k + d + pregIdx.length) % pregIdx.length;
+  modo = "pregunta"; enfocar(pregIdx[j]);
+}
+$("pregAnt").onclick = () => paso(-1);
+$("pregSig").onclick = () => paso(1);
+
+// --- controles ---
+$("mTodas").onclick = () => { modo = "todas"; armar(); };
+$("mGrupo").onclick = () => { modo = "grupo"; armar(); };
+$("mHerr").onclick = () => { modo = "herramienta"; if (marcada >= 0 && !deLaHerr(marcada, sel.value)) { marcada = -1; foco = null; } armar(); };
+$("mPreg").onclick = () => {
+  if (marcada < 0) { modo = "herramienta"; listaPreguntas(); if (!pregIdx.length) return armar(); marcada = pregIdx[0]; }
+  modo = "pregunta"; enfocar(marcada);
+};
+sel.onchange = () => { if (modo === "todas" || modo === "pregunta") modo = "herramienta"; marcada = -1; foco = null; armar(); };
+for (const [id, k] of [["vCorpus", "corpus"], ["vOk", "ok"], ["vErr", "err"], ["vHilos", "hilos"]]) $(id).onchange = e => { vis[k] = e.target.checked; pintar(); };
+
+function tamano() {
+  const w = escena.clientWidth, h = escena.clientHeight;
+  render.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+  mat.uniforms.escala.value = h * render.getPixelRatio() * 1.2;
+}
+new ResizeObserver(tamano).observe(escena);
+
+sel.value = Object.entries(errPorH).sort((a, b) => b[1] - a[1])[0]?.[0] || herrs[0];
+armar(); tamano(); marcador();
+render.setAnimationLoop(() => { ctl.update(); render.render(scene, cam); etiquetas(); });
+</script>
+<div class="capa-sup" id="sup" hidden>
+  <header><h2 id="supTitulo"></h2><button id="supCerrar" aria-label="cerrar">cerrar ✕</button></header>
+  <div class="cuerpo" id="supCuerpo"></div>
+</div>
+</body>
+</html>

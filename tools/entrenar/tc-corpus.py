@@ -150,8 +150,9 @@ def _ste():
     return ste_es
 
 
-def rendir(h, a, rnd, k, variar):
-    """K ejemplos de una anotacion, cada uno con su estado."""
+def rendir(h, a, rnd, k, variar, ste=True):
+    """K ejemplos de una anotacion, cada uno con su estado. ste=False: las aprendidas
+    (frases de operador tal cual, sin el filtro de STE-ES)."""
     out = []
     intentos = 0
     while len(out) < k and intentos < k * 4:
@@ -168,8 +169,8 @@ def rendir(h, a, rnd, k, variar):
         # la anotacion se valido con un relleno corto; con los nombres de verdad («el
         # audio de la camara 1») o la superficie una frase puede salirse de STE-ES:
         # entonces otro estado (otros nombres)
-        if _ste().errores(frase, h if h != tc.DERIVAR else None, falta="falta" in a) if h != tc.DERIVAR \
-                else _ste().errores_derivar(frase):
+        if ste and (_ste().errores(frase, h if h != tc.DERIVAR else None, falta="falta" in a) if h != tc.DERIVAR
+                    else _ste().errores_derivar(frase)):
             continue
         if "falta" in a:
             out.append(fila(est, frase, tc.llamada(tc.FALTA, {"pregunta": a["falta"]}), "falta", h,
@@ -280,6 +281,11 @@ def main():
                          " (0,35 hasta la v6b: 1,4 %% del corpus, y el modelo fallaba el 36 %% de esos casos)")
     ap.add_argument("--social", type=int, default=6, help="ejemplos por frase social")
     ap.add_argument("--semilla", type=int, default=13)
+    ap.add_argument("--aprendidas", help="datos/tc-aprendidas.json: lo que el modelo erro en los bancos intermedios"
+                                         " (tc-aprendidas.py), la frase tal cual y sus variaciones (tc-ciclo.py)")
+    ap.add_argument("--bancos-hasta", type=int, default=99, help="de las aprendidas, solo las de los bancos 1..N")
+    ap.add_argument("--peso-eje", type=int, default=3, help="veces que entra la frase tal cual (el eje de su nube)")
+    ap.add_argument("--peso-variacion", type=int, default=1, help="veces que entra cada variacion")
     args = ap.parse_args()
     rnd = random.Random(args.semilla)
     sal = Path(args.salida).expanduser()
@@ -415,6 +421,43 @@ def main():
         est, _ = tc.estado_sintetico(rnd)
         cp.append(fila(est, c["pedido"], c["respuesta"], "charla", None, None, con_estado=rnd.random() < 0.5))
 
+    # LO APRENDIDO EN LOS BANCOS INTERMEDIOS (tc-ciclo.py): la frase que el modelo
+    # erro, tal cual (el eje, con mas peso) y sus variaciones elegidas para que el eje
+    # quede en el CENTRO de su nube (tc-aprendidas.py). Sin STE-ES a proposito: son
+    # frases de operador, justo lo que el corpus controlado no tiene (el banco quedaba
+    # a ~3 radios de sus nubes, docs/modelos/bucle-tool-calling.md). Ni prueba ni
+    # porcion: entran todas, y despues pasan por el filtro de parecidas al banco final
+    # y al examen como cualquier otra.
+    # DOS CUIDADOS para que el corpus 0 sea IDENTICO con y sin --aprendidas (si no, los
+    # pasos del ciclo no se pueden comparar entre si): (1) un Random propio, para no
+    # mover el que sortea el resto; (2) las filas van aparte y se suman DESPUES de
+    # sortear validar: asi ninguna aprendida cae en validar (todas entrenan) ni cambia
+    # el sorteo de las demas.
+    n_apr, apr_filas = 0, []
+    if args.aprendidas:
+        rnd_a = random.Random(args.semilla + 1000)
+        apr = json.loads(Path(args.aprendidas).read_text())
+        esq = tc.esquemas()
+        for banco, por_h in sorted(apr.items()):
+            if int(banco.split("-")[-1]) > args.bancos_hasta:
+                continue
+            for h, lista in sorted(por_h.items()):
+                for a in lista:
+                    veces = args.peso_eje if a.get("eje") else args.peso_variacion
+                    if h == tc.DERIVAR:
+                        # el mismo peso que una herramienta: cada pasada rinde k filas (k estados)
+                        for _ in range(veces * args.k):
+                            _, formas = tc.estado_sintetico(rnd_a, tc.tipos_de(a["plantilla"], {}))
+                            frase, _ = tc.rellenar(a["plantilla"], {}, formas, rnd_a)
+                            if frase:
+                                est, _ = tc.estado_sintetico(rnd_a)
+                                apr_filas.append(fila(est, frase, tc.llamada(tc.DERIVAR, {}), "derivar", tc.DERIVAR, {}))
+                    elif h in esq:
+                        for _ in range(veces):
+                            apr_filas += rendir(h, a, rnd_a, args.k, variar=False, ste=False)
+        n_apr = len(apr_filas)
+        print(f"aprendidas (bancos 1..{min(args.bancos_hasta, 99)}): {n_apr} filas")
+
     # FUERA lo que se parece DEMASIADO a una frase del banco o del examen CON LA
     # MISMA RESPUESTA, no solo lo identico: la v5 tenia 0 frases identicas pero
     # «¿llegaron preguntas nuevas?» o «corta la transmision» estaban tal cual salvo
@@ -433,6 +476,13 @@ def main():
     rnd.shuffle(ent)
     n_val = max(50, len(ent) // 20)
     val, ent = ent[:n_val], ent[n_val:]
+    if apr_filas:
+        # las aprendidas, tambien por el filtro de parecidas al banco final y al examen
+        antes = len(apr_filas)
+        apr_filas = [f for f in apr_filas if not parecida(f)]
+        print(f"aprendidas parecidas al banco final o al examen: fuera {antes - len(apr_filas)} de {antes}")
+        n_apr = len(apr_filas)
+        ent = ent + apr_filas
     for nombre, filas in (("entrenar", ent), ("validar", val), ("prueba", prueba), ("charla-prueba", cp)):
         (sal / f"{nombre}.jsonl").write_text("\n".join(json.dumps(f, ensure_ascii=False) for f in filas) + "\n")
     cuenta = {t: sum(1 for f in ent if f["tipo"] == t) for t in ("herramienta", "falta", "derivar", "charla")}
@@ -440,7 +490,11 @@ def main():
     huella = {"formato": "tc", "prompt": tc.huella(), "ejemplos": len(ent), "por_tipo": cuenta,
               "porcion": {t: round(n / max(1, len(ent)), 3) for t, n in cuenta.items()},
               "prueba": len(prueba), "charla_prueba": len(cp), "k": args.k, "parecido": args.parecido, "copia": args.copia,
-              "anotaciones": hashlib.sha256(Path(args.anotaciones).read_bytes()).hexdigest()[:16]}
+              "anotaciones": hashlib.sha256(Path(args.anotaciones).read_bytes()).hexdigest()[:16],
+              "aprendidas": ({"archivo": hashlib.sha256(Path(args.aprendidas).read_bytes()).hexdigest()[:16],
+                              "bancos_hasta": args.bancos_hasta, "filas": n_apr,
+                              "peso_eje": args.peso_eje, "peso_variacion": args.peso_variacion}
+                             if args.aprendidas else None)}
     (sal / "huella.json").write_text(json.dumps(huella, ensure_ascii=False, indent=1))
     print(json.dumps(huella, ensure_ascii=False))
     if len(der) < int(total * args.derivar):
