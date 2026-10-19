@@ -4,6 +4,7 @@
 
 #include "agent/AgentViewModel.hpp"
 #include "agent/ServidorModeloLocal.hpp"
+#include "agent/ServidorOpencode.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
@@ -1702,6 +1703,11 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         reanudar_.clear();
     } else if (runtimeOf(provider_) == "pi") {
         conConsola_ = false; // pi con el modelo local: nunca consola (ver baseLaunch)
+    } else if (runtimeOf(provider_) == "opencode" && !urlOpencode_.isEmpty()) {
+        // Al servidor compartido (ver start y ServidorOpencode), no a uno propio.
+        o.args.removeAll("--standalone");
+        o.args << "--server" << urlOpencode_;
+        o.env["OPENCODE_SERVER_PASSWORD"] = claveOpencode_;
     }
     return o;
 }
@@ -1786,6 +1792,30 @@ void AgentViewModel::start() {
         arrancarServidorLocal([this]() { lanzarSesion(); });
         return;
     }
+    // OpenCode: UN servidor para las dos pestañas (ver ServidorOpencode); la interfaz
+    // se le conecta cuando contesta.
+    if (runtimeOf(provider_) == "opencode") {
+        QString err;
+        const QString ws = prepareWorkspace(&err);
+        const term::Pty::Options base = ws.isEmpty() ? term::Pty::Options{} : baseLaunch(provider_, model_, ws, &err);
+        if (base.program.isEmpty()) {
+            setError(err.isEmpty() ? "No se pudo preparar el agente." : err);
+            return;
+        }
+        QPointer<AgentViewModel> yo(this);
+        ServidorOpencode::el().pedir(this, {base.program, base.env, base.unsetEnv, ws},
+                                     [yo](const QString& url, const QString& clave, const QString& error) {
+                                         if (!yo) return;
+                                         if (!error.isEmpty()) {
+                                             yo->setError(error);
+                                             return;
+                                         }
+                                         yo->urlOpencode_ = url;
+                                         yo->claveOpencode_ = clave;
+                                         yo->lanzarSesion();
+                                     });
+        return;
+    }
     lanzarSesion();
 }
 
@@ -1838,7 +1868,14 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
         });
 }
 
-void AgentViewModel::pararServidorLocal() { ServidorModeloLocal::el().soltar(this); }
+void AgentViewModel::pararServidorLocal() {
+    // Los servidores compartidos que este asistente estuviera usando (el modelo local,
+    // OpenCode): se sueltan; el último que suelta los apaga.
+    ServidorModeloLocal::el().soltar(this);
+    ServidorOpencode::el().soltar(this);
+    urlOpencode_.clear();
+    claveOpencode_.clear();
+}
 
 void AgentViewModel::lanzarSesion() {
     QString err;

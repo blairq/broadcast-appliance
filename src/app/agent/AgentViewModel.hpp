@@ -359,6 +359,7 @@ class AgentViewModel : public QObject {
     std::function<void(const QString&)> bajarModelo_;
     // El llama-server del chat del modelo local (pi): lo levanta start(), lo baja stop().
     quint16 puertoServidor_ = 0; ///< el del llama-server compartido (ServidorModeloLocal)
+    QString urlOpencode_, claveOpencode_; ///< el servidor de OpenCode compartido (ServidorOpencode)
     QString ggufActual_; ///< el .gguf que cargó el servidor (su carpeta trae el prompt.json)
     QString rutaServidorLocal() const;
     void arrancarServidorLocal(std::function<void()> listo);

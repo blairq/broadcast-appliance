@@ -7,6 +7,8 @@
 
 #include <QTimer>
 
+#include <memory>
+
 #include "agent/AgentViewModel.hpp"
 #include "agent/EstadoIA.hpp"
 #include "mcp/McpService.hpp"
@@ -216,11 +218,20 @@ void McpService::registerAssistantTools() {
             if (act == "start") ag->start();
             if (act == "stop") ag->stop();
             if (act == "restart") ag->restart();
-            QTimer::singleShot(act == "restart" ? 800 : 300, ag, [ag, done]() {
-                if (!ag->lastError().isEmpty() && !ag->running())
-                    return done(ToolResult::error(ag->lastError().toStdString()));
+            // Arrancar puede tardar (el servidor compartido de OpenCode, cargar el modelo
+            // local): se espera a que corra de verdad o falle, hasta 30 s.
+            const bool arranca = act != "stop";
+            auto* timer = new QTimer(ag);
+            auto pasado = std::make_shared<int>(0);
+            QObject::connect(timer, &QTimer::timeout, ag, [ag, timer, pasado, done, arranca]() {
+                *pasado += 300;
+                const bool fallo = !ag->lastError().isEmpty() && !ag->running();
+                if (arranca && !ag->running() && !fallo && *pasado < 30000) return;
+                timer->deleteLater();
+                if (fallo) return done(ToolResult::error(ag->lastError().toStdString()));
                 done(ToolResult::ok(ag->running() ? "Corriendo." : "Detenido."));
             });
+            timer->start(300);
         };
         core_.addTool(std::move(t));
     }
