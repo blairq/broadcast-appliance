@@ -1464,13 +1464,19 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         if (!modelo.isEmpty()) o.args << "--model" << modelo;
         // La versión es la fijada y verificada: que no se reemplace sola.
         o.env["AGY_CLI_DISABLE_AUTO_UPDATE"] = "1";
+        // EL LLAVERO, NUNCA (los tres sistemas): con una «sesión SSH» Antigravity guarda el
+        // token de Google en un archivo de su HOME (el perfil portable) y ni mira el llavero
+        // ni el Administrador de credenciales de Windows, que no se aíslan con variables.
+        // Probado en la PC de Windows (2026-10-19): «Using file-based token storage because
+        // SSH session detected»; sin esto leía la sesión que había en el Administrador.
+        o.env["SSH_CONNECTION"] = "127.0.0.1 0 127.0.0.1 0";
+        o.env["SSH_CLIENT"] = "127.0.0.1 0 0";
 #ifdef __APPLE__
-        // EL LLAVERO, NUNCA: Antigravity guarda el login con go-keyring, que llama a
-        // /usr/bin/security por su ruta (el `security` propio del PATH no sirve). Dentro de
-        // un sandbox que no lo deja ejecutar, Antigravity ve el llavero «no disponible» y
-        // guarda la sesión en un archivo de su HOME (el perfil portable). Probado
-        // (2026-10-19): «OS credential manager unavailable … falling back to file-based
-        // secret storage».
+        // Y además, en la Mac: lo demás que guarda (los secretos de sus plugins) también va
+        // por go-keyring, que llama a /usr/bin/security por su ruta (el `security` propio del
+        // PATH no sirve). Dentro de un sandbox que no lo deja ejecutar, todo cae al archivo
+        // del perfil. Probado (2026-10-19): «OS credential manager unavailable … falling
+        // back to file-based secret storage».
         {
             const QString sb = profile + "/sin-llavero.sb";
             // Solo eso: el resto del sistema (red, certificados, terminal) queda como siempre.
