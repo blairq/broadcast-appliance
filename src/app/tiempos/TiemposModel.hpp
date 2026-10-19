@@ -21,6 +21,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <thread>
 
 namespace ba::app::tiempos {
 
@@ -44,6 +45,15 @@ class TiemposModel : public QObject {
     /// `fotos`: junta lo que publica cada parte (lo arma StudioViewModel; no espera a nadie).
     /// `archivo`: dónde quedan los análisis (el del evento abierto).
     TiemposModel(std::function<Fotos()> fotos, std::filesystem::path archivo, QObject* parent = nullptr);
+    ~TiemposModel() override;
+
+    /// El análisis por elemento (motor::Sondas) de una entrada: empezar devuelve "" o por qué
+    /// no; terminar, lo medido. Se llaman en un hilo aparte (la entrada puede estar rearmándose).
+    struct Sondas {
+        std::function<std::string(const std::string&)> empezar;
+        std::function<nlohmann::json(const std::string&)> terminar;
+    };
+    void setSondas(Sondas s) { sondas_ = std::move(s); }
 
     QVariantMap mapa() const { return mapaUi_; }
     bool activo() const { return timer_.isActive(); }
@@ -73,8 +83,19 @@ class TiemposModel : public QObject {
     /// Mide `segundos` (de 2 a 120) y deja un análisis con la mediana y el p95 de cada nodo
     /// y de cada salida. `listo` (si viene) recibe el análisis al terminar. Uno por vez:
     /// devuelve "" o por qué no arrancó.
-    QString analizar(int segundos, std::function<void(const nlohmann::json&)> listo = {});
+    /// Mientras mide, las entradas llevan sondas por elemento: lo que agrega cada tarjeta (y
+    /// lo que retiene) y en qué memoria va el video (dónde baja de la GPU y dónde sube).
+    /// `entradas` vacío = todas las del motor.
+    QString analizar(int segundos, std::function<void(const nlohmann::json&)> listo = {},
+                     std::vector<std::string> entradas = {});
     Q_INVOKABLE QString analizarUi(int segundos) { return analizar(segundos); }
+    /// Analizar solo una entrada (tocando su tarjeta).
+    Q_INVOKABLE QString analizarEntradaUi(const QString& entrada, int segundos) {
+        return analizar(segundos, {}, {entrada.toStdString()});
+    }
+    /// El último análisis por elemento de una entrada (null si no hay).
+    nlohmann::json pipeline(const std::string& entrada) const;
+    Q_INVOKABLE QVariantMap pipelineUi(const QString& entrada) const;
     Q_INVOKABLE void borrarAnalisis();
 
     static constexpr int kPeriodoMs = 200;
@@ -125,6 +146,12 @@ class TiemposModel : public QObject {
     std::function<void(const nlohmann::json&)> listo_;
     void muestrear();
     void terminar();
+    void cerrar(); ///< deja el análisis listo (después de juntar las sondas)
+    Sondas sondas_;
+    std::vector<std::string> conSondas_;   ///< las entradas con sondas puestas en este análisis
+    std::map<std::string, nlohmann::json> pipelines_; ///< el último análisis por elemento de cada entrada
+    std::thread hilo_;                     ///< pone y saca las sondas (fuera de la UI)
+    void enHilo(std::function<void()> f);
     void guardar() const;
 };
 

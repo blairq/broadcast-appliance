@@ -108,6 +108,37 @@ int main() {
     bool tramo = false;
     for (const auto& t : g["tramos"]) tramo = tramo || (t["desde"] == "tarjeta:cam1:sr" && t["hacia"] == "escena:programa");
     CHECK(tramo, "de la última tarjeta a la escena");
+
+    // El análisis por elemento (las sondas): lo medido manda sobre lo que informa la tarjeta,
+    // con la memoria y el cruce; la entrada guarda su recorrido.
+    {
+        Fotos f2 = f;
+        f2.motor["entradas"]["cam1"]["filtros"][1]["instancia"] = "ba_f_sr";
+        f2.pipelines["cam1"] = {
+            {"elementos",
+             json::array({{{"nombre", "src"}, {"agrega_ms", 1.0}, {"memoria_salida", "sistema"}},
+                          {{"nombre", "gldownloadelement3"}, {"fabrica", "gldownload"}, {"agrega_ms", 0.5},
+                           {"memoria_entrada", "gl"}, {"memoria_salida", "sistema"}, {"cruce", "baja"}},
+                          {{"nombre", "capsfilter9"}, {"fabrica", "capsfilter"}, {"agrega_ms", 0.0}},
+                          {{"nombre", "ba_f_sr"}, {"agrega_ms", 30.0}, {"agrega_p95_ms", 35.0}, {"memoria_entrada", "sistema"},
+                           {"memoria_salida", "gl"}, {"cruce", "sube"}},
+                          {{"nombre", "ba_f_sr_baja"}, {"agrega_ms", 5.0}, {"memoria_entrada", "gl"}, {"memoria_salida", "sistema"},
+                           {"cruce", "baja"}}})},
+            {"cruces", json::array({{{"elemento", "ba_f_sr"}, {"que", "sube"}}, {{"elemento", "ba_f_sr_baja"}, {"que", "baja"}}})}};
+        const json g2 = armar(f2);
+        const json* sr2 = nodo(g2, "tarjeta:cam1:sr");
+        CHECK(sr2 && cerca((*sr2)["ms"], 35.5) && (*sr2)["detalle"].value("medido_sondas", false) &&
+                  cerca((*sr2)["detalle"]["ms_por_cuadro"], 18.0) && (*sr2)["detalle"]["elementos"].size() == 3,
+              "la tarjeta medida por las sondas: el gldownload que pide, sus dos elementos (0,5 + 30 + 5), no los 18 que informa");
+        CHECK(sr2 && (*sr2)["detalle"]["memoria_entrada"] == "gl" && (*sr2)["detalle"]["memoria_salida"] == "sistema" &&
+                  (*sr2)["detalle"]["cruces"].size() == 3 && (*sr2)["detalle"]["cruce"] == "baja",
+              "la memoria con que entra y sale, y sus cruces");
+        const json* ptz2 = nodo(g2, "tarjeta:cam1:ptz");
+        CHECK(ptz2 && cerca((*ptz2)["ms"], 2.0) && !(*ptz2)["detalle"].contains("medido_sondas"),
+              "la tarjeta sin instancia sigue con lo que informa");
+        const json* e2 = nodo(g2, "entrada:cam1");
+        CHECK(e2 && (*e2)["detalle"]["pipeline"]["cruces"].size() == 2, "la entrada guarda su recorrido");
+    }
     // Campos con otro tipo (gpu como texto, un número como texto, un bool como número): no se cae.
     Fotos raro = f;
     raro.motor["video"]["programa"]["gpu"] = "gl";

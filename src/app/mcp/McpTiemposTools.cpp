@@ -45,14 +45,25 @@ void McpService::registerTiemposTools() {
         t.title = "Correr un análisis de tiempos";
         t.category = "tiempos";
         t.description = "Mide `segundos` (de fábrica 10, de 2 a 120) y devuelve la mediana y el p95 de lo que agrega "
-                        "cada nodo y del total de cada salida. Queda en el historial del evento (la página Latencias del pipeline, "
-                        "abajo). No cambia nada del aire. Uno por vez.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 120}}}}}};
+                        "cada nodo y del total de cada salida. Mientras mide, cada elemento del pipeline de las entradas "
+                        "(todas, o las de `entradas`) lleva una sonda: `pipelines` trae por entrada cada elemento con "
+                        "agrega_ms (lo que tarda Y lo que retiene), memoria_entrada/memoria_salida (gl, d3d12, cuda… o "
+                        "sistema) y `cruces` (dónde el video baja de la GPU a la memoria o vuelve a subir: cada cruce copia "
+                        "el cuadro entero). Lo de cada tarjeta pasa a ser lo medido. Queda en el historial del evento (la "
+                        "página Latencias del pipeline). No cambia nada del aire. Uno por vez.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 120}}},
+                           {"entradas", {{"type", "array"}, {"items", {{"type", "string"}}},
+                                         {"description", "las entradas a analizar por elemento (vacío: todas)"}}}}}};
         t.run = [tm](const json& a, Done done) {
+            std::vector<std::string> entradas;
+            for (const auto& x : a.value("entradas", json::array()))
+                if (x.is_string()) entradas.push_back(x.get<std::string>());
             const QString e = tm->analizar(a.value("segundos", 10), [done](const json& r) {
                 if (r.value("estado", std::string()) != "listo") return done(ToolResult::error(r.value("error", std::string("falló"))));
                 done(ToolResult().data(r));
-            });
+            }, entradas);
             if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
         };
         core_.addTool(std::move(t));

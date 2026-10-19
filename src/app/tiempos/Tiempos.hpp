@@ -38,6 +38,9 @@ struct Fotos {
     /// Entradas que reciben algo pero no son nadie (el lugar de un invitado vacío: llega la
     /// placa del gateway): cuentan como en reposo. entrada → por qué.
     std::map<std::string, std::string> enEspera;
+    /// El último análisis por elemento de cada entrada (motor::Sondas): {elementos, cruces,
+    /// segundos, t_ms}. Lo medido manda sobre lo que informa cada tarjeta.
+    std::map<std::string, nlohmann::json> pipelines;
 };
 
 /// {nodos: [...], tramos: [...], salidas: [{id, titulo, total_ms, fuente, camino: [ids]}],

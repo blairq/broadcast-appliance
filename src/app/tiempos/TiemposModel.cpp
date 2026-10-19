@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 
 #include <algorithm>
 #include <cmath>
@@ -43,6 +44,22 @@ TiemposModel::TiemposModel(std::function<Fotos()> fotos, std::filesystem::path a
         if (a.value("estado", std::string()) == "midiendo") a["estado"] = "fallo", a["error"] = "se cerró la app midiendo";
 }
 
+TiemposModel::~TiemposModel() {
+    if (hilo_.joinable()) hilo_.join();
+}
+
+void TiemposModel::enHilo(std::function<void()> f) {
+    if (hilo_.joinable()) hilo_.join(); // uno por vez (empezar y terminar no se pisan)
+    hilo_ = std::thread(std::move(f));
+}
+
+json TiemposModel::pipeline(const std::string& entrada) const {
+    const auto it = pipelines_.find(entrada);
+    return it == pipelines_.end() ? json() : it->second;
+}
+
+QVariantMap TiemposModel::pipelineUi(const QString& entrada) const { return aVariant(pipeline(entrada.toStdString())).toMap(); }
+
 void TiemposModel::setActivo(bool a) {
     if (a == activo()) return;
     qInfo("[tiempos] %s", a ? "midiendo (la página se ve)" : "en reposo");
@@ -59,7 +76,9 @@ void TiemposModel::setActivo(bool a) {
 bool TiemposModel::rehacer(bool avisar) {
     // Una foto con algo inesperado no tumba la página (ni el MCP): queda el último grafo bueno.
     try {
-        mapa_ = armar(fotos_());
+        Fotos f = fotos_();
+        f.pipelines = pipelines_;
+        mapa_ = armar(f);
         if (avisar) {
             mapaUi_ = aVariant(mapa_).toMap();
             emit cambio();
@@ -291,8 +310,28 @@ double redondo(double ms) { return std::round(ms * 10.0) / 10.0; }
 
 QVariantList TiemposModel::analisis() const { return aVariant(analisis_).toList(); }
 
-QString TiemposModel::analizar(int segundos, std::function<void(const json&)> listo) {
-    if (muestreo_.isActive()) return QStringLiteral("ya hay un análisis midiendo");
+QString TiemposModel::analizar(int segundos, std::function<void(const json&)> listo, std::vector<std::string> entradas) {
+    if (muestreo_.isActive() || !conSondas_.empty()) return QStringLiteral("ya hay un análisis midiendo");
+    // Las sondas: en las entradas pedidas, o en todas las del motor.
+    if (sondas_.empezar) {
+        if (entradas.empty()) {
+            const Fotos f = fotos_();
+            if (f.motor.contains("entradas") && f.motor["entradas"].is_object())
+                for (const auto& [id, e] : f.motor["entradas"].items()) entradas.push_back(id);
+        } else {
+            const Fotos f = fotos_();
+            for (const auto& id : entradas)
+                if (!f.motor.contains("entradas") || !f.motor["entradas"].contains(id))
+                    return QString::fromStdString("no existe la entrada «" + id + "»");
+        }
+        conSondas_ = entradas;
+        enHilo([s = sondas_.empezar, entradas]() {
+            for (const auto& id : entradas) {
+                const std::string e = s(id);
+                if (!e.empty()) qWarning("[tiempos] sondas en %s: %s", id.c_str(), e.c_str());
+            }
+        });
+    }
     segundos_ = std::clamp(segundos, 2, 120);
     desde_ = QDateTime::currentMSecsSinceEpoch();
     muestrasNodo_.clear();
@@ -303,6 +342,7 @@ QString TiemposModel::analizar(int segundos, std::function<void(const json&)> li
     for (const auto& a : analisis_) id = std::max(id, a.value("id", 0) + 1);
     analisis_.insert(analisis_.begin(), json{{"id", id}, {"estado", "midiendo"}, {"progreso", 0.0}, {"desde_ms", desde_},
                                              {"segundos", segundos_}, {"tipo", "tiempos"}});
+    if (!conSondas_.empty()) analisis_[0]["entradas"] = conSondas_;
     while (analisis_.size() > 50) analisis_.erase(analisis_.end() - 1);
     muestreo_.start();
     emit analisisCambio();
@@ -336,8 +376,44 @@ void TiemposModel::terminar() {
                            {"p95_ms", redondo(percentil(v, 0.95))}});
     a["nodos"] = nodos;
     a["salidas"] = salidas;
+    if (conSondas_.empty()) return cerrar();
+    // Sacar las sondas (en el hilo) y volver con lo medido.
+    enHilo([this, s = sondas_.terminar, entradas = conSondas_, vivo = QPointer<TiemposModel>(this)]() {
+        auto r = std::make_shared<std::map<std::string, json>>();
+        for (const auto& id : entradas) (*r)[id] = s(id);
+        QMetaObject::invokeMethod(this, [this, vivo, r]() {
+            if (!vivo) return;
+            const qint64 t = QDateTime::currentMSecsSinceEpoch();
+            json pls = json::object();
+            for (auto& [id, p] : *r) {
+                if (!p.is_object() || p.contains("error")) continue;
+                p["t_ms"] = t;
+                pipelines_[id] = p;
+                pls[id] = p;
+            }
+            conSondas_.clear();
+            analisis_[0]["pipelines"] = pls;
+            // Las tarjetas pasan a «medido»: lo de las sondas (mediana y p95 de lo que agrega
+            // cada elemento) reemplaza lo que informaba cada una.
+            if (rehacer(activo()))
+                for (const auto& n : mapa_["nodos"]) {
+                    const json& d = n.value("detalle", json::object());
+                    if (!d.value("medido_sondas", false) || !n["ms"].is_number()) continue;
+                    double p95 = 0;
+                    for (const auto& el : d.value("elementos", json::array())) p95 += el.value("agrega_p95_ms", 0.0);
+                    analisis_[0]["nodos"][n.value("id", std::string())] = {
+                        {"p50_ms", redondo(n["ms"].get<double>())}, {"p95_ms", redondo(p95)}, {"fuente", "sondas"}};
+                }
+            cerrar();
+        }, Qt::QueuedConnection);
+    });
+}
+
+void TiemposModel::cerrar() {
+    json& a = analisis_[0];
+    const json& nodos = a["nodos"];
     a["progreso"] = 1.0;
-    if (nodos.empty()) {
+    if (nodos.empty() && a.value("pipelines", json::object()).empty()) {
         a["estado"] = "fallo";
         a["error"] = "no llegó ninguna medición (¿el motor está andando?)";
     } else {
@@ -353,7 +429,7 @@ void TiemposModel::terminar() {
 }
 
 void TiemposModel::borrarAnalisis() {
-    if (muestreo_.isActive()) return;
+    if (muestreo_.isActive() || !conSondas_.empty()) return;
     analisis_ = json::array();
     guardar();
     emit analisisCambio();

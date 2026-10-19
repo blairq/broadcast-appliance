@@ -30,6 +30,15 @@ Rectangle {
     property bool verAudio: true
     property bool soloMedido: false
     property string elegido: ""     ///< el nodo tocado (resalta su camino)
+    /// La entrada cuyo recorrido por dentro se ve (al tocar su tarjeta o la de uno de sus pasos).
+    property string recorridoDe: ""
+    property var recorridoElementos: []   ///< los elementos de la tarjeta elegida (se resaltan)
+    function abrirRecorrido(n) {
+        const e = (n.medio === "video" || n.medio === "audio") && (n.tipo === "entrada" || n.tipo === "tarjeta") ? page.entradaDe(n) : ""
+        if (e === "") return
+        page.recorridoDe = e
+        page.recorridoElementos = ((n.detalle && n.detalle.elementos) || []).map(x => x.nombre)
+    }
 
     // --- La línea de tiempo -------------------------------------------------------------
     /// Los nodos de la línea de tiempo (en el modelo: el asistente también la elige, tiempos_linea).
@@ -376,7 +385,11 @@ Rectangle {
                                 y: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).y
                                 resaltada: !!page.camino[modelData.id]
                                 historia: { page.vuelta; return page.tm ? page.tm.historia(modelData.id) : [] }
-                                onElegida: (id) => { page.elegido = page.elegido === id ? "" : id; page.alternarSerie(id) }
+                                onElegida: (id) => {
+                                    page.elegido = page.elegido === id ? "" : id
+                                    page.alternarSerie(id)
+                                    if (page.elegido !== "") page.abrirRecorrido(modelData)
+                                }
                                 enLinea: page.serie.indexOf(modelData.id) >= 0
                                 colorLinea: page.paleta[Math.max(0, page.serie.indexOf(modelData.id)) % page.paleta.length]
                                 Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -411,6 +424,17 @@ Rectangle {
                     GlassButton { compact: true; text: "−"; onClicked: mundo.escala = Math.max(0.35, mundo.escala * 0.85) }
                     GlassButton { compact: true; text: Math.round(mundo.escala * 100) + " %"; onClicked: mundo.escala = 1.0 }
                     GlassButton { compact: true; text: "+"; onClicked: mundo.escala = Math.min(2.0, mundo.escala * 1.15) }
+                }
+                // Por dentro de la entrada elegida: cada elemento, su memoria y los cruces.
+                RecorridoEntrada {
+                    visible: page.recorridoDe !== ""
+                    anchors { left: parent.left; bottom: parent.bottom; margins: 10 }
+                    width: Math.min(420, parent.width - 220)
+                    tm: page.tm
+                    entrada: page.recorridoDe
+                    titulo: page.tituloDe("entrada:" + page.recorridoDe) || page.recorridoDe
+                    resaltar: page.recorridoElementos
+                    onCerrar: page.recorridoDe = ""
                 }
             }
 

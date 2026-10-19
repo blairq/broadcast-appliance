@@ -1110,6 +1110,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         return f;
     }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
+    // El análisis por elemento (las sondas del motor): lo llama el modelo en su hilo.
+    tiempos_->setSondas({[this](const std::string& e) -> std::string {
+                             motor::Motor* m = rt_.engine().motor();
+                             return m != nullptr ? m->analizarEmpezar(e) : std::string("el motor no está andando");
+                         },
+                         [this](const std::string& e) -> nlohmann::json {
+                             motor::Motor* m = rt_.engine().motor();
+                             return m != nullptr ? m->analizarTerminar(e) : nlohmann::json{{"error", "el motor no está andando"}};
+                         }});
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
         asamblea::Bancas::Ganchos g;

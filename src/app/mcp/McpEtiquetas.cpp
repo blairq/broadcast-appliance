@@ -648,7 +648,7 @@ const Fila kPropias[] = {
     {"evento_cambiar", "abrir otro evento cambiar de evento pasar a otro evento"},
     {"eventos_listar", "que eventos hay lista de eventos plantillas"},
     {"tiempos_mapa", "latencias del pipeline cuanto tarda demora latencia retardo delay de cada entrada a cada salida tiempos"},
-    {"tiempos_medir", "medir los tiempos correr un analisis de demoras cuanto tarda hasta youtube muestrear"},
+    {"tiempos_medir", "medir los tiempos correr un analisis de demoras cuanto tarda hasta youtube muestrear por elemento sondas gpu memoria ram baja sube cruce plugin que agrega"},
     {"tiempos_eventos", "eventos de la linea de tiempo conexion desconexion cambio de escena que paso latencia"},
     {"tiempos_evento_agregar", "marcar un momento poner una nota en la linea de tiempo evento manual"},
     {"tiempos_evento_impacto", "que cambio cuando por que subio la latencia antes y despues de un evento analizar delay"},

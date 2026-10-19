@@ -191,6 +191,22 @@ Item {
                         font.pixelSize: 8
                     }
                 }
+                // Lo medido por elemento: en qué memoria sale el video y si la tarjeta cruza.
+                Rectangle {
+                    readonly property var d: t.nodo.detalle || {}
+                    readonly property string mem: d.memoria_salida || ""
+                    visible: !!d.medido_sondas && mem !== ""
+                    width: chipMem.implicitWidth + 10; height: 13; radius: 6.5
+                    color: d.cruce === "baja" ? Qt.rgba(1, 0.7, 0.28, 0.2) : mem !== "sistema" ? Qt.rgba(0.31, 0.85, 1, 0.16) : Qt.rgba(1, 1, 1, 0.08)
+                    Text {
+                        id: chipMem
+                        anchors.centerIn: parent
+                        text: parent.d.cruce === "baja" ? "⇣ baja a RAM" : parent.d.cruce === "sube" ? "⇡ sube a GPU"
+                            : parent.mem === "sistema" ? "RAM" : "GPU"
+                        color: parent.d.cruce === "baja" ? Theme.amber : parent.mem !== "sistema" ? "#4fd8ff" : Theme.textDim
+                        font.pixelSize: 8
+                    }
+                }
                 Rectangle { width: 7; height: 7; radius: 3.5; anchors.verticalCenter: parent.verticalCenter; color: t.colorEstado }
             }
         }
@@ -217,6 +233,7 @@ Item {
                             for (const k in d) {
                                 const v = d[k]
                                 if (v === null || v === undefined || v === "") continue
+                                if (k === "elementos" || k === "pipeline") continue // el recorrido: abajo, en su panel
                                 const txt = typeof v === "object" ? (v.ancho ? v.ancho + "x" + v.alto + " " + (v.formato || "") + " " + (v.fps || "") + " fps" : JSON.stringify(v))
                                                                  : typeof v === "number" ? (Math.round(v * 10) / 10).toString() : String(v)
                                 filas.push({ k: k.replace(/_/g, " "), v: txt })

@@ -1825,6 +1825,7 @@ json Entrada::estadoFiltros() const {
         for (const auto& fl : *l) {
             json e{{"id", fl.id}, {"elemento", fl.elemento}, {"audio", l == &filtrosA_}};
             const std::string n = (l == &filtrosV_ ? "ba_f_" : "ba_fa_") + fl.nombre;
+            e["instancia"] = n; // el nombre en el pipeline (para cruzarlo con las Sondas)
             GstElement* el = pipeline_ != nullptr ? gst_bin_get_by_name(GST_BIN(pipeline_), n.c_str()) : nullptr;
             e["andando"] = el != nullptr;
             if (el == nullptr) {

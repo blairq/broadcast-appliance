@@ -7,8 +7,8 @@ Con la app corriendo (abierta con `--args --test`):
   1. Crea un evento de cero («ZZ prueba latencias <hora>») y lo abre. Si lo abierto no es
      ese, corta sin tocar nada.
   2. Una cámara virtual (pelota en movimiento) y, de a un paso por vez:
-       superresolución → seguimiento (Seguir) → sincronía → micrófono → un compresor
-       en su rack → voz a texto.
+       superresolución → seguimiento (Seguir) → micrófono → un compresor
+       en su rack → voz a texto. Al final, el análisis por elemento (sondas) de la cámara.
      En cada paso: marca una nota en la línea de tiempo (tiempos_evento_agregar), espera,
      anota lo que agrega cada nodo (tiempos_mapa) y saca una captura de la página.
   3. Al final, el impacto de cada nota (tiempos_evento_impacto), vuelve al evento de antes
@@ -94,7 +94,6 @@ def main():
         if n["id"].startswith("tarjeta:" + CAM):
             m.tool("tiempos_linea", {"agregar": n["id"]})
     paso(3, "Seguimiento", lambda: t.paso("seguir", m.tool("video_tarjeta_agregar", {"entrada": CAM, "tipo": "seguir"})))
-    paso(4, "Sincronía", lambda: t.paso("sincronía", m.tool("video_tarjeta_agregar", {"entrada": CAM, "tipo": "sincro"})))
 
     def micro():
         # El micrófono de la máquina (solo se captura: no suena nada por los parlantes).
@@ -103,14 +102,14 @@ def main():
         elegido = next((d for d in entradas if "micr" in texto(d).lower()), entradas[0] if entradas else {})
         valor = elegido.get("value", "") if isinstance(elegido, dict) else str(elegido)
         t.paso(f"micrófono ({texto(elegido)[:60]})", m.tool("audio_input_add", {"device": valor, "name": MIC}))
-    paso(5, "Micrófono", micro)
+    paso(4, "Micrófono", micro)
 
     def compresor():
         mods = json.dumps(m.tool("audio_modules"), ensure_ascii=False)
         cands = re.findall(r'"(?:id|module)":\s*"([^"]*compress[^"]*)"', mods, re.I)
         t.paso(f"compresor ({cands[0] if cands else '?'})", m.tool("audio_module_add", {"source": MIC, "module": cands[0] if cands else "compressor"}))
-    paso(6, "Compresor en el rack", compresor)
-    paso(7, "Voz a texto", lambda: t.paso("voz a texto", m.tool("voz_texto", {"fuente": MIC, "modo": "continuo", "nombre": "Prueba"})))
+    paso(5, "Compresor en el rack", compresor)
+    paso(6, "Voz a texto", lambda: t.paso("voz a texto", m.tool("voz_texto", {"fuente": MIC, "modo": "continuo", "nombre": "Prueba"})))
 
     print("\n== Impacto de cada paso (lo que más cambió)")
     for e in m.tool("tiempos_eventos", {"segundos": 1800}).get("eventos", []):
@@ -119,6 +118,23 @@ def main():
         imp = m.tool("tiempos_evento_impacto", {"t_ms": e["t"], "segundos": max(3, a.espera // 2)}).get("nodos", [])
         cambios = ", ".join(f'{x["titulo"]} {x["cambio_ms"]:+.1f}' for x in imp[:3] if abs(x["cambio_ms"]) >= 0.5)
         print(f'   {e["texto"]:24} {cambios or "(sin cambios)"}')
+
+    print("\n== Por dentro de la cámara (sondas por elemento)")
+    r = m.tool("tiempos_medir", {"segundos": 4, "entradas": [CAM]})
+    pl = (r.get("pipelines") or {}).get(CAM)
+    t.paso("análisis por elemento", r if pl else {"_error": True, "_texto": r.get("_texto", "sin pipelines")})
+    if pl:
+        for el in pl.get("elementos", []):
+            mem = f'{el.get("memoria_entrada", "")}→{el.get("memoria_salida", "")}'
+            print(f'   {el.get("nombre", "")[:34]:34} {el.get("agrega_ms", 0):7.1f} ms  {mem:16} {el.get("cruce", "")}')
+        print("   cruces:", ", ".join(f'{c["elemento"]} {c["que"]}' for c in pl.get("cruces", [])) or "ninguno")
+        medidas = [n for n in m.tool("tiempos_mapa").get("nodos", [])
+                   if n["id"].startswith("tarjeta:" + CAM) and n.get("detalle", {}).get("medido_sondas")]
+        t.paso(f"tarjetas medidas por las sondas ({len(medidas)})", {} if medidas else {"_error": True, "_texto": "ninguna tarjeta quedó medida"})
+        for n in medidas:
+            d = n.get("detalle", {})
+            print(f'   tarjeta {n["titulo"][:28]:28} {n.get("ms") or 0:7.1f} ms  {d.get("memoria_entrada", "")}→{d.get("memoria_salida", "")}'
+                  f'  {" ".join(d.get("cruces", []))}')
     print("\ncapturas:", salida)
 
     # --- Volver y limpiar ---------------------------------------------------------------

@@ -36,6 +36,34 @@ bool si(const json& o, const char* k) {
     return v.is_boolean() ? v.get<bool>() : v.is_number() ? v.get<double>() != 0 : v.is_string() ? !v.get<std::string>().empty() : false;
 }
 /// Lo mismo para un número (texto que no es número: 0).
+/// Los elementos medidos de cada tarjeta (por su instancia en el pipeline): los suyos (los
+/// que empiezan con su nombre: algunas arman más de uno, como el PTZ con su tee) y los
+/// conversores que la cadena metió justo antes —subir o bajar de la GPU, cambiar el
+/// formato—: los pide ella. Las colas y los capsfilter del medio no cortan; otro elemento sí.
+std::map<std::string, json> elementosPorTarjeta(const json& analisis, const std::vector<std::string>& instancias) {
+    std::map<std::string, json> r;
+    json pendientes = json::array();
+    for (const auto& el : analisis.value("elementos", json::array())) {
+        const std::string nombre = el.value("nombre", std::string());
+        std::string suya;
+        for (const auto& i : instancias)
+            if (nombre.rfind(i, 0) == 0 && i.size() > suya.size()) suya = i;
+        if (!suya.empty()) {
+            json& v = r[suya];
+            if (!v.is_array()) v = json::array();
+            for (auto& x : pendientes) v.push_back(std::move(x));
+            pendientes = json::array();
+            v.push_back(el);
+            continue;
+        }
+        const std::string fab = el.value("fabrica", nombre);
+        const auto tiene = [&](const char* x) { return fab.find(x) != std::string::npos; };
+        if (tiene("upload") || tiene("download") || tiene("convert") || tiene("scale")) pendientes.push_back(el);
+        else if (!tiene("capsfilter") && !tiene("queue")) pendientes = json::array();
+    }
+    return r;
+}
+
 double num(const json& o, const char* k, double defecto = 0) {
     if (!o.is_object() || !o.contains(k)) return defecto;
     const json& v = o[k];
@@ -121,6 +149,16 @@ json armar(const Fotos& f) {
         const auto espera = f.enEspera.find(id);
         const bool activa = sinDatos >= 0 && sinDatos < 2.0 && espera == f.enEspera.end();
         const json filtros = e.value("filtros", json::array());
+        // El análisis por elemento de esta entrada (si se hizo): lo que agrega cada paso.
+        const auto pl = f.pipelines.find(id);
+        const json* analisis = pl != f.pipelines.end() ? &pl->second : nullptr;
+        std::map<std::string, json> deTarjeta;
+        if (analisis != nullptr) {
+            std::vector<std::string> inst;
+            for (const auto& fl : e.value("filtros", json::array()))
+                if (!fl.value("instancia", std::string()).empty()) inst.push_back(fl["instancia"].get<std::string>());
+            deTarjeta = elementosPorTarjeta(*analisis, inst);
+        }
 
         for (const bool esAudio : {false, true}) {
             if ((esAudio && !daA) || (!esAudio && !daV)) continue;
@@ -144,6 +182,35 @@ json armar(const Fotos& f) {
                 if (fl.contains("info") && fl["info"].is_object())
                     for (const char* k : {"motor-usado", "proveedor-usado", "error"})
                         if (fl["info"].contains(k)) p.detalle[k] = fl["info"][k];
+                // Lo medido por las sondas (ver elementosPorTarjeta): cuenta lo que tarda Y lo
+                // que retiene; manda sobre el ms-por-cuadro que informe.
+                const std::string inst = fl.value("instancia", std::string());
+                if (!inst.empty()) p.detalle["instancia"] = inst;
+                if (const auto dt = deTarjeta.find(inst); !inst.empty() && dt != deTarjeta.end()) {
+                    double suma = 0;
+                    json cruces = json::array();
+                    for (const auto& el : dt->second) {
+                        suma += el.value("agrega_ms", 0.0);
+                        if (el.contains("cruce")) cruces.push_back(el["cruce"]);
+                    }
+                    if (p.ms >= 0) p.detalle["ms_por_cuadro"] = p.ms;
+                    p.ms = suma;
+                    p.detalle["medido_sondas"] = true;
+                    p.detalle["elementos"] = dt->second;
+                    // Con qué memoria entra y sale (la primera y la última que se conocen: una
+                    // rama que no sigue, como la del tee del PTZ, no tiene salida).
+                    std::string memE, memS;
+                    for (const auto& el : dt->second) {
+                        if (memE.empty()) memE = el.value("memoria_entrada", std::string());
+                        if (!el.value("memoria_salida", std::string()).empty()) memS = el["memoria_salida"].get<std::string>();
+                    }
+                    p.detalle["memoria_entrada"] = memE;
+                    p.detalle["memoria_salida"] = memS;
+                    if (!cruces.empty()) {
+                        p.detalle["cruces"] = cruces;
+                        p.detalle["cruce"] = cruces.back();
+                    }
+                }
                 pasos.push_back(std::move(p));
             }
             if (esAudio)
@@ -195,6 +262,9 @@ json armar(const Fotos& f) {
                              {"sale", e.value("sale", json())},
                              {"sin_datos_s", num(e, "sin_datos_s", -1.0)},
                              {"rearmada_hace_s", num(e, "rearmada_hace_s", -1.0)}};
+            // El recorrido medido de la entrada (todos sus elementos, la memoria de cada paso
+            // y los cruces GPU↔memoria): lo que muestra la tarjeta al tocarla.
+            if (analisis != nullptr) ne["detalle"]["pipeline"] = *analisis;
             if (espera != f.enEspera.end()) ne["detalle"]["en_espera"] = espera->second;
             // La hora que trae, corrida (más de un minuto para un lado u otro): no es una demora,
             // es una fuente con otro reloj. Se marca y no se dibuja el número (estiraría todo).
