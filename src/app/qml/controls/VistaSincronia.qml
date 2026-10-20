@@ -162,9 +162,12 @@ Item {
                             }
                             Text {
                                 anchors.right: parent.right
-                                text: (fila.modelData.retraso_propio_ms || 0) > 0 ? "+" + latPanel.ms(fila.modelData.retraso_propio_ms) + " propios"
-                                                                                  : "tarda " + latPanel.ms(fila.modelData.edad_p50_ms)
-                                color: Theme.textFaint; font.pixelSize: 9
+                                text: ((fila.modelData.retraso_propio_ms || 0) > 0 ? "+" + latPanel.ms(fila.modelData.retraso_propio_ms) + " propios"
+                                                                                   : "tarda " + latPanel.ms(fila.modelData.edad_p50_ms) +
+                                                                                     " · tiembla " + latPanel.ms(fila.modelData.tiembla_ms)) +
+                                      ((fila.modelData.cuadros_tarde_60s || 0) > 0 ? " · " + fila.modelData.cuadros_tarde_60s + " tarde" : "")
+                                color: (fila.modelData.cuadros_tarde_60s || 0) > 0 ? Theme.live : Theme.textFaint
+                                font.pixelSize: 9
                             }
                         }
                         // La clase, con un toque (rearma la entrada: un instante sin imagen).
@@ -229,6 +232,12 @@ Item {
                             StatusPill {
                                 text: latPanel.lat.baja_sola ? "Sin nada al aire: se acomoda sola" : "Al aire: solo sube"
                                 dot: latPanel.lat.baja_sola ? Theme.ok : Theme.amber
+                            }
+                            // Si el colchón alcanza: los cuadros que llegaron tarde al compositor.
+                            StatusPill {
+                                readonly property int n: latPanel.lat.cuadros_tarde_60s || 0
+                                text: n === 0 ? "Ningún cuadro tarde (último minuto)" : n + (n === 1 ? " cuadro tarde" : " cuadros tarde") + " en el último minuto"
+                                dot: n === 0 ? Theme.ok : n < 10 ? Theme.amber : Theme.live
                             }
                             GlassButton {
                                 visible: latPanel.lat.puede_bajarse === true

@@ -12,6 +12,7 @@
 #include <gst/gst.h>
 #include <nlohmann/json.hpp>
 
+#include <cstdint>
 #include <memory>
 
 namespace ba::motor {
@@ -30,8 +31,14 @@ class MedidorEdad {
     /// En el primer pad de entrada (sink) de `elemento` (los de pedido también: un mux).
     void ponerEnEntrada(GstElement* elemento, const Reloj& reloj);
     void sacar();
-    /// {p50_ms, p95_ms, n} de los últimos ~10 s; null si no pasó nada todavía.
+    /// El plazo (edad máxima, ns): lo que pasa más viejo que esto cuenta como tarde
+    /// (0 = no se cuenta). Una capa del compositor: la latencia que espera + un cuadro.
+    void ponerPlazo(std::int64_t ns);
+    /// {p50_ms, p95_ms, n, tarde_60s (los que pasaron el plazo en el último minuto)} de los
+    /// últimos ~10 s; null si no pasó nada todavía.
     nlohmann::json json() const;
+    /// Los que pasaron el plazo en el último minuto.
+    int tarde60s() const;
 
     struct Datos;
 
@@ -39,6 +46,7 @@ class MedidorEdad {
     std::shared_ptr<Datos> d_;
     GstPad* pad_ = nullptr;
     gulong id_ = 0;
+    std::int64_t plazoNs_ = 0;
 };
 
 } // namespace ba::motor

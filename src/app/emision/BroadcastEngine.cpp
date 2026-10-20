@@ -411,7 +411,7 @@ json BroadcastEngine::latenciaEstudio() const {
     out["baja_sola"] = !alAire_.load();
     out["tope_ms"] = r.topeMs();
     out["automatico"] = r.topeAutomatico();
-    out["margen_ms"] = ajustes::entero("audio.margenMezclaMs", 30);
+    out["margen_ms"] = ajustes::entero("video.margenComposicionMs", 5); // el del video (el audio usa audio.margenMezclaMs)
     for (const auto& [quien, ns] : r.anotadas())
         if (r.llegaTarde(ns)) out["tarde"].push_back({{"entrada", quien}, {"latencia_ms", ns / 1000000}});
     // Cada entrada: su clase, lo que pide, lo que tarda y si va con su propia demora.
@@ -432,11 +432,26 @@ json BroadcastEngine::latenciaEstudio() const {
                                        {"edad_p50_ms", edad.is_object() ? edad.value("p50_ms", 0.0) + propio : 0.0},
                                        {"edad_p95_ms", edad.is_object() ? edad.value("p95_ms", 0.0) + propio : 0.0},
                                        {"retraso_propio_ms", e.value("retraso_propio_ms", 0.0)},
+                                       {"tiembla_ms", e.value("tiembla_ms", 0.0)},
                                        {"llega_tarde", e.value("llega_tarde", false)},
                                        {"en_escena", e.value("en_escena", false)},
                                        {"video", e.value("video", false)},
                                        {"marca", id == out["la_marca"].get<std::string>()}});
         }
+    // Los cuadros que llegaron tarde al compositor del programa en el último minuto (por entrada):
+    // si aparecen, el colchón no alcanza.
+    int tarde = 0;
+    json porEntrada = json::object();
+    if (foto)
+        for (const auto& c : foto->value("video", json::object()).value("programa", json::object()).value("capas", json::array())) {
+            const json el = c.value("edad_llega", json());
+            const int t = el.is_object() ? el.value("tarde_60s", 0) : 0;
+            tarde += t;
+            if (t > 0) porEntrada[c.value("entrada", std::string())] = t;
+        }
+    out["cuadros_tarde_60s"] = tarde;
+    out["cuadros_tarde_por_entrada"] = porEntrada;
+    for (auto& e : out["entradas"]) e["cuadros_tarde_60s"] = porEntrada.value(e.value("entrada", std::string()), 0);
     return out;
 }
 

@@ -1231,6 +1231,7 @@ void Entrada::medirLatencia() {
             edadP50_ = v[v.size() / 2];
             edadP95_ = std::clamp(v[v.size() * 95 / 100], 0.0, 5000.0);
             edadP90_ = std::clamp(v[v.size() * 90 / 100], 0.0, 5000.0);
+            edadP98_ = std::clamp(v[v.size() * 98 / 100], 0.0, 5000.0);
         }
         // Por rama: `edades_` es el video (o el audio, si la entrada no tiene video).
         const auto percentiles = [](const std::deque<double>& d, double& p50, double& p95) {
@@ -1321,7 +1322,11 @@ void Entrada::medirLatencia() {
     // Lo que necesita, sobre la edad SIN correr (el retraso propio la achica al medir) y con el
     // p90: un par de cuadros trabados no arrastran la latencia de todos.
     const double edadReal = edadP90_ + static_cast<double>(retrasoPropioNs_) / 1e6;
-    const double necesitaMs = std::max(declaradoMs_ + 15.0, edadReal + 10.0);
+    // + lo que tiembla (p98 − p90, de 3 a 40 ms) + 5: el colchón de cada entrada es el suyo (una
+    // cámara pareja pide poco, una que tiembla pide más). Reemplaza al margen fijo de 30 ms que
+    // sumaba la composición para todas.
+    const double tiembla = std::clamp(edadP98_ - edadP90_, 3.0, 40.0);
+    const double necesitaMs = std::max(declaradoMs_ + 15.0, edadReal + tiembla + 5.0);
     const std::int64_t propia = std::max<std::int64_t>(piso, static_cast<std::int64_t>(necesitaMs * 1e6));
     const std::int64_t pide = datos > 30 ? propia : piso;
     pide_ = pide;
@@ -1830,6 +1835,7 @@ json Entrada::estadoYa() const {
            {"clase", estudio_ ? "sala" : "propia"},
            {"clase_de_fabrica", !claseExplicita_},
            {"pide_ms", static_cast<double>(pide_.load()) / 1e6},
+           {"tiembla_ms", std::clamp(edadP98_ - edadP90_, 0.0, 999.0)},
            {"retraso_propio_ms", static_cast<double>(retrasoPropioNs_) / 1e6},
            {"fija", fija_},
            {"nombre", nombre_.empty() ? id_ : nombre_},

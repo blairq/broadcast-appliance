@@ -275,9 +275,17 @@ Composicion::~Composicion() {
 }
 
 void Composicion::aplicarLatencia() {
-    const std::int64_t l = reloj_.latencia() + margenMezclaNs();
-    if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
+    // La latencia del estudio + el margen del VIDEO (5 ms de fábrica, video.margenComposicionMs):
+    // el temblor de cada entrada ya va en lo que pide (Entrada: p90 + lo que tiembla), así que no
+    // hace falta el colchón de 30 ms del audio. La estabilidad la da el Reloj (cambia poco y a
+    // propósito): acá se la sigue siempre (antes, una baja de menos de 60 ms no se aplicaba).
+    const std::int64_t l = reloj_.latencia() + ajustes::msANs("video.margenComposicionMs", 5);
+    if (l == latenciaNs_) return;
     latenciaNs_ = l;
+    // El plazo de cada capa: lo que espera el mezclador + un cuadro (lo que llega más viejo, tarde).
+    const std::int64_t plazo = l + static_cast<std::int64_t>(gst_util_uint64_scale(GST_SECOND, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
+                                                                                       static_cast<guint64>(std::max(1, lienzo_.fpsN))));
+    for (auto& [k, r] : ramas_) r->llega.ponerPlazo(plazo);
     // Todo en otro hilo (ver recalcularLatenciaAparte): esto corre en el bucle del motor.
     recalcularLatenciaAparte(pipeline_, [mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_), l]() {
         g_object_set(mx.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
@@ -347,6 +355,10 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     // leaky): una queue más atrás era un hilo más por capa y no cambiaba nada.
     g_object_set(r->src, "max-buffers", static_cast<guint64>(3), "max-time", static_cast<guint64>(0), nullptr);
     if (GstPad* p = gst_element_get_static_pad(r->src, "src")) {
+        r->llega.ponerPlazo(latenciaNs_ > 0 ? latenciaNs_ + static_cast<std::int64_t>(gst_util_uint64_scale(
+                                                                      GST_SECOND, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
+                                                                      static_cast<guint64>(std::max(1, lienzo_.fpsN))))
+                                              : 0);
         r->llega.poner(p, reloj_);
         gst_object_unref(p);
     }
@@ -782,7 +794,12 @@ void Composicion::tic() {
             for (auto& [k, r] : *m)
                 if (r->tamanoNuevo.exchange(false)) {
                     const Capa& c = r->capa;
-                    recorteGl(*r, c, 0, c.ancho > 0 ? c.ancho : lienzo_.ancho, c.alto > 0 ? c.alto : lienzo_.alto);
+                    // La sonda avisa cuando PASA el evento de caps, antes de que el pad las tenga: si
+                    // el tic llega justo ahí, todavía no hay tamaño y no se puede recortar. Se vuelve a
+                    // intentar en la próxima vuelta; antes la marca se perdía y la capa quedaba sin
+                    // recortar para siempre (una de dos capas de la misma cámara mostraba la toma entera).
+                    if (!recorteGl(*r, c, 0, c.ancho > 0 ? c.ancho : lienzo_.ancho, c.alto > 0 ? c.alto : lienzo_.alto))
+                        r->tamanoNuevo = true;
                 }
     // Los fundidos del DSK.
     for (auto it = dsk_.begin(); it != dsk_.end();) {
@@ -842,6 +859,12 @@ json Composicion::estado() const {
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
             {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
             {"edad_salida", edadSalida_.json()},
+            {"margen_ms", static_cast<double>(ajustes::msANs("video.margenComposicionMs", 5)) / 1e6},
+            {"cuadros_tarde_60s", [&]() {
+                 int n = 0;
+                 for (const auto& [k, r] : ramas_) n += r->llega.tarde60s();
+                 return n;
+             }()},
             {"capas", capas}};
 }
 

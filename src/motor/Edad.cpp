@@ -6,6 +6,7 @@
 #include "Reloj.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <deque>
 #include <mutex>
 #include <vector>
@@ -18,6 +19,8 @@ struct MedidorEdad::Datos {
     const Reloj* reloj = nullptr;
     std::mutex mu;
     std::deque<double> edades; ///< ms, las últimas
+    std::atomic<std::int64_t> plazoNs{0};
+    std::deque<std::int64_t> tardes; ///< cuándo (µs monotónicos) pasó uno el plazo, del último minuto
 };
 
 namespace {
@@ -48,15 +51,37 @@ GstPadProbeReturn alPasar(GstPad* pad, GstPadProbeInfo* info, gpointer u) {
     std::lock_guard<std::mutex> l(d->mu);
     d->edades.push_back(edad);
     while (d->edades.size() > kMuestras) d->edades.pop_front();
+    const std::int64_t plazo = d->plazoNs.load(std::memory_order_relaxed);
+    if (plazo > 0 && edad * 1e6 > static_cast<double>(plazo)) {
+        const std::int64_t ahora = g_get_monotonic_time();
+        d->tardes.push_back(ahora);
+        while (!d->tardes.empty() && ahora - d->tardes.front() > 60'000'000) d->tardes.pop_front();
+    }
     return GST_PAD_PROBE_OK;
 }
 
 } // namespace
 
+void MedidorEdad::ponerPlazo(std::int64_t ns) {
+    plazoNs_ = ns;
+    if (d_) d_->plazoNs = ns;
+}
+
+int MedidorEdad::tarde60s() const {
+    if (!d_) return 0;
+    std::lock_guard<std::mutex> l(d_->mu);
+    const std::int64_t ahora = g_get_monotonic_time();
+    int n = 0;
+    for (const std::int64_t t : d_->tardes)
+        if (ahora - t <= 60'000'000) ++n;
+    return n;
+}
+
 void MedidorEdad::poner(GstPad* pad, const Reloj& reloj) {
     sacar();
     if (pad == nullptr) return;
     d_ = std::make_shared<Datos>();
+    d_->plazoNs = plazoNs_;
     d_->reloj = &reloj;
     pad_ = GST_PAD(gst_object_ref(pad));
     id_ = gst_pad_add_probe(pad_, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST),
@@ -119,7 +144,7 @@ json MedidorEdad::json() const {
     std::sort(v.begin(), v.end());
     const auto p = [&](double q) { return v[std::min(v.size() - 1, static_cast<std::size_t>(q * static_cast<double>(v.size())))]; };
     const auto r = [](double x) { return static_cast<double>(static_cast<long long>(x * 10 + (x >= 0 ? 0.5 : -0.5))) / 10; };
-    return {{"p50_ms", r(p(0.5))}, {"p95_ms", r(p(0.95))}, {"n", v.size()}};
+    return {{"p50_ms", r(p(0.5))}, {"p95_ms", r(p(0.95))}, {"n", v.size()}, {"tarde_60s", tarde60s()}};
 }
 
 } // namespace ba::motor

@@ -314,11 +314,14 @@ static void cargarShader(BaGlsl* s) {
     }
     {
         std::lock_guard<std::mutex> l(*s->pasadasMu);
-        for (auto& p : *s->pasadas)
-            if (p.programa != nullptr) gst_object_unref(p.programa); // GstGLShader se borra en su hilo de GL
-        s->pasadas->swap(nuevas);
+        s->pasadas->swap(nuevas); // `nuevas` queda con las viejas
         s->factor = factor;
     }
+    // Las viejas se sueltan SIN el candado: GstGLShader se borra en su hilo de GL (lo espera), y
+    // ese hilo, dibujando (filtrar), espera el candado: con el candado tomado acá se trababan
+    // los dos para siempre (test_superres_vivo, cambiando el shader con el video andando).
+    for (auto& p : nuevas)
+        if (p.programa != nullptr) gst_object_unref(p.programa);
     ponerError(s, ok ? "" : e);
     if (ok && !texto.empty())
         GST_INFO_OBJECT(s, "%s: %zu pasadas, x%d", s->codigo ? "(código)" : s->archivo, s->pasadas->size(), factor);

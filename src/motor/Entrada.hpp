@@ -296,7 +296,7 @@ class Entrada {
     double cuadradoCanal_[2] = {0, 0};
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
-    double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0, edadP90_ = 0;
+    double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0, edadP90_ = 0, edadP98_ = 0;
     /// La clase de sincronía: estudio_ = sincronizada con la sala (pide latencia al estudio);
     /// si no, «con su propia demora». claseExplicita_: la eligió el operador (si no, la de su tipo).
     bool claseExplicita_ = false;
