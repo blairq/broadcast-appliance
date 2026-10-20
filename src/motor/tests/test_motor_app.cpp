@@ -65,6 +65,19 @@ Px mirar(Motor& m, const std::string& clave, int x, int y) {
     return px(c, x, y);
 }
 
+/// Espera hasta que lo que se ve en (x, y) cumpla `cumple` (o hasta `topeMs`) y devuelve lo
+/// último que vio. Con la máquina cargada (la suite en paralelo) una composición nueva tarda
+/// más en arrancar que la espera fija de antes: se espera a que pase, no un tiempo.
+template <typename F>
+Px mirarHasta(Motor& m, const std::string& clave, int x, int y, F cumple, int topeMs = 6000) {
+    Px p = mirar(m, clave, x, y);
+    for (int t = 0; t < topeMs && !cumple(p); t += 100) {
+        esperar(100);
+        p = mirar(m, clave, x, y);
+    }
+    return p;
+}
+
 json color(const char* c) {
     return {{"tipo", "color"}, {"color", c}, {"ancho", 320}, {"alto", 180}};
 }
@@ -137,8 +150,8 @@ int main() {
 
     // DSK con una escena entera (la App, ahora verde) en un recuadro.
     CHECK(m.dsk({{{"escena", "App"}, {"x", 0}, {"y", 0}, {"ancho", 80}, {"alto", 45}}}, 0).empty(), "DSK con una escena");
-    esperar(1200);
-    const Px dskPx = mirar(m, "programa", 20, 10), resto = mirar(m, "programa", 200, 120);
+    const Px dskPx = mirarHasta(m, "programa", 20, 10, [](const Px& p) { return igual(p, 0, 255, 0); });
+    const Px resto = mirarHasta(m, "programa", 200, 120, [](const Px& p) { return igual(p, 255, 0, 0); });
     std::printf("DSK con escena: %s, resto %s\n", txt(dskPx).c_str(), txt(resto).c_str());
     CHECK(igual(dskPx, 0, 255, 0) && igual(resto, 255, 0, 0), "la escena del DSK arriba del programa");
     CHECK(m.dsk(json::array(), 0).empty(), "sacar el DSK");
@@ -338,16 +351,25 @@ int main() {
         // La MISMA cámara dos veces en una escena (dos bancas recortadas de una toma): cada
         // capa con su recorte. Antes la segunda chocaba de nombre con la primera y la app se caía.
         {
-            const json sale = m.estado()["entradas"]["cam"].value("sale", json::object());
+            // El recorte se calcula con el tamaño de verdad de la toma: recién rearmada (el PTZ de
+            // arriba), con la máquina cargada, todavía no lo informó y el 320x240 de fábrica corría
+            // el recorte una barra (salía la verde en vez de la azul).
+            json sale = json::object();
+            for (int i = 0; i < 100 && !sale.contains("ancho"); ++i) {
+                sale = m.estado()["entradas"]["cam"].value("sale", json::object());
+                if (!sale.contains("ancho")) esperar(50);
+            }
+            CHECK(sale.contains("ancho"), "la toma informa su tamaño");
             const int w = sale.value("ancho", 320), h = sale.value("alto", 240);
+            std::printf("misma cámara dos veces: la toma mide %dx%d\n", w, h);
             const json izq{{"entrada", "cam"}, {"productor", "cam:entera:video"}, {"x", 0}, {"y", 0}, {"ancho", 160}, {"alto", 180},
                            {"orden", 0}, {"recorte", {{"izq", 0}, {"arr", 0}, {"der", w * 6 / 7}, {"aba", h / 2}}}};
             const json der{{"entrada", "cam"}, {"productor", "cam:entera:video"}, {"x", 160}, {"y", 0}, {"ancho", 160}, {"alto", 180},
                            {"orden", 1}, {"recorte", {{"izq", w * 6 / 7}, {"arr", 0}, {"der", 0}, {"aba", h / 2}}}};
             m.definirEscena({{"nombre", "Dos"}, {"capas", {izq, der}}});
             CHECK(m.verPedir("escena:Dos", 320, 180).empty(), "ver una escena con la misma cámara dos veces");
-            esperar(1500);
-            const Px a = mirar(m, "escena:Dos", 80, 90), b = mirar(m, "escena:Dos", 240, 90);
+            const Px a = mirarHasta(m, "escena:Dos", 80, 90, [](const Px& p) { return p.r > 150 && p.g > 150 && p.b > 150; });
+            const Px b = mirarHasta(m, "escena:Dos", 240, 90, [](const Px& p) { return p.b > 120 && p.r < 80 && p.g < 80; });
             std::printf("misma cámara dos veces: izquierda %s, derecha %s\n", txt(a).c_str(), txt(b).c_str());
             CHECK(a.r > 150 && a.g > 150 && a.b > 150, "la misma cámara dos veces: a la izquierda, la primera barra (gris claro)");
             CHECK(b.b > 120 && b.r < 80 && b.g < 80, "y a la derecha, la última (azul)");

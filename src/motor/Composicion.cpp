@@ -155,8 +155,12 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     // cuadro siguiente (33 ms) y el video quedaba un cuadro atrás del audio en las salidas.
     const GstClockTime cuadro = gst_util_uint64_scale(GST_SECOND, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
                                                       static_cast<guint64>(std::max(1, lienzo_.fpsN)));
+    // Un poco ADELANTE (100 ms, al próximo cuadro de la grilla): la hora de ahora ya quedó atrás
+    // cuando el pipeline termina de arrancar (con la máquina cargada, bastante), y un mezclador
+    // que empieza atrasado saca cuadros vencidos para ponerse al día que lo de después tira. La
+    // grilla sigue en múltiplos del cuadro desde el cero del estudio: todas quedan alineadas.
     const GstClockTime ahora = reloj_.ahora();
-    const GstClockTime inicio = GST_CLOCK_TIME_IS_VALID(ahora) && cuadro > 0 ? (ahora / cuadro) * cuadro : 0;
+    const GstClockTime inicio = GST_CLOCK_TIME_IS_VALID(ahora) && cuadro > 0 ? ((ahora + 100 * GST_MSECOND) / cuadro + 1) * cuadro : 0;
     const std::string comun = "force-live=true start-time-selection=set start-time=" + std::to_string(inicio) + " background=black ";
     // En GPU todo queda en la GPU (GLMemory o D3D12Memory): lo que sale es una
     // textura (el que consume la baja si hace falta, chica o en NV12: docs/desarrollo/MAPA-GPU-CPU.md).
