@@ -97,6 +97,11 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     master_ = gst_bin_get_by_name(GST_BIN(pipeline_), "master");
     reloj_.adoptar(pipeline_);
     aplicarLatencia();
+    // La edad de lo que sale (lo que pasa de verdad, no la latencia fijada).
+    if (GstElement* sale = gst_bin_get_by_name(GST_BIN(pipeline_), "sale")) {
+        edadSalida_.ponerEnEntrada(sale, reloj_);
+        gst_object_unref(sale);
+    }
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = "el mezclador no arrancó";
         registrar(Nivel::Error, "mezcla " + nombre_ + ": " + error_);
@@ -106,6 +111,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
 Mezcla::~Mezcla() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ != nullptr) {
+        edadSalida_.sacar();
         gst_element_set_state(pipeline_, GST_STATE_NULL);
         for (auto& [id, r] : ramas_)
             if (r.pad != nullptr) {
@@ -368,9 +374,15 @@ json Mezcla::estado() const {
             {"master", master_v_},
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
             {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
+            {"edad_salida", edadSalida_.json()},
             {"pico_db", picoDb_},
             {"rms_db", rmsDb_},
             {"entradas", e}};
+}
+
+GstElement* Mezcla::pipelineRef() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return pipeline_ != nullptr ? GST_ELEMENT(gst_object_ref(pipeline_)) : nullptr;
 }
 
 } // namespace ba::motor

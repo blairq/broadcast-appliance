@@ -10,6 +10,8 @@ Item {
     property point hacia: Qt.point(100, 0)
     property string medio: "video"
     property var ms: null
+    /// Lo que espera el cuadro en este tramo (el colchón de la entrada antes de la composición), medido.
+    property var espera: null
     property bool viva: true
     property bool resaltada: false
 
@@ -93,5 +95,22 @@ Item {
         text: Math.round(l.ms) + " ms"
         color: l.color
         font.pixelSize: 10
+    }
+    // La espera del tramo, siempre a la vista: es justo lo que no aparece en ninguna tarjeta.
+    Rectangle {
+        visible: l.espera !== null && l.espera !== undefined && l.espera >= 5
+        // Más cerca del origen: en el medio la tapaba la tarjeta de la escena.
+        x: l.desde.x + (l.hacia.x - l.desde.x) * 0.3 - width / 2
+        y: l.desde.y + (l.hacia.y - l.desde.y) * 0.3 + 4
+        width: textoEspera.implicitWidth + 10; height: 15; radius: 7.5
+        color: Qt.rgba(0.05, 0.06, 0.08, 0.9)
+        border.color: Qt.rgba(l.color.r, l.color.g, l.color.b, 0.6)
+        Text {
+            id: textoEspera
+            anchors.centerIn: parent
+            text: "espera " + Math.round(l.espera || 0) + " ms (colchón)"
+            color: l.color
+            font.pixelSize: 9
+        }
     }
 }

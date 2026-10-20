@@ -377,6 +377,7 @@ Rectangle {
                                     hacia: Qt.point(b.x, b.y + 59)
                                     medio: modelData.medio
                                     ms: modelData.ms
+                                    espera: modelData.espera_ms === undefined ? null : modelData.espera_ms
                                     viva: modelData.ms !== null && modelData.ms !== undefined
                                     resaltada: !!page.camino[modelData.desde] && !!page.camino[modelData.hacia]
                                 }

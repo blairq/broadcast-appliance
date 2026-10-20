@@ -185,8 +185,9 @@ void McpService::registerTiemposTools() {
         t.title = "La cadena de una entrada por dentro (elemento por elemento)";
         t.category = "tiempos";
         t.description =
-            "Analiza el pipeline de UNA `entrada` (el nombre de tiempos_mapa / video_estado) durante `segundos` (de "
-            "fábrica 5): pone una sonda en cada elemento y devuelve:\n"
+            "Analiza el pipeline de UNA `entrada` (el nombre de tiempos_mapa / video_estado; o «programa» = la "
+            "composición del programa, «programa:audio» = la mezcla: lo que pasa DESPUÉS de las entradas) durante "
+            "`segundos` (de fábrica 5): pone una sonda en cada elemento y devuelve:\n"
             "- `hallazgos`, ya razonados y ordenados por gravedad, cada uno con la tarjeta culpable: ida_y_vuelta (el "
             "video baja de la GPU y vuelve a subir: lo del medio trabaja en RAM, y dice si es porque el plugin solo "
             "acepta RAM o porque negoció RAM pudiendo GPU), termina_en_ram, retiene (agrega más de cuadro y medio: tarda "

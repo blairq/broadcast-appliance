@@ -34,6 +34,8 @@
 // ============================================================================
 #pragma once
 
+#include "Sondas.hpp"
+
 #include "Composicion.hpp"
 #include "Entrada.hpp"
 #include "Escucha.hpp"
@@ -191,6 +193,7 @@ class Motor {
     /// empezar pone las sondas; terminar las saca y devuelve cuánto agrega cada elemento y
     /// en qué memoria va (GPU o sistema), con los cruces. Pueden esperar el candado de la
     /// entrada (un rearmado): llamarlas fuera del hilo de la interfaz.
+    /// `entrada`: una entrada, o «programa» (la composición del programa) / «programa:audio» (la mezcla).
     std::string analizarEmpezar(const std::string& entrada);
     nlohmann::json analizarTerminar(const std::string& entrada);
     /// La última foto de `estado()` que publicó el bucle del motor (cada ~100 ms).
@@ -255,6 +258,8 @@ class Motor {
     std::unique_ptr<Reloj> reloj_;
     GstObject* relojPublicado_ = nullptr; ///< GstNetTimeProvider
     mutable std::recursive_mutex mu_;
+    std::mutex sondasM_;
+    std::map<std::string, std::unique_ptr<Sondas>> sondasAparte_; ///< las del programa y la mezcla
     std::map<std::string, Canal> canales_;
     std::unique_ptr<Mezcla> programa_, directo_;
     std::unique_ptr<Mezcla> seleccion_; ///< la escucha «selección»

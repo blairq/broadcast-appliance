@@ -30,6 +30,8 @@ struct Elemento {
     // cuando se la saca; la sonda guarda su propia referencia y la suelta GStreamer
     // (GDestroyNotify) cuando ya no la usa.
     std::shared_ptr<Pad> entrada, salida;
+    /// Un mezclador tiene varias entradas: las demás (la que manda es la que llega última).
+    std::vector<std::shared_ptr<Pad>> otras;
 };
 
 double mediana(std::vector<double> v) {
@@ -118,8 +120,8 @@ GstPad* primerPad(GstElement* el, GstPadDirection dir) {
     return elegido;
 }
 
-std::shared_ptr<Pad> sondear(GstElement* el, GstPadDirection dir) {
-    GstPad* pad = primerPad(el, dir);
+/// Pone la sonda en `pad` (se queda con la referencia).
+std::shared_ptr<Pad> sondearPad(GstPad* pad) {
     if (pad == nullptr) return nullptr;
     auto p = std::make_shared<Pad>();
     p->pad = pad;
@@ -127,6 +129,35 @@ std::shared_ptr<Pad> sondear(GstElement* el, GstPadDirection dir) {
                               alPasar, new std::shared_ptr<Pad>(p),
                               [](gpointer d) { delete static_cast<std::shared_ptr<Pad>*>(d); });
     return p;
+}
+
+std::shared_ptr<Pad> sondear(GstElement* el, GstPadDirection dir) { return sondearPad(primerPad(el, dir)); }
+
+/// Las entradas enlazadas de un elemento (con referencia; hasta 32).
+std::vector<GstPad*> entradasEnlazadas(GstElement* el) {
+    std::vector<GstPad*> out;
+    GstIterator* it = gst_element_iterate_sink_pads(el);
+    GValue v = G_VALUE_INIT;
+    bool listo = false;
+    while (!listo) {
+        switch (gst_iterator_next(it, &v)) {
+            case GST_ITERATOR_OK: {
+                auto* pad = GST_PAD(g_value_get_object(&v));
+                if (gst_pad_is_linked(pad) && out.size() < 32) out.push_back(GST_PAD(gst_object_ref(pad)));
+                g_value_reset(&v);
+                break;
+            }
+            case GST_ITERATOR_RESYNC:
+                for (GstPad* p : out) gst_object_unref(p);
+                out.clear();
+                gst_iterator_resync(it);
+                break;
+            default: listo = true; break;
+        }
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+    return out;
 }
 
 std::string capsCortas(GstCaps* caps) {
@@ -240,7 +271,14 @@ Sondas::Sondas(GstElement* pipeline) : st_(std::make_shared<Estado>()) {
         e.nombre = GST_OBJECT_NAME(el) != nullptr ? GST_OBJECT_NAME(el) : "";
         GstElementFactory* fab = gst_element_get_factory(el);
         e.fabrica = fab != nullptr ? GST_OBJECT_NAME(fab) : (GST_IS_BIN(el) ? "bin" : "");
-        e.entrada = sondear(el, GST_PAD_SINK);
+        const std::vector<GstPad*> ents = entradasEnlazadas(el);
+        if (ents.size() > 1) {
+            e.entrada = sondearPad(ents[0]);
+            for (size_t i = 1; i < ents.size(); ++i) e.otras.push_back(sondearPad(ents[i]));
+        } else {
+            for (GstPad* p : ents) gst_object_unref(p);
+            e.entrada = sondear(el, GST_PAD_SINK);
+        }
         e.salida = sondear(el, GST_PAD_SRC);
         st_->elementos.push_back(std::move(e));
     }
@@ -281,14 +319,42 @@ json Sondas::terminar() {
                 capsSal = cortas;
             }
         }
+        // Un mezclador: lo que agrega se cuenta desde la entrada que llega última (la que espera);
+        // la primera de sus entradas puede ser un fondo que llega enseguida.
+        double entMax = ent.empty() ? -1e18 : mediana(ent), entMin = entMax;
+        for (auto& o : e.otras) {
+            if (!o) continue;
+            if (o->id != 0) gst_pad_remove_probe(o->pad, o->id);
+            o->id = 0;
+            std::vector<double> v;
+            {
+                std::lock_guard<std::mutex> l(o->mu);
+                v = o->edadesMs;
+            }
+            if (v.empty()) continue;
+            const double m = mediana(v);
+            if (entMax < -1e17) entMax = entMin = m;
+            entMax = std::max(entMax, m);
+            entMin = std::min(entMin, m);
+            if (ent.empty()) ent = v;
+        }
         json f{{"nombre", e.nombre}, {"fabrica", e.fabrica}, {"medio", medio}, {"cuadros", sal.size()},
                {"memoria_entrada", memEnt}, {"memoria_salida", memSal}, {"caps_entrada", capsEnt},
                {"caps_salida", capsSal}};
         if (!sal.empty()) f["edad_salida_ms"] = redondo(mediana(sal));
-        if (!ent.empty()) f["edad_entrada_ms"] = redondo(mediana(ent));
+        if (!ent.empty()) f["edad_entrada_ms"] = redondo(e.otras.empty() ? mediana(ent) : entMax);
+        if (!e.otras.empty()) {
+            f["entradas"] = static_cast<int>(e.otras.size()) + 1;
+            f["edad_entrada_primera_ms"] = redondo(entMin);
+        }
         if (!ent.empty() && !sal.empty()) {
-            f["agrega_ms"] = redondo(std::max(0.0, mediana(sal) - mediana(ent)));
-            f["agrega_p95_ms"] = redondo(std::max(0.0, percentil(sal, 0.95) - percentil(ent, 0.95)));
+            const double desde = e.otras.empty() ? mediana(ent) : entMax;
+            const double dif = mediana(sal) - desde;
+            f["agrega_ms"] = redondo(std::max(0.0, dif));
+            f["agrega_p95_ms"] = redondo(std::max(0.0, percentil(sal, 0.95) - (e.otras.empty() ? percentil(ent, 0.95) : entMax)));
+            // Sale «más joven» que lo que entró: el elemento publica los cuadros con otra hora
+            // (lo de después no se puede comparar con lo de antes).
+            if (dif < -5) f["cambia_la_hora_ms"] = redondo(-dif);
         }
         // Lo que el elemento sabe usar (sus templates) y la latencia que declara.
         if (GstElementFactory* fab = e.el != nullptr ? gst_element_get_factory(e.el) : nullptr) {
@@ -317,6 +383,11 @@ json Sondas::terminar() {
             if (p != nullptr && p->pad != nullptr) {
                 gst_object_unref(p->pad);
                 p->pad = nullptr;
+            }
+        for (auto& o : e.otras)
+            if (o && o->pad != nullptr) {
+                gst_object_unref(o->pad);
+                o->pad = nullptr;
             }
         if (e.el != nullptr) {
             gst_object_unref(e.el);

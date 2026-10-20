@@ -88,6 +88,21 @@ int main() {
         const double ms = fila(r, "retiene").value("agrega_ms", -1.0);
         check(ms > 250 && ms < 400, "una cola que retiene 300 ms mide ≈300 ms (midió " + std::to_string(ms) + ")");
     }
+    // 2b) Un mezclador con una entrada rápida y otra que llega 200 ms tarde (como un fondo y una
+    // cámara): lo que agrega se cuenta desde la que llega última, no desde la primera.
+    {
+        const json r = correr("compositor name=mx ! video/x-raw,width=160,height=90 ! fakesink sync=true "
+                              "videotestsrc is-live=true ! video/x-raw,width=160,height=90,framerate=30/1 ! mx. "
+                              "videotestsrc is-live=true ! video/x-raw,width=160,height=90,framerate=30/1 ! "
+                              "queue min-threshold-time=200000000 max-size-time=0 max-size-buffers=0 max-size-bytes=0 ! mx.",
+                              3000);
+        const json mx = fila(r, "mx");
+        std::printf("mezclador: %s\n", mx.dump().c_str());
+        check(mx.value("entradas", 0) == 2, "el mezclador: dos entradas medidas");
+        check(mx.value("edad_entrada_ms", 0.0) > 150, "la edad de entrada es la de la que llega última (~200 ms)");
+        check(mx.value("agrega_ms", 999.0) < 150, "lo que agrega no cuenta la espera de la entrada lenta (midió " +
+                                                     std::to_string(mx.value("agrega_ms", -1.0)) + ")");
+    }
     // 3) GL: los cruces de memoria (si hay GL en esta máquina).
     if (GstElementFactory* f = gst_element_factory_find("glupload")) {
         gst_object_unref(f);

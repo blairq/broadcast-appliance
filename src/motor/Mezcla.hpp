@@ -26,6 +26,8 @@
 // ============================================================================
 #pragma once
 
+#include "Edad.hpp"
+
 #include "Piezas.hpp"
 
 #include <gst/gst.h>
@@ -86,6 +88,8 @@ class Mezcla {
     /// {latencia_ms, pico_db, rms_db, limitador: {activo, techo_db, reduccion_db},
     ///  loudness: {momentaneo, corto, integrado, lra, true_peak_db}, entradas: {id: {…}}}
     nlohmann::json estado() const;
+    /// Su pipeline con una referencia (para el análisis por elemento); nullptr si no anda.
+    GstElement* pipelineRef() const;
     /// El pico del bus (dBFS, el mayor de los canales; -120 sin señal).
     double picoDb() const;
     /// El maestro por canal (L, R), en dB: pico (300 ms) y RMS del último `level` (50 ms).
@@ -111,6 +115,7 @@ class Mezcla {
     void soltar(Rama& r);
 
     Reloj& reloj_;
+    MedidorEdad edadSalida_; ///< la edad de lo que sale (medida)
     std::string nombre_, error_;
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;

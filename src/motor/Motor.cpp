@@ -1337,6 +1337,21 @@ void Motor::publicarInstantanea() {
 }
 
 std::string Motor::analizarEmpezar(const std::string& entrada) {
+    // La composición del programa y la mezcla también: lo que pasa después de las entradas.
+    if (entrada == "programa" || entrada == "programa:audio") {
+        GstElement* p = nullptr;
+        {
+            std::lock_guard<std::recursive_mutex> l(mu_);
+            if (entrada == "programa" && vPrograma_) p = vPrograma_->pipelineRef();
+            if (entrada == "programa:audio" && programa_) p = programa_->pipelineRef();
+        }
+        if (p == nullptr) return "«" + entrada + "» no está andando";
+        auto s = std::make_unique<Sondas>(p); // se queda con sus elementos
+        gst_object_unref(p);
+        std::lock_guard<std::mutex> l(sondasM_);
+        sondasAparte_[entrada] = std::move(s);
+        return {};
+    }
     std::shared_ptr<Entrada> e;
     {
         std::lock_guard<std::recursive_mutex> l(mu_);
@@ -1349,6 +1364,19 @@ std::string Motor::analizarEmpezar(const std::string& entrada) {
 }
 
 json Motor::analizarTerminar(const std::string& entrada) {
+    {
+        std::unique_ptr<Sondas> s;
+        {
+            std::lock_guard<std::mutex> l(sondasM_);
+            const auto it = sondasAparte_.find(entrada);
+            if (it != sondasAparte_.end()) {
+                s = std::move(it->second);
+                sondasAparte_.erase(it);
+            }
+        }
+        if (s) return s->terminar();
+        if (entrada == "programa" || entrada == "programa:audio") return {{"error", "no hay un análisis en curso en «" + entrada + "»"}};
+    }
     std::shared_ptr<Entrada> e;
     {
         std::lock_guard<std::recursive_mutex> l(mu_);

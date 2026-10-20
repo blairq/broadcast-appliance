@@ -21,6 +21,37 @@ constexpr double kHoraCorridaMs = 60000;
 
 /// Los filtros que no son tarjetas del grafo (los agregan ControlCamaras, SuperRes…):
 /// un nombre que se entienda en vez del elemento de GStreamer.
+/// La edad medida a la salida de un pipeline (MedidorEdad: {p50_ms, p95_ms}); -1 si no hay.
+double edadMedida(const json& st, const char* p = "p50_ms") {
+    const json e = st.is_object() ? st.value("edad_salida", json()) : json();
+    return e.is_object() && e.contains(p) && e[p].is_number() ? e[p].get<double>() : -1;
+}
+
+/// Un nodo de la composición o la mezcla: lo medido manda; lo fijado queda para comparar.
+/// `ms` = lo que espera ahí (el colchón: sale junto con las demás entradas, a su hora +
+/// la latencia fijada), acumulado = la edad con que sale.
+void ponerTramoDeEspera(json& n, double previo, double fijada, double medida, double medidaP95, double cuadroMs) {
+    const double acum = medida >= 0 ? medida : std::max(fijada, previo);
+    n["ms"] = std::round(std::max(0.0, acum - previo) * 10) / 10;
+    n["acumulado_ms"] = std::round(acum * 10) / 10;
+    n["fuente"] = medida >= 0 ? "medido" : "declarado";
+    n["estado"] = "bien";
+    n["detalle"]["que_es"] = "espera en el colchón: cada cuadro sale a su hora de captura + la latencia fijada, para que "
+                             "todas las entradas salgan juntas (por eso es más que lo que tarda cada tarjeta)";
+    n["detalle"]["espera_ms"] = std::round(std::max(0.0, acum - previo) * 10) / 10;
+    if (medida >= 0) {
+        n["detalle"]["edad_medida_ms"] = std::round(medida * 10) / 10;
+        if (medidaP95 >= 0) n["p95_ms"] = std::round(medidaP95 * 10) / 10;
+        const double dif = medida - fijada;
+        n["detalle"]["contra_lo_fijado_ms"] = std::round(dif * 10) / 10;
+        // Sale más tarde que lo fijado (más de un cuadro): algo de adentro no da abasto.
+        if (fijada > 0 && dif > std::max(cuadroMs, 10.0)) {
+            n["estado"] = "justo";
+            n["detalle"]["aviso"] = "sale " + std::to_string(static_cast<int>(dif)) + " ms más tarde que lo fijado";
+        }
+    }
+}
+
 std::string tituloDeElemento(const std::string& e) {
     static const std::map<std::string, std::string> nombres{
         {"baptz", "PTZ digital"},       {"baptzgl", "PTZ digital"},  {"bamejora", "Mejorar imagen"},
@@ -361,6 +392,7 @@ json armar(const Fotos& f) {
     for (const auto& s : conAudio) finA[s.substr(s.find('\x1f') + 1)] = s.substr(0, s.find('\x1f'));
 
     // --- Escena al aire (la composición del programa) y la mezcla ------------------------
+    const double cuadroMs = 1000.0 / std::max(1.0, num(f.motor.value("estudio", json::object()), "fps", 30.0));
     std::vector<std::string> fuentesV, fuentesA;
     if (programaV.is_object() && !programaV.empty()) {
         const std::string id = "escena:programa";
@@ -370,22 +402,47 @@ json armar(const Fotos& f) {
         n["detalle"] = {{"escena", esc}, {"latencia_fijada_ms", lat}, {"gpu", programaV.value("gpu", json())},
                         {"en_transicion", si(programaV, "en_transicion")}};
         std::vector<std::string> desde;
+        // Con qué edad llega cada entrada a la composición (medido en su intersrc): lo que
+        // esperó desde que salió de la entrada es su colchón, y va en el tramo.
+        double previo = 0;
+        json llegan = json::array();
         for (const auto& c : programaV.value("capas", json::array())) {
             const std::string e = c.value("entrada", std::string());
-            if (const auto it = finV.find(e); it != finV.end() && std::find(desde.begin(), desde.end(), it->second) == desde.end()) {
-                a.tramo(it->second, id, "video");
-                desde.push_back(it->second);
+            const auto it = finV.find(e);
+            if (it == finV.end() || std::find(desde.begin(), desde.end(), it->second) != desde.end()) continue;
+            a.tramo(it->second, id, "video");
+            desde.push_back(it->second);
+            const double sale = a.acumulado.count(it->second) ? a.acumulado[it->second] : -1;
+            const json el = c.value("edad_llega", json());
+            const double llega = el.is_object() ? num(el, "p50_ms", -1.0) : -1.0;
+            if (llega >= 0 && sale >= 0) {
+                json& t = a.tramos.back();
+                t["llega_ms"] = redondo(llega);
+                t["espera_ms"] = redondo(std::max(0.0, llega - sale));
+                llegan.push_back({{"entrada", e}, {"sale_ms", redondo(sale)}, {"llega_ms", redondo(llega)},
+                                  {"espera_ms", redondo(std::max(0.0, llega - sale))}});
+                previo = std::max(previo, llega);
+            } else if (sale >= 0) {
+                previo = std::max(previo, sale);
             }
         }
-        double previo = 0;
-        for (const auto& d : desde)
-            if (a.acumulado.count(d)) previo = std::max(previo, a.acumulado[d]);
-        const double acum = std::max(lat, previo);
-        a.acumulado[id] = acum;
-        n["ms"] = redondo(std::max(0.0, acum - previo));
-        n["acumulado_ms"] = redondo(acum);
-        n["fuente"] = "declarado";
-        n["estado"] = "bien";
+        if (!llegan.empty()) n["detalle"]["llegan"] = llegan;
+        ponerTramoDeEspera(n, previo, lat, edadMedida(programaV), edadMedida(programaV, "p95_ms"), cuadroMs);
+        if (!llegan.empty()) {
+            n["detalle"]["que_es"] = "lo que agrega el compositor: su latencia y esperar a la capa que llega última (el "
+                                     "colchón de cada entrada ya está en su tramo)";
+            // Lo fijado al compositor no incluye el colchón de las entradas (está en los tramos):
+            // lo que se vigila es lo que agrega él, que no pase de dos cuadros.
+            n["detalle"].erase("aviso");
+            n["estado"] = "bien";
+            const double propio = n["ms"].get<double>();
+            if (propio > 2 * cuadroMs + 5) {
+                n["estado"] = "justo";
+                n["detalle"]["aviso"] = "el compositor agrega " + std::to_string(static_cast<int>(propio)) +
+                                        " ms (más de dos cuadros): algo de adentro no da abasto";
+            }
+        }
+        a.acumulado[id] = n["acumulado_ms"].get<double>();
         a.seguir(id, desde);
         fuentesV.push_back(id);
     }
@@ -402,12 +459,9 @@ json armar(const Fotos& f) {
         double previo = 0;
         for (const auto& d : desde)
             if (a.acumulado.count(d)) previo = std::max(previo, a.acumulado[d]);
-        const double acum = std::max(lat, previo);
-        a.acumulado[id] = acum;
-        n["ms"] = redondo(std::max(0.0, acum - previo));
-        n["acumulado_ms"] = redondo(acum);
-        n["fuente"] = "declarado";
-        n["estado"] = "bien";
+        // El audio va en bloques de 10 ms: un par de bloques arriba de lo fijado es lo normal.
+        ponerTramoDeEspera(n, previo, lat, edadMedida(programaA), edadMedida(programaA, "p95_ms"), 20.0);
+        a.acumulado[id] = n["acumulado_ms"].get<double>();
         a.seguir(id, desde);
         fuentesA.push_back(id);
     }
@@ -429,12 +483,18 @@ json armar(const Fotos& f) {
         double previo = 0;
         for (const auto& d : desde)
             if (a.acumulado.count(d)) previo = std::max(previo, a.acumulado[d]);
-        // El pipeline de la salida entrega a la hora del cuadro + su latencia: ese es el total.
-        const double total = std::max(num(st, "latencia_ms", 0.0), previo);
+        // El pipeline de la salida entrega a la hora del cuadro + su latencia: ese es el total
+        // fijado; si se midió la edad de lo que sale (MedidorEdad), manda lo medido.
+        const double medida = edadMedida(st);
+        const double total = medida >= 0 ? medida : std::max(num(st, "latencia_ms", 0.0), previo);
         a.acumulado[id] = total;
         n["ms"] = redondo(std::max(0.0, total - previo));
         n["acumulado_ms"] = redondo(total);
-        n["fuente"] = num(st, "latencia_ms", 0.0) > 0 ? "declarado" : "sin_medir";
+        n["fuente"] = medida >= 0 ? "medido" : num(st, "latencia_ms", 0.0) > 0 ? "declarado" : "sin_medir";
+        if (medida >= 0) {
+            detalle["edad_medida_ms"] = redondo(medida);
+            detalle["latencia_fijada_ms"] = num(st, "latencia_ms", 0.0);
+        }
         n["estado"] = num(st, "perdidos", 0) > 0 ? "justo" : "bien";
         for (const char* k : {"kbps", "cuadros", "perdidos", "codificador", "conectada", "atraso_s", "desbordes", "url"})
             if (st.contains(k)) detalle[k] = st[k];
@@ -586,6 +646,15 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
     for (const auto& el : elems) {
         if (!el.contains("agrega_ms")) continue;
         const std::string n = el.value("nombre", std::string());
+        if (el.contains("cambia_la_hora_ms")) {
+            const double c = el.value("cambia_la_hora_ms", 0.0);
+            hallazgo("cambia_la_hora", "aviso",
+                     quien(el) + " publica los cuadros con otra hora: salen " + msTexto(c) +
+                         " «más jóvenes» que como entraron. Lo que se mide después queda corrido eso; si es un mezclador "
+                         "de video, el contenido queda " + msTexto(c) + " más tarde que el audio en las salidas.",
+                     c, {n});
+            continue;
+        }
         const double ms = el.value("agrega_ms", 0.0);
         const double umbral = cuadro > 0 ? cuadro * 1.5 : 40.0;
         if (ms > umbral) {

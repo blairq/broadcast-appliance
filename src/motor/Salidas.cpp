@@ -442,6 +442,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
                          return g_strdup(ruta.c_str());
                      }),
                      this);
+    edadSalida_.ponerEnEntrada(mux, reloj_); // la edad de lo que entra al archivo (medida)
     gst_object_unref(mux);
     sinRelojPropio(p);
     reloj_.adoptar(p);
@@ -474,6 +475,7 @@ bool Grabacion::parar(int esperaMs) {
     if (m != nullptr) gst_message_unref(m);
     gst_object_unref(bus);
     if (!ok) registrar(Nivel::Aviso, "grabación: no cerró a tiempo (el último tramo puede quedar sin índice)");
+    edadSalida_.sacar();
     gst_element_set_state(pipeline_, GST_STATE_NULL);
     for (GstElement* e : valvulas_) gst_object_unref(e);
     for (GstElement* e : colchones_) gst_object_unref(e);
@@ -543,6 +545,7 @@ json Grabacion::estado() const {
             {"desbordes", desbordes_.load()},
             {"bytes", bytes_.load()},
             {"pausada", pausada_.load()},
+            {"edad_salida", edadSalida_.json()}, // la medida (Tiempos)
             {"latencia_ms", static_cast<double>(latenciaNs_.load()) / 1e6}}; // la fijada al pipeline (Tiempos)
 }
 
@@ -655,6 +658,7 @@ std::string Transmision::armar() {
             gst_pad_add_probe(ps, GST_PAD_PROBE_TYPE_BUFFER, &Transmision::alSalir, this, nullptr);
             gst_object_unref(ps);
         }
+        edadSalida_.ponerEnEntrada(sale, reloj_); // la edad de lo que sale a la red (medida)
         gst_object_unref(sale);
     }
     sinRelojPropio(p);
@@ -675,6 +679,7 @@ std::string Transmision::armar() {
 
 void Transmision::desarmar() {
     if (pipeline_ == nullptr) return;
+    edadSalida_.sacar();
     gst_element_set_state(pipeline_, GST_STATE_NULL);
     gst_object_unref(pipeline_);
     pipeline_ = nullptr;
@@ -788,6 +793,7 @@ json Transmision::estado() const {
             {"error", error_},
             {"codificador", codificador_},
             {"url", sinClave(cfg_.url)},
+            {"edad_salida", edadSalida_.json()}, // la medida (Tiempos)
             {"latencia_ms", static_cast<double>(latenciaNs_.load()) / 1e6}}; // la fijada al pipeline (Tiempos)
 }
 

@@ -54,6 +54,7 @@ void TiemposModel::enHilo(std::function<void()> f) {
 }
 
 bool TiemposModel::existeEntrada(const std::string& entrada) const {
+    if (entrada == "programa" || entrada == "programa:audio") return true; // la composición y la mezcla
     const Fotos f = fotos_();
     return f.motor.contains("entradas") && f.motor["entradas"].is_object() && f.motor["entradas"].contains(entrada);
 }
@@ -65,7 +66,16 @@ json TiemposModel::recorrido(const std::string& entrada) {
     const json* ne = nullptr; // apunta adentro de mapa_ (no de una copia: se usa después del for)
     for (const auto& n : mapa_["nodos"])
         if (n["id"] == "entrada:" + entrada || (ne == nullptr && n["id"] == "entrada:" + entrada + ":audio")) ne = &n;
-    if (ne == nullptr || !(*ne)["detalle"].contains("pipeline")) return nullptr;
+    if (ne == nullptr || !(*ne)["detalle"].contains("pipeline")) {
+        // La composición del programa o la mezcla (no son nodos de entrada): lo medido tal cual.
+        const json& pl = pipelines_.at(entrada);
+        const json dg = diagnosticar(pl, {});
+        const qint64 t = pl.value("t_ms", qint64{0});
+        return {{"entrada", entrada}, {"t_ms", t}, {"hace_s", t > 0 ? (QDateTime::currentMSecsSinceEpoch() - t) / 1000 : -1},
+                {"segundos", pl.value("segundos", 0.0)}, {"resumen", dg.value("resumen", json::object())},
+                {"hallazgos", dg.value("hallazgos", json::array())}, {"tarjetas", json::array()},
+                {"cruces", pl.value("cruces", json::array())}, {"elementos", pl.value("elementos", json::array())}};
+    }
     const json& pl = (*ne)["detalle"]["pipeline"];
     const json& dg = (*ne)["detalle"].value("diagnostico", json::object());
     // Las tarjetas medidas y de quién es cada elemento.
@@ -365,10 +375,8 @@ QString TiemposModel::analizar(int segundos, std::function<void(const json&)> li
             if (f.motor.contains("entradas") && f.motor["entradas"].is_object())
                 for (const auto& [id, e] : f.motor["entradas"].items()) entradas.push_back(id);
         } else {
-            const Fotos f = fotos_();
             for (const auto& id : entradas)
-                if (!f.motor.contains("entradas") || !f.motor["entradas"].contains(id))
-                    return QString::fromStdString("no existe la entrada «" + id + "»");
+                if (!existeEntrada(id)) return QString::fromStdString("no existe la entrada «" + id + "»");
         }
         conSondas_ = entradas;
         enHilo([s = sondas_.empezar, entradas]() {

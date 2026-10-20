@@ -141,6 +141,40 @@ int main() {
         CHECK(e2 && (*e2)["detalle"]["diagnostico"]["hallazgos"].is_array(), "y su diagnóstico");
     }
 
+    // Lo medido después de la entrada (MedidorEdad): la escena, la mezcla y la salida dejan de
+    // mostrar lo fijado.
+    {
+        Fotos f3 = f;
+        f3.motor["video"]["programa"]["edad_salida"] = {{"p50_ms", 200.0}, {"p95_ms", 230.0}};
+        f3.salidas["principal"]["edad_salida"] = {{"p50_ms", 520.0}, {"p95_ms", 560.0}};
+        const json g3 = armar(f3);
+        const json* esc3 = nodo(g3, "escena:programa");
+        CHECK(esc3 && (*esc3)["fuente"] == "medido" && cerca((*esc3)["acumulado_ms"], 200.0) && cerca((*esc3)["ms"], 140.0),
+              "la escena medida: sale con 200 ms; espera 140 sobre los 60 que trae la cámara");
+        CHECK(esc3 && cerca((*esc3)["detalle"]["contra_lo_fijado_ms"], 50.0) && (*esc3)["estado"] == "justo",
+              "50 ms más tarde que los 150 fijados (más de un cuadro): justo, con el aviso");
+        const json* tx3 = nodo(g3, "salida:transmision");
+        CHECK(tx3 && (*tx3)["fuente"] == "medido" && cerca((*tx3)["acumulado_ms"], 520.0) && cerca((*tx3)["detalle"]["latencia_fijada_ms"], 450.0),
+              "la transmisión medida (520) contra la fijada (450)");
+    }
+
+    // La llegada de cada entrada a la composición (medida en su intersrc): la espera del colchón
+    // va en el tramo y la escena queda con lo que agrega el compositor.
+    {
+        Fotos f4 = f;
+        f4.motor["video"]["programa"]["capas"] = json::array({{{"entrada", "cam1"}, {"edad_llega", {{"p50_ms", 160.0}}}}});
+        f4.motor["video"]["programa"]["edad_salida"] = {{"p50_ms", 195.0}, {"p95_ms", 205.0}};
+        const json g4 = armar(f4);
+        bool tramoOk = false;
+        for (const auto& t : g4["tramos"])
+            if (t["desde"] == "tarjeta:cam1:sr" && t["hacia"] == "escena:programa")
+                tramoOk = cerca(t["espera_ms"], 100.0) && cerca(t["llega_ms"], 160.0);
+        CHECK(tramoOk, "el tramo de la cámara a la escena: sale con 60, llega con 160, esperó 100 (el colchón)");
+        const json* esc4 = nodo(g4, "escena:programa");
+        CHECK(esc4 && cerca((*esc4)["ms"], 35.0) && (*esc4)["estado"] == "bien" && !(*esc4)["detalle"].contains("aviso"),
+              "la escena: el compositor agrega 35 (un cuadro): bien, sin aviso aunque lo fijado sea menos");
+    }
+
     // El diagnóstico: lo que un asistente (o el operador) necesita leer del recorrido.
     {
         const json pl = {

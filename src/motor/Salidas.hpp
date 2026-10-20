@@ -19,6 +19,8 @@
 // ============================================================================
 #pragma once
 
+#include "Edad.hpp"
+
 #include <gst/gst.h>
 
 #include <nlohmann/json.hpp>
@@ -108,6 +110,7 @@ class Grabacion {
 
    private:
     Reloj& reloj_;
+    MedidorEdad edadSalida_; ///< la edad de lo que sale (medida)
     Config cfg_;
     mutable std::mutex mu_;
     GstElement* pipeline_ = nullptr;
@@ -151,6 +154,7 @@ class Transmision {
     static GstPadProbeReturn alCodificar(GstPad*, GstPadProbeInfo*, gpointer);
 
     Reloj& reloj_;
+    MedidorEdad edadSalida_; ///< la edad de lo que sale (medida)
     Config cfg_;
     Fuentes fuentes_;
     mutable std::mutex mu_;

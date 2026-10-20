@@ -32,6 +32,8 @@
 // ============================================================================
 #pragma once
 
+#include "Edad.hpp"
+
 #include "Piezas.hpp"
 
 #include <gst/gst.h>
@@ -152,6 +154,8 @@ class Composicion {
 
     void tic();
     nlohmann::json estado() const;
+    /// Su pipeline con una referencia (para el análisis por elemento); nullptr si no anda.
+    GstElement* pipelineRef() const;
     /// Cuánto después de su hora sale lo que entrega (ns).
     std::int64_t latenciaSalidaNs() const;
 
@@ -173,6 +177,9 @@ class Composicion {
         GstPad* pad = nullptr;
         int generacion = 0;
         std::atomic<bool> listo{false}; ///< ya pasó su primer cuadro (lo pone el hilo de datos)
+        /// La edad con que llegan sus cuadros a la composición (a la salida del intersrc): lo que
+        /// esperaron desde que salieron de la entrada es el colchón de esa entrada.
+        MedidorEdad llega;
         /// GL: llegó el tamaño de la fuente (al negociar, o porque cambió): tic() vuelve a
         /// calcular el recorte, que va en fracciones de ese tamaño. Lo pone el hilo de datos.
         std::atomic<bool> tamanoNuevo{false};
@@ -211,6 +218,7 @@ class Composicion {
     static GstPadProbeReturn alPrimerCuadro(GstPad* pad, GstPadProbeInfo* info, gpointer d);
 
     Reloj& reloj_;
+    MedidorEdad edadSalida_; ///< la edad de lo que sale (medida)
     Lienzo lienzo_;
     std::string firmaFiltros_; ///< los filtros de después del mezclador (Piezas::firmaDe)
     std::vector<std::string> avisosFiltros_;

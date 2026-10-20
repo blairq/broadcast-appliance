@@ -148,7 +148,16 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     const std::string tam = "width=" + std::to_string(lienzo_.ancho) + ",height=" + std::to_string(lienzo_.alto) +
                             ",framerate=" + std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
                             ",pixel-aspect-ratio=1/1";
-    const std::string comun = "force-live=true start-time-selection=first background=black ";
+    // La grilla de cuadros de los mezcladores, alineada a la duración de un cuadro sobre la hora
+    // del estudio (la misma para el de la escena y el del DSK). Con «first» cada uno la armaba
+    // desde su primer buffer: la del DSK quedaba corrida un poco y, para cada cuadro, seguía
+    // usando el anterior (que «todavía no terminó»): todo lo que salía llevaba la hora del
+    // cuadro siguiente (33 ms) y el video quedaba un cuadro atrás del audio en las salidas.
+    const GstClockTime cuadro = gst_util_uint64_scale(GST_SECOND, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
+                                                      static_cast<guint64>(std::max(1, lienzo_.fpsN)));
+    const GstClockTime ahora = reloj_.ahora();
+    const GstClockTime inicio = GST_CLOCK_TIME_IS_VALID(ahora) && cuadro > 0 ? (ahora / cuadro) * cuadro : 0;
+    const std::string comun = "force-live=true start-time-selection=set start-time=" + std::to_string(inicio) + " background=black ";
     // En GPU todo queda en la GPU (GLMemory o D3D12Memory): lo que sale es una
     // textura (el que consume la baja si hace falta, chica o en NV12: docs/desarrollo/MAPA-GPU-CPU.md).
     const std::string salida = gl_    ? "video/x-raw(memory:GLMemory),format=RGBA," + tam
@@ -230,6 +239,11 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
         }
     reloj_.adoptar(pipeline_);
     aplicarLatencia();
+    // La edad de lo que sale (lo que pasa de verdad, no la latencia fijada).
+    if (GstElement* sale = gst_bin_get_by_name(GST_BIN(pipeline_), "sale")) {
+        edadSalida_.ponerEnEntrada(sale, reloj_);
+        gst_object_unref(sale);
+    }
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = "el compositor no arrancó";
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
@@ -239,6 +253,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
 Composicion::~Composicion() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
+    edadSalida_.sacar();
     gst_element_set_state(pipeline_, GST_STATE_NULL);
     for (auto* m : {&ramas_, &dsk_}) {
         for (auto& [k, r] : *m) {
@@ -327,6 +342,10 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     // latencia). Lo hace la cola del intersrc (descarta lo viejo, como una queue
     // leaky): una queue más atrás era un hilo más por capa y no cambiaba nada.
     g_object_set(r->src, "max-buffers", static_cast<guint64>(3), "max-time", static_cast<guint64>(0), nullptr);
+    if (GstPad* p = gst_element_get_static_pad(r->src, "src")) {
+        r->llega.poner(p, reloj_);
+        gst_object_unref(p);
+    }
     gst_bin_add_many(GST_BIN(pipeline_), r->src, r->recorte, nullptr);
     if (gpu_ && !gl_) {
         // intersrc → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
@@ -803,7 +822,8 @@ json Composicion::estado() const {
     for (const auto& [k, r] : ramas_)
         capas.push_back({{"entrada", r->entrada},
                          {"generacion", r->generacion},
-                         {"llega", r->listo.load()}});
+                         {"llega", r->listo.load()},
+                         {"edad_llega", r->llega.json()}});
     return {{"bus", nombre_},
             {"anda", pipeline_ != nullptr},
             {"gpu", gpu_ ? (gl_ ? "gl" : "d3d12") : "cpu"},
@@ -817,6 +837,7 @@ json Composicion::estado() const {
              }()},
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
             {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
+            {"edad_salida", edadSalida_.json()},
             {"capas", capas}};
 }
 
@@ -824,6 +845,11 @@ bool Composicion::ponerFiltros(const json& filtros) {
     const std::vector<Filtro> fv = leerFiltros(filtros);
     if (firmaDe(fv, {}, false) != firmaFiltros_) return false;
     return pipeline_ == nullptr || ponerEnVivo(pipeline_, fv, "ba_c_");
+}
+
+GstElement* Composicion::pipelineRef() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return pipeline_ != nullptr ? GST_ELEMENT(gst_object_ref(pipeline_)) : nullptr;
 }
 
 } // namespace ba::motor
