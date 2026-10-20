@@ -806,7 +806,7 @@ void Matriz::armarPlan() {
 }
 
 void Matriz::bucleMezcla() {
-    motor::prioridadDelHilo(motor::ClaseHilo::Medios); // mezcla en tiempo real
+    motor::prioridadDelHilo(motor::ClaseHilo::Critico); // mezcla en tiempo real: marca el ritmo
     using reloj = std::chrono::steady_clock;
     std::vector<float> al(kBloque), ar(kBloque), ml(kBloque), mr(kBloque);
     auto proximo = reloj::now();

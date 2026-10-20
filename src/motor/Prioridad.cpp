@@ -6,6 +6,8 @@
 #include "Reloj.hpp" // registrar
 #include "ajustes/Ajustes.hpp"
 
+#include <gst/base/gstaggregator.h>
+
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -13,6 +15,7 @@
 #include <vector>
 
 #if defined(__APPLE__)
+#include <pthread/qos.h>
 #include <sys/sysctl.h>
 #elif defined(_WIN32)
 #include <windows.h>
@@ -153,13 +156,29 @@ std::string unSoloL3(const json& topo) {
     const json& l3 = topo["grupos_l3"];
     if (l3.size() < 2) return "un solo grupo de L3: no hace falta";
 #if defined(_WIN32)
-    std::size_t mejor = 0;
-    for (std::size_t i = 1; i < l3.size(); ++i)
-        if (l3[i].value("logicos", 0) > l3[mejor].value("logicos", 0)) mejor = i;
-    const auto m = static_cast<DWORD_PTR>(l3[mejor].value("mascara", 0ULL));
-    if (l3[mejor].value("grupo", 0) != 0 || m == 0) return "el grupo de L3 elegido no está en el grupo de procesadores 0: no se aplica";
-    if (!SetProcessAffinityMask(GetCurrentProcess(), m)) return "SetProcessAffinityMask falló (" + std::to_string(GetLastError()) + ")";
-    return "aplicado: " + std::to_string(l3[mejor].value("logicos", 0)) + " procesadores lógicos de un L3";
+    // CPU Sets y no SetProcessAffinityMask: una preferencia blanda, como recomiendan
+    // Microsoft e Intel (la afinidad dura le impide al sistema acomodar y saltear núcleos
+    // estacionados). Cada CPU Set trae el índice de su caché L3: se eligen los del grupo
+    // más grande y quedan de fábrica para todo el proceso (los hilos sin CPU Set propio).
+    (void)topo;
+    ULONG largo = 0;
+    GetSystemCpuSetInformation(nullptr, 0, &largo, GetCurrentProcess(), 0);
+    std::vector<char> buf(largo);
+    if (largo == 0 || !GetSystemCpuSetInformation(reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buf.data()), largo, &largo, GetCurrentProcess(), 0))
+        return "GetSystemCpuSetInformation falló (" + std::to_string(GetLastError()) + ")";
+    std::map<int, std::vector<ULONG>> porL3;
+    for (ULONG off = 0; off < largo;) {
+        auto* i = reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buf.data() + off);
+        if (i->Type == CpuSetInformation) porL3[i->CpuSet.LastLevelCacheIndex].push_back(i->CpuSet.Id);
+        off += i->Size;
+    }
+    if (porL3.size() < 2) return "un solo grupo de L3 en los CPU Sets: no hace falta";
+    const std::vector<ULONG>* mejor = nullptr;
+    for (const auto& [l3, ids] : porL3)
+        if (mejor == nullptr || ids.size() > mejor->size()) mejor = &ids;
+    if (!SetProcessDefaultCpuSets(GetCurrentProcess(), mejor->data(), static_cast<ULONG>(mejor->size())))
+        return "SetProcessDefaultCpuSets falló (" + std::to_string(GetLastError()) + ")";
+    return "aplicado (CPU Sets): " + std::to_string(mejor->size()) + " procesadores lógicos de un L3, de " + std::to_string(porL3.size()) + " grupos";
 #elif defined(__APPLE__)
     return "macOS no deja fijar núcleos";
 #else
@@ -196,7 +215,10 @@ GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer) {
         GstStreamStatusType t;
         GstElement* dueno = nullptr;
         gst_message_parse_stream_status(m, &t, &dueno);
-        if (t == GST_STREAM_STATUS_TYPE_ENTER) prioridadDelHilo(ClaseHilo::Medios); // corre en el hilo nuevo
+        // Corre en el hilo nuevo. El de un aggregator (glvideomixer, d3d12compositor,
+        // audiomixer) es el que junta las capas o las entradas a su hora: el que marca el ritmo.
+        if (t == GST_STREAM_STATUS_TYPE_ENTER)
+            prioridadDelHilo(dueno != nullptr && GST_IS_AGGREGATOR(dueno) ? ClaseHilo::Critico : ClaseHilo::Medios);
     }
     return GST_BUS_PASS;
 }
@@ -206,15 +228,17 @@ GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer) {
 void prioridadDelHilo(ClaseHilo c) {
     if (!g_activa.load(std::memory_order_relaxed)) return;
 #if defined(__APPLE__)
-    // En macOS los hilos quedan como los pone el sistema. Medido en la M1 Pro (2026-10-20,
-    // contadores del kernel, misma versión): con QoS interactiva en los de streaming,
-    // ~23,8 mil cambios de contexto por segundo y la CPU variando de 62 a 84 %; sin ella,
-    // ~18,9 mil y 59 % estable, sin cuadros tarde. Se desplazan entre ellos y esperan a la
-    // cola de GL de GStreamer, que queda en una QoS más baja (le mandan con dispatch_async
-    // y esperan con una condición: macOS no le sube la prioridad). Solo App Nap (proceso).
-    (void)c;
+    // En macOS solo los Critico suben (QoS interactiva: prefieren los núcleos de
+    // rendimiento). Medido en la M1 Pro (2026-10-20, contadores del kernel, misma versión):
+    // con QoS interactiva en TODOS los de streaming, ~23,8 mil cambios de contexto por
+    // segundo y la CPU variando de 62 a 84 %; sin ella, ~18,9 mil y 59 % estable. Se
+    // desplazan entre ellos y esperan a la cola de GL de GStreamer, que queda más abajo (le
+    // mandan con dispatch_async y esperan con una condición: macOS no le sube la QoS).
+    if (c == ClaseHilo::Critico) pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 #elif defined(_WIN32)
-    SetThreadPriority(GetCurrentThread(), c == ClaseHilo::Medios ? THREAD_PRIORITY_ABOVE_NORMAL : THREAD_PRIORITY_NORMAL);
+    SetThreadPriority(GetCurrentThread(), c == ClaseHilo::Critico  ? THREAD_PRIORITY_HIGHEST
+                                          : c == ClaseHilo::Medios ? THREAD_PRIORITY_ABOVE_NORMAL
+                                                                   : THREAD_PRIORITY_NORMAL);
 #ifdef THREAD_POWER_THROTTLING_CURRENT_VERSION
     // Sin EcoQoS: el ahorro de energía es lo que en un Intel híbrido lo manda a los núcleos E.
     THREAD_POWER_THROTTLING_STATE s{};
@@ -224,7 +248,8 @@ void prioridadDelHilo(ClaseHilo c) {
     SetThreadInformation(GetCurrentThread(), ThreadPowerThrottling, &s, sizeof s);
 #endif
 #else
-    if (c == ClaseHilo::Medios && setpriority(PRIO_PROCESS, static_cast<id_t>(syscall(SYS_gettid)), -5) != 0) {
+    if (c != ClaseHilo::Motor &&
+        setpriority(PRIO_PROCESS, static_cast<id_t>(syscall(SYS_gettid)), c == ClaseHilo::Critico ? -10 : -5) != 0) {
         static std::atomic<bool> avisado{false};
         if (!avisado.exchange(true))
             registrar(Nivel::Info, "procesador: los hilos del video y el audio no pueden subir de prioridad (hace falta CAP_SYS_NICE o RLIMIT_NICE)");
@@ -233,10 +258,6 @@ void prioridadDelHilo(ClaseHilo c) {
 }
 
 void prioridadEnPipeline(GstElement* pipeline) {
-#if defined(__APPLE__)
-    (void)pipeline; // ver prioridadDelHilo: en macOS los hilos quedan como están
-    return;
-#endif
     if (!g_activa.load() || pipeline == nullptr || !GST_IS_PIPELINE(pipeline)) return;
     GstBus* bus = gst_element_get_bus(pipeline);
     if (bus == nullptr) return;

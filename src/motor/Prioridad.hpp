@@ -30,17 +30,20 @@
 namespace ba::motor {
 
 enum class ClaseHilo {
-    Medios, ///< un hilo de streaming de GStreamer, una mezcla en tiempo real
-    Motor,  ///< el bucle del motor (órdenes, vigilancia: cada 20 ms)
+    Critico, ///< los que marcan el ritmo: el mezclador de un compositor o de un bus (aggregator), la matriz
+    Medios,  ///< cualquier otro hilo de streaming de GStreamer
+    Motor,   ///< el bucle del motor (órdenes, vigilancia: cada 20 ms)
 };
 
 /// Una vez, al arrancar el motor: el proceso entero (ver arriba) y la topología al registro.
 void prioridadDelProceso();
 /// El hilo que llama (si `procesador.prioridad`).
 void prioridadDelHilo(ClaseHilo c);
-/// Que los hilos de streaming de `pipeline` tomen la de Medios al arrancar: GStreamer avisa
-/// STREAM_STATUS ENTER desde el propio hilo nuevo (manejador síncrono del bus). Lo llama
-/// Reloj::adoptar, por donde pasan todos los pipelines del motor.
+/// Que los hilos de streaming de `pipeline` tomen su clase al arrancar: GStreamer avisa
+/// STREAM_STATUS ENTER desde el propio hilo nuevo (manejador síncrono del bus); el de un
+/// aggregator es Critico, el resto Medios. Lo llama Reloj::adoptar, por donde pasan todos
+/// los pipelines del motor. Subir TODOS empeoraba (compiten entre ellos: ver Prioridad.cpp);
+/// la guía de GStreamer y la de Intel dicen lo mismo: solo los que hacen falta.
 void prioridadEnPipeline(GstElement* pipeline);
 /// El procesador: núcleos por clase, grupos de L3, lo aplicado. Para el diagnóstico.
 nlohmann::json topologiaCpu();
