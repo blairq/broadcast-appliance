@@ -461,7 +461,8 @@ void Entrada::leer(const json& a) {
     if (std::find(std::begin(kMetodos), std::end(kMetodos), desentrelazar_) == std::end(kMetodos)) desentrelazar_ = "auto";
     if (campo_ != "tff" && campo_ != "bff") campo_ = "auto";
     conAudio_ = a.value("audio", true);
-    estudio_ = a.value("estudio", true);
+    // «auto» (la de su tipo) se guarda como null: value() con un null tira; se mira el tipo.
+    estudio_ = a.contains("estudio") && a["estudio"].is_boolean() ? a["estudio"].get<bool>() : true;
     ntpSync_ = a.value("ntp_sync", true);
     latenciaMs_ = entero(a, "latencia", 0);
     desfaseMs_ = entero(a, "desfase", 0);

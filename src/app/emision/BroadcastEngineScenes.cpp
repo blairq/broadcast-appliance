@@ -487,11 +487,14 @@ bool BroadcastEngine::buildScene() {
 
 bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     if (!ajustesMotorTipo(spec, a)) return false;
-    // Los filtros de la cadena (las tarjetas del grafo, el PTZ digital...) y el
-    // rack de audio valen para cualquier tipo.
+    // Los filtros de la cadena (las tarjetas del grafo, el PTZ digital...), el rack de
+    // audio, los desfases y la clase de sincronía (estudio: sala/propia) valen para
+    // cualquier tipo. Sin «estudio» acá, una imagen o un texto guardaban la clase elegida
+    // pero el motor no se enteraba (el botón Sala/Propia «no hacía nada»).
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
     if (s.is_object() && a.is_object())
-        for (const char* k : {"filtros", "filtros_audio", "rack", "desfase", "desfase_video", "color_real", "desentrelazar", "campo"})
+        for (const char* k : {"filtros", "filtros_audio", "rack", "desfase", "desfase_video", "desfase_audio", "estudio", "color_real",
+                              "desentrelazar", "campo"})
             if (s.contains(k) && !a.contains(k)) a[k] = s[k];
     return true;
 }

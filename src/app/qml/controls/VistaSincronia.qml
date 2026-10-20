@@ -81,6 +81,15 @@ Item {
                     return m * 1.15
                 }
                 function ms(v) { return Math.round(v || 0) + " ms" }
+                /// Cambia la clase y se ve enseguida (no espera la vuelta del reloj de 1,5 s).
+                function cambiarClase(entrada, clase) {
+                    pop.avisar(pop.vg.claseSincroniaUi(entrada, clase),
+                               "«" + entrada + "» " + (clase === "sala" ? "se sincroniza con la sala" : "va con su propia demora"))
+                    latPanel.lat = pop.vg.estudioLatenciaUi()
+                    refrescoClase.restart()
+                }
+                // La entrada se rearma con la clase nueva: otra mirada al ratito, con lo que ya midió.
+                Timer { id: refrescoClase; interval: 600; onTriggered: if (pop.vg) latPanel.lat = pop.vg.estudioLatenciaUi() }
 
                 // Una entrada: su barra contra la línea de la latencia del estudio, y su clase.
                 component FilaSinc: Rectangle {
@@ -161,15 +170,13 @@ Item {
                             spacing: 2
                             GlassButton {
                                 compact: true; text: "Sala"; active: fila.sala
-                                onClicked: if (!fila.sala) pop.avisar(pop.vg.claseSincroniaUi(fila.modelData.entrada, "sala"),
-                                                                       "«" + fila.modelData.entrada + "» se sincroniza con la sala")
+                                onClicked: if (!fila.sala) latPanel.cambiarClase(fila.modelData.entrada, "sala")
                                 ToolTip.visible: hovered; ToolTip.delay: 500
                                 ToolTip.text: "Sincronizada: sale alineada con las demás (marca la latencia si es la más lenta)"
                             }
                             GlassButton {
                                 compact: true; text: "Propia"; active: !fila.sala
-                                onClicked: if (fila.sala) pop.avisar(pop.vg.claseSincroniaUi(fila.modelData.entrada, "propia"),
-                                                                      "«" + fila.modelData.entrada + "» va con su propia demora")
+                                onClicked: if (fila.sala) latPanel.cambiarClase(fila.modelData.entrada, "propia")
                                 ToolTip.visible: hovered; ToolTip.delay: 500
                                 ToolTip.text: "Con su propia demora: no atrasa a las demás (invitados, ventanas, una cámara que toma otra cosa)"
                             }
@@ -179,7 +186,9 @@ Item {
 
                 ColumnLayout {
                     id: latCol
-                    anchors.fill: parent
+                    // Arriba y a lo ancho (no fill): el panel toma su alto de acá; con fill se armaba
+                    // un bucle de acomodo («Layout polish loop») que dejaba los botones sin responder bien.
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
                     spacing: 12
                     // --- Los números ---
                     RowLayout {
