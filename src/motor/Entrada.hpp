@@ -303,6 +303,10 @@ class Entrada {
     /// Con su propia demora: lo que se le corre la hora (audio y video juntos) para entrar al
     /// plazo del compositor sin arrastrar a las demás. Cambia con histéresis.
     std::int64_t retrasoPropioNs_ = 0, propioCandidatoNs_ = -1, propioDesdeNs_ = 0;
+    /// Las edades de la ventana se midieron con el retraso propio de ahora (después de cambiarlo
+    /// se espera una ventana nueva: mezclar el p90 viejo con el retraso nuevo lo hacía crecer solo).
+    bool edadesConRetraso_ = true;
+    std::int64_t retrasoMedidoNs_ = 0; ///< el retraso propio con que se midió el p90 de ahora
     /// Las mismas edades, el video y el audio por separado (la página Latencias): NaN = sin
     /// datos (una edad NEGATIVA vale: con desfase hacia adelante el cuadro sale con hora futura).
     double edadVP50_ = std::numeric_limits<double>::quiet_NaN(), edadVP95_ = std::numeric_limits<double>::quiet_NaN(),

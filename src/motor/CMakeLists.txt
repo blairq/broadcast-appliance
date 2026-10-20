@@ -85,6 +85,13 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_salidas COMMAND test_salidas)
     set_tests_properties(test_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
+    add_executable(test_retraso_propio tests/test_retraso_propio.cpp)
+    target_link_libraries(test_retraso_propio PRIVATE ba_motor)
+    ba_gst_rpath(test_retraso_propio "")
+    target_compile_definitions(test_retraso_propio PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    add_test(NAME test_retraso_propio COMMAND test_retraso_propio)
+    set_tests_properties(test_retraso_propio PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
     add_executable(test_motor_app tests/test_motor_app.cpp)
     target_link_libraries(test_motor_app PRIVATE ba_motor)
     ba_gst_rpath(test_motor_app "")

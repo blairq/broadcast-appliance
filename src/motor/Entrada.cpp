@@ -1232,6 +1232,8 @@ void Entrada::medirLatencia() {
             edadP95_ = std::clamp(v[v.size() * 95 / 100], 0.0, 5000.0);
             edadP90_ = std::clamp(v[v.size() * 90 / 100], 0.0, 5000.0);
             edadP98_ = std::clamp(v[v.size() * 98 / 100], 0.0, 5000.0);
+            edadesConRetraso_ = true; // una ventana entera medida con el retraso de ahora
+            retrasoMedidoNs_ = retrasoPropioNs_;
         }
         // Por rama: `edades_` es el video (o el audio, si la entrada no tiene video).
         const auto percentiles = [](const std::deque<double>& d, double& p50, double& p95) {
@@ -1321,7 +1323,8 @@ void Entrada::medirLatencia() {
     const std::int64_t piso = latenciaMs_ * static_cast<std::int64_t>(GST_MSECOND);
     // Lo que necesita, sobre la edad SIN correr (el retraso propio la achica al medir) y con el
     // p90: un par de cuadros trabados no arrastran la latencia de todos.
-    const double edadReal = edadP90_ + static_cast<double>(retrasoPropioNs_) / 1e6;
+    // + el retraso con que se MIDIÓ ese p90 (no el de ahora: recién cambiado, el p90 es el viejo).
+    const double edadReal = edadP90_ + static_cast<double>(retrasoMedidoNs_) / 1e6;
     // + lo que tiembla (p98 − p90, de 3 a 40 ms) + 5: el colchón de cada entrada es el suyo (una
     // cámara pareja pide poco, una que tiembla pide más). Reemplaza al margen fijo de 30 ms que
     // sumaba la composición para todas.
@@ -1342,12 +1345,15 @@ void Entrada::medirLatencia() {
     // Con su propia demora (o sincronizada que pasa el tope): se le corre la hora lo que se pasa
     // del plazo del compositor (la latencia del estudio + su margen), redondeado a 10 ms. Con
     // histéresis: cambia si la diferencia pasa 20 ms y se sostiene 3 s.
-    if (datos > 30) {
+    if (datos > 30 && edadesConRetraso_) {
         std::int64_t deseado = 0;
         if (!estudio_ || tarde) {
             const std::int64_t plazo = reloj_.latencia() + ajustes::msANs("audio.margenMezclaMs", 30);
             const std::int64_t exceso = pide - plazo;
             if (exceso > 0) deseado = ((exceso + 10 * static_cast<std::int64_t>(GST_MSECOND) - 1) / (10 * static_cast<std::int64_t>(GST_MSECOND))) * 10 * static_cast<std::int64_t>(GST_MSECOND);
+            // Con tope: más que esto no sirve de nada (se ve tarde igual) y un corrimiento enorme
+            // traba el pipeline (pasó: 500 ms y la app y el gateway colgados).
+            deseado = std::min(deseado, ajustes::msANs("entradas.retrasoPropioMaxMs", 300));
         }
         const std::int64_t dif = deseado > retrasoPropioNs_ ? deseado - retrasoPropioNs_ : retrasoPropioNs_ - deseado;
         if (dif > 20 * static_cast<std::int64_t>(GST_MSECOND) || (deseado == 0 && retrasoPropioNs_ != 0)) {
@@ -1361,10 +1367,13 @@ void Entrada::medirLatencia() {
                 retrasoPropioNs_ = deseado;
                 propioCandidatoNs_ = -1;
                 corregirOffset();
-                // Lo medido hasta acá venía con el retraso anterior: se vuelve a juntar.
+                // Lo medido hasta acá venía con el retraso anterior: se vuelve a juntar, y hasta
+                // tener una ventana nueva no se recalcula (con el p90 viejo + el retraso nuevo,
+                // cada vuelta pedía 30 ms más: los invitados llegaban a 500 ms y se colgaba todo).
                 std::lock_guard<std::mutex> lm(medMu_);
                 edades_.clear();
                 edadesA_.clear();
+                edadesConRetraso_ = false;
             }
         } else {
             propioCandidatoNs_ = -1;
