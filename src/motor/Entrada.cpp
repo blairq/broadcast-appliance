@@ -272,7 +272,7 @@ void Entrada::desarmarSalida() {
 
 void Entrada::armarSalida() {
     // Sin placa: los archivos (parados no se ven) y lo que pinta la app (manda solo cuando cambia).
-    const bool quiere = daVideo() && !medio_ && !estatica_ && hayFabrica("fallbackswitch");
+    const bool quiere = daVideo() && !medio_ && !estatica_ && hayFabrica("input-selector");
     conPlaca_ = quiere;
     if (!quiere) {
         desarmarSalida();
@@ -299,8 +299,13 @@ void Entrada::armarSalida() {
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
                               " ! imagefreeze name=congela is-live=true ! fs.sink_1";
-    const std::string d = "fallbackswitch name=fs timeout=" + std::to_string(g_sinSenalNs.load()) + " immediate-fallback=" +
-                          std::string(inmediata ? "true" : "false") + " ! intersink name=sale producer-name=" +
+    // EL CONMUTADOR NO ESPERA: un input-selector deja pasar cada cuadro apenas llega; el
+    // vigilante de tic pasa a la placa si no llega nada por el tiempo de «sin señal», y la
+    // sonda de su entrada vuelve a la señal con el primer cuadro. Era un fallbackswitch
+    // (un agregador en vivo) con min-upstream-latency = la del estudio + 100 ms: retenía
+    // cada cuadro hasta su hora + ~100 ms aunque llegara en 5 (el «colchón» de cada entrada
+    // antes de la composición, que ya espera sola a la más lenta).
+    const std::string d = "input-selector name=fs sync-streams=false cache-buffers=false ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
                           entreComillas(id_ + ":crudo:video") + " max-time=" + std::to_string(ajustes::msANs("entradas.congelarMs", 2500)) + " ! fs.sink_0 " +
                           placa;
@@ -325,9 +330,9 @@ void Entrada::armarSalida() {
         gst_object_unref(fuente);
     }
     // LA PLACA DESCANSA mientras la señal llega: imagefreeze la repite a 30
-    // cuadros/s y el fallbackswitch la tiraba (con 40 entradas, ~1.200 cuadros por
-    // segundo para nada). Pasa uno por segundo (que el fallbackswitch tenga uno
-    // fresco cuando lo necesite) y, ya en la placa, todos.
+    // cuadros/s y el conmutador la tiraba (con 40 entradas, ~1.200 cuadros por
+    // segundo para nada). Pasa uno por segundo (que haya uno fresco cuando se
+    // cambie a ella) y, ya en la placa, todos.
     if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
         g_signal_connect(fs, "notify::active-pad",
                          G_CALLBACK(+[](GObject* o, GParamSpec*, gpointer d) {
@@ -357,8 +362,34 @@ void Entrada::armarSalida() {
         }
         gst_object_unref(cg);
     }
+    // Con qué arranca: rearmada con la señal llegando, la señal; si no, la placa hasta el
+    // primer cuadro. La sonda de la entrada de la señal anota cada cuadro (el vigilante de
+    // tic) y, si estaba en la placa, vuelve a la señal en ese mismo cuadro.
     if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
-        g_object_set(fs, "min-upstream-latency", static_cast<guint64>(std::max<std::int64_t>(reloj_.latencia(), 0) + 100 * GST_MSECOND), nullptr);
+        GstPad* senal = gst_element_get_static_pad(fs, "sink_0");
+        GstPad* placaPad = gst_element_get_static_pad(fs, "sink_1");
+        if (senal != nullptr && placaPad != nullptr) {
+            g_object_set(fs, "active-pad", inmediata ? placaPad : senal, nullptr);
+            placaActiva_ = inmediata;
+        }
+        ultimoPrimarioUs_ = g_get_monotonic_time(); // el plazo de «sin señal» corre desde ahora
+        if (senal != nullptr) {
+            gst_pad_add_probe(
+                senal, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad* pad, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                    auto* e = static_cast<Entrada*>(d);
+                    e->ultimoPrimarioUs_.store(g_get_monotonic_time(), std::memory_order_relaxed);
+                    if (e->placaActiva_.load(std::memory_order_relaxed))
+                        if (GstElement* sel = gst_pad_get_parent_element(pad)) {
+                            g_object_set(sel, "active-pad", pad, nullptr); // volvió la señal
+                            gst_object_unref(sel);
+                        }
+                    return GST_PAD_PROBE_OK;
+                },
+                this, nullptr);
+            gst_object_unref(senal);
+        }
+        if (placaPad != nullptr) gst_object_unref(placaPad);
         gst_object_unref(fs);
     }
     reloj_.adoptar(p);
@@ -610,7 +641,7 @@ nlohmann::json Entrada::analizarTerminar() {
             for (auto& el : s.value("elementos", nlohmann::json::array())) {
                 el["nombre"] = "salida/" + el.value("nombre", std::string());
                 // Su intersrc no es una fuente: recibe lo de la entrada. Lo suyo es lo que esperó en
-                // el traspaso (si el fallbackswitch frena, el cuadro espera acá), no la edad entera.
+                // el traspaso (si el conmutador de la placa frena, el cuadro espera acá), no la edad entera.
                 if (el.value("fabrica", std::string()) == "intersrc" && el.value("fuente", false)) {
                     el.erase("fuente");
                     el["traspaso"] = true;
@@ -1348,7 +1379,7 @@ void Entrada::tic() {
 
     // LA PLACA SE DESARMA si hace un rato que nadie usa la entrada (ponerReposoPlaca,
     // 2 minutos de fábrica, «Placa de entradas sin uso» en Configuración): sus hilos
-    // (intersrc, imagefreeze, el fallbackswitch) y su trabajo, por entrada que nadie
+    // (intersrc, imagefreeze, el conmutador) y su trabajo, por entrada que nadie
     // mira. La cadena sigue andando (a 2 cuadros/s): la alarma de «sin señal» la
     // mira a ella. Rearmarla tarda ~2 ms (ponerEnUso).
     // Eran 15 s: cada ida y vuelta entre dos escenas la desarmaba y rearmaba (con
@@ -1381,6 +1412,19 @@ void Entrada::tic() {
     if (soltar && revisarTareas_ > 0 && --revisarTareas_ % 10 == 0) {
         if (!medio_) soltarTareasTerminadas(pipeline_);
         soltarTareasTerminadas(salidaV_);
+    }
+    // El vigilante de «sin señal»: si la señal no manda nada por ese tiempo, la salida pasa a la
+    // placa (vuelve sola con el primer cuadro: la sonda de armarSalida).
+    if (salidaV_ != nullptr && !placaActiva_.load()) {
+        const std::int64_t ult = ultimoPrimarioUs_.load();
+        if (ult != 0 && g_get_monotonic_time() - ult > static_cast<std::int64_t>(g_sinSenalNs.load() / 1000))
+            if (GstElement* fs = gst_bin_get_by_name(GST_BIN(salidaV_), "fs")) {
+                if (GstPad* placaPad = gst_element_get_static_pad(fs, "sink_1")) {
+                    g_object_set(fs, "active-pad", placaPad, nullptr);
+                    gst_object_unref(placaPad);
+                }
+                gst_object_unref(fs);
+            }
     }
     const bool deDispositivo = !camara_.empty() || (!microfono_.empty() && microfono_ != "default");
     if (deDispositivo) Vigia::el().revisar();

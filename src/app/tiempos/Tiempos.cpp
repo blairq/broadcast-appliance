@@ -651,7 +651,8 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
         if (!el.contains("agrega_ms")) continue;
         const std::string n = el.value("nombre", std::string());
         // La cadena de la placa «sin señal»: el traspaso y el fallbackswitch, juntos (el colchón).
-        if (el.value("traspaso", false) || (n.rfind("salida/", 0) == 0 && fabricaDe(el) == "fallbackswitch")) {
+        if (el.value("traspaso", false) ||
+            (n.rfind("salida/", 0) == 0 && (fabricaDe(el) == "fallbackswitch" || fabricaDe(el) == "input-selector"))) {
             colchonPlaca += el.value("agrega_ms", 0.0);
             colchonNombres.push_back(n);
             continue;
@@ -717,8 +718,8 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
     if (colchonPlaca > std::max(10.0, cuadro * 0.5))
         hallazgo("colchon_placa", colchonPlaca > std::max(cuadro * 2.5, 60.0) ? "aviso" : "info",
                  "Antes de la composición, la cadena de la placa «sin señal» retiene " + msTexto(colchonPlaca) +
-                     ": el fallbackswitch no deja pasar un cuadro hasta su hora + la latencia que declara la entrada + un cuadro, "
-                     "aunque haya llegado antes. Es el colchón de esta entrada (lo de las demás espera igual a la más lenta).",
+                     ": el conmutador no deja pasar el cuadro apenas llega (un fallbackswitch espera la latencia declarada + un "
+                     "margen). Es el colchón de esta entrada; la composición ya espera sola a la más lenta.",
                  colchonPlaca, colchonNombres);
     const auto peso = [](const json& h) {
         const std::string g = h.value("gravedad", std::string());
