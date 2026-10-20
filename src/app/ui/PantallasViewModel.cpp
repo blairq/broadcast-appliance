@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 #include <fstream>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -44,6 +45,21 @@ namespace pt = pantallas;
 inline int kTimeoutMs() { return ba::ajustes::entero("pantallas.timeoutMs", 8000); }
 /// Cuánto dura una búsqueda en la red.
 inline int kBusquedaSeg() { return ba::ajustes::entero("pantallas.busquedaS", 5); }
+
+/// Por dónde los hilos de red (buscar, preguntar, mostrar…) le devuelven el resultado a la
+/// vista. Cada hilo se lleva su copia; el destructor la cierra antes de que la vista muera:
+/// lo que llega después se descarta. Sin esto, cerrar la app con una búsqueda en curso
+/// llamaba a invokeMethod sobre la vista ya destruida (SIGSEGV al salir, y el lanzador la
+/// volvía a abrir).
+struct Puerta {
+    std::mutex mu;
+    QObject* vista = nullptr;
+};
+template <typename F>
+void alHiloPrincipal(const std::shared_ptr<Puerta>& p, F&& f) {
+    std::lock_guard<std::mutex> l(p->mu);
+    if (p->vista != nullptr) QMetaObject::invokeMethod(p->vista, std::forward<F>(f), Qt::QueuedConnection);
+}
 
 /// El catálogo de lo que se puede proyectar. Está acá y no en el QML porque
 /// también lo necesita el MCP: una sola lista, no dos que se desincronizan.
@@ -264,6 +280,7 @@ struct PantallasViewModel::Impl {
     std::filesystem::path archivo;
     std::vector<Destino> destinos;
     std::atomic<bool> buscando{false};
+    std::shared_ptr<Puerta> puerta = std::make_shared<Puerta>();
     QString aviso;
     /// Las IP de esta máquina por las que la sala atiende y el puerto de su puerta HTTP
     /// (src/gateway/Direcciones: la red local, sin certificado), que se preguntan y se
@@ -417,6 +434,7 @@ struct PantallasViewModel::Impl {
 
 PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>()) {
+    d_->puerta->vista = this;
     d_->rt = &rt;
     d_->sala = sala;
     if (sala != nullptr) d_->salaPantallas = std::make_unique<sala::PantallasSala>(sala->client());
@@ -460,7 +478,10 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
     d_->pedirDirecciones([this]() { emit cambio(); });
 }
 
-PantallasViewModel::~PantallasViewModel() = default;
+PantallasViewModel::~PantallasViewModel() {
+    std::lock_guard<std::mutex> l(d_->puerta->mu); // los hilos que sigan no llegan más acá
+    d_->puerta->vista = nullptr;
+}
 
 // --- Lo que ve la interfaz -----------------------------------------------------------
 
@@ -585,10 +606,10 @@ void PantallasViewModel::buscar() {
     if (d_->buscando.exchange(true)) return; // ya hay una en curso
     emit cambio();
     d_->pedirDirecciones({});
-    std::thread([this]() {
+    std::thread([this, puerta = d_->puerta]() {
         std::string err;
         auto encontrados = pt::buscar(kBusquedaSeg(), &err);
-        QMetaObject::invokeMethod(this, [this, encontrados, err]() {
+        alHiloPrincipal(puerta, [this, encontrados, err]() {
             d_->buscando = false;
             if (!err.empty()) {
                 d_->aviso = QString::fromStdString(err);
@@ -1027,9 +1048,9 @@ void PantallasViewModel::refrescar(const QString& id) {
     // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
-    std::thread([this, id, host, puerto, desde]() {
+    std::thread([this, puerta = d_->puerta, id, host, puerto, desde]() {
         const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
-        QMetaObject::invokeMethod(this, [this, id, r]() {
+        alHiloPrincipal(puerta, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
             d->trabajando = false;
@@ -1240,12 +1261,12 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
     // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
-    std::thread([this, id, host, puerto, desde, url, tipo, que]() {
+    std::thread([this, puerta = d_->puerta, id, host, puerto, desde, url, tipo, que]() {
         // `reload` en 0: la página no se recarga sola. Un QR o un mensaje no
         // cambian, y una recarga en medio de un evento se ve.
         const pt::Estado r =
             pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs(), desde.toStdString());
-        QMetaObject::invokeMethod(this, [this, id, r, tipo, que]() {
+        alHiloPrincipal(puerta, [this, id, r, tipo, que]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
             d->trabajando = false;
@@ -1287,9 +1308,9 @@ void PantallasViewModel::parar(const QString& id) {
     // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
-    std::thread([this, id, host, puerto, desde]() {
+    std::thread([this, puerta = d_->puerta, id, host, puerto, desde]() {
         const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
-        QMetaObject::invokeMethod(this, [this, id, r]() {
+        alHiloPrincipal(puerta, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
             d->trabajando = false;
@@ -1322,10 +1343,10 @@ void PantallasViewModel::setVolumen(const QString& id, double nivel) {
     // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
-    std::thread([this, id, host, puerto, desde, nivel]() {
+    std::thread([this, puerta = d_->puerta, id, host, puerto, desde, nivel]() {
         const pt::Estado r =
             pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs(), desde.toStdString());
-        QMetaObject::invokeMethod(this, [this, id, r]() {
+        alHiloPrincipal(puerta, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
             d->trabajando = false;
@@ -1351,10 +1372,10 @@ void PantallasViewModel::silenciar(const QString& id, bool si) {
     // URL —esa si lleva la direccion de la red del aparato (ipEnLaRedDe)—:
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
-    std::thread([this, id, host, puerto, desde, si]() {
+    std::thread([this, puerta = d_->puerta, id, host, puerto, desde, si]() {
         const pt::Estado r =
             pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs(), desde.toStdString());
-        QMetaObject::invokeMethod(this, [this, id, r]() {
+        alHiloPrincipal(puerta, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
             d->trabajando = false;
