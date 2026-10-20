@@ -35,6 +35,24 @@ std::string Motor::iniciar() {
     BA_CANDADO(mu_);
     if (andando()) return {};
     prioridadDelProceso(); // una vez: el proceso y la topología al registro
+    // LOS PLUGINS DEL COMPOSITOR, CARGADOS ACÁ (detrás del cartel de carga): si no, el primero
+    // que los pide es el bucle del motor al poner la primera escena (en Windows, ~500 ms con
+    // su candado: cargar las DLL de D3D12 y lo que arrastran).
+    {
+        const std::int64_t t0 = g_get_monotonic_time();
+        int cargados = 0;
+        for (const char* f : {"intersrc", "intersink", "d3d12upload", "d3d12convert", "d3d12compositor", "glupload", "glcolorconvert",
+                              "gltransformation", "glshader", "glvideomixer", "audiomixer", "imagefreeze", "input-selector"})
+            if (GstElementFactory* fab = gst_element_factory_find(f)) {
+                if (GstPluginFeature* cargada = gst_plugin_feature_load(GST_PLUGIN_FEATURE(fab))) {
+                    ++cargados;
+                    gst_object_unref(cargada);
+                }
+                gst_object_unref(fab);
+            }
+        registrar(Nivel::Info, "motor: " + std::to_string(cargados) + " plugins de la composición cargados en " +
+                                   std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+    }
     Mezcla::Opciones op;
     op.limitador = true;
     // Sin ebur128level: el loudness del programa lo mide la app (audio::LoudnessPrograma,
@@ -529,12 +547,17 @@ std::string Motor::armarYa(const std::string& nombre) {
 void Motor::actualizarUso() {
     std::set<std::string> uso, leidos;
     const auto sumar = [](std::set<std::string>& a, const std::set<std::string>& s) { a.insert(s.begin(), s.end()); };
-    for (Composicion* c : {vPrograma_.get(), vPreview_.get(), vMulti_.get()})
-        if (c != nullptr) {
-            sumar(uso, c->entradasEnUso());
-            sumar(leidos, c->productoresEnUso());
-        }
+    // Con tramos: si tarda, el registro dice cuál parte (llegó a 650 ms al arrancar).
+    {
+        Tramo t("uso: las composiciones");
+        for (Composicion* c : {vPrograma_.get(), vPreview_.get(), vMulti_.get()})
+            if (c != nullptr) {
+                sumar(uso, c->entradasEnUso());
+                sumar(leidos, c->productoresEnUso());
+            }
+    }
     if (vistas_) {
+        Tramo t("uso: las vistas");
         sumar(uso, vistas_->entradasEnUso());
         sumar(leidos, vistas_->productoresEnUso());
     }
@@ -552,7 +575,10 @@ void Motor::actualizarUso() {
             cambio = true;
         }
     }
-    for (auto& [id, c] : canales_) c.entrada->ponerEnUso(uso.count(id) > 0);
+    for (auto& [id, c] : canales_) {
+        Tramo t("uso: poner en uso una entrada");
+        c.entrada->ponerEnUso(uso.count(id) > 0);
+    }
 }
 
 std::string Motor::alAireYa(const std::string& nombre, const std::string& transicion, int ms) {

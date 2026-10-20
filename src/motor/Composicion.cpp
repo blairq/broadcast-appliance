@@ -301,6 +301,7 @@ GstPadProbeReturn Composicion::alPrimerCuadro(GstPad*, GstPadProbeInfo*, gpointe
 
 Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx) {
     if (mx == nullptr) mx = mezclador_;
+    const std::int64_t t0 = g_get_monotonic_time(); // si tarda, cuánto en crear y cuánto en arrancar
     // Único en el pipeline: limpio, «Cam 1» y «Cam-1» (o «Cámara» y «Cámera») quedaban iguales.
     const std::string n = nombreSeguro(std::to_string(gen) + "_" + c.claveCapa()) + "_" + std::to_string(++serieRamas_);
     auto* r = new Rama();
@@ -398,8 +399,17 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     gst_pad_link(sale, r->pad);
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
     gst_object_unref(sale);
+    const std::int64_t t1 = g_get_monotonic_time();
     for (GstElement* e : {r->sombra, r->aRgba, r->fijar, r->recorte, r->conv, r->subir, r->src})
         if (e != nullptr) gst_element_sync_state_with_parent(e);
+    const std::int64_t t2 = g_get_monotonic_time();
+    // Arma con el candado del motor (mostrar lo llama el bucle): si una capa tarda, el registro
+    // dice si fue crear y enganchar los elementos o ponerlos en marcha (en D3D12, la primera
+    // de cada clase compila sus shaders).
+    if (t2 - t0 > 20'000)
+        registrar(Nivel::Info, "composición " + nombre_ + ": la capa «" + c.entrada + "» se armó en " + std::to_string((t2 - t0) / 1000) +
+                                   " ms (crear y enganchar " + std::to_string((t1 - t0) / 1000) + ", arrancar " +
+                                   std::to_string((t2 - t1) / 1000) + ")");
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
     return r;
 }
