@@ -162,9 +162,10 @@ class Vigia {
     /// entrada de dispositivo, con el candado del motor: ~250 ms cada 3 s en macOS
     /// (AVFoundation enumera las cámaras y se crea un elemento por cada una).
     void revisar();
-    /// ¿Está? Lo último que supo el hilo; si todavía no arrancó, lo espera un poco (lo
-    /// llama el trabajador de una entrada al armarse) y, sin saberlo, sí.
-    bool hay(bool esVideo, const std::string& id);
+    /// ¿Está? Lo último que supo el hilo. Si todavía no arrancó: con `esperar`, lo espera un
+    /// poco (el trabajador de una entrada al armarse); sin, no (el bucle del motor: enumerar
+    /// con Media Foundation tarda ~240 ms). Sin saberlo, sí.
+    bool hay(bool esVideo, const std::string& id, bool esperar = true);
     std::uint64_t generacion() const { return generacion_.load(); }
 
    private:

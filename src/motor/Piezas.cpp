@@ -615,10 +615,11 @@ void Vigia::vigilar() {
     gst_object_unref(mon);
 }
 
-bool Vigia::hay(bool esVideo, const std::string& id) {
+bool Vigia::hay(bool esVideo, const std::string& id, bool esperar) {
     revisar();
     std::unique_lock<std::mutex> l(mu_);
-    if (!arranco_.wait_for(l, std::chrono::seconds(3), [this]() { return listo_; }) || sinMonitor_) return true;
+    const auto espera = esperar ? std::chrono::seconds(3) : std::chrono::seconds(0);
+    if (!arranco_.wait_for(l, espera, [this]() { return listo_; }) || sinMonitor_) return true;
     if (!esVideo) return audio_.count(id) > 0;
     for (const auto& v : video_)
         if (mismaCamara(v, id)) return true;

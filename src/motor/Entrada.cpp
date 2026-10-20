@@ -1527,7 +1527,8 @@ void Entrada::tic() {
     // Lo está usando y se fue: a esperar que vuelva.
     if (pipeline_ != nullptr && deDispositivo && Vigia::el().generacion() != genVista_) {
         genVista_ = Vigia::el().generacion();
-        const bool esta = !camara_.empty() ? Vigia::el().hay(true, camara_) : Vigia::el().hay(false, microfono_);
+        // Sin esperar al Vigía: esto es el bucle del motor (ver Vigia::hay).
+        const bool esta = !camara_.empty() ? Vigia::el().hay(true, camara_, false) : Vigia::el().hay(false, microfono_, false);
         if (!esta) {
             trabajar([this]() { armar(); }); // queda esperando
             return;
