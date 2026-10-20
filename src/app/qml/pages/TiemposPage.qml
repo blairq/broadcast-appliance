@@ -30,7 +30,7 @@ Rectangle {
         page.mirandoRes = page.visible
     }
     onVisibleChanged: mirarRes()
-    Component.onCompleted: mirarRes()
+    Component.onCompleted: { mirarRes(); sincronizarMapa() }
     Component.onDestruction: if (page.mirandoRes && Studio.resolucion) Studio.resolucion.mirar(false)
     readonly property var nivelesRes: Studio.resolucion ? Studio.resolucion.niveles : ({})
     /// La clave del nodo en los niveles del plan: la tarjeta por el id de su nodo del grafo; la
@@ -183,6 +183,30 @@ Rectangle {
         }
         return { nodos: nodos, tramos: tramos, pos: pos, ancho: maxX + 280, alto: maxY + 180 }
     }
+    // LAS TARJETAS Y LAS LÍNEAS VIVEN ENTRE VUELTAS. Con el arreglo de `acomodo` como modelo, el
+    // Repeater las destruía y creaba TODAS en cada vuelta del modelo: parpadeaban, perdían el
+    // hover y se volvían a animar. Ahora el modelo es un ListModel de claves que solo cambia
+    // cuando aparece o se va una; cada una lee lo suyo de estos mapas.
+    readonly property var nodoPorId: { const m = {}; for (const n of page.acomodo.nodos) m[n.id] = n; return m }
+    readonly property var tramoPorId: { const m = {}; for (const t of page.acomodo.tramos) m[t.desde + ">" + t.hacia] = t; return m }
+    ListModel { id: modeloNodos }
+    ListModel { id: modeloTramos }
+    function sincronizar(modelo, claves) {
+        const quiero = {}
+        for (const c of claves) quiero[c] = true
+        for (let i = modelo.count - 1; i >= 0; --i) if (!quiero[modelo.get(i).clave]) modelo.remove(i)
+        const hay = {}
+        for (let i = 0; i < modelo.count; ++i) hay[modelo.get(i).clave] = true
+        for (const c of claves) if (!hay[c]) modelo.append({ clave: c })
+    }
+    function sincronizarMapa() {
+        sincronizar(modeloNodos, page.acomodo.nodos.map(n => n.id))
+        sincronizar(modeloTramos, page.acomodo.tramos.map(t => t.desde + ">" + t.hacia))
+    }
+    onAcomodoChanged: sincronizarMapa()
+    /// La tarjeta dada vuelta (el dorso con el detalle): «Detalle» en la barra de la elegida.
+    property string volteada: ""
+
     /// El camino del nodo elegido (lo que lo explica), para resaltarlo.
     readonly property var camino: {
         if (page.elegido === "") return ({})
@@ -376,6 +400,7 @@ Rectangle {
                 Flickable {
                     id: lienzo
                     anchors.fill: parent
+                    anchors.topMargin: barraElegida.visible ? barraElegida.height + 14 : 0 // debajo de la barra de la elegida
                     contentWidth: mundo.width * mundo.escala
                     contentHeight: mundo.height * mundo.escala
                     boundsBehavior: Flickable.StopAtBounds
@@ -396,15 +421,16 @@ Rectangle {
                             anchors.fill: parent
                             layer.enabled: true
                             Repeater {
-                                model: page.acomodo.tramos
+                                model: modeloTramos
                                 delegate: LineaTiempo {
-                                    required property var modelData
+                                    required property string clave
+                                    readonly property var modelData: page.tramoPorId[clave] || ({ desde: "", hacia: "", medio: "video", ms: null })
                                     anchors.fill: parent
                                     readonly property point a: page.acomodo.pos[modelData.desde] || Qt.point(0, 0)
                                     readonly property point b: page.acomodo.pos[modelData.hacia] || Qt.point(0, 0)
                                     desde: Qt.point(a.x + 196, a.y + 59)
                                     hacia: Qt.point(b.x, b.y + 59)
-                                    medio: modelData.medio
+                                    medio: modelData.medio || "video"
                                     ms: modelData.ms
                                     espera: modelData.espera_ms === undefined ? null : modelData.espera_ms
                                     viva: modelData.ms !== null && modelData.ms !== undefined
@@ -425,25 +451,87 @@ Rectangle {
 
                         // Las tarjetas.
                         Repeater {
-                            model: page.acomodo.nodos
+                            model: modeloNodos
                             delegate: TarjetaTiempo {
-                                required property var modelData
+                                required property string clave
+                                readonly property var modelData: page.nodoPorId[clave] || ({ id: clave, titulo: "" })
                                 nodo: modelData
                                 x: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).x
                                 y: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).y
                                 resaltada: !!page.camino[modelData.id]
                                 historia: { page.vuelta; return page.tm ? page.tm.historia(modelData.id) : [] }
+                                // Un click la elige (o la suelta); lo que se hace con ella, en la barra de arriba.
                                 onElegida: (id) => {
                                     page.elegido = page.elegido === id ? "" : id
-                                    page.alternarSerie(id)
+                                    if (page.volteada !== page.elegido) page.volteada = ""
                                     if (page.elegido !== "") page.abrirRecorrido(modelData)
                                 }
+                                marcada: page.elegido === modelData.id
+                                volteada: page.volteada === modelData.id
                                 alarma: page.nivelesRes[page.claveAlarma(modelData)]
                                 enLinea: page.serie.indexOf(modelData.id) >= 0
                                 colorLinea: page.paleta[Math.max(0, page.serie.indexOf(modelData.id)) % page.paleta.length]
                                 Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                 Behavior on y { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                             }
+                        }
+                    }
+                }
+                // QUÉ SE PUEDE HACER CON LA ELEGIDA, a la vista (antes: un click la sumaba a la
+                // gráfica y abría el análisis, un doble click la daba vuelta, y nada lo decía).
+                Rectangle {
+                    id: barraElegida
+                    readonly property var n: page.elegido !== "" ? page.nodoPorId[page.elegido] : undefined
+                    readonly property string entrada: n && (n.tipo === "entrada" || n.tipo === "tarjeta") ? page.entradaDe(n) : ""
+                    visible: page.acomodo.nodos.length > 0
+                    anchors { left: parent.left; top: parent.top; margins: 10 }
+                    width: Math.min(parent.width - 20, filaElegida.implicitWidth + 20)
+                    height: filaElegida.implicitHeight + 14
+                    radius: 10
+                    color: Qt.rgba(0.07, 0.08, 0.10, 0.92)
+                    border.color: n ? Theme.accent : Theme.glassBorder
+                    z: 20
+                    RowLayout {
+                        id: filaElegida
+                        anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 10 }
+                        spacing: 8
+                        Text {
+                            visible: !barraElegida.n
+                            text: "Tocá una tarjeta para elegirla: después, analizarla por dentro, verla en la gráfica o ver su detalle."
+                            color: Theme.textDim; font.pixelSize: 11
+                        }
+                        Text {
+                            visible: !!barraElegida.n
+                            text: barraElegida.n ? "✓ " + (barraElegida.n.titulo || "") : ""
+                            color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold }
+                            elide: Text.ElideRight
+                            Layout.maximumWidth: 220
+                        }
+                        GlassButton {
+                            visible: !!barraElegida.n && barraElegida.entrada !== ""
+                            compact: true; icon: "🔍"; text: "Analizar por dentro (5 s)"
+                            onClicked: {
+                                page.recorridoDe = barraElegida.entrada
+                                const e = page.tm.analizarEntradaUi(barraElegida.entrada, 5)
+                                if (e) Studio.notify(e, "error")
+                            }
+                        }
+                        GlassButton {
+                            visible: !!barraElegida.n
+                            compact: true; icon: "📈"; text: "En la gráfica"
+                            active: page.serie.indexOf(page.elegido) >= 0
+                            onClicked: page.alternarSerie(page.elegido)
+                        }
+                        GlassButton {
+                            visible: !!barraElegida.n
+                            compact: true; icon: "↻"; text: "Detalle"
+                            active: page.volteada === page.elegido
+                            onClicked: page.volteada = page.volteada === page.elegido ? "" : page.elegido
+                        }
+                        GlassButton {
+                            visible: !!barraElegida.n
+                            compact: true; text: "Soltar"
+                            onClicked: { page.elegido = ""; page.volteada = "" }
                         }
                     }
                 }
@@ -593,7 +681,7 @@ Rectangle {
                     }
                     Text {
                         visible: page.serie.length === 0
-                        text: "Tocá tarjetas del mapa para sumarlas acá (cada una con su color)."
+                        text: "Elegí una tarjeta del mapa y tocá «En la gráfica» para sumarla acá (cada una con su color)."
                         color: Theme.textFaint; font.pixelSize: 11
                     }
                     Item { Layout.fillWidth: true }

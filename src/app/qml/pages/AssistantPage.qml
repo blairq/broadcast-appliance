@@ -51,74 +51,100 @@ Rectangle {
             border.color: term.activeFocus ? Qt.rgba(1, 0.42, 0.17, 0.55) : Theme.glassBorder
             clip: true
 
-            // Barra superior
+            // Barra superior, EN DOS NIVELES: arriba, qué asistente (las pestañas, cuál es y cómo
+            // está); abajo, la sesión y lo de la terminal. En una sola fila no entraba: se iba
+            // de la derecha y los componentes se pisaban.
             Rectangle {
                 id: bar
                 anchors { left: parent.left; right: parent.right; top: parent.top }
-                height: 48
+                height: niveles.implicitHeight + 14
                 color: Qt.rgba(1, 1, 1, 0.035)
                 radius: 18
                 Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 18; color: parent.color }
-                RowLayout {
-                    anchors { fill: parent; leftMargin: 16; rightMargin: 10 }
-                    spacing: 10
-                    Row {
-                        spacing: 6
-                        Repeater {
-                            model: ["#ff5f57", "#febc2e", "#28c840"]
-                            Rectangle { required property string modelData; width: 11; height: 11; radius: 6; color: modelData; opacity: 0.85 }
+                Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 1; color: Theme.glassBorder }
+                ColumnLayout {
+                    id: niveles
+                    anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: 16; rightMargin: 10; topMargin: 8 }
+                    spacing: 6
+                    // --- Nivel 1: el asistente ---
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Row {
+                            spacing: 6
+                            Repeater {
+                                model: ["#ff5f57", "#febc2e", "#28c840"]
+                                Rectangle { required property string modelData; width: 11; height: 11; radius: 6; color: modelData; opacity: 0.85 }
+                            }
+                        }
+                        Text { text: "✦"; color: Theme.accent; font.pixelSize: 16; Layout.leftMargin: 6 }
+                        // Los dos asistentes: el del evento y el de automatización (las alertas).
+                        GlassButton {
+                            compact: true; text: "Evento"; active: page.pestana === "evento"
+                            onClicked: page.pestana = "evento"
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "El asistente con el que se arma y se trabaja el evento"
+                        }
+                        GlassButton {
+                            compact: true; text: "Automatización"; active: page.pestana === "automatizacion"
+                            icon: Studio.agenteAutomatizacion && Studio.agenteAutomatizacion.running ? "●" : ""
+                            onClicked: page.pestana = "automatizacion"
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "El asistente que atiende las alertas del sistema (siempre levantado): no interrumpe la charla del evento"
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 6
+                            text: (page.cur.agentName || "Asistente") + (ag.model !== "" ? "  ·  " + ag.model : "")
+                            color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
+                            elide: Text.ElideRight
+                        }
+                        StatusPill { text: page.stateText(); dot: ag.running ? Theme.ok : (ag.installing ? Theme.warn : Theme.textFaint); pulse: ag.running }
+                        GlassButton {
+                            compact: true; icon: page.enVentana ? "⇲" : "⧉"
+                            text: page.enVentana ? "Volver" : "Sacar a una ventana"
+                            visible: !page.afuera
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: page.enVentana ? "Vuelve el asistente a la ventana principal"
+                                                         : "Abre el asistente en su propia ventana (para otro monitor)"
+                            onClicked: page.enVentana ? Window.window.close()
+                                                      : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), "Asistente")
                         }
                     }
-                    Text { text: "✦"; color: Theme.accent; font.pixelSize: 16; Layout.leftMargin: 6 }
-                    // Los dos asistentes: el del evento y el de automatización (las alertas).
-                    GlassButton {
-                        compact: true; text: "Evento"; active: page.pestana === "evento"
-                        onClicked: page.pestana = "evento"
-                        ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "El asistente con el que se arma y se trabaja el evento"
+                    // --- Nivel 2: la sesión y la terminal ---
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true
+                            text: page.cur.name || ""
+                            color: Theme.textFaint; font.pixelSize: 12
+                            elide: Text.ElideRight
+                        }
+                        GlassButton { compact: true; text: "A−"; onClicked: ag.setFontSize(ag.fontSize - 1)
+                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Letra más chica" }
+                        GlassButton { compact: true; text: "A+"; onClicked: ag.setFontSize(ag.fontSize + 1)
+                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Letra más grande" }
+                        GlassButton { compact: true; visible: term.hasSelection; text: "Copiar"; onClicked: term.copySelection() }
+                        GlassButton { compact: true; visible: ag.running; text: "Pegar"; onClicked: term.pasteClipboard() }
+                        GlassButton { compact: true; visible: ag.running; text: "Reiniciar"; onClicked: ag.restart() }
+                        GlassButton { compact: true; visible: ag.running; text: "Detener"; onClicked: ag.stop() }
+                        // Hay una version usable pero el sistema fija otra: se ofrece,
+                        // no se obliga (la instalada sigue andando).
+                        GlassButton { compact: true; visible: ag.updateAvailable && !ag.installing
+                                      text: "Actualizar a " + (page.cur.version || ""); icon: "⇩"
+                                      onClicked: ag.install() }
+                        // La ultima que publico el proveedor (con su hash), sin esperar
+                        // una version nueva del sistema. Se instala en Agentes/ del bundle.
+                        GlassButton { compact: true; visible: ag.installed && !ag.installing && !ag.newerAvailable && !ag.updateAvailable
+                                      text: ag.checkingUpdate ? "Buscando…" : "Buscar actualización"; icon: "↻"
+                                      onClicked: if (!ag.checkingUpdate) ag.checkUpdate() }
+                        GlassButton { compact: true; visible: ag.newerAvailable && !ag.installing
+                                      text: "Actualizar a " + ag.latestVersion; icon: "⇩"; active: true
+                                      onClicked: ag.installLatest() }
+                        GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
+                                      onClicked: { ag.start(); term.forceActiveFocus() } }
                     }
-                    GlassButton {
-                        compact: true; text: "Automatización"; active: page.pestana === "automatizacion"
-                        icon: Studio.agenteAutomatizacion && Studio.agenteAutomatizacion.running ? "●" : ""
-                        onClicked: page.pestana = "automatizacion"
-                        ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "El asistente que atiende las alertas del sistema (siempre levantado): no interrumpe la charla del evento"
-                    }
-                    Text { text: (page.cur.agentName || "Asistente") + (ag.model !== "" ? "  ·  " + ag.model : "")
-                           color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
-                    Text { text: page.cur.name || ""; color: Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
-                    StatusPill { text: page.stateText(); dot: ag.running ? Theme.ok : (ag.installing ? Theme.warn : Theme.textFaint); pulse: ag.running }
-                    GlassButton {
-                        compact: true; icon: page.enVentana ? "⇲" : "⧉"
-                        text: page.enVentana ? "Volver" : "Sacar a una ventana"
-                        visible: !page.afuera
-                        ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: page.enVentana ? "Vuelve el asistente a la ventana principal"
-                                                     : "Abre el asistente en su propia ventana (para otro monitor)"
-                        onClicked: page.enVentana ? Window.window.close()
-                                                  : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), "Asistente")
-                    }
-                    GlassButton { compact: true; text: "A−"; onClicked: ag.setFontSize(ag.fontSize - 1) }
-                    GlassButton { compact: true; text: "A+"; onClicked: ag.setFontSize(ag.fontSize + 1) }
-                    GlassButton { compact: true; visible: term.hasSelection; text: "Copiar"; onClicked: term.copySelection() }
-                    GlassButton { compact: true; visible: ag.running; text: "Pegar"; onClicked: term.pasteClipboard() }
-                    GlassButton { compact: true; visible: ag.running; text: "Reiniciar"; onClicked: ag.restart() }
-                    GlassButton { compact: true; visible: ag.running; text: "Detener"; onClicked: ag.stop() }
-                    // Hay una version usable pero el sistema fija otra: se ofrece,
-                // no se obliga (la instalada sigue andando).
-                GlassButton { compact: true; visible: ag.updateAvailable && !ag.installing
-                              text: "Actualizar a " + (page.cur.version || ""); icon: "⇩"
-                              onClicked: ag.install() }
-                // La ultima que publico el proveedor (con su hash), sin esperar
-                // una version nueva del sistema. Se instala en Agentes/ del bundle.
-                GlassButton { compact: true; visible: ag.installed && !ag.installing && !ag.newerAvailable && !ag.updateAvailable
-                              text: ag.checkingUpdate ? "Buscando…" : "Buscar actualización"; icon: "↻"
-                              onClicked: if (!ag.checkingUpdate) ag.checkUpdate() }
-                GlassButton { compact: true; visible: ag.newerAvailable && !ag.installing
-                              text: "Actualizar a " + ag.latestVersion; icon: "⇩"; active: true
-                              onClicked: ag.installLatest() }
-                GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
-                                  onClicked: { ag.start(); term.forceActiveFocus() } }
                 }
             }
 

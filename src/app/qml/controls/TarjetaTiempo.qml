@@ -1,7 +1,8 @@
 // Una tarjeta de la página Latencias del pipeline: un nodo del pipeline (entrada, tarjeta, módulo,
 // escena, mezcla, salida) con lo que agrega, lo acumulado desde la captura y su chispa
-// de los últimos 60 s. Se inclina siguiendo al puntero (perspectiva); un click la elige
-// (la página muestra su gráfica abajo) y doble click la da vuelta: el dorso tiene el detalle. Todo sale del nodo (TiemposModel::mapa).
+// de los últimos 60 s. Se inclina siguiendo al puntero (perspectiva); un click la elige (la
+// página muestra arriba qué se puede hacer con ella: analizarla por dentro, la gráfica, el
+// detalle del dorso). Todo sale del nodo (TiemposModel::mapa).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -18,6 +19,10 @@ Item {
     property color colorLinea: "#4fd8ff"
     /// La alarma del plan de resolución: {nivel, motivos} (o nada).
     property var alarma: undefined
+    /// La elegida (la marca la página: borde de acento y una ✓).
+    property bool marcada: false
+    /// Dada vuelta: el dorso con el detalle (lo decide la página, «Detalle»).
+    property bool volteada: false
     signal elegida(string id)
 
     width: 196
@@ -38,6 +43,7 @@ Item {
     Behavior on inclY { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
     HoverHandler {
         id: hover
+        cursorShape: Qt.PointingHandCursor // se puede tocar
         onPointChanged: {
             if (!hovered) return
             t.inclY = (point.position.x / t.width - 0.5) * 16
@@ -75,17 +81,15 @@ Item {
     Flipable {
         id: caja
         anchors.fill: parent
-        property bool vuelta: false
+        property bool vuelta: t.volteada
         transform: Rotation {
             origin.x: caja.width / 2; origin.y: caja.height / 2; axis { x: 0; y: 1; z: 0 }
             angle: caja.vuelta ? 180 : 0
             Behavior on angle { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
         }
-        // Un click la elige (la gráfica abajo); doble click la da vuelta (el detalle atrás).
-        TapHandler {
-            onTapped: t.elegida(t.nodo.id)
-            onDoubleTapped: caja.vuelta = !caja.vuelta
-        }
+        // Un click la elige, y nada más (con el doble click que la daba vuelta, un doble click
+        // la elegía y la soltaba: parecía que no respondía). Lo demás, en la barra de la página.
+        TapHandler { onTapped: t.elegida(t.nodo.id) }
 
         front: Rectangle {
             anchors.fill: parent
@@ -95,9 +99,10 @@ Item {
                 GradientStop { position: 0.0; color: "#1c1e26" }
                 GradientStop { position: 1.0; color: "#121318" }
             }
-            border.color: t.alarma ? Theme.colorAlarma(t.alarma.nivel)
+            border.color: t.marcada ? Theme.accent
+                        : t.alarma ? Theme.colorAlarma(t.alarma.nivel)
                         : Qt.rgba(t.colorEstado.r, t.colorEstado.g, t.colorEstado.b, t.nodo.estado === "sin_datos" ? 0.25 : 0.85)
-            border.width: t.resaltada || t.alarma ? 2 : 1
+            border.width: t.marcada ? 3 : t.resaltada || t.alarma ? 2 : 1
             opacity: t.nodo.activo === false ? 0.5 : 1.0
             // El brillo de arriba (vidrio).
             Rectangle {
@@ -109,9 +114,18 @@ Item {
                     GradientStop { position: 1.0; color: "transparent" }
                 }
             }
-            // En la línea de tiempo: un punto con su color arriba a la derecha.
+            // La elegida: una ✓ de acento arriba a la derecha.
+            Rectangle {
+                visible: t.marcada
+                anchors { right: parent.right; top: parent.top; margins: 6 }
+                width: 18; height: 18; radius: 9
+                color: Theme.accent
+                Text { anchors.centerIn: parent; text: "✓"; color: "white"; font { pixelSize: 11; weight: Font.Bold } }
+            }
+            // En la línea de tiempo: un punto con su color arriba a la derecha (debajo de la ✓).
             Rectangle {
                 visible: t.enLinea
+                anchors.topMargin: t.marcada ? 28 : 9
                 anchors { right: parent.right; top: parent.top; margins: 9 }
                 width: 10; height: 10; radius: 5
                 color: t.colorLinea
