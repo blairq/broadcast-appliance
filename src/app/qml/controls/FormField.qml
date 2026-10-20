@@ -8,10 +8,15 @@
 //       font button info header combo (se escribe, o se elige de la lista)
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
+import QtQuick.Layouts // los controles de una línea (numC, comboC…)
 import BA
 
-ColumnLayout {
+// SIN LAYOUTS ANIDADOS: la etiqueta, el control, el aviso y la ayuda se ubican con
+// bindings (x, y, width) y el alto sale de una expresión. Con un ColumnLayout que
+// tenía un RowLayout y textos que se parten adentro de otros layouts (los de
+// Configuración), el alto que depende del ancho necesitaba una pasada de acomodo por
+// nivel y Qt cortaba a las dos («Layout polish loop»).
+Item {
     id: field
     property string kind: "text"
     property string label: ""
@@ -27,26 +32,39 @@ ColumnLayout {
     signal edited(var v)
     signal pressed()
 
-    spacing: 4
+    /// Lo que ocupa la etiqueta (y la sangría de la ayuda): 220, o menos en un panel
+    /// angosto (las propiedades de una fuente), que el control no quede apretado.
+    readonly property int anchoEtiqueta: Math.min(220, Math.round(width * 0.4))
+    readonly property int separacion: 10
+
+    implicitWidth: 550 // fijo: anchoEtiqueta depende del ancho (con él, binding loop)
+    implicitHeight: kind === "header" ? encabezado.y + encabezado.height
+                  : ayuda.visible ? ayuda.y + ayuda.height : fila.height
     opacity: enabled ? 1 : 0.45
 
     // Encabezado de grupo
     Text {
+        id: encabezado
         visible: field.kind === "header"
-        Layout.topMargin: 10
+        y: 10
+        width: field.width
         text: field.label.toUpperCase()
         color: Theme.accentSoft
+        elide: Text.ElideRight
         font { family: Theme.font; pixelSize: 11; weight: Font.Bold; letterSpacing: 1.2 }
     }
 
-    RowLayout {
+    // Etiqueta | control | aviso, centrados en el alto del más alto.
+    Item {
+        id: fila
         visible: field.kind !== "header"
-        Layout.fillWidth: true
-        spacing: 10
+        width: field.width
+        height: Math.max(etiqueta.height, control.height, insignia.visible ? insignia.height : 0)
 
         Text {
-            Layout.preferredWidth: 220
-            Layout.alignment: Qt.AlignVCenter
+            id: etiqueta
+            width: field.anchoEtiqueta
+            anchors.verticalCenter: parent.verticalCenter
             text: field.label + (field.modified ? "  •" : "")
             color: field.modified ? Theme.accentSoft : Theme.text
             wrapMode: Text.WordWrap
@@ -54,7 +72,11 @@ ColumnLayout {
         }
 
         Loader {
-            Layout.fillWidth: true
+            id: control
+            x: field.anchoEtiqueta + field.separacion
+            // Solo el ancho: el alto es el del control (su implicitHeight).
+            width: Math.max(0, fila.width - x - (insignia.visible ? insignia.width + field.separacion : 0))
+            anchors.verticalCenter: parent.verticalCenter
             sourceComponent: {
                 switch (field.kind) {
                 case "bool": return boolC
@@ -72,7 +94,10 @@ ColumnLayout {
         }
 
         Rectangle {
+            id: insignia
             visible: field.badge === "gateway" || field.badge === "restart"
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
             radius: 8; height: 18; width: badgeText.implicitWidth + 12
             color: Qt.rgba(1, 1, 1, 0.08)
             Text {
@@ -89,10 +114,13 @@ ColumnLayout {
                 : "Rige la próxima vez que se abra el programa."
         }
     }
+
     Text {
+        id: ayuda
         visible: field.help !== "" && field.kind !== "header" && field.kind !== "info"
-        Layout.fillWidth: true
-        Layout.leftMargin: 230
+        x: field.anchoEtiqueta + field.separacion
+        y: fila.height + 4
+        width: Math.max(0, field.width - x)
         text: field.help
         color: Theme.textFaint
         wrapMode: Text.WordWrap

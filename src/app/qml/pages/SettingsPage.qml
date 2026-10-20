@@ -288,7 +288,10 @@ Rectangle {
     // --- Los campos del esquema de una sección (con sus subtítulos) -------------------
     // El formulario genérico; lo usan las secciones del esquema y las de vista
     // propia que además tienen campos (Apariencia: el tema; Sistema y datos: el arranque).
-    component CamposDeSeccion: ColumnLayout {
+    // Column y no ColumnLayout (y cada fila, también): con los textos que se parten, cada
+    // nivel de layout anidado pedía una pasada más de acomodo («Layout polish loop»).
+    // Column saltea las ocultas solo.
+    component CamposDeSeccion: Column {
         id: campos
         property string seccion: ""
         /// Si no está vacía, solo estas claves (para intercalar campos con otros bloques).
@@ -296,7 +299,7 @@ Rectangle {
         spacing: 14
         Repeater {
             model: Studio.settings
-            delegate: ColumnLayout {
+            delegate: Column {
                 id: fila
                 required property string key
                 required property string section
@@ -313,21 +316,18 @@ Rectangle {
                 required property int index
                 required property bool avanzado
                 visible: section === campos.seccion && (campos.claves.length === 0 || campos.claves.indexOf(key) >= 0) && (!avanzado || page.verAvanzados || !Studio.settings.tieneBasicos(section)) && page.campoVisible(key)
-                // Sin Layout.preferredHeight atado a su implicitHeight: el layout ya
-                // saltea las ocultas, y ese atado lo invalidaba en medio del
-                // acomodo («Layout polish loop» en el ColumnLayout de la sección).
-                Layout.fillWidth: true
+                width: campos.width
                 spacing: 8
                 Text {
                     visible: page.subtitulos[fila.key] !== undefined
-                    Layout.fillWidth: true
-                    Layout.topMargin: 6
+                    width: fila.width
+                    topPadding: 6
                     text: page.subtitulos[fila.key] || ""
                     color: Theme.text
                     font { pixelSize: 15; weight: Font.DemiBold }
                 }
                 FormField {
-                    Layout.fillWidth: true
+                    width: fila.width
                     label: fila.label
                     kind: fila.kind
                     value: fila.value
