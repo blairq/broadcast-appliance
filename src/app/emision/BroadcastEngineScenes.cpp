@@ -42,6 +42,15 @@ namespace ba::app {
 using json = nlohmann::json;
 
 namespace {
+/// La sección `k` de un objeto, SIN COPIARLA (un objeto vacío si no está). Con
+/// `value("entradas", json::object())` se copiaba el estado de todas las entradas cada
+/// vez que se pedía una: varias veces por segundo desde la interfaz (~3 % de un núcleo).
+const json& seccion(const json& j, const char* k) {
+    static const json vacio = json::object();
+    if (!j.is_object()) return vacio;
+    const auto it = j.find(k);
+    return it != j.end() && it->is_object() ? *it : vacio;
+}
 
 
 /// Color de OBS (entero ABGR: 0xAABBGGRR) → "#AARRGGBB".
@@ -179,13 +188,14 @@ const json& BroadcastEngine::estadoMotor() const {
     // La foto que publica el bucle del motor: leerla no espera el candado (ver
     // Motor::instantanea). Se guarda la copia para devolver una referencia que
     // no cambie mientras el que llama la recorre.
-    if (motor_) {
-        if (auto f = motor_->instantanea(); f && f.get() != estadoFoto_.get()) {
-            estadoFoto_ = f;
-            estadoCache_ = *f;
-        }
-    }
-    return estadoCache_;
+    // La foto no cambia nunca (el motor publica una nueva): alcanza con quedarse con
+    // ella, sin copiarla (se copiaba entera con cada foto nueva, varias por segundo).
+    // Sin foto todavía, un objeto vacío: arrancando, `value()` sobre un null tiraba
+    // excepción (caída del 2026-10-11).
+    static const json vacio = json::object();
+    if (motor_)
+        if (auto f = motor_->instantanea(); f && f.get() != estadoFoto_.get() && f->is_object()) estadoFoto_ = f;
+    return estadoFoto_ ? *estadoFoto_ : vacio;
 }
 
 json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& config) const {
@@ -229,7 +239,7 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
 
 json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
     const double W = video_.baseWidth, H = video_.baseHeight;
-    const json& entradas = estadoMotor().value("entradas", json::object());
+    const json& entradas = seccion(estadoMotor(), "entradas");
     json capas = json::array();
     for (std::size_t i = 0; i < e.items.size(); ++i) {
         const Item& it = e.items[i];
@@ -877,7 +887,7 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
 
 json BroadcastEngine::estadoEntrada(const std::string& name) const {
     if (sources_.count(name) == 0) return nullptr;
-    const json& e = estadoMotor().value("entradas", json::object());
+    const json& e = seccion(estadoMotor(), "entradas");
     return e.contains(name) ? e[name] : json::object();
 }
 
@@ -919,7 +929,7 @@ void BroadcastEngine::holdShowing(const std::string&, bool) {}
 bool BroadcastEngine::sourceSize(const std::string& name, int& width, int& height) const {
     width = height = 0;
     if (sources_.count(name) == 0) return false;
-    const json& e = estadoMotor().value("entradas", json::object());
+    const json& e = seccion(estadoMotor(), "entradas");
     if (!e.contains(name)) return true;
     const json sale = e[name].value("sale", json::object());
     width = sale.value("ancho", 0);
@@ -1067,7 +1077,7 @@ std::string BroadcastEngine::retornoInvitado(int slot) const {
 
 std::vector<std::string> BroadcastEngine::audioSources() const {
     std::vector<std::string> out;
-    const json& e = estadoMotor().value("entradas", json::object());
+    const json& e = seccion(estadoMotor(), "entradas");
     for (const auto& n : ordenFuentes_)
         if (e.contains(n) && e[n].value("audio", false)) out.push_back(n);
     return out;
@@ -1114,14 +1124,13 @@ float BroadcastEngine::sourcePeakDb(const std::string& name) const {
         if (const auto niveles = motor_->niveles())
             for (const auto& n : *niveles)
                 if (!n.bus && n.id == name) return std::max(-100.0f, std::max(n.pico[0], n.pico[1]));
-    const json& p = estadoMotor().value("programa", json::object());
-    const json e = p.is_object() ? p.value("entradas", json::object()) : json::object();
+    const json& e = seccion(seccion(estadoMotor(), "programa"), "entradas");
     if (!e.contains(name)) return -100.0f;
     return static_cast<float>(std::max(-100.0, e[name].value("pico_db", -100.0)));
 }
 
 float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
-    const json& es = estadoMotor().value("entradas", json::object());
+    const json& es = seccion(estadoMotor(), "entradas");
     if (!es.is_object() || !es.contains(name)) return -100.0f;
     return static_cast<float>(std::max(-100.0, es[name].value("pico_audio_db", -100.0)));
 }

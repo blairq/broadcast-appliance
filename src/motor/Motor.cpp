@@ -35,7 +35,10 @@ std::string Motor::iniciar() {
     if (andando()) return {};
     Mezcla::Opciones op;
     op.limitador = true;
-    op.loudness = true;
+    // Sin ebur128level: el loudness del programa lo mide la app (audio::LoudnessPrograma,
+    // con su objetivo, el reinicio al salir al aire y el true peak reciente) y el del
+    // motor no lo leía nadie (~4 % de un núcleo, siempre).
+    op.loudness = false;
     programa_ = std::make_unique<Mezcla>(*reloj_, "programa", op);
     if (!programa_->anda()) return "el bus PROGRAMA no arrancó: " + programa_->error();
     escucha_ = std::make_unique<Escucha>(*reloj_, cfg_.sinkEscucha);

@@ -83,6 +83,7 @@ class FrameService : public QObject {
         std::uint64_t serial = 0;
         std::uint64_t serieMotor = 0; ///< el último cuadro del motor que se tomó
         std::unique_ptr<ba::ipc::SpoutReceiver> receiver; // invitados
+        mutable std::int64_t pedidoUs = 0; ///< la última vez que alguien lo leyó (latest)
     };
     BroadcastEngine& engine_;
     int guests_ = 0;

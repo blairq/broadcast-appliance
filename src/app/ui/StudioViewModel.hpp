@@ -264,8 +264,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(int streamKbps READ streamKbps NOTIFY statusChanged)
     Q_PROPERTY(double cpuPercent READ cpuPercent NOTIFY statusChanged)
     Q_PROPERTY(bool gatewayAlive READ gatewayAlive NOTIFY statusChanged)
-    Q_PROPERTY(double programPeakL READ programPeakL NOTIFY statusChanged)
-    Q_PROPERTY(double programPeakR READ programPeakR NOTIFY statusChanged)
+    Q_PROPERTY(double programPeakL READ programPeakL NOTIFY nivelesChanged)
+    Q_PROPERTY(double programPeakR READ programPeakR NOTIFY nivelesChanged)
     Q_PROPERTY(QString currentScene READ currentScene NOTIFY sceneChanged)
     Q_PROPERTY(QString transitionType READ transitionType NOTIFY sceneChanged)
     /// La escena ARMADA (la que sale con el proximo TAKE). Vacia = ninguna.
@@ -944,6 +944,10 @@ class StudioViewModel : public QObject {
     void caidaChanged();
     void emparejamientoListo(const QVariantMap& r);
     void statusChanged();
+    /// Los picos del programa (el vúmetro): a 10 Hz. Separados de statusChanged, que
+    /// solo sale cuando cambia algo (antes salía cada 100 ms y re-evaluaba cada binding
+    /// de sus 23 propiedades en toda la interfaz).
+    void nivelesChanged();
     void sceneChanged();
     /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de
     /// carpeta). Distinta de `sceneChanged`, que es «cambió la que está al
@@ -1198,6 +1202,7 @@ class StudioViewModel : public QObject {
     double cpu_ = 0;
     ba::app::UsoCpu cpuUso_;
     bool gatewayAlive_ = false;
+    QString firmaEstado_; ///< lo último avisado con statusChanged (onTick)
     double peakL_ = -100;
     double peakR_ = -100;
     QVariantList multiviews_;

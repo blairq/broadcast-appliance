@@ -7,6 +7,8 @@
 #include "emision/BroadcastEngine.hpp"
 #include "ipc/SpoutTransport.hpp"
 
+#include <chrono>
+
 namespace ba::app {
 
 namespace {
@@ -123,8 +125,15 @@ std::wstring FrameService::channelOf(const QString& key) {
     return {};
 }
 
+namespace {
+std::int64_t ahoraUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+} // namespace
+
 bool FrameService::latest(const QString& key, QImage& out, std::uint64_t& serial) const {
     auto it = slots_.find(key);
+    if (it != slots_.end()) it->second.pedidoUs = ahoraUs(); // alguien lo mira: a todos sus cuadros
     if (it == slots_.end() || it->second.serial == serial || it->second.image.isNull()) {
         return false;
     }
@@ -203,6 +212,10 @@ void FrameService::poll() {
                 continue;
             }
         }
+        // Lo que nadie mira (una página que no se ve, un lugar vacío), una vez por segundo
+        // y no a 60: se copiaba cada cuadro de cada invitado, pantalla, lobby y orador.
+        // Uno por segundo alcanza para que una captura (MCP) no salga vieja.
+        if (ahoraUs() - s.pedidoUs > 2'000'000 && vueltas_ % 60 != 0) continue;
         if (!r.hasData()) continue;
         // Directo al buffer que se queda la imagen (sin inicializar: se pisa entero).
         const std::size_t bytes = r.frameBytes();

@@ -906,7 +906,6 @@ class BroadcastEngine {
     std::string pfl_; ///< el canal en PFL ("" = ninguno); no se guarda
     void enviarEscena(int k, const motor::Cuadro& c);
 
-    mutable nlohmann::json estadoCache_ = nlohmann::json::object(); ///< objeto vacío hasta la primera foto: arrancando, `value()` sobre un null tiraba excepción (caída del 2026-10-11)
     mutable std::shared_ptr<const nlohmann::json> estadoFoto_;
 };
 

@@ -6,7 +6,7 @@
 // nada de punteros a GStreamer afuera.
 //
 // LOS BUSES (cada uno un audiomixer en su pipeline):
-//   programa    pista 1: lo que sale. Limitador del máster y loudness.
+//   programa    pista 1: lo que sale. Limitador del máster (el loudness lo mide la app).
 //   pista2…6    la grabación multipista: cada entrada va a las pistas que diga
 //               su ruteo (la Matriz). Se arman cuando alguien las usa.
 //   retornoN    lo que oye el invitado N en mix_minus (todo menos su voz).

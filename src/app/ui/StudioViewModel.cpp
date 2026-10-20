@@ -2464,7 +2464,21 @@ void StudioViewModel::onTick() {
     peakL_ = std::max<double>(l, peakL_ - 1.5);
     peakR_ = std::max<double>(r, peakR_ - 1.5);
     mixer_->refreshLevels();
-    emit statusChanged();
+    emit nivelesChanged();
+    // El resto, solo si cambió algo de lo que se ve (con tiempos de grabación o
+    // transmisión corriendo, una vez por segundo).
+    const QString firma = QStringList{QString::number(recording_), QString::number(streaming_), QString::number(alAire()),
+                                      QString::number(transmitiendo()), QString::number(modoVivo()), QString::number(reconnecting_),
+                                      outputProblem_, recordTime(), streamTime(), QString::number(fps_, 'f', 1), encoder_,
+                                      QString::number(dropped_), QString::number(total_), QString::number(kbps_),
+                                      QString::number(cpu_, 'f', 0), QString::number(gatewayAlive_), streamServer(),
+                                      QString::number(streamKeyAvailable()), QString::number(streamKeySaved()), room(),
+                                      QString::number(guests()), QString::number(personasConectadas())}
+                              .join('|');
+    if (firma != firmaEstado_) {
+        firmaEstado_ = firma;
+        emit statusChanged();
+    }
     publicarEventos();
 }
 
