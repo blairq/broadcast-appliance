@@ -20,6 +20,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -168,6 +169,9 @@ class Vigia {
 
    private:
     void vigilar(); ///< el hilo
+    void parar();   ///< al salir del proceso (atexit): que el hilo termine y se lo espere
+    std::thread hiloVigia_;
+    std::atomic<bool> salir_{false};
     void anotar(GstDevice* dev, bool esta);
     std::once_flag hilo_;
     std::mutex mu_; ///< los conjuntos y `listo_`

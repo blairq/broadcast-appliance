@@ -15,6 +15,7 @@
 #include <gst/video/video.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <cctype>
 #include <cmath>
@@ -496,8 +497,10 @@ std::string claveDeDispositivo(GstDevice* d) {
 } // namespace
 
 void resondearSinAviso() {
-    static std::mutex mu;
-    std::lock_guard<std::mutex> l(mu);
+    // Nunca se destruye: al salir del proceso, un mutex estático destruido mientras el hilo
+    // del Vigía lo usa es «mutex lock failed» y SIGSEGV (pasó al cerrar, 2026-10-20).
+    static auto* mu = new std::mutex;
+    std::lock_guard<std::mutex> l(*mu);
     GList* fabricas = gst_device_provider_factory_list_get_device_providers(GST_RANK_NONE);
     for (GList* f = fabricas; f != nullptr; f = f->next) {
         GstDeviceProvider* p = gst_device_provider_factory_get(GST_DEVICE_PROVIDER_FACTORY(f->data));
@@ -548,7 +551,17 @@ void Vigia::anotar(GstDevice* dev, bool esta) {
 }
 
 void Vigia::revisar() {
-    std::call_once(hilo_, [this]() { std::thread([this]() { vigilar(); }).detach(); });
+    std::call_once(hilo_, [this]() {
+        hiloVigia_ = std::thread([this]() { vigilar(); });
+        // Al salir, que pare y se lo espere: suelto, seguía usando GStreamer y lo estático
+        // mientras el proceso se desarmaba.
+        std::atexit([]() { Vigia::el().parar(); });
+    });
+}
+
+void Vigia::parar() {
+    salir_ = true;
+    if (hiloVigia_.joinable()) hiloVigia_.join();
 }
 
 void Vigia::vigilar() {
@@ -571,17 +584,17 @@ void Vigia::vigilar() {
         gst_object_unref(mon);
         return; // sin monitor: hay() dice que sí a todo
     }
-    // Vive lo que el proceso. Los avisos, apenas llegan; lo que se enchufó en los
+    // Hasta que el proceso sale (parar). Los avisos, apenas llegan; lo que se enchufó en los
     // proveedores que no avisan, cada 3 s.
     GstBus* bus = gst_device_monitor_get_bus(mon);
     std::int64_t ultimoSondeo = g_get_monotonic_time();
-    for (;;) {
+    while (!salir_.load()) {
         if (g_get_monotonic_time() - ultimoSondeo > 3'000'000) {
             ultimoSondeo = g_get_monotonic_time();
             resondearSinAviso();
         }
         bool cambio = false;
-        for (GstMessage* m = gst_bus_timed_pop(bus, 500 * GST_MSECOND); m != nullptr; m = gst_bus_pop(bus)) {
+        for (GstMessage* m = gst_bus_timed_pop(bus, 200 * GST_MSECOND); m != nullptr; m = gst_bus_pop(bus)) {
             GstDevice* dev = nullptr;
             if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_ADDED) {
                 gst_message_parse_device_added(m, &dev);
@@ -597,6 +610,9 @@ void Vigia::vigilar() {
         }
         if (cambio) ++generacion_;
     }
+    gst_object_unref(bus);
+    gst_device_monitor_stop(mon);
+    gst_object_unref(mon);
 }
 
 bool Vigia::hay(bool esVideo, const std::string& id) {
