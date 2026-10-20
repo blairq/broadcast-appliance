@@ -349,6 +349,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
             r->fijar = nullptr;
         }
     }
+    const std::int64_t tCreados = g_get_monotonic_time();
     if (gl_) g_object_set(r->recorte, "ortho", TRUE, nullptr);
     g_object_set(r->src, "producer-name", r->productor.c_str(), nullptr);
     // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la
@@ -393,6 +394,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     } else {
         gst_element_link_many(r->src, r->recorte, nullptr);
     }
+    const std::int64_t tEnlazados = g_get_monotonic_time();
     r->mx = mx;
     r->pad = gst_element_request_pad_simple(mx, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r->sombra != nullptr ? r->sombra : r->fijar != nullptr ? r->fijar : r->recorte, "src");
@@ -408,8 +410,9 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     // de cada clase compila sus shaders).
     if (t2 - t0 > 20'000)
         registrar(Nivel::Info, "composición " + nombre_ + ": la capa «" + c.entrada + "» se armó en " + std::to_string((t2 - t0) / 1000) +
-                                   " ms (crear y enganchar " + std::to_string((t1 - t0) / 1000) + ", arrancar " +
-                                   std::to_string((t2 - t1) / 1000) + ")");
+                                   " ms (crear " + std::to_string((tCreados - t0) / 1000) + ", agregar y enlazar " +
+                                   std::to_string((tEnlazados - tCreados) / 1000) + ", el pad del mezclador " +
+                                   std::to_string((t1 - tEnlazados) / 1000) + ", arrancar " + std::to_string((t2 - t1) / 1000) + ")");
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
     return r;
 }
