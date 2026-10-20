@@ -371,6 +371,10 @@ class McpCore {
         std::int64_t atMs = 0;
     };
     std::map<std::string, Taint> taint_;
+    /// Sesión → quién es el cliente (el `clientInfo` que manda al conectarse: «claude-code
+    /// 2.1», «chatgpt»…). Para el registro: sin esto, una llamada de afuera no decía de quién
+    /// era (2026-10-20: dos cambios de escena en la PC de pruebas que nadie supo explicar).
+    std::map<std::string, std::string> clientes_;
     /// id -> nombre de las personas cuya atencion delego el operador.
     std::map<std::string, std::string> intake_;
     bool intakeAllows(const Tool& t, const nlohmann::json& args) const;

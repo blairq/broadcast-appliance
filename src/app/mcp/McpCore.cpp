@@ -541,6 +541,15 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
     };
     try {
         if (method == "initialize") {
+            const json ci = params.value("clientInfo", json::object());
+            if (ci.is_object() && ci.contains("name")) {
+                std::string quien = ci.value("name", std::string("?"));
+                if (ci.contains("version") && ci["version"].is_string()) quien += " " + ci["version"].get<std::string>();
+                clientes_[ctx.session] = quien;
+                ba::diag::registro().linea(ba::diag::Nivel::Info, "mcp", 0,
+                                           "se conectó «" + quien + "»" + (ctx.rol.empty() ? std::string() : " con el rol " + ctx.rol) +
+                                               (ctx.session.empty() ? std::string() : " (sesión " + ctx.session.substr(0, 8) + ")"));
+            }
             reply(rpcResult(id, initializeResult(params, ctx)));
         } else if (method == "ping") {
             reply(rpcResult(id, json::object()));
@@ -781,7 +790,13 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // Lo que MODIFICA va como info; lo que solo consulta, como depuracion:
         // un `status` cada dos segundos ahogaria el registro a nivel normal.
         const auto arranque = std::chrono::steady_clock::now();
-        const std::string quien = ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]";
+        // Quién: el rol, de dónde salió (asistente, receta, disparador, botonera…) y, si vino de
+        // afuera, el cliente que se presentó al conectarse.
+        std::string quien;
+        if (!ctx.rol.empty()) quien += " [" + ctx.rol + "]";
+        if (!ctx.origen.empty()) quien += " <" + ctx.origen + ">";
+        if (const auto c = clientes_.find(ctx.session); c != clientes_.end()) quien += " «" + c->second + "»";
+        else if (ctx.origen.empty() && !ctx.session.empty()) quien += " (sesión " + ctx.session.substr(0, 8) + ")";
         // Los argumentos van en la linea: «audio_set FALLO» sin decir de que
         // canal ni a que valor no sirve para entender nada despues.
         const std::string resumenArgs = Traza::resumir(args, 220);
