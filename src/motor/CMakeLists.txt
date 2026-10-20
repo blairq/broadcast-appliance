@@ -6,13 +6,13 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp Prioridad.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
 if(APPLE)
-    target_sources(ba_motor PRIVATE Capturas_mac.mm)
-    set_source_files_properties(Capturas_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    target_sources(ba_motor PRIVATE Capturas_mac.mm Prioridad_mac.mm)
+    set_source_files_properties(Capturas_mac.mm Prioridad_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
     target_link_libraries(ba_motor PUBLIC "-framework AVFoundation" "-framework CoreGraphics" "-framework Foundation")
 elseif(WIN32)
     target_link_libraries(ba_motor PUBLIC dwmapi)

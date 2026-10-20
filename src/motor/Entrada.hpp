@@ -332,7 +332,6 @@ class Entrada {
     std::atomic<bool> enUso_{true};
     std::atomic<bool> placaActiva_{false};          ///< el conmutador de la salida está en la placa
     std::atomic<std::int64_t> ultimoPrimarioUs_{0}; ///< el último cuadro de la señal que llegó a la salida (vigilante de «sin señal»)
-    std::atomic<std::int64_t> ultimaPlacaUs_{0};    ///< el último cuadro de placa que pasó sin estar en la placa
     /// El freno del realineo (ver medirLatencia): cuándo se corrigió cada rama,
     /// para qué lado, y hasta cuándo no se la toca si va y viene.
     struct Realineo {

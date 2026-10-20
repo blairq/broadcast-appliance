@@ -16,6 +16,7 @@
 #include "emision/FuentesApp.hpp"
 #include "comun/HoraMonotonica.hpp"
 #include "Motor.hpp"
+#include "Prioridad.hpp"
 #include "audio/GstVoz.hpp"
 
 #include <algorithm>
@@ -805,6 +806,7 @@ void Matriz::armarPlan() {
 }
 
 void Matriz::bucleMezcla() {
+    motor::prioridadDelHilo(motor::ClaseHilo::Medios); // mezcla en tiempo real
     using reloj = std::chrono::steady_clock;
     std::vector<float> al(kBloque), ar(kBloque), ml(kBloque), mr(kBloque);
     auto proximo = reloj::now();

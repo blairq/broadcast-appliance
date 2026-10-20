@@ -5,6 +5,7 @@
 #include "diag/Utf8.hpp"
 #include "Mapa.hpp"
 #include "Piezas.hpp"
+#include "Prioridad.hpp"
 
 #include "platform/GstEntorno.hpp"
 
@@ -366,6 +367,7 @@ GstClockTime Reloj::ahora() const {
 void Reloj::adoptar(GstElement* pipeline) const {
     registrarPipeline(pipeline); // para el mapa (Mapa.hpp)
     darContextoGpu(pipeline);    // el GL del motor, el mismo para todos
+    prioridadEnPipeline(pipeline); // sus hilos de streaming, en los núcleos rápidos
     gst_pipeline_use_clock(GST_PIPELINE(pipeline), clock_);
     gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE); // el base_time no lo cambia solo
     gst_element_set_base_time(pipeline, base_);

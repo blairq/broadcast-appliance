@@ -2,6 +2,7 @@
 // src/motor/Motor.cpp — ver Motor.hpp
 // ============================================================================
 #include "Motor.hpp"
+#include "Prioridad.hpp"
 #include "diag/Utf8.hpp"
 #include "Candado.hpp"
 #include "OrigenRed.hpp"
@@ -33,6 +34,7 @@ Motor::~Motor() { detener(); }
 std::string Motor::iniciar() {
     BA_CANDADO(mu_);
     if (andando()) return {};
+    prioridadDelProceso(); // una vez: el proceso y la topología al registro
     Mezcla::Opciones op;
     op.limitador = true;
     // Sin ebur128level: el loudness del programa lo mide la app (audio::LoudnessPrograma,
@@ -163,6 +165,7 @@ void Motor::detener() {
 
 void Motor::bucle() {
     hiloId_.store(std::this_thread::get_id());
+    prioridadDelHilo(ClaseHilo::Motor);
     while (seguir_) {
         {
             Tramo t("cámaras de red (sin el candado del motor, con el suyo)");
@@ -1461,6 +1464,7 @@ json Motor::estado() const {
             {"retornos", ret},
             {"escucha", esc},
             {"vistas", vistas_ ? vistas_->estado() : json::object()},
+            {"procesador", topologiaCpu()},
             {"entradas", entradas}};
 }
 

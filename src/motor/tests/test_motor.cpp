@@ -329,10 +329,13 @@ int main() {
         gst_object_unref(p);
         auto img = std::make_unique<Entrada>(reloj, lienzo, "imagen", json{{"tipo", "imagen"}, {"archivo", png}});
         banco.entradas.push_back(img.get());
-        banco.correr(1200);
+        banco.correr(2200); // el primero y uno por segundo (con margen si la máquina está cargada)
         const json si = img->estado();
         std::printf("imagen: %d cuadros, sale %s\n", si.value("cuadros", 0), si["sale"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
-        CHECK(si.value("cuadros", 0) > 15, "la imagen da cuadros");
+        // Lo fijo sale a un cuadro por segundo (el compositor repite el último): no los 30 que
+        // repetía imagefreeze, cada uno con dos idas y vueltas a la cola de GL.
+        CHECK(si.value("cuadros", 0) >= 2, "la imagen da cuadros");
+        CHECK(si.value("cuadros", 0) <= 6, "lo fijo, a un cuadro por segundo");
         CHECK(si["sale"].value("formato", "") == (gpuVideo() ? "RGBA" : "BGRA"), "con su alfa (BGRA, o RGBA en la GPU)");
         banco.entradas.pop_back();
         img.reset();

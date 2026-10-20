@@ -301,7 +301,8 @@ void Entrada::armarSalida() {
                               ",pixel-aspect-ratio=1/1 ! " +
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
-                              " ! imagefreeze name=congela is-live=true ! fs.sink_1";
+                              // A un cuadro por segundo (ver «LA PLACA DESCANSA»).
+                              " ! imagefreeze name=congela is-live=true ! video/x-raw(ANY),framerate=1/1 ! fs.sink_1";
     // EL CONMUTADOR NO ESPERA: un input-selector deja pasar cada cuadro apenas llega; el
     // vigilante de tic pasa a la placa si no llega nada por el tiempo de «sin señal», y la
     // sonda de su entrada vuelve a la señal con el primer cuadro. Era un fallbackswitch
@@ -332,48 +333,22 @@ void Entrada::armarSalida() {
         g_signal_emit_by_name(fuente, "end-of-stream", &r);
         gst_object_unref(fuente);
     }
-    // LA PLACA DESCANSA: imagefreeze la repite a 30 cuadros/s y es siempre la misma
-    // imagen. Pasa uno por segundo, también cuando está al aire: antes, en la placa,
-    // pasaban los 30, y cada lugar de invitado vacío (diez en un evento) mandaba 30
-    // cuadros por segundo por GL y el compositor (cada operación de GL, un ida y vuelta
-    // con su hilo). El compositor repite el último cuadro de una capa a la que le falta
-    // uno (test_composicion: «la placa se ve todo el tiempo»); por las dudas, el que pasa
-    // en la placa dice durar 1,2 s. Al cambiar a ella, el siguiente cuadro pasa enseguida.
+    // LA PLACA DESCANSA: es siempre la misma imagen, y sale de imagefreeze a UN cuadro por
+    // segundo (su caps). Repetida a 30 en la GPU, cada repetición eran dos idas y vueltas con
+    // la cola de GL (copiar el buffer copia su GLSyncMeta, soltarlo también) aunque el
+    // conmutador la tirara: once lugares vacíos, ~660 por segundo para nada. El compositor
+    // repite el último cuadro de la capa (test_composicion: la placa se ve en las 8 miradas).
     if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
         g_signal_connect(fs, "notify::active-pad",
                          G_CALLBACK(+[](GObject* o, GParamSpec*, gpointer d) {
                              GstPad* activo = nullptr;
                              g_object_get(o, "active-pad", &activo, nullptr);
-                             auto* e = static_cast<Entrada*>(d);
-                             const bool placa = activo != nullptr && std::string(GST_PAD_NAME(activo)) == "sink_1";
-                             if (placa && !e->placaActiva_.load()) e->ultimaPlacaUs_ = 0; // la primera, ya
-                             e->placaActiva_ = placa;
+                             static_cast<Entrada*>(d)->placaActiva_ =
+                                 activo != nullptr && std::string(GST_PAD_NAME(activo)) == "sink_1";
                              if (activo != nullptr) gst_object_unref(activo);
                          }),
                          this);
         gst_object_unref(fs);
-    }
-    if (GstElement* cg = gst_bin_get_by_name(GST_BIN(p), "congela")) {
-        if (GstPad* pad = gst_element_get_static_pad(cg, "src")) {
-            gst_pad_add_probe(
-                pad, GST_PAD_PROBE_TYPE_BUFFER,
-                [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
-                    auto* e = static_cast<Entrada*>(d);
-                    const std::int64_t ahora = g_get_monotonic_time();
-                    if (ahora - e->ultimaPlacaUs_.load(std::memory_order_relaxed) < 1'000'000) return GST_PAD_PROBE_DROP;
-                    e->ultimaPlacaUs_.store(ahora, std::memory_order_relaxed);
-                    if (e->placaActiva_.load(std::memory_order_relaxed)) {
-                        // Que valga hasta el siguiente (y un poco más).
-                        GstBuffer* b = gst_buffer_make_writable(GST_PAD_PROBE_INFO_BUFFER(info));
-                        GST_BUFFER_DURATION(b) = 1200 * GST_MSECOND;
-                        GST_PAD_PROBE_INFO_DATA(info) = b;
-                    }
-                    return GST_PAD_PROBE_OK;
-                },
-                this, nullptr);
-            gst_object_unref(pad);
-        }
-        gst_object_unref(cg);
     }
     // Con qué arranca: rearmada con la señal llegando, la señal; si no, la placa hasta el
     // primer cuadro. La sonda de la entrada de la señal anota cada cuadro (el vigilante de
@@ -585,6 +560,12 @@ void Entrada::leer(const json& a) {
         if (i != std::string::npos)
             descripcion_.insert(i, subirGpu() + " ! " + texturaGpu() + " ! ");
     }
+    // LO FIJO (color, imagen, texto) A UN CUADRO POR SEGUNDO: imagefreeze repetía 30 por
+    // segundo algo que no cambia, y en la GPU cada repetición son DOS idas y vueltas con la
+    // cola de GL (copiar el buffer copia su GLSyncMeta, y soltarlo también la toca): ~60 por
+    // segundo por fuente, para nada. El compositor repite el último cuadro de la capa. Un
+    // texto nuevo rearma la entrada (sale enseguida). Lo de la app (tipo app) no: anima.
+    if (fija_ && descripcion_.find("imagefreeze") != std::string::npos) descripcion_ += " ! video/x-raw(ANY),framerate=1/1";
     if (tipo == "pantalla") {
         // La pantalla elegida (por su nombre y su recuadro): Capturas.
         descripcion_ = origenPantalla(a);
