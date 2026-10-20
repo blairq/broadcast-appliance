@@ -41,8 +41,12 @@ std::string Motor::iniciar() {
     {
         const std::int64_t t0 = g_get_monotonic_time();
         int cargados = 0;
+        // También los nuestros de las capas (la sombra: gstbafiltros, con todos los filtros): si
+        // no, el bucle esperaba a que un trabajador terminara de cargar ese plugin (el registro
+        // tiene su candado): la capa con sombra tardaba 425 ms en «crear y enganchar».
         for (const char* f : {"intersrc", "intersink", "d3d12upload", "d3d12convert", "d3d12compositor", "glupload", "glcolorconvert",
-                              "gltransformation", "glshader", "glvideomixer", "audiomixer", "imagefreeze", "input-selector"})
+                              "gltransformation", "glshader", "glvideomixer", "audiomixer", "imagefreeze", "input-selector",
+                              "basombrad3d12", "basombragl", "basombra", "bavideoanillo", "baanillo"})
             if (GstElementFactory* fab = gst_element_factory_find(f)) {
                 if (GstPluginFeature* cargada = gst_plugin_feature_load(GST_PLUGIN_FEATURE(fab))) {
                     ++cargados;
