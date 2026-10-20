@@ -109,21 +109,15 @@ Rectangle {
                 font.pixelSize: 10
             }
         }
-        // Los elementos, de la fuente a la salida.
-        ListView {
-            visible: r.elementos.length > 0
-            Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(contentHeight, 260)
-            clip: true
+        // Los elementos, de la fuente a la salida (sin scroll propio: se desplaza la columna entera).
+        Repeater {
             model: r.elementos
-            spacing: 2
-            ScrollBar.vertical: ScrollBar {}
             delegate: Rectangle {
                 id: fila
                 required property var modelData
                 readonly property bool suya: r.resaltar.indexOf(modelData.nombre) >= 0
-                width: ListView.view.width
-                height: 30
+                Layout.fillWidth: true
+                implicitHeight: 44
                 radius: 6
                 color: suya ? Qt.rgba(1, 0.42, 0.17, 0.14) : Qt.rgba(1, 1, 1, 0.03)
                 border.color: suya ? Theme.accent : "transparent"
@@ -155,9 +149,19 @@ Rectangle {
                         Text {
                             width: parent.width
                             text: fila.modelData.fuente
-                                  ? (fila.modelData.fabrica || "") + "  ·  captura: desde que se tomó el cuadro hasta que sale de acá (la cámara, el driver, el sistema o la etapa anterior)"
+                                  ? (fila.modelData.fabrica || "") + "  ·  captura (la cámara, el driver, el sistema o la etapa anterior)"
                                   : (fila.modelData.fabrica || "") + (fila.modelData.cruce
                                   ? "  ·  " + r.nombreMemoria(fila.modelData.memoria_entrada) + " → " + r.nombreMemoria(fila.modelData.memoria_salida) : "")
+                            color: Theme.textFaint; font.pixelSize: 8
+                            elide: Text.ElideRight
+                        }
+                        // Lo que antes iba en un globo al pasar el mouse: escrito, a la vista.
+                        Text {
+                            width: parent.width
+                            text: "p95 " + r.ms(fila.modelData.agrega_p95_ms)
+                                  + (fila.modelData.declara_ms !== undefined ? " · declara " + r.ms(fila.modelData.declara_ms) : "")
+                                  + (fila.modelData.nivel_cola_ms !== undefined ? " · la cola guarda " + r.ms(fila.modelData.nivel_cola_ms) : "")
+                                  + ((fila.modelData.puede_entrada || []).length ? " · acepta " + fila.modelData.puede_entrada.map(r.nombreMemoria).join(", ") : "")
                             color: Theme.textFaint; font.pixelSize: 8
                             elide: Text.ElideRight
                         }
@@ -181,14 +185,8 @@ Rectangle {
                         text: fila.modelData.agrega_ms === undefined ? "—" : r.ms(fila.modelData.agrega_ms)
                         color: (fila.modelData.agrega_ms || 0) > 40 ? Theme.amber : Theme.text
                         font { pixelSize: 11; family: "Helvetica Neue" }
-                        ToolTip.visible: maFila.containsMouse
-                        ToolTip.text: "p95 " + r.ms(fila.modelData.agrega_p95_ms) + " · " + (fila.modelData.cuadros || 0) + " cuadros"
-                                      + (fila.modelData.nivel_cola_ms !== undefined ? " · la cola guarda " + r.ms(fila.modelData.nivel_cola_ms) : "")
-                                      + (fila.modelData.declara_ms !== undefined ? " · declara " + r.ms(fila.modelData.declara_ms) : "")
-                                      + ((fila.modelData.puede_entrada || []).length ? " · acepta " + fila.modelData.puede_entrada.map(r.nombreMemoria).join(", ") : "")
                     }
                 }
-                MouseArea { id: maFila; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
         }
     }

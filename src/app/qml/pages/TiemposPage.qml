@@ -445,34 +445,44 @@ Rectangle {
                     GlassButton { compact: true; text: Math.round(mundo.escala * 100) + " %"; onClicked: mundo.escala = 1.0 }
                     GlassButton { compact: true; text: "+"; onClicked: mundo.escala = Math.min(2.0, mundo.escala * 1.15) }
                 }
-                // Por dentro de la entrada elegida: cada elemento, su memoria y los cruces.
-                RecorridoEntrada {
-                    visible: page.recorridoDe !== ""
-                    anchors { left: parent.left; bottom: parent.bottom; margins: 10 }
-                    width: Math.min(420, parent.width - 220)
-                    tm: page.tm
-                    entrada: page.recorridoDe
-                    detalle: {
-                        const ns = page.mapa.nodos || []
-                        const n = ns.find(x => x.id === "entrada:" + page.recorridoDe) || ns.find(x => x.id === "entrada:" + page.recorridoDe + ":audio")
-                        return n ? n.detalle : ({})
-                    }
-                    titulo: page.tituloDe("entrada:" + page.recorridoDe) || page.recorridoDe
-                    resaltar: page.recorridoElementos
-                    onCerrar: page.recorridoDe = ""
-                }
             }
 
-            // --- Derecha: hasta cada salida --------------------------------------------------
+            // --- Derecha: el análisis de la tarjeta elegida y hasta cada salida ---------------
             Rectangle {
-                Layout.preferredWidth: 220
+                // Se ensancha con el análisis abierto (en vez de un panel encima del mapa).
+                Layout.preferredWidth: page.recorridoDe !== "" ? 420 : 220
+                Behavior on Layout.preferredWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                 Layout.fillHeight: true
                 radius: 14
                 color: Theme.glassTint
                 border.color: Theme.glassBorder
-                ColumnLayout {
+                clip: true
+                Flickable {
+                    id: lateral
                     anchors { fill: parent; margins: 10 }
+                    contentHeight: colLateral.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    ScrollBar.vertical: ScrollBar {}
+                ColumnLayout {
+                    id: colLateral
+                    width: lateral.width
                     spacing: 8
+                    // Por dentro de la entrada elegida: cada elemento, su memoria y los cruces.
+                    RecorridoEntrada {
+                        visible: page.recorridoDe !== ""
+                        Layout.fillWidth: true
+                        tm: page.tm
+                        entrada: page.recorridoDe
+                        detalle: {
+                            const ns = page.mapa.nodos || []
+                            const n = ns.find(x => x.id === "entrada:" + page.recorridoDe) || ns.find(x => x.id === "entrada:" + page.recorridoDe + ":audio")
+                            return n ? n.detalle : ({})
+                        }
+                        titulo: page.tituloDe("entrada:" + page.recorridoDe) || page.recorridoDe
+                        resaltar: page.recorridoElementos
+                        onCerrar: page.recorridoDe = ""
+                    }
                     Text { text: "Hasta cada salida"; color: Theme.textDim; font.pixelSize: 11 }
                     Text {
                         visible: (page.mapa.salidas || []).length === 0
@@ -506,7 +516,7 @@ Rectangle {
                             TapHandler { onTapped: page.elegido = page.elegido === sal.modelData.id ? "" : sal.modelData.id }
                         }
                     }
-                    Item { Layout.fillHeight: true }
+                }
                 }
             }
         }
