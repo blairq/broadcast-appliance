@@ -135,7 +135,8 @@ Item {
                 }
                 Menu {
                     id: menuCamaras
-                    Repeater {
+                    ItemsDeMenu {
+                        menu: menuCamaras
                         model: t.cc ? t.cc.camaras : []
                         delegate: MenuItem {
                             required property var modelData

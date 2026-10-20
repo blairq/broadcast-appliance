@@ -49,7 +49,9 @@ QtObject {
     readonly property int radius: 22
     readonly property int radiusSmall: 12
     readonly property int gap: 12
-    readonly property string font: "Inter, Noto Sans, DejaVu Sans, Sans"
+    // UN nombre (viene en data/fonts): font.family no acepta una lista con comas como
+    // CSS; con «Inter, Noto Sans, …» caía a la letra del sistema, distinta en cada máquina.
+    readonly property string font: "Noto Sans"
     // Para numeros que se leen en columna (tiempos, relojes, contadores): con
     // ancho fijo no bailan cuando cambian.
     readonly property string mono: "JetBrains Mono"

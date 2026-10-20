@@ -98,8 +98,10 @@ Item {
                         text: "Identificar pantallas"
                         onTriggered: Studio.identificarPantallas()
                     }
-                    MenuSeparator {}
-                    Repeater {
+                    MenuSeparator { id: sepMonitores }
+                    ItemsDeMenu {
+                        menu: menuMonitores
+                        despuesDe: sepMonitores
                         model: Qt.application.screens
                         delegate: MenuItem {
                             required property var modelData

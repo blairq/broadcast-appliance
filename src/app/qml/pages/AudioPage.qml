@@ -333,7 +333,8 @@ Rectangle {
         }
         Menu {
             id: micMenu
-            Repeater {
+            ItemsDeMenu {
+                menu: micMenu
                 model: Studio.inputs.audioDevices
                 delegate: MenuItem {
                     required property var modelData

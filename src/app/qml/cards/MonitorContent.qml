@@ -38,10 +38,11 @@ Item {
         color: Qt.rgba(0, 0, 0, 0.55)
         border.color: Qt.rgba(1, 1, 1, 0.15)
         Text { id: srcLabel; anchors.centerIn: parent; text: Studio.frames.label(mon.source) + "  ▾"; color: Theme.text; font.pixelSize: 11 }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: menu.popup() }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: menuFuentes.popup() }
         Menu {
-            id: menu
-            Repeater {
+            id: menuFuentes
+            ItemsDeMenu {
+                menu: menuFuentes
                 model: Studio.frames.keys
                 delegate: MenuItem {
                     required property string modelData

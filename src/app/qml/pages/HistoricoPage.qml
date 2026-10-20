@@ -328,6 +328,7 @@ Rectangle {
                         // Resumen
                         ScrollView {
                             clip: true
+                            contentWidth: availableWidth
                             ColumnLayout {
                                 width: parent.width
                                 spacing: 8
@@ -477,6 +478,7 @@ Rectangle {
                         // Grabaciones y vivos
                         ScrollView {
                             clip: true
+                            contentWidth: availableWidth
                             ColumnLayout {
                                 id: gv
                                 readonly property var d: { page.version; return page.sel && page.tab === "grabaciones" ? page.h.grabaciones(page.sel) : ({}) }

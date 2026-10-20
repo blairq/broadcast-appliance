@@ -31,9 +31,10 @@ ServidorModeloLocal& ServidorModeloLocal::el() {
 
 void ServidorModeloLocal::pedir(QObject* quien, const Pedido& p, std::function<void(quint16, QString)> listo,
                                 std::function<void(QString)> estado) {
-    usan_[quien] = true;
-    // Si `quien` desaparece sin soltarlo, que no quede contado.
-    connect(quien, &QObject::destroyed, this, [this, quien]() { soltar(quien); }, Qt::UniqueConnection);
+    // Si `quien` desaparece sin soltarlo, que no quede contado. Una vez por cada uno:
+    // Qt::UniqueConnection no sirve con una lambda (no conectaba nada).
+    if (usan_.emplace(quien, true).second)
+        connect(quien, &QObject::destroyed, this, [this, quien]() { soltar(quien); });
     if (proc_ != nullptr && gguf_ == p.gguf) {
         if (listo_) {
             listo(puerto_, {});
@@ -48,7 +49,7 @@ void ServidorModeloLocal::pedir(QObject* quien, const Pedido& p, std::function<v
 }
 
 void ServidorModeloLocal::soltar(QObject* quien) {
-    usan_.erase(quien);
+    if (usan_.erase(quien) > 0) disconnect(quien, &QObject::destroyed, this, nullptr);
     esperan_.erase(quien);
     if (usan_.empty()) parar();
 }

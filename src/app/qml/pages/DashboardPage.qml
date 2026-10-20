@@ -97,7 +97,8 @@ Item {
             onClicked: addMenu.popup()
             Menu {
                 id: addMenu
-                Repeater {
+                ItemsDeMenu {
+                    menu: addMenu
                     model: Studio.dashboard.cardKinds
                     delegate: MenuItem {
                         required property string modelData
@@ -108,10 +109,13 @@ Item {
                 // Las que vienen de Extensiones/. Van abajo y separadas: son
                 // de otra procedencia y conviene que se note.
                 MenuSeparator {
+                    id: sepExtensiones
                     visible: Studio.extensiones && Studio.extensiones.cuantas > 0
                     height: visible ? implicitHeight : 0
                 }
-                Repeater {
+                ItemsDeMenu {
+                    menu: addMenu
+                    despuesDe: sepExtensiones
                     model: Studio.extensiones ? Studio.extensiones.kinds() : []
                     delegate: MenuItem {
                         required property string modelData
@@ -134,8 +138,10 @@ Item {
             Menu {
                 id: bgMenu
                 // Las multivistas armadas en la página Multiview: una de ellas como fondo.
-                MenuItem { text: "Multiview"; enabled: false; visible: Studio.multiviews.length > 0; height: visible ? implicitHeight : 0 }
-                Repeater {
+                MenuItem { id: tituloMultiview; text: "Multiview"; enabled: false; visible: Studio.multiviews.length > 0; height: visible ? implicitHeight : 0 }
+                ItemsDeMenu {
+                    menu: bgMenu
+                    despuesDe: tituloMultiview
                     model: Studio.multiviews
                     delegate: MenuItem {
                         required property var modelData
@@ -146,8 +152,10 @@ Item {
                     }
                 }
                 MenuSeparator { visible: Studio.multiviews.length > 0 }
-                MenuItem { text: "Fuentes"; enabled: false; height: implicitHeight }
-                Repeater {
+                MenuItem { id: tituloFuentes; text: "Fuentes"; enabled: false; height: implicitHeight }
+                ItemsDeMenu {
+                    menu: bgMenu
+                    despuesDe: tituloFuentes
                     model: Studio.frames.keys
                     delegate: MenuItem {
                         required property string modelData
@@ -167,8 +175,10 @@ Item {
                         }
                     }
                 }
-                MenuSeparator {}
-                Repeater {
+                MenuSeparator { id: sepDistribucion }
+                ItemsDeMenu {
+                    menu: bgMenu
+                    despuesDe: sepDistribucion
                     model: [ { id: "grid", t: "Distribucion: cuadricula" }, { id: "focus", t: "Distribucion: foco" },
                              { id: "pip", t: "Distribucion: imagen en imagen" }, { id: "row", t: "Distribucion: fila" } ]
                     delegate: MenuItem {

@@ -102,7 +102,8 @@ Item {
                                                 : "Saca la sala a internet para que entren invitados de afuera."
                 Menu {
                     id: vpnMenu
-                    Repeater {
+                    ItemsDeMenu {
+                        menu: vpnMenu
                         model: tarjeta.formas
                         delegate: MenuItem {
                             required property var modelData

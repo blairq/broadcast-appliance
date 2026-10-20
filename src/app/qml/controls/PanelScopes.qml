@@ -23,8 +23,9 @@ Popup {
     Timer { interval: 200; repeat: true; running: pop.visible; onTriggered: pop.refrescar() }
     onOpened: refrescar()
 
-    ColumnLayout {
-        anchors.fill: parent
+    // El contenido del Popup (no un hijo anclado a él): con anchors.fill, su alto natural
+    // (textos que se parten según el ancho) volvía al del Popup y daba binding loop.
+    contentItem: ColumnLayout {
         spacing: 8
         RowLayout {
             Layout.fillWidth: true

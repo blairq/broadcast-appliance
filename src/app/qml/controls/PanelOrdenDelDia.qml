@@ -102,7 +102,8 @@ ColumnLayout {
                     onClicked: menuDocs.popup(btnDocs, 0, btnDocs.height)
                     Menu {
                         id: menuDocs
-                        Repeater {
+                        ItemsDeMenu {
+                            menu: menuDocs
                             model: btnDocs.lista
                             delegate: MenuItem {
                                 required property var modelData

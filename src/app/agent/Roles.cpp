@@ -355,7 +355,11 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // Los eventos (crear uno nuevo desde cero, copia, anterior o plantilla) y su
         // documentación (PDF por punto y sección). Quedaron afuera al agregarlas: el
         // asistente decía que no tenía cómo crear un evento.
-        "eventos", "documentos"};
+        "eventos", "documentos",
+        // Los tiempos del pipeline (qué pieza agrega cuánto, la sincronía) y el control
+        // web (emparejar una tablet o un teléfono con el QR): el registro avisaba que
+        // quedaban afuera.
+        "tiempos", "control_web"};
     return c;
 }
 

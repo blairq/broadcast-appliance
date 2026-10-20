@@ -28,9 +28,9 @@ StatusPill {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: menu.popup(p, 0, p.height + 4)
+        onClicked: menuIA.popup(p, 0, p.height + 4)
     }
-    ToolTip.visible: ma.containsMouse && !menu.visible
+    ToolTip.visible: ma.containsMouse && !menuIA.visible
     ToolTip.delay: 400
     ToolTip.text: p.total === 0 ? "La asistencia con IA está andando entera"
                                 : "Inteligencia artificial: " + (p.errores > 0 ? p.errores + " sin andar" : "")
@@ -38,21 +38,24 @@ StatusPill {
                                   + " (clic: qué y dónde se arregla)"
 
     Menu {
-        id: menu
+        id: menuIA
         width: 420
         MenuItem {
+            id: tituloProblemas
             enabled: false
             contentItem: Text {
                 text: p.total === 0 ? "Inteligencia artificial: todo andando" : "Inteligencia artificial: qué falta"
                 color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
             }
         }
-        Repeater {
+        ItemsDeMenu {
+            menu: menuIA
+            despuesDe: tituloProblemas
             model: p.ia ? p.ia.problemas : []
             delegate: MenuItem {
                 id: item
                 required property var modelData
-                width: menu.width
+                width: menuIA.width
                 onTriggered: p.ir(modelData)
                 contentItem: RowLayout {
                     spacing: 10

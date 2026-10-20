@@ -761,7 +761,7 @@ void AppRuntime::stop() {
     engine_.stopAllSourceRecordings();
     engine_.stopCleanFeed();
     latido_.detener(); // antes de apagar libobs (lee sus cuadros)
-    std::printf("ba-app: cerrando (salidas, escena, libobs)\n");
+    std::printf("ba-app: cerrando (salidas, escena, motor)\n");
     control_.stop();
     operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes
     engine_.shutdown();

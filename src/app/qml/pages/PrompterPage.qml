@@ -201,9 +201,11 @@ Rectangle {
                                     onTriggered: { renombrar.rel = doc.modelData.rel; renombrar.open() }
                                 }
                                 Menu {
+                                    id: menuMover
                                     title: "Mover a…"
                                     enabled: page.p.carpetas.length > 1
-                                    Repeater {
+                                    ItemsDeMenu {
+                                        menu: menuMover
                                         model: page.p.carpetas
                                         delegate: MenuItem {
                                             required property string modelData

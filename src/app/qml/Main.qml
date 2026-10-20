@@ -239,6 +239,11 @@ ApplicationWindow {
             delegate: Loader {
                 id: lugar
                 required property int index
+                // El StackLayout (Qt 6.6) solo le da tamaño a la que se ve: las que se
+                // precargan quedaban en 0×0, sus layouts se armaban con ancho 0 o negativo
+                // («polish loop») y se rehacían enteras al mostrarlas.
+                width: paginas.width
+                height: paginas.height
                 readonly property bool actual: paginas.currentIndex === index
                 property bool pedida: actual
                 onActualChanged: if (actual) pedida = true

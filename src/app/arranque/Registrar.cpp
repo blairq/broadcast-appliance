@@ -3,8 +3,10 @@
 // ============================================================================
 #include "arranque/Registrar.hpp"
 
+#include <chrono>
 #include <cstdarg>
 #include <cstdio>
+#include <mutex>
 #include <string>
 
 #include "diag/Caidas.hpp"
@@ -42,7 +44,28 @@ std::string conOrigen(const QMessageLogContext& c, const QString& msg) {
     return s;
 }
 
+/// «main thread missed N update(s) from display link»: Qt (macOS) lo avisa en cada
+/// refresco perdido, y con la pantalla bloqueada o dormida son decenas por segundo (el
+/// 90 % del registro, tapando lo demás). Se cuentan y sale una línea por minuto.
+bool juntarDisplayLink(const QString& msg) {
+    if (!msg.contains(QLatin1String("from display link"))) return false;
+    static std::mutex mu;
+    static std::chrono::steady_clock::time_point ultima{};
+    static int juntados = 0;
+    const auto ahora = std::chrono::steady_clock::now();
+    std::lock_guard<std::mutex> l(mu);
+    ++juntados;
+    if (ultima.time_since_epoch().count() != 0 && ahora - ultima < std::chrono::minutes(1)) return true;
+    ba::diag::registro().linea(Nivel::Aviso, "qt", 0,
+                               "el hilo de la interfaz perdió " + std::to_string(juntados) +
+                                   " refresco(s) de pantalla (display link) desde el aviso anterior");
+    ultima = ahora;
+    juntados = 0;
+    return true;
+}
+
 void handlerDeQt(QtMsgType tipo, const QMessageLogContext& c, const QString& msg) {
+    if (juntarDisplayLink(msg)) return;
     Nivel n = Nivel::Info;
     switch (tipo) {
         case QtDebugMsg: n = Nivel::Depuracion; break;

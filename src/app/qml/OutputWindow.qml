@@ -161,8 +161,10 @@ Window {
                         // ventana y ver adónde iba.
                         onTriggered: Studio.identificarPantallas()
                     }
-                    MenuSeparator {}
-                    Repeater {
+                    MenuSeparator { id: sepPantallas }
+                    ItemsDeMenu {
+                        menu: screenMenu
+                        despuesDe: sepPantallas
                         model: Qt.application.screens
                         delegate: MenuItem {
                             required property var modelData
@@ -210,7 +212,8 @@ Window {
                 onClicked: layoutMenu.popup()
                 Menu {
                     id: layoutMenu
-                    Repeater {
+                    ItemsDeMenu {
+                        menu: layoutMenu
                         model: [ { id: "grid", t: "Cuadricula" }, { id: "focus", t: "Foco" }, { id: "pip", t: "Imagen en imagen" }, { id: "row", t: "Fila" } ]
                         delegate: MenuItem {
                             required property var modelData
@@ -226,7 +229,8 @@ Window {
                 onClicked: vistaMenu.popup()
                 Menu {
                     id: vistaMenu
-                    Repeater {
+                    ItemsDeMenu {
+                        menu: vistaMenu
                         model: Studio.multiviews
                         delegate: MenuItem {
                             required property var modelData

@@ -215,7 +215,8 @@ Item {
                 alTocar: () => lspMenu.popup(lspBtn, 0, lspBtn.height)
                 Menu {
                     id: lspMenu
-                    Repeater {
+                    ItemsDeMenu {
+                        menu: lspMenu
                         model: m.mz ? m.mz.analisisLsp : []
                         delegate: MenuItem {
                             required property var modelData

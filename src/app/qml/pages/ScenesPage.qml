@@ -485,7 +485,8 @@ Rectangle {
                         onClicked: addSrcMenu.popup()
                         Menu {
                             id: addSrcMenu
-                            Repeater {
+                            ItemsDeMenu {
+                                menu: addSrcMenu
                                 model: Studio.sourceTypes
                                 delegate: MenuItem {
                                     required property string typeId
@@ -494,9 +495,11 @@ Rectangle {
                                     onTriggered: { const n = Studio.sources.add(typeId, displayName); if (n) page.selected = n }
                                 }
                             }
-                            MenuSeparator { visible: Studio.sources.guestSlots > 0 }
+                            MenuSeparator { id: sepInvitados; visible: Studio.sources.guestSlots > 0 }
                             // Invitados de la sala (WebRTC): camara y pantalla de cada lugar.
-                            Repeater {
+                            ItemsDeMenu {
+                                menu: addSrcMenu
+                                despuesDe: sepInvitados
                                 model: Studio.sources.guestSlots * 2
                                 delegate: MenuItem {
                                     required property int index
@@ -525,7 +528,8 @@ Rectangle {
                             id: qrMenu
                             property var opciones: []
                             onAboutToShow: opciones = Studio.qr.paraElegir()
-                            Repeater {
+                            ItemsDeMenu {
+                                menu: qrMenu
                                 model: qrMenu.opciones
                                 delegate: MenuItem {
                                     required property var modelData
@@ -549,12 +553,15 @@ Rectangle {
                         Menu {
                             id: carruselMenu
                             MenuItem {
+                                id: sinCarruseles
                                 visible: Studio.carruseles.carruseles.length === 0
                                 height: visible ? implicitHeight : 0
                                 text: "No hay carruseles: armar uno en Medios → Carruseles…"
                                 onTriggered: ApplicationWindow.window.page = Studio.riel.paginaDeId("medios")
                             }
-                            Repeater {
+                            ItemsDeMenu {
+                                menu: carruselMenu
+                                despuesDe: sinCarruseles
                                 model: Studio.carruseles.carruseles
                                 delegate: MenuItem {
                                     required property var modelData
@@ -578,7 +585,8 @@ Rectangle {
                         Menu {
                             id: reuseMenu
                             property var items: []
-                            Repeater {
+                            ItemsDeMenu {
+                                menu: reuseMenu
                                 model: reuseMenu.items
                                 delegate: MenuItem {
                                     required property var modelData
