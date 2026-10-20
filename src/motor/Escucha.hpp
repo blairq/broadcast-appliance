@@ -18,6 +18,8 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <functional>
+#include <future>
 #include <mutex>
 #include <string>
 
@@ -33,20 +35,29 @@ class Escucha {
     Escucha(const Escucha&) = delete;
     Escucha& operator=(const Escucha&) = delete;
 
-    /// Escuchar `productor` esperando `latenciaNs` (lo que tarda en salir). "" o el error.
-    std::string escuchar(const std::string& productor, std::int64_t latenciaNs);
+    /// Escuchar `productor` esperando `latenciaNs` (lo que tarda en salir). Como apagar,
+    /// ponerDispositivo y ponerNivel: NO ESPERA, lo hace su trabajador (abrir el dispositivo
+    /// de audio puede tardar segundos y lo pide el bucle del motor, con su candado). Un
+    /// error queda en el registro y en estado().
+    void escuchar(const std::string& productor, std::int64_t latenciaNs);
     void apagar();
     void ponerDispositivo(const std::string& id);
     void ponerNivel(double lineal);
-    /// Lo llama el motor: si lo escuchado cambió de latencia, se acomoda.
+    /// Lo llama el motor: si lo escuchado cambió de latencia, se acomoda (con el
+    /// trabajador ocupado, la saltea).
     void tic(std::int64_t latenciaNs);
+    /// Con el trabajador ocupado, lo último que se supo.
     nlohmann::json estado() const;
+    /// Espera lo encargado (las pruebas).
+    void esperar();
     /// Las salidas de audio del equipo: [{id, nombre}].
     static nlohmann::json dispositivos();
 
    private:
     void armar();
     void desarmar();
+    void encargar(std::function<void()> f); ///< al trabajador, en orden, con mu_
+    nlohmann::json estadoYa() const;         ///< con mu_ tomado
 
     Reloj& reloj_;
     mutable std::mutex mu_;
@@ -54,6 +65,10 @@ class Escucha {
     std::string productor_, dispositivo_, error_, sinkPrueba_;
     double nivel_ = 1.0, picoDb_ = -120;
     std::int64_t latenciaNs_ = 0;
+    std::mutex trabajoM_;
+    std::shared_future<void> trabajo_;
+    mutable std::mutex guardadoM_;
+    mutable nlohmann::json guardado_ = nlohmann::json::object();
 };
 
 } // namespace ba::motor

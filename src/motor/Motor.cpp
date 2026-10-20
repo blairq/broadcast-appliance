@@ -69,6 +69,7 @@ std::string Motor::iniciar() {
         }
         return {};
     });
+    vistas_->ponerDesarmador([this](std::function<void()> f) { desarmarAparte(std::move(f)); });
     // El programa para el gateway (lo que oyen los invitados en modo «programa»).
     if (!cfg_.prefijoAnillos.empty() && hayFabrica("baanillosink")) {
         const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
@@ -1209,13 +1210,15 @@ std::string Motor::escucharYa(const std::string& modo, const std::string& id) {
         escuchaModo_ = modo;
         escuchaId_.clear();
         directo_.reset();
-        return escucha_->escuchar(seleccion_->productor(), seleccion_->latenciaSalidaNs());
+        escucha_->escuchar(seleccion_->productor(), seleccion_->latenciaSalidaNs());
+        return {};
     }
     if (modo == "programa") {
         escuchaModo_ = modo;
         escuchaId_.clear();
         directo_.reset();
-        return escucha_->escuchar(programa_->productor(), programa_->latenciaSalidaNs());
+        escucha_->escuchar(programa_->productor(), programa_->latenciaSalidaNs());
+        return {};
     }
     if (modo == "directo") {
         if (!directo_) {
@@ -1227,7 +1230,8 @@ std::string Motor::escucharYa(const std::string& modo, const std::string& id) {
         }
         escuchaModo_ = modo;
         escuchaId_.clear();
-        return escucha_->escuchar(directo_->productor(), kDirectoNs + 20 * static_cast<std::int64_t>(GST_MSECOND));
+        escucha_->escuchar(directo_->productor(), kDirectoNs + 20 * static_cast<std::int64_t>(GST_MSECOND));
+        return {};
     }
     if (modo == "pfl") {
         auto it = canales_.find(id);
@@ -1236,7 +1240,8 @@ std::string Motor::escucharYa(const std::string& modo, const std::string& id) {
         escuchaModo_ = modo;
         escuchaId_ = id;
         directo_.reset();
-        return escucha_->escuchar(it->second.entrada->productorAudio(), reloj_->latencia());
+        escucha_->escuchar(it->second.entrada->productorAudio(), reloj_->latencia());
+        return {};
     }
     return "modo: programa, directo, pfl, seleccion o apagado";
 }

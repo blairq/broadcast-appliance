@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -155,18 +156,24 @@ void resondearSinAviso();
 class Vigia {
    public:
     static Vigia& el();
-    /// Lee los avisos del monitor (no bloquea).
+    /// Arranca su hilo si no estaba (no bloquea). Ahí vive todo lo que tarda: arrancar el
+    /// monitor, leer sus avisos y resondear cada 3 s. Antes lo hacía el tic de la primera
+    /// entrada de dispositivo, con el candado del motor: ~250 ms cada 3 s en macOS
+    /// (AVFoundation enumera las cámaras y se crea un elemento por cada una).
     void revisar();
-    /// ¿Está? (sin saberlo todavía: sí, para no trabar el arranque).
+    /// ¿Está? Lo último que supo el hilo; si todavía no arrancó, lo espera un poco (lo
+    /// llama el trabajador de una entrada al armarse) y, sin saberlo, sí.
     bool hay(bool esVideo, const std::string& id);
     std::uint64_t generacion() const { return generacion_.load(); }
 
    private:
+    void vigilar(); ///< el hilo
     void anotar(GstDevice* dev, bool esta);
-    void arrancar();
-    std::mutex mu_;
-    GstDeviceMonitor* mon_ = nullptr;
-    std::uint64_t ultimoSondeo_ = 0;
+    std::once_flag hilo_;
+    std::mutex mu_; ///< los conjuntos y `listo_`
+    std::condition_variable arranco_;
+    bool listo_ = false;
+    bool sinMonitor_ = false; ///< no arrancó: hay() dice que sí a todo
     std::set<std::string> audio_, video_;
     std::atomic<std::uint64_t> generacion_{1};
 };

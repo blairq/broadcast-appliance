@@ -64,6 +64,10 @@ class Vistas {
     void avisar(const std::string& clave, std::function<void(const Cuadro&)> fn);
     void tic();
     nlohmann::json estado() const;
+    /// Quién desarma los pipelines (Motor::desarmarAparte): pasarlos a NULL puede esperar
+    /// al contexto de GL (en macOS, el hilo principal) y lo pedía el motor con su candado
+    /// (200-500 ms al cerrar una vista previa). Sin él, acá mismo.
+    void ponerDesarmador(std::function<void(std::function<void()>)> d);
 
    private:
     struct Una {
@@ -83,6 +87,7 @@ class Vistas {
 
     Reloj& reloj_;
     Resolver resolver_;
+    std::function<void(std::function<void()>)> desarmador_; ///< bajo mu_
     mutable std::mutex mu_;
     std::map<std::string, Una*> vistas_;
     std::uint64_t serie_ = 0;

@@ -15,6 +15,7 @@
 #include <gst/video/video.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -538,6 +539,7 @@ void Vigia::anotar(GstDevice* dev, bool esta) {
     const std::string id = esVideo ? (camaraUsable(e) ? idDeCamara(dev, e) : std::string()) : idDeMicrofono(e);
     if (e != nullptr) gst_object_unref(e);
     if (id.empty()) return;
+    std::lock_guard<std::mutex> l(mu_);
     auto& conjunto = esVideo ? video_ : audio_;
     if (esta)
         conjunto.insert(id);
@@ -545,52 +547,62 @@ void Vigia::anotar(GstDevice* dev, bool esta) {
         conjunto.erase(id);
 }
 
-void Vigia::arrancar() {
-    if (mon_ != nullptr) return;
-    mon_ = gst_device_monitor_new();
-    gst_device_monitor_add_filter(mon_, "Audio/Source", nullptr);
-    gst_device_monitor_add_filter(mon_, "Video/Source", nullptr);
-    if (!gst_device_monitor_start(mon_)) return;
-    GList* lista = gst_device_monitor_get_devices(mon_);
-    for (GList* l = lista; l != nullptr; l = l->next) anotar(GST_DEVICE(l->data), true);
-    g_list_free_full(lista, gst_object_unref);
+void Vigia::revisar() {
+    std::call_once(hilo_, [this]() { std::thread([this]() { vigilar(); }).detach(); });
 }
 
-void Vigia::revisar() {
-    std::unique_lock<std::mutex> l(mu_, std::try_to_lock);
-    if (!l.owns_lock()) return;
-    arrancar();
-    if (mon_ == nullptr) return;
-    // Lo que se enchufó con la app abierta, en los proveedores que no avisan (cada 3 s).
-    const std::uint64_t ahora = g_get_monotonic_time();
-    if (ahora - ultimoSondeo_ > 3'000'000) {
-        ultimoSondeo_ = ahora;
-        resondearSinAviso();
+void Vigia::vigilar() {
+    GstDeviceMonitor* mon = gst_device_monitor_new();
+    gst_device_monitor_add_filter(mon, "Audio/Source", nullptr);
+    gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
+    const bool anda = gst_device_monitor_start(mon);
+    if (anda) {
+        GList* lista = gst_device_monitor_get_devices(mon);
+        for (GList* l = lista; l != nullptr; l = l->next) anotar(GST_DEVICE(l->data), true);
+        g_list_free_full(lista, gst_object_unref);
     }
-    GstBus* bus = gst_device_monitor_get_bus(mon_);
-    bool cambio = false;
-    while (GstMessage* m = gst_bus_pop(bus)) {
-        GstDevice* dev = nullptr;
-        if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_ADDED) {
-            gst_message_parse_device_added(m, &dev);
-            anotar(dev, true);
-            cambio = true;
-        } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_REMOVED) {
-            gst_message_parse_device_removed(m, &dev);
-            anotar(dev, false);
-            cambio = true;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        listo_ = true;
+        sinMonitor_ = !anda;
+    }
+    arranco_.notify_all();
+    if (!anda) {
+        gst_object_unref(mon);
+        return; // sin monitor: hay() dice que sí a todo
+    }
+    // Vive lo que el proceso. Los avisos, apenas llegan; lo que se enchufó en los
+    // proveedores que no avisan, cada 3 s.
+    GstBus* bus = gst_device_monitor_get_bus(mon);
+    std::int64_t ultimoSondeo = g_get_monotonic_time();
+    for (;;) {
+        if (g_get_monotonic_time() - ultimoSondeo > 3'000'000) {
+            ultimoSondeo = g_get_monotonic_time();
+            resondearSinAviso();
         }
-        if (dev != nullptr) gst_object_unref(dev);
-        gst_message_unref(m);
+        bool cambio = false;
+        for (GstMessage* m = gst_bus_timed_pop(bus, 500 * GST_MSECOND); m != nullptr; m = gst_bus_pop(bus)) {
+            GstDevice* dev = nullptr;
+            if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_ADDED) {
+                gst_message_parse_device_added(m, &dev);
+                anotar(dev, true);
+                cambio = true;
+            } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_REMOVED) {
+                gst_message_parse_device_removed(m, &dev);
+                anotar(dev, false);
+                cambio = true;
+            }
+            if (dev != nullptr) gst_object_unref(dev);
+            gst_message_unref(m);
+        }
+        if (cambio) ++generacion_;
     }
-    gst_object_unref(bus);
-    if (cambio) ++generacion_;
 }
 
 bool Vigia::hay(bool esVideo, const std::string& id) {
-    std::lock_guard<std::mutex> l(mu_);
-    arrancar();
-    if (mon_ == nullptr) return true;
+    revisar();
+    std::unique_lock<std::mutex> l(mu_);
+    if (!arranco_.wait_for(l, std::chrono::seconds(3), [this]() { return listo_; }) || sinMonitor_) return true;
     if (!esVideo) return audio_.count(id) > 0;
     for (const auto& v : video_)
         if (mismaCamara(v, id)) return true;

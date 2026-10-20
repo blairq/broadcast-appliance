@@ -35,8 +35,28 @@ constexpr std::int64_t kMargenNs = 40 * GST_MSECOND; // lo que tarda el propio s
 Escucha::Escucha(Reloj& reloj, std::string sinkPrueba) : reloj_(reloj), sinkPrueba_(std::move(sinkPrueba)) {}
 
 Escucha::~Escucha() {
+    esperar();
     std::lock_guard<std::mutex> l(mu_);
     desarmar();
+}
+
+void Escucha::encargar(std::function<void()> f) {
+    std::lock_guard<std::mutex> l(trabajoM_);
+    std::shared_future<void> antes = trabajo_;
+    trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f)]() {
+                   if (antes.valid()) antes.wait(); // en orden
+                   std::lock_guard<std::mutex> lm(mu_);
+                   f();
+               }).share();
+}
+
+void Escucha::esperar() {
+    std::shared_future<void> f;
+    {
+        std::lock_guard<std::mutex> l(trabajoM_);
+        f = trabajo_;
+    }
+    if (f.valid()) f.wait();
 }
 
 void Escucha::desarmar() {
@@ -84,40 +104,43 @@ void Escucha::armar() {
     if (!error_.empty()) registrar(Nivel::Aviso, "escucha: " + error_);
 }
 
-std::string Escucha::escuchar(const std::string& productor, std::int64_t latenciaNs) {
-    std::lock_guard<std::mutex> l(mu_);
-    productor_ = productor;
-    latenciaNs_ = std::max<std::int64_t>(0, latenciaNs);
-    armar();
-    return pipeline_ != nullptr ? std::string() : error_;
+void Escucha::escuchar(const std::string& productor, std::int64_t latenciaNs) {
+    encargar([this, productor, latenciaNs]() {
+        productor_ = productor;
+        latenciaNs_ = std::max<std::int64_t>(0, latenciaNs);
+        armar();
+    });
 }
 
 void Escucha::apagar() {
-    std::lock_guard<std::mutex> l(mu_);
-    productor_.clear();
-    desarmar();
+    encargar([this]() {
+        productor_.clear();
+        desarmar();
+    });
 }
 
 void Escucha::ponerDispositivo(const std::string& id) {
-    std::lock_guard<std::mutex> l(mu_);
-    if (id == dispositivo_) return;
-    dispositivo_ = id;
-    armar();
+    encargar([this, id]() {
+        if (id == dispositivo_) return;
+        dispositivo_ = id;
+        armar();
+    });
 }
 
 void Escucha::ponerNivel(double lineal) {
-    std::lock_guard<std::mutex> l(mu_);
-    nivel_ = std::clamp(lineal, 0.0, 4.0);
-    if (pipeline_ == nullptr) return;
-    if (GstElement* v = gst_bin_get_by_name(GST_BIN(pipeline_), "vol")) {
-        g_object_set(v, "volume", nivel_, nullptr);
-        gst_object_unref(v);
-    }
+    encargar([this, lineal]() {
+        nivel_ = std::clamp(lineal, 0.0, 4.0);
+        if (pipeline_ == nullptr) return;
+        if (GstElement* v = gst_bin_get_by_name(GST_BIN(pipeline_), "vol")) {
+            g_object_set(v, "volume", nivel_, nullptr);
+            gst_object_unref(v);
+        }
+    });
 }
 
 void Escucha::tic(std::int64_t latenciaNs) {
-    std::lock_guard<std::mutex> l(mu_);
-    if (pipeline_ == nullptr) return;
+    std::unique_lock<std::mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock() || pipeline_ == nullptr) return;
     // Lo escuchado tarda más (o bastante menos): se acomoda la espera.
     if (latenciaNs > latenciaNs_ + static_cast<std::int64_t>(5 * GST_MSECOND) ||
         latenciaNs < latenciaNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
@@ -154,7 +177,13 @@ void Escucha::tic(std::int64_t latenciaNs) {
 }
 
 json Escucha::estado() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::unique_lock<std::mutex> l(mu_, std::try_to_lock);
+    std::lock_guard<std::mutex> lg(guardadoM_);
+    if (l.owns_lock()) guardado_ = estadoYa();
+    return guardado_;
+}
+
+json Escucha::estadoYa() const {
     return {{"escucha", productor_},
             {"anda", pipeline_ != nullptr},
             {"dispositivo", dispositivo_},

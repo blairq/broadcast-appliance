@@ -30,6 +30,7 @@ Vistas::Vistas(Reloj& reloj, Resolver resolver) : reloj_(reloj), resolver_(std::
 
 Vistas::~Vistas() {
     std::lock_guard<std::mutex> l(mu_);
+    desarmador_ = nullptr; // al morir, acá: el motor ya esperó sus desarmes
     for (auto& [k, u] : vistas_) {
         desarmar(*u);
         delete u;
@@ -170,10 +171,27 @@ void Vistas::armar(const std::string& clave, Una& u) {
     u.pipeline = p;
 }
 
+void Vistas::ponerDesarmador(std::function<void(std::function<void()>)> d) {
+    std::lock_guard<std::mutex> l(mu_);
+    desarmador_ = std::move(d);
+}
+
 void Vistas::desarmar(Una& u) {
     if (u.pipeline == nullptr) return;
     GstElement* p = u.pipeline;
     u.pipeline = nullptr;
+    if (desarmador_) {
+        // Que no avise más (su Llamada busca la clave: ya puede ser otra vista).
+        if (GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s")) {
+            g_object_set(s, "emit-signals", FALSE, nullptr);
+            gst_object_unref(s);
+        }
+        desarmador_([p]() {
+            gst_element_set_state(p, GST_STATE_NULL);
+            gst_object_unref(p);
+        });
+        return;
+    }
     // Sin el lock: el callback del cuadro lo toma (set_state espera a que termine).
     mu_.unlock();
     gst_element_set_state(p, GST_STATE_NULL);
