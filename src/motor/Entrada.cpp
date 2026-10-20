@@ -785,8 +785,19 @@ void Entrada::armar() {
         : desentrelazar_ == "auto"
             ? std::string("deinterlace mode=auto ! ")
             : "deinterlace mode=interlaced method=" + desentrelazar_ + (campo_ != "auto" ? " fields=all tff=" + campo_ : "") + " ! ";
+    // EL RITMO: lo en vivo solo TIRA lo que sobra (una cámara a 60 en un lienzo de 30); no repite.
+    // El compositor ya repite el último cuadro de una entrada a la que le falta uno, y un
+    // videorate que repite se queda con cada cuadro hasta ver el siguiente cuando las horas de
+    // la cámara no caen justo en la grilla (Media Foundation estampa al entregar): retenía ~2
+    // cuadros (70 ms medidos con la C910). Un archivo sí necesita el videorate completo.
+    // Solo TIRAR sirve si la fuente da al menos los cuadros del lienzo (con menos no negocia:
+    // no puede llegar a 30 sin repetir): una cámara cuyo modo elegido los da. El resto (red,
+    // invitados, menos cuadros, archivos), el videorate completo.
+    const double cpsLienzo = lienzo_.fpsD > 0 ? static_cast<double>(lienzo_.fpsN) / lienzo_.fpsD : 30.0;
+    const bool soloTira = !medio_ && !camara_.empty() && modoCamara_.is_object() && modoCamara_.value("cps", 0.0) >= cpsLienzo - 0.5;
+    const std::string ritmoV = soloTira ? "videorate skip-to-first=true drop-only=true ! " : "videorate skip-to-first=true ! ";
     if (normalizar_) {
-        antes = desentrelazar + "videorate skip-to-first=true ! videoconvertscale ! ";
+        antes = desentrelazar + ritmoV + "videoconvertscale ! ";
         capsVideo = capsColorDelLienzo(lienzo_) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
     }
     // LOS FILTROS (las tarjetas del grafo). La superresolución vieja es uno más.
@@ -816,12 +827,12 @@ void Entrada::armar() {
         const bool placaPrimero = !filtrosV.front().memoria.empty();
         if (placaPrimero) {
             antes = cola + cadenaV + "videoconvert ! " +
-                    (normalizar_ ? desentrelazar + "videorate skip-to-first=true ! videoconvertscale ! " : "");
+                    (normalizar_ ? desentrelazar + ritmoV + "videoconvertscale ! " : "");
         } else {
             const std::string cadena =
                 std::string(normalizar_ ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") + cola +
                 cadenaV + "videoconvert ! ";
-            antes = normalizar_ ? desentrelazar + cadena + "videorate skip-to-first=true ! videoconvertscale ! " : cadena;
+            antes = normalizar_ ? desentrelazar + cadena + ritmoV + "videoconvertscale ! " : cadena;
         }
     }
     if (alfa_) {
@@ -850,7 +861,7 @@ void Entrada::armar() {
                                    hayFabrica(gpu() == Gpu::D3D12 ? "d3d12deinterlace" : "gldeinterlace");
         antes = (estatica_ ? std::string() : subirGpu() + " ! " + textura + " ! ") +
                 (desentrelazar ? desentrelazador + " ! " : "") + (cadenaV.empty() ? "" : cola + cadenaV) +
-                (normalizar_ && !estatica_ ? "videorate skip-to-first=true ! " : "");
+                (normalizar_ && !estatica_ ? ritmoV : "");
         capsVideo = (cadenaV.empty() && estatica_ ? std::string() : subirGpu() + " ! ") + gl;
     }
     // NORMALIZAR (la tarjeta): la colorimetría de verdad se impone en las caps
