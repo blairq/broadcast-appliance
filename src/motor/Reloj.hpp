@@ -91,8 +91,27 @@ class Reloj {
     /// Lo que pide `quien` (ns). Devuelve la del estudio (ns).
     std::int64_t anotar(const std::string& quien, std::int64_t ns);
     void olvidar(const std::string& quien);
-    /// La latencia del estudio (ns): la mayor de las anotadas que no pasan el tope.
+    /// La latencia del estudio (ns): la FIJADA. No sigue cada medición: sube si lo que piden
+    /// las entradas sincronizadas lo pide sostenido (revisarLatencia) y baja solo con permiso
+    /// (sin nada al aire) o a pedido (bajarLatencia). Cambiarla en vivo mueve la línea de tiempo
+    /// de todas las salidas (congela o saltea): por eso no se mueve con cada corte.
     std::int64_t latencia() const;
+    /// Lo que piden ahora (ns): la mayor de las anotadas que no pasan el tope.
+    std::int64_t objetivo() const;
+    /// Quién pide el objetivo ("" si nadie).
+    std::string laMarca() const;
+    /// Una vez por vuelta del motor: sube si el objetivo pasa la fijada hace kSostenerSubidaNs;
+    /// con `puedeBajar`, baja si queda por debajo (más de 20 ms) hace kSostenerBajadaNs.
+    /// Devuelve true si cambió (para avisar).
+    bool revisarLatencia(bool puedeBajar);
+    /// Bajar ahora a lo que piden (el operador lo pide).
+    bool bajarLatencia();
+    /// Si hay una bajada esperando permiso (la fijada está arriba de lo que piden).
+    bool puedeBajarse() const;
+    /// Para las pruebas: da por terminado el arranque (los primeros segundos sigue al objetivo).
+    void saltearArranque();
+    static constexpr std::int64_t kSostenerSubidaNs = 2 * GST_SECOND;
+    static constexpr std::int64_t kSostenerBajadaNs = 10 * GST_SECOND;
     /// ¿Pasa el tope?
     bool llegaTarde(std::int64_t ns) const;
     /// Las anotadas: quien → ns.
@@ -105,6 +124,10 @@ class Reloj {
     mutable std::mutex mu_;
     std::int64_t topeMs_ = -1;
     std::map<std::string, std::int64_t> pedidas_;
+    std::int64_t fijada_ = -1;              ///< -1 = todavía no (arranque: sigue al objetivo)
+    std::int64_t subeDesde_ = 0, bajaDesde_ = 0;
+    std::int64_t arranque_ = 0;
+    std::int64_t objetivoSinLock() const;
 };
 
 constexpr std::int64_t kTopeAutomaticoMs = 250;

@@ -171,6 +171,12 @@ void Motor::bucle() {
             // tarda dice cuál de sus partes fue (ver Candado.hpp).
             BA_CANDADO(mu_);
             correrOrdenes();
+            // La latencia del estudio: estable (sube si lo piden sostenido; baja con permiso).
+            if (reloj_->revisarLatencia(permitirBajar_.load())) {
+                const std::string quien = reloj_->laMarca();
+                registrar(Nivel::Info, "latencia del estudio: " + std::to_string(reloj_->latencia() / 1000000) + " ms" +
+                                           (quien.empty() ? std::string() : " (la marca «" + quien + "»)"));
+            }
             if (revisarUso) {
                 Tramo t("actualizarUso");
                 actualizarUso();
@@ -1421,6 +1427,10 @@ json Motor::estado() const {
             {"tbar_hacia", vPrograma_ ? vPrograma_->manualHacia() : std::string()},
             {"estudio",
              {{"latencia_ms", static_cast<double>(reloj_->latencia()) / 1e6},
+              {"objetivo_ms", static_cast<double>(reloj_->objetivo()) / 1e6},
+              {"la_marca", reloj_->laMarca()},
+              {"puede_bajarse", reloj_->puedeBajarse()},
+              {"baja_sola", permitirBajar_.load()},
               {"tope_ms", reloj_->topeMs()},
               {"tope_automatico", reloj_->topeAutomatico()},
               {"llegan_tarde", tarde}}},

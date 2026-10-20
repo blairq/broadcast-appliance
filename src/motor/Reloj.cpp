@@ -401,13 +401,87 @@ void Reloj::olvidar(const std::string& quien) {
     pedidas_.erase(quien);
 }
 
-std::int64_t Reloj::latencia() const {
-    const std::int64_t tope = topeMs() * static_cast<std::int64_t>(GST_MSECOND);
-    std::lock_guard<std::mutex> l(mu_);
+std::int64_t Reloj::objetivoSinLock() const {
+    const std::int64_t tope = (topeMs_ >= 0 ? topeMs_ : kTopeAutomaticoMs) * static_cast<std::int64_t>(GST_MSECOND);
     std::int64_t m = 0;
     for (const auto& [x, v] : pedidas_)
         if (v <= tope) m = std::max(m, v); // las que pasan el tope no arrastran
     return m;
+}
+
+std::int64_t Reloj::objetivo() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return objetivoSinLock();
+}
+
+std::string Reloj::laMarca() const {
+    const std::int64_t tope = topeMs() * static_cast<std::int64_t>(GST_MSECOND);
+    std::lock_guard<std::mutex> l(mu_);
+    std::string quien;
+    std::int64_t m = -1;
+    for (const auto& [x, v] : pedidas_)
+        if (v <= tope && v > m) m = v, quien = x;
+    return quien;
+}
+
+std::int64_t Reloj::latencia() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return fijada_ >= 0 ? fijada_ : objetivoSinLock();
+}
+
+bool Reloj::revisarLatencia(bool puedeBajar) {
+    std::lock_guard<std::mutex> l(mu_);
+    const std::int64_t ahora = static_cast<std::int64_t>(g_get_monotonic_time()) * 1000;
+    const std::int64_t obj = objetivoSinLock();
+    if (arranque_ == 0) arranque_ = ahora;
+    // Los primeros segundos (las entradas recién arrancan y miden): sigue al objetivo.
+    if (fijada_ < 0 || ahora - arranque_ < 8 * static_cast<std::int64_t>(GST_SECOND)) {
+        const bool cambio = fijada_ != obj;
+        fijada_ = obj;
+        return cambio && ahora - arranque_ >= 8 * static_cast<std::int64_t>(GST_SECOND);
+    }
+    if (obj > fijada_) {
+        bajaDesde_ = 0;
+        if (subeDesde_ == 0) subeDesde_ = ahora;
+        if (ahora - subeDesde_ >= kSostenerSubidaNs) {
+            fijada_ = obj;
+            subeDesde_ = 0;
+            return true;
+        }
+        return false;
+    }
+    subeDesde_ = 0;
+    if (puedeBajar && obj < fijada_ - 20 * static_cast<std::int64_t>(GST_MSECOND)) {
+        if (bajaDesde_ == 0) bajaDesde_ = ahora;
+        if (ahora - bajaDesde_ >= kSostenerBajadaNs) {
+            fijada_ = obj;
+            bajaDesde_ = 0;
+            return true;
+        }
+    } else {
+        bajaDesde_ = 0;
+    }
+    return false;
+}
+
+void Reloj::saltearArranque() {
+    std::lock_guard<std::mutex> l(mu_);
+    arranque_ = static_cast<std::int64_t>(g_get_monotonic_time()) * 1000 - 60 * static_cast<std::int64_t>(GST_SECOND);
+    if (fijada_ < 0) fijada_ = objetivoSinLock();
+}
+
+bool Reloj::bajarLatencia() {
+    std::lock_guard<std::mutex> l(mu_);
+    const std::int64_t obj = objetivoSinLock();
+    if (fijada_ >= 0 && obj >= fijada_) return false;
+    fijada_ = obj;
+    bajaDesde_ = subeDesde_ = 0;
+    return true;
+}
+
+bool Reloj::puedeBajarse() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return fijada_ >= 0 && objetivoSinLock() < fijada_ - 20 * static_cast<std::int64_t>(GST_MSECOND);
 }
 
 std::map<std::string, std::int64_t> Reloj::anotadas() const {

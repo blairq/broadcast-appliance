@@ -48,6 +48,13 @@ Rectangle {
     property bool verAudio: true
     property bool soloMedido: false
     property string elegido: ""     ///< el nodo tocado (resalta su camino)
+    /// La pestaña: "mapa" (los tiempos de cada entrada a cada salida) o "sincronia" (la latencia del
+    /// estudio, quién la marca, la clase de cada entrada, reloj y red). La vista única de sincronización.
+    property string pestana: "mapa"
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) { if (pagina === "latencias") page.pestana = seccion === "sincronia" ? "sincronia" : "mapa" }
+    }
     /// La entrada cuyo recorrido por dentro se ve (al tocar su tarjeta o la de uno de sus pasos).
     property string recorridoDe: ""
     property var recorridoElementos: []   ///< los elementos de la tarjeta elegida (se resaltan)
@@ -214,20 +221,38 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Latencias del pipeline"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: "Latencias y sincronía"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Row {
+                spacing: 4
+                GlassButton { compact: true; text: "Mapa"; icon: "⤳"; active: page.pestana === "mapa"; onClicked: page.pestana = "mapa" }
+                GlassButton { compact: true; text: "Sincronía"; icon: "⏱"; active: page.pestana === "sincronia"; onClicked: page.pestana = "sincronia" }
+            }
             StatusPill {
                 readonly property var es: page.mapa.estudio || {}
                 text: "Estudio " + page.ms(es.latencia_ms) + (es.tope_ms ? " · tope " + page.ms(es.tope_ms) : "")
                 dot: Theme.ok
+                TapHandler { onTapped: page.pestana = "sincronia" }
             }
             Text {
                 Layout.fillWidth: true
-                text: "De la captura a cada salida. Medido: lo que pasó de verdad · declarado: la latencia que se le fijó. Tocá una tarjeta para ver su detalle y su camino."
+                text: page.pestana === "mapa"
+                      ? "De la captura a cada salida. Medido: lo que pasó de verdad · declarado: la latencia que se le fijó. Tocá una tarjeta para ver su detalle."
+                      : "Todo alineado con la menor latencia: quién la marca, qué entradas se sincronizan con la sala, reloj y red."
                 color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
             }
         }
 
+        // --- Sincronía (la otra pestaña) ----------------------------------------------------
+        VistaSincronia {
+            visible: page.pestana === "sincronia"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            vg: Studio.video
+            onVerMapa: page.pestana = "mapa"
+        }
+
         RowLayout {
+            visible: page.pestana === "mapa"
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 12
@@ -523,6 +548,7 @@ Rectangle {
 
         // --- La línea de tiempo: las tarjetas elegidas, con los eventos abajo --------------------
         Rectangle {
+            visible: page.pestana === "mapa"
             Layout.fillWidth: true
             Layout.preferredHeight: page.serie.length === 0 ? 46 : (page.modoLinea === "apiladas" ? Math.min(360, 80 + 64 * page.serie.length) : 220)
             Behavior on Layout.preferredHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -614,6 +640,7 @@ Rectangle {
 
         // --- Abajo: los análisis ------------------------------------------------------------
         Rectangle {
+            visible: page.pestana === "mapa"
             Layout.fillWidth: true
             // Vacío, una línea; con análisis, la tira de tarjetas.
             Layout.preferredHeight: page.tm && page.tm.analisis.length > 0 ? 112 : 40

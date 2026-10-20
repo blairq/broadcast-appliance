@@ -491,6 +491,12 @@ void Entrada::leer(const json& a) {
     deApp_ = tipo == "app";
     estatica_ = tipo == "color" || tipo == "imagen" || tipo == "texto" || tipo == "app";
     fija_ = tipo == "color" || tipo == "imagen" || tipo == "texto";
+    // La clase de sincronía de fábrica: lo que viene de afuera (un invitado por WebRTC, la
+    // sesión remota: llegan por un anillo) y lo que se comparte (ventanas, pantallas, la app)
+    // va con su propia demora; las cámaras, capturadoras y micrófonos de la sala, sincronizados.
+    claseExplicita_ = a.contains("estudio") && a["estudio"].is_boolean();
+    if (!claseExplicita_)
+        estudio_ = !(descripcion_.find("anillo") != std::string::npos || tipo == "ventana" || tipo == "pantalla" || tipo == "app");
     const int w = a.value("ancho", lienzo_.ancho), h = a.value("alto", lienzo_.alto);
     const std::string tam = ",width=" + std::to_string(std::max(2, w)) + ",height=" + std::to_string(std::max(2, h));
     bool alfaTipo = false;
@@ -1178,7 +1184,8 @@ void Entrada::corregirOffset() {
                                                   : (std::string(n) == "ba_iv" ? realineadoV_ : realineadoA_);
                     const gint64 propio = (std::string(n) == "ba_ia" ? desfaseAudioMs_ : desfaseVideoMs_) *
                                           static_cast<gint64>(GST_MSECOND);
-                    gst_pad_set_offset(antes, dif + desf + propio);
+                    // + el retraso propio (con su propia demora): audio y video juntos.
+                    gst_pad_set_offset(antes, dif + desf + propio + retrasoPropioNs_);
                     gst_object_unref(antes);
                 }
                 gst_object_unref(pad);
@@ -1211,6 +1218,7 @@ void Entrada::medirLatencia() {
             std::sort(v.begin(), v.end());
             edadP50_ = v[v.size() / 2];
             edadP95_ = std::clamp(v[v.size() * 95 / 100], 0.0, 5000.0);
+            edadP90_ = std::clamp(v[v.size() * 90 / 100], 0.0, 5000.0);
         }
         // Por rama: `edades_` es el video (o el audio, si la entrada no tiene video).
         const auto percentiles = [](const std::deque<double>& d, double& p50, double& p95) {
@@ -1298,7 +1306,10 @@ void Entrada::medirLatencia() {
         }
     }
     const std::int64_t piso = latenciaMs_ * static_cast<std::int64_t>(GST_MSECOND);
-    const double necesitaMs = std::max(declaradoMs_ + 15.0, edadP95_ + 10.0);
+    // Lo que necesita, sobre la edad SIN correr (el retraso propio la achica al medir) y con el
+    // p90: un par de cuadros trabados no arrastran la latencia de todos.
+    const double edadReal = edadP90_ + static_cast<double>(retrasoPropioNs_) / 1e6;
+    const double necesitaMs = std::max(declaradoMs_ + 15.0, edadReal + 10.0);
     const std::int64_t propia = std::max<std::int64_t>(piso, static_cast<std::int64_t>(necesitaMs * 1e6));
     const std::int64_t pide = datos > 30 ? propia : piso;
     pide_ = pide;
@@ -1311,6 +1322,37 @@ void Entrada::medirLatencia() {
         reloj_.anotar(id_, pide);
     else
         reloj_.olvidar(id_);
+    // Con su propia demora (o sincronizada que pasa el tope): se le corre la hora lo que se pasa
+    // del plazo del compositor (la latencia del estudio + su margen), redondeado a 10 ms. Con
+    // histéresis: cambia si la diferencia pasa 20 ms y se sostiene 3 s.
+    if (datos > 30) {
+        std::int64_t deseado = 0;
+        if (!estudio_ || tarde) {
+            const std::int64_t plazo = reloj_.latencia() + ajustes::msANs("audio.margenMezclaMs", 30);
+            const std::int64_t exceso = pide - plazo;
+            if (exceso > 0) deseado = ((exceso + 10 * static_cast<std::int64_t>(GST_MSECOND) - 1) / (10 * static_cast<std::int64_t>(GST_MSECOND))) * 10 * static_cast<std::int64_t>(GST_MSECOND);
+        }
+        const std::int64_t dif = deseado > retrasoPropioNs_ ? deseado - retrasoPropioNs_ : retrasoPropioNs_ - deseado;
+        if (dif > 20 * static_cast<std::int64_t>(GST_MSECOND) || (deseado == 0 && retrasoPropioNs_ != 0)) {
+            const std::int64_t ahoraN = static_cast<std::int64_t>(ahoraNs());
+            if (propioCandidatoNs_ < 0 || std::llabs(propioCandidatoNs_ - deseado) > 10 * static_cast<std::int64_t>(GST_MSECOND)) {
+                propioCandidatoNs_ = deseado;
+                propioDesdeNs_ = ahoraN;
+            } else if (ahoraN - propioDesdeNs_ > 3 * static_cast<std::int64_t>(GST_SECOND)) {
+                registrar(Nivel::Info, id_ + ": va con su propia demora: " + std::to_string(deseado / 1000000) + " ms (antes " +
+                                           std::to_string(retrasoPropioNs_ / 1000000) + ")");
+                retrasoPropioNs_ = deseado;
+                propioCandidatoNs_ = -1;
+                corregirOffset();
+                // Lo medido hasta acá venía con el retraso anterior: se vuelve a juntar.
+                std::lock_guard<std::mutex> lm(medMu_);
+                edades_.clear();
+                edadesA_.clear();
+            }
+        } else {
+            propioCandidatoNs_ = -1;
+        }
+    }
     // RTSP: la hora de la cámara (RTCP) muy corrida hace que los cuadros salgan «del
     // futuro» (edad negativa). Sostenido: se deja de usar su hora y se rearma.
     if (ntpSync_ && !ntpApagadoSolo_ && uri_.rfind("rtsp", 0) == 0 && datos > 60 && edadP50_ < -ajustes::entero("entradas.avisoHoraMs", 400)) {
@@ -1773,6 +1815,10 @@ json Entrada::estadoYa() const {
     json j{{"id", id_},
            {"modo_camara", modoCamara_.is_null() ? json() : modoCamara_},
            {"gpu", gpuVideo()},
+           {"clase", estudio_ ? "sala" : "propia"},
+           {"clase_de_fabrica", !claseExplicita_},
+           {"pide_ms", static_cast<double>(pide_.load()) / 1e6},
+           {"retraso_propio_ms", static_cast<double>(retrasoPropioNs_) / 1e6},
            {"fija", fija_},
            {"nombre", nombre_.empty() ? id_ : nombre_},
            {"anda", pipeline_ != nullptr},

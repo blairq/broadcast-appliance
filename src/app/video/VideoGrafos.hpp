@@ -155,7 +155,7 @@ class VideoGrafos : public QObject {
     /// cadena, las ramas abajo), los controladores a la izquierda, los
     /// compositores a la derecha. "" o el error.
     Q_INVOKABLE QString ordenar();
-    // --- Sincronía y red, para la interfaz (controls/PanelSincronia.qml) ---------
+    // --- Sincronía y red, para la interfaz (controls/VistaSincronia.qml, en Latencias) ---
     Q_INVOKABLE QVariantMap relojUi() const;
     Q_INVOKABLE QString configurarRelojUi(const QVariantMap& cambios);
     /// Las entradas de GStreamer (red y plugins) con su estado y diagnóstico.
@@ -186,6 +186,14 @@ class VideoGrafos : public QObject {
     nlohmann::json estudioLatencia(int tope = -2);
     Q_INVOKABLE QVariantMap estudioLatenciaUi();
     Q_INVOKABLE void ponerTopeEstudioUi(int tope);
+    /// La clase de sincronía de una entrada: "sala" (sincronizada: marca la latencia del estudio),
+    /// "propia" (con su propia demora: no arrastra a las demás) o "auto" (la de su tipo).
+    std::string claseSincronia(const std::string& entrada, const std::string& clase);
+    Q_INVOKABLE QString claseSincroniaUi(const QString& entrada, const QString& clase) {
+        return QString::fromStdString(claseSincronia(entrada.toStdString(), clase.toStdString()));
+    }
+    /// Bajar la latencia del estudio ahora (a lo que piden las sincronizadas). "" o por qué no.
+    Q_INVOKABLE QString bajarLatenciaUi();
 
     // --- Automixer de mesa redonda (T32) ---------------------------------------------------
     /// Pone al micrófono (o a cualquier entrada de GStreamer con audio) en la mesa

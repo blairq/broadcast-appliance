@@ -335,7 +335,9 @@ json armar(const Fotos& f) {
             // El desfase (a mano, sincronizar, el retardo del audio) corre la HORA del cuadro: la edad
             // medida queda corrida eso (con +200, −196 ms). Lo que tarda de verdad es edad + desfase;
             // y queda listo para mostrarse recién a su hora (la escena lo espera): el mayor de los dos.
-            const double desfase = num(e, "desfase_ms", 0.0) + num(e, esAudio ? "desfase_audio_ms" : "desfase_video_ms", 0.0);
+            // + el retraso propio (una entrada con su propia demora: su hora va corrida eso).
+            const double desfase = num(e, "desfase_ms", 0.0) + num(e, esAudio ? "desfase_audio_ms" : "desfase_video_ms", 0.0) +
+                                   num(e, "retraso_propio_ms", 0.0);
             const double total = medida ? num(edad, "p50_ms", 0.0) + desfase : -1;
             if (medida) {
                 // La entrada: lo que no es de sus pasos (captura, decodificación, colas).

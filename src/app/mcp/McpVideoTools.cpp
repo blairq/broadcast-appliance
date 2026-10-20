@@ -1192,17 +1192,69 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "estudio_latencia";
-        t.title = "Latencia del estudio (y su tope)";
+        t.title = "Sincronía del estudio: la latencia, quién la marca y cada entrada";
         t.category = "video";
         t.description =
-            "Cuánto atrasa el estudio para alinear las entradas entre sí (la mayor compensación que piden, hasta el "
-            "tope), el tope y qué entradas LLEGAN TARDE (piden más que el tope, p. ej. una cámara con "
-            "superresolución pesada: van con su propia demora en vez de atrasar todo). Con `tope_ms` lo cambia "
-            "(-1 = automático: 250 ms, deja afuera solo lo pesado como la superresolución); se guarda.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}}}}};
+            "El estado de la sincronía. Todas las entradas SINCRONIZADAS (clase «sala»: cámaras, capturadoras, "
+            "micrófonos de la sala) salen alineadas entre sí y con el audio: el estudio espera a la más lenta. Devuelve:\n"
+            "- `latencia_ms`: la FIJADA, la que usan todas las salidas. En vivo solo sube (si lo piden sostenido 2 s); "
+            "baja sola sin nada al aire o con `bajar: true` (bajarla al aire mueve la línea de tiempo de las salidas: "
+            "un salto). `objetivo_ms` es lo que piden ahora; `puede_bajarse` si hay una bajada esperando.\n"
+            "- `la_marca`: la entrada que la marca (para bajarla, hay que mejorar ESA: otro modo de cámara, menos "
+            "procesamiento, o pasarla a «propia» con sincronia_clase).\n"
+            "- `entradas`: cada una con `clase` (sala | propia), `pide_ms` (su edad p90 + 10), `edad_p50_ms`/`edad_p95_ms`, "
+            "`retraso_propio_ms` (las «propias»: cuánto se les corre la hora para entrar al plazo sin arrastrar a las "
+            "demás; audio y video juntos), `llega_tarde`.\n"
+            "- `margen_ms` (lo que suma el compositor arriba) y `tope_ms` (más que esto no arrastra: va con su propia "
+            "demora). `tope_ms` lo cambia (-1 = automático, 250 ms); se guarda.\n"
+            "Para ver dónde se va el tiempo de una entrada: tiempos_pipeline. Para medir el desfase entre dos "
+            "cámaras de verdad: video_sincronia.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}},
+                           {"bajar", {{"type", "boolean"}, {"description", "bajar la latencia ahora a lo que piden (si hay algo al aire, hay un salto)"}}}}}};
+        t.examples = {R"({})", R"({"bajar": true})", R"({"tope_ms": 200})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
-            done(ToolResult().data(v->estudioLatencia(a.contains("tope_ms") ? a.value("tope_ms", -1) : -2)));
+            json r = v->estudioLatencia(a.contains("tope_ms") ? a.value("tope_ms", -1) : -2);
+            if (a.value("bajar", false)) {
+                const std::string e = v->bajarLatenciaUi().toStdString();
+                r = v->estudioLatencia(-2);
+                r["bajada"] = e.empty() ? "bajó a lo que piden" : e;
+            }
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sincronia_clase";
+        t.title = "Si una entrada se sincroniza con la sala o va con su propia demora";
+        t.category = "video";
+        t.description =
+            "La clase de sincronía de una `entrada`:\n"
+            "- `sala`: sincronizada. Marca la latencia del estudio (el estudio espera a la más lenta de estas) y "
+            "sale alineada con las demás y con el audio. Para todo lo que está en el lugar: dos cámaras que toman a "
+            "la misma persona no pueden tener desfase entre sí.\n"
+            "- `propia`: con su propia demora. No arrastra la latencia de las demás; si llega después del plazo, se "
+            "le corre la hora (audio y video juntos: el que habla sigue en sincronía consigo mismo). Para lo que "
+            "viene de afuera o no necesita alinearse con la sala: invitados por WebRTC, la sesión remota, una "
+            "ventana o pantalla compartida, una cámara lenta que no toma lo mismo que las otras.\n"
+            "- `auto`: la de su tipo (de fábrica: invitados, sesión remota, ventanas y pantallas van «propia»; el "
+            "resto, «sala»).\n"
+            "Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estudio_latencia muestra la "
+            "clase de cada una y quién marca la latencia.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "clase"}},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}}},
+                           {"clase", {{"type", "string"}, {"enum", {"sala", "propia", "auto"}}}}}}};
+        t.examples = {R"({"entrada": "Invitado 1", "clase": "propia"})", R"({"entrada": "Cámara 2", "clase": "sala"})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string e = v->claseSincronia(a.value("entrada", std::string()), a.value("clase", std::string()));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(v->estudioLatencia(-2)));
         };
         core_.addTool(std::move(t));
     }

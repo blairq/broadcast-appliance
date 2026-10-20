@@ -2218,6 +2218,23 @@ json VideoGrafos::estudioLatencia(int tope) {
 QVariantMap VideoGrafos::estudioLatenciaUi() { return aVariant(estudioLatencia()).toMap(); }
 void VideoGrafos::ponerTopeEstudioUi(int tope) { estudioLatencia(tope); }
 
+std::string VideoGrafos::claseSincronia(const std::string& entrada, const std::string& clase) {
+    if (rt_.engine().sourceTypeId(entrada).empty()) return "no hay una entrada «" + entrada + "»";
+    json v;
+    if (clase == "sala") v = true;
+    else if (clase == "propia") v = false;
+    else if (clase == "auto") v = nullptr; // sin elegir: la de su tipo
+    else return "clase: sala, propia o auto";
+    if (!rt_.updateSourceSettings(entrada, json{{"estudio", v}}.dump(-1, ' ', false, json::error_handler_t::replace)))
+        return rt_.lastError();
+    rt_.save();
+    return {};
+}
+
+QString VideoGrafos::bajarLatenciaUi() {
+    return rt_.engine().bajarLatenciaEstudio() ? QString() : QStringLiteral("ya está en lo que piden las entradas sincronizadas");
+}
+
 std::string VideoGrafos::automixer(const std::string& entrada, const std::string& grupo) {
     if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
         return "«" + entrada + "» no es una entrada de GStreamer (los micrófonos del equipo lo son)";

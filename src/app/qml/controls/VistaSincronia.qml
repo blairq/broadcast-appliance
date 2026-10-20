@@ -1,26 +1,21 @@
-// «Sincronía y red» (desde la página Video): lo que el asistente hace con
-// video_reloj, video_entrada_red, video_sincronia, video_desfase y
-// video_estado, para un humano.
-//   - El reloj del estudio (sistema, NTP, PTP, el de otro aparato) y publicar
-//     el propio; el colchón de las entradas de red.
-//   - Las entradas de red y de plugins: cómo llegan (fps, cuadros tarde,
-//     reloj, colchón, desfase) y qué dice el diagnóstico, con su arreglo.
-//   - Medir cuánto atrasa una de otra y corregirlo; el desfase a mano.
-//   - Una entrada de red nueva (SRT, RTMP, RTSP, UDP, HTTP).
+// La pestaña «Sincronía» de la vista de Latencias (la vista única de sincronización; Video
+// lleva acá con su botón «Sincronía y red…»). Lo que el asistente hace con estudio_latencia,
+// sincronia_clase, video_reloj, video_entrada_red, video_sincronia y video_desfase, para un humano:
+//   - La latencia del estudio: el número, quién la marca y cada entrada contra esa línea
+//     (sincronizadas con la sala o con su propia demora; se cambia con un toque).
+//   - El reloj del estudio y el colchón de las entradas de red.
+//   - Las entradas de red y de plugins, con su diagnóstico; comprobar dos cámaras; el audio
+//     de cada canal con su video; una entrada de red nueva.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import BA
 
-Popup {
+Item {
     id: pop
     property var vg: null
-    modal: true
-    anchors.centerIn: Overlay.overlay
-    width: Math.min(1080, (Overlay.overlay ? Overlay.overlay.width : 1100) - 80)
-    height: Math.min(820, (Overlay.overlay ? Overlay.overlay.height : 860) - 60)
-    padding: 18
-    background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
+    /// Pide ver el mapa (la otra pestaña).
+    signal verMapa()
 
     property var reloj: ({})
     property var red: []
@@ -38,8 +33,10 @@ Popup {
     function colorGravedad(g) { return g === "error" ? Theme.live : g === "aviso" ? Theme.warn : Theme.textDim }
     function entradasTodas() { return pop.vg ? pop.vg.entradas : [] }
 
-    onOpened: { pop.refrescar(); tipoReloj.currentIndex = Math.max(0, ["sistema", "ntp", "ptp", "red"].indexOf(pop.reloj.tipo || "sistema")) }
-    Timer { interval: 2000; repeat: true; running: pop.opened; onTriggered: { pop.red = pop.vg.estadoRed(); pop.diag = pop.vg.diagnosticoUi() } }
+    function alMostrarse() { pop.refrescar(); tipoReloj.currentIndex = Math.max(0, ["sistema", "ntp", "ptp", "red"].indexOf(pop.reloj.tipo || "sistema")) }
+    onVisibleChanged: if (visible) alMostrarse()
+    Component.onCompleted: if (visible) alMostrarse()
+    Timer { interval: 2000; repeat: true; running: pop.visible; onTriggered: { pop.red = pop.vg.estadoRed(); pop.diag = pop.vg.diagnosticoUi() } }
     Connections {
         target: pop.vg
         function onMedicion(r) {
@@ -54,42 +51,211 @@ Popup {
         }
     }
 
-    contentItem: ScrollView {
+    ScrollView {
         id: sv
+        anchors.fill: parent
         contentWidth: availableWidth
         clip: true
         ColumnLayout {
             width: sv.availableWidth
             spacing: 14
 
-            RowLayout {
-                Layout.fillWidth: true
-                Text { text: "Sincronía y red"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
-                Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: pop.close() }
-            }
-
-            // --- Latencia del estudio (P0.6) ---------------------------------------------------
+            // --- La latencia del estudio: el número, quién la marca y cada entrada ------------------
             Panel {
                 id: latPanel
                 Layout.fillWidth: true
-                padding: 12
+                padding: 16
                 implicitHeight: latCol.implicitHeight + 2 * padding
-                property var lat: ({ latencia_ms: 0, tope_ms: 0, automatico: true, tarde: [] })
-                Timer { interval: 1500; repeat: true; running: pop.opened; triggeredOnStart: true
-                        onTriggered: latPanel.lat = pop.vg.estudioLatenciaUi() }
+                property var lat: ({ latencia_ms: 0, objetivo_ms: 0, margen_ms: 30, tope_ms: 0, automatico: true, tarde: [], entradas: [] })
+                Timer { interval: 1500; repeat: true; running: pop.visible; triggeredOnStart: true
+                        onTriggered: if (pop.vg) latPanel.lat = pop.vg.estudioLatenciaUi() }
+                // Las de video con señal (las de solo audio y las que no reciben nada, aparte: no suman a la vista).
+                readonly property var conSenal: (lat.entradas || []).filter(e => e.video && ((e.pide_ms || 0) > 0 || (e.edad_p50_ms || 0) > 0))
+                readonly property int sinSenal: (lat.entradas || []).length - conSenal.length
+                readonly property var sala: conSenal.filter(e => e.clase === "sala").sort((a, b) => b.pide_ms - a.pide_ms)
+                readonly property var propias: conSenal.filter(e => e.clase !== "sala").sort((a, b) => b.pide_ms - a.pide_ms)
+                // La escala de las barras: lo más grande que haya, con aire.
+                readonly property real escala: {
+                    let m = Math.max(50, lat.latencia_ms || 0)
+                    for (const e of (lat.entradas || [])) m = Math.max(m, (e.pide_ms || 0) + (e.retraso_propio_ms || 0))
+                    return m * 1.15
+                }
+                function ms(v) { return Math.round(v || 0) + " ms" }
+
+                // Una entrada: su barra contra la línea de la latencia del estudio, y su clase.
+                component FilaSinc: Rectangle {
+                    id: fila
+                    required property var modelData
+                    readonly property bool sala: modelData.clase === "sala"
+                    readonly property color tono: modelData.marca ? Theme.accent : modelData.llega_tarde ? Theme.live
+                                                : sala ? "#4fd8ff" : "#c38bff"
+                    Layout.fillWidth: true
+                    implicitHeight: 46
+                    radius: 10
+                    color: modelData.marca ? Qt.rgba(1, 0.42, 0.17, 0.10) : Qt.rgba(1, 1, 1, 0.03)
+                    border.color: modelData.marca ? Theme.accent : "transparent"
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                        spacing: 10
+                        Column {
+                            Layout.preferredWidth: 170
+                            Text {
+                                width: parent.width
+                                text: fila.modelData.entrada
+                                color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold }
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                text: fila.modelData.marca ? "marca la latencia" : fila.modelData.llega_tarde ? "pasa el tope: va con su demora"
+                                    : !fila.modelData.en_escena ? "no está en ninguna escena" : (fila.sala ? "sincronizada" : "con su propia demora")
+                                color: fila.modelData.marca ? Theme.accent : Theme.textFaint; font.pixelSize: 9
+                            }
+                        }
+                        // La barra: lo que pide (edad p90 + 10), la línea de la latencia del estudio y,
+                        // si va con su propia demora, lo que se le corre la hora.
+                        Item {
+                            id: pista
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 18
+                            Rectangle { anchors.fill: parent; radius: 9; color: Qt.rgba(1, 1, 1, 0.05) }
+                            Rectangle {
+                                height: parent.height; radius: 9
+                                width: Math.max(4, pista.width * Math.min(1, (fila.modelData.pide_ms || 0) / latPanel.escala))
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0.0; color: Qt.rgba(fila.tono.r, fila.tono.g, fila.tono.b, 0.35) }
+                                    GradientStop { position: 1.0; color: fila.tono }
+                                }
+                            }
+                            Rectangle {
+                                visible: (fila.modelData.retraso_propio_ms || 0) > 0
+                                x: pista.width * Math.min(1, (fila.modelData.pide_ms || 0) / latPanel.escala)
+                                height: parent.height; radius: 4
+                                width: pista.width * Math.min(1, (fila.modelData.retraso_propio_ms || 0) / latPanel.escala)
+                                color: Qt.rgba(0.76, 0.55, 1, 0.25)
+                                border.color: "#c38bff"
+                            }
+                            // La línea de la latencia del estudio.
+                            Rectangle {
+                                x: pista.width * Math.min(1, (latPanel.lat.latencia_ms || 0) / latPanel.escala) - 1
+                                y: -4; width: 2; height: parent.height + 8; radius: 1
+                                color: Theme.text; opacity: 0.8
+                            }
+                        }
+                        Column {
+                            Layout.preferredWidth: 96
+                            Text {
+                                anchors.right: parent.right
+                                text: latPanel.ms(fila.modelData.pide_ms)
+                                color: fila.tono; font { pixelSize: 15; weight: Font.DemiBold }
+                            }
+                            Text {
+                                anchors.right: parent.right
+                                text: (fila.modelData.retraso_propio_ms || 0) > 0 ? "+" + latPanel.ms(fila.modelData.retraso_propio_ms) + " propios"
+                                                                                  : "tarda " + latPanel.ms(fila.modelData.edad_p50_ms)
+                                color: Theme.textFaint; font.pixelSize: 9
+                            }
+                        }
+                        // La clase, con un toque (rearma la entrada: un instante sin imagen).
+                        Row {
+                            spacing: 2
+                            GlassButton {
+                                compact: true; text: "Sala"; active: fila.sala
+                                onClicked: if (!fila.sala) pop.avisar(pop.vg.claseSincroniaUi(fila.modelData.entrada, "sala"),
+                                                                       "«" + fila.modelData.entrada + "» se sincroniza con la sala")
+                                ToolTip.visible: hovered; ToolTip.delay: 500
+                                ToolTip.text: "Sincronizada: sale alineada con las demás (marca la latencia si es la más lenta)"
+                            }
+                            GlassButton {
+                                compact: true; text: "Propia"; active: !fila.sala
+                                onClicked: if (fila.sala) pop.avisar(pop.vg.claseSincroniaUi(fila.modelData.entrada, "propia"),
+                                                                      "«" + fila.modelData.entrada + "» va con su propia demora")
+                                ToolTip.visible: hovered; ToolTip.delay: 500
+                                ToolTip.text: "Con su propia demora: no atrasa a las demás (invitados, ventanas, una cámara que toma otra cosa)"
+                            }
+                        }
+                    }
+                }
+
                 ColumnLayout {
                     id: latCol
                     anchors.fill: parent
-                    spacing: 6
+                    spacing: 12
+                    // --- Los números ---
                     RowLayout {
-                        Text { text: "Latencia del estudio"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
-                        Text {
-                            text: latPanel.lat.latencia_ms + " ms"
-                            color: (latPanel.lat.tarde || []).length > 0 ? Theme.live : "#22c55e"
-                            font { pixelSize: 14; weight: Font.DemiBold }
+                        Layout.fillWidth: true
+                        spacing: 28
+                        Column {
+                            Text { text: "Latencia del estudio"; color: Theme.textDim; font.pixelSize: 12 }
+                            Row {
+                                spacing: 4
+                                Text { id: grande; text: Math.round(latPanel.lat.latencia_ms || 0); color: Theme.text; font { pixelSize: 46; weight: Font.Light } }
+                                Text { text: "ms"; color: Theme.textDim; font.pixelSize: 16; anchors.baseline: grande.baseline }
+                            }
+                        }
+                        Column {
+                            Text { text: "La marca"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text {
+                                text: latPanel.lat.la_marca ? latPanel.lat.la_marca : "nadie"
+                                color: Theme.accent; font { pixelSize: 20; weight: Font.DemiBold }
+                            }
+                        }
+                        Column {
+                            Text { text: "El programa sale con"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text {
+                                text: "~" + latPanel.ms((latPanel.lat.latencia_ms || 0) + (latPanel.lat.margen_ms || 0))
+                                color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold }
+                            }
+                            Text { text: "+" + latPanel.ms(latPanel.lat.margen_ms) + " del compositor"; color: Theme.textFaint; font.pixelSize: 9 }
                         }
                         Item { Layout.fillWidth: true }
+                        Column {
+                            spacing: 6
+                            StatusPill {
+                                text: latPanel.lat.baja_sola ? "Sin nada al aire: se acomoda sola" : "Al aire: solo sube"
+                                dot: latPanel.lat.baja_sola ? Theme.ok : Theme.amber
+                            }
+                            GlassButton {
+                                visible: latPanel.lat.puede_bajarse === true
+                                text: "Bajar a " + latPanel.ms(latPanel.lat.objetivo_ms)
+                                icon: "↓"; active: true
+                                onClicked: pop.avisar(pop.vg.bajarLatenciaUi(), "Latencia del estudio: " + latPanel.ms(latPanel.lat.objetivo_ms))
+                                ToolTip.visible: hovered; ToolTip.delay: 300
+                                ToolTip.text: latPanel.lat.baja_sola ? "Baja a lo que piden las sincronizadas"
+                                                                     : "Con algo al aire, bajarla es un salto en todas las salidas"
+                            }
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                        text: "Las entradas sincronizadas salen alineadas entre sí y con el audio: el estudio espera a la más lenta (la línea blanca). " +
+                              "No se mueve al cambiar de escena: en vivo solo sube, si una entrada lo pide sostenido. Para bajarla, mejorá la que la marca " +
+                              "(otro modo de cámara, menos procesamiento) o pasala a «Propia» si no tiene que alinearse con la sala."
+                    }
+                    // --- Las sincronizadas ---
+                    Text {
+                        visible: latPanel.sala.length > 0
+                        text: "Sincronizadas con la sala · " + latPanel.sala.length
+                        color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                    }
+                    Repeater { model: latPanel.sala; delegate: FilaSinc {} }
+                    // --- Con su propia demora ---
+                    Text {
+                        visible: latPanel.propias.length > 0
+                        text: "Con su propia demora · " + latPanel.propias.length + "   (no atrasan a las demás; si llegan tarde se les corre la hora, audio y video juntos)"
+                        color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                    }
+                    Repeater { model: latPanel.propias; delegate: FilaSinc {} }
+                    Text {
+                        visible: latPanel.sinSenal > 0
+                        text: latPanel.sinSenal + (latPanel.sinSenal === 1 ? " entrada más" : " entradas más") +
+                              " sin video ni señal ahora (audio, invitados sin conectar): no marcan la latencia"
+                        color: Theme.textFaint; font.pixelSize: 10
+                    }
+                    // --- Ajustes ---
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
                         Text { text: "Tope"; color: Theme.textDim; font.pixelSize: 12 }
                         SpinBox {
                             from: 0; to: 2000; stepSize: 10; editable: true
@@ -97,17 +263,12 @@ Popup {
                             onValueModified: pop.vg.ponerTopeEstudioUi(value)
                         }
                         GlassButton { compact: true; text: "Automático"; active: latPanel.lat.automatico === true
-                                      onClicked: pop.vg.ponerTopeEstudioUi(-1)
-                                      ToolTip.visible: hovered; ToolTip.text: "250 ms: alcanza para el procesamiento normal de una cámara; deja afuera solo lo pesado (superresolución)" }
-                    }
-                    Text {
-                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "Lo que se atrasa todo para que las entradas salgan alineadas. Una entrada que necesita más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora."
-                    }
-                    Repeater {
-                        model: latPanel.lat.tarde || []
-                        delegate: Text { required property var modelData; color: Theme.live; font.pixelSize: 12
-                                         text: "⚠ «" + modelData.entrada + "» llega tarde (" + modelData.latencia_ms + " ms)" }
+                                      onClicked: pop.vg.ponerTopeEstudioUi(-1) }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
+                            text: "Una sincronizada que pide más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora."
+                        }
+                        GlassButton { compact: true; text: "Ver en el mapa"; icon: "⤳"; onClicked: pop.verMapa() }
                     }
                 }
             }
@@ -355,11 +516,12 @@ Popup {
                     id: sincCol
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Sincronizar dos entradas"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: "Comprobar dos cámaras"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                        text: "Compara lo que se ve en las dos durante unos segundos (tiene que haber algo en común que cambie: movimiento, un aplauso, " +
-                              "la misma imagen) y dice cuánto atrasa una. «Medir y corregir» la alinea y vuelve a medir."
+                        text: "Para saber si dos cámaras que toman lo mismo salen alineadas: poné frente a las dos algo que cambie a la vez (un reloj " +
+                              "con milisegundos en un teléfono, un aplauso, un flash), elegilas y «Medir». Tiene que dar menos de un cuadro. " +
+                              "«Medir y corregir» atrasa la que va adelantada y vuelve a medir."
                     }
                     RowLayout {
                         spacing: 8

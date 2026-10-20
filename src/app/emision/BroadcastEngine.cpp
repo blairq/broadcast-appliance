@@ -400,16 +400,47 @@ BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo() const {
 }
 
 json BroadcastEngine::latenciaEstudio() const {
-    json out{{"latencia_ms", 0}, {"tope_ms", 0}, {"automatico", true}, {"tarde", json::array()}};
+    json out{{"latencia_ms", 0}, {"tope_ms", 0}, {"automatico", true}, {"tarde", json::array()}, {"entradas", json::array()}};
     if (!motor_) return out;
     motor::Reloj& r = motor_->reloj();
+    // La fijada (la que usan todos), lo que piden ahora y quién lo pide.
     out["latencia_ms"] = r.latencia() / 1000000;
+    out["objetivo_ms"] = r.objetivo() / 1000000;
+    out["la_marca"] = r.laMarca();
+    out["puede_bajarse"] = r.puedeBajarse();
+    out["baja_sola"] = !alAire_.load();
     out["tope_ms"] = r.topeMs();
     out["automatico"] = r.topeAutomatico();
+    out["margen_ms"] = ajustes::entero("audio.margenMezclaMs", 30);
     for (const auto& [quien, ns] : r.anotadas())
         if (r.llegaTarde(ns)) out["tarde"].push_back({{"entrada", quien}, {"latencia_ms", ns / 1000000}});
+    // Cada entrada: su clase, lo que pide, lo que tarda y si va con su propia demora.
+    const auto foto = motor_->instantanea();
+    // Con nombre: items() sobre un json temporal recorre memoria liberada.
+    const json ents = foto ? foto->value("entradas", json::object()) : json::object();
+    for (const auto& [id, e] : ents.items()) {
+            if (!e.is_object() || (!e.value("video", false) && !e.value("audio", false))) continue;
+            const json ev = e.value("edad_video", json());
+            const json ea = e.value("edad_audio", json());
+            const json& edad = ev.is_object() ? ev : ea;
+            // La edad real: la medida viene achicada por el retraso propio (se mide después del corrimiento).
+            const double propio = e.value("retraso_propio_ms", 0.0);
+            out["entradas"].push_back({{"entrada", id},
+                                       {"clase", e.value("clase", std::string("sala"))},
+                                       {"clase_de_fabrica", e.value("clase_de_fabrica", true)},
+                                       {"pide_ms", e.value("pide_ms", 0.0)},
+                                       {"edad_p50_ms", edad.is_object() ? edad.value("p50_ms", 0.0) + propio : 0.0},
+                                       {"edad_p95_ms", edad.is_object() ? edad.value("p95_ms", 0.0) + propio : 0.0},
+                                       {"retraso_propio_ms", e.value("retraso_propio_ms", 0.0)},
+                                       {"llega_tarde", e.value("llega_tarde", false)},
+                                       {"en_escena", e.value("en_escena", false)},
+                                       {"video", e.value("video", false)},
+                                       {"marca", id == out["la_marca"].get<std::string>()}});
+        }
     return out;
 }
+
+bool BroadcastEngine::bajarLatenciaEstudio() { return motor_ && motor_->bajarLatenciaEstudio(); }
 
 void BroadcastEngine::ponerTopeEstudio(long long ms) {
     if (motor_) motor_->ponerTopeEstudio(ms);
@@ -995,6 +1026,14 @@ nlohmann::json BroadcastEngine::fotoSalidas() const {
 }
 
 void BroadcastEngine::publicarFotoSalidas() {
+    // Con algo al aire, la latencia del estudio no baja sola (bajarla mueve la línea de tiempo
+    // de todas las salidas): solo sube si hace falta; sin nada al aire, se acomoda sola.
+    {
+        bool aire = (stream_ && stream_->estado().value("andando", false)) || (rec_ && rec_->grabando());
+        for (const auto& [id, x] : extras_) aire = aire || (x.tx && x.tx->estado().value("andando", false));
+        alAire_ = aire;
+        if (motor_) motor_->permitirBajarLatencia(!aire);
+    }
     json f = json::object();
     f["principal"] = stream_ ? stream_->estado() : json::object();
     json ex = json::object();

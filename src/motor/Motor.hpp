@@ -195,6 +195,10 @@ class Motor {
     /// entrada (un rearmado): llamarlas fuera del hilo de la interfaz.
     /// `entrada`: una entrada, o «programa» (la composición del programa) / «programa:audio» (la mezcla).
     std::string analizarEmpezar(const std::string& entrada);
+    /// Si la latencia del estudio puede bajar sola (sin nada al aire). En vivo solo sube.
+    void permitirBajarLatencia(bool si) { permitirBajar_ = si; }
+    /// Bajarla ahora a lo que piden las entradas sincronizadas (el operador lo pide).
+    bool bajarLatenciaEstudio() { return reloj_ && reloj_->bajarLatencia(); }
     nlohmann::json analizarTerminar(const std::string& entrada);
     /// La última foto de `estado()` que publicó el bucle del motor (cada ~100 ms).
     /// NO toma el candado: es lo que lee la interfaz (los vúmetros la leen cada
@@ -259,6 +263,7 @@ class Motor {
     GstObject* relojPublicado_ = nullptr; ///< GstNetTimeProvider
     mutable std::recursive_mutex mu_;
     std::mutex sondasM_;
+    std::atomic<bool> permitirBajar_{false};
     std::map<std::string, std::unique_ptr<Sondas>> sondasAparte_; ///< las del programa y la mezcla
     std::map<std::string, Canal> canales_;
     std::unique_ptr<Mezcla> programa_, directo_;

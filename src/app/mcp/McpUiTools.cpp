@@ -179,7 +179,9 @@ void McpService::registerUiTools() {
                                 "nombre de una fuente (abre su rack). Con page=video: \"<entrada>[/<tarjeta>]\". Con "
                                 "page=historico: \"<evento>[/<pestaña>]\" (resumen, tiempo, grabaciones, config, "
                                 "archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], "
-                                "recinto, orden, votacion, conexiones o debate. Sin esto queda la que estaba."}}}}},
+                                "recinto, orden, votacion, conexiones o debate. Con page=latencias: \"mapa\" (los tiempos de cada "
+                                "entrada a cada salida) o \"sincronia\" (la latencia del estudio, quién la marca, la clase "
+                                "de cada entrada, reloj y red: la vista única de sincronización). Sin esto queda la que estaba."}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;

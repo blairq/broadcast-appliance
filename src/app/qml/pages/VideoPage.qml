@@ -348,7 +348,7 @@ Rectangle {
                       items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
                 ]
                 acciones: [
-                    { t: "Sincronía y red…", icon: "⏱", f: () => sincronia.open(),
+                    { t: "Sincronía y red…", icon: "⏱", f: () => page.irASincronia(),
                       tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" },
                     { t: "Superresolución…", icon: "✦", f: () => superresPop.open(),
                       tip: "Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara" },
@@ -1356,7 +1356,12 @@ Rectangle {
         }
     }
 
-    PanelSincronia { id: sincronia; vg: page.vg }
+    // «Sincronía y red» vive en la vista única de Latencias (pestaña Sincronía): un solo lugar.
+    function irASincronia() {
+        const p = Studio.riel.paginaDeId("latencias")
+        if (p >= 0 && page.Window.window) page.Window.window.page = p
+        Studio.mostrarSeccion("latencias", "sincronia")
+    }
     PanelProgramador { id: programadorPop; vg: page.vg }
     PanelScopes { id: scopesPop; entrada: page.vg ? page.vg.entrada : "" }
     Popup {

@@ -343,6 +343,8 @@ class BroadcastEngine {
     void ponerTopeEstudio(long long ms);
     /// {latencia_ms, tope_ms, automatico, tarde: [entradas que pasan el tope]}.
     nlohmann::json latenciaEstudio() const;
+    /// Bajar la latencia del estudio ahora a lo que piden las entradas sincronizadas.
+    bool bajarLatenciaEstudio();
 
     /// El archivo que se está grabando (o el último).
     std::string archivoGrabacion() const;
@@ -794,6 +796,7 @@ class BroadcastEngine {
     void ticSalidas();
     void publicarFotoSalidas();
     nlohmann::json fotoSalidas() const;
+    std::atomic<bool> alAire_{false}; ///< transmitiendo o grabando (lo anota el hilo de salidas)
     mutable std::mutex fotoSalidasM_;
     nlohmann::json fotoSalidas_ = nlohmann::json::object();
     void avisarFallo(const std::string& texto);
