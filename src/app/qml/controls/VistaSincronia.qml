@@ -16,6 +16,8 @@ Item {
     property var vg: null
     /// Pide ver el mapa (la otra pestaña).
     signal verMapa()
+    /// La edad con que sale el programa, medida (el mapa de tiempos); -1 si no se sabe.
+    property real programaMs: -1
 
     property var reloj: ({})
     property var red: []
@@ -212,10 +214,14 @@ Item {
                         Column {
                             Text { text: "El programa sale con"; color: Theme.textDim; font.pixelSize: 12 }
                             Text {
-                                text: "~" + latPanel.ms((latPanel.lat.latencia_ms || 0) + (latPanel.lat.margen_ms || 0))
+                                text: pop.programaMs >= 0 ? latPanel.ms(pop.programaMs)
+                                                          : "~" + latPanel.ms((latPanel.lat.latencia_ms || 0) + (latPanel.lat.margen_ms || 0))
                                 color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold }
                             }
-                            Text { text: "+" + latPanel.ms(latPanel.lat.margen_ms) + " del compositor"; color: Theme.textFaint; font.pixelSize: 9 }
+                            Text {
+                                text: pop.programaMs >= 0 ? "medido desde la captura" : "+" + latPanel.ms(latPanel.lat.margen_ms) + " del compositor (estimado)"
+                                color: Theme.textFaint; font.pixelSize: 9
+                            }
                         }
                         Item { Layout.fillWidth: true }
                         Column {
