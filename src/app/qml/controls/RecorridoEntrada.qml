@@ -72,6 +72,16 @@ Rectangle {
                 : "Analizar pone una sonda en cada elemento del pipeline de esta entrada unos segundos: cuánto agrega cada uno (lo que tarda y lo que retiene) y dónde el video baja de la GPU a la memoria o vuelve a subir. Fuera del análisis no cuesta nada."
             color: Theme.textFaint; font.pixelSize: 10
         }
+        // La cuenta: la edad al salir = la captura (la fuente) + lo que agrega cada elemento.
+        Text {
+            visible: r.elementos.length > 0
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            readonly property real captura: { let c = 0; for (const e of r.elementos) if (e.fuente && !String(e.nombre).startsWith("salida/")) c = Math.max(c, e.agrega_ms || 0); return c }
+            readonly property real resto: { let t = 0; for (const e of r.elementos) if (!e.fuente) t += (e.agrega_ms || 0); return t }
+            text: "Edad al salir ≈ " + r.ms(captura + resto) + "  =  captura " + r.ms(captura) + "  +  elementos " + r.ms(resto)
+            color: Theme.text; font.pixelSize: 11
+        }
         // El resumen y lo que se ve (del modelo: tiempos::diagnosticar).
         Text {
             visible: r.elementos.length > 0
@@ -144,7 +154,9 @@ Rectangle {
                         }
                         Text {
                             width: parent.width
-                            text: (fila.modelData.fabrica || "") + (fila.modelData.cruce
+                            text: fila.modelData.fuente
+                                  ? (fila.modelData.fabrica || "") + "  ·  captura: desde que se tomó el cuadro hasta que sale de acá (la cámara, el driver, el sistema o la etapa anterior)"
+                                  : (fila.modelData.fabrica || "") + (fila.modelData.cruce
                                   ? "  ·  " + r.nombreMemoria(fila.modelData.memoria_entrada) + " → " + r.nombreMemoria(fila.modelData.memoria_salida) : "")
                             color: Theme.textFaint; font.pixelSize: 8
                             elide: Text.ElideRight

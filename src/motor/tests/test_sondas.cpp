@@ -13,6 +13,7 @@
 #include <gst/gst.h>
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <thread>
@@ -73,6 +74,16 @@ int main() {
         const double ms = f.value("agrega_ms", -1.0);
         check(ms > 15 && ms < 30, "identity sleep-time=20 ms mide ≈20 ms (midió " + std::to_string(ms) + ")");
         check(f.value("cuadros", 0) > 30, "anotó cuadros");
+        double suma = 0;
+        bool hayFuente = false;
+        for (const auto& x : r["elementos"]) {
+            suma += x.value("agrega_ms", 0.0);
+            hayFuente = hayFuente || x.value("fuente", false);
+        }
+        const double edadFin = fila(r, "lento").value("edad_salida_ms", 0.0);
+        check(hayFuente, "la fuente tiene su fila (la edad con que ya sale el cuadro)");
+        check(std::abs(suma - edadFin) < 3, "la suma de lo que agrega cada uno cierra con la edad al final (" + std::to_string(suma) +
+                                                " contra " + std::to_string(edadFin) + ")");
         check(f.value("memoria_entrada", std::string()) == "sistema", "memoria del sistema");
         check(f.value("caps_salida", std::string()).find("25 fps") != std::string::npos, "los cuadros por segundo en las caps");
         // identity no le declara al pipeline lo que duerme: declara 0 y mide 20 (lo que ve el diagnóstico).

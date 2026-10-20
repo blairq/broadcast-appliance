@@ -264,6 +264,7 @@ Entrada::~Entrada() {
 
 void Entrada::desarmarSalida() {
     if (salidaV_ == nullptr) return;
+    sondasSalida_.reset(); // las sondas se sacan antes de soltar el pipeline
     gst_element_set_state(salidaV_, GST_STATE_NULL);
     gst_object_unref(salidaV_);
     salidaV_ = nullptr;
@@ -584,8 +585,11 @@ void Entrada::actualizarYa(const json& ajustes) {
 void Entrada::analizarEmpezar() {
     std::lock_guard<std::timed_mutex> l(mu_);
     sondas_.reset();
+    sondasSalida_.reset();
     analisisCortado_ = nullptr;
     if (pipeline_ != nullptr) sondas_ = std::make_unique<Sondas>(pipeline_);
+    // La salida (la placa «sin señal»): otro pipeline, entre la entrada y quien la consume.
+    if (salidaV_ != nullptr) sondasSalida_ = std::make_unique<Sondas>(salidaV_);
 }
 
 nlohmann::json Entrada::analizarTerminar() {
@@ -593,6 +597,20 @@ nlohmann::json Entrada::analizarTerminar() {
     if (sondas_) {
         nlohmann::json r = sondas_->terminar();
         sondas_.reset();
+        // Lo de su salida va a continuación, con «salida/» adelante: es lo último que pasa
+        // antes de la composición.
+        if (sondasSalida_) {
+            nlohmann::json s = sondasSalida_->terminar();
+            sondasSalida_.reset();
+            for (auto& el : s.value("elementos", nlohmann::json::array())) {
+                el["nombre"] = "salida/" + el.value("nombre", std::string());
+                r["elementos"].push_back(el);
+            }
+            for (auto& c : s.value("cruces", nlohmann::json::array())) {
+                c["elemento"] = "salida/" + c.value("elemento", std::string());
+                r["cruces"].push_back(c);
+            }
+        }
         return r;
     }
     if (!analisisCortado_.is_null()) {

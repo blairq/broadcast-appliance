@@ -593,7 +593,9 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
     int bajo = -1;
     for (int i = 0; i < static_cast<int>(elems.size()); ++i) {
         const json& el = elems[static_cast<size_t>(i)];
-        total += el.value("agrega_ms", 0.0);
+        // La fuente de la salida de la entrada (su intersrc) trae la edad de la entrada: ya contada.
+        if (!(el.value("fuente", false) && el.value("nombre", std::string()).rfind("salida/", 0) == 0))
+            total += el.value("agrega_ms", 0.0);
         const std::string cruce = el.value("cruce", std::string());
         if (cruce.empty()) continue;
         ++cruces;
@@ -646,6 +648,19 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
     for (const auto& el : elems) {
         if (!el.contains("agrega_ms")) continue;
         const std::string n = el.value("nombre", std::string());
+        if (el.value("fuente", false)) {
+            // La fuente: la edad con que ya sale el cuadro. La de la salida (su intersrc) repite la
+            // de la entrada; la de la cámara es la captura (sensor, USB, driver, sistema).
+            if (n.rfind("salida/", 0) == 0) continue;
+            const double ms = el.value("agrega_ms", 0.0);
+            if (ms > std::max(cuadro > 0 ? cuadro * 2 : 66.0, 50.0))
+                hallazgo("captura_lenta", "aviso",
+                         "La fuente entrega los cuadros con " + msTexto(ms) +
+                             " de edad desde que se tomaron (la cámara, el USB, el driver y el sistema): es lo que más pesa y "
+                             "no lo agrega ninguna tarjeta. Probá otro modo de la cámara (crudo o MJPEG, menos resolución o más cps).",
+                         ms, {n});
+            continue;
+        }
         if (el.contains("cambia_la_hora_ms")) {
             const double c = el.value("cambia_la_hora_ms", 0.0);
             hallazgo("cambia_la_hora", "aviso",

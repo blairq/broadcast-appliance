@@ -347,6 +347,14 @@ json Sondas::terminar() {
             f["entradas"] = static_cast<int>(e.otras.size()) + 1;
             f["edad_entrada_primera_ms"] = redondo(entMin);
         }
+        // Una fuente (sin entrada): lo que agrega es la edad con que ya sale el cuadro, desde su
+        // hora de captura (una cámara: el sensor, el USB, el driver y el sistema; un intersrc: lo que
+        // esperó antes). Sin esto la suma de los elementos no llegaba a la edad de la entrada.
+        if (ent.empty() && e.otras.empty() && !sal.empty() && !e.entrada) {
+            f["agrega_ms"] = redondo(std::max(0.0, mediana(sal)));
+            f["agrega_p95_ms"] = redondo(std::max(0.0, percentil(sal, 0.95)));
+            f["fuente"] = true;
+        }
         if (!ent.empty() && !sal.empty()) {
             const double desde = e.otras.empty() ? mediana(ent) : entMax;
             const double dif = mediana(sal) - desde;

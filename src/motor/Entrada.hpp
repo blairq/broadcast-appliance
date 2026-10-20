@@ -246,6 +246,7 @@ class Entrada {
     // Lo armado
     GstElement* pipeline_ = nullptr;
     std::unique_ptr<Sondas> sondas_;   ///< el análisis en curso (nullptr = ninguno)
+    std::unique_ptr<Sondas> sondasSalida_; ///< y el de su salida (la de la placa: fallbackswitch)
     nlohmann::json analisisCortado_;   ///< lo medido si se rearmó durante el análisis
     GstElement* salidaV_ = nullptr; ///< el pipeline fijo con la placa (fallbackswitch)
     bool conPlaca_ = false;          ///< lleva placa (aunque esté desarmada por falta de uso)
