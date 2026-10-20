@@ -2,6 +2,7 @@
 // src/motor/Piezas.cpp — ver Piezas.hpp
 // ============================================================================
 #include "Piezas.hpp"
+#include "ModosVideo.hpp"
 #include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
 
@@ -403,75 +404,11 @@ std::string idDeMicrofono(GstElement* e) {
     return id;
 }
 
-namespace {
-/// Los cuadros por segundo más altos de un framerate (fijo, lista o rango) que no pasen de `tope`.
-double mejorFps(const GValue* v, double tope) {
-    if (v == nullptr) return 0;
-    if (GST_VALUE_HOLDS_FRACTION(v)) {
-        const int n = gst_value_get_fraction_numerator(v), d = gst_value_get_fraction_denominator(v);
-        const double f = d > 0 ? static_cast<double>(n) / d : 0;
-        return f <= tope + 0.01 ? f : 0;
-    }
-    if (GST_VALUE_HOLDS_FRACTION_RANGE(v)) {
-        const double mx = mejorFps(gst_value_get_fraction_range_max(v), 1e9);
-        return std::min(mx, tope);
-    }
-    if (GST_VALUE_HOLDS_LIST(v)) {
-        double m = 0;
-        for (guint i = 0; i < gst_value_list_get_size(v); ++i) m = std::max(m, mejorFps(gst_value_list_get_value(v, i), tope));
-        return m;
-    }
-    return 0;
-}
 
-/// Sin modo pedido: el de la cámara que mejor va con el lienzo (su tamaño si lo
-/// tiene; si no, el más grande con su proporción; si no, que negocie GStreamer),
-/// con los cuadros por segundo más altos que tenga ese tamaño sin pasar los del
-/// lienzo. Solo video crudo (es lo que se le pide): una cámara USB 2 da 1080p a 30
-/// en MJPEG y crudo a 5; sin cuadros pedidos, Media Foundation tomaba el primero
-/// de su lista (1080p a 5).
-std::string modoParaElLienzo(GstCaps* caps, const Lienzo& l) {
-    if (caps == nullptr || l.ancho <= 0 || l.alto <= 0) return {};
-    const double prop = static_cast<double>(l.ancho) / l.alto;
-    const double tope = l.fpsD > 0 ? static_cast<double>(l.fpsN) / l.fpsD : 30.0;
-    int mejorW = 0, mejorH = 0;
-    bool exacto = false;
-    for (guint i = 0; i < gst_caps_get_size(caps) && !exacto; ++i) {
-        GstCapsFeatures* ft = gst_caps_get_features(caps, i);
-        if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
-        const GstStructure* st = gst_caps_get_structure(caps, i);
-        if (!gst_structure_has_name(st, "video/x-raw")) continue;
-        int w = 0, h = 0;
-        if (!gst_structure_get_int(st, "width", &w) || !gst_structure_get_int(st, "height", &h) || h == 0) continue;
-        if (w == l.ancho && h == l.alto) {
-            mejorW = w;
-            mejorH = h;
-            exacto = true;
-        } else if (std::abs(static_cast<double>(w) / h - prop) < 0.02 && w * h > mejorW * mejorH) {
-            mejorW = w;
-            mejorH = h;
-        }
-    }
-    if (mejorW == 0) return {};
-    // Los cuadros: el más alto de ese tamaño (entre todos sus formatos crudos).
-    double fps = 0;
-    for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
-        GstCapsFeatures* ft = gst_caps_get_features(caps, i);
-        if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
-        const GstStructure* st = gst_caps_get_structure(caps, i);
-        int w = 0, h = 0;
-        if (!gst_structure_has_name(st, "video/x-raw") || !gst_structure_get_int(st, "width", &w) ||
-            !gst_structure_get_int(st, "height", &h) || w != mejorW || h != mejorH)
-            continue;
-        fps = std::max(fps, mejorFps(gst_structure_get_value(st, "framerate"), tope));
-    }
-    const int f = static_cast<int>(std::lround(fps));
-    return std::to_string(mejorW) + "x" + std::to_string(mejorH) + (f > 0 ? "@" + std::to_string(f) : std::string());
-}
-} // namespace
-
-std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo& lienzo) {
+std::string origenDeCamara(const std::string& id, const std::string& modo, const Lienzo& lienzo, nlohmann::json* elegido) {
     std::string o;
+    ModoVideo m;
+    std::string porque;
     GstDeviceMonitor* mon = gst_device_monitor_new();
     gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
     if (gst_device_monitor_start(mon)) {
@@ -498,10 +435,22 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
 #else
                 o = "v4l2src device=" + entreComillas(idDeCamara(dev, e));
 #endif
-                if (!o.empty() && modo.empty()) {
+                if (!o.empty()) {
+                    // El modo: el guardado (si la cámara lo sigue dando) o el que conviene para el lienzo.
                     GstCaps* caps = gst_device_get_caps(dev);
-                    modo = modoParaElLienzo(caps, lienzo);
+                    const auto modos = modosDe(caps);
                     if (caps != nullptr) gst_caps_unref(caps);
+                    if (!modo.empty()) {
+                        m = modoGuardado(modos, modo);
+                        porque = m.ancho > 0 ? "el elegido a mano" : "el elegido a mano (" + modo + ") ya no está: el que conviene";
+                    }
+                    if (m.ancho <= 0) {
+                        std::string p;
+                        m = elegirModo(modos, {lienzo.ancho, lienzo.alto,
+                                               lienzo.fpsD > 0 ? static_cast<double>(lienzo.fpsN) / lienzo.fpsD : 30.0},
+                                       &p);
+                        porque = porque.empty() ? p : porque + ": " + p;
+                    }
                 }
             }
             if (e != nullptr) gst_object_unref(e);
@@ -511,12 +460,12 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
     }
     gst_object_unref(mon);
     if (o.empty()) return {};
-    int w = 0, h = 0, fps = 0;
-    if (!modo.empty() && std::sscanf(modo.c_str(), "%dx%d@%d", &w, &h, &fps) >= 2 && w > 0 && h > 0)
-        // Los cuadros, con medio de margen: «30» tiene que aceptar 30000/1001 (29,97).
-        o += " ! video/x-raw,width=" + std::to_string(w) + ",height=" + std::to_string(h) +
-             (fps > 0 ? ",framerate=[" + std::to_string(2 * fps - 1) + "/2," + std::to_string(2 * fps + 1) + "/2]"
-                      : std::string());
+    o += cadenaDeModo(m); // sin modo (la cámara no dijo nada): que negocie GStreamer
+    if (elegido != nullptr) {
+        *elegido = m.ancho > 0 ? m.json() : nlohmann::json::object();
+        (*elegido)["porque"] = m.ancho > 0 ? porque : "la cámara no anuncia sus modos: negocia GStreamer";
+        (*elegido)["automatico"] = modo.empty();
+    }
     return o;
 }
 

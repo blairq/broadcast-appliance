@@ -679,7 +679,7 @@ void Entrada::armar() {
     }
     std::string origenV = descripcion_;
     if (!camara_.empty()) {
-        origenV = origenDeCamara(camara_, camaraModo_, lienzo_);
+        origenV = origenDeCamara(camara_, camaraModo_, lienzo_, &modoCamara_);
         if (origenV.empty()) {
             esperar("la cámara " + camara_);
             return;
@@ -1690,6 +1690,7 @@ json Entrada::estado() const {
 
 json Entrada::estadoYa() const {
     json j{{"id", id_},
+           {"modo_camara", modoCamara_.is_null() ? json() : modoCamara_},
            {"nombre", nombre_.empty() ? id_ : nombre_},
            {"anda", pipeline_ != nullptr},
            {"error", error_},

@@ -14,6 +14,10 @@
 
 #include "emision/BroadcastEngine.hpp"
 
+#include "ModosVideo.hpp"
+
+#include <nlohmann/json.hpp>
+
 #include <string>
 #include <vector>
 
@@ -22,13 +26,17 @@ namespace ba::app::video {
 /// Las cámaras del equipo [{name, value = id}].
 std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine& engine);
 
-struct ModoCamara {
-    int ancho = 0, alto = 0, fps = 0;
-    std::string valor() const; ///< «1920x1080@30» (el `camara_modo` de ba_gst_fuente)
-    std::string etiqueta() const;
-};
+/// Un modo de un dispositivo de video: tamaño, cps, formato real (crudo, MJPEG, H.264,
+/// H.265), quién lo decodifica y si es un crudo que fabrica el sistema (ver motor/ModosVideo).
+using ModoCamara = ba::motor::ModoVideo;
 /// Los modos que ofrece (sin repetir; de mayor a menor). Vacío si no se sabe.
 std::vector<ModoCamara> modosDeCamara(const std::string& id);
+/// El que se elige solo para el lienzo actual, con el porqué.
+ModoCamara modoAutomatico(const std::string& id, std::string* porque = nullptr);
+/// Todo lo que se sabe de los dispositivos de video (del monitor de GStreamer, como
+/// gst-device-monitor): [{nombre, id, api, usable, clase, propiedades, caps (las crudas,
+/// una por renglón), modos (ModoVideo::json), automatico {…, porque}}]. `id` vacío: todos.
+nlohmann::json fichasDeVideo(const std::string& id = {});
 
 /// El id de una cámara como lo daba libobs, pasado al de GStreamer.
 std::string idCamaraDesdeLibobs(const std::string& id);

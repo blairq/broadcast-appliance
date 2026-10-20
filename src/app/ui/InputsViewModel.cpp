@@ -228,10 +228,18 @@ void InputsViewModel::setActive(bool on) {
 }
 
 QVariantList InputsViewModel::modes(const QString& device) const {
-    // Los modos de la cámara (tamaño y cuadros), del monitor de GStreamer.
+    // Los modos del dispositivo (tamaño, cuadros, formato y quién decodifica), del monitor de
+    // GStreamer; primero «Automático» (el que conviene para el lienzo, y por qué).
     QVariantList out;
-    for (const auto& m : video::modosDeCamara(device.toStdString()))
+    std::string porque;
+    const auto a = video::modoAutomatico(device.toStdString(), &porque);
+    out << QVariantMap{{"label", a.ancho > 0 ? QString::fromStdString("Automático: " + a.etiqueta()) : QStringLiteral("Automático")},
+                       {"modo", QString()},
+                       {"detalle", QString::fromStdString(porque)}};
+    for (const auto& m : video::modosDeCamara(device.toStdString())) {
+        if (!m.usable()) continue;
         out << QVariantMap{{"label", QString::fromStdString(m.etiqueta())}, {"modo", QString::fromStdString(m.valor())}};
+    }
     return out;
 }
 
@@ -239,7 +247,7 @@ QString InputsViewModel::addHardware(const QString& device, const QString& name,
                                      const QVariantMap& mode) {
     if (device.isEmpty()) return "Elegi una camara.";
     json opts = json::object();
-    if (mode.contains("modo")) opts["modo"] = mode.value("modo").toString().toStdString();
+    if (!mode.value("modo").toString().isEmpty()) opts["modo"] = mode.value("modo").toString().toStdString(); // vacío: automático
     QString nm = name.trimmed();
     if (nm.isEmpty())
         for (const QVariant& d : devices_)

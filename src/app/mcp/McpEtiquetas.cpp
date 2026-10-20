@@ -675,6 +675,7 @@ const Fila kPropias[] = {
 
     // --- Entradas ------------------------------------------------------------
     {"video_devices", "camaras webcams capturadoras dispositivos de video"},
+    {"dispositivos_video", "gst device monitor caps formatos mjpeg h264 crudo resolucion modos de la camara por que no da 1080 30 api media foundation v4l2 avfoundation"},
     {"video_input_add", "agregar camara webcam capturadora"},
     {"network_input_add", "agregar camara ip rtsp srt stream entrante url"},
     {"ndi_sources", "que fuentes ndi hay en la red"},

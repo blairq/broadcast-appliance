@@ -137,9 +137,14 @@ void PropertiesModel::rebuild() {
             m.name = "camara_modo";
             m.label = "Formato";
             m.kind = "list";
-            m.help = "Tamaño y cuadros por segundo. Automático: el que mejor va con el lienzo.";
-            m.options << QVariantMap{{"value", QString()}, {"label", "Automático"}};
-            for (const auto& mo : video::modosDeCamara(cam)) m.options << QVariantMap{{"value", qs(mo.valor())}, {"label", qs(mo.etiqueta())}};
+            std::string porque;
+            const auto a = video::modoAutomatico(cam, &porque);
+            m.help = "Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo decodifica. "
+                     "Automático: el que conviene para el lienzo" +
+                     (porque.empty() ? QString(".") : QString(" (") + qs(porque) + ").");
+            m.options << QVariantMap{{"value", QString()}, {"label", a.ancho > 0 ? qs("Automático: " + a.etiqueta()) : QString("Automático")}};
+            for (const auto& mo : video::modosDeCamara(cam))
+                if (mo.usable()) m.options << QVariantMap{{"value", qs(mo.valor())}, {"label", qs(mo.etiqueta())}};
             m.value = qs(ajustes.value("camara_modo", std::string()));
             rows_.push_back(m);
         } else {

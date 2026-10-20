@@ -381,9 +381,12 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Camaras USB, capturadoras (por GStreamer: V4L2 en Linux, Media Foundation en Windows, AVFoundation "
-            "en macOS). Con `device` (el value de la lista), sus `modos` (tamaño y cuadros por segundo). "
-            "Para agregarla a una escena: video_input_add.";
+            "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
+            "Foundation en Windows, AVFoundation en macOS). Con `device` (el value de la lista): sus `modos` "
+            "(tamaño, cps, formato real: crudo, mjpeg, h264, h265; quién lo decodifica y si la GPU; "
+            "`convertido_por_el_sistema`: un crudo que el sistema fabrica decodificando en la CPU) y `automatico` "
+            "(el que se elige solo para el lienzo, con `porque`). Para todo lo que anuncia el dispositivo (API, "
+            "propiedades, caps crudas): dispositivos_video. Para agregarla: video_input_add (`modo` = un `valor`).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
@@ -393,11 +396,36 @@ void McpService::registerSystemTools() {
                      {"devices", listToJson(ba::app::video::camarasDelEquipo(e))}};
             if (a.contains("device")) {
                 json modos = json::array();
-                for (const auto& m : ba::app::video::modosDeCamara(a.value("device", "")))
-                    modos.push_back({{"modo", m.valor()}, {"ancho", m.ancho}, {"alto", m.alto}, {"cps", m.fps}});
+                for (const auto& m : ba::app::video::modosDeCamara(a.value("device", ""))) modos.push_back(m.json());
                 out["modos"] = modos;
+                std::string porque;
+                const auto am = ba::app::video::modoAutomatico(a.value("device", ""), &porque);
+                json auto_ = am.ancho > 0 ? am.json() : json::object();
+                auto_["porque"] = porque;
+                out["automatico"] = auto_;
             }
             done(ToolResult().data(out));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "dispositivos_video";
+        t.title = "Todo lo que anuncia cada dispositivo de video";
+        t.category = "equipo";
+        t.readOnly = true;
+        t.description =
+            "Como gst-device-monitor, pero de la app: cada dispositivo de video con su API (mediafoundation, "
+            "ksvideo, avf, v4l2), propiedades, el elemento que lo abre, si la app lo usa (`usable`; en Windows la "
+            "misma cámara aparece también por KS y se usa la de Media Foundation), las `caps` crudas tal cual las "
+            "anuncia, los `modos` interpretados (formato real y decodificador) y el `automatico` para el lienzo con su "
+            "porqué. `device` para uno solo. Sirve para entender por qué una cámara no da lo que se espera.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}, {"sinCaps", {{"type", "boolean"}, {"description", "sin las caps crudas (más corto)"}}}}}};
+        t.run = [](const json& a, Done done) {
+            json f = ba::app::video::fichasDeVideo(a.value("device", std::string()));
+            if (a.value("sinCaps", false))
+                for (auto& x : f) x.erase("caps");
+            done(ToolResult().data({{"dispositivos", f}}));
         };
         core_.addTool(std::move(t));
     }

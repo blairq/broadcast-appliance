@@ -108,7 +108,15 @@ Rectangle {
                             visible: count > 0
                             textRole: "label"
                             displayText: currentIndex < 0 ? "Formato automático" : currentText
-                            currentIndex: -1
+                            onModelChanged: currentIndex = count > 0 ? 0 : -1 // el primero es «Automático»
+                        }
+                        // Por qué el automático elige ese (tamaño, cps, formato y quién lo decodifica).
+                        Text {
+                            readonly property var elegido: modeBox.currentIndex >= 0 && modeBox.model ? modeBox.model[modeBox.currentIndex] : null
+                            visible: modeBox.visible && !!elegido && !!elegido.detalle
+                            text: elegido && elegido.detalle ? elegido.detalle : ""
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            color: Theme.textFaint; font.pixelSize: 11
                         }
                         TextField { id: hwName; Layout.fillWidth: true; placeholderText: "Nombre (opcional)" }
                         RowLayout {

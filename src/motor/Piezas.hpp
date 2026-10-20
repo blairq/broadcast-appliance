@@ -138,7 +138,9 @@ bool mismaCamara(const std::string& a, const std::string& b);
 std::string idDeMicrofono(GstElement* e);
 /// La parte de origen de la cámara `id` como está enchufada AHORA ("" si no está).
 /// Sin `modo`: el de la cámara que mejor va con el lienzo.
-std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo& lienzo);
+/// `elegido` (si viene): el modo que quedó (ModoVideo::json) con `porque` y `automatico`.
+std::string origenDeCamara(const std::string& id, const std::string& modo, const Lienzo& lienzo,
+                           nlohmann::json* elegido = nullptr);
 
 /// Un GstDeviceMonitor de todo el proceso: qué micrófonos y cámaras hay, y una
 /// generación que cambia cuando se conecta o se va uno.

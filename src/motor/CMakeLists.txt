@@ -6,7 +6,7 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
@@ -28,6 +28,13 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_motor COMMAND test_motor)
     set_tests_properties(test_motor PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
+    add_executable(test_modos tests/test_modos.cpp)
+    target_link_libraries(test_modos PRIVATE ba_motor)
+    ba_gst_rpath(test_modos "")
+    target_compile_definitions(test_modos PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
+    add_test(NAME test_modos COMMAND test_modos)
+    set_tests_properties(test_modos PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
     add_executable(test_sondas tests/test_sondas.cpp)
     target_link_libraries(test_sondas PRIVATE ba_motor)
     ba_gst_rpath(test_sondas "")

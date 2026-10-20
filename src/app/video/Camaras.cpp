@@ -36,13 +36,6 @@ static std::string idEstableV4l2(const std::string& dev) {
 }
 #endif
 
-std::string ModoCamara::valor() const {
-    return std::to_string(ancho) + "x" + std::to_string(alto) + (fps > 0 ? "@" + std::to_string(fps) : std::string());
-}
-
-std::string ModoCamara::etiqueta() const {
-    return std::to_string(ancho) + "×" + std::to_string(alto) + (fps > 0 ? "  ·  " + std::to_string(fps) + " cps" : std::string());
-}
 
 std::string idCamaraDesdeLibobs(const std::string& id) {
 #if defined(_WIN32)
@@ -113,22 +106,6 @@ void recorrer(F&& fn) {
     gst_object_unref(mon);
 }
 
-/// El mayor numerador/denominador de un framerate (fijo, lista o rango).
-int maxFps(const GValue* v) {
-    if (v == nullptr) return 0;
-    if (GST_VALUE_HOLDS_FRACTION(v)) {
-        const int d = gst_value_get_fraction_denominator(v);
-        return d > 0 ? gst_value_get_fraction_numerator(v) / d : 0;
-    }
-    if (GST_VALUE_HOLDS_FRACTION_RANGE(v)) return maxFps(gst_value_get_fraction_range_max(v));
-    if (GST_VALUE_HOLDS_LIST(v)) {
-        int m = 0;
-        for (guint i = 0; i < gst_value_list_get_size(v); ++i) m = std::max(m, maxFps(gst_value_list_get_value(v, i)));
-        return m;
-    }
-    return 0;
-}
-
 } // namespace
 #endif
 
@@ -150,29 +127,93 @@ std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine& engine)
 std::vector<ModoCamara> modosDeCamara(const std::string& id) {
     std::vector<ModoCamara> out;
 #if defined(BA_HAVE_GST)
-    std::set<std::tuple<int, int, int>> vistos;
     recorrer([&](GstDevice* dev, const std::string& cual) {
-        if (!ba::motor::mismaCamara(cual, id)) return;
+        if (!out.empty() || !ba::motor::mismaCamara(cual, id)) return;
         GstCaps* caps = gst_device_get_caps(dev);
-        if (caps == nullptr) return;
-        for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
-            // Solo memoria de sistema (la de la placa repite los mismos modos).
-            GstCapsFeatures* ft = gst_caps_get_features(caps, i);
-            if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
-            const GstStructure* st = gst_caps_get_structure(caps, i);
-            // Solo video crudo: es lo que el motor le pide a la cámara (motor::origenDeCamara).
-            // Un modo que la cámara da solo en MJPEG (1080p a 30 en una USB 2) no negociaba.
-            if (!gst_structure_has_name(st, "video/x-raw")) continue;
-            int w = 0, h = 0;
-            if (!gst_structure_get_int(st, "width", &w) || !gst_structure_get_int(st, "height", &h)) continue;
-            const int fps = maxFps(gst_structure_get_value(st, "framerate"));
-            if (vistos.insert({w, h, fps}).second) out.push_back({w, h, fps});
+        out = ba::motor::modosDe(caps);
+        if (caps != nullptr) gst_caps_unref(caps);
+    });
+#else
+    (void)id;
+#endif
+    return out;
+}
+
+namespace {
+ba::motor::PedidoVideo pedidoDelLienzo() {
+    int w = 0, h = 0;
+    if (!lienzoActual(w, h)) w = 1920, h = 1080;
+    return {w, h, fpsActual()};
+}
+} // namespace
+
+ModoCamara modoAutomatico(const std::string& id, std::string* porque) {
+    return ba::motor::elegirModo(modosDeCamara(id), pedidoDelLienzo(), porque);
+}
+
+nlohmann::json fichasDeVideo(const std::string& id) {
+    nlohmann::json out = nlohmann::json::array();
+#if defined(BA_HAVE_GST)
+    if (!gst_is_initialized()) return out;
+    GstDeviceMonitor* mon = gst_device_monitor_new();
+    gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
+    if (gst_device_monitor_start(mon)) {
+        ba::motor::resondearSinAviso();
+        GList* lista = gst_device_monitor_get_devices(mon);
+        for (GList* l = lista; l != nullptr; l = l->next) {
+            auto* dev = GST_DEVICE(l->data);
+            const std::string cual = idDe(dev);
+            if (!id.empty() && !ba::motor::mismaCamara(cual, id)) continue;
+            GstElement* e = gst_device_create_element(dev, nullptr);
+            const bool usable = ba::motor::camaraUsable(e);
+            GstElementFactory* fab = e != nullptr ? gst_element_get_factory(e) : nullptr;
+            nlohmann::json f{{"id", cual}, {"usable", usable}, {"elemento", fab != nullptr ? GST_OBJECT_NAME(fab) : ""}};
+            if (e != nullptr) gst_object_unref(e);
+            if (gchar* n = gst_device_get_display_name(dev)) f["nombre"] = n, g_free(n);
+            if (gchar* c = gst_device_get_device_class(dev)) f["clase"] = c, g_free(c);
+            nlohmann::json props = nlohmann::json::object();
+            if (GstStructure* p = gst_device_get_properties(dev)) {
+                for (int i = 0; i < gst_structure_n_fields(p); ++i) {
+                    const char* k = gst_structure_nth_field_name(p, i);
+                    gchar* v = gst_value_serialize(gst_structure_get_value(p, k));
+                    props[k] = v != nullptr ? v : "";
+                    g_free(v);
+                }
+                if (const gchar* api = gst_structure_get_string(p, "device.api")) f["api"] = api;
+                gst_structure_free(p);
+            }
+            f["propiedades"] = props;
+            if (!usable)
+                f["por_que_no"] = "en Windows se abre por Media Foundation (mfvideosrc): esta es la misma cámara vista por otra API";
+            GstCaps* caps = gst_device_get_caps(dev);
+            nlohmann::json crudas = nlohmann::json::array(), modos = nlohmann::json::array();
+            if (caps != nullptr) {
+                for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
+                    GstCaps* una = gst_caps_copy_nth(caps, i);
+                    gchar* t = gst_caps_to_string(una);
+                    crudas.push_back(t != nullptr ? t : "");
+                    g_free(t);
+                    gst_caps_unref(una);
+                }
+                const auto ms = ba::motor::modosDe(caps);
+                for (const auto& m : ms) modos.push_back(m.json());
+                if (usable) {
+                    std::string porque;
+                    const auto a = ba::motor::elegirModo(ms, pedidoDelLienzo(), &porque);
+                    nlohmann::json j = a.ancho > 0 ? a.json() : nlohmann::json::object();
+                    j["porque"] = a.ancho > 0 ? porque : "no anuncia sus modos: negocia GStreamer";
+                    f["automatico"] = j;
+                }
+                gst_caps_unref(caps);
+            }
+            f["modos"] = modos;
+            f["caps"] = crudas;
+            out.push_back(std::move(f));
         }
-        gst_caps_unref(caps);
-    });
-    std::sort(out.begin(), out.end(), [](const ModoCamara& a, const ModoCamara& b) {
-        return std::tie(a.ancho, a.alto, a.fps) > std::tie(b.ancho, b.alto, b.fps);
-    });
+        g_list_free_full(lista, gst_object_unref);
+        gst_device_monitor_stop(mon);
+    }
+    gst_object_unref(mon);
 #else
     (void)id;
 #endif

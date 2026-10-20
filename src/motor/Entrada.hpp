@@ -220,6 +220,8 @@ class Entrada {
 
     // Lo pedido
     std::string uri_, descripcion_, descripcionAudio_, camara_, camaraModo_, microfono_, rack_;
+    /// El modo con que se abrió la cámara (ModoVideo::json + porque, automatico); null si no es cámara.
+    nlohmann::json modoCamara_;
     std::string filtrosJson_, superresMotor_, superresModelo_;
     /// tipo=ventana: la aplicación y el título (la ventana viva se busca en cada armado, Capturas).
     std::string ventanaApp_, ventanaTitulo_;
