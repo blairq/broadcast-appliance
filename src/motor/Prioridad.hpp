@@ -16,11 +16,13 @@
 //     energía» que en un Intel híbrido los manda a los núcleos E).
 //   - Linux: se intenta subir la prioridad de esos hilos (sin permisos no se puede:
 //     se avisa una vez).
-//   - Con varios grupos de L3 (CCD) y el ajuste `procesador.unSoloL3`, el proceso
-//     corre solo en los núcleos de uno (Windows y Linux): sus hilos no saltan de
-//     CCD (cada salto pierde la caché), a cambio de menos núcleos.
+//   - Los hilos de medios (entradas, el cruce a cada capa, los mezcladores, el bucle
+//     del motor) en UN grupo de núcleos que comparte la L3: un CCD en AMD (y lo demás
+//     del proceso al otro) o los de rendimiento en Intel híbrido; Windows con CPU Sets
+//     (blandos), Linux con afinidad. Lo que se pasan (bloques de audio de 10 ms,
+//     encargos a la GPU) queda en la misma caché y no salta de CCD.
 //
-// Ajustes: `procesador.prioridad` (de fábrica sí), `procesador.unSoloL3` (no).
+// Ajustes: `procesador.prioridad` y `procesador.mediosJuntos` (de fábrica, los dos sí).
 // ============================================================================
 #pragma once
 

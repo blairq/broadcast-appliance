@@ -8,6 +8,7 @@
 
 #include <gst/base/gstaggregator.h>
 
+#include <algorithm>
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -151,54 +152,86 @@ json leerTopologia() {
     return {{"clases", clases}, {"grupos_l3", l3}};
 }
 
-/// Con `procesador.unSoloL3` y más de un grupo de L3: el proceso, solo en el más grande.
-std::string unSoloL3(const json& topo) {
-    const json& l3 = topo["grupos_l3"];
-    if (l3.size() < 2) return "un solo grupo de L3: no hace falta";
+// EL GRUPO DE MEDIOS: los hilos de medios (las entradas, el cruce a cada capa, los
+// mezcladores, el bucle del motor) en UN mismo grupo de núcleos, y que no se muevan de ahí:
+// lo que se pasan entre ellos (los bloques de audio de 10 ms, los encargos a la GPU) queda
+// en la misma caché L3. AMD con varios CCD: el CCD más grande (el primero si son iguales), y
+// lo demás del proceso (la interfaz, el MCP, los trabajadores, los codificadores) va al
+// otro: no le quita núcleos a nadie (fijar el proceso entero sí). Intel híbrido: los núcleos
+// de rendimiento (lo demás queda libre: en los de eficiencia, la interfaz iría lenta). Un
+// solo L3 y núcleos iguales: nada. macOS no deja elegir núcleos.
 #if defined(_WIN32)
-    // CPU Sets y no SetProcessAffinityMask: una preferencia blanda, como recomiendan
-    // Microsoft e Intel (la afinidad dura le impide al sistema acomodar y saltear núcleos
-    // estacionados). Cada CPU Set trae el índice de su caché L3: se eligen los del grupo
-    // más grande y quedan de fábrica para todo el proceso (los hilos sin CPU Set propio).
-    (void)topo;
+std::vector<ULONG> g_idsMedios; // los CPU Sets del grupo (se fija antes de que haya hilos de medios)
+#elif !defined(__APPLE__)
+cpu_set_t g_cpusMedios;
+#endif
+std::atomic<bool> g_grupoMedios{false};
+
+std::string armarGrupoMedios() {
+#if defined(_WIN32)
+    // CPU Sets: una preferencia blanda, como recomiendan Microsoft e Intel (la afinidad dura
+    // le impide al sistema acomodar y saltear núcleos estacionados). Cada uno trae su clase
+    // de eficiencia (la más alta es la más rápida) y el índice de su caché L3.
     ULONG largo = 0;
     GetSystemCpuSetInformation(nullptr, 0, &largo, GetCurrentProcess(), 0);
     std::vector<char> buf(largo);
     if (largo == 0 || !GetSystemCpuSetInformation(reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buf.data()), largo, &largo, GetCurrentProcess(), 0))
         return "GetSystemCpuSetInformation falló (" + std::to_string(GetLastError()) + ")";
-    std::map<int, std::vector<ULONG>> porL3;
+    struct Uno { ULONG id; int clase; int l3; };
+    std::vector<Uno> todos;
     for (ULONG off = 0; off < largo;) {
         auto* i = reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buf.data() + off);
-        if (i->Type == CpuSetInformation) porL3[i->CpuSet.LastLevelCacheIndex].push_back(i->CpuSet.Id);
+        if (i->Type == CpuSetInformation) todos.push_back({i->CpuSet.Id, i->CpuSet.EfficiencyClass, i->CpuSet.LastLevelCacheIndex});
         off += i->Size;
     }
-    if (porL3.size() < 2) return "un solo grupo de L3 en los CPU Sets: no hace falta";
-    const std::vector<ULONG>* mejor = nullptr;
+    if (todos.empty()) return "sin CPU Sets";
+    int maxClase = 0;
+    for (const auto& u : todos) maxClase = std::max(maxClase, u.clase);
+    const bool hibrido = std::any_of(todos.begin(), todos.end(), [&](const Uno& u) { return u.clase != maxClase; });
+    std::map<int, std::vector<ULONG>> porL3; // de los más rápidos
+    for (const auto& u : todos)
+        if (u.clase == maxClase) porL3[u.l3].push_back(u.id);
+    const std::vector<ULONG>* elegido = nullptr;
     for (const auto& [l3, ids] : porL3)
-        if (mejor == nullptr || ids.size() > mejor->size()) mejor = &ids;
-    if (!SetProcessDefaultCpuSets(GetCurrentProcess(), mejor->data(), static_cast<ULONG>(mejor->size())))
-        return "SetProcessDefaultCpuSets falló (" + std::to_string(GetLastError()) + ")";
-    return "aplicado (CPU Sets): " + std::to_string(mejor->size()) + " procesadores lógicos de un L3, de " + std::to_string(porL3.size()) + " grupos";
-#elif defined(__APPLE__)
-    return "macOS no deja fijar núcleos";
-#else
-    std::size_t mejor = 0;
-    for (std::size_t i = 1; i < l3.size(); ++i)
-        if (l3[i].value("logicos", 0) > l3[mejor].value("logicos", 0)) mejor = i;
-    cpu_set_t set;
-    CPU_ZERO(&set);
-    for (int c : listaCpus(l3[mejor].value("cpus", std::string()))) CPU_SET(c, &set);
-    // A cada hilo que ya existe (los de Qt, los de GStreamer): los nuevos lo heredan.
-    int bien = 0, mal = 0;
-    if (DIR* d = opendir("/proc/self/task")) {
-        while (dirent* e = readdir(d)) {
-            if (e->d_name[0] == '.') continue;
-            (sched_setaffinity(static_cast<pid_t>(std::atoi(e->d_name)), sizeof set, &set) == 0 ? bien : mal)++;
-        }
-        closedir(d);
+        if (elegido == nullptr || ids.size() > elegido->size()) elegido = &ids;
+    if (elegido->size() == todos.size()) return "un solo grupo de núcleos: no hace falta";
+    g_idsMedios = *elegido;
+    std::vector<ULONG> resto;
+    for (const auto& u : todos)
+        if (std::find(elegido->begin(), elegido->end(), u.id) == elegido->end()) resto.push_back(u.id);
+    std::string lo = std::to_string(elegido->size()) + " procesadores lógicos (" + (hibrido ? "los de rendimiento" : "un CCD") + ")";
+    // Lo demás, al otro CCD (solo si el corte es por L3: en un híbrido serían los de eficiencia).
+    if (!hibrido && !resto.empty()) {
+        if (SetProcessDefaultCpuSets(GetCurrentProcess(), resto.data(), static_cast<ULONG>(resto.size())))
+            lo += "; lo demás, en los otros " + std::to_string(resto.size());
+        else
+            lo += "; SetProcessDefaultCpuSets falló (" + std::to_string(GetLastError()) + ")";
     }
-    return "aplicado: " + l3[mejor].value("cpus", std::string()) + " (" + std::to_string(bien) + " hilos" +
-           (mal > 0 ? ", " + std::to_string(mal) + " no" : "") + ")";
+    g_grupoMedios = true;
+    return lo;
+#elif defined(__APPLE__)
+    return "macOS no deja elegir núcleos";
+#else
+    std::set<int> base;
+    const std::string core = leerLinea("/sys/devices/cpu_core/cpus");
+    const bool hibrido = !core.empty();
+    if (hibrido) base = listaCpus(core);
+    const auto grupos = gruposL3();
+    std::set<int> elegido, todas;
+    for (const auto& g : grupos) {
+        todas.insert(g.begin(), g.end());
+        std::set<int> enBase;
+        for (int c : g)
+            if (!hibrido || base.count(c)) enBase.insert(c);
+        if (enBase.size() > elegido.size()) elegido = enBase;
+    }
+    if (elegido.empty() || elegido.size() == todas.size()) return "un solo grupo de núcleos: no hace falta";
+    CPU_ZERO(&g_cpusMedios);
+    for (int c : elegido) CPU_SET(c, &g_cpusMedios);
+    g_grupoMedios = true;
+    // En Linux la afinidad es dura: solo los hilos de medios (lo demás queda libre).
+    return std::to_string(elegido.size()) + " procesadores lógicos (" + (hibrido ? "los de rendimiento" : "un L3") + ": " +
+           textoCpus(elegido) + ")";
 #endif
 }
 
@@ -226,6 +259,14 @@ GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer) {
 } // namespace
 
 void prioridadDelHilo(ClaseHilo c) {
+    // Al grupo de medios (todas las clases: son los hilos del motor y sus pipelines).
+    if (g_grupoMedios.load(std::memory_order_relaxed)) {
+#if defined(_WIN32)
+        SetThreadSelectedCpuSets(GetCurrentThread(), g_idsMedios.data(), static_cast<ULONG>(g_idsMedios.size()));
+#elif !defined(__APPLE__)
+        sched_setaffinity(0, sizeof g_cpusMedios, &g_cpusMedios);
+#endif
+    }
     if (!g_activa.load(std::memory_order_relaxed)) return;
 #if defined(__APPLE__)
     // En macOS solo los Critico suben (QoS interactiva: prefieren los núcleos de
@@ -258,7 +299,7 @@ void prioridadDelHilo(ClaseHilo c) {
 }
 
 void prioridadEnPipeline(GstElement* pipeline) {
-    if (!g_activa.load() || pipeline == nullptr || !GST_IS_PIPELINE(pipeline)) return;
+    if ((!g_activa.load() && !g_grupoMedios.load()) || pipeline == nullptr || !GST_IS_PIPELINE(pipeline)) return;
     GstBus* bus = gst_element_get_bus(pipeline);
     if (bus == nullptr) return;
     gst_bus_set_sync_handler(bus, alMensaje, nullptr, nullptr);
@@ -288,9 +329,9 @@ void prioridadDelProceso() {
 #endif
         }
         topo["prioridad"] = activa;
-        if (ajustes::siNo("procesador.unSoloL3", false)) topo["un_solo_l3"] = unSoloL3(topo);
+        topo["grupo_medios"] = ajustes::siNo("procesador.mediosJuntos", true) ? armarGrupoMedios() : std::string("apagado");
         registrar(Nivel::Info, "procesador: " + resumen(topo) + "; prioridad del video y el audio: " + (activa ? "sí" : "no") +
-                                   (topo.contains("un_solo_l3") ? "; un solo L3: " + topo["un_solo_l3"].get<std::string>() : std::string()));
+                                   "; video y audio juntos: " + topo["grupo_medios"].get<std::string>());
         std::lock_guard<std::mutex> l(g_topoMu);
         g_topo = std::move(topo);
     });
