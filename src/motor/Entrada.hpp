@@ -113,8 +113,9 @@ class Entrada {
     void actualizar(const nlohmann::json& ajustes, std::function<void()> despues = {});
     /// LO QUE TARDA (armar, desarmar, ajustes, controles) va a un trabajador, en
     /// orden y con el candado de la entrada: el bucle del motor no espera a una
-    /// entrada ocupada, la saltea (tic) o usa lo último que supo (estado).
-    void trabajar(std::function<void()> f);
+    /// entrada ocupada, la saltea (tic) o usa lo último que supo (estado). `antes` corre en
+    /// el mismo trabajador pero SIN el candado (lo lento que no toca la entrada).
+    void trabajar(std::function<void()> f, std::function<void()> antes = {});
     bool ocupada() const { return ocupadas_.load() > 0; }
     /// Espera los trabajos pendientes (al morir: no desde el hilo del motor).
     void esperarTrabajos();
@@ -187,6 +188,10 @@ class Entrada {
     void irANs(std::int64_t ns);
     void corregirOffset();
     void armarSalida();
+    std::string textoPlaca() const; ///< con mu_ tomado
+    /// Rotula la placa (queda en el caché): sin mu_, en el trabajador, antes de armarSalida.
+    void rotularPlaca();
+    std::atomic<bool> rearmando_{false}; ///< la rearmada de la placa ya está pedida al trabajador
     void sondearEventos(GstElement* e, const std::string& filtro);
     bool enPlacaSinLock() const;
     void desarmarSalida();

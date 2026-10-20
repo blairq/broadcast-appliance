@@ -225,18 +225,21 @@ Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json&
     }
     // Armarla (cientos de ms; segundos con una cámara de red) va al trabajador:
     // quien la crea (el hilo del motor) no espera.
-    trabajar([this]() {
-        armarSalida();
-        armar();
-    });
+    trabajar(
+        [this]() {
+            armarSalida();
+            armar();
+        },
+        [this]() { rotularPlaca(); });
 }
 
-void Entrada::trabajar(std::function<void()> f) {
+void Entrada::trabajar(std::function<void()> f, std::function<void()> sinCandado) {
     std::lock_guard<std::mutex> l(trabajoM_);
     ++ocupadas_;
     std::shared_future<void> antes = trabajo_;
-    trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f)]() {
+    trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f), sinCandado = std::move(sinCandado)]() {
                    if (antes.valid()) antes.wait(); // en orden: de a uno por entrada
+                   if (sinCandado) sinCandado();
                    {
                        std::lock_guard<std::timed_mutex> lm(mu_);
                        f();
@@ -318,7 +321,7 @@ void Entrada::armarSalida() {
         return;
     }
     if (GstElement* fuente = gst_bin_get_by_name(GST_BIN(p), "placa")) {
-        GstBuffer* hecha = placaDibujada((nombre_.empty() ? id_ : nombre_) + " — sin señal");
+        GstBuffer* hecha = placaDibujada(textoPlaca()); // ya rotulada (rotularPlaca): del caché
         GstBuffer* b = gst_buffer_copy(hecha); // comparte la memoria; las horas son de esta
         gst_buffer_unref(hecha);
         GST_BUFFER_PTS(b) = 0;
@@ -399,6 +402,21 @@ void Entrada::armarSalida() {
     revisarTareas_ = 150; // el appsrc de la placa manda un cuadro y termina
 }
 
+std::string Entrada::textoPlaca() const { return (nombre_.empty() ? id_ : nombre_) + " — sin señal"; }
+
+void Entrada::rotularPlaca() {
+    // La primera placa del proceso arranca el dibujante de texto (textoverlay, Pango, las
+    // letras): ~300 ms, y las demás esperan en su candado. Con el de la entrada tomado,
+    // cualquiera que la mirara esperaba con ella (el motor, al poner una escena al aire).
+    std::string texto;
+    {
+        std::lock_guard<std::timed_mutex> l(mu_);
+        if (!daVideo() || medio_ || estatica_) return;
+        texto = textoPlaca();
+    }
+    gst_buffer_unref(placaDibujada(texto));
+}
+
 void Entrada::ponerEnUso(bool si) {
     enUso_ = si;
     // Lo llama el bucle del motor: con la entrada ocupada no se espera, lo hace tic.
@@ -417,10 +435,20 @@ void Entrada::ponerEnUsoYa() {
         return;
     }
     sinUsoDesdeUs_ = 0;
-    if (conPlaca_ && salidaV_ == nullptr) {
+    // Armarla tarda (rotularla, el pipeline en la GPU): al trabajador, como al crearla.
+    // Esto corre en el bucle del motor, con su candado (al poner una escena al aire): la
+    // esperaba entera (~300 ms la primera). Mientras tanto la entrada no da cuadros.
+    if (conPlaca_ && salidaV_ == nullptr && !rearmando_.exchange(true)) {
         const std::int64_t t0 = g_get_monotonic_time();
-        armarSalida();
-        registrar(Nivel::Info, id_ + ": placa rearmada en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+        trabajar(
+            [this, t0]() {
+                rearmando_ = false;
+                if (salidaV_ != nullptr || !enUso_) return;
+                armarSalida();
+                if (salidaV_ != nullptr)
+                    registrar(Nivel::Info, id_ + ": placa rearmada en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+            },
+            [this]() { rotularPlaca(); });
     }
 }
 
