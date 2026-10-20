@@ -2,6 +2,7 @@
 // src/motor/Entrada.cpp — ver Entrada.hpp
 // ============================================================================
 #include "Entrada.hpp"
+#include "Candado.hpp" // Tramo
 #include "diag/Utf8.hpp"
 
 #include "Capturas.hpp"
@@ -1454,7 +1455,11 @@ void Entrada::tic() {
     // trabajador (trabajar) y no se hace.
     std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
     if (!l.owns_lock() || ocupadas_.load() > 0) return;
-    if (usoPendiente_.exchange(false)) ponerEnUsoYa();
+    // Los tramos del tic: si una vuelta tarda, el registro dice cuál parte (Candado.hpp).
+    if (usoPendiente_.exchange(false)) {
+        Tramo t("tic: poner en uso");
+        ponerEnUsoYa();
+    }
     if (!controlEnviado_ && !control_.empty() && pipeline_ != nullptr) {
         std::uint64_t c = 0;
         {
@@ -1497,6 +1502,7 @@ void Entrada::tic() {
     // después de armar, revisando cada 200 ms; un archivo no: se rebobina).
     static const bool soltar = g_getenv("BA_SIN_SOLTAR_TAREAS") == nullptr;
     if (soltar && revisarTareas_ > 0 && --revisarTareas_ % 10 == 0) {
+        Tramo t("tic: soltar tareas terminadas");
         if (!medio_) soltarTareasTerminadas(pipeline_);
         soltarTareasTerminadas(salidaV_);
     }
@@ -1514,7 +1520,10 @@ void Entrada::tic() {
             }
     }
     const bool deDispositivo = !camara_.empty() || (!microfono_.empty() && microfono_ != "default");
-    if (deDispositivo) Vigia::el().revisar();
+    if (deDispositivo) {
+        Tramo t("tic: vigía");
+        Vigia::el().revisar();
+    }
     if (pipeline_ == nullptr && esperaDispositivo_) {
         // Esperando su dispositivo: se arma cuando el vigía avisa (o cada 15 s, de respaldo). Una
         // ventana que no está abierta no la avisa nadie: se mira cada 2 s.
@@ -1527,6 +1536,7 @@ void Entrada::tic() {
     // Lo está usando y se fue: a esperar que vuelva.
     if (pipeline_ != nullptr && deDispositivo && Vigia::el().generacion() != genVista_) {
         genVista_ = Vigia::el().generacion();
+        Tramo t("tic: ¿está el dispositivo?");
         // Sin esperar al Vigía: esto es el bucle del motor (ver Vigia::hay).
         const bool esta = !camara_.empty() ? Vigia::el().hay(true, camara_, false) : Vigia::el().hay(false, microfono_, false);
         if (!esta) {
@@ -1541,8 +1551,14 @@ void Entrada::tic() {
         }
         return;
     }
-    if (vigilarDatos()) return; // se rearma (en el trabajador)
-    medirLatencia();
+    {
+        Tramo t("tic: vigilar datos");
+        if (vigilarDatos()) return; // se rearma (en el trabajador)
+    }
+    {
+        Tramo t("tic: medir latencia");
+        medirLatencia();
+    }
     if (pipeline_ == nullptr) return;
     if (rearmarEntrelazada_.exchange(false)) {
         registrar(Nivel::Info, id_ + ": la señal llega entrelazada: se desentrelaza en la GPU");
@@ -1581,6 +1597,7 @@ void Entrada::tic() {
         if (gst_element_get_base_time(pipeline_) != baseAplicada_) corregirOffset();
     }
     // EL BUS: todos los mensajes que juntó.
+    Tramo tb("tic: mensajes del bus");
     GstBus* bus = gst_element_get_bus(pipeline_);
     if (bus == nullptr) return;
     GstElement* esta = pipeline_;

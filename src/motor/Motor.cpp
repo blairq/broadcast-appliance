@@ -562,13 +562,24 @@ std::string Motor::alAireYa(const std::string& nombre, const std::string& transi
     if (transicion != "corte" && transicion != "mezcla" && transicion != "empuje" && transicion != "cortina")
         return "transición: corte, mezcla, empuje o cortina";
     alAire_ = nombre;
-    if (vPrograma_) vPrograma_->mostrar(it->second, transicion, ms);
-    actualizarMultiview();
+    // Con tramos: si tarda, el registro dice cuál parte.
+    if (vPrograma_) {
+        Tramo t("alAire: mostrar en el programa");
+        vPrograma_->mostrar(it->second, transicion, ms);
+    }
+    {
+        Tramo t("alAire: multiview");
+        actualizarMultiview();
+    }
     // El audio de la escena la sigue, con el mismo fundido.
     std::vector<std::string> ids;
     for (const auto& c : it->second.capas)
         if (c.visible) ids.push_back(c.entrada);
-    escenaAlAire(ids, transicion == "corte" ? 0 : ms);
+    {
+        Tramo t("alAire: audio de la escena");
+        escenaAlAire(ids, transicion == "corte" ? 0 : ms);
+    }
+    Tramo t("alAire: uso de las entradas");
     actualizarUso(); // las que entran, a todos sus cuadros ya
     return {};
 }
