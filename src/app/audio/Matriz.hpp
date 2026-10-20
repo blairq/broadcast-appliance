@@ -43,6 +43,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <condition_variable>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -193,6 +194,7 @@ class Matriz : public QObject {
     std::map<std::string, std::shared_ptr<Toma>> tomas_;
 
     std::mutex planLock_;
+    std::condition_variable planCv_; ///< hay un plan con buses (o hay que salir)
     std::shared_ptr<const Plan> plan_;
     std::atomic<bool> salir_{false};
     std::thread hilo_;

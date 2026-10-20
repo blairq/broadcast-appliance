@@ -220,7 +220,7 @@ int main() {
     std::printf("verde al 50 %% sobre rojo: %s\n", txt(p1).c_str());
     CHECK(igual(p1, 128, 128, 0, 45), "alfa 0,5: mitad y mitad");
     // La placa: una entrada en vivo cuya cadena se cae muestra «sin señal» y vuelve sola.
-    if (hayFabrica("fallbackswitch")) {
+    if (hayFabrica("input-selector")) {
         Escena f;
         f.nombre = "F";
         f.capas.push_back({"verde", 0, 0, 0, 0});
@@ -235,6 +235,15 @@ int main() {
         std::printf("caída: %s, en placa: %d\n", txt(p1).c_str(), verde.enPlaca());
         CHECK(verde.enPlaca(), "a los 3 s, la placa");
         CHECK(igual(p1, 0x1c, 0x1c, 0x22, 25), "se ve la placa (gris oscuro), ni verde congelado ni negro");
+        // La placa pasa un cuadro por segundo (es siempre la misma imagen): el compositor
+        // tiene que seguir mostrándola entre uno y otro, sin dejar ver el fondo.
+        int sinPlaca = 0;
+        for (int i = 0; i < 8; ++i) {
+            esperar(es, prog, 500);
+            if (!igual(v.en(20, 20), 0x1c, 0x1c, 0x22, 25)) ++sinPlaca;
+        }
+        std::printf("placa sostenida: %d de 8 miradas sin ella\n", sinPlaca);
+        CHECK(sinPlaca == 0, "la placa se ve todo el tiempo (con un cuadro por segundo)");
         verde.actualizar(color("0xff00ff00"));
         std::unique_ptr<Visor> vv;
         if (std::getenv("BA_TRAZA")) vv = std::make_unique<Visor>(reloj, "verde:video", reloj.latencia(), 64, 36);

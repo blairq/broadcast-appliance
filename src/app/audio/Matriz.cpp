@@ -170,7 +170,11 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
 }
 
 Matriz::~Matriz() {
-    salir_ = true;
+    {
+        std::lock_guard<std::mutex> g(planLock_);
+        salir_ = true;
+    }
+    planCv_.notify_all();
     if (hilo_.joinable()) hilo_.join();
     setActiva(false);
     BroadcastEngine* e = motor();
@@ -793,8 +797,11 @@ void Matriz::armarPlan() {
         }
         if (!bp.aportes.empty()) p->buses.push_back(std::move(bp));
     }
-    std::lock_guard<std::mutex> g(planLock_);
-    plan_ = std::move(p);
+    {
+        std::lock_guard<std::mutex> g(planLock_);
+        plan_ = std::move(p);
+    }
+    planCv_.notify_all();
 }
 
 void Matriz::bucleMezcla() {
@@ -802,6 +809,16 @@ void Matriz::bucleMezcla() {
     std::vector<float> al(kBloque), ar(kBloque), ml(kBloque), mr(kBloque);
     auto proximo = reloj::now();
     while (!salir_) {
+        // Sin ningún bus que mezclar (lo común: nadie usa la matriz), espera a que haya
+        // uno en vez de despertarse cada 10 ms para nada.
+        {
+            std::unique_lock<std::mutex> g(planLock_);
+            if (!plan_ || plan_->buses.empty()) {
+                planCv_.wait(g, [this]() { return salir_.load() || (plan_ && !plan_->buses.empty()); });
+                proximo = reloj::now();
+                if (salir_) break;
+            }
+        }
         proximo += std::chrono::milliseconds(10);
         std::this_thread::sleep_until(proximo);
         if (reloj::now() - proximo > std::chrono::milliseconds(100)) proximo = reloj::now(); // se atrasó
