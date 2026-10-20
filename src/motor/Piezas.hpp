@@ -91,6 +91,11 @@ std::string bajarGpu();
 /// display y el contexto GL, o el dispositivo D3D12): así un buffer de GPU
 /// cruza los `inter` y se usa del otro lado sin copiarlo.
 void darContextoGpu(GstElement* pipeline);
+/// Enlaza los elementos en cadena («src» → «sink») SIN CONSULTAR CAPS: la negociación se
+/// hace igual con los eventos de caps, en el hilo de streaming. Con la consulta, enlazar una
+/// capa nueva llegaba hasta el productor de su intersrc, y si esa entrada se estaba armando
+/// en su trabajador, el bucle del motor esperaba (en la PC, 1348 ms con su candado).
+bool enlazarSinConsultar(std::initializer_list<GstElement*> elementos);
 /// ¿La entrada de la fábrica acepta esa memoria («D3D12Memory», «GLMemory»…)?
 bool aceptaMemoria(const std::string& fabrica, const std::string& memoria);
 /// Lo que va delante de un codificador para darle NV12: en la memoria del motor

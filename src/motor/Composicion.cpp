@@ -368,10 +368,10 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     if (gpu_ && !gl_) {
         // intersrc → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
         gst_bin_add(GST_BIN(pipeline_), r->subir);
-        gst_element_link_many(r->src, r->subir, r->recorte, nullptr);
+        enlazarSinConsultar({r->src, r->subir, r->recorte});
         if (r->sombra != nullptr) {
             gst_bin_add(GST_BIN(pipeline_), r->sombra);
-            gst_element_link(r->recorte, r->sombra);
+            enlazarSinConsultar({r->recorte, r->sombra});
         }
         if (GstPad* p = gst_element_get_static_pad(r->recorte, "sink")) {
             gst_pad_add_probe(p, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
@@ -382,7 +382,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         // intersrc → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
         GstElement* ultimo = r->sombra != nullptr ? r->sombra : r->fijar;
         gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, ultimo, nullptr);
-        gst_element_link_many(r->src, r->subir, r->conv, r->recorte, ultimo, nullptr);
+        enlazarSinConsultar({r->src, r->subir, r->conv, r->recorte, ultimo});
         if (GstPad* p = gst_element_get_static_pad(r->recorte, "sink")) {
             gst_pad_add_probe(p, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, &Composicion::avisarTamano, r, nullptr);
             gst_object_unref(p);
@@ -390,15 +390,15 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     } else if (r->sombra != nullptr) {
         // CPU: la sombra necesita alfa (RGBA o BGRA); el mezclador lo toma así.
         gst_bin_add_many(GST_BIN(pipeline_), r->aRgba, r->sombra, nullptr);
-        gst_element_link_many(r->src, r->recorte, r->aRgba, r->sombra, nullptr);
+        enlazarSinConsultar({r->src, r->recorte, r->aRgba, r->sombra});
     } else {
-        gst_element_link_many(r->src, r->recorte, nullptr);
+        enlazarSinConsultar({r->src, r->recorte});
     }
     const std::int64_t tEnlazados = g_get_monotonic_time();
     r->mx = mx;
     r->pad = gst_element_request_pad_simple(mx, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r->sombra != nullptr ? r->sombra : r->fijar != nullptr ? r->fijar : r->recorte, "src");
-    gst_pad_link(sale, r->pad);
+    gst_pad_link_full(sale, r->pad, GST_PAD_LINK_CHECK_NOTHING); // sin consultar caps (ver enlazarSinConsultar)
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
     gst_object_unref(sale);
     const std::int64_t t1 = g_get_monotonic_time();

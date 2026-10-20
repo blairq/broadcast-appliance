@@ -1039,6 +1039,17 @@ std::string subirGpu() { return gpu() == Gpu::D3D12 ? "d3d12upload ! d3d12conver
 
 std::string bajarGpu() { return gpu() == Gpu::D3D12 ? "d3d12download" : "gldownload"; }
 
+bool enlazarSinConsultar(std::initializer_list<GstElement*> elementos) {
+    GstElement* antes = nullptr;
+    bool ok = true;
+    for (GstElement* e : elementos) {
+        if (e == nullptr) continue;
+        if (antes != nullptr) ok = gst_element_link_pads_full(antes, "src", e, "sink", GST_PAD_LINK_CHECK_NOTHING) && ok;
+        antes = e;
+    }
+    return ok;
+}
+
 void darContextoGpu(GstElement* pipeline) {
     const Gpu g = gpu();
     if (g == Gpu::D3D12) {

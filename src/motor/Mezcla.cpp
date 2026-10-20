@@ -166,10 +166,10 @@ void Mezcla::agregar(const std::string& id) {
         g_object_set(r.nivel, "interval", static_cast<guint64>(ajustes::msANs("audio.medidorMs", 50)), "post-messages", TRUE, "peak-ttl",
                      static_cast<guint64>(ajustes::msANs("audio.picoMs", 300)), nullptr);
     gst_bin_add_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
-    gst_element_link_many(r.src, r.vol, r.nivel, nullptr);
+    enlazarSinConsultar({r.src, r.vol, r.nivel}); // sin consultar caps al productor que se está armando
     r.pad = gst_element_request_pad_simple(mezclador_, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r.nivel, "src");
-    gst_pad_link(sale, r.pad);
+    gst_pad_link_full(sale, r.pad, GST_PAD_LINK_CHECK_NOTHING);
     gst_object_unref(sale);
     for (GstElement* e : {r.nivel, r.vol, r.src}) gst_element_sync_state_with_parent(e);
     ramas_[id] = r;
