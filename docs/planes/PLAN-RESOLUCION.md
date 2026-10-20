@@ -66,13 +66,18 @@ tarjeta con color: el motivo y, si hay, un botón de arreglo («Reordenar», «U
 
 ## Fases
 
-1. **Modos de dispositivo completos** — HECHO 2026-10-19 (`motor/ModosVideo`): cualquier
+1. **Modos de dispositivo completos** — HECHO y probado en la PC con la C910 (automático: 1080p
+   MJPEG a 30 con jpegdec, 4 ms; 75 ms de la captura a la salida de la entrada) — 2026-10-19 (`motor/ModosVideo`): cualquier
    dispositivo de video; crudo/MJPEG/H.264/H.265; el decodificador de mayor rango del registro
    que acepte el formato (nada por marca); los crudos que fabrica el sistema marcados
    (`convertido`); «Automático» por costo con su porqué; `dispositivos_video` (como
    gst-device-monitor) y `modo_camara` en el estado de la entrada.
-2. Demanda + Plan como función pura; vista y MCP en solo lectura (qué haría y por qué); colores
-   estructurales en las dos vistas.
+2. **Demanda + Plan como función pura** — HECHO 2026-10-19 (`app/resolucion`: `planear` puro con
+   test_resolucion, `ResolucionModel` recalcula cada 2 s mientras Video o Latencias se miran;
+   `resolucion_plan` por MCP). Colores en las tarjetas de las dos vistas (borde, «!» con los
+   motivos, panel de la tarjeta elegida). Probado en la app: en PiP la superres y la entrada
+   quedan amarillas; imágenes fijas y un invitado recortado, no (se compara la escala con que
+   se ajusta, no el área). Falta: el arreglo con un botón (fase 3/5) y el nivel por latencia.
 3. Aplicar: modo de cámara por demanda, PTZ que sale a la demanda.
 4. Superres por demanda y ancla, los dos caminos, `transform_caps` en los dos sentidos.
 5. Colores de latencia, botones de arreglo, diagnóstico profundo con tracers, T4.
