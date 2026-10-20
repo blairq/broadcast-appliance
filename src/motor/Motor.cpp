@@ -57,6 +57,27 @@ std::string Motor::iniciar() {
         registrar(Nivel::Info, "motor: " + std::to_string(cargados) + " plugins de la composición cargados en " +
                                    std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
     }
+    // EL DRIVER DE LA GPU, ADELANTADO: la primera vez que se arma una capa con sombra en D3D12
+    // el driver pasa sus shaders a su código (~420 ms la primera vez después de instalar o
+    // actualizar; después lo tiene en su caché). Lo hacía el bucle del motor al poner la
+    // primera escena, con su candado; ahora un cuadro pasa por la sombra acá, detrás del
+    // cartel de carga (con la caché caliente, unos ms).
+    if (gpu() == Gpu::D3D12 && hayFabrica("basombrad3d12") && hayFabrica("d3d12upload")) {
+        const std::int64_t t0 = g_get_monotonic_time();
+        GstElement* p = gst_parse_launch("videotestsrc num-buffers=2 ! video/x-raw,format=RGBA,width=64,height=64 ! d3d12upload ! "
+                                         "basombrad3d12 ! fakesink sync=false", nullptr);
+        if (p != nullptr) {
+            darContextoGpu(p);
+            gst_element_set_state(p, GST_STATE_PLAYING);
+            GstBus* bus = gst_element_get_bus(p);
+            if (GstMessage* m = gst_bus_timed_pop_filtered(bus, 3 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR)))
+                gst_message_unref(m);
+            gst_object_unref(bus);
+            gst_element_set_state(p, GST_STATE_NULL);
+            gst_object_unref(p);
+        }
+        registrar(Nivel::Info, "motor: la sombra de D3D12, adelantada en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+    }
     Mezcla::Opciones op;
     op.limitador = true;
     // Sin ebur128level: el loudness del programa lo mide la app (audio::LoudnessPrograma,
