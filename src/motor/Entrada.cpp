@@ -332,17 +332,22 @@ void Entrada::armarSalida() {
         g_signal_emit_by_name(fuente, "end-of-stream", &r);
         gst_object_unref(fuente);
     }
-    // LA PLACA DESCANSA mientras la señal llega: imagefreeze la repite a 30
-    // cuadros/s y el conmutador la tiraba (con 40 entradas, ~1.200 cuadros por
-    // segundo para nada). Pasa uno por segundo (que haya uno fresco cuando se
-    // cambie a ella) y, ya en la placa, todos.
+    // LA PLACA DESCANSA: imagefreeze la repite a 30 cuadros/s y es siempre la misma
+    // imagen. Pasa uno por segundo, también cuando está al aire: antes, en la placa,
+    // pasaban los 30, y cada lugar de invitado vacío (diez en un evento) mandaba 30
+    // cuadros por segundo por GL y el compositor (cada operación de GL, un ida y vuelta
+    // con su hilo). El compositor repite el último cuadro de una capa a la que le falta
+    // uno (test_composicion: «la placa se ve todo el tiempo»); por las dudas, el que pasa
+    // en la placa dice durar 1,2 s. Al cambiar a ella, el siguiente cuadro pasa enseguida.
     if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
         g_signal_connect(fs, "notify::active-pad",
                          G_CALLBACK(+[](GObject* o, GParamSpec*, gpointer d) {
                              GstPad* activo = nullptr;
                              g_object_get(o, "active-pad", &activo, nullptr);
-                             static_cast<Entrada*>(d)->placaActiva_ =
-                                 activo != nullptr && std::string(GST_PAD_NAME(activo)) == "sink_1";
+                             auto* e = static_cast<Entrada*>(d);
+                             const bool placa = activo != nullptr && std::string(GST_PAD_NAME(activo)) == "sink_1";
+                             if (placa && !e->placaActiva_.load()) e->ultimaPlacaUs_ = 0; // la primera, ya
+                             e->placaActiva_ = placa;
                              if (activo != nullptr) gst_object_unref(activo);
                          }),
                          this);
@@ -352,12 +357,17 @@ void Entrada::armarSalida() {
         if (GstPad* pad = gst_element_get_static_pad(cg, "src")) {
             gst_pad_add_probe(
                 pad, GST_PAD_PROBE_TYPE_BUFFER,
-                [](GstPad*, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
                     auto* e = static_cast<Entrada*>(d);
-                    if (e->placaActiva_.load(std::memory_order_relaxed)) return GST_PAD_PROBE_OK;
                     const std::int64_t ahora = g_get_monotonic_time();
                     if (ahora - e->ultimaPlacaUs_.load(std::memory_order_relaxed) < 1'000'000) return GST_PAD_PROBE_DROP;
                     e->ultimaPlacaUs_.store(ahora, std::memory_order_relaxed);
+                    if (e->placaActiva_.load(std::memory_order_relaxed)) {
+                        // Que valga hasta el siguiente (y un poco más).
+                        GstBuffer* b = gst_buffer_make_writable(GST_PAD_PROBE_INFO_BUFFER(info));
+                        GST_BUFFER_DURATION(b) = 1200 * GST_MSECOND;
+                        GST_PAD_PROBE_INFO_DATA(info) = b;
+                    }
                     return GST_PAD_PROBE_OK;
                 },
                 this, nullptr);
