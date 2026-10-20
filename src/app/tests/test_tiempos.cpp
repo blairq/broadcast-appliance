@@ -229,6 +229,23 @@ int main() {
     const json vacio = armar(Fotos{});
     CHECK(vacio["nodos"].empty() && vacio["salidas"].empty(), "sin fotos: vacío");
 
+    // La cadena de la placa: el traspaso que espera y el fallbackswitch, un solo hallazgo con la suma.
+    {
+        const json pl = {{"elementos", json::array({
+            {{"nombre", "videotestsrc1"}, {"fabrica", "videotestsrc"}, {"fuente", true}, {"agrega_ms", 4.0}, {"caps_salida", "video/x-raw I420 320x180 30 fps"}},
+            {{"nombre", "salida/intersrc8"}, {"fabrica", "intersrc"}, {"traspaso", true}, {"agrega_ms", 66.0}},
+            {{"nombre", "salida/fs"}, {"fabrica", "fallbackswitch"}, {"agrega_ms", 33.0}, {"declara_ms", 33.0}},
+        })}};
+        const json d = diagnosticar(pl, {});
+        const json* h = nullptr;
+        for (const auto& x : d["hallazgos"])
+            if (x["tipo"] == "colchon_placa") h = &x;
+        CHECK(h && cerca((*h)["ms"], 99.0) && (*h)["gravedad"] == "aviso", "el colchón de la placa: 66 + 33 = 99 ms, un solo hallazgo");
+        bool retiene = false;
+        for (const auto& x : d["hallazgos"]) retiene = retiene || x["tipo"] == "retiene";
+        CHECK(!retiene, "el traspaso y el fallbackswitch no salen además como «retiene»");
+        CHECK(cerca(d["resumen"]["total_ms"], 103.0), "el total: 4 de captura + 99 del colchón");
+    }
     if (g_fallas == 0) std::printf("test_tiempos: OK\n");
     return g_fallas == 0 ? 0 : 1;
 }

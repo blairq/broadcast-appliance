@@ -645,9 +645,17 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
     }
 
     // 2) Lo que retiene, 3) lo que declara contra lo que mide, 4) conversiones en la CPU.
+    double colchonPlaca = 0;
+    std::vector<std::string> colchonNombres;
     for (const auto& el : elems) {
         if (!el.contains("agrega_ms")) continue;
         const std::string n = el.value("nombre", std::string());
+        // La cadena de la placa «sin señal»: el traspaso y el fallbackswitch, juntos (el colchón).
+        if (el.value("traspaso", false) || (n.rfind("salida/", 0) == 0 && fabricaDe(el) == "fallbackswitch")) {
+            colchonPlaca += el.value("agrega_ms", 0.0);
+            colchonNombres.push_back(n);
+            continue;
+        }
         if (el.value("fuente", false)) {
             // La fuente: la edad con que ya sale el cuadro. La de la salida (su intersrc) repite la
             // de la entrada; la de la cámara es la captura (sensor, USB, driver, sistema).
@@ -706,6 +714,12 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
                          (duenio.count(n) ? "; lo pide " + quien(el) : std::string()),
                      ms, {n});
     }
+    if (colchonPlaca > std::max(10.0, cuadro * 0.5))
+        hallazgo("colchon_placa", colchonPlaca > std::max(cuadro * 2.5, 60.0) ? "aviso" : "info",
+                 "Antes de la composición, la cadena de la placa «sin señal» retiene " + msTexto(colchonPlaca) +
+                     ": el fallbackswitch no deja pasar un cuadro hasta su hora + la latencia que declara la entrada + un cuadro, "
+                     "aunque haya llegado antes. Es el colchón de esta entrada (lo de las demás espera igual a la más lenta).",
+                 colchonPlaca, colchonNombres);
     const auto peso = [](const json& h) {
         const std::string g = h.value("gravedad", std::string());
         return g == "problema" ? 0 : g == "aviso" ? 1 : 2;

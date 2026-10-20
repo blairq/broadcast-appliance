@@ -602,8 +602,26 @@ nlohmann::json Entrada::analizarTerminar() {
         if (sondasSalida_) {
             nlohmann::json s = sondasSalida_->terminar();
             sondasSalida_.reset();
+            // La edad con que la entrada entrega a su salida (lo que entra a su intersink de video).
+            double entrega = -1;
+            for (const auto& el : r.value("elementos", nlohmann::json::array()))
+                if (el.value("nombre", std::string()) == "ba_iv" && el.contains("edad_entrada_ms"))
+                    entrega = el["edad_entrada_ms"].get<double>();
             for (auto& el : s.value("elementos", nlohmann::json::array())) {
                 el["nombre"] = "salida/" + el.value("nombre", std::string());
+                // Su intersrc no es una fuente: recibe lo de la entrada. Lo suyo es lo que esperó en
+                // el traspaso (si el fallbackswitch frena, el cuadro espera acá), no la edad entera.
+                if (el.value("fabrica", std::string()) == "intersrc" && el.value("fuente", false)) {
+                    el.erase("fuente");
+                    el["traspaso"] = true;
+                    if (entrega >= 0 && el.contains("edad_salida_ms")) {
+                        el["edad_entrada_ms"] = entrega;
+                        el["agrega_ms"] = std::max(0.0, el["edad_salida_ms"].get<double>() - entrega);
+                        el["agrega_ms"] = std::round(el["agrega_ms"].get<double>() * 100) / 100;
+                    } else {
+                        el.erase("agrega_ms");
+                    }
+                }
                 r["elementos"].push_back(el);
             }
             for (auto& c : s.value("cruces", nlohmann::json::array())) {
