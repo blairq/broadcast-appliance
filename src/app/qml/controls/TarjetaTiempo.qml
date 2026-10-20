@@ -16,6 +16,8 @@ Item {
     /// Está en la línea de tiempo (con este color).
     property bool enLinea: false
     property color colorLinea: "#4fd8ff"
+    /// La alarma del plan de resolución: {nivel, motivos} (o nada).
+    property var alarma: undefined
     signal elegida(string id)
 
     width: 196
@@ -93,8 +95,9 @@ Item {
                 GradientStop { position: 0.0; color: "#1c1e26" }
                 GradientStop { position: 1.0; color: "#121318" }
             }
-            border.color: Qt.rgba(t.colorEstado.r, t.colorEstado.g, t.colorEstado.b, t.nodo.estado === "sin_datos" ? 0.25 : 0.85)
-            border.width: t.resaltada ? 2 : 1
+            border.color: t.alarma ? Theme.colorAlarma(t.alarma.nivel)
+                        : Qt.rgba(t.colorEstado.r, t.colorEstado.g, t.colorEstado.b, t.nodo.estado === "sin_datos" ? 0.25 : 0.85)
+            border.width: t.resaltada || t.alarma ? 2 : 1
             opacity: t.nodo.activo === false ? 0.5 : 1.0
             // El brillo de arriba (vidrio).
             Rectangle {
@@ -191,6 +194,20 @@ Item {
                         font.pixelSize: 8
                     }
                 }
+                // La alarma del plan de resolución (los motivos, atrás).
+                Rectangle {
+                    visible: !!t.alarma
+                    width: chipAlarma.implicitWidth + 10; height: 13; radius: 6.5
+                    readonly property color c: t.alarma ? Theme.colorAlarma(t.alarma.nivel) : "transparent"
+                    color: Qt.rgba(c.r, c.g, c.b, 0.22)
+                    Text {
+                        id: chipAlarma
+                        anchors.centerIn: parent
+                        text: "! " + (t.alarma ? Theme.textoAlarma(t.alarma.nivel) : "")
+                        color: parent.c
+                        font.pixelSize: 8
+                    }
+                }
                 // Lo medido por elemento: en qué memoria sale el video y si la tarjeta cruza.
                 Rectangle {
                     readonly property var d: t.nodo.detalle || {}
@@ -226,6 +243,17 @@ Item {
                     width: parent.width
                     spacing: 1
                     Text { text: t.nodo.titulo; color: Theme.text; font.pixelSize: 11; font.weight: Font.DemiBold; width: parent.width; elide: Text.ElideRight }
+                    Repeater {
+                        model: t.alarma ? t.alarma.motivos : []
+                        delegate: Text {
+                            required property var modelData
+                            width: lista.width
+                            wrapMode: Text.WordWrap
+                            text: "! " + modelData
+                            color: Theme.colorAlarma(t.alarma.nivel)
+                            font.pixelSize: 9
+                        }
+                    }
                     Repeater {
                         model: {
                             const d = t.nodo.detalle || {}

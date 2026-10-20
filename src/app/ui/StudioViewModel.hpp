@@ -68,6 +68,9 @@ class ControlCamaras;
 namespace ba::app::tiempos {
 class TiemposModel;
 } // namespace ba::app::tiempos
+namespace ba::app::resolucion {
+class ResolucionModel;
+} // namespace ba::app::resolucion
 namespace ba::app::video {
 class VideoGrafos;
 class SuperRes;
@@ -360,6 +363,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
     /// La página «Tiempos»: el grafo de demoras de cada entrada a cada salida.
     Q_PROPERTY(QObject* tiempos READ tiempos CONSTANT)
+    /// El plan de resolución de cada entrada y los colores de alarma de sus tarjetas.
+    Q_PROPERTY(QObject* resolucion READ resolucion CONSTANT)
     /// Analizar las caras de una cámara y seguir a una con el PTZ (ui/Seguidor).
     Q_PROPERTY(QObject* seguidor READ seguidor CONSTANT)
     /// Los equipos: detectores, catálogo y acciones (dispositivos/Dispositivos).
@@ -747,6 +752,8 @@ class StudioViewModel : public QObject {
     QObject* camaras() const;
     QObject* tiempos() const;
     tiempos::TiemposModel* tiemposModel() const { return tiempos_.get(); }
+    QObject* resolucion() const;
+    resolucion::ResolucionModel* resolucionModel() const { return resolucion_.get(); }
     QObject* video() const;
     video::VideoGrafos* videoGrafos() const { return video_.get(); }
     QObject* red() const;
@@ -1025,6 +1032,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<audio::Mezclador> mezclador_;
     std::unique_ptr<ptz::ControlCamaras> camaras_;
     std::unique_ptr<tiempos::TiemposModel> tiempos_;
+    std::unique_ptr<resolucion::ResolucionModel> resolucion_;
     std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<red::Red> red_;
     std::unique_ptr<plugins::Plugins> plugins_;

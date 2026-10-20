@@ -458,6 +458,7 @@ void Entrada::leer(const json& a) {
     const std::string tipo = a.value("tipo", std::string());
     deApp_ = tipo == "app";
     estatica_ = tipo == "color" || tipo == "imagen" || tipo == "texto" || tipo == "app";
+    fija_ = tipo == "color" || tipo == "imagen" || tipo == "texto";
     const int w = a.value("ancho", lienzo_.ancho), h = a.value("alto", lienzo_.alto);
     const std::string tam = ",width=" + std::to_string(std::max(2, w)) + ",height=" + std::to_string(std::max(2, h));
     bool alfaTipo = false;
@@ -1691,6 +1692,8 @@ json Entrada::estado() const {
 json Entrada::estadoYa() const {
     json j{{"id", id_},
            {"modo_camara", modoCamara_.is_null() ? json() : modoCamara_},
+           {"gpu", gpuVideo()},
+           {"fija", fija_},
            {"nombre", nombre_.empty() ? id_ : nombre_},
            {"anda", pipeline_ != nullptr},
            {"error", error_},

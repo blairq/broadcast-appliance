@@ -21,6 +21,7 @@ Rectangle {
     // (cada entrada en su franja y los cables que cruzan entre ellas).
     readonly property string vista: vg ? vg.vista : "racks"
     property string msg: ""
+    readonly property var alarmaSel: page.sel !== "" && Studio.resolucion ? Studio.resolucion.niveles[page.sel] : undefined
     // Lo que se edita: un controlador, el molde de su tarjeta; una tarjeta, con lo que corre.
     readonly property string tipoEf: page.nodo ? (page.nodo.tipo === "control" ? page.nodo.params.tarjeta : page.nodo.tipo) : ""
     readonly property var paramsEf: page.nodo ? (page.nodo.tipo === "control" ? page.nodo.params.params : (page.nodo.efectivos || page.nodo.params)) : ({})
@@ -49,10 +50,20 @@ Rectangle {
         if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
         page.mirando = quiero
     }
-    onVisibleChanged: mirar()
+    // El plan de resolución (los colores de alarma) se recalcula mientras alguna vista lo mira.
+    property bool mirandoRes: false
+    function mirarRes() {
+        if (!Studio.resolucion || page.visible === page.mirandoRes) return
+        Studio.resolucion.mirar(page.visible)
+        page.mirandoRes = page.visible
+    }
+    onVisibleChanged: { mirar(); mirarRes() }
     Connections { target: page.vg; function onCambio() { page.mirar() } }
-    Component.onCompleted: mirar()
-    Component.onDestruction: if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
+    Component.onCompleted: { mirar(); mirarRes() }
+    Component.onDestruction: {
+        if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
+        if (page.mirandoRes && Studio.resolucion) Studio.resolucion.mirar(false)
+    }
 
     function colorDe(tipo) {
         if (tipo === "entrada" || tipo === "escena") return "#64748b"
@@ -366,6 +377,7 @@ Rectangle {
                 franjas: page.vista === "estudio" ? page.franjasEstudio : []
                 seleccionado: page.sel
                 colorDe: page.colorDe
+                alarmas: Studio.resolucion ? Studio.resolucion.niveles : ({})
                 onElegir: (id) => page.elegir(id)
                 onMover: (id, x, y) => page.avisar(page.vista === "estudio" ? page.vg.mover(id, x, y - 30)
                                                    : page.vg.mover(id, x + page.corrimiento.x, y + page.corrimiento.y))
@@ -493,6 +505,36 @@ Rectangle {
                                   : page.nodo.tipo === "escena" ? "Lo que llega acá es lo que ven las escenas que usan esta entrada. Puede venir de otra parte del estudio (un compositor). Sin nada conectado, no se ve."
                                   : "Del estudio: junta varias entradas en un lienzo. Cada cable a su entrada «+» crea una capa nueva; sin posiciones, van en mosaico. Se pone en las escenas como una fuente, o se cablea a la escena de una entrada."
                             color: Theme.textDim; font.pixelSize: 12
+                        }
+
+                        // La alarma de la tarjeta elegida (plan de resolución): qué se puede mejorar y por qué.
+                        Rectangle {
+                            visible: !!page.alarmaSel
+                            Layout.fillWidth: true
+                            implicitHeight: colAlarma.implicitHeight + 16
+                            radius: 8
+                            readonly property color c: page.alarmaSel ? Theme.colorAlarma(page.alarmaSel.nivel) : "transparent"
+                            color: Qt.rgba(c.r, c.g, c.b, 0.10)
+                            border.color: c
+                            ColumnLayout {
+                                id: colAlarma
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+                                spacing: 4
+                                Text {
+                                    text: "! " + (page.alarmaSel ? Theme.textoAlarma(page.alarmaSel.nivel) : "")
+                                    color: parent.parent.c; font { pixelSize: 12; weight: Font.DemiBold }
+                                }
+                                Repeater {
+                                    model: page.alarmaSel ? page.alarmaSel.motivos : []
+                                    delegate: Text {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        text: "• " + modelData
+                                        color: Theme.textDim; font.pixelSize: 11
+                                    }
+                                }
+                            }
                         }
 
                         // Controladores: la misma tarjeta (con los mismos ajustes) en varias entradas.

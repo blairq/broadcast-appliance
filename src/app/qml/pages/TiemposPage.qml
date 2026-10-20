@@ -22,6 +22,24 @@ Rectangle {
 
     // Mide solo mientras se la mira.
     Binding { target: page.tm; property: "activo"; value: page.visible; when: page.tm !== null }
+    // El plan de resolución también (los colores de alarma de las tarjetas).
+    property bool mirandoRes: false
+    function mirarRes() {
+        if (!Studio.resolucion || page.visible === page.mirandoRes) return
+        Studio.resolucion.mirar(page.visible)
+        page.mirandoRes = page.visible
+    }
+    onVisibleChanged: mirarRes()
+    Component.onCompleted: mirarRes()
+    Component.onDestruction: if (page.mirandoRes && Studio.resolucion) Studio.resolucion.mirar(false)
+    readonly property var nivelesRes: Studio.resolucion ? Studio.resolucion.niveles : ({})
+    /// La clave del nodo en los niveles del plan: la tarjeta por el id de su nodo del grafo; la
+    /// entrada (su video) por la fuente.
+    function claveAlarma(n) {
+        if (n.tipo === "tarjeta") return n.id // «tarjeta:<entrada>:<id>»: el mismo id que el nodo
+        if (n.tipo === "entrada" && n.medio === "video") return "entrada:" + page.entradaDe(n)
+        return ""
+    }
 
     // --- Lo que se elige mostrar ------------------------------------------------------
     property var ocultas: ({})      ///< entrada → true si se la escondió
@@ -390,6 +408,7 @@ Rectangle {
                                     page.alternarSerie(id)
                                     if (page.elegido !== "") page.abrirRecorrido(modelData)
                                 }
+                                alarma: page.nivelesRes[page.claveAlarma(modelData)]
                                 enLinea: page.serie.indexOf(modelData.id) >= 0
                                 colorLinea: page.paleta[Math.max(0, page.serie.indexOf(modelData.id)) % page.paleta.length]
                                 Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }

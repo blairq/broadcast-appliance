@@ -998,6 +998,9 @@ En vez de consultar cada tanto (mixer_list, remotos_fila_ver...), pedile al serv
 - `conversion_cpu`: videoconvert/videoscale en RAM. Muchos ms en 1080p = conviene que lo anterior entregue el formato que pide lo que sigue.
 - Una cola con `nivel_cola_ms` alto está guardando video: algo de después va lento o espera.
 
+## Resolución: que cada entrada entregue lo que se ve
+`resolucion_plan {"entrada"}` cruza dónde se ve la entrada (su tamaño más grande en las escenas) con cada tarjeta y la cámara: la superres que agranda algo que ya cubre lo que se ve, el PTZ después de la superres, el zoom digital que estira pocos píxeles, la cámara que entrega de más o de menos (con el modo que conviene), los pocos cps. Los mismos hallazgos pintan las tarjetas (amarillo / naranja / rojo) en Video y en Latencias. Los modos reales de cada cámara (crudo, MJPEG, H.264 y quién decodifica): `video_devices {"device"}`; todo lo que anuncia: `dispositivos_video`.
+
 ## Contale al operador
 En castellano y con la consecuencia: «la disolución por movimiento retiene 800 ms (24 cuadros) y trabaja en RAM: obliga a bajar y subir el video de la GPU». Proponé el cambio y esperá el OK antes de tocar una tarjeta al aire.)md"},
     {"diagnostico", "Diagnostico", "Recetas cuando algo anda mal.",

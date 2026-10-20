@@ -275,6 +275,8 @@ class VideoGrafos : public QObject {
     std::string editar(const std::function<std::string(GrafoVideo&)>& f);
     std::string ponerEnEscena(const std::string& id, const std::string& escena);
     bool esEntrada(const std::string& nombre) const;
+    /// El grafo (solo para leer: títulos y a qué entrada pertenece cada tarjeta).
+    const GrafoVideo& grafoVideo() const { return grafo_; }
     /// El nombre legible de un filtro de OBS ("" si no existe).
     static std::string nombreFiltro(const std::string& filtroId);
     /// El catálogo de GStreamer (vacío, con el motivo, hasta que está listo).

@@ -161,6 +161,9 @@
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
 #include "tiempos/TiemposModel.hpp"
+#include "resolucion/ResolucionModel.hpp"
+#include "video/Camaras.hpp"
+#include "video/CatalogoGst.hpp"
 #include "Motor.hpp"
 #include <QCoreApplication>
 
@@ -1110,6 +1113,49 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         return f;
     }, rt.dataRoot() / "Config" / "tiempos-analisis.json");
+    // El plan de resolución (solo lectura): lo que publican el motor, las escenas y los dispositivos.
+    {
+        resolucion::ResolucionModel::Fuentes rf;
+        rf.motor = [this]() -> nlohmann::json {
+            if (motor::Motor* m = rt_.engine().motor())
+                if (const auto foto = m->instantanea()) return *foto;
+            return nlohmann::json::object();
+        };
+        rf.escenas = [this]() {
+            std::vector<std::pair<std::string, std::vector<std::pair<std::string, resolucion::Tam>>>> out;
+            BroadcastEngine& e = rt_.engine();
+            int lw = 0, lh = 0;
+            if (!lienzoActual(lw, lh)) lw = e.videoConfig().baseWidth, lh = e.videoConfig().baseHeight;
+            for (const std::string& esc : e.sceneNames()) {
+                std::vector<std::pair<std::string, resolucion::Tam>> items;
+                for (const auto& [fuente, r] : e.itemsVisibles(esc))
+                    items.push_back({fuente, {static_cast<int>(std::lround(r.w * lw)), static_cast<int>(std::lround(r.h * lh))}});
+                out.push_back({esc, std::move(items)});
+            }
+            return out;
+        };
+        rf.camaraDe = [this](const std::string& entrada) {
+            const nlohmann::json a = nlohmann::json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
+            return a.is_object() ? a.value("camara", std::string()) : std::string();
+        };
+        rf.modosDe = [](const std::string& camara) { return video::modosDeCamara(camara); };
+        rf.interior = [this](const std::string& elemento) {
+            return video_ ? video_->gst().interior(elemento) : nlohmann::json::object();
+        };
+        rf.grafo = [this]() {
+            std::vector<resolucion::ResolucionModel::NodoGrafo> out;
+            if (video_)
+                for (const auto& n : video_->grafoVideo().nodos()) out.push_back({n.id, n.tipo, n.etiqueta, n.grupo});
+            return out;
+        };
+        rf.lienzo = []() {
+            int w = 0, h = 0;
+            if (!lienzoActual(w, h)) w = 1920, h = 1080;
+            return resolucion::Tam{w, h};
+        };
+        rf.fps = []() { return fpsActual(); };
+        resolucion_ = std::make_unique<resolucion::ResolucionModel>(std::move(rf));
+    }
     // El análisis por elemento (las sondas del motor): lo llama el modelo en su hilo.
     tiempos_->setSondas({[this](const std::string& e) -> std::string {
                              motor::Motor* m = rt_.engine().motor();
@@ -2479,6 +2525,7 @@ QObject* StudioViewModel::matriz() const {
 }
 QObject* StudioViewModel::camaras() const { return camaras_.get(); }
 QObject* StudioViewModel::tiempos() const { return tiempos_.get(); }
+QObject* StudioViewModel::resolucion() const { return resolucion_.get(); }
 QObject* StudioViewModel::video() const { return video_.get(); }
 QObject* StudioViewModel::red() const { return red_.get(); }
 QObject* StudioViewModel::pluginsQml() const { return plugins_.get(); }

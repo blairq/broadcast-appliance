@@ -31,6 +31,9 @@ Rectangle {
     property var franjas: []
     /// El color de la franja de cada tipo de tarjeta.
     property var colorDe: function(tipo) { return Theme.accent }
+    /// Las alarmas de cada tarjeta por id: {nivel: "mejorable"|"mal_armado"|"mal", motivos: [texto]}
+    /// (el plan de resolución: ResolucionModel::niveles). Pintan el borde y ponen un «!» con los motivos.
+    property var alarmas: ({})
     signal elegir(string id)
     signal mover(string id, int x, int y)
     signal conectar(string desde, string salida, string hacia, string entrada)
@@ -314,9 +317,11 @@ Rectangle {
                     radius: 12
                     color: Qt.rgba(0.08, 0.1, 0.15, nd.externo ? 0.7 : 0.96)
                     opacity: nd.externo ? 0.75 : 1
-                    border.width: pb.seleccionado === modelData.id ? 2 : 1
+                    readonly property var alarma: pb.alarmas ? pb.alarmas[modelData.id] : undefined
+                    border.width: pb.seleccionado === modelData.id || nd.alarma ? 2 : 1
                     border.color: pb.seleccionado === modelData.id ? Theme.accent
                                 : (pb.wireTarget && pb.wireTarget.node === modelData.id) ? Theme.ok
+                                : nd.alarma ? Theme.colorAlarma(nd.alarma.nivel)
                                 : nd.externo ? Qt.rgba(0.78, 0.6, 1, 0.6) : Qt.rgba(1, 1, 1, 0.14)
                     onXChanged: { pb.livePos[modelData.id] = Qt.point(x, y); pb.liveTick++ }
                     onYChanged: { pb.livePos[modelData.id] = Qt.point(x, y); pb.liveTick++ }
@@ -363,6 +368,19 @@ Rectangle {
                         radius: 12
                         color: Qt.rgba(1, 1, 1, 0.05)
                         border { color: Theme.accent; width: 2 }
+                    }
+                    // La alarma: un «!» del color del nivel; los motivos al pasar por encima.
+                    Rectangle {
+                        visible: !!nd.alarma
+                        anchors { right: parent.right; top: parent.top; margins: -7 }
+                        width: 20; height: 20; radius: 10
+                        color: nd.alarma ? Theme.colorAlarma(nd.alarma.nivel) : "transparent"
+                        border.color: Qt.rgba(0, 0, 0, 0.5)
+                        z: 5
+                        Text { anchors.centerIn: parent; text: "!"; color: "#1a1a1a"; font { pixelSize: 13; weight: Font.Bold } }
+                        MouseArea { id: alarmaMa; anchors.fill: parent; hoverEnabled: true; onClicked: pb.elegir(nd.modelData.id) }
+                        ToolTip.visible: alarmaMa.containsMouse
+                        ToolTip.text: nd.alarma ? Theme.textoAlarma(nd.alarma.nivel) + ":\n• " + (nd.alarma.motivos || []).join("\n• ") : ""
                     }
                     // Lo que hace (un resumen corto de sus parámetros).
                     Text {

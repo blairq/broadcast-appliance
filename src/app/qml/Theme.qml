@@ -11,6 +11,17 @@ QtObject {
     readonly property color live: "#ff3b30"
     readonly property color ok: "#35c46b"
     readonly property color warn: "#f5b83d"
+    // Las alarmas de las tarjetas (plan de resolución y latencias): se puede mejorar,
+    // está mal armado, anda mal. Las mismas en el analizador de latencia y en el de Video.
+    readonly property color alarmaMejorable: "#f5d33d"
+    readonly property color alarmaMalArmado: "#ff8a2a"
+    readonly property color alarmaMal: "#ff3b30"
+    function colorAlarma(nivel) {
+        return nivel === "mal" ? alarmaMal : nivel === "mal_armado" ? alarmaMalArmado : nivel === "mejorable" ? alarmaMejorable : "transparent"
+    }
+    function textoAlarma(nivel) {
+        return nivel === "mal" ? "anda mal" : nivel === "mal_armado" ? "mal armado" : nivel === "mejorable" ? "se puede mejorar" : ""
+    }
     readonly property color text: "#f4f4f6"
     readonly property color textDim: "#a2a2aa"
     readonly property color textFaint: "#6c6c74"

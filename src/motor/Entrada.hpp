@@ -239,6 +239,7 @@ class Entrada {
     bool medio_ = false, bucle_ = false, limpiarAlTerminar_ = true;
     bool deApp_ = false;   ///< tipo=app: los cuadros los empuja la app
     bool estatica_ = false; ///< color, imagen, texto, app: no se caen (sin placa «sin señal»)
+    bool fija_ = false;     ///< color, imagen, texto: la imagen no cambia (los cps no importan)
     int appAncho_ = 0, appAlto_ = 0;
     std::string firma_; ///< lo que obliga a rearmar
 

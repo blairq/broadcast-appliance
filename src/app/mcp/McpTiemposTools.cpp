@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include "mcp/McpToolsCommon.hpp"
 #include "tiempos/TiemposModel.hpp"
+#include "resolucion/ResolucionModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
@@ -223,6 +224,31 @@ void McpService::registerTiemposTools() {
                 done(ToolResult().data(r));
             }, {e});
             if (!err.isEmpty()) done(ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    if (resolucion::ResolucionModel* rm = vm_.resolucionModel()) {
+        Tool t;
+        t.name = "resolucion_plan";
+        t.title = "El plan de resolución de las entradas";
+        t.category = "tiempos";
+        t.readOnly = true;
+        t.description =
+            "Cuánto hace falta de cada entrada y qué sobra o falta (solo lectura: dice qué haría y por qué). "
+            "`demanda`: el tamaño más grande con que se ve en las escenas. `pasos`: cada tarjeta en orden con lo que "
+            "entra, sale, el detalle `real` (un zoom digital lo achica) y lo que `necesita` entregar. `fuente`: lo que "
+            "necesita de la cámara, el modo actual y el `recomendado` con su porqué. `hallazgos` con `nivel` "
+            "(mejorable = amarillo, mal_armado = naranja, mal = rojo: los colores de las tarjetas en Video y en "
+            "Latencias) y `arreglo` cuando hay uno (modo_camara {valor}: se aplica con source_update {name, settings: {camara_modo: valor}}; "
+            "reordenar / mover / apagar una tarjeta: con las herramientas del grafo de video). Sin `entrada`: todas.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", {{"type", "string"}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1"})", R"({})"};
+        t.run = [rm](const json& a, Done done) {
+            const std::string e = a.value("entrada", std::string());
+            if (e.empty()) return done(ToolResult().data(rm->recalcular()));
+            const json p = rm->plan(e);
+            if (p.is_null()) return done(ToolResult::error("no hay una entrada de video «" + e + "» (resolucion_plan sin nada da todas)"));
+            done(ToolResult().data(p));
         };
         core_.addTool(std::move(t));
     }

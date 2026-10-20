@@ -655,6 +655,7 @@ const Fila kPropias[] = {
     {"tiempos_linea", "mostrar en la linea de tiempo graficar esta tarjeta comparar latencias"},
     {"tiempos_nodo", "cuanto tarda esta tarjeta este modulo esta salida historia de la demora"},
     {"tiempos_pipeline", "por dentro de una entrada elemento por elemento cadena de video pipeline gpu ram baja sube cruce copia rompe la cadena que plugin tarda retiene cuadros declara latencia diagnostico delay demora"},
+    {"resolucion_plan", "resolucion tamaño cuanto se ve sobra falta superres al pedo zoom digital ptz detalle modo de la camara escala de mas colores alarma amarillo naranja rojo tarjetas mal armado orden"},
     {"tiempos_plugin", "como trabaja un plugin modulo filtro tarjeta gpu o cpu memoria acepta pads templates alternativa mas rapida propiedades por que tarda"},
     {"evento_borrar", "borrar eliminar sacar un evento tirar a la papelera evento de prueba"},
     {"evento_recuperar", "recuperar devolver un evento borrado papelera deshacer borrado"},
