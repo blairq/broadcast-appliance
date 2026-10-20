@@ -233,17 +233,18 @@ Rectangle {
 
         // --- Copiando un evento (en otro hilo): cuánto va --------------------------
         Panel {
-            readonly property var c: Studio.configuraciones ? Studio.configuraciones.copia : ({})
+            id: panelCopia
+            readonly property var c: (Studio.configuraciones && Studio.configuraciones.copia) || ({})
             visible: !!c.nombre
             Layout.fillWidth: true
             Layout.preferredHeight: 44
             RowLayout {
                 anchors.fill: parent
                 spacing: 10
-                BusyIndicator { running: parent.parent.visible; Layout.preferredWidth: 22; Layout.preferredHeight: 22 }
+                BusyIndicator { running: panelCopia.visible; Layout.preferredWidth: 22; Layout.preferredHeight: 22 }
                 Text {
                     Layout.fillWidth: true
-                    readonly property var c: parent.parent.c
+                    readonly property var c: panelCopia.c
                     color: Theme.text; font.pixelSize: 13
                     text: "Copiando «" + (c.nombre || "") + "»… " +
                           (c.total > 0 ? Math.min(100, Math.round(100 * c.hechos / c.total)) + " % (" +

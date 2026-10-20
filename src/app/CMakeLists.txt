@@ -1175,8 +1175,9 @@ if(BA_APP_QT_OK AND UNIX AND NOT APPLE)
     # Plataformas: Wayland, X11 y offscreen. eglfs/linuxfb/vnc no hacen falta.
     list(FILTER _ba_qt_plugins EXCLUDE REGEX "^platforms/lib(qeglfs|qlinuxfb|qminimal|qminimalegl|qvnc|qvkkhrdisplay)\\.so$")
     list(APPEND _ba_qt_plugins "platformthemes/libqxdgdesktopportal.so")
-    # JPEG: capturas del servidor MCP y fotos de los oradores.
-    list(APPEND _ba_qt_plugins "imageformats/libqjpeg.so")
+    # JPEG: capturas del servidor MCP y fotos de los oradores. GIF: la vista
+    # previa de Medios (un GIF del evento daba «Unsupported image format»).
+    list(APPEND _ba_qt_plugins "imageformats/libqjpeg.so" "imageformats/libqgif.so")
     # El motor de reproduccion. `gstreamermediaplugin` NO va: pediria GStreamer
     # del sistema, que es justo lo que no puede pasar en un aparato portable.
     list(APPEND _ba_qt_plugins "multimedia/libffmpegmediaplugin.so")
@@ -1193,7 +1194,7 @@ endif()
 
 # macOS: frameworks de Qt en bin/64bit/qt. Ver cmake/BaQtDeployMac.cmake.
 if(BA_APP_QT_OK AND APPLE)
-    set(_ba_qt_plugins "platforms/libqcocoa.dylib;platforms/libqoffscreen.dylib;imageformats/libqjpeg.dylib;imageformats/libqsvg.dylib;imageformats/libqico.dylib;iconengines/libqsvgicon.dylib;styles/libqmacstyle.dylib;tls/libqsecuretransportbackend.dylib;tls/libqcertonlybackend.dylib")
+    set(_ba_qt_plugins "platforms/libqcocoa.dylib;platforms/libqoffscreen.dylib;imageformats/libqjpeg.dylib;imageformats/libqgif.dylib;imageformats/libqsvg.dylib;imageformats/libqico.dylib;iconengines/libqsvgicon.dylib;styles/libqmacstyle.dylib;tls/libqsecuretransportbackend.dylib;tls/libqcertonlybackend.dylib")
     # Reproduccion del visor de Medios: el motor de FFmpeg que Qt trae adentro
     # (como en Linux) y el nativo de macOS (AVFoundation, sin nada extra).
     list(APPEND _ba_qt_plugins "multimedia/libffmpegmediaplugin.dylib" "multimedia/libdarwinmediaplugin.dylib")
@@ -1214,7 +1215,7 @@ if(BA_APP_QT_OK AND WIN32)
     install(CODE "
         set(BA_QT_BIN_DIR \"${BA_QT_PREFIX}/bin\")
         set(BA_QT_PLUGIN_DIR \"${BA_QT_PREFIX}/plugins\")
-        set(BA_QT_PLUGINS \"platforms/qwindows.dll;platforms/qoffscreen.dll;imageformats/qjpeg.dll;imageformats/qsvg.dll;imageformats/qico.dll;tls/qschannelbackend.dll;tls/qcertonlybackend.dll;iconengines/qsvgicon.dll;multimedia/ffmpegmediaplugin.dll\")
+        set(BA_QT_PLUGINS \"platforms/qwindows.dll;platforms/qoffscreen.dll;imageformats/qjpeg.dll;imageformats/qgif.dll;imageformats/qsvg.dll;imageformats/qico.dll;tls/qschannelbackend.dll;tls/qcertonlybackend.dll;iconengines/qsvgicon.dll;multimedia/ffmpegmediaplugin.dll\")
         set(BA_APP_BUILD_EXE \"$<TARGET_FILE:ba-app>\")
         set(BA_QT_QML_DIR \"${BA_QT_PREFIX}/qml\")
         set(BA_QT_QML_MODULES \"QtQml;QtQuick;QtCore;QtMultimedia\")

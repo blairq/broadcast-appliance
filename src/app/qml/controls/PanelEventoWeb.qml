@@ -103,9 +103,9 @@ ScrollView {
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11
-                visible: !pw.ar || !pw.ar.apiKeyGuardada || (pw.ar.cuenta && pw.ar.cuenta.texto)
+                visible: !pw.ar || !pw.ar.apiKeyGuardada || !!(pw.ar.cuenta && pw.ar.cuenta.texto)
                 color: pw.ar && pw.ar.cuenta && pw.ar.cuenta.estado === "error" ? Theme.live : Theme.textFaint
-                text: !pw.ar || !pw.ar.apiKeyGuardada ? "Falta la API key de pinggy (Configuración → Pinggy)." : (pw.ar.cuenta.texto || "")
+                text: !pw.ar || !pw.ar.apiKeyGuardada ? "Falta la API key de pinggy (Configuración → Pinggy)." : ((pw.ar.cuenta && pw.ar.cuenta.texto) || "")
             }
         }
 
