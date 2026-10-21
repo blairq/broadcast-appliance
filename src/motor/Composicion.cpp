@@ -364,6 +364,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         r->llega.poner(p, reloj_);
         gst_object_unref(p);
     }
+    const std::int64_t tPropiedades = g_get_monotonic_time();
     gst_bin_add_many(GST_BIN(pipeline_), r->src, r->recorte, nullptr);
     if (gpu_ && !gl_) {
         // intersrc → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
@@ -410,8 +411,9 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     // de cada clase compila sus shaders).
     if (t2 - t0 > 20'000)
         registrar(Nivel::Info, "composición " + nombre_ + ": la capa «" + c.entrada + "» se armó en " + std::to_string((t2 - t0) / 1000) +
-                                   " ms (crear " + std::to_string((tCreados - t0) / 1000) + ", agregar y enlazar " +
-                                   std::to_string((tEnlazados - tCreados) / 1000) + ", el pad del mezclador " +
+                                   " ms (crear " + std::to_string((tCreados - t0) / 1000) + ", propiedades (el productor) " +
+                                   std::to_string((tPropiedades - tCreados) / 1000) + ", agregar y enlazar " +
+                                   std::to_string((tEnlazados - tPropiedades) / 1000) + ", el pad del mezclador " +
                                    std::to_string((t1 - tEnlazados) / 1000) + ", arrancar " + std::to_string((t2 - t1) / 1000) + ")");
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
     return r;
