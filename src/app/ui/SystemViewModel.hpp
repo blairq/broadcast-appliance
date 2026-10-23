@@ -48,12 +48,14 @@ class SystemViewModel : public QObject {
     Q_INVOKABLE void openFolder(const QString& sub) const;
 
     /// Lanza el launcher con `args` y cierra la app (actualizar, volver atrás, cambiar de configuración).
-    QString launch(const QStringList& args);
+    /// :param aviso: lo que ve el operador mientras se cierra (por qué se cierra).
+    QString launch(const QStringList& args,
+                   const QString& aviso = "Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.");
 
    signals:
     void changed();
-    /// La app tiene que cerrarse para que el launcher actualice.
-    void quitForUpdate();
+    /// La app tiene que cerrarse para que el launcher actualice (o la reabra con otro evento).
+    void quitForUpdate(const QString& aviso);
 
    private:
 };

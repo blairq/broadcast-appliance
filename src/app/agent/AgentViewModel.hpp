@@ -206,13 +206,17 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
     Q_INVOKABLE void restart();
-    /// La conversación de Claude que se puede retomar (su id), o "" si no hay: la
-    /// sesión interactiva andando y con algo ya guardado. La app la pasa al reiniciarse
-    /// (--reanudar-asistente=<id>) para no perderla.
+    /// La conversación que se puede retomar (su id; Claude o Antigravity), o "" si no hay:
+    /// la sesión interactiva andando y con algo ya guardado. La app la pasa al reiniciarse
+    /// (--reanudar-asistente=<id>|<proveedor>|<modelo>) para no perderla.
     QString sesionParaReanudar() const;
     /// Al arrancar con --reanudar-asistente: lanza el asistente retomando esa
-    /// conversación (claude --resume) y pide que se lo muestre.
-    void reanudarAlArrancar(const QString& id);
+    /// conversación (claude --resume, antigravity --conversation) y pide que se lo muestre.
+    /// Con el proveedor y el modelo de la conversación: el evento que se abrió puede
+    /// tener otro (uno nuevo trae el de fábrica) y un motor no retoma la de otro.
+    /// :param seguir: el primer mensaje que recibe al retomarla (para que siga trabajando).
+    void reanudarAlArrancar(const QString& id, const QString& proveedor = {}, const QString& modelo = {},
+                            const QString& seguir = {});
     /// Guardas de aire: con la transmisión o la grabación andando, el asistente
     /// interactivo corre SIN consola (Bash/PowerShell); si estaba con consola,
     /// se relanza sin ella.
@@ -390,8 +394,10 @@ class AgentViewModel : public QObject {
     QStringList pendingAlerts_;
     bool flushScheduled_ = false;
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
-    QString sesion_;    ///< el id de la conversación de Claude que corre (--session-id / --resume)
+    QString sesion_;    ///< el id de la conversación que corre (Claude: --session-id / --resume; Antigravity: --conversation)
     QString reanudar_;  ///< la que el próximo arranque retoma (una vez)
+    QString seguir_;    ///< el mensaje con que arranca al retomarla (una vez)
+    qint64 inicioMs_ = 0; ///< cuándo arrancó la sesión (Antigravity: lo escrito desde ahí en su historial)
     QString encargoPendiente_; ///< lo que se manda apenas el asistente está listo (encargar)
     std::function<bool(const nlohmann::json&)> reclamado_;
     std::function<bool()> hayAire_;

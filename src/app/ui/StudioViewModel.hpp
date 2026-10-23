@@ -193,6 +193,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool transmitiendo READ transmitiendo NOTIFY statusChanged)
     /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
     Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY statusChanged)
+    /// La app está por cerrarse para que el launcher la reabra (otro evento, actualización):
+    /// {aviso, segundos} con la cuenta regresiva; vacío si no.
+    Q_PROPERTY(QVariantMap reinicio READ reinicio NOTIFY reinicioChanged)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
     /// El cuerpo deliberativo (integrantes, bancas, presets, micrófonos): asamblea/CuerpoViewModel.
@@ -439,6 +442,7 @@ class StudioViewModel : public QObject {
     /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
     /// programa, fila de oradores) y los integrantes de la sesión remota.
     QVariantMap impactoDeCerrar() const;
+    QVariantMap reinicio() const { return reinicio_; }
     /// El aviso para confirmar: `accion` vacía = cerrar la ventana; si no, lo que
     /// cierra la app (p. ej. "actualizar"). "" si no se corta nada.
     Q_INVOKABLE QString avisoDeCerrar(const QString& accion = {}) const;
@@ -976,6 +980,7 @@ class StudioViewModel : public QObject {
     void notify(const QString& message, const QString& level);
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
+    void reinicioChanged();
     void alarmasCambio();
     void escenasAjustesChanged();
     void placaChanged();
@@ -1061,6 +1066,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FacebookViewModel> facebook_;
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<Configuraciones> configuraciones_;
+    QVariantMap reinicio_;     ///< ver la propiedad reinicio
+    bool eventoNuevo_ = false; ///< el reinicio que viene abre un evento recién creado
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;

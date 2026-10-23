@@ -68,7 +68,7 @@ void McpService::registerConfiguracionesTools() {
                 QString::fromStdString(n), QString::fromStdString(a.value("desde", std::string("cero"))), abrir,
                 [done, n, abrir, alAire, pidio = a.value("abrir", false)](const QString& err) {
                     if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-                    if (abrir) return done(ToolResult::ok("Creado «" + n + "»: la app se reinicia con él."));
+                    if (abrir) return done(ToolResult::ok("Creado «" + n + "»: la app se reinicia con él en unos segundos. Seguís en esta conversación: al volver te aviso que ya está abierto. No hagas nada más hasta entonces."));
                     if (pidio && alAire)
                         return done(ToolResult::ok("Creado «" + n + "», pero no lo abro: hay una transmisión o una "
                                                    "grabación en curso (abrirlo reinicia la app). Abrilo con "
@@ -97,7 +97,7 @@ void McpService::registerConfiguracionesTools() {
                 return done(ToolResult::error("hay una transmisión o una grabación en curso: abrir otro evento reinicia "
                                               "la app y la corta. Esperá a que termine (o que el operador lo pida)."));
             if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Abriendo «" + n + "»: la app se reinicia."));
+            done(ToolResult::ok("Abriendo «" + n + "»: la app se reinicia en unos segundos. Seguís en esta conversación: al volver te aviso que ya está abierto. No hagas nada más hasta entonces."));
             cf->reiniciar();
         };
         core_.addTool(std::move(t));
@@ -213,7 +213,7 @@ void McpService::registerConfiguracionesTools() {
             const std::string n = a.value("nombre", std::string());
             if (n == cf->activa()) return done(ToolResult::error("ya es la activa"));
             if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Cambiando a «" + n + "»: la app se reinicia."));
+            done(ToolResult::ok("Cambiando a «" + n + "»: la app se reinicia en unos segundos. Seguís en esta conversación: al volver te aviso que ya está abierto. No hagas nada más hasta entonces."));
             cf->reiniciar();
         };
         core_.addTool(std::move(t));

@@ -118,12 +118,12 @@ QString SystemViewModel::checkUpdate(const QString& folder) const {
     return {};
 }
 
-QString SystemViewModel::launch(const QStringList& args) {
+QString SystemViewModel::launch(const QStringList& args, const QString& aviso) {
     const QString exe = launcherPath();
     if (!QFileInfo::exists(exe)) return "No encuentro el launcher (" + exe + ").";
     qint64 pid = 0;
     if (!QProcess::startDetached(exe, args, programa(), &pid)) return "No se pudo lanzar el actualizador.";
-    emit quitForUpdate();
+    emit quitForUpdate(aviso);
     return {};
 }
 

@@ -696,14 +696,22 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QStringList args{"--reiniciar"};
         for (const QString& a : QCoreApplication::arguments())
             if (a == "--test" || a == "--debug") args << a;
-        // La conversación del asistente sigue después del reinicio (la retoma al abrir).
+        // La conversación del asistente sigue después del reinicio (la retoma al abrir y le
+        // avisa en qué evento quedó, para que siga con lo que estaba haciendo).
+        const QString evento = configuraciones_->activaUi();
         if (agent_)
-            if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty()) args << "--app-arg=--reanudar-asistente=" + s;
-        return system_->launch(args);
+            if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty())
+                args << "--app-arg=--reanudar-asistente=" + s + "|" + agent_->provider() + "|" + agent_->model()
+                     << "--app-arg=--asistente-evento=" + evento;
+        const QString aviso = eventoNuevo_ ? "Evento «" + evento + "» creado: reiniciando para abrirlo"
+                                           : "Abriendo el evento «" + evento + "»: la app se reinicia";
+        eventoNuevo_ = false;
+        return system_->launch(args, aviso);
     });
     // Terminó un evento nuevo hecho aparte (una copia puede tardar): un solo aviso.
     connect(configuraciones_.get(), &Configuraciones::nuevoEventoListo, this,
             [this](const QString& nombre, const QString& error, bool abriendo) {
+                eventoNuevo_ = abriendo; // el reinicio sale enseguida (Configuraciones::nuevoEventoAparte)
                 if (!error.isEmpty()) emit notify("No se pudo crear «" + nombre + "»: " + error, "error");
                 else if (!abriendo) emit notify("Evento «" + nombre + "» listo: abrilo con «Abrir otro…»", "info");
             });
@@ -711,9 +719,23 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     if (const int n = configuraciones_->vaciarViejos(Configuraciones::kDiasPapelera); n > 0)
         qInfo("[eventos] papelera: %d con más de %d días, borrados", n, Configuraciones::kDiasPapelera);
     marca("system");
-    connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
-        emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");
-        QTimer::singleShot(800, this, [this]() { emit quitRequested(); });
+    // Antes de cerrarse, el aviso con una cuenta regresiva (Main.qml lo muestra encima de todo):
+    // que se cierre de golpe parecía una caída. El launcher ya está esperando que cierre.
+    connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this](const QString& aviso) {
+        emit notify(aviso, "info");
+        reinicio_ = {{"aviso", aviso}, {"segundos", 3}};
+        emit reinicioChanged();
+        auto* cuenta = new QTimer(this);
+        cuenta->setInterval(1000);
+        connect(cuenta, &QTimer::timeout, this, [this, cuenta]() {
+            const int quedan = reinicio_.value("segundos").toInt() - 1;
+            reinicio_["segundos"] = std::max(0, quedan);
+            emit reinicioChanged();
+            if (quedan > 0) return;
+            cuenta->stop();
+            emit quitRequested();
+        });
+        cuenta->start();
     });
     chatOverlay_ = std::make_unique<ChatOverlayRenderer>(*youtube_, *conference_, *twitch_, *facebook_);
     marca("chatOverlay");
@@ -926,10 +948,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
         connect(agenteAuto_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
-        // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>, ver
-        // el reinicio de Configuraciones): el asistente arranca con ella y se muestra.
+        // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>|<proveedor>|<modelo>,
+        // ver el reinicio de Configuraciones): el asistente arranca con ella y se muestra.
         for (const QString& a : QCoreApplication::arguments())
-            if (a.startsWith("--reanudar-asistente=")) agent_->reanudarAlArrancar(a.mid(21));
+            if (a.startsWith("--reanudar-asistente=")) {
+                const QStringList p = a.mid(21).split('|');
+                QString evento;
+                for (const QString& b : QCoreApplication::arguments())
+                    if (b.startsWith("--asistente-evento=")) evento = b.mid(19);
+                const QString seguir =
+                    evento.isEmpty() ? QString()
+                                     : "La app se reinició y ya está abierto el evento «" + evento +
+                                           "». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá "
+                                           "lo que te pida el operador.";
+                agent_->reanudarAlArrancar(p.value(0), p.value(1), p.mid(2).join('|'), seguir);
+            }
         // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
         // asistente se entera por él, sin que cada llamador se acuerde de avisar.
         connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);

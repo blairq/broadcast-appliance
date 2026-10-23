@@ -1696,11 +1696,24 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         if (!reanudar_.isEmpty()) {
             sesion_ = reanudar_;
             o.args << "--resume" << sesion_;
+            if (!seguir_.isEmpty()) o.args << seguir_; // el primer mensaje (claude [opciones] [prompt])
         } else {
             sesion_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
             o.args << "--session-id" << sesion_;
         }
         reanudar_.clear();
+        seguir_.clear();
+    } else if (runtimeOf(provider_) == "antigravity") {
+        // Retomar la pedida (reinicio de la app). El id de una nueva lo pone Antigravity:
+        // sesionParaReanudar lo busca en su historial.
+        inicioMs_ = QDateTime::currentMSecsSinceEpoch();
+        sesion_ = reanudar_;
+        if (!sesion_.isEmpty()) {
+            o.args << "--conversation" << sesion_;
+            if (!seguir_.isEmpty()) o.args << "--prompt-interactive" << seguir_;
+        }
+        reanudar_.clear();
+        seguir_.clear();
     } else if (runtimeOf(provider_) == "pi") {
         conConsola_ = false; // pi con el modelo local: nunca consola (ver baseLaunch)
     } else if (runtimeOf(provider_) == "opencode" && !urlOpencode_.isEmpty()) {
@@ -1913,18 +1926,50 @@ void AgentViewModel::restart() {
 }
 
 QString AgentViewModel::sesionParaReanudar() const {
-    if (sesion_.isEmpty() || runtimeOf(provider_) != "claude" || !session_->running()) return {};
+    if (!session_->running()) return {};
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring());
+    if (runtimeOf(provider_) == "antigravity") {
+        // La última conversación escrita desde esta carpeta de trabajo (cada asistente tiene
+        // la suya) desde que arrancó: cada pedido queda en su historial con workspace y
+        // conversationId. Si todavía no escribió nada, la que se retomó al arrancar.
+        const QString ws = QDir::cleanPath(root + (instancia_ == "automatizacion" ? "/Runtime/agente-automatizacion"
+                                                                                   : "/Runtime/agente"));
+        QFile f(root + "/Credenciales/agentes/antigravity/.gemini/antigravity-cli/history.jsonl");
+        if (f.open(QIODevice::ReadOnly)) {
+            f.seek(std::max<qint64>(0, f.size() - 256 * 1024));
+            const QList<QByteArray> lineas = f.readAll().split('\n');
+            for (auto it = lineas.crbegin(); it != lineas.crend(); ++it) {
+                const json j = json::parse(it->toStdString(), nullptr, false);
+                if (!j.is_object() || j.value("timestamp", qint64{0}) < inicioMs_) continue;
+                const QString id = QString::fromStdString(j.value("conversationId", ""));
+                if (!id.isEmpty() && !QUuid::fromString(id).isNull() &&
+                    QDir::cleanPath(QString::fromStdString(j.value("workspace", ""))) == ws)
+                    return id;
+            }
+        }
+        return sesion_;
+    }
+    if (sesion_.isEmpty() || runtimeOf(provider_) != "claude") return {};
     // Solo si ya guardó algo (<perfil>/projects/<carpeta>/<id>.jsonl): `--resume` de una
     // conversación sin mensajes no la encuentra y el asistente no arrancaría.
-    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring());
     QDirIterator it(root + "/Credenciales/agentes/claude/projects", {sesion_ + ".jsonl"}, QDir::Files,
                     QDirIterator::Subdirectories);
     return it.hasNext() ? sesion_ : QString();
 }
 
-void AgentViewModel::reanudarAlArrancar(const QString& id) {
+void AgentViewModel::reanudarAlArrancar(const QString& id, const QString& proveedor, const QString& modelo,
+                                        const QString& seguir) {
     if (id.isEmpty() || QUuid::fromString(id).isNull()) return;
+    // El evento abierto sigue con el motor de la conversación (queda en su configuración).
+    if (findProvider(proveedor) != nullptr && (proveedor != provider_ || modelo != model_)) {
+        provider_ = proveedor;
+        model_ = modelo;
+        saveConfig();
+        emit configChanged();
+        emit installChanged();
+    }
     reanudar_ = id;
+    seguir_ = seguir;
     // Cuando el MCP esté listo (como el arranque automático), aunque no esté prendido.
     QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
         if (reanudar_.isEmpty() || running() || !installed() || !mcpReady()) return;

@@ -748,6 +748,36 @@ ApplicationWindow {
         }
     }
     ConfirmDialog { id: confirmDlg }
+    // La app está por cerrarse para que el launcher la reabra (otro evento, actualización):
+    // el aviso con la cuenta regresiva, encima de todo y sin poder cerrarlo (Studio.reinicio).
+    Popup {
+        id: reinicioDlg
+        anchors.centerIn: parent
+        width: Math.min(460, win.width - 32)
+        modal: true
+        closePolicy: Popup.NoAutoClose
+        visible: !!Studio.reinicio.aviso
+        padding: 24
+        background: Rectangle { color: Theme.panel; radius: 12; border.color: Theme.glassBorder }
+        contentItem: Column {
+            spacing: 12
+            Text {
+                width: parent.width; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
+                text: Studio.reinicio.aviso || ""
+                color: Theme.text; font.pixelSize: 16
+            }
+            Text {
+                width: parent.width; horizontalAlignment: Text.AlignHCenter
+                text: Studio.reinicio.segundos > 0 ? Studio.reinicio.segundos : "…"
+                color: Theme.accent; font.pixelSize: 48; font.bold: true
+            }
+            Text {
+                width: parent.width; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
+                text: "Vuelve a abrir sola en unos segundos."
+                color: Theme.textDim; font.pixelSize: 12
+            }
+        }
+    }
     PanelDescargas { id: descargasDlg }
     // Los QR que manda el asistente (qr_mostrar): una ventana por QR, cada una de
     // su color («escaneá el QR verde»), escalonadas para que se vean todas.
