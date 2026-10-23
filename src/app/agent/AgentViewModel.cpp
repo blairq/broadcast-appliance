@@ -263,6 +263,16 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, const QStrin
     });
     // Las alertas: solo el de automatización (el del evento ya no las recibe).
     if (instancia_ == "automatizacion") connect(&alerts_, &AlertEngine::fired, this, &AgentViewModel::onAlert);
+    // Lo que va pasando en el evento: a los dos, en tandas (ver mandarNovedades).
+    tandaNovedades_ = new QTimer(this);
+    tandaNovedades_->setSingleShot(true);
+    tandaNovedades_->setInterval(ba::ajustes::entero("asistente.tandaNovedadesMs", 15000));
+    connect(tandaNovedades_, &QTimer::timeout, this, &AgentViewModel::mandarNovedades);
+    connect(&alerts_, &AlertEngine::novedad, this, [this](const QString& t) {
+        if (!running() || !ba::ajustes::siNo("asistente.novedades", true)) return;
+        novedades_ << t;
+        if (!tandaNovedades_->isActive()) tandaNovedades_->start();
+    });
     // Arranque automatico cuando todo este listo (GuiMode conecta el MCP despues).
     QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
         if (autoStart_ && reanudar_.isEmpty() && installed() && mcpReady() && !running()) start(); // (retomar: reanudarAlArrancar)
@@ -1667,6 +1677,8 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
     if (ws.isEmpty()) return {};
     term::Pty::Options o = baseLaunch(provider_, model_, ws, error);
     if (o.program.isEmpty()) return o;
+    // Su ba-mcp lo hereda y lo dice en cada pedido (X-BA-Asistente): ver OperatorMessages::setQuienPide.
+    o.env["BA_ASISTENTE"] = instancia_;
     if (runtimeOf(provider_) == "claude") {
         // El MCP y la consola del sistema: se le pide arreglar cosas de la
         // maquina, no solo manejar la emision. En Windows la consola es la
@@ -2123,6 +2135,22 @@ void AgentViewModel::flushAlerts() {
         "contame que paso y propone que hacer).";
     pendingAlerts_.clear();
     session_->submit(msg);
+}
+
+void AgentViewModel::mandarNovedades() {
+    if (novedades_.isEmpty() || !running()) {
+        novedades_.clear();
+        return;
+    }
+    const QString lista = novedades_.join(" | ");
+    novedades_.clear();
+    session_->submit(instancia_ == "automatizacion"
+                         ? "[NOVEDADES del evento] " + lista +
+                               " — Solo para que sepas qué está pasando. Hacé algo únicamente si está acordado "
+                               "para esto o si algo quedó mal; si no, contestá solo «ok»."
+                         : "[NOVEDADES del evento, solo para tu contexto] " + lista +
+                               " — No hagas nada ni lo comentes: contestá solo «ok». De esto se ocupa el "
+                               "asistente de automatización; tenelo en cuenta cuando el operador te hable.");
 }
 
 void AgentViewModel::openAgentsFolder() const {

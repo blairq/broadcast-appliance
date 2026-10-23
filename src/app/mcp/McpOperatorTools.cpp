@@ -73,6 +73,8 @@ void McpService::registerOperatorTools() {
         "operador manda con un click.");
     StudioViewModel& vm = vm_;
     auto* msgs = static_cast<OperatorMessages*>(vm.messages());
+    // Lo que publica una herramienta lleva qué asistente la llamó (la respuesta tardía le vuelve a él).
+    msgs->setQuienPide([this]() { return core_.contextoEnCurso().asistente; });
     // Foto de una persona de la sala para adjuntar a la tarjeta del operador.
     const auto photo = [&vm](const std::string& who) -> std::string {
         auto* conf = static_cast<ConferenceViewModel*>(vm.conference());

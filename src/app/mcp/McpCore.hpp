@@ -116,6 +116,9 @@ struct CallContext {
     /// Herramientas que este pedido puede usar aunque su rol no las tenga (un
     /// disparador con `permitir_aire`).
     std::set<std::string> permitidas;
+    /// Qué asistente de la app llama (evento | automatizacion; cabecera X-BA-Asistente).
+    /// Al final: hay inicializaciones por posición de los campos de arriba.
+    std::string asistente;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.

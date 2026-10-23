@@ -174,6 +174,14 @@ HttpReply post(const Target& t, const std::string& session, const std::string& r
                       t.token + "\r\n";
     if (!session.empty()) req += "Mcp-Session-Id: " + session + "\r\n";
     if (!rol.empty()) req += "X-BA-Rol: " + rol + "\r\n";
+    // Qué asistente de la app lo lanzó (evento | automatizacion): la app se lo pone en el
+    // entorno al agente y el agente nos lo pasa. Con eso, lo que el asistente deja para
+    // después (una pregunta al operador) le vuelve a él y no al otro.
+    static const std::string asistente = [] {
+        const char* v = std::getenv("BA_ASISTENTE");
+        return std::string(v != nullptr ? v : "");
+    }();
+    if (!asistente.empty()) req += "X-BA-Asistente: " + asistente + "\r\n";
     req += "Content-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
     for (std::size_t sent = 0; sent < req.size();) {
         const auto n = ::send(s, req.data() + sent, static_cast<int>(req.size() - sent), 0);

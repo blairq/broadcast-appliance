@@ -80,6 +80,7 @@ int OperatorMessages::post(const json& spec) {
            {"platform", spec.value("platform", "")},
            {"fields", spec.value("fields", json::array())},
            {"importFile", spec.value("importFile", false)},
+           {"asistente", spec.value("asistente", quienPide_ ? quienPide_() : std::string())},
            {"createdMs", now},
            {"status", "open"},
            {"answer", ""}};

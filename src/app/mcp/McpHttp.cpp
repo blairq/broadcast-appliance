@@ -203,6 +203,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
     // hay que guardarlo por sesion, y un cliente sin rol sigue viendo todo.
     ctx.rol = headerValue(headers, "X-BA-Rol").trimmed().toStdString();
     ctx.origen = "asistente";
+    ctx.asistente = headerValue(headers, "X-BA-Asistente").trimmed().toStdString();
     const auto isInit = [](const json& m) { return m.is_object() && m.value("method", "") == "initialize"; };
     if (isInit(msg) || (msg.is_array() && std::any_of(msg.begin(), msg.end(), isInit))) {
         const QString sid = randomHex(16);

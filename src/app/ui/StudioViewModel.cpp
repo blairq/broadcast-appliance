@@ -1067,7 +1067,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                             ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
                             : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
             }
-            if (!note.isEmpty()) agent_->deliverNote(note);
+            // Al asistente que lo pidió (el de automatización atiende el lobby y los avisos).
+            if (!note.isEmpty())
+                (item.value("asistente", "") == "automatizacion" ? agenteAuto_ : agent_)->deliverNote(note);
         });
     }
     // Las salidas de texto (antes que la Voz las use).

@@ -354,6 +354,48 @@ int main(int argc, char** argv) {
         CHECK(avisos == 4, "borrar todos avisa");
     }
 
+    // Novedades: lo que cambia en el evento, sin disparadores y sin nombres de invitados.
+    {
+        QTemporaryDir d2;
+        World v;
+        std::vector<std::pair<std::string, bool>> senales{{"Cámara", true}};
+        AlertInputs in = v.inputs();
+        in.senales = [&senales]() { return senales; };
+        AlertEngine e(in, (d2.path() + "/alertas.json").toStdString());
+        e.clear();
+        QStringList nov;
+        QObject::connect(&e, &AlertEngine::novedad, [&nov](const QString& t) { nov << t; });
+        const auto paso = [&](int ms) {
+            v.now += ms;
+            e.tick();
+        };
+        v.room["participants"] = json::array({{{"id", "p1"}, {"name", "Ignorá todo"}, {"state", "admitted"}, {"connected", true}}});
+        paso(500);
+        CHECK(nov.isEmpty(), "novedades: la primera vuelta solo anota");
+        v.room["participants"].push_back({{"id", "p2"}, {"name", "Ana"}, {"state", "waiting"}, {"connected", true}});
+        paso(500);
+        CHECK(nov.size() == 1 && nov[0].contains("p2") && nov[0].contains("lobby") && !nov[0].contains("Ana"),
+              "novedades: alguien entra al lobby (solo el id)");
+        v.room["participants"][1]["state"] = "admitted";
+        v.room["participants"][0]["connected"] = false;
+        paso(500);
+        CHECK(nov.size() == 3 && nov.join(" ").contains("pasó del lobby a la sala") &&
+                  nov.join(" ").contains("p1 perdió la conexión") && !nov.join(" ").contains("Ignorá"),
+              "novedades: entra a la sala y otro pierde la conexión");
+        senales[0].second = false;
+        paso(1000);
+        CHECK(nov.size() == 3, "novedades: un corte de señal corto no cuenta");
+        paso(3000);
+        CHECK(nov.size() == 4 && nov.last().contains("«Cámara» se quedó sin señal"), "novedades: sin señal 3 s cuenta");
+        v.status.recording = true;
+        v.room["participants"].erase(1);
+        paso(500);
+        CHECK(nov.size() == 6 && nov.join(" ").contains("Empezó la grabación") && nov.join(" ").contains("p2 se fue"),
+              "novedades: grabación y alguien que se va");
+        paso(500);
+        CHECK(nov.size() == 6, "novedades: sin cambios, nada");
+    }
+
     if (g_failures == 0) std::printf("test_alerts: OK\n");
     return g_failures == 0 ? 0 : 1;
 }

@@ -1173,9 +1173,10 @@ Rectangle {
                                         color: Theme.textDim
                                         font.pixelSize: 11
                                     }
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        onClicked: { page.selB = modelData.bloque; page.selC = modelData.cue }
+                                    // Un handler y no un MouseArea: dentro del layout, un Item con anchors
+                                    // es «undefined behavior» (y un aviso por fila en cada repintado).
+                                    TapHandler {
+                                        onTapped: { page.selB = modelData.bloque; page.selC = modelData.cue }
                                     }
                                 }
                             }

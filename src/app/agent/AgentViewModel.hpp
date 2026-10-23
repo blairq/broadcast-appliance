@@ -321,6 +321,9 @@ class AgentViewModel : public QObject {
     void setError(const QString& e);
     void onAlert(const nlohmann::json& ev);
     void flushAlerts();
+    /// Manda en un mensaje las novedades juntadas: al del evento, solo para que las tenga en
+    /// contexto (no reacciona); al de automatización, por si hay que hacer algo.
+    void mandarNovedades();
     QString runtimeOf(const QString& provider) const;
     /// Espacio de trabajo en `ws` para ese proveedor: instrucciones y la
     /// configuracion del MCP (con los argumentos del puente).
@@ -393,6 +396,8 @@ class AgentViewModel : public QObject {
     std::function<bool()> mcpReady_;
     QStringList pendingAlerts_;
     bool flushScheduled_ = false;
+    QStringList novedades_; ///< lo que pasó en el evento, para mandar en tanda (AlertEngine::novedad)
+    QTimer* tandaNovedades_ = nullptr;
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
     QString sesion_;    ///< el id de la conversación que corre (Claude: --session-id / --resume; Antigravity: --conversation)
     QString reanudar_;  ///< la que el próximo arranque retoma (una vez)

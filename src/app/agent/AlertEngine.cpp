@@ -316,6 +316,7 @@ void AlertEngine::tick() {
         if (!r.value("enabled", true)) continue;
         evaluate(r, state_[r["id"]], now);
     }
+    novedades(now);
     // Esperas vencidas.
     for (auto it = waiters_.begin(); it != waiters_.end();) {
         if (now >= it->deadline) {
@@ -326,6 +327,82 @@ void AlertEngine::tick() {
             ++it;
         }
     }
+}
+
+void AlertEngine::novedades(std::int64_t now) {
+    const bool avisar = novedadesListas_; // la primera vuelta solo anota cómo está todo
+    novedadesListas_ = true;
+    const QString hora = QDateTime::fromMSecsSinceEpoch(now).toString("HH:mm:ss");
+    const auto contar = [&](const std::string& t) {
+        if (avisar) emit novedad(hora + " " + QString::fromStdString(t));
+    };
+    std::map<std::string, std::string> ahora;
+    if (in_.room) {
+        // Solo ids (el nombre lo eligió el invitado: room_status para verlo). Ver llmSafeText.
+        for (const auto& part : in_.room().value("participants", json::array())) {
+            if (!part.is_object()) continue;
+            const std::string id = part.value("id", "");
+            if (id.empty()) continue;
+            const std::string estado = part.value("state", "");
+            const bool conectado = part.value("connected", false);
+            const int slot = part.value("slot", 0);
+            ahora["p:" + id] = estado + "|" + (conectado ? "1" : "0") + "|" + std::to_string(slot);
+            const auto it = previo_.find("p:" + id);
+            if (it == previo_.end()) {
+                contar(estado == "waiting" ? "Alguien (id " + id + ") entró al lobby."
+                                           : "Alguien (id " + id + ") entró a la sala.");
+                continue;
+            }
+            const QStringList antes = QString::fromStdString(it->second).split('|');
+            if (antes.value(0).toStdString() != estado && estado == "admitted")
+                contar("El participante " + id + " pasó del lobby a la sala.");
+            if (estado == "admitted" && antes.value(1) == "1" && !conectado)
+                contar("El participante " + id + " perdió la conexión.");
+            if (estado == "admitted" && antes.value(1) == "0" && conectado)
+                contar("El participante " + id + " volvió a conectarse.");
+            if (antes.value(2).toInt() <= 0 && slot > 0)
+                contar("El participante " + id + " tiene lugar en el aire (lugar " + std::to_string(slot) + ").");
+            if (antes.value(2).toInt() > 0 && slot <= 0) contar("El participante " + id + " dejó su lugar en el aire.");
+        }
+        for (const auto& [k, v] : previo_)
+            if (k.rfind("p:", 0) == 0 && !ahora.count(k)) contar("El participante " + k.substr(2) + " se fue.");
+    }
+    if (in_.senales) {
+        // Las entradas (sus nombres los pone el operador): un cambio de señal cuenta si dura 3 s.
+        for (const auto& [nombre, conSenal] : in_.senales()) {
+            const std::string k = "e:" + nombre;
+            const std::string v = conSenal ? "1" : "0";
+            const auto it = previo_.find(k);
+            if (it == previo_.end()) {
+                ahora[k] = v;
+                if (conSenal) contar("Se conectó la entrada «" + nombre + "» (tiene señal).");
+                continue;
+            }
+            ahora[k] = it->second;
+            if (it->second == v) {
+                cambioDesde_.erase(k);
+                continue;
+            }
+            const auto d = cambioDesde_.try_emplace(k, now).first;
+            if (now - d->second < 3000) continue;
+            cambioDesde_.erase(k);
+            ahora[k] = v;
+            contar(conSenal ? "La entrada «" + nombre + "» volvió a tener señal."
+                            : "La entrada «" + nombre + "» se quedó sin señal.");
+        }
+        for (const auto& [k, v] : previo_)
+            if (k.rfind("e:", 0) == 0 && !ahora.count(k)) contar("Se quitó la entrada «" + k.substr(2) + "».");
+    }
+    if (in_.status) {
+        const AlertInputs::Status s = in_.status();
+        ahora["aire"] = s.streaming ? "1" : "0";
+        ahora["grabando"] = s.recording ? "1" : "0";
+        if (const auto it = previo_.find("aire"); it != previo_.end() && it->second != ahora["aire"])
+            contar(s.streaming ? "Empezó la transmisión." : "Terminó la transmisión.");
+        if (const auto it = previo_.find("grabando"); it != previo_.end() && it->second != ahora["grabando"])
+            contar(s.recording ? "Empezó la grabación." : "Terminó la grabación.");
+    }
+    previo_ = std::move(ahora);
 }
 
 void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {

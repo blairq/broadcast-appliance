@@ -793,7 +793,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // Quién: el rol, de dónde salió (asistente, receta, disparador, botonera…) y, si vino de
         // afuera, el cliente que se presentó al conectarse.
         std::string quien;
-        if (!ctx.rol.empty()) quien += " [" + ctx.rol + "]";
+        if (!ctx.rol.empty()) quien += " [" + ctx.rol + (ctx.asistente.empty() ? "" : ":" + ctx.asistente) + "]";
         if (!ctx.origen.empty()) quien += " <" + ctx.origen + ">";
         if (const auto c = clientes_.find(ctx.session); c != clientes_.end()) quien += " «" + c->second + "»";
         else if (ctx.origen.empty() && !ctx.session.empty()) quien += " (sesión " + ctx.session.substr(0, 8) + ")";

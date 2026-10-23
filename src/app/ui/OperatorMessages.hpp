@@ -64,6 +64,9 @@ class OperatorMessages : public QObject {
     /// Si nadie espera la respuesta (herramienta vencida o sin espera), el
     /// asistente se entera por aca (lo escribe en su chat).
     void setLateAnswerSink(std::function<void(const json&)> fn) { lateSink_ = std::move(fn); }
+    /// Qué asistente está pidiendo lo que se publica ahora (evento | automatizacion | ""):
+    /// queda en el mensaje para que la respuesta tardía le vuelva a él.
+    void setQuienPide(std::function<std::string()> fn) { quienPide_ = std::move(fn); }
 
     Q_INVOKABLE void answer(int id, const QString& text);
     Q_INVOKABLE void dismiss(int id);
@@ -91,6 +94,7 @@ class OperatorMessages : public QObject {
     ChatSender sendChat_;
     CredentialSink saveCredential_;
     std::function<void(const json&)> lateSink_;
+    std::function<std::string()> quienPide_;
     QTimer expiry_;
 };
 

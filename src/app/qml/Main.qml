@@ -116,11 +116,13 @@ ApplicationWindow {
 
     // Cerrar la ventana principal cierra la aplicacion aunque haya ventanas de
     // salida abiertas (esas se recuerdan y vuelven al proximo arranque).
-    // Con algo en curso (emision, grabacion, gente en la sala o en la sesion remota)
-    // antes se pregunta: lo que se corta lo dice Studio (SettingsPage usa lo mismo).
+    // Antes se pregunta siempre; con algo en curso (emision, grabacion, gente en la sala o
+    // en la sesion remota), lo que se corta lo dice Studio (SettingsPage usa lo mismo).
     property bool quitting: false // el cierre ya esta decidido: la guardia no pregunta
     onClosing: (close) => {
-        if (quitting || !Studio.impactoDeCerrar.hay) { Qt.quit(); return }
+        // Siempre se pregunta (un click en la ✕ por error cerraba todo): con algo en curso,
+        // diciendo lo que se corta.
+        if (quitting) { Qt.quit(); return }
         close.accepted = false
         // Diferido: QGuiApplication::quit() tambien cierra las ventanas, asi que
         // un cierre pedido por la app pasa por aca; su quitRequested llega en
@@ -131,7 +133,8 @@ ApplicationWindow {
         if (quitting) return
         confirm({
             title: "¿Cerrar Broadcast Appliance?",
-            text: Studio.avisoDeCerrar(""),
+            text: Studio.impactoDeCerrar.hay ? Studio.avisoDeCerrar("")
+                  : "Se cierran la sala, las salidas y los asistentes.",
             accept: "Cerrar",
             reject: "Cancelar",
             action: function() { win.quitting = true; Qt.quit() }

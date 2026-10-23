@@ -139,6 +139,10 @@ class AlertEngine : public QObject {
     /// Lo emite el motor, no quien lo llamó: la vista se entera sola venga el
     /// cambio de la interfaz, del MCP o de un plugin.
     void reglasCambio();
+    /// Algo cambió en el evento (entró o se fue alguien, una entrada tomó o perdió señal, el
+    /// aire o la grabación): para que los asistentes lo tengan en contexto, haya o no
+    /// disparadores. El texto no lleva nada escrito por invitados (solo ids).
+    void novedad(const QString& texto);
 
    private:
     std::vector<json> activas_; ///< eventos con `reconocer` todavía sin reconocer
@@ -152,6 +156,12 @@ class AlertEngine : public QObject {
         bool primed = false;
     };
     void evaluate(json& rule, State& st, std::int64_t now);
+    /// Compara con la vuelta anterior y emite novedad() por cada cambio.
+    void novedades(std::int64_t now);
+    std::map<std::string, std::string> previo_;       ///< el estado de la vuelta anterior (novedades)
+    std::map<std::string, std::int64_t> cambioDesde_; ///< señal de una entrada: desde cuándo es distinta
+    bool novedadesListas_ = false;                    ///< la primera vuelta solo anota
+
     void fire(json& rule, State& st, const std::string& text, const json& data, std::int64_t now);
     void save() const;
     void load();

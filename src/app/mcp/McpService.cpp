@@ -513,8 +513,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                        "lobby:" + id.toStdString(), 0, &err);
             return QString::fromStdString(err);
         }
-        auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
-        if (ag == nullptr || !ag->running()) return "El asistente no está corriendo (pestaña ✦).";
+        // Sin recepción, el de AUTOMATIZACIÓN (trabaja solo, en segundo plano): el del evento
+        // es la charla con el operador y no tiene que recibir encargos del lobby.
+        auto* ag = static_cast<agent::AgentViewModel*>(vm_.agenteAutomatizacion());
+        if (ag == nullptr || !ag->running()) return "El asistente de automatización no está corriendo (pestaña ✦).";
         core_.startIntake(id.toStdString(), name.toStdString());
         if (yaAdentro) {
             // YA ESTA ADENTRO: entro sola porque estaba en la lista del
