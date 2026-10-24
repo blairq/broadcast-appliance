@@ -40,13 +40,14 @@ struct Rol {
     std::string descripcion;
     std::vector<std::string> categorias;   ///< las suyas (mas las comunes de Roles::comunes)
     std::vector<std::string> disparadores; ///< tipos de disparador que atiende
-    std::string prompt;                    ///< el archivo de instrucciones del espacio de trabajo
+    std::string prompt;                    ///< lo propio del rol, de fábrica (sin las reglas comunes: ver Roles::instrucciones)
     int agruparMs = 0;                     ///< 0: una corrida por evento; N: junta lo que llegue en N ms
     int agruparMax = 1;                    ///< tope de eventos por corrida
     // --- Lo que elige el operador --------------------------------------------
     bool activo = false;   ///< apagado de fabrica: nada cambia hasta que alguien lo prende
     std::string proveedor; ///< id de proveedor (ver AgentViewModel); vacio = el del asistente
     std::string modelo;    ///< vacio = el de fabrica del proveedor
+    std::string promptPropio; ///< lo que escribió el operador en vez de `prompt`; vacío = el de fábrica
     /// Si además de su juego MCP tiene las HERRAMIENTAS PROPIAS del agente:
     /// consola, leer y escribir archivos, salir a internet.
     ///
@@ -99,6 +100,11 @@ class Roles {
     bool setConsola(const std::string& id, bool consola);
     bool setProveedor(const std::string& id, const std::string& proveedor);
     bool setModelo(const std::string& id, const std::string& modelo);
+    /// Lo propio del rol que escribió el operador ("" o igual al de fábrica = el de fábrica).
+    bool setPrompt(const std::string& id, const std::string& texto);
+    /// El archivo de instrucciones de una corrida: lo propio (el del operador o el de fábrica)
+    /// más las reglas comunes, que no se editan.
+    static std::string instrucciones(const Rol& r);
 
     /// rol -> categorias, para McpCore::setRoles.
     std::map<std::string, std::set<std::string>> categoriasPorRol() const;

@@ -209,7 +209,7 @@ std::vector<Rol> deFabrica() {
         // cosa, no tiene con que. Un rol que mira no necesita poder tocar.
         x.categorias = {"imagenes"};
         x.disparadores = {}; // no se dispara solo: lo llama `imagen_preguntar`
-        x.prompt = std::string(kVision) + kComun;
+        x.prompt = kVision;
         // PRENDIDO de fabrica, y es la excepcion a la regla. Los demas roles
         // arrancan apagados porque actuan solos ante un evento; este no tiene
         // disparadores: no hace nada hasta que alguien le da una imagen, y lo
@@ -227,7 +227,7 @@ std::vector<Rol> deFabrica() {
         x.categorias = {"escenas",  "fuentes",  "medios", "graficos", "laminas",
                         "imagenes", "entradas", "equipo", "operador"};
         x.disparadores = {}; // no se dispara solo: se le encarga un diseño
-        x.prompt = std::string(kEscenografo) + kComun;
+        x.prompt = kEscenografo;
         // CON las herramientas propias del agente, y es el unico que las lleva:
         // bajar una imagen, convertirla y dejarla en Medios/ no se puede hacer
         // con herramientas del aparato. Ver `Rol::consola` para lo que implica.
@@ -253,7 +253,7 @@ std::vector<Rol> deFabrica() {
         x.categorias = {"evento",   "padron", "preguntas", "medios",  "prompter",
                         "graficos", "qr",     "operador",  "rostros", "laminas"};
         x.disparadores = {}; // no se dispara solo: lo llama quien organiza
-        x.prompt = std::string(kOrganizador) + kComun;
+        x.prompt = kOrganizador;
         // PRENDIDO de fabrica, por la misma razon que `vision`: no tiene
         // disparadores, asi que no hace nada hasta que alguien le encarga algo.
         // Apagado, el boton de «Armar contandolo» de la pagina de Evento no
@@ -275,7 +275,7 @@ std::vector<Rol> deFabrica() {
         // sala quedaba sin anotar mientras que el que entra por la puerta si.
         x.categorias = {"sala", "oradores", "imagenes", "operador", "rostros", "padron"};
         x.disparadores = {"lobby", "hand", "guest_drop", "guest_message"};
-        x.prompt = std::string(kRecepcion) + kComun;
+        x.prompt = kRecepcion;
         x.agruparMs = 0;
         x.agruparMax = 1;
         r.push_back(std::move(x));
@@ -287,7 +287,7 @@ std::vector<Rol> deFabrica() {
         x.descripcion = "Mide y arregla el audio y las entradas de video cuando algo suena o se ve mal.";
         x.categorias = {"audio", "audio_rack", "entradas", "fuentes", "operador"};
         x.disparadores = {"audio_peak", "audio_silence", "stream_health"};
-        x.prompt = std::string(kTecnico) + kComun;
+        x.prompt = kTecnico;
         // Dos picos seguidos son un problema, no dos: se juntan.
         x.agruparMs = 3000;
         x.agruparMax = 5;
@@ -305,7 +305,7 @@ std::vector<Rol> deFabrica() {
                         "qué hacer.";
         x.categorias = {"estado", "escenas", "audio", "sala", "oradores", "operador"};
         x.disparadores = {"media_end", "speaker_time", "chat", "disk", "timer"};
-        x.prompt = std::string(kComun);
+        x.prompt.clear(); // solo las reglas comunes
         x.proveedor = "local";
         r.push_back(std::move(x));
     }
@@ -414,6 +414,25 @@ bool Roles::setProveedor(const std::string& id, const std::string& proveedor) {
     return true;
 }
 
+std::string Roles::instrucciones(const Rol& r) {
+    // Las reglas comunes van SIEMPRE (el aire no es tuyo, el resumen al final…): el operador
+    // edita lo propio del rol, no las guardas.
+    const std::string& propio = r.promptPropio.empty() ? r.prompt : r.promptPropio;
+    return propio + kComun;
+}
+
+bool Roles::setPrompt(const std::string& id, const std::string& texto) {
+    auto* r = const_cast<Rol*>(porId(id));
+    if (r == nullptr) return false;
+    // Igual al de fábrica (o vacío) = el de fábrica: así una actualización que lo mejora llega.
+    const std::string propio = texto == r->prompt ? std::string() : texto;
+    if (r->promptPropio != propio) {
+        r->promptPropio = propio;
+        guardar();
+    }
+    return true;
+}
+
 bool Roles::setModelo(const std::string& id, const std::string& modelo) {
     auto* r = const_cast<Rol*>(porId(id));
     if (r == nullptr) return false;
@@ -444,12 +463,15 @@ json Roles::aJson() const {
                            {"activo", r.activo},
                            {"consola", r.consola},
                            {"proveedor", r.proveedor},
-                           {"modelo", r.modelo}});
+                           {"modelo", r.modelo},
+                           {"prompt", r.promptPropio.empty() ? r.prompt : r.promptPropio},
+                           {"promptFabrica", r.prompt},
+                           {"promptEditado", !r.promptPropio.empty()}});
     return out;
 }
 
-// Solo lo que elige el operador. Categorias, disparadores y prompt son del
-// sistema: si un archivo viejo los trae, se ignoran.
+// Solo lo que elige el operador. Categorias, disparadores y el prompt de fábrica son del
+// sistema: si un archivo viejo los trae, se ignoran (el operador tiene el suyo, promptPropio).
 void Roles::leer() {
     if (archivo_.empty()) return;
     std::ifstream in(archivo_, std::ios::binary);
@@ -463,6 +485,7 @@ void Roles::leer() {
         r.consola = e.value("consola", r.consola);
         r.proveedor = e.value("proveedor", r.proveedor);
         r.modelo = e.value("modelo", r.modelo);
+        r.promptPropio = e.value("promptPropio", r.promptPropio);
     }
 }
 
@@ -472,7 +495,8 @@ void Roles::guardar() const {
     json o = json::object();
     for (const Rol& r : roles_)
         o[r.id] = json{
-            {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo}};
+            {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo},
+            {"promptPropio", r.promptPropio}};
     std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
     out << o.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }

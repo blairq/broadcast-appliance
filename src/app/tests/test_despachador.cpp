@@ -99,7 +99,16 @@ int main(int argc, char** argv) {
         CHECK(r.porId("recepcion")->modelo.empty(), "cambiar de proveedor borra el modelo");
         CHECK(r.categoriasPorRol()["recepcion"].count("sala") == 1, "categorias del rol");
         CHECK(Roles::comunes().count("ayuda") == 1 && Roles::comunes().count("agentes") == 1, "comunes");
+        // Instrucciones: lo propio se edita, las reglas comunes van siempre.
+        const std::string comunes = Roles::instrucciones(*r.porId("vigilante")); // sin parte propia
+        const std::string fabrica = r.porId("recepcion")->prompt;
+        CHECK(Roles::instrucciones(*r.porId("recepcion")) == fabrica + comunes, "de fábrica: lo propio + las comunes");
+        r.setPrompt("recepcion", "Atendé en inglés.");
+        CHECK(Roles::instrucciones(*r.porId("recepcion")) == "Atendé en inglés." + comunes, "editado: lo del operador + las comunes");
         Roles r2((dir + "/roles.json").toStdString());
+        CHECK(r2.porId("recepcion")->promptPropio == "Atendé en inglés.", "lo editado se relee");
+        r.setPrompt("recepcion", fabrica);
+        CHECK(r.porId("recepcion")->promptPropio.empty(), "igual al de fábrica = de fábrica");
         CHECK(r2.porId("recepcion")->activo && r2.porId("recepcion")->proveedor == "claude-cuenta",
               "lo elegido se relee");
         CHECK(!r2.porId("recepcion")->categorias.empty(), "lo del sistema no depende del archivo");

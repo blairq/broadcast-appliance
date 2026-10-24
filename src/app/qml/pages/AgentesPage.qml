@@ -114,20 +114,24 @@ Rectangle {
                                         onToggled: (w) => page.d.setConsola(fila.modelData.id, w)
                                     }
                                     Text {
-                                        text: "Consola"
+                                        text: "Usa la máquina"
                                         color: fila.modelData.consola === true ? Theme.amber : Theme.textDim
                                         font.pixelSize: 12
                                     }
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    visible: fila.modelData.consola === true
-                                    text: "disco e internet"
-                                    color: Theme.amber
+                                    text: "terminal, archivos e internet"
+                                    color: fila.modelData.consola === true ? Theme.amber : Theme.textFaint
                                     font.pixelSize: 10
                                     wrapMode: Text.WordWrap
                                 }
-                                ToolTip.visible: false
+                                HoverHandler { id: consolaHov }
+                                ToolTip.visible: consolaHov.hovered
+                                ToolTip.delay: 400
+                                ToolTip.text: "Además de manejar la app, puede usar la terminal, leer y escribir archivos y " +
+                                              "salir a internet (por ejemplo, bajar una imagen y dejarla en Medios). Lo que " +
+                                              "hace así NO pasa por las aprobaciones del asistente: prendelo solo si el rol lo necesita."
                             }
                             ComboBox {
                                 id: provBox
@@ -164,9 +168,21 @@ Rectangle {
                                 medidaDe: "escuchando"
                             }
                             GlassButton {
-                                compact: true; text: "Encargar"; icon: "✎"
+                                compact: true; text: "Instrucciones"; icon: "☰"
+                                active: instrucciones.visible
+                                onClicked: {
+                                    if (!instrucciones.visible) promptTexto.text = fila.modelData.prompt || ""
+                                    instrucciones.visible = !instrucciones.visible
+                                }
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Qué es y cómo trabaja este rol (su prompt)" + (fila.modelData.promptEditado ? " · editado" : "")
+                            }
+                            GlassButton {
+                                compact: true; text: "Hablar directo"; icon: "✎"
                                 enabled: fila.modelData.activo
                                 onClicked: encargo.visible = !encargo.visible
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Pedirle algo a este rol ahora, sin esperar un disparador"
                             }
                         }
                         RowLayout {
@@ -190,6 +206,51 @@ Rectangle {
                                     if (err !== "") Studio.notify(err, "error")
                                     else { encargoTexto.text = ""; encargo.visible = false }
                                 }
+                            }
+                        }
+                        // Las instrucciones del rol: lo propio se edita; las reglas comunes (el aire no es
+                        // suyo, el resumen al final) se agregan siempre (Roles::instrucciones).
+                        ColumnLayout {
+                            id: instrucciones
+                            visible: false
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 56
+                            spacing: 6
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: "Instrucciones de " + fila.modelData.titulo + (fila.modelData.promptEditado ? " (editadas)" : " (de fábrica)") +
+                                      ". Las reglas comunes de todos los roles se agregan siempre y no se editan acá."
+                                color: Theme.textDim; font.pixelSize: 11
+                            }
+                            ScrollView {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 220
+                                TextArea {
+                                    id: promptTexto
+                                    wrapMode: TextEdit.Wrap
+                                    color: Theme.text; font { pixelSize: 12; family: "Menlo" }
+                                    placeholderText: "Sin instrucciones propias: solo las reglas comunes."
+                                    background: Rectangle { color: Theme.field; radius: 8 }
+                                }
+                            }
+                            RowLayout {
+                                spacing: 8
+                                GlassButton {
+                                    compact: true; text: "Guardar"; active: true
+                                    enabled: promptTexto.text !== (fila.modelData.prompt || "")
+                                    onClicked: { page.d.setPrompt(fila.modelData.id, promptTexto.text); instrucciones.visible = false }
+                                }
+                                GlassButton {
+                                    compact: true; text: "Volver a las de fábrica"
+                                    visible: fila.modelData.promptEditado === true
+                                    onClicked: ApplicationWindow.window.confirm({
+                                        title: "¿Volver a las instrucciones de fábrica?",
+                                        text: "Se pierde lo que escribiste para " + fila.modelData.titulo + ".",
+                                        accept: "Volver a las de fábrica", reject: "Cancelar",
+                                        action: function() { page.d.setPrompt(fila.modelData.id, ""); promptTexto.text = fila.modelData.promptFabrica || "" }
+                                    })
+                                }
+                                GlassButton { compact: true; text: "Cancelar"; onClicked: instrucciones.visible = false }
                             }
                         }
                         Text {

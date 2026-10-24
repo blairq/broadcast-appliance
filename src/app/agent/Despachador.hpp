@@ -111,6 +111,8 @@ class Despachador : public QObject {
     Q_INVOKABLE void setConsola(const QString& rol, bool consola);
     Q_INVOKABLE void setProveedor(const QString& rol, const QString& proveedor);
     Q_INVOKABLE void setModelo(const QString& rol, const QString& modelo);
+    /// Lo propio del rol (vacío o igual al de fábrica: vuelve al de fábrica).
+    Q_INVOKABLE void setPrompt(const QString& rol, const QString& texto);
     Q_INVOKABLE QStringList modelosDe(const QString& proveedor) const;
     /// Devuelve el error (vacio si se encolo).
     Q_INVOKABLE QString encargarDesdeUi(const QString& rol, const QString& texto);
