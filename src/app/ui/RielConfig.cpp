@@ -73,13 +73,14 @@ const std::vector<Grupo>& catalogo() {
           {14, "agentes", "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
           {23, "plugins", "⌬",
            "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones"},
-          {13, "registro", "❑", "Registro: todo lo que pasa, de los tres procesos"},
           {30, "latencias", "⏱",
            "Latencias del pipeline: cuánto tarda cada cosa, de cada entrada a cada salida (video y audio, "
            "tarjeta por tarjeta, módulo por módulo), y los análisis"},
           {29, "enlaces", "⇄",
            "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
            "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR"},
+          // Ante última: se mira cuando algo anduvo mal, no en el día a día.
+          {13, "registro", "❑", "Logs del sistema: todo lo que pasa, de los tres procesos"},
           {6, "configuracion", "⚙", "Configuración"}}},
     };
     return g;

@@ -50,7 +50,7 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             Text {
-                text: "Registro"
+                text: "Logs del sistema"
                 color: Theme.text
                 font { pixelSize: 20; weight: Font.DemiBold }
             }
