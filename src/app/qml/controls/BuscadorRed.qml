@@ -43,8 +43,12 @@ Popup {
         spacing: 16
 
         // --- La lista ---------------------------------------------------------------------
+        // Los textos largos (nombre, IP, fabricante, URLs) se cortan con «…»: con preferredWidth 1
+        // y fillWidth no imponen su ancho al layout (si no, el modal se iba por la derecha).
         ColumnLayout {
-            Layout.preferredWidth: 430
+            readonly property real ancho: Math.max(260, Math.min(430, bus.width * 0.38))
+            Layout.preferredWidth: ancho
+            Layout.maximumWidth: ancho
             Layout.fillHeight: true
             spacing: 8
             RowLayout {
@@ -56,7 +60,7 @@ Popup {
                     onClicked: bus.red.escanear()
                 }
             }
-            Text { text: bus.red ? bus.red.progreso : ""; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+            Text { text: bus.red ? bus.red.progreso : ""; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true; Layout.preferredWidth: 1; elide: Text.ElideRight }
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -78,6 +82,7 @@ Popup {
                         Text { text: String(modelData.tipo).startsWith("grabador") ? "🗄" : modelData.tipo === "cámara" ? "📹" : "🖧"; font.pixelSize: 20 }
                         ColumnLayout {
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 1
                             spacing: 1
                             Text {
                                 Layout.fillWidth: true; elide: Text.ElideRight
@@ -154,7 +159,7 @@ Popup {
                             required property var modelData
                             Layout.fillWidth: true
                             Text { text: modelData.codigo === 200 ? "✓" : modelData.codigo === 401 ? "🔒" : "✗"; color: modelData.codigo === 200 ? Theme.ok : Theme.textDim; font.pixelSize: 12 }
-                            Text { Layout.fillWidth: true; elide: Text.ElideMiddle; text: modelData.url + "  (" + modelData.perfil + ")"; color: Theme.textDim; font { pixelSize: 11; family: "Menlo" } }
+                            Text { Layout.fillWidth: true; Layout.preferredWidth: 1; elide: Text.ElideMiddle; text: modelData.url + "  (" + modelData.perfil + ")"; color: Theme.textDim; font { pixelSize: 11; family: "Menlo" } }
                             Text { text: modelData.estado + (modelData.codec ? " · " + modelData.codec : ""); color: Theme.textFaint; font.pixelSize: 11 }
                         }
                     }
@@ -163,7 +168,7 @@ Popup {
                     RowLayout {
                         Layout.fillWidth: true
                         TextField { id: usr; Layout.preferredWidth: 160; placeholderText: bus.actual ? (bus.actual.usuario_de_fabrica || "admin") : "admin" }
-                        TextField { id: pwd; Layout.fillWidth: true; placeholderText: "Clave (o código de verificación)"; echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData }
+                        TextField { id: pwd; Layout.fillWidth: true; Layout.preferredWidth: 1; placeholderText: "Clave (o código de verificación)"; echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData }
                         GlassButton {
                             compact: true; text: "Guardar y probar"; active: true
                             onClicked: {
@@ -230,20 +235,25 @@ Popup {
                         Text { text: "Ya está en el estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                         Repeater {
                             model: yaCol.ya
-                            delegate: RowLayout {
+                            delegate: ColumnLayout {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                Text { text: "«" + modelData.entrada + "»"; color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                                spacing: 4
+                                Text { text: "«" + modelData.entrada + "»"; color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; Layout.preferredWidth: 1; elide: Text.ElideRight }
+                                Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
                                 GlassButton {
                                     compact: true; text: "Configurar su PTZ"
                                     onClicked: { const e = bus.red.ptzDesdeUi(bus.sel, modelData.entrada); agregarMsg.text = e === "" ? "PTZ configurado: se mueve desde Cámaras PTZ." : e }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
                                     ToolTip.text: "Con la clave ONVIF ya guardada (después de cargarla y de «Analizar»)"
                                 }
-                                ComboBox { id: otraEscena; Layout.preferredWidth: 170; model: bus.escenas }
+                                ComboBox { id: otraEscena; width: 170; model: bus.escenas }
                                 GlassButton {
                                     compact: true; text: "Sumar a esa escena"
                                     onClicked: { const e = bus.red.reusarDesdeUi(bus.sel, otraEscena.currentText); agregarMsg.text = e === "" ? "Sumada a «" + otraEscena.currentText + "» (el mismo stream, no otro)." : e }
+                                }
                                 }
                             }
                         }
@@ -252,8 +262,8 @@ Popup {
                     Text { text: yaCol.visible ? "Agregar otra vez (otro stream)" : "Agregar al estudio"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
                     RowLayout {
                         Layout.fillWidth: true
-                        TextField { id: nombreCam; Layout.fillWidth: true; placeholderText: bus.actual && bus.actual.onvif ? bus.actual.onvif.nombre : "Nombre de la entrada" }
-                        ComboBox { id: escenaCam; Layout.preferredWidth: 200; model: bus.escenas }
+                        TextField { id: nombreCam; Layout.fillWidth: true; Layout.preferredWidth: 1; placeholderText: bus.actual && bus.actual.onvif ? bus.actual.onvif.nombre : "Nombre de la entrada" }
+                        ComboBox { id: escenaCam; Layout.preferredWidth: 170; model: bus.escenas }
                         GlassButton {
                             text: "Agregar"; active: true
                             onClicked: {
