@@ -863,6 +863,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         cuerpo_ = std::make_unique<asamblea::CuerpoViewModel>(rt.dataRoot());
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
+        bus_->setMediciones(control::BusEventos::medicionesDeFabrica());
         armarBitacora();
         // Con un evento en curso, lo que se graba va a su carpeta (H4).
         if (evento_) rt_.setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
@@ -2169,8 +2170,7 @@ void StudioViewModel::armarBitacora() {
     for (const std::string& c : evento::Bitacora::categorias())
         bitacora_->setRegistrar(c, !reg.is_object() || reg.value(c, true));
     // Lo que se repite muchas veces por segundo no es un hecho: es una medición.
-    busExcluir_ = std::make_shared<std::vector<std::string>>(
-        std::vector<std::string>{"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally"});
+    busExcluir_ = std::make_shared<std::vector<std::string>>(control::BusEventos::medicionesDeFabrica());
     if (aj.contains("bus_excluir") && aj["bus_excluir"].is_array()) {
         busExcluir_->clear();
         for (const auto& p : aj["bus_excluir"])

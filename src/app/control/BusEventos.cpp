@@ -115,13 +115,24 @@ void BusEventos::desuscribir(int id) {
     oyentes_.erase(id);
 }
 
-QVariantList BusEventos::recientesUi(const QString& filtro) const {
+void BusEventos::setMediciones(std::vector<std::string> patrones) {
+    std::lock_guard<std::mutex> l(mu_);
+    mediciones_ = std::move(patrones);
+}
+
+QVariantList BusEventos::recientesUi(const QString& filtro, bool conMediciones) const {
     std::lock_guard<std::mutex> l(mu_);
     QVariantList out;
     const std::string f = filtro.toStdString();
+    const auto esMedicion = [this](const std::string& t) {
+        for (const auto& p : mediciones_)
+            if (coincide(p, t)) return true;
+        return false;
+    };
     for (auto it = recientes_.rbegin(); it != recientes_.rend() && out.size() < 150; ++it) {
         const std::string t = it->value("tema", std::string());
         if (!f.empty() && t.find(f) == std::string::npos && !coincide(f, t)) continue;
+        if (f.empty() && !conMediciones && esMedicion(t)) continue; // con filtro, lo pidió
         out.append(QVariantMap{
             {"tema", QString::fromStdString(t)},
             {"valor", QString::fromStdString((*it)["valor"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))},

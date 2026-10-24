@@ -59,7 +59,15 @@ class BusEventos : public QObject {
     static bool coincide(const std::string& patron, const std::string& tema);
 
     /// Los últimos para la vista (la pestaña Eventos): [{tema, valor, hora}].
-    Q_INVOKABLE QVariantList recientesUi(const QString& filtro = {}) const;
+    /// Lo último publicado, lo más nuevo primero. Sin filtro ni `conMediciones`, sin las
+    /// mediciones (setMediciones): se publican cada segundo y tapaban los hechos.
+    Q_INVOKABLE QVariantList recientesUi(const QString& filtro = {}, bool conMediciones = false) const;
+    /// Los temas que son mediciones (audio/nivel/#, audio/loudness…), no hechos.
+    void setMediciones(std::vector<std::string> patrones);
+    /// Las de fábrica: lo que se publica muchas veces por segundo (o cada segundo) y no es un hecho.
+    static std::vector<std::string> medicionesDeFabrica() {
+        return {"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally"};
+    }
     Q_INVOKABLE QVariantList temasUi(const QString& filtro = {}) const;
 
    signals:
@@ -67,6 +75,7 @@ class BusEventos : public QObject {
 
    private:
     mutable std::mutex mu_;
+    std::vector<std::string> mediciones_; ///< ver setMediciones
     struct Entrada {
         json valor;
         std::int64_t ms = 0;

@@ -944,6 +944,12 @@ Rectangle {
             spacing: 8
             RowLayout {
                 TextField { id: filtroEv; Layout.preferredWidth: 280; placeholderText: "Filtro: aire/#, audio/nivel/+, alarma…"; color: Theme.text }
+                CheckBox {
+                    id: conMediciones
+                    text: "Mediciones en «recientes»"
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Niveles, loudness, tiempos de oradores, salud de la salida y tally: se publican cada segundo y tapan los hechos"
+                }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
                     text: "Lo que publica la app. Sirve para el estado de una celda (ligadura) y para @plugin.escuchar(\"tema\")."
@@ -958,15 +964,19 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     padding: 10
+                    // Modelo con clave (el tema): cada segundo se actualiza el valor de cada fila
+                        // en su lugar. Reemplazarlo entero rearmaba la lista y saltaba.
+                        ListModel { id: modeloTemas }
                     ListView {
                         id: temasLista
                         anchors.fill: parent
                         clip: true
-                        model: []
+                        model: modeloTemas
                         delegate: Text {
-                            required property var modelData
+                            required property string tema
+                            required property string valor
                             width: ListView.view.width
-                            text: "<b>" + modelData.tema + "</b>  " + modelData.valor
+                            text: "<b>" + tema + "</b>  " + valor
                             textFormat: Text.StyledText
                             color: Theme.text; font.pixelSize: 11; font.family: Theme.mono
                             wrapMode: Text.WrapAnywhere
@@ -979,6 +989,7 @@ Rectangle {
                     padding: 10
                     ListView {
                         id: recientesLista
+                        property string firma: ""
                         anchors.fill: parent
                         clip: true
                         model: []
@@ -996,8 +1007,21 @@ Rectangle {
                 interval: 1000; repeat: true; triggeredOnStart: true
                 running: page.visible && page.pestana === "eventos"
                 onTriggered: {
-                    temasLista.model = Studio.bus.temasUi(filtroEv.text)
-                    recientesLista.model = Studio.bus.recientesUi(filtroEv.text)
+                    const temas = Studio.bus.temasUi(filtroEv.text)
+                    const vistos = {}
+                    for (let i = 0; i < temas.length; ++i) {
+                        const t = temas[i]
+                        vistos[t.tema] = true
+                        let j = 0
+                        while (j < modeloTemas.count && modeloTemas.get(j).tema !== t.tema) ++j
+                        if (j === modeloTemas.count) modeloTemas.insert(Math.min(i, modeloTemas.count), { tema: t.tema, valor: t.valor })
+                        else if (modeloTemas.get(j).valor !== t.valor) modeloTemas.setProperty(j, "valor", t.valor)
+                    }
+                    for (let k = modeloTemas.count - 1; k >= 0; --k) if (!vistos[modeloTemas.get(k).tema]) modeloTemas.remove(k)
+                    // Recientes: solo si llegó algo nuevo (si no, la lista se queda quieta).
+                    const r = Studio.bus.recientesUi(filtroEv.text, conMediciones.checked)
+                    const firma = r.length > 0 ? r[0].hora + r[0].tema + r.length : ""
+                    if (firma !== recientesLista.firma) { recientesLista.firma = firma; recientesLista.model = r }
                 }
             }
         }
