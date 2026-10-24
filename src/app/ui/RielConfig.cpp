@@ -104,6 +104,9 @@ constexpr int kAnchoMax = 360;
 /// Configuración es la única que NO se puede esconder: es por donde se vuelve.
 /// Sin esto, esconderla dejaría al operador sin manera de arreglarlo.
 constexpr int kPaginaConfig = 6;
+// El asistente tiene su botón grande fijo, fuera de la tira (RielNavegacion): sigue en el
+// catálogo (su id, su título, sacarlo a ventana) pero no se repite como botón chico.
+constexpr int kPaginaAsistente = 7;
 
 } // namespace
 
@@ -215,7 +218,7 @@ QVariantList RielConfig::grupos() const {
     for (const Grupo& g : catalogo()) {
         QVariantList items;
         for (const Item& i : g.items) {
-            if (d_->escondidas.count(i.page) > 0) continue;
+            if (d_->escondidas.count(i.page) > 0 || i.page == kPaginaAsistente) continue;
             items.append(QVariantMap{{"page", i.page},
                                      {"id", QString::fromUtf8(i.id)},
                                      {"icon", QString::fromUtf8(i.icon)},
@@ -261,7 +264,8 @@ QStringList RielConfig::idsDePaginas() {
 QVariantList RielConfig::paginas() const {
     QVariantList out;
     for (const Grupo& g : catalogo())
-        for (const Item& i : g.items)
+        for (const Item& i : g.items) {
+            if (i.page == kPaginaAsistente) continue; // no se esconde: es el botón fijo
             out.append(QVariantMap{{"page", i.page},
                                    {"id", QString::fromUtf8(i.id)},
                                    {"icon", QString::fromUtf8(i.icon)},
@@ -270,6 +274,7 @@ QVariantList RielConfig::paginas() const {
                                    {"grupo", QString::fromUtf8(g.titulo)},
                                    {"visible", d_->escondidas.count(i.page) == 0},
                                    {"fija", i.page == kPaginaConfig}});
+        }
     return out;
 }
 

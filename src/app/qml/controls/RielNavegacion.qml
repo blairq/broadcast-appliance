@@ -470,10 +470,12 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: riel.elegida(7)
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    // Clic derecho: a su propia ventana, como los botones de la tira.
+                    onClicked: (m) => m.button === Qt.RightButton ? riel.sacada(7, "Asistente") : riel.elegida(7)
                 }
                 ToolTip.visible: aiMa.containsMouse && !riel.abierta
-                ToolTip.text: "Asistente (chat con la IA que maneja la app)"
+                ToolTip.text: "Asistente (chat con la IA que maneja la app)\n(clic derecho: sacar a su propia ventana)"
                 ToolTip.delay: 400
             }
             Text {
