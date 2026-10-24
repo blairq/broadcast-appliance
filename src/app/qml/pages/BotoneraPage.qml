@@ -979,7 +979,9 @@ Rectangle {
                             text: "<b>" + tema + "</b>  " + valor
                             textFormat: Text.StyledText
                             color: Theme.text; font.pixelSize: 11; font.family: Theme.mono
-                            wrapMode: Text.WrapAnywhere
+                            elide: Text.ElideRight // el detalle completo, con un clic
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: detalleEv.ver(tema, "", valor) }
                         }
                     }
                 }
@@ -999,7 +1001,52 @@ Rectangle {
                             text: modelData.hora + "  " + modelData.tema + "  " + modelData.valor
                             color: Theme.textDim; font.pixelSize: 11; font.family: Theme.mono
                             elide: Text.ElideRight
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: detalleEv.ver(modelData.tema, modelData.hora, modelData.valor) }
                         }
+                    }
+                }
+            }
+            // El detalle de una línea: el valor entero, con sangría, para leer y copiar.
+            Popup {
+                id: detalleEv
+                property string tema: ""
+                property string hora: ""
+                property string valor: ""
+                function ver(t, h, v) {
+                    tema = t; hora = h
+                    try { valor = JSON.stringify(JSON.parse(v), null, 2) } catch (e) { valor = v }
+                    open()
+                }
+                modal: true
+                anchors.centerIn: Overlay.overlay
+                width: Math.min(720, (Overlay.overlay ? Overlay.overlay.width : 800) - 64)
+                height: Math.min(560, (Overlay.overlay ? Overlay.overlay.height : 600) - 64)
+                padding: 16
+                background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
+                contentItem: ColumnLayout {
+                    spacing: 8
+                    Text {
+                        Layout.fillWidth: true; elide: Text.ElideRight
+                        text: detalleEv.tema + (detalleEv.hora !== "" ? "  ·  " + detalleEv.hora : "  ·  último valor")
+                        color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold; family: Theme.mono }
+                    }
+                    ScrollView {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        clip: true
+                        TextArea {
+                            id: detalleTexto
+                            readOnly: true; selectByMouse: true
+                            wrapMode: TextEdit.WrapAnywhere
+                            text: detalleEv.valor
+                            color: Theme.text; font { pixelSize: 12; family: Theme.mono }
+                            background: Rectangle { color: Theme.field; radius: 8 }
+                        }
+                    }
+                    RowLayout {
+                        Item { Layout.fillWidth: true }
+                        GlassButton { compact: true; text: "Copiar"; onClicked: { detalleTexto.selectAll(); detalleTexto.copy(); detalleTexto.deselect() } }
+                        GlassButton { compact: true; text: "Cerrar"; onClicked: detalleEv.close() }
                     }
                 }
             }
