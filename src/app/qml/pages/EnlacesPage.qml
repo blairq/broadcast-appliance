@@ -47,7 +47,11 @@ Rectangle {
             spacing: 10
             Text { text: "Servicios"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             GlassButton { compact: true; text: "Servicios"; active: page.pestana === "servicios"; onClicked: page.pestana = "servicios" }
-            GlassButton { compact: true; text: "Templates"; active: page.pestana === "templates"; onClicked: page.pestana = "templates" }
+            GlassButton {
+                compact: true; text: "Aspecto de las páginas web"; active: page.pestana === "templates"; onClicked: page.pestana = "templates"
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "El tema (template) de todas las páginas web de control: dashboard, botonera, presidencia, rótulos, corrección"
+            }
             StatusPill {
                 visible: page.pestana === "servicios"
                 text: page.en.hayTunel ? "Con salida a internet" : "Solo red local"

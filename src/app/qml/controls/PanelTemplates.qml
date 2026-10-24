@@ -1,4 +1,4 @@
-// Servicios → Templates: el tema de TODAS las interfaces web de control (dashboard,
+// Servicios → Aspecto de las páginas web (templates): el tema de TODAS las interfaces web de control (dashboard,
 // botonera, presidencia, rótulos, corrección). Uno para todas: se elige acá (o en
 // Configuración → Apariencia, o con web_tema del MCP) y cambia en cada aparato sin
 // recargar. El catálogo y el elegido salen de Studio (control/TemasWeb.hpp).
