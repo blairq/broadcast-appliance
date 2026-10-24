@@ -99,6 +99,100 @@
    "uso": "Medir calidad entre una fuente y su copia comprimida; necesita dos entradas.",
    "tarjeta": false
   },
+  "bacapturaventana": {
+   "titulo": "Captura de una ventana",
+   "categoria": "Fuentes",
+   "para": "La ventana de una aplicación (ScreenCaptureKit).",
+   "uso": "Es una fuente: va como entrada, no como tarjeta.",
+   "tarjeta": false
+  },
+  "bacoremlsr": {
+   "titulo": "Superresolución · CoreML",
+   "categoria": "Efectos",
+   "para": "Duplica la resolución con una red en el Neural Engine o la GPU de la Mac.",
+   "uso": "Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un shader de mpv) y se configura en Video → Superresolución…",
+   "tarjeta": false,
+   "comoTarjeta": "superres"
+  },
+  "bafsr": {
+   "titulo": "Superresolución · FSR",
+   "categoria": "Efectos",
+   "para": "Duplica la resolución con AMD FSR 1.0 en cualquier GPU.",
+   "uso": "Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un shader de mpv) y se configura en Video → Superresolución…",
+   "tarjeta": false,
+   "comoTarjeta": "superres"
+  },
+  "baglsl": {
+   "titulo": "Shader de mpv",
+   "categoria": "OpenGL",
+   "para": "Corre un user shader de mpv (FSRCNNX, Anime4K…) en la GPU.",
+   "uso": "Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un shader de mpv) y se configura en Video → Superresolución…",
+   "tarjeta": false,
+   "comoTarjeta": "superres"
+  },
+  "baonnxsr": {
+   "titulo": "Superresolución · red ONNX",
+   "categoria": "Efectos",
+   "para": "Duplica la resolución con una red (también la entrenada con la cámara).",
+   "uso": "Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un shader de mpv) y se configura en Video → Superresolución…",
+   "tarjeta": false,
+   "comoTarjeta": "superres"
+  },
+  "barostros": {
+   "titulo": "Rostros",
+   "categoria": "Análisis",
+   "para": "Encuentra, sigue y reconoce caras sin demorar la imagen.",
+   "uso": "Se agrega con la tarjeta «Rostros»: la usan Personas, el overlay de nombres y el seguimiento del PTZ.",
+   "tarjeta": false,
+   "comoTarjeta": "rostros"
+  },
+  "barostrosgl": {
+   "titulo": "Rostros (OpenGL)",
+   "categoria": "Análisis",
+   "para": "Encuentra, sigue y reconoce caras sin bajar la imagen de la GPU.",
+   "uso": "Se agrega con la tarjeta «Rostros» (elige sola la versión en la GPU).",
+   "tarjeta": false,
+   "comoTarjeta": "rostros"
+  },
+  "baseguir": {
+   "titulo": "Seguimiento",
+   "categoria": "Análisis",
+   "para": "Elige una cara y le manda el encuadre al PTZ.",
+   "uso": "Se agrega con la tarjeta «Seguimiento», junto a una de Rostros y un PTZ.",
+   "tarjeta": false,
+   "comoTarjeta": "seguir"
+  },
+  "baseguirgl": {
+   "titulo": "Seguimiento (OpenGL)",
+   "categoria": "Análisis",
+   "para": "Elige una cara y le manda el encuadre al PTZ, en la GPU.",
+   "uso": "Se agrega con la tarjeta «Seguimiento» (elige sola la versión en la GPU).",
+   "tarjeta": false,
+   "comoTarjeta": "seguir"
+  },
+  "basuperres": {
+   "titulo": "Superresolución",
+   "categoria": "Efectos",
+   "para": "Duplica la resolución con el motor que haya en la máquina.",
+   "uso": "Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un shader de mpv) y se configura en Video → Superresolución…",
+   "tarjeta": false,
+   "comoTarjeta": "superres"
+  },
+  "bavideoanillo": {
+   "titulo": "Video de la sala",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "El video que el gateway deja en memoria compartida (invitados, pantallas).",
+   "uso": "Interno: lo usan las entradas de los invitados y la sesión remota.",
+   "tarjeta": false
+  },
+  "bavtsuperres": {
+   "titulo": "Superresolución · Apple",
+   "categoria": "Efectos",
+   "para": "Duplica la resolución con la de VideoToolbox (macOS 26).",
+   "uso": "Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un shader de mpv) y se configura en Video → Superresolución…",
+   "tarjeta": false,
+   "comoTarjeta": "superres"
+  },
   "bayer2rgb": {
    "titulo": "Bayer a RGB",
    "categoria": "Internos (no van como tarjeta)",
@@ -664,6 +758,13 @@
    "categoria": "Internos (no van como tarjeta)",
    "para": "Guarda grupos de cuadros comprimidos.",
    "uso": "Video comprimido.",
+   "tarjeta": false
+  },
+  "gtk4paintablesink": {
+   "titulo": "Salida a GTK 4",
+   "categoria": "Salidas",
+   "para": "Entrega el video a una interfaz hecha con GTK 4 (un GdkPaintable).",
+   "uso": "Plugins de Python con ventana propia en GTK.",
    "tarjeta": false
   },
   "h264ccextractor": {
@@ -1358,13 +1459,6 @@
    "para": "Raya en diagonal las zonas sobreexpuestas.",
    "uso": "En un monitor de cabina: ver qué cámara quema las altas luces antes de que salga al aire.",
    "tarjeta": true
-  },
-  "gtk4paintablesink": {
-   "titulo": "Salida a GTK 4",
-   "categoria": "Salidas",
-   "para": "Entrega el video a una interfaz hecha con GTK 4 (un GdkPaintable).",
-   "uso": "Plugins de Python con ventana propia en GTK.",
-   "tarjeta": false
   }
  }
 }

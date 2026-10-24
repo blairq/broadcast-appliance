@@ -79,6 +79,8 @@ class TerminalSession : public QObject {
     bool altScreen() const { return altScreen_; }
     /// El programa pidio eventos de raton.
     bool mouseMode() const { return mouseMode_ != 0; }
+    /// El programa quiere también el movimiento sin botón apretado (modo 1003, VTERM_PROP_MOUSE_MOVE).
+    bool mouseMoveMode() const { return mouseMode_ == 3; } // VTERM_PROP_MOUSE_MOVE (vterm.h no se incluye acá)
     QRgb defaultFg() const { return defaultFg_; }
     QRgb defaultBg() const { return defaultBg_; }
     /// Texto entre dos posiciones (fila de la vista con `scroll`).

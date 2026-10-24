@@ -73,6 +73,19 @@ int main(int argc, char** argv) {
         CHECK(qRed(l[0].fg) > 150 && qGreen(l[0].fg) < 150, "HOLA en rojo");
         CHECK(l[6].fg == s.defaultFg(), "mundo con el color por defecto");
     }
+    // --- 1b) ratón: el programa lo pide (1000 + SGR 1006) y le llegan los clicks ---------------
+    {
+        TerminalSession s;
+        s.resize(80, 24);
+        CHECK(s.start(sh("printf '\\033[?1000h\\033[?1006h'; stty -icanon -echo; exec cat -v")), "arranca con ratón");
+        CHECK(waitFor([&] { return s.mouseMode(); }), "el programa pidió el ratón");
+        CHECK(!s.mouseMoveMode(), "1000: sin movimiento");
+        s.mouseButton(2, 5, 1, true, 0);
+        s.mouseButton(2, 5, 1, false, 0);
+        CHECK(waitFor([&] { return screenText(s).contains("^[[<0;6;3M^[[<0;6;3m"); }),
+              "el click llega al programa (SGR: apretar y soltar)");
+        s.stop();
+    }
     // --- 2) tamaño ----------------------------------------------------------------------------
     {
         TerminalSession s;

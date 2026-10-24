@@ -6,6 +6,8 @@
 // catálogo entero (para escribir la documentación de datos/gst-modulos.json).
 
 #include "video/CatalogoGst.hpp"
+#include <set>
+#include <fstream>
 #include <filesystem>
 
 #include <cstdio>
@@ -86,6 +88,19 @@ int main(int argc, char** argv) {
             ++sinDoc;
         }
     CHECK(sinDoc == 0, "todos los módulos de video tienen su documentación en castellano");
+    // Los nuestros que van con una tarjeta propia del grafo: la documentación dice cuál (sin
+    // eso su clase, «Scaler» o «Analyzer», los dejaba como «no va como tarjeta»).
+    {
+        std::ifstream in(BA_TEST_GST_DOCS);
+        const json docs = json::parse(in, nullptr, false).value("modulos", json::object());
+        const std::set<std::string> tipos{"superres", "rostros", "seguir"}; // GrafoVideo::catalogo
+        for (const char* e : {"bafsr", "bavtsuperres", "baonnxsr", "bacoremlsr", "basuperres", "baglsl", "barostros",
+                              "barostrosgl", "baseguir", "baseguirgl"}) {
+            const json d = docs.value(e, json::object());
+            CHECK(tipos.count(d.value("comoTarjeta", std::string())) == 1 && !d.value("tarjeta", true),
+                  (std::string(e) + ": va con su tarjeta del grafo (comoTarjeta)").c_str());
+        }
+    }
     std::printf(fallos == 0 ? "test_catalogo_gst: OK\n" : "test_catalogo_gst: %d fallos\n", fallos);
     return fallos == 0 ? 0 : 1;
 }

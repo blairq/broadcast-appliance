@@ -48,13 +48,18 @@ Popup {
         "Subtítulos (closed captions)": "#eab308", "Fuentes": "#14b8a6", "Salidas": "#0891b2",
         "Mezcla y composición": "#f472b6", "Internos (no van como tarjeta)": "#475569" })
     function colorDe(c) { return colores[c] || Theme.accent }
+    /// El título de una tarjeta propia del grafo (comoTarjeta: superres, rostros, seguir).
+    function tituloTarjeta(t) {
+        const c = vg ? vg.catalogo.find(x => x.tipo === t) : null
+        return c ? c.titulo : t
+    }
     function normal(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") }
 
     readonly property var visibles: {
         const q = normal(busqueda.text.trim())
         const palabras = q === "" ? [] : q.split(/\s+/)
         return modulos.filter(m => {
-            if (soloTarjetas && !m.tarjeta) return false
+            if (soloTarjetas && !m.tarjeta && !m.comoTarjeta) return false
             if (categoria !== "" && m.categoria !== categoria) return false
             if (palabras.length === 0) return true
             const h = normal([m.elemento, m.titulo, m.nombre, m.categoria, m.para, m.uso, m.descripcion, m.clase].join(" "))
@@ -64,7 +69,7 @@ Popup {
     readonly property var categorias: {
         const vistas = []
         for (const m of modulos)
-            if ((!soloTarjetas || m.tarjeta) && vistas.indexOf(m.categoria) < 0) vistas.push(m.categoria)
+            if ((!soloTarjetas || m.tarjeta || m.comoTarjeta) && vistas.indexOf(m.categoria) < 0) vistas.push(m.categoria)
         return vistas.sort()
     }
     function verDetalle(m) {
@@ -150,7 +155,7 @@ Popup {
                     color: hov.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.035)
                     border.color: hov.containsMouse ? tarjeta.col : Qt.rgba(1, 1, 1, 0.08)
                     Behavior on border.color { ColorAnimation { duration: 120 } }
-                    opacity: tarjeta.modelData.tarjeta ? 1 : 0.6
+                    opacity: tarjeta.modelData.tarjeta || tarjeta.modelData.comoTarjeta ? 1 : 0.6
                     clip: true
                     Rectangle { width: 4; anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: 1 } radius: 2; color: tarjeta.col }
                     ColumnLayout {
@@ -177,7 +182,13 @@ Popup {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: cat.verDetalle(tarjeta.modelData)
-                        onDoubleClicked: if (tarjeta.modelData.tarjeta) { cat.elegido(tarjeta.modelData.tipo, tarjeta.modelData.elemento); detallePop.close(); cat.close() }
+                        onDoubleClicked: {
+                            const m = tarjeta.modelData
+                            if (m.comoTarjeta) cat.elegido("tarjeta", m.comoTarjeta)
+                            else if (m.tarjeta) cat.elegido(m.tipo, m.elemento)
+                            else return
+                            detallePop.close(); cat.close()
+                        }
                     }
                 }
             }
@@ -250,12 +261,21 @@ Popup {
                         activeColor: detallePop.col
                         onClicked: { cat.elegido(detallePop.d.tipo, detallePop.d.elemento); detallePop.close(); cat.close() }
                     }
+                    // Los nuestros que van con una tarjeta propia del grafo (superres, rostros, seguir).
+                    GlassButton {
+                        visible: !!detallePop.d.comoTarjeta
+                        text: "+ Agregar la tarjeta «" + cat.tituloTarjeta(detallePop.d.comoTarjeta) + "» a «" + (cat.vg ? cat.vg.entrada : "") + "»"
+                        active: true
+                        activeColor: detallePop.col
+                        onClicked: { cat.elegido("tarjeta", detallePop.d.comoTarjeta); detallePop.close(); cat.close() }
+                    }
                     Text {
-                        visible: !detallePop.d.tarjeta
+                        visible: !detallePop.d.tarjeta && !detallePop.d.comoTarjeta
                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                         text: detallePop.d.rol === "fuente" ? "Es una fuente: va como entrada virtual (Entradas → «+ Virtual»), no como tarjeta."
                               : detallePop.d.rol === "mezcla" ? "Junta varias entradas: va como nodo del estudio (el Compositor), no como tarjeta."
                               : detallePop.d.rol === "salida" ? "Es una salida de GStreamer: no va como tarjeta."
+                              : detallePop.d.uso ? "No va como tarjeta de filtro: " + detallePop.d.uso
                               : "No va como tarjeta de filtro: no trabaja sobre la imagen cruda de una entrada."
                         color: Theme.warn; font.pixelSize: 12
                     }

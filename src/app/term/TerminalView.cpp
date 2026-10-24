@@ -24,7 +24,7 @@ TerminalView::TerminalView(QQuickItem* parent) : QQuickPaintedItem(parent) {
     setFlag(ItemAcceptsInputMethod, true);
     setFlag(ItemIsFocusScope, false);
     setAcceptedMouseButtons(Qt::AllButtons);
-    setAcceptHoverEvents(false);
+    setAcceptHoverEvents(true); // ver hoverMoveEvent
     setAntialiasing(true);
     setOpaquePainting(true);
     setRenderTarget(QQuickPaintedItem::FramebufferObject);
@@ -410,6 +410,14 @@ void TerminalView::mouseMoveEvent(QMouseEvent* e) {
         }
         update();
     }
+}
+
+void TerminalView::hoverMoveEvent(QHoverEvent* e) {
+    if (!session_ || !session_->mouseMoveMode() || !forwardMouse(e->modifiers())) return;
+    const QPoint c = cellAt(e->position());
+    if (c == ultimaCelda_) return; // una vez por celda, no por cada pixel
+    ultimaCelda_ = c;
+    session_->mouseMove(c.y(), c.x(), mods(e->modifiers()));
 }
 
 void TerminalView::mouseReleaseEvent(QMouseEvent* e) {

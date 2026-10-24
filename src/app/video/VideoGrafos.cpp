@@ -397,6 +397,10 @@ std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& eleme
                 gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
         return {};
     }
+    // Los nuestros que van con una tarjeta propia del grafo (superres, rostros, seguir):
+    // pedir el módulo suelto pone esa tarjeta, que lo configura.
+    if (const std::string tipo = m.value("comoTarjeta", std::string()); !tipo.empty())
+        return g.agregar(tipo, grupo, despues, json::object(), error);
     if (!m.value("tarjeta", false)) {
         if (error)
             *error = "«" + elemento + "» no va como tarjeta de filtro (" +

@@ -56,6 +56,9 @@ class TerminalView : public QQuickPaintedItem {
     QVariant inputMethodQuery(Qt::InputMethodQuery q) const override;
     void mousePressEvent(QMouseEvent* e) override;
     void mouseMoveEvent(QMouseEvent* e) override;
+    /// Sin botón apretado: solo si el programa lo pidió (modo 1003; opencode resalta lo que
+    /// está debajo del puntero y con eso sabe qué se clickea).
+    void hoverMoveEvent(QHoverEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* e) override;
     void mouseDoubleClickEvent(QMouseEvent* e) override;
     void wheelEvent(QWheelEvent* e) override;
@@ -76,6 +79,7 @@ class TerminalView : public QQuickPaintedItem {
     qreal ascent_ = 12;
     int scroll_ = 0;
     bool selecting_ = false;
+    QPoint ultimaCelda_{-1, -1}; ///< la última celda que se le contó al programa (hoverMoveEvent)
     bool selActive_ = false;
     QPoint selA_;
     QPoint selB_;

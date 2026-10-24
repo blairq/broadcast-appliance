@@ -216,7 +216,7 @@ const json& CatalogoGst::modulos() const {
         // Sin documentación: va como tarjeta si es un filtro.
         m["tarjeta"] = m["rol"] == "filtro";
         if (docs_.contains(elemento))
-            for (const char* k : {"titulo", "para", "uso", "categoria", "tarjeta"})
+            for (const char* k : {"titulo", "para", "uso", "categoria", "tarjeta", "comoTarjeta"})
                 if (docs_[elemento].contains(k)) m[k] = docs_[elemento][k];
         out.push_back(std::move(m));
     }

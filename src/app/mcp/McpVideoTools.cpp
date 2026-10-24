@@ -206,7 +206,8 @@ void McpService::registerVideoTools() {
                                {"titulo", m.value("titulo", m.value("nombre", ""))},
                                {"categoria", m.value("categoria", "")},
                                {"para", m.value("para", m.value("descripcion", ""))},
-                               {"tarjeta", m.value("tarjeta", false)}});
+                               {"tarjeta", m.value("tarjeta", false)},
+                               {"comoTarjeta", m.value("comoTarjeta", std::string())}});
             }
             done(ToolResult().data(out));
         };

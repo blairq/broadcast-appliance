@@ -12,6 +12,9 @@ módulo» de la página Video y la herramienta MCP video_modulos). Por módulo:
              (imagen cruda entra, imagen cruda sale). false: fuentes,
              salidas, mezcladores (van como nodos propios) y los que no
              trabajan sobre imagen cruda (subtítulos de H.264, tensores…)
+  comoTarjeta (opcional) los nuestros que van con una tarjeta propia del grafo
+             (superres, rostros, seguir): el catálogo ofrece esa tarjeta y
+             agregar el módulo suelto la pone (VideoGrafos::agregarModuloEn)
 
 Los que no están acá aparecen igual, con la descripción original de
 GStreamer. Uso: tools/docs/gst-modulos-docs.py > datos/gst-modulos.json
@@ -25,7 +28,10 @@ C, L, G, N, F, T, A, E, D, TR, GL, CC, FU, SA, MZ, IN = (
     "OpenGL (en la GPU)", "Subtítulos (closed captions)", "Fuentes", "Salidas", "Mezcla y composición",
     "Internos (no van como tarjeta)")
 
-# elemento: (titulo, categoria, para, uso, tarjeta)
+SR = ("Se agrega con la tarjeta «Superresolución» (elige el motor: Apple, FSR, una red ONNX o CoreML, o un "
+      "shader de mpv) y se configura en Video → Superresolución…")
+
+# elemento: (titulo, categoria, para, uso, tarjeta[, comoTarjeta])
 M = {
     # --- Color ---------------------------------------------------------------------
     "videobalance": ("Balance de video", C,
@@ -399,11 +405,36 @@ M = {
     "gopbuffer": ("Búfer de GOP", IN, "Guarda grupos de cuadros comprimidos.", "Video comprimido.", False),
     "onvifmetadatacombiner": ("Combinar metadatos ONVIF", IN, "Junta video y metadatos ONVIF.", "Interno.", False),
     "onvifmetadataextractor": ("Extraer metadatos ONVIF", IN, "Separa los metadatos ONVIF.", "Interno.", False),
+
+    "gtk4paintablesink": ("Salida a GTK 4", SA, "Entrega el video a una interfaz hecha con GTK 4 (un GdkPaintable).",
+        "Plugins de Python con ventana propia en GTK.", False),
+
+    # --- Los nuestros que van con una tarjeta propia del grafo ---------------------------
+    # Sin documentar, su clase («Scaler», «Analyzer») los dejaba como «no va como tarjeta».
+    "basuperres": ("Superresolución", "Efectos", "Duplica la resolución con el motor que haya en la máquina.", SR, False, "superres"),
+    "bavtsuperres": ("Superresolución · Apple", "Efectos", "Duplica la resolución con la de VideoToolbox (macOS 26).", SR, False, "superres"),
+    "bafsr": ("Superresolución · FSR", "Efectos", "Duplica la resolución con AMD FSR 1.0 en cualquier GPU.", SR, False, "superres"),
+    "baonnxsr": ("Superresolución · red ONNX", "Efectos", "Duplica la resolución con una red (también la entrenada con la cámara).", SR, False, "superres"),
+    "bacoremlsr": ("Superresolución · CoreML", "Efectos", "Duplica la resolución con una red en el Neural Engine o la GPU de la Mac.", SR, False, "superres"),
+    "baglsl": ("Shader de mpv", "OpenGL", "Corre un user shader de mpv (FSRCNNX, Anime4K…) en la GPU.", SR, False, "superres"),
+    "barostros": ("Rostros", "Análisis", "Encuentra, sigue y reconoce caras sin demorar la imagen.",
+        "Se agrega con la tarjeta «Rostros»: la usan Personas, el overlay de nombres y el seguimiento del PTZ.", False, "rostros"),
+    "barostrosgl": ("Rostros (OpenGL)", "Análisis", "Encuentra, sigue y reconoce caras sin bajar la imagen de la GPU.",
+        "Se agrega con la tarjeta «Rostros» (elige sola la versión en la GPU).", False, "rostros"),
+    "baseguir": ("Seguimiento", "Análisis", "Elige una cara y le manda el encuadre al PTZ.",
+        "Se agrega con la tarjeta «Seguimiento», junto a una de Rostros y un PTZ.", False, "seguir"),
+    "baseguirgl": ("Seguimiento (OpenGL)", "Análisis", "Elige una cara y le manda el encuadre al PTZ, en la GPU.",
+        "Se agrega con la tarjeta «Seguimiento» (elige sola la versión en la GPU).", False, "seguir"),
+    "bacapturaventana": ("Captura de una ventana", FU, "La ventana de una aplicación (ScreenCaptureKit).",
+        "Es una fuente: va como entrada, no como tarjeta.", False),
+    "bavideoanillo": ("Video de la sala", IN, "El video que el gateway deja en memoria compartida (invitados, pantallas).",
+        "Interno: lo usan las entradas de los invitados y la sesión remota.", False),
 }
 
 out = {"_comentario": "Documentación en castellano de los módulos de video de GStreamer (tools/docs/gst-modulos-docs.py). "
                       "La lee video/CatalogoGst.",
-       "modulos": {k: {"titulo": t, "categoria": c, "para": p, "uso": u, "tarjeta": tj}
-                   for k, (t, c, p, u, tj) in sorted(M.items())}}
+       "modulos": {k: {"titulo": v[0], "categoria": v[1], "para": v[2], "uso": v[3], "tarjeta": v[4],
+                       **({"comoTarjeta": v[5]} if len(v) > 5 else {})}
+                   for k, v in sorted(M.items())}}
 json.dump(out, sys.stdout, ensure_ascii=False, indent=1)
 sys.stdout.write("\n")

@@ -1401,7 +1401,9 @@ Rectangle {
         }
         onElegido: (tipo, id) => {
             const despues = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
-            page.avisar(tipo === "gst" ? page.vg.agregarModulo(id, despues) : page.vg.agregarFiltro(id, despues))
+            page.avisar(tipo === "gst" ? page.vg.agregarModulo(id, despues)
+                        : tipo === "tarjeta" ? page.vg.agregar(id, despues) // comoTarjeta: superres, rostros, seguir
+                        : page.vg.agregarFiltro(id, despues))
         }
     }
 
