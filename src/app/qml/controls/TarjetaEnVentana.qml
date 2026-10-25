@@ -1,4 +1,4 @@
-// Cualquier tarjeta del tablero en su propia ventana (PanelWindow con id
+// Cualquier tarjeta del tablero en su propia ventana (VentanaSuelta con id
 // «tarjeta:<kind>»): la misma tarjeta, otra vista de lo mismo. La abre la barra
 // de tarjetas del Dashboard (doble clic, o «Ventana» desplegada).
 import QtQuick
@@ -6,7 +6,7 @@ import BA
 
 Item {
     id: tv
-    /// Lo pone PanelWindow: «tarjeta:<kind>».
+    /// Lo pone VentanaSuelta: «tarjeta:<kind>».
     property string panelId: ""
     property bool enVentana: false
     readonly property string kind: panelId.startsWith("tarjeta:") ? panelId.slice(8) : ""

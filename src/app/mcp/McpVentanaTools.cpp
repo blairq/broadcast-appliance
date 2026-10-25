@@ -226,7 +226,9 @@ void McpService::registerVentanaTools() {
             "Los `id` son los que piden `ventana_mover` y `ventana_cerrar`:\n"
             "  - `principal`: la ventana grande, la que siempre esta.\n"
             "  - `pagina:<id>`: una pestaña sacada a su ventana (ver ui_page_window).\n"
-            "  - `salida:<n>`: una ventana de video (ver output_window).\n\n"
+            "  - `salida:<n>`: una ventana de video (ver output_window).\n"
+            "  - `panel:<id>`: un panel o una tarjeta sacados a su ventana (ver ui_panel_window).\n"
+            "  - `monitor:<id>`: lo que esta FIJO en un monitor (Salidas → Pantallas; ver monitor_listar).\n\n"
             "`monitores[].util` es el area SIN la barra del sistema: es la que se usa para las zonas, y "
             "por eso puede ser mas chica que `total`.";
         t.run = [](const json&, Done done) {
@@ -494,9 +496,14 @@ void McpService::registerVentanaTools() {
                 {"description", "nombre de un monitor que no hay que usar (p. ej. el del operador)"}}}}}};
         t.run = [](const json& a, Done done) {
             const QString libre = QString::fromStdString(a.value("dejarLibre", std::string()));
+            // Los monitores con algo FIJO (Salidas → Pantallas, «monitor:<id>») no
+            // se usan ni se tocan: ya tienen dueño y se recuerdan solos.
+            QList<QScreen*> fijos;
+            for (QWindow* w : ventanas())
+                if (idDe(w).startsWith("monitor:") && w->screen() != nullptr) fijos.push_back(w->screen());
             QList<QScreen*> pantallas;
             for (QScreen* s : QGuiApplication::screens())
-                if (s->name().compare(libre, Qt::CaseInsensitive) != 0) pantallas.push_back(s);
+                if (s->name().compare(libre, Qt::CaseInsensitive) != 0 && !fijos.contains(s)) pantallas.push_back(s);
             if (pantallas.isEmpty()) return done(ToolResult::error("No queda ningun monitor para usar."));
 
             // La principal no se toca: es donde el operador esta trabajando, y
@@ -504,7 +511,7 @@ void McpService::registerVentanaTools() {
             // ordenar.
             std::vector<QWindow*> sueltas;
             for (QWindow* w : ventanas())
-                if (idDe(w) != "principal") sueltas.push_back(w);
+                if (idDe(w) != "principal" && !idDe(w).startsWith("monitor:")) sueltas.push_back(w);
             if (sueltas.empty())
                 return done(ToolResult::ok("Solo esta la ventana principal: no hay nada que acomodar."));
 

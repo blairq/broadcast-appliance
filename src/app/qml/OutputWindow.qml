@@ -1,4 +1,6 @@
-// Ventana de salida: video sacado del dashboard (p. ej. a otro monitor).
+// Ventana de salida: video sacado del dashboard (p. ej. a otro monitor). Para
+// dejar algo FIJO en un monitor está Salidas → Pantallas (PantallaWindow); esta
+// es la ventana suelta que se mueve a mano.
 // Solo presentacion: su estado (fuentes, distribucion, monitor, pantalla
 // completa, geometria) vive en Studio.dashboard.windows.
 //
@@ -19,7 +21,7 @@ Window {
     required property bool fullscreen
     required property rect geometry
 
-    objectName: "ba:salida:" + winId // ver PageWindow.qml
+    objectName: "ba:salida:" + winId // ver VentanaSuelta.qml
     title: "Broadcast Appliance — " + (layout.startsWith("multiview") ? (mv.nombre || "Multiview") : keys.length === 1 ? Studio.frames.label(keys[0]) : "Salida de video")
     color: "black"
     x: geometry.x; y: geometry.y
@@ -52,36 +54,17 @@ Window {
     Timer { id: saveGeom; interval: 600; onTriggered: Studio.dashboard.windows.setGeometry(w.winId, w.x, w.y, w.width, w.height) }
 
     // layout «multiview»: la ventana sigue a la página Multiview (fuentes, distribución
-    // y estilo), en vivo.
+    // y estilo), en vivo. «multiview:<id>»: esa multivista (si se borró, la elegida);
+    // «multiview» solo: la elegida. El video lo dibuja VistaVideo, la misma de las
+    // ventanas sueltas y los monitores.
     readonly property bool esMultiview: w.layout === "multiview" || w.layout.startsWith("multiview:")
-    // «multiview:<id>»: esa multivista (si se borró, la elegida); «multiview» solo: la elegida.
-    readonly property var mv: (Studio.multiviews, w.layout.startsWith("multiview:") && Studio.multiviewDe(w.layout.slice(10)).id !== undefined
-                               ? Studio.multiviewDe(w.layout.slice(10)) : Studio.multiview)
-    readonly property var claves: w.esMultiview ? (w.mv.fuentes || []) : w.keys
-    Rectangle { anchors.fill: parent; color: "black"; visible: w.esMultiview }
-    VideoWall {
-        id: muro
-        // 16:9 centrado en el multiview (como en la página); lo demás, la ventana entera.
-        readonly property real ancho16: Math.min(parent.width, parent.height * 16 / 9)
-        anchors.centerIn: parent
-        width: w.esMultiview ? ancho16 : parent.width
-        height: w.esMultiview ? ancho16 * 9 / 16 : parent.height
-        keys: w.claves
-        layout: w.esMultiview ? (w.mv.distribucion || "grid") : w.layout
-        fillMode: VideoItem.Fit
-        // Una ventana con UNA sola fuente suele ir a un proyector o un televisor
-        // de la sala: sin marcas de operador. Con varias es un multiview de control.
-        operador: w.claves.length > 1
-        gap: w.esMultiview ? (w.mv.separacion || 0) : 0
-        fondo: w.esMultiview ? (w.mv.fondo || "transparent") : "transparent"
-        borde: w.esMultiview ? (w.mv.borde || 0) : 0
-        colorBorde: w.esMultiview ? (w.mv.colorBorde || "white") : "white"
-        labels: w.esMultiview && w.mv.nombres === true
-        tamEtiqueta: w.esMultiview ? (w.mv.tamNombres || 18) : 11
-        tally: w.esMultiview ? w.mv.tally !== false : operador
-        vumetros: w.esMultiview ? w.mv.vumetros !== false : operador
-        escala: w.esMultiview ? width / 1920 : 1
-        grosorTally: w.esMultiview ? (w.mv.grosorTally !== undefined ? w.mv.grosorTally : 2) : -1
+    readonly property var mv: vista.mv
+    VistaVideo {
+        id: vista
+        anchors.fill: parent
+        claves: w.keys
+        distribucion: w.layout
+        multiview: w.layout.startsWith("multiview:") ? w.layout.slice(10) : (w.layout === "multiview" ? "*" : "")
     }
 
     // --- Controles que aparecen con el mouse --------------------------------

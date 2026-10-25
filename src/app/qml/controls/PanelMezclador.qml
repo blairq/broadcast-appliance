@@ -17,7 +17,7 @@ import BA
 
 Item {
     id: m
-    // El tamaño con que abre su ventana (PanelWindow).
+    // El tamaño con que abre su ventana (VentanaSuelta).
     readonly property int anchoVentana: 1440
     readonly property int altoVentana: 880
     property bool enVentana: false

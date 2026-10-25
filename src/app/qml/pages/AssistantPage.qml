@@ -23,7 +23,7 @@ Rectangle {
     readonly property var cur: ag.current
     readonly property color termBg: "#0d1016"
     property string keyError: ""
-    /// true en la copia que está en su propia ventana (la pone PageWindow).
+    /// true en la copia que está en su propia ventana (la pone VentanaSuelta).
     property bool enVentana: false
     /// En la ventana principal, cuando el asistente está afuera: la terminal vive en
     /// esa ventana (dos vistas de la misma terminal se pelearían por su tamaño).

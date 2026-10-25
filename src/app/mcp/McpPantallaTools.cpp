@@ -8,10 +8,17 @@
 // «Volvemos en 10 minutos» mientras cortamos", "el televisor del fondo que
 // muestre el teleprompter". Son cosas que el operador pediria hablando
 // mientras tiene las manos en otra cosa.
+//
+// Y los MONITORES de la máquina (Salidas → Pantallas → Pantallas conectadas):
+// monitor_listar / monitor_asignar / monitor_quitar, por el mismo modelo que
+// la página (MonitoresModel). Lo que se puede poner sale del catálogo único
+// (catalogo_listar), el mismo que usan la página, las ventanas y el tablero.
 // ============================================================================
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "pantallas/Catalogo.hpp"
+#include "pantallas/Monitores.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -553,6 +560,159 @@ void McpService::registerPantallaTools() {
                                                          " superficie(s). Ya cambio: superficie_listar lo "
                                                          "confirma."));
                        });
+        };
+        core_.addTool(std::move(t));
+    }
+
+    // --- El catálogo y los monitores de la máquina ------------------------------
+    CatalogoVisible* cat = vm_.catalogoVisible();
+    MonitoresModel* mon = vm_.monitoresModelo();
+    if (cat == nullptr || mon == nullptr) return;
+    {
+        Tool t;
+        t.name = "catalogo_listar";
+        t.title = "Que se puede mostrar";
+        t.category = "pantallas";
+        t.readOnly = true;
+        t.description =
+            "Todo lo que se puede poner en un monitor de la maquina, en una ventana suelta o en una TV de "
+            "la red: el programa, el preview, cada escena, cada multiview, los paneles (padron, preguntas, "
+            "votacion, Mezclador, PTZ de cada camara), las tarjetas del tablero, las paginas y lo de fondo "
+            "del tablero. Cada cosa con su `id` estable.";
+        t.details = "`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window "
+                    "con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no "
+                    "viaja). Los ids son estables: «escena:<nombre>», «multiview:<id>», «pagina:<id>», "
+                    "«tarjeta:<tipo>», «ptz:<entrada>», «programa», «preview», «fondo», «web:<tipo>» (solo "
+                    "TV: un cartel, un QR, la hora...).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"donde",
+                            {{"type", "string"},
+                             {"enum", {"todo", "monitor", "red"}},
+                             {"description", "filtrar: lo que va a un monitor, lo que va a una TV, o todo"}}}}}};
+        t.run = [cat](const json& a, Done done) {
+            const std::string donde = a.value("donde", std::string("todo"));
+            json cs = json::array();
+            for (const CatalogoVisible::Cosa& c : cat->cosas()) {
+                const bool local = !c.dibujo.isEmpty(), red = !c.redTipo.isEmpty();
+                if ((donde == "monitor" && !local) || (donde == "red" && !red)) continue;
+                json j{{"id", c.id.toStdString()},
+                       {"grupo", CatalogoVisible::tituloDeGrupo(c.grupo).toStdString()},
+                       {"titulo", c.titulo.toStdString()},
+                       {"monitor", local}};
+                if (red) j["red"] = c.redTipo.toStdString();
+                cs.push_back(j);
+            }
+            done(ToolResult().data(json{{"cosas", cs}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "monitor_listar";
+        t.title = "Que monitores hay y que muestra cada uno";
+        t.category = "pantallas";
+        t.readOnly = true;
+        t.description =
+            "Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), "
+            "con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, "
+            "Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se "
+            "esperan y su contenido no va a otro monitor.";
+        t.details = "`orden` es el numero que se ve en el dibujo de la pagina (y con monitor_identificar en "
+                    "cada monitor). `id` es fabricante|modelo|serie: no cambia aunque cambie el cable o el "
+                    "orden en que prenden. `muestra` son ids de catalogo_listar.";
+        t.run = [mon](const json&, Done done) {
+            json ms = json::array();
+            for (int r = 0; r < mon->rowCount(); ++r) {
+                const auto d = [&](int rol) { return mon->data(mon->index(r), rol); };
+                const QRect g = d(MonitoresModel::GeometriaRole).toRect();
+                json muestra = json::array();
+                for (const QString& c : d(MonitoresModel::CosasRole).toStringList()) muestra.push_back(c.toStdString());
+                json m{{"id", d(MonitoresModel::IdRole).toString().toStdString()},
+                       {"nombre", d(MonitoresModel::NombreRole).toString().toStdString()},
+                       {"conectado", d(MonitoresModel::ConectadoRole).toBool()},
+                       {"muestra", muestra},
+                       {"que_es", d(MonitoresModel::TituloRole).toString().toStdString()},
+                       {"pantallaCompleta", d(MonitoresModel::PantallaCompletaRole).toBool()}};
+                if (d(MonitoresModel::ConectadoRole).toBool()) {
+                    m["orden"] = d(MonitoresModel::OrdenRole).toInt();
+                    m["principal"] = d(MonitoresModel::PrincipalRole).toBool();
+                    m["sistema"] = d(MonitoresModel::NombreSistemaRole).toString().toStdString();
+                    m["geometria"] = json{{"x", g.x()}, {"y", g.y()}, {"ancho", g.width()}, {"alto", g.height()}};
+                } else {
+                    m["esperando"] = true;
+                }
+                ms.push_back(m);
+            }
+            done(ToolResult().data(json{{"monitores", ms}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "monitor_asignar";
+        t.title = "Poner algo en un monitor";
+        t.category = "pantallas";
+        t.idempotent = true;
+        t.description =
+            "Deja FIJO en un monitor de esta maquina una cosa del catalogo (el programa, una escena, una "
+            "multiview, un panel, una pagina...) o varias, que van en grilla. Se recuerda por monitor: "
+            "vuelve sola al reiniciar, y si el monitor no esta se lo espera.";
+        t.details = "`monitor`: su id, su numero de `orden` («2») o su nombre, como los da monitor_listar. "
+                    "`cosas`: ids de catalogo_listar (con `donde: monitor`); una sola = la pantalla entera. "
+                    "Reemplaza lo que tenia. `pantallaCompleta` (si no se dice, queda como estaba; de "
+                    "entrada true) la pone a pantalla completa; false = una ventana maximizada en ese "
+                    "monitor.\n\n"
+                    "No uses el monitor principal (donde esta la interfaz) salvo que lo pidan: lo tapa.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"monitor", "cosas"}},
+            {"properties",
+             {{"monitor", {{"type", "string"}, {"description", "id, numero de orden o nombre (monitor_listar)"}}},
+              {"cosas",
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "ids de catalogo_listar"}}},
+              {"pantallaCompleta", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"monitor": "2", "cosas": ["programa"]})",
+                      R"({"monitor": "2", "cosas": ["multiview:principal", "preguntas"], "pantallaCompleta": true})"};
+        t.run = [mon](const json& a, Done done) {
+            const QString id = mon->resolver(QString::fromStdString(a.value("monitor", std::string())));
+            if (id.isEmpty())
+                return done(ToolResult::error("No conozco ese monitor. monitor_listar dice cuales hay."));
+            QStringList cosas;
+            if (a.contains("cosas") && a["cosas"].is_array())
+                for (const json& c : a["cosas"])
+                    if (c.is_string()) cosas << QString::fromStdString(c.get<std::string>());
+            const bool completa =
+                a.value("pantallaCompleta", mon->monitor(id).value("pantallaCompleta", true).toBool());
+            const QString err = mon->asignar(id, cosas, completa);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            const QVariantMap m = mon->monitor(id);
+            done(ToolResult::ok("«" + m.value("nombre").toString().toStdString() + "» muestra " +
+                                m.value("titulo").toString().toStdString() +
+                                (m.value("conectado").toBool() ? "." : " cuando se lo conecte (ahora no esta).")));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "monitor_quitar";
+        t.title = "Sacar lo que muestra un monitor";
+        t.category = "pantallas";
+        t.idempotent = true;
+        t.description = "Deja un monitor de esta maquina sin nada (se cierra su ventana). Con un monitor "
+                        "recordado que no esta conectado, ademas deja de esperarlo.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"monitor"}},
+            {"properties",
+             {{"monitor", {{"type", "string"}, {"description", "id, numero de orden o nombre (monitor_listar)"}}}}}};
+        t.run = [mon](const json& a, Done done) {
+            const QString id = mon->resolver(QString::fromStdString(a.value("monitor", std::string())));
+            if (id.isEmpty())
+                return done(ToolResult::error("No conozco ese monitor. monitor_listar dice cuales hay."));
+            const QString err = mon->quitar(id);
+            done(err.isEmpty() ? ToolResult::ok("Listo: ese monitor ya no muestra nada.")
+                               : ToolResult::error(err.toStdString()));
         };
         core_.addTool(std::move(t));
     }

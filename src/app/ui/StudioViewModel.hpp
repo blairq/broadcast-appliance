@@ -148,6 +148,8 @@ class GraficoViewModel;
 class RotuladorViewModel;
 class PrompterViewModel;
 class PantallasViewModel;
+class CatalogoVisible;
+class MonitoresModel;
 class EnlacesViewModel;
 class QrViewModel;
 class PersonasViewModel;
@@ -308,6 +310,12 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* prompter READ prompter CONSTANT)
     /// Pantallas externas (televisores): dónde mostrar y qué mostrar.
     Q_PROPERTY(QObject* pantallas READ pantallas CONSTANT)
+    /// Todo lo que se puede mostrar en una ventana, un monitor o una TV, con id
+    /// estable (pantallas/Catalogo.hpp). Lo usan el tablero, «sacar a ventana»
+    /// y la página Pantallas.
+    Q_PROPERTY(QObject* catalogo READ catalogoQml CONSTANT)
+    /// Los monitores de la máquina y qué va en cada uno (pantallas/Monitores.hpp).
+    Q_PROPERTY(QObject* pantallasConectadas READ pantallasConectadasQml CONSTANT)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
     /// Todos los enlaces del aparato, con su estado y su botón de activar (página Enlaces).
@@ -695,6 +703,10 @@ class StudioViewModel : public QObject {
     QObject* rotulador() const;
     QObject* prompter() const;
     QObject* pantallas() const;
+    QObject* catalogoQml() const;
+    QObject* pantallasConectadasQml() const;
+    CatalogoVisible* catalogoVisible() const { return catalogo_.get(); }
+    MonitoresModel* monitoresModelo() const { return monitores_.get(); }
     QObject* qr() const;
     QObject* enlacesQml() const;
     EnlacesViewModel* enlacesVm() const { return enlaces_.get(); }
@@ -1034,6 +1046,10 @@ class StudioViewModel : public QObject {
     std::unique_ptr<RegistroViewModel> registro_;
     std::unique_ptr<ExtensionesModel> extensiones_;
     std::unique_ptr<RielConfig> riel_;
+    // El catálogo antes que los monitores: los monitores le piden los títulos
+    // (y se destruyen primero).
+    std::unique_ptr<CatalogoVisible> catalogo_;
+    std::unique_ptr<MonitoresModel> monitores_;
     QString seccionConfig_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;

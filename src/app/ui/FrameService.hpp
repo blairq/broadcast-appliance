@@ -16,6 +16,8 @@
 //   "entrada-entera:X" la misma entrada ANTES del recorte del PTZ digital (la
 //               toma entera, para manejar el recorte encima): mirarEntrada
 //               con `entera`
+//   "escena:X"  una escena cualquiera, esté o no al aire, mientras alguien la
+//               pida con mirarEscena (un monitor o una ventana que la muestra)
 //
 // Modelo de threading: todo en el thread de la UI; `poll()` lo llama un timer.
 // ============================================================================
@@ -63,6 +65,9 @@ class FrameService : public QObject {
     /// "entrada:<nombre>". Cuenta pedidos: se renderiza mientras alguien la mire.
     /// `entera`: la toma antes del recorte del PTZ digital (clave "entrada-entera:X").
     Q_INVOKABLE void mirarEntrada(const QString& entrada, bool mirar, bool entera = false);
+    /// Igual para una escena cualquiera (esté o no al aire), en la clave
+    /// "escena:<nombre>": la usan los monitores y las ventanas del catálogo.
+    Q_INVOKABLE void mirarEscena(const QString& escena, bool mirar);
     /// Cambia la cantidad de invitados.
     void setGuests(int guests);
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
@@ -78,6 +83,8 @@ class FrameService : public QObject {
     void framesUpdated();
 
    private:
+    /// Lo común de mirarEntrada y mirarEscena: pedir o soltar un canal del motor.
+    void mirarClave(const QString& clave, bool mirar, int ancho);
     struct Slot {
         QImage image;
         std::uint64_t serial = 0;

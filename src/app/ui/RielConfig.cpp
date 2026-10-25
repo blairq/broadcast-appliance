@@ -54,7 +54,7 @@ const std::vector<Grupo>& catalogo() {
           {27, "historico", "⌛",
            "Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió"}}},
         {"Salidas",
-         {{16, "pantallas", "⧉", "Pantallas externas: televisores de la sala y qué mostrar en cada uno"},
+         {{16, "pantallas", "⧉", "Pantallas: los monitores de esta máquina y las TV de la red, y qué va en cada uno"},
           {28, "multiview", "▥",
            "Multiview: varias fuentes en un muro, con separación y bordes de color, tally y vúmetros; a otro monitor"},
           {3, "youtube", "▶", "YouTube (cuenta, videos, en vivo)"},
@@ -276,6 +276,17 @@ QVariantList RielConfig::paginas() const {
                                    {"visible", d_->escondidas.count(i.page) == 0},
                                    {"fija", i.page == kPaginaConfig}});
         }
+    return out;
+}
+
+QVariantList RielConfig::todasLasPaginas() {
+    QVariantList out;
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items)
+            out.append(QVariantMap{{"page", i.page},
+                                   {"id", QString::fromUtf8(i.id)},
+                                   {"icon", QString::fromUtf8(i.icon)},
+                                   {"titulo", titulo(i.tip)}});
     return out;
 }
 

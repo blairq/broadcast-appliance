@@ -22,7 +22,7 @@ Item {
     id: raiz
 
     readonly property var pub: Studio.publico
-    /// Lo pone en true PanelWindow: ya está en su ventana, no ofrece sacarlo
+    /// Lo pone en true VentanaSuelta: ya está en su ventana, no ofrece sacarlo
     /// de nuevo.
     property bool enVentana: false
 

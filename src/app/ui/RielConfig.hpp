@@ -84,6 +84,9 @@ class RielConfig : public QObject {
     Q_INVOKABLE QString tituloDePagina(int pagina) const;
     /// Todos los ids, en el orden del catálogo. Es lo que ofrece el MCP.
     static QStringList idsDePaginas();
+    /// Todas las páginas, también el asistente: [{page, id, icon, titulo}]. Es
+    /// lo que usa el catálogo de cosas que se pueden mostrar (pantallas/Catalogo).
+    static QVariantList todasLasPaginas();
 
     /// Muestra o esconde una página. La que está a la vista no se puede
     /// esconder desde el propio riel sin dejar al operador sin salida, así que
