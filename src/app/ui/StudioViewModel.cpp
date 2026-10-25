@@ -1668,11 +1668,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     seguidor_->setGrafos(video_.get());
     marca("seguidor");
-    // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
-    dispositivos_ = std::make_unique<dispositivos::Dispositivos>();
+    // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas, y
+    // el registro de los dispositivos de audio y video con el nombre del operador
+    // (de la MÁQUINA, no del evento: <datos>/Config/dispositivos.json).
+    dispositivos_ = std::make_unique<dispositivos::Dispositivos>(ba::platform::dataRoot() / "Config" /
+                                                                 "dispositivos.json");
     marca("dispositivos");
-    dispositivos::registrarTodo(*dispositivos_,
-                                {red_.get(), plugins_.get(), video_.get(), camaras_.get(), messages_.get()});
+    dispositivos::registrarTodo(*dispositivos_, {red_.get(), plugins_.get(), video_.get(), camaras_.get(),
+                                                 messages_.get(), &rt, inputs_.get()});
 #if defined(BA_HAVE_CLAP)
     // Racks de audio (LSP) de cada fuente: se montan los guardados.
     racks_ = std::make_unique<audio::RackManager>(rt.dataRoot());

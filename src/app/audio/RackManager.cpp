@@ -4,6 +4,7 @@
 
 #include "audio/RackManager.hpp"
 #include "platform/Paths.hpp"
+#include "dispositivos/Conocidos.hpp"
 
 #include "audio/GrabadorWav.hpp"
 #include "audio/GstRack.hpp"
@@ -73,7 +74,10 @@ std::string tipoLogicoDe(const std::string& f) {
 std::vector<std::pair<std::string, std::string>> salidasDeAudio() {
     std::vector<std::pair<std::string, std::string>> v;
     for (const QAudioDevice& d : QMediaDevices::audioOutputs())
-        v.emplace_back(QString::fromLatin1(d.id()).toStdString(), d.description().toStdString());
+        // Con el nombre que le puso el operador (Dispositivos y equipos), si le puso.
+        v.emplace_back(QString::fromLatin1(d.id()).toStdString(),
+                       dispositivos::Conocidos::nombreParaMostrar("local:salida:" + QString::fromLatin1(d.id()).toStdString(),
+                                                                  d.description().toStdString()));
     return v;
 }
 } // namespace

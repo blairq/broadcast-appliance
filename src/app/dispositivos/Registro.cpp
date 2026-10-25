@@ -3,26 +3,37 @@
 //
 // Acá se enchufan los detectores y las acciones de cada tipo de equipo. Para
 // sumar una acción: un `Accion{...}` más con sus parámetros. El asistente
-// (equipo_accion) y la interfaz (página Equipos) la ven solos.
+// (equipo_accion) y la interfaz (página Dispositivos y equipos) la ven solos.
 // ============================================================================
 
 #include "dispositivos/Registro.hpp"
 
+#include "arranque/AppRuntime.hpp"
+#include "audio/EntradasAudio.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "dispositivos/Onvif.hpp"
 #include "plugins/Plugins.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "red/Red.hpp"
+#include "ui/InputsViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
+#include "video/Camaras.hpp"
+#include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
+#if defined(BA_HAVE_NDI)
+#include "emision/NdiSource.hpp"
+#endif
 
+#include <QAudioDevice>
 #include <QAuthenticator>
 #include <QCoreApplication>
 #include <QJsonDocument>
+#include <QMediaDevices>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPointer>
+#include <QTimer>
 #include <QUrl>
 
 #include <thread>
@@ -44,6 +55,7 @@ json aJ(const QVariant& v) {
         nullptr, false)["v"];
 }
 QString ipDe(const QVariantMap& e) { return e.value("datos").toMap().value("ip").toString(); }
+QString qs(const std::string& s) { return QString::fromStdString(s); }
 
 /// Un equipo de la red (del escaneo de red::Red) como equipo del catálogo.
 QVariantMap equipoDeRed(const json& e) {
@@ -62,10 +74,49 @@ QVariantMap equipoDeRed(const json& e) {
     if (!e.value("siguiente_paso", std::string()).empty())
         detalle += " — " + QString::fromStdString(e.value("siguiente_paso", std::string()));
     return {{"clave", QString::fromStdString(ip)},
+            {"valor", QString::fromStdString(ip)},
             {"tipo", camara ? "camara_red" : "equipo_red"},
             {"nombre", QString::fromStdString(nombre + " " + ip)},
             {"detalle", detalle},
             {"datos", aV(e)}};
+}
+/// Las cámaras, los micrófonos y las salidas de audio de la máquina, cada uno
+/// con su id ESTABLE (el mismo que guarda una entrada: uniqueID de AVFoundation,
+/// ruta del dispositivo, UID de Core Audio, id de WASAPI/Pulse), nunca el índice:
+/// el nombre que le pone el operador queda pegado a ese equipo aunque se lo
+/// reenchufe en otro puerto.
+QVariantList localesDe(AppRuntime& rt) {
+    video::iniciarGStreamer();
+    QVariantList eq;
+    for (const auto& c : video::camarasDelEquipo(rt.engine()))
+        eq << QVariantMap{{"clave", "video:" + qs(c.value)},
+                          {"tipo", "camara_local"},
+                          {"nombre", qs(c.name)},
+                          {"valor", qs(c.value)},
+                          {"detalle", "Cámara o capturadora · " + qs(c.value)},
+                          {"datos", QVariantMap{{"id", qs(c.value)}}}};
+    for (const auto& m : audio::entradasDeAudio(rt.engine())) {
+        const bool pred = m.value == "default";
+        eq << QVariantMap{{"clave", "audio:" + qs(m.value)},
+                          {"tipo", "microfono"},
+                          {"nombre", qs(m.name)},
+                          {"valor", qs(m.value)},
+                          {"detalle", pred ? QStringLiteral("La que tenga elegida el sistema (la sigue si cambia)")
+                                           : "Micrófono o entrada de audio · " + qs(m.value)},
+                          {"datos", QVariantMap{{"id", qs(m.value)},
+                                                {"pipeline", qs(audio::pipelineDeMicrofono(m.value))}}}};
+    }
+    // Las mismas que ofrece el mezclador para escuchar y para las salidas (QMediaDevices).
+    for (const QAudioDevice& s : QMediaDevices::audioOutputs()) {
+        const QString id = QString::fromLatin1(s.id());
+        eq << QVariantMap{{"clave", "salida:" + id},
+                          {"tipo", "salida_audio"},
+                          {"nombre", s.description()},
+                          {"valor", id},
+                          {"detalle", "Salida de audio (placa de sonido, auriculares, HDMI) · " + id},
+                          {"datos", QVariantMap{{"id", id}, {"predeterminada", s.isDefault()}}}};
+    }
+    return eq;
 }
 } // namespace
 
@@ -75,6 +126,7 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
     QPointer<video::VideoGrafos> video = dep.video;
     QPointer<ptz::ControlCamaras> camaras = dep.camaras;
     QPointer<OperatorMessages> mensajes = dep.mensajes;
+    QPointer<InputsViewModel> entradas = dep.entradas;
     QPointer<Dispositivos> yo(&d);
 
     // --- Detectores ---------------------------------------------------------------------------
@@ -99,35 +151,51 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
         for (const QVariant& v : red->equiposQml())
             d.anotar("red", equipoDeRed(aJ(v)));
     }
-    if (pl) {
+    if (dep.rt) {
+        AppRuntime* rt = dep.rt;
         d.registrar(Detector{
-            "local", "Cámaras y micrófonos de esta máquina",
-            "Lo que ve GStreamer (webcams, capturadoras, micrófonos), con el pipeline para usarlo de "
-            "entrada.",
-            [](Listo listo) {
-                std::thread([listo]() {
-                    const json l = plugins::Plugins::camarasYMicrofonos();
-                    QMetaObject::invokeMethod(
-                        qApp,
-                        [l, listo]() {
-                            QVariantList eq;
-                            int nv = 0, na = 0;
-                            for (const auto& x : l) {
-                                const bool video =
-                                    x.value("clase", std::string()).find("Video") != std::string::npos;
-                                eq << QVariantMap{
-                                    {"clave",
-                                     QString(video ? "video:%1" : "audio:%1").arg(video ? nv++ : na++)},
-                                    {"tipo", video ? "camara_local" : "microfono"},
-                                    {"nombre", QString::fromStdString(x.value("nombre", std::string()))},
-                                    {"detalle", QString::fromStdString(x.value("gst", std::string()))},
-                                    {"datos", aV(x)}};
-                            }
-                            listo({{"equipos", eq}});
-                        },
-                        Qt::QueuedConnection);
-                }).detach();
-            }});
+            "local", "Cámaras, micrófonos y placas de sonido de esta máquina",
+            "Las cámaras y capturadoras, los micrófonos y entradas de audio y las salidas de las placas de "
+            "sonido, con su id estable. Se vuelve a buscar solo cuando se enchufa o se desenchufa algo.",
+            [rt](Listo listo) { listo({{"equipos", localesDe(*rt)}}); }});
+        // Enchufar o desenchufar algo se ve solo (conectado / ausente), sin tocar
+        // «Buscar»: el sistema avisa y se busca de nuevo (con una espera corta,
+        // porque un equipo USB llega en varios avisos seguidos).
+        auto* md = new QMediaDevices(&d);
+        auto* espera = new QTimer(&d);
+        espera->setSingleShot(true);
+        espera->setInterval(800);
+        QObject::connect(espera, &QTimer::timeout, &d, [yo]() {
+            if (yo) yo->escanear("local", [](QVariantMap) {});
+        });
+        QObject::connect(md, &QMediaDevices::audioInputsChanged, espera, qOverload<>(&QTimer::start));
+        QObject::connect(md, &QMediaDevices::audioOutputsChanged, espera, qOverload<>(&QTimer::start));
+        QObject::connect(md, &QMediaDevices::videoInputsChanged, espera, qOverload<>(&QTimer::start));
+        // Una búsqueda al arrancar (fuera del arranque mismo): las entradas, el
+        // mezclador y esta página muestran los nombres y lo que falta desde el principio.
+        QTimer::singleShot(2000, &d, [yo]() {
+            if (yo) yo->escanear("local", [](QVariantMap) {});
+        });
+    }
+#if defined(BA_HAVE_NDI)
+    d.registrar(Detector{"ndi", "NDI® en la red", "Los emisores NDI que se anuncian en la red (unos 4 s).",
+                         [](Listo listo) {
+                             std::thread([listo]() {
+                                 const auto found = ndi::discover(4000);
+                                 QVariantList eq;
+                                 for (const auto& f : found)
+                                     eq << QVariantMap{{"clave", qs(f.name)},
+                                                       {"tipo", "ndi"},
+                                                       {"nombre", qs(f.name)},
+                                                       {"valor", qs(f.name)},
+                                                       {"detalle", QString("NDI · %1:%2").arg(qs(f.host)).arg(f.port)},
+                                                       {"datos", QVariantMap{{"host", qs(f.host)}, {"puerto", f.port}}}};
+                                 QMetaObject::invokeMethod(
+                                     qApp, [eq, listo]() { listo({{"equipos", eq}}); }, Qt::QueuedConnection);
+                             }).detach();
+                         }});
+#endif
+    if (pl) {
         d.registrar(Detector{
             "usb", "USB, HID y serie",
             "Los equipos conectados por USB (vid:pid, marca, si son cámaras UVC), las interfaces HID y los "
@@ -385,29 +453,61 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                 }});
     }
 
-    // --- Cámaras de esta máquina -------------------------------------------------------------------
-    if (video) {
-        d.registrar(
-            "camara_local",
-            Accion{
-                "agregar",
-                "Agregar como entrada",
-                "La suma al estudio como entrada de GStreamer (con su pipeline), sincronizada y normalizada.",
-                {Parametro{"escena", "Escena", "texto", {}, true}, Parametro{"nombre", "Nombre"}},
-                true,
-                {},
-                [video](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                    if (!video) return listo({{"error", "el video no está disponible"}});
-                    const QString nombre = a.value("nombre").toString().isEmpty()
-                                               ? e.value("nombre").toString()
-                                               : a.value("nombre").toString();
-                    const std::string err = video->crearEntradaPipeline(
-                        nombre.toStdString(), e.value("datos").toMap().value("gst").toString().toStdString(),
-                        "", a.value("escena").toString().toStdString(), 100, 1);
-                    listo(err.empty() ? QVariantMap{{"texto", "Entrada «" + nombre + "» agregada"}}
-                                      : QVariantMap{{"error", QString::fromStdString(err)}});
-                }});
+    // --- Cámaras, micrófonos y NDI de esta máquina ------------------------------------------------
+    // Los arma la página de entradas (InputsViewModel): una sola manera de crear
+    // una entrada, la use la interfaz, el asistente o esta acción.
+    if (entradas) {
+        d.registrar("camara_local",
+                    Accion{"agregar",
+                           "Agregar como entrada de video",
+                           "La suma al estudio como entrada (sincronizada y normalizada), con el nombre que le "
+                           "pusiste y su formato preferido si lo configuraste.",
+                           {Parametro{"escena", "Escena", "texto", {}, true}, Parametro{"nombre", "Nombre"}},
+                           true,
+                           {},
+                           [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
+                               if (!entradas) return listo({{"error", "las entradas no están disponibles"}});
+                               const QString nombre = a.value("nombre").toString().isEmpty()
+                                                          ? e.value("nombre").toString()
+                                                          : a.value("nombre").toString();
+                               const QString err = entradas->addHardware(e.value("valor").toString(), nombre,
+                                                                         a.value("escena").toString(), {});
+                               listo(err.isEmpty() ? QVariantMap{{"texto", "Entrada «" + nombre + "» agregada"}}
+                                                   : QVariantMap{{"error", err}});
+                           }});
+        d.registrar("microfono",
+                    Accion{"agregar",
+                           "Agregar como entrada de audio",
+                           "Lo suma como entrada de audio (suena en todas las escenas; su procesamiento, en Audio).",
+                           {Parametro{"nombre", "Nombre"}},
+                           true,
+                           {},
+                           [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
+                               if (!entradas) return listo({{"error", "las entradas no están disponibles"}});
+                               const QString err =
+                                   entradas->addAudioInput(e.value("valor").toString(), a.value("nombre").toString());
+                               listo(err.isEmpty() ? QVariantMap{{"texto", "Entrada de audio agregada"}}
+                                                   : QVariantMap{{"error", err}});
+                           }});
+        d.registrar("ndi", Accion{"agregar",
+                                  "Agregar como entrada de video",
+                                  "Recibe este emisor NDI como entrada.",
+                                  {Parametro{"escena", "Escena", "texto", {}, true}, Parametro{"nombre", "Nombre"}},
+                                  true,
+                                  {},
+                                  [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
+                                      if (!entradas)
+                                          return listo({{"error", "las entradas no están disponibles"}});
+                                      const QString nombre = a.value("nombre").toString().isEmpty()
+                                                                 ? e.value("nombre").toString()
+                                                                 : a.value("nombre").toString();
+                                      const QString err = entradas->addNdi(e.value("valor").toString(), nombre,
+                                                                           a.value("escena").toString());
+                                      listo(err.isEmpty() ? QVariantMap{{"texto", "Entrada NDI agregada"}}
+                                                          : QVariantMap{{"error", err}});
+                                  }});
     }
+    (void)video;
 
     // --- USB ----------------------------------------------------------------------------------------
     if (pl) {
@@ -445,6 +545,8 @@ except Exception as e:
                    }});
     }
     (void)camaras;
+    // Las entradas eligen y muestran desde este registro (no buscan por su cuenta).
+    if (entradas) entradas->setDispositivos(&d);
 }
 
 } // namespace ba::app::dispositivos

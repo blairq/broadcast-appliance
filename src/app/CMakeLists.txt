@@ -555,6 +555,12 @@ endif()
     target_link_libraries(test_dashboard_model PRIVATE Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
+    # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
+    add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp)
+    target_include_directories(test_dispositivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_dispositivos PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_dispositivos PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_dispositivos COMMAND test_dispositivos)
     # Los instrumentos de video (forma de onda, vectorscopio, legalidad), sin GPU.
     add_executable(test_scopes tests/test_scopes.cpp video/Scopes.cpp)
     target_include_directories(test_scopes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

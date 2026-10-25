@@ -60,13 +60,19 @@ const std::vector<Grupo>& catalogo() {
           {3, "youtube", "▶", "YouTube (cuenta, videos, en vivo)"},
           {4, "twitch", "◆", "Twitch (canal, vivo, chat)"},
           {5, "facebook", "f", "Facebook (Páginas, vivos, videos)"}}},
+        // Primero lo que entra (video, audio), después DE DÓNDE sale (los dispositivos de
+        // la máquina, con su nombre) y al final qué se le hace a cada señal (Video, Audio).
         {"Señales y equipos",
-         {{8, "entradas", "◉", "Entradas de video (cámaras, capturadoras, red)"},
-          {22, "video", "⧈", "Video: tarjetas por entrada (croma, color, recorte) y salidas con nombre"},
-          {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"},
+         {{8, "entradas", "◉",
+           "Entradas de video: las cámaras, capturadoras, NDI y señales de red que usa el evento, con su imagen "
+           "y en qué escenas están"},
+          {31, "entradas_audio", "🎙",
+           "Entradas de audio: los micrófonos, líneas y placas que usa el evento, y si están conectados"},
           {24, "equipos", "⌁",
-           "Equipos: buscar lo que hay en la red, la máquina y el USB, y manejarlo (ONVIF, claves, PTZ, "
-           "UVC)"},
+           "Dispositivos y equipos: todo lo de audio y video de la máquina con el nombre que le pusiste y si "
+           "está conectado; buscar en la red y el USB y manejarlo (ONVIF, claves, PTZ, UVC)"},
+          {22, "video", "⧈", "Video: qué se le hace a cada entrada (croma, color, recorte) y salidas con nombre"},
+          {9, "audio", "🎚", "Audio: el procesamiento de cada entrada de audio (módulos LSP por fuente)"},
           {25, "botonera", "▣", "Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI"}}},
         {"Sistema",
          {{7, "asistente", "✦", "Asistente: la terminal del agente que trabaja con vos"},
