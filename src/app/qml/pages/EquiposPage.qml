@@ -101,7 +101,9 @@ Rectangle {
             spacing: 10
             Text { text: "Dispositivos y equipos"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             Text {
-                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                // El ancho de la columna, fijo: con fillWidth su ancho natural era el texto entero en
+                // un renglón y, al partirse, el alto cambiaba y el RowLayout de la página no paraba.
+                Layout.preferredWidth: 380; Layout.maximumWidth: 380; wrapMode: Text.WordWrap
                 text: "Los de audio y video de esta máquina, con el nombre que les pongas (vale para todos los eventos). Las entradas, el mezclador y las salidas los muestran así."
                 color: Theme.textFaint; font.pixelSize: 11
             }
@@ -291,7 +293,7 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 8
                             visible: !!page.equipo && page.equipo.tipo === "camara_local" && page.equipo.conectado
-                            Text { text: "Formato preferido"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110; wrapMode: Text.WordWrap }
+                            Text { text: "Formato preferido"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110; elide: Text.ElideRight }
                             ComboBox {
                                 id: modoBox
                                 Layout.fillWidth: true
