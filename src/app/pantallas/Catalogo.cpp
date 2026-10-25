@@ -47,6 +47,7 @@ QString CatalogoVisible::tituloDeGrupo(const QString& g) {
     if (g == "programa") return QStringLiteral("Salida");
     if (g == "escena") return QStringLiteral("Escena");
     if (g == "multiview") return QStringLiteral("Multiview");
+    if (g == "video") return QStringLiteral("Video");
     if (g == "tarjeta") return QStringLiteral("Tarjeta del tablero");
     if (g == "panel") return QStringLiteral("Panel");
     if (g == "pagina") return QStringLiteral("Página");
@@ -118,7 +119,11 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
         const QStringList claves = fuentes_.fondo ? fuentes_.fondo() : QStringList{};
         const QString dist = fuentes_.fondoDistribucion ? fuentes_.fondoDistribucion() : QStringLiteral("grid");
         Cosa c{"fondo", "fondo", "Lo de fondo en el tablero", "▣", {}, "", {}, ""};
-        if (!claves.isEmpty()) c.dibujo = video(claves, dist);
+        // El fondo puede ser una multivista («multiview:<id>» en la distribución).
+        if (dist.startsWith("multiview:"))
+            c.dibujo = QVariantMap{{"modo", "multiview"}, {"id", dist.mid(10)}};
+        else if (!claves.isEmpty())
+            c.dibujo = video(claves, dist);
         out.push_back(c);
     }
 
@@ -141,6 +146,24 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
             out.push_back({"multiview:" + id, "multiview", nombre.isEmpty() ? id : nombre, "▥",
                            QVariantMap{{"modo", "multiview"}, {"id", id}}, "", {}, ""});
         }
+
+    // 4b) Las fuentes de video sueltas: un invitado, una cámara, a pantalla
+    //     entera. Antes solo se podían sacar a una ventana de video aparte
+    //     (con su lista propia de claves); ahora son cosas del catálogo como
+    //     cualquier otra, y van también a un monitor.
+    if (fuentes_.videos) {
+        std::set<QString> vistas;
+        for (const QVariant& v : fuentes_.videos()) {
+            const QVariantMap m = v.toMap();
+            const QString clave = m.value("clave").toString();
+            // El programa y la armada ya están arriba, con su nombre.
+            if (clave.isEmpty() || clave == "program" || clave == "armada" || clave.startsWith("escena:") ||
+                !vistas.insert(clave).second)
+                continue;
+            const QString titulo = m.value("titulo").toString();
+            out.push_back({"video:" + clave, "video", titulo.isEmpty() ? clave : titulo, "▶", video({clave}), "", {}, ""});
+        }
+    }
 
     // 5) Los paneles (los que son más que su tarjeta, y los del evento).
     for (const Panel& p : kPaneles) {

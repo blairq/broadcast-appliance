@@ -2,8 +2,8 @@
 // programa, una escena, lo de fondo del tablero) o una multivista VIVA (sigue a
 // la página Multiview: fuentes, distribución y estilo).
 //
-// La usan las ventanas de salida (OutputWindow), las ventanas sueltas y los
-// monitores (VistaCatalogo): antes cada una armaba su VideoWall con sus reglas.
+// La usan las ventanas sueltas y los monitores (VistaCatalogo, VistaCosas):
+// antes cada una armaba su VideoWall con sus reglas.
 //
 // Las escenas que no están al aire se piden al motor mientras se miran
 // (Studio.frames.mirarEscena) y se sueltan al dejar de mostrarlas.

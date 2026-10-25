@@ -58,25 +58,13 @@ Window {
     onClosing: (close) => Studio.pantallasConectadas.quitar(w.monitorId)
 
     // --- Lo que muestra: una cosa, o varias en grilla --------------------------
-    // Sin layouts (un monitor no se redimensiona a mano): cuentas directas.
-    readonly property int columnas: Math.max(1, Math.ceil(Math.sqrt(cosas.length)))
-    readonly property int filas: Math.max(1, Math.ceil(cosas.length / columnas))
-    Repeater {
-        model: w.cosas
-        delegate: VistaCatalogo {
-            required property int index
-            required property var modelData
-            readonly property real celdaW: w.width / w.columnas
-            readonly property real celdaH: w.height / w.filas
-            x: (index % w.columnas) * celdaW
-            y: Math.floor(index / w.columnas) * celdaH
-            width: celdaW
-            height: celdaH
-            itemId: modelData
-            principal: w.principal
-            // Con varias, cada panel lleva su título: hay que saber qué es cada cosa.
-            conMarco: w.cosas.length > 1
-        }
+    // La misma vista que las ventanas sueltas (VistaCosas).
+    VistaCosas {
+        anchors.fill: parent
+        cosas: w.cosas
+        principal: w.principal
+        // Una sola cosa en un monitor: a pantalla entera, sin marco.
+        marcoSolo: false
     }
 
     // --- Con el mouse, qué es este monitor y cómo cambiarlo ---------------------

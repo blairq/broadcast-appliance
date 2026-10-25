@@ -152,6 +152,7 @@ class PrompterViewModel;
 class PantallasViewModel;
 class CatalogoVisible;
 class MonitoresModel;
+class VentanasModel;
 class EnlacesViewModel;
 class QrViewModel;
 class PersonasViewModel;
@@ -318,6 +319,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* catalogo READ catalogoQml CONSTANT)
     /// Los monitores de la máquina y qué va en cada uno (pantallas/Monitores.hpp).
     Q_PROPERTY(QObject* pantallasConectadas READ pantallasConectadasQml CONSTANT)
+    /// Las ventanas sueltas, que se recuerdan (pantallas/Ventanas.hpp).
+    Q_PROPERTY(QObject* ventanas READ ventanasQml CONSTANT)
+    /// Los monitores conectados en su orden físico (Monitores::conectadosEnOrden).
+    Q_PROPERTY(QVariantList monitores READ monitores NOTIFY monitoresChanged)
     /// La biblioteca de códigos QR y su estudio de diseño.
     Q_PROPERTY(QObject* qr READ qr CONSTANT)
     /// Todos los enlaces del aparato, con su estado y su botón de activar (página Enlaces).
@@ -711,6 +716,8 @@ class StudioViewModel : public QObject {
     QObject* pantallasConectadasQml() const;
     CatalogoVisible* catalogoVisible() const { return catalogo_.get(); }
     MonitoresModel* monitoresModelo() const { return monitores_.get(); }
+    QObject* ventanasQml() const;
+    VentanasModel* ventanasModelo() const { return ventanas_.get(); }
     QObject* qr() const;
     QObject* enlacesQml() const;
     EnlacesViewModel* enlacesVm() const { return enlaces_.get(); }
@@ -756,10 +763,12 @@ class StudioViewModel : public QObject {
     /// false si es la última (siempre queda una).
     Q_INVOKABLE bool borrarMultiview(const QString& id);
     Q_INVOKABLE void restablecerMultiview();
-    /// Los monitores: [{nombre, ancho, alto, principal}].
-    Q_INVOKABLE QVariantList monitores() const;
-    /// Abre la ventana de esa multivista (cierra la que tuviera) en `monitor` ("" =
-    /// el principal, en una ventana), en pantalla completa si se pide.
+    /// Los monitores conectados, en orden físico: [{id, nombre, orden, sistema,
+    /// principal, ancho, alto, x, y}] (los de Salidas → Pantallas).
+    QVariantList monitores() const;
+    /// Abre la ventana de esa multivista (cierra la que tuviera) en `monitor` (id,
+    /// número de orden o nombre; "" = el principal, en una ventana), en pantalla
+    /// completa si se pide.
     Q_INVOKABLE void abrirMultiviewEnVentana(const QString& id, const QString& monitor, bool pantallaCompleta);
     /// Una ventana por multivista: una por monitor (los que no son el principal), en
     /// pantalla completa; si sobran o no hay otros monitores, ventanas escalonadas.
@@ -984,6 +993,7 @@ class StudioViewModel : public QObject {
     void mostrarSeccion(const QString& pagina, const QString& seccion);
     void multiviewChanged();
     void multiviewVentanasChanged();
+    void monitoresChanged();
     /// qr_mostrar: abrir una ventana con el QR de `texto`, su descripción, una
     /// explicación y un color (verde, azul… o #rrggbb), con el botón de copiar.
     void mostrarQr(const QString& texto, const QString& descripcion, const QString& mensaje, const QString& color);
@@ -1058,6 +1068,7 @@ class StudioViewModel : public QObject {
     // (y se destruyen primero).
     std::unique_ptr<CatalogoVisible> catalogo_;
     std::unique_ptr<MonitoresModel> monitores_;
+    std::unique_ptr<VentanasModel> ventanas_;
     QString seccionConfig_;
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;

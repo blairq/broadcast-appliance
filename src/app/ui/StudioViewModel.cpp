@@ -144,6 +144,7 @@
 #include "ui/PantallasViewModel.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
+#include "pantallas/Ventanas.hpp"
 #include "ui/AtencionViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
@@ -278,11 +279,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         dashboard_ = std::make_unique<DashboardModel>(c.saltear() ? std::filesystem::path{}
                                                                   : rt.dataRoot() / "Config" / "ui.json");
         marca("dashboard");
-    }
-    if (auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows())) {
-        connect(wm, &QAbstractItemModel::rowsInserted, this, &StudioViewModel::multiviewVentanasChanged);
-        connect(wm, &QAbstractItemModel::rowsRemoved, this, &StudioViewModel::multiviewVentanasChanged);
-        connect(wm, &QAbstractItemModel::dataChanged, this, &StudioViewModel::multiviewVentanasChanged);
     }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     marca("frames");
@@ -1144,15 +1140,40 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         f.paginas = []() { return RielConfig::todasLasPaginas(); };
         f.contenidosRed = [this]() { return pantallas_ ? pantallas_->contenidos() : QVariantList{}; };
+        // Las fuentes de video sueltas (invitados, sus pantallas, las entradas):
+        // lo que antes solo se podía sacar a una ventana de video por su clave.
+        f.videos = [this]() {
+            QVariantList out;
+            if (frames_)
+                for (const QString& k : frames_->keys()) out << QVariantMap{{"clave", k}, {"titulo", frames_->label(k)}};
+            if (video_)
+                for (const QString& e : video_->entradas()) out << QVariantMap{{"clave", "entrada:" + e}, {"titulo", e}};
+            return out;
+        };
         catalogo_ = std::make_unique<CatalogoVisible>(std::move(f));
         const auto refrescar = [this]() { catalogo_->refrescar(); };
         connect(this, &StudioViewModel::escenasCambiaron, catalogo_.get(), refrescar);
         connect(this, &StudioViewModel::multiviewChanged, catalogo_.get(), refrescar);
         if (dashboard_) connect(dashboard_.get(), &DashboardModel::backgroundChanged, catalogo_.get(), refrescar);
         connect(camaras_.get(), &ptz::ControlCamaras::cambio, catalogo_.get(), refrescar);
+        connect(frames_.get(), &FrameService::keysChanged, catalogo_.get(), refrescar);
         monitores_ = std::make_unique<MonitoresModel>(rt.dataRoot() / "Config" / "monitores.json", catalogo_.get());
         monitores_->conectarAlSistema();
         marca("monitores");
+        // Las ventanas sueltas (pantallas/Ventanas.hpp): las mismas cosas del
+        // catálogo y los mismos monitores. La primera vez trae las ventanas de
+        // video que había en ui.json.
+        {
+            ba::diag::Cargando c("ventanas");
+            ventanas_ = std::make_unique<VentanasModel>(
+                c.saltear() ? std::filesystem::path{} : rt.dataRoot() / "Config" / "ventanas.json", catalogo_.get(),
+                monitores_.get());
+            if (!c.saltear()) ventanas_->migrarDesde(rt.dataRoot() / "Config" / "ui.json", multiviewActual());
+        }
+        connect(ventanas_.get(), &VentanasModel::cambio, this, &StudioViewModel::multiviewVentanasChanged);
+        connect(ventanas_.get(), &QAbstractItemModel::dataChanged, this, &StudioViewModel::multiviewVentanasChanged);
+        connect(monitores_.get(), &MonitoresModel::cambio, this, &StudioViewModel::monitoresChanged);
+        marca("ventanas");
     }
     // Los tiempos: solo fotos que ya se publican (el motor, las salidas, los grafos, los racks).
     tiempos_ = std::make_unique<tiempos::TiemposModel>([this]() {
@@ -1445,6 +1466,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
     video_->setLegalizar(rt.config().legalizar);
+    // Las entradas de video también son cosas que se pueden mostrar (catálogo).
+    connect(video_.get(), &video::VideoGrafos::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
+    catalogo_->refrescar();
     // El respaldo de las entradas al aire que pierden señal (modelo): acá solo se muestra.
     respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, *video_, *conmutador_, this);
     connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, &StudioViewModel::senalChanged);
@@ -2744,6 +2768,7 @@ QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::catalogoQml() const { return catalogo_.get(); }
 QObject* StudioViewModel::pantallasConectadasQml() const { return monitores_.get(); }
+QObject* StudioViewModel::ventanasQml() const { return ventanas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
 
@@ -4481,75 +4506,81 @@ bool StudioViewModel::borrarMultiview(const QString& id) {
 }
 
 QVariantList StudioViewModel::monitores() const {
-    QVariantList out;
-    const QScreen* principal = QGuiApplication::primaryScreen();
-    for (const QScreen* sc : QGuiApplication::screens())
-        out << QVariantMap{{"nombre", sc->name()}, {"ancho", sc->geometry().width()}, {"alto", sc->geometry().height()},
-                           {"principal", sc == principal}};
-    return out;
+    // Los de Salidas → Pantallas: orden físico e ids estables (una sola lista).
+    return monitores_ ? monitores_->conectadosEnOrden() : QVariantList{};
 }
 
 QStringList StudioViewModel::multiviewsConVentana() const {
     QStringList out;
-    if (!dashboard_) return out;
-    for (const auto& w : static_cast<OutputWindowsModel*>(dashboard_->windows())->windows())
-        if (w.layout.startsWith("multiview:")) out << w.layout.mid(10);
+    if (!ventanas_) return out;
+    for (const auto& w : ventanas_->ventanas())
+        for (const QString& c : w.cosas)
+            if (c.startsWith("multiview:") && !out.contains(c.mid(10))) out << c.mid(10);
     return out;
 }
 
 namespace {
-/// Una ventana de 16:9 centrada en el monitor (o escalonada en el principal).
-QRect geometriaEn(const QScreen* sc, int escalon) {
-    const QRect a = sc != nullptr ? sc->availableGeometry() : QRect(0, 0, 1920, 1080);
-    const int w = std::min(1280, a.width() - 80), h = w * 9 / 16;
-    return QRect(a.x() + (a.width() - w) / 2 + escalon * 40, a.y() + (a.height() - h) / 2 + escalon * 40, w, h);
+/// Una ventana de 16:9 centrada en el monitor `g` (o escalonada).
+QRect geometriaEn(QRect g, int escalon) {
+    if (!g.isValid()) g = QRect(0, 0, 1920, 1080);
+    const int w = std::min(1280, g.width() - 80), h = w * 9 / 16;
+    return QRect(g.x() + (g.width() - w) / 2 + escalon * 40, g.y() + (g.height() - h) / 2 + escalon * 40, w, h);
+}
+QRect rectDe(const QVariantMap& m) {
+    return QRect(m.value("x").toInt(), m.value("y").toInt(), m.value("ancho").toInt(), m.value("alto").toInt());
 }
 } // namespace
 
 void StudioViewModel::abrirMultiviewEnVentana(const QString& id, const QString& monitor, bool pantallaCompleta) {
-    if (!dashboard_ || multiviewDe(id).isEmpty()) return;
-    auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows());
-    std::vector<int> cerrar;
-    for (const auto& w : wm->windows())
-        if (w.layout == "multiview:" + id) cerrar.push_back(w.id);
-    for (int c : cerrar) wm->close(c);
-    const QScreen* sc = nullptr;
-    for (const QScreen* s : QGuiApplication::screens())
-        if (s->name() == monitor) sc = s;
-    wm->abrirEn({}, "multiview:" + id, sc ? sc->name() : QString(), geometriaEn(sc ? sc : QGuiApplication::primaryScreen(), 0),
-                pantallaCompleta && sc != nullptr);
+    if (!ventanas_ || !monitores_ || multiviewDe(id).isEmpty()) return;
+    // La ventana de esa multivista se cierra y se abre donde se pide (así «Llevar
+    // la ventana» la manda al monitor elegido aunque ya estuviera abierta).
+    ventanas_->cerrarCosa("multiview:" + id);
+    // `monitor`: id, número de orden, nombre o nombre del sistema (Monitores::resolver).
+    const QString mid = monitor.isEmpty() ? QString() : monitores_->resolver(monitor);
+    QVariantMap donde, principal;
+    for (const QVariant& v : monitores_->conectadosEnOrden()) {
+        const QVariantMap m = v.toMap();
+        if (m.value("id").toString() == mid) donde = m;
+        if (m.value("principal").toBool()) principal = m;
+    }
+    const bool hay = !donde.isEmpty();
+    ventanas_->abrirEn({"multiview:" + id}, {}, hay ? mid : principal.value("id").toString(),
+                       geometriaEn(rectDe(hay ? donde : principal), 0), pantallaCompleta && hay);
 }
 
 int StudioViewModel::abrirTodasLasMultiviews() {
-    if (!dashboard_) return 0;
+    if (!ventanas_ || !monitores_) return 0;
     cerrarVentanasMultiview();
-    auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows());
-    const QScreen* principal = QGuiApplication::primaryScreen();
-    std::vector<const QScreen*> otros;
-    for (const QScreen* s : QGuiApplication::screens())
-        if (s != principal) otros.push_back(s);
+    QVariantMap principal;
+    QVariantList otros;
+    for (const QVariant& v : monitores_->conectadosEnOrden()) {
+        if (v.toMap().value("principal").toBool())
+            principal = v.toMap();
+        else
+            otros << v;
+    }
     const QVariantList vistas = multiviews();
     int escalon = 0;
     for (int i = 0; i < vistas.size(); ++i) {
         const QString id = vistas[i].toMap().value("id").toString();
-        if (i < static_cast<int>(otros.size())) {
-            const QScreen* sc = otros[static_cast<std::size_t>(i)];
-            wm->abrirEn({}, "multiview:" + id, sc->name(), geometriaEn(sc, 0), true); // una por monitor, completa
+        if (i < otros.size()) {
+            const QVariantMap m = otros[i].toMap(); // una por monitor, completa, en el orden físico
+            ventanas_->abrirEn({"multiview:" + id}, {}, m.value("id").toString(), geometriaEn(rectDe(m), 0), true);
         } else {
-            wm->abrirEn({}, "multiview:" + id, principal ? principal->name() : QString(), geometriaEn(principal, escalon++),
-                        false);
+            ventanas_->abrirEn({"multiview:" + id}, {}, principal.value("id").toString(),
+                               geometriaEn(rectDe(principal), escalon++), false);
         }
     }
     return vistas.size();
 }
 
 int StudioViewModel::cerrarVentanasMultiview() {
-    if (!dashboard_) return 0;
-    auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows());
+    if (!ventanas_) return 0;
     std::vector<int> cerrar;
-    for (const auto& w : wm->windows())
-        if (w.layout.startsWith("multiview")) cerrar.push_back(w.id);
-    for (int c : cerrar) wm->close(c);
+    for (const auto& w : ventanas_->ventanas())
+        if (w.cosas.size() == 1 && w.cosas.first().startsWith("multiview:")) cerrar.push_back(w.id);
+    for (int c : cerrar) ventanas_->cerrar(c);
     return static_cast<int>(cerrar.size());
 }
 

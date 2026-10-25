@@ -127,7 +127,7 @@ Item {
         }
         GlassButton {
             text: "Sacar a ventana"; icon: "⧉"
-            onClicked: Studio.dashboard.windows.open(Studio.dashboard.background, Studio.dashboard.backgroundLayout)
+            onClicked: Studio.ventanas.abrir(["fondo"], "")
             ToolTip.visible: hovered_; ToolTip.text: "Abre el video de fondo en una ventana aparte (sin cortes), p. ej. para otro monitor"
             property bool hovered_: false
             HoverHandler { onHoveredChanged: parent.hovered_ = hovered }
@@ -190,7 +190,7 @@ Item {
                     }
                 }
                 MenuSeparator {}
-                MenuItem { text: "Sacar a una ventana"; onTriggered: Studio.dashboard.windows.open(Studio.dashboard.background, Studio.dashboard.backgroundLayout) }
+                MenuItem { text: "Sacar a una ventana"; onTriggered: Studio.ventanas.abrir(["fondo"], "") }
                 MenuSeparator {}
                 MenuItem { text: "Mas oscuro"; onTriggered: Studio.dashboard.backgroundDim += 0.1 }
                 MenuItem { text: "Mas claro"; onTriggered: Studio.dashboard.backgroundDim -= 0.1 }

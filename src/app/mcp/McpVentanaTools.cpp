@@ -406,9 +406,10 @@ void McpService::registerVentanaTools() {
 
             if (a.contains("estado")) {
                 const std::string e = a["estado"].get<std::string>();
-                // Las ventanas de video (salida:<n>) tienen su estado en QML y en el modelo:
-                // por sus botones, así no quedan desparejos.
-                if (w->objectName().startsWith("ba:salida:") &&
+                // Las ventanas sueltas (VentanaSuelta: video, páginas, paneles) tienen su
+                // estado en QML y en el modelo que las recuerda: por su función, así
+                // no quedan desparejos. La principal y los monitores no la tienen.
+                if (w->metaObject()->indexOfMethod("ponerEstado(QVariant)") >= 0 &&
                     QMetaObject::invokeMethod(w, "ponerEstado", Q_ARG(QVariant, QVariant(QString::fromStdString(e))))) {
                     done(ToolResult::ok("«" + w->title().toStdString() + "»:" + hecho + " (" + e + ")."));
                     return;

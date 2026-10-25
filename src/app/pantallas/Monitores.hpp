@@ -75,6 +75,9 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     /// Solo los que tienen que tener ventana AHORA (conectados y con algo
     /// asignado): es el modelo del Instantiator de Main.qml.
     Q_PROPERTY(QObject* activos READ activos CONSTANT)
+    /// Solo los conectados, en su orden físico: los menús «a qué monitor» de las
+    /// ventanas sueltas (BarraVentana) y los selectores de monitor.
+    Q_PROPERTY(QObject* presentes READ presentes CONSTANT)
     /// Cuántos hay conectados.
     Q_PROPERTY(int conectados READ conectados NOTIFY cambio)
     /// Cuántos recordados faltan (esperando que aparezcan).
@@ -106,6 +109,7 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     QHash<int, QByteArray> roleNames() const override;
 
     QObject* activos() const { return activos_; }
+    QObject* presentes() const { return presentes_; }
     int conectados() const;
     int esperando() const;
     double proporcion() const;
@@ -132,8 +136,13 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     Q_INVOKABLE QString olvidar(const QString& id);
     /// La fila de ese monitor como mapa (los nombres de los roles), o vacío.
     Q_INVOKABLE QVariantMap monitor(const QString& id) const;
-    /// Un monitor por id, por su número de orden («2») o por su nombre.
+    /// Un monitor por id, por su número de orden («2»), por su nombre o por el
+    /// del sistema («HDMI-1», «\\.\DISPLAY2»).
     QString resolver(const QString& quien) const;
+    /// Los conectados en su orden físico, como mapas: {id, nombre, orden, sistema,
+    /// principal, ancho, alto, x, y}. La ÚNICA lista de monitores: la usan
+    /// Studio.monitores (Multiview), la herramienta `monitors` y system_hardware.
+    QVariantList conectadosEnOrden() const;
 
    signals:
     void cambio();
@@ -154,6 +163,7 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     std::vector<PantallaFisica> pantallas_;
     QRect limites_;
     QSortFilterProxyModel* activos_ = nullptr;
+    QSortFilterProxyModel* presentes_ = nullptr;
 };
 
 } // namespace ba::app

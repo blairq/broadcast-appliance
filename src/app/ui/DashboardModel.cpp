@@ -35,7 +35,6 @@ const auto& kKinds = tarjetas::kTipos;
 
 DashboardModel::DashboardModel(std::filesystem::path file, QObject* parent)
     : QAbstractListModel(parent), file_(std::move(file)) {
-    windows_ = new OutputWindowsModel([this]() { save(); }, this);
     load();
     // Qué tipos están en el tablero (la barra de tarjetas los ilumina).
     connect(this, &QAbstractItemModel::rowsInserted, this, &DashboardModel::tarjetasCambio);
@@ -94,149 +93,6 @@ void DashboardModel::setBackgroundLayout(const QString& l) {
     layout_ = l;
     emit backgroundChanged();
     save();
-}
-
-// ============================================================================
-// OutputWindowsModel
-// ============================================================================
-
-OutputWindowsModel::OutputWindowsModel(std::function<void()> onChange, QObject* parent)
-    : QAbstractListModel(parent), onChange_(std::move(onChange)) {}
-
-int OutputWindowsModel::rowCount(const QModelIndex&) const { return static_cast<int>(wins_.size()); }
-
-QVariant OutputWindowsModel::data(const QModelIndex& index, int role) const {
-    if (!index.isValid() || index.row() >= rowCount()) {
-        return {};
-    }
-    const Win& w = wins_[static_cast<std::size_t>(index.row())];
-    switch (role) {
-        case IdRole: return w.id;
-        case KeysRole: return w.keys;
-        case LayoutRole: return w.layout;
-        case ScreenRole: return w.screen;
-        case FullscreenRole: return w.fullscreen;
-        case GeometryRole: return w.geometry;
-        default: return {};
-    }
-}
-
-QHash<int, QByteArray> OutputWindowsModel::roleNames() const {
-    return {{IdRole, "winId"},
-            {KeysRole, "keys"},
-            {LayoutRole, "layout"},
-            {ScreenRole, "screenName"},
-            {FullscreenRole, "fullscreen"},
-            {GeometryRole, "geometry"}};
-}
-
-int OutputWindowsModel::rowOf(int id) const {
-    for (std::size_t i = 0; i < wins_.size(); ++i) {
-        if (wins_[i].id == id) {
-            return static_cast<int>(i);
-        }
-    }
-    return -1;
-}
-
-void OutputWindowsModel::changed(int row, const QList<int>& roles) {
-    emit dataChanged(index(row), index(row), roles);
-    if (onChange_) {
-        onChange_();
-    }
-}
-
-int OutputWindowsModel::open(const QStringList& keys, const QString& layout) {
-    Win w;
-    w.id = nextId_++;
-    w.keys = keys;
-    w.layout = layout.isEmpty() ? "grid" : layout;
-    // Cada ventana nueva un poco corrida de la anterior.
-    w.geometry.translate(40 * static_cast<int>(wins_.size()), 40 * static_cast<int>(wins_.size()));
-    const int row = rowCount();
-    beginInsertRows({}, row, row);
-    wins_.push_back(w);
-    endInsertRows();
-    if (onChange_) {
-        onChange_();
-    }
-    return w.id;
-}
-
-void OutputWindowsModel::close(int id) {
-    const int row = rowOf(id);
-    if (row < 0) {
-        return;
-    }
-    beginRemoveRows({}, row, row);
-    wins_.erase(wins_.begin() + row);
-    endRemoveRows();
-    if (onChange_) {
-        onChange_();
-    }
-}
-
-int OutputWindowsModel::abrirEn(const QStringList& keys, const QString& layout, const QString& screen,
-                                const QRect& geometria, bool pantallaCompleta) {
-    Win w;
-    w.id = nextId_++;
-    w.keys = keys;
-    w.layout = layout.isEmpty() ? "grid" : layout;
-    w.screen = screen;
-    w.fullscreen = pantallaCompleta;
-    if (geometria.isValid()) w.geometry = geometria;
-    const int row = rowCount();
-    beginInsertRows({}, row, row);
-    wins_.push_back(w);
-    endInsertRows();
-    if (onChange_) onChange_();
-    return w.id;
-}
-
-void OutputWindowsModel::setScreen(int id, const QString& screenName) {
-    const int row = rowOf(id);
-    if (row >= 0 && wins_[static_cast<std::size_t>(row)].screen != screenName) {
-        wins_[static_cast<std::size_t>(row)].screen = screenName;
-        changed(row, {ScreenRole});
-    }
-}
-
-void OutputWindowsModel::setFullscreen(int id, bool on) {
-    const int row = rowOf(id);
-    if (row >= 0 && wins_[static_cast<std::size_t>(row)].fullscreen != on) {
-        wins_[static_cast<std::size_t>(row)].fullscreen = on;
-        changed(row, {FullscreenRole});
-    }
-}
-
-void OutputWindowsModel::setLayout(int id, const QString& layout) {
-    const int row = rowOf(id);
-    if (row >= 0 && wins_[static_cast<std::size_t>(row)].layout != layout) {
-        wins_[static_cast<std::size_t>(row)].layout = layout;
-        changed(row, {LayoutRole});
-    }
-}
-
-void OutputWindowsModel::setGeometry(int id, int x, int y, int w, int h) {
-    const int row = rowOf(id);
-    const QRect r(x, y, w, h);
-    // La geometria solo se guarda (no notifica): la ventana ya esta ahi y
-    // re-aplicarla peleaba con el arrastre del usuario.
-    if (row >= 0 && wins_[static_cast<std::size_t>(row)].geometry != r && w > 0 && h > 0) {
-        wins_[static_cast<std::size_t>(row)].geometry = r;
-        if (onChange_) {
-            onChange_();
-        }
-    }
-}
-
-void OutputWindowsModel::restore(std::vector<Win> wins) {
-    beginResetModel();
-    wins_ = std::move(wins);
-    for (auto& w : wins_) {
-        w.id = nextId_++;
-    }
-    endResetModel();
 }
 
 int DashboardModel::rowCount(const QModelIndex&) const { return static_cast<int>(cards_.size()); }
@@ -512,21 +368,6 @@ void DashboardModel::load() {
     }
     dim_ = o.value("backgroundDim").toDouble(0.35);
     layout_ = o.value("backgroundLayout").toString("grid");
-    std::vector<OutputWindowsModel::Win> wins;
-    for (const auto& v : o.value("windows").toArray()) {
-        const QJsonObject w = v.toObject();
-        OutputWindowsModel::Win win;
-        for (const auto& k : w.value("keys").toArray()) {
-            win.keys << k.toString();
-        }
-        win.layout = w.value("layout").toString("grid");
-        win.screen = w.value("screen").toString();
-        win.fullscreen = w.value("fullscreen").toBool();
-        win.geometry = QRect(w.value("x").toInt(120), w.value("y").toInt(120), w.value("w").toInt(960),
-                             w.value("h").toInt(540));
-        wins.push_back(win);
-    }
-    windows_->restore(std::move(wins));
 }
 
 void DashboardModel::save() const {
@@ -543,23 +384,11 @@ void DashboardModel::save() const {
                                  {"h", c.rect.height()},
                                  {"source", c.source}});
     }
-    QJsonArray wins;
-    for (const auto& w : windows_->windows()) {
-        wins.append(QJsonObject{{"keys", QJsonArray::fromStringList(w.keys)},
-                                {"layout", w.layout},
-                                {"screen", w.screen},
-                                {"fullscreen", w.fullscreen},
-                                {"x", w.geometry.x()},
-                                {"y", w.geometry.y()},
-                                {"w", w.geometry.width()},
-                                {"h", w.geometry.height()}});
-    }
     QJsonArray ocultas;
     for (const auto& c : ocultas_)
         ocultas.append(QJsonObject{{"kind", c.kind}, {"x", c.rect.x()}, {"y", c.rect.y()}, {"w", c.rect.width()},
                                    {"h", c.rect.height()}, {"source", c.source}});
-    const QJsonObject o{{"windows", wins},
-                        {"backgroundLayout", layout_},
+    const QJsonObject o{{"backgroundLayout", layout_},
                         {"cards", cards},
                         {"ocultas", ocultas},
                         {"background", QJsonArray::fromStringList(background_)},

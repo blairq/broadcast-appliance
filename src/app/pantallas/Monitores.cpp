@@ -64,6 +64,10 @@ MonitoresModel::MonitoresModel(std::filesystem::path archivo, CatalogoVisible* c
     activos_->setSourceModel(this);
     activos_->setFilterRole(ActivaRole);
     activos_->setFilterRegularExpression(QRegularExpression(QStringLiteral("^true$")));
+    presentes_ = new QSortFilterProxyModel(this);
+    presentes_->setSourceModel(this);
+    presentes_->setFilterRole(ConectadoRole);
+    presentes_->setFilterRegularExpression(QRegularExpression(QStringLiteral("^true$")));
     // Los títulos salen del catálogo: si una escena se renombra o se borra, lo
     // que dice cada monitor cambia con ella.
     if (catalogo_ != nullptr)
@@ -335,6 +339,21 @@ QString MonitoresModel::resolver(const QString& quien) const {
             return f.id;
     }
     return {};
+}
+
+QVariantList MonitoresModel::conectadosEnOrden() const {
+    // Las filas ya están en orden físico (actualizarPantallas): los conectados
+    // primero, los que se esperan al final.
+    QVariantList out;
+    for (const Fila& f : filas_) {
+        if (!f.conectado) continue;
+        const QRect& g = f.pantalla.geometria;
+        out << QVariantMap{{"id", f.id},          {"nombre", nombreDe(f)},  {"orden", f.orden},
+                           {"sistema", f.pantalla.nombre}, {"principal", f.pantalla.principal},
+                           {"ancho", g.width()},  {"alto", g.height()},     {"x", g.x()},
+                           {"y", g.y()}};
+    }
+    return out;
 }
 
 void MonitoresModel::cargar() {

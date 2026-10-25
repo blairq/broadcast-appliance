@@ -191,9 +191,11 @@ Rectangle {
                         ComboBox {
                             id: monitorCombo
                             Layout.fillWidth: true
-                            readonly property var lista: Studio.monitores()
-                            readonly property string monitor: currentIndex >= 0 && currentIndex < lista.length ? lista[currentIndex].nombre : ""
-                            model: lista.map(m => m.nombre + "  (" + m.ancho + "×" + m.alto + (m.principal ? ", principal)" : ")"))
+                            // Los de Salidas → Pantallas: orden físico, con el número que se ve al
+                            // identificarlos, y se los pide por su id estable.
+                            readonly property var lista: Studio.monitores
+                            readonly property string monitor: currentIndex >= 0 && currentIndex < lista.length ? lista[currentIndex].id : ""
+                            model: lista.map(m => "Monitor " + m.orden + " — " + m.nombre + "  (" + m.ancho + "×" + m.alto + (m.principal ? ", principal)" : ")"))
                             currentIndex: Math.max(0, lista.findIndex(m => !m.principal))
                         }
                     }

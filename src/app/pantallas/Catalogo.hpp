@@ -13,7 +13,7 @@
 // Cada cosa tiene:
 //   id       corto y ESTABLE: es lo que se guarda (el monitor recuerda «escena:
 //            Plano general», no un índice) y lo que se pide por MCP.
-//   grupo    programa | escena | multiview | tarjeta | panel | pagina | fondo | web
+//   grupo    programa | escena | multiview | video | tarjeta | panel | pagina | fondo | web
 //   titulo   para leer.
 //   dibujo   cómo se dibuja EN ESTA MÁQUINA (ventana o monitor), o vacío si no
 //            se puede (un cartel de la TV es una página del gateway):
@@ -100,6 +100,10 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
         std::function<QVariantList()> paginas;
         /// Los contenidos de la TV: [{id, titulo, ayuda}] (PantallasViewModel).
         std::function<QVariantList()> contenidosRed;
+        /// Las fuentes de video sueltas (un invitado, su pantalla, una entrada):
+        /// [{clave, titulo}] con las claves de FrameService («guest:1»,
+        /// «entrada:Cámara 1»). Van como «video:<clave>».
+        std::function<QVariantList()> videos;
     };
 
     using Cosa = CosaVisible;

@@ -32,6 +32,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "dispositivos/Dispositivos.hpp"
+#include "pantallas/Monitores.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -95,27 +96,40 @@ std::string valorDeVideo(const dispositivos::Dispositivos* d, const std::string&
     return quien;
 }
 
-json screensJson() {
+/// Los monitores en su ORDEN FÍSICO y con su id estable (los de Salidas →
+/// Pantallas, MonitoresModel), con lo que dice Qt de cada uno (escala, Hz…). La
+/// misma lista que la página, monitor_listar y los menús de las ventanas.
+json screensJson(MonitoresModel* mon) {
     json out = json::array();
     const QScreen* primary = QGuiApplication::primaryScreen();
-    int idx = 0;
-    for (const QScreen* s : QGuiApplication::screens()) {
+    const auto datos = [&](const QScreen* s, json j) {
         const QRect g = s->geometry();
         const QRect a = s->availableGeometry();
         const qreal dpr = s->devicePixelRatio();
-        out.push_back(
-            {{"index", idx++},
-             {"name", s->name().toStdString()},
-             {"manufacturer", s->manufacturer().toStdString()},
-             {"model", s->model().toStdString()},
-             {"primary", s == primary},
-             {"geometry", {{"x", g.x()}, {"y", g.y()}, {"width", g.width()}, {"height", g.height()}}},
-             {"available", {{"x", a.x()}, {"y", a.y()}, {"width", a.width()}, {"height", a.height()}}},
-             {"pixels",
-              {{"width", static_cast<int>(g.width() * dpr)}, {"height", static_cast<int>(g.height() * dpr)}}},
-             {"scale", dpr},
-             {"refreshHz", s->refreshRate()},
-             {"physicalMm", {{"width", s->physicalSize().width()}, {"height", s->physicalSize().height()}}}});
+        j["name"] = s->name().toStdString();
+        j["manufacturer"] = s->manufacturer().toStdString();
+        j["model"] = s->model().toStdString();
+        j["primary"] = s == primary;
+        j["geometry"] = {{"x", g.x()}, {"y", g.y()}, {"width", g.width()}, {"height", g.height()}};
+        j["available"] = {{"x", a.x()}, {"y", a.y()}, {"width", a.width()}, {"height", a.height()}};
+        j["pixels"] = {{"width", static_cast<int>(g.width() * dpr)}, {"height", static_cast<int>(g.height() * dpr)}};
+        j["scale"] = dpr;
+        j["refreshHz"] = s->refreshRate();
+        j["physicalMm"] = {{"width", s->physicalSize().width()}, {"height", s->physicalSize().height()}};
+        return j;
+    };
+    if (mon == nullptr) {
+        int idx = 0;
+        for (const QScreen* s : QGuiApplication::screens()) out.push_back(datos(s, json{{"index", idx++}}));
+        return out;
+    }
+    for (const QVariant& v : mon->conectadosEnOrden()) {
+        const QVariantMap m = v.toMap();
+        for (const QScreen* s : QGuiApplication::screens())
+            if (s->name() == m.value("sistema").toString())
+                out.push_back(datos(s, json{{"id", m.value("id").toString().toStdString()},
+                                            {"orden", m.value("orden").toInt()},
+                                            {"nombre", m.value("nombre").toString().toStdString()}}));
     }
     return out;
 }
@@ -238,7 +252,8 @@ void McpService::registerSystemTools() {
             "codificadores de video (los de hardware marcados), CPU, memoria, disco y sistema operativo. "
             "Para los formatos de una camara: video_devices.";
         dispositivos::Dispositivos* reg = vm_.equipos();
-        t.run = [&rt, reg](const json&, Done done) {
+        MonitoresModel* mon = vm_.monitoresModelo();
+        t.run = [&rt, reg, mon](const json&, Done done) {
             BroadcastEngine& e = rt.engine();
             json encoders = json::array();
             for (const auto& enc : e.videoEncoders())
@@ -254,7 +269,7 @@ void McpService::registerSystemTools() {
                        {"freeGb", static_cast<double>(disk.bytesAvailable()) / 1e9},
                        {"totalGb", static_cast<double>(disk.bytesTotal()) / 1e9},
                        {"filesystem", disk.fileSystemType().toStdString()}}},
-                     {"monitors", screensJson()},
+                     {"monitors", screensJson(mon)},
                      // Del registro (con el nombre del operador), como audio_devices y video_devices.
                      {"audioInputs", reg ? delRegistro(*reg, "microfono") : listToJson(ba::app::audio::entradasDeAudio(e))},
                      {"audioOutputs", reg ? delRegistro(*reg, "salida_audio") : json::array()},
@@ -271,13 +286,16 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Monitores conectados (nombre, resolucion en pixeles, posicion en el escritorio, escala, Hz, "
-            "principal) y las ventanas de salida abiertas. El nombre es el que usa output_window.screen.";
-        t.run = [](const json&, Done done) {
+            "Monitores conectados en su ORDEN FISICO (de izquierda a derecha y de arriba abajo, el numero que "
+            "se ve al identificarlos), con su `id` estable (fabricante|modelo|serie: no cambia con el cable ni "
+            "con el orden en que prenden), resolucion en pixeles, posicion, escala, Hz y si es el principal. "
+            "Es la misma lista de Salidas -> Pantallas y monitor_listar.";
+        MonitoresModel* mon = vm_.monitoresModelo();
+        t.run = [mon](const json&, Done done) {
             done(ToolResult().data(
-                json{{"monitors", screensJson()},
-                     {"hint", "Ventanas de salida: dashboard_list las muestra; output_window las abre "
-                              "en un monitor (screen = name)."}}));
+                json{{"monitors", screensJson(mon)},
+                     {"hint", "Para mostrar algo: monitor_asignar (fijo, se espera si no esta) u output_window "
+                              "(ventana suelta; screen = id, orden o nombre). Lo abierto: dashboard_list."}}));
         };
         core_.addTool(std::move(t));
     }
