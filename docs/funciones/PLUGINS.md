@@ -76,14 +76,14 @@ copias.
 
 | Del plugin | A la app |
 |---|---|
-| `hola` (puerto de medios), `entrada`, `tarjeta`, `ptz`, `control`, `escuchar`, `listo` | declaraciones |
+| `hola` (puerto de medios), `entrada`, `tarjeta`, `ptz`, `control`, `escuchar`, `grafico`, `listo` | declaraciones |
 | `evento` {canal, datos, hora_ns} | al bus |
 | `llamar` {n, herramienta, args} | una herramienta MCP → `respuesta` |
 | `estado`, `aviso` | lista de plugins / barra del operador |
 
 | De la app | Al plugin |
 |---|---|
-| `pedido` {n, accion: ptz.mover…, control, info} | → `respuesta` |
+| `pedido` {n, accion: ptz.mover…, control, grafico, info} | → `respuesta` |
 | `evento` (de otro plugin al que escucha), `config`, `chau` | |
 
 ## El SDK
@@ -97,6 +97,11 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
 - `@plugin.ptz(entrada)` sobre una clase con `mover/parar/home/ir_a_preset/guardar_preset/enfocar/auto_foco` y `capacidades`.
 - `plugin.panel([...])`: **la interfaz del plugin para el operador**, descripta y dibujada por la app (página Plugins → «Usar»; el asistente la maneja con `plugin_panel`). Controles: `ba.seccion`, `ba.deslizador`, `ba.interruptor`, `ba.opcion`, `ba.texto`, `ba.numero`, `ba.boton` (lo que mueve el operador) y `ba.indicador`, `ba.medidor` (lo que muestra el plugin con `plugin.mostrar(clave, valor)`, a lo sumo 10 veces por segundo). Lo del operador queda en `plugin.valores` y llega a `@plugin.al_cambiar(clave)`; se guarda en `Plugins/<id>/.panel.json` y vuelve al reiniciar. No hay QML propio de un plugin a propósito: correría adentro de la app, y un plugin no puede colgar nada.
 - `@plugin.control(nombre)`, `plugin.evento(canal, datos)`, `@plugin.escuchar("*/canal")`.
+- `@plugin.grafico(nombre, parametros=[...], ancho, alto, duracion_ms, bucle)`: un **gráfico animado** que
+  aparece en Gráficos, Rótulos y el guion como `plugin-<id>-<nombre>`. Sobre `def f(valores) -> dict` lo
+  DESCRIBE (`{"declarativo"}` o `{"qml"}`, lo dibuja el renderizador de gráficos); sobre
+  `def f(lienzo, ms, valores)` lo DIBUJA cuadro a cuadro con numpy (se guardan en `datos/.graficos`). Ver
+  docs/funciones/GRAFICOS.md, «Gráficos de un plugin», y el ejemplo `ejemplo-grafico`.
 - `plugin.llamar(herramienta, args)`: cualquier herramienta MCP.
 - `plugin.estado(texto)`, `plugin.aviso(texto)`.
 - `@plugin.al_iniciar`, `@plugin.al_terminar`, `@plugin.cada(s)`, `@plugin.al_cambiar_config`.

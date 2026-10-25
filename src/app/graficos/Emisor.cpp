@@ -13,9 +13,11 @@
 #include <vector>
 
 #include <QCoreApplication>
+#include <QJsonDocument>
 #include <QMetaObject>
 #include <QPointer>
 #include <QTimer>
+#include <QUrl>
 
 #include "graficos/GraficoSource.hpp"
 
@@ -133,9 +135,15 @@ class DibujoAire {
 };
 
 struct Emisor::Impl {
-    explicit Impl(const std::filesystem::path& raizDatos) : catalogo(raizDatos) {}
+    explicit Impl(const std::filesystem::path& raizDatos) : catalogo(raizDatos), medios(catalogo) {}
     GraficoProceso proc;
     Catalogo catalogo;
+    Medios medios;
+    ProveedorPlugin proveedor;
+    /// Lo último que contestaron los plugins, por (gráfico, valores, tamaño):
+    /// la vista previa pide un cuadro por vez y el plugin no tiene por qué
+    /// volver a armar todo en cada uno. Se borra cuando un plugin se redeclara.
+    std::map<QString, QJsonObject> dePlugins;
     std::unique_ptr<DibujoAire> aire; ///< se crea con el primer gráfico al aire
     std::map<std::uint64_t, int> generacion; ///< por fuente: el último pedido
     std::map<std::uint64_t, bool> empezado;  ///< por fuente: ya salió la primera tanda
@@ -175,7 +183,117 @@ bool Emisor::disponible() const { return d_->proc.disponible(); }
 GraficoProceso& Emisor::proceso() { return d_->proc; }
 Catalogo& Emisor::catalogo() { return d_->catalogo; }
 const Catalogo& Emisor::catalogo() const { return d_->catalogo; }
+Medios& Emisor::medios() { return d_->medios; }
 QStringList Emisor::nombres() const { return d_->catalogo.nombres(); }
+
+void Emisor::setProveedorPlugin(ProveedorPlugin p) { d_->proveedor = std::move(p); }
+
+QString Emisor::registrarDePlugin(const QString& plugin, const QJsonObject& declaracion) {
+    QString nombre;
+    const QString err = d_->catalogo.guardarDePlugin(plugin, declaracion, &nombre);
+    if (!err.isEmpty()) return err;
+    // El plugin pudo haber cambiado su código: lo que contestó antes no vale.
+    for (auto it = d_->dePlugins.begin(); it != d_->dePlugins.end();)
+        it = it->first.startsWith(nombre + "\n") ? d_->dePlugins.erase(it) : std::next(it);
+    emit catalogoCambio();
+    return {};
+}
+
+QSize Emisor::tamanoDe(std::uint64_t fuente) {
+    for (const auto& i : instancias())
+        if (i.id == fuente) return {i.ancho, i.alto};
+    return {};
+}
+
+bool Emisor::enPantalla(std::uint64_t fuente) {
+    for (const auto& i : instancias())
+        if (i.id == fuente) return i.reproduciendo;
+    return false;
+}
+
+void Emisor::resolver(const QString& grafico, const QJsonObject& valores, QSize tam,
+                      std::function<void(QJsonObject, QString)> listo) {
+    const QJsonObject f = ficha(grafico);
+    const QString plugin = Catalogo::pluginDe(f);
+    if (plugin.isEmpty()) {
+        QString err;
+        QJsonObject p = d_->catalogo.pedido(grafico, valores, &err);
+        return listo(err.isEmpty() ? p : QJsonObject{}, err);
+    }
+    if (!d_->proveedor) return listo({}, "los plugins no están disponibles");
+    if (!tam.isValid()) tam = QSize(f.value("ancho").toInt(900), f.value("alto").toInt(220));
+    // Lo que no venga, del porDefecto de la ficha (igual que un gráfico normal).
+    QJsonObject v = Catalogo::valoresPorDefecto(f);
+    for (auto it = valores.begin(); it != valores.end(); ++it) v[it.key()] = it.value();
+    const QString clave = grafico + "\n" + QString::fromUtf8(QJsonDocument(v).toJson(QJsonDocument::Compact)) + "\n" +
+                          QString::number(tam.width()) + "x" + QString::number(tam.height());
+    const auto armar = [f, v, tam](const QJsonObject& r, QString* err) -> QJsonObject {
+        // Lo que puede contestar un plugin, y cómo sigue cada cosa por el camino de siempre.
+        if (r.contains("declarativo")) return QJsonObject{{"declarativo", r.value("declarativo")}, {"parametros", v}};
+        // Un QML de un plugin ya trae los valores adentro: no se le pasan (no los declara).
+        if (r.contains("qml"))
+            return QJsonObject{{"fuente", r.value("qml")}, {"parametros", QJsonObject{}}, {"ancho", tam.width()}, {"alto", tam.height()}};
+        if (r.contains("secuencia")) {
+            // Los cuadros que dibujó: un Medio que los muestra con el reloj del gráfico.
+            const QString url = QUrl::fromLocalFile(r.value("secuencia").toString()).toString();
+            const QString qml = QString("import QtQuick\nimport BA.Grafico\nItem {\n    Medio {\n        anchors.fill: parent\n"
+                                        "        source: \"%1\"\n        bucle: %2\n        ajuste: Medio.Estirar\n    }\n}\n")
+                                    .arg(url, f.value("bucle").toBool() ? "true" : "false");
+            return QJsonObject{{"fuente", qml}, {"parametros", QJsonObject{}}, {"ancho", tam.width()}, {"alto", tam.height()}};
+        }
+        *err = "el plugin no devolvió ni «declarativo», ni «qml», ni «secuencia»";
+        return {};
+    };
+    if (const auto it = d_->dePlugins.find(clave); it != d_->dePlugins.end()) {
+        QString err;
+        const QJsonObject p = armar(it->second, &err);
+        return listo(p, err);
+    }
+    const QJsonObject args{{"nombre", f.value("graficoPlugin").toString()},
+                           {"valores", v},
+                           {"ancho", tam.width()},
+                           {"alto", tam.height()},
+                           {"fps", kFps},
+                           {"duracion_ms", f.value("duracionMs").toInt(2000)}};
+    QPointer<Emisor> yo(this);
+    d_->proveedor(plugin, args, [yo, clave, armar, listo, plugin](QJsonObject r, QString e) {
+        if (!e.isEmpty()) return listo({}, "el plugin «" + plugin + "»: " + e);
+        QString err;
+        const QJsonObject p = armar(r, &err);
+        if (yo && err.isEmpty()) {
+            if (yo->d_->dePlugins.size() > 32) yo->d_->dePlugins.clear();
+            yo->d_->dePlugins[clave] = r;
+        }
+        listo(p, err);
+    });
+}
+
+QString Emisor::conPedido(const QString& grafico, const QJsonObject& valores, QSize tam,
+                          std::function<QString(QJsonObject)> usar) {
+    struct Estado {
+        bool esperando = true; ///< todavía adentro de resolver()
+        bool listo = false;
+        QJsonObject pedido;
+        QString error;
+    };
+    auto st = std::make_shared<Estado>();
+    QPointer<Emisor> yo(this);
+    resolver(grafico, valores, tam, [st, yo, usar](QJsonObject p, QString e) {
+        if (st->esperando) { // contestó en el momento: sigue quien llamó
+            st->listo = true;
+            st->pedido = std::move(p);
+            st->error = std::move(e);
+            return;
+        }
+        if (!yo) return;
+        if (e.isEmpty()) e = usar(std::move(p));
+        if (!e.isEmpty()) emit yo->fallo("El gráfico no salió: " + e);
+    });
+    st->esperando = false;
+    if (!st->listo) return {}; // lo va a contestar un plugin
+    if (!st->error.isEmpty()) return st->error;
+    return usar(std::move(st->pedido));
+}
 QJsonObject Emisor::ficha(const QString& grafico) const { return d_->catalogo.ficha(grafico); }
 
 std::uint64_t Emisor::fuentePorNombre(const QString& nombre) const {
@@ -186,11 +304,19 @@ std::uint64_t Emisor::fuentePorNombre(const QString& nombre) const {
 
 QString Emisor::mostrar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente,
                         int duracionMs, bool repetir) {
-    QString err;
-    QJsonObject p = d_->catalogo.pedido(grafico, valores, &err);
-    if (!err.isEmpty()) return err;
     if (duracionMs <= 0) duracionMs = ficha(grafico).value("duracionMs").toInt(2000);
-    return reproducir(std::move(p), grafico, valores, fuente, duracionMs, repetir);
+    const QSize tam = tamanoDe(fuente);
+    if (!tam.isValid()) return "esa fuente de gráfico ya no está en ninguna escena";
+    return conPedido(grafico, valores, tam, [this, grafico, valores, fuente, duracionMs, repetir](QJsonObject p) {
+        return reproducir(std::move(p), grafico, valores, fuente, duracionMs, repetir);
+    });
+}
+
+QString Emisor::mostrarOCambiar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente,
+                                bool repetir) {
+    if (Catalogo::sabeCambiar(ficha(grafico)) && ultimoGrafico(fuente) == grafico && enPantalla(fuente))
+        return actualizar(grafico, valores, fuente);
+    return mostrar(grafico, valores, fuente, 0, repetir);
 }
 
 QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObject& valores,
@@ -263,27 +389,53 @@ void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QIma
 
 QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente) {
     if (!d_->proc.disponible()) return "el renderizador de gráficos no está en este bundle";
-    QString err;
-    QJsonObject p = d_->catalogo.pedido(grafico, valores, &err);
-    if (!err.isEmpty()) return err;
-    bool existe = false;
-    for (const auto& i : instancias())
-        if (i.id == fuente) {
-            p["ancho"] = i.ancho;
-            p["alto"] = i.alto;
-            existe = true;
-        }
-    if (!existe) return "esa fuente de gráfico ya no está en ninguna escena";
-    // El cuadro estable: pasada la animación de entrada (la duración de la ficha,
-    // o 2 s), antes de cualquier salida automática.
-    const int ms = std::clamp(ficha(grafico).value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
-    const auto cuadro = d_->proc.tira(p, QVector<int>{ms}, &err);
-    if (!err.isEmpty()) return err;
-    if (cuadro.empty()) return "el renderizador no devolvió el cuadro";
-    std::vector<QImage> uno{cuadro.front().imagen};
-    if (!graficos::reproducir(fuente, std::move(uno), kFps, false)) return "no se pudo actualizar esa fuente";
+    const QSize tam = tamanoDe(fuente);
+    if (!tam.isValid()) return "esa fuente de gráfico ya no está en ninguna escena";
+    const QJsonObject f = ficha(grafico);
+    // ¿Se anima el cambio? Solo si sabe y si lo que hay en pantalla es ESTE gráfico:
+    // los valores de antes tienen que ser los suyos.
+    const bool animar = Catalogo::sabeCambiar(f) && ultimoGrafico(fuente) == grafico && enPantalla(fuente);
+    QJsonObject antes = Catalogo::valoresPorDefecto(f);
+    if (animar) {
+        const QJsonObject u = ultimosValores(fuente);
+        for (auto it = u.begin(); it != u.end(); ++it) antes[it.key()] = it.value();
+    }
     d_->ultimos[fuente] = {grafico, valores};
-    return {};
+    return conPedido(grafico, valores, tam, [this, f, fuente, animar, antes, tam](QJsonObject p) -> QString {
+        p["ancho"] = tam.width();
+        p["alto"] = tam.height();
+        if (animar) {
+            // EL CAMBIO, sin volver a entrar: el renderizador lo dibuja sin la entrada y
+            // con los valores de antes (src/grafico: Modo), y las tortas y barras se
+            // mueven a los nuevos. Queda puesto: un cambio no programa la salida.
+            QJsonObject par = p.value("parametros").toObject();
+            QJsonObject ant = antes;
+            if (par.contains("salidaEn")) par["salidaEn"] = 0;
+            if (ant.contains("salidaEn")) ant["salidaEn"] = 0;
+            p["parametros"] = par;
+            p["anteriores"] = ant;
+            p["sinEntrada"] = true;
+            std::vector<int> plan;
+            const int dur = Catalogo::duracionCambio(f) + 150;
+            for (int ms = 0; ms <= dur; ms += 1000 / kFps) plan.push_back(ms);
+            prepararAire();
+            const int gen = ++d_->generacion[fuente];
+            d_->empezado[fuente] = false;
+            d_->repetir[fuente] = false;
+            d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
+            return {};
+        }
+        // El cuadro estable: pasada la animación de entrada (la duración de la ficha,
+        // o 2 s), antes de cualquier salida automática.
+        QString err;
+        const int ms = std::clamp(f.value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
+        const auto cuadro = d_->proc.tira(p, QVector<int>{ms}, &err);
+        if (!err.isEmpty()) return err;
+        if (cuadro.empty()) return "el renderizador no devolvió el cuadro";
+        std::vector<QImage> uno{cuadro.front().imagen};
+        if (!graficos::reproducir(fuente, std::move(uno), kFps, false)) return "no se pudo actualizar esa fuente";
+        return {};
+    });
 }
 
 QString Emisor::ocultar(std::uint64_t fuente) {

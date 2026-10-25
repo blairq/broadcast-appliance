@@ -9,6 +9,7 @@
 // graficos::Catalogo (el del Emisor): el mismo que usan el editor y el aire.
 // ============================================================================
 #include <algorithm>
+#include <memory>
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -18,6 +19,7 @@
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
+#include "graficos/Medios.hpp"
 #include "graficos/Vinculos.hpp"
 #include "escenas/Conmutador.hpp"
 #include "mcp/McpService.hpp"
@@ -30,6 +32,14 @@ namespace {
 /// De Qt a json (lo que devuelve el catálogo).
 json aJsonGrafico(const QJsonArray& a) {
     return json::parse(QJsonDocument(a).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+}
+json aJsonObj(const QJsonObject& o) {
+    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+}
+/// De json a Qt (los argumentos de una herramienta).
+QJsonObject aQObj(const json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+        .object();
 }
 
 } // namespace
@@ -62,7 +72,10 @@ void McpService::registerGraficoTools() {
             "`acciones` son los botones de pedido ya escrito que ese gráfico le ofrece al operador en "
             "la pantalla de Rótulos. Cuando te llegue uno de esos pedidos vas a recibirlo con el "
             "contexto puesto (escena, fuente y gráfico). Si un gráfico no tiene ninguno, proponelos: "
-            "se escriben en su `grafico.json` y estan explicados en docs/funciones/GRAFICOS.md.";
+            "se escriben en su `grafico.json` y estan explicados en docs/funciones/GRAFICOS.md.\n\n"
+            "`plugin` no vacío: lo dibuja ese plugin de Python (help {\"topic\": \"graficos\"}, «Gráficos de un "
+            "plugin»); se usa igual que los demás. Un parámetro de tipo `datos` lleva los datos de una torta o "
+            "unas barras (lista [{etiqueta, valor, color}], objeto {\"Sí\": 3} o texto «Sí: 3; No: 2»).";
         t.run = [em, proc](const json&, Done done) {
             if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
             json out = aJsonGrafico(em->catalogo().lista());
@@ -101,29 +114,25 @@ void McpService::registerGraficoTools() {
             if (!proc->disponible())
                 return done(ToolResult::error("El renderizador de gráficos no está en este bundle (" +
                                               proc->binario().toStdString() + ")."));
-            QString err;
-            QJsonObject par;
-            if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
-            // El mismo pedido que sale al aire (Emisor): lo que se prueba es lo que se ve.
-            const QJsonObject pedido =
-                em->catalogo().pedido(QString::fromStdString(a.value("nombre", std::string())), par, &err);
-            if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
-
+            const QJsonObject par = a.contains("parametros") ? aQObj(a["parametros"]) : QJsonObject{};
             QVector<int> momentos;
             for (const auto& m : a.value("momentos", json::array()))
                 momentos.append(m.get<int>());
             if (momentos.isEmpty()) momentos = {0, 150, 300, 450, 900};
-
-            const auto cuadros = proc->tira(pedido, momentos, &err);
-            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-
-            ToolResult r;
-            for (const auto& c : cuadros) {
-                r.text(std::to_string(c.ms) + " ms");
-                addImage(r, c.imagen, a, 1200);
-            }
-            return done(r);
+            // El mismo pedido que sale al aire (Emisor::resolver): lo que se prueba es lo que
+            // se ve, también si lo dibuja un plugin (que contesta después).
+            em->resolver(QString::fromStdString(a.value("nombre", std::string())), par, {},
+                         [proc, momentos, a, done](QJsonObject pedido, QString err) {
+                             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                             const auto cuadros = proc->tira(pedido, momentos, &err);
+                             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                             ToolResult r;
+                             for (const auto& c : cuadros) {
+                                 r.text(std::to_string(c.ms) + " ms");
+                                 addImage(r, c.imagen, a, 1200);
+                             }
+                             done(r);
+                         });
         };
         core_.addTool(std::move(t));
     }
@@ -260,6 +269,136 @@ void McpService::registerGraficoTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "grafico_actualizar";
+        t.title = "Cambiar los valores de un gráfico al aire";
+        t.category = "graficos";
+        t.description = "Le cambia los valores al gráfico que ya está en pantalla en una fuente SIN hacerlo entrar de "
+                        "nuevo. Con tortas y barras, los valores se mueven de los de antes a los nuevos (una votación "
+                        "en vivo).";
+        t.details =
+            "Para lo que cambia mientras el gráfico está puesto: un conteo que avanza, un resultado que se completa. "
+            "Mandá solo lo que cambia en `parametros`: lo demás queda como estaba en esa fuente.\n\n"
+            "Si el gráfico sabe animar un cambio (tiene una torta, unas barras, un parámetro de tipo `datos`, o "
+            "`\"cambio\"` en su ficha), se dibuja la transición (`cambio.duracion` de la ficha, 700 ms de fábrica). Si "
+            "no, se reemplaza su cuadro quieto. Si en esa fuente no está ese gráfico, lo saca al aire de cero "
+            "(como grafico_mostrar). Un cambio deja el gráfico puesto: no programa la salida.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"fuente", {{"type", "integer"}, {"description", "Id de la fuente (grafico_en_escena)."}}},
+              {"nombre", {{"type", "string"}, {"description", "Qué gráfico (si no, el que ya está en esa fuente)."}}},
+              {"parametros", {{"type", "object"}, {"description", "Solo lo que cambia."}}}}},
+            {"required", {"fuente", "parametros"}}};
+        t.examples = {
+            R"({"fuente": 12, "parametros": {"votos": [{"etiqueta": "Sí", "valor": 21}, {"etiqueta": "No", "valor": 9}]}})"};
+        t.run = [em](const json& a, Done done) {
+            if (em == nullptr || !em->disponible())
+                return done(ToolResult::error("El renderizador de gráficos no está en este bundle."));
+            const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
+            QString nombre = QString::fromStdString(a.value("nombre", std::string()));
+            if (nombre.isEmpty()) nombre = em->ultimoGrafico(id);
+            if (nombre.isEmpty())
+                return done(ToolResult::error("Esa fuente no tiene ningún gráfico puesto: decí cuál (`nombre`)."));
+            // Lo nuevo encima de lo que ya tenía (si es el mismo gráfico).
+            QJsonObject valores = em->ultimoGrafico(id) == nombre ? em->ultimosValores(id) : QJsonObject{};
+            const QJsonObject nuevos = aQObj(a.value("parametros", json::object()));
+            for (auto it = nuevos.begin(); it != nuevos.end(); ++it) valores[it.key()] = it.value();
+            bool enPantalla = false;
+            for (const auto& i : graficos::instancias())
+                if (i.id == id) enPantalla = i.reproduciendo;
+            const QString err = enPantalla && em->ultimoGrafico(id) == nombre ? em->actualizar(nombre, valores, id)
+                                                                             : em->mostrar(nombre, valores, id);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult::ok("«" + nombre.toStdString() + "» actualizado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "grafico_medios";
+        t.title = "Medios de un gráfico";
+        t.category = "graficos";
+        t.readOnly = true;
+        t.description = "Los GIF, imágenes y videos (ya pasados a cuadros) que tiene un gráfico en su carpeta medios/.";
+        t.details = "`archivo` es lo que va en la capa `medio` del declarativo (o en `Medio { source }` de un QML). "
+                    "`alfa: false` en un video: salió opaco (va a tapar lo de atrás).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"nombre", {{"type", "string"}, {"description", "Qué gráfico."}}}}},
+                         {"required", {"nombre"}}};
+        t.run = [em](const json& a, Done done) {
+            if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
+            const QString nombre = QString::fromStdString(a.value("nombre", std::string()));
+            QString err;
+            if (em->catalogo().carpeta(nombre, &err).isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult().data(json{{"medios", aJsonGrafico(em->medios().lista(nombre))},
+                                        {"importando", em->medios().importando()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "grafico_medio_agregar";
+        t.title = "Agregar un GIF o un video con alfa a un gráfico";
+        t.category = "graficos";
+        t.description = "Copia un GIF, una imagen o una carpeta de PNG al gráfico, o convierte un video (WebM VP9 con "
+                        "alfa, ProRes 4444, MP4…) a cuadros con su transparencia. Después va en una capa `medio`.";
+        t.details =
+            "Queda en la carpeta del gráfico (`medios/`), así que viaja con él. Un video se pasa UNA vez a cuadros PNG "
+            "(con GStreamer) y en el gráfico se lee cuadro por cuadro con el reloj del gráfico: la vista previa, "
+            "grafico_probar y el aire muestran el mismo cuadro en el mismo instante. Puede tardar (un clip de 10 s a "
+            "1080p son varios segundos): la respuesta llega al terminar.\n\n"
+            "Mirá `alfa` en la respuesta: false = el video no trae transparencia (o el decodificador no la vio) y va "
+            "a tapar todo lo de atrás. `ancho` achica los cuadros (un elemento chico no necesita 1920). "
+            "`maxSegundos` (20 de fábrica) corta un video largo: un gráfico dura segundos.\n\n"
+            "Después, en la descripción: {\"tipo\": \"medio\", \"archivo\": \"<archivo de la respuesta>\", \"ancho\": …, "
+            "\"alto\": …, \"inicio\": ms, \"bucle\": true|false} (grafico_repertorio).";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"nombre", {{"type", "string"}, {"description", "A qué gráfico."}}},
+              {"archivo", {{"type", "string"}, {"description", "Ruta del GIF, imagen, carpeta de PNG o video."}}},
+              {"como", {{"type", "string"}, {"description", "Cómo se llama adentro (si no, el del archivo)."}}},
+              {"ancho", {{"type", "integer"}, {"minimum", 16}, {"description", "Achicar los cuadros de un video a este ancho."}}},
+              {"maxSegundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}}}}},
+            {"required", {"nombre", "archivo"}}};
+        t.run = [em](const json& a, Done done) {
+            if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
+            QJsonObject op;
+            if (a.contains("como")) op["nombre"] = QString::fromStdString(a["como"].get<std::string>());
+            if (a.contains("ancho")) op["ancho"] = a["ancho"].get<int>();
+            if (a.contains("maxSegundos")) op["maxSegundos"] = a["maxSegundos"].get<int>();
+            em->medios().importar(QString::fromStdString(a.value("nombre", std::string())),
+                                  QString::fromStdString(a.value("archivo", std::string())), op,
+                                  [done](QJsonObject r, QString err) {
+                                      if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                                      done(ToolResult().data(aJsonObj(r)));
+                                  });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "grafico_medio_quitar";
+        t.title = "Sacar un medio de un gráfico";
+        t.category = "graficos";
+        t.description = "Saca un GIF o un video de la carpeta medios/ del gráfico (va a su papelera, medios/.papelera).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}}},
+                           {"archivo", {{"type", "string"}, {"description", "El `archivo` de grafico_medios (medios/…)."}}}}},
+                         {"required", {"nombre", "archivo"}}};
+        t.run = [em](const json& a, Done done) {
+            if (em == nullptr) return done(ToolResult::error("No hay motor de gráficos."));
+            const QString err = em->medios().quitar(QString::fromStdString(a.value("nombre", std::string())),
+                                                    QString::fromStdString(a.value("archivo", std::string())));
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult::ok("Medio quitado."));
+        };
+        core_.addTool(std::move(t));
+    }
+
     // --- Vinculos: que el rotulo se escriba solo ----------------------------
     auto* vin = vm_.vinculos();
     const auto aJson = [](const QJsonDocument& d) {

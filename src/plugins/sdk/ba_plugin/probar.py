@@ -185,7 +185,7 @@ def main():
     a = ap.parse_args()
     carpeta = os.path.abspath(a.carpeta)
     informe = {"plugin": os.path.basename(carpeta), "declarado": [], "tarjetas": [], "entradas": [], "controles": [],
-               "ptz": [], "eventos": [], "llamadas_al_sistema": [], "avisos": [], "estado": None}
+               "ptz": [], "graficos": [], "eventos": [], "llamadas_al_sistema": [], "avisos": [], "estado": None}
 
     srv = socket.socket()
     srv.bind(("127.0.0.1", 0))
@@ -217,7 +217,7 @@ def main():
         if t == "hola":
             informe["sdk"] = m.get("sdk")
             informe["python"] = m.get("python")
-        elif t in ("entrada", "tarjeta", "ptz", "control", "escuchar"):
+        elif t in ("entrada", "tarjeta", "ptz", "control", "escuchar", "grafico"):
             informe["declarado"].append(m)
         elif t == "evento":
             informe["eventos"].append({k: m.get(k) for k in ("canal", "datos")})
@@ -276,17 +276,49 @@ def main():
                 informe["ptz"].append({"entrada": d["entrada"], "capacidades": d.get("capacidades")})
             elif d["t"] == "control":
                 informe["controles"].append({"nombre": d["nombre"], "descripcion": d.get("descripcion", "")})
+            elif d["t"] == "grafico":
+                informe["graficos"].append({"nombre": d["nombre"], "modo": d.get("modo"), "ancho": d.get("ancho"),
+                                            "alto": d.get("alto"), "duracion_ms": d.get("duracion_ms")})
         for h in hilos:
             h.start()
 
-        def pedir(accion, args):
+        def pedir(accion, args, espera=10):
             nonlocal n
             n += 1
             ctl.enviar({"t": "pedido", "n": n, "accion": accion, "args": args})
-            fin = time.monotonic() + 10
+            fin = time.monotonic() + espera
             while time.monotonic() < fin and n not in pedidos:
                 time.sleep(0.02)
-            return pedidos.get(n, {"ok": False, "error": "no contestó en 10 s"})
+            return pedidos.get(n, {"ok": False, "error": f"no contestó en {espera} s"})
+
+        # Los gráficos, con sus valores por defecto, chicos y cortos (lo que se prueba es que dibuje).
+        for g in informe["graficos"]:
+            d = next(x for x in informe["declarado"] if x["t"] == "grafico" and x["nombre"] == g["nombre"])
+            valores = {q["clave"]: q["porDefecto"] for q in d.get("parametros", []) if "porDefecto" in q}
+            esc = min(1.0, 480 / max(1, d.get("ancho", 900)))
+            ancho, alto = max(2, int(d.get("ancho", 900) * esc)), max(2, int(d.get("alto", 220) * esc))
+            t1 = time.monotonic()
+            r = pedir("grafico", {"nombre": g["nombre"], "valores": valores, "ancho": ancho, "alto": alto, "fps": 10,
+                                  "duracion_ms": min(d.get("duracion_ms", 2000), 1000)}, espera=60)
+            g["ms"] = round((time.monotonic() - t1) * 1000)
+            if not r.get("ok"):
+                g["error"] = r.get("error")
+                continue
+            res = r.get("resultado") or {}
+            g["devolvio"] = sorted(res)
+            if "secuencia" in res:
+                try:
+                    meta = json.load(open(os.path.join(res["secuencia"], "secuencia.json")))
+                    tam = os.path.getsize(os.path.join(res["secuencia"], meta.get("archivo", "cuadros.bgra")))
+                    g["cuadros"] = meta.get("cuadros")
+                    if tam != meta["ancho"] * meta["alto"] * 4 * meta["cuadros"]:
+                        g["error"] = "los cuadros quedaron incompletos"
+                except (OSError, ValueError, KeyError) as e:
+                    g["error"] = f"la secuencia no se puede leer: {e}"
+            elif "declarativo" in res:
+                g["capas"] = [c.get("tipo") for c in res["declarativo"].get("capas", [])]
+            elif "qml" not in res:
+                g["error"] = "no devolvió ni declarativo, ni qml, ni secuencia"
 
         for nombre, args in a.control:
             informe.setdefault("controles_llamados", []).append(
@@ -314,7 +346,8 @@ def main():
     reg = "".join(errlog)
     informe["registro"] = reg[-4000:]
     informe["salio_con"] = p.returncode
-    informe["ok"] = listo and "error" not in informe and not any("error" in x for x in informe["tarjetas"] + informe["entradas"])
+    informe["ok"] = listo and "error" not in informe and not any(
+        "error" in x for x in informe["tarjetas"] + informe["entradas"] + informe["graficos"])
     print(json.dumps(informe, ensure_ascii=False, indent=1, default=str))
     return 0 if informe["ok"] else 1
 

@@ -209,7 +209,10 @@ QString RotuladorViewModel::disparar(qulonglong fuente, bool repetir) {
         for (auto it = vs.begin(); it != vs.end(); ++it)
             valores[it.key()] = QJsonValue::fromVariant(it.value());
     }
-    const QString err = d_->em.mostrar(grafico, valores, fuente, 0, repetir);
+    // Si ese mismo gráfico ya está en pantalla y sabe animar un cambio (una
+    // votación con tortas o barras), los valores nuevos se mueven en su lugar en
+    // vez de hacerlo entrar de nuevo.
+    const QString err = d_->em.mostrarOCambiar(grafico, valores, fuente, repetir);
     if (!err.isEmpty()) emit notify("No se pudo sacar el gráfico al aire: " + err, "error");
     return err;
 }

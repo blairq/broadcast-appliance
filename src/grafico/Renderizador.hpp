@@ -63,13 +63,22 @@ class Renderizador {
     ///        tarde.
     /// :param tam: tamaño del lienzo.
     /// :param ms: instante de la animación.
-    Resultado dibujar(const QString& qml, const QJsonObject& parametros, QSize tam, int ms);
+    /// :param opcionales: como `parametros`, pero solo se asignan si el gráfico
+    ///        las declara (y si no, no es error): `anteriores` y `sinEntrada`,
+    ///        que el sistema le pasa a cualquier gráfico cuando le cambia los
+    ///        valores al aire (ver docs/funciones/GRAFICOS.md, «Cambiar al aire»).
+    Resultado dibujar(const QString& qml, const QJsonObject& parametros, QSize tam, int ms,
+                      const QJsonObject& opcionales = {});
 
     /// Igual, pero con el QML en texto en vez de en un archivo. Es lo que usa
     /// el nivel declarativo (el QML se genera en el momento) y lo que va a
     /// usar el IDE mientras se edita, sin escribir a disco en cada tecla.
+    ///
+    /// :param base: dónde «vive» ese texto. Contra esto se resuelven las rutas
+    ///        relativas que escriba el gráfico (`medios/bandera.gif`): la carpeta
+    ///        del gráfico, aunque el texto no esté guardado todavía.
     Resultado dibujarFuente(const QString& fuente, const QJsonObject& parametros, QSize tam, int ms,
-                            const QString& nombreParaErrores = "grafico.qml");
+                            const QUrl& base = QUrl("grafico.qml"), const QJsonObject& opcionales = {});
 
     /// Solo carga el gráfico y devuelve los errores, sin dibujar. Es lo que
     /// corre antes de dejar que un gráfico llegue a una escena.
@@ -83,13 +92,13 @@ class Renderizador {
     /// momento, sigue con la misma instancia. `momentos` crecientes.
     /// :param url: el archivo (vacío si va `fuente`, el QML en texto).
     std::vector<Resultado> tira(const QUrl& url, const QString& fuente, const QJsonObject& parametros, QSize tam,
-                                const std::vector<int>& momentos);
+                                const std::vector<int>& momentos, const QJsonObject& opcionales = {});
 
    private:
     /// Los dos `dibujar` son el mismo camino: uno carga de archivo y el otro
     /// de texto.
     Resultado dibujarComun(const QUrl& url, const QString& fuente, const QJsonObject& parametros, QSize tam,
-                           int ms);
+                           int ms, const QJsonObject& opcionales);
 
     struct Impl;
     std::unique_ptr<Impl> d_;

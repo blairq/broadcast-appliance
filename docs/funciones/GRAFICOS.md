@@ -4,12 +4,13 @@ Instrucciones para quien escriba un gráfico (persona o asistente). Cada regla
 salió de un problema real armando el primero: si algo está acá es porque ya
 nos hizo perder tiempo.
 
-Un gráfico es una carpeta con dos archivos:
+Un gráfico es una carpeta con dos archivos (y sus medios, si los tiene):
 
 ```
 <nombre>/
-├── grafico.qml     el dibujo y las animaciones
-└── grafico.json    qué parámetros acepta
+├── grafico.qml     el dibujo y las animaciones (o la descripción, adentro de grafico.json)
+├── grafico.json    qué parámetros acepta
+└── medios/         GIF, imágenes y videos pasados a cuadros (ver «Medios»)
 ```
 
 ---
@@ -19,7 +20,11 @@ Un gráfico es una carpeta con dos archivos:
 **1. Para mover algo que pasa por un efecto, mové EL EFECTO, no el origen.**
 `MultiEffect` dibuja su origen en **su propio** rectángulo: animar la posición
 del item de origen no mueve nada en pantalla. El item de origen queda quieto
-(y con `visible: false`); quien se desliza es el `MultiEffect`.
+y escondido; quien se desliza es el `MultiEffect`. Escondelo con un
+`ShaderEffectSource { sourceItem: contenido; hideSource: true; visible: false }`
+como fuente del efecto, **no** con `visible: false` en el origen: un item
+invisible no se «pule», y lo que se arma ahí (las formas `Shape`, o sea las
+tortas) sale vacío. Así lo genera el nivel declarativo.
 
 **2. Un item con anchors IGNORA `x` e `y`.** Si lo vas a deslizar, no lo
 ancles: dale `width` y `height` a mano. Un `anchors.fill: parent` y una
@@ -174,7 +179,98 @@ Los orígenes salen de lo ya validado: el orador del Cuerpo (nombre y cargo vali
 
 **Armar en el preview.** Un gráfico que no está en la escena al aire se prepara ahí: en Rótulos, las fuentes de las otras escenas tienen «Armar en PVW» (lo dibuja y deja esa escena armada; sale con TAKE). Por MCP, `grafico_mostrar {…, "armar": true}`; si la fuente está en la escena al aire, se niega (armarlo se vería).
 
-**Lo que todavía no hay.** Campos que cambian solos cuadro a cuadro (un reloj o el cronómetro del orador dibujados encima del gráfico) y HTML: el render sigue siendo de cuadros dibujados de antemano. Un vínculo se vuelve a disparar cuando cambia lo que resuelve, que alcanza para todo lo de arriba menos un reloj con segundos.
+**Lo que todavía no hay.** HTML: el render sigue siendo de cuadros dibujados de antemano. Un vínculo se vuelve a disparar cuando cambia lo que resuelve; con `vivo: true` se redibuja sin volver a entrar (un reloj con segundos, o una votación con tortas o barras que se mueven: ver «Cambiar al aire»).
+
+## Medios: GIF, imágenes y videos con alfa adentro de un gráfico
+
+Un gráfico puede llevar un GIF animado, una imagen o un video con canal alfa
+(WebM VP9 con alfa, ProRes 4444, una secuencia de PNG), con **su tiempo atado
+al del gráfico**: el cuadro del medio sale del reloj del renderizador, así que
+la vista previa, `grafico_probar` y el aire muestran lo mismo en el mismo
+instante, y arrastrar la barra para atrás funciona.
+
+- **Agregarlo**: «Agregar medio…» en Gráficos, o `grafico_medio_agregar`.
+  Queda en `medios/` de la carpeta del gráfico (viaja con él). Un GIF o una
+  imagen se copian; una carpeta de PNG se copia entera; **un video se pasa una
+  vez a cuadros PNG con su alfa** (GStreamer: `vp9alphadecodebin` para el VP9
+  con alfa, `avdec_prores` para el ProRes) con un `secuencia.json` que dice a
+  cuántos cuadros por segundo va. Si el video no trae alfa, se avisa: va a
+  tapar todo lo de atrás.
+- **Usarlo** en la descripción: `{"tipo": "medio", "archivo": "medios/bandera.gif",
+  "ancho": 200, "alto": 120, "inicio": 300, "bucle": true}`. `inicio` es el ms del
+  gráfico en que arranca (antes no se ve), `bucle` false lo deja en el último
+  cuadro, `velocidad` y `ajuste` (ajustar, llenar, estirar). En un QML:
+  `import BA.Grafico` y `Medio { source: "medios/bandera.gif"; inicio: 300 }`
+  (las rutas son relativas a la carpeta del gráfico, aunque el texto venga del
+  editor sin guardar).
+- **Por qué cuadros y no el video**: `AnimatedImage` y `MediaPlayer` corren con
+  su propio reloj de pared, no con el del renderizador; y buscar un cuadro
+  exacto adentro de un video en cada pedido (para atrás, como la barra) es lento.
+  Un gráfico dura segundos: los cuadros en disco salen baratos.
+
+## Tortas y barras con datos
+
+Capas `torta` (con `grosor` > 0, un anillo) y `barras` (vertical u horizontal),
+alimentadas con un parámetro de tipo `datos`:
+
+```json
+{"clave": "votos", "titulo": "Votos", "tipo": "datos", "porDefecto": "Sí: 0; No: 0; Abstenciones: 0"}
+...
+{"tipo": "torta", "datos": "{votos}", "izquierda": 60, "arriba": 80, "ancho": 420, "alto": 420}
+```
+
+- Los datos se escriben como lista `[{"etiqueta", "valor", "color"}]`, como
+  objeto `{"Sí": 34}` o como texto en un campo (Rótulos, el editor):
+  `Sí: 34; No: 12 #c62828; Abstenciones: 3` (punto y coma o renglón; el color
+  al final, opcional; «12,5» es doce y medio). Una sola lectura para todo
+  (`normalizarDatos` en src/grafico/Declarativo.cpp, y `Datos.normalizar` en QML).
+- **Entrada**: la torta gira desde arriba en sentido horario; las barras crecen
+  de a una (`escalonado`) con el número contando. `aparece` es cuándo empiezan.
+- `mostrar`: porcentaje, valor, ambos o nada; `decimales`, `sufijo`,
+  `tamanoTexto`, `colorTexto`. Sin `color` en un dato, sale de una paleta.
+
+## Cambiar al aire (una votación en vivo)
+
+Cambiarle los valores a un gráfico que **ya está en pantalla** no lo hace
+entrar de nuevo: se dibuja sin la entrada y las tortas y las barras se mueven
+de los valores de antes a los nuevos (`"cambio": {"duracion": 700}` en la
+ficha, 700 ms de fábrica). Pasa con `grafico_actualizar`, con «Al aire» en
+Rótulos si el gráfico de esa fuente es el mismo, y con un vínculo `vivo`.
+
+- Sabe animar un cambio un gráfico con una torta, unas barras, un parámetro de
+  tipo `datos`, o que lo declara con `"cambio"` en su ficha. Los demás reemplazan
+  su cuadro quieto, como siempre.
+- Un cambio deja el gráfico puesto: no programa la salida (`salidaEn` va en 0).
+- Un QML escrito a mano se entera si declara en su raíz `property var anteriores`
+  (los valores de antes, por clave) y `property bool sinEntrada`: el sistema las
+  llena solo si existen. Con `Torta { datos: raiz.votos; anteriores:
+  raiz.anteriores ? raiz.anteriores.votos : null }` alcanza.
+
+## Gráficos de un plugin
+
+Un plugin de Python puede proveer gráficos animados con `@plugin.grafico`
+(ejemplo: `assets/plugins/ejemplo-grafico`). El gráfico queda en el catálogo
+como `plugin-<id>-<nombre>` (categoría «Plugins»): lo ven igual el editor,
+Rótulos, el guion y el asistente, y sale al aire por el mismo camino. Dos formas:
+
+- **Describirlo** (`def f(valores) -> dict`): Python arma la descripción
+  (`{"declarativo": {...}}`) o el QML (`{"qml": "..."}`, con los valores ya
+  puestos) y lo dibuja el renderizador. Lo que conviene casi siempre: las
+  cuentas y los datos los decide Python y la animación es la de siempre. Usá
+  `"{clave}"` en los textos y `"datos": "{clave}"` en tortas y barras para que
+  el cambio al aire se anime.
+- **Dibujarlo** (`def f(lienzo, ms, valores)`): cada cuadro con numpy
+  (`lienzo` (alto, ancho, 4) RGBA transparente). El SDK dibuja todos los
+  cuadros y los guarda crudos en `datos/.graficos` del plugin (con los mismos
+  valores no se redibujan), y el renderizador los muestra con un `Medio`.
+
+Cómo viaja: el plugin declara el gráfico (`{"t": "grafico", ...}`), la app
+escribe su ficha en `Graficos/plugin-<id>-<nombre>/grafico.json` y, cuando hay
+que dibujarlo, `graficos::Emisor::resolver` le pide al plugin
+(`pedido {"accion": "grafico", "args": {nombre, valores, ancho, alto, fps,
+duracion_ms}}`) y sigue con lo que contestó. Con el plugin apagado, el gráfico
+sigue en la lista y al usarlo dice que el plugin no está corriendo.
+`plugin_probar` prueba cada gráfico del plugin (chico y corto) y lo informa.
 
 ## Cómo verificarlo
 

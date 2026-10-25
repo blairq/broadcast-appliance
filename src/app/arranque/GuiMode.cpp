@@ -44,6 +44,7 @@
 #include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/Vumetro.hpp"
+#include "ui/ImagenViva.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/QrViewModel.hpp"
@@ -275,6 +276,7 @@ int runGui(int argc, char** argv) {
         qmlRegisterType<VideoItem>("BA", 1, 0, "VideoItem");
         qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
         qmlRegisterType<Vumetro>("BA", 1, 0, "Vumetro");
+        qmlRegisterType<ImagenViva>("BA", 1, 0, "ImagenViva");
         // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
         for (const QString& dir :
              {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),

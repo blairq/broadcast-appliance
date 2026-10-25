@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonValue>
 
 #include <QRegularExpression>
@@ -172,7 +173,169 @@ QString capaPanel(const QJsonObject& c, const QString& id, const QJsonObject& p)
         .arg(posicion(c));
 }
 
+/// Un JSON como literal de QML (JSON es JavaScript válido).
+QString literal(const QJsonValue& v) {
+    if (v.isArray()) return QString::fromUtf8(QJsonDocument(v.toArray()).toJson(QJsonDocument::Compact));
+    if (v.isObject()) return QString::fromUtf8(QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact));
+    if (v.isString()) return entreComillas(v.toString());
+    if (v.isBool()) return v.toBool() ? "true" : "false";
+    if (v.isDouble()) return QString::number(v.toDouble());
+    return "null";
+}
+
+/// Lo que dice `datos` de una capa: «{votos}» es el parámetro (crudo: puede ser
+/// una lista o el texto de un campo); cualquier otra cosa, el valor tal cual.
+QJsonValue crudoDe(const QJsonObject& c, const QJsonObject& p) {
+    const QJsonValue v = c.value("datos");
+    static const QRegularExpression soloParametro(R"(^\s*\{([A-Za-z_][A-Za-z0-9_]*)\}\s*$)");
+    if (v.isString()) {
+        const auto m = soloParametro.match(v.toString());
+        if (m.hasMatch()) return p.value(m.captured(1));
+    }
+    return v;
+}
+
+/// Un medio (GIF, imagen, secuencia de cuadros) con el reloj del gráfico.
+QString capaMedio(const QJsonObject& c, const QString& id, const QJsonObject& p) {
+    const QString ajuste = c.value("ajuste").toString("ajustar");
+    const QString enumAjuste =
+        ajuste == "llenar" ? "Medio.Llenar" : ajuste == "estirar" ? "Medio.Estirar" : "Medio.Ajustar";
+    return QString(R"(        Medio {
+        id: %1
+        width: %2
+        height: %3
+        source: %4
+        inicio: %5
+        bucle: %6
+        velocidad: %7
+        ajuste: %8
+        opacity: %9
+%10    }
+)")
+        .arg(id)
+        .arg(num(c, "ancho", 200))
+        .arg(num(c, "alto", 200))
+        .arg(entreComillas(conParametros(c.value("archivo").toString(), p)))
+        .arg(num(c, "inicio", 0))
+        .arg(c.value("bucle").toBool(true) ? "true" : "false")
+        .arg(num(c, "velocidad", 1.0))
+        .arg(enumAjuste)
+        .arg(c.contains("aparece") ? 0.0 : num(c, "opacidad", 1.0))
+        .arg(posicion(c));
+}
+
+/// Una torta o unas barras: el componente del mismo nombre (qml/Torta.qml,
+/// qml/Barras.qml) con sus datos, y los de ANTES si se está dibujando un cambio.
+QString capaDatos(const QString& tipo, const QJsonObject& c, const QString& id, const QJsonObject& p,
+                  const Modo& modo) {
+    const bool torta = tipo == "torta";
+    QString props;
+    const auto prop = [&](const char* clave, const char* qml) {
+        if (c.contains(clave)) props += QString("        %1: %2\n").arg(QString::fromUtf8(qml), literal(c.value(clave)));
+    };
+    prop("duracion", "duracion");
+    prop("cambio", "duracionCambio");
+    prop("tamanoTexto", "tamanoTexto");
+    prop("decimales", "decimales");
+    prop("sufijo", "sufijo");
+    prop("mostrar", "mostrar");
+    if (c.contains("colorTexto"))
+        props += QString("        colorTexto: %1\n").arg(entreComillas(conParametros(c.value("colorTexto").toString(), p)));
+    if (torta) {
+        prop("grosor", "grosor");
+        prop("etiquetas", "etiquetas");
+    } else {
+        prop("orientacion", "orientacion");
+        prop("maximo", "maximo");
+        prop("escalonado", "escalonado");
+        prop("anchoEtiquetas", "anchoEtiquetas");
+    }
+    // `aparece` en una torta o unas barras es cuándo arrancan a crecer (no un
+    // fundido, como en las demás capas): crecer ya es la entrada.
+    if (c.contains("aparece")) props += QString("        aparece: %1\n").arg(num(c, "aparece", 0));
+    QString anteriores = "null";
+    if (!modo.anteriores.isEmpty()) {
+        const QJsonValue antes = crudoDe(c, modo.anteriores);
+        if (!antes.isUndefined() && !antes.isNull()) anteriores = literal(normalizarDatos(antes));
+    }
+    return QString(R"(        %1 {
+        id: %2
+        width: %3
+        height: %4
+        datos: %5
+        anteriores: %6
+%7%8    }
+)")
+        .arg(torta ? "Torta" : "Barras")
+        .arg(id)
+        .arg(num(c, "ancho", torta ? 420 : 900))
+        .arg(num(c, "alto", torta ? 420 : 360))
+        .arg(literal(normalizarDatos(crudoDe(c, p))))
+        .arg(anteriores)
+        .arg(props)
+        .arg(posicion(c));
+}
+
 } // namespace
+
+QJsonArray normalizarDatos(const QJsonValue& v) {
+    QJsonArray out;
+    const auto numero = [](const QJsonValue& x) -> double {
+        if (x.isDouble()) return x.toDouble();
+        QString t = x.toVariant().toString().trimmed().remove(' ');
+        // «12,5» es doce y medio para quien escribe en castellano; «1.234,5» también.
+        if (t.contains(',')) t = t.remove('.').replace(',', '.');
+        return t.toDouble();
+    };
+    const auto agregar = [&](const QString& etiqueta, double valor, const QString& color) {
+        QJsonObject o{{"etiqueta", etiqueta}, {"valor", valor}};
+        if (!color.isEmpty()) o["color"] = color;
+        out.append(o);
+    };
+    if (v.isArray()) {
+        int i = 0;
+        for (const QJsonValue& e : v.toArray()) {
+            ++i;
+            if (e.isObject()) {
+                const QJsonObject o = e.toObject();
+                const QJsonValue val = o.contains("valor") ? o.value("valor") : o.value("value");
+                agregar(o.contains("etiqueta") ? o.value("etiqueta").toVariant().toString()
+                                               : o.value("label").toVariant().toString(),
+                        numero(val), o.value("color").toString());
+            } else if (e.isArray()) {
+                const QJsonArray par = e.toArray();
+                agregar(par.at(0).toVariant().toString(), numero(par.at(1)), par.at(2).toString());
+            } else {
+                agregar(QString::number(i), numero(e), {});
+            }
+        }
+        return out;
+    }
+    if (v.isObject()) {
+        const QJsonObject o = v.toObject();
+        for (auto it = o.begin(); it != o.end(); ++it) agregar(it.key(), numero(it.value()), {});
+        return out;
+    }
+    if (v.isDouble()) {
+        agregar("1", v.toDouble(), {});
+        return out;
+    }
+    const QString texto = v.toString().trimmed();
+    if (texto.isEmpty()) return out;
+    if (texto.startsWith('[') || texto.startsWith('{')) {
+        const QJsonDocument d = QJsonDocument::fromJson(texto.toUtf8());
+        if (d.isArray()) return normalizarDatos(d.array());
+        if (d.isObject()) return normalizarDatos(d.object());
+    }
+    // El texto de una persona: «Etiqueta: valor #color», separados por «;» o renglones.
+    static const QRegularExpression separador(R"([;\n])");
+    static const QRegularExpression entrada(R"(^(.*?)\s*[:=]\s*([-+]?[0-9][0-9.,\s]*)\s*(#[0-9A-Fa-f]{3,8})?\s*$)");
+    for (const QString& parte : texto.split(separador, Qt::SkipEmptyParts)) {
+        const auto m = entrada.match(parte.trimmed());
+        if (m.hasMatch()) agregar(m.captured(1).trimmed(), numero(m.captured(2)), m.captured(3));
+    }
+    return out;
+}
 
 QJsonObject repertorio() {
     return QJsonObject{
@@ -182,7 +345,29 @@ QJsonObject repertorio() {
              {"panel", "La caja de fondo. Con «ajustaA» crece con el ancho de los textos que nombre."},
              {"texto", "Un texto. «valor» acepta {parametros} entre llaves. Con «desplaza» (píxeles por "
                        "segundo) cruza la pantalla sin parar, que es un ticker. Con «ancho» corta por "
-                       "palabras en vez de crecer en una sola línea."}}},
+                       "palabras en vez de crecer en una sola línea."},
+             {"medio", "Un GIF animado, una imagen o una secuencia de cuadros (un video con alfa importado con "
+                       "grafico_medio_agregar). «archivo» relativo a la carpeta del gráfico (medios/...), «ancho» y "
+                       "«alto», «inicio» (ms del gráfico en que arranca: antes no se ve), «bucle» (true de fábrica; "
+                       "false = se queda en el último cuadro), «velocidad» (1 = normal) y «ajuste» (ajustar, llenar, "
+                       "estirar). Su tiempo es el del gráfico: la vista previa y el aire muestran el mismo cuadro."},
+             {"torta", "Un gráfico de torta (o de anillo, con «grosor» > 0) con datos. «datos»: «{parametro}» o una "
+                       "lista [{etiqueta, valor, color}]. Entra girando; con «aparece» (ms) arranca más tarde y "
+                       "«duracion» es lo que tarda. «mostrar»: porcentaje, valor, ambos o nada; «etiquetas»; "
+                       "«tamanoTexto», «colorTexto», «decimales», «sufijo». Al cambiarle los valores al aire, las "
+                       "porciones se mueven de los de antes a los nuevos («cambio»: ms, 700 de fábrica)."},
+             {"barras", "Barras con datos, con su etiqueta y su valor. «orientacion» vertical u horizontal, «maximo» "
+                        "(0 = el mayor de los datos), «escalonado» (ms entre una barra y la siguiente al entrar), "
+                        "«anchoEtiquetas» (horizontal: la parte del ancho para los nombres, 0.3), y lo mismo que la "
+                        "torta: datos, aparece, duracion, cambio, mostrar (valor, porcentaje, ambos, nada), "
+                        "tamanoTexto, colorTexto, decimales, sufijo."}}},
+        {"datos", "Un parámetro de tipo «datos» (en grafico.json: \"tipo\": \"datos\") lleva los datos de una torta o "
+                  "unas barras. Se escribe como lista [{\"etiqueta\": \"Sí\", \"valor\": 34, \"color\": \"#2e7d32\"}], "
+                  "como objeto {\"Sí\": 34, \"No\": 12}, o como texto en un campo: «Sí: 34; No: 12 #c62828; "
+                  "Abstenciones: 3»."},
+        {"cambio", "Cambiar los valores de un gráfico que ya está al aire (grafico_actualizar, o «Al aire» de nuevo "
+                   "en Rótulos con el mismo gráfico) NO lo hace entrar de nuevo: se dibuja sin la entrada y las "
+                   "tortas y barras se mueven de los valores de antes a los nuevos."},
         {"posicion", "Cada capa se ubica con «izquierda» o «derecha» y «arriba» o «abajo», en píxeles desde "
                      "ese borde del gráfico."},
         {"aparece", "Milisegundos desde el principio en que esa capa se funde a la vista."},
@@ -193,7 +378,7 @@ QJsonObject repertorio() {
                                {"desaparece", "Solo se funde."}}}};
 }
 
-Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
+Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros, const Modo& modo) {
     Traduccion t;
     const QJsonArray capas = d.value("capas").toArray();
     if (capas.isEmpty()) {
@@ -208,8 +393,10 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
     QString animaciones;
     int n = 0;
     for (const QJsonValue& v : capas) {
-        const QJsonObject c = v.toObject();
+        QJsonObject c = v.toObject();
         const QString tipo = c.value("tipo").toString();
+        // Ya en pantalla: lo que se fundía al entrar está, y punto.
+        if (modo.sinEntrada) c.remove("aparece");
         // El id sale del que le pusieron o de la posición: hace falta para
         // poder animarla y para que un panel pueda ajustarse a un texto.
         const QString id = "cap_" + (c.contains("id") ? c.value("id").toString() : QString("n%1").arg(++n));
@@ -219,9 +406,16 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
             cuerpo += capaTexto(c, id, parametros);
         } else if (tipo == "panel") {
             cuerpo += capaPanel(c, id, parametros);
+        } else if (tipo == "medio") {
+            cuerpo += capaMedio(c, id, parametros);
+        } else if (tipo == "torta" || tipo == "barras") {
+            cuerpo += capaDatos(tipo, c, id, parametros, modo);
+            animaciones += desplazamiento(c, id);
+            continue; // su `aparece` es cuándo crecen, no un fundido
         } else {
-            t.error =
-                QString("no sé qué es una capa de tipo «%1». Las que hay: barra, panel, texto.").arg(tipo);
+            t.error = QString("no sé qué es una capa de tipo «%1». Las que hay: barra, panel, texto, medio, "
+                              "torta, barras.")
+                          .arg(tipo);
             return t;
         }
         animaciones += apariciónDeCapa(c, id);
@@ -238,6 +432,9 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
         desdeX = QString("-%1").arg(ancho * 0.5);
     else if (efectoEntrada == "desliza-derecha")
         desdeX = QString("%1").arg(ancho * 0.5);
+    // Un cambio con el gráfico en pantalla no vuelve a entrar: arranca donde la
+    // entrada termina (x 0, opacidad 1) y la animación no mueve nada.
+    if (modo.sinEntrada) desdeX = "0";
 
     const QJsonObject salida = d.value("salida").toObject();
     const bool desenfocaAlSalir = salida.value("efecto").toString("desenfoca") == "desenfoca";
@@ -247,6 +444,7 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
 // se vuelve a generar en cada dibujo. Para cambiarlo, cambiá la descripción.
 import QtQuick
 import QtQuick.Effects
+import BA.Grafico
 
 Item {
     id: raiz
@@ -257,16 +455,26 @@ Item {
     property int salidaEn: 0
 
     // El origen del efecto no se mueve nunca; quien se desliza es el efecto.
+    // Se esconde con hideSource y no con visible: false: un Item invisible no
+    // se «pule» (updatePolish), y las formas (Shape: las tortas) se arman ahí;
+    // escondido así, la torta no se dibujaba.
     Item {
         id: contenido
         width: raiz.width
         height: raiz.height
-        visible: false
 %3    }
+    ShaderEffectSource {
+        id: fuenteContenido
+        sourceItem: contenido
+        hideSource: true
+        visible: false
+        width: raiz.width
+        height: raiz.height
+    }
 
     MultiEffect {
         id: efecto
-        source: contenido
+        source: fuenteContenido
         width: raiz.width
         height: raiz.height
         blurEnabled: blur > 0
@@ -283,7 +491,7 @@ Item {
         }
         NumberAnimation {
             target: efecto; property: "opacity"
-            from: 0; to: 1
+            from: %10; to: 1
             duration: %6
         }
     }
@@ -309,7 +517,8 @@ Item {
                 .arg(durEntrada * 0.6)
                 .arg(animaciones)
                 .arg(desenfocaAlSalir ? 1.0 : 0.0)
-                .arg(durSalida);
+                .arg(durSalida)
+                .arg(modo.sinEntrada ? 1.0 : 0.0);
     return t;
 }
 

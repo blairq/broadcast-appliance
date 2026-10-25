@@ -6,6 +6,7 @@
 // guardado: se ve lo que se está escribiendo.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import BA
 import "../controls"
@@ -19,6 +20,14 @@ Rectangle {
     function mmss(ms) {
         const s = Math.round(ms / 100) / 10
         return s.toFixed(1) + " s"
+    }
+
+    // Un GIF, una imagen, una carpeta de PNG o un video con alfa para el gráfico abierto.
+    FileDialog {
+        id: medioDlg
+        title: "Medio para el gráfico (GIF, imagen o video con alfa)"
+        nameFilters: ["Imágenes y videos (*.gif *.png *.jpg *.jpeg *.webp *.webm *.mov *.mp4 *.mkv)", "Todos (*)"]
+        onAccepted: page.g.agregarMedio(selectedFile)
     }
 
     ColumnLayout {
@@ -103,7 +112,8 @@ Rectangle {
                                     elide: Text.ElideRight
                                     text: modelData.descripcion
                                           ? modelData.descripcion
-                                          : (modelData.declarativo ? "armado con capas, sin código" : "escrito en QML")
+                                          : (modelData.plugin ? "lo dibuja el plugin «" + modelData.plugin + "»"
+                                             : (modelData.declarativo ? "armado con capas, sin código" : "escrito en QML"))
                                     color: Theme.textFaint
                                     font.pixelSize: 10
                                     ToolTip.visible: maDesc.containsMouse && truncated
@@ -167,8 +177,23 @@ Rectangle {
                               "repertorio, sin escribir código."
                     }
 
+                    // Uno de un plugin no se edita acá: su código es el del plugin.
+                    Text {
+                        visible: page.g.abierto !== "" && page.g.plugin !== ""
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        wrapMode: Text.WordWrap
+                        color: Theme.textFaint
+                        font.pixelSize: 13
+                        text: "Este gráfico lo dibuja el plugin «" + page.g.plugin + "».\n\n" +
+                              "Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). " +
+                              "Acá se prueba con sus parámetros y se saca al aire."
+                    }
+
                     ScrollView {
-                        visible: page.g.abierto !== ""
+                        visible: page.g.abierto !== "" && page.g.plugin === ""
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -200,6 +225,7 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 6
                         GlassButton {
+                            visible: page.g.plugin === ""
                             text: "Guardar"; compact: true
                             active: page.g.sucio
                             onClicked: page.g.guardar()
@@ -252,22 +278,13 @@ Rectangle {
                                         }
                                 }
                             }
-                            Image {
-                                id: vista
+                            // El cuadro tal cual lo tiene el modelo, en el mismo
+                            // nodo: sin cargas ni cuadros en blanco entre dibujos
+                            // (con una Image y un data: URI parpadeaba al dar play).
+                            ImagenViva {
                                 anchors.fill: parent
                                 anchors.margins: 6
-                                fillMode: Image.PreserveAspectFit
-                                // La URL es un data: con la imagen adentro, así
-                                // que cambia sola cuando cambia el dibujo. NO
-                                // hay que blanquearla antes de reasignar: eso
-                                // dejaba un cuadro vacío en el medio y se veía
-                                // como parpadeo al arrastrar la barra.
-                                cache: false
-                                source: page.g.vistaPreviaUrl()
-                                Connections {
-                                    target: page.g
-                                    function onVistaChanged() { vista.source = page.g.vistaPreviaUrl() }
-                                }
+                                imagen: page.g.imagen
                             }
                         }
 
@@ -304,10 +321,10 @@ Rectangle {
                                 onClicked: page.g.momentoMs = 0
                             }
                             GlassButton {
-                                text: "▶ Reproducir"; compact: true
+                                text: page.g.reproduciendo ? "❚❚ Pausa" : "▶ Reproducir"; compact: true
                                 Layout.fillWidth: true
-                                onClicked: reproduccion.running = !reproduccion.running
-                                active: reproduccion.running
+                                onClicked: page.g.reproduciendo = !page.g.reproduciendo
+                                active: page.g.reproduciendo
                             }
                             Text { text: "Dura"; color: Theme.textDim; font.pixelSize: 11 }
                             TextField {
@@ -317,18 +334,6 @@ Rectangle {
                                 font.pixelSize: 12
                                 validator: IntValidator { bottom: 100; top: 15000 }
                                 onEditingFinished: page.g.duracionMs = parseInt(text) || 1500
-                            }
-                        }
-                        // Reproducir es adelantar la barra: cada cuadro se pide
-                        // al motor, así que no va a 60 por segundo — alcanza
-                        // para ver el movimiento.
-                        Timer {
-                            id: reproduccion
-                            interval: 80
-                            repeat: true
-                            onTriggered: {
-                                if (page.g.momentoMs >= page.g.duracionMs) { running = false; return }
-                                page.g.momentoMs = Math.min(page.g.duracionMs, page.g.momentoMs + 80)
                             }
                         }
                     }
@@ -357,8 +362,12 @@ Rectangle {
                                     }
                                     TextField {
                                         Layout.fillWidth: true
-                                        text: page.g.valores[modelData.clave] !== undefined
-                                              ? String(page.g.valores[modelData.clave]) : ""
+                                        // Los datos de una torta o unas barras se escriben como texto:
+                                        // «Sí: 34; No: 12 #c62828» (o una lista JSON, que se muestra igual).
+                                        readonly property var valor: page.g.valores[modelData.clave]
+                                        text: valor === undefined ? ""
+                                              : (typeof valor === "object" ? JSON.stringify(valor) : String(valor))
+                                        placeholderText: modelData.tipo === "datos" ? "Sí: 34; No: 12; Abstenciones: 3" : ""
                                         color: Theme.text
                                         font.pixelSize: 12
                                         onEditingFinished: page.g.setValor(modelData.clave, text)
@@ -375,6 +384,62 @@ Rectangle {
                             }
 
                             Rectangle {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 6
+                                height: 1
+                                color: Theme.glassBorder
+                            }
+                            // Los medios del gráfico: GIF, imágenes y videos con alfa,
+                            // con su tiempo atado al del gráfico (capa «medio»).
+                            Text {
+                                visible: page.g.plugin === ""
+                                text: "Medios (GIF, imágenes, videos con alfa)"
+                                color: Theme.textDim
+                                font { pixelSize: 11; weight: Font.DemiBold }
+                            }
+                            Text {
+                                visible: page.g.plugin === "" && page.g.medios.length === 0
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "Ninguno. Un video (WebM con alfa, ProRes 4444) se pasa a cuadros con su " +
+                                      "transparencia; en el gráfico va como capa «medio» con «archivo»: «medios/…»."
+                                color: Theme.textFaint
+                                font.pixelSize: 11
+                            }
+                            Repeater {
+                                model: page.g.plugin === "" ? page.g.medios : []
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    Text {
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideMiddle
+                                        text: modelData.archivo + "  ·  " + modelData.tipo +
+                                              (modelData.cuadros ? " · " + modelData.cuadros + " cuadros" : "") +
+                                              (modelData.alfa === false ? " · sin alfa" : "")
+                                        color: Theme.text
+                                        font.pixelSize: 12
+                                        ToolTip.visible: maMedio.containsMouse
+                                        ToolTip.text: "En el gráfico: \"archivo\": \"" + modelData.archivo + "\""
+                                        MouseArea { id: maMedio; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                                    }
+                                    GlassButton {
+                                        icon: "✕"; compact: true
+                                        onClicked: page.g.quitarMedio(modelData.archivo)
+                                    }
+                                }
+                            }
+                            GlassButton {
+                                visible: page.g.plugin === ""
+                                text: page.g.importando ? "Convirtiendo el video…" : "Agregar medio…"
+                                compact: true
+                                enabled: !page.g.importando && page.g.abierto !== ""
+                                onClicked: medioDlg.open()
+                            }
+
+                            Rectangle {
+                                visible: page.g.plugin === ""
                                 Layout.fillWidth: true
                                 Layout.topMargin: 6
                                 height: 1

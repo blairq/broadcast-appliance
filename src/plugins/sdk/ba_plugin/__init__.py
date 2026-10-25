@@ -35,6 +35,11 @@ sistema cualquiera de estas cosas:
   ``ba.seccion``. Lo que mueve el operador llega a ``plugin.valores`` (y a
   ``@plugin.al_cambiar("clave")``); ``plugin.mostrar(clave, valor)`` actualiza
   un indicador (o mueve un control) en vivo. Se guarda solo entre reinicios.
+- GRÁFICOS ANIMADOS: ``@plugin.grafico("marcador", parametros=[...])`` sobre
+  ``def f(valores) -> dict`` (devuelve la descripción declarativa o el QML: lo
+  dibuja el renderizador de gráficos, con tortas, barras, medios…) o sobre
+  ``def f(lienzo, ms, valores)`` (dibuja cada cuadro con numpy). El gráfico
+  aparece en Gráficos, Rótulos y el guion como cualquier otro.
 - Y puede ACTUAR SOBRE TODO EL SISTEMA: ``plugin.llamar("scene_switch",
   {"name": "Exterior"})`` llama cualquier herramienta del servidor MCP de la app
   (escenas, audio, PTZ, grafo de video, avisos al operador…).
@@ -58,9 +63,12 @@ datos masivos (va al registro), y las bibliotecas se declaran en plugin.json
 
 from __future__ import annotations
 
+import hashlib
+import inspect
 import json
 import os
 import queue
+import shutil
 import socket
 import sys
 import threading
@@ -253,6 +261,7 @@ class Plugin:
         self._tarjetas: dict[str, dict] = {}
         self._ptz: dict[str, Any] = {}
         self._controles: dict[str, dict] = {}
+        self._graficos: dict[str, dict] = {}
         self._escuchas: dict[str, list[Callable]] = {}
         self._al_iniciar: list[Callable] = []
         self._al_terminar: list[Callable] = []
@@ -344,6 +353,53 @@ class Plugin:
             self._controles[nombre] = {"fn": fn}
             self._redeclarar({"t": "control", "nombre": nombre, "descripcion": descripcion or (fn.__doc__ or "").strip(),
                               "parametros": parametros or {}})
+            return fn
+        return deco
+
+    def grafico(self, nombre: str, titulo: str = "", descripcion: str = "", parametros: list | dict | None = None,
+                ancho: int = 900, alto: int = 220, duracion_ms: int = 2000, bucle: bool = False,
+                categoria: str = "Plugins", cambio: dict | bool | None = None, acciones: list | None = None):
+        """Decorador: un GRÁFICO ANIMADO que provee el plugin (docs/funciones/GRAFICOS.md, «Gráficos de un plugin»).
+
+        Aparece en la lista de gráficos (Gráficos, Rótulos, el guion, ``grafico_listar``) y se usa como
+        cualquier otro: con sus `parametros` (la lista de grafico.json: ``[{"clave", "titulo", "tipo",
+        "porDefecto", "ayuda"}]``, o un dict ``{"clave": porDefecto}``). Dos formas:
+
+        - ``def f(valores) -> dict``: DESCRIBE el gráfico y lo dibuja el renderizador. Devolvé
+          ``{"declarativo": {...}}`` (las capas de ``grafico_repertorio``: texto, panel, medio, torta,
+          barras…) o ``{"qml": "..."}`` (con los valores ya puestos en el texto). Lo que conviene casi
+          siempre: Python arma el gráfico (cuentas, datos de una API, cuántas barras) y la animación sale
+          igual que la de los gráficos de fábrica. Usá ``"{clave}"`` en los textos y ``"datos":
+          "{clave}"`` en tortas y barras para que el cambio de valores al aire se anime.
+        - ``def f(lienzo, ms, valores)``: DIBUJA cada cuadro. `lienzo` es un array numpy (alto, ancho, 4)
+          RGBA en cero (transparente): pintalo en el lugar (o devolvé uno del mismo tamaño). Se llama para
+          cada cuadro de 0 a `duracion_ms` (30 por segundo) y los cuadros se guardan en
+          ``datos/.graficos`` (la segunda vez con los mismos valores no se vuelve a dibujar). Para lo
+          que el repertorio no tiene (partículas, un efecto propio). `bucle`: se repite.
+
+        `cambio`: ``{"duracion": 700}`` si el gráfico sabe animar un cambio de valores (con tortas o
+        barras se detecta solo)."""
+        if isinstance(parametros, dict):
+            parametros = [{"clave": k, "titulo": k, "tipo": "datos" if isinstance(v, (list, dict)) else "texto",
+                           "porDefecto": v} for k, v in parametros.items()]
+
+        def deco(fn):
+            try:
+                n = len([q for q in inspect.signature(fn).parameters.values()
+                         if q.kind in (q.POSITIONAL_ONLY, q.POSITIONAL_OR_KEYWORD)])
+            except (TypeError, ValueError):
+                n = 1
+            modo = "dibuja" if n >= 3 else "describe"
+            d = {"t": "grafico", "nombre": nombre, "titulo": titulo or nombre,
+                 "descripcion": descripcion or (fn.__doc__ or "").strip().split("\n")[0], "parametros": parametros or [],
+                 "ancho": int(ancho), "alto": int(alto), "duracion_ms": int(duracion_ms), "bucle": bool(bucle),
+                 "categoria": categoria, "modo": modo}
+            if cambio is not None:
+                d["cambio"] = cambio
+            if acciones:
+                d["acciones"] = acciones
+            self._graficos[nombre] = {"fn": fn, "modo": modo, "bucle": bool(bucle)}
+            self._redeclarar(d)
             return fn
         return deco
 
@@ -606,11 +662,75 @@ class Plugin:
             if c is None:
                 raise KeyError(f"no hay un control «{args.get('nombre')}» (hay: {', '.join(self._controles) or 'ninguno'})")
             return c["fn"](args.get("args", {}) or {})
+        if accion == "grafico":
+            return self._grafico(args)
         if accion == "info":
             return {"entradas": [e.declaracion() for e in self._entradas.values()], "tarjetas": list(self._tarjetas),
+                    "graficos": list(self._graficos),
                     "ptz": list(self._ptz), "controles": list(self._controles), "escucha": list(self._escuchas), "valores": self.valores,
                     "medios": self._medios.resumen() if self._medios else {}}
         raise KeyError(f"no sé «{accion}»")
+
+    def _grafico(self, args: dict) -> dict:
+        """Lo que pide la app para dibujar un gráfico del plugin (ver ``grafico``)."""
+        g = self._graficos.get(args.get("nombre", ""))
+        if g is None:
+            raise KeyError(f"no hay un gráfico «{args.get('nombre')}» (hay: {', '.join(self._graficos) or 'ninguno'})")
+        valores = dict(args.get("valores") or {})
+        if g["modo"] == "describe":
+            r = g["fn"](valores)
+            if isinstance(r, str):
+                return {"qml": r}
+            if isinstance(r, dict) and "capas" in r:
+                return {"declarativo": r}
+            if isinstance(r, dict) and ("declarativo" in r or "qml" in r):
+                return r
+            raise ValueError("el gráfico tiene que devolver {'declarativo': {...}} o {'qml': '...'}")
+        return self._dibujar_grafico(args["nombre"], g, valores, int(args.get("ancho", 900)), int(args.get("alto", 220)),
+                                     int(args.get("fps", 30)), int(args.get("duracion_ms", 2000)))
+
+    def _dibujar_grafico(self, nombre: str, g: dict, valores: dict, ancho: int, alto: int, fps: int, dur: int) -> dict:
+        """Dibuja todos los cuadros (BGRA premultiplicado, uno atrás del otro) y devuelve la carpeta."""
+        try:
+            import numpy as np
+        except ImportError as e:  # numpy viene con el programa: esto es un entorno roto
+            raise RuntimeError("dibujar un gráfico cuadro a cuadro necesita numpy") from e
+        fps = max(1, min(fps, 60))
+        n = max(1, dur * fps // 1000 + 1)
+        if ancho * alto * 4 * n > 1_500_000_000:
+            raise ValueError(f"{n} cuadros de {ancho}x{alto} no entran (más de 1,5 GB): achicá el gráfico o la duración")
+        # Mismos valores, tamaño y código = mismos cuadros: no se vuelven a dibujar.
+        codigo = max((f.stat().st_mtime for f in self.dir.glob("*.py")), default=0)
+        clave = hashlib.sha1(json.dumps([nombre, valores, ancho, alto, fps, dur, codigo], sort_keys=True,
+                                        default=str).encode()).hexdigest()[:16]
+        raiz = self.datos / ".graficos"
+        destino = raiz / f"{nombre}-{clave}"
+        if (destino / "secuencia.json").exists():
+            return {"secuencia": str(destino)}
+        tmp = raiz / f".{nombre}-{clave}-{os.getpid()}"
+        shutil.rmtree(tmp, ignore_errors=True)
+        tmp.mkdir(parents=True)
+        with open(tmp / "cuadros.bgra", "wb") as f:
+            for i in range(n):
+                lienzo = np.zeros((alto, ancho, 4), np.uint8)
+                r = g["fn"](lienzo, i * 1000.0 / fps, valores)
+                c = lienzo if r is None else np.asarray(r)
+                if c.shape != (alto, ancho, 4):
+                    raise ValueError(f"el cuadro tiene que ser ({alto}, {ancho}, 4) RGBA y vino {c.shape}")
+                c = c.astype(np.uint16)
+                a = c[..., 3:4]
+                rgb = (c[..., :3] * a + 127) // 255  # premultiplicado, como lo compone el programa
+                f.write(np.concatenate([rgb[..., 2:3], rgb[..., 1:2], rgb[..., 0:1], a], axis=2).astype(np.uint8).tobytes())
+        (tmp / "secuencia.json").write_text(json.dumps({"fps": fps, "formato": "crudo", "archivo": "cuadros.bgra",
+                                                        "ancho": ancho, "alto": alto, "cuadros": n}))
+        shutil.rmtree(destino, ignore_errors=True)
+        tmp.rename(destino)
+        # Los de antes no hacen falta para siempre: quedan los ocho más nuevos.
+        viejos = sorted((d for d in raiz.iterdir() if d.is_dir() and not d.name.startswith(".")),
+                        key=lambda d: d.stat().st_mtime, reverse=True)[8:]
+        for d in viejos:
+            shutil.rmtree(d, ignore_errors=True)
+        return {"secuencia": str(destino)}
 
     def _protegido(self, fn, *a):
         try:
