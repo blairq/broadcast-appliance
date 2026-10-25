@@ -173,6 +173,18 @@ class Voz : public QObject {
     QVariantList fuentesTexto() const;
     /// Poner o quitar voz a texto en una fuente: modo "dictado", "continuo" o "" (quitar).
     Q_INVOKABLE QString setTexto(const QString& fuente, const QString& modo);
+    // --- Oídos de afuera de los racks ------------------------------------------------
+    // La voz de quien atiende el asistente hablando (ui/AtencionViewModel) no es
+    // una fuente con tarjeta «Voz a texto»: llega por el lobby. Usa el MISMO
+    // reconocedor (un solo modelo en memoria) con una clave propia, y cada frase
+    // va a quien abrió el oído —no a la transcripción general ni a las salidas
+    // de texto: es una charla privada—.
+    /// Abre una transcripción continua con `clave`; `alTexto` recibe cada frase
+    /// (en el hilo de la interfaz). false si no hay reconocedor cargado.
+    bool abrirOido(const QString& clave, std::function<void(const QString& texto)> alTexto);
+    void cerrarOido(const QString& clave);
+    /// Mono en float desde cualquier hilo (el de GStreamer).
+    void alimentarOido(const std::string& clave, const float* m, std::size_t n, std::uint32_t f);
     QVariantList transcripcion() const { return transcripcion_; }
     /// Lo transcripto de una fuente (o de todas, vacío), las últimas `n` frases.
     QVariantList transcripcionDe(const QString& fuente, int n) const;
@@ -355,6 +367,7 @@ class Voz : public QObject {
     std::map<std::string, Toma> tomas_; ///< por fuente, mientras la tecla está apretada
     std::set<std::string> continuas_;   ///< las corrientes abiertas
     QVariantList transcripcion_;
+    std::map<QString, std::function<void(const QString&)>> oidos_; ///< clave -> a quién va (hilo de la interfaz)
 };
 
 } // namespace ba::app::agent

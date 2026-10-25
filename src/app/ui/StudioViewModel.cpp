@@ -141,6 +141,7 @@
 #include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PantallasViewModel.hpp"
+#include "ui/AtencionViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -1955,6 +1956,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (camaras_) connect(camaras_.get(), &ptz::ControlCamaras::cambio, this, ranuras);
         QTimer::singleShot(0, this, ranuras);
     }
+    // La atención a quien se conecta (Sala y Asamblea): con todo lo que usa ya armado.
+    if (voz_ && modelos_ && despachador_) {
+        atencion_ = std::make_unique<AtencionViewModel>(rt, *this, *voz_, *modelos_);
+        connect(atencion_.get(), &AtencionViewModel::notify, this, &StudioViewModel::notify);
+        marca("atencion");
+    }
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
@@ -2724,6 +2731,7 @@ void StudioViewModel::actualizarRanurasBanca(bool forzar) {
     rt_.engine().setRanurasBanca(std::move(ranuras), forzar);
 }
 QObject* StudioViewModel::personas() const { return personas_.get(); }
+QObject* StudioViewModel::atencion() const { return atencion_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::medios() const { return medios_.get(); }
 QObject* StudioViewModel::carruseles() const { return carruseles_.get(); }

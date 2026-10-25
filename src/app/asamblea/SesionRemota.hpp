@@ -200,6 +200,12 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);
     Q_INVOKABLE bool revocarConsolaUi(const QString& id) { return revocarConsola(id.toStdString()); }
     Q_INVOKABLE QString fotoUrl(const QString& integrante) const;
+    /// La misma foto, en bytes (JPEG; vacía si no llegó): para compararle la
+    /// cara con su ficha (ui/AtencionViewModel).
+    QByteArray fotoJpeg(const QString& integrante) const {
+        const auto it = fotos_.find(integrante);
+        return it == fotos_.end() ? QByteArray() : it->second;
+    }
     /// Los canales que el remoto puede mirar en su celular (ver setVistas).
     Q_PROPERTY(QVariantList vistasUi READ vistasUi NOTIFY cambio)
     QVariantList vistasUi() const;

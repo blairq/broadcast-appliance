@@ -41,6 +41,9 @@ class ParticipantesSala {
     void sacar(const std::string& id, Listo listo = {});
     /// Lobby: hablarle en privado; adentro: IFB.
     void hablar(const std::string& id, bool on, Listo listo = {});
+    /// Lobby: lo atiende el asistente hablando (sube su voz, le baja la del que
+    /// atiende; ver ui/AtencionViewModel). La sala lo apaga sola al admitirlo.
+    void atender(const std::string& id, bool on, Listo listo = {});
     /// Al navegador: mute-mic, mute-cam, unmute-mic, unmute-cam, stop-screen,
     /// lower-hand, calidad-max, calidad-720p, calidad-360p. Devuelve el error inmediato o "".
     std::string pedirle(const std::string& id, const std::string& que, Listo listo = {});

@@ -68,6 +68,11 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     escucha_->setFrase([this](const std::string& flujo, const audio::Escucha::Resultado& r) {
         QMetaObject::invokeMethod(this, [this, flujo, r]() {
             const QString fl = QString::fromStdString(flujo), t = QString::fromStdString(r.texto);
+            // Un oído de afuera (la atención hablada): la frase es de quien lo abrió.
+            if (const auto o = oidos_.find(fl); o != oidos_.end()) {
+                if (o->second && !t.trimmed().isEmpty()) o->second(t);
+                return;
+            }
             QString fuente = fl;
 #if defined(BA_HAVE_CLAP)
             if (racks_ != nullptr) {
@@ -280,6 +285,41 @@ void Voz::alAudio(const std::string& fuente, int modo, const float* m, std::uint
 #else
     Q_UNUSED(fuente);
     Q_UNUSED(modo);
+    Q_UNUSED(m);
+    Q_UNUSED(n);
+    Q_UNUSED(f);
+#endif
+}
+
+// --- Oídos de afuera de los racks ---------------------------------------------------
+
+bool Voz::abrirOido(const QString& clave, std::function<void(const QString&)> alTexto) {
+#if defined(BA_HAVE_VOZ)
+    if (!lista_) return false;
+    const bool nueva = oidos_.find(clave) == oidos_.end();
+    oidos_[clave] = std::move(alTexto);
+    if (nueva) escucha_->abrirContinuo(clave.toStdString());
+    return true;
+#else
+    Q_UNUSED(clave);
+    Q_UNUSED(alTexto);
+    return false;
+#endif
+}
+
+void Voz::cerrarOido(const QString& clave) {
+#if defined(BA_HAVE_VOZ)
+    if (oidos_.erase(clave) > 0) escucha_->cerrarContinuo(clave.toStdString());
+#else
+    Q_UNUSED(clave);
+#endif
+}
+
+void Voz::alimentarOido(const std::string& clave, const float* m, std::size_t n, std::uint32_t f) {
+#if defined(BA_HAVE_VOZ)
+    escucha_->alimentarContinuo(clave, m, n, f); // sin corriente abierta no hace nada
+#else
+    Q_UNUSED(clave);
     Q_UNUSED(m);
     Q_UNUSED(n);
     Q_UNUSED(f);

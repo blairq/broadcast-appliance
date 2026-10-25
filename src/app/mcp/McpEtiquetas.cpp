@@ -982,6 +982,11 @@ const Fila kPropias[] = {
                      "girar la cabeza que se mueva"},
     {"rostro_pendientes", "sin nombre desconocidos anotados solos completar fichas quien es este"},
     {"rostro_fusionar", "juntar dos fichas duplicada misma persona dos veces unir"},
+    {"atencion_estado", "quien atiende a los que llegan recepcion lobby atencion hablando voz asistente atiende "
+                        "a quien esta atendiendo"},
+    {"atencion_configurar", "los atiende el asistente atender hablando con voz prender atencion lobby asamblea "
+                            "alta automatica anotar en personas voz del atendedor"},
+    {"atencion_voz_probar", "probar la voz del atendedor como suena generar audio sin reproducir wav"},
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
                         "switch dar de alta sola lobby los que llegan"},
     {"rostro_lobby", "quien espera quien llego quien esta en el lobby reconocer a los que entran "

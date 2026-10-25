@@ -68,6 +68,7 @@
 #include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
+#include "ui/AtencionViewModel.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "agent/SubtitulosCC.hpp"
@@ -496,11 +497,24 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     // El operador delega en el asistente la atencion de alguien del lobby: se
     // habilita la exencion para ESA persona y se le pasa la tarea al agente.
     vm_.setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) -> QString {
-        // Si la recepcion esta prendida, es de ella: un agente de un tiro con
-        // su juego de herramientas, y el asistente interactivo no se entera.
+        // QUIÉN ATIENDE es una sola regla (sala::quienAtiende, con test): la
+        // recepción si está prendida; si no, el de automatización; nunca el del
+        // evento. Y si se lo atiende HABLANDO lo decide la atención
+        // (ui/AtencionViewModel): acá solo se le agrega al encargo cómo hablarle.
+        // Al que ya entró solo no se lo atiende hablando: la atención es del lobby.
+        AtencionViewModel* atencion = vm_.atencionVm();
+        const auto modoPara = [&](sala::Atendedor quien) -> QString {
+            if (yaAdentro || atencion == nullptr) return {};
+            return AtencionViewModel::instruccion(atencion->empezarSala(id, name, quien));
+        };
         agent::Despachador& d = vm_.despachador();
-        if (const agent::Rol* r = d.roles().porId("recepcion"); r != nullptr && r->activo) {
+        const agent::Rol* rolRecepcion = d.roles().porId("recepcion");
+        auto* ag = static_cast<agent::AgentViewModel*>(vm_.agenteAutomatizacion());
+        const sala::Atendedor quien =
+            sala::quienAtiende(rolRecepcion != nullptr && rolRecepcion->activo, ag != nullptr && ag->running());
+        if (quien == sala::Atendedor::Recepcion) {
             core_.startIntake(id.toStdString(), name.toStdString());
+            const QString hablando = modoPara(sala::Atendedor::Recepcion);
             std::string err;
             d.encargar("recepcion",
                        (yaAdentro ? "«" + name.toStdString() +
@@ -509,15 +523,16 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                                         "cero, mostrale los que ya tenemos para que confirme. "
                                   : reconocerPrimero(id).toStdString()) +
                            "El operador te pide que atiendas a la persona que espera en el lobby (id " +
-                           id.toStdString() + ", se anoto como «" + name.toStdString() + "»).",
+                           id.toStdString() + ", se anoto como «" + name.toStdString() + "»)." +
+                           hablando.toStdString(),
                        "lobby:" + id.toStdString(), 0, &err);
             return QString::fromStdString(err);
         }
         // Sin recepción, el de AUTOMATIZACIÓN (trabaja solo, en segundo plano): el del evento
         // es la charla con el operador y no tiene que recibir encargos del lobby.
-        auto* ag = static_cast<agent::AgentViewModel*>(vm_.agenteAutomatizacion());
-        if (ag == nullptr || !ag->running()) return "El asistente de automatización no está corriendo (pestaña ✦).";
+        if (quien == sala::Atendedor::Nadie) return QString::fromStdString(sala::porQueNadie(quien));
         core_.startIntake(id.toStdString(), name.toStdString());
+        const QString hablando = modoPara(sala::Atendedor::Automatizacion);
         if (yaAdentro) {
             // YA ESTA ADENTRO: entro sola porque estaba en la lista del
             // evento. Pedirle los datos de cero a alguien que el sistema
@@ -552,7 +567,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                  "ya entra; si no, dejala esperando y avisale con cortesía que todavía no. "
                  "Contestale SIEMPRE, salga como salga: el silencio es la peor respuesta. Mientras dure esto "
                  "no me preguntes nada más: manejate sola." +
-                 guardarLaCara(id));
+                 guardarLaCara(id) + hablando);
         return {};
     });
     registerSystemTools();
@@ -587,6 +602,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerQrTools();
     registerVentanaTools();
     registerRostroTools();
+    registerAtencionTools();
     registerControlTools();
     // El mapa de categorias va en las `instructions` del initialize (lo arma
     // McpCore en cada initialize, porque depende del rol del cliente) y

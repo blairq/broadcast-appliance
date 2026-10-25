@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include <QByteArray>
 #include <QObject>
 #include <QString>
 #include <QVariantList>
@@ -69,6 +70,16 @@ class PersonasViewModel : public QObject {
     /// por turno. Es el caso real de un evento —la gente llega antes de entrar,
     /// y ahí es cuando hay tiempo de saber quién es—.
     Q_PROPERTY(bool lobbyAuto READ lobbyAuto WRITE setLobbyAuto NOTIFY autoaltaCambio)
+    /// La atención a quien se conecta está prendida: el lobby se mira siempre,
+    /// esté o no el interruptor de arriba (ui/AtencionViewModel lo pone).
+    Q_PROPERTY(bool lobbyPorAtencion READ lobbyPorAtencion NOTIFY autoaltaCambio)
+    /// Si de verdad se está mirando el lobby (el interruptor o la atención).
+    Q_PROPERTY(bool lobbyMirando READ lobbyMirando NOTIFY autoaltaCambio)
+    /// ALTA AUTOMÁTICA: a todo el que dio su nombre (lo escribió al entrar o se
+    /// lo corrigió quien lo atendió; ver sala::nombreDado) y tiene una cara que
+    /// sirve, se lo anota en Personas con ese nombre y su cargo, sin depender
+    /// de que el asistente se acuerde de `rostro_guardar`. Se guarda.
+    Q_PROPERTY(bool altaAutomatica READ altaAutomatica WRITE setAltaAutomatica NOTIFY autoaltaCambio)
     /// Quién hay en cada posición del lobby: {"2": {id, nombre, cargo, foto,
     /// parecido, caras, sirve, sugerencia}}. La clave es el número de posición
     /// EN TEXTO, porque un QVariantMap no tiene claves numéricas.
@@ -99,6 +110,24 @@ class PersonasViewModel : public QObject {
     QString feedPuerta() const;
     void setFeedPuerta(const QString& feed);
     QVariantMap enLobby() const;
+    bool lobbyPorAtencion() const;
+    /// Lo llama la atención al prenderse o apagarse (no es un interruptor del operador).
+    void setLobbyPorAtencion(bool activo);
+    bool lobbyMirando() const;
+    bool altaAutomatica() const;
+    void setAltaAutomatica(bool activo);
+    /// El parecido mínimo para dejar entrar sin preguntar (rostros.admitirSolo).
+    float umbralEntrarSolo() const;
+    /// Compara la cara más grande de una foto (la que manda el celular de un
+    /// integrante remoto) con la ficha `personaId`. `luego(parecido, sirve,
+    /// error)` en el hilo de la interfaz; parecido 0 si no hay cara o ficha.
+    void compararFoto(const QByteArray& jpeg, const QString& personaId,
+                      std::function<void(float parecido, bool sirve, const QString& error)> luego);
+    /// Alta automática desde una foto: ficha nueva con ese nombre y cargo, su
+    /// cara y su foto. `luego(id, error)` (id vacío si no se pudo: sin cara, o
+    /// la cara no sirve, o ya es de otra ficha con nombre).
+    void altaConFoto(const QByteArray& jpeg, const QString& nombre, const QString& cargo,
+                     std::function<void(const QString& id, const QString& error)> luego);
 
     Q_INVOKABLE void refrescar();
     /// Crea o corrige. `id` vacío crea. Devuelve el id, o vacío si falló.
@@ -202,6 +231,11 @@ class PersonasViewModel : public QObject {
     /// todavía la está mirando.
     QString anotarDesconocida(const std::vector<float>& v, const QImage& img, const ba::rostros::Cara& c,
                               std::int64_t ahora);
+    /// Alta automática en el lobby: si la ficha de `uid` no tiene nombre (la
+    /// anotó sola el reconocimiento) y esa persona dio el suyo, se lo pone.
+    void altaSiDioSuNombre(const QString& uid, const QString& fichaId, bool sirve);
+    /// Prende o apaga la ronda según lo que haya que mirar.
+    void revisarRonda();
 #endif
     struct Impl;
     std::unique_ptr<Impl> d_;
