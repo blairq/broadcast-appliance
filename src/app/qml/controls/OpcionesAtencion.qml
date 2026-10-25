@@ -21,6 +21,7 @@ ColumnLayout {
     readonly property var at: Studio.atencion
     readonly property bool enSala: ambito === "sala"
     readonly property bool atiende: !!at && (enSala ? at.salaAtiende : at.asambleaAtiende)
+    readonly property bool hablando: !!at && (enSala ? at.salaHablando : at.asambleaHablando)
 
     // --- Los atiende el asistente ---------------------------------------------------
     RowLayout {
@@ -61,28 +62,35 @@ ColumnLayout {
         spacing: 8
         visible: oa.conAtencion && oa.atiende
         Toggle {
-            checked: !!oa.at && oa.enSala && oa.at.salaHablando
-            enabled: !!oa.at && oa.enSala && (oa.at.salaHablando || oa.at.puedeHablar)
-            onToggled: (wanted) => oa.at.salaHablando = wanted
+            checked: oa.hablando
+            // Apagarlo siempre se puede; prenderlo, si están el reconocedor y la voz del atendedor.
+            enabled: !!oa.at && (oa.hablando || oa.at.puedeHablar)
+            onToggled: (wanted) => { if (oa.enSala) oa.at.salaHablando = wanted; else oa.at.asambleaHablando = wanted }
         }
         ColumnLayout {
             spacing: 0
             Layout.fillWidth: true
             Layout.preferredWidth: 0
             Text { text: "🎙 Hablando"; font.pixelSize: 13
-                   color: !!oa.at && oa.enSala && oa.at.puedeHablar ? Theme.text : Theme.textFaint }
+                   color: !!oa.at && oa.at.puedeHablar ? Theme.text : Theme.textFaint }
             Text {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 0
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
                 text: !oa.at ? ""
-                      : !oa.enSala ? oa.at.asambleaHablandoMotivo
                       : !oa.at.puedeHablar ? oa.at.hablarFalta
-                      : oa.at.salaHablando
-                        ? "Lo que dice pasa a texto y se le contesta con voz, solo a esa persona (nunca al aire). De a uno: " +
-                          "los demás, por chat. La voz se elige en Configuración → Voz del sistema → Voz del atendedor."
-                        : "Además del chat, se le habla: lo que dice pasa a texto y la respuesta le llega con voz."
+                      : oa.enSala
+                        ? (oa.hablando
+                           ? "Lo que dice pasa a texto y se le contesta con voz, solo a esa persona (nunca al aire). De a uno: " +
+                             "los demás, por chat. La voz se elige en Configuración → Voz del sistema → Voz del atendedor."
+                           : "Además del chat, se le habla: lo que dice pasa a texto y la respuesta le llega con voz.")
+                        : (oa.hablando
+                           ? "Mientras espera, su página le pide el micrófono y le avisa que lo atiende el asistente: lo que " +
+                             "dice pasa a texto y la respuesta le llega con voz, solo a él (nunca a la sesión ni al aire). " +
+                             "De a uno, con la misma voz que la sala; termina al habilitarlo."
+                           : "Además de mirarle la cara, se le habla mientras espera: su página abre el micrófono solo para " +
+                             "el asistente y la respuesta le llega con voz.")
             }
         }
     }

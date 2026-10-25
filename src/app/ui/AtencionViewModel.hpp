@@ -19,12 +19,20 @@
 //       solo a ella, nunca al aire ni a los demás del lobby.
 //   Termina al admitirla (o al irse): la atención es del lobby.
 //
-//   ASAMBLEA. El que espera en la sesión remota no tiene chat ni sube audio
-//   hasta tener la palabra: ahí atender es mirarle la cara (la foto de su
-//   celular) contra su ficha. Si es quien dice ser y el padrón del evento lo
-//   deja entrar solo, se lo habilita y se avisa; si no, se le encarga al que
-//   atiende que le pregunte al operador (`operator_ask`) con lo que se vio.
-//   «Hablando» no existe todavía en la asamblea (ver asambleaHablandoMotivo).
+//   ASAMBLEA. El que espera en la sesión remota no tiene chat: atender es
+//   mirarle la cara (la foto de su celular) contra su ficha. Si es quien dice
+//   ser y el padrón del evento lo deja entrar solo, se lo habilita y se avisa;
+//   si no, se le encarga al que atiende que le pregunte al operador
+//   (`operator_ask`) con lo que se vio. Con «Hablando» (de a uno, la MISMA voz
+//   que la sala), además:
+//     - el gateway le pide a su página el micrófono (`/api/v1/sesion/atiende`):
+//       su voz sube a BA.Audio.Atencion (OperatorFeed::escucharAtencionRemota),
+//       pasa a texto con el mismo oído y entra al hilo del chat como un dicho
+//       suyo; el que atiende la lee con `chat_wait {participant: <id>}`;
+//     - lo que el que atiende le manda con `chat_send {to: <id>}` (decirAlIntegrante)
+//       se le dice con la voz del atendedor, que el gateway le baja SOLO a él, y
+//       su página lo muestra escrito.
+//   Termina al habilitarlo (o al irse), como en la sala.
 //
 //   PERSONAS. Con la atención de la sala prendida, el lobby se mira siempre
 //   (PersonasViewModel::setLobbyPorAtencion), y el alta automática anota a
@@ -72,8 +80,9 @@ class AtencionViewModel : public QObject {
     Q_PROPERTY(bool salaHablando READ salaHablando WRITE setSalaHablando NOTIFY cambio)
     /// Asamblea: «Los atiende el asistente».
     Q_PROPERTY(bool asambleaAtiende READ asambleaAtiende WRITE setAsambleaAtiende NOTIFY cambio)
-    /// Por qué en la asamblea no se puede atender hablando (hoy siempre dice algo).
-    Q_PROPERTY(QString asambleaHablandoMotivo READ asambleaHablandoMotivo CONSTANT)
+    /// Asamblea: «Hablando» (solo cuenta con «Los atiende» prendido): mientras
+    /// espera, su página abre el micrófono hacia el gateway.
+    Q_PROPERTY(bool asambleaHablando READ asambleaHablando WRITE setAsambleaHablando NOTIFY cambio)
     /// "recepcion" | "automatizacion" | "" (nadie): quién atendería ahora.
     Q_PROPERTY(QString quienAtiende READ quienAtiende NOTIFY cambio)
     /// Lo mismo, para leer: «Atiende el rol de recepción», o por qué nadie.
@@ -107,7 +116,8 @@ class AtencionViewModel : public QObject {
     void setSalaHablando(bool on);
     bool asambleaAtiende() const { return aj_.asambleaAtiende; }
     void setAsambleaAtiende(bool on);
-    QString asambleaHablandoMotivo() const;
+    bool asambleaHablando() const { return aj_.asambleaHablando; }
+    void setAsambleaHablando(bool on);
     QString quienAtiende() const { return QString::fromLatin1(sala::claveDe(atendedor())); }
     QString quienAtiendeTexto() const;
     bool puedeHablar() const { return hablarFalta().isEmpty(); }
@@ -141,10 +151,16 @@ class AtencionViewModel : public QObject {
     QString empezarSala(const QString& id, const QString& nombre, sala::Atendedor quien);
     /// Lo que se le agrega al encargo según el modo (vacío para "chat").
     static QString instruccion(const QString& modo);
+    /// ¿Se atiende hablando a `id`, que espera en la sesión remota? (chat_send y
+    /// chat_wait lo aceptan aunque no esté en la sala.)
+    bool atiendeHablandoEnAsamblea(const QString& id) const;
+    /// Decirle `texto` al que espera en la sesión remota (chat_send {to: <id>}): con la
+    /// voz del atendedor, solo a él, y escrito en su página. "" o el error.
+    QString decirAlIntegrante(const QString& id, const QString& texto);
     /// Todo junto, para `atencion_estado`.
     nlohmann::json estado() const;
     /// Cambia lo que venga ({salaAtiende, salaHablando, asambleaAtiende,
-    /// altaAutomatica, voz: {repo, hablante, velocidad}}). "" o el error.
+    /// asambleaHablando, altaAutomatica, voz: {repo, hablante, velocidad}}). "" o el error.
     QString configurar(const nlohmann::json& cambios);
 
    signals:
@@ -159,9 +175,13 @@ class AtencionViewModel : public QObject {
     /// La sala cambió: termina los turnos de quien ya no espera, pasa la voz y
     /// sigue a la persona si le cambió el lugar del lobby.
     void alSala();
-    /// Arma (o desarma) la voz para `id`.
+    /// Arma (o desarma) la voz para `id` (de la sala o de la asamblea: lo dice su turno).
     void abrirVoz(const QString& id);
     void cerrarVoz();
+    /// La voz está libre: la toma el siguiente que se atiende sin ella y puede.
+    void pasarLaVoz();
+    /// No se le pudo armar la voz a `id`: sigue sin ella (y no se le reintenta).
+    void sinVoz(const QString& id, const QString& error);
     /// Se le escribió a alguien: si se lo atiende hablando, se le dice.
     void alChatear(const std::string& para, const std::string& texto);
     void decir(const QString& texto);
@@ -170,8 +190,10 @@ class AtencionViewModel : public QObject {
     void alFotoIntegrante(const QString& id);
     void encargarAsamblea(const QString& id, const QString& queSeVio);
     int lugarDe(const QString& id) const;
-    /// Para pasar la voz: solo a quien tiene lugar en el lobby.
-    std::function<bool(const std::string&)> conLugar() const;
+    /// Para pasar la voz: su ámbito tiene «Hablando» prendido y tiene por dónde
+    /// (en la sala, lugar en el lobby; en la asamblea, que siga esperando conectado).
+    std::function<bool(const std::string&)> puedeTomarLaVoz() const;
+    bool esperaEnAsamblea(const std::string& id) const;
 
     AppRuntime& rt_;
     StudioViewModel& vm_;
@@ -189,8 +211,9 @@ class AtencionViewModel : public QObject {
 
     // La voz que está armada (una por vez: ver sala::Turnos).
     QString vozId_;      ///< a quién
-    int vozLugar_ = 0;   ///< en qué lugar del lobby se lo escucha
-    int vozToma_ = 0;    ///< la toma de OperatorFeed::escucharLobby
+    sala::Ambito vozAmbito_ = sala::Ambito::Sala; ///< dónde está
+    int vozLugar_ = 0;   ///< en qué lugar del lobby se lo escucha (sala)
+    int vozToma_ = 0;    ///< la toma de OperatorFeed::escucharLobby / escucharAtencionRemota
 
     // Asamblea: a quién se le pidió la foto y todavía no llegó.
     QSet<QString> esperandoFoto_;

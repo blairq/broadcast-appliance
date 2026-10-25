@@ -369,6 +369,17 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         enviar(c, {{"type", "vistas"}, {"lista", lista}});
         // Su vista de la conexión vieja (si la había) era de esa página: la nueva ofrece otra.
         if (vieja && medios_.vistaCerrar) medios_.vistaCerrar(c->id);
+        // Lo estaba atendiendo el asistente hablando (recargó la página, se le cortó
+        // la red): el WebRTC de la página vieja no sigue, y a la nueva se le vuelve a pedir.
+        bool atendido = false;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            atendido = atiende_ == c->id;
+        }
+        if (atendido) {
+            if (vieja && medios_.atiendeCerrar) medios_.atiendeCerrar(c->id);
+            enviar(c, {{"type", "atiende"}, {"on", true}});
+        }
     }
     // 2. El lazo.
     std::vector<std::int64_t> ventana;
@@ -446,6 +457,46 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                     if (auto cc = w.lock()) enviar(cc, r);
                 });
                 if (!ok) enviar(c, {{"type", "vista-error"}, {"error", "La sala no tiene lugar para mandarte la imagen ahora."}});
+            }
+            continue;
+        }
+        // La atención hablada mientras espera: su micrófono, solo audio, solo si la app
+        // la prendió para él (lo demás se ignora: nadie se abre un canal solo).
+        if (!consola && (t == "atiende-oferta" || t == "atiende-ice" || t == "atiende-error")) {
+            bool atendido = false;
+            {
+                std::lock_guard<std::mutex> l(mu_);
+                atendido = atiende_ == c->id;
+            }
+            if (!atendido) continue;
+            const auto noSePudo = [&](const std::string& error) {
+                enviar(c, {{"type", "atiende-fallo"}, {"error", error}});
+                alApp_({{"tipo", "atiende_error"}, {"id", c->id}, {"error", error}});
+            };
+            if (t == "atiende-error") {
+                // Su página no pudo (no dio permiso para el micrófono, no tiene): la app
+                // sigue sin la voz con él.
+                std::string e = m.value("error", std::string());
+                if (e.size() > 200) e.resize(200);
+                alApp_({{"tipo", "atiende_error"}, {"id", c->id}, {"error", e}});
+            } else if (t == "atiende-ice") {
+                const json& cand = m.contains("candidate") ? m["candidate"] : json();
+                if (medios_.atiendeIce)
+                    medios_.atiendeIce(c->id, cand.is_string() ? cand.get<std::string>()
+                                                               : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            } else {
+                const std::string sdp = m.value("sdp", std::string());
+                if (!subeSoloAudio(sdp)) {
+                    log_.warn("sesion: la atención de " + c->id + " quiso mandar algo más que audio; se ignora", -1);
+                    noSePudo("La página ofreció algo más que el micrófono.");
+                    continue;
+                }
+                std::weak_ptr<Conn> w = c;
+                if (!medios_.atiendeOferta ||
+                    !medios_.atiendeOferta(c->id, sdp, [this, w](const json& r) {
+                        if (auto cc = w.lock()) enviar(cc, r);
+                    }))
+                    noSePudo("La sala no tiene lugar para escucharte ahora.");
             }
             continue;
         }
@@ -530,6 +581,16 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         if (canal > 0) medios_.cerrar(c->id, canal); // su WebRTC hacia la sala no sigue sin él
     }
     if (eraLaActual && !consola && medios_.vistaCerrar) medios_.vistaCerrar(c->id);
+    if (eraLaActual && !consola) {
+        // Se fue: la atención hablada termina con él (la app se entera por la conexión).
+        bool atendido = false;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            atendido = atiende_ == c->id;
+            if (atendido) atiende_.clear();
+        }
+        if (atendido && medios_.atiendeCerrar) medios_.atiendeCerrar(c->id);
+    }
     if (eraLaActual) {
         alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", false}, {"ip", c->ip}});
         log_.info("sesion: " + c->id + " desconectado");
@@ -545,7 +606,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         std::lock_guard<std::mutex> l(mu_);
         for (const auto& [id, c] : conns_)
             cs.push_back({{"id", id}, {"ip", c->ip}, {"lugar", c->lugar}, {"foto", fotos_.count(id) > 0}});
-        http::sendResponse(fd, 200, "application/json", json{{"conexiones", cs}, {"credenciales", credenciales_.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        http::sendResponse(fd, 200, "application/json", json{{"conexiones", cs}, {"credenciales", credenciales_.size()}, {"atiende", atiende_}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (method == "GET" && que == "foto") {
@@ -622,6 +683,14 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"con_vista", conVista}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
+    if (que == "atiende") {
+        const std::string error = ponerAtiende(r.value("id", std::string()), r.value("on", true));
+        if (!error.empty())
+            http::sendResponse(fd, 409, "application/json", json{{"error", error}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        else
+            http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        return true;
+    }
     if (que == "medios") {
         // Con número: una lista vieja que llega después de una nueva no la pisa.
         if (r.contains("seq") && r["seq"].is_number_integer()) {
@@ -683,6 +752,68 @@ void SesionBorde::cerrar() {
         std::lock_guard<std::mutex> l(c->sendLock);
         if (c->fd >= 0) http::shutdownFd(c->fd);
     }
+}
+
+std::string SesionBorde::ponerAtiende(const std::string& id, bool on) {
+    std::string anterior;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        if (on) {
+            if (id.empty() || id.rfind("consola:", 0) == 0 || conns_.count(id) == 0)
+                return "no está conectado a la sesión remota";
+            if (atiende_ == id) return {};
+            anterior = atiende_; // de a uno: hay una sola voz del que atiende
+            atiende_ = id;
+        } else {
+            if (atiende_ != id) return {}; // ya estaba apagada (se fue, o se la pasó a otro)
+            atiende_.clear();
+        }
+    }
+    if (!anterior.empty()) avisarAtiende(anterior, false);
+    avisarAtiende(id, on);
+    log_.info("sesion: atención hablada " + std::string(on ? "para " : "apagada para ") + id);
+    return {};
+}
+
+std::string SesionBorde::conAtiende() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return atiende_;
+}
+
+void SesionBorde::avisarAtiende(const std::string& id, bool on) {
+    if (!on && medios_.atiendeCerrar) medios_.atiendeCerrar(id);
+    std::shared_ptr<Conn> c;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        if (auto it = conns_.find(id); it != conns_.end()) c = it->second;
+    }
+    if (c) enviar(c, {{"type", "atiende"}, {"on", on}});
+}
+
+bool SesionBorde::subeSoloAudio(const std::string& sdp) {
+    // Sección por sección (m=): un video tiene que decir recvonly o inactive (sin
+    // dirección, el valor por omisión es sendrecv: sube); el audio puede subir.
+    enum class Tipo { Nada, Audio, Video, Otro } tipo = Tipo::Nada;
+    bool hayAudio = false, videoQuieto = true;
+    std::size_t pos = 0;
+    while (pos < sdp.size()) {
+        const std::size_t fin = sdp.find('\n', pos);
+        std::string linea = sdp.substr(pos, fin == std::string::npos ? std::string::npos : fin - pos);
+        pos = fin == std::string::npos ? sdp.size() : fin + 1;
+        if (!linea.empty() && linea.back() == '\r') linea.pop_back();
+        if (linea.rfind("m=", 0) == 0) {
+            if (tipo == Tipo::Video && !videoQuieto) return false;
+            tipo = linea.rfind("m=audio", 0) == 0   ? Tipo::Audio
+                   : linea.rfind("m=video", 0) == 0 ? Tipo::Video
+                                                    : Tipo::Otro;
+            if (tipo == Tipo::Audio) hayAudio = true;
+            videoQuieto = tipo != Tipo::Video;
+            continue;
+        }
+        if (tipo == Tipo::Video && (linea == "a=recvonly" || linea == "a=inactive")) videoQuieto = true;
+    }
+    if (tipo == Tipo::Video && !videoQuieto) return false;
+    return hayAudio;
 }
 
 int SesionBorde::canalDeVista(const std::string& vista) const {

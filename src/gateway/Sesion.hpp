@@ -38,6 +38,14 @@
 //        con {type:"vista", vista} ("yo" = ninguno: solo el sonido) sin reconectar.
 //   POST /api/v1/sesion/hablar       {id, activo}: el operador le habla («apretar para hablar»
 //        desde la app): su voz (BA.Audio.Operator) le llega mezclada en el sonido de su vista.
+//   POST /api/v1/sesion/atiende      {id, on}: mientras espera, lo atiende el asistente HABLANDO
+//        (docs/funciones/ATENCION.md). Se le dice {type:"atiende", on}; su página pide el
+//        micrófono y ofrece un WebRTC de solo audio ({type:"atiende-oferta", sdp},
+//        {type:"atiende-ice", candidate}; si no puede, {type:"atiende-error", error}, que va a
+//        la app como evento «atiende_error»). Su voz sube a BA.Audio.Atencion (la app la pasa a
+//        texto) y le baja la del que atiende (BA.Audio.Atendedor), SOLO a él. De a uno: prenderlo
+//        para otro se lo apaga al anterior (hay una sola voz del que atiende). Se apaga solo si
+//        se va; al habilitarlo lo apaga la app (el borde no sabe quién está habilitado).
 //   y por el SSE de siempre, evento "sesion": {tipo: conexion|entrada|intento|bloqueo, …}
 //
 // Presidencia (la consola web, docs/funciones/SESION-REMOTA.md §8):
@@ -103,14 +111,30 @@ class SesionBorde {
         std::function<void(const std::string& id, const std::string& candidato)> vistaIce;
         std::function<void(const std::string& id, int canal, bool hablar)> vistaRuta;
         std::function<void(const std::string& id)> vistaCerrar;
+        // La atención hablada mientras espera (ruta Atencion): solo su micrófono sube.
+        std::function<bool(const std::string& id, const std::string& sdp,
+                           std::function<void(const nlohmann::json&)> enviar)>
+            atiendeOferta;
+        std::function<void(const std::string& id, const std::string& candidato)> atiendeIce;
+        std::function<void(const std::string& id)> atiendeCerrar;
     };
     void setMedios(Medios m) { medios_ = std::move(m); }
     /// Llegó una foto de la cámara de un integrante (la grilla de personas la muestra).
     /// Desde el hilo de su WebSocket, sin candados tomados. Antes de recibir conexiones.
     void setAlFoto(std::function<void(const std::string& id, const std::string& jpeg)> fn) { alFoto_ = std::move(fn); }
 
+    /// Prende o apaga la atención hablada de `id` (ver /api/v1/sesion/atiende). "" o el
+    /// error (no está conectado). De a uno: prenderla para otro se la apaga al anterior.
+    std::string ponerAtiende(const std::string& id, bool on);
+    /// A quién se atiende hablando ahora ("" = a nadie).
+    std::string conAtiende() const;
+
     // --- Para las pruebas ---
     static bool origenValido(const std::string& headers);
+    /// La oferta de la atención hablada: sube SOLO audio (un video tiene que ser recvonly
+    /// o inactive) y algo de audio. El token del link lo puede tener cualquiera: lo que
+    /// garantiza que el que espera no le mande su cámara a nadie por acá es esto.
+    static bool subeSoloAudio(const std::string& sdp);
     /// "" si no coincide; el id del integrante si el token y el PIN son los suyos.
     /// `pinMal` queda en true si el token es de alguien pero el PIN no.
     std::string autenticar(const std::string& id, const std::string& token, const std::string& pin, bool& pinMal);
@@ -156,6 +180,8 @@ class SesionBorde {
     nlohmann::json vistas_ = nlohmann::json::array(); ///< [{id, nombre, canal}]
     std::map<std::string, std::string> vistaDe_;       ///< integrante -> la vista que eligió
     std::map<std::string, bool> hablando_;             ///< a quién le habla el operador
+    std::string atiende_;                               ///< a quién atiende el asistente hablando ("" = nadie)
+    void avisarAtiende(const std::string& id, bool on); ///< sin mu_ tomado
     int canalDeVista(const std::string& vista) const;  ///< con mu_ tomado
     nlohmann::json listaVistas() const;                ///< con mu_ tomado
 };

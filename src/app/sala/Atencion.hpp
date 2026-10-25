@@ -25,9 +25,11 @@
 // evento.
 //
 // HABLANDO, DE A UNO. Hay un solo canal de voz del que atiende hacia la sala
-// (BA.Audio.Atendedor): el primero que llega con «Hablando» prendido toma la
-// voz; mientras tanto, los demás se atienden por chat. Cuando el de la voz
-// termina, la toma el siguiente que se estaba atendiendo por chat.
+// (BA.Audio.Atendedor), el mismo para el lobby y para la sesión remota de la
+// asamblea: el primero que llega con «Hablando» prendido (el de su ámbito)
+// toma la voz; mientras tanto, los demás se atienden por chat (en la asamblea,
+// sin voz: mirándole la cara). Cuando el de la voz termina, la toma el
+// siguiente que se estaba atendiendo sin ella.
 // ============================================================================
 #pragma once
 
@@ -74,6 +76,9 @@ const char* claveDe(Fin f);
 struct AjustesAtencion {
     bool salaHablando = false;
     bool asambleaAtiende = false;
+    /// «Hablando» en la asamblea: mientras espera, su página abre el micrófono hacia
+    /// el gateway (solo para el que atiende, nunca al aire).
+    bool asambleaHablando = false;
     /// La voz con la que atiende (un repo del catálogo de modelos, tipo «tts»;
     /// vacío = la primera bajada), su hablante y su velocidad (0,7 … 1,5).
     std::string vozRepo;
@@ -105,23 +110,25 @@ class Turnos {
         bool teniaLaVoz = false;
     };
 
-    /// Empieza a atender a `id`. Con `hablando`, toma la voz si está libre
-    /// (una sola por vez, y solo en la sala: en la asamblea no hay canal de
-    /// voz para el que espera). Si ya se lo estaba atendiendo, devuelve ese turno.
+    /// Empieza a atender a `id`. Con `hablando`, toma la voz si está libre (una
+    /// sola por vez, sea de la sala o de la asamblea). Si ya se lo estaba
+    /// atendiendo, devuelve ese turno.
     Turno empezar(const std::string& id, const std::string& nombre, Ambito ambito, Atendedor quien, bool hablando);
     /// Lo que dice la sala ahora: los que esperan y los que están adentro.
     /// Termina los turnos de quien ya no espera: Admitido si está adentro,
     /// SeFue si no está en ninguna de las dos. Solo mira los de `ambito`.
     std::vector<Terminado> actualizar(Ambito ambito, const std::set<std::string>& esperando,
                                       const std::set<std::string>& adentro);
-    /// La voz quedó libre: la toma el primero que se atiende por chat en la
-    /// sala (en el orden en que llegaron) y `puede` (p. ej. que tenga lugar en el
-    /// lobby, por donde sube su voz). Devuelve su id, o "" si no hay nadie.
+    /// La voz quedó libre: la toma el primero que se atiende sin ella (en el
+    /// orden en que llegaron, de la sala o de la asamblea) y `puede` (que su
+    /// ámbito tenga «Hablando» prendido, que tenga lugar en el lobby por donde
+    /// sube su voz…). Devuelve su id, o "" si no hay nadie.
     std::string pasarLaVoz(const std::function<bool(const std::string& id)>& puede = {});
     /// No se le pudo armar la voz a `id`: vuelve a chat y queda sin voz (ver `sinVoz`).
     void sinVoz(const std::string& id);
-    /// «Hablando» se apagó: todos pasan a chat. Devuelve quién tenía la voz ("" si nadie).
-    std::string soltarLaVoz();
+    /// «Hablando» se apagó en `ambito`: los de ahí pasan a chat. Devuelve quién
+    /// tenía la voz si era de ahí ("" si nadie).
+    std::string soltarLaVoz(Ambito ambito);
     /// Termina todos los de un ámbito («Los atiende» se apagó). Devuelve los ids.
     std::vector<std::string> terminarTodos(Ambito ambito);
 

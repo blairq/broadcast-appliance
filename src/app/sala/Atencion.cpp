@@ -45,6 +45,7 @@ const char* claveDe(Fin f) { return f == Fin::Admitido ? "admitido" : "se_fue"; 
 nlohmann::json AjustesAtencion::aJson() const {
     return {{"salaHablando", salaHablando},
             {"asambleaAtiende", asambleaAtiende},
+            {"asambleaHablando", asambleaHablando},
             {"voz", {{"repo", vozRepo}, {"hablante", vozHablante}, {"velocidad", vozVelocidad}}}};
 }
 
@@ -57,6 +58,7 @@ AjustesAtencion AjustesAtencion::deJson(const nlohmann::json& j) {
     };
     a.salaHablando = booleano("salaHablando", false);
     a.asambleaAtiende = booleano("asambleaAtiende", false);
+    a.asambleaHablando = booleano("asambleaHablando", false);
     if (const auto v = j.find("voz"); v != j.end() && v->is_object()) {
         if (const auto r = v->find("repo"); r != v->end() && r->is_string()) a.vozRepo = r->get<std::string>();
         if (const auto h = v->find("hablante"); h != v->end() && h->is_number_integer())
@@ -77,10 +79,8 @@ Turnos::Turno Turnos::empezar(const std::string& id, const std::string& nombre, 
     t.nombre = nombre;
     t.ambito = ambito;
     t.quien = quien;
-    // En la asamblea no hay canal de voz para el que espera (sube solo la foto
-    // de su cámara hasta que tiene la palabra): ahí atender es mirarle la cara
-    // y, si hace falta, preguntarle al operador. Nunca toma la voz.
-    t.modo = hablando && ambito == Ambito::Sala && conLaVoz().empty() ? Modo::Voz : Modo::Chat;
+    // Una sola voz del que atiende, sea para el lobby o para la sesión remota.
+    t.modo = hablando && conLaVoz().empty() ? Modo::Voz : Modo::Chat;
     turnos_.push_back(t);
     return t;
 }
@@ -102,7 +102,7 @@ std::vector<Turnos::Terminado> Turnos::actualizar(Ambito ambito, const std::set<
 std::string Turnos::pasarLaVoz(const std::function<bool(const std::string&)>& puede) {
     if (!conLaVoz().empty()) return {};
     for (Turno& t : turnos_) {
-        if (t.ambito == Ambito::Sala && t.modo == Modo::Chat && !t.sinVoz && (!puede || puede(t.id))) {
+        if (t.modo == Modo::Chat && !t.sinVoz && (!puede || puede(t.id))) {
             t.modo = Modo::Voz;
             return t.id;
         }
@@ -118,9 +118,10 @@ void Turnos::sinVoz(const std::string& id) {
     }
 }
 
-std::string Turnos::soltarLaVoz() {
+std::string Turnos::soltarLaVoz(Ambito ambito) {
     std::string tenia;
     for (Turno& t : turnos_) {
+        if (t.ambito != ambito) continue;
         if (t.modo == Modo::Voz) tenia = t.id;
         t.modo = Modo::Chat;
     }

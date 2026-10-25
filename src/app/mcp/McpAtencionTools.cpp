@@ -5,8 +5,9 @@
 // «Voz del atendedor» (ui/AtencionViewModel, docs/funciones/ATENCION.md):
 //
 //   atencion_estado       quién atiende, de qué forma, a quién, con qué voz
-//   atencion_configurar   «Los atiende el asistente», «Hablando», alta
-//                         automática en Personas, la voz del atendedor
+//   atencion_configurar   «Los atiende el asistente», «Hablando» (sala y
+//                         asamblea), alta automática en Personas, la voz
+//                         del atendedor
 //   atencion_voz_probar   genera una frase con esa voz SIN que suene: duración,
 //                         forma de onda y un .wav para escucharlo aparte
 //
@@ -38,8 +39,10 @@ void McpService::registerAtencionTools() {
                         "automática en Personas y la voz del atendedor.";
         t.details = "QUIÉN ATIENDE: el rol «recepcion» si está prendido; si no, el asistente de automatización; "
                     "nunca el del evento. CUÁNDO TERMINA: al admitirla (o al irse): la atención es del lobby. "
-                    "HABLANDO: de a uno (hay un solo canal de voz hacia el lobby); los demás, por chat. En la "
-                    "asamblea no se puede hablar todavía (`asamblea.porQueNoHablando`).";
+                    "HABLANDO: de a uno (hay un solo canal de voz del que atiende, para el lobby y la sesión "
+                    "remota); los demás, por chat (en la asamblea, sin voz: mirándole la cara). `conLaVoz` y "
+                    "`conLaVozAmbito` dicen quién la tiene. En la asamblea, al que espera se le habla con "
+                    "`chat_send {to: <id del integrante>}` y se lo oye con `chat_wait {participant: <id>}`.";
         t.run = [atencion, sinAtencion](const json&, Done done) {
             AtencionViewModel* a = atencion();
             if (a == nullptr) return done(sinAtencion());
@@ -56,7 +59,9 @@ void McpService::registerAtencionTools() {
         t.description = "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la sala), "
                         "`salaHablando` (lo que dice se pasa a texto y se le contesta con voz), `asambleaAtiende` "
                         "(mira la cara de quien espera en la sesión remota y lo habilita si el padrón lo deja "
-                        "entrar solo; si no, le pregunta al operador), `altaAutomatica` (anota en Personas a quien "
+                        "entrar solo; si no, le pregunta al operador), `asambleaHablando` (además, mientras espera "
+                        "su página abre el micrófono: lo que dice pasa a texto y se le contesta con voz, solo a "
+                        "él; termina al habilitarlo), `altaAutomatica` (anota en Personas a quien "
                         "dio su nombre y tiene cara reconocible) y `voz` {repo, hablante, velocidad} (la voz del "
                         "atendedor).";
         t.details = "Prender la atención sin quién atienda (ni recepción ni automatización) da error. Con la de "
@@ -67,6 +72,7 @@ void McpService::registerAtencionTools() {
                           {{"salaAtiende", {{"type", "boolean"}}},
                            {"salaHablando", {{"type", "boolean"}}},
                            {"asambleaAtiende", {{"type", "boolean"}}},
+                           {"asambleaHablando", {{"type", "boolean"}}},
                            {"altaAutomatica", {{"type", "boolean"}}},
                            {"voz",
                             {{"type", "object"},
@@ -74,7 +80,8 @@ void McpService::registerAtencionTools() {
                               {{"repo", {{"type", "string"}, {"description", "una voz bajada (tipo tts)"}}},
                                {"hablante", {{"type", "integer"}, {"minimum", 0}}},
                                {"velocidad", {{"type", "number"}, {"minimum", 0.7}, {"maximum", 1.5}}}}}}}}}};
-        t.examples = {R"({"salaAtiende": true, "salaHablando": true})", R"({"altaAutomatica": true})",
+        t.examples = {R"({"salaAtiende": true, "salaHablando": true})",
+                      R"({"asambleaAtiende": true, "asambleaHablando": true})", R"({"altaAutomatica": true})",
                       R"({"voz": {"velocidad": 1.1}})"};
         t.run = [atencion, sinAtencion](const json& a, Done done) {
             AtencionViewModel* at = atencion();

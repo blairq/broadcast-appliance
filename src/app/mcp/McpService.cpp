@@ -678,6 +678,11 @@ void McpService::applySecurity() {
         if (it == kArg.end()) return false;
         const std::string who = args.value(it->second, std::string());
         if (who.empty() || who == "all") return false;
+        // El que espera en la sesión remota y se lo atiende hablando: decirle algo
+        // (chat_send) es la atención misma, solo a él, mientras dura (termina al habilitarlo).
+        if (AtencionViewModel* at = vm_.atencionVm();
+            tool == "chat_send" && at != nullptr && at->atiendeHablandoEnAsamblea(QString::fromStdString(who)))
+            return true;
         json p;
         std::string err;
         if (!resolveParticipant(roomSnapshot(vm_), who, p, err)) return false;

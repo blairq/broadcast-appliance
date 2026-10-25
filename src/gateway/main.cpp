@@ -546,7 +546,8 @@ int main(int argc, char** argv) {
     // Las del programa, para el tope de invitados (kMaxInvitados): una sesión está
     // vacía hasta que alguien se conecta, y así el cupo sube sin reiniciar la sala.
     WebrtcHub hub(kMaxInvitados + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
-                      cfg.vistasRemotas /* lo que miran los integrantes en su celular */, cfg.guestVideoW, cfg.guestVideoH,
+                      cfg.vistasRemotas /* lo que miran los integrantes en su celular */ +
+                      1 /* el que espera en la sesión remota, atendido hablando (de a uno) */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
@@ -562,6 +563,7 @@ int main(int argc, char** argv) {
     for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) pumpCfg.escenaVideoNames.push_back(ba::ipc::nombreCanalEscena(k));
     pumpCfg.operatorAudioName = toWide("BA.Audio.Operator");
     pumpCfg.atendedorAudioName = toWide("BA.Audio.Atendedor");
+    pumpCfg.atencionAudioName = toWide("BA.Audio.Atencion");
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,
                     &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {

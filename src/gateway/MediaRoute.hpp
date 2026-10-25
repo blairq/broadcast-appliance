@@ -20,6 +20,11 @@
 //   Escena(k)   (una pantalla de la sala que muestra una escena que no es el
 //               programa, docs/funciones/PANTALLAS.md) no sube nada
 //               baja <- BA.Escena.<k> + retorno de audio
+//   Atencion    (un integrante que ESPERA en la sesion remota y lo atiende
+//               el asistente hablando, docs/funciones/ATENCION.md)
+//               sube -> solo su microfono, a BA.Audio.Atencion (la app lo pasa
+//               a texto; nunca va a la mezcla ni al aire)
+//               baja <- la voz del que atiende (BA.Audio.Atendedor), solo a el
 //   None        nada (desconectado / sin lugar)
 //
 // Asi un invitado del lobby solo ve al operador (nunca a los demas del lobby
@@ -45,7 +50,9 @@ struct MediaRoute {
     /// programa lo ve en su página).
     /// Escena: una pantalla que muestra la escena del canal `index` (BA.Escena.<k>,
     /// 0..) en vez del programa; no sube nada.
-    enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto, Escena };
+    /// Atencion: el integrante que espera en la sesión remota, atendido hablando. Un
+    /// solo canal (la voz del que atiende es una sola: de a uno, ver sala::Turnos).
+    enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto, Escena, Atencion };
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
     bool talk = false; ///< el operador le habla (le llega su voz; adentro, mezclada con el retorno: IFB)
@@ -62,6 +69,11 @@ struct MediaRoute {
     static MediaRoute backstage(int preview = 0, bool talk = false) { return {Kind::Backstage, preview, talk}; }
     static MediaRoute remoto(int canal) { return {Kind::Remoto, canal, false}; }
     static MediaRoute escena(int canal) { return {Kind::Escena, canal, false}; }
+    static MediaRoute atencion() { return {Kind::Atencion, 0, false}; }
+    /// Le llega la voz del que atiende (BA.Audio.Atendedor): el del lobby con `atiende`
+    /// (si el operador no le está hablando: gana el operador) y el de la sesión remota
+    /// atendido hablando. Una sola regla para MediaPump y los tests.
+    bool oyeAlAtendedor() const { return kind == Kind::Atencion || (kind == Kind::Lobby && atiende && !talk); }
     bool operator==(const MediaRoute& o) const {
         return kind == o.kind && index == o.index && talk == o.talk && atiende == o.atiende;
     }

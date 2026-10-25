@@ -48,6 +48,16 @@
       <span class="tenue">Tu micrófono está abierto para ella.</span>
     </div>
     <audio id="presidencia" autoplay></audio>
+    <!-- Mientras espera, lo atiende el asistente HABLANDO (docs/funciones/ATENCION.md): su micrófono
+         va solo al asistente y la respuesta le llega con voz, solo a él. -->
+    <div id="atiende" class="ptt atiende oculto" aria-live="polite">
+      <strong>Te atiende el asistente: hablale, te escucha</strong>
+      <span id="atiendeTexto" class="tenue">Tu micrófono está abierto solo para el asistente (no para la sala ni la
+        transmisión) hasta que te habiliten.</span>
+      <span id="atiendeDice" class="atiende-dice oculto"></span>
+      <button id="atiendeOir" type="button" class="oculto">🔊 Tocá para oírlo</button>
+    </div>
+    <audio id="vozAtiende" autoplay></audio>
     <div id="palabra" class="palabra oculto">
       <strong id="palabraTitulo">Tenés la palabra</strong>
       <span id="reloj" class="reloj">3:00</span>

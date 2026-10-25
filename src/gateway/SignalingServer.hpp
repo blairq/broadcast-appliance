@@ -387,6 +387,9 @@ class SignalingServer {
     bool ofertaVista(const std::string& id, const std::string& sdp, int canal, bool hablar,
                      std::function<void(const nlohmann::json&)> enviar);
     static MediaRoute rutaDeVista(int canal, bool hablar);
+    /// La atención hablada del que espera en la sesión remota (pid «atiende:<id>», ruta
+    /// Atencion): sube su micrófono a BA.Audio.Atencion y le baja la voz del que atiende.
+    bool ofertaAtencion(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
 
     struct WsConn {
         long long fd = -1;

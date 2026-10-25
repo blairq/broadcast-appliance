@@ -204,7 +204,13 @@ class ConferenceViewModel : public QObject {
     /// `invitados_chat_leer` igual que si lo hubiera escrito, y el operador lo
     /// ve en el hilo privado. No va a la sala: es lo que se le oyó, no algo que
     /// mandó (la sala no lo tiene ni lo reparte).
-    void agregarDichoPorVoz(const QString& id, const QString& texto);
+    /// `nombre`: el de alguien que no está en la sala (el integrante que espera en la
+    /// sesión remota de la asamblea); vacío = el de la sala.
+    void agregarDichoPorVoz(const QString& id, const QString& texto, const QString& nombre = {});
+    /// Lo que se le DIJO con la voz del atendedor a alguien que no está en la sala (el
+    /// integrante que espera en la sesión remota): al mismo hilo, como un mensaje
+    /// tuyo hacia él. A los de la sala no hace falta: el chat de la sala ya lo trae.
+    void agregarDichoAlAtendido(const QString& id, const QString& nombre, const QString& texto);
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` dice
@@ -324,6 +330,7 @@ class ConferenceViewModel : public QObject {
     QVariantList onAir_;
     double clockOffset_ = 0;
     QHash<QString, QString> avatars_; // id -> data:image/jpeg;base64,...
+    QHash<QString, QString> nombresDeAfuera_; // id -> nombre de quien se atiende sin estar en la sala
     QTimer avatarPoll_;
     void pollAvatars();
     void rebuildSpeakers();

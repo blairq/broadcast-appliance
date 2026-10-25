@@ -1,6 +1,8 @@
 // test_sesion_borde.cpp — el borde de la sesión remota (Sesion.hpp): link + PIN
 // con hash y sal, el PIN errado solo cuenta si el link es bueno, bloqueo a las
-// 5 fallas, Origin igual a Host (y por el túnel también).
+// 5 fallas, Origin igual a Host (y por el túnel también). La atención hablada
+// del que espera: solo con conexión, la oferta sube solo audio, y la voz del que
+// atiende le llega solo a él (MediaRoute::oyeAlAtendedor).
 
 #include <cstdio>
 #include <string>
@@ -9,6 +11,7 @@
 
 #include "Botonera.hpp"
 #include "Log.hpp"
+#include "MediaRoute.hpp"
 #include "Sesion.hpp"
 
 using ba::gateway::BotoneraBorde;
@@ -97,6 +100,37 @@ int main() {
           "por el túnel, mismo origen: sí");
     CHECK(!SesionBorde::origenValido("Host: sesion.ejemplo.org\r\nOrigin: https://malo.example"), "origen ajeno: no");
     CHECK(SesionBorde::origenValido("Host: 192.168.1.5:8789"), "sin Origin");
+
+    // --- La atención hablada mientras espera (docs/funciones/ATENCION.md) ---
+    CHECK(!s.ponerAtiende("leg-1", true).empty() && s.conAtiende().empty(),
+          "atender hablando a alguien que no está conectado: error, y no queda anotado");
+    CHECK(!s.ponerAtiende("consola:x", true).empty(), "a una consola nunca");
+    CHECK(s.ponerAtiende("leg-1", false).empty(), "apagarla a quien no la tenía: no es un error");
+    const auto sdpDe = [](const std::string& secciones) { return "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n" + secciones; };
+    CHECK(SesionBorde::subeSoloAudio(sdpDe("m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n")),
+          "solo el micrófono (sendrecv: también oye la voz del que atiende): pasa");
+    CHECK(SesionBorde::subeSoloAudio(sdpDe("m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"
+                                           "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=recvonly\r\n")),
+          "un video que solo recibe no sube nada: pasa");
+    CHECK(!SesionBorde::subeSoloAudio(sdpDe("m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"
+                                            "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=sendonly\r\n")),
+          "con la cámara: no");
+    CHECK(!SesionBorde::subeSoloAudio(sdpDe("m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"
+                                            "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n")),
+          "un video sin dirección sube (sendrecv por omisión): no");
+    CHECK(!SesionBorde::subeSoloAudio(sdpDe("m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n")),
+          "sin audio no es la atención hablada");
+    CHECK(!SesionBorde::subeSoloAudio(""), "vacío: no");
+
+    using ba::gateway::MediaRoute;
+    CHECK(MediaRoute::atencion().oyeAlAtendedor(), "el que espera en la sesión remota oye al que atiende");
+    CHECK(MediaRoute::lobby(1, false, true).oyeAlAtendedor(), "el del lobby atendido hablando también");
+    CHECK(!MediaRoute::lobby(1, true, true).oyeAlAtendedor(), "si el operador le habla, gana el operador");
+    CHECK(!MediaRoute::lobby(1, false, false).oyeAlAtendedor(), "el resto del lobby no");
+    CHECK(!MediaRoute::program(1).oyeAlAtendedor() && !MediaRoute::remoto(1).oyeAlAtendedor() &&
+              !MediaRoute::backstage(0).oyeAlAtendedor(),
+          "ni los de adentro ni el remoto con la palabra (la voz nunca va al aire)");
+    CHECK(MediaRoute::atencion() != MediaRoute::escena(0), "la ruta de la atención es otra");
 
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

@@ -155,6 +155,19 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             if (idx > 0 && pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
         };
         m.vistaCerrar = [this](const std::string& id) { releaseSession("vista:" + id, 0, true); };
+        m.atiendeOferta = [this](const std::string& id, const std::string& sdp, std::function<void(const json&)> enviar) {
+            return ofertaAtencion(id, sdp, std::move(enviar));
+        };
+        m.atiendeIce = [this](const std::string& id, const std::string& cand) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessLock_);
+                const auto it = sessionOf_.find("atiende:" + id);
+                if (it != sessionOf_.end()) idx = it->second;
+            }
+            if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
+        };
+        m.atiendeCerrar = [this](const std::string& id) { releaseSession("atiende:" + id, 0, true); };
         m.cerrar = [this](const std::string& id, int canal) {
             releaseSession("remoto:" + id, 0, true);
             if (pump_ != nullptr) pump_->apagarRemoto(canal); // que no quede su último cuadro
@@ -2384,6 +2397,76 @@ bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp,
     if (pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn("sesion: setRemoteOffer de la vista de " + id + " falló", -1);
+        releaseSession(pid, 0, true);
+        return false;
+    }
+    return true;
+}
+
+bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& sdp,
+                                     std::function<void(const json&)> enviar) {
+    // La forma de ofertaVista, con la ruta Atencion: una sesión por integrante (la
+    // oferta nueva reemplaza a la anterior) y, como hay una sola voz del que atiende,
+    // una sola atención a la vez: si había otra (el borde ya la apagó), se suelta.
+    const std::string pid = "atiende:" + id;
+    std::vector<std::string> otras;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        for (const auto& [p, i] : sessionOf_)
+            if (p.rfind("atiende:", 0) == 0) otras.push_back(p);
+    }
+    for (const auto& p : otras) releaseSession(p, 0, true);
+    int idx = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        for (int s = 1; s <= hub_.sessions() && idx == 0; ++s)
+            if (sessionOwner_.count(s) == 0) idx = s;
+        if (idx > 0) {
+            sessionOwner_[idx] = SessionOwner{pid, 0};
+            sessionOf_[pid] = idx;
+        }
+    }
+    WebrtcSession* sess = hub_.session(idx);
+    if (sess == nullptr) {
+        log_.warn("sesion: sin sesiones WebRTC libres para atender hablando a " + id, -1);
+        return false;
+    }
+    SessionCallbacks cb;
+    cb.onLocalAnswer = [this, enviar](const std::string& s) {
+        std::string out;
+        size_t pos = 0;
+        while (pos < s.size()) {
+            const size_t eol = s.find('\n', pos);
+            const std::string line = s.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos + 1);
+            if (line.rfind("a=candidate:", 0) == 0) {
+                const std::string pub = publicCandidate(line.substr(2));
+                if (!pub.empty()) out += "a=" + pub;
+            } else {
+                out += line;
+            }
+            if (eol == std::string::npos) break;
+            pos = eol + 1;
+        }
+        enviar(json{{"type", "atiende-respuesta"}, {"sdp", out}});
+    };
+    cb.onLocalIce = [this, enviar](const std::string& c) {
+        json cand = json::parse(c, nullptr, false);
+        if (cand.is_object() && cand.contains("candidate") && cand["candidate"].is_string()) {
+            const std::string pub = publicCandidate(cand["candidate"].get<std::string>());
+            if (pub.empty()) return;
+            cand["candidate"] = pub;
+        }
+        enviar(json{{"type", "atiende-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
+    };
+    cb.onStateChange = [this, id, idx](bool up) {
+        log_.fmt("info", 0, "sesion: atención hablada de %s (sesion %d) %s", id.c_str(), idx, up ? "conectada" : "cerrada");
+    };
+    if (pump_ != nullptr)
+        cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+    sess->configure(cb, hub_.rtcFactory());
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::atencion());
+    if (!sess->setRemoteOffer(sdp)) {
+        log_.warn("sesion: setRemoteOffer de la atención de " + id + " falló", -1);
         releaseSession(pid, 0, true);
         return false;
     }
