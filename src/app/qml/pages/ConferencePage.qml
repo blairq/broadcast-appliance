@@ -956,6 +956,20 @@ Rectangle {
                     }
                 }
 
+                // Quién de la sala se ve en cada grilla de personas (resumen; tocando una cara
+                // se la fija, saca o mueve). Solo si hay alguna grilla.
+                Panel {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: grillasSala.implicitHeight + 62 // título (46) y margen de abajo (16)
+                    visible: grillasSala.hay
+                    title: "Grillas de personas"
+                    VistaGrillas {
+                        id: grillasSala
+                        anchors { left: parent.left; right: parent.right; top: parent.top }
+                        compacta: true
+                    }
+                }
+
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 352

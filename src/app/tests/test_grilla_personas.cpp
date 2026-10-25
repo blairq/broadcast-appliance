@@ -9,10 +9,17 @@
 //   4. Grupos: «en orden» concentra, «parejo» reparte, sin repetir a nadie; el
 //      «+N» en la última.
 //   5. Ajustes: los de fábrica, validar, el pedido al gateway.
+//   6. Al aire en otra grilla: las grillas al aire se reparten primero y las demás
+//      no repiten a quien ya se ve en una (sin vaivén).
+//   7. A mano: fijar (primero, aunque los filtros digan otra cosa), sacar (de la
+//      grilla y su grupo), mover, devolver.
+//   8. Lo que se ve: escenas anidadas y capas, sin recorrer dos veces una vuelta.
 // ============================================================================
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -281,6 +288,169 @@ void escala() {
     CHECK(r[0].personas.size() == 50 && r[0].mas == 0, "sin tope: los 50");
 }
 
+void alAireEnOtraGrilla() {
+    // Dos grillas sin grupo: X al aire, Y en la escena que se prepara. Quien está en X ya
+    // se ve: Y no lo repite (y no hay vaivén de una vuelta a la otra).
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("Y", 8), grilla("X", 2)};
+        gs[1].alAire = true;
+        auto v = gente(4);
+        auto res = rep.calcular(gs, v);
+        // X (tope 2 con «+N»): uno y «+3». Y: los otros tres.
+        CHECK(res[1].personas.size() == 1 && res[1].personas[0] == "sala:p0", "la grilla al aire se reparte primero");
+        CHECK(res[0].personas.size() == 3 &&
+                  std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p0") == res[0].personas.end(),
+              "la otra no repite al que ya está al aire en una grilla");
+        auto otra = rep.calcular(gs, v);
+        CHECK(otra[0].personas == res[0].personas && otra[1].personas == res[1].personas, "estable: la vuelta siguiente, igual");
+        // Con «sin_al_aire» apagado, Y muestra a todos.
+        gs[0].sinAlAire = false;
+        res = rep.calcular(gs, v);
+        CHECK(res[0].personas.size() == 4, "sin el filtro: todos");
+    }
+    // Las dos al aire y sin grupo: no se repiten; gana la que se reparte primero (el nombre).
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("B", 8), grilla("A", 8)};
+        gs[0].alAire = gs[1].alAire = true;
+        auto res = rep.calcular(gs, gente(3));
+        CHECK(res[1].personas.size() == 3 && res[0].personas.empty(), "dos al aire: nadie repetido");
+    }
+    // Ninguna al aire: cada una con todos (como antes).
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("B", 8), grilla("A", 8)};
+        auto res = rep.calcular(gs, gente(3));
+        CHECK(res[0].personas.size() == 3 && res[1].personas.size() == 3, "ninguna al aire: cada una con todos");
+    }
+    // Una grilla al aire de un grupo cuenta para las grillas de otros grupos.
+    {
+        Repartidor rep;
+        std::vector<Config> gs{grilla("Z", 8), grilla("G1", 2, "g", 1), grilla("G2", 2, "g", 2)};
+        gs[2].alAire = true; // solo G2 se ve; G1 está en otra escena
+        auto res = rep.calcular(gs, gente(4));
+        // El grupo g (en orden): G1 p0,p1; G2 p2,p3. En el aire solo lo de G2.
+        CHECK(res[1].personas.size() == 2 && res[2].personas.size() == 2 && res[2].personas[0] == "sala:p2",
+              "el grupo se reparte como siempre");
+        CHECK(res[0].personas == std::vector<std::string>({"sala:p0", "sala:p1"}),
+              "solo lo de la grilla al aire cuenta como al aire");
+    }
+}
+
+void aMano() {
+    // Fijar: entra primero aunque haya llegado último y no haya lugar.
+    {
+        Repartidor rep;
+        Manual m;
+        std::vector<Config> gs{grilla("g", 3)};
+        auto v = gente(5);
+        m.fijar("g", "sala:p4");
+        auto res = rep.calcular(gs, v, m);
+        CHECK(std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p4") != res[0].personas.end() && res[0].mas == 3,
+              "la fijada entra (y el «+N» cuenta al resto)");
+        // Fijada aunque los filtros digan otra cosa (al aire en otra fuente, sin cámara).
+        v[4].alAire = true;
+        v[4].conCamara = false;
+        gs[0].soloConCamara = true;
+        res = rep.calcular(gs, v, m);
+        CHECK(std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p4") != res[0].personas.end(),
+              "fijada: los filtros no la sacan");
+        // Ya en su lugar, una vuelta más no la mueve.
+        const auto antes = res[0].personas;
+        res = rep.calcular(gs, v, m);
+        CHECK(res[0].personas == antes, "estable con fijados");
+    }
+    // Fijar en una grilla del grupo: va en esa, no en la primera.
+    {
+        Repartidor rep;
+        Manual m;
+        std::vector<Config> gs{grilla("A", 4, "g", 1), grilla("B", 4, "g", 2)};
+        m.fijar("B", "sala:p0");
+        auto res = rep.calcular(gs, gente(3), m);
+        CHECK(res[1].personas.size() == 1 && res[1].personas[0] == "sala:p0", "fijada en B");
+        CHECK(res[0].personas.size() == 2 &&
+                  std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p0") == res[0].personas.end(),
+              "y no repetida en A");
+        res = rep.calcular(gs, gente(3), m);
+        CHECK(res[1].personas.size() == 1 && res[1].personas[0] == "sala:p0" && res[0].personas.size() == 2,
+              "en orden con un fijado en B: nadie la larga en la vuelta siguiente");
+        // Mover: sacar de B y fijar en A (mismo grupo: fijar alcanza).
+        m.fijar("A", "sala:p0");
+        res = rep.calcular(gs, gente(3), m);
+        CHECK(std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p0") != res[0].personas.end() &&
+                  std::find(res[1].personas.begin(), res[1].personas.end(), "sala:p0") == res[1].personas.end(),
+              "movida a A");
+    }
+    // Sacar: no aparece en esa ni en su grupo; devolver la trae de vuelta.
+    {
+        Repartidor rep;
+        Manual m;
+        std::vector<Config> gs{grilla("A", 2, "g", 1), grilla("B", 8, "g", 2), grilla("Sola", 8)};
+        m.sacar("A", "sala:p0");
+        auto res = rep.calcular(gs, gente(3), m);
+        bool enGrupo = false;
+        for (int i : {0, 1})
+            enGrupo = enGrupo || std::find(res[i].personas.begin(), res[i].personas.end(), "sala:p0") != res[i].personas.end();
+        CHECK(!enGrupo, "sacada: ni en A ni en B (su grupo)");
+        CHECK(std::find(res[2].personas.begin(), res[2].personas.end(), "sala:p0") != res[2].personas.end(),
+              "en otra grilla, fuera del grupo, sigue");
+        m.devolver("A", "sala:p0");
+        res = rep.calcular(gs, gente(3), m);
+        CHECK(std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p0") != res[0].personas.end() ||
+                  std::find(res[1].personas.begin(), res[1].personas.end(), "sala:p0") != res[1].personas.end(),
+              "devuelta: vuelve al grupo");
+    }
+    // El Manual: fijar suelta el fijo anterior y la saca de «fuera»; sacar suelta el fijo.
+    {
+        Manual m;
+        m.sacar("A", "k");
+        m.fijar("A", "k");
+        CHECK(m.fijo("A", "k") && !m.sacado("A", "k"), "fijar la devuelve");
+        m.fijar("B", "k");
+        CHECK(m.fijo("B", "k") && !m.fijo("A", "k"), "un fijo por persona");
+        m.sacar("B", "k");
+        CHECK(!m.fijo("B", "k") && m.sacado("B", "k"), "sacar suelta el fijo");
+        m.fijar("C", "j");
+        m.olvidarFuentesSalvo({"C"});
+        CHECK(m.fijo("C", "j") && !m.sacado("B", "k"), "se olvida de las grillas que no están");
+    }
+    // Fijados en un grupo al aire cuentan como al aire para los demás.
+    {
+        Repartidor rep;
+        Manual m;
+        std::vector<Config> gs{grilla("Aire", 2), grilla("Otra", 8)};
+        gs[0].alAire = true;
+        m.fijar("Aire", "sala:p2");
+        auto res = rep.calcular(gs, gente(3), m);
+        CHECK(res[0].personas.size() == 1 && res[0].personas[0] == "sala:p2", "la fijada, en la grilla al aire");
+        CHECK(std::find(res[1].personas.begin(), res[1].personas.end(), "sala:p2") == res[1].personas.end(),
+              "y la otra no la repite");
+    }
+}
+
+void loQueSeVe() {
+    // Programa: «Principal» con una cámara, la escena «Panel» adentro (que tiene una grilla y a
+    // su vez «Fondo»), y una capa DSK con la escena «Zócalo». «Fondo» contiene a «Panel» (una
+    // vuelta): no se recorre dos veces.
+    const std::map<std::string, std::vector<std::string>> escenas = {
+        {"Principal", {"Cam 1", "Panel"}},
+        {"Panel", {"Grilla", "Fondo"}},
+        {"Fondo", {"Imagen", "Panel"}},
+        {"Zócalo", {"Texto", "Cam 1"}},
+        {"Otra", {"Grilla 2"}}};
+    const auto itemsDe = [&](const std::string& n) -> std::optional<std::vector<std::string>> {
+        const auto it = escenas.find(n);
+        if (it == escenas.end()) return std::nullopt;
+        return it->second;
+    };
+    const auto v = fuentesQueSeVen({"Principal", "Zócalo", "Logo"}, itemsDe);
+    const std::vector<std::string> quiero{"Cam 1", "Grilla", "Imagen", "Texto", "Logo"};
+    CHECK(v == quiero, "las fuentes de las escenas anidadas y de las capas, una vez cada una");
+    CHECK(std::find(v.begin(), v.end(), "Grilla 2") == v.end(), "lo de una escena que no está al aire, no");
+    CHECK(fuentesQueSeVen({}, itemsDe).empty(), "sin programa: nada");
+}
+
 } // namespace
 
 int main() {
@@ -290,6 +460,9 @@ int main() {
     grupos();
     ajustes();
     escala();
+    alAireEnOtraGrilla();
+    aMano();
+    loQueSeVe();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

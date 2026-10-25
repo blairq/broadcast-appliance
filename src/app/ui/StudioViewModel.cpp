@@ -3736,6 +3736,7 @@ void StudioViewModel::emparejarControlWebUi() {
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::carasBotoneraQml() const { return carasBotonera_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
+QObject* StudioViewModel::grillasQml() const { return grillasPersonas_.get(); }
 QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
 double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }

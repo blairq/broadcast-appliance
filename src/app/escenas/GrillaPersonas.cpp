@@ -227,35 +227,119 @@ std::vector<Rect> disponer(int n, int ancho, int alto, int sep, int margen, doub
 }
 
 // ---------------------------------------------------------------------------
+// A mano y lo que se ve
+// ---------------------------------------------------------------------------
+
+bool Manual::fijo(const std::string& fuente, const std::string& clave) const {
+    const auto it = fijos.find(clave);
+    return it != fijos.end() && it->second == fuente;
+}
+
+void Manual::fijar(const std::string& fuente, const std::string& clave) {
+    fijos[clave] = fuente;
+    fuera.erase({fuente, clave});
+}
+
+void Manual::sacar(const std::string& fuente, const std::string& clave) {
+    if (fijo(fuente, clave)) fijos.erase(clave);
+    fuera.insert({fuente, clave});
+}
+
+void Manual::devolver(const std::string& fuente, const std::string& clave) {
+    if (fijo(fuente, clave)) fijos.erase(clave);
+    fuera.erase({fuente, clave});
+}
+
+void Manual::olvidarFuentesSalvo(const std::set<std::string>& existen) {
+    for (auto it = fijos.begin(); it != fijos.end();)
+        it = existen.count(it->second) ? std::next(it) : fijos.erase(it);
+    for (auto it = fuera.begin(); it != fuera.end();)
+        it = existen.count(it->first) ? std::next(it) : fuera.erase(it);
+}
+
+std::vector<std::string> fuentesQueSeVen(
+    const std::vector<std::string>& raices,
+    const std::function<std::optional<std::vector<std::string>>(const std::string&)>& itemsDe) {
+    std::vector<std::string> out;
+    std::set<std::string> vistas, escenas;
+    const std::function<void(const std::string&)> mirar = [&](const std::string& n) {
+        if (const auto hijos = itemsDe(n)) {
+            if (!escenas.insert(n).second) return; // ya recorrida (o se contiene a sí misma)
+            for (const std::string& h : *hijos) mirar(h);
+            return;
+        }
+        if (vistas.insert(n).second) out.push_back(n);
+    };
+    for (const std::string& r : raices) mirar(r);
+    return out;
+}
+
+// ---------------------------------------------------------------------------
 // Reparto
 // ---------------------------------------------------------------------------
 
-std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente) {
+std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente,
+                                            const Manual& manual) {
     std::map<std::string, const Persona*> porClave;
     for (const Persona& p : gente) porClave[p.clave] = &p;
 
     // Los grupos: las grillas con el mismo «grupo»; sin grupo, cada una sola.
     std::map<std::string, std::vector<const Config*>> grupos;
     for (const Config& c : grillas) grupos[c.grupo.empty() ? "\x01" + c.fuente : "\x02" + c.grupo].push_back(&c);
+    // Los que tienen una grilla al aire, primero (ver «GRILLAS AL AIRE PRIMERO» en el .hpp);
+    // entre ellos, el orden del mapa (estable de una vuelta a la otra).
+    std::vector<std::vector<const Config*>*> orden;
+    for (auto& [clave, gs] : grupos) orden.push_back(&gs);
+    const auto conAlAire = [](const std::vector<const Config*>* gs) {
+        return std::any_of(gs->begin(), gs->end(), [](const Config* c) { return c->alAire; });
+    };
+    std::stable_sort(orden.begin(), orden.end(), [&](const auto* a, const auto* b) { return conAlAire(a) && !conAlAire(b); });
+    std::set<std::string> enAire; // los que ya se ven en una grilla al aire (de los grupos ya repartidos)
 
     std::map<std::string, Resultado> porFuente;
     std::map<std::string, std::vector<std::string>> nuevos;
-    for (auto& [clave, gs] : grupos) {
+    for (std::vector<const Config*>* pgs : orden) {
+        std::vector<const Config*>& gs = *pgs;
         std::sort(gs.begin(), gs.end(), [](const Config* a, const Config* b) {
             return a->ordenEnGrupo != b->ordenEnGrupo ? a->ordenEnGrupo < b->ordenEnGrupo : a->fuente < b->fuente;
         });
         const Config& jefe = *gs.front();
         const int G = static_cast<int>(gs.size());
 
-        // Los candidatos: los que alguna grilla del grupo acepta, en el orden de la primera.
+        // Lo que se decidió a mano para este grupo: fijada en la grilla i (-1 = en ninguna de
+        // este grupo) y sacada de alguna grilla del grupo.
+        const auto fijaEn = [&](const std::string& clave) {
+            const auto it = manual.fijos.find(clave);
+            if (it == manual.fijos.end()) return -1;
+            for (int i = 0; i < G; ++i)
+                if (gs[i]->fuente == it->second) return i;
+            return -1;
+        };
+        const auto sacada = [&](const std::string& clave) {
+            return std::any_of(gs.begin(), gs.end(), [&](const Config* g) { return manual.sacado(g->fuente, clave); });
+        };
+        // ¿La grilla i del grupo acepta a p en esta vuelta?
+        const auto aceptaAca = [&](int i, const Persona& p) {
+            const int f = fijaEn(p.clave);
+            if (f >= 0) return f == i; // fijada: en la suya, digan lo que digan los filtros
+            if (sacada(p.clave) || !acepta(*gs[i], p)) return false;
+            return !(gs[i]->sinAlAire && enAire.count(p.clave));
+        };
+
+        // Los candidatos: los que alguna grilla del grupo acepta, en el orden de la primera;
+        // los fijados, antes que nadie (el operador los quiere ver).
         std::vector<const Persona*> cands;
         for (const Persona& p : gente)
-            for (const Config* g : gs)
-                if (acepta(*g, p)) {
+            for (int i = 0; i < G; ++i)
+                if (aceptaAca(i, p)) {
                     cands.push_back(&p);
                     break;
                 }
-        std::sort(cands.begin(), cands.end(), [&](const Persona* a, const Persona* b) { return antes(jefe.orden, *a, *b); });
+        std::sort(cands.begin(), cands.end(), [&](const Persona* a, const Persona* b) {
+            const bool fa = fijaEn(a->clave) >= 0, fb = fijaEn(b->clave) >= 0;
+            if (fa != fb) return fa;
+            return antes(jefe.orden, *a, *b);
+        });
 
         std::vector<int> cap(G);
         int capTotal = 0;
@@ -294,6 +378,20 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                     }
             }
         }
+        // Una grilla quiere por lo menos a sus fijados: se los saca a las otras (de atrás para
+        // adelante), así nadie larga gente que después tiene que volver a tomar.
+        std::vector<int> fijados(G, 0);
+        for (int i = 0; i < n; ++i)
+            if (const int f = fijaEn(cands[static_cast<std::size_t>(i)]->clave); f >= 0) ++fijados[f];
+        for (int i = 0; i < G; ++i)
+            while (meta[i] < std::min(fijados[i], cap[i])) {
+                int j = G - 1;
+                while (j >= 0 && (j == i || meta[j] <= fijados[j])) --j;
+                if (j < 0) break;
+                --meta[j];
+                ++meta[i];
+            }
+        const auto esFijo = [&](int i, const std::optional<std::string>& k) { return k.has_value() && fijaEn(*k) == i; };
 
         // 1) Los que siguen elegidos se quedan en su lugar (con hueco donde había alguien que se fue).
         std::vector<std::vector<std::optional<std::string>>> lugares(G);
@@ -303,7 +401,7 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             if (it == lugares_.end()) continue;
             for (const std::string& k : it->second) {
                 const auto p = porClave.find(k);
-                const bool queda = p != porClave.end() && elegidos.count(k) && !ubicados.count(k) && acepta(*gs[i], *p->second);
+                const bool queda = p != porClave.end() && elegidos.count(k) && !ubicados.count(k) && aceptaAca(i, *p->second);
                 if (queda) ubicados.insert(k);
                 lugares[i].push_back(queda ? std::optional<std::string>(k) : std::nullopt);
             }
@@ -311,27 +409,33 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         const auto cuenta = [&](int i) {
             return static_cast<int>(std::count_if(lugares[i].begin(), lugares[i].end(), [](const auto& x) { return x.has_value(); }));
         };
+        // Larga al ÚLTIMO que llegó a la grilla i y no está fijado ahí. false si no hay a quién.
+        const auto largarUno = [&](int i) {
+            for (auto it = lugares[i].rbegin(); it != lugares[i].rend(); ++it)
+                if (it->has_value() && !esFijo(i, *it)) {
+                    ubicados.erase(**it);
+                    *it = std::nullopt;
+                    return true;
+                }
+            return false;
+        };
         // 2) Una grilla con más de los que le tocan (otra del grupo quedó con menos, o bajó el
         //    tope) larga a los ÚLTIMOS que llegaron a ella: los de adelante no se mueven.
         for (int i = 0; i < G; ++i)
-            while (cuenta(i) > meta[i]) {
-                for (auto it = lugares[i].rbegin(); it != lugares[i].rend(); ++it)
-                    if (it->has_value()) {
-                        ubicados.erase(**it);
-                        *it = std::nullopt;
-                        break;
-                    }
+            while (cuenta(i) > meta[i] && largarUno(i)) {
             }
         // 3) Los nuevos, en orden: a la primera grilla que los acepta y quiere más; si ninguna
-        //    quiere, a la primera con lugar. Primero a los huecos, después al final.
+        //    quiere, a la primera con lugar. Primero a los huecos, después al final. El fijado va
+        //    a la suya aunque esté llena: se le hace lugar largando al último que no está fijado.
         for (int idx = 0; idx < n; ++idx) {
             const Persona& p = *cands[static_cast<std::size_t>(idx)];
             if (ubicados.count(p.clave)) continue;
-            int dest = -1;
+            int dest = fijaEn(p.clave);
+            if (dest >= 0 && cuenta(dest) >= cap[dest] && !largarUno(dest)) continue; // llena de fijados: «+N»
             for (int i = 0; i < G && dest < 0; ++i)
-                if (cuenta(i) < meta[i] && acepta(*gs[i], p)) dest = i;
+                if (cuenta(i) < meta[i] && aceptaAca(i, p)) dest = i;
             for (int i = 0; i < G && dest < 0; ++i)
-                if (cuenta(i) < cap[i] && acepta(*gs[i], p)) dest = i;
+                if (cuenta(i) < cap[i] && aceptaAca(i, p)) dest = i;
             if (dest < 0) continue; // ninguna lo acepta con lugar: cuenta en el «+N»
             auto hueco = std::find_if(lugares[dest].begin(), lugares[dest].end(), [](const auto& x) { return !x.has_value(); });
             if (hueco != lugares[dest].end())
@@ -365,6 +469,8 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                 r.celdas.push_back({r.personas[j], rects[j], gs[i]->resaltar && p != nullptr && p->hablando});
             }
             if (r.mas > 0 && !rects.empty()) r.rMas = rects.back();
+            // Quien quedó en una grilla al aire ya se ve: los grupos que siguen lo cuentan así.
+            if (gs[i]->alAire) enAire.insert(r.personas.begin(), r.personas.end());
             nuevos[r.fuente] = r.personas;
             porFuente[r.fuente] = std::move(r);
         }

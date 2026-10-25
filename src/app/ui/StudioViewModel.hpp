@@ -234,6 +234,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* carasBotonera READ carasBotoneraQml CONSTANT)
     /// Las capas DSK encima del programa (control/Dsk): logo, intérprete LSA, zócalo fijo.
     Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
+    /// La grilla de personas (escenas/ControlGrillas): quién está en cada una y lo hecho a mano.
+    Q_PROPERTY(QObject* grillas READ grillasQml CONSTANT)
     /// Seguir al micrófono abierto: propone (o arma) la banca que pidió la palabra.
     Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
     /// El orden del día de la sesión y el uso de la palabra (asamblea/OrdenDelDia).
@@ -544,6 +546,7 @@ class StudioViewModel : public QObject {
     QObject* satelliteQml() const;
     QObject* carasBotoneraQml() const;
     QObject* dskQml() const;
+    QObject* grillasQml() const;
     QObject* seguirMicrofonoQml() const;
     asamblea::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
     QObject* ordenDelDiaQml() const;
