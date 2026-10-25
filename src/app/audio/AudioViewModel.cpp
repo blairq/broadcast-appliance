@@ -98,6 +98,10 @@ void AudioViewModel::refresh() {
     rebuildDetail();
 }
 
+void AudioViewModel::revisarFuentes() {
+    if (toVariant(mgr_.audioSources()).toList() != sources_) refresh();
+}
+
 AudioRack* AudioViewModel::rack(bool create) {
     if (source_.isEmpty()) return nullptr;
     return mgr_.rack(source_.toStdString(), create);

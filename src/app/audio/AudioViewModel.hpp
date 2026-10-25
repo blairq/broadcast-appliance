@@ -55,6 +55,9 @@ class AudioViewModel : public QObject {
 
     Q_INVOKABLE void setActive(bool on);
     Q_INVOKABLE void refresh();
+    /// Cambiaron las fuentes o las entradas de audio (lo avisa el runtime, lo
+    /// haya pedido quien sea): la lista se rehace si quedó distinta.
+    void revisarFuentes();
     Q_INVOKABLE void selectSource(const QString& name);
     /// La vista general de todo el audio (RackManager::estudio): {nodos, cables, franjas}.
     Q_INVOKABLE QVariantMap estudio() const;

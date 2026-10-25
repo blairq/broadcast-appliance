@@ -3348,6 +3348,9 @@ void StudioViewModel::refrescarAvisos() {
     if (hubo(C::Audio) && mixer_->rowCount() > 0)
         emit mixer_->dataChanged(mixer_->index(0), mixer_->index(mixer_->rowCount() - 1),
                                  {MixerModel::VolumeDbRole, MixerModel::MutedRole});
+    // Una entrada de audio nueva (audio_input_add del MCP, un plugin): la lista de
+    // fuentes de la página Audio la muestra sin tener que volver a entrar.
+    if ((hubo(C::Audio) || hubo(C::Fuentes)) && audio_) audio_->revisarFuentes();
     if (hubo(C::Escenas) || hubo(C::Aire)) {
         scenes_->liveChanged();
         emit sceneChanged();
