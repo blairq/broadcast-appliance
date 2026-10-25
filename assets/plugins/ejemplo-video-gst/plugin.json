@@ -1,0 +1,10 @@
+{
+  "id": "ejemplo-video-gst",
+  "nombre": "Ejemplo: tarjetas de video con GStreamer en Python",
+  "descripcion": "Punto de partida para un efecto, un filtro o un análisis de video que el grafo no trae. Tres tarjetas del grafo (tarjeta «plugin» / baplugin): «vineta», un elemento de GStreamer escrito en Python (oscurece los bordes); «efecto», que pasa el cuadro por cualquier cadena de módulos de GStreamer, los del programa y los propios («bavineta fuerza=0.5 ! videobalance saturation=0.6»); y «medir», que no cambia la imagen: mide brillo y movimiento sobre una versión chica y avisa con el evento «movimiento». Solo numpy y el GStreamer del programa.",
+  "version": "1.0",
+  "categoria": "video",
+  "principal": "plugin.py",
+  "dependencias": ["numpy"],
+  "config": {}
+}

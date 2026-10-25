@@ -1,0 +1,17 @@
+{
+  "id": "ejemplo-equipo-red",
+  "nombre": "Ejemplo: equipo por la red (protocolo de texto)",
+  "descripcion": "Punto de partida para manejar un aparato que se controla por la red con líneas de texto (dimmers de luces, matrices, relés, tableros, sensores…: casi todos tienen un «protocolo TCP» en el manual). Se conecta a `host`:`puerto`, se reconecta solo si se corta, pregunta el estado cada tanto, maneja dos luces desde el panel del operador y convierte los botones del aparato en eventos y acciones del sistema (`al_boton`). Con `modo: simulador` trae su propio aparato de mentira en esta máquina, así que anda y se prueba sin el equipo. Para otro aparato: cambiar las órdenes de `Equipo` por las del manual. Sin dependencias.",
+  "version": "1.0",
+  "categoria": "equipo",
+  "principal": "plugin.py",
+  "dependencias": [],
+  "herramientas": ["scene_switch", "operator_message"],
+  "config": {
+    "modo": "simulador",
+    "host": "192.168.1.50",
+    "puerto": 4001,
+    "consultar_cada_s": 2,
+    "al_boton": {"1": {"herramienta": "operator_message", "args": {"text": "Apretaron el botón 1 del equipo"}}}
+  }
+}

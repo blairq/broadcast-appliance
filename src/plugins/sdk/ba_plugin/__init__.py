@@ -13,7 +13,9 @@ sistema cualquiera de estas cosas:
     * ``e = plugin.entrada("Nombre", video=True)`` y ``e.enviar_video(arr)``:
       los cuadros los hace el plugin.
 - TARJETAS del grafo de video (y filtros de audio): una función que recibe cada
-  cuadro (o bloque de audio) y lo cambia. ``@plugin.tarjeta("nombre")``.
+  cuadro (o bloque de audio) y lo cambia. ``@plugin.tarjeta("nombre")``. Adentro
+  se puede usar GStreamer entero, con elementos propios escritos en Python:
+  ``from ba_plugin import gst`` (ver gst.py y el ejemplo ``ejemplo-video-gst``).
 - PTZ de una cámara que se maneja de una forma rara (USB propio, HID, serie,
   HTTP de la marca): ``@plugin.ptz("Entrada")`` sobre una clase con mover/parar…
   y la cámara queda manejable como cualquier otra (botonera, posiciones,

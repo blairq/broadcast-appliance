@@ -3,6 +3,7 @@
   "nombre": "Ejemplo: desdoblar ojo de pez (360) y seguir la voz",
   "descripcion": "Una tarjeta de video que toma una imagen de ojo de pez (o la mitad de dos ojos de pez lado a lado, como las 360 de sala) y la convierte en una vista normal hacia donde se le diga (`yaw`, `pitch`, `campo`). Si `seguir_voz` está prendido, escucha los eventos «hablando» con `angulo` (de una Kandao o de un arreglo de micrófonos) y gira la vista hacia quien habla. Solo numpy.",
   "version": "1.0",
+  "categoria": "video",
   "principal": "plugin.py",
   "dependencias": ["numpy"],
   "config": {"seguir_voz": true, "suavizado": 0.25}

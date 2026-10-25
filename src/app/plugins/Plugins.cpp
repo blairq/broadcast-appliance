@@ -244,8 +244,9 @@ bool volatil(const std::string& rel) {
 namespace {
 /// Lo que la app escribe en plugin.json y no es código: no cuenta para el hash
 /// (cambiar un ajuste no le quita la aprobación; el mismo ejemplo instalado con
-/// otro id es el mismo código).
-const char* const kNoEsCodigo[] = {"config", "id", "ejemplo", "ejemplo_huella"};
+/// otro id es el mismo código). `categoria` ordena los ejemplos en «Nuevo desde un
+/// ejemplo»: sumársela a un ejemplo no tiene que «actualizar» las copias instaladas.
+const char* const kNoEsCodigo[] = {"config", "id", "ejemplo", "ejemplo_huella", "categoria"};
 
 /// El hash de una carpeta de plugin: un hash por archivo (nombre + contenido) y
 /// el total sobre la lista, así se puede decir QUÉ archivo cambió. `v` 1 es el de
@@ -433,13 +434,36 @@ json Plugins::listar() const {
 json Plugins::ejemplosDisponibles() const {
     json out = json::array();
     std::error_code ec;
+    // Por categoría (en este orden) y, adentro, primero los «ejemplo-…» (los moldes
+    // para arrancar uno nuevo) y después los listos para usar. El orden del disco
+    // cambia de un sistema a otro: la lista tiene que salir igual en todos.
+    static const std::vector<std::string> kOrden{"inicio", "video", "automatizacion", "equipo", "superficie"};
+    auto rango = [](const std::string& c) {
+        const auto it = std::find(kOrden.begin(), kOrden.end(), c);
+        return static_cast<int>(it - kOrden.begin());
+    };
+    std::vector<json> todos;
     for (const auto& d : fs::directory_iterator(ejemplos(), ec)) {
         const json man = leerJson(d.path() / "plugin.json");
         if (man.empty()) continue;
-        out.push_back({{"ejemplo", d.path().filename().string()},
-                       {"nombre", man.value("nombre", std::string())},
-                       {"descripcion", man.value("descripcion", std::string())}});
+        const std::string ej = d.path().filename().string();
+        // El id para la copia: «ejemplo-video-gst» → «mi-video-gst».
+        const std::string sugerido = ej.rfind("ejemplo-", 0) == 0 ? "mi-" + ej.substr(8) : "mi-" + ej;
+        todos.push_back({{"ejemplo", ej},
+                         {"nombre", man.value("nombre", std::string())},
+                         {"descripcion", man.value("descripcion", std::string())},
+                         {"categoria", man.value("categoria", std::string("otros"))},
+                         {"molde", ej.rfind("ejemplo-", 0) == 0},
+                         {"id_sugerido", sugerido.substr(0, 40)}});
     }
+    std::sort(todos.begin(), todos.end(), [&](const json& a, const json& b) {
+        const int ra = rango(a["categoria"].get<std::string>()), rb = rango(b["categoria"].get<std::string>());
+        if (ra != rb) return ra < rb;
+        if (a["molde"] != b["molde"]) return a["molde"].get<bool>();
+        return a["ejemplo"].get<std::string>() < b["ejemplo"].get<std::string>();
+    });
+    for (auto& e : todos)
+        out.push_back(std::move(e));
     return out;
 }
 
@@ -1608,6 +1632,23 @@ print(json.dumps(out, ensure_ascii=False, default=str))
 
 QVariantList Plugins::listaQml() const { return qv(listar()).toList(); }
 QVariantList Plugins::ejemplosQml() const { return qv(ejemplosDisponibles()).toList(); }
+QVariantList Plugins::tarjetasVideoQml() const {
+    // Solo las de los que corren: una tarjeta de un plugin apagado no tiene quién la
+    // procese (pasaría la imagen sin tocar), así que no se ofrece para agregar.
+    json out = json::array();
+    for (const auto& [id, p] : procesos_) {
+        if (!p || p->estado != "corriendo") continue;
+        const json man = leerJson(carpetaDe(id) / "plugin.json");
+        for (const auto& d : p->declarado)
+            if (d.value("t", "") == "tarjeta" && d.value("medio", "video") == "video")
+                out.push_back({{"plugin", id},
+                               {"tarjeta", d.value("nombre", std::string())},
+                               {"nombre", man.value("nombre", id) + " · " + d.value("nombre", std::string())},
+                               {"descripcion", d.value("descripcion", std::string())},
+                               {"parametros", d.value("parametros", json::object())}});
+    }
+    return qv(out).toList();
+}
 QVariantMap Plugins::pruebasQml() const {
     json o = json::object();
     for (const auto& [k, v] : pruebas_)

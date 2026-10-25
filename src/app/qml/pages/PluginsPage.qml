@@ -138,7 +138,8 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         text: "Contale qué equipo es o qué necesitás (por ejemplo: «tengo una Logitech Rally por USB y quiero manejar su PTZ», " +
-                              "«juntá las dos Kandao y que se vea quien habla»). Lo escribe, lo prueba sin tocar el aire y lo deja andando."
+                              "«juntá las dos Kandao y que se vea quien habla», «un efecto de viejo para la cámara 2», «avisame si hay movimiento en la cámara del hall»). " +
+                              "Lo escribe, lo prueba sin tocar el aire y lo deja andando."
                         color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
                     RowLayout {
@@ -166,38 +167,94 @@ Rectangle {
                 }
             }
 
-            // --- Los plugins ---------------------------------------------------------
-            RowLayout {
+            // --- Nuevo desde un ejemplo ------------------------------------------------
+            // Los ejemplos vienen con el programa, ordenados por categoría (Plugins::
+            // ejemplosDisponibles, la misma lista que ve el asistente en plugin_listar).
+            // Se copian a Datos/Plugins/<id> y ahí se cambian: el ejemplo queda intacto.
+            Panel {
+                id: nuevoPanel
                 Layout.fillWidth: true
-                Text { text: "Instalados"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
-                Item { Layout.fillWidth: true }
-                ComboBox {
-                    id: ejemploBox
-                    Layout.preferredWidth: 260
-                    model: page.pl.ejemplos
-                    textRole: "nombre"
-                    displayText: currentIndex < 0 ? "Copiar un ejemplo…" : currentText
-                    currentIndex: -1
-                    ToolTip.visible: hovered && currentIndex >= 0
-                    ToolTip.text: currentIndex >= 0 ? page.pl.ejemplos[currentIndex].descripcion : ""
+                padding: 12
+                implicitHeight: nuevoCol.implicitHeight + 2 * padding
+                readonly property var elegido: ejemploBox.currentIndex >= 0 ? page.pl.ejemplos[ejemploBox.currentIndex] : null
+                function nombreCategoria(c) {
+                    switch (c) {
+                    case "inicio": return "Para empezar"
+                    case "video": return "Video"
+                    case "automatizacion": return "Automatización"
+                    case "equipo": return "Equipos"
+                    case "superficie": return "Superficies de control"
+                    default: return "Otros"
+                    }
                 }
-                TextField {
-                    id: nuevoId
-                    Layout.preferredWidth: 160
-                    placeholderText: "id nuevo (mi-camara)"
-                    color: Theme.text; font.pixelSize: 12
-                    validator: RegularExpressionValidator { regularExpression: /[a-z0-9-]{0,40}/ }
-                }
-                GlassButton {
-                    compact: true; text: "Copiar"; icon: "＋"
-                    enabled: ejemploBox.currentIndex >= 0 && nuevoId.text !== ""
-                    onClicked: {
-                        const e = page.pl.copiarEjemplo(page.pl.ejemplos[ejemploBox.currentIndex].ejemplo, nuevoId.text)
-                        if (e !== "") Studio.notify(e, "error")
-                        else { page.abierto = nuevoId.text; page.vista = "resumen"; nuevoId.text = ""; ejemploBox.currentIndex = -1 }
+                ColumnLayout {
+                    id: nuevoCol
+                    anchors.fill: parent
+                    spacing: 8
+                    Text { text: "Nuevo desde un ejemplo"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Un punto de partida que ya anda: una tarjeta de video hecha con GStreamer en Python (efecto, filtro o análisis), " +
+                              "una automatización que escucha el estudio y actúa, un equipo por la red (con simulador para probarlo sin el aparato)… " +
+                              "Se copia con el nombre que le pongas y el código queda para cambiarlo (o pedíselo al asistente)."
+                        color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        ComboBox {
+                            id: ejemploBox
+                            Layout.fillWidth: true
+                            model: page.pl.ejemplos
+                            textRole: "nombre"
+                            displayText: currentIndex < 0 ? "Elegí un ejemplo…"
+                                                          : nuevoPanel.nombreCategoria(nuevoPanel.elegido.categoria) + " · " + currentText
+                            currentIndex: -1
+                            delegate: ItemDelegate {
+                                required property var modelData
+                                required property int index
+                                width: ejemploBox.width
+                                highlighted: ejemploBox.highlightedIndex === index
+                                contentItem: Text {
+                                    text: nuevoPanel.nombreCategoria(modelData.categoria) + " · " + modelData.nombre
+                                    color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight
+                                    font.weight: modelData.molde ? Font.DemiBold : Font.Normal
+                                }
+                            }
+                            // El id de la copia, sugerido: «ejemplo-video-gst» → «mi-video-gst».
+                            onActivated: nuevoId.text = nuevoPanel.elegido ? nuevoPanel.elegido.id_sugerido : ""
+                        }
+                        TextField {
+                            id: nuevoId
+                            Layout.preferredWidth: 180
+                            placeholderText: "id nuevo (mi-camara)"
+                            color: Theme.text; font.pixelSize: 12
+                            validator: RegularExpressionValidator { regularExpression: /[a-z0-9-]{0,40}/ }
+                        }
+                        GlassButton {
+                            compact: true; text: "Crear"; icon: "＋"; active: true
+                            enabled: nuevoPanel.elegido !== null && nuevoId.text !== ""
+                            onClicked: {
+                                const e = page.pl.copiarEjemplo(nuevoPanel.elegido.ejemplo, nuevoId.text)
+                                if (e !== "") Studio.notify(e, "error")
+                                else {
+                                    Studio.notify("Listo «" + nuevoId.text + "»: prendelo y usalo desde su tarjeta de abajo", "info")
+                                    page.abierto = nuevoId.text; page.vista = "resumen"; nuevoId.text = ""; ejemploBox.currentIndex = -1
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: nuevoPanel.elegido !== null
+                        text: nuevoPanel.elegido ? nuevoPanel.elegido.descripcion : ""
+                        color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
                 }
             }
+
+            // --- Los plugins ---------------------------------------------------------
+            Text { text: "Instalados"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
 
             Text {
                 visible: page.pl.lista.length === 0

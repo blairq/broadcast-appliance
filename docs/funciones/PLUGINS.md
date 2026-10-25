@@ -106,6 +106,10 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
   - HID (`hid_listar/hid_abrir`);
   - serie (`serie_listar`).
 - `ba_plugin.herramientas`: ffmpeg, ffprobe, yt-dlp y gst-launch **del programa** (`tools/deps/herramientas.sh`, en `herramientas/` del bundle y primeros en el PATH de cada plugin): `ruta(nombre)`, `correr(nombre, *args)`, `probar(archivo)` (ffprobe en JSON). No se bajan.
+- `ba_plugin.gst`: **GStreamer adentro del plugin** (el programa trae PyGObject y gst-python para su Python, en los tres sistemas):
+  - `@bagst.elemento("nombre", propiedades={...})` sobre `def f(a, props)`: un elemento de GStreamer escrito en Python (un `GstBase.BaseTransform` de verdad, registrado en el proceso del plugin); `a` es el cuadro RGBA en numpy, sin copiar.
+  - `bagst.cadena("videobalance saturation=0 ! mielemento")`: pasa el cuadro de una tarjeta por una cadena de módulos (los del programa y los propios), una por tarjeta puesta (por hilo); `.procesar(cuadro)` deja el resultado en el lugar y `.poner("nombre", prop=v)` cambia un elemento en vivo.
+  - Por qué adentro del plugin y no como elemento cargado en la app: el plugin corre en su proceso y la tarjeta `baplugin` tiene tope de espera; un elemento de Python adentro de la app podría trabar la emisión.
 - `ba_plugin.probar` corre el plugin **sin la app**. Le pasa cuadros y audio de prueba a sus tarjetas, escucha sus entradas, llama controles y devuelve un informe JSON. Es `plugin_probar`.
 
 ## Procesos: posix_spawn, no QProcess
@@ -160,6 +164,25 @@ veces por sesión: un plugin que «no arrancaba en 20 s», `dispositivos_listar`
 También `video_pipeline` / `video_tarjeta_agregar` aceptan `{"tipo": "plugin", "plugin",
 "tarjeta", "parametros"}`, que es una tarjeta `gst` con el módulo `baplugin`.
 
+## Los ejemplos (moldes) y «Nuevo desde un ejemplo»
+
+Los ejemplos (`assets/plugins`) llevan `"categoria"` en su plugin.json (`inicio`, `video`,
+`automatizacion`, `equipo`, `superficie`): la página Plugins los ofrece en **«Nuevo desde un ejemplo»**
+por categoría, con un id sugerido, y `plugin_listar` los da en ese mismo orden (una sola lista,
+`Plugins::ejemplosDisponibles`). `categoria` no cuenta para el hash del código.
+
+| Molde | Para qué |
+|---|---|
+| `ejemplo-video-gst` | Un efecto, filtro o análisis de video: tres tarjetas del grafo (`baplugin`): `vineta` (un elemento de GStreamer escrito en Python), `efecto` (cualquier cadena de módulos de GStreamer) y `medir` (brillo y movimiento sin tocar la imagen, con el evento `movimiento`) |
+| `ejemplo-automatizacion` | «Cuando pasa X, hacé Y»: escucha `aire/escena` y `salida/stream`, lleva la minuta de lo que salió al aire, recuerda al operador cuánto lleva y le manda el resumen; `"herramientas": ["operator_message"]`; control `simular` para probarlo |
+| `ejemplo-equipo-red` | Un aparato con protocolo de texto por TCP: conexión con reconexión, órdenes con respuesta, avisos del equipo como eventos y acciones (`al_boton`), panel, y un simulador del aparato adentro (`modo: simulador`) |
+| `ejemplo-basico` | Todo lo que puede un plugin: tarjeta de video, filtro de audio, entrada propia, panel, control y evento |
+
+El camino completo de una tarjeta de video: `plugin_desde_ejemplo` (o la página) → `plugin_probar` →
+`plugin_activar` → `plugin_tarjeta {"id", "tarjeta", "entrada"}` (queda en el grafo como «Plugin ·
+<tarjeta>», el módulo `baplugin`) → `video_tarjeta_ajustar`. `Plugins.tarjetasVideo` (propiedad para
+QML) lista las tarjetas de video de los plugins que corren, para el catálogo del grafo.
+
 ## Los casos que dieron origen a esto
 
 - **PTZ raro por USB** (`ejemplo-ptz-uvc`): la imagen es una entrada `camara` (la de «dispositivo» en la configuración; vacío = la primera) y el PTZ, `@plugin.ptz` con UVC estándar o las XU de la marca. La cámara queda como cualquier PTZ: botonera, posiciones con nombre, `ptz_*`.
@@ -177,6 +200,7 @@ También `video_pipeline` / `video_tarjeta_agregar` aceptan `{"tipo": "plugin", 
   - el audio pasa por una tarjeta de audio (0,4 → 0,2);
   - con el plugin caído, la tarjeta deja pasar la imagen.
 - Los ejemplos se prueban con `python3 -I src/plugins/sdk/ba_plugin/probar.py <carpeta>`.
+- `test_plugins_ejemplos` (ctest, `src/plugins/sdk/tests/test_ejemplos.py`): los cuatro moldes con el Python de extern y su GStreamer (las tarjetas cambian el cuadro, la automatización avisa, el equipo contesta a su simulador).
 
 ## Pendiente
 
