@@ -37,7 +37,7 @@ JOBS="${1:-$(nproc)}"
 VER=1.28.7
 COMMIT=070125524a8422e29d3b69a372ed4f62fd343ffa
 # Subir RECETA al cambiar opciones: si no, «ya está» y no recompila.
-RECETA=5
+RECETA=6
 URL=https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 SRC="$ROOT/extern/.build-gstreamer"
 PREFIX="$ROOT/extern/gstreamer-linux"
@@ -115,6 +115,10 @@ export CFLAGS="-O2 -I$LADO/include" CXXFLAGS="-O2"
 export LDFLAGS="-L$LADO/lib -L$DEPS/lib"
 export LIBRARY_PATH="$LADO/lib"
 
+# Pango, HarfBuzz y FriBiDi salen de los subproyectos fijados del monorepo (como ogg u opus):
+# quedan en lib/ del GStreamer del bundle, como en el de macOS y el de Windows. Los usan el
+# plugin pango (textoverlay) y el texto del overlay de barostros (src/gst-plugins/CMakeLists.txt,
+# que sin ellos frena el build). Cairo es el de extern/terceros-linux.
 B="$SRC/b"
 rm -rf "$PREFIX"
 log "configurando $VER ($COMMIT)"
@@ -124,13 +128,14 @@ if [ -f "$B/build.ninja" ]; then RECONF=--reconfigure; meson configure --clearca
 meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto -Dpkg_config_path="$PKG_CONFIG_PATH" \
     -Dpython.platlibdir=lib/python3.12/site-packages -Dpython.purelibdir=lib/python3.12/site-packages \
-    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123,gobject-introspection,pygobject \
+    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123,gobject-introspection,pygobject,pango,harfbuzz,fribidi \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
     -Dgpl=enabled -Dorc=enabled \
     -Dpython=enabled -Dintrospection=enabled -Ddevtools=disabled -Dges=disabled -Drs=disabled -Dgst-examples=disabled -Dsharp=disabled \
     -Dlibnice=disabled -Dgtk=disabled -Dqt5=disabled -Dqt6=disabled -Dtls=disabled -Dwebrtc=disabled \
     -Dtests=disabled -Dexamples=disabled -Ddoc=disabled -Dnls=disabled -Dbenchmarks=disabled \
     -Dgst-plugins-base:gl=enabled -Dgst-plugins-base:x11=enabled -Dgst-plugins-base:alsa=enabled \
+    -Dgst-plugins-base:pango=enabled \
     -Dgst-plugins-good:pulse=enabled -Dgst-plugins-good:v4l2=enabled \
     -Dgst-plugins-bad:srt=enabled -Dgst-plugins-bad:va=enabled \
     -Dgst-plugins-ugly:x264=enabled \
