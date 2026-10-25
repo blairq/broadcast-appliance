@@ -13,6 +13,7 @@
 #include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QImage>
 #include <QQuickItem>
 #include <QUrl>
 
@@ -63,6 +64,21 @@ class TerminalFalsa : public QQuickItem {
     QString fontFamily_;
 };
 
+class ImagenVivaFalsa : public QQuickItem { // ui/ImagenViva.hpp
+    Q_OBJECT
+    Q_PROPERTY(QImage imagen MEMBER imagen_ NOTIFY cambio)
+    Q_PROPERTY(bool ajustar MEMBER ajustar_ NOTIFY cambio)
+    Q_PROPERTY(bool hayImagen READ no NOTIFY cambio)
+   public:
+    bool no() const { return false; }
+   signals:
+    void cambio();
+
+   private:
+    QImage imagen_;
+    bool ajustar_ = true;
+};
+
 int main(int argc, char** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app(argc, argv);
@@ -71,6 +87,7 @@ int main(int argc, char** argv) {
     qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &studio);
     qmlRegisterType<VideoItemFalso>("BA", 1, 0, "VideoItem");
     qmlRegisterType<TerminalFalsa>("BA", 1, 0, "TerminalView");
+    qmlRegisterType<ImagenVivaFalsa>("BA", 1, 0, "ImagenViva");
     qmlRegisterType<ba::app::Vumetro>("BA", 1, 0, "Vumetro");
     qmlRegisterSingletonType(QUrl::fromLocalFile(dir + "/Theme.qml"), "BA", 1, 0, "Theme");
 
