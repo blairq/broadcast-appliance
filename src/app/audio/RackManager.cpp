@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "audio/RackManager.hpp"
+#include "audio/GrupoDeSalida.hpp"
 #include "platform/Paths.hpp"
 #include "dispositivos/Conocidos.hpp"
 
@@ -345,20 +346,6 @@ void RackManager::detach(Filter* f) {
 
 // --- Salidas de audio del equipo ------------------------------------------------
 
-namespace {
-/// Placa a la que pertenece una salida, para agrupar la lista. En PulseAudio el
-/// id es `alsa_output.<placa>.<perfil>__<puerto>__sink`: la placa es el tramo
-/// que sigue al prefijo. Si no se reconoce, la salida queda en su propio grupo.
-std::string deviceGroupOf(const std::string& id, const std::string& name) {
-    const std::size_t dot = id.find('.');
-    if (dot != std::string::npos) {
-        const std::size_t end = id.find('.', dot + 1);
-        if (end != std::string::npos) return id.substr(dot + 1, end - dot - 1);
-    }
-    return name.empty() ? std::string("Otras salidas") : name;
-}
-} // namespace
-
 json RackManager::outputDevices() const {
     struct Item {
         std::string id, name;
@@ -369,7 +356,8 @@ json RackManager::outputDevices() const {
     std::map<std::string, json> byGroup;
     std::map<std::string, std::string> label;
     for (const auto& it : items) {
-        const std::string g = deviceGroupOf(it.id, it.name);
+        // Por id, no por nombre: renombrar una salida no la saca de su placa.
+        const std::string g = grupoDeSalida(it.id);
         if (byGroup.find(g) == byGroup.end()) {
             order.push_back(g);
             byGroup[g] = json::array();

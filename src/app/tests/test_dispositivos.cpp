@@ -2,6 +2,7 @@
 // nombres del operador (persistencia, renombre, choques), ausentes y detectores
 // (sin hardware: los detectores son de mentira)
 
+#include "audio/GrupoDeSalida.hpp"
 #include "dispositivos/Conocidos.hpp"
 #include "dispositivos/Dispositivos.hpp"
 
@@ -210,6 +211,23 @@ int main(int argc, char** argv) {
         d.escanear("local", [](QVariantMap) {});
         CHECK(d.olvidar("local:audio:UID-1").isEmpty() && d.equipo("local:audio:UID-1").isEmpty(),
               "un ausente se puede olvidar");
+    }
+
+    // --- El grupo de una salida de audio sale de su id, nunca del nombre ----------
+    {
+        using ba::app::audio::grupoDeSalida;
+        CHECK(grupoDeSalida("alsa_output.pci-0000_00_1f.3.analog-stereo") == "pci-0000_00_1f",
+              "PulseAudio: la placa sale del id");
+        CHECK(grupoDeSalida("alsa_output.pci-0000_00_1f.3.analog-stereo") ==
+                  grupoDeSalida("alsa_output.pci-0000_00_1f.3.hdmi-stereo"),
+              "PulseAudio: dos salidas de la misma placa, mismo grupo");
+        // Mac: sin puntos. El grupo es el id: renombrar (el nombre ni entra) no lo cambia.
+        CHECK(grupoDeSalida("BuiltInSpeakerDevice") == "BuiltInSpeakerDevice", "Core Audio: el id es el grupo");
+        CHECK(grupoDeSalida("BuiltInSpeakerDevice") != grupoDeSalida("AppleUSBAudioEngine:Focusrite:1"),
+              "Core Audio: dos salidas distintas no se juntan");
+        // Windows: el id tiene puntos pero no dice la placa; antes todas caían en el grupo «0».
+        CHECK(grupoDeSalida("{0.0.0.00000000}.{aaaa}") != grupoDeSalida("{0.0.0.00000000}.{bbbb}"),
+              "WASAPI: cada salida en su grupo (no todas en uno)");
     }
 
     std::error_code ec;
