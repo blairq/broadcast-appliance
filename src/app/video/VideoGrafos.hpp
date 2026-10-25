@@ -13,6 +13,12 @@
 // (video/CatalogoGst), con la documentación en castellano de
 // datos/gst-modulos.json, y el formulario, de la introspección de GObject.
 //
+// Una «Mezcla de GStreamer» (nodo `mezcla` del estudio) es cualquier módulo de
+// varias entradas del catálogo (compositor, glvideomixer, d3d12compositor, smpte,
+// shapewipe, glmosaic…): sus puertos salen de las plantillas de pads del módulo, y
+// se publica como el compositor (ba_video_compositor: una escena interna del motor
+// con ese módulo como mezclador; ver motor/Composicion).
+//
 // Las entradas virtuales (señal de ajuste, color, negro, o cualquier pipeline
 // de origen de GStreamer) son fuentes `ba_gst_fuente`: cuentan como entradas.
 //
@@ -110,6 +116,13 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString agregarFiltro(const QString& filtroId, const QString& despues);
     /// Un módulo de GStreamer como tarjeta (`elemento`, p. ej. "videobalance").
     Q_INVOKABLE QString agregarModulo(const QString& elemento, const QString& despues);
+    /// Un módulo de GStreamer de VARIAS entradas (compositor, smpte, glmosaic…) como
+    /// «Mezcla de GStreamer» del estudio. "" o el error.
+    Q_INVOKABLE QString agregarMezcla(const QString& elemento);
+    /// Las propiedades del pad `puerto` de una Mezcla de GStreamer (como propiedades()).
+    Q_INVOKABLE QVariantList propiedadesPad(const QString& id, const QString& puerto) const;
+    /// Una propiedad del pad `puerto` de una Mezcla de GStreamer. "" o el error.
+    Q_INVOKABLE QString ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor);
     /// Una tarjeta de SUPERRESOLUCIÓN (un filtro de GStreamer que agranda x2: bafsr, bavtsuperres o
     /// baonnxsr con `modelo`) en `entrada` (vacía: la elegida), después de `despues`. "" o el error.
     std::string agregarSuperres(const std::string& entrada, const std::string& motor,
@@ -289,6 +302,11 @@ class VideoGrafos : public QObject {
     static std::string nombreFiltro(const std::string& filtroId);
     /// El catálogo de GStreamer (vacío, con el motivo, hasta que está listo).
     const CatalogoGst& gst() const;
+    /// Agrega una Mezcla de GStreamer con el módulo `elemento` (de varias entradas: sus
+    /// puertos salen de sus plantillas de pads) y esas propiedades (MCP y la interfaz):
+    /// el id o "" con `error`.
+    std::string agregarMezclaEn(GrafoVideo& g, const std::string& elemento, const nlohmann::json& propiedades,
+                                std::string* error) const;
     /// Agrega un módulo de GStreamer a `grupo` (MCP y la interfaz): el id o "".
     std::string agregarModuloEn(GrafoVideo& g, const std::string& elemento, const std::string& grupo,
                                 const std::string& despues, const nlohmann::json& propiedades,

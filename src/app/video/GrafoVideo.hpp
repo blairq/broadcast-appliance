@@ -14,6 +14,12 @@
 //                      gst (cualquier módulo de video de GStreamer)
 //   varias    N -> 1   compositor: puertos de entrada A PEDIDO (in_0, in_1…;
 //                      siempre queda uno libre, como los sink_%u de GStreamer)
+//                      mezcla: cualquier módulo de GStreamer de varias entradas
+//                      (compositor, glvideomixer, d3d12compositor, smpte,
+//                      shapewipe, glmosaic…); sus puertos son los de las
+//                      plantillas de pads del módulo (`plantillas`, que trae la
+//                      app del registro): fijos (sink1, video_sink) o a pedido
+//                      (sink_0, sink_1…, siempre uno libre)
 //   destino   1 -> 0   escena, salida (publica una fuente con nombre)
 //   control   0 -> ctl controlador: el molde de una tarjeta (tipo y params).
 //                      Cada filtro tiene una entrada de control `ctl`; el que
@@ -68,6 +74,12 @@ class GrafoVideo {
     /// VideoGrafos): [{tipo, titulo, descripcion, params, ambito}]
     static nlohmann::json catalogo();
     static bool tipoValido(const std::string& tipo);
+    /// Los nodos del estudio que se publican como una fuente con nombre armada por el
+    /// motor (compositor, panorámica, mezcla): ba_video_compositor con configCompositor.
+    static bool esComposicion(const std::string& tipo);
+    /// En una Mezcla de GStreamer: la plantilla de pads de la que sale un puerto
+    /// («sink_3» -> «sink_%u»; «sink1» -> «sink1»). "" si no es de ninguna.
+    static std::string plantillaDePuerto(const Nodo& n, const std::string& puerto);
     /// El id del nodo `entrada` / `escena` de una entrada.
     /// Los parámetros de un tipo de tarjeta, documentados: [{clave, tipo,
     /// descripcion, min?, max?, opciones?}]. Los ve la tarjeta y el MCP.
@@ -161,7 +173,8 @@ class GrafoVideo {
     /// La configuración del compositor `id` para ba_video_compositor:
     /// {ancho, alto, fondo, capas:[{toma, fuente, x, y, ancho, alto,
     /// opacidad, ajuste}]} de abajo hacia arriba. Las capas sin posición van
-    /// en mosaico.
+    /// en mosaico. De una Mezcla de GStreamer: {mezclador: {elemento,
+    /// propiedades}, lienzo?, capas:[{toma, fuente, pad, propiedades_pad}]}.
     nlohmann::json configCompositor(const std::string& id) const;
     /// Los parámetros de una Vista 360 o una Panorámica, como propiedades de ba360
     /// (`lentes` > 0: la Panorámica, con esa cantidad de cámaras lado a lado).

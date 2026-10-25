@@ -106,6 +106,8 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         k.visible = c.value("visible", true);
         k.contener = c.value("contener", false);
         k.sombra = SombraCapa::desdeJson(c.value("sombra", json::object()));
+        k.pad = c.value("pad", std::string());
+        if (c.contains("propiedades_pad") && c["propiedades_pad"].is_object()) k.propiedadesPad = c["propiedades_pad"];
         if (!k.entrada.empty()) e.capas.push_back(k);
     }
     e.asignarClaves();
@@ -115,6 +117,7 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         e.lienzoAlto = l.value("alto", 0);
     }
     if (j.contains("filtros") && j["filtros"].is_array()) e.filtros = j["filtros"];
+    if (j.contains("mezclador") && j["mezclador"].is_object()) e.mezclador = j["mezclador"];
     return e;
 }
 
@@ -133,10 +136,13 @@ nlohmann::json Escena::aJson() const {
                          {"contener", c.contener}});
         if (c.sombra.hace()) capas.back()["sombra"] = c.sombra.aJson();
         if (!c.productor.empty()) capas.back()["productor"] = c.productor; // desdeJson lo lee: ida y vuelta igual
+        if (!c.pad.empty()) capas.back()["pad"] = c.pad;
+        if (!c.propiedadesPad.empty()) capas.back()["propiedades_pad"] = c.propiedadesPad;
     }
     nlohmann::json out{{"nombre", nombre}, {"capas", capas}};
     if (lienzoAncho > 0 && lienzoAlto > 0) out["lienzo"] = {{"ancho", lienzoAncho}, {"alto", lienzoAlto}};
     if (!filtros.empty()) out["filtros"] = filtros;
+    if (!mezclador.empty()) out["mezclador"] = mezclador;
     return out;
 }
 
@@ -172,7 +178,45 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                                   : "compositor name=mx " + comun + "! video/x-raw," + tam + " ! videoconvert ! " + salida;
     std::string completo;
     const std::vector<Filtro> filtros = op.dsk ? std::vector<Filtro>{} : leerFiltros(op.filtros);
-    if (op.dsk) {
+    // Otro mezclador (la «Mezcla de GStreamer»): un módulo cualquiera de varias entradas.
+    const std::vector<Filtro> otro =
+        op.dsk || !op.mezclador.is_object() ? std::vector<Filtro>{}
+                                            : leerFiltros(json::array({json{{"id", "mx"},
+                                                                            {"elemento", op.mezclador.value("elemento", std::string())},
+                                                                            {"propiedades", op.mezclador.value("propiedades", json::object())}}}));
+    libre_ = !otro.empty();
+    if (libre_) {
+        const std::string el = otro[0].elemento;
+        firmaMezclador_ = firmaDe(otro, {}, false);
+        // Lo de los agregadores (compositor, glvideomixer, glmosaic…), si lo tiene: en vivo
+        // sin entradas y en la grilla de cuadros del estudio. smpte o shapewipe no.
+        std::string props;
+        if (tienePropiedad(el, "force-live")) props += " force-live=true";
+        if (tienePropiedad(el, "start-time-selection") && tienePropiedad(el, "start-time"))
+            props += " start-time-selection=set start-time=" + std::to_string(inicio);
+        if (tienePropiedad(el, "background")) props += " background=black";
+        propLatencia_ = tienePropiedad(el, "min-upstream-latency") ? "min-upstream-latency" : tienePropiedad(el, "latency") ? "latency" : "";
+        agregador_ = !propLatencia_.empty() || tienePropiedad(el, "start-time");
+        // Lo que sale, de vuelta a la memoria del motor y al tamaño del lienzo (sin
+        // cadencia: la da el módulo, que sigue a sus entradas).
+        const std::string tamLibre = "width=" + std::to_string(lienzo_.ancho) + ",height=" + std::to_string(lienzo_.alto) +
+                                     ",pixel-aspect-ratio=1/1";
+        const bool enPlaca = !memoriaDelMotor().empty();
+        const std::string vuelta = bajarDe(memoriaDeTrabajo(el, GST_PAD_SRC)) +
+                                   (enPlaca ? llevarA(memoriaDelMotor(), lienzo_.ancho, lienzo_.alto)
+                                            : "videoconvert ! videoscale ! " + capsColorDelLienzo(lienzo_) + "," + tamLibre);
+        firmaFiltros_ = firmaDe(filtros, {}, false);
+        const std::string cadena = cadenaDe(filtros, "videoconvert", "ba_c_", avisosFiltros_, enPlaca);
+        for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, "composición " + nombre_ + ": " + a);
+        // Un agregador saca cuadros a su ritmo: sin cadencia pedida, en vivo salía a las
+        // apuradas (horas cada vez más atrás). La del lienzo, en la memoria que sea.
+        const std::string ritmo = agregador_ ? "capsfilter caps=" + entreComillas("video/x-raw(ANY),framerate=" + std::to_string(lienzo_.fpsN) +
+                                                                               "/" + std::to_string(lienzo_.fpsD)) + " ! "
+                                             : std::string();
+        completo = el + " name=mx" + props + " ! " + ritmo + vuelta + " ! " + cadena + "intersink name=sale producer-name=" +
+                   entreComillas(productor()) + " sync=false";
+        registrar(Nivel::Info, "composición " + nombre_ + ": con el módulo «" + el + "»: " + completo);
+    } else if (op.dsk) {
         // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro mezclador.
         completo = desc + " ! tee name=t t. ! queue ! intersink name=limpio producer-name=" + entreComillas(productorLimpio()) +
                    " sync=false t. ! queue ! dsk.sink_0 " + mezclador + " name=dsk " + comun + "! " +
@@ -198,8 +242,18 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     }
     // Las propiedades de los filtros de después del mezclador (la cadena solo los nombra).
     if (!filtros.empty()) ponerEnVivo(pipeline_, filtros, "ba_c_");
+    // Las del otro mezclador (el elemento se llama «mx»).
+    if (libre_) ponerEnVivo(pipeline_, otro, "");
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
     dskMx_ = gst_bin_get_by_name(GST_BIN(pipeline_), "dsk");
+    // smpte numera sus cuadros desde 0 (no mira la hora de lo que entra): para los que lo
+    // consumen, todo llegaba tarde (33 s después de arrancar el estudio). Lo que sale lleva
+    // la hora de lo que entró (ver crearRamaLibre). Los agregadores ya la respetan.
+    if (libre_ && !agregador_ && mezclador_ != nullptr)
+        if (GstPad* p = gst_element_get_static_pad(mezclador_, "src")) {
+            gst_pad_add_probe(p, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::ponerHora, this, nullptr);
+            gst_object_unref(p);
+        }
     // BA_MEDIR_VISTAS=1: cuántos cuadros salen del mezclador (y del DSK) y su
     // hueco más largo, en horas del pipeline y del reloj de pared, cada 2 s.
     if (const char* m = std::getenv("BA_MEDIR_VISTAS"); m != nullptr && std::string(m) == "1")
@@ -262,7 +316,7 @@ Composicion::~Composicion() {
     for (auto* m : {&ramas_, &dsk_}) {
         for (auto& [k, r] : *m) {
             if (r->pad != nullptr) {
-                gst_element_release_request_pad(r->mx, r->pad);
+                if (r->padPedido) gst_element_release_request_pad(r->mx, r->pad);
                 gst_object_unref(r->pad);
             }
             delete r;
@@ -287,8 +341,9 @@ void Composicion::aplicarLatencia() {
                                                                                        static_cast<guint64>(std::max(1, lienzo_.fpsN))));
     for (auto& [k, r] : ramas_) r->llega.ponerPlazo(plazo);
     // Todo en otro hilo (ver recalcularLatenciaAparte): esto corre en el bucle del motor.
-    recalcularLatenciaAparte(pipeline_, [mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_), l]() {
-        g_object_set(mx.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
+    // (Otro mezclador que no es un agregador, como smpte, no tiene dónde ponerla.)
+    recalcularLatenciaAparte(pipeline_, [mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_), l, prop = propLatencia_]() {
+        if (!prop.empty()) g_object_set(mx.get(), prop.c_str(), static_cast<guint64>(l), nullptr);
         if (dsk) g_object_set(dsk.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
     });
 }
@@ -299,7 +354,132 @@ GstPadProbeReturn Composicion::alPrimerCuadro(GstPad*, GstPadProbeInfo*, gpointe
     return GST_PAD_PROBE_REMOVE;
 }
 
+void Composicion::ponerPropiedadesPad(GstPad* pad, const json& props) {
+    if (pad == nullptr || !props.is_object()) return;
+    for (auto it = props.begin(); it != props.end(); ++it) {
+        GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(pad), it.key().c_str());
+        if (ps == nullptr || (ps->flags & G_PARAM_WRITABLE) == 0) continue;
+        const std::string v = comoTexto(it.value());
+        if (!v.empty() || it.value().is_string()) gst_util_set_object_arg(G_OBJECT(pad), it.key().c_str(), v.c_str());
+    }
+}
+
+GstPadProbeReturn Composicion::anotarHora(GstPad*, GstPadProbeInfo* info, gpointer d) {
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (b != nullptr && GST_BUFFER_PTS_IS_VALID(b)) static_cast<Composicion*>(d)->ptsEntrada_ = static_cast<std::int64_t>(GST_BUFFER_PTS(b));
+    return GST_PAD_PROBE_OK;
+}
+
+GstPadProbeReturn Composicion::ponerHora(GstPad*, GstPadProbeInfo* info, gpointer d) {
+    const std::int64_t pts = static_cast<Composicion*>(d)->ptsEntrada_.load();
+    if (pts < 0) return GST_PAD_PROBE_OK;
+    // Sin copiar la imagen: el buffer escribible comparte la memoria (solo cambia la hora).
+    GstBuffer* b = gst_buffer_make_writable(GST_PAD_PROBE_INFO_BUFFER(info));
+    GST_PAD_PROBE_INFO_DATA(info) = b;
+    GST_BUFFER_PTS(b) = static_cast<GstClockTime>(pts);
+    GST_BUFFER_DTS(b) = GST_CLOCK_TIME_NONE;
+    return GST_PAD_PROBE_OK;
+}
+
+Composicion::Rama* Composicion::crearRamaLibre(const Capa& c, int gen) {
+    const std::string n = nombreSeguro(std::to_string(gen) + "_" + c.claveCapa()) + "_" + std::to_string(++serieRamas_);
+    // EL PAD primero: de él depende el puente (si ubica la imagen o hay que llevarla al
+    // tamaño del lienzo). Fijo («sink1», «video_sink») o a pedido («sink_2», o uno nuevo).
+    GstPad* pad = c.pad.empty() ? nullptr : gst_element_get_static_pad(mezclador_, c.pad.c_str());
+    bool pedido = false;
+    if (pad == nullptr) {
+        pad = gst_element_request_pad_simple(mezclador_, c.pad.empty() ? "sink_%u" : c.pad.c_str());
+        pedido = pad != nullptr;
+    }
+    const auto fallar = [&](const std::string& e) -> Rama* {
+        error_ = e;
+        registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
+        if (pad != nullptr) {
+            if (pedido) gst_element_release_request_pad(mezclador_, pad);
+            gst_object_unref(pad);
+        }
+        return nullptr;
+    };
+    if (pad == nullptr) return fallar("el mezclador no tiene el puerto «" + (c.pad.empty() ? std::string("sink_%u") : c.pad) + "»");
+    if (gst_pad_is_linked(pad)) return fallar("el puerto «" + c.pad + "» ya tiene una entrada");
+    // Un pad que no ubica la imagen (smpte, shapewipe: las dos del mismo tamaño): al del lienzo.
+    const bool ubica = g_object_class_find_property(G_OBJECT_GET_CLASS(pad), "width") != nullptr;
+    GstElementFactory* fab = gst_element_get_factory(mezclador_);
+    const std::string memoria = fab != nullptr ? memoriaDeTrabajo(GST_OBJECT_NAME(fab)) : std::string();
+    // Uno que toma las dos (la del motor y la de sistema: glvideomixer, d3d12compositor)
+    // sube solo lo que haga falta en cada pad: nada en el medio. Si no, a su memoria.
+    const bool tomaTodo = fab != nullptr && !memoria.empty() && memoria == memoriaDelMotor() &&
+                          aceptaMemoria(GST_OBJECT_NAME(fab), "SystemMemory");
+    std::string desc = tomaTodo && ubica ? std::string("identity") : llevarA(memoria, ubica ? 0 : lienzo_.ancho, ubica ? 0 : lienzo_.alto);
+    // Un pad que pide una IMAGEN FIJA (framerate=0/1: la máscara de shapewipe) recibe la
+    // entrada igual, cuadro a cuadro, dicha como imagen fija: cada cuadro nuevo la reemplaza.
+    // Antes, el formato que pide (GRAY8…): capssetter deja pasar cualquier cosa hacia arriba.
+    if (GstCaps* t = gst_pad_get_pad_template_caps(pad)) {
+        gint n = -1, d = -1;
+        if (gst_caps_get_size(t) > 0 && gst_structure_get_fraction(gst_caps_get_structure(t, 0), "framerate", &n, &d) && n == 0 &&
+            hayFabrica("capssetter")) {
+            GstCaps* sin = gst_caps_copy(t);
+            for (guint i = 0; i < gst_caps_get_size(sin); ++i) gst_structure_remove_field(gst_caps_get_structure(sin, i), "framerate");
+            gchar* txt = gst_caps_to_string(sin);
+            desc += " ! capsfilter caps=" + entreComillas(txt != nullptr ? txt : "video/x-raw") + " ! capssetter caps=" +
+                    entreComillas("video/x-raw,framerate=0/1");
+            g_free(txt);
+            gst_caps_unref(sin);
+        }
+        gst_caps_unref(t);
+    }
+    GError* e = nullptr;
+    GstElement* puente = gst_parse_bin_from_description(desc.c_str(), TRUE, &e);
+    if (e != nullptr) {
+        const std::string m = ba::diag::utf8Valido(e->message);
+        g_error_free(e);
+        if (puente != nullptr) gst_object_unref(puente);
+        return fallar("no se pudo armar «" + desc + "»: " + m);
+    }
+    GstElement* src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
+    if (src == nullptr || puente == nullptr) {
+        if (src != nullptr) gst_object_unref(src);
+        if (puente != nullptr) gst_object_unref(puente);
+        return fallar("falta intersrc");
+    }
+    gst_object_set_name(GST_OBJECT(puente), ("puente_" + n).c_str());
+    auto* r = new Rama();
+    r->entrada = c.entrada;
+    r->clave = c.claveCapa();
+    r->productor = c.productor.empty() ? c.entrada + ":video" : c.productor;
+    r->generacion = gen;
+    r->src = src;
+    r->puente = puente;
+    r->mx = mezclador_;
+    r->pad = pad;
+    r->padPedido = pedido;
+    // Como las ramas de siempre: sin demora propia, lo viejo se tira (ver crearRama).
+    g_object_set(r->src, "producer-name", r->productor.c_str(), "max-buffers", static_cast<guint64>(3), "max-time",
+                 static_cast<guint64>(0), nullptr);
+    if (GstPad* p = gst_element_get_static_pad(r->src, "src")) {
+        r->llega.ponerPlazo(latenciaNs_ > 0 ? latenciaNs_ + static_cast<std::int64_t>(gst_util_uint64_scale(
+                                                                      GST_SECOND, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
+                                                                      static_cast<guint64>(std::max(1, lienzo_.fpsN))))
+                                              : 0);
+        r->llega.poner(p, reloj_);
+        gst_object_unref(p);
+    }
+    gst_bin_add_many(GST_BIN(pipeline_), r->src, r->puente, nullptr);
+    enlazarSinConsultar({r->src, r->puente});
+    if (!agregador_) gst_pad_add_probe(r->pad, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::anotarHora, this, nullptr);
+    if (GstPad* sale = gst_element_get_static_pad(r->puente, "src")) {
+        gst_pad_link_full(sale, r->pad, GST_PAD_LINK_CHECK_NOTHING); // sin consultar caps (ver enlazarSinConsultar)
+        gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
+        gst_object_unref(sale);
+    }
+    gst_element_sync_state_with_parent(r->puente);
+    gst_element_sync_state_with_parent(r->src);
+    ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
+    return r;
+}
+
 Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx) {
+    if (libre_ && mx == nullptr) return crearRamaLibre(c, gen);
     if (mx == nullptr) mx = mezclador_;
     const std::int64_t t0 = g_get_monotonic_time(); // si tarda, cuánto en crear y cuánto en arrancar
     // Único en el pipeline: limpio, «Cam 1» y «Cam-1» (o «Cámara» y «Cámera») quedaban iguales.
@@ -427,6 +607,14 @@ void Composicion::ponerSombra(Rama& r, const SombraCapa& s, int margen, int caja
 }
 
 void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
+    if (libre_ && r.puente != nullptr) {
+        // Con otro mezclador, lo de la capa son las propiedades de su pad, tal cual.
+        ponerPropiedadesPad(r.pad, c.propiedadesPad);
+        r.alfaHacia = alfa;
+        r.orden = c.orden;
+        r.capa = c;
+        return;
+    }
     const int w = c.ancho > 0 ? c.ancho : lienzo_.ancho;
     const int h = c.alto > 0 ? c.alto : lienzo_.alto;
     // Con sombra, la caja crece `m` de cada lado: la imagen queda donde estaba y la sombra, afuera.
@@ -583,14 +771,17 @@ void Composicion::animar(double t) {
 }
 
 void Composicion::soltar(Rama& r) {
-    for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar, r.aRgba, r.sombra})
+    for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar, r.aRgba, r.sombra, r.puente})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
-        gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
+        // Un pad fijo (smpte, shapewipe) queda en el mezclador: sacar la rama lo desenlaza.
+        if (r.padPedido) gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
         gst_object_unref(r.pad);
         r.pad = nullptr;
     }
-    gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.recorte, nullptr);
+    gst_bin_remove(GST_BIN(pipeline_), r.src);
+    if (r.recorte != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.recorte);
+    if (r.puente != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.puente);
     if (r.subir != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.subir);
     if (r.conv != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.conv);
     if (r.fijar != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.fijar);
@@ -599,6 +790,7 @@ void Composicion::soltar(Rama& r) {
 }
 
 void Composicion::bajarViejas() {
+    if (libre_) return; // el orden lo dicen las propiedades de cada pad
     for (auto& [k, r] : ramas_)
         if (r->pad != nullptr) g_object_set(r->pad, "zorder", static_cast<guint>(std::clamp(r->orden, 0, 999)), nullptr);
 }
@@ -634,8 +826,9 @@ std::set<std::string> Composicion::productoresEnUso() const {
 void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms) {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
-    // La misma escena (y sin transición en curso): se actualiza en el lugar.
-    if (e.nombre == escena_.nombre && genVieja_ < 0 && generacion_ > 0) {
+    // La misma escena (y sin transición en curso): se actualiza en el lugar. Con otro
+    // mezclador, siempre (no hay transiciones, y un pad fijo no se puede usar dos veces).
+    if ((e.nombre == escena_.nombre || libre_) && genVieja_ < 0 && generacion_ > 0) {
         std::map<std::string, const Capa*> nuevas;
         for (const auto& c : e.capas) nuevas[c.claveCapa()] = &c;
         for (auto it = ramas_.begin(); it != ramas_.end();) {
@@ -644,8 +837,10 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
                 n == nuevas.end() ? std::string() : (n->second->productor.empty() ? n->second->entrada + ":video" : n->second->productor);
             // Se fue, ahora lee otra cosa, o le hace falta la sombra y su rama no la tiene
             // (se rearma una vez; después la rama la lleva aunque se apague).
-            const bool sinSombra = n != nuevas.end() && n->second->sombra.hace() && it->second->sombra == nullptr;
-            if (n == nuevas.end() || prodNuevo != it->second->productor || sinSombra) {
+            const bool sinSombra = n != nuevas.end() && n->second->sombra.hace() && it->second->sombra == nullptr && !libre_;
+            // Con otro mezclador, una capa que pasa a otro pad se rearma.
+            const bool otroPad = n != nuevas.end() && libre_ && n->second->pad != it->second->capa.pad;
+            if (n == nuevas.end() || prodNuevo != it->second->productor || sinSombra || otroPad) {
                 soltar(*it->second);
                 delete it->second;
                 it = ramas_.erase(it);
@@ -863,6 +1058,9 @@ json Composicion::estado() const {
     return {{"bus", nombre_},
             {"anda", pipeline_ != nullptr},
             {"gpu", gpu_ ? (gl_ ? "gl" : "d3d12") : "cpu"},
+            {"mezclador", mezclador_ != nullptr && gst_element_get_factory(mezclador_) != nullptr
+                              ? std::string(GST_OBJECT_NAME(gst_element_get_factory(mezclador_)))
+                              : std::string()},
             {"error", error_},
             {"escena", escena_.nombre},
             {"en_transicion", genVieja_ >= 0},
@@ -881,6 +1079,18 @@ json Composicion::estado() const {
                  return n;
              }()},
             {"capas", capas}};
+}
+
+bool Composicion::ponerMezclador(const json& mezclador) {
+    std::lock_guard<std::mutex> l(mu_);
+    const bool quiere = mezclador.is_object() && !mezclador.value("elemento", std::string()).empty();
+    if (quiere != libre_) return false;
+    if (!quiere) return true;
+    const std::vector<Filtro> fv = leerFiltros(json::array({json{{"id", "mx"},
+                                                                 {"elemento", mezclador.value("elemento", std::string())},
+                                                                 {"propiedades", mezclador.value("propiedades", json::object())}}}));
+    if (firmaDe(fv, {}, false) != firmaMezclador_) return false;
+    return pipeline_ == nullptr || ponerEnVivo(pipeline_, fv, "");
 }
 
 bool Composicion::ponerFiltros(const json& filtros) {

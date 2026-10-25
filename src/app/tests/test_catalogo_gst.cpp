@@ -81,6 +81,30 @@ int main(int argc, char** argv) {
     CHECK(!c.modulo("videotestsrc").value("tarjeta", true),
           "videotestsrc no va como tarjeta (es una fuente)");
     CHECK(c.modulo("glcolorbalance").value("tarjeta", false), "glcolorbalance va como tarjeta (OpenGL)");
+    // Los de varias entradas: sus plantillas de pads (las de video) y `mezcla`.
+    {
+        const json co = c.modulo("compositor");
+        CHECK(co.value("mezcla", false) && !co.value("tarjeta", true) && co["entradas"].size() == 1 &&
+                  co["entradas"][0].value("nombre", "") == "sink_%u" && co["entradas"][0].value("pedido", false),
+              "compositor: una entrada a pedido (sink_%u), va como mezcla");
+        const json sm = c.modulo("smpte");
+        if (!sm.empty())
+            CHECK(sm.value("mezcla", false) && !sm.value("tarjeta", true) && sm["entradas"].size() == 2 &&
+                      !sm["entradas"][0].value("pedido", true),
+                  "smpte: dos entradas fijas (sink1, sink2), va como mezcla y no como tarjeta");
+        const json sw = c.modulo("shapewipe");
+        if (!sw.empty()) CHECK(sw.value("mezcla", false) && sw["entradas"].size() == 2, "shapewipe: video_sink y mask_sink");
+        CHECK(!vb.value("mezcla", true) && vb["entradas"].size() == 1, "videobalance: una entrada, no es mezcla");
+        const json to = c.modulo("textoverlay");
+        if (!to.empty()) CHECK(!to.value("mezcla", true), "textoverlay: la entrada de texto no cuenta (no es mezcla)");
+        bool xpos = false, base = false;
+        for (const auto& p : c.propiedadesPad("compositor", "sink_%u", json{{"xpos", 64}})) {
+            if (p.value("nombre", "") == "xpos") xpos = p.value("tipo", "") == "int" && p.value("valor", 0) == 64;
+            if (p.value("nombre", "") == "offset" || p.value("nombre", "") == "caps") base = true;
+        }
+        CHECK(xpos && !base, "compositor: las propiedades de su pad (xpos, con el valor), sin las de GstPad");
+        if (!sm.empty()) CHECK(c.propiedadesPad("smpte", "sink1", json::object()).empty(), "smpte: sus pads no tienen propiedades");
+    }
     int sinDoc = 0;
     for (const auto& m : ms)
         if (!m.contains("titulo")) {

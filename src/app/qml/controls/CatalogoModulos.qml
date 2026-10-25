@@ -4,8 +4,9 @@
 // en inglés, categorías, y el detalle de cada módulo con su documentación
 // (para qué sirve, cómo se usa en vivo; datos/gst-modulos.json), la
 // descripción original, el paquete y la licencia, y todas sus propiedades
-// (de la introspección de GStreamer). Los que no van como tarjeta (fuentes,
-// salidas, mezcladores, los internos) se ven igual, con por qué no.
+// (de la introspección de GStreamer). Los de varias entradas (compositor,
+// smpte, glmosaic…) van como «Mezcla de GStreamer» del estudio. Los que no van
+// (fuentes, salidas, los internos) se ven igual, con por qué no.
 // Datos: VideoGrafos.modulosGst().
 import QtQuick
 import QtQuick.Controls
@@ -15,7 +16,7 @@ import BA
 Popup {
     id: cat
     property var vg: Studio.video
-    /// Al elegir: tipo "gst" (id = el elemento).
+    /// Al elegir: tipo "gst" (id = el elemento), "tarjeta" (una propia) o "mezcla" (un módulo de varias entradas).
     signal elegido(string tipo, string id)
 
     modal: true
@@ -29,6 +30,12 @@ Popup {
     property string version: ""
     property string categoria: ""
     property bool soloTarjetas: true
+    /// Solo los de varias entradas (se abre así desde «Mezcla de GStreamer»).
+    property bool soloMezclas: false
+    onClosed: soloMezclas = false
+    function abrirMezclas() { soloMezclas = true; categoria = ""; open() }
+    /// Si se puede agregar (como tarjeta, como tarjeta propia o como mezcla).
+    function va(m) { return !!(m.tarjeta || m.comoTarjeta || m.mezcla) }
     property var detalle: null
     property var detalleProps: []
 
@@ -59,7 +66,8 @@ Popup {
         const q = normal(busqueda.text.trim())
         const palabras = q === "" ? [] : q.split(/\s+/)
         return modulos.filter(m => {
-            if (soloTarjetas && !m.tarjeta && !m.comoTarjeta) return false
+            if (soloMezclas && !m.mezcla) return false
+            if (soloTarjetas && !va(m)) return false
             if (categoria !== "" && m.categoria !== categoria) return false
             if (palabras.length === 0) return true
             const h = normal([m.elemento, m.titulo, m.nombre, m.categoria, m.para, m.uso, m.descripcion, m.clase].join(" "))
@@ -69,7 +77,7 @@ Popup {
     readonly property var categorias: {
         const vistas = []
         for (const m of modulos)
-            if ((!soloTarjetas || m.tarjeta || m.comoTarjeta) && vistas.indexOf(m.categoria) < 0) vistas.push(m.categoria)
+            if ((!soloTarjetas || va(m)) && (!soloMezclas || m.mezcla) && vistas.indexOf(m.categoria) < 0) vistas.push(m.categoria)
         return vistas.sort()
     }
     function verDetalle(m) {
@@ -101,7 +109,12 @@ Popup {
             RowLayout {
                 spacing: 8
                 Toggle { checked: cat.soloTarjetas; onToggled: (w) => { cat.soloTarjetas = w; cat.categoria = "" } }
-                Text { text: "Solo los que van como tarjeta"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: "Solo los que se pueden agregar"; color: Theme.text; font.pixelSize: 12 }
+            }
+            RowLayout {
+                spacing: 8
+                Toggle { checked: cat.soloMezclas; onToggled: (w) => { cat.soloMezclas = w; cat.categoria = "" } }
+                Text { text: "Solo los de varias entradas"; color: Theme.text; font.pixelSize: 12 }
             }
             Text { text: "Categoría"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
             ScrollView {
@@ -155,7 +168,7 @@ Popup {
                     color: hov.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.035)
                     border.color: hov.containsMouse ? tarjeta.col : Qt.rgba(1, 1, 1, 0.08)
                     Behavior on border.color { ColorAnimation { duration: 120 } }
-                    opacity: tarjeta.modelData.tarjeta || tarjeta.modelData.comoTarjeta ? 1 : 0.6
+                    opacity: cat.va(tarjeta.modelData) ? 1 : 0.6
                     clip: true
                     Rectangle { width: 4; anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: 1 } radius: 2; color: tarjeta.col }
                     ColumnLayout {
@@ -165,6 +178,7 @@ Popup {
                             Layout.fillWidth: true
                             spacing: 6
                             Text { text: tarjeta.modelData.categoria; color: tarjeta.col; font { pixelSize: 10; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { visible: !!tarjeta.modelData.mezcla; text: "MEZCLA"; color: "#f472b6"; font { pixelSize: 9; weight: Font.Bold } }
                             Text { visible: String(tarjeta.modelData.elemento).indexOf("gl") === 0; text: "GPU"; color: "#ef4444"; font { pixelSize: 9; weight: Font.Bold } }
                         }
                         Text { Layout.fillWidth: true; text: tarjeta.modelData.titulo || tarjeta.modelData.nombre; color: Theme.text; elide: Text.ElideRight; font { pixelSize: 14; weight: Font.DemiBold } }
@@ -185,6 +199,7 @@ Popup {
                         onDoubleClicked: {
                             const m = tarjeta.modelData
                             if (m.comoTarjeta) cat.elegido("tarjeta", m.comoTarjeta)
+                            else if (m.mezcla) cat.elegido("mezcla", m.elemento)
                             else if (m.tarjeta) cat.elegido(m.tipo, m.elemento)
                             else return
                             detallePop.close(); cat.close()
@@ -269,17 +284,34 @@ Popup {
                         activeColor: detallePop.col
                         onClicked: { cat.elegido("tarjeta", detallePop.d.comoTarjeta); detallePop.close(); cat.close() }
                     }
+                    // De varias entradas: un nodo del estudio, con un puerto por cada una.
+                    GlassButton {
+                        visible: !!detallePop.d.mezcla
+                        text: "+ Agregar como mezcla"
+                        active: true
+                        activeColor: detallePop.col
+                        onClicked: { cat.elegido("mezcla", detallePop.d.elemento); detallePop.close(); cat.close() }
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Un nodo del estudio («Mezcla de GStreamer») con sus entradas: se cablea desde cualquier entrada y sale como una fuente para las escenas"
+                    }
                     Text {
-                        visible: !detallePop.d.tarjeta && !detallePop.d.comoTarjeta
+                        visible: !detallePop.d.tarjeta && !detallePop.d.comoTarjeta && !detallePop.d.mezcla
                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                         text: detallePop.d.rol === "fuente" ? "Es una fuente: va como entrada virtual (Entradas → «+ Virtual»), no como tarjeta."
-                              : detallePop.d.rol === "mezcla" ? "Junta varias entradas: va como nodo del estudio (el Compositor), no como tarjeta."
+                              : detallePop.d.rol === "mezcla" ? "Junta varias entradas, pero no de video crudo: no va como tarjeta ni como mezcla."
                               : detallePop.d.rol === "salida" ? "Es una salida de GStreamer: no va como tarjeta."
                               : detallePop.d.uso ? "No va como tarjeta de filtro: " + detallePop.d.uso
                               : "No va como tarjeta de filtro: no trabaja sobre la imagen cruda de una entrada."
                         color: Theme.warn; font.pixelSize: 12
                     }
                     GlassButton { compact: true; text: "Volver"; onClicked: detallePop.close() }
+                }
+                Text {
+                    visible: (detallePop.d.entradas || []).length > 0
+                    Layout.fillWidth: true; Layout.leftMargin: 22; Layout.rightMargin: 22
+                    wrapMode: Text.WordWrap
+                    text: "Entradas: " + (detallePop.d.entradas || []).map(e => e.nombre + (e.pedido ? " (a pedido: las que hagan falta)" : "")).join(", ")
+                    color: Theme.textDim; font.pixelSize: 11
                 }
                 Text {
                     visible: cat.detalleProps.length > 0

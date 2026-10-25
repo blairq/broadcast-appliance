@@ -122,13 +122,19 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Con `id` de una tarjeta (un módulo de GStreamer): sus controles (nombre, tipo, valor, rango, "
-            "opciones). Sin `id`, vacío: los filtros de OBS se fueron con libobs; el catálogo de módulos "
-            "está en video_modulos.";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"id", idTarjeta}}}};
+            "Con `id` de una tarjeta (un módulo de GStreamer, o una Mezcla de GStreamer): sus controles (nombre, "
+            "tipo, valor, rango, opciones). Con `puerto` (una Mezcla de GStreamer): los de esa entrada (xpos, ypos, "
+            "width, height, alpha, zorder…; vacío si el módulo no tiene, como smpte). Sin `id`, vacío: los "
+            "filtros de OBS se fueron con libobs; el catálogo de módulos está en video_modulos.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"id", idTarjeta},
+                           {"puerto", {{"type", "string"}, {"description", "con una mezcla: la entrada (sink_0, sink1…)"}}}}}};
         t.run = [v, deQt](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const QString id = QString::fromStdString(a.value("id", std::string()));
+            const QString puerto = QString::fromStdString(a.value("puerto", std::string()));
+            if (!puerto.isEmpty()) return done(ToolResult().data(deQt(v->propiedadesPad(id, puerto))));
             done(ToolResult().data(deQt(id.isEmpty() ? v->filtrosObs() : v->propiedades(id))));
         };
         core_.addTool(std::move(t));
@@ -147,17 +153,20 @@ void McpService::registerVideoTools() {
                         "`categoria`: los de "
                         "una. `elemento`: uno solo con todo (clase, licencia, paquete) y sus propiedades. "
                         "`tarjeta` dice si va "
-                        "como tarjeta de filtro (video_tarjeta_agregar tipo gst); los demás son fuentes, "
-                        "salidas o mezcladores.";
+                        "como tarjeta de filtro (video_tarjeta_agregar tipo gst); `mezcla`, si junta varias "
+                        "entradas (`entradas`: sus plantillas de pads, a pedido o fijas): va como Mezcla de "
+                        "GStreamer del estudio (video_tarjeta_agregar tipo mezcla con `elemento`). Los demás son "
+                        "fuentes o salidas.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"buscar", {{"type", "string"}}},
               {"categoria", {{"type", "string"}}},
               {"elemento", {{"type", "string"}}},
-              {"soloTarjetas", {{"type", "boolean"}, {"description", "solo los que van como tarjeta"}}}}}};
+              {"soloTarjetas", {{"type", "boolean"}, {"description", "solo los que van como tarjeta"}}},
+              {"soloMezclas", {{"type", "boolean"}, {"description", "solo los de varias entradas (van como mezcla)"}}}}}};
         t.examples = {R"({"buscar": "croma"})", R"({"elemento": "deinterlace"})",
-                      R"({"categoria": "Color"})"};
+                      R"({"categoria": "Color"})", R"({"soloMezclas": true})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const video::CatalogoGst& c = v->gst();
@@ -178,8 +187,8 @@ void McpService::registerVideoTools() {
             };
             const std::string buscar = minus(a.value("buscar", std::string())),
                               cat = a.value("categoria", std::string());
-            const bool solo = a.value("soloTarjetas", false);
-            if (buscar.empty() && cat.empty() && !solo) {
+            const bool solo = a.value("soloTarjetas", false), soloMezclas = a.value("soloMezclas", false);
+            if (buscar.empty() && cat.empty() && !solo && !soloMezclas) {
                 json cats = json::object();
                 for (const auto& m : c.modulos()) {
                     json& x = cats[m.value("categoria", std::string())];
@@ -195,6 +204,7 @@ void McpService::registerVideoTools() {
             for (const auto& m : c.modulos()) {
                 if (!cat.empty() && m.value("categoria", std::string()) != cat) continue;
                 if (solo && !m.value("tarjeta", false)) continue;
+                if (soloMezclas && !m.value("mezcla", false)) continue;
                 if (!buscar.empty()) {
                     const std::string todo =
                         minus(m.value("elemento", "") + " " + m.value("titulo", "") + " " +
@@ -207,6 +217,8 @@ void McpService::registerVideoTools() {
                                {"categoria", m.value("categoria", "")},
                                {"para", m.value("para", m.value("descripcion", ""))},
                                {"tarjeta", m.value("tarjeta", false)},
+                               {"mezcla", m.value("mezcla", false)},
+                               {"entradas", m.value("entradas", json::array())},
                                {"comoTarjeta", m.value("comoTarjeta", std::string())}});
             }
             done(ToolResult().data(out));
@@ -273,7 +285,11 @@ void McpService::registerVideoTools() {
             "nombre). "
             "`compositor` es del estudio (sin entrada): se le conectan entradas (o tarjetas) con "
             "video_cable, y se "
-            "pone en una escena con video_salida_a_escena o se cablea a la escena de una entrada.";
+            "pone en una escena con video_salida_a_escena o se cablea a la escena de una entrada. `mezcla` "
+            "(con `elemento`: cualquier módulo de varias entradas de video_modulos, p. ej. compositor, "
+            "glvideomixer, d3d12compositor, glmosaic, smpte, shapewipe) también es del estudio: sus puertos "
+            "son los del módulo (sink_0, sink_1… a pedido; sink1/sink2 en smpte; video_sink/mask_sink en "
+            "shapewipe) y se usa igual que el compositor.";
         t.details =
             "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
             "rangos y opciones; el texto del overlay de Rostros también). Croma: `clave` "
@@ -290,7 +306,9 @@ void McpService::registerVideoTools() {
             "ajuste "
             "(encajar|llenar)}; sin capas, mosaico; null en una capa la vuelve al mosaico. "
             "Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
-            "GStreamer (video_modulos con `elemento` las lista; los enum, por su nick).";
+            "GStreamer (video_modulos con `elemento` las lista; los enum, por su nick). Una mezcla: "
+            "`params.propiedades` (las del módulo), `params.pads` ({\"sink_0\": {\"xpos\": 10}}: las de cada "
+            "entrada; video_filtros con `puerto` las lista), `ancho`, `alto` (0 = el estudio) y `nombre`.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"tipo"}},
@@ -300,7 +318,7 @@ void McpService::registerVideoTools() {
                {{"type", "string"},
                 {"enum",
                  {"color", "croma", "recorte", "gst", "plugin", "retardo", "normalizar", "rostros",
-                  "seguir", "salida", "compositor", "superres", "vista360", "panoramica"}}}},
+                  "seguir", "salida", "compositor", "mezcla", "superres", "vista360", "panoramica"}}}},
               {"plugin",
                {{"type", "string"},
                 {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
@@ -309,13 +327,15 @@ void McpService::registerVideoTools() {
               {"parametros", {{"type", "object"}, {"description", "con tipo plugin: sus ajustes"}}},
               {"elemento",
                {{"type", "string"},
-                {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
+                {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance); con tipo mezcla, uno de "
+                                "varias entradas (p. ej. smpte, glvideomixer)"}}},
               {"despues", idTarjeta},
               {"params", {{"type", "object"}}}}}};
         t.examples = {
             R"({"entrada": "Cámara 1", "tipo": "croma"})",
             R"({"entrada": "Cámara 1", "tipo": "gst", "elemento": "gamma", "params": {"propiedades": {"gamma": 1.3}}})",
             R"({"tipo": "compositor"})",
+            R"({"tipo": "mezcla", "elemento": "smpte", "params": {"propiedades": {"type": "bar-wipe-lr"}}})",
             R"({"entrada": "Cámara 1", "tipo": "rostros", "params": {"marcar": true, "estilo": "esquinas", "texto": "{nombre} — {cargo}"}})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
@@ -346,13 +366,22 @@ void McpService::registerVideoTools() {
                                            params.value("propiedades", json::object()), &error);
                     return error;
                 }
+                if (tipo == "mezcla") {
+                    nuevo = v->agregarMezclaEn(g, a.value("elemento", params.value("elemento", std::string())),
+                                               params.value("propiedades", json::object()), &error);
+                    // Lo demás (pads, ancho, alto, nombre), como un ajuste.
+                    json resto = params;
+                    for (const char* k : {"elemento", "propiedades", "plantillas"}) resto.erase(k);
+                    if (!nuevo.empty() && !resto.empty()) g.ajustar(nuevo, resto, &error);
+                    return error;
+                }
                 nuevo = g.agregar(tipo, e, a.value("despues", std::string()), params, &error);
                 if (!nuevo.empty() && !etiqueta.empty())
                     g.ajustar(nuevo, json{{"etiqueta", etiqueta}}, nullptr);
                 return error;
             });
             if (!err.empty()) return done(ToolResult::error(err));
-            json d = v->describir(tipo == "compositor" ? std::string() : e);
+            json d = v->describir(video::GrafoVideo::esComposicion(tipo) ? std::string() : e);
             d["agregada"] = nuevo;
             done(ToolResult().data(d));
         };
@@ -449,7 +478,9 @@ void McpService::registerVideoTools() {
                         "mezclan). Una tarjeta "
                         "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo "
                         "propio de esa entrada, en "
-                        "`{\"local\": {…}}`. Un compositor: `{\"capas\": {\"in_0\": {…}}}` por puerto. La "
+                        "`{\"local\": {…}}`. Un compositor: `{\"capas\": {\"in_0\": {…}}}` por puerto. Una "
+                        "Mezcla de GStreamer: `{\"propiedades\": {…}}` (las del módulo) y `{\"pads\": {\"sink_0\": "
+                        "{\"xpos\": 10}}}` (las de cada entrada), se mezclan. La "
                         "tarjeta de un plugin de "
                         "Python: `{\"parametros\": {\"fuerza\": 0.5}}` (o los parámetros sueltos), se "
                         "mezclan con los que tiene.";
@@ -565,10 +596,10 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_salida_a_escena";
-        t.title = "Poner una salida o un compositor del grafo en una escena";
+        t.title = "Poner una salida, un compositor o una mezcla del grafo en una escena";
         t.category = "video";
         t.description =
-            "Pone la tarjeta salida `id` (o un compositor) como fuente en `escena` (obligatoria: nunca la "
+            "Pone la tarjeta salida `id` (o un compositor, una panorámica o una mezcla) como fuente en `escena` (obligatoria: nunca la "
             "del aire sin "
             "pedirlo). La fuente se llama como el nombre de la tarjeta (se cambia con video_tarjeta_ajustar "
             "{\"params\": {\"nombre\": …}} antes de ponerla). Queda guardada como cualquier fuente de la "

@@ -65,6 +65,11 @@ void ponerPropiedades(GstElement* e, const Filtro& f, std::vector<std::string>* 
 /// Pone en vivo las propiedades que se pueden cambiar andando. true si todas.
 bool ponerEnVivo(GstElement* pipeline, const std::vector<Filtro>& v, const char* prefijo);
 bool hayFabrica(const std::string& elemento);
+/// ¿La fábrica tiene esa propiedad? (sin crear el elemento)
+bool tienePropiedad(const std::string& fabrica, const std::string& prop);
+/// La memoria de placa que piden los pads de esa dirección de una fábrica que no acepta la
+/// de sistema (glshader: GLMemory; d3d12…: D3D12Memory). "" si acepta la de sistema.
+std::string memoriaPropia(const std::string& fabrica, GstPadDirection dir = GST_PAD_SINK);
 
 // --- El video en la GPU (docs/desarrollo/MAPA-GPU-CPU.md) ---------------------------------------
 /// Con qué GPU lleva y compone el video el motor:
@@ -96,8 +101,20 @@ void darContextoGpu(GstElement* pipeline);
 /// capa nueva llegaba hasta el productor de su intersrc, y si esa entrada se estaba armando
 /// en su trabajador, el bucle del motor esperaba (en la PC, 1348 ms con su candado).
 bool enlazarSinConsultar(std::initializer_list<GstElement*> elementos);
-/// ¿La entrada de la fábrica acepta esa memoria («D3D12Memory», «GLMemory»…)?
-bool aceptaMemoria(const std::string& fabrica, const std::string& memoria);
+/// ¿La entrada de la fábrica (o su salida, con `dir`) acepta esa memoria («D3D12Memory», «GLMemory»…)?
+bool aceptaMemoria(const std::string& fabrica, const std::string& memoria, GstPadDirection dir = GST_PAD_SINK);
+/// La memoria en la que lleva el video el motor: «GLMemory», «D3D12Memory» o "" (sistema).
+std::string memoriaDelMotor();
+/// En qué memoria conviene darle (o recibir de) un elemento cualquiera: la del motor si la
+/// acepta (sin copias), si no la de placa que pida, si no la de sistema ("").
+std::string memoriaDeTrabajo(const std::string& fabrica, GstPadDirection dir = GST_PAD_SINK);
+/// Lleva el video a `memoria` ("" = sistema) venga de donde venga (sistema o la memoria
+/// del motor), para gst_parse_launch. Con ancho×alto, además lo escala a ese tamaño.
+/// En la del motor sale RGBA; en sistema, el formato lo negocia el que sigue.
+std::string llevarA(const std::string& memoria, int ancho = 0, int alto = 0);
+/// Lo que baja de `memoria` antes de llevarA si no es la del motor ni la de sistema
+/// («d3d11download ! »); vacío si no hace falta.
+std::string bajarDe(const std::string& memoria);
 /// Lo que va delante de un codificador para darle NV12: en la memoria del motor
 /// si el codificador la acepta (sin bajar: d3d12h264enc, qsvh264enc), si no en sistema.
 std::string aCodificador(const std::string& codificador);
