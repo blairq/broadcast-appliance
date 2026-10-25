@@ -4,6 +4,7 @@
 
 #include "audio/EntradasAudio.hpp"
 
+#include "audio/UnificarEntradas.hpp"
 #include "emision/InputSpecs.hpp"
 
 #if defined(BA_HAVE_GST)
@@ -51,7 +52,13 @@ std::string idDesdeLibobs(const std::string& id) {
 
 std::string pipelineDeMicrofono(const std::string& dispositivo) {
     std::string p = kElemento;
-    if (!dispositivo.empty() && dispositivo != "default") p += std::string(" ") + kPropiedad + "=" + entreComillas(dispositivo);
+    // «loopback:<id>»: lo que suena en esa salida (ver UnificarEntradas.hpp).
+    const bool loopback = dispositivo.rfind(kPrefijoLoopback, 0) == 0;
+    const std::string id = loopback ? dispositivo.substr(std::char_traits<char>::length(kPrefijoLoopback)) : dispositivo;
+    if (!id.empty() && id != "default") p += std::string(" ") + kPropiedad + "=" + entreComillas(id);
+#if defined(_WIN32)
+    if (loopback) p += " loopback=true";
+#endif
     return p + kExtra;
 }
 
@@ -63,14 +70,18 @@ std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine) 
         GstDeviceMonitor* mon = gst_device_monitor_new();
         gst_device_monitor_add_filter(mon, "Audio/Source", nullptr);
         if (gst_device_monitor_start(mon)) {
+            std::vector<EntradaCruda> crudas;
             GList* lista = gst_device_monitor_get_devices(mon);
             for (GList* l = lista; l != nullptr; l = l->next) {
                 auto* dev = GST_DEVICE(l->data);
                 bool monitor = false;
+                gboolean loopback = FALSE;
                 if (GstStructure* props = gst_device_get_properties(dev)) {
                     // Linux: «Monitor of …» (lo que suena) no es una entrada.
                     const gchar* clase = gst_structure_get_string(props, "device.class");
                     monitor = clase != nullptr && std::string(clase) == "monitor";
+                    // Windows: las salidas también se anuncian como fuente (loopback).
+                    if (!gst_structure_get_boolean(props, "wasapi2.device.loopback", &loopback)) loopback = FALSE;
                     gst_structure_free(props);
                 }
                 GstElement* e = monitor ? nullptr : gst_device_create_element(dev, nullptr);
@@ -79,7 +90,11 @@ std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine) 
                     if (g_object_class_find_property(G_OBJECT_GET_CLASS(e), kPropiedad) != nullptr)
                         g_object_get(e, kPropiedad, &id, nullptr);
                     gchar* nombre = gst_device_get_display_name(dev);
-                    if (id != nullptr && *id != '\0') out.push_back({nombre != nullptr ? nombre : id, id, false});
+                    GstElementFactory* fab = gst_element_get_factory(e);
+                    if (id != nullptr && *id != '\0')
+                        crudas.push_back({nombre != nullptr ? nombre : id, id,
+                                          fab != nullptr ? gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(fab)) : "",
+                                          loopback != FALSE});
                     g_free(nombre);
                     g_free(id);
                     gst_object_unref(e);
@@ -87,13 +102,18 @@ std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine) 
             }
             g_list_free_full(lista, gst_object_unref);
             gst_device_monitor_stop(mon);
+            // Una por dispositivo físico, sin las predeterminadas repetidas y con el
+            // loopback como lo que es (UnificarEntradas.hpp).
+            for (auto& [nombre, valor] : unificarEntradas(crudas, kElemento)) out.push_back({nombre, valor, false});
         }
         gst_object_unref(mon);
         if (out.size() > 1) return out;
     }
 #endif
+    std::vector<EntradaCruda> crudas;
     for (const auto& d : engine.sourceTypeListItems(inputs::kAudioInLibobs, inputs::kAudioInProp))
-        if (d.value != "default") out.push_back({d.name, idDesdeLibobs(d.value), d.disabled});
+        crudas.push_back({d.name, idDesdeLibobs(d.value), "", false});
+    for (auto& [nombre, valor] : unificarEntradas(crudas, kElemento)) out.push_back({nombre, valor, false});
     return out;
 }
 
