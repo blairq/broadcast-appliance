@@ -124,6 +124,18 @@ std::uint32_t leerColor(const json& j, const char* k, std::uint32_t def) {
 
 } // namespace
 
+std::string nivelCalidad(const MediaRoute& ruta, int altoGrilla) {
+    if (ruta.kind == MediaRoute::Kind::Program) return "libre";
+    // El lugar más grande donde se lo ve manda: la grilla o la vista previa de la fila.
+    int alto = altoGrilla > 0 ? altoGrilla : 0;
+    if (ruta.kind == MediaRoute::Kind::Backstage) {
+        if (ruta.index > 0) alto = std::max(alto, 360);
+        if (alto == 0) return "180p";
+    }
+    if (alto == 0) return "libre"; // el lobby y lo demás: como siempre
+    return alto <= 200 ? "180p" : alto <= 400 ? "360p" : "libre";
+}
+
 Grillas::Grillas(Log& log) : log_(log) {}
 
 Grillas::~Grillas() { stop(); }
