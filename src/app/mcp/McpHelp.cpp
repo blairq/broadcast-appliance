@@ -639,8 +639,8 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
     {"equipo", "El equipo", "Monitores, audio, camaras, GPU: para decidir con datos.",
      R"md(- `system_hardware`: todo de una vez (monitores, placas de audio de entrada y salida, camaras/capturadoras, GPU, codificadores de hardware, CPU, memoria, disco).
 - `monitors`: nombre, resolucion en pixeles, posicion en el escritorio, escala, Hz y principal. El `name` es el que usa `output_window.screen`.
-- `audio_devices`: el `value` de cada entrada es el `device_id` de una fuente de captura de audio (`crear_fuente {"type": inputSourceType, "settings": {"device_id": ...}}`).
-- `video_devices`: camaras y capturadoras; con `{"device": value}`, sus formatos, resoluciones y cuadros por segundo.
+- `audio_devices`: entradas y salidas de audio del registro de la maquina: `name` es el nombre que les puso el operador (`tecnico`, el del sistema), `conectado` si estan. El `value` de una entrada es el `device` de `audio_input_add`. Para nombrarlas: `equipo_renombrar`.
+- `video_devices`: camaras y capturadoras, del mismo registro (nombre del operador y tecnico); con `{"device": value, id o nombre}`, sus formatos, resoluciones y cuadros por segundo.
 
 ## Receta: ocupar todos los monitores
 1. `monitors` y `dashboard_list` (ventanas abiertas).

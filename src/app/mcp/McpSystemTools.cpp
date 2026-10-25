@@ -5,9 +5,10 @@
 // monitores y de que resolucion (para repartir ventanas de salida), que placas
 // de audio de entrada y salida hay, que camaras y capturadoras (con sus
 // formatos), con que GPU dibuja y que codificadores de hardware hay, CPU,
-// memoria y disco. Los dispositivos se descubren con los mismos plugins de
-// libobs que despues los usan (nada que pueda diferir entre lo listado y lo
-// que se puede agregar).
+// memoria y disco. Los dispositivos salen del registro de la maquina
+// (dispositivos::Dispositivos): la misma lista, con los mismos nombres, de la
+// que eligen las paginas de entradas (nada que pueda diferir entre lo listado y
+// lo que se puede agregar).
 // ============================================================================
 
 #include <QDir>
@@ -30,6 +31,8 @@
 #include "video/Camaras.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "dispositivos/Dispositivos.hpp"
+#include "ui/InputsViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #if defined(__linux__)
@@ -48,19 +51,6 @@ namespace ba::app::mcp {
 
 namespace {
 
-/// Tipos de fuente de libobs por plataforma para cada clase de dispositivo.
-struct DeviceKind {
-    const char* type;
-    const char* prop;
-};
-#if defined(_WIN32)
-const DeviceKind kAudioOut{"wasapi_output_capture", "device_id"};
-#elif defined(__APPLE__)
-const DeviceKind kAudioOut{"coreaudio_output_capture", "device_id"};
-#else
-const DeviceKind kAudioOut{"pulse_output_capture", "device_id"};
-#endif
-
 json listToJson(const std::vector<BroadcastEngine::ListItem>& items) {
     json out = json::array();
     for (const auto& i : items) {
@@ -69,6 +59,40 @@ json listToJson(const std::vector<BroadcastEngine::ListItem>& items) {
         out.push_back(e);
     }
     return out;
+}
+
+/// Los dispositivos de un tipo del registro de la máquina (dispositivos::Dispositivos,
+/// la página «Dispositivos y equipos»): con el NOMBRE que les puso el operador y el
+/// técnico al lado, si están conectados, y `value` (lo que guarda una entrada).
+/// Es la misma lista de la que eligen las páginas de entradas: lo que el
+/// asistente nombra es lo que el operador ve.
+json delRegistro(const dispositivos::Dispositivos& d, const QString& tipo) {
+    json out = json::array();
+    for (const QVariant& v : d.equipos(tipo)) {
+        const QVariantMap e = v.toMap();
+        json j{{"name", e.value("nombre").toString().toStdString()},
+               {"tecnico", e.value("tecnico").toString().toStdString()},
+               {"value", e.value("valor").toString().toStdString()},
+               {"id", e.value("id").toString().toStdString()},
+               {"conectado", e.value("conectado").toBool()}};
+        if (!e.value("conectado").toBool()) j["estado"] = e.value("estado").toString().toStdString();
+        out.push_back(j);
+    }
+    return out;
+}
+
+/// El `value` de un dispositivo de video por su value, su id del registro o su nombre.
+std::string valorDeVideo(const dispositivos::Dispositivos* d, const std::string& quien) {
+    if (d == nullptr) return quien;
+    const QString q = QString::fromStdString(quien);
+    for (const QVariant& v : d->equipos("camara_local")) {
+        const QVariantMap e = v.toMap();
+        if (e.value("valor").toString() == q || e.value("id").toString() == q ||
+            e.value("nombre").toString().compare(q, Qt::CaseInsensitive) == 0 ||
+            e.value("tecnico").toString().compare(q, Qt::CaseInsensitive) == 0)
+            return e.value("valor").toString().toStdString();
+    }
+    return quien;
 }
 
 json screensJson() {
@@ -213,7 +237,8 @@ void McpService::registerSystemTools() {
             "placas de audio de entrada y de salida, camaras y capturadoras, GPU y con que dibuja la app, "
             "codificadores de video (los de hardware marcados), CPU, memoria, disco y sistema operativo. "
             "Para los formatos de una camara: video_devices.";
-        t.run = [&rt](const json&, Done done) {
+        dispositivos::Dispositivos* reg = vm_.equipos();
+        t.run = [&rt, reg](const json&, Done done) {
             BroadcastEngine& e = rt.engine();
             json encoders = json::array();
             for (const auto& enc : e.videoEncoders())
@@ -230,9 +255,10 @@ void McpService::registerSystemTools() {
                        {"totalGb", static_cast<double>(disk.bytesTotal()) / 1e9},
                        {"filesystem", disk.fileSystemType().toStdString()}}},
                      {"monitors", screensJson()},
-                     {"audioInputs", listToJson(ba::app::audio::entradasDeAudio(e))},
-                     {"audioOutputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
-                     {"videoDevices", listToJson(ba::app::video::camarasDelEquipo(e))},
+                     // Del registro (con el nombre del operador), como audio_devices y video_devices.
+                     {"audioInputs", reg ? delRegistro(*reg, "microfono") : listToJson(ba::app::audio::entradasDeAudio(e))},
+                     {"audioOutputs", reg ? delRegistro(*reg, "salida_audio") : json::array()},
+                     {"videoDevices", reg ? delRegistro(*reg, "camara_local") : listToJson(ba::app::video::camarasDelEquipo(e))},
                      {"gpu", {{"renderer", e.graphicsDeviceName()}, {"cards", gpusJson()}}},
                      {"videoEncoders", encoders}}));
         };
@@ -262,16 +288,25 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Que placas y conectores de audio tiene la maquina, por nombre de sistema. "
-            "Entradas (microfonos, lineas, interfaces) y salidas (parlantes, auriculares) de audio. El "
-            "`value` es el que va en la fuente de captura de audio (crear_fuente).";
-        t.run = [&rt](const json&, Done done) {
-            BroadcastEngine& e = rt.engine();
-            done(ToolResult().data(
-                json{{"inputs", listToJson(ba::app::audio::entradasDeAudio(e))},
-                     {"outputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
-                     {"inputSourceType", ba::app::inputs::kMicType},
-                     {"outputSourceType", kAudioOut.type}}));
+            "Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y "
+            "salidas (parlantes, auriculares, HDMI). Salen del registro de la maquina (Dispositivos y equipos): "
+            "`name` es el nombre que les puso el operador (o el del sistema si no le puso), `tecnico` el del "
+            "sistema, `conectado` si esta ahora (los que la maquina ya vio y no estan figuran ausentes). El "
+            "`value` de una entrada es el `device` de audio_input_add.";
+        dispositivos::Dispositivos* reg = vm_.equipos();
+        t.run = [&rt, reg](const json&, Done done) {
+            if (reg == nullptr) {
+                BroadcastEngine& e = rt.engine();
+                return done(ToolResult().data(json{{"inputs", listToJson(ba::app::audio::entradasDeAudio(e))},
+                                                   {"outputs", json::array()}}));
+            }
+            // Se busca de nuevo (lo recién enchufado aparece) y se contesta con el registro.
+            reg->escanear("local", [reg, done](QVariantMap) {
+                done(ToolResult().data(json{{"inputs", delRegistro(*reg, "microfono")},
+                                            {"outputs", delRegistro(*reg, "salida_audio")},
+                                            {"nota", "Para ponerles nombre: equipo_renombrar (o la pagina "
+                                                     "Dispositivos y equipos)."}}));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -292,24 +327,18 @@ void McpService::registerSystemTools() {
             {"properties",
              {{"device", {{"type", "string"}}}, {"name", {{"type", "string"}, {"description", "opcional"}}}}},
             {"required", {"device"}}};
-        t.run = [&rt](const json& a, Done done) {
-            const std::string dev = a.value("device", "");
-            BroadcastEngine& e = rt.engine();
-            std::string name = a.value("name", "");
-            if (name.empty()) {
-                if (dev == "default") {
-                    name = "Entrada de audio predeterminada";
-                } else {
-                    for (const auto& d : ba::app::audio::entradasDeAudio(e))
-                        if (d.value == dev) name = d.name;
-                }
-            }
-            if (name.empty()) name = "Microfono";
-            SourceSpec spec = ba::app::inputs::audioInputSpec(dev, name);
-            if (!rt.addAudioInput(spec)) return done(ToolResult::error(rt.lastError()));
-            rt.save();
-            done(ToolResult().data(json{{"nombre", name},
-                                        {"dispositivo", dev},
+        // Por el mismo camino que la página Entradas de audio (InputsViewModel): el
+        // mismo nombre por defecto (el del operador) y la misma validación.
+        auto* entradas = static_cast<InputsViewModel*>(vm_.inputs());
+        t.run = [entradas](const json& a, Done done) {
+            if (entradas == nullptr) return done(ToolResult::error("La interfaz no esta lista."));
+            const QString dev = QString::fromStdString(a.value("device", std::string()));
+            QString name = QString::fromStdString(a.value("name", std::string())).trimmed();
+            if (name.isEmpty()) name = entradas->audioInputName(dev);
+            const QString err = entradas->addAudioInput(dev, name);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult().data(json{{"nombre", name.toStdString()},
+                                        {"dispositivo", dev.toStdString()},
                                         {"nota", "Suena en todas las escenas (canal global)."}}));
         };
         core_.addTool(std::move(t));
@@ -382,29 +411,39 @@ void McpService::registerSystemTools() {
         t.readOnly = true;
         t.description =
             "Camaras USB, capturadoras y cualquier dispositivo de video (por GStreamer: V4L2 en Linux, Media "
-            "Foundation en Windows, AVFoundation en macOS). Con `device` (el value de la lista): sus `modos` "
+            "Foundation en Windows, AVFoundation en macOS), del registro de la maquina: `name` es el nombre que "
+            "les puso el operador, `tecnico` el del sistema, `conectado` si esta ahora. Con `device` (el value, "
+            "el id o el nombre): sus `modos` "
             "(tamaño, cps, formato real: crudo, mjpeg, h264, h265; quién lo decodifica y si la GPU; "
             "`convertido_por_el_sistema`: un crudo que el sistema fabrica decodificando en la CPU) y `automatico` "
             "(el que se elige solo para el lienzo, con `porque`). Para todo lo que anuncia el dispositivo (API, "
             "propiedades, caps crudas): dispositivos_video. Para agregarla: video_input_add (`modo` = un `valor`).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
-            BroadcastEngine& e = rt.engine();
-            // Por GStreamer: las cámaras y sus modos del monitor de dispositivos.
-            json out{{"sourceType", ba::app::inputs::kMicType},
-                     {"available", e.sourceTypeExists(ba::app::inputs::kMicType)},
-                     {"devices", listToJson(ba::app::video::camarasDelEquipo(e))}};
-            if (a.contains("device")) {
-                json modos = json::array();
-                for (const auto& m : ba::app::video::modosDeCamara(a.value("device", ""))) modos.push_back(m.json());
-                out["modos"] = modos;
-                std::string porque;
-                const auto am = ba::app::video::modoAutomatico(a.value("device", ""), &porque);
-                json auto_ = am.ancho > 0 ? am.json() : json::object();
-                auto_["porque"] = porque;
-                out["automatico"] = auto_;
-            }
-            done(ToolResult().data(out));
+        dispositivos::Dispositivos* reg = vm_.equipos();
+        t.run = [&rt, reg](const json& a, Done done) {
+            // La lista, del registro de la máquina (nombre del operador y técnico al
+            // lado); los modos, por GStreamer, del dispositivo pedido.
+            auto contestar = [&rt, reg, a, done]() {
+                BroadcastEngine& e = rt.engine();
+                json out{{"available", e.sourceTypeExists(ba::app::inputs::kMicType)},
+                         {"devices", reg ? delRegistro(*reg, "camara_local")
+                                         : listToJson(ba::app::video::camarasDelEquipo(e))}};
+                if (a.contains("device")) {
+                    const std::string dev = valorDeVideo(reg, a.value("device", std::string()));
+                    out["device"] = dev;
+                    json modos = json::array();
+                    for (const auto& m : ba::app::video::modosDeCamara(dev)) modos.push_back(m.json());
+                    out["modos"] = modos;
+                    std::string porque;
+                    const auto am = ba::app::video::modoAutomatico(dev, &porque);
+                    json auto_ = am.ancho > 0 ? am.json() : json::object();
+                    auto_["porque"] = porque;
+                    out["automatico"] = auto_;
+                }
+                done(ToolResult().data(out));
+            };
+            if (reg == nullptr) return contestar();
+            reg->escanear("local", [contestar](QVariantMap) { contestar(); });
         };
         core_.addTool(std::move(t));
     }
