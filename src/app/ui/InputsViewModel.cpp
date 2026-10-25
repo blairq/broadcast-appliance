@@ -38,9 +38,36 @@ InputsViewModel::InputsViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* p
         ++stamp_;
         emit stampChanged();
     });
+    // EL MODELO SE ENTERA SOLO de las entradas que se agregan o se quitan, lo pida
+    // quien lo pida: el MCP (audio_input_add, video_input_add), un plugin, el
+    // guion del evento o «Agregar como entrada» de Dispositivos. Antes solo se
+    // rehacía cuando la llamada pasaba por acá, y una entrada agregada por el
+    // asistente no aparecía en la página hasta volver a entrar. Los avisos se
+    // juntan y se miran una vez por vuelta del bucle.
+    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
+        if (c != AppRuntime::Cambio::Audio && c != AppRuntime::Cambio::Fuentes) return;
+        const unsigned bit = 1u << static_cast<unsigned>(c);
+        if (avisosPendientes_.fetch_or(bit) == 0)
+            QMetaObject::invokeMethod(
+                this, [this]() { revisarEntradas(avisosPendientes_.exchange(0)); }, Qt::QueuedConnection);
+    });
+}
+
+void InputsViewModel::revisarEntradas(unsigned avisos) {
+    const bool fuentes = (avisos & (1u << static_cast<unsigned>(AppRuntime::Cambio::Fuentes))) != 0;
+    if (!fuentes) {
+        // Solo «Audio»: casi siempre es un volumen (llega en cada paso de un
+        // fader). La lista se rehace si cambiaron las entradas de audio del equipo.
+        QStringList ahora, antes;
+        for (const std::string& n : rt_.engine().globalAudioInputs()) ahora << QString::fromStdString(n);
+        for (const QVariant& v : audioInputs_) antes << v.toMap().value("name").toString();
+        if (ahora == antes) return;
+    }
+    rebuildInputs();
 }
 
 InputsViewModel::~InputsViewModel() {
+    if (observador_ >= 0) rt_.dejarDeObservar(observador_);
     for (const auto& n : held_)
         rt_.engine().holdShowing(n, false);
 }

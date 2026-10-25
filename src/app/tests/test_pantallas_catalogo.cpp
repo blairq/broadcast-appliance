@@ -12,6 +12,9 @@
 //   4. Asignar valida contra el catálogo; lo asignado se guarda y vuelve.
 //   5. Un monitor que no está se ESPERA: su contenido no pasa a otro, y al
 //      volver aparece solo.
+//   6. Las ventanas sueltas (pantallas/Ventanas): las mismas cosas del catálogo
+//      y los mismos ids de monitor; se recuerdan; lo que había en ui.json (las
+//      ventanas de video viejas) se migra sin perderse.
 
 #include <QCoreApplication>
 #include <QTemporaryDir>
@@ -21,8 +24,15 @@
 
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
+#include "pantallas/Ventanas.hpp"
+
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 using ba::app::CatalogoVisible;
+using ba::app::VentanasModel;
 using ba::app::MonitoresModel;
 using ba::app::PantallaFisica;
 
@@ -40,13 +50,19 @@ int g_fallas = 0;
 QStringList g_escenas{"Plano general", "Atril"};
 QStringList g_camaras;
 QStringList g_fondo{"program"};
+QString g_fondoDist{"grid"};
 
 CatalogoVisible::Fuentes fuentes() {
     CatalogoVisible::Fuentes f;
     f.escenas = []() { return g_escenas; };
     f.multiviews = []() { return QVariantList{QVariantMap{{"id", "principal"}, {"nombre", "Control"}}}; };
     f.fondo = []() { return g_fondo; };
-    f.fondoDistribucion = []() { return QString("grid"); };
+    f.fondoDistribucion = []() { return g_fondoDist; };
+    f.videos = []() {
+        return QVariantList{QVariantMap{{"clave", "program"}, {"titulo", "Programa"}},
+                            QVariantMap{{"clave", "guest:1"}, {"titulo", "Ana"}},
+                            QVariantMap{{"clave", "entrada:Cámara 1"}, {"titulo", "Cámara 1"}}};
+    };
     f.camarasPtz = []() { return g_camaras; };
     f.paginas = []() {
         return QVariantList{QVariantMap{{"page", 10}, {"id", "guion"}, {"titulo", "Evento"}, {"icon", "≣"}},
@@ -291,6 +307,115 @@ int main(int argc, char** argv) {
         MonitoresModel m(archivo, &cat);
         CHECK(m.rowCount() == 2); // A y C (D se olvidó)
         CHECK(m.monitor(idD).isEmpty());
+    }
+
+    // ===================== 6. Las ventanas sueltas =========================
+    {
+        g_escenas = {"Plano general", "Atril"};
+        cat.refrescar();
+        // Las fuentes de video sueltas son cosas del catálogo (el programa no se repite).
+        const auto* ana = cat.buscar("video:guest:1");
+        CHECK(ana != nullptr && ana->titulo == "Ana" && ana->grupo == "video");
+        CHECK(ana && ana->dibujo.value("claves").toStringList() == QStringList{"guest:1"});
+        CHECK(cat.buscar("video:program") == nullptr);
+        // El fondo que es una multivista se dibuja como multivista.
+        g_fondoDist = "multiview:principal";
+        cat.refrescar();
+        CHECK(cat.buscar("fondo")->dibujo.value("modo").toString() == "multiview");
+        g_fondoDist = "grid";
+        cat.refrescar();
+
+        // La única lista de monitores: los conectados en orden físico, con su id estable.
+        MonitoresModel mon({}, &cat);
+        mon.actualizarPantallas({A, B, C});
+        const QVariantList lista = mon.conectadosEnOrden();
+        CHECK(lista.size() == 3);
+        CHECK(lista.size() == 3 && lista[0].toMap().value("id").toString() == idB &&
+              lista[1].toMap().value("id").toString() == idA && lista[1].toMap().value("principal").toBool());
+        CHECK(lista.size() == 3 && lista[2].toMap().value("orden").toInt() == 3 &&
+              lista[2].toMap().value("sistema").toString() == "HDMI-1");
+        CHECK(qobject_cast<QAbstractItemModel*>(mon.presentes())->rowCount() == 3);
+
+        // Lo que había en ui.json: dos ventanas de video viejas.
+        const QString ui = dir.filePath("Config/ui.json");
+        {
+            QJsonArray windows;
+            windows.append(QJsonObject{{"keys", QJsonArray{"program", "guest:1"}}, {"layout", "pip"}, {"screen", "HDMI-1"},
+                                       {"fullscreen", true}, {"x", 3900}, {"y", 10}, {"w", 800}, {"h", 450}});
+            windows.append(QJsonObject{{"keys", QJsonArray{}}, {"layout", "multiview"}, {"screen", "DP-9"}});
+            QFile f(ui);
+            CHECK(f.open(QIODevice::WriteOnly));
+            f.write(QJsonDocument(QJsonObject{{"windows", windows}, {"cards", QJsonArray{}}}).toJson());
+        }
+        const std::filesystem::path archivoV = dir.filePath("Config/ventanas.json").toStdString();
+        {
+            VentanasModel v(archivoV, &cat, &mon);
+            CHECK(v.migrarDesde(ui.toStdString(), "principal"));
+            CHECK(v.rowCount() == 2);
+            const auto& f0 = v.ventanas()[0];
+            CHECK(f0.cosas == (QStringList{"programa", "video:guest:1"}));
+            CHECK(f0.distribucion == "pip" && f0.pantallaCompleta && f0.geometria == QRect(3900, 10, 800, 450));
+            // El monitor por nombre del sistema pasó a su id estable (está conectado).
+            CHECK(f0.monitor == idC && f0.sistema.isEmpty());
+            // «multiview» solo seguía a la elegida; su monitor no está: se lo traduce cuando aparezca.
+            const auto& f1 = v.ventanas()[1];
+            CHECK(f1.cosas == QStringList{"multiview:principal"});
+            CHECK(f1.monitor.isEmpty() && f1.sistema == "DP-9");
+            CHECK(v.ventanaDe("multiview:principal") == f1.id);
+            CHECK(v.afuera() == QStringList{"multiview:principal"});
+            // Ya hay ventanas.json: no se migra dos veces.
+            CHECK(!v.migrarDesde(ui.toStdString(), "principal"));
+
+            // Abrir lo mismo dos veces no abre otra: la trae al frente.
+            Contador& frente = *contar(&v, &VentanasModel::cambio);
+            QString err;
+            const int p = v.abrirCon({"padron"}, {}, &err);
+            CHECK(p > 0 && err.isEmpty());
+            CHECK(v.abrirCon({"padron"}, {}) == p);
+            CHECK(v.rowCount() == 3);
+            CHECK(frente.count() >= 1);
+            // Valida contra el catálogo, como un monitor.
+            CHECK(v.abrirCon({"no-existe"}, {}, &err) == 0 && !err.isEmpty());
+            CHECK(v.abrirCon({"web:mensaje"}, {}, &err) == 0);
+            CHECK(v.abrirVideo({"armada"}) > 0);
+            CHECK(v.ventanaDe("preview") > 0);
+            v.setMonitor(p, idA);
+            v.setPantallaCompleta(p, true);
+            v.setGeometria(p, 10, 20, 640, 480);
+            v.cerrarCosa("preview");
+            CHECK(v.ventanaDe("preview") == 0);
+            CHECK(v.setCosas(f1.id, {"multiview:principal", "preguntas"}).isEmpty());
+            CHECK(v.ventana(f1.id).value("titulo").toString().contains(" + "));
+            CHECK(!v.afuera().contains("multiview:principal"));
+        }
+        {
+            // Se recuerda todo al volver (y el monitor que faltaba se traduce al aparecer).
+            VentanasModel v(archivoV, &cat, &mon);
+            CHECK(v.rowCount() == 3);
+            const int p = v.ventanaDe("padron");
+            CHECK(p > 0);
+            const QVariantMap m = v.ventana(p);
+            CHECK(m.value("monitor").toString() == idA && m.value("pantallaCompleta").toBool());
+            CHECK(m.value("geometria").toRect() == QRect(10, 20, 640, 480));
+            const PantallaFisica nuevo = pantalla("DP-9", "SERIE-9", 5760, 0);
+            mon.actualizarPantallas({A, B, C, nuevo});
+            bool traducida = false;
+            for (const auto& f : v.ventanas())
+                if (f.cosas.contains("preguntas")) traducida = f.monitor == MonitoresModel::idDe(nuevo) && f.sistema.isEmpty();
+            CHECK(traducida);
+            v.cerrar(p);
+            CHECK(v.rowCount() == 2);
+        }
+        {
+            VentanasModel v(archivoV, &cat, &mon);
+            CHECK(v.rowCount() == 2);
+            CHECK(v.ventanaDe("padron") == 0);
+        }
+        // Las claves viejas, a cosas del catálogo.
+        CHECK(VentanasModel::cosaDeClave("program") == "programa");
+        CHECK(VentanasModel::cosaDeClave("armada") == "preview");
+        CHECK(VentanasModel::cosaDeClave("escena:Atril") == "escena:Atril");
+        CHECK(VentanasModel::cosaDeClave("share:2") == "video:share:2");
     }
 
     if (g_fallas == 0) std::printf("test_pantallas_catalogo: OK\n");

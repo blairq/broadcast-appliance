@@ -2,6 +2,8 @@
 // nombres del operador (persistencia, renombre, choques), ausentes y detectores
 // (sin hardware: los detectores son de mentira)
 
+#include "audio/GrupoDeSalida.hpp"
+#include "audio/UnificarEntradas.hpp"
 #include "dispositivos/Conocidos.hpp"
 #include "dispositivos/Dispositivos.hpp"
 
@@ -210,6 +212,71 @@ int main(int argc, char** argv) {
         d.escanear("local", [](QVariantMap) {});
         CHECK(d.olvidar("local:audio:UID-1").isEmpty() && d.equipo("local:audio:UID-1").isEmpty(),
               "un ausente se puede olvidar");
+    }
+
+    // --- Una entrada de audio por dispositivo físico (lo visto en la PC con Windows) ---
+    {
+        using namespace ba::app::audio;
+        const std::string ep = "{0.0.1.00000000}.{eea76234-94d6-4fbd-bf1a-72ef6097110a}";
+        const std::string guid = "{EEA76234-94D6-4FBD-BF1A-72EF6097110A}";
+        const std::string monitorDell = "{0.0.0.00000000}.{11111111-2222-3333-4444-555555555555}";
+        CHECK(claveFisica(ep) == claveFisica(guid), "el endpoint y el GUID solo (en mayúsculas) son el mismo");
+        CHECK(claveFisica("\\\\?\\SWD#MMDEVAPI#" + ep + "#{2eef81be-33fa-4800-9670-1cd474972c3f}") == claveFisica(ep),
+              "la ruta de la interfaz también: la clase de audio no cuenta");
+        CHECK(esPredeterminadaDelProveedor("{2EEF81BE-33FA-4800-9670-1CD474972C3F}"),
+              "«Default Audio Capture Device» es la predeterminada del proveedor");
+        CHECK(!esPredeterminadaDelProveedor(ep) && !esPredeterminadaDelProveedor("BuiltInMicrophoneDevice"),
+              "un dispositivo de verdad no");
+        const auto l = unificarEntradas(
+            {{"Micrófono (HD Pro Webcam C910)", guid, "wasapi2src", false},
+             {"Micrófono (HD Pro Webcam C910)", ep, "wasapi2src", false},
+             {"Micrófono (HD Pro Webcam C910)", guid, "directsoundsrc", false},
+             {"Default Audio Capture Device", "{2EEF81BE-33FA-4800-9670-1CD474972C3F}", "wasapi2src", false},
+             {"Default Audio Render Device", "{E6327CAD-DCEC-4949-AE8A-991E976A79D2}", "wasapi2src", true},
+             {"5 - DELL U2913WM (AMD High Definition Audio Device)", monitorDell, "wasapi2src", true}},
+            "wasapi2src");
+        CHECK(l.size() == 2, "queda un micrófono y un loopback");
+        CHECK(l.size() == 2 && l[0].second == ep, "del micrófono queda el id de endpoint (el que abre wasapi2src)");
+        CHECK(l.size() == 2 && l[1].first == "Lo que suena en «5 - DELL U2913WM (AMD High Definition Audio Device)»" &&
+                  l[1].second == std::string(kPrefijoLoopback) + monitorDell,
+              "el loopback de una salida se nombra como tal");
+        // Mac y Linux: nada cambia.
+        const auto m = unificarEntradas({{"MacBook Pro Microphone", "BuiltInMicrophoneDevice", "osxaudiosrc", false},
+                                         {"default", "default", "osxaudiosrc", false}},
+                                        "osxaudiosrc");
+        CHECK(m.size() == 1 && m[0].second == "BuiltInMicrophoneDevice", "en la Mac queda igual (sin la default repetida)");
+
+        // Lo que la máquina ya recordaba con el id viejo no aparece como «ausente»
+        // al lado del mismo micrófono conectado.
+        const fs::path dir2 = carpetaTemporal();
+        Dispositivos d2(dir2 / "dispositivos.json");
+        registrarDetector(d2);
+        hay = {mic(QString::fromStdString(guid), "Micrófono (HD Pro Webcam C910)"),
+               mic("{2EEF81BE-33FA-4800-9670-1CD474972C3F}", "Default Audio Capture Device")};
+        d2.escanear("local", [](QVariantMap) {});
+        hay = {mic(QString::fromStdString(ep), "Micrófono (HD Pro Webcam C910)")};
+        d2.escanear("local", [](QVariantMap) {});
+        const QVariantList mics = d2.equipos("microfono");
+        CHECK(mics.size() == 1, "un solo micrófono: ni el GUID viejo ni la predeterminada del proveedor como ausentes");
+        std::error_code ec2;
+        fs::remove_all(dir2, ec2);
+    }
+
+    // --- El grupo de una salida de audio sale de su id, nunca del nombre ----------
+    {
+        using ba::app::audio::grupoDeSalida;
+        CHECK(grupoDeSalida("alsa_output.pci-0000_00_1f.3.analog-stereo") == "pci-0000_00_1f",
+              "PulseAudio: la placa sale del id");
+        CHECK(grupoDeSalida("alsa_output.pci-0000_00_1f.3.analog-stereo") ==
+                  grupoDeSalida("alsa_output.pci-0000_00_1f.3.hdmi-stereo"),
+              "PulseAudio: dos salidas de la misma placa, mismo grupo");
+        // Mac: sin puntos. El grupo es el id: renombrar (el nombre ni entra) no lo cambia.
+        CHECK(grupoDeSalida("BuiltInSpeakerDevice") == "BuiltInSpeakerDevice", "Core Audio: el id es el grupo");
+        CHECK(grupoDeSalida("BuiltInSpeakerDevice") != grupoDeSalida("AppleUSBAudioEngine:Focusrite:1"),
+              "Core Audio: dos salidas distintas no se juntan");
+        // Windows: el id tiene puntos pero no dice la placa; antes todas caían en el grupo «0».
+        CHECK(grupoDeSalida("{0.0.0.00000000}.{aaaa}") != grupoDeSalida("{0.0.0.00000000}.{bbbb}"),
+              "WASAPI: cada salida en su grupo (no todas en uno)");
     }
 
     std::error_code ec;

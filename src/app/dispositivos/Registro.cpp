@@ -10,6 +10,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "audio/EntradasAudio.hpp"
+#include "audio/UnificarEntradas.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "dispositivos/Onvif.hpp"
 #include "plugins/Plugins.hpp"
@@ -97,12 +98,16 @@ QVariantList localesDe(AppRuntime& rt) {
                           {"datos", QVariantMap{{"id", qs(c.value)}}}};
     for (const auto& m : audio::entradasDeAudio(rt.engine())) {
         const bool pred = m.value == "default";
+        // Lo que suena en una salida (loopback, Windows): se ofrece como entrada,
+        // pero no es un micrófono y se dice.
+        const bool loopback = m.value.rfind(audio::kPrefijoLoopback, 0) == 0;
         eq << QVariantMap{{"clave", "audio:" + qs(m.value)},
                           {"tipo", "microfono"},
                           {"nombre", qs(m.name)},
                           {"valor", qs(m.value)},
-                          {"detalle", pred ? QStringLiteral("La que tenga elegida el sistema (la sigue si cambia)")
-                                           : "Micrófono o entrada de audio · " + qs(m.value)},
+                          {"detalle", pred       ? QStringLiteral("La que tenga elegida el sistema (la sigue si cambia)")
+                                      : loopback ? "Lo que se reproduce por esa salida (no es un micrófono) · " + qs(m.value)
+                                                 : "Micrófono o entrada de audio · " + qs(m.value)},
                           {"datos", QVariantMap{{"id", qs(m.value)},
                                                 {"pipeline", qs(audio::pipelineDeMicrofono(m.value))}}}};
     }

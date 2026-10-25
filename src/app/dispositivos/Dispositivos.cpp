@@ -2,6 +2,10 @@
 
 #include "dispositivos/Dispositivos.hpp"
 
+#include "audio/UnificarEntradas.hpp"
+
+#include <set>
+
 #include "dispositivos/Conocidos.hpp"
 
 #include <QDateTime>
@@ -134,8 +138,22 @@ QVariantList Dispositivos::equipos(const QString& tipo, const QString& buscar) c
     for (const auto& [id, e] : equipos_)
         todos.push_back(presentar(e));
     // Los que la máquina ya vio y hoy no están: con su nombre, como ausentes.
-    for (const Conocido& c : conocidos_->todos())
-        if (equipos_.count(qs(c.id)) == 0) todos.push_back(ausente(qs(c.id)));
+    // Menos los que son OTRO NOMBRE de uno que está: en Windows el mismo micrófono
+    // se vio con dos ids (el del endpoint y el GUID solo, de otro proveedor), y
+    // las predeterminadas que inventa el proveedor («Default Audio Capture
+    // Device»). Se miran por dispositivo físico (audio/UnificarEntradas.hpp).
+    std::set<std::string> fisicos;
+    for (const auto& [id, e] : equipos_)
+        fisicos.insert(e.value("tipo").toString().toStdString() + "|" +
+                       audio::claveFisica(e.value("valor").toString().toStdString()));
+    for (const Conocido& c : conocidos_->todos()) {
+        if (equipos_.count(qs(c.id)) != 0) continue;
+        if (c.tipo == "microfono" || c.tipo == "salida_audio") {
+            if (audio::esPredeterminadaDelProveedor(c.valor)) continue;
+            if (fisicos.count(c.tipo + "|" + audio::claveFisica(c.valor)) != 0) continue;
+        }
+        todos.push_back(ausente(qs(c.id)));
+    }
     std::stable_sort(todos.begin(), todos.end(), [](const QVariantMap& a, const QVariantMap& b) {
         const int ta = ordenDeTipo(a.value("tipo").toString()), tb = ordenDeTipo(b.value("tipo").toString());
         if (ta != tb) return ta < tb;

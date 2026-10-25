@@ -22,6 +22,7 @@
 #include <QTimer>
 #include <QVariantList>
 
+#include <atomic>
 #include <set>
 #include <string>
 
@@ -96,6 +97,9 @@ class InputsViewModel : public QObject {
 
    private:
     void rebuildInputs();
+    /// Lo que avisó el runtime (ver el constructor): se rehace la lista solo si
+    /// cambió de verdad (un volumen también avisa «Audio»).
+    void revisarEntradas(unsigned avisos);
     /// Las listas para elegir, del registro de dispositivos.
     void rebuildDevices();
     /// El dispositivo de la maquina que usa una entrada: {dispositivo, dispositivoId, estado, conectado}.
@@ -116,6 +120,8 @@ class InputsViewModel : public QObject {
     QTimer tick_;
     QVariantList ndiFound_;
     bool ndiSearching_ = false;
+    int observador_ = -1;
+    std::atomic<unsigned> avisosPendientes_{0};
 };
 
 /// image://inputs/<nombre>?<stamp>: miniatura de una entrada.

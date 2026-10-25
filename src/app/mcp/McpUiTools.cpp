@@ -22,6 +22,8 @@
 #include "video/VideoGrafos.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "pantallas/Catalogo.hpp"
+#include "pantallas/Monitores.hpp"
+#include "pantallas/Ventanas.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/RielConfig.hpp"
@@ -58,7 +60,9 @@ void McpService::registerUiTools() {
     StudioViewModel& vm = vm_;
     auto* self = this;
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
-    auto* windows = static_cast<OutputWindowsModel*>(dash->windows());
+    // Las ventanas sueltas (pantallas/Ventanas.hpp): video, páginas y paneles.
+    VentanasModel* windows = vm.ventanasModelo();
+    MonitoresModel* monitores = vm.monitoresModelo();
 
     {
         Tool t;
@@ -71,7 +75,8 @@ void McpService::registerUiTools() {
             "`vista` (id o nombre) elige con cuál trabajar (si no, la elegida); `nueva` crea una con ese nombre (con "
             "`copiar`: copia de la elegida); `renombrar` y `borrar` (siempre queda una). Lo demás cambia SOLO lo que "
             "mandes en esa vista (se guarda y lo siguen sus ventanas en vivo). `ventana`: true abre una ventana de "
-            "salida con esa vista: en `monitor` (nombre de monitores) y, con `pantalla_completa`, ocupándolo entero. "
+            "salida con esa vista: en `monitor` (id, número de orden o nombre de `monitores`) y, con "
+            "`pantalla_completa`, ocupándolo entero. "
             "`todas_en_ventanas`: una ventana por multivista, una por monitor (los que no son el principal) en pantalla "
             "completa; `cerrar_ventanas`: las cierra. La respuesta trae `ventana` de cada multivista (\"salida:<n>\"): "
             "para acomodarlas como quieras (zona, tamaño exacto, maximizada, otro monitor) usá ventana_mover con ese id. "
@@ -97,12 +102,12 @@ void McpService::registerUiTools() {
               {"grosorTally", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 1-12; de fábrica 2"}}},
               {"vumetros", {{"type", "boolean"}}},
               {"ventana", {{"type", "boolean"}, {"default", false}}},
-              {"monitor", {{"type", "string"}, {"description", "con ventana: nombre del monitor (ver `monitores`)"}}},
+              {"monitor", {{"type", "string"}, {"description", "con ventana: id, numero de orden o nombre del monitor (ver `monitores`)"}}},
               {"pantalla_completa", {{"type", "boolean"}, {"default", false}}},
               {"todas_en_ventanas", {{"type", "boolean"}, {"default", false}}},
               {"cerrar_ventanas", {{"type", "boolean"}, {"default", false}}}}}};
         t.examples = {R"({"todas_en_ventanas": true})",
-                      R"({"vista": "Invitados", "ventana": true, "monitor": "HDMI-1", "pantalla_completa": true})",
+                      R"({"vista": "Invitados", "ventana": true, "monitor": "2", "pantalla_completa": true})",
                       R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
                       R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
         t.run = [&vm, windows](const json& a, Done done) {
@@ -147,9 +152,10 @@ void McpService::registerUiTools() {
             json vistas = qvToJson(vm.multiviews());
             for (auto& v : vistas) {
                 v["ventana"] = nullptr;
-                for (const auto& w : windows->windows())
-                    if (w.layout == "multiview:" + QString::fromStdString(v.value("id", std::string())))
-                        v["ventana"] = "salida:" + std::to_string(w.id);
+                if (windows != nullptr)
+                    if (const int w = windows->ventanaDe("multiview:" + QString::fromStdString(v.value("id", std::string())));
+                        w > 0)
+                        v["ventana"] = "salida:" + std::to_string(w);
             }
             done(ToolResult().data({{"elegida", vm.multiviewActual().toStdString()},
                                     {"multivistas", vistas},
@@ -340,9 +346,9 @@ void McpService::registerUiTools() {
                                 "programa, una escena, una multiview...)."}}}}}};
         t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})",
                       R"({"cosa": "tarjeta:aire"})"};
-        t.run = [self, &vm](const json& a, Done done) {
+        t.run = [self, &vm, windows](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (w == nullptr || windows == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             // Todo es una cosa del catálogo: el panel de siempre o cualquier otra.
             std::string id = a.value("cosa", a.value("panel", std::string()));
             if (id.empty()) return done(ToolResult::error("Falta `panel` o `cosa` (catalogo_listar)."));
@@ -358,14 +364,17 @@ void McpService::registerUiTools() {
                 return done(ToolResult::error("\"" + id + "\" no es algo que se pueda abrir en una ventana: "
                                               "catalogo_listar {\"donde\": \"monitor\"} dice que hay."));
             const std::string titulo = cosa->titulo.toStdString();
-            QMetaObject::invokeMethod(w, "sacar", Q_ARG(QVariant, QString::fromStdString(id)));
+            // Por el modelo de las ventanas (el mismo que usa el boton ⧉): se recuerda.
+            QString err;
+            const int vid = windows->abrirCon({QString::fromStdString(id)}, {}, &err);
+            if (vid == 0) return done(ToolResult::error(err.toStdString()));
             const std::string modo = cosa->dibujo.value("modo").toString().toStdString();
             const std::string nombre = modo == "pagina" ? "ba:pagina:" + id.substr(7)
-                                       : modo == "panel" ? "ba:panel:" + id
-                                                         : std::string("ba:salida:<n>");
+                                       : modo == "panel" ? "ba:panel:" + cosa->dibujo.value("panel").toString().toStdString()
+                                                         : "ba:salida:" + std::to_string(vid);
             done(ToolResult::ok("\"" + titulo + "\" abierto en su propia ventana (" + nombre +
-                                "). Con `ventana_mover` se la manda al monitor que corresponda; para dejarlo FIJO "
-                                "en un monitor, `monitor_asignar`."));
+                                "), que se recuerda al reiniciar. Con `ventana_mover` (o output_window) se la manda al "
+                                "monitor que corresponda; para dejarlo FIJO en un monitor, `monitor_asignar`."));
         };
         core_.addTool(std::move(t));
     }
@@ -396,28 +405,37 @@ void McpService::registerUiTools() {
         t.category = "interfaz";
         t.readOnly = true;
         t.description =
-            "Tarjetas del dashboard (id, tipo, posicion), tipos que se pueden agregar, fondo, ventanas de "
-            "salida abiertas (videos, disposicion, monitor, pantalla completa) y monitores conectados.";
-        t.run = [dash, windows](const json&, Done done) {
+            "Tarjetas del dashboard (id, tipo, posicion), tipos que se pueden agregar, fondo, ventanas "
+            "sueltas abiertas (cosas del catalogo, disposicion, monitor, pantalla completa) y monitores "
+            "conectados (en su orden fisico, con su id estable).";
+        t.run = [&vm, dash, windows](const json&, Done done) {
             json kinds = json::array();
             for (const QString& k : dash->cardKinds())
                 kinds.push_back(json{{"kind", k.toStdString()}, {"title", dash->kindTitle(k).toStdString()}});
             json bg = json::array();
             for (const QString& k : dash->background())
                 bg.push_back(k.toStdString());
-            json screens = json::array();
-            for (QScreen* s : QGuiApplication::screens())
-                screens.push_back(json{
-                    {"name", s->name().toStdString()},
-                    {"size", std::to_string(s->size().width()) + "x" + std::to_string(s->size().height())},
-                    {"primary", s == QGuiApplication::primaryScreen()}});
+            // Los monitores de Salidas → Pantallas (orden físico, ids estables).
+            json screens = qvToJson(vm.monitores());
+            json ventanas = json::array();
+            if (windows != nullptr)
+                for (const FilaVentana& v : windows->ventanas()) {
+                    json c = json::array();
+                    for (const QString& x : v.cosas) c.push_back(x.toStdString());
+                    ventanas.push_back(json{{"id", v.id},
+                                            {"ventana", "salida:" + std::to_string(v.id)},
+                                            {"cosas", c},
+                                            {"distribucion", v.distribucion.toStdString()},
+                                            {"monitor", v.monitor.toStdString()},
+                                            {"pantallaCompleta", v.pantallaCompleta}});
+                }
             done(ToolResult().data(json{{"cards", modelRows(*dash)},
                                         {"cardKinds", kinds},
                                         {"background",
                                          {{"feeds", bg},
                                           {"layout", dash->backgroundLayout().toStdString()},
                                           {"dim", dash->backgroundDim()}}},
-                                        {"outputWindows", modelRows(*windows)},
+                                        {"outputWindows", ventanas},
                                         {"screens", screens}}));
         };
         core_.addTool(std::move(t));
@@ -494,43 +512,59 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "output_window";
-        t.title = "Ventanas de salida (multiview)";
+        t.title = "Ventanas sueltas (video, paneles, paginas)";
         t.category = "interfaz";
         t.description =
-            "Abre una ventana con videos (claves de feeds_list: program, guest:1...) en una "
-            "disposicion, o modifica/cierra una existente: monitor, pantalla completa, disposicion.";
+            "Abre una ventana suelta con cosas del catalogo (`cosas`: ids de catalogo_listar: el programa, una "
+            "escena, una multiview, un invitado «video:guest:1», un panel, una pagina) o con videos por su clave "
+            "(`open`: program, guest:1...), o cambia/cierra una existente (`id`: el numero de dashboard_list o "
+            "de «salida:<n>»): monitor, pantalla completa, disposicion. Las ventanas se recuerdan al reiniciar; "
+            "para dejar algo FIJO en un monitor, monitor_asignar.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"open",
-               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Videos a mostrar."}}},
+             {{"cosas",
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Ids de catalogo_listar."}}},
+              {"open",
+               {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Videos por su clave (feeds_list)."}}},
               {"id", {{"type", "integer"}, {"description", "Ventana existente."}}},
               {"close", {{"type", "boolean"}}},
               {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row"}}}},
-              {"screen", {{"type", "string"}, {"description", "Nombre del monitor (dashboard_list)."}}},
+              {"screen", {{"type", "string"}, {"description", "Monitor: id, numero de orden o nombre (monitor_listar)."}}},
               {"fullscreen", {{"type", "boolean"}}}}}};
-        t.examples = {
-            R"({"open": ["program", "guest:1", "guest:2"], "layout": "pip", "screen": "HDMI-1", "fullscreen": true})"};
-        t.run = [windows](const json& a, Done done) {
+        t.examples = {R"({"cosas": ["programa"], "screen": "2", "fullscreen": true})",
+                      R"({"open": ["program", "guest:1", "guest:2"], "layout": "pip", "screen": "2"})"};
+        t.run = [windows, monitores](const json& a, Done done) {
+            if (windows == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
             int id = a.value("id", 0);
-            if (a.contains("open")) {
-                QStringList keys;
-                for (const auto& k : a["open"])
-                    keys << QString::fromStdString(k.get<std::string>());
-                id = windows->open(keys, QString::fromStdString(a.value("layout", std::string("grid"))));
+            const QString layout = QString::fromStdString(a.value("layout", std::string("grid")));
+            if (a.contains("cosas") || a.contains("open")) {
+                QStringList cosas;
+                for (const auto& k : a.value("cosas", json::array()))
+                    if (k.is_string()) cosas << QString::fromStdString(k.get<std::string>());
+                for (const auto& k : a.value("open", json::array()))
+                    if (k.is_string()) cosas << VentanasModel::cosaDeClave(QString::fromStdString(k.get<std::string>()));
+                QString err;
+                id = windows->abrirCon(cosas, layout, &err);
+                if (id == 0) return done(ToolResult::error(err.toStdString()));
             } else if (id == 0) {
-                return done(
-                    ToolResult::error("Indica `open` (videos) o el `id` de una ventana (dashboard_list)."));
+                return done(ToolResult::error("Indica `cosas`, `open` o el `id` de una ventana (dashboard_list)."));
             }
+            if (windows->ventana(id).isEmpty())
+                return done(ToolResult::error("No hay una ventana " + std::to_string(id) + " (dashboard_list)."));
             if (a.value("close", false)) {
-                windows->close(id);
+                windows->cerrar(id);
                 return done(ToolResult::ok("Ventana " + std::to_string(id) + " cerrada."));
             }
-            if (a.contains("layout") && !a.contains("open"))
-                windows->setLayout(id, QString::fromStdString(a["layout"]));
-            if (a.contains("screen")) windows->setScreen(id, QString::fromStdString(a["screen"]));
-            if (a.contains("fullscreen")) windows->setFullscreen(id, a["fullscreen"]);
-            done(ToolResult::ok("Ventana de salida " + std::to_string(id) + " lista."));
+            if (a.contains("layout")) windows->setDistribucion(id, layout);
+            if (a.contains("screen")) {
+                const QString m = monitores ? monitores->resolver(QString::fromStdString(a["screen"].get<std::string>())) : QString();
+                if (m.isEmpty()) return done(ToolResult::error("No conozco ese monitor: monitor_listar dice cuales hay."));
+                windows->setMonitor(id, m);
+            }
+            if (a.contains("fullscreen")) windows->setPantallaCompleta(id, a["fullscreen"].get<bool>());
+            done(ToolResult::ok("Ventana salida:" + std::to_string(id) + " lista (" +
+                                windows->ventana(id).value("titulo").toString().toStdString() + ")."));
         };
         core_.addTool(std::move(t));
     }

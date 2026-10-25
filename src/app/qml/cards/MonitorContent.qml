@@ -26,7 +26,7 @@ Item {
         border.color: Qt.rgba(1, 1, 1, 0.15)
         Text { anchors.centerIn: parent; text: "⧉"; color: Theme.text; font.pixelSize: 13 }
         MouseArea { id: popMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: Studio.dashboard.windows.open([mon.source], "grid") }
+                    onClicked: Studio.ventanas.abrirVideo([mon.source], "grid") }
         ToolTip.visible: popMa.containsMouse
         ToolTip.text: "Sacar a una ventana (p. ej. otro monitor)"
     }

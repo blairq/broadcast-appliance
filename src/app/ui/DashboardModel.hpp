@@ -9,7 +9,8 @@
 // rectangulo propuesto a la grilla, a los bordes del area y a los bordes de
 // las demas tarjetas (con separacion). La vista solo anima hacia el resultado.
 //
-// Persistencia: <datos>/Config/ui.json.
+// Persistencia: <datos>/Config/ui.json. Las ventanas sueltas ya no van acá: son
+// pantallas/Ventanas.hpp (ventanas.json), que trae las que había en ui.json.
 // ============================================================================
 
 #pragma once
@@ -27,49 +28,6 @@
 
 namespace ba::app {
 
-/// Ventanas de salida: video sacado del dashboard a una ventana propia (por
-/// ejemplo para mandarlo a otro monitor). Cada ventana muestra una o varias
-/// fuentes con una distribucion; recuerda monitor, pantalla completa y
-/// geometria. Las guarda el DashboardModel en ui.json.
-class OutputWindowsModel : public QAbstractListModel {
-    Q_OBJECT
-   public:
-    enum Roles { IdRole = Qt::UserRole + 1, KeysRole, LayoutRole, ScreenRole, FullscreenRole, GeometryRole };
-    explicit OutputWindowsModel(std::function<void()> onChange, QObject* parent = nullptr);
-    int rowCount(const QModelIndex& = {}) const override;
-    QVariant data(const QModelIndex& index, int role) const override;
-    QHash<int, QByteArray> roleNames() const override;
-
-    /// Abre una ventana con `keys` y `layout`. :returns: su id.
-    Q_INVOKABLE int open(const QStringList& keys, const QString& layout);
-    /// Como open, pero ya ubicada: en ese monitor, con esa geometría y, si se pide, en pantalla completa.
-    int abrirEn(const QStringList& keys, const QString& layout, const QString& screen, const QRect& geometria,
-                bool pantallaCompleta);
-    Q_INVOKABLE void close(int id);
-    Q_INVOKABLE void setScreen(int id, const QString& screenName);
-    Q_INVOKABLE void setFullscreen(int id, bool on);
-    Q_INVOKABLE void setLayout(int id, const QString& layout);
-    Q_INVOKABLE void setGeometry(int id, int x, int y, int w, int h);
-
-    struct Win {
-        int id = 0;
-        QStringList keys;
-        QString layout = "grid";
-        QString screen;
-        bool fullscreen = false;
-        QRect geometry{120, 120, 960, 540};
-    };
-    const std::vector<Win>& windows() const { return wins_; }
-    void restore(std::vector<Win> wins);
-
-   private:
-    int rowOf(int id) const;
-    void changed(int row, const QList<int>& roles);
-    std::vector<Win> wins_;
-    int nextId_ = 1;
-    std::function<void()> onChange_;
-};
-
 class DashboardModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(QStringList background READ background WRITE setBackground NOTIFY backgroundChanged)
@@ -81,7 +39,6 @@ class DashboardModel : public QAbstractListModel {
     /// Distribucion de las fuentes del fondo: "grid" | "focus" | "pip" | "row".
     Q_PROPERTY(
         QString backgroundLayout READ backgroundLayout WRITE setBackgroundLayout NOTIFY backgroundChanged)
-    Q_PROPERTY(QObject* windows READ windows CONSTANT)
     /// Para la barra de tarjetas: [{kind, titulo, icono, abierta (hay una en el tablero)}].
     Q_PROPERTY(QVariantList tiposDeTarjeta READ tiposDeTarjeta NOTIFY tarjetasCambio)
    public:
@@ -98,7 +55,6 @@ class DashboardModel : public QAbstractListModel {
     void setBackgroundDim(double d);
     QString backgroundLayout() const { return layout_; }
     void setBackgroundLayout(const QString& l);
-    QObject* windows() const { return windows_; }
 
     /// Tipos de tarjeta que se pueden agregar.
     QStringList cardKinds() const;
@@ -154,7 +110,6 @@ class DashboardModel : public QAbstractListModel {
     QStringList background_;
     double dim_ = 0.35;
     QString layout_ = "grid";
-    OutputWindowsModel* windows_ = nullptr;
     int nextId_ = 1;
 };
 

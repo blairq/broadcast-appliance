@@ -504,7 +504,7 @@ Al terminar, contale al operador en dos renglones qué quedó andando y qué no 
      R"md(- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`, `ui_notify {"message"}`.
 - `dashboard_list`: tarjetas, fondo, ventanas de salida y monitores.
 - `dashboard_card {"add": "monitor", "source": "guest:1"}` / `{"remove": id}` / `{"reset": true}`.
-- `output_window {"open": ["program","guest:1"], "layout": "grid"|"focus"|"pip"|"row", "screen": "HDMI-1", "fullscreen": true}`.
+- `output_window {"cosas": ["programa"]}` o `{"open": ["program","guest:1"], "layout": "grid"|"focus"|"pip"|"row", "screen": "2", "fullscreen": true}`: una ventana suelta que se recuerda (`screen`: id, numero de orden o nombre del monitor).
 - `feeds_list`: claves de video validas.)md"},
     {"youtube", "YouTube", "Conectar la cuenta, videos, subidas, eventos en vivo, chat y chat en pantalla.",
      R"md(## Configurar (una vez)
@@ -641,13 +641,13 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - En pantalla: `chat_overlay_add {"channel": "facebook"}` (o `all`).)md"},
     {"equipo", "El equipo", "Monitores, audio, camaras, GPU: para decidir con datos.",
      R"md(- `system_hardware`: todo de una vez (monitores, placas de audio de entrada y salida, camaras/capturadoras, GPU, codificadores de hardware, CPU, memoria, disco).
-- `monitors`: nombre, resolucion en pixeles, posicion en el escritorio, escala, Hz y principal. El `name` es el que usa `output_window.screen`.
-- `audio_devices`: el `value` de cada entrada es el `device_id` de una fuente de captura de audio (`crear_fuente {"type": inputSourceType, "settings": {"device_id": ...}}`).
-- `video_devices`: camaras y capturadoras; con `{"device": value}`, sus formatos, resoluciones y cuadros por segundo.
+- `monitors`: en orden fisico, con `id` estable y `orden` (el numero de Salidas -> Pantallas), resolucion en pixeles, posicion, escala, Hz y principal. `output_window.screen` y `monitor_asignar` toman el id o el orden.
+- `audio_devices`: entradas y salidas de audio del registro de la maquina: `name` es el nombre que les puso el operador (`tecnico`, el del sistema), `conectado` si estan. El `value` de una entrada es el `device` de `audio_input_add`. Para nombrarlas: `equipo_renombrar`.
+- `video_devices`: camaras y capturadoras, del mismo registro (nombre del operador y tecnico); con `{"device": value, id o nombre}`, sus formatos, resoluciones y cuadros por segundo.
 
 ## Receta: ocupar todos los monitores
 1. `monitors` y `dashboard_list` (ventanas abiertas).
-2. Programa en el monitor mas grande que NO es el principal (el principal queda para la app): `output_window {"open": ["program"], "screen": "<name>", "fullscreen": true}`.
+2. Programa en el monitor mas grande que NO es el principal (el principal queda para la app): `monitor_asignar {"monitor": "<orden>", "cosas": ["programa"]}` (queda fijo y vuelve solo al reiniciar).
 3. Si hay un tercero, multiview de las escenas o de los invitados (`output_window {"open": ["guest:1","guest:2"], "layout": "grid", "screen": ...}`).
 4. Contar como quedo.)md"},
     {"entradas", "Entradas de video", "Camaras USB, capturadoras y camaras/señales por la red.",

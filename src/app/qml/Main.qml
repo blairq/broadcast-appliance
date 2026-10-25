@@ -308,42 +308,30 @@ ApplicationWindow {
 
     // --- Cosas sacadas a su propia ventana ---------------------------------------
     // Una página entera (clic derecho en el riel), un panel (el padrón, la cola de
-    // preguntas, el Mezclador, la PTZ de una cámara) o una tarjeta del tablero: todo
-    // es una cosa del catálogo (Studio.catalogo) y va en una VentanaSuelta. El video
-    // (el programa, una escena, una multivista, lo de fondo) va a una ventana de
-    // salida, que además se recuerda (Studio.dashboard.windows).
-    ListModel { id: sueltas }
-    /// Cambia cada vez que se saca o se cierra una ventana (para los bindings de `afuera`).
-    property int sueltasTick: 0
+    // preguntas, el Mezclador, la PTZ de una cámara), una tarjeta del tablero o
+    // video (el programa, una escena, una multivista, un invitado, lo de fondo):
+    // todo es una cosa del catálogo (Studio.catalogo) y va en una VentanaSuelta,
+    // que se recuerda (Studio.ventanas: monitor, tamaño, pantalla completa).
+
     /// Lo dictado va derecho al asistente si se lo está mirando: su página en la
     /// principal, o su ventana propia activa (agent/Voz: vistaAsistente).
     property bool ventanaAsistenteActiva: false
     readonly property bool vistaAsistente: win.page === Studio.riel.paginaDeId("asistente") || ventanaAsistenteActiva
     onVistaAsistenteChanged: if (Studio.voz) Studio.voz.vistaAsistente = vistaAsistente
 
-    /// Saca la cosa `itemId` del catálogo a su ventana. Si ya está afuera, lo dice
-    /// en vez de abrir otra igual.
+    /// Saca la cosa `itemId` del catálogo a su ventana. Si ya está afuera, la trae
+    /// al frente en vez de abrir otra igual.
     function sacar(itemId) {
         const c = Studio.catalogo.porId[itemId]
         if (!c || !c.local) { toasts.show("«" + Studio.catalogo.tituloDe(itemId) + "» no se puede abrir en una ventana", "warn"); return }
-        if (c.dibujo.modo === "video") { Studio.dashboard.windows.open(c.dibujo.claves, c.dibujo.distribucion); return }
-        if (c.dibujo.modo === "multiview") { Studio.abrirMultiviewEnVentana(c.dibujo.id, "", false); return }
-        if (afuera(itemId)) { toasts.show("«" + c.titulo + "» ya está en su ventana", "info"); return }
-        sueltas.append({ itemId: itemId })
-        sueltasTick++
+        if (afuera(itemId) && c.dibujo.modo !== "video" && c.dibujo.modo !== "multiview")
+            toasts.show("«" + c.titulo + "» ya está en su ventana", "info")
+        Studio.ventanas.abrir([itemId], "")
     }
-    /// ¿La cosa `itemId` está en su propia ventana?
-    function afuera(itemId) {
-        win.sueltasTick
-        for (let k = 0; k < sueltas.count; ++k)
-            if (sueltas.get(k).itemId === itemId) return true
-        return false
-    }
+    /// ¿La cosa `itemId` está en su propia ventana? (Enlazado: el modelo avisa.)
+    function afuera(itemId) { return Studio.ventanas.afuera.indexOf(itemId) >= 0 }
     /// Cierra su ventana propia (vuelve a estar solo en la principal).
-    function traer(itemId) {
-        for (let k = 0; k < sueltas.count; ++k)
-            if (sueltas.get(k).itemId === itemId) { const v = ventanasSueltas.objectAt(k); if (v) v.close(); return }
-    }
+    function traer(itemId) { Studio.ventanas.cerrarCosa(itemId) }
     // Los nombres de siempre (los llaman las tarjetas, las páginas y el MCP).
     function sacarAVentana(i, titulo) { sacar("pagina:" + Studio.riel.idDePagina(i)) }
     function paginaAfuera(id) { return afuera("pagina:" + id) }
@@ -377,16 +365,10 @@ ApplicationWindow {
     }
 
     Instantiator {
-        id: ventanasSueltas
-        model: sueltas
+        model: Studio.ventanas
         delegate: VentanaSuelta {
             principal: win
             onActiveChanged: if (idPagina === "asistente") win.ventanaAsistenteActiva = active
-            onCerrada: (cual) => {
-                if (idPagina === "asistente") win.ventanaAsistenteActiva = false
-                for (let k = 0; k < sueltas.count; ++k)
-                    if (sueltas.get(k).itemId === cual) { sueltas.remove(k); win.sueltasTick++; return }
-            }
         }
     }
 
@@ -416,12 +398,6 @@ ApplicationWindow {
     Connections {
         target: Studio
         function onIdentificarPedido() { identificar.mostrar() }
-    }
-
-    // --- Ventanas de salida (una por entrada del modelo) ---------------------------
-    Instantiator {
-        model: Studio.dashboard.windows
-        delegate: OutputWindow {}
     }
 
     // --- Riel de navegacion (vidrio flotante) ---------------------------------------

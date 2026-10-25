@@ -1,10 +1,9 @@
 // La barra de una ventana suelta: a qué monitor va, pantalla completa, cerrar.
 //
-// UNA SOLA, USADA POR LAS DOS CLASES DE VENTANA (las de video y las pestañas
-// sacadas). Estaba solo en las de video; las pestañas no tenían nada y había
-// que acomodarlas a mano desde el escritorio. Copiar la barra habría dejado
-// dos que se desacomodan por separado —justo el problema que hubo que
-// arreglar en media interfaz hoy—, así que vive acá.
+// UNA SOLA, la de la ventana suelta (VentanaSuelta: video, páginas, paneles).
+// Estaba solo en las de video; las pestañas no tenían nada y había que
+// acomodarlas a mano desde el escritorio. Copiar la barra habría dejado dos
+// que se desacomodan por separado, así que vive acá.
 //
 // SE ESCONDE SOLA. En un monitor de sala una barra permanente molesta; con el
 // mouse encima vuelve. Mientras el menú está abierto NO se esconde: un menú
@@ -27,6 +26,21 @@ Item {
     required property Window ventana
     /// Se llama para cerrar. Vacío = `ventana.close()`.
     property var alCerrar: null
+    /// «Dejar fijo en este monitor» (pasa a Salidas → Pantallas): se llama con el
+    /// id del monitor donde está la ventana. Vacío = no se ofrece.
+    property var alFijar: null
+    /// Botones propios de la ventana (distribución, qué multivista), antes de los de siempre.
+    property alias extras: extra.data
+
+    /// El id estable (Salidas → Pantallas) del monitor donde está la ventana.
+    function idDeMonitor(s) {
+        return s ? Studio.pantallasConectadas.idDePantalla(s.name, s.manufacturer, s.model, s.serialNumber) : ""
+    }
+    function pantallaDeSistema(nombre) {
+        const ss = Qt.application.screens
+        for (let i = 0; i < ss.length; ++i) if (ss[i].name === nombre) return ss[i]
+        return null
+    }
 
     readonly property bool completa: ventana.visibility === Window.FullScreen
 
@@ -85,6 +99,7 @@ Item {
             anchors.centerIn: parent
             spacing: 8
 
+            Row { id: extra; spacing: 8; visible: children.length > 0 }
             GlassButton {
                 compact: true; text: "Monitor"; icon: "▭"
                 onClicked: menuMonitores.popup()
@@ -99,17 +114,29 @@ Item {
                         onTriggered: Studio.identificarPantallas()
                     }
                     MenuSeparator { id: sepMonitores }
+                    // Los monitores de Salidas → Pantallas: en su orden físico y con
+                    // el número que se ve en el dibujo y al identificarlos, no por
+                    // el nombre del sistema.
                     ItemsDeMenu {
                         menu: menuMonitores
                         despuesDe: sepMonitores
-                        model: Qt.application.screens
+                        model: Studio.pantallasConectadas.presentes
                         delegate: MenuItem {
-                            required property var modelData
-                            text: modelData.name + "  (" + modelData.width + "×" + modelData.height + ")"
+                            required property string nombreSistema
+                            required property string nombre
+                            required property int orden
+                            required property rect geometria
+                            text: "Monitor " + orden + " — " + nombre + "  (" + geometria.width + "×" + geometria.height + ")"
                             checkable: true
-                            checked: barra.ventana.screen && barra.ventana.screen.name === modelData.name
-                            onTriggered: barra.aMonitor(modelData)
+                            checked: barra.ventana.screen && barra.ventana.screen.name === nombreSistema
+                            onTriggered: { const s = barra.pantallaDeSistema(nombreSistema); if (s) barra.aMonitor(s) }
                         }
+                    }
+                    MenuItem {
+                        visible: !!barra.alFijar
+                        height: visible ? implicitHeight : 0
+                        text: "Dejar fijo en este monitor (Salidas → Pantallas)"
+                        onTriggered: barra.alFijar(barra.idDeMonitor(barra.ventana.screen))
                     }
                     MenuItem {
                         enabled: false
