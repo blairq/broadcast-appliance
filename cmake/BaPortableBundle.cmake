@@ -12,8 +12,9 @@
 #   1) Copia a bin/64bit las bibliotecas de terceros compiladas desde fuente
 #      (tools/deps/terceros-linux.sh, en extern/terceros-linux): FFmpeg, x264,
 #      libva y libv4l2 (las piden los plugins de GStreamer, que buscan en
-#      bin/64bit con su RUNPATH) y cairo, pixman, libpng y libsndfile (las
-#      piden los plugins LSP y el plugin cairo de GStreamer).
+#      bin/64bit con su RUNPATH), cairo, pixman, libpng y libsndfile (las
+#      piden los plugins LSP y el plugin cairo de GStreamer) y Pango, HarfBuzz y
+#      FriBiDi (el plugin pango de GStreamer y el texto de barostros).
 #   2) Reescribe el rpath de lo instalado:
 #        - bin/64bit/*.so*        -> $ORIGIN
 #        - plugins/lsp/*.clap     -> $ORIGIN:$ORIGIN/../../bin/64bit
@@ -26,7 +27,9 @@ set(BA_TERCEROS_LINUX "${CMAKE_SOURCE_DIR}/extern/terceros-linux")
 if(EXISTS "${BA_TERCEROS_LINUX}/lib")
     set(_ba_terceros "")
     foreach(_pat avcodec avdevice avfilter avformat avutil swresample swscale x264 va va-drm v4l2 v4lconvert
-                 cairo cairo-gobject pixman-1 png16 sndfile)
+                 cairo cairo-gobject pixman-1 png16 sndfile
+                 # El texto de GStreamer (plugin pango) y del overlay de barostros.
+                 pango-1.0 pangocairo-1.0 pangoft2-1.0 harfbuzz fribidi)
         file(GLOB _dep "${BA_TERCEROS_LINUX}/lib/lib${_pat}.so.*")
         list(APPEND _ba_terceros ${_dep})
     endforeach()
