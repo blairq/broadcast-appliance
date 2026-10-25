@@ -25,8 +25,8 @@ la Mac). Queda lo de abajo.
 - **Probar en Windows** (la PC): d3d12compositor en la mezcla, tortas en ba-grafico, VP9 con alfa,
   ids de monitores (`\\.\DISPLAYn` si no informan serie), ids de dispositivos, `libyuv::MJPG*` en
   webrtc.lib, `test_ejemplos.py` de plugins con el Python de la PC.
-- **«Hablando» en la Asamblea:** quien espera manda solo foto; hace falta que la página de la sesión
-  abra el micrófono hacia el gateway mientras espera.
+- **«Hablando» en la Asamblea:** hecho (2026-10-25), sin probar a mano con un celular (ver
+  docs/funciones/ATENCION.md, «Falta / a probar a mano»).
 - **Video en vivo dentro de un gráfico** (una cámara en el zócalo): animar el ítem de la escena con la
   línea de tiempo del gráfico. Propuesta: la ficha del gráfico declara claves por fuente y el Emisor
   le pide al motor que las interpole (Composicion ya anima capas en las transiciones).

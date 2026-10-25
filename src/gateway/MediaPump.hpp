@@ -16,11 +16,14 @@
 //                  chico a ~10 fps, solo operador)
 //                 audio   -> BA.Audio.Lobby.<k>  (solo si el operador le habla
 //                                                 o lo atiende el asistente hablando)
+//     Atencion:   audio   -> BA.Audio.Atencion   (el que espera en la sesión remota,
+//                                                 atendido hablando; nada de video)
 //   Bajada (A -> B -> participante):
 //     Program(n): BA.Program + BA.Audio.ContentForReturn
 //     Lobby(k):   BA.Operator (o una placa si A no lo publica) + la voz del
 //                 operador BA.Audio.Operator solo si talk; con atiende (y sin
 //                 talk), la voz del asistente BA.Audio.Atendedor
+//     Atencion:   la voz del asistente BA.Audio.Atendedor (solo audio)
 //
 //   Un sender existe siempre (spec §4.2): mientras un slot del programa no
 //   tiene video del invitado, B publica una placa.
@@ -76,6 +79,9 @@ class MediaPump {
         // La voz del asistente que atiende en el lobby (A->B): solo a los que
         // tienen `atiende` en su ruta y el operador no les está hablando.
         std::wstring atendedorAudioName; // BA.Audio.Atendedor
+        // La voz del integrante que espera en la sesión remota y lo atiende el asistente
+        // hablando (B->A, ruta Atencion): la app la pasa a texto. Vacío = no hay.
+        std::wstring atencionAudioName; // BA.Audio.Atencion
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
         std::vector<std::wstring> guestVideoNames;     // BA.Guest.<n>
@@ -191,7 +197,7 @@ class MediaPump {
     /// canal de escena son esto mismo con otro nombre y otro filtro.
     void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
     void operatorAudioThread();
-    /// BA.Audio.Atendedor -> los del lobby con `atiende` (y sin `talk`).
+    /// BA.Audio.Atendedor -> los que lo oyen (MediaRoute::oyeAlAtendedor).
     void atendedorAudioThread();
     void operatorVideoThread();
     void plateThread();
@@ -228,6 +234,7 @@ class MediaPump {
     std::vector<std::unique_ptr<VideoOut>> remotoVideo_;
     std::vector<std::unique_ptr<VideoOut>> remotoContenido_;
     std::vector<std::unique_ptr<AudioOut>> remotoAudio_;
+    std::unique_ptr<AudioOut> atencionAudio_; // BA.Audio.Atencion (ruta Atencion)
 
     // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
     // hilo del retorno la mezcla con el programa (una sola fuente por sesión).

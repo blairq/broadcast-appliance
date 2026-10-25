@@ -1,4 +1,5 @@
-// La sesión remota del integrante (docs/funciones/SESION-REMOTA.md). Fase R1: entrar con el
+// La sesión remota del integrante (docs/funciones/SESION-REMOTA.md). Mientras espera, el
+// asistente lo puede atender hablando (docs/funciones/ATENCION.md). Fase R1: entrar con el
 // link personal y el PIN, mostrar la cámara propia y mandar una foto de vez en
 // cuando para que la presidencia lo vea antes de habilitarlo. El audio y el
 // video por WebRTC, la palabra y el voto llegan en las fases siguientes.
@@ -50,6 +51,7 @@ function ponerEstado(nuevo, texto) {
     ? "La presidencia te habilitó. Dejá la cámara prendida durante la sesión."
     : "La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.");
   programarFotos();
+  if (hab) cerrarAtencion(); // la atención es de la espera: habilitado, termina (la app también la apaga)
   $("pedir").disabled = !hab;
   // Lo que mira en el celular: solo habilitado (no gasta un lugar de la sala mientras espera).
   if (hab) iniciarVista(); else cerrarVista();
@@ -283,6 +285,76 @@ function cerrarSala() {
   pintarCompartir();
 }
 
+// --- Lo atiende el asistente hablando, mientras espera ---------------------------------------
+// (docs/funciones/ATENCION.md) La app lo prende y lo apaga ({type:"atiende", on}): su micrófono
+// va al gateway por un WebRTC de solo audio (el gateway rechaza cualquier otra cosa), se pasa a
+// texto, y la respuesta del asistente le llega con voz por la misma conexión, solo a él. Nunca
+// va a la sala ni a la transmisión. Termina al habilitarlo.
+let pcAtiende = null;
+let microAtiende = null; // una copia de la pista del micrófono: la de `local` sigue cerrada
+
+async function iniciarAtencion() {
+  cerrarAtencion();
+  $("atiende").classList.remove("oculto");
+  $("atiendeDice").classList.add("oculto");
+  $("atiendeTexto").textContent = "Tu micrófono está abierto solo para el asistente (no para la sala ni la transmisión) hasta que te habiliten.";
+  if (navigator.vibrate) navigator.vibrate(120);
+  try {
+    // Con el permiso que ya dio al entrar alcanza; si no lo dio, el navegador lo pide ahora.
+    const pista = local && local.getAudioTracks()[0];
+    if (pista) {
+      microAtiende = pista.clone();
+    } else {
+      const s = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+      microAtiende = s.getAudioTracks()[0] || null;
+    }
+  } catch (e) {
+    microAtiende = null;
+  }
+  if (!microAtiende) {
+    $("atiendeTexto").textContent = "Sin permiso para el micrófono el asistente no te puede escuchar. La presidencia te ve por la cámara igual.";
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "atiende-error", error: "no dio permiso para el micrófono" }));
+    return;
+  }
+  microAtiende.enabled = true;
+  if (window.BAIce) await BAIce.listo();
+  if (!ws || ws.readyState !== 1 || $("atiende").classList.contains("oculto")) { cerrarAtencion(); return; }
+  const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
+  pcAtiende = pc;
+  // sendrecv: sube su voz y baja la del asistente por la misma pista.
+  pc.addTransceiver(microAtiende, { direction: "sendrecv", streams: [new MediaStream([microAtiende])] });
+  pc.ontrack = (ev) => {
+    $("vozAtiende").srcObject = ev.streams[0] || new MediaStream([ev.track]);
+    oirAtencion();
+  };
+  pc.onicecandidate = (ev) => {
+    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "atiende-ice", candidate: ev.candidate }));
+  };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === "failed" && pcAtiende === pc) setTimeout(() => { if (pcAtiende === pc) iniciarAtencion(); }, 2000);
+  };
+  const oferta = await pc.createOffer();
+  await pc.setLocalDescription(oferta);
+  ws.send(JSON.stringify({ type: "atiende-oferta", sdp: oferta.sdp }));
+}
+
+// El navegador no deja sonar nada hasta que la persona toca la página: si no arranca solo, un botón.
+function oirAtencion() {
+  $("vozAtiende").play().then(() => $("atiendeOir").classList.add("oculto"))
+    .catch(() => $("atiendeOir").classList.remove("oculto"));
+}
+
+function cerrarAtencion() {
+  if (pcAtiende) { try { pcAtiende.close(); } catch (e) {} }
+  pcAtiende = null;
+  if (microAtiende) { try { microAtiende.stop(); } catch (e) {} }
+  microAtiende = null;
+  $("vozAtiende").srcObject = null;
+  $("atiende").classList.add("oculto");
+  $("atiendeOir").classList.add("oculto");
+}
+
 // --- Mostrar algo mientras tiene la palabra ------------------------------------------------
 // Un segundo video en la misma conexión hacia la sala: en la app es la entrada «Remoto con la
 // palabra — contenido». En una compu, su pantalla; en el celular (que no deja compartir la
@@ -472,6 +544,7 @@ function conectar() {
   ws.onclose = () => {
     conexion(false);
     cerrarVista();
+    cerrarAtencion(); // si vuelve y lo seguían atendiendo, el gateway se lo vuelve a pedir
     clearInterval(timerPing);
     if (cortadoAProposito || !pin) return;
     setTimeout(conectar, reintento);
@@ -525,6 +598,26 @@ function recibir(m) {
     case "medios":
       if (m.activo) iniciarSala(); else cerrarSala();
       if (m.error) error(m.error);
+      break;
+    case "atiende":
+      if (m.on && estado !== "habilitado") iniciarAtencion(); else cerrarAtencion();
+      break;
+    case "atiende-respuesta":
+      if (pcAtiende) pcAtiende.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
+      break;
+    case "atiende-ice":
+      if (pcAtiende && m.candidate) pcAtiende.addIceCandidate(m.candidate).catch(() => {});
+      break;
+    case "atiende-dice":
+      // Lo que le dijo el asistente, también escrito (por si no lo oyó bien).
+      $("atiendeDice").textContent = "Asistente: " + (m.texto || "");
+      $("atiendeDice").classList.toggle("oculto", !m.texto);
+      break;
+    case "atiende-fallo":
+      if (pcAtiende) { try { pcAtiende.close(); } catch (e) {} }
+      pcAtiende = null;
+      $("atiendeTexto").textContent = (m.error || "No se pudo abrir el micrófono hacia el asistente.") +
+        " La presidencia te ve por la cámara igual.";
       break;
     case "medios-respuesta":
       if (pcSala) pcSala.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
@@ -617,6 +710,7 @@ $("sonido").addEventListener("click", () => ponerSonido(!sonidoPrendido));
 $("compartirPantalla").addEventListener("click", () => compartir("pantalla"));
 $("compartirCamara").addEventListener("click", () => compartir("camara"));
 $("dejarDeCompartir").addEventListener("click", () => dejarDeCompartir(true));
+$("atiendeOir").addEventListener("click", oirAtencion);
 document.addEventListener("pointerdown", activarSonido, { passive: true });
 $("reintentar").addEventListener("click", () => {
   mostrar("entrar");

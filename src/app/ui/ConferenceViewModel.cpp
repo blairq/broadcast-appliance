@@ -494,9 +494,10 @@ void ConferenceViewModel::onChatMsg(const QJsonObject& msg, bool live) {
         emit notify(m.value("fromName").toString() + ": " + m.value("text").toString(), "info");
 }
 
-void ConferenceViewModel::agregarDichoPorVoz(const QString& id, const QString& texto) {
+void ConferenceViewModel::agregarDichoPorVoz(const QString& id, const QString& texto, const QString& nombre) {
     const QString t = texto.trimmed();
     if (t.isEmpty()) return;
+    if (!nombre.isEmpty()) nombresDeAfuera_.insert(id, nombre);
     // Sin `seq`: no viene de la sala, así que no corre la cuenta de lo ya
     // recibido (onChatMsg sigue comparando solo contra lo de la sala). La
     // `uid` propia es la que usan chat_wait y la vista para no repetirlo.
@@ -516,11 +517,31 @@ void ConferenceViewModel::agregarDichoPorVoz(const QString& id, const QString& t
     emit chatRevChanged();
 }
 
+void ConferenceViewModel::agregarDichoAlAtendido(const QString& id, const QString& nombre, const QString& texto) {
+    const QString t = texto.trimmed();
+    if (t.isEmpty()) return;
+    if (!nombre.isEmpty()) nombresDeAfuera_.insert(id, nombre);
+    static int n = 0;
+    QJsonObject m;
+    m.insert("uid", "voz-dicho-" + QString::number(++n));
+    m.insert("id", m.value("uid"));
+    m.insert("fromId", "host");
+    m.insert("fromName", "Operador");
+    m.insert("to", id);
+    m.insert("text", t);
+    m.insert("voz", true);
+    m.insert("mine", true);
+    m.insert("atMs", static_cast<double>(QDateTime::currentMSecsSinceEpoch()));
+    chat_->append(m);
+    ++chatRev_;
+    emit chatRevChanged();
+}
+
 QString ConferenceViewModel::nameOf(const QString& id) const {
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
         if (v.toObject().value("id").toString() == id) return v.toObject().value("name").toString();
     }
-    return id;
+    return nombresDeAfuera_.value(id, id);
 }
 
 void ConferenceViewModel::pruebaTecnica(const QString& id) {

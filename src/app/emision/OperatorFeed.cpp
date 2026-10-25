@@ -45,9 +45,12 @@ OperatorFeed::~OperatorFeed() { shutdown(); }
 
 void OperatorFeed::shutdown() {
     stop();
-    if (motor::Motor* m = motorAndando())
+    if (motor::Motor* m = motorAndando()) {
         for (const auto& n : lobbyMonitors_) m->quitarEntrada(n);
+        if (!atencionMonitor_.empty()) m->quitarEntrada(atencionMonitor_);
+    }
     lobbyMonitors_.clear();
+    atencionMonitor_.clear();
 }
 
 bool OperatorFeed::configure(BroadcastEngine& engine, const std::string& videoSource,
@@ -177,21 +180,33 @@ void OperatorFeed::onAudio(const float* d, std::size_t frames) {
 }
 
 void OperatorFeed::startLobbyMonitor(int count) {
-    if (!lobbyMonitors_.empty()) return;
+    if (!lobbyMonitors_.empty() || !atencionMonitor_.empty()) return;
     motor::Motor* m = motorAndando();
     if (m == nullptr) return;
-    for (int k = 1; k <= count && k <= kMaxLobby; ++k) {
-        const std::string name = "ba-lobby-monitor-" + std::to_string(k);
+    // Interna (fuera del multiview) y en ninguna pista: solo a los auriculares.
+    const auto interna = [m](const std::string& name, const std::string& canal) {
         const nlohmann::json aj{{"pipeline", ""},
-                                {"pipeline_audio", "baanillo canal=BA.Audio.Lobby." + std::to_string(k)},
+                                {"pipeline_audio", "baanillo canal=" + canal},
                                 {"audio", true},
                                 {"estudio", false},
                                 {"nombre", name}};
-        // Interna (fuera del multiview) y en ninguna pista: solo a los auriculares.
-        if (m->agregarEntrada(name, aj, nlohmann::json{{"interna", true}, {"global", false}, {"pistas", nlohmann::json::array()}})
-                .empty())
-            lobbyMonitors_.push_back(name);
+        return m->agregarEntrada(name, aj, nlohmann::json{{"interna", true}, {"global", false}, {"pistas", nlohmann::json::array()}})
+            .empty();
+    };
+    for (int k = 1; k <= count && k <= kMaxLobby; ++k) {
+        const std::string name = "ba-lobby-monitor-" + std::to_string(k);
+        if (interna(name, "BA.Audio.Lobby." + std::to_string(k))) lobbyMonitors_.push_back(name);
     }
+    // La voz del que espera en la sesión remota atendido hablando: la misma forma,
+    // un canal solo (la voz del que atiende es una sola).
+    if (interna("ba-atencion-remota", "BA.Audio.Atencion")) atencionMonitor_ = "ba-atencion-remota";
+}
+
+int OperatorFeed::escucharAtencionRemota(std::function<void(const float*, std::size_t)> fn) {
+    if (atencionMonitor_.empty()) return 0;
+    motor::Motor* m = motorAndando();
+    if (m == nullptr) return 0;
+    return m->escucharEntrada(atencionMonitor_, std::move(fn));
 }
 
 int OperatorFeed::escucharLobby(int slot, std::function<void(const float*, std::size_t)> fn) {

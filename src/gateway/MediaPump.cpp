@@ -221,6 +221,9 @@ void MediaPump::start() {
         remotoContenido_.push_back(makeVideo(name(cfg_.remotoContenidoNames, k), cfg_.programW, cfg_.programH));
         remotoAudio_.push_back(makeAudio(name(cfg_.remotoAudioNames, k)));
     }
+    // La atención hablada de la sesión remota: un canal (de a uno por voz).
+    atencionAudio_.reset();
+    if (!cfg_.atencionAudioName.empty()) atencionAudio_ = makeAudio(cfg_.atencionAudioName);
     {
         std::lock_guard<std::mutex> lock(routesLock_);
         routes_.assign(static_cast<size_t>(hub_.sessions()) + 1, MediaRoute{});
@@ -628,8 +631,9 @@ void MediaPump::operatorAudioThread() {
 
 void MediaPump::atendedorAudioThread() {
     // La forma de operatorAudioThread, con otro canal y otro destino: la voz
-    // sintetizada del que atiende le llega SOLO a quien atiende hablando. Si el
-    // operador le está hablando a esa misma persona, la voz del operador gana
+    // sintetizada del que atiende le llega SOLO a quien atiende hablando (en el
+    // lobby de la sala o esperando en la sesión remota: MediaRoute::oyeAlAtendedor).
+    // Si el operador le está hablando a esa misma persona, la voz del operador gana
     // (empujar dos fuentes al mismo track las pisa).
     SharedAudioRing reader;
     bool open = false;
@@ -657,9 +661,7 @@ void MediaPump::atendedorAudioThread() {
         if (block.size() < n) block.resize(n);
         PoppedBlock blk;
         if (reader.pop(block.data(), blk)) {
-            for (int s : sessionsWhere([](const MediaRoute& r) {
-                     return r.kind == MediaRoute::Kind::Lobby && r.atiende && !r.talk;
-                 })) {
+            for (int s : sessionsWhere([](const MediaRoute& r) { return r.oyeAlAtendedor(); })) {
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
         }
@@ -766,6 +768,10 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
         publishAudio(*lobbyAudio_[static_cast<size_t>(r.index)], samples, n, rate);
     } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoAudio_.size())) {
         publishAudio(*remotoAudio_[static_cast<size_t>(r.index)], samples, n, rate);
+    } else if (r.kind == MediaRoute::Kind::Atencion && atencionAudio_) {
+        // El que espera en la sesión remota, atendido hablando: su voz, solo para
+        // pasarla a texto (la app la toma con una entrada interna, fuera de la mezcla).
+        publishAudio(*atencionAudio_, samples, n, rate);
     }
 }
 

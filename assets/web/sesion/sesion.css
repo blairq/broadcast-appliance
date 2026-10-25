@@ -107,6 +107,11 @@ button:disabled { opacity: 0.5; }
 .ptt { padding: 14px; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; text-align: center;
   background: rgba(108, 172, 228, 0.22); border: 2px solid #6cace4; }
 
+/* Lo atiende el asistente hablando mientras espera. */
+.atiende { background: rgba(255, 106, 43, 0.15); border-color: #ff6a2b; }
+.atiende-dice { font-size: 17px; color: var(--texto); margin-top: 4px; }
+.atiende button { align-self: center; margin-top: 6px; font-size: 15px; padding: 8px 14px; }
+
 /* Mostrar algo mientras habla (segundo video hacia la sala). */
 .compartir { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
 .compartir button { font-size: 15px; padding: 10px 14px; background: #3b4252; }

@@ -1005,7 +1005,8 @@ const Fila kPropias[] = {
     {"atencion_estado", "quien atiende a los que llegan recepcion lobby atencion hablando voz asistente atiende "
                         "a quien esta atendiendo"},
     {"atencion_configurar", "los atiende el asistente atender hablando con voz prender atencion lobby asamblea "
-                            "alta automatica anotar en personas voz del atendedor"},
+                            "sesion remota microfono del que espera alta automatica anotar en personas voz del "
+                            "atendedor"},
     {"atencion_voz_probar", "probar la voz del atendedor como suena generar audio sin reproducir wav"},
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
                         "switch dar de alta sola lobby los que llegan"},

@@ -32,6 +32,7 @@
 #include "emision/VozAlLobby.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "sala/ControlSala.hpp"
+#include "sala/Pedido.hpp"
 #include "sala/ParticipantesSala.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -118,6 +119,13 @@ AtencionViewModel::AtencionViewModel(AppRuntime& rt, StudioViewModel& vm, agent:
         });
         conf->control().setAlChatear(
             [this](const std::string& para, const std::string& texto) { alChatear(para, texto); });
+        // La página del que espera en la sesión remota no pudo abrir el micrófono (no
+        // dio permiso, no tiene) o la sala no tiene lugar: sigue sin la voz.
+        connect(&conf->client(), &ConferenceClient::sesionEvento, this, [this](const QJsonObject& ev) {
+            if (ev.value("tipo").toString() != "atiende_error") return;
+            const QString id = ev.value("id").toString();
+            if (id == vozId_ && vozAmbito_ == sala::Ambito::Asamblea) sinVoz(id, ev.value("error").toString());
+        });
     }
     if (asamblea::SesionRemota* s = vm_.sesionRemota()) {
         connect(s, &asamblea::SesionRemota::cambio, this, &AtencionViewModel::alAsamblea);
@@ -167,13 +175,20 @@ void AtencionViewModel::setSalaHablando(bool on) {
     if (on == aj_.salaHablando) return;
     aj_.salaHablando = on;
     guardar();
-    if (!on) {
-        turnos_.soltarLaVoz();
-        cerrarVoz();
-    } else if (puedeHablar()) {
-        // Los que ya se están atendiendo por chat: el primero pasa a voz.
-        if (const std::string id = turnos_.pasarLaVoz(conLugar()); !id.empty()) abrirVoz(QString::fromStdString(id));
-    }
+    if (!on && !turnos_.soltarLaVoz(sala::Ambito::Sala).empty()) cerrarVoz();
+    // Los que ya se están atendiendo sin voz: el primero que puede la toma (si se
+    // apagó acá y la voz era de la sala, puede ser uno de la asamblea).
+    pasarLaVoz();
+    emit turnosCambio();
+    emit cambio();
+}
+
+void AtencionViewModel::setAsambleaHablando(bool on) {
+    if (on == aj_.asambleaHablando) return;
+    aj_.asambleaHablando = on;
+    guardar();
+    if (!on && !turnos_.soltarLaVoz(sala::Ambito::Asamblea).empty()) cerrarVoz();
+    pasarLaVoz();
     emit turnosCambio();
     emit cambio();
 }
@@ -189,16 +204,13 @@ void AtencionViewModel::setAsambleaAtiende(bool on) {
     guardar();
     if (!on) {
         esperandoFoto_.clear();
+        if (!vozId_.isEmpty() && vozAmbito_ == sala::Ambito::Asamblea) cerrarVoz();
         turnos_.terminarTodos(sala::Ambito::Asamblea);
+        pasarLaVoz(); // la voz quedó libre: puede ser para uno de la sala
         emit turnosCambio();
     }
     emit cambio();
     if (on) alAsamblea(); // los que ya estaban esperando también
-}
-
-QString AtencionViewModel::asambleaHablandoMotivo() const {
-    return "Todavía no: el que espera en la sesión remota manda solo la foto de su cámara (su micrófono se abre "
-           "recién cuando tiene la palabra), así que no hay por dónde escucharlo. Se lo atiende mirándole la cara.";
 }
 
 sala::Atendedor AtencionViewModel::atendedor() const {
@@ -238,7 +250,7 @@ QVariantList AtencionViewModel::turnos() const {
 QString AtencionViewModel::empezarSala(const QString& id, const QString& nombre, sala::Atendedor quien) {
     // Hablando solo con lugar en el lobby: sin él no hay canal por donde suba su voz.
     const auto t = turnos_.empezar(id.toStdString(), nombre.toStdString(), sala::Ambito::Sala, quien,
-                                   aj_.salaHablando && puedeHablar() && lugarDe(id) > 0);
+                                   aj_.salaHablando && puedeHablar() && lugarDe(id) > 0 && vozId_.isEmpty());
     if (t.modo == sala::Modo::Voz && vozId_ != id) abrirVoz(id);
     emit turnosCambio();
     return QString::fromLatin1(sala::claveDe(t.modo));
@@ -254,8 +266,43 @@ QString AtencionViewModel::instruccion(const QString& modo) {
            "(nombre, cargo) confirmáselos en voz alta antes de guardarlos.";
 }
 
-std::function<bool(const std::string&)> AtencionViewModel::conLugar() const {
-    return [this](const std::string& id) { return lugarDe(QString::fromStdString(id)) > 0; };
+std::function<bool(const std::string&)> AtencionViewModel::puedeTomarLaVoz() const {
+    return [this](const std::string& id) {
+        const sala::Turnos::Turno* t = turnos_.turno(id);
+        if (t == nullptr) return false;
+        if (t->ambito == sala::Ambito::Sala)
+            return aj_.salaHablando && salaAtiende() && lugarDe(QString::fromStdString(id)) > 0;
+        return aj_.asambleaHablando && aj_.asambleaAtiende && esperaEnAsamblea(id);
+    };
+}
+
+bool AtencionViewModel::esperaEnAsamblea(const std::string& id) const {
+    asamblea::SesionRemota* s = vm_.sesionRemota();
+    if (s == nullptr) return false;
+    for (const auto& p : s->participantes())
+        if (p.value("id", std::string()) == id) return p.value("estado", std::string()) == "esperando";
+    return false;
+}
+
+void AtencionViewModel::pasarLaVoz() {
+    if (!vozId_.isEmpty() || !puedeHablar()) return;
+    if (const std::string id = turnos_.pasarLaVoz(puedeTomarLaVoz()); !id.empty()) {
+        abrirVoz(QString::fromStdString(id));
+        emit turnosCambio();
+    }
+}
+
+void AtencionViewModel::sinVoz(const QString& id, const QString& error) {
+    const auto* t = turnos_.turno(id.toStdString());
+    const QString nombre = t != nullptr ? QString::fromStdString(t->nombre) : id;
+    const bool enAsamblea = t != nullptr && t->ambito == sala::Ambito::Asamblea;
+    emit notify("No se pudo atender hablando a «" + nombre + "»" + (error.isEmpty() ? QString() : ": " + error) +
+                    (enAsamblea ? ". Se lo sigue atendiendo mirándole la cara." : ". Sigue por chat."),
+                "warn");
+    turnos_.sinVoz(id.toStdString());
+    cerrarVoz();
+    pasarLaVoz();
+    emit turnosCambio();
 }
 
 int AtencionViewModel::lugarDe(const QString& id) const {
@@ -285,15 +332,15 @@ void AtencionViewModel::alSala() {
         // la toma el siguiente que se esté atendiendo por chat.
         if (QString::fromStdString(t.id) == vozId_) cerrarVoz();
     }
-    if (vozId_.isEmpty() && aj_.salaHablando && salaAtiende() && puedeHablar()) {
-        if (const std::string id = turnos_.pasarLaVoz(conLugar()); !id.empty()) {
+    if (vozId_.isEmpty() && puedeHablar()) {
+        if (const std::string id = turnos_.pasarLaVoz(puedeTomarLaVoz()); !id.empty()) {
             abrirVoz(QString::fromStdString(id));
             cambio = true;
         }
     }
     // Las posiciones del lobby se reciclan: al entrar uno, el siguiente toma
     // su lugar. Si a quien se escucha le cambió, se lo sigue al lugar nuevo.
-    if (!vozId_.isEmpty()) {
+    if (!vozId_.isEmpty() && vozAmbito_ == sala::Ambito::Sala) {
         const int lugar = lugarDe(vozId_);
         if (lugar != vozLugar_) {
             if (vozToma_ != 0) rt_.operatorFeed().dejarDeEscucharLobby(vozToma_);
@@ -318,28 +365,44 @@ void AtencionViewModel::abrirVoz(const QString& id) {
     ConferenceViewModel* conf = conferencia(vm_);
     if (conf == nullptr) return;
     cerrarVoz();
+    const auto* turno = turnos_.turno(id.toStdString());
     vozId_ = id;
+    vozAmbito_ = turno != nullptr ? turno->ambito : sala::Ambito::Sala;
+    const QString nombre = turno != nullptr ? QString::fromStdString(turno->nombre) : id;
     QPointer<AtencionViewModel> yo(this);
-    // La sala sube su voz y le baja la del que atiende. Si no puede (se quedó
-    // sin lugar en el lobby, la sala es vieja), se sigue por chat: la
-    // atención no se corta por la voz.
-    conf->participantes().atender(id.toStdString(), true, [yo, id](const std::string& err, const nlohmann::json&) {
+    // Si la sala no puede (se quedó sin lugar en el lobby, el integrante se
+    // desconectó, la sala es vieja), se sigue sin la voz: la atención no se
+    // corta por eso.
+    const auto siFalla = [yo, id](const std::string& err, const nlohmann::json&) {
         if (!yo || err.empty() || yo->vozId_ != id) return;
-        const auto* t = yo->turnos_.turno(id.toStdString());
-        const QString nombre = t != nullptr ? QString::fromStdString(t->nombre) : id;
-        emit yo->notify("No se pudo atender hablando a «" + nombre + "»: " + QString::fromStdString(err) +
-                            ". Sigue por chat.",
-                        "warn");
-        yo->turnos_.sinVoz(id.toStdString());
-        yo->cerrarVoz();
-        emit yo->turnosCambio();
-    });
-    voz_.abrirOido(claveOido(id), [yo, id](const QString& texto) {
+        yo->sinVoz(id, QString::fromStdString(err));
+    };
+    const bool enAsamblea = vozAmbito_ == sala::Ambito::Asamblea;
+    // Lo que se le oye entra a su hilo como un dicho suyo (el mismo oído en los dos lados).
+    voz_.abrirOido(claveOido(id), [yo, id, nombre, enAsamblea](const QString& texto) {
         if (!yo) return;
-        if (ConferenceViewModel* c = conferencia(yo->vm_)) c->agregarDichoPorVoz(id, texto);
+        if (ConferenceViewModel* c = conferencia(yo->vm_))
+            c->agregarDichoPorVoz(id, texto, enAsamblea ? nombre : QString());
     });
-    vozLugar_ = -1; // alSala lo engancha a su lugar (y lo sigue si cambia)
     alLobby_->abrir();
+    if (enAsamblea) {
+        // El gateway le pide a su página el micrófono; su voz sube a BA.Audio.Atencion
+        // (un canal solo: de a uno) y le baja la del que atiende, solo a él.
+        sala::pedir(conf->client(), "POST", "/api/v1/sesion/atiende", {{"id", id.toStdString()}, {"on", true}},
+                    siFalla);
+        const std::string clave = claveOido(id).toStdString();
+        agent::Voz* voz = &voz_;
+        vozToma_ = rt_.operatorFeed().escucharAtencionRemota([voz, clave](const float* d, std::size_t n) {
+            thread_local std::vector<float> mono;
+            mono.resize(n);
+            for (std::size_t i = 0; i < n; ++i) mono[i] = d[2 * i]; // un micrófono es mono
+            voz->alimentarOido(clave, mono.data(), n, 48000);
+        });
+        return;
+    }
+    // La sala sube su voz y le baja la del que atiende.
+    conf->participantes().atender(id.toStdString(), true, siFalla);
+    vozLugar_ = -1; // alSala lo engancha a su lugar (y lo sigue si cambia)
     alSala();
 }
 
@@ -355,14 +418,43 @@ void AtencionViewModel::cerrarVoz() {
     if (habla_) habla_->callar();
 #endif
     alLobby_->cerrar();
+    ConferenceViewModel* conf = conferencia(vm_);
+    if (conf == nullptr) return;
+    if (vozAmbito_ == sala::Ambito::Asamblea) {
+        // Su página cierra el micrófono. Al habilitarlo lo apaga esto (el borde no
+        // sabe quién está habilitado); si se fue, el gateway ya la apagó y no importa.
+        sala::pedir(conf->client(), "POST", "/api/v1/sesion/atiende", {{"id", id.toStdString()}, {"on", false}},
+                    [](const std::string&, const nlohmann::json&) {});
+        return;
+    }
     // Si todavía espera, que la sala deje de subir su voz. Si ya entró, la sala
     // lo apagó sola y esto contesta que no está en el lobby: no importa.
-    if (ConferenceViewModel* conf = conferencia(vm_)) conf->participantes().atender(id.toStdString(), false);
+    conf->participantes().atender(id.toStdString(), false);
 }
 
 void AtencionViewModel::alChatear(const std::string& para, const std::string& texto) {
-    if (vozId_.isEmpty() || QString::fromStdString(para) != vozId_) return;
+    if (vozId_.isEmpty() || vozAmbito_ != sala::Ambito::Sala || QString::fromStdString(para) != vozId_) return;
     decir(QString::fromStdString(texto));
+}
+
+bool AtencionViewModel::atiendeHablandoEnAsamblea(const QString& id) const {
+    return !id.isEmpty() && id == vozId_ && vozAmbito_ == sala::Ambito::Asamblea;
+}
+
+QString AtencionViewModel::decirAlIntegrante(const QString& id, const QString& texto) {
+    if (!atiendeHablandoEnAsamblea(id))
+        return "A «" + id + "» no se lo está atendiendo hablando en la sesión remota (atencion_estado dice a quién).";
+    const QString t = texto.trimmed();
+    if (t.isEmpty()) return "Falta qué decirle.";
+    decir(t);
+    const auto* turno = turnos_.turno(id.toStdString());
+    const QString nombre = turno != nullptr ? QString::fromStdString(turno->nombre) : id;
+    // Escrito en su página también: si no lo oyó bien (o no puede subir el
+    // volumen), lo lee. Y en el hilo del operador, como en la sala.
+    if (asamblea::SesionRemota* s = vm_.sesionRemota())
+        s->mandar(id.toStdString(), {{"type", "atiende-dice"}, {"texto", t.toStdString()}});
+    if (ConferenceViewModel* c = conferencia(vm_)) c->agregarDichoAlAtendido(id, nombre, t);
+    return {};
 }
 
 void AtencionViewModel::decir(const QString& texto) {
@@ -394,12 +486,16 @@ void AtencionViewModel::alAsamblea() {
     bool cambio = false;
     for (const auto& t : turnos_.actualizar(sala::Ambito::Asamblea, esperando, adentro)) {
         esperandoFoto_.remove(QString::fromStdString(t.id));
+        // Al habilitarlo (o al irse) termina, como en la sala: la voz se suelta.
+        if (QString::fromStdString(t.id) == vozId_) cerrarVoz();
         cambio = true;
     }
     if (aj_.asambleaAtiende) {
         for (const std::string& id : esperando) {
             if (turnos_.turno(id) != nullptr) continue; // ya se lo está atendiendo
-            turnos_.empezar(id, nombres[id], sala::Ambito::Asamblea, atendedor(), false);
+            const auto t = turnos_.empezar(id, nombres[id], sala::Ambito::Asamblea, atendedor(),
+                                           aj_.asambleaHablando && puedeHablar() && vozId_.isEmpty());
+            if (t.modo == sala::Modo::Voz) abrirVoz(QString::fromStdString(id));
             cambio = true;
             const QString qid = QString::fromStdString(id);
             esperandoFoto_.insert(qid);
@@ -408,6 +504,12 @@ void AtencionViewModel::alAsamblea() {
             QTimer::singleShot(8000, this, [this, qid]() {
                 if (esperandoFoto_.remove(qid)) encargarAsamblea(qid, "No llegó la foto de su cámara.");
             });
+        }
+    }
+    if (vozId_.isEmpty() && puedeHablar()) {
+        if (const std::string id = turnos_.pasarLaVoz(puedeTomarLaVoz()); !id.empty()) {
+            abrirVoz(QString::fromStdString(id));
+            cambio = true;
         }
     }
     if (cambio) emit turnosCambio();
@@ -481,8 +583,15 @@ void AtencionViewModel::encargarAsamblea(const QString& id, const QString& queSe
         "«" + nombre + "» (banca " + banca + ", id " + id +
         ") se conectó a la sesión remota de la asamblea y espera que lo habiliten. Lo que vio la cámara: " + queSeVio +
         " Contáselo al operador en una línea con `operator_ask` (opciones «Habilitar» y «Todavía no») y, si "
-        "contesta «Habilitar», llamá `sesion_habilitar {banca: \"" + id +
-        "\"}`. No le escribas: en la sesión remota el que espera no tiene chat. Manejate sola.";
+        "contesta «Habilitar», llamá `sesion_habilitar {banca: \"" + id + "\"}`. " +
+        // Hablando, se le habla (y se lo oye) con las mismas herramientas del chat de la sala.
+        (atiendeHablandoEnAsamblea(id)
+             ? "Lo estás atendiendo HABLANDO: lo que le mandes con `chat_send {to: \"" + id +
+                   "\"}` le llega dicho en voz alta (y escrito en su pantalla), y lo que él dice te llega con "
+                   "`chat_wait {participant: \"" + id + "\"}`. Saludalo, decile que en un momento lo habilitan y, "
+                   "si hace falta, preguntale lo que el operador quiera saber." + instruccion("voz")
+             : QString("No le escribas: en la sesión remota el que espera no tiene chat.")) +
+        " Manejate sola.";
     switch (atendedor()) {
         case sala::Atendedor::Recepcion: {
             std::string err;
@@ -678,13 +787,13 @@ nlohmann::json AtencionViewModel::estado() const {
                          {"instalada", v.toMap().value("instalado").toBool()}});
     const PersonasViewModel* pv = personas(vm_);
     return {{"sala", {{"atiende", salaAtiende()}, {"hablando", aj_.salaHablando}}},
-            {"asamblea", {{"atiende", aj_.asambleaAtiende}, {"hablando", false},
-                          {"porQueNoHablando", asambleaHablandoMotivo().toStdString()}}},
+            {"asamblea", {{"atiende", aj_.asambleaAtiende}, {"hablando", aj_.asambleaHablando}}},
             {"quienAtiende", sala::claveDe(atendedor())},
             {"quienAtiendeTexto", quienAtiendeTexto().toStdString()},
             {"puedeHablar", puedeHablar()},
             {"hablarFalta", hablarFalta().toStdString()},
             {"conLaVoz", vozId_.toStdString()},
+            {"conLaVozAmbito", vozId_.isEmpty() ? "" : sala::claveDe(vozAmbito_)},
             {"altaAutomatica", pv != nullptr && pv->altaAutomatica()},
             {"lobbyMirando", pv != nullptr && pv->lobbyMirando()},
             {"turnos", turnos},
@@ -712,6 +821,7 @@ QString AtencionViewModel::configurar(const nlohmann::json& c) {
         setAsambleaAtiende(b);
         if (aj_.asambleaAtiende != b) return QString::fromStdString(sala::porQueNadie(atendedor()));
     }
+    if (booleano("asambleaHablando", b)) setAsambleaHablando(b);
     if (booleano("altaAutomatica", b)) {
         PersonasViewModel* pv = personas(vm_);
         if (pv == nullptr || !pv->disponible()) return "Este equipo no tiene reconocimiento de rostros.";

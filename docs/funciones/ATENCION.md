@@ -1,7 +1,8 @@
 # Atención a quien se conecta (Sala y Asamblea)
 
 **Hecho (2026-10-25), sin probar a mano.** «Los atiende el asistente» y, prendido,
-«Hablando», en el lobby de la Sala y en la sesión remota de la Asamblea; el alta
+«Hablando», en el lobby de la Sala y en la sesión remota de la Asamblea (ahí
+«Hablando» abre el micrófono de quien espera hacia el gateway); el alta
 automática en Personas; quién entra solo si se lo reconoce. Lo mismo por MCP
 (`atencion_estado`, `atencion_configurar`, `atencion_voz_probar`).
 
@@ -21,10 +22,13 @@ sintetizada hablándole ahí sonaría para todos los que oyen el retorno. Lo de
 adentro es del operador y del asistente del evento. El gateway apaga solo la
 atención hablada al admitirla.
 
-**Hablando, de a uno.** Hay un solo canal de voz del que atiende hacia la sala
-(`BA.Audio.Atendedor`). El primero que llega con «Hablando» prendido toma la voz;
-los demás se atienden por chat. Cuando el de la voz entra (o se va), la toma el
-siguiente que se estaba atendiendo por chat.
+**Hablando, de a uno.** Hay un solo canal de voz del que atiende
+(`BA.Audio.Atendedor`), el mismo para el lobby de la sala y para la sesión remota.
+El primero que llega con «Hablando» prendido (el de su ámbito: hay uno para la
+sala y otro para la asamblea) toma la voz; los demás se atienden sin ella (en la
+sala por chat; en la asamblea, mirándole la cara). Cuando el de la voz entra (o se
+va), la toma el siguiente que se estaba atendiendo sin ella y puede, sea de la
+sala o de la asamblea (`sala::Turnos`, con test).
 
 ## Cómo anda (Sala)
 
@@ -50,11 +54,13 @@ No hay un sistema aparte: el encargo es el de siempre (`McpService`,
 
 Su página dice «Te atiende el asistente: hablale, te escucha».
 
+El gateway se lo baja con `MediaRoute::oyeAlAtendedor`, la misma regla que usa
+para el que espera en la asamblea (abajo).
+
 ## Cómo anda (Asamblea)
 
-El que espera en la sesión remota manda solo la foto de su celular (el micrófono
-se abre cuando tiene la palabra): **no hay por dónde escucharlo**, así que
-«Hablando» no existe ahí todavía. Atenderlo es mirarle la cara:
+El que espera en la sesión remota no tiene chat. Atenderlo es mirarle la cara y,
+con «Hablando», además hablarle:
 
 - se pide su foto y se compara con la ficha de Personas de su banca
   (`persona_id`);
@@ -63,6 +69,33 @@ se abre cuando tiene la palabra): **no hay por dónde escucharlo**, así que
 - si no, se le encarga al que atiende contarle al operador lo que vio la cámara
   (`operator_ask`) y habilitarlo si dice que sí (`sesion_habilitar`). La
   recepción ve por eso la categoría `sesion`.
+
+Con **«Hablando»** (Asamblea → «Los atiende el asistente» → «🎙 Hablando», o
+`atencion_configurar {asambleaHablando: true}`), mientras espera:
+
+1. La app le pide al gateway `POST /api/v1/sesion/atiende {id, on}`. El borde
+   (`gateway/Sesion`) se lo dice a su página (`{type:"atiende", on}`), que muestra
+   «Te atiende el asistente: hablale, te escucha», usa el micrófono con el permiso
+   que dio al entrar (o lo pide ahí) y ofrece un WebRTC **de solo audio**
+   (`atiende-oferta`; el borde rechaza una oferta que suba video:
+   `SesionBorde::subeSoloAudio`, con test). Sin permiso, su página lo dice y la
+   app sigue sin la voz con él (evento `atiende_error`).
+2. Su voz va por la ruta `Atencion` del gateway a `BA.Audio.Atencion` (un canal:
+   de a uno), la app la toma con una entrada interna fuera de la mezcla
+   (`OperatorFeed::escucharAtencionRemota`), la pasa a texto con el **mismo**
+   reconocedor y entra al hilo del chat del operador como un dicho suyo
+   (`agregarDichoPorVoz` con su nombre). El que atiende la lee con
+   `chat_wait {participant: <id del integrante>}`.
+3. Lo que el que atiende le manda con `chat_send {to: <id del integrante>}`
+   (`AtencionViewModel::decirAlIntegrante`) se dice con la voz del atendedor y sale
+   por `BA.Audio.Atendedor`: el gateway se la baja **solo a él**
+   (`MediaRoute::oyeAlAtendedor`, con test), nunca a la sesión ni al aire. Su
+   página además lo muestra escrito.
+4. El encargo le dice al que atiende que puede hablarle así, con las mismas reglas
+   de la voz que en la sala.
+5. Termina al habilitarlo (la app apaga la atención: el borde no sabe quién está
+   habilitado; su página también la corta al pasar a «habilitado») o al irse (el
+   gateway la apaga solo).
 
 ## Personas
 
@@ -97,5 +130,8 @@ suena**: genera la frase, muestra la duración y la forma de onda, y deja
   (`escucharEntrada` sobre `ba-lobby-monitor-<k>`), que la transcripción llegue al
   hilo y que la voz del atendedor se oiga en su navegador (y no en el de los
   demás).
-- «Hablando» en la asamblea: haría falta que la página de la sesión abra el
-  micrófono hacia el gateway mientras espera (otro canal, sin pasar al aire).
+- «Hablando» en la asamblea con un celular de verdad: que la página pida el
+  micrófono y avise, que `BA.Audio.Atencion` llegue a la entrada interna
+  `ba-atencion-remota`, que la transcripción entre al hilo con su nombre y que la
+  voz del atendedor se oiga en su celular (y no en el de los demás ni en la sala).
+  Desde afuera (por el túnel) también: usa el TURN de la caja como la vista.

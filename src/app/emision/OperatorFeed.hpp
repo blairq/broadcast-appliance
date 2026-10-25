@@ -54,7 +54,8 @@ class OperatorFeed {
     /// stop() + libera el monitoreo. Llamar ANTES de apagar el motor.
     void shutdown();
 
-    /// Crea las fuentes de monitoreo del lobby (1..count), silenciadas.
+    /// Crea las fuentes de monitoreo del lobby (1..count), silenciadas, y la de la
+    /// atención hablada de la sesión remota.
     void startLobbyMonitor(int count);
     /// Escuchar (o no) a quien ocupa el lugar `slot` del lobby.
     void setLobbyMonitor(int slot, bool on);
@@ -64,6 +65,10 @@ class OperatorFeed {
     /// `atiende` en su ruta). Devuelve la toma (0 = no se pudo) para soltarla.
     int escucharLobby(int slot, std::function<void(const float* estereo, std::size_t cuadros)> fn);
     void dejarDeEscucharLobby(int toma);
+    /// Lo mismo para el integrante que espera en la sesión remota de la asamblea y
+    /// lo atiende el asistente hablando (BA.Audio.Atencion, un canal: de a uno). Se
+    /// suelta con dejarDeEscucharLobby. 0 = no se pudo.
+    int escucharAtencionRemota(std::function<void(const float* estereo, std::size_t cuadros)> fn);
 
     // --- Push-to-talk (docs/funciones/AUDIO-TTS.md) -------------------------------------
     /// Mono en float con su frecuencia: el oído del control por voz.
@@ -107,6 +112,7 @@ class OperatorFeed {
 
     // Monitoreo del lobby: entradas internas del motor (no van a la mezcla ni a las listas)
     std::vector<std::string> lobbyMonitors_;
+    std::string atencionMonitor_; ///< la de BA.Audio.Atencion ("" = no se armó)
 };
 
 } // namespace ba::app

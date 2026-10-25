@@ -36,6 +36,7 @@
 #include "ui/SettingsModel.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/AtencionViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -896,7 +897,8 @@ void McpService::registerRoomTools() {
         t.name = "chat_send";
         t.title = "Escribir en el chat";
         t.category = "sala";
-        t.description = "Mensaje del operador a toda la sala o a una persona.";
+        t.description = "Mensaje del operador a toda la sala o a una persona (también al integrante que espera en "
+                        "la sesión remota y se lo atiende hablando: se le dice con la voz del atendedor).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"text", {{"type", "string"}}},
@@ -904,6 +906,13 @@ void McpService::registerRoomTools() {
                          {"required", {"text"}}};
         t.run = [&vm, &control, contestar](const json& a, Done done) {
             std::string to = a.value("to", std::string("all"));
+            // El que espera en la sesión remota y lo atiende el asistente hablando no
+            // está en la sala ni tiene chat: lo que se le escribe se le DICE, solo a
+            // él (docs/funciones/ATENCION.md). Las mismas herramientas que en el lobby.
+            if (AtencionViewModel* at = vm.atencionVm(); at != nullptr && at->atiendeHablandoEnAsamblea(QString::fromStdString(to))) {
+                const QString e = at->decirAlIntegrante(QString::fromStdString(to), QString::fromStdString(a.value("text", std::string())));
+                return done(e.isEmpty() ? ToolResult().text("Dicho.") : ToolResult::error(e.toStdString()));
+            }
             if (to != "all") {
                 json p;
                 std::string err;
@@ -958,7 +967,8 @@ void McpService::registerRoomTools() {
             "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la sala y "
             "devuelve "
             "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
-            "pregunta con chat_send, un chat_wait, y asi.";
+            "pregunta con chat_send, un chat_wait, y asi. Si se lo atiende hablando (en el lobby o esperando en "
+            "la sesión remota), lo que dice llega acá pasado a texto (`voz: true`).";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"participant"}},
@@ -968,11 +978,17 @@ void McpService::registerRoomTools() {
         t.run = [conf, &vm](const json& a, Done done) {
             json p;
             std::string err;
-            if (!resolveParticipant(roomSnapshot(vm), a["participant"].get<std::string>(), p, err)) {
-                done(ToolResult::error(err));
-                return;
+            std::string id = a["participant"].get<std::string>();
+            // El que espera en la sesión remota atendido hablando: lo que dice entra al
+            // mismo hilo (ConferenceViewModel::agregarDichoPorVoz), con su id de integrante.
+            AtencionViewModel* at = vm.atencionVm();
+            if (at == nullptr || !at->atiendeHablandoEnAsamblea(QString::fromStdString(id))) {
+                if (!resolveParticipant(roomSnapshot(vm), id, p, err)) {
+                    done(ToolResult::error(err));
+                    return;
+                }
+                id = p.value("id", "");
             }
-            const std::string id = p.value("id", "");
             auto* model = static_cast<JsonListModel*>(conf->chat());
             const auto leer = [model]() {
                 return json::parse(QJsonDocument(model->items()).toJson(QJsonDocument::Compact).toStdString(),
