@@ -173,10 +173,21 @@ if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
     # están en lib/. Sin esto el texto se apagaba solo en Windows.
     get_filename_component(_ba_gst_inc "${BA_GST_LIBDIR}/../include" ABSOLUTE)
     get_filename_component(_ba_gst_lib "${BA_GST_LIBDIR}/../lib" ABSOLUTE)
-    find_library(_ba_pangocairo NAMES pangocairo-1.0 PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
-    find_library(_ba_pango NAMES pango-1.0 PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
-    find_library(_ba_cairo NAMES cairo PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
-    find_library(_ba_gobject NAMES gobject-2.0 PATHS "${BA_GST_LIBDIR}" "${_ba_gst_lib}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    # En Linux, Pango y lo suyo no vienen con GStreamer: son de extern/terceros-linux
+    # (tools/deps/terceros-linux.sh), y el bundle los copia a bin/64bit.
+    set(_ba_terceros "${CMAKE_SOURCE_DIR}/extern/terceros-linux")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS "${_ba_terceros}/include/pango-1.0/pango/pangocairo.h")
+        set(_ba_gst_inc "${_ba_terceros}/include")
+        list(APPEND _ba_gst_lib "${_ba_terceros}/lib")
+    endif()
+    find_library(_ba_pangocairo NAMES pangocairo-1.0 PATHS "${BA_GST_LIBDIR}" ${_ba_gst_lib} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_library(_ba_pango NAMES pango-1.0 PATHS "${BA_GST_LIBDIR}" ${_ba_gst_lib} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_library(_ba_cairo NAMES cairo PATHS "${BA_GST_LIBDIR}" ${_ba_gst_lib} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    find_library(_ba_gobject NAMES gobject-2.0 PATHS "${BA_GST_LIBDIR}" ${_ba_gst_lib} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    # En Linux la glib (gobject) es la del sistema (la base), no viene con GStreamer.
+    if(NOT _ba_gobject AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_library(_ba_gobject NAMES gobject-2.0)
+    endif()
     if(_ba_pangocairo AND _ba_pango AND _ba_cairo AND EXISTS "${_ba_gst_inc}/pango-1.0/pango/pangocairo.h")
         target_include_directories(gstbarostros PRIVATE "${_ba_gst_inc}/pango-1.0" "${_ba_gst_inc}/cairo"
                                    "${_ba_gst_inc}/harfbuzz" "${_ba_gst_inc}/freetype2" "${_ba_gst_inc}/fribidi")

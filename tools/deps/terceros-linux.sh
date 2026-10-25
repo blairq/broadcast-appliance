@@ -70,6 +70,11 @@ PKGS=(
   "pixman|0.44.2|https://cairographics.org/releases/pixman-0.44.2.tar.gz|6349061ce1a338ab6952b92194d1b0377472244208d47ff25bef86fc71973466"
   "libpng|1.6.44|https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.44.tar.gz|0ef5b633d0c65f780c4fced27ff832998e71478c13b45dfb6e94f23a82f64f7c"
   "cairo|1.18.2|https://cairographics.org/releases/cairo-1.18.2.tar.xz|a62b9bb42425e844cc3d6ddde043ff39dbabedd1542eba57a2eb79f85889d45a"
+  # El texto de GStreamer (plugin pango: textoverlay) y del overlay de barostros. Pango 1.52: el
+  # de los subproyectos de GStreamer 1.28 (1.56) pide una glib más nueva que la de la base.
+  "fribidi|1.0.16|https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz|1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c"
+  "harfbuzz|10.1.0|https://github.com/harfbuzz/harfbuzz/releases/download/10.1.0/harfbuzz-10.1.0.tar.xz|6ce3520f2d089a33cef0fc48321334b8e0b72141f6a763719aaaecd2779ecb82"
+  "pango|1.52.2|https://download.gnome.org/sources/pango/1.52/pango-1.52.2.tar.xz|d0076afe01082814b853deec99f9349ece5f2ce83908b8e58ff736b41f78a96b"
   "libsndfile|1.2.2|https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz|3799ca9924d3125038880367bf1468e53a1b7e3686a934f098b7e1d286cdb80e"
 )
 # NDI sin el SDK de Vizrt: libNoIDea (VideoLAN, LGPL, ingenieria inversa para
@@ -240,6 +245,33 @@ if ! done_mark cairo2; then
     -Dquartz=disabled -Dtee=disabled -Dgtk_doc=false -Dc_link_args="$LDFLAGS" >/dev/null
   ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
   mark cairo2
+fi
+# Pango y lo que pide (compartidas, van a bin/64bit): con la glib, freetype y fontconfig de la
+# base y el cairo de arriba. Sin descargar nada por su cuenta (--wrap-mode=nofallback).
+if ! done_mark fribidi; then
+  d=$(fetch fribidi); log "fribidi"
+  meson setup "$d/build" "$d" --prefix="$PREFIX" --libdir=lib --buildtype=release --wrap-mode=nofallback \
+    -Ddocs=false -Dtests=false -Dbin=false -Dc_link_args="$LDFLAGS" >/dev/null
+  ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
+  mark fribidi
+fi
+if ! done_mark harfbuzz; then
+  d=$(fetch harfbuzz); log "harfbuzz"
+  meson setup "$d/build" "$d" --prefix="$PREFIX" --libdir=lib --buildtype=release --wrap-mode=nofallback \
+    -Dglib=enabled -Dfreetype=enabled -Dgobject=disabled -Dcairo=disabled -Dicu=disabled -Dintrospection=disabled \
+    -Dtests=disabled -Ddocs=disabled -Dutilities=disabled -Dbenchmark=disabled \
+    -Dc_link_args="$LDFLAGS" -Dcpp_link_args="$LDFLAGS" >/dev/null
+  ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
+  mark harfbuzz
+fi
+if ! done_mark pango; then
+  d=$(fetch pango); log "pango (cairo + freetype/fontconfig)"
+  meson setup "$d/build" "$d" --prefix="$PREFIX" --libdir=lib --buildtype=release --wrap-mode=nofallback \
+    -Dintrospection=disabled -Dgtk_doc=false -Dfontconfig=enabled -Dfreetype=enabled -Dcairo=enabled \
+    -Dxft=disabled -Dlibthai=disabled -Dsysprof=disabled -Dbuild-testsuite=false -Dbuild-examples=false \
+    -Dc_link_args="$LDFLAGS" >/dev/null
+  ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
+  mark pango
 fi
 
 # git a un commit fijado (el hash ES la verificacion).

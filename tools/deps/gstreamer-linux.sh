@@ -37,7 +37,7 @@ JOBS="${1:-$(nproc)}"
 VER=1.28.7
 COMMIT=070125524a8422e29d3b69a372ed4f62fd343ffa
 # Subir RECETA al cambiar opciones: si no, «ya está» y no recompila.
-RECETA=6
+RECETA=7
 URL=https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 SRC="$ROOT/extern/.build-gstreamer"
 PREFIX="$ROOT/extern/gstreamer-linux"
@@ -115,10 +115,8 @@ export CFLAGS="-O2 -I$LADO/include" CXXFLAGS="-O2"
 export LDFLAGS="-L$LADO/lib -L$DEPS/lib"
 export LIBRARY_PATH="$LADO/lib"
 
-# Pango, HarfBuzz y FriBiDi salen de los subproyectos fijados del monorepo (como ogg u opus):
-# quedan en lib/ del GStreamer del bundle, como en el de macOS y el de Windows. Los usan el
-# plugin pango (textoverlay) y el texto del overlay de barostros (src/gst-plugins/CMakeLists.txt,
-# que sin ellos frena el build). Cairo es el de extern/terceros-linux.
+# El plugin pango (textoverlay) usa Pango, HarfBuzz y FriBiDi de extern/terceros-linux (Pango
+# 1.52: el de los subproyectos del monorepo pide una glib más nueva que la de la base).
 B="$SRC/b"
 rm -rf "$PREFIX"
 log "configurando $VER ($COMMIT)"
@@ -128,7 +126,7 @@ if [ -f "$B/build.ninja" ]; then RECONF=--reconfigure; meson configure --clearca
 meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto -Dpkg_config_path="$PKG_CONFIG_PATH" \
     -Dpython.platlibdir=lib/python3.12/site-packages -Dpython.purelibdir=lib/python3.12/site-packages \
-    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123,gobject-introspection,pygobject,pango,harfbuzz,fribidi \
+    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123,gobject-introspection,pygobject \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
     -Dgpl=enabled -Dorc=enabled \
     -Dpython=enabled -Dintrospection=enabled -Ddevtools=disabled -Dges=disabled -Drs=disabled -Dgst-examples=disabled -Dsharp=disabled \
