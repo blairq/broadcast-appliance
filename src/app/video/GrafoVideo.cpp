@@ -123,6 +123,12 @@ json fabrica(const std::string& tipo) {
                 {"fondo", 0xFF000000LL},
                 {"nombre", ""},
                 {"capas", json::object()}};
+    // Una Mezcla de GStreamer: el módulo (`elemento`) y sus propiedades, las de cada pad
+    // (`pads`: {"sink_0": {"xpos": 10}}), sus plantillas de pads ([{nombre, pedido}],
+    // de la introspección; de ahí salen los puertos), el lienzo y la fuente (`nombre`).
+    if (tipo == "mezcla")
+        return {{"elemento", ""}, {"propiedades", json::object()}, {"pads", json::object()},
+                {"plantillas", json::array()}, {"ancho", 0}, {"alto", 0}, {"nombre", ""}};
     if (tipo == "entrada" || tipo == "escena") return {{"fuente", ""}};
     return json::object();
 }
@@ -147,6 +153,7 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "superres") return "Superresolución";
     if (tipo == "control") return "Controlador";
     if (tipo == "compositor") return "Compositor";
+    if (tipo == "mezcla") return "Mezcla de GStreamer";
     return tipo;
 }
 
@@ -198,11 +205,21 @@ void mezclar(json& a, const json& b) {
     }
 }
 
-int indicePedido(const std::string& puerto) {
-    if (puerto.rfind("in_", 0) != 0 || puerto.size() < 4) return -1;
-    for (size_t i = 3; i < puerto.size(); ++i)
+/// El número de un puerto a pedido con ese prefijo («in_3» con «in_» -> 3); -1 si no es.
+int indiceEn(const std::string& puerto, const std::string& prefijo) {
+    if (prefijo.empty() || puerto.rfind(prefijo, 0) != 0 || puerto.size() <= prefijo.size() || puerto.size() > prefijo.size() + 6)
+        return -1;
+    for (size_t i = prefijo.size(); i < puerto.size(); ++i)
         if (!std::isdigit(static_cast<unsigned char>(puerto[i]))) return -1;
-    return std::stoi(puerto.substr(3));
+    return std::stoi(puerto.substr(prefijo.size()));
+}
+
+int indicePedido(const std::string& puerto) { return indiceEn(puerto, "in_"); }
+
+/// El prefijo de una plantilla a pedido de GStreamer («sink_%u» -> «sink_»); "" si no tiene «%».
+std::string prefijoPlantilla(const std::string& plantilla) {
+    const auto p = plantilla.find('%');
+    return p == std::string::npos ? std::string() : plantilla.substr(0, p);
 }
 
 } // namespace
@@ -344,6 +361,13 @@ json GrafoVideo::parametrosDe(const std::string& tipo) {
         l.push_back(param("fondo", "color", "Color de fondo (ARGB, 0xFF000000 = negro)."));
         l.push_back(param("nombre", "texto", "La fuente con la que se pone en las escenas."));
         l.push_back(param("capas", "texto", "Por puerto, {\"in_N\": {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, ajuste encajar|llenar}}; sin capas, mosaico."));
+    } else if (tipo == "mezcla") {
+        l.push_back(param("elemento", "texto", "El módulo de GStreamer de varias entradas (video_modulos: los que dicen `mezcla`)."));
+        l.push_back(param("propiedades", "texto", "Sus propiedades, con los nombres de GStreamer (video_filtros con el id las lista)."));
+        l.push_back(param("pads", "texto", "Las propiedades de cada entrada, por puerto: {\"sink_0\": {\"xpos\": 10, \"alpha\": 0.5}} (video_filtros con el id y `puerto` las lista)."));
+        l.push_back(param("ancho", "entero", "Ancho de lo que sale; 0 = el del estudio."));
+        l.push_back(param("alto", "entero", "Alto de lo que sale; 0 = el del estudio."));
+        l.push_back(param("nombre", "texto", "La fuente con la que se pone en las escenas."));
     } else if (tipo == "gst") {
         l.push_back(param("elemento", "texto", "El módulo de GStreamer (video_modulos)."));
         l.push_back(param("propiedades", "texto", "Sus propiedades, con los nombres de GStreamer (video_filtros las lista)."));
@@ -421,6 +445,13 @@ json GrafoVideo::catalogo() {
          "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.",
          "estudio"},
+        {"mezcla",
+         "Cualquier módulo de GStreamer de varias entradas (compositor, glvideomixer, d3d12compositor, glmosaic, "
+         "smpte, shapewipe, glstereomix…): sus entradas son las del módulo (a pedido o fijas) y cada una se "
+         "cablea desde cualquier entrada; se ajustan sus propiedades y las de cada entrada (xpos, alpha, zorder…). "
+         "Sale como una fuente con nombre para cualquier escena. En la placa si el módulo puede (Direct3D 12 en "
+         "Windows, OpenGL en Mac y Linux). Se elige el módulo en el catálogo («+ Agregar como mezcla»). Es del estudio.",
+         "estudio"},
         {"panoramica",
          "Une varias cámaras (hasta 8, un stream cada una) en una sola imagen: una fila de cámaras comunes "
          "(la tira, del tamaño de la suma de sus resoluciones) o una 360 de ojos de pez (la vista, como un "
@@ -442,7 +473,18 @@ json GrafoVideo::catalogo() {
 }
 
 bool GrafoVideo::tipoValido(const std::string& t) {
-    return esFiltro(t) || t == "salida" || t == "compositor" || t == "panoramica" || t == "control";
+    return esFiltro(t) || t == "salida" || esComposicion(t) || t == "control";
+}
+
+bool GrafoVideo::esComposicion(const std::string& t) { return t == "compositor" || t == "panoramica" || t == "mezcla"; }
+
+std::string GrafoVideo::plantillaDePuerto(const Nodo& n, const std::string& puerto) {
+    for (const auto& t : n.params.value("plantillas", json::array())) {
+        const std::string nom = t.is_object() ? t.value("nombre", std::string()) : std::string();
+        if (nom.empty()) continue;
+        if (!t.value("pedido", false) ? nom == puerto : indiceEn(puerto, prefijoPlantilla(nom)) >= 0) return nom;
+    }
+    return {};
 }
 
 std::string GrafoVideo::idEntrada(const std::string& fuente) { return slug(fuente) + ".entrada"; }
@@ -472,6 +514,27 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
     if (n.tipo == "entrada" || n.tipo == "control") return {};
     // Un filtro tiene además su entrada de control (de un controlador).
     if (esFiltro(n.tipo)) return {{"in", "video", false}, {"ctl", "control", false}};
+    if (n.tipo == "mezcla") {
+        // Los del módulo: cada plantilla fija es un puerto; cada una a pedido, los
+        // conectados (en orden) y uno libre, como el compositor.
+        std::vector<Puerto> out;
+        for (const auto& t : n.params.value("plantillas", json::array())) {
+            const std::string nom = t.is_object() ? t.value("nombre", std::string()) : std::string();
+            if (nom.empty()) continue;
+            const std::string pre = prefijoPlantilla(nom);
+            if (!t.value("pedido", false) || pre.empty()) {
+                out.push_back({nom, "video", false});
+                continue;
+            }
+            std::vector<int> usados;
+            for (const auto& c : entrantes(n.id))
+                if (indiceEn(c.entrada, pre) >= 0) usados.push_back(indiceEn(c.entrada, pre));
+            std::sort(usados.begin(), usados.end());
+            for (int i : usados) out.push_back({pre + std::to_string(i), "video", false});
+            out.push_back({pre + std::to_string(usados.empty() ? 0 : usados.back() + 1), "video", true});
+        }
+        return out;
+    }
     if (n.tipo != "compositor" && n.tipo != "panoramica") return {{"in", "video", false}};
     // A pedido: los conectados, en orden, y uno libre al final (en la Panorámica, hasta 8:
     // el puerto in_k es la cámara k+1, y su franja en el lienzo).
@@ -612,8 +675,12 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
         if (error) *error = "falta qué filtro de OBS (`filtro`)";
         return {};
     }
-    if (tipo == "gst" && (!params.is_object() || params.value("elemento", std::string()).empty())) {
+    if ((tipo == "gst" || tipo == "mezcla") && (!params.is_object() || params.value("elemento", std::string()).empty())) {
         if (error) *error = "falta qué módulo de GStreamer (`elemento`)";
+        return {};
+    }
+    if (tipo == "mezcla" && !(params.contains("plantillas") && params["plantillas"].is_array() && !params["plantillas"].empty())) {
+        if (error) *error = "faltan las entradas del módulo «" + params.value("elemento", std::string()) + "» (`plantillas`)";
         return {};
     }
     if (tipo == "ptz")
@@ -629,8 +696,8 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
     if (params.is_object())
         for (auto it = params.begin(); it != params.end(); ++it)
             n.params[it.key()] = it.value();
-    // Un compositor o un controlador es del estudio: suelto, a la derecha de todo.
-    if (tipo == "compositor" || tipo == "panoramica" || tipo == "control") {
+    // Un compositor (una mezcla) o un controlador es del estudio: suelto, a la derecha de todo.
+    if (esComposicion(tipo) || tipo == "control") {
         n.grupo = "";
         n.id = idNuevo("", tipo);
         int x = 0;
@@ -724,14 +791,22 @@ std::string GrafoVideo::conectar(const std::string& desde, const std::string& sa
     const auto pe = puertosEntrada(*h);
     std::string ent = entrada;
     if (ent.empty()) {
-        // El primer puerto del mismo tipo (en un compositor, el libre).
+        // El primer puerto del mismo tipo (en un compositor, el libre; en una mezcla, el
+        // primero fijo sin cable o, si no, el libre de los a pedido).
         if ((h->tipo == "compositor" || h->tipo == "panoramica") && tipoSal == "video") ent = pe.back().id;
+        if (h->tipo == "mezcla" && tipoSal == "video")
+            for (const auto& p : pe) {
+                const auto ocupado = std::any_of(cables_.begin(), cables_.end(),
+                                                 [&](const Cable& c) { return c.hacia == hacia && c.entrada == p.id; });
+                if (ent.empty() && (p.pedido || !ocupado)) ent = p.id;
+            }
         for (const auto& p : pe)
             if (ent.empty() && p.tipo == tipoSal) ent = p.id;
     }
     const auto puerto = std::find_if(pe.begin(), pe.end(), [&](const Puerto& p) { return p.id == ent; });
     const bool valida = puerto != pe.end() || (h->tipo == "compositor" && indicePedido(ent) >= 0) ||
-                        (h->tipo == "panoramica" && indicePedido(ent) >= 0 && indicePedido(ent) < kMaxLentes360);
+                        (h->tipo == "panoramica" && indicePedido(ent) >= 0 && indicePedido(ent) < kMaxLentes360) ||
+                        (h->tipo == "mezcla" && !plantillaDePuerto(*h, ent).empty());
     if (!valida) {
         if (error)
             *error = "«" + h->etiqueta + "» no tiene entrada" +
@@ -1132,6 +1207,33 @@ json GrafoVideo::configCompositor(const std::string& id) const {
                 {"capas", capas},
                 {"filtros", json::array({{{"id", "vista360"}, {"elemento", "ba360"}, {"propiedades", propiedades360(p, cuantas)}}})}};
     }
+    if (n != nullptr && n->tipo == "mezcla") {
+        // Cada puerto conectado es un pad del módulo (el mismo nombre: «sink_1», «video_sink»),
+        // con sus propiedades tal cual. Como en el compositor, lo que viene de una entrada.
+        const json& p = n->params;
+        const json pads = p.value("pads", json::object());
+        json capas = json::array();
+        std::vector<Cable> es = entrantes(id);
+        std::sort(es.begin(), es.end(), [](const Cable& a, const Cable& b) { return a.entrada < b.entrada; });
+        for (const auto& c : es) {
+            const Nodo* d = nodo(c.desde);
+            if (d == nullptr || d->grupo.empty() || plantillaDePuerto(*n, c.entrada).empty()) continue;
+            const json pp = pads.is_object() ? pads.value(c.entrada, json::object()) : json::object();
+            capas.push_back({{"toma", d->id},
+                             {"fuente", d->grupo},
+                             {"pad", c.entrada},
+                             {"propiedades_pad", pp.is_object() ? pp : json::object()},
+                             {"x", 0.0},
+                             {"y", 0.0},
+                             {"ancho", 1.0},
+                             {"alto", 1.0}});
+        }
+        json out{{"mezclador", {{"elemento", p.value("elemento", std::string())}, {"propiedades", p.value("propiedades", json::object())}}},
+                 {"capas", capas}};
+        // Un lienzo propio (0 = el del estudio).
+        if (p.value("ancho", 0) > 0 && p.value("alto", 0) > 0) out["lienzo"] = {{"ancho", p.value("ancho", 0)}, {"alto", p.value("alto", 0)}};
+        return out;
+    }
     if (n == nullptr || n->tipo != "compositor") return json::object();
     const json& p = n->params;
     // Los puertos conectados, en orden; cada uno con lo que le llega.
@@ -1233,7 +1335,7 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
         if (dentro.count(c.desde)) continue;
         const Nodo* d = nodo(c.desde);
         if (d == nullptr) continue;
-        json p = d->tipo == "compositor"
+        json p = esComposicion(d->tipo)
                      ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}
                      : json{{"toma", d->id}, {"fuente", d->grupo}};
         ns.push_back({{"id", "traer"}, {"tipo", "traer"}, {"params", p}});

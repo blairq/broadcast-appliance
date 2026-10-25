@@ -2,8 +2,9 @@
 //
 // Entradas como sub-grafos, tarjetas intercaladas o como rama, puertos a
 // pedido del compositor, cables entre entradas, ciclos en todo el grafo, la
-// migración del formato de antes (un grafo por entrada) y lo que recibe el
-// filtro de cada entrada.
+// migración del formato de antes (un grafo por entrada), lo que recibe el
+// filtro de cada entrada y la Mezcla de GStreamer (puertos de las plantillas de
+// pads del módulo, fijos o a pedido, y su configuración para el motor).
 
 #include "video/GrafoVideo.hpp"
 
@@ -321,6 +322,80 @@ int main() {
         std::string e;
         const std::string r = k.agregar("retardo", "Cam", "", json{{"cuadros", 3}}, &e);
         CHECK(!r.empty() && k.paraFiltro("Cam")["nodos"].size() == 3, "retardo: una tarjeta intercalada");
+    }
+    // Mezcla de GStreamer: los puertos salen de las plantillas de pads del módulo.
+    {
+        GrafoVideo k;
+        k.asegurarEntrada("A");
+        k.asegurarEntrada("B");
+        k.asegurarEntrada("C");
+        std::string e;
+        CHECK(k.agregar("mezcla", "", "", json{{"elemento", "smpte"}}, &e).empty(), "una mezcla sin plantillas: error");
+        CHECK(k.agregar("mezcla", "", "", json{{"plantillas", json::array({{{"nombre", "sink_%u"}, {"pedido", true}}})}}, &e).empty(),
+              "una mezcla sin `elemento`: error");
+        // smpte: dos fijas.
+        const std::string sm = k.agregar("mezcla", "", "",
+                                         json{{"elemento", "smpte"},
+                                              {"plantillas", json::array({{{"nombre", "sink1"}, {"pedido", false}},
+                                                                          {{"nombre", "sink2"}, {"pedido", false}}})}},
+                                         &e);
+        CHECK(sm == "estudio.mezcla" && k.nodo(sm)->grupo.empty(), "la mezcla es del estudio");
+        CHECK(GrafoVideo::esComposicion("mezcla") && GrafoVideo::tipoValido("mezcla"), "la mezcla se publica como un compositor");
+        auto pe = k.puertosEntrada(*k.nodo(sm));
+        CHECK(pe.size() == 2 && pe[0].id == "sink1" && pe[1].id == "sink2" && !pe[0].pedido, "smpte: sink1 y sink2, fijos");
+        // Sin puerto: el primero libre; después el otro.
+        CHECK(k.conectar(GrafoVideo::idEntrada("A"), "", sm, "", &e) == "sink1", "el primer cable va a sink1");
+        CHECK(k.conectar(GrafoVideo::idEntrada("B"), "", sm, "", &e) == "sink2", "el segundo, a sink2");
+        CHECK(k.conectar(GrafoVideo::idEntrada("C"), "", sm, "sink3", &e).empty(), "smpte no tiene sink3");
+        CHECK(k.conectar(GrafoVideo::idEntrada("C"), "", sm, "sink1", &e) == "sink1" && !hay(k, GrafoVideo::idEntrada("A"), sm),
+              "a un puerto fijo le llega uno: el nuevo reemplaza");
+        json cfg = k.configCompositor(sm);
+        CHECK(cfg["mezclador"].value("elemento", "") == "smpte" && cfg["capas"].size() == 2, "su configuración: el módulo y dos capas");
+        CHECK(cfg["capas"][0].value("pad", "") == "sink1" && cfg["capas"][0].value("fuente", "") == "C" &&
+                  cfg["capas"][1].value("pad", "") == "sink2" && cfg["capas"][1].value("fuente", "") == "B",
+              "cada capa con su pad y su entrada");
+        CHECK(!cfg.contains("lienzo"), "sin tamaño: el lienzo del estudio");
+        // Compositor genérico: a pedido, siempre uno libre, con las propiedades de cada pad.
+        const std::string co = k.agregar("mezcla", "", "",
+                                         json{{"elemento", "compositor"},
+                                              {"plantillas", json::array({{{"nombre", "sink_%u"}, {"pedido", true}}})},
+                                              {"ancho", 1280},
+                                              {"alto", 720}},
+                                         &e);
+        pe = k.puertosEntrada(*k.nodo(co));
+        CHECK(pe.size() == 1 && pe[0].id == "sink_0" && pe[0].pedido, "a pedido: uno libre (sink_0)");
+        CHECK(k.conectar(GrafoVideo::idEntrada("A"), "", co, "", &e) == "sink_0", "el cable va al libre");
+        CHECK(k.conectar(GrafoVideo::idEntrada("B"), "", co, "sink_4", &e) == "sink_4", "a pedido con número");
+        pe = k.puertosEntrada(*k.nodo(co));
+        CHECK(pe.size() == 3 && pe[1].id == "sink_4" && pe[2].id == "sink_5" && pe[2].pedido, "los conectados y uno libre después");
+        CHECK(k.conectar(GrafoVideo::idEntrada("C"), "", co, "in_0", &e).empty(), "un puerto de otro módulo: error");
+        CHECK(GrafoVideo::plantillaDePuerto(*k.nodo(co), "sink_4") == "sink_%u" &&
+                  GrafoVideo::plantillaDePuerto(*k.nodo(sm), "sink2") == "sink2" &&
+                  GrafoVideo::plantillaDePuerto(*k.nodo(sm), "sink_0").empty(),
+              "de qué plantilla sale cada puerto");
+        CHECK(k.ajustar(co, json{{"pads", {{"sink_4", {{"xpos", 640}, {"alpha", 0.5}}}}}, {"propiedades", {{"background", "white"}}}}, &e),
+              "ajustar los pads y el módulo");
+        CHECK(k.ajustar(co, json{{"pads", {{"sink_4", {{"ypos", 360}}}}}}, &e), "los pads se mezclan");
+        cfg = k.configCompositor(co);
+        const json pp = cfg["capas"][1].value("propiedades_pad", json::object());
+        CHECK(cfg["capas"][1].value("pad", "") == "sink_4" && pp.value("xpos", 0) == 640 && pp.value("ypos", 0) == 360 &&
+                  pp.value("alpha", 0.0) == 0.5,
+              "las propiedades del pad van a su capa");
+        CHECK(cfg["mezclador"]["propiedades"].value("background", "") == "white", "las del módulo, al mezclador");
+        CHECK(cfg["lienzo"].value("ancho", 0) == 1280 && cfg["lienzo"].value("alto", 0) == 720, "con tamaño: su lienzo");
+        // La escena de otra entrada puede recibir la mezcla (traer, como el compositor).
+        CHECK(!k.conectar(co, "out", GrafoVideo::idEscena("C"), "in", &e).empty(), "la mezcla alimenta la escena de C");
+        bool traer = false;
+        const json pfC = k.paraFiltro("C"); // con nombre: recorrer un temporal deja la referencia colgada
+        for (const auto& n : pfC["nodos"])
+            if (n.value("tipo", "") == "traer" && n["params"].value("compositor", "") == co) traer = true;
+        CHECK(traer, "la escena de C trae la mezcla");
+        // Guardar y leer: los puertos (de las plantillas) y sus cables vuelven.
+        const GrafoVideo r = GrafoVideo::desde(k.aJson());
+        CHECK(r.configCompositor(co) == k.configCompositor(co) && r.configCompositor(sm) == k.configCompositor(sm),
+              "la mezcla se guarda y se lee igual");
+        // Quitarla suelta sus cables.
+        CHECK(k.quitar(sm, &e) && !hay(k, GrafoVideo::idEntrada("B"), sm), "quitar la mezcla");
     }
 
     std::printf(fallos == 0 ? "test_grafo_video: OK\n" : "test_grafo_video: %d fallos\n", fallos);

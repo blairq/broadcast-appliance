@@ -221,6 +221,9 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
                              {"visible", true},
                              {"contener", k.value("ajuste", std::string("encajar")) != "llenar"}};
             if (!k.value("productor", std::string()).empty()) capa["productor"] = k["productor"];
+            // La «Mezcla de GStreamer» (config.mezclador): el pad del módulo y sus propiedades.
+            if (k.contains("pad")) capa["pad"] = k["pad"];
+            if (k.contains("propiedades_pad")) capa["propiedades_pad"] = k["propiedades_pad"];
             // Los efectos de la capa del compositor (como los de un elemento de la escena).
             if (k.contains("efectos")) {
                 EfectosCapa ef;
@@ -234,6 +237,7 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
     json e{{"nombre", kPrefijoCompositor + nombre}, {"capas", capas}};
     if (propio) e["lienzo"] = lienzo;
     if (config.is_object() && config.contains("filtros")) e["filtros"] = config["filtros"];
+    if (config.is_object() && config.contains("mezclador")) e["mezclador"] = config["mezclador"];
     return e;
 }
 

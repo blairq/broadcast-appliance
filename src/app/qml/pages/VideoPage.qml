@@ -70,7 +70,7 @@ Rectangle {
         if (tipo === "obs") return "#0ea5e9"
         if (tipo === "gst") return "#10b981"
         if (tipo === "control") return "#fbbf24"
-        if (tipo === "compositor") return "#f472b6"
+        if (tipo === "compositor" || tipo === "mezcla") return "#f472b6"
         if (tipo === "croma") return "#22c55e"
         if (tipo === "color") return "#f59e0b"
         if (tipo === "recorte") return "#38bdf8"
@@ -98,6 +98,7 @@ Rectangle {
             return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
         }
         if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho > 0 ? p.ancho + "×" + p.alto : "lienzo del estudio") + (n.publicada ? " · en escena" : "")
+        if (n.tipo === "mezcla") return "GStreamer · " + (p.elemento || "") + " · " + ((page.vista === "estudio" ? page.est.cables : page.g.cables) || []).filter(c => c.hacia === n.id).length + " conectadas" + (n.publicada ? " · en escena" : "")
         if (n.tipo === "color") return "brillo " + f2(p.brillo) + " · contraste " + f2(p.contraste) + " · saturación " + f2(p.saturacion)
         if (n.tipo === "croma") return "fondo " + hex(p.clave) + " · similitud " + f2(p.similitud)
         if (n.tipo === "recorte") {
@@ -234,9 +235,21 @@ Rectangle {
     property var pendiente: null
     Timer { id: aplicar; interval: 80; onTriggered: if (page.pendiente) { page.avisar(page.vg.ajustar(page.pendiente.id, page.pendiente.p)); page.pendiente = null } }
     property var pendienteFiltro: null
-    Timer { id: aplicarFiltro; interval: 80; onTriggered: if (page.pendienteFiltro) { const p = page.pendienteFiltro; page.pendienteFiltro = null; page.avisar(page.vg.ajustarFiltro(p.id, p.k, p.v)) } }
+    Timer {
+        id: aplicarFiltro; interval: 80
+        onTriggered: if (page.pendienteFiltro) {
+            const p = page.pendienteFiltro
+            page.pendienteFiltro = null
+            page.avisar(p.puerto !== undefined ? page.vg.ajustarPad(p.id, p.puerto, p.k, p.v) : page.vg.ajustarFiltro(p.id, p.k, p.v))
+        }
+    }
     function ajustarFiltro(id, clave, valor) {
         page.pendienteFiltro = { id: id, k: clave, v: valor }
+        aplicarFiltro.restart()
+    }
+    // Una propiedad del pad de una entrada de la Mezcla de GStreamer (mientras se mueve un deslizador).
+    function ajustarPad(id, puerto, clave, valor) {
+        page.pendienteFiltro = { id: id, puerto: puerto, k: clave, v: valor }
         aplicarFiltro.restart()
     }
     function ajustar(id, clave, valor) {
@@ -341,8 +354,10 @@ Rectangle {
                 agregar: [
                     { titulo: "Tarjetas" + (page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? " (van después de «" + (page.nodo.etiqueta || page.sel) + "»)" : ""),
                       items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control" && c.tipo !== "ptz") : []).map(c => ({
-                          t: c.titulo, tip: c.descripcion,
-                          f: () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
+                          t: c.titulo + (c.tipo === "mezcla" ? "…" : ""), tip: c.descripcion,
+                          // La mezcla necesita su módulo: se elige en el catálogo (los de varias entradas).
+                          f: c.tipo === "mezcla" ? () => catalogo.abrirMezclas()
+                                                 : () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
                     { titulo: "Todos los módulos",
                       items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
@@ -497,12 +512,13 @@ Rectangle {
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         Text {
-                            visible: !!page.nodo && (page.nodo.tipo === "entrada" || page.nodo.tipo === "escena" || page.nodo.tipo === "compositor")
+                            visible: !!page.nodo && (page.nodo.tipo === "entrada" || page.nodo.tipo === "escena" || page.nodo.tipo === "compositor" || page.nodo.tipo === "mezcla")
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: !page.nodo ? ""
                                   : page.nodo.tipo === "entrada" ? "La cámara tal como sale del PTZ (Mejorar imagen y el encuadre digital, en «Cámaras PTZ»). De su salida pueden salir varios cables, también hacia otras entradas o un compositor."
                                   : page.nodo.tipo === "escena" ? "Lo que llega acá es lo que ven las escenas que usan esta entrada. Puede venir de otra parte del estudio (un compositor). Sin nada conectado, no se ve."
+                                  : page.nodo.tipo === "mezcla" ? "Del estudio: el módulo de GStreamer «" + (page.nodo.params.elemento || "") + "» junta sus entradas (los puertos son los del módulo; a los «+» se les tira un cable desde cualquier entrada). Abajo, sus propiedades y las de cada entrada. Se pone en las escenas como una fuente."
                                   : "Del estudio: junta varias entradas en un lienzo. Cada cable a su entrada «+» crea una capa nueva; sin posiciones, van en mosaico. Se pone en las escenas como una fuente, o se cablea a la escena de una entrada."
                             color: Theme.textDim; font.pixelSize: 12
                         }
@@ -612,7 +628,7 @@ Rectangle {
 
                         // Un módulo de GStreamer: qué es, y su ayuda completa.
                         RowLayout {
-                            visible: page.tipoEf === "gst"
+                            visible: page.tipoEf === "gst" || page.tipoEf === "mezcla"
                             Layout.fillWidth: true
                             spacing: 8
                             Text {
@@ -683,7 +699,7 @@ Rectangle {
 
                         // Una tarjeta de OBS: sus controles, de las propiedades del filtro.
                         Repeater {
-                            model: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst") ? page.vg.propiedades(page.sel) : []
+                            model: page.nodo && (page.tipoEf === "obs" || page.tipoEf === "gst" || page.tipoEf === "mezcla") ? page.vg.propiedades(page.sel) : []
                             delegate: ColumnLayout {
                                 id: prop
                                 required property var modelData
@@ -1258,6 +1274,116 @@ Rectangle {
                             }
                         }
 
+                        // Mezcla de GStreamer: la fuente, el lienzo y las propiedades de cada entrada
+                        // (las del módulo van arriba, con las de cualquier módulo).
+                        ColumnLayout {
+                            id: mezclaPanel
+                            visible: !!page.nodo && page.nodo.tipo === "mezcla"
+                            Layout.fillWidth: true
+                            spacing: 6
+                            // Los puertos que ya tienen algo (los fijos, siempre): el libre «+» no tiene qué ajustar.
+                            readonly property var puertos: page.nodo && page.nodo.tipo === "mezcla"
+                                ? (page.nodo.entradas || []).filter(e => !e.pedido).map(e => e.id) : []
+                            function origen(puerto) { return compPanel.origen(puerto) }
+                            Text { text: "Nombre de la fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                            TextField {
+                                Layout.fillWidth: true
+                                text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
+                                enabled: !!page.nodo && !page.nodo.publicada
+                                onEditingFinished: if (page.nodo && text !== page.nodo.params.nombre) page.avisar(page.vg.ajustar(page.sel, { nombre: text }))
+                            }
+                            // Lo que sale (0 = el lienzo del estudio).
+                            RowLayout {
+                                spacing: 6
+                                Text { text: "Ancho"; color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
+                                }
+                                Text { text: "Alto"; color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { alto: value }))
+                                }
+                            }
+                            Repeater {
+                                model: mezclaPanel.puertos
+                                delegate: ColumnLayout {
+                                    id: padCol
+                                    required property string modelData
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    // Las propiedades de este pad (de la introspección del módulo), con sus valores.
+                                    readonly property var props: page.nodo ? page.vg.propiedadesPad(page.sel, modelData) : []
+                                    Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
+                                    Text {
+                                        visible: padCol.props.length === 0
+                                        text: "Esta entrada no tiene propiedades propias."; color: Theme.textFaint; font.pixelSize: 11
+                                    }
+                                    Repeater {
+                                        model: padCol.props
+                                        delegate: ColumnLayout {
+                                            id: pp
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: 0
+                                            Text {
+                                                visible: pp.modelData.kind !== "bool"
+                                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                                text: pp.modelData.label + ((pp.modelData.kind === "float" || pp.modelData.kind === "int")
+                                                      ? "  " + Number(deslPad.value).toFixed(pp.modelData.kind === "int" ? 0 : 2) : "")
+                                                color: Theme.textDim; font.pixelSize: 11
+                                            }
+                                            Slider {
+                                                id: deslPad
+                                                visible: pp.modelData.kind === "float" || pp.modelData.kind === "int"
+                                                Layout.fillWidth: true
+                                                // Las posiciones y tamaños vienen con rangos enormes: hasta el doble del lienzo alcanza.
+                                                from: Math.max(pp.modelData.min !== undefined ? pp.modelData.min : 0, -8192)
+                                                to: Math.min(pp.modelData.max !== undefined ? pp.modelData.max : 1, 8192)
+                                                stepSize: pp.modelData.step || 0
+                                                value: typeof pp.modelData.value === "number" ? pp.modelData.value : 0
+                                                onMoved: page.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, pp.modelData.kind === "int" ? Math.round(value) : value)
+                                            }
+                                            CheckBox {
+                                                visible: pp.modelData.kind === "bool"
+                                                text: pp.modelData.label
+                                                checked: pp.modelData.value === true
+                                                onToggled: page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, checked))
+                                            }
+                                            ComboBox {
+                                                visible: pp.modelData.kind === "list"
+                                                Layout.fillWidth: true
+                                                model: pp.modelData.options || []
+                                                textRole: "label"
+                                                currentIndex: (pp.modelData.options || []).findIndex(o => o.value === pp.modelData.value)
+                                                onActivated: (i) => page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, pp.modelData.options[i].value))
+                                            }
+                                            TextField {
+                                                visible: pp.modelData.kind === "text"
+                                                Layout.fillWidth: true
+                                                text: pp.modelData.value !== undefined ? String(pp.modelData.value) : ""
+                                                onEditingFinished: if (text !== String(pp.modelData.value)) page.avisar(page.vg.ajustarPad(page.sel, padCol.modelData, pp.modelData.name, text))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: page.nodo && page.nodo.publicada
+                                      ? "Ya es una fuente: se pone y se saca de las escenas como cualquier otra."
+                                      : "Se ve como una fuente con este nombre en cualquier escena."
+                                color: Theme.textFaint; font.pixelSize: 11
+                            }
+                            GlassButton {
+                                text: "Poner en la escena al aire"
+                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                            }
+                        }
+
                         // Salida: su nombre y ponerla en una escena.
                         ColumnLayout {
                             visible: !!page.nodo && page.nodo.tipo === "salida"
@@ -1331,7 +1457,7 @@ Rectangle {
                         // Mover en la cadena (el orden importa; todas dejan pasar los eventos de las otras).
                         RowLayout {
                             visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" &&
-                                     page.nodo.tipo !== "salida" && page.nodo.tipo !== "compositor" && page.nodo.tipo !== "control"
+                                     page.nodo.tipo !== "salida" && page.nodo.tipo !== "compositor" && page.nodo.tipo !== "mezcla" && page.nodo.tipo !== "control"
                             spacing: 6
                             GlassButton {
                                 compact: true; text: "◀ Antes"
@@ -1403,6 +1529,7 @@ Rectangle {
             const despues = page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""
             page.avisar(tipo === "gst" ? page.vg.agregarModulo(id, despues)
                         : tipo === "tarjeta" ? page.vg.agregar(id, despues) // comoTarjeta: superres, rostros, seguir
+                        : tipo === "mezcla" ? page.vg.agregarMezcla(id) // del estudio: no va después de nada
                         : page.vg.agregarFiltro(id, despues))
         }
     }

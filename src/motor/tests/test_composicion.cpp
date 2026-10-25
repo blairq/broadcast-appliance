@@ -8,6 +8,8 @@
 //   - mezcla de 1 s: a mitad de camino los colores se mezclan; al final, la nueva;
 //   - recorte y alfa de una capa;
 //   - sombra y borde difuso de una capa (basombra): la caja crece, la imagen no se mueve.
+//   - la Mezcla de GStreamer: otro módulo de varias entradas (el compositor con las
+//     propiedades de cada pad; smpte con sus dos pads fijos).
 
 #include "Composicion.hpp"
 #include "Piezas.hpp"
@@ -23,6 +25,7 @@
 #include <cstdlib>
 #include <memory>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 using namespace ba::motor;
@@ -366,6 +369,94 @@ int main() {
         esperar(es, pd, 900);
         CHECK(igual(vp.en(570, 50), 0, 255, 0), "sin DSK, la escena");
         CHECK(pd.estado()["dsk"].empty(), "y se soltó la capa");
+    }
+    // LA MEZCLA DE GSTREAMER (otro mezclador): un compositor como un módulo cualquiera, con
+    // las propiedades de cada pad tal cual (el de la CPU y el de la placa de este sistema:
+    // la imagen va en su memoria), y smpte con sus dos entradas fijas.
+    for (const char* modulo : {"compositor", "glvideomixer", "d3d12compositor"}) {
+        if (!hayFabrica(modulo) || (std::string(modulo) != "compositor" && memoriaDeTrabajo(modulo) != memoriaDelMotor())) continue;
+        const std::string mod = modulo;
+        Composicion::Opciones op;
+        op.mezclador = {{"elemento", mod}};
+        Composicion mx(reloj, lz, "mezcla_" + mod, op);
+        CHECK(mx.anda(), ("la mezcla con " + mod + " arranca").c_str());
+        Escena m;
+        m.nombre = "__compositor:mezcla";
+        Capa a{"rojo"};
+        a.pad = "sink_0";
+        a.propiedadesPad = {{"width", 640}, {"height", 360}};
+        Capa b{"verde"};
+        b.pad = "sink_1";
+        b.propiedadesPad = {{"xpos", 320}, {"ypos", 180}, {"width", 320}, {"height", 180}, {"zorder", 1}};
+        m.capas = {a, b};
+        mx.mostrar(m);
+        esperar(es, mx, 1500);
+        Visor vm(reloj, mx.productor(), mx.latenciaSalidaNs(), lz.ancho, lz.alto);
+        esperar(es, mx, 800);
+        Rgb izq = vm.en(100, 100), der = vm.en(500, 300);
+        std::printf("mezcla (%s): arriba izq %s, abajo der %s\n", modulo, txt(izq).c_str(), txt(der).c_str());
+        CHECK(igual(izq, 255, 0, 0), ("mezcla " + mod + ": el rojo de fondo (sink_0)").c_str());
+        CHECK(igual(der, 0, 255, 0), ("mezcla " + mod + ": el verde donde dicen sus xpos/ypos (sink_1)").c_str());
+        // Las propiedades del pad cambian andando (misma rama).
+        m.capas[1].propiedadesPad["xpos"] = 0;
+        m.capas[1].propiedadesPad["ypos"] = 0;
+        mx.mostrar(m);
+        esperar(es, mx, 500);
+        izq = vm.en(100, 100);
+        der = vm.en(500, 300);
+        std::printf("mezcla (%s) movida: arriba izq %s, abajo der %s\n", modulo, txt(izq).c_str(), txt(der).c_str());
+        CHECK(igual(izq, 0, 255, 0) && igual(der, 255, 0, 0), ("mezcla " + mod + ": el verde se movió arriba a la izquierda").c_str());
+        CHECK(mx.estado()["capas"].size() == 2 && mx.estado().value("mezclador", "") == mod, "mezcla: dos ramas, con su módulo");
+        CHECK(mx.ponerMezclador(json{{"elemento", mod}}), "el mismo módulo: andando");
+        CHECK(!mx.ponerMezclador(json{{"elemento", "smpte"}}), "otro módulo: hay que rearmarla");
+    }
+    if (hayFabrica("smpte")) {
+        Composicion::Opciones op;
+        op.mezclador = {{"elemento", "smpte"}, {"propiedades", {{"type", "bar-wipe-lr"}}}};
+        Composicion sm(reloj, lz, "smpte", op);
+        CHECK(sm.anda(), "la mezcla con smpte arranca");
+        Escena m;
+        m.nombre = "__compositor:smpte";
+        Capa a{"rojo"};
+        a.pad = "sink1";
+        Capa b{"azul"};
+        b.pad = "sink2";
+        m.capas = {a, b};
+        sm.mostrar(m);
+        esperar(es, sm, 1500);
+        Visor vs(reloj, sm.productor(), sm.latenciaSalidaNs(), lz.ancho, lz.alto);
+        esperar(es, sm, 800);
+        const Rgb c = vs.en(320, 180);
+        std::printf("mezcla (smpte): %s; %s\n", txt(c).c_str(), sm.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+        CHECK(igual(c, 255, 0, 0) || igual(c, 0, 0, 255), "smpte: junta sus dos entradas fijas (sink1 rojo, sink2 azul)");
+        CHECK(sm.estado()["capas"].size() == 2, "smpte: una rama por pad fijo");
+        // smpte cuenta su tiempo desde 0: lo que sale tiene que llevar la hora de lo que entra.
+        const json edad = sm.estado().value("edad_salida", json::object());
+        CHECK(edad.is_object() && edad.value("p50_ms", 1e9) < 1000, "smpte: lo que sale va en hora (no 30 s tarde)");
+    } else {
+        std::printf("sin smpte: no se prueba la mezcla de dos entradas fijas\n");
+    }
+    // Los otros de varias entradas que haya en este sistema: arrancan y dan imagen.
+    for (const auto& [modulo, p1, p2] : std::initializer_list<std::tuple<const char*, const char*, const char*>>{
+             {"glmosaic", "sink_0", "sink_1"}, {"glstereomix", "sink_0", "sink_1"}, {"shapewipe", "video_sink", "mask_sink"}}) {
+        if (!hayFabrica(modulo)) continue;
+        Composicion::Opciones op;
+        op.mezclador = {{"elemento", modulo}};
+        Composicion otro(reloj, lz, std::string("otro_") + modulo, op);
+        Escena m;
+        m.nombre = std::string("__compositor:") + modulo;
+        Capa a{"rojo"};
+        a.pad = p1;
+        Capa b{"azul"};
+        b.pad = p2;
+        m.capas = {a, b};
+        otro.mostrar(m);
+        esperar(es, otro, 1500);
+        Visor vo(reloj, otro.productor(), otro.latenciaSalidaNs(), lz.ancho, lz.alto);
+        esperar(es, otro, 800);
+        const Rgb c = vo.en(320, 180);
+        std::printf("mezcla (%s): %s; error «%s»\n", modulo, txt(c).c_str(), otro.estado().value("error", "").c_str());
+        CHECK(c.r >= 0 && otro.estado()["capas"].size() == 2, (std::string(modulo) + ": da imagen con sus dos entradas").c_str());
     }
     std::printf("composición: %s\n", prog.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");

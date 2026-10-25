@@ -42,9 +42,13 @@ class CatalogoGst {
 
     /// Los módulos de video: [{elemento, nombre, clase, rol (filtro | fuente |
     /// mezcla | salida | analisis | conversor), categoria, descripcion,
-    /// titulo?, para?, uso?, tarjeta, plugin, paquete, licencia}], por
-    /// categoría y nombre. `tarjeta`: si va como tarjeta de filtro (imagen
-    /// cruda entra y sale). Se arma una vez (el registro no cambia).
+    /// titulo?, para?, uso?, tarjeta, plugin, paquete, licencia, entradas,
+    /// mezcla}], por categoría y nombre. `tarjeta`: si va como tarjeta de
+    /// filtro (imagen cruda entra y sale). `entradas`: sus plantillas de pads
+    /// de video que reciben ([{nombre, pedido}]: «sink_%u» a pedido, «sink1»
+    /// fijo). `mezcla`: junta varias (una a pedido, o dos o más fijas): va
+    /// como «Mezcla de GStreamer», no como tarjeta. Se arma una vez (el
+    /// registro no cambia).
     const nlohmann::json& modulos() const;
     /// Los filtros de AUDIO (para la cadena de audio de una entrada): mismo formato.
     const nlohmann::json& modulosAudio() const;
@@ -55,6 +59,11 @@ class CatalogoGst {
     /// opciones:[{valor, nick, descripcion}], enVivo}]. `actuales` pisa los
     /// valores de fábrica.
     nlohmann::json propiedades(const std::string& elemento, const nlohmann::json& actuales) const;
+    /// Las de un pad de entrada del módulo (la plantilla `plantilla`, p. ej. «sink_%u»
+    /// del compositor: xpos, ypos, width, height, alpha, zorder…), mismo formato. Vacío
+    /// si el pad no tiene (los fijos de smpte). Sin las de GstPad (caps, offset…).
+    nlohmann::json propiedadesPad(const std::string& elemento, const std::string& plantilla,
+                                  const nlohmann::json& actuales) const;
     /// Cómo trabaja por dentro (de su fábrica): {existe, clase, descripcion, autor, plugin,
     /// memorias: {entrada, salida} (lo que aceptan sus pads: "gl", "d3d12"…, "sistema",
     /// "cualquiera"), gpu: true si sabe trabajar en la GPU}. {existe: false} si no está.

@@ -29,6 +29,15 @@
 //   necesitó (sacarlo sería rearmarla: un parpadeo).
 // - Una capa cuya entrada no da video no se ve (el pad no tiene datos): la placa
 //   «sin señal» la pone la entrada (M5).
+// - CON OTRO MEZCLADOR (Opciones::mezclador, la «Mezcla de GStreamer» del grafo de
+//   video): cualquier módulo de GStreamer de varias entradas (compositor,
+//   d3d12compositor, glvideomixer, glmosaic, smpte, shapewipe, glstereomix…) en vez
+//   del de siempre. Cada capa va a SU pad (Capa::pad: «sink_1», «video_sink»…; a
+//   pedido o fijo) con las propiedades de ese pad tal cual (xpos, alpha, zorder…);
+//   lo de la escena (posición, recorte, sombra, transiciones) no se usa. Cada rama
+//   le lleva la imagen en la memoria que el módulo acepta (la del motor si puede: no
+//   baja de la placa) y, si sus pads no ubican la imagen, al tamaño del lienzo (smpte
+//   y shapewipe piden las dos iguales). Lo que sale vuelve a la memoria del motor.
 // ============================================================================
 #pragma once
 
@@ -86,6 +95,10 @@ struct Capa {
     /// «entrada#2», «entrada#3»... (Escena::desdeJson). Vacía = la entrada.
     std::string clave;
     const std::string& claveCapa() const { return clave.empty() ? entrada : clave; }
+    /// Con otro mezclador (Escena::mezclador): el pad al que va («sink_1», «video_sink»;
+    /// vacío = uno nuevo a pedido) y sus propiedades ({"xpos": 10, "alpha": 0.5}).
+    std::string pad;
+    nlohmann::json propiedadesPad = nlohmann::json::object();
 };
 
 struct Escena {
@@ -96,6 +109,9 @@ struct Escena {
     /// [{id, elemento, propiedades}]; en la GPU, con su par de GL o D3D12).
     int lienzoAncho = 0, lienzoAlto = 0;
     nlohmann::json filtros = nlohmann::json::array();
+    /// Solo las internas: otro módulo de varias entradas en vez del mezclador de siempre
+    /// ({"elemento", "propiedades"}; vacío = el de siempre). Ver Capa::pad.
+    nlohmann::json mezclador = nlohmann::json::object();
     static Escena desdeJson(const nlohmann::json& j);
     /// Una clave distinta para cada capa (Capa::clave): la misma entrada dos veces, o una
     /// entrada que se llama justo como la clave de otra («cam#2»). desdeJson ya la llama;
@@ -114,6 +130,15 @@ class Composicion {
         bool dsk = false;
         /// Filtros después del mezclador (ver Escena::filtros); no con `dsk`.
         nlohmann::json filtros = nlohmann::json::array();
+        /// Otro mezclador (ver Escena::mezclador); no con `dsk`.
+        nlohmann::json mezclador = nlohmann::json::object();
+        /// Las de una escena interna: su lienzo, sus filtros y su mezclador.
+        static Opciones de(const Escena& e) {
+            Opciones op;
+            op.filtros = e.filtros;
+            op.mezclador = e.mezclador;
+            return op;
+        }
     };
     Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op);
     Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre)
@@ -127,6 +152,9 @@ class Composicion {
     /// Los filtros de después del mezclador, andando: false si cambió algo que no se
     /// cambia en vivo (otros elementos o propiedades fijas): hay que rearmarla.
     bool ponerFiltros(const nlohmann::json& filtros);
+    /// Las propiedades del otro mezclador, andando: false si es otro módulo (o cambió
+    /// una que no se cambia en vivo): hay que rearmarla.
+    bool ponerMezclador(const nlohmann::json& mezclador);
     std::string productor() const { return "video:" + nombre_; }
     /// Las entradas que tiene ahora (capas, las que salen en una transición y el DSK).
     std::set<std::string> entradasEnUso() const;
@@ -170,6 +198,8 @@ class Composicion {
         GstElement* fijar = nullptr;   ///< glshader (gl: obliga a gltransformation a dibujar, ver crearRama)
         GstElement* sombra = nullptr;  ///< basombra / basombragl / basombrad3d12 (si la capa tiene sombra o borde)
         GstElement* aRgba = nullptr;   ///< videoconvert antes de basombra (CPU)
+        GstElement* puente = nullptr;  ///< con otro mezclador: lo que le lleva la imagen a su memoria (un bin)
+        bool padPedido = true;         ///< el pad del mezclador es a pedido (se suelta); si no, es fijo
         int margen = 0;                ///< lo que se agrandó la caja de cada lado (la sombra)
         // D3D12: la ventana que se marca en cada cuadro (meta de recorte, en píxeles de la
         // fuente) y el tamaño de la fuente (lo escribe el hilo de datos).
@@ -207,6 +237,10 @@ class Composicion {
     /// GL: avisa (Rama::tamanoNuevo) cada vez que la fuente negocia un tamaño.
     static GstPadProbeReturn avisarTamano(GstPad* pad, GstPadProbeInfo* info, gpointer d);
     Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
+    /// Con otro mezclador: intersrc → puente a su memoria → SU pad (Capa::pad).
+    Rama* crearRamaLibre(const Capa& c, int gen);
+    /// Las propiedades de su pad, tal cual (con otro mezclador).
+    static void ponerPropiedadesPad(GstPad* pad, const nlohmann::json& props);
     /// Antes de una escena nueva: las capas de la actual bajan a su orden (las nuevas van en 5000 + orden).
     void bajarViejas();
     void soltar(Rama& r);
@@ -225,6 +259,18 @@ class Composicion {
     std::string nombre_, error_;
     bool gpu_ = false; ///< en la GPU (GL o D3D12)
     bool gl_ = false;  ///< en GL (si no, D3D12)
+    /// Con otro mezclador (Opciones::mezclador), y su firma (Piezas::firmaDe).
+    bool libre_ = false;
+    std::string firmaMezclador_;
+    /// Dónde se le pone la latencia del estudio al mezclador: «min-upstream-latency» (los
+    /// agregadores), «latency» (glvideomixer, que es un bin) o "" (smpte, shapewipe).
+    std::string propLatencia_ = "min-upstream-latency";
+    bool agregador_ = true; ///< respeta la hora de lo que entra (los agregadores; smpte no)
+    /// Un mezclador que no es un agregador (smpte) cuenta su propio tiempo desde 0: lo que
+    /// sale lleva la hora de lo último que le entró (la anotan las sondas de sus pads).
+    std::atomic<std::int64_t> ptsEntrada_{-1};
+    static GstPadProbeReturn anotarHora(GstPad* pad, GstPadProbeInfo* info, gpointer d);
+    static GstPadProbeReturn ponerHora(GstPad* pad, GstPadProbeInfo* info, gpointer d);
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;
     GstElement* dskMx_ = nullptr;          ///< el compositor del DSK (nullptr sin DSK)

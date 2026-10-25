@@ -138,6 +138,71 @@ json valorJson(const GValue* v) {
         default: return nullptr;
     }
 }
+
+/// Las plantillas de pads de VIDEO CRUDO que reciben (las de texto de textoverlay, el SVG
+/// de rsvgoverlay o los subtítulos no cuentan): [{nombre, pedido}], en el orden en que las
+/// declara el módulo (sink1 antes que sink2, video_sink antes que mask_sink).
+json entradasDeVideo(GstElementFactory* f) {
+    json out = json::array();
+    for (const GList* l = gst_element_factory_get_static_pad_templates(f); l != nullptr; l = l->next) {
+        auto* t = static_cast<GstStaticPadTemplate*>(l->data);
+        if (t->direction != GST_PAD_SINK || t->presence == GST_PAD_SOMETIMES) continue;
+        GstCaps* c = gst_static_caps_get(&t->static_caps);
+        bool video = false;
+        for (guint i = 0; c != nullptr && !gst_caps_is_any(c) && !video && i < gst_caps_get_size(c); ++i)
+            video = std::string(gst_structure_get_name(gst_caps_get_structure(c, i))) == "video/x-raw";
+        if (c != nullptr) gst_caps_unref(c);
+        // La lista de la fábrica viene al revés de como se registraron.
+        if (video) out.insert(out.begin(), json{{"nombre", t->name_template}, {"pedido", t->presence == GST_PAD_REQUEST}});
+    }
+    return out;
+}
+
+/// Una propiedad de GObject como la ve el formulario: {nombre, descripcion, enVivo, defecto,
+/// tipo, min?, max?, opciones?}; null si no tiene formulario (caps, objetos, punteros).
+json describirPropiedad(GParamSpec* p, const GValue* defecto) {
+    const std::string nombre = g_param_spec_get_name(p);
+    json r{{"nombre", nombre},
+           {"descripcion", g_param_spec_get_blurb(p) ? g_param_spec_get_blurb(p) : ""},
+           {"enVivo", (p->flags & GST_PARAM_MUTABLE_PLAYING) != 0 || (p->flags & GST_PARAM_CONTROLLABLE) != 0}};
+    r["defecto"] = valorJson(defecto);
+    const GType t = G_PARAM_SPEC_TYPE(p);
+    if (t == G_TYPE_PARAM_BOOLEAN) {
+        r["tipo"] = "bool";
+    } else if (t == G_TYPE_PARAM_INT) {
+        r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT(p)->minimum, r["max"] = G_PARAM_SPEC_INT(p)->maximum;
+    } else if (t == G_TYPE_PARAM_UINT) {
+        r["tipo"] = "int", r["min"] = G_PARAM_SPEC_UINT(p)->minimum, r["max"] = G_PARAM_SPEC_UINT(p)->maximum;
+    } else if (t == G_TYPE_PARAM_INT64) {
+        r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT64(p)->minimum, r["max"] = G_PARAM_SPEC_INT64(p)->maximum;
+    } else if (t == G_TYPE_PARAM_UINT64) {
+        r["tipo"] = "int", r["min"] = 0, r["max"] = static_cast<double>(G_PARAM_SPEC_UINT64(p)->maximum);
+    } else if (t == G_TYPE_PARAM_LONG) {
+        r["tipo"] = "int", r["min"] = G_PARAM_SPEC_LONG(p)->minimum, r["max"] = G_PARAM_SPEC_LONG(p)->maximum;
+    } else if (t == G_TYPE_PARAM_FLOAT) {
+        r["tipo"] = "double", r["min"] = G_PARAM_SPEC_FLOAT(p)->minimum, r["max"] = G_PARAM_SPEC_FLOAT(p)->maximum;
+    } else if (t == G_TYPE_PARAM_DOUBLE) {
+        r["tipo"] = "double", r["min"] = G_PARAM_SPEC_DOUBLE(p)->minimum, r["max"] = G_PARAM_SPEC_DOUBLE(p)->maximum;
+    } else if (t == G_TYPE_PARAM_STRING) {
+        r["tipo"] = "string";
+    } else if (t == G_TYPE_PARAM_ENUM || t == G_TYPE_PARAM_FLAGS) {
+        r["tipo"] = t == G_TYPE_PARAM_ENUM ? "enum" : "flags";
+        json ops = json::array();
+        if (t == G_TYPE_PARAM_ENUM) {
+            GEnumClass* c = G_PARAM_SPEC_ENUM(p)->enum_class;
+            for (guint k = 0; k < c->n_values; ++k)
+                ops.push_back({{"valor", c->values[k].value}, {"nick", c->values[k].value_nick}, {"descripcion", c->values[k].value_name}});
+        } else {
+            GFlagsClass* c = G_PARAM_SPEC_FLAGS(p)->flags_class;
+            for (guint k = 0; k < c->n_values; ++k)
+                ops.push_back({{"valor", c->values[k].value}, {"nick", c->values[k].value_nick}, {"descripcion", c->values[k].value_name}});
+        }
+        r["opciones"] = ops;
+    } else {
+        return nullptr;
+    }
+    return r;
+}
 #endif
 
 } // namespace
@@ -218,6 +283,17 @@ const json& CatalogoGst::modulos() const {
         if (docs_.contains(elemento))
             for (const char* k : {"titulo", "para", "uso", "categoria", "tarjeta", "comoTarjeta"})
                 if (docs_[elemento].contains(k)) m[k] = docs_[elemento][k];
+        // De VARIAS entradas (una plantilla a pedido, o dos o más fijas: compositor, smpte,
+        // shapewipe, glmosaic…): va como «Mezcla de GStreamer» del estudio. smpte dice
+        // «Filter» y pasaba por tarjeta de una entrada: no lo es.
+        const json ents = entradasDeVideo(f);
+        bool pedido = false;
+        for (const auto& e : ents) pedido = pedido || e.value("pedido", false);
+        m["entradas"] = ents;
+        // (Los que la documentación marca como internos, como glmixerbin, no.)
+        m["mezcla"] = m.value("comoTarjeta", std::string()).empty() && m.value("categoria", std::string()).rfind("Internos", 0) != 0 &&
+                      (pedido || ents.size() >= 2);
+        if (m["mezcla"].get<bool>()) m["tarjeta"] = false;
         out.push_back(std::move(m));
     }
     gst_plugin_feature_list_free(lista);
@@ -315,60 +391,12 @@ json CatalogoGst::propiedades(const std::string& elemento, const json& actuales)
         if (!(p->flags & G_PARAM_WRITABLE) || (p->flags & G_PARAM_CONSTRUCT_ONLY) || nombre == "name" ||
             nombre == "parent" || nombre == "qos")
             continue;
-        json r{{"nombre", nombre},
-               {"descripcion", g_param_spec_get_blurb(p) ? g_param_spec_get_blurb(p) : ""},
-               {"enVivo",
-                (p->flags & GST_PARAM_MUTABLE_PLAYING) != 0 || (p->flags & GST_PARAM_CONTROLLABLE) != 0}};
         GValue v = G_VALUE_INIT;
         g_value_init(&v, p->value_type);
         g_object_get_property(G_OBJECT(e), nombre.c_str(), &v);
-        r["defecto"] = valorJson(&v);
+        json r = describirPropiedad(p, &v);
         g_value_unset(&v);
-        const GType t = G_PARAM_SPEC_TYPE(p);
-        if (t == G_TYPE_PARAM_BOOLEAN) {
-            r["tipo"] = "bool";
-        } else if (t == G_TYPE_PARAM_INT) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT(p)->minimum,
-            r["max"] = G_PARAM_SPEC_INT(p)->maximum;
-        } else if (t == G_TYPE_PARAM_UINT) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_UINT(p)->minimum,
-            r["max"] = G_PARAM_SPEC_UINT(p)->maximum;
-        } else if (t == G_TYPE_PARAM_INT64) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_INT64(p)->minimum,
-            r["max"] = G_PARAM_SPEC_INT64(p)->maximum;
-        } else if (t == G_TYPE_PARAM_UINT64) {
-            r["tipo"] = "int", r["min"] = 0, r["max"] = static_cast<double>(G_PARAM_SPEC_UINT64(p)->maximum);
-        } else if (t == G_TYPE_PARAM_LONG) {
-            r["tipo"] = "int", r["min"] = G_PARAM_SPEC_LONG(p)->minimum,
-            r["max"] = G_PARAM_SPEC_LONG(p)->maximum;
-        } else if (t == G_TYPE_PARAM_FLOAT) {
-            r["tipo"] = "double", r["min"] = G_PARAM_SPEC_FLOAT(p)->minimum,
-            r["max"] = G_PARAM_SPEC_FLOAT(p)->maximum;
-        } else if (t == G_TYPE_PARAM_DOUBLE) {
-            r["tipo"] = "double", r["min"] = G_PARAM_SPEC_DOUBLE(p)->minimum,
-            r["max"] = G_PARAM_SPEC_DOUBLE(p)->maximum;
-        } else if (t == G_TYPE_PARAM_STRING) {
-            r["tipo"] = "string";
-        } else if (t == G_TYPE_PARAM_ENUM || t == G_TYPE_PARAM_FLAGS) {
-            r["tipo"] = t == G_TYPE_PARAM_ENUM ? "enum" : "flags";
-            json ops = json::array();
-            if (t == G_TYPE_PARAM_ENUM) {
-                GEnumClass* c = G_PARAM_SPEC_ENUM(p)->enum_class;
-                for (guint k = 0; k < c->n_values; ++k)
-                    ops.push_back({{"valor", c->values[k].value},
-                                   {"nick", c->values[k].value_nick},
-                                   {"descripcion", c->values[k].value_name}});
-            } else {
-                GFlagsClass* c = G_PARAM_SPEC_FLAGS(p)->flags_class;
-                for (guint k = 0; k < c->n_values; ++k)
-                    ops.push_back({{"valor", c->values[k].value},
-                                   {"nick", c->values[k].value_nick},
-                                   {"descripcion", c->values[k].value_name}});
-            }
-            r["opciones"] = ops;
-        } else {
-            continue; // caps, objetos, punteros: no tienen formulario
-        }
+        if (r.is_null()) continue; // caps, objetos, punteros: no tienen formulario
         r["valor"] = actuales.is_object() && actuales.contains(nombre) ? actuales[nombre] : r["defecto"];
         out.push_back(std::move(r));
     }
@@ -376,6 +404,42 @@ json CatalogoGst::propiedades(const std::string& elemento, const json& actuales)
     gst_object_unref(e);
 #else
     (void)elemento;
+    (void)actuales;
+#endif
+    return out;
+}
+
+json CatalogoGst::propiedadesPad(const std::string& elemento, const std::string& plantilla, const json& actuales) const {
+    json out = json::array();
+#if defined(BA_HAVE_GST)
+    if (!disponible_ || plantilla.empty()) return out;
+    // Sin crear pads: la clase del pad sale de la plantilla del elemento (los valores de
+    // fábrica, de la especificación de cada propiedad).
+    GstElement* e = gst_element_factory_make(elemento.c_str(), nullptr);
+    if (e == nullptr) return out;
+    GstPadTemplate* t = gst_element_get_pad_template(e, plantilla.c_str());
+    const GType tipo = t != nullptr && GST_PAD_TEMPLATE_GTYPE(t) != G_TYPE_NONE ? GST_PAD_TEMPLATE_GTYPE(t) : GST_TYPE_PAD;
+    auto* clase = static_cast<GObjectClass*>(g_type_class_ref(tipo));
+    guint n = 0;
+    GParamSpec** ps = g_object_class_list_properties(clase, &n);
+    for (guint i = 0; i < n; ++i) {
+        GParamSpec* p = ps[i];
+        // Las de cualquier pad (caps, dirección, plantilla, offset) y la maquinaria del
+        // agregador (emit-signals) no son del módulo.
+        if (p->owner_type == GST_TYPE_PAD || p->owner_type == GST_TYPE_OBJECT || p->owner_type == G_TYPE_OBJECT) continue;
+        const std::string nombre = g_param_spec_get_name(p);
+        if (!(p->flags & G_PARAM_WRITABLE) || (p->flags & G_PARAM_CONSTRUCT_ONLY) || nombre == "emit-signals") continue;
+        json r = describirPropiedad(p, g_param_spec_get_default_value(p));
+        if (r.is_null()) continue;
+        r["valor"] = actuales.is_object() && actuales.contains(nombre) ? actuales[nombre] : r["defecto"];
+        out.push_back(std::move(r));
+    }
+    g_free(ps);
+    g_type_class_unref(clase);
+    gst_object_unref(e);
+#else
+    (void)elemento;
+    (void)plantilla;
     (void)actuales;
 #endif
     return out;

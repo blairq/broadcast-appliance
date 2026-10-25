@@ -529,11 +529,10 @@ std::string Motor::definirEscenaYa(const json& j) {
         // la siguen leyendo por el mismo nombre.
         const Lienzo l = lienzoDe(e);
         Composicion& c = *it->second.comp;
-        if (c.lienzo().ancho != l.ancho || c.lienzo().alto != l.alto || !c.ponerFiltros(e.filtros)) {
+        // También otro mezclador (la «Mezcla de GStreamer»: otro módulo, o una propiedad fija).
+        if (c.lienzo().ancho != l.ancho || c.lienzo().alto != l.alto || !c.ponerFiltros(e.filtros) || !c.ponerMezclador(e.mezclador)) {
             std::unique_ptr<Composicion> vieja = std::move(it->second.comp);
-            Composicion::Opciones op;
-            op.filtros = e.filtros;
-            it->second.comp = std::make_unique<Composicion>(*reloj_, l, "escena:" + e.nombre, op);
+            it->second.comp = std::make_unique<Composicion>(*reloj_, l, "escena:" + e.nombre, Composicion::Opciones::de(e));
             desarmarAparte(std::move(vieja));
         }
         it->second.comp->mostrar(e);
@@ -914,9 +913,7 @@ std::string Motor::usarEscenaYa(const std::string& nombre) {
     if (e == escenas_.end() || !cfg_.video) return {};
     CompEscena& c = vEscenas_[nombre];
     if (!c.comp) {
-        Composicion::Opciones op;
-        op.filtros = e->second.filtros;
-        c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second), "escena:" + nombre, op);
+        c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second), "escena:" + nombre, Composicion::Opciones::de(e->second));
         c.comp->mostrar(e->second);
     }
     ++c.pedidos;

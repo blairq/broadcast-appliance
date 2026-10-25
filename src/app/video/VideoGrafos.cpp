@@ -111,6 +111,13 @@ QVariantList controlesGst(const json& props) {
     return out;
 }
 
+/// GStreamer lee los valores como texto: un entero que vino de la interfaz como 3.0 va como 3.
+json paraGst(json v) {
+    if (v.is_number_float() && v.get<double>() == static_cast<double>(static_cast<long long>(v.get<double>())))
+        v = static_cast<long long>(v.get<double>());
+    return v;
+}
+
 /// Las entradas virtuales: patrones de videotestsrc al tamaño del lienzo.
 struct Virtual {
     const char* id;
@@ -256,7 +263,7 @@ json VideoGrafos::conPublicadas(json d) const {
     // Si cada salida ya existe como fuente.
     for (auto& n : d["nodos"]) {
         const std::string tipo = n.value("tipo", std::string());
-        if (tipo == "salida" || tipo == "compositor" || tipo == "panoramica") {
+        if (tipo == "salida" || GrafoVideo::esComposicion(tipo)) {
             const std::string nombre = n["params"].value("nombre", std::string());
             n["publicada"] = !nombre.empty() && rt_.engine().sourceTypeId(nombre) ==
                                                     (tipo == "salida" ? kTipoSalida : kTipoCompositor);
@@ -327,10 +334,31 @@ QVariantList VideoGrafos::propiedades(const QString& idNodo) const {
     const bool ctl = n->tipo == "control";
     const std::string tipo = ctl ? n->params.value("tarjeta", std::string()) : n->tipo;
     const json params = ctl ? n->params.value("params", json::object()) : grafo_.efectivos(*n);
-    if (tipo == "gst")
+    // Un módulo de GStreamer (una tarjeta o una Mezcla de GStreamer): las de su elemento.
+    if (tipo == "gst" || tipo == "mezcla")
         return controlesGst(gst().propiedades(params.value("elemento", std::string()),
                                               params.value("propiedades", json::object())));
     return out; // las tarjetas «obs» ya no corren (no hay libobs)
+}
+
+QVariantList VideoGrafos::propiedadesPad(const QString& idNodo, const QString& puerto) const {
+    const GrafoVideo::Nodo* n = grafo_.nodo(idNodo.toStdString());
+    if (n == nullptr || n->tipo != "mezcla") return {};
+    const std::string pu = puerto.toStdString();
+    const json pads = n->params.value("pads", json::object());
+    return controlesGst(gst().propiedadesPad(n->params.value("elemento", std::string()), GrafoVideo::plantillaDePuerto(*n, pu),
+                                             pads.is_object() ? pads.value(pu, json::object()) : json::object()));
+}
+
+QString VideoGrafos::ajustarPad(const QString& id, const QString& puerto, const QString& clave, const QVariant& valor) {
+    const json v = paraGst(deVariant(valor));
+    return q(editar([&](GrafoVideo& g) {
+        const GrafoVideo::Nodo* n = g.nodo(id.toStdString());
+        if (n == nullptr || n->tipo != "mezcla") return "«" + id.toStdString() + "» no es una Mezcla de GStreamer";
+        if (GrafoVideo::plantillaDePuerto(*n, puerto.toStdString()).empty())
+            return "«" + n->etiqueta + "» no tiene la entrada «" + puerto.toStdString() + "»";
+        return ajustarEn(g, id.toStdString(), json{{"pads", {{puerto.toStdString(), {{clave.toStdString(), v}}}}}});
+    }));
 }
 
 const CatalogoGst& VideoGrafos::gst() const { return *gst_; }
@@ -415,6 +443,38 @@ std::string VideoGrafos::agregarModuloEn(GrafoVideo& g, const std::string& eleme
     if (!id.empty())
         g.ajustar(id, json{{"etiqueta", m.value("titulo", m.value("nombre", elemento))}}, nullptr);
     return id;
+}
+
+std::string VideoGrafos::agregarMezclaEn(GrafoVideo& g, const std::string& elemento, const json& propiedades,
+                                         std::string* error) const {
+    const json m = gst().modulo(elemento);
+    if (m.empty()) {
+        if (error) *error = gst().disponible() ? "no existe el módulo de GStreamer «" + elemento + "»" : gst().error();
+        return {};
+    }
+    if (!m.value("mezcla", false)) {
+        if (error)
+            *error = "«" + elemento + "» no junta varias entradas (" + m.value("categoria", std::string()) +
+                     "): va como tarjeta (tipo gst) o no va";
+        return {};
+    }
+    // Los puertos son los del módulo (sus plantillas de pads de video): se guardan con el
+    // nodo, así el grafo los sabe sin preguntarle a GStreamer.
+    const std::string id = g.agregar("mezcla", "", "",
+                                     json{{"elemento", elemento},
+                                          {"propiedades", propiedades.is_object() ? propiedades : json::object()},
+                                          {"plantillas", m.value("entradas", json::array())}},
+                                     error);
+    if (!id.empty()) g.ajustar(id, json{{"etiqueta", m.value("titulo", m.value("nombre", elemento))}}, nullptr);
+    return id;
+}
+
+QString VideoGrafos::agregarMezcla(const QString& elemento) {
+    return q(editar([&](GrafoVideo& g) {
+        std::string e;
+        agregarMezclaEn(g, elemento.toStdString(), json::object(), &e);
+        return e;
+    }));
 }
 
 std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::string& motor,
@@ -572,7 +632,7 @@ std::string VideoGrafos::nombresRepetidos(const GrafoVideo& g) {
     for (const auto& n : g.nodos()) {
         const std::string nombre = n.params.value("nombre", std::string());
         if (nombre.empty()) continue; // nombrarSalidas le pone uno libre
-        if ((n.tipo == "salida" || n.tipo == "compositor" || n.tipo == "panoramica") && !salidas.insert(nombre).second)
+        if ((n.tipo == "salida" || GrafoVideo::esComposicion(n.tipo)) && !salidas.insert(nombre).second)
             return "ya hay una salida que se llama «" + nombre + "»: cada una con su nombre";
         if (n.tipo == "toma" && !tomas.insert({n.grupo, nombre}).second)
             return "esa entrada ya tiene una toma «" + nombre + "»";
@@ -586,18 +646,19 @@ void VideoGrafos::nombrarSalidas(GrafoVideo& g) const {
         usados.insert(s);
     std::vector<std::pair<std::string, std::string>> sinNombre;
     for (const auto& n : g.nodos())
-        if ((n.tipo == "salida" || n.tipo == "compositor" || n.tipo == "panoramica") &&
-            n.params.value("nombre", std::string()).empty())
+        if ((n.tipo == "salida" || GrafoVideo::esComposicion(n.tipo)) && n.params.value("nombre", std::string()).empty())
             sinNombre.emplace_back(n.id, n.grupo);
-        else if (n.tipo == "compositor" || n.tipo == "panoramica")
+        else if (GrafoVideo::esComposicion(n.tipo))
             usados.insert(n.params.value("nombre", std::string()));
     for (const auto& [id, grupo] : sinNombre) {
-        // «Cámara 1 · salida», «Cámara 1 · salida 2», «Estudio · compositor»…
+        // «Cámara 1 · salida», «Cámara 1 · salida 2», «Estudio · compositor», «Mezcla · smpte»…
         // sin chocar con otra fuente.
-        const bool comp = g.nodo(id)->tipo == "compositor" || g.nodo(id)->tipo == "panoramica";
-        const std::string base = g.nodo(id)->tipo == "panoramica" ? std::string("Panorámica")
-                                 : comp ? std::string("Estudio · compositor")
-                                      : (grupo.empty() ? std::string("Estudio") : grupo) + " · salida";
+        const GrafoVideo::Nodo* nd = g.nodo(id);
+        const bool comp = GrafoVideo::esComposicion(nd->tipo);
+        const std::string base = nd->tipo == "panoramica" ? std::string("Panorámica")
+                                 : nd->tipo == "mezcla"   ? "Mezcla · " + nd->params.value("elemento", std::string())
+                                 : comp                   ? std::string("Estudio · compositor")
+                                                          : (grupo.empty() ? std::string("Estudio") : grupo) + " · salida";
         std::string nombre;
         for (int i = 1;; ++i) {
             nombre = i == 1 ? base : base + " " + std::to_string(i);
@@ -895,13 +956,10 @@ QString VideoGrafos::ajustarFiltro(const QString& id, const QString& clave, cons
     const std::string tipo = n == nullptr           ? ""
                              : n->tipo == "control" ? n->params.value("tarjeta", std::string())
                                                     : n->tipo;
-    const bool esGst = tipo == "gst";
+    const bool esGst = tipo == "gst" || tipo == "mezcla";
     const char* donde = esGst ? "propiedades" : "ajustes";
     if (esGst) {
-        // GStreamer lee el valor como texto: un entero que vino como 3.0 va como 3.
-        if (v.is_number_float() &&
-            v.get<double>() == static_cast<double>(static_cast<long long>(v.get<double>())))
-            v = static_cast<long long>(v.get<double>());
+        v = paraGst(v);
     } else if (v.is_string() && v.get<std::string>().size() == 7 && v.get<std::string>()[0] == '#') {
         // Los colores llegan como "#RRGGBB" y libobs los quiere 0xAABBGGRR.
         const long long rgb = std::stoll(v.get<std::string>().substr(1), nullptr, 16);
@@ -923,9 +981,9 @@ QString VideoGrafos::aEscena(const QString& id, const QString& escena) {
 
 std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string& escena) {
     const GrafoVideo::Nodo* n = grafo_.nodo(id);
-    if (n == nullptr || (n->tipo != "salida" && n->tipo != "compositor" && n->tipo != "panoramica"))
-        return "«" + id + "» no es una salida ni un compositor del grafo";
-    const bool comp = n->tipo == "compositor" || n->tipo == "panoramica";
+    if (n == nullptr || (n->tipo != "salida" && !GrafoVideo::esComposicion(n->tipo)))
+        return "«" + id + "» no es una salida ni un compositor (o una mezcla) del grafo";
+    const bool comp = GrafoVideo::esComposicion(n->tipo);
     const std::string nombre = n->params.value("nombre", std::string());
     const std::string tipo = rt_.engine().sourceTypeId(nombre);
     if (!tipo.empty() && tipo != (comp ? kTipoCompositor : kTipoSalida))

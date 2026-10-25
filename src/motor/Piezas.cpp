@@ -127,6 +127,8 @@ GParamSpec* especDe(const std::string& elemento, const std::string& prop) {
 }
 } // namespace
 
+bool tienePropiedad(const std::string& fabrica, const std::string& prop) { return especDe(fabrica, prop) != nullptr; }
+
 std::string firmaDe(const std::vector<Filtro>& v, const std::vector<Filtro>& a, bool alfa) {
     std::string r = alfa ? "A|" : "|";
     for (const auto* l : {&v, &a}) {
@@ -195,16 +197,27 @@ bool tieneLasPropiedades(const std::string& fabrica, const std::vector<std::pair
     g_type_class_unref(k);
     return todas;
 }
+/// Cómo se sube a cada memoria de placa y cómo se baja de ella (lo usan cadenaDe y llevarA).
+const std::map<std::string, std::pair<const char*, const char*>>& puentesDeMemoria() {
+    static const std::map<std::string, std::pair<const char*, const char*>> kMemorias{
+        {"CUDAMemory", {"cudaupload ! cudaconvertscale", "cudadownload"}},
+        {"GLMemory", {"glupload ! glcolorconvert", "gldownload"}},
+        {"D3D11Memory", {"d3d11upload ! d3d11convert", "d3d11download"}},
+        {"D3D12Memory", {"d3d12upload ! d3d12convert", "d3d12download"}}};
+    return kMemorias;
+}
+} // namespace
+
 /// La memoria de placa que pide un elemento que no acepta la de sistema (glshader:
 /// GLMemory; d3d12…: D3D12Memory). "" si acepta la de sistema (o no se sabe).
-std::string memoriaPropia(const std::string& fabrica) {
+std::string memoriaPropia(const std::string& fabrica, GstPadDirection dir) {
     GstElementFactory* f = gst_element_factory_find(fabrica.c_str());
     if (f == nullptr) return {};
     bool sistema = false;
     std::string placa;
     for (const GList* l = gst_element_factory_get_static_pad_templates(f); l != nullptr; l = l->next) {
         auto* t = static_cast<GstStaticPadTemplate*>(l->data);
-        if (t->direction != GST_PAD_SINK) continue;
+        if (t->direction != dir) continue;
         GstCaps* c = gst_static_caps_get(&t->static_caps);
         if (gst_caps_is_any(c)) sistema = true;
         for (guint i = 0; i < gst_caps_get_size(c); ++i) {
@@ -222,7 +235,6 @@ std::string memoriaPropia(const std::string& fabrica) {
     gst_object_unref(f);
     return sistema ? std::string() : placa;
 }
-} // namespace
 
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
                      std::vector<std::string>& avisos, bool desdeGpu, Derivacion* derivar) {
@@ -260,11 +272,7 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
         if (f.memoria.empty()) f.memoria = memoriaPropia(f.elemento);
         // Un elemento que trabaja en la placa: subir antes y bajar después (si ya
         // viene en esa memoria, la subida pasa de largo: sin copias).
-        static const std::map<std::string, std::pair<const char*, const char*>> kMemorias{
-            {"CUDAMemory", {"cudaupload ! cudaconvertscale", "cudadownload"}},
-            {"GLMemory", {"glupload ! glcolorconvert", "gldownload"}},
-            {"D3D11Memory", {"d3d11upload ! d3d11convert", "d3d11download"}},
-            {"D3D12Memory", {"d3d12upload ! d3d12convert", "d3d12download"}}};
+        const auto& kMemorias = puentesDeMemoria();
         const auto m = kMemorias.find(f.memoria);
         bool hayPuente = m != kMemorias.end();
         if (hayPuente) {
@@ -1100,22 +1108,30 @@ std::string aSistema(const std::string& formato) {
            " ! video/x-raw,format=" + formato;
 }
 
-bool aceptaMemoria(const std::string& fabrica, const std::string& memoria) {
+namespace {
+/// ¿Algún pad de esa dirección dice esa memoria? Con `conAny`, también los «(ANY)» (los
+/// bins de GL, como glvideomixer, que suben ellos lo que les llegue).
+bool dicenMemoria(const std::string& fabrica, const std::string& memoria, GstPadDirection dir, bool conAny) {
     GstElementFactory* f = gst_element_factory_find(fabrica.c_str());
     if (f == nullptr) return false;
     bool acepta = false;
     for (const GList* l = gst_element_factory_get_static_pad_templates(f); l != nullptr && !acepta; l = l->next) {
         auto* t = static_cast<GstStaticPadTemplate*>(l->data);
-        if (t->direction != GST_PAD_SINK) continue;
+        if (t->direction != dir) continue;
         GstCaps* c = gst_static_caps_get(&t->static_caps);
         for (guint i = 0; i < gst_caps_get_size(c) && !acepta; ++i) {
             GstCapsFeatures* ft = gst_caps_get_features(c, i);
-            acepta = ft != nullptr && gst_caps_features_contains(ft, ("memory:" + memoria).c_str());
+            acepta = ft != nullptr && (conAny || !gst_caps_features_is_any(ft)) && gst_caps_features_contains(ft, ("memory:" + memoria).c_str());
         }
         gst_caps_unref(c);
     }
     gst_object_unref(f);
     return acepta;
+}
+} // namespace
+
+bool aceptaMemoria(const std::string& fabrica, const std::string& memoria, GstPadDirection dir) {
+    return dicenMemoria(fabrica, memoria, dir, true);
 }
 
 std::string aCodificador(const std::string& codificador) {
@@ -1143,6 +1159,57 @@ std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {
     return "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! glcolorscale ! video/x-raw(memory:GLMemory),format=RGBA" +
            tam + " ! gldownload ! video/x-raw,format=RGBA" + tam + " ! videoconvert ! video/x-raw,format=" + formato + tam +
            ",pixel-aspect-ratio=1/1";
+}
+
+std::string memoriaDelMotor() {
+    if (!gpuVideo()) return {};
+    return gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
+}
+
+std::string memoriaDeTrabajo(const std::string& fabrica, GstPadDirection dir) {
+    // Si acepta la del motor, en esa (lo que llega de las entradas ya está ahí: sin
+    // copias); si no, la de placa que pida (d3d11compositor, glmosaic sin GPU en el
+    // motor); si no, la de sistema.
+    const std::string mm = memoriaDelMotor();
+    if (!mm.empty() && dicenMemoria(fabrica, mm, dir, false)) return mm;
+    // Un «(ANY)» es un bin de GL (glvideomixer): sube él a GL, así que solo le sirve la del
+    // motor si es GL (en Windows, con D3D12, le llega por sistema).
+    if (mm == "GLMemory" && aceptaMemoria(fabrica, mm, dir)) return mm;
+    return memoriaPropia(fabrica, dir);
+}
+
+std::string llevarA(const std::string& memoria, int ancho, int alto) {
+    const std::string tam = ancho > 0 && alto > 0
+                                ? ",width=" + std::to_string(ancho) + ",height=" + std::to_string(alto) + ",pixel-aspect-ratio=1/1"
+                                : std::string();
+    // Las caps del final como capsfilter: así la cadena también sirve suelta (un bin con
+    // gst_parse_bin_from_description, donde unas caps sin nada detrás no se aceptan).
+    const auto caps = [](const std::string& c) { return "capsfilter caps=" + entreComillas(c); };
+    const std::string mm = memoriaDelMotor();
+    if (!memoria.empty() && memoria == mm) {
+        // A la del motor: la subida deja pasar lo que ya está en la placa. d3d12convert
+        // escala solo; en GL hace falta glcolorscale.
+        if (mm == "D3D12Memory") return "d3d12upload ! d3d12convert ! " + caps("video/x-raw(memory:D3D12Memory),format=RGBA" + tam);
+        return "glupload ! glcolorconvert ! " + std::string(tam.empty() ? "" : "glcolorscale ! ") +
+               caps("video/x-raw(memory:GLMemory),format=RGBA" + tam);
+    }
+    // A sistema: lo que venga de la placa del motor baja (subir antes deja pasar lo que ya
+    // está arriba y sube lo que no: después se baja igual, venga como venga).
+    const std::string aSis = (mm.empty() ? std::string() : subirGpu() + " ! video/x-raw(memory:" + mm + "),format=RGBA ! " + bajarGpu() + " ! ") +
+                             "videoconvert ! videoscale";
+    if (memoria.empty()) return aSis + (tam.empty() ? std::string() : " ! " + caps("video/x-raw" + tam));
+    // A otra memoria de placa (D3D11 en una PC que compone en D3D12, CUDA…): por sistema.
+    const auto m = puentesDeMemoria().find(memoria);
+    if (m == puentesDeMemoria().end()) return aSis + (tam.empty() ? std::string() : " ! " + caps("video/x-raw" + tam));
+    return aSis + " ! " + m->second.first + (memoria == "GLMemory" && !tam.empty() ? " ! glcolorscale" : "") + " ! " +
+           caps("video/x-raw(memory:" + memoria + ")" + tam);
+}
+
+std::string bajarDe(const std::string& memoria) {
+    // La del motor no hace falta bajarla (la sube y la deja pasar llevarA); otra, sí.
+    if (memoria.empty() || memoria == memoriaDelMotor()) return {};
+    const auto m = puentesDeMemoria().find(memoria);
+    return m == puentesDeMemoria().end() ? std::string() : std::string(m->second.second) + " ! ";
 }
 
 } // namespace ba::motor
