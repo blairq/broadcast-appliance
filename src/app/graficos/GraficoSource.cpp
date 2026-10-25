@@ -5,6 +5,8 @@
 
 #include "emision/FuentesApp.hpp"
 
+#include <glib.h>
+
 #include <atomic>
 #include <chrono>
 #include <map>
@@ -132,7 +134,8 @@ bool setGrafico(std::uint64_t id, const std::string& grafico) {
     return true;
 }
 
-bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando) {
+bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando,
+                std::function<void(std::int64_t)> alEmpezar) {
     if (cuadros.empty() || fps <= 0 || !viva(id)) return false;
     limpiar();
     auto inst = reproduccion(id, true);
@@ -149,7 +152,7 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
     }
 
     inst->vivo.store(true);
-    inst->hilo = std::thread([inst]() {
+    inst->hilo = std::thread([inst, alEmpezar = std::move(alEmpezar)]() {
         const auto paso = std::chrono::microseconds(1000000 / std::max(1, inst->fps));
         auto siguiente = std::chrono::steady_clock::now();
         std::size_t i = 0;
@@ -181,6 +184,8 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
                 continue;
             }
             entregar(inst->id, cuadro);
+            // El primero ya está en el motor: desde acá corre el reloj del gráfico.
+            if (i == 0 && alEmpezar) alEmpezar(g_get_monotonic_time() * 1000);
             // Ya no hay nada nuevo: el motor sigue mostrando el ultimo cuadro.
             if (ultimo) break;
             ++i;

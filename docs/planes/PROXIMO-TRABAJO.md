@@ -27,9 +27,12 @@ la Mac). Queda lo de abajo.
   webrtc.lib, `test_ejemplos.py` de plugins con el Python de la PC.
 - **«Hablando» en la Asamblea:** quien espera manda solo foto; hace falta que la página de la sesión
   abra el micrófono hacia el gateway mientras espera.
-- **Video en vivo dentro de un gráfico** (una cámara en el zócalo): animar el ítem de la escena con la
-  línea de tiempo del gráfico. Propuesta: la ficha del gráfico declara claves por fuente y el Emisor
-  le pide al motor que las interpole (Composicion ya anima capas en las transiciones).
+- **Video en vivo dentro de un gráfico** (hecho, falta probarlo a mano): `"escena"` en la ficha
+  (graficos/VideoEnGrafico), capas con claves que el motor interpola (Composicion: Capa::claves),
+  «Zócalo con cámara» de fábrica, `grafico_mostrar {"video"}`. Probar con una cámara de verdad: que
+  el recuadro arranque junto con el zócalo (el reloj se corre la edad de la salida), que la cámara
+  vuelva a su lugar al ocultar, el recorte «cubrir» en GL y D3D12, y una mezcla/T-bar con el gráfico
+  puesto (durante la transición la animación espera).
 - **Grilla de personas:** una vista en vivo de quién está en cada grilla (la propiedad existe, falta
   el QML); «al aire» no cuenta otras grillas ni escenas anidadas; bajar la calidad de los que están
   en la fila y no aparecen en ninguna grilla.

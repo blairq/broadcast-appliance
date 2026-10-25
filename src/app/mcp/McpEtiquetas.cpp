@@ -847,7 +847,8 @@ const Fila kPropias[] = {
     {"grafico_mostrar", "poner grafico al aire zocalo placa GC generador de caracteres rotulo "
                         "pie de pagina faldon "
                         "el apellido esta mal corregir el nombre cambiar el cargo poner el nombre "
-                        "del que habla levantar el zocalo tirar la placa"},
+                        "del que habla levantar el zocalo tirar la placa "
+                        "camara en el zocalo video en vivo dentro del grafico recuadro con la camara"},
     {"grafico_ocultar", "sacar grafico esconder bajar el zocalo sacar la placa quitar el GC "
                         "limpiar la pantalla fuera el cartel"},
     {"laminas_buscar", "buscame la imagen de los perros cual era la del grafico donde esta la "

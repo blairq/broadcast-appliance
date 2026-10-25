@@ -822,6 +822,14 @@ endif()
         target_link_libraries(test_graficos_catalogo PRIVATE Qt6::Core)
         set_target_properties(test_graficos_catalogo PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         add_test(NAME test_graficos_catalogo COMMAND test_graficos_catalogo)
+        # El video en vivo dentro de un gráfico (graficos/VideoEnGrafico): la declaración,
+        # la línea de tiempo y el paso al lienzo del motor, sin motor.
+        add_executable(test_video_en_grafico tests/test_video_en_grafico.cpp graficos/VideoEnGrafico.cpp)
+        target_include_directories(test_video_en_grafico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
+        target_link_libraries(test_video_en_grafico PRIVATE Qt6::Core nlohmann_json::nlohmann_json)
+        set_target_properties(test_video_en_grafico PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        target_compile_definitions(test_video_en_grafico PRIVATE BA_TEST_GRAFICOS="${CMAKE_SOURCE_DIR}/assets/graficos")
+        add_test(NAME test_video_en_grafico COMMAND test_video_en_grafico)
     endif()
     # Los gráficos de un plugin (@plugin.grafico): el probador del SDK corre el
     # ejemplo sin la app y verifica que cada gráfico describa o dibuje. Sobre una

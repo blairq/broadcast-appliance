@@ -148,7 +148,23 @@ Rectangle {
                                         color: Theme.textDim
                                         font.pixelSize: 11
                                     }
+                                    // La fuente de video que va adentro del gráfico (la cámara del
+                                    // zócalo): las entradas de video, o el nombre de cualquier fuente.
+                                    ComboBox {
+                                        visible: modelData.tipo === "fuente"
+                                        Layout.fillWidth: true
+                                        editable: true
+                                        font.pixelSize: 14
+                                        model: Studio.inputs.videoInputs.map(f => f.name)
+                                        editText: {
+                                            const v = tarjeta.modelData.valores[modelData.clave]
+                                            return v === undefined ? "" : String(v)
+                                        }
+                                        onActivated: page.r.setValor(tarjeta.modelData.id, modelData.clave, currentText)
+                                        onAccepted: page.r.setValor(tarjeta.modelData.id, modelData.clave, editText)
+                                    }
                                     TextField {
+                                        visible: modelData.tipo !== "fuente"
                                         Layout.fillWidth: true
                                         color: Theme.text
                                         font.pixelSize: 14

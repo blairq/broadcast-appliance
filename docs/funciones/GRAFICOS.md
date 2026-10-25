@@ -246,6 +246,52 @@ Rótulos si el gráfico de esa fuente es el mismo, y con un vínculo `vivo`.
   llena solo si existen. Con `Torta { datos: raiz.votos; anteriores:
   raiz.anteriores ? raiz.anteriores.votos : null }` alcanza.
 
+## Video en vivo adentro (la cámara en el zócalo)
+
+Un gráfico puede llevar una fuente de video **en vivo** (la cámara del orador, un
+invitado) que entra, queda y se va con él. El dibujo está hecho de antemano, así
+que el video no va adentro de la imagen: es otra capa de la escena que el motor
+mueve cuadro a cuadro con la línea de tiempo del gráfico (como una transición).
+Ejemplo de fábrica: **«Zócalo con cámara»** (`assets/graficos/zocalo-camara`).
+
+Se declara con `"escena"` en la ficha o, para escribirlo desde el editor,
+adentro de la descripción:
+
+```json
+"escena": [{
+  "fuente": "{camara}",
+  "donde": "arriba",
+  "ajuste": "cubrir",
+  "claves": [{"ms": 0, "x": -170, "y": 60, "ancho": 170, "alto": 150, "alfa": 0},
+             {"ms": 450, "x": 12, "alfa": 1}],
+  "salida": [{"ms": 0}, {"ms": 320, "alfa": 0}]
+}]
+```
+
+- `fuente`: el nombre de una fuente de la app o, mejor, un parámetro de tipo
+  **`fuente`** (`{"clave": "camara", "tipo": "fuente"}`): en el editor y en
+  Rótulos se elige de una lista; por MCP, `grafico_mostrar {"video": "Cámara 1"}`.
+  Vacío: el gráfico sale sin video.
+- `x`, `y`, `ancho`, `alto` en **píxeles del gráfico** (su tamaño declarado): si
+  mueven el gráfico en la escena, el recuadro va con él. Lo que una clave no dice
+  lo hereda de la anterior. `recorte` ({izq, arr, der, aba}) en fracciones de la
+  fuente; `suave` (de fábrica sí) arranca y frena despacio.
+- `salida`: desde que arranca la salida del gráfico (`salidaEn`, o el guion que lo
+  saca); si no está, el video se funde en lo que dura la salida del gráfico.
+- `donde`: `arriba` (de fábrica) o `debajo` del gráfico (para verlo por un hueco
+  transparente). `ajuste`: `cubrir` (recorta lo que sobra, no deforma), `contener`
+  o `estirar`.
+- **La fuente**: si ya está en la escena del gráfico, se anima ESA y al irse el
+  gráfico vuelve a como estaba (un «achique» de la cámara al zócalo); si no está,
+  se suma sola mientras dure y se saca después. `"propia": true`: siempre una capa
+  aparte. Tiene que existir en alguna escena. Mientras está en la escena al aire,
+  cuenta como cualquier fuente de la escena (también para su audio).
+- La animación arranca con el **primer cuadro que sale del gráfico** (lo que tarda
+  en dibujarse no la adelanta) y el motor la corre lo que tarda en componer.
+- La vista previa del editor dibuja un recuadro donde va a ir el video.
+- No se guarda en la escena (no aparece en el editor de escenas). Un gráfico en
+  una capa DSK no lleva video (solo en escenas).
+
 ## Gráficos de un plugin
 
 Un plugin de Python puede proveer gráficos animados con `@plugin.grafico`

@@ -408,6 +408,9 @@ Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un
 3. `grafico_probar {"nombre", "parametros", "momentos": [0, 150, 300, 450, 900]}` y MIRÁ las imágenes.
 4. `grafico_en_escena` → `grafico_mostrar {"fuente", "nombre", "parametros"}` (o `"armar": true` para el preview).
 
+## Video en vivo adentro (la cámara en el zócalo)
+Un gráfico con un parámetro de tipo `fuente` (p. ej. «Zócalo con cámara») lleva una fuente de video que entra y se va con él: `grafico_mostrar {"fuente", "nombre": "zocalo-camara", "video": "Cámara 1"}`. Se declara con `"escena": [{"fuente": "{camara}", "claves": [{"ms", "x", "y", "ancho", "alto", "alfa"}], "salida": [...]}]` en píxeles del gráfico (docs/funciones/GRAFICOS.md, «Video en vivo adentro»).
+
 ## GIF y videos con alfa adentro de un gráfico
 - `grafico_medio_agregar {"nombre", "archivo"}`: un GIF, PNG, JPG o una carpeta de PNG se copia; un VIDEO (WebM VP9 con alfa, ProRes 4444, MP4…) se pasa una vez a cuadros con su transparencia (`ancho` para achicarlo, `maxSegundos`). Mirá `alfa` en la respuesta: false = va a tapar lo de atrás.
 - En la descripción: `{"tipo": "medio", "archivo": "medios/bandera.gif", "ancho": 200, "alto": 120, "izquierda": 20, "arriba": 20, "inicio": 300, "bucle": true}`. `inicio` es el ms del gráfico en que arranca (antes no se ve); sin `bucle` se queda en el último cuadro. En QML: `import BA.Grafico` y `Medio { source: "medios/x"; inicio: 300 }`.

@@ -69,6 +69,12 @@ class GraficoViewModel : public QObject {
     Q_PROPERTY(bool importando READ importando NOTIFY importandoChanged)
     /// Las fuentes «Gráfico animado» que hay en las escenas.
     Q_PROPERTY(QVariantList enEscena READ enEscena NOTIFY escenaChanged)
+    /// El video en vivo que lleva (VideoEnGrafico.hpp), donde va en el momento de la barra:
+    /// [{fuente, x, y, ancho, alto, alfa, arriba}] en fracciones del gráfico. La vista previa
+    /// dibuja ahí un recuadro (el video no se dibuja: es en vivo).
+    Q_PROPERTY(QVariantList recuadros READ recuadros NOTIFY recuadrosChanged)
+    /// Ancho/alto del cuadro de la vista previa (para ubicar los recuadros encima).
+    Q_PROPERTY(double aspecto READ aspecto NOTIFY imagenChanged)
 
    public:
     GraficoViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent = nullptr);
@@ -96,6 +102,8 @@ class GraficoViewModel : public QObject {
     QVariantList medios() const;
     bool importando() const;
     QVariantList enEscena() const;
+    QVariantList recuadros() const;
+    double aspecto() const;
 
     Q_INVOKABLE void refrescar();
     Q_INVOKABLE bool abrir(const QString& nombre);
@@ -128,6 +136,7 @@ class GraficoViewModel : public QObject {
     void mediosChanged();
     void importandoChanged();
     void escenaChanged();
+    void recuadrosChanged();
     void notify(const QString& texto, const QString& tipo);
 
    private:

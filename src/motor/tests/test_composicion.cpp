@@ -8,6 +8,8 @@
 //   - mezcla de 1 s: a mitad de camino los colores se mezclan; al final, la nueva;
 //   - recorte y alfa de una capa;
 //   - sombra y borde difuso de una capa (basombra): la caja crece, la imagen no se mueve.
+//   - una capa animada por claves (el video dentro de un gráfico): queda en la primera
+//     clave hasta que arranca; arrancada, termina en la última. Y capaEn (la cuenta) sola.
 //   - la Mezcla de GStreamer: otro módulo de varias entradas (el compositor con las
 //     propiedades de cada pad; smpte con sus dos pads fijos).
 
@@ -102,7 +104,49 @@ void esperar(std::vector<Entrada*>& es, Composicion& c, int ms) {
 }
 } // namespace
 
+/// La cuenta de una capa animada por claves (sin GStreamer).
+void probarCapaEn() {
+    Capa c{"cam", 5, 5, 100, 100};
+    CHECK(capaEn(c, 123).x == 5, "sin claves: la misma capa");
+    ClaveCapa a, b, d;
+    a.ms = 100;
+    a.x = 0;
+    a.ancho = 100;
+    a.alto = 50;
+    a.alfa = 0;
+    b.ms = 300;
+    b.x = 200;
+    b.ancho = 300;
+    b.alto = 150;
+    b.alfa = 1;
+    b.recIzq = 40;
+    b.suave = false;
+    d = b;
+    d.ms = 500;
+    d.x = 400;
+    d.suave = true;
+    c.claves = {a, b, d};
+    CHECK(capaEn(c, 0).x == 0 && capaEn(c, 0).alfa == 0.0, "antes de la primera clave, la primera");
+    const Capa m = capaEn(c, 200);
+    CHECK(m.x == 100 && m.ancho == 200 && m.alto == 100 && std::abs(m.alfa - 0.5) < 1e-9 && m.recIzq == 20,
+          "a mitad de un tramo lineal, a mitad de camino (lugar, tamaño, alfa y recorte)");
+    CHECK(capaEn(c, 300).x == 200, "en una clave, justo ahí");
+    // Suave: a un cuarto del tramo avanzó menos de un cuarto (arranca despacio); a la mitad, la mitad.
+    CHECK(capaEn(c, 350).x > 200 && capaEn(c, 350).x < 250, "suave: arranca despacio");
+    CHECK(capaEn(c, 400).x == 300, "suave: a la mitad, la mitad");
+    CHECK(capaEn(c, 9000).x == 400 && capaEn(c, 9000).alfa == 1.0, "pasada la última, queda en la última");
+    // Ida y vuelta por JSON (la app las manda así).
+    Escena e;
+    e.nombre = "x";
+    c.clavesDesdeNs = 1234;
+    e.capas.push_back(c);
+    const Escena v = Escena::desdeJson(e.aJson());
+    CHECK(v.capas.size() == 1 && v.capas[0].claves == c.claves && v.capas[0].clavesDesdeNs == 1234,
+          "las claves van y vuelven por JSON");
+}
+
 int main() {
+    probarCapaEn();
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif
@@ -165,6 +209,35 @@ int main() {
     CHECK(igual(p1, 0, 0, 0), "donde estaba, negro");
     CHECK(igual(p2, 0, 0, 255), "se movió andando");
     CHECK(prog.estado()["capas"][0].value("generacion", 0) == 2, "sin rearmar (misma generación)");
+
+    // Una capa animada por claves: arriba a la izquierda hasta que arranca; arrancada, abajo a
+    // la derecha (como la cámara que entra con un zócalo).
+    {
+        Escena an;
+        an.nombre = "Animada";
+        Capa cv{"verde", 0, 0, 160, 90};
+        ClaveCapa k0, k1;
+        k0.ancho = k1.ancho = 160;
+        k0.alto = k1.alto = 90;
+        k1.ms = 600;
+        k1.x = 480;
+        k1.y = 270;
+        cv.claves = {k0, k1};
+        an.capas.push_back(cv);
+        prog.mostrar(an, "corte");
+        esperar(es, prog, 900);
+        p1 = v.en(80, 45);
+        p2 = v.en(560, 315);
+        std::printf("animada sin arrancar: arriba izq %s, abajo der %s\n", txt(p1).c_str(), txt(p2).c_str());
+        CHECK(igual(p1, 0, 255, 0) && igual(p2, 0, 0, 0), "sin arrancar: queda en la primera clave");
+        an.capas[0].clavesDesdeNs = g_get_monotonic_time() * 1000;
+        prog.mostrar(an); // la misma escena: en el lugar, ahora con su ms 0
+        esperar(es, prog, 1500);
+        p1 = v.en(80, 45);
+        p2 = v.en(560, 315);
+        std::printf("animada terminada: arriba izq %s, abajo der %s\n", txt(p1).c_str(), txt(p2).c_str());
+        CHECK(igual(p1, 0, 0, 0) && igual(p2, 0, 255, 0), "arrancada: termina en la última clave");
+    }
 
     // Mezcla de 1 s del rojo entero (sobre el negro de la izquierda).
     Escena c;

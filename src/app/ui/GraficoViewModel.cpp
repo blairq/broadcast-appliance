@@ -17,6 +17,7 @@
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Medios.hpp"
+#include "graficos/VideoEnGrafico.hpp"
 
 namespace ba::app {
 
@@ -110,11 +111,40 @@ QVariantList GraficoViewModel::medios() const {
     return d_->abierto.isEmpty() ? QVariantList{} : d_->em.medios().lista(d_->abierto).toVariantList();
 }
 
+QVariantList GraficoViewModel::recuadros() const {
+    QVariantList out;
+    if (d_->abierto.isEmpty()) return out;
+    // Lo mismo que va a salir: la declaración del editor (o de la ficha), la línea de tiempo
+    // con «cuándo se va» y la cuenta del motor (Claves.hpp) en el momento de la barra.
+    QString err;
+    QJsonObject p = d_->pedido(&err);
+    if (!err.isEmpty()) p = {};
+    const int salidaEn = d_->valores.value("salidaEn").toVariant().toInt(); // del campo llega como texto
+    const int salidaDur = p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800);
+    for (const auto& c : graficos::video::leer(d_->ficha, p, nullptr, true)) {
+        const auto k = graficos::video::en(graficos::video::lineaDeTiempo(c, salidaEn, salidaDur), d_->momentoMs);
+        out.append(QVariantMap{{"fuente", QString::fromStdString(c.fuente)},
+                               {"x", k.x},
+                               {"y", k.y},
+                               {"ancho", k.ancho},
+                               {"alto", k.alto},
+                               {"alfa", k.alfa},
+                               {"arriba", c.arriba}});
+    }
+    return out;
+}
+
+double GraficoViewModel::aspecto() const {
+    if (d_->vista.isNull() || d_->vista.height() <= 0) return 0;
+    return static_cast<double>(d_->vista.width()) / d_->vista.height();
+}
+
 void GraficoViewModel::setFuente(const QString& f) {
     if (d_->fuente == f) return;
     d_->fuente = f;
     emit fuenteChanged();
     emit sucioChanged();
+    emit recuadrosChanged();
     redibujar();
 }
 
@@ -128,6 +158,7 @@ void GraficoViewModel::setMomentoMs(int ms) {
     if (nuevo == d_->momentoMs) return;
     d_->momentoMs = nuevo;
     emit vistaChanged();
+    emit recuadrosChanged();
     redibujar();
 }
 
@@ -211,6 +242,7 @@ bool GraficoViewModel::abrir(const QString& nombre) {
     emit sucioChanged();
     emit mediosChanged();
     emit vistaChanged();
+    emit recuadrosChanged();
     redibujar();
     return true;
 }
@@ -234,6 +266,7 @@ bool GraficoViewModel::guardar() {
     d_->ficha = d_->catalogo().ficha(d_->abierto);
     d_->fuenteEnDisco = d_->fuente;
     emit sucioChanged();
+    emit recuadrosChanged();
     emit notify("Gráfico guardado", "ok");
     return true;
 }
@@ -241,6 +274,7 @@ bool GraficoViewModel::guardar() {
 void GraficoViewModel::setValor(const QString& clave, const QVariant& valor) {
     d_->valores[clave] = QJsonValue::fromVariant(valor);
     emit valoresChanged();
+    emit recuadrosChanged();
     redibujar();
 }
 
