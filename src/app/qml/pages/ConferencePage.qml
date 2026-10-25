@@ -187,34 +187,10 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 10
-                    // Que el asistente atienda SOLO a cada uno que llega: les
-                    // pide los datos y despues pregunta si los hacemos pasar.
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        Toggle {
-                            checked: conf.autoIntake
-                            enabled: Studio.agent.running
-                            onToggled: (wanted) => conf.setAutoIntake(wanted)
-                        }
-                        ColumnLayout {
-                            spacing: 0
-                            Layout.fillWidth: true
-                            Text {
-                                text: "✦ Los atiende el asistente"
-                                color: Studio.agent.running ? Theme.text : Theme.textFaint
-                                font.pixelSize: 13
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: !Studio.agent.running ? "Prendé el asistente en la pestaña ✦"
-                                      : conf.autoIntake ? "Les pide los datos y te muestra todo junto para admitirlos"
-                                                        : "Cada uno que entra, lo atendés vos"
-                                color: Theme.textFaint; font.pixelSize: 11
-                            }
-                        }
-                    }
+                    // Que el asistente atienda SOLO a cada uno que llega (por
+                    // chat o hablando), el alta automática en Personas y
+                    // quién entra solo: lo mismo que en la Asamblea.
+                    OpcionesAtencion { Layout.fillWidth: true; ambito: "sala" }
                     // --- Reconocer a los que llegan ------------------------
                     // EL LOBBY ES EL MOMENTO: la gente llega antes de entrar y
                     // se queda quieta frente a su cámara esperando. Es el único
@@ -225,7 +201,10 @@ Rectangle {
                         spacing: 8
                         visible: Studio.personas.disponible
                         Toggle {
-                            checked: Studio.personas.lobbyAuto
+                            // Con la atención prendida se mira siempre: el
+                            // interruptor lo muestra prendido y no se apaga acá.
+                            checked: Studio.personas.lobbyMirando
+                            enabled: !Studio.personas.lobbyPorAtencion
                             onToggled: (wanted) => Studio.personas.lobbyAuto = wanted
                         }
                         ColumnLayout {
@@ -246,7 +225,9 @@ Rectangle {
                                 Layout.preferredWidth: 0
                                 wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 11
-                                text: Studio.personas.lobbyAuto
+                                text: Studio.personas.lobbyPorAtencion
+                                      ? "Prendido por la atención: mientras el asistente atiende, el lobby se mira siempre."
+                                      : Studio.personas.lobbyAuto
                                       ? "Sobre cada cámara dice quién es. Al que no conoce lo anota sin " +
                                         "nombre, con su foto, para que le pongas quién es."
                                       : "Mira las cámaras de los que esperan y te dice a quién reconoce."
@@ -731,7 +712,8 @@ Rectangle {
                                         id: msgCol
                                         anchors { left: parent.left; top: parent.top; margins: 7; leftMargin: 11 }
                                         width: Math.min(implicitWidth, chatList.width * 0.8 - 22)
-                                        Text { text: (msg.mine ? "Vos" : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → operador" : " → " + conf.nameOf(msg.to))
+                                        // 🎙: lo DIJO hablando (la atención hablada lo pasó a texto).
+                                        Text { text: (msg.modelData.voz === true ? "🎙 " : "") + (msg.mine ? "Vos" : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → operador" : " → " + conf.nameOf(msg.to))
                                                color: Theme.textFaint; font.pixelSize: 10 }
                                         Text { text: msg.text; color: Theme.text; font.pixelSize: 13; wrapMode: Text.Wrap
                                                width: Math.min(implicitWidth, chatList.width * 0.8 - 22) }
@@ -1040,7 +1022,7 @@ Rectangle {
                                 onPressedChanged: if (pressed) conf.refreshSources()
                             }
                         }
-                        // El micrófono del operador se elige en Configuración -> Voz del operador:
+                        // El micrófono del operador se elige en Configuración -> Voz del sistema:
                         // es el mismo para el lobby y para dictarle al asistente.
                         RowLayout {
                             Layout.fillWidth: true
@@ -1053,7 +1035,7 @@ Rectangle {
                             }
                             GlassButton {
                                 compact: true; text: "Cambiar…"
-                                onClicked: { Studio.seccionConfig = "Voz del operador"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
+                                onClicked: { Studio.seccionConfig = "Voz del sistema"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
                             }
                         }
                     }

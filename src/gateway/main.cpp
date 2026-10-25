@@ -561,6 +561,7 @@ int main(int argc, char** argv) {
     pumpCfg.operatorVideoName = toWide("BA.Operator");
     for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) pumpCfg.escenaVideoNames.push_back(ba::ipc::nombreCanalEscena(k));
     pumpCfg.operatorAudioName = toWide("BA.Audio.Operator");
+    pumpCfg.atendedorAudioName = toWide("BA.Audio.Atendedor");
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,
                     &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {

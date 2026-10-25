@@ -47,6 +47,13 @@ ColumnLayout {
               "(el celular de respaldo si la central no anda) que desde afuera. El link, el PIN y la contraseña se ven una sola vez."
     }
 
+    // --- La atención a los que esperan (la misma que en la Sala) ----------------------------
+    Seccion {
+        titulo: "Los que esperan que los habiliten"
+        subtitulo: "Que el asistente los atienda: les mira la cara contra su ficha y habilita solo a quien tiene permiso de entrar solo en el padrón del evento; al resto te lo pregunta."
+        OpcionesAtencion { Layout.fillWidth: true; ambito: "asamblea" }
+    }
+
     // --- Consolas de la presidencia (la página web /presidencia/) ---------------------------
     Seccion {
         titulo: "Consola de la presidencia"

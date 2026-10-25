@@ -198,6 +198,13 @@ class ConferenceViewModel : public QObject {
     /// Da por atendida a esa persona: el asistente no la va a abordar. Lo usa
     /// el auto-aceptado, que la atiende de otra manera.
     void marcarAtendido(const QString& id) { intakeDone_.insert(id); }
+    /// Lo que DIJO alguien que se atiende hablando, ya pasado a texto (ui/
+    /// AtencionViewModel): entra a su hilo del chat como un mensaje suyo, con
+    /// `voz: true`. Así el que atiende lo lee con `chat_wait` /
+    /// `invitados_chat_leer` igual que si lo hubiera escrito, y el operador lo
+    /// ve en el hilo privado. No va a la sala: es lo que se le oyó, no algo que
+    /// mandó (la sala no lo tiene ni lo reparte).
+    void agregarDichoPorVoz(const QString& id, const QString& texto);
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
     /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` dice

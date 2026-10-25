@@ -14,11 +14,13 @@
 //     Lobby(k):   camara  -> BA.Lobby.<k>        (preview chico, solo operador)
 //     Backstage(k): camara -> BA.Backstage.<k>   (fila de oradores: preview
 //                  chico a ~10 fps, solo operador)
-//                 audio   -> BA.Audio.Lobby.<k>  (solo si el operador le habla)
+//                 audio   -> BA.Audio.Lobby.<k>  (solo si el operador le habla
+//                                                 o lo atiende el asistente hablando)
 //   Bajada (A -> B -> participante):
 //     Program(n): BA.Program + BA.Audio.ContentForReturn
 //     Lobby(k):   BA.Operator (o una placa si A no lo publica) + la voz del
-//                 operador BA.Audio.Operator solo si talk
+//                 operador BA.Audio.Operator solo si talk; con atiende (y sin
+//                 talk), la voz del asistente BA.Audio.Atendedor
 //
 //   Un sender existe siempre (spec §4.2): mientras un slot del programa no
 //   tiene video del invitado, B publica una placa.
@@ -71,6 +73,9 @@ class MediaPump {
         // [k] = BA.Escena.<k>. Qué escena va en cada canal lo decide A.
         std::vector<std::wstring> escenaVideoNames;
         std::wstring operatorAudioName; // BA.Audio.Operator (A->B, para el lobby)
+        // La voz del asistente que atiende en el lobby (A->B): solo a los que
+        // tienen `atiende` en su ruta y el operador no les está hablando.
+        std::wstring atendedorAudioName; // BA.Audio.Atendedor
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
         std::vector<std::wstring> guestVideoNames;     // BA.Guest.<n>
@@ -186,6 +191,8 @@ class MediaPump {
     /// canal de escena son esto mismo con otro nombre y otro filtro.
     void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
     void operatorAudioThread();
+    /// BA.Audio.Atendedor -> los del lobby con `atiende` (y sin `talk`).
+    void atendedorAudioThread();
     void operatorVideoThread();
     void plateThread();
 

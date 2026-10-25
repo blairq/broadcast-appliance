@@ -58,6 +58,12 @@ class OperatorFeed {
     void startLobbyMonitor(int count);
     /// Escuchar (o no) a quien ocupa el lugar `slot` del lobby.
     void setLobbyMonitor(int slot, bool on);
+    /// La voz de quien ocupa el lugar `slot` del lobby, para pasarla a texto (la
+    /// atención hablada, ui/AtencionViewModel): estéreo intercalado a 48 kHz, en
+    /// el hilo de GStreamer. Llega solo mientras la sala la sube (`talk` o
+    /// `atiende` en su ruta). Devuelve la toma (0 = no se pudo) para soltarla.
+    int escucharLobby(int slot, std::function<void(const float* estereo, std::size_t cuadros)> fn);
+    void dejarDeEscucharLobby(int toma);
 
     // --- Push-to-talk (docs/funciones/AUDIO-TTS.md) -------------------------------------
     /// Mono en float con su frecuencia: el oído del control por voz.

@@ -623,7 +623,11 @@ void McpService::registerRostroTools() {
                {{"type", "string"},
                 {"description", "que camara mirar (clave de feeds_list, o «entrada:<camara>» para una camara "
                                 "del estudio), o \"lobby\" para todas las posiciones "
-                                "de espera por turno"}}}}}};
+                                "de espera por turno"}}},
+              {"altaAutomatica",
+               {{"type", "boolean"},
+                {"description", "anotar CON NOMBRE a quien lo dio en el lobby (lo escribio al entrar o se lo "
+                                "corrigieron) y tiene una cara que sirve; lo mismo que atencion_configurar"}}}}}};
         t.examples = {R"({"activo": true, "feed": "lobby"})", R"({"activo": true, "feed": "guest:1"})",
                       R"({})"};
         t.run = [pvDe, preparar](const json& a, Done done) {
@@ -638,6 +642,8 @@ void McpService::registerRostroTools() {
                 if (esLobby || pv->lobbyAuto()) pv->setLobbyAuto(a["activo"].get<bool>());
                 if (!esLobby) pv->setAutoalta(a["activo"].get<bool>());
             }
+            if (a.contains("altaAutomatica") && a["altaAutomatica"].is_boolean())
+                pv->setAltaAutomatica(a["altaAutomatica"].get<bool>());
             ToolResult r;
             const std::string donde = pv->lobbyAuto() ? "el lobby (todas las posiciones de espera)"
                                                       : "'" + pv->feedAuto().toStdString() + "'";
@@ -648,7 +654,10 @@ void McpService::registerRostroTools() {
                 json{{"activo", pv->autoalta() || pv->lobbyAuto()},
                      {"lobby", pv->lobbyAuto()},
                      {"feed", pv->lobbyAuto() ? std::string("lobby") : pv->feedAuto().toStdString()},
-                     {"sinNombre", pv->sinNombre()}};
+                     {"sinNombre", pv->sinNombre()},
+                     // La atención de la sala prendida mira el lobby aunque esto esté apagado.
+                     {"lobbyPorAtencion", pv->lobbyPorAtencion()},
+                     {"altaAutomatica", pv->altaAutomatica()}};
             done(r);
         };
         core_.addTool(std::move(t));

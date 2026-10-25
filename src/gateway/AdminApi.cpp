@@ -34,6 +34,7 @@
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
 //   POST   /api/v1/participants/<id>/talk      {on}  (lobby: en privado; adentro: IFB)
+//   POST   /api/v1/participants/<id>/atiende   {on}  (lobby: lo atiende el asistente hablando)
 //   POST   /api/v1/participants/<id>/prueba    {ms}  prueba técnica: eco y red (bloquea ms)
 //   POST   /api/v1/participants/<id>/onair     {on}  modo oradores: al aire / fuera
 //   POST   /api/v1/participants/<id>/move      {index}  lugar en la fila (0 = primero)
@@ -971,6 +972,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.kick(id));
         } else if (action == "talk") {
             sendRoomResult(fd, room_.setTalk(id, req.value("on", true)));
+        } else if (action == "atiende") {
+            // La atención hablada del lobby (la app la prende y la apaga).
+            sendRoomResult(fd, room_.setAtiende(id, req.value("on", true)));
         } else if (action == "prueba") {
             // Prueba técnica (T33): eco por su micrófono y estado de la red. Tarda lo
             // que dura (2 a 8 s): este pedido queda esperando, la sala sigue.

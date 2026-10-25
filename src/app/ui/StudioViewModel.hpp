@@ -144,6 +144,7 @@ class AppRuntime;
 class AccesoRemoto;
 class ConferenceViewModel;
 class EventoViewModel;
+class AtencionViewModel;
 class HistoricoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
@@ -324,6 +325,8 @@ class StudioViewModel : public QObject {
     /// La libreta de personas (rostros). Existe siempre: sin los modelos
     /// vendoreados avisa por qué, que es mejor que una lista vacía.
     Q_PROPERTY(QObject* personas READ personas CONSTANT)
+    /// La atención a quien se conecta (Sala y Asamblea): ui/AtencionViewModel.
+    Q_PROPERTY(QObject* atencion READ atencion CONSTANT)
     /// Las preguntas del publico y la urna (viven en B; esto las trae).
     Q_PROPERTY(QObject* publico READ publico CONSTANT)
     /// Los archivos del operador: musica, videos, imagenes, presentaciones.
@@ -712,6 +715,8 @@ class StudioViewModel : public QObject {
     QObject* enlacesQml() const;
     EnlacesViewModel* enlacesVm() const { return enlaces_.get(); }
     QObject* personas() const;
+    QObject* atencion() const;
+    AtencionViewModel* atencionVm() const { return atencion_.get(); }
     QObject* publico() const;
     QObject* medios() const;
     QObject* carruseles() const;
@@ -1247,6 +1252,10 @@ class StudioViewModel : public QObject {
     /// cambio de la fila, del debate, del cuerpo o de las posiciones de las cámaras.
     void actualizarRanurasBanca(bool forzar = false);
     QTimer ranurasTarde_; ///< una vuelta más, cuando ya se sabe el tamaño de la cámara
+    /// La atención a quien se conecta: usa la sala, la voz, los modelos, los
+    /// agentes, Personas, el evento y la sesión remota. Declarada última, se
+    /// destruye antes que todos ellos.
+    std::unique_ptr<AtencionViewModel> atencion_;
 };
 
 } // namespace ba::app

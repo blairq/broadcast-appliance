@@ -93,6 +93,10 @@ void ParticipantesSala::hablar(const std::string& id, bool on, Listo listo) {
     accion(id, "talk", {{"on", on}}, std::move(listo));
 }
 
+void ParticipantesSala::atender(const std::string& id, bool on, Listo listo) {
+    accion(id, "atiende", {{"on", on}}, std::move(listo));
+}
+
 std::string ParticipantesSala::pedirle(const std::string& id, const std::string& que, Listo listo) {
     static const std::array<const char*, 9> kPedidos{"mute-mic",    "mute-cam",   "unmute-mic",
                                                      "unmute-cam",  "stop-screen", "lower-hand",

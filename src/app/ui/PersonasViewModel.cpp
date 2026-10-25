@@ -29,6 +29,7 @@
 #include "evento/Evento.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
+#include "sala/Atencion.hpp"
 #include "ui/CalidadCara.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -51,6 +52,15 @@ struct PersonasViewModel::Impl {
     QString aviso;
     bool autoalta = false;
     bool lobbyAuto = false;
+    /// La atención a quien se conecta lo pide: el lobby se mira aunque el
+    /// interruptor esté apagado (ver lobbyMirando).
+    bool lobbyPorAtencion = false;
+    /// Anotar solo con nombre a quien lo dio (ver altaSiDioSuNombre). Se guarda.
+    bool altaAutomatica = false;
+    /// Las fichas que nombró el alta automática, por quien espera: si en el
+    /// lobby le corrigen el nombre, se corrige también la ficha (es la misma
+    /// persona, recién anotada). uid -> ficha.
+    std::map<QString, QString> nombradas;
     QString feedAuto = "program";
     /// La cámara de la PUERTA: reconoce a quien entra al lugar y lo acredita
     /// en el padrón del evento. Es la contracara del lobby —el mismo
@@ -143,6 +153,22 @@ void PersonasViewModel::setPuertaAuto(bool) {}
 QString PersonasViewModel::feedPuerta() const { return {}; }
 void PersonasViewModel::setFeedPuerta(const QString&) {}
 bool PersonasViewModel::lobbyAuto() const { return d_->lobbyAuto; }
+bool PersonasViewModel::lobbyPorAtencion() const { return false; }
+void PersonasViewModel::setLobbyPorAtencion(bool) {}
+bool PersonasViewModel::lobbyMirando() const { return false; }
+bool PersonasViewModel::altaAutomatica() const { return false; }
+void PersonasViewModel::setAltaAutomatica(bool activo) {
+    if (activo) emit notify(d_->aviso, "error");
+}
+float PersonasViewModel::umbralEntrarSolo() const { return 1.0f; }
+void PersonasViewModel::compararFoto(const QByteArray&, const QString&,
+                                     std::function<void(float, bool, const QString&)> luego) {
+    luego(0.0f, false, d_->aviso);
+}
+void PersonasViewModel::altaConFoto(const QByteArray&, const QString&, const QString&,
+                                    std::function<void(const QString&, const QString&)> luego) {
+    luego({}, d_->aviso);
+}
 
 // Sin reconocimiento no hay a quien mirar en el lobby: se avisa, como sumarCara.
 void PersonasViewModel::setLobbyAuto(bool activo) {
@@ -268,6 +294,11 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
     if (d_->rec.abrir(modelos)) {
         d_->listo = true;
         d_->libreta.leer(d_->archivo.toStdString());
+        QFile op(QString::fromStdString((rt.dataRoot() / "Config" / "personas-opciones.json").string()));
+        if (op.open(QIODevice::ReadOnly)) {
+            const auto j = nlohmann::json::parse(op.readAll().toStdString(), nullptr, false);
+            if (j.is_object()) d_->altaAutomatica = j.value("altaAutomatica", false);
+        }
     } else {
         d_->aviso = d_->rec.error();
     }
@@ -283,11 +314,11 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
         // no cuesta el doble: cuesta la mitad de rápido cada una.
         d_->turnoPuerta = !d_->turnoPuerta;
         const bool vaLaPuerta =
-            d_->puertaAuto && !d_->feedPuerta.isEmpty() && (d_->turnoPuerta || !d_->lobbyAuto);
+            d_->puertaAuto && !d_->feedPuerta.isEmpty() && (d_->turnoPuerta || !lobbyMirando());
         QString feed;
         if (vaLaPuerta)
             feed = d_->feedPuerta;
-        else if (d_->lobbyAuto)
+        else if (lobbyMirando())
             feed = proximaDelLobby(uid, lugar);
         else
             feed = d_->feedAuto;
@@ -493,12 +524,7 @@ void PersonasViewModel::setAutoalta(bool activo) {
     }
     d_->autoalta = activo;
     d_->pendientes.clear(); // lo que estaba a medio ver no se arrastra
-    if (activo) {
-        d_->ronda.start();
-    } else if (!d_->lobbyAuto) {
-        d_->ronda.stop();
-        d_->libreta.guardar(d_->archivo.toStdString()); // las vistas pendientes
-    }
+    revisarRonda();
     sincronizarRostros();
     emit autoaltaCambio();
 }
@@ -509,13 +535,7 @@ void PersonasViewModel::setPuertaAuto(bool activo) {
     if (activo == d_->puertaAuto) return;
     d_->puertaAuto = activo;
     d_->avisadosPuerta.clear();
-    // Las tres formas de mirar comparten la ronda.
-    if (activo || d_->lobbyAuto || d_->autoalta)
-        d_->ronda.start();
-    else {
-        d_->ronda.stop();
-        d_->libreta.guardar(d_->archivo.toStdString());
-    }
+    revisarRonda(); // las tres formas de mirar comparten la ronda
     sincronizarRostros();
     emit autoaltaCambio();
 }
@@ -541,19 +561,189 @@ void PersonasViewModel::setLobbyAuto(bool activo) {
     }
     d_->lobbyAuto = activo;
     d_->pendientes.clear();
-    if (!activo) {
+    if (!lobbyMirando()) {
         d_->enLobby.clear();
         emit enLobbyCambio();
     }
-    // Las dos formas de anotar comparten la ronda: la de acá gana, porque el
+    // Las formas de mirar comparten la ronda: la del lobby gana, porque el
     // lobby es lo que está pasando ahora.
-    if (activo || d_->autoalta || d_->puertaAuto) {
-        d_->ronda.start();
-    } else {
-        d_->ronda.stop();
-        d_->libreta.guardar(d_->archivo.toStdString());
-    }
+    revisarRonda();
     emit autoaltaCambio();
+}
+
+void PersonasViewModel::revisarRonda() {
+    const bool hay = d_->autoalta || d_->puertaAuto || lobbyMirando();
+    if (hay) {
+        if (!d_->ronda.isActive()) d_->ronda.start();
+    } else if (d_->ronda.isActive()) {
+        d_->ronda.stop();
+        d_->libreta.guardar(d_->archivo.toStdString()); // las vistas pendientes
+    }
+}
+
+bool PersonasViewModel::lobbyPorAtencion() const { return d_->lobbyPorAtencion; }
+
+void PersonasViewModel::setLobbyPorAtencion(bool activo) {
+    if (activo == d_->lobbyPorAtencion) return;
+    // Sin modelos no hay nada que mirar; la atención sigue igual (por chat se
+    // atiende sin cámara), así que no se avisa como un error.
+    if (activo && !d_->listo) return;
+    d_->lobbyPorAtencion = activo;
+    if (!lobbyMirando()) {
+        d_->enLobby.clear();
+        emit enLobbyCambio();
+    }
+    revisarRonda();
+    emit autoaltaCambio();
+}
+
+bool PersonasViewModel::lobbyMirando() const { return d_->lobbyAuto || d_->lobbyPorAtencion; }
+
+bool PersonasViewModel::altaAutomatica() const { return d_->altaAutomatica; }
+
+void PersonasViewModel::setAltaAutomatica(bool activo) {
+    if (activo == d_->altaAutomatica) return;
+    if (activo && !d_->listo) {
+        emit notify(d_->aviso, "error");
+        return;
+    }
+    d_->altaAutomatica = activo;
+    // Se guarda al lado de la libreta: es una decisión sobre la libreta, no
+    // del evento (la misma persona se reconoce en el que viene).
+    QFile f(QString::fromStdString((d_->rt.dataRoot() / "Config" / "personas-opciones.json").string()));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QByteArray::fromStdString(nlohmann::json{{"altaAutomatica", activo}}.dump(1)));
+    emit autoaltaCambio();
+}
+
+float PersonasViewModel::umbralEntrarSolo() const { return kAbrirLaPuerta(); }
+
+namespace {
+/// La cara más grande de lo visto (la de quien está frente a la cámara), o -1.
+int laMasGrande(const std::vector<Reconocedor::Visto>& v) {
+    int mejor = -1;
+    for (int i = 0; i < static_cast<int>(v.size()); ++i)
+        if (mejor < 0 || v[static_cast<std::size_t>(i)].cara.alto > v[static_cast<std::size_t>(mejor)].cara.alto)
+            mejor = i;
+    return mejor;
+}
+
+/// Una foto JPEG como BGRA contiguo (lo que pide el reconocedor) y su QImage.
+bool desdeJpeg(const QByteArray& jpeg, QImage& img, std::vector<std::uint8_t>& bgra) {
+    if (!img.loadFromData(jpeg, "JPG") || img.isNull()) return false;
+    img = img.convertToFormat(QImage::Format_ARGB32);
+    bgra.resize(static_cast<std::size_t>(img.width()) * img.height() * 4);
+    for (int y = 0; y < img.height(); ++y)
+        std::memcpy(bgra.data() + static_cast<std::size_t>(y) * img.width() * 4, img.constScanLine(y),
+                    static_cast<std::size_t>(img.width()) * 4);
+    return true;
+}
+} // namespace
+
+void PersonasViewModel::compararFoto(const QByteArray& jpeg, const QString& personaId,
+                                     std::function<void(float, bool, const QString&)> luego) {
+    if (!d_->listo) return luego(0.0f, false, d_->aviso);
+    auto img = std::make_shared<QImage>();
+    std::vector<std::uint8_t> bgra;
+    if (!desdeJpeg(jpeg, *img, bgra)) return luego(0.0f, false, "La foto no se pudo leer.");
+    const int w = img->width(), h = img->height();
+    QPointer<PersonasViewModel> yo(this);
+    d_->rec.pedir(std::move(bgra), w, h, false,
+                  [yo, img, personaId, luego](std::vector<Reconocedor::Visto> v, const QString& error) {
+                      if (!yo) return;
+                      if (!error.isEmpty()) return luego(0.0f, false, error);
+                      const int i = laMasGrande(v);
+                      if (i < 0) return luego(0.0f, false, "No se ve ninguna cara en la foto.");
+                      const auto* f = yo->d_->libreta.porId(personaId.toStdString());
+                      if (f == nullptr) return luego(0.0f, false, "No hay ficha con ese id.");
+                      float mejor = 0.0f;
+                      for (const auto& c : f->caras)
+                          mejor = std::max(mejor, ba::rostros::parecido(v[static_cast<std::size_t>(i)].vector, c));
+                      luego(mejor, calidadDe(*img, v[static_cast<std::size_t>(i)].cara).sirve, {});
+                  });
+}
+
+void PersonasViewModel::altaConFoto(const QByteArray& jpeg, const QString& nombre, const QString& cargo,
+                                    std::function<void(const QString&, const QString&)> luego) {
+    if (!d_->listo) return luego({}, d_->aviso);
+    auto img = std::make_shared<QImage>();
+    std::vector<std::uint8_t> bgra;
+    if (!desdeJpeg(jpeg, *img, bgra)) return luego({}, "La foto no se pudo leer.");
+    const int w = img->width(), h = img->height();
+    QPointer<PersonasViewModel> yo(this);
+    d_->rec.pedir(std::move(bgra), w, h, false,
+                  [yo, img, nombre, cargo, luego](std::vector<Reconocedor::Visto> v, const QString& error) {
+                      if (!yo) return;
+                      if (!error.isEmpty()) return luego({}, error);
+                      const int i = laMasGrande(v);
+                      if (i < 0) return luego({}, "No se ve ninguna cara en la foto.");
+                      const auto& visto = v[static_cast<std::size_t>(i)];
+                      if (!calidadDe(*img, visto.cara).sirve)
+                          return luego({}, "La cara de la foto no sirve para reconocerla.");
+                      auto& libreta = yo->d_->libreta;
+                      // Si ya es de alguien con nombre, no se crea otra ficha: dos
+                      // fichas para la misma cara reconocen a cualquiera de las dos.
+                      const auto c = libreta.buscar(visto.vector);
+                      const bool esDeAlguien = !c.id.empty() && c.parecido >= ba::rostros::kMismaPersona();
+                      if (esDeAlguien && !c.nombre.empty()) return luego(QString::fromStdString(c.id), {});
+                      ba::rostros::Persona p;
+                      if (esDeAlguien) p = *libreta.porId(c.id); // la anotó sola, sin nombre: se completa
+                      p.nombre = nombre.trimmed().toStdString();
+                      p.cargo = cargo.trimmed().toStdString();
+                      const std::string id = libreta.guardarFicha(p);
+                      libreta.sumarCara(id, visto.vector);
+                      if (const auto* f = libreta.porId(id); f != nullptr && f->foto.empty()) {
+                          const QString foto =
+                              escribirFoto(*img, visto.cara, yo->d_->carpetaFotos, QString::fromStdString(id));
+                          if (!foto.isEmpty()) {
+                              ba::rostros::Persona conFoto = *f;
+                              conFoto.foto = foto.toStdString();
+                              libreta.guardarFicha(conFoto);
+                          }
+                      }
+                      yo->persistir();
+                      luego(QString::fromStdString(id), {});
+                  });
+}
+
+void PersonasViewModel::altaSiDioSuNombre(const QString& uid, const QString& fichaId, bool sirve) {
+    if (!d_->altaAutomatica || fichaId.isEmpty() || !sirve) return;
+    const auto* f = d_->libreta.porId(fichaId.toStdString());
+    if (f == nullptr) return;
+    // Solo una ficha SIN nombre (la anotó sola el reconocimiento), o la que
+    // nombró esto mismo para esta persona (le corrigieron el nombre en el
+    // lobby). Una ficha que alguien nombró a mano no se toca: el nombre que
+    // escribió un operador vale más que el que tipeó alguien en su celular.
+    const auto ya = d_->nombradas.find(uid);
+    const bool propia = ya != d_->nombradas.end() && ya->second == fichaId;
+    if (!f->nombre.empty() && !propia) return;
+    auto* conf = static_cast<ConferenceViewModel*>(d_->vm.conference());
+    auto* espera = conf != nullptr ? static_cast<JsonListModel*>(conf->waiting()) : nullptr;
+    if (espera == nullptr) return;
+    QString nombreSala, info;
+    for (const auto& v : espera->items()) {
+        const QJsonObject o = v.toObject();
+        if (o.value("uid").toString() != uid) continue;
+        nombreSala = o.value("name").toString();
+        info = o.value("info").toString();
+    }
+    const std::string nombre = sala::nombreDado(nombreSala.toStdString());
+    if (nombre.empty()) return;
+    const std::string cargo = info.trimmed().toStdString();
+    if (f->nombre == nombre && (cargo.empty() || f->cargo == cargo)) return;
+    ba::rostros::Persona p = *f;
+    p.nombre = nombre;
+    if (!cargo.empty()) p.cargo = cargo;
+    d_->libreta.guardarFicha(p);
+    persistir();
+    d_->nombradas[uid] = fichaId;
+    if (!propia)
+        emit notify("Anoté a «" + QString::fromStdString(nombre) +
+                        "» en Personas: dio su nombre y se le ve bien la cara.",
+                    "info");
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
+                               "alta automática: «" + nombre + "» (ficha " + fichaId.toStdString() + ", lobby " +
+                                   uid.toStdString() + ")");
 }
 
 QVariantMap PersonasViewModel::enLobby() const { return d_->enLobby; }
@@ -589,6 +779,7 @@ QString PersonasViewModel::proximaDelLobby(QString& uid, int& lugar) {
             std::any_of(gente.begin(), gente.end(), [&](const auto& g) { return g.first == uid; });
         if (!sigue) {
             d_->enLobby.remove(uid);
+            d_->nombradas.erase(uid);
             limpie = true;
         }
     }
@@ -929,6 +1120,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
             v["uid"] = uid;
             v["lugar"] = feed.mid(6).toInt();
             d_->enLobby[uid] = v;
+            altaSiDioSuNombre(uid, id, q.sirve);
             if (!id.isEmpty())
                 dejarPasarSiCorresponde(uid, id, v.value("nombre").toString(), v.value("parecido").toFloat(),
                                         q.sirve);

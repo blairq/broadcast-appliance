@@ -82,6 +82,13 @@ class ControlSala {
     /// Avisa cada fuente nueva que entra por tomarArchivo (para que la vista
     /// recargue sus listas, venga de la GUI o del MCP).
     void setAlTomarArchivo(std::function<void()> f) { alTomarArchivo_ = std::move(f); }
+    /// Avisa cada mensaje que sale (de la GUI o del MCP: los dos pasan por
+    /// chatear). La atención hablada lo usa para DECIR lo que se le escribe a
+    /// quien se atiende hablando (ui/AtencionViewModel): el que atiende sigue
+    /// usando `chat_send` como siempre y no hay un camino aparte para la voz.
+    void setAlChatear(std::function<void(const std::string& para, const std::string& texto)> f) {
+        alChatear_ = std::move(f);
+    }
 
     // --- Proxy y red -----------------------------------------------------------
     /// Lo que dice la sala del proxy, más la configuración guardada
@@ -119,6 +126,7 @@ class ControlSala {
     ConferenceClient& sala_;
     QMetaObject::Connection alConectar_;
     std::function<void()> alTomarArchivo_;
+    std::function<void(const std::string&, const std::string&)> alChatear_;
 };
 
 } // namespace ba::app::sala

@@ -237,6 +237,7 @@ void MediaPump::start() {
                               });
     }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
+    if (!cfg_.atendedorAudioName.empty()) threads_.emplace_back(&MediaPump::atendedorAudioThread, this);
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
     log_.info("MediaPump: en marcha (slots=" + std::to_string(guests) + ", lobby=" + std::to_string(lobby) +
@@ -625,6 +626,47 @@ void MediaPump::operatorAudioThread() {
     }
 }
 
+void MediaPump::atendedorAudioThread() {
+    // La forma de operatorAudioThread, con otro canal y otro destino: la voz
+    // sintetizada del que atiende le llega SOLO a quien atiende hablando. Si el
+    // operador le está hablando a esa misma persona, la voz del operador gana
+    // (empujar dos fuentes al mismo track las pisa).
+    SharedAudioRing reader;
+    bool open = false;
+    auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    std::vector<float> block;
+    while (!stop_.load(std::memory_order_relaxed)) {
+        if (!open) {
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastRetry >= std::chrono::milliseconds(500)) {
+                lastRetry = now;
+                if (SharedAudioRing::openReader(cfg_.atendedorAudioName.c_str(), reader).ok) {
+                    open = true;
+                    log_.info("atencion: voz del que atiende (BA.Audio.Atendedor) abierta");
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            continue;
+        }
+        if (reader.stale()) {
+            reader = SharedAudioRing{};
+            open = false;
+            continue;
+        }
+        const size_t n = reader.blockFloats();
+        if (block.size() < n) block.resize(n);
+        PoppedBlock blk;
+        if (reader.pop(block.data(), blk)) {
+            for (int s : sessionsWhere([](const MediaRoute& r) {
+                     return r.kind == MediaRoute::Kind::Lobby && r.atiende && !r.talk;
+                 })) {
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
 void MediaPump::operatorVideoThread() {
     SpoutReceiver receiver;
     bool sub = false;
@@ -717,9 +759,10 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
         r.index <= kMaxInvitados) {
         if (AudioOut* a = guestAudio_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
             publishAudio(*a, samples, n, rate);
-    } else if (r.kind == MediaRoute::Kind::Lobby && r.talk && r.index >= 1 &&
+    } else if (r.kind == MediaRoute::Kind::Lobby && (r.talk || r.atiende) && r.index >= 1 &&
                r.index < static_cast<int>(lobbyAudio_.size())) {
-        // El operador solo escucha a quien le esta hablando.
+        // El operador solo escucha a quien le esta hablando; y la app, para
+        // pasarla a texto, a quien atiende el asistente hablando.
         publishAudio(*lobbyAudio_[static_cast<size_t>(r.index)], samples, n, rate);
     } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoAudio_.size())) {
         publishAudio(*remotoAudio_[static_cast<size_t>(r.index)], samples, n, rate);

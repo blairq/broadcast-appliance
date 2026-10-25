@@ -174,6 +174,7 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
 ## Ingreso
 - `room_link {"target": "local"|"remote", "withPin"}` da el enlace y su QR (imagen). `room_pin` cambia el PIN. `room_set {"lobby", "locked"}`.
 - `network_status`: HTTPS, tunel WireGuard, enlaces.
+- Que el asistente **atienda solo** a los que llegan (por chat o **hablando**: lo que dicen pasa a texto y se les contesta con voz), el alta automática en Personas y la voz del atendedor: `atencion_configurar` / `atencion_estado` (también la sesión remota de la asamblea). Quién entra solo si se lo reconoce es el padrón del evento (`padron_ver {"solos": true}`).
 - Para que entren **desde internet** (pinggy, Cloudflare, túnel propio): `help {"topic": "acceso_remoto"}`.)md"},
     {"acceso_remoto", "Acceso desde internet: pinggy, Cloudflare, túnel propio",
      "Sacar la sala a internet. Con pinggy alcanza la API key: la app arma todo sola.",
@@ -418,7 +419,7 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
      R"md(- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
 - `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.
 - Alcance: `live` (en el momento), `gateway` (reinicia la sala: los invitados se reconectan), `restart` (al proximo arranque).
-- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Sala, Red de la sala, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del operador, Modelos locales, Control del sistema, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {"topic": "acceso_remoto"}`.
+- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Sala, Red de la sala, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del sistema (pestañas Voz del operador y Voz del atendedor), Modelos locales, Control del sistema, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {"topic": "acceso_remoto"}`.
 - Para tener VARIAS configuraciones enteras (una por cliente, una de prueba, la demo) y pasar de una a otra: `help {"topic": "configuraciones"}`.)md"},
     {"documentos", "Documentación del evento y PDF",
      "Los PDF del evento (por punto del orden del día y por sección) que la web publica, y convertir cualquier cosa a PDF sin Chrome.",

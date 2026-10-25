@@ -89,6 +89,7 @@ std::string ControlSala::chatear(const std::string& para, const std::string& tex
     if (recortado(texto).empty()) return "el mensaje está vacío";
     pedir(sala_, "POST", "/api/v1/chat", {{"to", para.empty() ? std::string("all") : para}, {"text", texto}},
           std::move(listo));
+    if (alChatear_) alChatear_(para.empty() ? std::string("all") : para, texto);
     return {};
 }
 

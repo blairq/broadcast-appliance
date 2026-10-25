@@ -188,6 +188,7 @@ int Room::resume(const std::string& id, const std::string& key, int64_t nowMs) {
         }
         if (p->state == State::Waiting && p->lobbySlot > 0) {
             out.guest.emplace_back(p->id, json{{"type", "talk"}, {"on", p->talk}});
+            if (p->atiende) out.guest.emplace_back(p->id, json{{"type", "atiende"}, {"on", true}});
         }
         assignLobbySlotsLocked(out);
         lobbyPositionsLocked(out);
@@ -305,6 +306,7 @@ int Room::admit(const std::string& id, int64_t nowMs) {
         const int slot = spk_.enabled ? 0 : freeSlotLocked();
         if (slot == 0 && !spk_.enabled) return kFull;
         p->talk = false; // lo privado del lobby no sigue adentro
+        p->atiende = false;
         admitLocked(*p, slot, nowMs, out);
         lobbyPositionsLocked(out);
     }
@@ -353,6 +355,25 @@ int Room::kick(const std::string& id) {
         out.guest.emplace_back(id, json{{"type", "kicked"}});
         out.drop.push_back(id);
         removeLocked(id, out);
+    }
+    flush(out);
+    return kOk;
+}
+
+int Room::setAtiende(const std::string& id, bool on) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        Participant* p = findLocked(id);
+        if (p == nullptr) return kNotFound;
+        // Solo en el lobby y con lugar de preview: sin lugar no hay canal por
+        // donde suba su voz.
+        if (on && (p->state != State::Waiting || p->lobbySlot == 0)) return kBadState;
+        if (p->atiende == on) return kOk;
+        p->atiende = on;
+        out.routes.emplace_back(p->id, routeFor(*p));
+        out.guest.emplace_back(p->id, json{{"type", "atiende"}, {"on", on}});
+        out.roomChanged = true;
     }
     flush(out);
     return kOk;
@@ -620,6 +641,7 @@ void Room::admitLocked(Participant& p, int slot, int64_t nowMs, Out& out) {
     // Deja su lugar de preview del lobby: lo toma el siguiente que espera.
     p.lobbySlot = 0;
     p.talk = false;
+    p.atiende = false; // la atención es del lobby: adentro ya no lo atiende nadie aparte
     out.guest.emplace_back(p.id, json{{"type", "admitted"}, {"slot", slot}, {"backstage", slot == 0}});
     if (slot == 0) {
         // A la fila de oradores, con el tiempo general.
@@ -666,7 +688,7 @@ void Room::autoAdmitLocked(int64_t nowMs, Out& out) {
 MediaRoute Room::routeFor(const Participant& p) {
     if (p.state == State::Admitted && p.slot > 0) return MediaRoute::program(p.slot, p.talk);
     if (p.state == State::Admitted) return MediaRoute::backstage(p.backstageSlot, p.talk);
-    if (p.state == State::Waiting && p.lobbySlot > 0) return MediaRoute::lobby(p.lobbySlot, p.talk);
+    if (p.state == State::Waiting && p.lobbySlot > 0) return MediaRoute::lobby(p.lobbySlot, p.talk, p.atiende);
     return {};
 }
 
@@ -725,6 +747,7 @@ json Room::toJson(const Participant& p) {
                 {"lobbySlot", p.lobbySlot},
                 {"backstageSlot", p.backstageSlot},
                 {"talk", p.talk},
+                {"atiende", p.atiende},
                 {"connected", p.connected},
                 {"mediaUp", p.mediaUp},
                 {"mic", p.mic},

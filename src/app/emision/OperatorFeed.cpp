@@ -194,6 +194,20 @@ void OperatorFeed::startLobbyMonitor(int count) {
     }
 }
 
+int OperatorFeed::escucharLobby(int slot, std::function<void(const float*, std::size_t)> fn) {
+    if (slot < 1 || slot > static_cast<int>(lobbyMonitors_.size())) return 0;
+    motor::Motor* m = motorAndando();
+    if (m == nullptr) return 0;
+    // La misma entrada que se oye por los auriculares, tomada después de su
+    // cadena: escucharla no la prende en los auriculares ni la manda a la mezcla.
+    return m->escucharEntrada(lobbyMonitors_[static_cast<std::size_t>(slot - 1)], std::move(fn));
+}
+
+void OperatorFeed::dejarDeEscucharLobby(int toma) {
+    if (toma == 0) return;
+    if (motor::Motor* m = motorAndando()) m->dejarDeEscucharEntrada(toma);
+}
+
 void OperatorFeed::setLobbyMonitor(int slot, bool on) {
     if (slot < 1 || slot > static_cast<int>(lobbyMonitors_.size())) return;
     if (motor::Motor* m = motorAndando()) m->ponerEscucha(lobbyMonitors_[static_cast<std::size_t>(slot - 1)], on);

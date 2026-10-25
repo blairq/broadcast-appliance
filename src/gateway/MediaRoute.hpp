@@ -8,7 +8,8 @@
 //   Lobby(k)    sube -> BA.Lobby.<k> / BA.Audio.Lobby.<k> (solo lo ve el
 //               operador, nunca el programa)
 //               baja <- feed del OPERADOR (BA.Operator); su voz solo si
-//               `talk` (conversacion privada)
+//               `talk` (conversacion privada); con `atiende`, la voz del
+//               asistente que lo atiende (BA.Audio.Atendedor)
 //   Program(n)  sube -> BA.Guest.<n> / BA.Audio.Guest.<n> (+ pantalla en
 //               BA.GuestShare.<n>)
 //               baja <- programa + retorno de audio
@@ -48,16 +49,21 @@ struct MediaRoute {
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
     bool talk = false; ///< el operador le habla (le llega su voz; adentro, mezclada con el retorno: IFB)
+    /// Lobby: lo atiende el asistente HABLANDO (docs/funciones/ATENCION.md). Su voz sube a
+    /// BA.Audio.Lobby.<k> (la app la pasa a texto) y le baja la voz del que atiende
+    /// (BA.Audio.Atendedor), no la del operador. Si el operador además le habla (`talk`),
+    /// gana el operador: dos voces en el mismo track se pisan.
+    bool atiende = false;
 
     static MediaRoute program(int slot, bool talk = false) { return {Kind::Program, slot, talk}; }
-    static MediaRoute lobby(int slot, bool talk) { return {Kind::Lobby, slot, talk}; }
+    static MediaRoute lobby(int slot, bool talk, bool atiende = false) { return {Kind::Lobby, slot, talk, atiende}; }
     /// `preview`: lugar de preview de la fila (1..backstageSlots) -> su camara
     /// sube a BA.Backstage.<k> (chica, solo para la vista del operador); 0 = no sube.
     static MediaRoute backstage(int preview = 0, bool talk = false) { return {Kind::Backstage, preview, talk}; }
     static MediaRoute remoto(int canal) { return {Kind::Remoto, canal, false}; }
     static MediaRoute escena(int canal) { return {Kind::Escena, canal, false}; }
     bool operator==(const MediaRoute& o) const {
-        return kind == o.kind && index == o.index && talk == o.talk;
+        return kind == o.kind && index == o.index && talk == o.talk && atiende == o.atiende;
     }
     bool operator!=(const MediaRoute& o) const { return !(*this == o); }
 };

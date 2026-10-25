@@ -407,9 +407,17 @@
         toast("La sala no tiene lugar para tu video en este momento", "bad");
         break;
       case "talk":
+        $("talk-badge").textContent = "● Te está hablando";
         $("talk-badge").classList.toggle("hidden", !msg.on);
         $("lobby-title").textContent = msg.on ? "Estás hablando con el operador" : "Esperando al operador";
         if (msg.on) toast("El operador te está hablando", "ok");
+        break;
+      case "atiende":
+        // Lo atiende el asistente hablando: lo que diga se escucha y se le
+        // contesta con voz. Que lo sepa, así no se queda callado esperando.
+        $("talk-badge").classList.toggle("hidden", !msg.on);
+        $("talk-badge").textContent = msg.on ? "● Te está atendiendo el asistente" : "● Te está hablando";
+        $("lobby-title").textContent = msg.on ? "Te atiende el asistente: hablale, te escucha" : "Esperando al operador";
         break;
       case "lobby":
         state.admitted = false;
