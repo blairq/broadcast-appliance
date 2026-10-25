@@ -324,34 +324,30 @@ Rectangle {
             }
         }
 
-        // Micrófonos y entradas de audio del equipo (no aparecen solas: hay
-        // que agregarlas como fuente).
+        // Micrófonos y entradas de audio del equipo (no aparecen solas: hay que
+        // agregarlas). Con el MISMO componente que la página Entradas de audio:
+        // una sola forma de crear una entrada de audio.
         GlassButton {
             Layout.fillWidth: true
-            text: "+ Entrada de audio del sistema"
-            onClicked: { Studio.inputs.refresh(); micMenu.popup() }
+            text: "+ Entrada de audio"
+            onClicked: { Studio.inputs.refresh(); micPopup.open() }
         }
-        Menu {
-            id: micMenu
-            ItemsDeMenu {
-                menu: micMenu
-                model: Studio.inputs.audioDevices
-                delegate: MenuItem {
-                    required property var modelData
-                    text: modelData.name
-                    onTriggered: {
-                        page.msg = Studio.inputs.addAudioInput(modelData.value, "")
-                        if (page.msg) return
-                        // La lista se rehace sola (el modelo se entera); acá solo se la elige.
-                        page.au.refresh()
-                        page.au.selectSource(Studio.inputs.audioInputName(modelData.value))
-                    }
+        Popup {
+            id: micPopup
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            width: 460
+            modal: true
+            padding: 18
+            background: Rectangle { radius: 16; color: Theme.panel; border.color: Theme.glassBorder }
+            contentItem: AgregarEntradaAudio {
+                onAgregada: (nombre) => {
+                    micPopup.close()
+                    // La lista de fuentes se rehace sola cuando el runtime avisa (en la
+                    // vuelta siguiente); para elegirla ya, se la pide ahora.
+                    page.au.refresh()
+                    page.au.selectSource(nombre)
                 }
-            }
-            MenuItem {
-                enabled: false
-                visible: Studio.inputs.audioDevices.length === 0
-                text: "No se encontraron entradas de audio"
             }
         }
 

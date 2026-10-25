@@ -16,7 +16,6 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var inp: Studio.inputs
-    property string error: ""
     // Al entrar se busca de nuevo (lo enchufado recién aparece; igual el registro
     // se entera solo cuando el sistema avisa).
     onVisibleChanged: if (visible) inp.refresh()
@@ -32,46 +31,10 @@ Rectangle {
             Layout.alignment: Qt.AlignTop
             Layout.preferredHeight: agregarCol.implicitHeight + 64
             title: "Agregar una entrada de audio"
-            ColumnLayout {
+            // El mismo componente que el botón «+ Entrada de audio» de la página Audio.
+            AgregarEntradaAudio {
                 id: agregarCol
                 anchors.fill: parent
-                spacing: 8
-                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                       text: "Micrófonos, líneas e interfaces de audio de esta máquina. Se escuchan en todas las escenas; su procesamiento se arma en la página Audio." }
-                RowLayout {
-                    Layout.fillWidth: true
-                    ComboBox {
-                        id: micBox
-                        Layout.fillWidth: true
-                        model: page.inp.audioDevices
-                        textRole: "label"
-                        valueRole: "value"
-                    }
-                    GlassButton { compact: true; text: "↻"; onClicked: page.inp.refresh()
-                                  ToolTip.visible: hovered; ToolTip.text: "Buscar dispositivos de nuevo" }
-                }
-                // El nombre del sistema, si el operador le puso otro: para reconocerlo.
-                Text {
-                    readonly property var elegido: micBox.currentIndex >= 0 ? page.inp.audioDevices[micBox.currentIndex] : null
-                    visible: !!elegido && elegido.propio
-                    text: elegido ? "Del sistema: " + elegido.tecnico : ""
-                    Layout.fillWidth: true; elide: Text.ElideRight
-                    color: Theme.textFaint; font.pixelSize: 11
-                }
-                Text { visible: page.inp.audioDevices.length === 0; text: "No se encontraron entradas de audio."; color: Theme.textFaint; font.pixelSize: 12 }
-                RowLayout {
-                    Layout.fillWidth: true
-                    TextField { id: micName; Layout.fillWidth: true; placeholderText: "Nombre (opcional: si no, el del dispositivo)" }
-                    GlassButton {
-                        text: "Agregar"; active: true; enabled: micBox.currentIndex >= 0
-                        onClicked: {
-                            page.error = page.inp.addAudioInput(micBox.currentValue, micName.text)
-                            if (page.error === "") micName.text = ""
-                        }
-                    }
-                }
-                Text { visible: page.error !== ""; text: page.error; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                LinkDispositivos { Layout.fillWidth: true }
             }
         }
 
