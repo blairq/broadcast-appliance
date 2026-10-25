@@ -359,6 +359,12 @@ Rectangle {
                           f: c.tipo === "mezcla" ? () => catalogo.abrirMezclas()
                                                  : () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
+                    // Las tarjetas de video de los plugins que corren (Plugins.tarjetasVideo).
+                    ...(Studio.plugins && Studio.plugins.tarjetasVideo.length > 0 ? [{ titulo: "De los plugins",
+                      items: Studio.plugins.tarjetasVideo.map(t => ({
+                          t: t.nombre, tip: t.descripcion,
+                          f: () => page.avisar(Studio.plugins.tarjetaUi(t.plugin, t.tarjeta, page.vg.entrada, false))
+                      })) }] : []),
                     { titulo: "Todos los módulos",
                       items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
                 ]
