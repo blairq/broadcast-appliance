@@ -190,6 +190,10 @@ Rectangle {
                             }
                         }
                     }
+                    // --- Alta automática y quién entra solo ------------------
+                    // Las mismas opciones que en Sala y Asamblea (un solo
+                    // control, un solo modelo): se ven donde se las busque.
+                    OpcionesAtencion { Layout.fillWidth: true; conAtencion: false }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: width * 9 / 16

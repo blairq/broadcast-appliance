@@ -182,7 +182,7 @@ void Voz::apretar() {
             porRack = true;
     }
     if (!porRack && !feed.hayMicrofono()) {
-        emit notify("No hay micrófono del operador: elegilo en Configuración → Voz del operador.", "warn");
+        emit notify("No hay micrófono del operador: elegilo en Configuración → Voz del sistema.", "warn");
         return;
     }
     callar(); // el operador habla: el asistente se calla

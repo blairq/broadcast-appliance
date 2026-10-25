@@ -103,15 +103,15 @@ void EstadoIA::recalcular() {
     if (voz_ && voz_->disponible()) {
         if (!voz_->lista())
             agregar("voz-reconocedor", "El dictado no está listo", voz_->estado(), false, kConfig,
-                    "Voz del operador");
+                    "Voz del sistema");
         if (!voz_->dictadoConMicrofono())
             agregar("voz-microfono", "No hay micrófono para el dictado",
                     "Elegí el micrófono del operador (el que se usa con " + voz_->tecla() + ").", false, kConfig,
-                    "Voz del operador");
+                    "Voz del sistema");
         if (voz_->contestarConVoz() && (voz_->vozElegida().isEmpty() || !voz_->vozLista()))
             agregar("voz-contesta", "No hay voz para que conteste el asistente",
                     voz_->vozElegida().isEmpty() ? "Elegí una voz (Voz que contesta)." : "Falta bajar la voz elegida.",
-                    false, kConfig, "Voz del operador");
+                    false, kConfig, "Voz del sistema");
         const QString aur = voz_->auriculares();
         if (!aur.isEmpty()) {
             bool esta = false;
@@ -121,7 +121,7 @@ void EstadoIA::recalcular() {
             if (!esta)
                 agregar("voz-auriculares", "Los auriculares del operador no están conectados",
                         "Se eligió una salida que no aparece: enchufala o elegí otra.", false, kConfig,
-                        "Voz del operador");
+                        "Voz del sistema");
         }
     }
 

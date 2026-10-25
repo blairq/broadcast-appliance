@@ -118,7 +118,7 @@ void VozPrompter::setEstado(const QString& e) {
 
 void VozPrompter::revisarVoz() {
 #if defined(BA_HAVE_VOZ)
-    // La misma voz que la del sistema (Configuración → Voz del operador).
+    // La misma voz que la del sistema (Configuración → Voz del sistema).
     const QVariantMap v = voz_.vozParaOtros();
     const QString repo = v.value("repo").toString();
     if (repo.isEmpty() || repo == vozCargada_) return;
@@ -195,7 +195,7 @@ void VozPrompter::tick() {
     }
 #if defined(BA_HAVE_VOZ)
     if (!habla_->cargada()) {
-        setEstado("Sin voz: elegí una en Configuración → Voz del operador");
+        setEstado("Sin voz: elegí una en Configuración → Voz del sistema");
         return;
     }
 #endif

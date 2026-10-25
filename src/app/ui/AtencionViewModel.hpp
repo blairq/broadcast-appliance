@@ -170,6 +170,8 @@ class AtencionViewModel : public QObject {
     void alFotoIntegrante(const QString& id);
     void encargarAsamblea(const QString& id, const QString& queSeVio);
     int lugarDe(const QString& id) const;
+    /// Para pasar la voz: solo a quien tiene lugar en el lobby.
+    std::function<bool(const std::string&)> conLugar() const;
 
     AppRuntime& rt_;
     StudioViewModel& vm_;

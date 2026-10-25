@@ -13,7 +13,7 @@
 // DE DONDE SALE LA VOZ: de las fuentes con un nodo «Voz a texto» en modo
 // dictado (sección Audio, como una salida). Al apretar se junta lo de todas y
 // se transcribe la que más habló. Si ninguna tiene el nodo, se le pone solo al
-// micrófono del operador (Configuración -> Voz del operador). Sin racks de audio,
+// micrófono del operador (Configuración -> Voz del sistema). Sin racks de audio,
 // se toma el micrófono del operador directo.
 //
 // TRANSCRIPCIÓN CONTINUA: las fuentes con el nodo en modo «continuo» se

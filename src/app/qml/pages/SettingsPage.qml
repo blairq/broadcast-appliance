@@ -20,7 +20,7 @@ Rectangle {
     readonly property string systemSection: "Sistema y datos"
     readonly property string aparienciaSection: "Apariencia"
     readonly property string modelosSection: "Modelos locales"
-    readonly property string vozSection: "Voz del operador"
+    readonly property string vozSection: "Voz del sistema"
     readonly property string traduccionSection: "Traducción"
     readonly property string controlSection: "Control del sistema"
     readonly property string pinggySection: "Pinggy"
@@ -1380,8 +1380,25 @@ Rectangle {
             }
         }
     }
+    // «Voz del sistema»: dos pestañas. «Voz del operador» es lo de siempre (su
+    // micrófono, sus auriculares, la voz que le contesta a él); «Voz del
+    // atendedor», la voz con la que el asistente le habla a quien atiende en el
+    // lobby (PanelVozAtendedor). Lo de la primera pestaña no se reindentó al
+    // meterlo en la pestaña, para no mover todo el bloque.
     Component {
         id: vozComp
+        ColumnLayout {
+        spacing: 10
+        TabBar {
+            id: vozTabs
+            Layout.fillWidth: true
+            TabButton { text: "Voz del operador" }
+            TabButton { text: "Voz del atendedor" }
+        }
+        StackLayout {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        currentIndex: vozTabs.currentIndex
         ScrollView {
             clip: true
             contentWidth: availableWidth
@@ -1685,6 +1702,9 @@ Rectangle {
                 // Los del esquema (la voz del prompter): avanzados.
                 CamposDeSeccion { Layout.fillWidth: true; seccion: page.vozSection }
             }
+        }
+        PanelVozAtendedor {}
+        }
         }
     }
 

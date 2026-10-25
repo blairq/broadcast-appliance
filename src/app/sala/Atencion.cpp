@@ -99,15 +99,23 @@ std::vector<Turnos::Terminado> Turnos::actualizar(Ambito ambito, const std::set<
     return out;
 }
 
-std::string Turnos::pasarLaVoz() {
+std::string Turnos::pasarLaVoz(const std::function<bool(const std::string&)>& puede) {
     if (!conLaVoz().empty()) return {};
     for (Turno& t : turnos_) {
-        if (t.ambito == Ambito::Sala && t.modo == Modo::Chat) {
+        if (t.ambito == Ambito::Sala && t.modo == Modo::Chat && !t.sinVoz && (!puede || puede(t.id))) {
             t.modo = Modo::Voz;
             return t.id;
         }
     }
     return {};
+}
+
+void Turnos::sinVoz(const std::string& id) {
+    for (Turno& t : turnos_) {
+        if (t.id != id) continue;
+        t.modo = Modo::Chat;
+        t.sinVoz = true;
+    }
 }
 
 std::string Turnos::soltarLaVoz() {

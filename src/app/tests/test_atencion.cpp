@@ -8,6 +8,8 @@
 //   3. Cuándo termina: al admitirla (Admitido) o al irse (SeFue); los de la
 //      asamblea no se mezclan con los de la sala.
 //   4. En la asamblea nunca hay voz.
+//   4b. La voz solo a quien tiene por dónde (lugar en el lobby), y al que la
+//       sala no deja no se le reintenta.
 //   5. Apagar «Hablando» pasa a todos a chat; apagar «Los atiende» termina todo.
 //   6. El nombre que cuenta para anotarlo solo en Personas.
 //   7. Los ajustes: ida y vuelta por JSON, y lo que viene mal queda de fábrica.
@@ -63,6 +65,20 @@ void hablandoDeAUno() {
     CHECK(t.pasarLaVoz() == "b", "la toma Beto, que llegó antes que Ceci");
     CHECK(t.turno("b")->modo == Modo::Voz, "Beto ahora por voz");
     CHECK(t.pasarLaVoz().empty(), "si ya la tiene alguien, no se pasa");
+}
+
+void laVozSoloAQuienPuede() {
+    Turnos t;
+    t.empezar("a", "Ana", Ambito::Sala, Atendedor::Recepcion, false);
+    t.empezar("b", "Beto", Ambito::Sala, Atendedor::Recepcion, false);
+    // Ana todavía no tiene lugar en el lobby (no hay por dónde subir su voz): la toma Beto.
+    CHECK(t.pasarLaVoz([](const std::string& id) { return id != "a"; }) == "b", "la voz va al que puede");
+    // A Beto la sala no lo deja: vuelve a chat y no se le ofrece de nuevo.
+    t.sinVoz("b");
+    CHECK(t.conLaVoz().empty() && t.turno("b")->modo == Modo::Chat, "sin voz: vuelve a chat");
+    CHECK(t.pasarLaVoz([](const std::string& id) { return id != "a"; }).empty(),
+          "al que falló no se le reintenta en cada vuelta");
+    CHECK(t.pasarLaVoz() == "a", "Ana, con lugar, ahora sí");
 }
 
 void cuandoTermina() {
@@ -138,6 +154,7 @@ void ajustesIdaYVuelta() {
 int main() {
     quienAtiendeEnCadaCaso();
     hablandoDeAUno();
+    laVozSoloAQuienPuede();
     cuandoTermina();
     enLaAsambleaNoHayVoz();
     apagar();

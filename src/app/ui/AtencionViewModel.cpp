@@ -172,7 +172,7 @@ void AtencionViewModel::setSalaHablando(bool on) {
         cerrarVoz();
     } else if (puedeHablar()) {
         // Los que ya se están atendiendo por chat: el primero pasa a voz.
-        if (const std::string id = turnos_.pasarLaVoz(); !id.empty()) abrirVoz(QString::fromStdString(id));
+        if (const std::string id = turnos_.pasarLaVoz(conLugar()); !id.empty()) abrirVoz(QString::fromStdString(id));
     }
     emit turnosCambio();
     emit cambio();
@@ -236,8 +236,9 @@ QVariantList AtencionViewModel::turnos() const {
 // --- La sala -------------------------------------------------------------------------
 
 QString AtencionViewModel::empezarSala(const QString& id, const QString& nombre, sala::Atendedor quien) {
+    // Hablando solo con lugar en el lobby: sin él no hay canal por donde suba su voz.
     const auto t = turnos_.empezar(id.toStdString(), nombre.toStdString(), sala::Ambito::Sala, quien,
-                                   aj_.salaHablando && puedeHablar());
+                                   aj_.salaHablando && puedeHablar() && lugarDe(id) > 0);
     if (t.modo == sala::Modo::Voz && vozId_ != id) abrirVoz(id);
     emit turnosCambio();
     return QString::fromLatin1(sala::claveDe(t.modo));
@@ -251,6 +252,10 @@ QString AtencionViewModel::instruccion(const QString& modo) {
            "listas, sin emojis ni símbolos, y los números como se dicen. Si algo de lo que te llega no se "
            "entiende (la voz a texto a veces se equivoca), pedile que lo repita. Los datos para la ficha "
            "(nombre, cargo) confirmáselos en voz alta antes de guardarlos.";
+}
+
+std::function<bool(const std::string&)> AtencionViewModel::conLugar() const {
+    return [this](const std::string& id) { return lugarDe(QString::fromStdString(id)) > 0; };
 }
 
 int AtencionViewModel::lugarDe(const QString& id) const {
@@ -281,7 +286,7 @@ void AtencionViewModel::alSala() {
         if (QString::fromStdString(t.id) == vozId_) cerrarVoz();
     }
     if (vozId_.isEmpty() && aj_.salaHablando && salaAtiende() && puedeHablar()) {
-        if (const std::string id = turnos_.pasarLaVoz(); !id.empty()) {
+        if (const std::string id = turnos_.pasarLaVoz(conLugar()); !id.empty()) {
             abrirVoz(QString::fromStdString(id));
             cambio = true;
         }
@@ -325,7 +330,7 @@ void AtencionViewModel::abrirVoz(const QString& id) {
         emit yo->notify("No se pudo atender hablando a «" + nombre + "»: " + QString::fromStdString(err) +
                             ". Sigue por chat.",
                         "warn");
-        yo->turnos_.soltarLaVoz();
+        yo->turnos_.sinVoz(id.toStdString());
         yo->cerrarVoz();
         emit yo->turnosCambio();
     });

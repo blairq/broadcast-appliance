@@ -32,6 +32,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <set>
 #include <string>
 #include <vector>
@@ -93,6 +94,10 @@ class Turnos {
         Ambito ambito = Ambito::Sala;
         Atendedor quien = Atendedor::Nadie;
         Modo modo = Modo::Chat;
+        /// La voz no se pudo armar para esta persona (la sala no la deja):
+        /// sigue por chat y no se le vuelve a ofrecer, para no reintentar en
+        /// cada vuelta de la sala.
+        bool sinVoz = false;
     };
     struct Terminado {
         std::string id;
@@ -110,8 +115,11 @@ class Turnos {
     std::vector<Terminado> actualizar(Ambito ambito, const std::set<std::string>& esperando,
                                       const std::set<std::string>& adentro);
     /// La voz quedó libre: la toma el primero que se atiende por chat en la
-    /// sala (en el orden en que llegaron). Devuelve su id, o "" si no hay nadie.
-    std::string pasarLaVoz();
+    /// sala (en el orden en que llegaron) y `puede` (p. ej. que tenga lugar en el
+    /// lobby, por donde sube su voz). Devuelve su id, o "" si no hay nadie.
+    std::string pasarLaVoz(const std::function<bool(const std::string& id)>& puede = {});
+    /// No se le pudo armar la voz a `id`: vuelve a chat y queda sin voz (ver `sinVoz`).
+    void sinVoz(const std::string& id);
     /// «Hablando» se apagó: todos pasan a chat. Devuelve quién tenía la voz ("" si nadie).
     std::string soltarLaVoz();
     /// Termina todos los de un ámbito («Los atiende» se apagó). Devuelve los ids.
