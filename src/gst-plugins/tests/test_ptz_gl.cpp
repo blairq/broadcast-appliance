@@ -71,6 +71,29 @@ int main(int argc, char** argv) {
         std::printf("test_ptz_gl: SKIP (sin baptzgl u OpenGL)\n");
         return 0;
     }
+    // Con los elementos pero sin dónde dibujar (un contenedor sin placa ni pantalla: EGL no
+    // arranca), no hay nada que probar: se saltea como los otros tests de GL.
+    {
+        GError* e = nullptr;
+        GstElement* prueba = gst_parse_launch("gltestsrc num-buffers=1 ! fakesink", &e);
+        bool hayGl = prueba != nullptr && e == nullptr;
+        if (hayGl) {
+            gst_element_set_state(prueba, GST_STATE_PLAYING);
+            GstBus* bus = gst_element_get_bus(prueba);
+            GstMessage* m = gst_bus_timed_pop_filtered(bus, 5 * GST_SECOND,
+                                                       static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
+            hayGl = m != nullptr && GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS;
+            if (m != nullptr) gst_message_unref(m);
+            gst_object_unref(bus);
+            gst_element_set_state(prueba, GST_STATE_NULL);
+        }
+        if (e != nullptr) g_error_free(e);
+        if (prueba != nullptr) gst_object_unref(prueba);
+        if (!hayGl) {
+            std::printf("test_ptz_gl: SKIP (OpenGL no arranca acá: sin placa ni pantalla)\n");
+            return 0;
+        }
+    }
     // Cada uno: no hace nada → trabaja → nada → trabaja → nada.
     struct Caso {
         const char* elemento;
