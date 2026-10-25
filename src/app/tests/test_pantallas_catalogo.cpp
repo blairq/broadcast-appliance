@@ -358,7 +358,7 @@ int main(int argc, char** argv) {
             // El monitor por nombre del sistema pasó a su id estable (está conectado).
             CHECK(f0.monitor == idC && f0.sistema.isEmpty());
             // «multiview» solo seguía a la elegida; su monitor no está: se lo traduce cuando aparezca.
-            const auto& f1 = v.ventanas()[1];
+            const auto f1 = v.ventanas()[1]; // copia: abrir otras ventanas realoja el vector
             CHECK(f1.cosas == QStringList{"multiview:principal"});
             CHECK(f1.monitor.isEmpty() && f1.sistema == "DP-9");
             CHECK(v.ventanaDe("multiview:principal") == f1.id);
