@@ -313,7 +313,7 @@ class VideoGrafos : public QObject {
                                 std::string* error) const;
     /// Ajusta `id`; si la maneja un controlador, el ajuste va al controlador
     /// (salvo la etiqueta). "" o el error.
-    static std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params);
+    std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params) const;
     /// Pone en `g` las capas de la disposición en el compositor `comp` (borra
     /// antes las que tenía, así no queda un `orden` o una opacidad de otra).
     static std::string disponerEn(GrafoVideo& g, const std::string& comp, const std::string& disposicion,

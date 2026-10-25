@@ -879,7 +879,7 @@ QString VideoGrafos::mover(const QString& id, int x, int y) {
         return std::string();
     }));
 }
-std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p) {
+std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p) const {
     const GrafoVideo::Nodo* n = g.nodo(id);
     if (n == nullptr) return "no existe la tarjeta «" + id + "»";
     std::string e;
@@ -894,6 +894,24 @@ std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p)
     // la propiedad `parametros` (JSON en texto). Se aceptan como objeto
     // (`{"parametros": {"fuerza": 0.5}}`) o sueltos (`{"fuerza": 0.5}`), y se
     // mezclan con los que ya tiene.
+    // Un módulo de GStreamer (tarjeta o mezcla): una propiedad que el módulo no tiene se rechaza
+    // acá, con las que sí tiene. Si no, la cadena del motor no arrancaba y el error que quedaba era
+    // un «general stream error» que no decía qué estaba mal.
+    if ((n->tipo == "gst" || n->tipo == "mezcla") && p.contains("propiedades") && p["propiedades"].is_object() &&
+        n->params.value("elemento", std::string()) != "baplugin") {
+        const std::string elemento = n->params.value("elemento", std::string());
+        const json lista = gst().propiedades(elemento, json::object());
+        if (!lista.empty()) {
+            std::set<std::string> tiene;
+            for (const auto& x : lista) tiene.insert(x.value("nombre", std::string()));
+            for (auto it = p["propiedades"].begin(); it != p["propiedades"].end(); ++it)
+                if (!tiene.count(it.key())) {
+                    std::string cuales;
+                    for (const auto& t : tiene) cuales += (cuales.empty() ? "" : ", ") + t;
+                    return "«" + elemento + "» no tiene la propiedad «" + it.key() + "» (tiene: " + cuales + ")";
+                }
+        }
+    }
     if (n->tipo == "gst" && n->params.value("elemento", std::string()) == "baplugin") {
         json cambios =
             p.contains("parametros") && p["parametros"].is_object() ? p["parametros"] : json::object();

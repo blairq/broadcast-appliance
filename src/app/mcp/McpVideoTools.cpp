@@ -492,7 +492,7 @@ void McpService::registerVideoTools() {
         t.run = [v, hecho](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             hecho(a.value("entrada", std::string()), v->editar([&](video::GrafoVideo& g) {
-                return video::VideoGrafos::ajustarEn(g, a.value("id", std::string()),
+                return v->ajustarEn(g, a.value("id", std::string()),
                                                      a.value("params", json::object()));
             }),
                   done);
