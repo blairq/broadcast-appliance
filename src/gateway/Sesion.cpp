@@ -494,6 +494,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             std::string jpeg = http::deBase64(m.value("jpeg", std::string()));
             if (jpeg.size() >= 4 && jpeg.size() <= kMaxFoto() && static_cast<unsigned char>(jpeg[0]) == 0xFF &&
                 static_cast<unsigned char>(jpeg[1]) == 0xD8) {
+                if (alFoto_) alFoto_(c->id, jpeg);
                 std::lock_guard<std::mutex> l(mu_);
                 fotos_[c->id] = std::move(jpeg);
             }

@@ -585,6 +585,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerPrompterTools();
     registerPantallaTools();
     registerQrTools();
+    registerGrillaTools();
     registerVentanaTools();
     registerRostroTools();
     registerControlTools();
@@ -2963,7 +2964,8 @@ void McpService::registerTools() {
         t.description = "Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, "
                         "bloque, distrito, banca (unica), camara + posicion (el preset PTZ de su banca), microfono (la "
                         "fuente de audio de su banca), dcn_unidad (la unidad de la central Bosch DCN de su banca; vacío la "
-                        "saca), persona_id (la ficha de Personas). Si cambia el nombre o el cargo, "
+                        "saca), persona_id (la ficha de Personas), prioridad (número: mayor = antes en una grilla de "
+                        "personas ordenada por prioridad; \"\" la saca). Si cambia el nombre o el cargo, "
                         "deja de estar validado (integrante_validar).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -2977,7 +2979,8 @@ void McpService::registerTools() {
                            {"posicion", {{"type", "string"}}},
                            {"microfono", {{"type", "string"}}},
                            {"dcn_unidad", {{"type", "string"}}},
-                           {"persona_id", {{"type", "string"}}}}}};
+                           {"persona_id", {{"type", "string"}}},
+                           {"prioridad", {{"type", {"integer", "string"}}}}}}};
         t.run = [&vm](const json& a, Done done) {
             QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
             const QString e = vm.cuerpo().guardar(m);

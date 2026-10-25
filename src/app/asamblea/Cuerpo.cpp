@@ -2,6 +2,7 @@
 #include "asamblea/Cuerpo.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cctype>
 #include <chrono>
 #include <ctime>
@@ -62,7 +63,7 @@ std::vector<std::string> campos(const std::string& linea, char sep) {
 
 // (preset_ptz no: es la toma de la banca, ver Cuerpo::guardar.)
 const char* kCampos[] = {"persona_id", "nombre", "cargo_oficial", "bloque",    "distrito",
-                         "banca",      "foto",   "microfono",     "dcn_unidad"};
+                         "banca",      "foto",   "microfono",     "dcn_unidad", "prioridad"};
 
 } // namespace
 
@@ -313,11 +314,22 @@ std::string Cuerpo::guardar(const json& c, std::string* error) {
         if (!banca.empty()) ponerToma(banca, p.value("camara", std::string()), p.value("posicion", std::string()));
     }
     bool cambioVisible = false;
+    // La prioridad (la grilla de personas ordena por ella: mayor, antes) es un número; de la
+    // planilla o de una celda de texto llega escrita. Vacía = sin prioridad.
+    json cn = c;
+    if (cn.contains("prioridad") && cn["prioridad"].is_string()) {
+        const std::string t = cn["prioridad"].get<std::string>();
+        char* fin = nullptr;
+        const long v = std::strtol(t.c_str(), &fin, 10);
+        if (t.empty() || fin == t.c_str()) cn.erase("prioridad");
+        else cn["prioridad"] = static_cast<int>(v);
+        if (t.empty()) x->erase("prioridad");
+    }
     for (const char* k : kCampos)
-        if (c.contains(k)) {
-            if ((std::string(k) == "nombre" || std::string(k) == "cargo_oficial") && (*x).value(k, json()) != c[k])
+        if (cn.contains(k)) {
+            if ((std::string(k) == "nombre" || std::string(k) == "cargo_oficial") && (*x).value(k, json()) != cn[k])
                 cambioVisible = true;
-            (*x)[k] = c[k];
+            (*x)[k] = cn[k];
         }
     // Lo que sale en un zócalo cambió: hay que volver a validarlo.
     if (cambioVisible && !c.contains("validado_por")) {
@@ -393,7 +405,8 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
             else if (cols[i] == "posicion") posicion = val;
             else if (cols[i] == "microfono") { if (!val.empty()) c["microfono"] = {{"fuente", val}}; }
             else if (cols[i] == "nombre" || cols[i] == "cargo_oficial" || cols[i] == "bloque" ||
-                     cols[i] == "distrito" || cols[i] == "banca" || cols[i] == "foto" || cols[i] == "dcn_unidad")
+                     cols[i] == "distrito" || cols[i] == "banca" || cols[i] == "foto" || cols[i] == "dcn_unidad" ||
+                     cols[i] == "prioridad")
                 c[cols[i]] = val;
         }
         if (!camara.empty()) c["preset_ptz"] = {{"camara", camara}, {"posicion", posicion}};

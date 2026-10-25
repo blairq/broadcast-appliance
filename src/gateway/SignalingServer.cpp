@@ -28,6 +28,7 @@
 #include "ipc/CanalesEscena.hpp"
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
+#include "Grillas.hpp"
 #include "MediaPump.hpp"
 #include "qr/Qr.hpp"
 #include "Room.hpp"
@@ -2087,6 +2088,7 @@ void SignalingServer::applyRoute(const std::string& pid, const MediaRoute& route
     }
     if (idx > 0) {
         if (pump_ != nullptr) pump_->setRoute(idx, route);
+        enviarCalidadGrilla(pid); // al aire, la calidad de siempre; en la fila, la de su lugar en la grilla
         return;
     }
     // Todavia sin sesion: ya puede publicar (entro al lobby con lugar de
@@ -2185,11 +2187,14 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
             room_.setMediaUp(pid, up);
         };
         if (pump_ != nullptr) {
-            cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) {
+            // La grilla de personas también los toma (si está en alguna, y para saber quién habla).
+            cb.onRemoteAudio = [this, idx, persona = "sala:" + pid](const float* s, size_t n, int rate) {
                 pump_->forwardAudio(idx, s, n, rate);
+                if (grillas_ != nullptr) grillas_->audio(persona, s, n, 2, Grillas::reloj());
             };
-            cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) {
+            cb.onRemoteVideo = [this, idx, persona = "sala:" + pid](const uint8_t* p, size_t b, int w, int h) {
                 pump_->forwardVideo(idx, p, b, w, h);
+                if (grillas_ != nullptr) grillas_->cuadro(persona, p, w, h, Grillas::reloj());
             };
             cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) {
                 pump_->forwardScreen(idx, p, b, w, h);
@@ -2209,6 +2214,8 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     // distinguir de uno al que no se le leyo el mensaje.
     log_.fmt("info", 0, "ws: offer de %s aceptado (sesion %d, %s%s)", pid.c_str(), idx,
              pantalla ? "pantalla" : "invitado", fresh ? ", sesion nueva" : "");
+    // Conexión nueva = codificador nuevo en su navegador: la calidad de la grilla se le vuelve a decir.
+    if (fresh && !pantalla) enviarCalidadGrilla(pid, true);
 }
 
 bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
@@ -2285,8 +2292,15 @@ bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::
             broadcastToHosts("sesion", json{{"tipo", "medios"}, {"id", id}, {"conectado", up}});
         };
         if (pump_ != nullptr) {
-            cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
-            cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+            // El integrante con la palabra: su video en vivo le gana a su foto en la grilla.
+            cb.onRemoteAudio = [this, idx, persona = "asamblea:" + id](const float* s, size_t n, int rate) {
+                pump_->forwardAudio(idx, s, n, rate);
+                if (grillas_ != nullptr) grillas_->audio(persona, s, n, 2, Grillas::reloj());
+            };
+            cb.onRemoteVideo = [this, idx, persona = "asamblea:" + id](const uint8_t* p, size_t b, int w, int h) {
+                pump_->forwardVideo(idx, p, b, w, h);
+                if (grillas_ != nullptr) grillas_->cuadro(persona, p, w, h, Grillas::reloj());
+            };
             // Lo que comparte (pantalla u otra cámara): el segundo video de la misma conexión.
             cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardScreen(idx, p, b, w, h); };
         }
@@ -2551,6 +2565,56 @@ int SignalingServer::desbloquearPin(const std::string& ip) {
     log_.info("pin: bloqueos levantados por el operador (" + (ip.empty() ? std::string("todos") : ip) + ", " +
               std::to_string(n) + " IP)");
     return n;
+}
+
+// ---------------------------------------------------------------------------
+// Grilla de personas
+// ---------------------------------------------------------------------------
+
+void SignalingServer::setGrillas(Grillas* g) {
+    grillas_ = g;
+    if (g == nullptr) return;
+    // Quién habla: a la app, que ordena y resalta (evento SSE «hablan», la lista entera).
+    g->setAlCambiarHablan([this](const std::vector<std::string>& ids) { broadcastToHosts("hablan", json{{"ids", ids}}); });
+    // El lugar más grande de cada participante: a esa calidad se le pide la cámara.
+    g->setAlCambiarCalidad([this](const std::string& persona, int alto) {
+        if (persona.rfind("sala:", 0) != 0) return; // la asamblea manda fotos: nada que pedir
+        const std::string pid = persona.substr(5);
+        {
+            std::lock_guard<std::mutex> l(calidadMu_);
+            if (alto > 0)
+                altoGrilla_[pid] = alto;
+            else
+                altoGrilla_.erase(pid);
+        }
+        enviarCalidadGrilla(pid);
+    });
+    // Las fotos de la asamblea (una cada 1-3 s): las que están en una grilla se abren allá.
+    sesion_->setAlFoto([this](const std::string& id, const std::string& jpeg) {
+        if (grillas_ != nullptr) grillas_->foto("asamblea:" + id, jpeg, Grillas::reloj());
+    });
+}
+
+void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {
+    if (grillas_ == nullptr) return;
+    // Decodificar es lo que escala con la gente (50 x 720p no se decodifican por
+    // software): quien ocupa un cuadrito manda 180p a 15 cps, uno mediano 360p, y el
+    // que está al aire (ruta Program) o en ninguna grilla, lo de siempre. El navegador
+    // se queda con la MENOR entre esta y la que haya puesto el operador por la red.
+    const MediaRoute r = room_.routeOf(pid);
+    std::string nivel = "libre";
+    std::lock_guard<std::mutex> l(calidadMu_);
+    const auto it = altoGrilla_.find(pid);
+    if (it != altoGrilla_.end() && r.kind != MediaRoute::Kind::Program)
+        nivel = it->second <= 200 ? "180p" : it->second <= 400 ? "360p" : "libre";
+    std::string& antes = calidadPedida_[pid];
+    if (!forzar && antes == nivel) return;
+    if (antes.empty() && nivel == "libre") {
+        antes = nivel; // nunca se le pidió nada: no hay calidad que «devolverle»
+        return;
+    }
+    antes = nivel;
+    sendToGuest(pid, json{{"type", "request"}, {"what", "calidad-grilla-" + nivel}});
 }
 
 } // namespace ba::gateway

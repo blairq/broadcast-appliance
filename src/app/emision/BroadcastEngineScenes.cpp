@@ -595,6 +595,12 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         a = {{"tipo", "app"}, {"nombre", spec.name}};
         return true;
     }
+    // Los tipos registrados que traen su entrada del motor (FuentesApp: Tipo::motor).
+    if (fuentes::Tipo t; fuentes::tipo(id, t) && t.motor) {
+        a = t.motor(fuentes::conDefectos(id, in));
+        a["nombre"] = spec.name;
+        return true;
+    }
     if (termina(id, "_output_capture")) {
         // El audio del sistema necesita un elemento propio por sistema (M0.5): todavía no.
         return false;
@@ -993,6 +999,7 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
             {"ba_qr", "Código QR (Público, Sala, uno guardado…)", true, false},
             {kTipoBanca, "Banca con la palabra (asamblea: la cámara de quien habla)", true, false},
             {"ba_pdf", "PDF (una página por vez)", true, false},
+            {"ba_grilla", "Grilla de personas (la gente de la Sala y la Asamblea)", true, false},
             {"ba_app", "Lo que pinta la app", true, false}};
 }
 

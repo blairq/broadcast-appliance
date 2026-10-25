@@ -82,6 +82,7 @@ const std::vector<AjusteAvanzado>& ajustesAvanzados() {
         {"sesion.fallasParaBloquear", "Sala", "Sesión remota: fallas para bloquear", "int", {}, 1, 100, "", "", "gateway", QVariant(5), Destino::Sala},
         {"sesion.bloqueoMin", "Sala", "Sesión remota: bloqueo", "int", {}, 1, 1440, "min", "", "gateway", QVariant(15), Destino::Sala},
         {"sesion.fotoKB", "Sala", "Sesión remota: foto del integrante", "int", {}, 8, 2048, "KB", "", "gateway", QVariant(96), Destino::Sala},
+        {"grilla.cps", "Sala", "Grilla de personas: cuadros por segundo", "int", {}, 5, 60, "cps", "Los mosaicos que arma la sala (BA.Grilla.<k>). Menos cuadros, menos procesador.", "gateway", QVariant(25), Destino::Sala},
         {"botoneraWeb.maxConexiones", "Sala", "Botonera web: conexiones", "int", {}, 1, 256, "", "", "gateway", QVariant(32), Destino::Sala},
         {"botoneraWeb.mensajesPorSegundo", "Sala", "Botonera web: mensajes por segundo", "int", {}, 1, 1000, "", "", "gateway", QVariant(60), Destino::Sala},
         {"botoneraWeb.latidoS", "Sala", "Botonera web: latido", "int", {}, 5, 300, "s", "", "gateway", QVariant(30), Destino::Sala},

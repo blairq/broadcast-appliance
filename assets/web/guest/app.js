@@ -486,30 +486,51 @@
     else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
     else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
     else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
-    else if (what.startsWith("calidad-")) limitarCalidad(what.slice(8));
+    else if (what.startsWith("calidad-grilla-")) { state.calidadGrilla = what.slice(15); aplicarCalidad(false); }
+    else if (what.startsWith("calidad-")) { state.calidadOperador = what.slice(8); aplicarCalidad(true); }
   }
 
-  // El operador baja (o devuelve) la calidad de la cámara cuando la red no da:
-  // menos resolución y un techo de bitrate, sin cortar nada.
-  async function limitarCalidad(nivel) {
+  // La calidad de la cámara la bajan dos: el operador cuando la red no da
+  // (calidad-360p/720p, con aviso) y la sala cuando la persona ocupa un cuadrito
+  // en una grilla de personas (calidad-grilla-180p/360p/libre, sin aviso: es
+  // solo cuánto se la ve). Vale la MENOR de las dos: la grilla nunca le devuelve
+  // a alguien la calidad que el operador le sacó por la red, ni al revés.
+  // Menos resolución, cuadros y bitrate: decodificar 50 caras en la sala es lo
+  // que cuesta, no mostrarlas.
+  const NIVELES = {
+    "180p": { alto: 180, bitrate: 250000, cps: 15 },
+    "360p": { alto: 360, bitrate: 500000, cps: 0 },
+    "720p": { alto: 720, bitrate: 1500000, cps: 0 },
+  };
+  function nivelEfectivo() {
+    const a = NIVELES[state.calidadOperador], b = NIVELES[state.calidadGrilla];
+    if (a && b) return a.alto <= b.alto ? state.calidadOperador : state.calidadGrilla;
+    return a ? state.calidadOperador : b ? state.calidadGrilla : "";
+  }
+  async function aplicarCalidad(avisar) {
     if (!state.pc) return;
     const sender = state.pc.getSenders().find(s => s.track && s.track.kind === "video" && s !== state.screenSender);
     if (!sender) return;
     const p = sender.getParameters();
     if (!p.encodings || !p.encodings.length) p.encodings = [{}];
     const alto = (sender.track.getSettings && sender.track.getSettings().height) || 720;
-    const objetivo = nivel === "360p" ? 360 : nivel === "720p" ? 720 : 0;
-    if (objetivo > 0) {
-      p.encodings[0].scaleResolutionDownBy = Math.max(1, alto / objetivo);
-      p.encodings[0].maxBitrate = objetivo === 360 ? 500000 : 1500000;
+    const nivel = nivelEfectivo();
+    const n = NIVELES[nivel];
+    if (n) {
+      p.encodings[0].scaleResolutionDownBy = Math.max(1, alto / n.alto);
+      p.encodings[0].maxBitrate = n.bitrate;
+      if (n.cps) p.encodings[0].maxFramerate = n.cps;
+      else delete p.encodings[0].maxFramerate;
     } else {
       delete p.encodings[0].maxBitrate;
+      delete p.encodings[0].maxFramerate;
       p.encodings[0].scaleResolutionDownBy = 1;
     }
     try {
       await sender.setParameters(p);
-      if (objetivo > 0) toast("Tu conexión está justa: el operador bajó la calidad de tu cámara a " + nivel + ".");
-    } catch (e) { /* el navegador no lo admite: sigue como estaba */ }
+      if (avisar && NIVELES[state.calidadOperador])
+        toast("Tu conexión está justa: el operador bajó la calidad de tu cámara a " + state.calidadOperador + ".");
+    } catch (e) { /* el navegador no lo admite (o todavía no negoció): sigue como estaba */ }
   }
 
   function sendMedia() {
@@ -561,7 +582,12 @@
       const cs = pc.connectionState;
       $("onair").classList.toggle("hidden", cs !== "connected");
       clearTimeout(state.mediaTimer);
-      if (cs === "connected") { setConn("ok", "Conectado"); return; }
+      if (cs === "connected") {
+        setConn("ok", "Conectado");
+        // Conexión nueva: el codificador arranca de fábrica; lo pedido se vuelve a poner.
+        if (state.calidadGrilla || state.calidadOperador) aplicarCalidad(false);
+        return;
+      }
       if (cs !== "failed" && cs !== "disconnected") return;
       setConn("bad", "Recuperando audio y video…");
       // Un corte corto se arregla solo; si no vuelve, se arma una conexion

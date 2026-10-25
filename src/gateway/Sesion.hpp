@@ -105,6 +105,9 @@ class SesionBorde {
         std::function<void(const std::string& id)> vistaCerrar;
     };
     void setMedios(Medios m) { medios_ = std::move(m); }
+    /// Llegó una foto de la cámara de un integrante (la grilla de personas la muestra).
+    /// Desde el hilo de su WebSocket, sin candados tomados. Antes de recibir conexiones.
+    void setAlFoto(std::function<void(const std::string& id, const std::string& jpeg)> fn) { alFoto_ = std::move(fn); }
 
     // --- Para las pruebas ---
     static bool origenValido(const std::string& headers);
@@ -145,6 +148,7 @@ class SesionBorde {
     std::map<std::string, std::string> fotos_;           // id -> jpeg
     std::map<std::string, std::vector<std::int64_t>> intentos_;
     Medios medios_;
+    std::function<void(const std::string&, const std::string&)> alFoto_;
     static constexpr int kCanalesRemotos = 2;
     std::map<std::string, int> mediosDe_; ///< quiénes mandan audio y video a la sala, y por qué canal (1..2)
     void ponerMedios(const std::vector<std::string>& ids);

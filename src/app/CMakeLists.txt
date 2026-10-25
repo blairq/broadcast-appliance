@@ -860,6 +860,12 @@ endif()
     target_link_libraries(test_reglas_sala PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_reglas_sala COMMAND test_reglas_sala)
 
+    # La grilla de personas: reparto, lugares estables y disposición (C++ puro, sin video).
+    add_executable(test_grilla_personas tests/test_grilla_personas.cpp escenas/GrillaPersonas.cpp)
+    target_include_directories(test_grilla_personas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_grilla_personas PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_grilla_personas COMMAND test_grilla_personas)
+
     # El carrusel de la escena: la tira, el salto y las etiquetas.
     add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp
                    carrusel/CarruselStore.cpp)

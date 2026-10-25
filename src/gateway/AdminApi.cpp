@@ -48,6 +48,7 @@
 //   GET    /api/v1/board-link?target=local|remote  enlace + QR del tablero (tablet)
 //   GET    /api/v1/sesion/origen?target=local|remote  origen para los links de la sesión remota
 //   …/api/v1/sesion/*                       la sesión remota (ver Sesion.hpp)
+//   GET|POST /api/v1/grillas                la grilla de personas: lo que pinta cada BA.Grilla.<k> (ver Grillas.hpp)
 //   POST   /api/v1/view                    {participant, kind?:"camera"|"screen", sdp}
 //                                          -> {viewer, sdp}: video en vivo (relay de B)
 //   POST   /api/v1/view/<id>/keyframe      la vista se congelo
@@ -77,6 +78,7 @@
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
 #include "MediaPump.hpp"
+#include "Grillas.hpp"
 
 #include "diag/Registro.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -236,6 +238,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     if (sesion_ && sesion_->admin(fd, method, path, query, body)) return;
+    // La grilla de personas: lo que pinta cada BA.Grilla.<k> (lo decide la app).
+    if (grillas_ && grillas_->admin(fd, method, path, body)) return;
 
     const json req = body.empty() ? json::object() : json::parse(body, nullptr, false);
     if (!req.is_object()) {
