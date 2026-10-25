@@ -184,6 +184,12 @@ const BroadcastEngine::EscenaApp* BroadcastEngine::escena(const std::string& nom
     return nullptr;
 }
 
+std::string BroadcastEngine::errorDeCompositor(const std::string& nombre) const {
+    const json e = estadoMotor().value("video", json::object()).value("errores_escenas", json::object());
+    const auto it = e.find(kPrefijoCompositor + nombre);
+    return it != e.end() && it->is_string() ? it->get<std::string>() : std::string();
+}
+
 const json& BroadcastEngine::estadoMotor() const {
     // La foto que publica el bucle del motor: leerla no espera el candado (ver
     // Motor::instantanea). Se guarda la copia para devolver una referencia que

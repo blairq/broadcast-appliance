@@ -230,6 +230,9 @@ struct EngineStatus {
 /// ```
 class BroadcastEngine {
    public:
+    /// Por qué no anda la escena interna de un compositor o una Mezcla de GStreamer ("" si anda),
+    /// de la foto del motor (no espera su candado).
+    std::string errorDeCompositor(const std::string& nombre) const;
     BroadcastEngine();
     ~BroadcastEngine();
 

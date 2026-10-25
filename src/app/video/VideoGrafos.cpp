@@ -298,9 +298,16 @@ json VideoGrafos::describir(const std::string& entrada) const {
     json d = conPublicadas(grafo_.describir(entrada, !entrada.empty()));
     // Por qué no corre una tarjeta (lo informa el filtro de su entrada).
     std::map<std::string, json> errores;
+    // Los del estudio (compositor, Mezcla de GStreamer): el error de su escena interna en el motor.
     for (auto& n : d["nodos"]) {
         const std::string g = n.value("grupo", std::string());
-        if (g.empty()) continue;
+        if (g.empty()) {
+            if (GrafoVideo::esComposicion(n.value("tipo", std::string()))) {
+                const std::string e = rt_.engine().errorDeCompositor(n.value("params", json::object()).value("nombre", std::string()));
+                if (!e.empty()) n["error"] = e;
+            }
+            continue;
+        }
         if (!errores.count(g)) errores[g] = erroresDe(g);
         const std::string id = n.value("id", std::string());
         if (errores[g].contains(id)) n["error"] = errores[g][id];
@@ -1056,6 +1063,11 @@ void VideoGrafos::sincronizar() {
         const json x = erroresDe(e.toStdString());
         if (!x.empty()) errores[e.toStdString()] = x;
     }
+    // Y los del estudio (la escena interna de un compositor o una Mezcla de GStreamer).
+    for (const auto& n : grafo_.nodos())
+        if (n.grupo.empty() && GrafoVideo::esComposicion(n.tipo))
+            if (const std::string e = rt_.engine().errorDeCompositor(n.params.value("nombre", std::string())); !e.empty())
+                errores["estudio"][n.id] = e;
     const std::string vistos = errores.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (vistos != erroresVistos_) {
         erroresVistos_ = vistos;

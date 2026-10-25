@@ -1518,7 +1518,15 @@ json Motor::estado() const {
                    return n;
                }()},
               {"programa", vPrograma_ ? vPrograma_->estado() : json()},
-              {"preview", vPreview_ ? vPreview_->estado() : json()}}},
+              {"preview", vPreview_ ? vPreview_->estado() : json()},
+              // Las composiciones de escena que no andan, con su motivo (la app lo muestra en la
+              // tarjeta del compositor o de la Mezcla de GStreamer, no solo en el registro).
+              {"errores_escenas", [&]() {
+                   json m = json::object();
+                   for (const auto& [k, v] : vEscenas_)
+                       if (v.comp && !v.comp->error().empty()) m[k] = v.comp->error();
+                   return m;
+               }()}}},
             {"pistas", pistas},
             {"retornos", ret},
             {"escucha", esc},
