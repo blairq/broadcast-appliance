@@ -61,6 +61,7 @@ const Fila kFamilias[] = {
                  "slide placa volver atras saltar"},
     {"superficie_", "superficie pagina pantalla web canal control telemetria viva"},
     {"qr_", "qr codigo escanear celular enlace wifi contacto vcard"},
+    {"grilla_personas_", "grilla mosaico galeria cuadricula personas gente conectados invitados integrantes caras todos a la vez reparto"},
     {"control_", "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador "
                  "permisos computadora maquina pc"},
     {"media_", "medio archivo video musica audio cancion tema clip pelicula reproducir"},
@@ -864,6 +865,8 @@ const Fila kPropias[] = {
 
     // --- QR -----------------------------------------------------------------------
     {"qr_listar", "que codigos qr hay guardados tipos iconos qr del publico qr de la sala para elegir"},
+    {"grilla_personas_estado", "quienes se ven en la grilla cuantos quedaron afuera mas n quien habla"},
+    {"grilla_personas_ajustar", "cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara"},
     {"ui_abrir_panel", "abrir panel dialogo ventana superresolucion entrada virtual catalogo modulos mostrar"},
     {"superres_laboratorio", "superresolucion laboratorio bibliotecas python pytorch paquetes bajar instalar borrar espacio directml"},
     {"superres_modelo_borrar", "borrar modelo superresolucion red onnx espacio"},

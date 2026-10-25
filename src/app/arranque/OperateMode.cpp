@@ -31,6 +31,7 @@
 #include "emision/TiposBasicos.hpp"
 #include "video/FuentesCaptura.hpp"
 #include "emision/FuentePdf.hpp"
+#include "escenas/FuenteGrilla.hpp"
 #include "emision/FuenteQr.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "emision/InputSpecs.hpp"
@@ -574,6 +575,7 @@ int AppRuntime::start() {
     video::registrarTiposCaptura();
     fuentesqr::registrar();
     fuentespdf::registrar();
+    grilla::registrarTipo();
     if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: el motor no arranco: %s\n", lastError_.c_str());

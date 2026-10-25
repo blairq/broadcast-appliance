@@ -12,6 +12,7 @@
 #include "asamblea/Presidencia.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "escenas/AjustesEscenas.hpp"
+#include "escenas/ControlGrillas.hpp"
 #include "arranque/ModoVivoConfig.hpp"
 #include "ui/EnlacesViewModel.hpp"
 #include "arranque/InterfazConfig.hpp"
@@ -1664,6 +1665,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             },
             [this](const std::string& id) { botonera_->quitarLocal(id); },
             [this](const std::string& id, const nlohmann::json& msg) { botonera_->entrada(id, msg); });
+        // La grilla de personas (fuentes ba_grilla): la gente de la sala y de la asamblea,
+        // repartida en las grillas; el mosaico lo pinta el gateway (BA.Grilla.<k>).
+        grillasPersonas_ = std::make_unique<escenas::ControlGrillas>(
+            escenas::ControlGrillas::Partes{*cli, rt_.engine(), sesionRemota_.get(), cuerpo_ ? &cuerpo_->cuerpo() : nullptr},
+            this);
         // La banca virtual: el gateway autentica y avisa; decide asamblea::Presidencia (con
         // las consolas de la presidencia y la prioridad del presidente). Acá solo se muestra.
         if (sesionRemota_) {

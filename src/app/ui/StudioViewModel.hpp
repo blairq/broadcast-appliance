@@ -87,6 +87,7 @@ namespace ba::app::escenas {
 class Conmutador;
 class RespaldoEntradas;
 class AjustesEscenas;
+class ControlGrillas;
 }
 namespace ba::app::config {
 class ModoVivoConfig;
@@ -870,6 +871,8 @@ class StudioViewModel : public QObject {
     QString escenaArmada() const;
     /// El conmutador de escenas (modelo): la GUI y el MCP cambian de escena por ahí.
     escenas::Conmutador& conmutador() { return *conmutador_; }
+    /// La grilla de personas (fuentes ba_grilla): quién va en cada una. nullptr antes de armarse.
+    escenas::ControlGrillas* grillasPersonas() { return grillasPersonas_.get(); }
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
     emision::SeguridadAire& seguridadAire() { return *seguridadAire_; }
     /// Lo que oye cada invitado (modelo, Config/retornos.json).
@@ -1171,6 +1174,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::Votaciones> votaciones_; ///< usa sesionRemota_, dcn_, quorum_ y bus_: va después (se destruye antes)
     /// Usa sesionRemota_, bancas_, debate_, dcn_, votaciones_, cuerpo_, quorum_, ordenDia_, conference_ y bus_.
     std::unique_ptr<asamblea::Presidencia> presidencia_;
+    /// Usa conference_ (su cliente), sesionRemota_, cuerpo_ y el motor: va después (se destruye antes).
+    std::unique_ptr<escenas::ControlGrillas> grillasPersonas_;
     qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
     /// Los avisos del runtime (AppRuntime::observar): se juntan en una máscara y se
     /// reflejan en una sola pasada por vuelta del bucle (refrescarAvisos).

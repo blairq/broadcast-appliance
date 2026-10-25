@@ -84,6 +84,7 @@
 #include "diag/Caidas.hpp"
 #include "diag/Perfil.hpp"
 #include "diag/SalidaAsincrona.hpp"
+#include "Grillas.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
 #include "turn/Ice.hpp"
@@ -687,6 +688,9 @@ int main(int argc, char** argv) {
     sigCfg.tunnelPort = cfg.pinggyPuertoTunel;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);
+    // La grilla de personas: los mosaicos BA.Grilla.<k> que la app pone en sus escenas.
+    Grillas grillas(log);
+    server.setGrillas(&grillas);
 
     // --- Acceso directo de invitados: red de WebRTC, HTTPS y tunel ------------
     namespace net = ba::gateway::net;
@@ -1249,6 +1253,7 @@ int main(int argc, char** argv) {
         }
     }
     pump.start();
+    grillas.start(ba::ajustes::entero("grilla.cps", 25));
     if (pinggy) {
         if (server.tunnelPort() == 0)
             log.error("pinggy: sin la escucha del tunel (127.0.0.1:" + std::to_string(cfg.pinggyPuertoTunel) +
@@ -1322,6 +1327,7 @@ int main(int argc, char** argv) {
         std::error_code ec;
         std::filesystem::remove(adminFile, ec);
     }
+    grillas.stop();
     pump.stop();
     hub.closeAll();
     cloudflared.stop();

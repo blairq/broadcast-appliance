@@ -63,6 +63,8 @@ class ConferenceClient : public QObject {
     void controlEvento(const QJsonObject& ev);
     /// El catálogo de direcciones de los servicios cambió (sala/Direcciones).
     void direccionesEvento(const QJsonObject& catalogo);
+    /// Cambió quién habla en la sala o la asamblea (lo mide el gateway): {ids: [clave, …]}.
+    void hablanEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

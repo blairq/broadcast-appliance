@@ -60,6 +60,10 @@ struct Tipo {
     std::function<std::vector<Prop>(const nlohmann::json& ajustes)> props;
     /// Botones: nombre de la propiedad → qué hace con la fuente (nombre).
     std::map<std::string, std::function<void(const std::string& fuente)>> botones;
+    /// Un tipo que el motor arma con una entrada propia (no «app»): sus ajustes (con los
+    /// de fábrica) → los de la entrada del motor (p. ej. la grilla de personas, un canal
+    /// bavideoanillo). Vacío = no es de estos.
+    std::function<nlohmann::json(const nlohmann::json& ajustes)> motor;
 };
 
 void registrar(Tipo t);

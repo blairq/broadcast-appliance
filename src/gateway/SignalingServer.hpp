@@ -114,6 +114,7 @@ namespace ba::gateway {
 
 class Log;
 class MediaPump;
+class Grillas;
 namespace proxy {
 class GestorProxy;
 }
@@ -184,6 +185,9 @@ class SignalingServer {
 
     /// Motor de medios para publicar el uplink del invitado (B->A). Antes de start().
     void setPump(MediaPump* pump) { pump_ = pump; }
+    /// La «Grilla de personas» (Grillas.hpp): el mosaico que arma la sala. Antes de start().
+    /// Le llegan los cuadros, el audio y las fotos de cada persona; su API es /api/v1/grillas.
+    void setGrillas(Grillas* g);
     /// El proxy por nombre (T61), si está prendido: GET /api/v1/proxy, POST /api/v1/proxy/renovar.
     void setProxy(proxy::GestorProxy* p) { proxy_ = p; }
 
@@ -509,6 +513,13 @@ class SignalingServer {
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;
+    // La grilla de personas: el alto del lugar más grande de cada participante en las
+    // grillas y la calidad que ya se le pidió a su navegador (ver enviarCalidadGrilla).
+    Grillas* grillas_ = nullptr;
+    std::mutex calidadMu_;
+    std::map<std::string, int> altoGrilla_;           // pid -> alto en píxeles (0 = en ninguna)
+    std::map<std::string, std::string> calidadPedida_; // pid -> "180p" | "360p" | "libre"
+    void enviarCalidadGrilla(const std::string& pid, bool forzar = false);
     // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.
     std::mutex correccionMu_;
     nlohmann::json correccionPend_ = nlohmann::json::array();

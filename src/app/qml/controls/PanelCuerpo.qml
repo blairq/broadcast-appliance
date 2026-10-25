@@ -69,7 +69,8 @@ Popup {
             spacing: 6
             Repeater {
                 model: [ { t: "Foto", w: 36 }, { t: "Banca", w: 60 }, { t: "Nombre", w: 190 }, { t: "Cargo", w: 130 }, { t: "Bloque", w: 120 },
-                         { t: "Distrito", w: 100 }, { t: "Cámara", w: 110 }, { t: "Posición", w: 100 }, { t: "Micrófono", w: 110 } ]
+                         { t: "Distrito", w: 100 }, { t: "Cámara", w: 110 }, { t: "Posición", w: 100 }, { t: "Micrófono", w: 110 },
+                         { t: "Prioridad", w: 60 } ]
                 delegate: Text { required property var modelData; text: modelData.t; color: Theme.textFaint
                                  font { pixelSize: 10; weight: Font.Bold }
                                  Layout.preferredWidth: modelData.w }
@@ -146,6 +147,9 @@ Popup {
                     HoverHandler { onHoveredChanged: parent.hovered = hovered }
                 }
                 Celda { campo: "microfono"; valor: fila.mic.fuente || ""; Layout.preferredWidth: 110 }
+                // Mayor = antes en una grilla de personas ordenada por prioridad (vacío = sin prioridad).
+                Celda { campo: "prioridad"; valor: fila.modelData.prioridad !== undefined ? String(fila.modelData.prioridad) : ""
+                        Layout.preferredWidth: 60; inputMethodHints: Qt.ImhFormattedNumbersOnly }
                 StatusPill {
                     visible: !fila.modelData.nuevo
                     text: fila.modelData.validado_por ? "validado" : "sin validar"

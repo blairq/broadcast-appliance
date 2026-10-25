@@ -110,6 +110,7 @@ Solo localhost, token obligatorio, y se rechazan pedidos con Origin de otra pagi
 | `window_capture` | la ventana de una aplicacion, aunque este tapada: `ventana` = "aplicacion\ntitulo" (las abiertas salen en source_properties), `show_cursor`. Se recuerda la aplicacion: si se cierra y se abre, sigue sola. En la Mac pide permiso de grabacion de pantalla |
 | `dshow_input` (Windows) | camara |
 | `ba_guest_video` | invitado: `slot` (1..N), `channel` guest (camara) o share (pantalla compartida) |
+| `ba_grilla` | grilla de personas: un mosaico que crece solo con los admitidos de la Sala y los integrantes habilitados de la Asamblea. `origen` (sala/asamblea/ambas), `orden` (llegada/habla/prioridad), `tope` (con el «+N»), `grupo` (varias grillas se reparten la gente sin repetir; `reparto` en_orden/parejo). Ver grilla_personas_estado y grilla_personas_ajustar |
 | `slideshow` | `files`, `slide_time` |
 | `ba_chat_overlay` | chat en vivo (YouTube, Twitch, Facebook y/o sala) sobre el video: `show_youtube`, `show_twitch`, `show_facebook`, `show_room` (o `channel` all/youtube/twitch/facebook/room), `max_messages`, `font_size`, `width`, `height`, `bg_opacity`, `show_names`, `fade_sec` |
 
