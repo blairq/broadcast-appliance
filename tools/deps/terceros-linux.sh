@@ -268,7 +268,7 @@ if ! done_mark pango; then
   d=$(fetch pango); log "pango (cairo + freetype/fontconfig)"
   meson setup "$d/build" "$d" --prefix="$PREFIX" --libdir=lib --buildtype=release --wrap-mode=nofallback \
     -Dintrospection=disabled -Dgtk_doc=false -Dfontconfig=enabled -Dfreetype=enabled -Dcairo=enabled \
-    -Dxft=disabled -Dlibthai=disabled -Dsysprof=disabled -Dbuild-testsuite=false -Dbuild-examples=false \
+    -Dxft=disabled -Dlibthai=disabled -Dsysprof=disabled -Dinstall-tests=false \
     -Dc_link_args="$LDFLAGS" >/dev/null
   ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
   mark pango
