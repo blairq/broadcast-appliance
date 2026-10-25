@@ -20,17 +20,20 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <vector>
 
 #include <QImage>
 #include <QJsonObject>
 #include <QObject>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 
 #include "graficos/Catalogo.hpp"
 #include "graficos/GraficoProceso.hpp"
+#include "graficos/Medios.hpp"
 
 namespace ba::app::graficos {
 
@@ -56,6 +59,31 @@ class Emisor : public QObject {
     QStringList nombres() const;
     /// …y el `grafico.json` de uno (vacío = no existe).
     QJsonObject ficha(const QString& grafico) const;
+
+    /// Los GIF, imágenes y videos con alfa de los gráficos (Graficos/<x>/medios).
+    Medios& medios();
+
+    // --- Gráficos de plugins ------------------------------------------------------
+    // Un plugin de Python declara un gráfico (@plugin.grafico, ver
+    // docs/funciones/GRAFICOS.md): queda en el catálogo como cualquier otro y,
+    // cuando hace falta dibujarlo, se le pide al plugin la descripción, el QML
+    // o los cuadros, y de ahí sigue el camino de siempre (ba-grafico, la tira,
+    // la fuente de escena).
+    /// Cómo pedirle algo a un plugin (lo arma quien tiene los plugins): `args`
+    /// es {nombre, valores, ancho, alto, fps, duracion_ms}; `listo` con lo que
+    /// contestó ({declarativo} | {qml} | {secuencia}) o el error.
+    using ProveedorPlugin = std::function<void(const QString& plugin, const QJsonObject& args,
+                                               std::function<void(QJsonObject resultado, QString error)> listo)>;
+    void setProveedorPlugin(ProveedorPlugin p);
+    /// Un plugin declaró un gráfico: lo anota en el catálogo. "" o el error.
+    QString registrarDePlugin(const QString& plugin, const QJsonObject& declaracion);
+
+    /// El pedido para el renderizador de un gráfico guardado, sea de una ficha
+    /// o de un plugin (que contesta después). `listo` puede llamarse antes de
+    /// volver (un gráfico normal) o más tarde (uno de plugin). `tam`: al que se
+    /// va a ver (vacío = el de la ficha).
+    void resolver(const QString& grafico, const QJsonObject& valores, QSize tam,
+                  std::function<void(QJsonObject pedido, QString error)> listo);
 
     /// La fuente de escena que se llama así, o 0 si no hay ninguna. El guion y
     /// el asistente nombran la fuente, no la numeran.
@@ -85,7 +113,15 @@ class Emisor : public QObject {
     /// Campos vivos (T43): con el gráfico ya al aire en `fuente`, lo vuelve a dibujar
     /// con `valores` SOLO en su cuadro estable (sin la animación de entrada): un
     /// reloj con segundos o un cronómetro que cambia cada segundo sin «volver a entrar».
+    /// Si el gráfico sabe animar un cambio (Catalogo::sabeCambiar: tortas, barras)
+    /// y lo que está al aire es ese mismo gráfico, en vez del cuadro quieto dibuja
+    /// la animación del cambio: de los valores de antes a los nuevos.
     QString actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente);
+    /// «Al aire» con un gráfico que ya está en pantalla en esa fuente y sabe
+    /// cambiar: lo actualiza (sin volver a entrar). Si no, lo muestra de cero.
+    /// Es lo que hacen Rótulos y grafico_actualizar con una votación en vivo.
+    QString mostrarOCambiar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente,
+                            bool repetir = false);
 
     /// Con qué valores se disparó esa fuente por última vez (vacío si nunca).
     QJsonObject ultimosValores(std::uint64_t fuente) const;
@@ -97,12 +133,23 @@ class Emisor : public QObject {
     void cambio();
     /// Un gráfico que se estaba dibujando para el aire no salió (o se cortó).
     void fallo(const QString& motivo);
+    /// Cambió la lista de gráficos (un plugin declaró o puso al día uno).
+    void catalogoCambio();
 
    private:
     /// Crea el dibujo para el aire (una vez).
     void prepararAire();
     /// Una tanda del dibujo para el aire (en el hilo de la interfaz).
     void recibirTanda(std::uint64_t fuente, int generacion, std::vector<QImage> cuadros, bool fin, const QString& error);
+    /// Resuelve el pedido y llama a `usar`. Si se resolvió en el momento, devuelve
+    /// lo que devolvió `usar` (o el error); si queda esperando a un plugin, ""
+    /// y lo que falle después sale por `fallo`.
+    QString conPedido(const QString& grafico, const QJsonObject& valores, QSize tam,
+                      std::function<QString(QJsonObject pedido)> usar);
+    /// El tamaño de esa fuente de escena (inválido si ya no está).
+    static QSize tamanoDe(std::uint64_t fuente);
+    /// Hay algo en pantalla en esa fuente.
+    static bool enPantalla(std::uint64_t fuente);
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

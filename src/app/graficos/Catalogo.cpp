@@ -85,6 +85,7 @@ QJsonArray Catalogo::lista() const {
                                     {"descripcion", f.value("descripcion").toString()},
                                     {"categoria", f.value("categoria").toString("General")},
                                     {"declarativo", f.contains("declarativo")},
+                                    {"plugin", pluginDe(f)},
                                     {"parametros", params},
                                     {"acciones", acciones}});
     }
@@ -121,6 +122,8 @@ QString Catalogo::texto(const QString& nombre) const {
     const QString c = carpeta(nombre);
     if (c.isEmpty()) return {};
     const QJsonObject f = leerJson(QDir(c).filePath("grafico.json"));
+    // El de un plugin no tiene texto: su código es el del plugin.
+    if (!pluginDe(f).isEmpty()) return {};
     // Se edita la DESCRIPCIÓN, no el QML: el QML lo genera el motor.
     if (f.contains("declarativo"))
         return QString::fromUtf8(QJsonDocument(f.value("declarativo").toObject()).toJson(QJsonDocument::Indented));
@@ -139,11 +142,16 @@ QJsonObject Catalogo::pedido(const QString& nombre, const QJsonObject& valores, 
         if (error != nullptr) *error = "el gráfico «" + nombre + "» no tiene grafico.json";
         return {};
     }
-    return pedidoCon(f, texto(nombre), valores, error);
+    if (!pluginDe(f).isEmpty()) {
+        if (error != nullptr)
+            *error = "«" + nombre + "» lo dibuja el plugin «" + pluginDe(f) + "»: se pide con Emisor::resolver";
+        return {};
+    }
+    return pedidoCon(f, texto(nombre), valores, error, carpeta(nombre));
 }
 
 QJsonObject Catalogo::pedidoCon(const QJsonObject& ficha, const QString& texto, const QJsonObject& valores,
-                                QString* error) {
+                                QString* error, const QString& carpeta) {
     const auto falla = [error](const QString& m) {
         if (error != nullptr) *error = m;
         return QJsonObject{};
@@ -153,6 +161,7 @@ QJsonObject Catalogo::pedidoCon(const QJsonObject& ficha, const QString& texto, 
     QJsonObject v = valoresPorDefecto(ficha);
     for (auto it = valores.begin(); it != valores.end(); ++it) v[it.key()] = it.value();
     QJsonObject p{{"parametros", v}};
+    if (!carpeta.isEmpty()) p["carpeta"] = carpeta;
     if (ficha.contains("declarativo")) {
         QJsonParseError pe{};
         const QJsonDocument d = QJsonDocument::fromJson(texto.toUtf8(), &pe);
@@ -236,6 +245,50 @@ QString Catalogo::guardar(const QString& nombre, const QString& texto) {
     } else if (!escribir(QDir(c).filePath("grafico.qml"), texto.toUtf8())) {
         return "no se pudo escribir el grafico.qml";
     }
+    return {};
+}
+
+bool Catalogo::sabeCambiar(const QJsonObject& ficha) {
+    if (ficha.contains("cambio")) return ficha.value("cambio").toBool(true) || ficha.value("cambio").isObject();
+    for (const QJsonValue& v : ficha.value("parametros").toArray())
+        if (v.toObject().value("tipo").toString() == "datos") return true;
+    // Un declarativo con una torta o unas barras, aunque sus datos vengan fijos.
+    for (const QJsonValue& v : ficha.value("declarativo").toObject().value("capas").toArray()) {
+        const QString t = v.toObject().value("tipo").toString();
+        if (t == "torta" || t == "barras") return true;
+    }
+    return false;
+}
+
+int Catalogo::duracionCambio(const QJsonObject& ficha) {
+    return std::clamp(ficha.value("cambio").toObject().value("duracion").toInt(700), 100, 5000);
+}
+
+QString Catalogo::guardarDePlugin(const QString& plugin, const QJsonObject& d, QString* nombre) {
+    const QString n = d.value("nombre").toString();
+    const QString limpio = QString("plugin-%1-%2").arg(plugin, n).remove(QRegularExpression("[^A-Za-z0-9 _-]")).trimmed();
+    if (plugin.isEmpty() || n.isEmpty()) return "el gráfico del plugin no tiene nombre";
+    const QString c = QDir(raiz_).filePath(limpio);
+    if (!QDir().mkpath(c)) return "no se pudo crear la carpeta del gráfico";
+    // La ficha sale de la declaración: lo que el resto de la app necesita para
+    // listarlo, llenarle los campos y saber a quién pedírselo.
+    QJsonObject f{{"nombre", d.value("titulo").toString(n)},
+                  {"descripcion", d.value("descripcion").toString()},
+                  {"categoria", d.value("categoria").toString("Plugins")},
+                  {"ancho", d.value("ancho").toInt(900)},
+                  {"alto", d.value("alto").toInt(220)},
+                  {"duracionMs", std::clamp(d.value("duracion_ms").toInt(2000), 100, 60000)},
+                  {"parametros", d.value("parametros").toArray()},
+                  {"plugin", plugin},
+                  {"graficoPlugin", n},
+                  {"modo", d.value("modo").toString("describe")},
+                  {"bucle", d.value("bucle").toBool(false)}};
+    if (d.contains("cambio")) f["cambio"] = d.value("cambio");
+    if (d.contains("acciones")) f["acciones"] = d.value("acciones");
+    if (d.contains("seVa")) f["seVa"] = d.value("seVa");
+    const QString ruta = QDir(c).filePath("grafico.json");
+    if (leerJson(ruta) != f && !escribir(ruta, QJsonDocument(f).toJson())) return "no se pudo escribir el grafico.json";
+    if (nombre != nullptr) *nombre = limpio;
     return {};
 }
 

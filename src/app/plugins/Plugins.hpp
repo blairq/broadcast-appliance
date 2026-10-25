@@ -100,6 +100,12 @@ class Plugins : public QObject {
         bajaSup_ = std::move(baja);
         entradaSup_ = std::move(entrada);
     }
+    /// Un plugin declaró un gráfico animado (@plugin.grafico): lo anota el catálogo
+    /// de gráficos (graficos::Emisor::registrarDePlugin), que después se lo pide
+    /// con `pedir(id, "grafico", …)`.
+    void setAlDeclararGrafico(std::function<void(const std::string& id, const json& declaracion)> f) {
+        alGrafico_ = std::move(f);
+    }
     /// El estado renderizado para el aparato `id` ("plugin:<plugin>/<aparato>").
     void superficieEstado(const std::string& id, const json& msg);
     /// Arranca los que estaban prendidos (al iniciar la app, cuando ya hay video).
@@ -275,6 +281,7 @@ class Plugins : public QObject {
     AltaSuperficie altaSup_;
     BajaSuperficie bajaSup_;
     EntradaSuperficie entradaSup_;
+    std::function<void(const std::string&, const json&)> alGrafico_;
     std::map<std::string, std::set<std::string>> superficiesDe_; ///< plugin -> ids de aparatos
     std::filesystem::path carpeta_, logs_, config_;
     std::function<bool()> enVivo_;

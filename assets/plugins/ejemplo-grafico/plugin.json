@@ -1,0 +1,8 @@
+{
+  "id": "ejemplo-grafico",
+  "nombre": "Ejemplo de gráficos animados",
+  "descripcion": "Un plugin que provee gráficos animados, de las dos formas: «marcador» lo DESCRIBE en Python (barras con datos y el texto de quién va ganando, calculado acá) y lo dibuja el renderizador de gráficos; «ondas» lo DIBUJA cuadro a cuadro con numpy (un ecualizador en bucle, con transparencia). Los dos aparecen en Gráficos y en Rótulos como cualquier otro. Es la referencia para que el asistente programe un gráfico a pedido.",
+  "version": "1.0",
+  "principal": "plugin.py",
+  "dependencias": ["numpy"]
+}

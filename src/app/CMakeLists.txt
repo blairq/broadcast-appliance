@@ -687,6 +687,19 @@ endif()
         target_compile_definitions(test_gst_rack PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0" BA_HAVE_GST=1)
         add_test(NAME test_gst_rack COMMAND test_gst_rack)
         set_tests_properties(test_gst_rack PROPERTIES SKIP_RETURN_CODE 77)
+        # Los medios de los gráficos animados (graficos/Medios): GIF e imágenes a
+        # medios/, y videos (con alfa) a cuadros PNG con el GStreamer vendoreado.
+        if(BA_APP_QT_OK)
+            add_executable(test_graficos_medios tests/test_graficos_medios.cpp graficos/Medios.cpp graficos/Catalogo.cpp
+                video/CatalogoGst.cpp ${CMAKE_SOURCE_DIR}/src/motor/Sondas.cpp)
+            set_target_properties(test_graficos_medios PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+            target_include_directories(test_graficos_medios PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
+            target_link_libraries(test_graficos_medios PRIVATE ba_core ba::gstreamer Qt6::Core Qt6::Gui)
+            ba_gst_rpath(test_graficos_medios "")
+            target_compile_definitions(test_graficos_medios PRIVATE BA_HAVE_GST=1 BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+            add_test(NAME test_graficos_medios COMMAND test_graficos_medios)
+            set_tests_properties(test_graficos_medios PROPERTIES TIMEOUT 120)
+        endif()
     endif()
     # El grafo de tarjetas de video (video/GrafoVideo), sin GPU.
     add_executable(test_grafo_video tests/test_grafo_video.cpp video/GrafoVideo.cpp)
@@ -795,6 +808,18 @@ endif()
         target_link_libraries(test_graficos_catalogo PRIVATE Qt6::Core)
         set_target_properties(test_graficos_catalogo PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         add_test(NAME test_graficos_catalogo COMMAND test_graficos_catalogo)
+    endif()
+    # Los gráficos de un plugin (@plugin.grafico): el probador del SDK corre el
+    # ejemplo sin la app y verifica que cada gráfico describa o dibuje. Sobre una
+    # copia, porque el plugin escribe en su carpeta datos/.
+    if(BA_HAVE_PYTHON AND NOT WIN32)
+        add_test(NAME preparar_plugin_grafico COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets/plugins/ejemplo-grafico" "${CMAKE_CURRENT_BINARY_DIR}/prueba-ejemplo-grafico")
+        set_tests_properties(preparar_plugin_grafico PROPERTIES FIXTURES_SETUP plugin_grafico)
+        add_test(NAME test_plugin_grafico COMMAND "${BA_PYTHON_DIR}/bin/python3" -I -B
+            "${CMAKE_SOURCE_DIR}/src/plugins/sdk/ba_plugin/probar.py" "${CMAKE_CURRENT_BINARY_DIR}/prueba-ejemplo-grafico"
+            --segundos 1)
+        set_tests_properties(test_plugin_grafico PROPERTIES FIXTURES_REQUIRED plugin_grafico TIMEOUT 120)
     endif()
 
     # Medir el retardo entre labios y voz con un aplauso. C++ puro: recibe

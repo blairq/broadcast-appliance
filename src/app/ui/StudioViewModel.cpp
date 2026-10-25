@@ -1482,6 +1482,24 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
     // En vivo (T48) solo arrancan los plugins aprobados para el aire (T60).
     plugins_->setEnVivo([this]() { return modoVivo(); });
+    // Gráficos animados de plugins (@plugin.grafico): el plugin los declara, quedan en
+    // el catálogo de gráficos y el emisor se los pide cuando hay que dibujarlos.
+    if (emisor_) {
+        plugins_->setAlDeclararGrafico([this](const std::string& id, const nlohmann::json& d) {
+            emisor_->registrarDePlugin(QString::fromStdString(id),
+                                       QJsonDocument::fromJson(QByteArray::fromStdString(d.dump())).object());
+        });
+        emisor_->setProveedorPlugin([this](const QString& id, const QJsonObject& args,
+                                           std::function<void(QJsonObject, QString)> listo) {
+            const auto a = nlohmann::json::parse(QJsonDocument(args).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+            // Dibujar todos los cuadros en Python puede llevar su rato: un minuto de tope.
+            plugins_->pedir(id.toStdString(), "grafico", a, [listo](const nlohmann::json& r) {
+                if (!r.value("ok", false)) return listo({}, QString::fromStdString(r.value("error", std::string("no contestó"))));
+                const auto res = r.value("resultado", nlohmann::json::object());
+                listo(QJsonDocument::fromJson(QByteArray::fromStdString(res.dump())).object(), {});
+            }, 60000);
+        });
+    }
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<asamblea::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
     // Las votaciones (central, celulares, Quórum) son del modelo.

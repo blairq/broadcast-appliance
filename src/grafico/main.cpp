@@ -21,7 +21,9 @@
 // del otro. El segmento vive hasta el pedido siguiente (el que lo pidió lo copia
 // antes de mandar otro).
 //
-// Peticiones:
+// Peticiones (todas aceptan además "carpeta": la del gráfico, contra la que se
+// resuelven sus rutas relativas —medios/bandera.gif—, y "sinEntrada" +
+// "anteriores": dibujar un CAMBIO de valores con el gráfico ya en pantalla):
 //   {"op":"validar",  "qml":"...", "parametros":{...}}
 //   {"op":"dibujar",  "qml":"...", "parametros":{...}, "ancho":900, "alto":220, "ms":400}
 //   {"op":"tira",     "qml":"...", "parametros":{...}, "ancho":900, "alto":220,
@@ -40,6 +42,7 @@
 
 #include <QBuffer>
 #include <QDir>
+#include <QFile>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QJsonArray>
@@ -47,6 +50,7 @@
 #include <QJsonObject>
 #include <QQuickWindow>
 
+#include "Componentes.hpp"
 #include "Declarativo.hpp"
 #include "Renderizador.hpp"
 
@@ -121,11 +125,21 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
     // (`fuente`, que usa el IDE mientras se edita) o una descripción
     // declarativa (`declarativo`), que se traduce a QML acá mismo.
     QString fuente = pedido.value("fuente").toString();
+    // Un CAMBIO al aire (ver docs/funciones/GRAFICOS.md): sin la entrada y con
+    // los valores de antes, para que las tortas y las barras se muevan.
+    ba::grafico::Modo modo;
+    modo.sinEntrada = pedido.value("sinEntrada").toBool();
+    modo.anteriores = pedido.value("anteriores").toObject();
     if (pedido.contains("declarativo")) {
         const QJsonObject d = pedido.value("declarativo").toObject();
-        const ba::grafico::Traduccion tr = ba::grafico::traducir(d, par);
+        const ba::grafico::Traduccion tr = ba::grafico::traducir(d, par, modo);
         if (!tr.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", tr.error}};
         fuente = tr.qml;
+        // Para depurar el traductor: BA_GRAFICO_VOLCAR=<archivo> deja ahí el QML generado.
+        if (const QString volcar = qEnvironmentVariable("BA_GRAFICO_VOLCAR"); !volcar.isEmpty()) {
+            QFile f(volcar);
+            if (f.open(QIODevice::WriteOnly)) f.write(fuente.toUtf8());
+        }
         // La descripción manda su propio tamaño salvo que se lo pisen.
         if (!pedido.contains("ancho") && d.contains("ancho")) tam.setWidth(d.value("ancho").toInt(900));
         if (!pedido.contains("alto") && d.contains("alto")) tam.setHeight(d.value("alto").toInt(220));
@@ -141,9 +155,20 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
     // condición equivocada, un zócalo salía al aire siempre con el nombre de
     // ejemplo, sin decir nada.
     const QJsonObject parReales = pedido.contains("declarativo") ? QJsonObject{} : par;
+    // Un QML escrito a mano se entera del cambio si declara estas propiedades
+    // (si no, se dibuja como siempre: no es error).
+    QJsonObject opcionales;
+    if (!pedido.contains("declarativo") && (modo.sinEntrada || !modo.anteriores.isEmpty())) {
+        opcionales["sinEntrada"] = modo.sinEntrada;
+        opcionales["anteriores"] = modo.anteriores;
+    }
+    // Dónde vive el gráfico: un texto sin guardar también tiene carpeta, y sus
+    // medios están ahí.
+    const QString carpeta = pedido.value("carpeta").toString();
+    const QUrl base = carpeta.isEmpty() ? QUrl("grafico.qml") : QUrl::fromLocalFile(QDir(carpeta).filePath("grafico.qml"));
     const auto dibujar = [&](int ms) {
-        return fuente.isEmpty() ? r.dibujar(qml, parReales, tam, ms)
-                                : r.dibujarFuente(fuente, parReales, tam, ms);
+        return fuente.isEmpty() ? r.dibujar(qml, parReales, tam, ms, opcionales)
+                                : r.dibujarFuente(fuente, parReales, tam, ms, base, opcionales);
     };
 
     if (op == "validar") {
@@ -169,8 +194,8 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
         for (const QJsonValue& m : momentos) ms.push_back(m.toInt());
         for (size_t i = 1; i < ms.size(); ++i)
             if (ms[i] < ms[i - 1]) return QJsonObject{{"ok", false}, {"error", "los momentos van en orden"}};
-        const QUrl url = fuente.isEmpty() ? QUrl::fromLocalFile(qml) : QUrl("grafico.qml");
-        const std::vector<Renderizador::Resultado> res = r.tira(url, fuente, parReales, tam, ms);
+        const QUrl url = fuente.isEmpty() ? QUrl::fromLocalFile(qml) : base;
+        const std::vector<Renderizador::Resultado> res = r.tira(url, fuente, parReales, tam, ms, opcionales);
         for (const auto& c : res)
             if (!c.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", c.error}};
         if (res.size() != ms.size()) return QJsonObject{{"ok", false}, {"error", "la tira salió incompleta"}};
@@ -222,6 +247,15 @@ int main(int argc, char** argv) {
     reg.setComponentePorDefecto("graficos");
     reg.abrir(ba::platform::dataRoot() / "Logs", "graficos.log");
     reg.info("renderizador de graficos listo");
+    // Los qWarning (un medio que no se pudo leer, avisos de Qt Quick) también al
+    // registro: el stderr de este proceso no lo lee nadie.
+    qInstallMessageHandler([](QtMsgType tipo, const QMessageLogContext&, const QString& m) {
+        if (tipo == QtDebugMsg || tipo == QtInfoMsg) return;
+        ba::diag::registro().aviso(m.toStdString());
+    });
+
+    // BA.Grafico: Medio (GIF y secuencias con el reloj del gráfico), Torta, Barras, Datos.
+    ba::grafico::registrarComponentes();
 
     Renderizador renderizador;
     std::string linea;

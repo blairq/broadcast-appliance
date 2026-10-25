@@ -38,6 +38,7 @@
 #include <QSurfaceFormat>
 
 #include "RelojAnimaciones.hpp"
+#include "diag/Registro.hpp"
 
 namespace ba::grafico {
 namespace {
@@ -67,6 +68,27 @@ QVariant aVariant(const QJsonValue& v) {
         case QJsonValue::Array: return v.toArray().toVariantList();
         case QJsonValue::Object: return v.toObject().toVariantMap();
         default: return {};
+    }
+}
+
+/// Los avisos de QML (una propiedad que no existe en un componente, un medio
+/// que no está) al registro del renderizador: no rompen el dibujo, así que
+/// nadie se enteraba y el gráfico salía con un pedazo de menos.
+void avisosAlRegistro(QQmlEngine& motor) {
+    QObject::connect(&motor, &QQmlEngine::warnings, [](const QList<QQmlError>& avisos) {
+        for (const QQmlError& e : avisos) ba::diag::registro().aviso("qml: " + e.toString().toStdString());
+    });
+}
+
+/// Lo que el sistema le pasa a cualquier gráfico, pero que el gráfico puede no
+/// declarar: se asigna solo si existe la propiedad. A diferencia de un
+/// parámetro, que falte no es un nombre mal escrito: es un gráfico que no
+/// sabe animar un cambio, y entonces se dibuja como siempre.
+void ponerOpcionales(QObject* raiz, const QJsonObject& opcionales) {
+    for (auto it = opcionales.begin(); it != opcionales.end(); ++it) {
+        const QByteArray nombre = it.key().toUtf8();
+        if (raiz->metaObject()->indexOfProperty(nombre.constData()) >= 0)
+            raiz->setProperty(nombre.constData(), aVariant(it.value()));
     }
 }
 
@@ -191,17 +213,19 @@ Renderizador::Resultado Renderizador::validar(const QString& qml, const QJsonObj
 }
 
 Renderizador::Resultado Renderizador::dibujar(const QString& qml, const QJsonObject& parametros, QSize tam,
-                                              int ms) {
-    return dibujarComun(QUrl::fromLocalFile(qml), {}, parametros, tam, ms);
+                                              int ms, const QJsonObject& opcionales) {
+    return dibujarComun(QUrl::fromLocalFile(qml), {}, parametros, tam, ms, opcionales);
 }
 
 Renderizador::Resultado Renderizador::dibujarFuente(const QString& fuente, const QJsonObject& parametros,
-                                                    QSize tam, int ms, const QString& nombreParaErrores) {
-    return dibujarComun(QUrl(nombreParaErrores), fuente, parametros, tam, ms);
+                                                    QSize tam, int ms, const QUrl& base,
+                                                    const QJsonObject& opcionales) {
+    return dibujarComun(base, fuente, parametros, tam, ms, opcionales);
 }
 
 Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QString& fuente,
-                                                   const QJsonObject& parametros, QSize tam, int ms) {
+                                                   const QJsonObject& parametros, QSize tam, int ms,
+                                                   const QJsonObject& opcionales) {
     Resultado r;
     if (!d_->preparar(r.error)) return r;
     d_->cerrarSesion(); // un dibujo suelto no convive con la instancia de una tira en la ventana
@@ -213,7 +237,7 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
     // por proceso.
     if (!d_->calentado) {
         d_->calentado = true;
-        dibujarComun(url, fuente, parametros, tam, ms);
+        dibujarComun(url, fuente, parametros, tam, ms, opcionales);
     }
 
     tam = tam.expandedTo(QSize(2, 2)).boundedTo(QSize(3840, 2160));
@@ -233,6 +257,7 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
     // no hereda ni la caché de componentes ni el estado de la vez anterior.
     QQmlEngine motor;
     motor.setOutputWarningsToStandardError(false);
+    avisosAlRegistro(motor);
     QQmlComponent componente(&motor);
     if (fuente.isEmpty())
         componente.loadUrl(url);
@@ -269,6 +294,7 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
         }
         raiz->setProperty(nombre.constData(), aVariant(it.value()));
     }
+    ponerOpcionales(raiz, opcionales);
 
     raiz->setParentItem(d_->ventana->contentItem());
     raiz->setWidth(tam.width());
@@ -310,7 +336,8 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
 
 std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const QString& fuente,
                                                        const QJsonObject& parametros, QSize tam,
-                                                       const std::vector<int>& momentos) {
+                                                       const std::vector<int>& momentos,
+                                                       const QJsonObject& opcionales) {
     std::vector<Resultado> out;
     Resultado base;
     if (momentos.empty()) return out;
@@ -319,12 +346,13 @@ std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const Q
         return out;
     }
     // El dibujo de descarte de la primera vez (ver dibujarComun).
-    if (!d_->calentado) dibujarComun(url, fuente, parametros, tam, momentos.front());
+    if (!d_->calentado) dibujarComun(url, fuente, parametros, tam, momentos.front(), opcionales);
 
     tam = tam.expandedTo(QSize(2, 2)).boundedTo(QSize(3840, 2160));
     d_->gl->makeCurrent(d_->superficie);
     const QString clave = url.toString() + "\n" + fuente + "\n" +
                           QString::fromUtf8(QJsonDocument(parametros).toJson(QJsonDocument::Compact)) + "\n" +
+                          QString::fromUtf8(QJsonDocument(opcionales).toJson(QJsonDocument::Compact)) + "\n" +
                           QString::number(tam.width()) + "x" + QString::number(tam.height());
     const auto dibujarCuadro = [this]() {
         d_->control->polishItems();
@@ -343,6 +371,7 @@ std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const Q
         }
         d_->sesionMotor = std::make_unique<QQmlEngine>();
         d_->sesionMotor->setOutputWarningsToStandardError(false);
+        avisosAlRegistro(*d_->sesionMotor);
         QQmlComponent componente(d_->sesionMotor.get());
         if (fuente.isEmpty())
             componente.loadUrl(url);
@@ -374,6 +403,7 @@ std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const Q
             }
             raiz->setProperty(nombre.constData(), aVariant(it.value()));
         }
+        ponerOpcionales(raiz, opcionales);
         raiz->setParentItem(d_->ventana->contentItem());
         raiz->setWidth(tam.width());
         raiz->setHeight(tam.height());

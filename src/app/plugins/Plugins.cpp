@@ -1099,7 +1099,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
         p.python = m.value("python", std::string());
         anotarPuerto(id, p.puerto);
     } else if (t == "entrada" || t == "tarjeta" || t == "ptz" || t == "control" || t == "escuchar" ||
-               t == "panel") {
+               t == "panel" || t == "grafico") {
         const std::string clave = m.value("nombre", m.value("entrada", m.value("canal", std::string())));
         auto& d = p.declarado;
         d.erase(std::remove_if(d.begin(), d.end(),
@@ -1112,6 +1112,9 @@ void Plugins::recibir(const std::string& id, const json& m) {
                 d.end());
         d.push_back(m);
         if (t == "escuchar") p.escucha.push_back(clave);
+        // Un gráfico animado queda en el catálogo de gráficos aunque el plugin se apague
+        // (al usarlo sin el plugin corriendo, lo dice).
+        if (t == "grafico" && alGrafico_) alGrafico_(id, m);
         if (p.listo) {
             if (t == "entrada") declararEntrada(id, m);
             if (t == "ptz") declararPtz(id, m);

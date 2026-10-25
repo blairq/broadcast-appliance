@@ -788,6 +788,12 @@ const Fila kPropias[] = {
     {"grafico_probar", "probar grafico previsualizar antes de sacarlo"},
     {"grafico_en_escena", "grafico dentro de una escena agregar que animados hay puestos en las escenas"},
     {"grafico_repertorio", "catalogo de graficos plantillas disponibles"},
+    {"grafico_actualizar", "cambiar los numeros del grafico al aire actualizar la votacion en vivo torta barras "
+                           "sin que vuelva a entrar"},
+    {"grafico_medios", "que gif videos imagenes tiene el grafico"},
+    {"grafico_medio_agregar", "poner un gif animado en el grafico video con transparencia alfa webm prores "
+                              "secuencia de png logo animado"},
+    {"grafico_medio_quitar", "sacar un gif o video del grafico"},
     {"rotulo_vinculos", "que rotulos estan vinculados"},
     {"rotulo_vincular", "vincular rotulo a una persona nombre y cargo "
                         "poner el nombre en pantalla mostrar quien habla "

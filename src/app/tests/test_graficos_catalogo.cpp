@@ -7,6 +7,7 @@
 #include "graficos/Catalogo.hpp"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -98,6 +99,56 @@ int main(int argc, char** argv) {
     CHECK(cat.ficha("Zcalo").value("declarativo").toObject().value("ancho").toInt() == 10, "guardar: quedó");
     CHECK(cat.guardar("placa", "import QtQuick\nItem {}\n").isEmpty() && cat.texto("placa").contains("Item {}"),
           "guardar: QML");
+
+    // La carpeta va en el pedido: contra ella resuelve el renderizador «medios/…»,
+    // también con el texto del editor sin guardar.
+    p = cat.pedido("placa", {}, &err);
+    CHECK(p.value("carpeta").toString() == cat.carpeta("placa"), "pedido: lleva la carpeta del gráfico");
+    p = Catalogo::pedidoCon(cat.ficha("placa"), "import QtQuick\nItem {}\n", {}, &err, cat.carpeta("placa"));
+    CHECK(p.value("carpeta").toString() == cat.carpeta("placa"), "pedidoCon: la carpeta que le pasan");
+    CHECK(!Catalogo::pedidoCon(cat.ficha("placa"), "import QtQuick\nItem {}\n", {}, &err).contains("carpeta"),
+          "pedidoCon: sin carpeta, no la inventa");
+
+    // Sabe animar un cambio: con un parámetro de datos, una torta o unas barras, o si lo dice.
+    CHECK(!Catalogo::sabeCambiar(cat.ficha("placa")), "sabeCambiar: un QML común no");
+    CHECK(Catalogo::sabeCambiar(QJsonObject{{"parametros", QJsonArray{QJsonObject{{"clave", "v"}, {"tipo", "datos"}}}}}),
+          "sabeCambiar: un parámetro de tipo datos");
+    CHECK(Catalogo::sabeCambiar(QJsonObject{
+              {"declarativo", QJsonObject{{"capas", QJsonArray{QJsonObject{{"tipo", "barras"}}}}}}}),
+          "sabeCambiar: unas barras");
+    CHECK(Catalogo::sabeCambiar(QJsonObject{{"cambio", QJsonObject{{"duracion", 400}}}}) &&
+              Catalogo::duracionCambio(QJsonObject{{"cambio", QJsonObject{{"duracion", 400}}}}) == 400,
+          "sabeCambiar: lo declara, con su duración");
+    CHECK(!Catalogo::sabeCambiar(QJsonObject{{"cambio", false}}), "sabeCambiar: «cambio»: false manda");
+    CHECK(Catalogo::duracionCambio(QJsonObject{}) == 700, "duracionCambio: 700 de fábrica");
+
+    // Un gráfico de un plugin: carpeta propia, ficha con «plugin», sin texto, sin pedido directo.
+    const QJsonObject decl{{"nombre", "marcador"},
+                           {"titulo", "Marcador"},
+                           {"parametros", QJsonArray{QJsonObject{{"clave", "puntos"}, {"tipo", "datos"}, {"porDefecto", "A: 1"}}}},
+                           {"ancho", 1000},
+                           {"alto", 420},
+                           {"modo", "describe"}};
+    QString deplugin;
+    CHECK(cat.guardarDePlugin("mi-plugin", decl, &deplugin).isEmpty() && deplugin == "plugin-mi-plugin-marcador",
+          "guardarDePlugin: la carpeta plugin-<id>-<nombre>");
+    const QJsonObject fp = cat.ficha(deplugin);
+    CHECK(Catalogo::pluginDe(fp) == "mi-plugin" && fp.value("graficoPlugin").toString() == "marcador" &&
+              fp.value("categoria").toString() == "Plugins" && fp.value("ancho").toInt() == 1000,
+          "guardarDePlugin: la ficha");
+    CHECK(cat.texto(deplugin).isEmpty(), "de un plugin: sin texto que editar");
+    CHECK(cat.pedido(deplugin, {}, &err).isEmpty() && err.contains("mi-plugin"), "de un plugin: el pedido es del Emisor");
+    CHECK(Catalogo::sabeCambiar(fp), "de un plugin con datos: sabe cambiar");
+    const QDateTime antes = QFileInfo(QDir(cat.carpeta(deplugin)).filePath("grafico.json")).lastModified();
+    CHECK(cat.guardarDePlugin("mi-plugin", decl).isEmpty() &&
+              QFileInfo(QDir(cat.carpeta(deplugin)).filePath("grafico.json")).lastModified() == antes,
+          "guardarDePlugin: la misma declaración no reescribe");
+    bool listado = false;
+    for (const QJsonValue& v : cat.lista())
+        listado = listado || (v.toObject().value("nombre").toString() == deplugin &&
+                              v.toObject().value("plugin").toString() == "mi-plugin");
+    CHECK(listado, "lista: el de un plugin, con su plugin");
+    CHECK(!cat.guardarDePlugin("mi-plugin", QJsonObject{}).isEmpty(), "guardarDePlugin: sin nombre, error");
 
     std::printf(fallos == 0 ? "OK: catálogo de gráficos\n" : "%d fallos\n", fallos);
     return fallos == 0 ? 0 : 1;

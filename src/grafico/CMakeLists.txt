@@ -27,7 +27,7 @@ list(GET _g_qt_cfg 0 _g_qt_cfg)
 get_filename_component(_g_qt_dir "${_g_qt_cfg}" DIRECTORY)
 get_filename_component(_g_qt_prefix "${_g_qt_dir}/../../.." ABSOLUTE)
 list(PREPEND CMAKE_PREFIX_PATH "${_g_qt_prefix}")
-find_package(Qt6 COMPONENTS Gui Qml Quick CONFIG PATHS "${_g_qt_prefix}" NO_DEFAULT_PATH QUIET)
+find_package(Qt6 COMPONENTS Core Gui Qml Quick CONFIG PATHS "${_g_qt_prefix}" NO_DEFAULT_PATH QUIET)
 if(NOT Qt6_FOUND)
     message(STATUS "graficos: Qt6 incompleto, no se compila ba-grafico")
     return()
@@ -35,6 +35,7 @@ endif()
 
 add_executable(ba-grafico
     main.cpp
+    Componentes.cpp
     Declarativo.cpp
     Renderizador.cpp
     # El header va en la lista a proposito: tiene un Q_OBJECT y no tiene .cpp
@@ -42,6 +43,12 @@ add_executable(ba-grafico
     RelojAnimaciones.hpp
 )
 set_target_properties(ba-grafico PROPERTIES AUTOMOC ON)
+# Los componentes de datos (Torta, Barras) son QML: van adentro del binario
+# (qrc:/ba-grafico/qml/...), así un gráfico los usa con «import BA.Grafico»
+# sin depender de archivos sueltos al lado.
+qt_add_resources(ba-grafico "ba_grafico_qml"
+    PREFIX "/ba-grafico"
+    FILES qml/Torta.qml qml/Barras.qml)
 target_include_directories(ba-grafico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(Qt6 COMPONENTS OpenGL CONFIG PATHS "${_g_qt_prefix}" NO_DEFAULT_PATH QUIET)
 # ba_core: el registro comun (diag/Registro). Un grafico roto tiene que dejar
