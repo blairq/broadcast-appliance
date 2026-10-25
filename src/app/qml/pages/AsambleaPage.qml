@@ -51,6 +51,7 @@ Rectangle {
                 property string texto: ""
                 property color punto: Theme.textFaint
                 property int pestana: 0
+                signal tocada()
                 implicitWidth: filaP.implicitWidth + 20
                 implicitHeight: 26
                 radius: 13
@@ -64,7 +65,7 @@ Rectangle {
                     Text { text: pas.texto; color: Theme.textDim; font.pixelSize: 12 }
                 }
                 MouseArea { id: mP; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: tabs.currentIndex = pas.pestana }
+                            onClicked: { if (pas.pestana >= 0) tabs.currentIndex = pas.pestana; pas.tocada() } }
             }
             readonly property var dcn: Studio.dcn
             readonly property var de: dcn ? dcn.estado : ({})
@@ -105,6 +106,21 @@ Rectangle {
                 visible: !!(Studio.debate && Studio.debate.estado.activo)
                 punto: Theme.live
                 texto: "Debate en curso"
+            }
+            // Las grillas de personas (si hay): cuántos integrantes se ven; abre quién está en cada una.
+            Pastilla {
+                readonly property var gs: Studio.grillas ? Studio.grillas.grillas : []
+                readonly property int integrantes: {
+                    const vistos = new Set()
+                    for (const g of gs) for (const p of (g.personas || [])) if (p.clave.startsWith("asamblea:")) vistos.add(p.clave)
+                    return vistos.size
+                }
+                pestana: -1
+                visible: gs.length > 0
+                punto: gs.some(g => g.al_aire) ? Theme.live : Theme.ok
+                texto: "Grillas: " + integrantes + " integrante" + (integrantes === 1 ? "" : "s") + " en " + gs.length
+                       + " grilla" + (gs.length === 1 ? "" : "s")
+                onTocada: grillasDlg.open()
             }
         }
         TabBar {
@@ -154,4 +170,21 @@ Rectangle {
     }
 
     PanelCuerpo { id: cuerpo }
+
+    // Quién está en cada grilla de personas (integrantes y gente de la sala), con fijar/sacar/mover.
+    Dialog {
+        id: grillasDlg
+        title: "Grillas de personas"
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(page.width - 80, 560)
+        height: Math.min(page.height - 80, vistaGrillas.implicitHeight + 140)
+        standardButtons: Dialog.Close
+        ScrollView {
+            anchors.fill: parent
+            contentWidth: availableWidth
+            clip: true
+            VistaGrillas { id: vistaGrillas; width: parent.width }
+        }
+    }
 }

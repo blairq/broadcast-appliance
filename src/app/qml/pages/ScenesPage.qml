@@ -620,6 +620,19 @@ Rectangle {
                             fuente: page.selected
                         }
                         Rectangle { visible: page.selected !== ""; Layout.fillWidth: true; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
+                        // Una «Grilla de personas»: quién está en ella ahora (y fijar, sacar, mover).
+                        Text {
+                            visible: grillaAhora.visible
+                            text: "En la grilla ahora"
+                            color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold }
+                        }
+                        VistaGrillas {
+                            id: grillaAhora
+                            Layout.fillWidth: true
+                            visible: page.selected !== "" && hay
+                            fuente: page.selected
+                        }
+                        Rectangle { visible: grillaAhora.visible; Layout.fillWidth: true; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
                         Repeater {
                             model: Studio.properties
                             delegate: FormField {

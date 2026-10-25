@@ -65,6 +65,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "MediaRoute.hpp"
+
 namespace ba::ipc {
 class SpoutSender;
 }
@@ -77,6 +79,19 @@ class Log;
 inline constexpr int kMaxGrillas = 8;
 /// Celdas por grilla como mucho (la app pone el tope; esto es el techo).
 inline constexpr int kMaxCeldasGrilla = 64;
+
+/// La calidad que se le pide a la cámara de un participante de la sala
+/// ("180p" | "360p" | "libre"), según dónde se lo ve. Decodificar es lo que escala
+/// con la gente (50 x 720p no se decodifican por software):
+///   - al aire (ruta Program): la de siempre;
+///   - en una grilla (`altoGrilla` > 0, el alto del lugar más grande que ocupa): la
+///     de ese lugar (un cuadrito, 180p; uno mediano, 360p; uno grande, la de siempre);
+///   - en la fila (ruta Backstage): si tiene vista previa (el cuadrito del operador),
+///     al menos 360p; en ninguna grilla y sin vista previa no lo ve nadie: 180p (algo
+///     tiene que mandar para que la grilla lo tenga apenas entre). Manda el lugar más
+///     grande donde se lo ve; al pasar a un lugar o a una grilla, vuelve lo de arriba;
+///   - el lobby y lo demás: la de siempre (el operador lo atiende cara a cara).
+std::string nivelCalidad(const MediaRoute& ruta, int altoGrilla);
 
 class Grillas {
    public:

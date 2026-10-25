@@ -24,8 +24,25 @@
 //     entran todos y dónde va el que llega; NO reordena a los que ya están;
 //   - filtros: solo los que tienen la cámara prendida; sin los que ya están al
 //     aire en otra fuente (el invitado que ocupa un lugar del programa, el
-//     integrante con la palabra cuando su canal o la banca están al aire);
+//     integrante con la palabra cuando su canal o la banca están al aire, y quien
+//     ya se ve en OTRA grilla que está al aire). «Al aire» es lo que se ve en el
+//     programa entrando en las escenas anidadas (una escena en una capa DSK, ver
+//     fuentesQueSeVen);
 //   - resaltar a quien habla (un borde).
+//
+// GRILLAS AL AIRE PRIMERO: los grupos que tienen alguna grilla al aire se reparten
+// antes que los demás, y quien quedó en una de esas cuenta como «al aire» para los
+// grupos que vienen después. Así dos grillas sin grupo, una al aire y otra en la
+// escena que se prepara, no muestran a la misma persona, y no hay vaivén: nadie
+// mira el resultado de una vuelta para decidir la misma vuelta al revés. Dos
+// grillas al aire sin grupo tampoco se repiten (gana la que se reparte primero).
+//
+// A MANO (Manual): el operador puede FIJAR a alguien en una grilla (va siempre en
+// esa, primero, aunque los filtros digan otra cosa y aunque esté al aire en otra
+// fuente; en su grupo no va en ninguna otra), SACARLO de una grilla (no aparece en
+// esa ni en las de su grupo) o DEVOLVERLO a lo automático. Mover de grilla es
+// sacar de la de origen y fijar en la de destino. No se guarda en disco: las
+// claves son de la conexión de cada uno.
 //
 // LUGARES ESTABLES: cada grilla recuerda en qué lugar está cada uno. El que llega
 // va al final (o al hueco de alguien que se fue en la misma vuelta); el que se va
@@ -41,8 +58,12 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <map>
+#include <optional>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ba::app::grilla {
@@ -91,6 +112,9 @@ struct Config {
     int transicionMs = 400;
     std::string fondo = "#00000000";         ///< "#AARRGGBB" (transparente de fábrica)
     std::string colorResaltar = "#FFFFC107"; ///< el borde de quien habla
+    /// La fuente se ve en el programa (no es un ajuste: lo dice quien arma las
+    /// configuraciones en cada vuelta, ver ControlGrillas).
+    bool alAire = false;
 
     /// Desde los ajustes guardados de la fuente (los de fábrica, ver defectos()).
     static Config desdeAjustes(const std::string& fuente, const json& ajustes);
@@ -110,6 +134,34 @@ struct Celda {
     Rect r;
     bool resaltar = false;
 };
+
+/// Lo que decidió el operador a mano (ver arriba). Lo valida quien lo cambia
+/// (ControlGrillas): acá solo se guarda y se consulta.
+struct Manual {
+    std::map<std::string, std::string> fijos;             ///< clave → la fuente donde está fijada
+    std::set<std::pair<std::string, std::string>> fuera;  ///< (fuente, clave): sacada de esa grilla y su grupo
+
+    bool fijo(const std::string& fuente, const std::string& clave) const;
+    bool sacado(const std::string& fuente, const std::string& clave) const { return fuera.count({fuente, clave}) > 0; }
+    /// La fija en `fuente` (si estaba fijada en otra, deja de estarlo allá) y ya no está sacada de esa.
+    void fijar(const std::string& fuente, const std::string& clave);
+    /// La saca de `fuente` (si estaba fijada ahí, deja de estarlo).
+    void sacar(const std::string& fuente, const std::string& clave);
+    /// Vuelve a lo automático en `fuente`: ni fijada ahí ni sacada.
+    void devolver(const std::string& fuente, const std::string& clave);
+    /// Se olvida de lo que era de grillas que ya no existen.
+    void olvidarFuentesSalvo(const std::set<std::string>& existen);
+    bool vacio() const { return fijos.empty() && fuera.empty(); }
+};
+
+/// Lo que se ve de verdad desde `raices` (la escena del programa y lo que muestran
+/// las capas DSK que están arriba): una escena cuenta con lo que tiene visible
+/// adentro, y así para abajo (escenas anidadas; una que se contiene a sí misma no se
+/// recorre dos veces). `itemsDe(nombre)`: los ítems visibles si `nombre` es una
+/// escena, nullopt si es una fuente. Cada fuente una vez, en el orden en que aparece.
+std::vector<std::string> fuentesQueSeVen(
+    const std::vector<std::string>& raices,
+    const std::function<std::optional<std::vector<std::string>>(const std::string&)>& itemsDe);
 
 /// Lo que muestra una grilla en esta vuelta.
 struct Resultado {
@@ -134,7 +186,8 @@ std::vector<Rect> disponer(int n, int ancho, int alto, int separacion, int marge
 class Repartidor {
    public:
     /// Una vuelta: todas las grillas y toda la gente → lo que muestra cada una (en el orden de `grillas`).
-    std::vector<Resultado> calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente);
+    std::vector<Resultado> calcular(const std::vector<Config>& grillas, const std::vector<Persona>& gente,
+                                    const Manual& manual = {});
     /// Olvidar los lugares (la próxima vuelta reparte desde cero).
     void olvidar() { lugares_.clear(); }
 

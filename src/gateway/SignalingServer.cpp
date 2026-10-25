@@ -2680,16 +2680,13 @@ void SignalingServer::setGrillas(Grillas* g) {
 
 void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {
     if (grillas_ == nullptr) return;
-    // Decodificar es lo que escala con la gente (50 x 720p no se decodifican por
-    // software): quien ocupa un cuadrito manda 180p a 15 cps, uno mediano 360p, y el
-    // que está al aire (ruta Program) o en ninguna grilla, lo de siempre. El navegador
-    // se queda con la MENOR entre esta y la que haya puesto el operador por la red.
+    // Qué calidad según dónde se lo ve (al aire, en una grilla, en la fila sin grilla:
+    // ver nivelCalidad). El navegador se queda con la MENOR entre esta y la que haya
+    // puesto el operador por la red.
     const MediaRoute r = room_.routeOf(pid);
-    std::string nivel = "libre";
     std::lock_guard<std::mutex> l(calidadMu_);
     const auto it = altoGrilla_.find(pid);
-    if (it != altoGrilla_.end() && r.kind != MediaRoute::Kind::Program)
-        nivel = it->second <= 200 ? "180p" : it->second <= 400 ? "360p" : "libre";
+    const std::string nivel = nivelCalidad(r, it != altoGrilla_.end() ? it->second : 0);
     std::string& antes = calidadPedida_[pid];
     if (!forzar && antes == nivel) return;
     if (antes.empty() && nivel == "libre") {

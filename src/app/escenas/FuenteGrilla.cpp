@@ -61,7 +61,8 @@ void registrarTipo() {
         {
             P aire{"sin_al_aire", "Sin los que ya están al aire en otra fuente", "bool"};
             aire.ayuda = "El invitado que ocupa un lugar del programa, el integrante con la palabra cuando su canal o la "
-                         "banca están al aire.";
+                         "banca están al aire, y quien ya se ve en otra grilla al aire (también en una escena puesta en "
+                         "una capa DSK).";
             out.push_back(aire);
         }
         out.push_back({"_reparto", "Reparto entre grillas", "header"});

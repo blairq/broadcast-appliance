@@ -10,6 +10,9 @@
 //   5. La calidad: avisa el alto del lugar más grande de cada uno (y 0 al salir).
 //   6. Quién habla: entra con voz sostenida, sale después del silencio.
 //   7. Solo se guardan cuadros de quien está en alguna grilla.
+//   8. La calidad que se le pide a cada uno según dónde se lo ve: al aire, la de
+//      siempre; en una grilla, la de su lugar; en la fila sin grilla, baja (y vuelve
+//      al pasar a un lugar o a una grilla).
 // ============================================================================
 
 #include <cstdio>
@@ -167,6 +170,22 @@ int main() {
         CHECK(Grillas::color("#FFC107", c) && c == 0xFFFFC107u, "#RRGGBB opaco");
         CHECK(Grillas::color("#80112233", c) && c == 0x80112233u, "#AARRGGBB");
         CHECK(!Grillas::color("rojo", c) && !Grillas::color("#12345", c), "lo que no es un color");
+    }
+    // 8. La calidad según dónde se lo ve.
+    {
+        using ba::gateway::MediaRoute;
+        using ba::gateway::nivelCalidad;
+        CHECK(nivelCalidad(MediaRoute::program(1), 0) == "libre", "al aire: la de siempre");
+        CHECK(nivelCalidad(MediaRoute::program(1), 90) == "libre", "al aire aunque esté en una grilla: la de siempre");
+        CHECK(nivelCalidad(MediaRoute::backstage(), 90) == "180p", "en un cuadrito de una grilla: 180p");
+        CHECK(nivelCalidad(MediaRoute::backstage(), 300) == "360p", "en un lugar mediano: 360p");
+        CHECK(nivelCalidad(MediaRoute::backstage(), 720) == "libre", "en un lugar grande: la de siempre");
+        CHECK(nivelCalidad(MediaRoute::backstage(), 0) == "180p", "en la fila y en ninguna grilla: baja");
+        CHECK(nivelCalidad(MediaRoute::backstage(2), 0) == "360p", "en la fila con vista previa: la del cuadrito del operador");
+        CHECK(nivelCalidad(MediaRoute::backstage(2), 90) == "360p", "con vista previa y en un cuadrito: manda el más grande");
+        CHECK(nivelCalidad(MediaRoute::backstage(2), 720) == "libre", "con vista previa y en un lugar grande: la de siempre");
+        CHECK(nivelCalidad(MediaRoute::lobby(1, false), 0) == "libre", "en el lobby: la de siempre");
+        CHECK(nivelCalidad(MediaRoute{}, 0) == "libre", "sin ruta: nada que bajar");
     }
     if (g_fallos == 0) std::printf("test_grillas: OK\n");
     return g_fallos == 0 ? 0 : 1;
