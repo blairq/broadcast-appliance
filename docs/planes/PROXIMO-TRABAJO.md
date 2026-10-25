@@ -1,72 +1,41 @@
 # Próximo trabajo
 
-Lista de lo pedido el 2026-10-23 y dejado para después de la renovación de la cuota (domingo
-2026-10-25, 14 h). Todo lo hecho hasta acá está en master (último: 6bdd4c9f).
+Lo pedido el 2026-10-23 se hizo el 2026-10-25 (siete áreas en paralelo, integradas y probadas en
+la Mac). Queda lo de abajo.
 
-## Errores y arreglos chicos
+## Hecho (2026-10-25)
 
-- **Vista previa del gráfico animado:** parpadea mucho al darle play.
-- **Riel (barra de navegación):** cerrado, los botones tienen un espaciado; al abrirlo aparecen los
-  títulos de grupo y todos cambian de posición vertical. Que queden en el mismo lugar
-  (`RielNavegacion.qml`).
-- **Build de Windows:** el zip de `dist/` es de 84e98a84; rearmarlo con lo último y actualizar la PC.
-- **Clicks en Claude Code y Antigravity:** no piden ratón a la terminal (opencode sí, y ya anda).
-  Propuesto, sin respuesta: un clic en una opción numerada («❯ 1. Yes») manda ese número; un clic en
-  la línea donde se escribe mueve el cursor con flechas.
+- Riel: abierto o cerrado, los botones quedan en el mismo lugar.
+- Terminal: clic en una opción numerada (Claude Code, Antigravity) manda su número; clic en la línea
+  del cursor lo mueve (solo si el programa muestra el cursor real: Claude Code no).
+- Gráficos animados: sin parpadeo en la vista previa; GIF y videos con alfa adentro; tortas y barras
+  con datos que cambian en vivo; plugin como gráfico (ejemplo `ejemplo-grafico`).
+- Nodo «Mezcla de GStreamer» (cualquier módulo de varias entradas; probado glvideomixer lado a lado).
+- Grilla de personas (`ba_grilla`), con reparto entre grillas; el mosaico lo arma la sala.
+- Atención hablada en el lobby de la Sala, «Voz del sistema» con «Voz del atendedor», alta
+  automática en Personas, «entra solo» del padrón visible en Sala/Asamblea/Personas.
+- Salidas → Pantallas: un solo catálogo de cosas que se pueden mostrar; monitores con orden físico,
+  asignación recordada y espera del que no está.
+- Dispositivos y equipos: un solo registro con nombres de la máquina; «Entradas de audio».
+- Plugins: ejemplos (video con GStreamer, automatización, equipo de red), «Nuevo desde un ejemplo»,
+  y el asistente ofrece hacer plugins (también elementos de GStreamer en Python).
 
-## Video
+## Pendiente
 
-- **Nodo «Mezcla de GStreamer»:** un nodo del estudio como el Compositor, pero con cualquier módulo
-  de varias entradas (`compositor`, `d3d12compositor`, `glvideomixer`, `glmosaic`, `smpte`,
-  `shapewipe`, `glstereomix`). Sus entradas salen de las plantillas de pads del módulo
-  (`sink_%u`, `sink1`/`sink2`, `video_sink`/`mask_sink`); el resultado se publica como fuente con
-  nombre; en el catálogo, «+ Agregar como mezcla». Hoy el único nodo de varias entradas es el
-  compositor del motor (`GrafoVideo` «compositor», `VideoGrafos` traer/`configCompositor`).
-  Probar en Mac y en la PC (D3D12).
-- **Grilla de personas dinámica:** una fuente que crece con la gente conectada. Por instancia:
-  - origen: sala, asamblea o las dos;
-  - grupo de reparto opcional: las grillas del mismo grupo se reparten la gente sin repetir, en modo
-    «llenar en orden» (concentra) o «parejo» (distribuye);
-  - tope por grilla con un cuadro «+N»;
-  - lugares estables (entrar alguien no hace saltar a todos) con transición;
-  - orden (llegada, quién habla, prioridad) y filtros.
-  La misma fuente en dos escenas es la misma imagen: por eso una instancia por lugar, coordinadas
-  por el grupo. **Primero decidir el video por persona:** hoy la sala entrega pocos (2 al aire,
-  4 de lobby, 6 miniaturas de 320×180); o un video por persona, o el mosaico armado en la sala.
-- **Gráficos animados:**
-  - GIF animados y videos con canal alfa (WebM VP9 con alfa, ProRes 4444, secuencias PNG);
-  - o animar un ítem de la escena con la línea de tiempo del gráfico (quizá más simple);
-  - gráficos de torta y de barras animados, con datos;
-  - un plugin como gráfico animado, para que el asistente programe uno a pedido.
-
-## Sala, asamblea y personas
-
-- **Atención hablada a quien se conecta:** en Sala y en Asamblea, «Los atiende el asistente» y,
-  activado, «Hablando»: la voz de la persona pasa a texto, el asistente contesta y la respuesta le
-  llega con voz. Las piezas existen (recepción del lobby, voz a texto, voz del sistema).
-  - La sección «Voz del operador» pasa a «Voz del sistema», con pestañas «Voz del operador» y
-    «Voz del atendedor» (la voz con la que atiende).
-  - Decidir quién atiende (el rol de recepción o el asistente de automatización, no el del evento)
-    y cuándo termina (al admitir, o sigue en la sala).
-- **Alta automática en Personas:** registrar a todo el que dio su nombre y tiene cara reconocible;
-  con la atención activada corre el reconocimiento siempre, sin depender de que el asistente se
-  acuerde. Por evento, quién entra solo si se lo reconoce. Ya existen `rostro_autoalta` y la lista
-  de auto-aceptar del evento: falta la opción visible en Sala, Asamblea y Personas.
-
-## Organización de secciones
-
-- **Salidas → Pantallas:** «Pantallas conectadas» (monitores de la máquina, ordenados como están)
-  y «Pantallas de red» (TV, cast), eligiendo qué va en cada una: todo lo que hoy se saca a ventana
-  (paneles del tablero, multiview, escenas, lo de fondo del tablero). **Un solo catálogo de «cosas
-  que se pueden mostrar»** que usen el tablero, las ventanas y las pantallas: nada de copias. Se
-  recuerda por monitor; si uno no está, se espera (como después de un corte de luz).
-- **Entradas y dispositivos:** «Entradas de video» y «Entradas de audio», y los dispositivos con
-  nombre en **«Equipos» ampliada** (no una sección nueva al lado: Equipos ya busca todo en la red,
-  la máquina y el USB). Ahí se les pone nombre y se configuran; las entradas los muestran con ese
-  nombre. Los nombres son de la máquina, no del evento.
-
-## Asistentes y plugins
-
-- **Plugins:** un buen ejemplo en la sección Plugins, y que el asistente del evento sepa dónde está
-  y cómo hacer uno (ayuda MCP, prompt). Lo mismo con los de GStreamer: cuando le piden algo de video
-  tiene que darse cuenta de que puede hacer un elemento (tarjeta `baplugin`).
+- **Probar en Windows** (la PC): d3d12compositor en la mezcla, tortas en ba-grafico, VP9 con alfa,
+  ids de monitores (`\\.\DISPLAYn` si no informan serie), ids de dispositivos, `libyuv::MJPG*` en
+  webrtc.lib, `test_ejemplos.py` de plugins con el Python de la PC.
+- **«Hablando» en la Asamblea:** quien espera manda solo foto; hace falta que la página de la sesión
+  abra el micrófono hacia el gateway mientras espera.
+- **Video en vivo dentro de un gráfico** (una cámara en el zócalo): animar el ítem de la escena con la
+  línea de tiempo del gráfico. Propuesta: la ficha del gráfico declara claves por fuente y el Emisor
+  le pide al motor que las interpole (Composicion ya anima capas en las transiciones).
+- **Grilla de personas:** una vista en vivo de quién está en cada grilla (la propiedad existe, falta
+  el QML); «al aire» no cuenta otras grillas ni escenas anidadas; bajar la calidad de los que están
+  en la fila y no aparecen en ninguna grilla.
+- **Pantallas:** OutputWindowsModel (ventanas de video sueltas que se recuerdan) sigue aparte de las
+  asignaciones de monitor; `StudioViewModel::monitores()` y la herramienta `monitors` listan por su
+  cuenta.
+- **Dispositivos:** `audio_devices`/`video_devices` (MCP) siguen con nombres técnicos; el botón
+  «+ Entrada de audio del sistema» de Audio duplica el de Entradas de audio.
+- **Mezcla:** el error de una composición (un módulo que no negocia) queda en el log, no en la tarjeta.
