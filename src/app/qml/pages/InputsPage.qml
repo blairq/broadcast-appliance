@@ -1,6 +1,10 @@
-// Pagina Entradas: video de HARDWARE (camaras USB, capturadoras) y de RED
-// (camaras IP por RTSP, SRT, RTMP, HLS, UDP), con miniatura viva de cada
+// Pagina Entradas de video: video de HARDWARE (camaras USB, capturadoras) y de
+// RED (camaras IP por RTSP, SRT, RTMP, HLS, UDP, NDI), con miniatura viva de cada
 // entrada, en que escenas esta y si llega imagen. Todo sale de Studio.inputs.
+// Las camaras para elegir son las del registro de la maquina (pagina
+// «Dispositivos y equipos»), con el nombre que les puso el operador; una entrada
+// cuyo dispositivo no esta se muestra como desconectada y se la espera.
+// Los microfonos tienen su pagina: «Entradas de audio».
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -16,7 +20,6 @@ Rectangle {
     Timer { interval: 1000; repeat: true; running: page.visible; onTriggered: page.isos = Studio.isosUi() }
     readonly property var inp: Studio.inputs
     property string hwError: ""
-    property string micError: ""
     property string netError: ""
     // Miniaturas vivas solo mientras la pagina esta a la vista.
     onVisibleChanged: inp.setActive(visible)
@@ -37,46 +40,6 @@ Rectangle {
                 width: parent.width
                 spacing: 14
 
-                // Microfonos y lineas: van a un canal global (suenan en todas
-                // las escenas), por eso no piden escena.
-                Panel {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: micCol.implicitHeight + 64
-                    title: "Micrófonos y entradas de audio"
-                    ColumnLayout {
-                        id: micCol
-                        anchors.fill: parent
-                        spacing: 8
-                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                               text: "Micrófonos, líneas e interfaces de audio de esta máquina. Se escuchan en todas las escenas; su procesamiento se arma en la página Audio." }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            ComboBox {
-                                id: micBox
-                                Layout.fillWidth: true
-                                model: page.inp.audioDevices
-                                textRole: "name"
-                                valueRole: "value"
-                            }
-                            GlassButton { compact: true; text: "↻"; onClicked: page.inp.refresh()
-                                          ToolTip.visible: hovered; ToolTip.text: "Buscar dispositivos de nuevo" }
-                        }
-                        Text { visible: page.inp.audioDevices.length === 0; text: "No se encontraron entradas de audio."; color: Theme.textFaint; font.pixelSize: 12 }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            TextField { id: micName; Layout.fillWidth: true; placeholderText: "Nombre (opcional)" }
-                            GlassButton {
-                                text: "Agregar"; active: true; enabled: micBox.currentIndex >= 0
-                                onClicked: {
-                                    page.micError = page.inp.addAudioInput(micBox.currentValue, micName.text)
-                                    if (page.micError === "") micName.text = ""
-                                }
-                            }
-                        }
-                        Text { visible: page.micError !== ""; text: page.micError; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-                    }
-                }
-
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: hwCol.implicitHeight + 64
@@ -86,15 +49,16 @@ Rectangle {
                         anchors.fill: parent
                         spacing: 8
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                               text: page.inp.hardwareAvailable ? "Cámaras USB, capturadoras HDMI/SDI y placas de captura conectadas a esta máquina."
+                               text: page.inp.hardwareAvailable ? "Cámaras USB, capturadoras HDMI/SDI y placas de captura de esta máquina, con el nombre que les pusiste en Dispositivos y equipos."
                                                                 : "El plugin de cámaras no está cargado en esta plataforma." }
+                        LinkDispositivos { Layout.fillWidth: true }
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox {
                                 id: devBox
                                 Layout.fillWidth: true
                                 model: page.inp.devices
-                                textRole: "name"
+                                textRole: "label"
                                 valueRole: "value"
                                 onActivated: modeBox.model = page.inp.modes(currentValue)
                             }
@@ -118,7 +82,7 @@ Rectangle {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
                             color: Theme.textFaint; font.pixelSize: 11
                         }
-                        TextField { id: hwName; Layout.fillWidth: true; placeholderText: "Nombre (opcional)" }
+                        TextField { id: hwName; Layout.fillWidth: true; placeholderText: "Nombre (opcional: si no, el del dispositivo)" }
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox { id: hwScene; Layout.fillWidth: true; model: page.inp.scenes
@@ -147,7 +111,7 @@ Rectangle {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            ComboBox { id: ndiBox; Layout.fillWidth: true; model: page.inp.ndiFound; textRole: "name"; valueRole: "name"
+                            ComboBox { id: ndiBox; Layout.fillWidth: true; model: page.inp.ndiFound; textRole: "label"; valueRole: "name"
                                        displayText: count === 0 ? (page.inp.ndiSearching ? "Buscando en la red…" : "Tocá Buscar") : currentText }
                             GlassButton { compact: true; text: page.inp.ndiSearching ? "…" : "Buscar"; enabled: !page.inp.ndiSearching; onClicked: page.inp.searchNdi() }
                         }
@@ -227,16 +191,16 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Entradas (" + page.inp.inputs.length + ")"
+            title: "Entradas de video (" + page.inp.videoInputs.length + ")"
             GridView {
                 id: grid
                 anchors.fill: parent
                 clip: true
                 cellWidth: Math.max(260, width / Math.max(1, Math.floor(width / 300)))
                 cellHeight: cellWidth * 9 / 16 + 76
-                model: page.inp.inputs
+                model: page.inp.videoInputs
                 Text { anchors.centerIn: parent; visible: grid.count === 0; color: Theme.textFaint; font.pixelSize: 13
-                       text: "Todavía no hay entradas: agregá una cámara o una señal de red." }
+                       text: "Todavía no hay entradas de video: agregá una cámara o una señal de red." }
                 delegate: Item {
                     required property var modelData
                     width: grid.cellWidth
@@ -267,7 +231,9 @@ Rectangle {
                                 Text { anchors.centerIn: parent; visible: modelData.kind === "audio"
                                        text: "🎙"; font.pixelSize: 34; color: Theme.textFaint }
                                 Text { anchors.centerIn: parent; visible: !modelData.receiving && modelData.kind !== "audio"; color: Theme.textFaint; font.pixelSize: 12
-                                       text: modelData.kind === "red" ? "sin señal (reintentando…)" : "sin imagen" }
+                                       width: parent.width - 16; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                                       text: modelData.estado === "ausente" ? "«" + modelData.dispositivo + "» no está conectado: se lo espera"
+                                             : modelData.kind === "red" ? "sin señal (reintentando…)" : "sin imagen" }
                                 StatusPill { anchors { left: parent.left; top: parent.top; margins: 6 }
                                              text: modelData.kind === "red" ? "RED" : modelData.kind === "ndi" ? "NDI" : modelData.kind === "audio" ? "AUDIO" : "HARDWARE"
                                              dot: modelData.receiving ? Theme.ok : Theme.live }
@@ -309,7 +275,16 @@ Rectangle {
                                     }
                                 }
                             }
-                            Text { Layout.fillWidth: true; text: modelData.where; color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideMiddle }
+                            // El dispositivo, con el nombre del operador (el id técnico, al pasar el mouse).
+                            Text {
+                                Layout.fillWidth: true
+                                text: (modelData.estado === "ausente" ? "● desconectado · " : "") + modelData.where
+                                color: modelData.estado === "ausente" ? Theme.warn : Theme.textFaint
+                                font.pixelSize: 11; elide: Text.ElideMiddle
+                                ToolTip.visible: whereHover.hovered && modelData.tecnico !== modelData.where
+                                ToolTip.text: modelData.tecnico || ""
+                                HoverHandler { id: whereHover }
+                            }
                             Text { Layout.fillWidth: true; text: modelData.scenes.length > 0 ? "En: " + modelData.scenes.join(", ") : "No está en ninguna escena"
                                    color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight }
                         }

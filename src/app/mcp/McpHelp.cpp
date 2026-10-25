@@ -668,20 +668,23 @@ Los parámetros, uno por uno: `video_tarjeta_ayuda {"tipo": "panoramica"}`. En l
 - Las tarjetas `gst` agregan 1 cuadro de latencia (no frenan el video). Si dos entradas se comparan y solo una tiene `gst`, eso es un cuadro de diferencia: tenelo en cuenta o medilo con `video_sincronia`.
 - `video_grafo_limpiar {"entrada"}` deja una entrada como vino.
 - Entradas virtuales de prueba (barras, placa de zonas, pelota): `video_entrada_virtual {"nombre", "preset", "escena"}`.)md"},
-    {"equipos", "Equipos",
-     "Detectar equipos (red local, camaras y microfonos de la maquina, USB/HID/serie) y manejarlos con "
-     "acciones: ficha, funciones ONVIF, operaciones ONVIF crudas, pedidos HTTP a la API de la marca, claves, "
+    {"equipos", "Dispositivos y equipos",
+     "Detectar equipos (red local, camaras, microfonos y placas de la maquina, NDI, USB/HID/serie), ponerles "
+     "nombre y manejarlos con acciones: ficha, funciones ONVIF, operaciones ONVIF crudas, pedidos HTTP a la API de la marca, claves, "
      "agregar como entrada, PTZ real, explorar UVC.",
      R"md(Un catalogo unico de equipos, con acciones declaradas por tipo. Es el camino general para "¿que hay conectado?" y "hacele X a tal equipo".
 
 ## El camino
-1. `equipos_escanear {"detector"?}` (red, local, usb; sin detector, todos): cada equipo con `id` («red:192.168.1.90», «local:video:0», «usb:046d:0881:…»), `tipo` y sus `acciones`.
+1. `equipos_escanear {"detector"?}` (red, local, ndi, usb; sin detector, todos): cada equipo con `id` estable («red:192.168.1.90», «local:video:<id de la camara>», «local:audio:<id del microfono>», «local:salida:<id>», «usb:046d:0881:…»), `tipo`, `nombre`, si esta `conectado` y sus `acciones`. `equipos_listar` da lo ya encontrado sin buscar.
 2. `equipo_ver {"id"}`: todo lo que se sabe y cada accion con sus parametros.
 3. `equipo_accion {"id", "accion", "args"}`.
 
 ## Acciones utiles
 - Camara de la red: `pedir_clave` (formulario seguro: nunca pidas la clave por el chat), `ficha` (ONVIF + analisis + plan), `funciones_onvif` (que ejes se mueven y como, limites, foco, home, presets, auxiliares, y su posicion), `onvif` (una operacion cruda: `servicio` ptz|media|imaging|device y `cuerpo` con el XML del Body; {perfil}, {config_ptz} y {fuente} se reemplazan), `http` (la API propia de la marca: Axis VAPIX `/axis-cgi/com/ptz.cgi?query=limits`, Hikvision ISAPI…), `agregar`, `activar_ptz`.
-- Camara de esta maquina: `agregar` (como entrada de GStreamer).
+- Camara de esta maquina: `agregar` (como entrada de video, con su nombre y su formato preferido). Microfono: `agregar` (entrada de audio). NDI: `agregar`.
+
+## Nombres de los dispositivos (de la maquina)
+Las camaras, capturadoras, microfonos, placas de sonido, emisores NDI y camaras de red tienen el nombre que les pone el operador en «Dispositivos y equipos»: `equipo_renombrar {"id", "nombre"}` (vacio: vuelve al del sistema). Es de la MAQUINA, no del evento, y va pegado al id estable del equipo. Las entradas de video y de audio, el mezclador y las salidas lo muestran asi, y una entrada nueva se llama asi. `equipo_configurar {"id", "config": {"nota", "modo"}}` (`modo`: el formato preferido de una camara). Los que la maquina ya vio y hoy no estan siguen en la lista como ausentes (`estado` «ausente»): una entrada que los usa los espera y vuelve sola; `equipo_olvidar` borra uno ausente.
 - USB con camara UVC: `explorar_uvc` (PTZ estandar y unidades de extension de la marca: el primer paso para un plugin).
 
 ## Diagnosticar un PTZ que no responde

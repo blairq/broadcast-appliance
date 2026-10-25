@@ -16,10 +16,9 @@
 #include <nlohmann/json.hpp>
 
 #include "arranque/AppRuntime.hpp"
-#include "audio/EntradasAudio.hpp"
-#include "video/Camaras.hpp"
+#include "dispositivos/Dispositivos.hpp"
 #include "emision/InputSpecs.hpp"
-#include "audio/EntradasAudio.hpp"
+#include "video/Camaras.hpp"
 #if defined(BA_HAVE_NDI)
 #include "emision/NdiSource.hpp"
 #endif
@@ -61,36 +60,48 @@ bool InputsViewModel::ndiAvailable() const {
 #endif
 }
 
+void InputsViewModel::setDispositivos(dispositivos::Dispositivos* d) {
+    if (dd_ == d) return;
+    if (dd_ != nullptr) disconnect(dd_, nullptr, this, nullptr);
+    dd_ = d;
+    if (dd_ == nullptr) return;
+    // Un nombre nuevo, un equipo que se enchufa o se va: las listas para elegir
+    // y las entradas que lo usan se enteran solas (el modelo avisa).
+    connect(dd_, &dispositivos::Dispositivos::cambio, this, [this]() {
+        rebuildDevices();
+        rebuildInputs();
+    });
+    rebuildDevices();
+}
+
 void InputsViewModel::searchNdi() {
-#if defined(BA_HAVE_NDI)
-    if (ndiSearching_) return;
+    // Busca el detector «ndi» del registro: lo encontrado queda ahí (con su nombre)
+    // y la lista de acá se rehace cuando avisa.
+    if (ndiSearching_ || dd_ == nullptr) return;
     ndiSearching_ = true;
     emit ndiChanged();
     QPointer<InputsViewModel> self(this);
-    std::thread([self]() {
-        const auto found = ndi::discover(4000);
-        QVariantList list;
-        for (const auto& f : found)
-            list << QVariantMap{{"name", QString::fromStdString(f.name)},
-                                {"host", QString::fromStdString(f.host)},
-                                {"port", f.port}};
+    dd_->escanear("ndi", [self](QVariantMap) {
         if (!self) return;
-        QMetaObject::invokeMethod(self, [self, list]() {
-            if (!self) return;
-            self->ndiFound_ = list;
-            self->ndiSearching_ = false;
-            emit self->ndiChanged();
-        });
-    }).detach();
-#endif
+        self->ndiSearching_ = false;
+        self->rebuildDevices();
+        emit self->ndiChanged();
+    });
 }
 
 QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, const QString& scene) {
 #if defined(BA_HAVE_NDI)
     if (ndiName.isEmpty()) return "Elegi una fuente NDI.";
+    QString nm = name.trimmed();
+    if (nm.isEmpty()) {
+        nm = "NDI " + ndiName;
+        for (const QVariant& v : ndiFound_)
+            if (v.toMap().value("name").toString() == ndiName && v.toMap().value("propio").toBool())
+                nm = v.toMap().value("label").toString();
+    }
     SourceSpec spec;
     spec.id = ndi::kSourceId;
-    spec.name = (name.trimmed().isEmpty() ? "NDI " + ndiName : name.trimmed()).toStdString();
+    spec.name = nm.toStdString();
     spec.settingsJson = json{{"ndi_name", ndiName.toStdString()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
@@ -111,24 +122,77 @@ bool InputsViewModel::hardwareAvailable() const {
 }
 
 void InputsViewModel::refresh() {
-    devices_.clear();
-    for (const auto& d : video::camarasDelEquipo(rt_.engine()))
-        devices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
-                                {"value", QString::fromStdString(d.value)}};
-    audioDevices_.clear();
-    for (const auto& d : audio::entradasDeAudio(rt_.engine()))
-        audioDevices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
-                                     {"value", QString::fromStdString(d.value)}};
+    // Buscar de nuevo lo de la máquina: al terminar, el registro avisa (cambio) y
+    // las listas se rehacen.
+    if (dd_ != nullptr) dd_->escanear("local", [](QVariantMap) {});
+    rebuildDevices();
     rebuildInputs();
-    emit changed();
+}
+
+void InputsViewModel::rebuildDevices() {
+    if (dd_ == nullptr) return;
+    // Cada dispositivo para elegir: `name` es el nombre (el del operador si le
+    // puso uno; con ese nombre se crea la entrada), `label` lo que se muestra
+    // (con «desconectado» si no está), `value` lo que guarda la entrada.
+    auto item = [](const QVariant& v) {
+        const QVariantMap e = v.toMap();
+        const QString nombre = e.value("nombre").toString();
+        const bool ausente = e.value("estado").toString() == "ausente";
+        return QVariantMap{{"name", nombre},
+                           {"label", ausente ? nombre + " (desconectado)" : nombre},
+                           {"value", e.value("valor")},
+                           {"id", e.value("id")},
+                           {"tecnico", e.value("tecnico")},
+                           {"propio", e.value("nombre_propio")},
+                           {"conectado", e.value("conectado")},
+                           {"estado", e.value("estado")},
+                           {"config", e.value("config")}};
+    };
+    QVariantList dev, aud, ndi;
+    for (const QVariant& v : dd_->equipos("camara_local"))
+        dev << item(v);
+    for (const QVariant& v : dd_->equipos("microfono")) {
+        // La predeterminada del sistema, primero (es la que sirve si no se sabe cuál).
+        if (v.toMap().value("valor").toString() == "default")
+            aud.prepend(item(v));
+        else
+            aud << item(v);
+    }
+    for (const QVariant& v : dd_->equipos("ndi")) {
+        QVariantMap m = item(v);
+        // addNdi recibe el nombre con que se anuncia el emisor (el valor); se muestra el del operador.
+        m["name"] = m.value("value");
+        if (v.toMap().value("estado").toString() == "ausente")
+            m["label"] = v.toMap().value("nombre").toString() + " (no se ve)";
+        ndi << m;
+    }
+    if (dev != devices_ || aud != audioDevices_) {
+        devices_ = dev;
+        audioDevices_ = aud;
+        emit changed();
+    }
+    if (ndi != ndiFound_) {
+        ndiFound_ = ndi;
+        emit ndiChanged();
+    }
+}
+
+QVariantMap InputsViewModel::dispositivoDe(const QString& tipo, const QString& valor) const {
+    const QVariantMap d = dd_ != nullptr ? dd_->porValor(tipo, valor) : QVariantMap{};
+    if (d.isEmpty()) return {{"dispositivo", QString()}, {"dispositivoId", QString()}, {"estado", QString()}, {"conectado", true}};
+    return {{"dispositivo", d.value("nombre")},
+            {"dispositivoId", d.value("id")},
+            {"estado", d.value("estado")},
+            // «sin buscar todavía» no es ausente: no se lo pinta de rojo.
+            {"conectado", d.value("estado").toString() != "ausente"}};
 }
 
 QString InputsViewModel::audioInputName(const QString& device) const {
     // El dispositivo "default" se llama "Default": con ese nombre el operador
     // no sabe que es. El resto ya trae el nombre del equipo.
-    if (device == "default") return QStringLiteral("Entrada de audio predeterminada");
     for (const QVariant& d : audioDevices_)
         if (d.toMap().value("value").toString() == device) return d.toMap().value("name").toString();
+    if (device == "default") return QStringLiteral("Entrada de audio predeterminada");
     return QStringLiteral("Micrófono");
 }
 
@@ -164,7 +228,17 @@ void InputsViewModel::rebuildInputs() {
         for (const auto& sc : e.sceneNames())
             for (const auto& src : e.sceneSources(sc))
                 if (src == n) inScenes << QString::fromStdString(sc);
-        out << QVariantMap{
+        // El dispositivo de la máquina que usa (con el nombre del operador): la
+        // cámara por su id, el emisor NDI por su nombre, la cámara IP por su host.
+        QVariantMap disp;
+        if (hw)
+            disp = dispositivoDe("camara_local", QString::fromStdString(inputs::camaraDe(type, s)));
+        else if (isNdi)
+            disp = dispositivoDe("ndi", QString::fromStdString(s.value("ndi_name", std::string())));
+        else
+            disp = dispositivoDe("camara_red",
+                                 QUrl(QString::fromStdString(s.value("uri", s.value("input", std::string())))).host());
+        QVariantMap fila{
             {"name", QString::fromStdString(n)},
             {"kind", hw      ? "hardware"
                      : isNdi ? "ndi"
@@ -182,20 +256,42 @@ void InputsViewModel::rebuildInputs() {
             {"receiving", w > 0},
             {"state", QString::fromStdString(media.count(n) ? media[n] : std::string())},
             {"scenes", inScenes}};
+        fila.insert(disp);
+        // Lo técnico queda a mano (tooltip); a la vista, el nombre del dispositivo.
+        fila["tecnico"] = fila.value("where");
+        if (!disp.value("dispositivo").toString().isEmpty()) fila["where"] = disp.value("dispositivo");
+        out << fila;
     }
     // Entradas de audio del equipo: no son items de escena (van por un canal
     // global), asi que no salen del recorrido de arriba. Se listan igual: para
     // el operador son entradas como cualquier otra.
+    QVariantList video = out, audio;
     for (const std::string& n : e.globalAudioInputs()) {
         const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
-        out << QVariantMap{{"name", QString::fromStdString(n)},
-                           {"kind", "audio"},
-                           {"where", QString::fromStdString(s.value("microfono", s.value(inputs::kAudioInProp, std::string())))},
-                           {"width", 0},
-                           {"height", 0},
-                           {"receiving", true},
-                           {"state", QString()},
-                           {"scenes", QStringList{QStringLiteral("todas (audio)")}}};
+        const QString mic = QString::fromStdString(s.value("microfono", s.value(inputs::kAudioInProp, std::string())));
+        const QVariantMap disp = dispositivoDe("microfono", mic);
+        QVariantMap fila{{"name", QString::fromStdString(n)},
+                         {"kind", "audio"},
+                         {"where", disp.value("dispositivo").toString().isEmpty() ? mic : disp.value("dispositivo").toString()},
+                         {"tecnico", mic},
+                         {"width", 0},
+                         {"height", 0},
+                         // Un micrófono ausente (desenchufado, o que todavía no volvió
+                         // después de un corte) no manda nada: se lo espera.
+                         {"receiving", disp.value("conectado").toBool()},
+                         {"state", QString()},
+                         {"scenes", QStringList{QStringLiteral("todas (audio)")}}};
+        fila.insert(disp);
+        out << fila;
+        audio << fila;
+    }
+    if (video != videoInputs_) {
+        videoInputs_ = video;
+        emit videoInputsChanged();
+    }
+    if (audio != audioInputs_) {
+        audioInputs_ = audio;
+        emit audioInputsChanged();
     }
     if (out != inputs_) {
         inputs_ = out;
@@ -249,10 +345,15 @@ QString InputsViewModel::addHardware(const QString& device, const QString& name,
     json opts = json::object();
     if (!mode.value("modo").toString().isEmpty()) opts["modo"] = mode.value("modo").toString().toStdString(); // vacío: automático
     QString nm = name.trimmed();
-    if (nm.isEmpty())
-        for (const QVariant& d : devices_)
-            if (d.toMap().value("value").toString() == device)
-                nm = "Camara " + d.toMap().value("name").toString();
+    for (const QVariant& v : devices_) {
+        const QVariantMap d = v.toMap();
+        if (d.value("value").toString() != device) continue;
+        // Con el nombre que le puso el operador, tal cual; sin nombre propio, «Cámara <la del sistema>».
+        if (nm.isEmpty()) nm = d.value("propio").toBool() ? d.value("name").toString() : "Cámara " + d.value("name").toString();
+        // El formato preferido de ese dispositivo (Dispositivos y equipos), si no se eligió otro.
+        const QString preferido = d.value("config").toMap().value("modo").toString();
+        if (!opts.contains("modo") && !preferido.isEmpty()) opts["modo"] = preferido.toStdString();
+    }
     const SourceSpec spec = inputs::hardwareSpec(device.toStdString(), nm.toStdString(), opts);
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());

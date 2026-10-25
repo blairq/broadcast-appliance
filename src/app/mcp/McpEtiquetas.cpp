@@ -739,6 +739,10 @@ const Fila kPropias[] = {
      "buscar equipos detectar dispositivos escanear red usb camaras microfonos hid serie"},
     {"equipos_listar", "que equipos hay dispositivos encontrados listar equipos"},
     {"equipo_ver", "detalle de un equipo datos acciones de un dispositivo"},
+    {"equipo_renombrar", "ponerle nombre a una camara microfono placa de sonido capturadora renombrar dispositivo "
+                         "nombre del operador como se llama"},
+    {"equipo_configurar", "configurar dispositivo nota formato preferido modo de la camara"},
+    {"equipo_olvidar", "olvidar dispositivo ausente desconectado sacar de la lista borrar equipo viejo"},
     {"equipo_accion", "hacer algo con un equipo funciones onvif operacion onvif ficha agregar camara "
                       "explorar uvc pedir clave activar ptz"},
     {"plugin_listar", "plugins python extensiones programar equipo raro camara rara que plugins hay"},
