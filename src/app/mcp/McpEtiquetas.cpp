@@ -817,6 +817,13 @@ const Fila kPropias[] = {
     {"pantalla_buscar", "buscar televisores en la red descubrir chromecast"},
     {"pantalla_mostrar", "mandar a la tv proyectar castear mostrar en pantalla qr mensaje reloj "
                          "tally luz roja camara al aire escena en la tele una escena en el televisor del hall"},
+    {"catalogo_listar", "que se puede mostrar que puedo poner en un monitor o en la tele lista de cosas "
+                        "paneles escenas multiview paginas tarjetas"},
+    {"monitor_listar", "que muestra cada monitor monitores de la maquina orden de los monitores cual es "
+                       "el de la izquierda pantallas conectadas que hay en el segundo monitor"},
+    {"monitor_asignar", "poner en el monitor dejar fijo en el segundo monitor el programa en el monitor del "
+                        "escenario la multiview en el monitor de la izquierda llenar los monitores grilla"},
+    {"monitor_quitar", "sacar del monitor dejar el monitor vacio que no muestre nada dejar de esperar un monitor"},
     {"media_carpetas", "como estan ordenados los medios que carpetas hay arbol"},
     {"media_ordenar", "mover archivos a otra carpeta ordenar renombrar crear carpeta borrar "
                       "limpiar acomodar los medios papelera"},

@@ -1,12 +1,19 @@
-// Página Pantallas: los televisores de la sala y qué mostrar en cada uno.
+// Página Pantallas (Salidas): dónde se muestra cada cosa, en dos partes.
 //
-// Dos listas y nada más, porque son dos preguntas distintas: DÓNDE (los
-// aparatos que hay) y QUÉ (lo que se puede proyectar). Se elige una pantalla,
-// se elige un contenido, se llenan sus campos y se manda.
+//   Pantallas conectadas  los monitores de esta máquina, como están puestos, y
+//                         qué va en cada uno (controls/PantallasConectadas.qml).
+//   Pantallas de red      los televisores de la sala (Chromecast) y qué mostrar
+//                         en cada uno.
 //
-// Lo que se proyecta son páginas que ya sirve el gateway, así que agregar algo
-// nuevo para mostrar no toca esta pantalla: aparece solo en la lista de
-// contenidos (ver PantallasViewModel).
+// Las dos eligen del MISMO catálogo (Studio.catalogo): el programa, una
+// escena, una multivista, un panel… Cada parte muestra lo que puede: a un
+// monitor va todo lo que se dibuja en esta máquina; a una TV, lo que el
+// gateway sabe servirle como página.
+//
+// En las de red son dos preguntas distintas: DÓNDE (los aparatos que hay) y
+// QUÉ (lo que se puede proyectar). Se elige una pantalla, se elige un
+// contenido, se llenan sus campos y se manda. Un contenido nuevo de la TV
+// aparece solo en el catálogo (ver PantallasViewModel y pantallas/Catalogo).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -21,6 +28,17 @@ Rectangle {
     property string elegida: ""
     property string tipo: "mensaje"
     property var datos: ({})
+    /// La cosa del catálogo elegida para la TV; `tipo` y los datos fijos salen de ella.
+    property string cosaRed: "web:mensaje"
+    /// Los datos que ya trae la cosa (la escena de «Escena — X»): sus campos no se piden.
+    readonly property var datosFijos: { const c = Studio.catalogo.porId[page.cosaRed]; return c ? c.redDatos : ({}) }
+    function elegirRed(id) {
+        const c = Studio.catalogo.porId[id]
+        if (!c || !c.red) return
+        page.cosaRed = id
+        page.tipo = c.redTipo
+        page.datos = Object.assign({}, c.redDatos)
+    }
     property bool modoCarrusel: false
     property string carrusel: ""
 
@@ -67,10 +85,19 @@ Rectangle {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
         spacing: 12
 
+        Text { text: "Pantallas"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+
+        // --- Los monitores de esta máquina -----------------------------------
+        PantallasConectadas {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 300
+        }
+
+        // --- Las TV de la red (Chromecast) -----------------------------------
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Pantallas"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: "Pantallas de red"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
             StatusPill {
                 text: page.p.mostrando > 0 ? page.p.mostrando + " mostrando" : page.p.pantallas.length + " conocidas"
                 dot: page.p.mostrando > 0 ? Theme.live : Theme.textFaint
@@ -401,13 +428,20 @@ Rectangle {
                     }
 
                     // --- Una cosa sola ----------------------------------------
+                    // El MISMO catálogo que los monitores (Studio.catalogo), solo
+                    // lo que viaja a una TV: el programa, cada escena, la votación,
+                    // el teleprompter y lo que existe solo en la TV (un cartel, un
+                    // QR, la hora…).
                     ComboBox {
+                        id: queRed
                         visible: !page.modoCarrusel
                         Layout.fillWidth: true
-                        model: page.p.contenidos
-                        textRole: "titulo"
-                        currentIndex: { for (let i = 0; i < page.p.contenidos.length; ++i) if (page.p.contenidos[i].id === page.tipo) return i; return 0 }
-                        onActivated: (i) => { page.tipo = page.p.contenidos[i].id; page.datos = ({}) }
+                        model: Studio.catalogo.deRed
+                        textRole: "etiqueta"
+                        valueRole: "itemId"
+                        currentIndex: Math.max(0, indexOfValue(page.cosaRed))
+                        onActivated: page.elegirRed(currentValue)
+                        Component.onCompleted: currentIndex = Math.max(0, indexOfValue(page.cosaRed))
                     }
                     Text {
                         visible: !page.modoCarrusel
@@ -425,7 +459,8 @@ Rectangle {
                     // Los campos salen del catálogo: un contenido nuevo trae
                     // los suyos sin tocar esta pantalla.
                     Repeater {
-                        model: page.modoCarrusel || !page.contenidoActual() ? [] : page.contenidoActual().campos
+                        model: page.modoCarrusel || !page.contenidoActual() ? []
+                               : page.contenidoActual().campos.filter(c => page.datosFijos[c.clave] === undefined)
                         delegate: ColumnLayout {
                             required property var modelData
                             Layout.fillWidth: true

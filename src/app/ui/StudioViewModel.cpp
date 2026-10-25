@@ -141,6 +141,8 @@
 #include "ui/MediosViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PantallasViewModel.hpp"
+#include "pantallas/Catalogo.hpp"
+#include "pantallas/Monitores.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -1119,6 +1121,37 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    // El catálogo de cosas que se pueden mostrar y los monitores de la máquina
+    // (Salidas → Pantallas). Después de las cámaras, las multivistas, el tablero
+    // y las pantallas de la red: el catálogo los lee a todos.
+    {
+        CatalogoVisible::Fuentes f;
+        f.escenas = [this]() {
+            QStringList out;
+            for (const std::string& n : rt_.orderedSceneNames()) out << QString::fromStdString(n);
+            return out;
+        };
+        f.multiviews = [this]() { return multiviews(); };
+        f.fondo = [this]() { return dashboard_ ? dashboard_->background() : QStringList{}; };
+        f.fondoDistribucion = [this]() { return dashboard_ ? dashboard_->backgroundLayout() : QString("grid"); };
+        f.camarasPtz = [this]() {
+            QStringList out;
+            if (camaras_)
+                for (const QVariant& v : camaras_->camaras()) out << v.toMap().value("entrada").toString();
+            return out;
+        };
+        f.paginas = []() { return RielConfig::todasLasPaginas(); };
+        f.contenidosRed = [this]() { return pantallas_ ? pantallas_->contenidos() : QVariantList{}; };
+        catalogo_ = std::make_unique<CatalogoVisible>(std::move(f));
+        const auto refrescar = [this]() { catalogo_->refrescar(); };
+        connect(this, &StudioViewModel::escenasCambiaron, catalogo_.get(), refrescar);
+        connect(this, &StudioViewModel::multiviewChanged, catalogo_.get(), refrescar);
+        if (dashboard_) connect(dashboard_.get(), &DashboardModel::backgroundChanged, catalogo_.get(), refrescar);
+        connect(camaras_.get(), &ptz::ControlCamaras::cambio, catalogo_.get(), refrescar);
+        monitores_ = std::make_unique<MonitoresModel>(rt.dataRoot() / "Config" / "monitores.json", catalogo_.get());
+        monitores_->conectarAlSistema();
+        marca("monitores");
+    }
     // Los tiempos: solo fotos que ya se publican (el motor, las salidas, los grafos, los racks).
     tiempos_ = std::make_unique<tiempos::TiemposModel>([this]() {
         tiempos::Fotos f;
@@ -2678,6 +2711,8 @@ QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
+QObject* StudioViewModel::catalogoQml() const { return catalogo_.get(); }
+QObject* StudioViewModel::pantallasConectadasQml() const { return monitores_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }
 QObject* StudioViewModel::enlacesQml() const { return enlaces_.get(); }
 

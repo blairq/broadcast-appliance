@@ -23,7 +23,7 @@ Item {
     id: tarjeta
 
     readonly property var cc: Studio.carruseles
-    /// Lo pone en true PanelWindow cuando esta tarjeta vive en su propia
+    /// Lo pone en true VentanaSuelta cuando esta tarjeta vive en su propia
     /// ventana. Es lo que decide si se muestra el testigo del aire.
     property bool enVentana: false
     /// La lámina del centro, que es la que Enter pone al aire.
@@ -115,7 +115,7 @@ Item {
                 text: "⧉"
                 // La misma tarjeta, en su propia ventana: en vivo el carrusel
                 // se maneja con una mano mientras la principal tiene las
-                // escenas. Ver PanelWindow.qml.
+                // escenas. Ver VentanaSuelta.qml.
                 visible: typeof ApplicationWindow !== "undefined" &&
                          ApplicationWindow.window && ApplicationWindow.window.sacarPanel !== undefined
                 onClicked: ApplicationWindow.window.sacarPanel("carrusel", "Carrusel")

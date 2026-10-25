@@ -17,7 +17,7 @@ Item {
     id: raiz
 
     readonly property var ev: Studio.evento
-    /// Lo pone en true PanelWindow (ver PanelPreguntas).
+    /// Lo pone en true VentanaSuelta (ver PanelPreguntas).
     property bool enVentana: false
     readonly property var r: ev.resumenPadron
 

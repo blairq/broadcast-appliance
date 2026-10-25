@@ -26,7 +26,7 @@ ApplicationWindow {
         anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 64 }
         width: Math.min(760, parent.width - 160)
     }
-    objectName: "ba:principal" // ver PageWindow.qml
+    objectName: "ba:principal" // ver VentanaSuelta.qml
     visible: true
     width: 1600
     height: 920
@@ -306,32 +306,52 @@ ApplicationWindow {
         cmpHistorico, cmpMultiview, cmpEnlaces, cmpTiempos, cmpEntradasAudio]
     function componenteDePagina(i) { return win.componentesDePagina[i] || null }
 
+    // --- Cosas sacadas a su propia ventana ---------------------------------------
+    // Una página entera (clic derecho en el riel), un panel (el padrón, la cola de
+    // preguntas, el Mezclador, la PTZ de una cámara) o una tarjeta del tablero: todo
+    // es una cosa del catálogo (Studio.catalogo) y va en una VentanaSuelta. El video
+    // (el programa, una escena, una multivista, lo de fondo) va a una ventana de
+    // salida, que además se recuerda (Studio.dashboard.windows).
     ListModel { id: sueltas }
-    /// Cambia cada vez que se saca o se cierra una ventana de página (para los bindings de paginaAfuera).
+    /// Cambia cada vez que se saca o se cierra una ventana (para los bindings de `afuera`).
     property int sueltasTick: 0
     /// Lo dictado va derecho al asistente si se lo está mirando: su página en la
     /// principal, o su ventana propia activa (agent/Voz: vistaAsistente).
     property bool ventanaAsistenteActiva: false
     readonly property bool vistaAsistente: win.page === Studio.riel.paginaDeId("asistente") || ventanaAsistenteActiva
     onVistaAsistenteChanged: if (Studio.voz) Studio.voz.vistaAsistente = vistaAsistente
-    /// ¿La página `id` (el de ui_show_page) está en su propia ventana?
-    function paginaAfuera(id) {
+
+    /// Saca la cosa `itemId` del catálogo a su ventana. Si ya está afuera, lo dice
+    /// en vez de abrir otra igual.
+    function sacar(itemId) {
+        const c = Studio.catalogo.porId[itemId]
+        if (!c || !c.local) { toasts.show("«" + Studio.catalogo.tituloDe(itemId) + "» no se puede abrir en una ventana", "warn"); return }
+        if (c.dibujo.modo === "video") { Studio.dashboard.windows.open(c.dibujo.claves, c.dibujo.distribucion); return }
+        if (c.dibujo.modo === "multiview") { Studio.abrirMultiviewEnVentana(c.dibujo.id, "", false); return }
+        if (afuera(itemId)) { toasts.show("«" + c.titulo + "» ya está en su ventana", "info"); return }
+        sueltas.append({ itemId: itemId })
+        sueltasTick++
+    }
+    /// ¿La cosa `itemId` está en su propia ventana?
+    function afuera(itemId) {
         win.sueltasTick
         for (let k = 0; k < sueltas.count; ++k)
-            if (sueltas.get(k).idPagina === id) return true
+            if (sueltas.get(k).itemId === itemId) return true
         return false
     }
-    /// Cierra la ventana propia de la página `id` (vuelve a la principal).
-    function traerPagina(id) {
+    /// Cierra su ventana propia (vuelve a estar solo en la principal).
+    function traer(itemId) {
         for (let k = 0; k < sueltas.count; ++k)
-            if (sueltas.get(k).idPagina === id) { const v = ventanasSueltas.objectAt(k); if (v) v.close(); return }
+            if (sueltas.get(k).itemId === itemId) { const v = ventanasSueltas.objectAt(k); if (v) v.close(); return }
     }
+    // Los nombres de siempre (los llaman las tarjetas, las páginas y el MCP).
+    function sacarAVentana(i, titulo) { sacar("pagina:" + Studio.riel.idDePagina(i)) }
+    function paginaAfuera(id) { return afuera("pagina:" + id) }
+    function traerPagina(id) { traer("pagina:" + id) }
+    function sacarPanel(id, titulo) { sacar(id) }
 
-    // --- Paneles sueltos -----------------------------------------------------
-    // Mas fino que sacar una pagina: en un evento, la cola de preguntas en un
-    // monitor y la urna en otro. Ver PanelWindow.qml.
-    ListModel { id: panelesSueltos }
-
+    // Los paneles que se pueden sacar (el catálogo dice cuáles y con qué id;
+    // acá está solo cómo se dibuja cada uno).
     Component { id: cmpPanelPadron;    PanelPadron {} }
     Component { id: cmpPanelPreguntas; PanelPreguntas {} }
     Component { id: cmpPanelVotacion;  PanelVotacion {} }
@@ -356,55 +376,26 @@ ApplicationWindow {
              : id.startsWith("tarjeta:") ? cmpPanelTarjeta : null
     }
 
-    function sacarPanel(id, titulo) {
-        // Si ya esta afuera, se la trae al frente en vez de abrir otra igual.
-        for (let k = 0; k < panelesSueltos.count; ++k)
-            if (panelesSueltos.get(k).panelId === id) {
-                toasts.show("«" + titulo + "» ya está en su ventana", "info")
-                return
-            }
-        panelesSueltos.append({ panelId: id, titulo: titulo })
-    }
-
-    Instantiator {
-        model: panelesSueltos
-        delegate: PanelWindow {
-            required property int index
-            panelId: panelesSueltos.get(index) ? panelesSueltos.get(index).panelId : ""
-            titulo: panelesSueltos.get(index) ? panelesSueltos.get(index).titulo : ""
-            contenido: win.componenteDePanel(panelId)
-            onCerrada: (cual) => {
-                for (let k = 0; k < panelesSueltos.count; ++k)
-                    if (panelesSueltos.get(k).panelId === cual) { panelesSueltos.remove(k); return }
-            }
-        }
-    }
-
-    function sacarAVentana(i, titulo) {
-        // Si ya esta afuera, se la trae al frente en vez de abrir otra igual.
-        for (let k = 0; k < sueltas.count; ++k) {
-            if (sueltas.get(k).page === i) { toasts.show("«" + titulo + "» ya está en su ventana", "info"); return }
-        }
-        sueltas.append({ page: i, titulo: titulo, idPagina: Studio.riel.idDePagina(i) })
-        sueltasTick++
-    }
-
     Instantiator {
         id: ventanasSueltas
         model: sueltas
-        delegate: PageWindow {
-            required property int index
-            page: sueltas.get(index) ? sueltas.get(index).page : 0
-            titulo: sueltas.get(index) ? sueltas.get(index).titulo : ""
-            idPagina: sueltas.get(index) ? sueltas.get(index).idPagina : ""
-            contenido: win.componenteDePagina(page)
+        delegate: VentanaSuelta {
+            principal: win
             onActiveChanged: if (idPagina === "asistente") win.ventanaAsistenteActiva = active
-            onCerrada: (p) => {
+            onCerrada: (cual) => {
                 if (idPagina === "asistente") win.ventanaAsistenteActiva = false
                 for (let k = 0; k < sueltas.count; ++k)
-                    if (sueltas.get(k).page === p) { sueltas.remove(k); win.sueltasTick++; return }
+                    if (sueltas.get(k).itemId === cual) { sueltas.remove(k); win.sueltasTick++; return }
             }
         }
+    }
+
+    // --- Los monitores de la máquina (Salidas → Pantallas) -------------------------
+    // Una ventana por monitor conectado con algo asignado; si el monitor no está,
+    // no hay ventana (se lo espera: ver PantallaWindow.qml).
+    Instantiator {
+        model: Studio.pantallasConectadas.activos
+        delegate: PantallaWindow { principal: win }
     }
 
     // El asistente retomó la conversación de antes del reinicio: a su pestaña.

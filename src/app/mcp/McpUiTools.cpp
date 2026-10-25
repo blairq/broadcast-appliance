@@ -21,6 +21,7 @@
 #include "mcp/McpService.hpp"
 #include "video/VideoGrafos.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "pantallas/Catalogo.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/RielConfig.hpp"
@@ -328,32 +329,43 @@ void McpService::registerUiTools() {
             "El operador hace lo mismo con el boton ⧉ del panel.";
         t.inputSchema = {
             {"type", "object"},
-            {"required", {"panel"}},
             {"properties",
              {{"panel",
                {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "mezclador", "ptz"}}}},
-              {"entrada", {{"type", "string"}, {"description", "Con panel=ptz: la entrada de video."}}}}}};
-        t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})"};
-        t.run = [self](const json& a, Done done) {
+              {"entrada", {{"type", "string"}, {"description", "Con panel=ptz: la entrada de video."}}},
+              {"cosa",
+               {{"type", "string"},
+                {"description", "En vez de `panel`: CUALQUIER cosa de catalogo_listar que vaya a un monitor "
+                                "(una tarjeta del tablero «tarjeta:aire», una pagina «pagina:guion», el "
+                                "programa, una escena, una multiview...)."}}}}}};
+        t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})",
+                      R"({"cosa": "tarjeta:aire"})"};
+        t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-            std::string id = a["panel"].get<std::string>();
-            QString titulo = id == "padron"      ? "Padrón"
-                             : id == "preguntas" ? "Preguntas"
-                             : id == "carrusel"  ? "Carrusel"
-                             : id == "mezclador" ? "Mezclador"
-                                                 : "Votación";
+            // Todo es una cosa del catálogo: el panel de siempre o cualquier otra.
+            std::string id = a.value("cosa", a.value("panel", std::string()));
+            if (id.empty()) return done(ToolResult::error("Falta `panel` o `cosa` (catalogo_listar)."));
             if (id == "ptz") {
                 const std::string entrada = a.value("entrada", std::string());
                 if (entrada.empty())
                     return done(ToolResult::error("Falta `entrada`: la camara (ver ptz_camaras)."));
                 id = "ptz:" + entrada;
-                titulo = "PTZ — " + QString::fromStdString(entrada);
             }
-            QMetaObject::invokeMethod(w, "sacarPanel", Q_ARG(QVariant, QString::fromStdString(id)),
-                                      Q_ARG(QVariant, titulo));
-            done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierto en su propia ventana (ba:panel:" +
-                                id + "). Con `ventana_mover` se la manda al monitor que corresponda."));
+            CatalogoVisible* cat = vm.catalogoVisible();
+            const CatalogoVisible::Cosa* cosa = cat ? cat->buscar(QString::fromStdString(id)) : nullptr;
+            if (cosa == nullptr || cosa->dibujo.isEmpty())
+                return done(ToolResult::error("\"" + id + "\" no es algo que se pueda abrir en una ventana: "
+                                              "catalogo_listar {\"donde\": \"monitor\"} dice que hay."));
+            const std::string titulo = cosa->titulo.toStdString();
+            QMetaObject::invokeMethod(w, "sacar", Q_ARG(QVariant, QString::fromStdString(id)));
+            const std::string modo = cosa->dibujo.value("modo").toString().toStdString();
+            const std::string nombre = modo == "pagina" ? "ba:pagina:" + id.substr(7)
+                                       : modo == "panel" ? "ba:panel:" + id
+                                                         : std::string("ba:salida:<n>");
+            done(ToolResult::ok("\"" + titulo + "\" abierto en su propia ventana (" + nombre +
+                                "). Con `ventana_mover` se la manda al monitor que corresponda; para dejarlo FIJO "
+                                "en un monitor, `monitor_asignar`."));
         };
         core_.addTool(std::move(t));
     }

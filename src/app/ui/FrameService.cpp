@@ -68,6 +68,7 @@ QString FrameService::label(const QString& key) const {
     if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);
     if (key.startsWith("backstage:")) return "Fila " + key.mid(10);
     if (key.startsWith("entrada:")) return key.mid(8);
+    if (key.startsWith("escena:")) return key.mid(7);
     return key;
 }
 
@@ -81,20 +82,33 @@ void FrameService::setArmada(const QString& escena) {
 }
 
 namespace {
-/// "entrada:X" → lo que se le pide al motor: "X"; "entrada-entera:X" → "entera:X".
+/// "entrada:X" → lo que se le pide al motor: "X"; "entrada-entera:X" → "entera:X";
+/// "escena:X" → "X" (el motor compone una escena o una fuente por su nombre).
 std::string vistaDeEntrada(const QString& clave) {
+    if (clave.startsWith("escena:")) return clave.mid(7).toStdString();
     return clave.startsWith("entrada-entera:") ? "entera:" + clave.mid(15).toStdString() : clave.mid(8).toStdString();
 }
 } // namespace
 
 void FrameService::mirarEntrada(const QString& entrada, bool mirar, bool entera) {
     if (entrada.isEmpty()) return;
-    const QString clave = (entera ? "entrada-entera:" : "entrada:") + entrada;
+    // 960 de ancho, como la armada: para apuntar alcanza y sobra.
+    mirarClave((entera ? "entrada-entera:" : "entrada:") + entrada, mirar, 960);
+}
+
+void FrameService::mirarEscena(const QString& escena, bool mirar) {
+    if (escena.isEmpty()) return;
+    // Clave propia (una escena y una entrada pueden llamarse igual) y 1280 de
+    // ancho: va a un monitor entero, no a una tarjeta.
+    mirarClave("escena:" + escena, mirar, 1280);
+}
+
+void FrameService::mirarClave(const QString& clave, bool mirar, int ancho) {
+    // Cuenta pedidos: se renderiza mientras alguien la mire.
     int& n = entradas_[clave];
     const std::string canal = clave.toStdString();
     if (mirar) {
-        // 960 de ancho, como la armada: para apuntar alcanza y sobra.
-        if (n++ == 0) engine_.enableScenePreview(canal, vistaDeEntrada(clave), 960);
+        if (n++ == 0) engine_.enableScenePreview(canal, vistaDeEntrada(clave), ancho);
         return;
     }
     if (n > 0 && --n == 0) {

@@ -22,7 +22,7 @@ Item {
     id: raiz
 
     readonly property var cc: Studio.carruseles
-    /// Lo pone en true PanelWindow cuando esto vive en su propia ventana.
+    /// Lo pone en true VentanaSuelta cuando esto vive en su propia ventana.
     property bool enVentana: false
 
     RowLayout {

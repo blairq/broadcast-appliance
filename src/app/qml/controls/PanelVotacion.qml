@@ -19,7 +19,7 @@ Item {
     id: raiz
 
     readonly property var pub: Studio.publico
-    /// Lo pone en true PanelWindow (ver PanelPreguntas).
+    /// Lo pone en true VentanaSuelta (ver PanelPreguntas).
     property bool enVentana: false
     readonly property var ev: Studio.evento
     readonly property var v: pub.votacion

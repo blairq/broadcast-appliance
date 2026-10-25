@@ -29,17 +29,12 @@ Rectangle {
 
     function abrirVentana(t) {
         const w = ApplicationWindow.window
-        if (!w || w.sacarPanel === undefined) return
-        // Las que tienen su panel propio (más completo que la tarjeta) van a ese.
-        if (t.kind === "mixer") { w.sacarPanel("mezclador", "Mezclador"); return }
-        if (t.kind === "carrusel") { w.sacarPanel("carrusel", "Carrusel"); return }
-        if (t.kind === "ptz") {
-            const cams = Studio.camaras ? Studio.camaras.camaras : []
-            if (cams.length === 0) { Studio.notify("No hay cámaras con PTZ", "warn"); return }
-            w.sacarPanel("ptz:" + cams[0].entrada, "PTZ — " + cams[0].entrada)
-            return
-        }
-        w.sacarPanel("tarjeta:" + t.kind, t.titulo)
+        if (!w || w.sacar === undefined) return
+        // Qué se abre lo dice el catálogo: las que tienen su panel propio (más
+        // completo que la tarjeta) van a ese; la PTZ, a la de la primera cámara.
+        const id = Studio.catalogo.ventanaDeTarjeta(t.kind)
+        if (id === "") { Studio.notify(t.kind === "ptz" ? "No hay cámaras con PTZ" : "«" + t.titulo + "» no se abre en una ventana", "warn"); return }
+        w.sacar(id)
     }
     /// En el tablero (verde): se oculta; si no está, aparece donde estaba.
     function alternarTarjeta(t) { Studio.dashboard.alternarTarjeta(t.kind) }

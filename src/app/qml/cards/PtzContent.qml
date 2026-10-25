@@ -1,7 +1,7 @@
 // Tarjeta «Control PTZ»: mover una cámara desde el tablero (Studio.camaras).
 //
 // En el tablero es chica: la cámara, el joystick, el zoom y las posiciones
-// guardadas. Sacada a su ventana (⧉, PanelWindow con id «ptz:<entrada>") es el
+// guardadas. Sacada a su ventana (⧉, VentanaSuelta con id «ptz:<entrada>") es el
 // panel completo (controls/PtzVentana.qml): la toma entera con el recuadro del
 // PTZ digital, o la imagen en vivo y una foto para apuntar en una cámara
 // motorizada; los puntos prefijados a la vista y la configuración desplegable.
@@ -16,7 +16,7 @@ Item {
     property int cardId: 0
     /// La entrada elegida en el tablero (se guarda como `source` de la tarjeta).
     property string source: ""
-    /// Lo pone PanelWindow: «ptz:<entrada>» cuando vive en su ventana.
+    /// Lo pone VentanaSuelta: «ptz:<entrada>» cuando vive en su ventana.
     property string panelId: ""
     property bool enVentana: false
 

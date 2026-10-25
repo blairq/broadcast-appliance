@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/DashboardModel.hpp"
+#include "pantallas/Tarjetas.hpp"
 #include <QSizeF>
 
 #include <QFile>
@@ -26,19 +27,9 @@ constexpr double kMagnetPx = 18.0; // distancia de "iman"
 constexpr double kMinW = 0.10;
 constexpr double kMinH = 0.10;
 
-struct Kind {
-    const char* id;
-    const char* title;
-    const char* icon; ///< el de la barra de tarjetas (un signo, como los del riel)
-};
-const Kind kKinds[] = {
-    // Primera a proposito: es la que se mira todo el tiempo.
-    {"direccion", "Dirección", "◎"}, {"aire", "Aire", "●"},         {"outputs", "Salidas", "⇪"},
-    {"scenes", "Escenas", "▦"},      {"mixer", "Mezclador", "🎚"},  {"guests", "Invitados", "☺"},
-    {"health", "Sistema", "♥"},      {"monitor", "Monitor", "▭"},   {"sources", "Fuentes", "◉"},
-    {"lobby", "Sala", "☎"},          {"speakers", "Oradores", "✋"}, {"carrusel", "Carrusel", "⟳"},
-    {"ptz", "Control PTZ", "⌖"},     {"pdf", "PDF", "▤"},
-};
+// Los tipos de tarjeta salen de pantallas/Tarjetas.hpp: la misma tabla que usa
+// el catálogo de cosas que se pueden mostrar (ventanas y monitores).
+const auto& kKinds = tarjetas::kTipos;
 
 } // namespace
 
@@ -57,7 +48,7 @@ QVariantList DashboardModel::tiposDeTarjeta() const {
     for (const auto& k : kKinds) {
         const QString id = QString::fromUtf8(k.id);
         const bool abierta = std::any_of(cards_.begin(), cards_.end(), [&](const Card& c) { return c.kind == id; });
-        out << QVariantMap{{"kind", id}, {"titulo", QString::fromUtf8(k.title)}, {"icono", QString::fromUtf8(k.icon)},
+        out << QVariantMap{{"kind", id}, {"titulo", QString::fromUtf8(k.titulo)}, {"icono", QString::fromUtf8(k.icono)},
                            {"abierta", abierta}};
     }
     return out;
@@ -284,7 +275,7 @@ QStringList DashboardModel::cardKinds() const {
 QString DashboardModel::kindTitle(const QString& kind) const {
     for (const auto& k : kKinds) {
         if (kind == k.id) {
-            return k.title;
+            return QString::fromUtf8(k.titulo);
         }
     }
     // Las de Extensiones/ las nombra su ficha; aca no se las conoce. Devolver
