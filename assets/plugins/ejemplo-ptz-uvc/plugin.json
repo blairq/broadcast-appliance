@@ -3,6 +3,7 @@
   "nombre": "Ejemplo: cámara USB con PTZ",
   "descripcion": "Una cámara USB (UVC) como entrada, con su PTZ manejado por los controles UVC (estándar o de la marca). Es la base para cámaras como la Logitech Rally, PTZ Pro, OBSBOT, Huddly…: cambiar `vid`/`pid`, la cámara («dispositivo»), y si el PTZ estándar no la mueve, usar el control «explorar» para ver sus unidades de extensión.",
   "version": "1.0",
+  "categoria": "equipo",
   "principal": "plugin.py",
   "dependencias": [
     "pyusb",

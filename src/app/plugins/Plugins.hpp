@@ -64,8 +64,15 @@ class Plugins : public QObject {
     Q_OBJECT
     // --- Para la interfaz (pages/PluginsPage.qml) ---------------------------------
     Q_PROPERTY(QVariantList lista READ listaQml NOTIFY cambio)
-    Q_PROPERTY(QVariantList ejemplos READ ejemplosQml NOTIFY cambio)
+    // Los ejemplos vienen con el programa: no cambian mientras corre. Con NOTIFY cambio,
+    // cada aviso de un plugin (decenas al arrancar) rearmaba el combo de «Nuevo desde un
+    // ejemplo» y perdía lo elegido.
+    Q_PROPERTY(QVariantList ejemplos READ ejemplosQml CONSTANT)
     Q_PROPERTY(QVariantMap pruebas READ pruebasQml NOTIFY cambio)
+    /// Las tarjetas de VIDEO que declaran los plugins que corren, para el catálogo del
+    /// grafo (página Video → agregar tarjeta): [{plugin, tarjeta, nombre, descripcion,
+    /// parametros}]. Se ponen con `tarjetaUi(plugin, tarjeta, entrada, false)`.
+    Q_PROPERTY(QVariantList tarjetasVideo READ tarjetasVideoQml NOTIFY cambio)
     Q_PROPERTY(QVariantList eventosRecientes READ eventosQml NOTIFY eventosCambio)
     Q_PROPERTY(QVariantMap equipos READ equiposQml NOTIFY equiposCambio)
     Q_PROPERTY(bool buscandoEquipos READ buscandoEquipos NOTIFY equiposCambio)
@@ -184,6 +191,7 @@ class Plugins : public QObject {
     QVariantList listaQml() const;
     QVariantList ejemplosQml() const;
     QVariantMap pruebasQml() const;
+    QVariantList tarjetasVideoQml() const;
     QVariantList eventosQml() const;
     QVariantMap equiposQml() const;
     bool buscandoEquipos() const { return buscandoEquipos_; }

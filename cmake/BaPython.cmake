@@ -56,6 +56,27 @@ if(EXISTS "${_ba_py}")
     install(DIRECTORY "${BA_PYTHON_DIR}/" DESTINATION python USE_SOURCE_PERMISSIONS COMPONENT bundle
             PATTERN "include" EXCLUDE PATTERN "Include" EXCLUDE PATTERN "libs" EXCLUDE PATTERN ".version" EXCLUDE)
     message(STATUS "Python de los plugins: ${BA_PYTHON_DIR}")
+    # Los moldes de plugins (assets/plugins/ejemplo-*) andan de verdad: cada uno con el
+    # probador del SDK, con este Python y el GStreamer de extern (como los corre la app).
+    # En Windows el Python es de Windows (compilado cruzado): se prueban en la PC de pruebas.
+    if(NOT WIN32)
+        set(_ba_py_gst "")
+        if(APPLE)
+            set(_ba_py_gst "${CMAKE_SOURCE_DIR}/extern/gstreamer-macos/GStreamer.framework/Versions/1.0")
+        else()
+            set(_ba_py_gst "${CMAKE_SOURCE_DIR}/extern/gstreamer-linux")
+        endif()
+        set(_ba_py_args --gst "${_ba_py_gst}")
+        # En Linux los bindings viven en el sitio de gstreamer-linux y se copian al Python recién
+        # en el bundle: con el de extern no hay `gi` y el ejemplo de GStreamer se saltea (lo dice).
+        file(GLOB _ba_py_gi "${BA_PYTHON_DIR}/lib/python3.*/site-packages/gi")
+        if(NOT _ba_py_gi)
+            list(APPEND _ba_py_args --sin-gst)
+        endif()
+        add_test(NAME test_plugins_ejemplos
+                 COMMAND "${_ba_py}" -I -B "${CMAKE_SOURCE_DIR}/src/plugins/sdk/tests/test_ejemplos.py" ${_ba_py_args})
+        set_tests_properties(test_plugins_ejemplos PROPERTIES TIMEOUT 300)
+    endif()
 else()
     message(STATUS "Python de los plugins: no está (make deps-python); los plugins no van a poder correr")
 endif()

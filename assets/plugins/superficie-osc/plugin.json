@@ -3,6 +3,7 @@
   "nombre": "Superficie: OSC (TouchOSC, Open Stage Control)",
   "descripcion": "Una superficie OSC como botonera. Escucha en `puerto` (UDP): /botonera/presionar x y, /botonera/soltar x y, /botonera/valor x y v, /botonera/girar x y delta, /botonera/pagina id. Si `cliente` (ip:puerto) está, le devuelve el estado de cada celda: /botonera/celda/<x>/<y>/texto, /color (fondo), /valor (0..1) y /activo (0 o 1). Solo red local: `permitidas` es la lista de IP que pueden mandar (vacía = solo esta máquina). Usa python-osc, que viene con el programa.",
   "version": "1.0",
+  "categoria": "superficie",
   "principal": "plugin.py",
   "dependencias": ["python-osc"],
   "config": {"puerto": 9000, "cliente": "", "permitidas": [], "columnas": 4, "filas": 4}

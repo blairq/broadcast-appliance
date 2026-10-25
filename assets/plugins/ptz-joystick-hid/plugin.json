@@ -3,6 +3,7 @@
   "nombre": "PTZ: joystick USB (HID)",
   "descripcion": "Un joystick o panel USB que se presenta como HID maneja el PTZ de `camara`: los ejes van a pan, tilt y zoom con velocidad proporcional (zona muerta configurable) y cada movimiento se para solo a los 300 ms si no llega otro (si el joystick se desenchufa, la cámara no queda girando). Los botones pueden ir a presets. `vid`/`pid` del aparato y en qué byte del reporte viene cada eje (`offsets`); `dispositivos_listar` muestra los HID enchufados. Mover una cámara que está al aire pasa por el interlock (pide confirmación). Usa hidapi, que viene con el programa.",
   "version": "1.0",
+  "categoria": "equipo",
   "principal": "plugin.py",
   "dependencias": ["hidapi"],
   "config": {"camara": "Cámara 1", "vid": "", "pid": "", "offsets": {"pan": 1, "tilt": 2, "zoom": 3},

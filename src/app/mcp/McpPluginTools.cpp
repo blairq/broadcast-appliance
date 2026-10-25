@@ -38,7 +38,9 @@ void McpService::registerPluginTools() {
         t.readOnly = true;
         t.description = "Los plugins (estado: corriendo, apagado, caído…, lo que declararon: entradas, "
                         "tarjetas, PTZ, controles) y "
-                        "los ejemplos para copiar. Para CREAR uno: help {\"topic\": \"plugins\"}.";
+                        "los ejemplos para copiar (con su `categoria`: inicio, video, automatizacion, equipo, "
+                        "superficie; `molde` = pensado como punto de partida). Para CREAR uno: help {\"topic\": "
+                        "\"plugins\"}.";
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [p](const json&, Done done) {
             if (!p) return done(ToolResult::error("los plugins no están disponibles"));
@@ -57,7 +59,8 @@ void McpService::registerPluginTools() {
         t.readOnly = true;
         t.description = "El manifiesto (plugin.json), la lista de archivos y el contenido de `archivo` (de "
                         "fábrica, el principal) "
-                        "de un plugin o de un EJEMPLO (con su nombre: «ejemplo-basico», «ejemplo-ptz-uvc»…). "
+                        "de un plugin o de un EJEMPLO (con su nombre: «ejemplo-basico», «ejemplo-video-gst», "
+                        "«ejemplo-automatizacion», «ejemplo-equipo-red»…). "
                         "Leé un ejemplo antes "
                         "de escribir uno nuevo.";
         t.inputSchema = {
@@ -115,7 +118,12 @@ void McpService::registerPluginTools() {
         t.title = "Copiar un ejemplo como plugin nuevo";
         t.category = "plugins";
         t.description = "Copia el `ejemplo` (plugin_listar los lista) a un plugin nuevo `id`, para cambiarlo "
-                        "con plugin_escribir.";
+                        "con plugin_escribir. Los moldes: «ejemplo-video-gst» (un efecto, filtro o análisis de "
+                        "video: tarjeta del grafo con GStreamer y un elemento propio en Python), "
+                        "«ejemplo-automatizacion» (escuchar el estudio y actuar), «ejemplo-equipo-red» (un "
+                        "aparato con protocolo de texto por TCP, con simulador) y «ejemplo-basico» (todo lo "
+                        "que puede un plugin). Lo mismo que «Nuevo desde un ejemplo» en la página Plugins.";
+        t.examples = {R"({"ejemplo": "ejemplo-video-gst", "id": "mi-efecto"})"};
         t.inputSchema = {{"type", "object"},
                          {"required", {"ejemplo", "id"}},
                          {"properties", {{"ejemplo", {{"type", "string"}}}, {"id", id}}}};

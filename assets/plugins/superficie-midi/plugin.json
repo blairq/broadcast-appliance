@@ -3,6 +3,7 @@
   "nombre": "Superficie: controlador MIDI (X-Touch Mini, nanoKONTROL, Launchpad…)",
   "descripcion": "Un controlador MIDI como botonera: las notas son botones y los CC son faders o perillas de la grilla. De fábrica, las notas desde `nota_base` llenan la grilla de izquierda a derecha y los CC desde `cc_base` son las celdas de la fila de abajo; con `mapa` se elige cada uno ({\"notas\": {\"36\": [0, 0]}, \"cc\": {\"1\": [0, 2]}}). Prende los LED de los botones activos o con tally (nota con velocidad 127). `relativo`: perillas que mandan +/- (64 = quieto). Usa mido y python-rtmidi (CoreMIDI, WinMM, ALSA), que vienen con el programa.",
   "version": "1.0",
+  "categoria": "superficie",
   "principal": "plugin.py",
   "dependencias": ["mido", "python-rtmidi"],
   "config": {"entrada": "", "salida": "", "columnas": 8, "filas": 2, "nota_base": 36, "cc_base": 1, "relativo": false, "mapa": {}}

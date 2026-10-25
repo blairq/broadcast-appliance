@@ -3,6 +3,7 @@
   "nombre": "Ejemplo básico",
   "descripcion": "Las cuatro cosas que puede hacer un plugin: una tarjeta de video (negativo), un filtro de audio (ganancia), una entrada de video y audio hecha en Python (una pelota que rebota con un tono) y un control con un evento. Es la referencia para escribir uno nuevo.",
   "version": "1.0",
+  "categoria": "inicio",
   "principal": "plugin.py",
   "dependencias": ["numpy"],
   "config": {"color": [255, 200, 0]}

@@ -1,0 +1,11 @@
+{
+  "id": "ejemplo-automatizacion",
+  "nombre": "Ejemplo: automatización (escucha el estudio y actúa)",
+  "descripcion": "Punto de partida para «cuando pasa X, hacé Y». Escucha los eventos de la app (qué escena sale al aire, si se transmite) y actúa con las herramientas del sistema: lleva la minuta de lo que salió al aire (datos/minuta.csv, con cuánto estuvo cada escena), le recuerda al operador cada tantos minutos cuánto lleva al aire y, al cortar, le manda el resumen. Solo puede llamar `operator_message` (lista «herramientas» del plugin.json). Sin dependencias.",
+  "version": "1.0",
+  "categoria": "automatizacion",
+  "principal": "plugin.py",
+  "dependencias": [],
+  "herramientas": ["operator_message"],
+  "config": {"recordar_cada_min": 30}
+}

@@ -3,6 +3,7 @@
   "nombre": "PTZ: cámara VISCA por puerto serie (RS-232/422)",
   "descripcion": "El PTZ de una cámara que se maneja por VISCA serie (Sony, Lumens, PTZOptics, Marshall… con un adaptador USB a RS-232/422) sobre una entrada que ya existe (`entrada`, la cámara en el programa). Mueve con velocidad, presets (guardar e ir) y home. Usa pyserial, que viene con el programa. El interlock de PTZ vale igual: no mueve una cámara que está al aire sin confirmación.",
   "version": "1.0",
+  "categoria": "equipo",
   "principal": "plugin.py",
   "dependencias": [
     "pyserial"
