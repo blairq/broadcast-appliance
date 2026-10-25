@@ -22,20 +22,14 @@ la Mac). Queda lo de abajo.
 
 ## Pendiente
 
-- **Probar en Windows** (la PC): d3d12compositor en la mezcla, tortas en ba-grafico, VP9 con alfa,
-  ids de monitores (`\\.\DISPLAYn` si no informan serie), ids de dispositivos, `libyuv::MJPG*` en
-  webrtc.lib, `test_ejemplos.py` de plugins con el Python de la PC.
-- **«Hablando» en la Asamblea:** hecho (2026-10-25), sin probar a mano con un celular (ver
-  docs/funciones/ATENCION.md, «Falta / a probar a mano»).
-- **Video en vivo dentro de un gráfico** (una cámara en el zócalo): animar el ítem de la escena con la
-  línea de tiempo del gráfico. Propuesta: la ficha del gráfico declara claves por fuente y el Emisor
-  le pide al motor que las interpole (Composicion ya anima capas en las transiciones).
-- **Grilla de personas:** una vista en vivo de quién está en cada grilla (la propiedad existe, falta
-  el QML); «al aire» no cuenta otras grillas ni escenas anidadas; bajar la calidad de los que están
-  en la fila y no aparecen en ninguna grilla.
-- **Pantallas:** OutputWindowsModel (ventanas de video sueltas que se recuerdan) sigue aparte de las
-  asignaciones de monitor; `StudioViewModel::monitores()` y la herramienta `monitors` listan por su
-  cuenta.
-- **Dispositivos:** `audio_devices`/`video_devices` (MCP) siguen con nombres técnicos; el botón
-  «+ Entrada de audio del sistema» de Audio duplica el de Entradas de audio.
-- **Mezcla:** el error de una composición (un módulo que no negocia) queda en el log, no en la tarjeta.
+- **Probar a mano** (no se puede por MCP):
+  - «Hablando» en la Sala y en la Asamblea con una persona real (celular), ver docs/funciones/ATENCION.md.
+  - «Zócalo con cámara» con una cámara real: que el recuadro arranque junto con el zócalo, que la
+    cámara vuelva a su lugar al ocultar, el recorte «cubrir» en GL y en D3D12, un TAKE con el gráfico.
+  - La vista de las grillas (fijar, sacar, mover) en la interfaz; asignar un monitor de verdad.
+- **Windows:** probado en la PC la mezcla con d3d12compositor, el gráfico de plugin con barras, los
+  ids de monitores. Falta: tortas, VP9 con alfa, `test_ejemplos.py` de plugins con el Python de la PC.
+  En el gráfico de barras los números salen sin negrita en Windows (en la Mac, con negrita).
+- **Video en un gráfico puesto como capa DSK:** hoy solo en escenas.
+- **Plantillas de assets/demo:** regenerarlas con tools/generar/plantillas.py para que traigan el
+  «Zócalo con cámara».

@@ -21,6 +21,7 @@
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Medios.hpp"
 #include "graficos/Vinculos.hpp"
+#include "graficos/VideoEnGrafico.hpp"
 #include "escenas/Conmutador.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -160,7 +161,12 @@ void McpService::registerGraficoTools() {
             "van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del "
             "gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.\n\n"
             "Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y "
-            "se sostiene. Con `repetir`, vuelve a empezar (un ticker).";
+            "se sostiene. Con `repetir`, vuelve a empezar (un ticker).\n\n"
+            "VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico "
+            "que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y "
+            "se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. "
+            "Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si "
+            "no, se suma sola mientras dure el gráfico.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -176,6 +182,10 @@ void McpService::registerGraficoTools() {
                 {"description", "Solo para un gráfico SIN `salidaEn`: cuánta animación dibujar (si no, lo de su ficha)."}}},
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
               {"repetir", {{"type", "boolean"}, {"default", false}}},
+              {"video",
+               {{"type", "string"},
+                {"description", "La fuente de video que va adentro del gráfico (como en scene_list): llena sus "
+                                "parámetros de tipo «fuente». Solo para gráficos con video en vivo."}}},
               {"armar",
                {{"type", "boolean"},
                 {"default", false},
@@ -211,6 +221,17 @@ void McpService::registerGraficoTools() {
             QJsonObject par;
             if (a.contains("parametros"))
                 par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
+            // El video de adentro: a sus parámetros de tipo «fuente».
+            if (const std::string video = a.value("video", std::string()); !video.empty()) {
+                const QStringList claves =
+                    graficos::video::parametrosDeFuente(em->ficha(QString::fromStdString(a["nombre"].get<std::string>())));
+                if (claves.isEmpty())
+                    return done(ToolResult::error("«" + a["nombre"].get<std::string>() +
+                                                  "» no lleva video en vivo (no tiene un parámetro de tipo «fuente»)."));
+                if (!rt.engine().sourceExists(video))
+                    return done(ToolResult::error("No hay ninguna fuente «" + video + "» (scene_list las dice)."));
+                for (const QString& k : claves) par[k] = QString::fromStdString(video);
+            }
             // Por el emisor, no por abajo: asi queda anotado con que valores
             // salio esta fuente y la tarjeta de Rotulos muestra lo que hay al
             // aire en vez de lo anterior.

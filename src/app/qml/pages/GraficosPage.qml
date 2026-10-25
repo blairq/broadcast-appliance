@@ -22,6 +22,28 @@ Rectangle {
         return s.toFixed(1) + " s"
     }
 
+    // El video en vivo que lleva el gráfico: dónde va en el momento de la barra. Cambia
+    // en cada cuadro al reproducir: se actualiza en su lugar (no se reemplaza el modelo).
+    ListModel { id: recuadrosModelo }
+    function sincronizarRecuadros() {
+        const r = page.g.recuadros
+        while (recuadrosModelo.count > r.length)
+            recuadrosModelo.remove(recuadrosModelo.count - 1)
+        for (let i = 0; i < r.length; ++i) {
+            const o = { rx: r[i].x, ry: r[i].y, rw: r[i].ancho, rh: r[i].alto, alfa: r[i].alfa,
+                        nombre: r[i].fuente, arriba: r[i].arriba }
+            if (i < recuadrosModelo.count)
+                recuadrosModelo.set(i, o)
+            else
+                recuadrosModelo.append(o)
+        }
+    }
+    Connections {
+        target: page.g
+        function onRecuadrosChanged() { page.sincronizarRecuadros() }
+    }
+    Component.onCompleted: sincronizarRecuadros()
+
     // Un GIF, una imagen, una carpeta de PNG o un video con alfa para el gráfico abierto.
     FileDialog {
         id: medioDlg
@@ -286,6 +308,46 @@ Rectangle {
                                 anchors.margins: 6
                                 imagen: page.g.imagen
                             }
+                            // Donde va a ir el video en vivo (una cámara, un invitado): un
+                            // recuadro sobre el cuadro, que entra y se va con la barra de tiempo.
+                            Item {
+                                id: lienzoVista
+                                anchors.fill: parent
+                                anchors.margins: 6
+                                readonly property real asp: page.g.aspecto > 0 ? page.g.aspecto : 1
+                                readonly property real pw: Math.min(width, height * asp)
+                                readonly property real ph: pw / asp
+                                readonly property real px0: (width - pw) / 2
+                                readonly property real py0: (height - ph) / 2
+                                Repeater {
+                                    model: recuadrosModelo
+                                    delegate: Rectangle {
+                                        required property real rx
+                                        required property real ry
+                                        required property real rw
+                                        required property real rh
+                                        required property real alfa
+                                        required property string nombre
+                                        x: lienzoVista.px0 + rx * lienzoVista.pw
+                                        y: lienzoVista.py0 + ry * lienzoVista.ph
+                                        width: rw * lienzoVista.pw
+                                        height: rh * lienzoVista.ph
+                                        color: Qt.rgba(0.16, 0.45, 0.85, 0.30 * alfa)
+                                        border.color: Qt.rgba(0.45, 0.70, 1.0, 0.25 + 0.75 * alfa)
+                                        border.width: 2
+                                        Text {
+                                            anchors.centerIn: parent
+                                            width: parent.width - 8
+                                            horizontalAlignment: Text.AlignHCenter
+                                            elide: Text.ElideRight
+                                            text: "● " + (nombre !== "" ? nombre : "video en vivo")
+                                            color: "white"
+                                            opacity: 0.4 + 0.6 * alfa
+                                            font.pixelSize: 11
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // La barra de tiempo. Arrastrar hacia atrás funciona
@@ -360,7 +422,20 @@ Rectangle {
                                         color: Theme.textDim
                                         font.pixelSize: 11
                                     }
+                                    // Una fuente de video (la cámara que va adentro del gráfico):
+                                    // las entradas de video de la app, o el nombre de cualquier fuente.
+                                    ComboBox {
+                                        visible: modelData.tipo === "fuente"
+                                        Layout.fillWidth: true
+                                        editable: true
+                                        model: Studio.inputs.videoInputs.map(f => f.name)
+                                        readonly property var valor: page.g.valores[modelData.clave]
+                                        editText: valor === undefined ? "" : String(valor)
+                                        onActivated: page.g.setValor(modelData.clave, currentText)
+                                        onAccepted: page.g.setValor(modelData.clave, editText)
+                                    }
                                     TextField {
+                                        visible: modelData.tipo !== "fuente"
                                         Layout.fillWidth: true
                                         // Los datos de una torta o unas barras se escriben como texto:
                                         // «Sí: 34; No: 12 #c62828» (o una lista JSON, que se muestra igual).

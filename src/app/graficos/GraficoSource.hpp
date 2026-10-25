@@ -21,6 +21,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -63,8 +64,12 @@ std::vector<InstanciaInfo> instancias();
 ///        cuadro queda fijo.
 /// :param llegando: faltan cuadros que se suman con `agregar` (se reproduce mientras
 ///        se siguen dibujando; al alcanzar el último que hay, espera en ese).
+/// :param alEmpezar: se llama (desde el hilo que entrega los cuadros) apenas se entregó el
+///        primero, con la hora (g_get_monotonic_time en ns, el reloj del motor): el video
+///        en vivo del gráfico (VideoEnGrafico.hpp) arranca su animación desde ahí.
 /// :returns: false si esa instancia no existe.
-bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando = false);
+bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool repetir, bool llegando = false,
+                std::function<void(std::int64_t)> alEmpezar = {});
 
 /// Suma cuadros a la animación que se está reproduciendo en `id` (los que se terminaron
 /// de dibujar). `fin`: eran los últimos. false si ya no se reproduce (otro la reemplazó).

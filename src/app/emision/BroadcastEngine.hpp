@@ -323,6 +323,17 @@ class BroadcastEngine {
     /// `fuente` se ve en el programa y el programa sale (haySalida): lo que le
     /// pase se ve en la transmisión o queda en la grabación.
     bool fuenteAlAire(const std::string& fuente) const;
+    // --- Video en vivo dentro de un gráfico (graficos/VideoEnGrafico.hpp) --------------
+    /// Las capas de video que acompañan al gráfico de la fuente `grafico` (ba_grafico):
+    /// en cada escena donde está ese gráfico, cada fuente nombrada se anima con sus claves
+    /// (si ya está en la escena, esa; si no, se suma mientras dure), arriba o debajo del
+    /// gráfico. Quedan quietas en su primera clave hasta empezarVideoDeGrafico. No se
+    /// guardan con la escena. `capas`: VideoEnGrafico::aJson. "" o el error.
+    std::string ponerVideoDeGrafico(const std::string& grafico, const nlohmann::json& capas);
+    /// El ms 0 de sus claves (g_get_monotonic_time en ns): el primer cuadro del gráfico.
+    void empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs);
+    /// Las saca: cada fuente vuelve a como estaba (o se va, si se había sumado).
+    void quitarVideoDeGrafico(const std::string& grafico);
     /// Un rótulo de texto con nombre (fuera de las escenas, para una capa DSK).
     bool textoGlobal(const std::string& nombre, const std::string& texto);
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
@@ -728,6 +739,12 @@ class BroadcastEngine {
     const EscenaApp* escena(const std::string& nombre) const;
     /// La escena tal como la entiende el motor (capas en píxeles).
     nlohmann::json escenaMotor(const EscenaApp& e) const;
+    /// Gráfico (nombre de su fuente) → {capas (VideoEnGrafico::aJson), desde_ns}.
+    std::map<std::string, nlohmann::json> videoDeGraficos_;
+    /// Suma (o anima) en las capas de una escena el video de sus gráficos.
+    void sumarVideoDeGraficos(const EscenaApp& e, nlohmann::json& capas) const;
+    /// Vuelve a publicar las escenas que tienen esa fuente.
+    void publicarEscenasCon(const std::string& fuente);
     /// entrada -> {compositor, productor} (ver setTraer).
     std::map<std::string, std::pair<std::string, std::string>> traer_;
     std::vector<RanuraBanca> ranurasBanca_; ///< ver setRanurasBanca

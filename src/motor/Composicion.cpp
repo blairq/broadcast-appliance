@@ -2,6 +2,7 @@
 // src/motor/Composicion.cpp — ver Composicion.hpp
 // ============================================================================
 #include "Composicion.hpp"
+#include "Claves.hpp"
 #include "diag/Utf8.hpp"
 
 #include "Mezcla.hpp" // margenMezclaNs
@@ -108,6 +109,28 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         k.sombra = SombraCapa::desdeJson(c.value("sombra", json::object()));
         k.pad = c.value("pad", std::string());
         if (c.contains("propiedades_pad") && c["propiedades_pad"].is_object()) k.propiedadesPad = c["propiedades_pad"];
+        // Animada por claves: {ms, x, y, ancho, alto, alfa, recorte, suave}, en orden de ms.
+        if (c.contains("claves") && c["claves"].is_array()) {
+            for (const auto& q : c["claves"]) {
+                if (!q.is_object()) continue;
+                ClaveCapa cl;
+                cl.ms = q.value("ms", 0);
+                cl.x = q.value("x", 0.0);
+                cl.y = q.value("y", 0.0);
+                cl.ancho = q.value("ancho", 0.0);
+                cl.alto = q.value("alto", 0.0);
+                cl.alfa = std::clamp(q.value("alfa", 1.0), 0.0, 1.0);
+                const json rq = q.value("recorte", json::object());
+                cl.recIzq = rq.value("izq", 0.0);
+                cl.recArr = rq.value("arr", 0.0);
+                cl.recDer = rq.value("der", 0.0);
+                cl.recAba = rq.value("aba", 0.0);
+                cl.suave = q.value("suave", true);
+                k.claves.push_back(cl);
+            }
+            std::stable_sort(k.claves.begin(), k.claves.end(), [](const ClaveCapa& a, const ClaveCapa& b) { return a.ms < b.ms; });
+            k.clavesDesdeNs = c.value("claves_desde_ns", std::int64_t{0});
+        }
         if (!k.entrada.empty()) e.capas.push_back(k);
     }
     e.asignarClaves();
@@ -138,11 +161,45 @@ nlohmann::json Escena::aJson() const {
         if (!c.productor.empty()) capas.back()["productor"] = c.productor; // desdeJson lo lee: ida y vuelta igual
         if (!c.pad.empty()) capas.back()["pad"] = c.pad;
         if (!c.propiedadesPad.empty()) capas.back()["propiedades_pad"] = c.propiedadesPad;
+        if (!c.claves.empty()) {
+            json cl = json::array();
+            for (const ClaveCapa& q : c.claves)
+                cl.push_back({{"ms", q.ms}, {"x", q.x}, {"y", q.y}, {"ancho", q.ancho}, {"alto", q.alto}, {"alfa", q.alfa},
+                              {"recorte", {{"izq", q.recIzq}, {"arr", q.recArr}, {"der", q.recDer}, {"aba", q.recAba}}},
+                              {"suave", q.suave}});
+            capas.back()["claves"] = cl;
+            capas.back()["claves_desde_ns"] = c.clavesDesdeNs;
+        }
     }
     nlohmann::json out{{"nombre", nombre}, {"capas", capas}};
     if (lienzoAncho > 0 && lienzoAlto > 0) out["lienzo"] = {{"ancho", lienzoAncho}, {"alto", lienzoAlto}};
     if (!filtros.empty()) out["filtros"] = filtros;
     if (!mezclador.empty()) out["mezclador"] = mezclador;
+    return out;
+}
+
+// --- Capas animadas por claves -------------------------------------------------------
+
+Capa capaEn(const Capa& c, double ms) {
+    if (c.claves.empty()) return c;
+    // La misma cuenta que el recuadro de la vista previa del editor (Claves.hpp).
+    const Tramo tr = tramoEn(c.claves, ms);
+    const ClaveCapa& a = c.claves[tr.desde];
+    const ClaveCapa& b = c.claves[tr.hasta];
+    const auto px = [](double v) { return static_cast<int>(std::lround(v)); };
+    Capa out = c;
+    out.x = px(tr.en(a.x, b.x));
+    out.y = px(tr.en(a.y, b.y));
+    out.ancho = px(tr.en(a.ancho, b.ancho));
+    out.alto = px(tr.en(a.alto, b.alto));
+    // Un tamaño que se achica hasta nada no es «el del lienzo» (ancho 0): queda en 2.
+    if ((a.ancho > 0 || b.ancho > 0) && out.ancho < 2) out.ancho = 2;
+    if ((a.alto > 0 || b.alto > 0) && out.alto < 2) out.alto = 2;
+    out.alfa = std::clamp(tr.en(a.alfa, b.alfa), 0.0, 1.0);
+    out.recIzq = std::max(0, px(tr.en(a.recIzq, b.recIzq)));
+    out.recArr = std::max(0, px(tr.en(a.recArr, b.recArr)));
+    out.recDer = std::max(0, px(tr.en(a.recDer, b.recDer)));
+    out.recAba = std::max(0, px(tr.en(a.recAba, b.recAba)));
     return out;
 }
 
@@ -770,6 +827,27 @@ void Composicion::animar(double t) {
     }
 }
 
+Capa Composicion::capaAhora(const Capa& c) const {
+    if (c.claves.empty()) return c;
+    // El reloj de la capa, corrido lo que tarda en salir lo que se compone: lo que se le pone
+    // al pad ahora sale en el cuadro de hace `retrasoClavesNs_`, y el ms 0 es la hora del
+    // primer cuadro del gráfico (que sale en ese mismo cuadro).
+    const double ms = c.clavesDesdeNs <= 0 ? static_cast<double>(c.claves.front().ms)
+                                           : static_cast<double>(ahoraNs() - retrasoClavesNs_ - c.clavesDesdeNs) / 1e6;
+    return capaEn(c, ms);
+}
+
+void Composicion::animarRama(Rama& r) {
+    const Capa& c = r.capa;
+    if (c.claves.empty() || r.pad == nullptr) return;
+    const Capa k = capaAhora(c);
+    // Quieta (antes de arrancar, o pasada la última clave): nada que tocar.
+    if (k.x == c.x && k.y == c.y && k.ancho == c.ancho && k.alto == c.alto && k.alfa == c.alfa && k.recIzq == c.recIzq &&
+        k.recArr == c.recArr && k.recDer == c.recDer && k.recAba == c.recAba)
+        return;
+    ponerCapa(r, k, k.alfa); // la capa queda con lo de ahora (y sus claves, para la próxima vuelta)
+}
+
 void Composicion::soltar(Rama& r) {
     for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar, r.aRgba, r.sombra, r.puente})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
@@ -847,6 +925,8 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
                 continue;
             }
             ponerCapa(*it->second, *n->second, n->second->alfa);
+            // Animada: en el punto de ahora ya (sin esperar al tic, no salta a la primera clave).
+            if (!libre_) animarRama(*it->second);
             nuevas.erase(n);
             ++it;
         }
@@ -864,8 +944,11 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
     bajarViejas();
     ++generacion_;
     const bool animada = (transicion == "mezcla" || transicion == "empuje" || transicion == "cortina") && ms > 0 && vieja > 0;
-    for (const auto& c : e.capas)
+    for (const auto& c0 : e.capas) {
+        // Una animada entra donde está ahora (no en su primera clave): la transición la funde ahí.
+        const Capa c = capaAhora(c0);
         if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, animada && transicion != "empuje" ? 0.0 : c.alfa);
+    }
     escena_ = e;
     if (vieja > 0) {
         genVieja_ = vieja;
@@ -890,8 +973,10 @@ bool Composicion::manual(const Escena& e, double t, bool soltar) {
         const int vieja = generacion_;
         bajarViejas();
         ++generacion_;
-        for (const auto& c : e.capas)
+        for (const auto& c0 : e.capas) {
+            const Capa c = capaAhora(c0); // una animada, donde está ahora
             if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, 0.0);
+        }
         escena_ = e;
         genVieja_ = vieja > 0 ? vieja : -1;
         transicion_ = "mezcla";
@@ -977,6 +1062,12 @@ void Composicion::tic() {
         consultaNs_ = ahoraNs();
         // En otro hilo: ver LatenciaAparte (Piezas.hpp).
         if (const std::int64_t ns = latencia_.consultar(pipeline_); ns >= 0) salidaNs_ = ns;
+        // Lo que tarda en salir un cuadro del mezclador (para las capas animadas): la edad
+        // medida; sin medida todavía, lo que espera el mezclador.
+        const json edad = edadSalida_.json();
+        retrasoClavesNs_ = edad.is_object() && edad.contains("p50_ms") && edad["p50_ms"].is_number()
+                               ? static_cast<std::int64_t>(edad["p50_ms"].get<double>() * 1e6)
+                               : std::max<std::int64_t>(0, latenciaNs_);
     }
     // La transición.
     if (genVieja_ >= 0) {
@@ -1011,6 +1102,10 @@ void Composicion::tic() {
                     if (!recorteGl(*r, c, 0, c.ancho > 0 ? c.ancho : lienzo_.ancho, c.alto > 0 ? c.alto : lienzo_.alto))
                         r->tamanoNuevo = true;
                 }
+    // Las capas animadas por claves (no en medio de una transición: la mezcla les lleva el alfa).
+    if (genVieja_ < 0 && !libre_)
+        for (auto& [k, r] : ramas_)
+            if (!r->capa.claves.empty()) animarRama(*r);
     // Los fundidos del DSK.
     for (auto it = dsk_.begin(); it != dsk_.end();) {
         Rama* r = it->second;

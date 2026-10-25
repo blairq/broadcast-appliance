@@ -24,6 +24,8 @@
 #include <memory>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include <QImage>
 #include <QJsonObject>
 #include <QObject>
@@ -84,6 +86,22 @@ class Emisor : public QObject {
     /// va a ver (vacío = el de la ficha).
     void resolver(const QString& grafico, const QJsonObject& valores, QSize tam,
                   std::function<void(QJsonObject pedido, QString error)> listo);
+
+    // --- Video en vivo dentro del gráfico (VideoEnGrafico.hpp) ------------------------
+    // La cámara dentro del zócalo: el gráfico declara capas de video («escena» en su
+    // ficha) y el Emisor le pide al motor de la app que las ponga en las escenas del
+    // gráfico (al mostrar, quietas en su primera clave), que arranquen con el primer
+    // cuadro que sale del gráfico, y que se vayan cuando el gráfico se va.
+    struct CapasDeVideo {
+        /// Pone (o cambia) las capas que acompañan al gráfico de la fuente `grafico`
+        /// (VideoEnGrafico::aJson). "" o el error.
+        std::function<std::string(const std::string& grafico, const nlohmann::json& capas)> poner;
+        /// Su ms 0 (g_get_monotonic_time en ns).
+        std::function<void(const std::string& grafico, std::int64_t desdeNs)> empezar;
+        /// Las saca (las fuentes vuelven a como estaban).
+        std::function<void(const std::string& grafico)> quitar;
+    };
+    void setCapasDeVideo(CapasDeVideo c);
 
     /// La fuente de escena que se llama así, o 0 si no hay ninguna. El guion y
     /// el asistente nombran la fuente, no la numeran.
@@ -150,6 +168,15 @@ class Emisor : public QObject {
     static QSize tamanoDe(std::uint64_t fuente);
     /// Hay algo en pantalla en esa fuente.
     static bool enPantalla(std::uint64_t fuente);
+    /// El nombre de esa fuente de escena ("" si ya no está).
+    static std::string nombreDe(std::uint64_t fuente);
+    /// Las capas de video del gráfico que se va a dibujar con `pedido` en esa fuente (o
+    /// ninguna: saca las que hubiera). `inicioMs`: dónde arranca lo que se dibuja en su
+    /// línea de tiempo; `finMs`: cuándo termina (0 = queda), para sacarlas después.
+    void prepararVideo(std::uint64_t fuente, const QString& grafico, const QJsonObject& pedido, int generacion,
+                       int inicioMs, int salidaEn, int salidaDur, int finMs);
+    /// Saca las capas de video de esa fuente (si tenía).
+    void quitarVideo(std::uint64_t fuente);
     struct Impl;
     std::unique_ptr<Impl> d_;
 };

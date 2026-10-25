@@ -24,6 +24,7 @@
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 #include "video/FuentesCaptura.hpp"
+#include "graficos/VideoEnGrafico.hpp"
 
 #include "Motor.hpp"
 #include "Salidas.hpp"
@@ -35,6 +36,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <numeric>
 #include <thread>
 
 namespace ba::app {
@@ -313,6 +315,7 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
         }
         capas.push_back(c);
     }
+    sumarVideoDeGraficos(e, capas); // el video en vivo de los gráficos que están al aire en ella
     return {{"nombre", e.nombre}, {"capas", capas}};
 }
 
@@ -1399,6 +1402,133 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     if (feeds) publishReturnFeeds();
     if (preview) enablePreview(video.outputWidth / 2, video.outputHeight / 2);
     return true;
+}
+
+// ============================================================================
+// Video en vivo dentro de un gráfico (graficos/VideoEnGrafico.hpp)
+//
+// La cámara que entra con el zócalo es una capa más de la escena del gráfico, con
+// claves que el motor interpola cuadro a cuadro (Composicion: Capa::claves). No toca
+// el modelo de la escena (no se guarda, no se ve en el editor de escenas): se suma al
+// traducirla para el motor, y al sacarla la escena vuelve a ser la de siempre.
+// ============================================================================
+
+std::string BroadcastEngine::ponerVideoDeGrafico(const std::string& grafico, const json& capas) {
+    if (!capas.is_array() || capas.empty()) {
+        quitarVideoDeGrafico(grafico);
+        return {};
+    }
+    for (const auto& c : capas) {
+        const std::string f = c.value("fuente", std::string());
+        const auto it = sources_.find(f);
+        if (it == sources_.end()) return "no hay ninguna fuente «" + f + "» (tiene que estar en alguna escena)";
+        if (f == grafico) return "el gráfico no puede llevarse a sí mismo adentro";
+        if (it->second.banca) return "«" + f + "» es una banca con la palabra: elegí la cámara";
+        if (it->second.global) return "«" + f + "» es una entrada de audio, no tiene video";
+    }
+    bool enEscena = false;
+    for (const EscenaApp& e : scenes_)
+        for (const Item& i : e.items) enEscena = enEscena || i.fuente == grafico;
+    if (!enEscena) return "el gráfico «" + grafico + "» no está en ninguna escena";
+    videoDeGraficos_[grafico] = {{"capas", capas}, {"desde_ns", 0}};
+    publicarEscenasCon(grafico);
+    return {};
+}
+
+void BroadcastEngine::empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs) {
+    const auto it = videoDeGraficos_.find(grafico);
+    if (it == videoDeGraficos_.end()) return;
+    it->second["desde_ns"] = desdeNs;
+    publicarEscenasCon(grafico);
+}
+
+void BroadcastEngine::quitarVideoDeGrafico(const std::string& grafico) {
+    if (videoDeGraficos_.erase(grafico) > 0) publicarEscenasCon(grafico);
+}
+
+void BroadcastEngine::publicarEscenasCon(const std::string& fuente) {
+    for (const EscenaApp& e : scenes_)
+        for (const Item& i : e.items)
+            if (i.fuente == fuente) {
+                publicarEscena(e);
+                break;
+            }
+}
+
+void BroadcastEngine::sumarVideoDeGraficos(const EscenaApp& e, json& capas) const {
+    if (videoDeGraficos_.empty()) return;
+    const double W = video_.baseWidth, H = video_.baseHeight;
+    const json& entradas = seccion(estadoMotor(), "entradas");
+    // El orden de cada capa con decimales: las del video van entre el gráfico y la de al lado
+    // (arriba o debajo), y al final se renumera todo de corrido.
+    std::vector<double> orden;
+    for (const auto& c : capas) orden.push_back(c.value("orden", 0));
+    bool alguna = false;
+    for (std::size_t gi = 0; gi < e.items.size(); ++gi) {
+        const Item& g = e.items[gi];
+        const auto v = videoDeGraficos_.find(g.fuente);
+        if (v == videoDeGraficos_.end() || !g.visible) continue;
+        // Dónde se ve el dibujo: su imagen (el tamaño de la fuente de gráfico) contenida en el ítem.
+        int imgW = 900, imgH = 220;
+        if (const auto fg = sources_.find(g.fuente); fg != sources_.end()) {
+            const json a = json::parse(fg->second.spec.settingsJson.empty() ? "{}" : fg->second.spec.settingsJson, nullptr, false);
+            if (a.is_object()) {
+                imgW = a.value("ancho", imgW);
+                imgH = a.value("alto", imgH);
+            }
+        }
+        const graficos::video::Caja caja =
+            graficos::video::dondeSeVe({g.rect.x * W, g.rect.y * H, g.rect.w * W, g.rect.h * H}, imgW, imgH);
+        const std::int64_t desde = v->second.value("desde_ns", std::int64_t{0});
+        int j = 0;
+        for (const auto& vc : v->second.value("capas", json::array())) {
+            const std::string f = vc.value("fuente", std::string());
+            const auto fu = sources_.find(f);
+            if (fu == sources_.end() || fu->second.banca || fu->second.global) continue;
+            const bool comp = !fu->second.compProductor.empty();
+            const std::string entrada = comp ? kPrefijoCompositor + f : f;
+            const json sale = entradas.contains(f) ? entradas[f].value("sale", json::object()) : json::object();
+            bool contener = true;
+            const json claves = graficos::video::clavesEnLienzo(vc, caja, sale.value("ancho", 0), sale.value("alto", 0), &contener);
+            if (claves.empty()) continue;
+            // Ya está en la escena: se anima esa (y al quitarla vuelve a como estaba). Si no, o si
+            // la declaración quiere una propia, una capa más.
+            int existente = -1;
+            if (!vc.value("propia", false))
+                for (std::size_t i = 0; i < capas.size() && existente < 0; ++i)
+                    if (capas[i].value("entrada", std::string()) == entrada && !capas[i].contains("claves")) existente = static_cast<int>(i);
+            json c = existente >= 0 ? capas[static_cast<std::size_t>(existente)] : json{{"entrada", entrada}};
+            if (comp && existente < 0) c["productor"] = fu->second.compProductor;
+            // Lo de antes de arrancar: la primera clave (casi siempre con alfa 0).
+            const json& k0 = claves[0];
+            const json& r0 = k0["recorte"];
+            const auto px = [](const json& n) { return static_cast<int>(std::lround(n.get<double>())); };
+            c["x"] = px(k0["x"]);
+            c["y"] = px(k0["y"]);
+            c["ancho"] = px(k0["ancho"]);
+            c["alto"] = px(k0["alto"]);
+            c["alfa"] = k0["alfa"];
+            c["recorte"] = {{"izq", px(r0["izq"])}, {"arr", px(r0["arr"])}, {"der", px(r0["der"])}, {"aba", px(r0["aba"])}};
+            c["contener"] = contener;
+            c["visible"] = true;
+            c["claves"] = claves;
+            c["claves_desde_ns"] = desde;
+            const double o = static_cast<double>(gi) + (vc.value("arriba", true) ? 0.1 : -0.5) + 0.01 * ++j;
+            if (existente >= 0) {
+                capas[static_cast<std::size_t>(existente)] = c;
+                orden[static_cast<std::size_t>(existente)] = o;
+            } else {
+                capas.push_back(c);
+                orden.push_back(o);
+            }
+            alguna = true;
+        }
+    }
+    if (!alguna) return;
+    std::vector<std::size_t> idx(capas.size());
+    std::iota(idx.begin(), idx.end(), std::size_t{0});
+    std::stable_sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) { return orden[a] < orden[b]; });
+    for (std::size_t n = 0; n < idx.size(); ++n) capas[idx[n]]["orden"] = static_cast<int>(n);
 }
 
 } // namespace ba::app

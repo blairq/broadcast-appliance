@@ -22,6 +22,11 @@
 //             pad juntos: no se deforma).
 //   Mostrar la MISMA escena otra vez (mismo nombre) actualiza las capas en el
 //   lugar: posición, tamaño, recorte y alfa cambian andando, sin rearmar.
+// - CAPAS ANIMADAS POR CLAVES (Capa::claves): una capa que va de un lugar a otro con
+//   su propio reloj (la cámara que entra dentro de un zócalo con la línea de tiempo
+//   del gráfico, ver src/app/graficos/VideoEnGrafico.hpp). La mueve tic(), como las
+//   transiciones; el reloj se corre lo que tarda en salir lo que se compone (la edad
+//   de la salida), así el ms 0 cae en el cuadro que sale con el primero del gráfico.
 // - SOMBRA y BORDE DIFUSO de una capa (Capa::sombra): basombra (o su par de GL o
 //   D3D12) después del recorte; sale un cuadro más grande (un margen alrededor
 //   para la sombra) y la caja de la capa en el mezclador se agranda lo mismo,
@@ -77,6 +82,17 @@ struct SombraCapa {
     nlohmann::json aJson() const;
 };
 
+/// Un punto de la animación de una capa (Capa::claves): a los `ms` la capa está ahí y así.
+/// Entre dos claves, lo de en medio (con `suave`, arrancando y frenando despacio).
+struct ClaveCapa {
+    int ms = 0;
+    double x = 0, y = 0, ancho = 0, alto = 0; ///< en el lienzo (ancho/alto 0 = el del lienzo)
+    double alfa = 1.0;
+    double recIzq = 0, recArr = 0, recDer = 0, recAba = 0; ///< recorte, en píxeles de la entrada
+    bool suave = true; ///< el tramo que LLEGA a esta clave
+    bool operator==(const ClaveCapa&) const = default;
+};
+
 struct Capa {
     std::string entrada;           ///< la entrada del motor (lee <entrada>:video); también el nombre de la capa
     int x = 0, y = 0;
@@ -99,7 +115,17 @@ struct Capa {
     /// vacío = uno nuevo a pedido) y sus propiedades ({"xpos": 10, "alpha": 0.5}).
     std::string pad;
     nlohmann::json propiedadesPad = nlohmann::json::object();
+    /// ANIMADA POR CLAVES: la capa va de clave en clave (ordenadas por ms) con el reloj del
+    /// motor, y pasada la última queda ahí. `clavesDesdeNs` es el ms 0, en el reloj monótono
+    /// (g_get_monotonic_time en ns: el de la app y el del motor son el mismo); 0 = todavía no
+    /// arrancó (el gráfico no dio su primer cuadro): queda en la primera clave.
+    std::vector<ClaveCapa> claves;
+    std::int64_t clavesDesdeNs = 0;
 };
+
+/// La capa a los `ms` de su animación (Capa::claves): dónde, de qué tamaño, con qué alfa y
+/// recorte; lo demás, como está. Sin claves, la misma.
+Capa capaEn(const Capa& c, double ms);
 
 struct Escena {
     std::string nombre;
@@ -247,6 +273,10 @@ class Composicion {
     void sacarGeneracion(int gen);
     /// La transición en curso en el punto `t` (0…1).
     void animar(double t);
+    /// Una capa animada por claves, en el punto de ahora (si se movió desde la última vez).
+    void animarRama(Rama& r);
+    /// La capa en el punto de ahora de su animación (sin claves, la misma).
+    Capa capaAhora(const Capa& c) const;
     /// El ancho de lo que llega a una rama (antes del recorte); 0 si no se sabe aún.
     static int anchoDeOrigen(const Rama& r);
     static GstPadProbeReturn alPrimerCuadro(GstPad* pad, GstPadProbeInfo* info, gpointer d);
@@ -288,6 +318,9 @@ class Composicion {
     double manualT_ = 0;
     Escena escenaAntes_;      ///< la que estaba (para volver si se suelta antes de la mitad)
     std::int64_t latenciaNs_ = -1, salidaNs_ = 0, consultaNs_ = 0;
+    /// Cuánto después de su hora sale un cuadro del mezclador (la edad de la salida, p50):
+    /// lo que se le corre el reloj a las capas animadas por claves.
+    std::int64_t retrasoClavesNs_ = 0;
     LatenciaAparte latencia_;
 };
 

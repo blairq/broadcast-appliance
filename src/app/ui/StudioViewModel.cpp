@@ -345,6 +345,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
     connect(emisor_.get(), &graficos::Emisor::fallo, this, [this](const QString& m) { emit notify(m, "error"); });
+    // El video en vivo dentro de un gráfico (la cámara en el zócalo) lo ponen las escenas.
+    emisor_->setCapasDeVideo({[&rt](const std::string& g, const nlohmann::json& c) { return rt.engine().ponerVideoDeGrafico(g, c); },
+                              [&rt](const std::string& g, std::int64_t ns) { rt.engine().empezarVideoDeGrafico(g, ns); },
+                              [&rt](const std::string& g) { rt.engine().quitarVideoDeGrafico(g); }});
     marca("emisor");
     // El guion del evento necesita la sala para los cues de orador.
     {

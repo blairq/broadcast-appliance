@@ -20,6 +20,7 @@
 #include <QUrl>
 
 #include "graficos/GraficoSource.hpp"
+#include "graficos/VideoEnGrafico.hpp"
 
 namespace ba::app::graficos {
 namespace {
@@ -155,6 +156,14 @@ struct Emisor::Impl {
         QJsonObject valores;
     };
     std::map<std::uint64_t, Ultimo> ultimos;
+    CapasDeVideo capasVideo;
+    /// Por fuente: el video que acompaña al gráfico que se está por ver (o que se ve).
+    struct Video {
+        std::string nombre; ///< la fuente de escena (para sacarlo aunque ya no esté)
+        int generacion = 0; ///< la del pedido que lo puso
+        int inicioMs = 0, finMs = 0;
+    };
+    std::map<std::uint64_t, Video> video;
 };
 
 Emisor::Emisor(const std::filesystem::path& raizDatos, QObject* padre)
@@ -187,6 +196,41 @@ Medios& Emisor::medios() { return d_->medios; }
 QStringList Emisor::nombres() const { return d_->catalogo.nombres(); }
 
 void Emisor::setProveedorPlugin(ProveedorPlugin p) { d_->proveedor = std::move(p); }
+void Emisor::setCapasDeVideo(CapasDeVideo c) { d_->capasVideo = std::move(c); }
+
+std::string Emisor::nombreDe(std::uint64_t fuente) {
+    for (const auto& i : instancias())
+        if (i.id == fuente) return i.nombre;
+    return {};
+}
+
+void Emisor::prepararVideo(std::uint64_t fuente, const QString& grafico, const QJsonObject& pedido, int generacion,
+                           int inicioMs, int salidaEn, int salidaDur, int finMs) {
+    if (!d_->capasVideo.poner) return;
+    QString err;
+    const auto capas = video::leer(ficha(grafico), pedido, &err);
+    if (!err.isEmpty()) emit fallo("El video del gráfico: " + err);
+    if (capas.empty()) return quitarVideo(fuente); // este gráfico no lleva (el de antes, quizás sí)
+    const std::string nombre = nombreDe(fuente);
+    // Se ponen YA, quietas en su primera clave (con alfa 0 casi siempre): la rama de la cámara
+    // tarda en dar su primer cuadro y el gráfico, en dibujar los suyos; así, cuando sale el
+    // primero del gráfico, el video ya está ahí para arrancar.
+    const std::string e = d_->capasVideo.poner(nombre, video::aJson(capas, salidaEn, salidaDur, inicioMs));
+    if (!e.empty()) {
+        d_->video.erase(fuente);
+        emit fallo("El video del gráfico no salió: " + QString::fromStdString(e));
+        return;
+    }
+    d_->video[fuente] = {nombre, generacion, inicioMs, finMs};
+}
+
+void Emisor::quitarVideo(std::uint64_t fuente) {
+    const auto it = d_->video.find(fuente);
+    if (it == d_->video.end()) return;
+    const std::string nombre = it->second.nombre;
+    d_->video.erase(it);
+    if (d_->capasVideo.quitar) d_->capasVideo.quitar(nombre);
+}
 
 QString Emisor::registrarDePlugin(const QString& plugin, const QJsonObject& declaracion) {
     QString nombre;
@@ -362,6 +406,12 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
     const int gen = ++d_->generacion[fuente];
     d_->empezado[fuente] = false;
     d_->repetir[fuente] = repetir;
+    // El video en vivo que lo acompaña (si declara): entra, queda y se va con él.
+    {
+        const int salidaDur = std::clamp(p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800), 0, 5000);
+        const int finMs = salidaEn > 0 && !repetir ? static_cast<int>(plan.size()) * 1000 / kFps : 0;
+        prepararVideo(fuente, grafico, p, gen, 0, salidaEn, salidaDur, finMs);
+    }
     d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
     d_->ultimos[fuente] = {grafico, valores};
     return {};
@@ -371,12 +421,37 @@ void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QIma
     if (d_->generacion[fuente] != generacion) return; // ya hay otro gráfico para esa fuente
     if (!error.isEmpty()) {
         if (d_->empezado[fuente]) graficos::agregar(fuente, {}, true); // queda lo que llegó
+        quitarVideo(fuente);
         emit fallo("El gráfico no se pudo dibujar: " + error);
         return;
     }
     if (!d_->empezado[fuente]) {
         if (cuadros.empty()) return;
-        if (!graficos::reproducir(fuente, std::move(cuadros), kFps, d_->repetir[fuente], !fin)) {
+        // Con video adentro: su animación arranca con el primer cuadro que sale (el dibujo
+        // tarda lo que tarda; el reloj del gráfico empieza recién ahí).
+        std::function<void(std::int64_t)> alEmpezar;
+        if (const auto v = d_->video.find(fuente); v != d_->video.end() && v->second.generacion == generacion) {
+            QPointer<Emisor> yo(this);
+            alEmpezar = [yo, fuente, generacion](std::int64_t ns) {
+                QMetaObject::invokeMethod(
+                    qApp,
+                    [yo, fuente, generacion, ns]() {
+                        if (!yo) return;
+                        const auto it = yo->d_->video.find(fuente);
+                        if (it == yo->d_->video.end() || it->second.generacion != generacion) return;
+                        if (yo->d_->capasVideo.empezar) yo->d_->capasVideo.empezar(it->second.nombre, ns);
+                        // Un gráfico que se va solo: al terminar su salida, el video también.
+                        if (const int dura = it->second.finMs - it->second.inicioMs; it->second.finMs > 0)
+                            QTimer::singleShot(dura + 300, yo, [yo, fuente, generacion]() {
+                                if (!yo) return;
+                                const auto v2 = yo->d_->video.find(fuente);
+                                if (v2 != yo->d_->video.end() && v2->second.generacion == generacion) yo->quitarVideo(fuente);
+                            });
+                    },
+                    Qt::QueuedConnection);
+            };
+        }
+        if (!graficos::reproducir(fuente, std::move(cuadros), kFps, d_->repetir[fuente], !fin, std::move(alEmpezar))) {
             emit fallo("No se pudo reproducir el gráfico: esa fuente ya no está");
             return;
         }
@@ -439,6 +514,7 @@ QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, s
 }
 
 QString Emisor::ocultar(std::uint64_t fuente) {
+    quitarVideo(fuente); // el video del gráfico se va con él (aunque la fuente ya no esté)
     if (!graficos::ocultar(fuente)) return "esa fuente de gráfico ya no está";
     emit cambio();
     return {};
@@ -481,6 +557,8 @@ QString Emisor::sacar(std::uint64_t fuente, int siSigue) {
     const int gen = ++d_->generacion[fuente];
     d_->empezado[fuente] = false;
     d_->repetir[fuente] = false;
+    // El video, desde el mismo punto (ya entrado) hasta irse; lo saca el ocultar del final.
+    if (d_->video.count(fuente) > 0) prepararVideo(fuente, grafico, p, gen, kDesde, kDesde, dur - 150, 0);
     d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
     d_->ultimos.erase(fuente);
     // Al terminar la salida, fuera (si nadie puso otra cosa mientras tanto).
