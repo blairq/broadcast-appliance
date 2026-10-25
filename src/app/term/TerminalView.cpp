@@ -431,6 +431,33 @@ void TerminalView::mouseReleaseEvent(QMouseEvent* e) {
     if (selecting_) {
         selecting_ = false;
         if (selActive_) copySelection();
+        else if (e->button() == Qt::LeftButton && scroll_ == 0) clicSinRaton(cellAt(e->position()));
+    }
+}
+
+void TerminalView::clicSinRaton(const QPoint& c) {
+    // El programa no pidió el ratón (Claude Code, Antigravity): un clic simple se traduce a las
+    // teclas que haría la persona, como en las terminales que dejan «clic para mover el cursor».
+    std::vector<Cell> l;
+    session_->line(c.y(), 0, l);
+    QString texto;
+    for (const Cell& x : l)
+        if (x.ch != 0) texto += QString::fromUcs4(&x.ch, 1) + x.extra;
+    // 1) Una opción numerada de un menú («❯ 1. Sí», «  2) No»): se elige con su número. Solo
+    //    en el tercio de abajo, donde esos programas muestran sus menús: una lista numerada en
+    //    el medio de una respuesta no es un menú.
+    static const QRegularExpression opcion(QStringLiteral("^\\s*(?:[❯›>▶●○◉]\\s*)?(\\d{1,2})[.)]\\s+\\S"));
+    if (c.y() >= session_->rows() * 2 / 3) {
+        const auto m = opcion.match(texto);
+        if (m.hasMatch()) {
+            for (const QChar d : m.captured(1)) session_->unichar(d.unicode(), VTERM_MOD_NONE);
+            return;
+        }
+    }
+    // 2) La línea donde se escribe (la del cursor): el cursor va a donde se hizo clic.
+    if (session_->cursorVisible() && c.y() == session_->cursorRow()) {
+        const int d = c.x() - session_->cursorCol();
+        for (int i = 0; i < std::abs(d); ++i) session_->key(d > 0 ? VTERM_KEY_RIGHT : VTERM_KEY_LEFT, VTERM_MOD_NONE);
     }
 }
 

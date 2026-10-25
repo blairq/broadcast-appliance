@@ -59,6 +59,9 @@ class TerminalView : public QQuickPaintedItem {
     /// Sin botón apretado: solo si el programa lo pidió (modo 1003; opencode resalta lo que
     /// está debajo del puntero y con eso sabe qué se clickea).
     void hoverMoveEvent(QHoverEvent* e) override;
+    /// Un clic simple cuando el programa no pidió el ratón: elige una opción numerada de un
+    /// menú (manda el número) o mueve el cursor en la línea donde se escribe (flechas).
+    void clicSinRaton(const QPoint& celda);
     void mouseReleaseEvent(QMouseEvent* e) override;
     void mouseDoubleClickEvent(QMouseEvent* e) override;
     void wheelEvent(QWheelEvent* e) override;

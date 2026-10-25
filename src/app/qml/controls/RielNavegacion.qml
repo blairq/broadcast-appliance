@@ -217,7 +217,10 @@ Item {
             GridLayout {
                 id: filas
                 flow: riel.vert ? GridLayout.TopToBottom : GridLayout.LeftToRight
-                rowSpacing: riel.abierta ? 2 : 8
+                // Vertical, abierta o cerrada miden IGUAL (separación, encabezados, renglones):
+                // al abrirla cada botón se queda donde estaba y solo aparece su nombre al lado.
+                // Antes los títulos de grupo y los renglones más bajos corrían todo.
+                rowSpacing: riel.vert ? 6 : (riel.abierta ? 2 : 8)
                 columnSpacing: 8
                 // El layout se mide solo, y la tira le fija ÚNICAMENTE el lado
                 // cruzado. Escribirlo como `width: vert ? tira.width :
@@ -247,15 +250,15 @@ Item {
                         Item {
                             Layout.fillWidth: riel.vert
                             Layout.preferredWidth: riel.vert ? -1 : (visible ? 9 : 0)
-                            Layout.preferredHeight: riel.abierta ? 30
-                                                  : (riel.vert ? (visible ? 9 : 0) : riel.cfg.tamano)
-                            visible: riel.abierta ? riel.vert
-                                                  : (grupo.index !== 0 && riel.cfg.separadores)
+                            // Vertical: el mismo alto abierta o cerrada (cerrada, la rayita o
+                            // nada; abierta, el nombre del grupo), también en el primero.
+                            Layout.preferredHeight: riel.vert ? 22 : (riel.abierta ? 30 : riel.cfg.tamano)
+                            visible: riel.vert || (grupo.index !== 0 && riel.cfg.separadores)
 
                             // La rayita: solo cerrada.
                             Rectangle {
                                 anchors.centerIn: parent
-                                visible: !riel.abierta
+                                visible: !riel.abierta && grupo.index !== 0 && riel.cfg.separadores
                                 width: riel.vert ? 22 : 1
                                 height: riel.vert ? 1 : 22
                                 color: Qt.rgba(1, 1, 1, 0.14)
@@ -292,7 +295,7 @@ Item {
                                 id: items
                                 width: parent.width
                                 flow: riel.vert ? GridLayout.TopToBottom : GridLayout.LeftToRight
-                                rowSpacing: riel.abierta ? 2 : 8
+                                rowSpacing: riel.vert ? 6 : (riel.abierta ? 2 : 8)
                                 columnSpacing: 8
 
                                 Repeater {
@@ -308,8 +311,7 @@ Item {
                                         // ancho y el icono se queda donde estaba.
                                         Layout.fillWidth: riel.vert
                                         Layout.preferredWidth: riel.vert ? -1 : riel.cfg.tamano
-                                        Layout.preferredHeight: riel.abierta ? Math.max(34, riel.cfg.tamano * 0.8)
-                                                                             : riel.cfg.tamano
+                                        Layout.preferredHeight: riel.cfg.tamano // igual abierta o cerrada
                                         Layout.alignment: riel.vert ? Qt.AlignLeft : Qt.AlignCenter
 
                                         // El realce del renglón entero, abierta.
