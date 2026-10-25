@@ -313,6 +313,36 @@ void testLobbyMedia() {
           "el snapshot muestra el lugar de preview");
 }
 
+void testAtiendeHablando() {
+    // La atención hablada del lobby: sube su voz, baja la del que atiende, y se
+    // apaga sola al admitirlo (la atención es del lobby).
+    Room::Cfg cfg;
+    cfg.maxGuests = 1;
+    cfg.lobbySlots = 1;
+    Room room(cfg);
+    Recorder rec;
+    rec.attach(room);
+    using K = ba::gateway::MediaRoute::Kind;
+
+    const auto a = room.connect("A", "", 0);
+    const auto b = room.connect("B", "", 0);
+    CHECK(!room.routeOf(a.id).atiende, "de entrada no lo atiende nadie hablando");
+    CHECK(room.setAtiende(a.id, true) == Room::kOk, "atender hablando a A");
+    CHECK(room.routeOf(a.id).kind == K::Lobby && room.routeOf(a.id).atiende, "la ruta de A pasa a 'atiende'");
+    CHECK(!room.routeOf(a.id).talk, "atender no es que el operador le hable");
+    CHECK(rec.last(a.id, "atiende")["on"] == true, "A se entera (su página lo dice)");
+    CHECK(findParticipant(room.snapshot(), a.id)["atiende"] == true, "el snapshot lo muestra");
+    CHECK(room.setAtiende(b.id, true) == Room::kBadState, "sin lugar de preview no hay canal para su voz");
+    CHECK(room.setAtiende(a.id, true) == Room::kOk, "prenderlo dos veces no es error");
+
+    CHECK(room.admit(a.id, 5) == Room::kOk, "admitir a A");
+    CHECK(room.routeOf(a.id).kind == K::Program && !room.routeOf(a.id).atiende,
+          "adentro ya no lo atiende el asistente aparte");
+    CHECK(findParticipant(room.snapshot(), a.id)["atiende"] == false, "y el snapshot lo dice");
+    CHECK(room.setAtiende(a.id, true) == Room::kBadState, "adentro no se atiende hablando");
+    CHECK(room.setAtiende(a.id, false) == Room::kOk, "apagarlo siempre se puede");
+}
+
 void testCupo() {
     // T33: el cupo cambia en caliente dentro de lo reservado; bajarlo no saca a nadie.
     Room::Cfg cfg;
@@ -582,6 +612,7 @@ int main() {
     testChat();
     testLockAndRequests();
     testLobbyMedia();
+    testAtiendeHablando();
     testCupo();
     testSpeakers();
     testSinksUnlocked();

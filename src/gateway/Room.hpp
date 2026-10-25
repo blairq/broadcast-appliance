@@ -81,6 +81,7 @@ class Room {
         int lobbySlot = 0;     ///< 1..lobbySlots mientras espera (su camara la ve el operador)
         int backstageSlot = 0; ///< 1..backstageSlots en la fila de oradores (preview del operador)
         bool talk = false;     ///< el operador le esta hablando (conversacion privada del lobby)
+        bool atiende = false;  ///< lo atiende el asistente hablando (solo en el lobby; ver MediaRoute)
         bool connected = false;
         bool mediaUp = false; ///< PeerConnection establecida
         bool mic = true;
@@ -200,6 +201,10 @@ class Room {
     /// Conversacion privada con alguien del lobby: le llega la voz del operador
     /// (y el operador escucha la suya). Solo aplica a quien espera.
     int setTalk(const std::string& id, bool on);
+    /// El asistente lo atiende HABLANDO (solo en el lobby, con lugar de preview):
+    /// su voz sube para pasarla a texto y le baja la del que atiende. Se apaga
+    /// sola al admitirlo: la atención es del lobby.
+    int setAtiende(const std::string& id, bool on);
     /// Pedido al invitado: "mute-mic", "mute-cam", "stop-screen", "lower-hand".
     int request(const std::string& id, const std::string& what);
     /// `to`: "all" o el id de un participante.
