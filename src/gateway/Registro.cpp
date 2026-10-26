@@ -158,6 +158,7 @@ void RegistroBorde::baja(const std::string& conn) {
     }
     log_.info("registro: " + conn + " (tótem " + c->id + ") desconectado");
     alApp_({{"tipo", "conexion"}, {"conn", conn}, {"id", c->id}, {"conectado", false}});
+    reubicarAtienden(conn); // quienes la miraban por web se quedan sin imagen
 }
 
 int RegistroBorde::tomarCanal(const std::string& conn) {
@@ -178,6 +179,7 @@ int RegistroBorde::tomarCanal(const std::string& conn) {
     }
     log_.info("registro: " + conn + " toma el canal " + std::to_string(canal));
     alApp_({{"tipo", "canal"}, {"conn", conn}, {"id", id}, {"canal", canal}});
+    reubicarAtienden(conn); // quien ya la miraba por web la ve desde ahora
     return canal;
 }
 
@@ -195,12 +197,14 @@ void RegistroBorde::soltarCanal(const std::string& conn) {
         conAudio = it->second->audio;
         it->second->audio = false;
         id = it->second->id;
+        atendida_.erase(conn); // sin canal no hay a quién hablarle (la conversación se pierde)
     }
     // Su WebRTC no sigue sin canal: la ruta Registro(k) queda para el próximo.
     if (medios_.cerrar) medios_.cerrar(conn, canal);
     log_.info("registro: " + conn + " suelta el canal " + std::to_string(canal));
     if (conAudio) alApp_({{"tipo", "audio"}, {"conn", conn}, {"id", id}, {"listo", false}});
     alApp_({{"tipo", "canal"}, {"conn", conn}, {"id", id}, {"canal", 0}});
+    reubicarAtienden(conn);
 }
 
 int RegistroBorde::canalDe(const std::string& conn) const {
@@ -245,7 +249,7 @@ json RegistroBorde::estado() const {
     for (const auto& [conn, c] : conns_)
         cs.push_back({{"conn", conn}, {"id", c->id}, {"canal", c->canal}, {"ip", c->ip}, {"lugar", c->lugar},
                       {"desdeMs", c->desdeMs}, {"audio", c->audio}});
-    return {{"conexiones", cs}, {"totems", totems_.size()}, {"canales", kMaxTotems}};
+    return {{"conexiones", cs}, {"totems", totems_.size()}, {"canales", kMaxTotems}, {"atienden", estadoAtiendenSinLock()}};
 }
 
 std::vector<std::string> RegistroBorde::conexionesDe(const std::string& id) const {
@@ -281,6 +285,8 @@ json RegistroBorde::toque(const std::string& conn, const std::string& id, const 
 
 bool RegistroBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
                             const std::string& headers, std::uint32_t clientIp, bool externo) {
+    // La atención remota (su página y su WebSocket): RegistroAtiende.cpp.
+    if (atenderAtiende(fd, method, path, query, headers, clientIp, externo)) return true;
     const auto q = http::parseQuery(query);
     const bool ws = path == "/ws" && q.count("registro") > 0;
     const bool pagina = path == "/registro" || path.rfind("/registro/", 0) == 0;
@@ -437,6 +443,7 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     static const std::string kBase = "/api/v1/registro/";
     if (path.rfind(kBase, 0) != 0) return false;
     const std::string que = path.substr(kBase.size());
+    if (adminAtiende(fd, method, que, body)) return true; // la atención remota: RegistroAtiende.cpp
     if (method == "GET" && que == "estado") {
         http::sendResponse(fd, 200, "application/json", volcar(estado()));
         return true;
@@ -497,6 +504,11 @@ void RegistroBorde::cerrar() {
         std::lock_guard<std::mutex> l(c->sendLock);
         if (c->fd >= 0) http::shutdownFd(c->fd);
     }
+    for (const auto& aconn : atiendenTodas())
+        if (auto x = buscarAtiende(aconn)) {
+            std::lock_guard<std::mutex> l(x->sendLock);
+            if (x->fd >= 0) http::shutdownFd(x->fd);
+        }
 }
 
 } // namespace ba::gateway

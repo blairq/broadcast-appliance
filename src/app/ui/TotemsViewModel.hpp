@@ -30,7 +30,7 @@
 //   - el gateway: la API de control /api/v1/registro/* y el evento SSE
 //     «registro» (ConferenceClient::registroEvento).
 //
-// Hasta cuatro conversaciones a la vez (los canales de audio 1..4 del gateway).
+// Hasta ipc::kCanalesRegistro conversaciones a la vez (los canales de audio del gateway).
 // ============================================================================
 #pragma once
 
@@ -48,6 +48,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "ipc/CanalesRegistro.hpp"
 #include "registro/Totems.hpp"
 
 namespace ba::registro {
@@ -194,7 +195,7 @@ class TotemsViewModel : public QObject {
     mutable std::map<std::string, Secreto> secretos_;
 
     std::map<QString, std::unique_ptr<Conexion>> conns_;
-    std::array<std::unique_ptr<VozAlLobby>, 5> voces_; ///< por canal (1..4; el 0 no se usa)
+    std::array<std::unique_ptr<VozAlLobby>, ba::ipc::kCanalesRegistro + 1> voces_; ///< por canal (1..n; el 0 no se usa)
     std::unique_ptr<audio::Habla> habla_;
     QString vozCargada_;
     bool vozLista_ = false;

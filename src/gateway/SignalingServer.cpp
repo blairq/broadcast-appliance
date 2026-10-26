@@ -139,6 +139,27 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             if (pump_ != nullptr) pump_->apagarRegistro(canal);
         };
         registro_->setMedios(std::move(m));
+        // La atención remota: una sesión por página de atención (ruta RegistroAtiende).
+        RegistroBorde::MediosAtiende ma;
+        ma.oferta = [this](const std::string& aconn, int canal, bool habla, const std::string& sdp,
+                           std::function<void(const json&)> enviar) {
+            return ofertaRegistroAtiende(aconn, canal, habla, sdp, std::move(enviar));
+        };
+        const auto sesionDe = [this](const std::string& aconn) {
+            std::lock_guard<std::mutex> lock(sessLock_);
+            const auto it = sessionOf_.find("registro-atiende:" + aconn);
+            return it == sessionOf_.end() ? 0 : it->second;
+        };
+        ma.ice = [this, sesionDe](const std::string& aconn, const std::string& cand) {
+            const int idx = sesionDe(aconn);
+            if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
+        };
+        ma.ruta = [this, sesionDe](const std::string& aconn, int canal, bool habla) {
+            const int idx = sesionDe(aconn);
+            if (idx > 0 && pump_ != nullptr) pump_->setRoute(idx, MediaRoute::registroAtiende(canal, habla));
+        };
+        ma.cerrar = [this](const std::string& aconn) { releaseSession("registro-atiende:" + aconn, 0, true); };
+        registro_->setMediosAtiende(std::move(ma));
     }
     controlWeb_ = std::make_unique<ControlWebBorde>(cfg_.controlWebroot, log_,
                                                     [this](const json& d) { broadcastToHosts("control", d); });
@@ -2495,6 +2516,72 @@ bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& s
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::atencion());
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn("sesion: setRemoteOffer de la atención de " + id + " falló", -1);
+        releaseSession(pid, 0, true);
+        return false;
+    }
+    return true;
+}
+
+bool SignalingServer::ofertaRegistroAtiende(const std::string& aconn, int canal, bool habla, const std::string& sdp,
+                                            std::function<void(const json&)> enviar) {
+    // La forma de ofertaRegistro, con la ruta RegistroAtiende: una sesión por página de
+    // atención (la oferta nueva reemplaza a la anterior). Lo que mira se cambia con la ruta,
+    // sin renegociar (MediaPump le empuja la cámara y el sonido del canal que toque).
+    if (canal < 0 || canal > kMaxTotems) return false;
+    const std::string pid = "registro-atiende:" + aconn;
+    releaseSession(pid, 0, true);
+    int idx = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        for (int s = 1; s <= hub_.sessions() && idx == 0; ++s)
+            if (sessionOwner_.count(s) == 0) idx = s;
+        if (idx > 0) {
+            sessionOwner_[idx] = SessionOwner{pid, 0};
+            sessionOf_[pid] = idx;
+        }
+    }
+    WebrtcSession* sess = hub_.session(idx);
+    if (sess == nullptr) {
+        log_.warn("registro: sin sesiones WebRTC libres para la atención remota " + aconn, -1);
+        return false;
+    }
+    SessionCallbacks cb;
+    cb.onLocalAnswer = [this, enviar](const std::string& s) {
+        std::string out;
+        size_t pos = 0;
+        while (pos < s.size()) {
+            const size_t eol = s.find('\n', pos);
+            const std::string line = s.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos + 1);
+            if (line.rfind("a=candidate:", 0) == 0) {
+                const std::string pub = publicCandidate(line.substr(2));
+                if (!pub.empty()) out += "a=" + pub;
+            } else {
+                out += line;
+            }
+            if (eol == std::string::npos) break;
+            pos = eol + 1;
+        }
+        enviar(json{{"type", "respuesta"}, {"sdp", out}});
+    };
+    cb.onLocalIce = [this, enviar](const std::string& c) {
+        json cand = json::parse(c, nullptr, false);
+        if (cand.is_object() && cand.contains("candidate") && cand["candidate"].is_string()) {
+            const std::string pub = publicCandidate(cand["candidate"].get<std::string>());
+            if (pub.empty()) return;
+            cand["candidate"] = pub;
+        }
+        enviar(json{{"type", "ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
+    };
+    cb.onStateChange = [this, aconn, idx](bool up) {
+        log_.fmt("info", 0, "registro: atención remota %s (sesion %d) %s", aconn.c_str(), idx, up ? "conectada" : "cerrada");
+    };
+    // Su micrófono: MediaPump lo usa solo con `habla` (lo baja a ese tótem; nunca a la mezcla).
+    if (pump_ != nullptr)
+        cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+    sess->configure(cb, hub_.rtcFactory());
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::registroAtiende(canal, habla));
+    if (!sess->setRemoteOffer(sdp)) {
+        log_.warn("registro: setRemoteOffer de la atención remota " + aconn + " falló", -1);
         releaseSession(pid, 0, true);
         return false;
     }

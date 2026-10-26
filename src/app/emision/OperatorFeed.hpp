@@ -12,7 +12,7 @@
 //   B decide a quien le llega (video a todo el lobby; voz solo a con quien el
 //   operador esta hablando).
 //
-//   Y la voz de quien se registra en un tótem (BA.Audio.Registro.<k>, k = 1..4),
+//   Y la voz de quien se registra en un tótem (BA.Audio.Registro.<k>, k = 1..ipc::kCanalesRegistro),
 //   solo para pasarla a texto (ui/RegistroViewModel).
 //
 //   Y a la inversa, el MONITOREO: la voz de quien espera (BA.Audio.Lobby.<k>)
@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 
+#include "ipc/CanalesRegistro.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
 
@@ -43,8 +44,8 @@ class OperatorFeed {
     static constexpr int kWidth = 640;
     static constexpr int kHeight = 360;
     static constexpr int kMaxLobby = 8;
-    /// Los tótems de registro que conversan a la vez (canales 1..4, como el gateway).
-    static constexpr int kMaxRegistro = 4;
+    /// Los tótems de registro que conversan a la vez (canales 1..n, el tope compartido con el gateway).
+    static constexpr int kMaxRegistro = ba::ipc::kCanalesRegistro;
 
     OperatorFeed() = default;
     ~OperatorFeed();

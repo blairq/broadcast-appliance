@@ -618,7 +618,7 @@ void TotemsViewModel::abrirAudio(Conexion& c) {
     if (k < 1 || k >= static_cast<int>(voces_.size())) return;
     cargarVoz();
     if (!voces_[static_cast<std::size_t>(k)])
-        voces_[static_cast<std::size_t>(k)] = std::make_unique<VozAlLobby>(L"BA.Audio.RegistroVoz." + std::to_wstring(k));
+        voces_[static_cast<std::size_t>(k)] = std::make_unique<VozAlLobby>(ba::ipc::nombreVozRegistro(k));
     voces_[static_cast<std::size_t>(k)]->abrir();
     abrirOido(c);
 }
