@@ -7,6 +7,7 @@
 #include <cctype>
 
 #include "documentos/DniArgentino.hpp"
+#include "documentos/Mrz.hpp"
 
 namespace ba::documentos {
 namespace {
@@ -102,7 +103,10 @@ std::string Datos::nombreCompleto() const {
 
 // --- Catálogo ----------------------------------------------------------------
 
-Catalogo::Catalogo() { registrar(std::make_unique<DniArgentino>()); }
+Catalogo::Catalogo() {
+    registrar(std::make_unique<DniArgentino>()); // el frente (PDF417) y el dorso (MRZ) del DNI
+    registrar(std::make_unique<MrzTd1>());       // el dorso de cualquier cédula OACI
+}
 Catalogo::~Catalogo() = default;
 
 void Catalogo::registrar(std::unique_ptr<TipoDocumento> t) {

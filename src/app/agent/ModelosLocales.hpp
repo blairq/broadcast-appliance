@@ -189,6 +189,12 @@ class ModelosLocales : public QObject {
     /// por qué y `repoParaBajar`, cuál bajar (si hay uno).
     /// Con `pedido` (un repo del catálogo, el que se eligió en el Asistente): ese.
     QString ggufParaChat(const QString& pedido = {}, QString* falta = nullptr, QString* repoParaBajar = nullptr) const;
+    /// El proyector de visión («mmproj», tipo `vision` del catálogo) para un .gguf:
+    /// el instalado con la misma `base` que el modelo de ese archivo (los reactivos de
+    /// 4B son Qwen3.5-4B ajustados: les sirve el del base). Vacío si no hay; entonces
+    /// `repoParaBajar` dice cuál bajar, si el catálogo tiene uno para esa base.
+    /// Con él, el llama-server del programa mira imágenes (ServidorModeloLocal).
+    QString mmprojPara(const QString& gguf, QString* repoParaBajar = nullptr) const;
     Q_INVOKABLE void apagar();
     /// Elegir con una frase, para ver qué hace: el resultado va a `pruebas`.
     Q_INVOKABLE void probar(const QString& frase);

@@ -90,10 +90,28 @@ fábrica y los tipos de los plugins), con los tipos que acepta el campo.
   los campos sin dato que salen de ahí: los de tipo `nombre` (nombre y apellido) y los de
   texto/número con clave `apellido`, `nombres`, `dni`, `nacimiento`, `cuil` o `sexo`. Lo
   que ya se sabía por la cara (el nombre de la ficha) no se pisa.
-- **No lo leyó en 15 s:** le dice qué corregir (tenelo quieto, del lado del código, sin
-  reflejo; «ese código no es de un documento que pueda leer» si vio otro código) y vuelve
-  a buscar. A la segunda, si no es obligatorio, lo saltea («seguimos sin el documento»);
-  si es, le pide que tipee el número y sigue buscando.
+- **No lo leyó en 15 s:** si hay **dorso** (abajo), le pide la parte de atrás; si no, le
+  dice qué corregir (tenelo quieto, del lado del código, sin reflejo; «ese código no es de
+  un documento que pueda leer» si vio otro código) y vuelve a buscar. A la segunda, si no
+  es obligatorio, lo saltea («seguimos sin el documento»); si es, le pide que tipee el
+  número y sigue buscando.
+- **El dorso** (solo si hay un modelo con visión —el local con su complemento de visión
+  o el propio—: `Conversacion::ofrecerDorso`, que `TotemsViewModel` pone al empezar con
+  `LectorDocumentos::dorsoDisponible`): «No pude leer el código. Dalo vuelta y mostrame la
+  parte de atrás, la de los renglones de letras y números de abajo». La conversación sigue
+  en `Documento` con `buscandoDorso()`; la página pasa al estado `dorso` («Mostrá la parte
+  de atrás: los renglones de abajo») y sigue mandando fotos enteras (`cuadro`). Cada foto se
+  lee con zxing (por si vuelve a mostrar el frente) y, **de a una por conexión**, la franja
+  de abajo va al modelo de visión (`LectorDocumentos::leerDorso`: primero el local, en
+  127.0.0.1; si no, el propio), que transcribe la zona de lectura mecánica. Se acepta si
+  cierran los verificadores del número, el nacimiento y el vencimiento y, además, el
+  compuesto u otra foto que coincida (`ConfirmadorMrz` de la conexión; DOCUMENTOS.md, «El
+  dorso»). Lo leído se confirma igual que el frente; con «no», «mostrame de nuevo la parte
+  de atrás» (y las fotos de antes ya no cuentan). El modelo local se hace cargar cuando
+  empieza el paso del documento y se suelta cuando nadie muestra uno. El tope del paso con
+  el dorso es 25 s (no se corta con una foto en el modelo, hasta 45 s); al vencer, lo de
+  siempre: saltear o tipear. En el registro, «documento leído por el dorso, con el modelo
+  local (dni-ar …333)».
 - **Respaldo:** tipear el número en la pantalla (`{numero, origen: "tipeado"}`, sin
   confirmar) o dictarlo («once, dos dos dos…», se confirma). «No tengo» lo saltea si no es
   obligatorio. Los silencios no cuentan mientras lo muestra.

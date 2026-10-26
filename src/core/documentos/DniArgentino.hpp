@@ -15,6 +15,13 @@
 //     trámite@?@vencimiento@…
 //   (el número viene con espacios atrás: «@11222333    @A@1@…»).
 //
+// EL DORSO (formato "MRZ", documentos/Mrz): los tres renglones de la zona de
+// lectura mecánica, TD1 de la OACI con emisor ARG. El número del DNI va en el
+// campo del número de documento (6-14, con su verificador); si ahí no hay un
+// número de DNI (algunas series traen otra cosa), se lo busca en los datos
+// opcionales del renglón 1. Lo que sale del dorso no trae trámite, ejemplar ni
+// CUIL, y trae el vencimiento.
+//
 // Las fechas vienen dd/mm/aaaa y quedan en ISO. Los nombres vienen en
 // mayúsculas y sin tildes: quedan con mayúscula inicial («Juana Andrea»).
 // Los ejemplos de los tests son SINTÉTICOS (test_documentos).
@@ -30,7 +37,7 @@ class DniArgentino : public TipoDocumento {
     std::string id() const override { return "dni-ar"; }
     std::string titulo() const override { return "DNI argentino"; }
     std::string comoSeDice() const override { return "tu DNI"; }
-    std::vector<std::string> formatos() const override { return {"PDF417"}; }
+    std::vector<std::string> formatos() const override { return {"PDF417", "MRZ"}; }
     bool leer(const Codigo& c, Datos& out) const override;
 };
 

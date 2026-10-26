@@ -29,7 +29,7 @@
 
 #include "agent/Despachador.hpp"
 #include "platform/Paths.hpp"
-#include "agent/ModeloPropio.hpp"
+#include "agent/Mirada.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
@@ -130,82 +130,24 @@ QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int ce
 /// usar una sola herramienta— y eso en vivo no sirve. Un pedido suelto al
 /// mismo servidor contesta en 0,6 s (medido) y cumple el requisito MEJOR: la
 /// imagen no entra a ninguna conversacion, ni siquiera a la del agente que
-/// mira. Es un pedido sin estado: una imagen, una pregunta, un texto.
+/// mira. Es un pedido sin estado: una imagen, una pregunta, un texto. El pedido
+/// en sí lo arma agent/Mirada (lo usa también el tótem para leer el dorso
+/// de un documento).
 ///
 /// Devuelve el texto, o deja el motivo en `error`.
 std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std::string& que,
                                    std::string& error) {
-    const agent::ModeloPropio mp = agent::ModeloPropio::leer(rt.dataRoot() / "Config" / "modelo-propio.json");
-    if (!mp.completo()) {
-        error = "no hay un modelo propio configurado";
-        return {};
-    }
-    QByteArray clave;
-    const QString cred = QString::fromStdWString((ba::platform::credentialsDir()).wstring());
-    if (!ba::app::cred::read(cred, "modelo-propio-api-key", clave)) {
-        error = "falta la clave del modelo propio";
-        return {};
-    }
-
+    agent::PedidoMirada p;
+    p.sistema = "Mirás una imagen y contestás la pregunta, en dos o tres líneas. "
+                "Decís lo que VES: si no se ve, decís que no se ve. No inventás "
+                "lo que debería haber. No describís el resto.";
+    p.pregunta = que;
     // 768 px: alcanza de sobra para decir si hay alguien, si el cuadro esta en
     // negro o que dice un rotulo, y mantiene el pedido chico. Una captura de
     // 1600 px no se ve mejor, se paga mas cara.
-    QImage chica = img.width() > 768 ? img.scaledToWidth(768, Qt::SmoothTransformation) : img;
-    QByteArray jpg;
-    QBuffer buf(&jpg);
-    buf.open(QIODevice::WriteOnly);
-    if (!chica.save(&buf, "JPG", 85)) {
-        error = "no se pudo codificar la imagen";
-        return {};
-    }
-
-    json contenido = json::array();
-    contenido.push_back(json{{"type", "text"}, {"text", que}});
-    contenido.push_back(
-        json{{"type", "image_url"},
-             {"image_url", {{"url", "data:image/jpeg;base64," + jpg.toBase64().toStdString()}}}});
-    json body{
-        {"model", mp.modelo},
-        {"messages",
-         json::array({json{{"role", "system"},
-                           {"content", "Mirás una imagen y contestás la pregunta, en dos o tres líneas. "
-                                       "Decís lo que VES: si no se ve, decís que no se ve. No inventás "
-                                       "lo que debería haber. No describís el resto."}},
-                      json{{"role", "user"}, {"content", contenido}}})},
-        {"max_tokens", 300},
-        {"temperature", 0}};
-    // Sin pensar: para mirar una imagen no hace falta, y en vivo el tiempo es
-    // lo que importa.
-    body["chat_template_kwargs"] = json{{"enable_thinking", false}, {"reasoning_effort", "low"}};
-
-    std::string url = mp.url;
-    while (!url.empty() && url.back() == '/')
-        url.pop_back();
-    net::HttpRequest req;
-    req.method = "POST";
-    req.url = url + "/chat/completions";
-    req.headers = {{"Authorization", "Bearer " + clave.trimmed().toStdString()},
-                   {"Content-Type", "application/json"}};
-    req.body = body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    req.timeoutMs = ba::ajustes::sAMs("mcp.imagenTimeoutS", 45);
-    const net::HttpResponse r = net::HttpsClient::request(req);
-    if (r.status == 0) {
-        error = "no contesta: " + r.error;
-        return {};
-    }
-    if (r.status >= 400) {
-        error = "el servidor contesto " + std::to_string(r.status);
-        return {};
-    }
-    try {
-        const json d = json::parse(r.body);
-        const std::string texto = d["choices"][0]["message"].value("content", std::string());
-        if (texto.empty()) error = "el modelo contesto vacio";
-        return texto;
-    } catch (const json::exception& e) {
-        error = std::string("no se entendio la respuesta: ") + e.what();
-        return {};
-    }
+    p.anchoMax = 768;
+    p.maxTokens = 300;
+    return agent::mirarConElModeloPropio(rt.dataRoot(), img, p, error);
 }
 
 void McpService::registerImageTools() {

@@ -6,6 +6,7 @@
 #include <QCryptographicHash>
 #include <QBuffer>
 #include <QDateTime>
+#include <QFileInfo>
 #include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -17,10 +18,14 @@
 #include <atomic>
 #include <vector>
 
+#include "agent/ModelosLocales.hpp"
+#include "agent/ServidorModeloLocal.hpp"
 #include "agent/Voz.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
+#include "documentos/Mrz.hpp"
 #include "emision/OperatorFeed.hpp"
 #include "emision/VozAlLobby.hpp"
 #include "registro/Conversacion.hpp"
@@ -56,6 +61,12 @@ constexpr qint64 kArranqueSinCaraMs = 2500; ///< con canal y sin cara a la vista
 constexpr qint64 kListoMs = 8000;          ///< la pantalla de gracias (la página vuelve sola)
 constexpr qint64 kEntreDocumentosMs = 300; ///< mostrando el documento: un cuadro al lector cada tanto
 constexpr qint64 kDocumentoMs = 15000;     ///< cuánto se espera leerlo antes de decirle qué corregir
+/// Lo mismo con el dorso: cada foto tarda lo que tarde el modelo propio en leerla
+/// (uno a pocos segundos), así que se le da más tiempo para varios intentos.
+constexpr qint64 kDorsoMs = 25000;
+/// Pasado esto, el paso del dorso termina aunque haya una foto en el modelo (el
+/// primer pedido puede esperar a que cargue el modelo local).
+constexpr qint64 kDorsoTopeMs = 45000;
 
 qint64 ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -149,6 +160,9 @@ struct TotemsViewModel::Conexion {
     qint64 ultimoDocMs = 0;
     std::uint64_t ultimoCuadroDoc = 0;
     bool leyendoDocumento = false;  ///< hay un cuadro en el lector
+    bool leyendoDorso = false;      ///< hay una foto del dorso en el modelo de visión (una por vez)
+    /// Las lecturas dudosas del dorso (sin el verificador compuesto) hasta que dos coinciden.
+    std::shared_ptr<documentos::ConfirmadorMrz> dorsoLecturas = std::make_shared<documentos::ConfirmadorMrz>();
     QString docSugerencia;          ///< qué corregir, según lo último que se vio
     /// Después de terminar, la próxima arranca recién cuando esa cara se va (o
     /// aparece otra conocida): si no, la misma persona empezaría de nuevo.
@@ -207,7 +221,54 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
         });
     tic_.setInterval(200);
     connect(&tic_, &QTimer::timeout, this, &TotemsViewModel::tic);
-    lector_ = std::make_unique<LectorDocumentos>(vm_.plugins());
+    lector_ = std::make_unique<LectorDocumentos>(vm_.plugins(), rt_.dataRoot());
+    // El dorso con el modelo local: el llama-server del programa con el proyector de
+    // visión (--mmproj), en 127.0.0.1. La foto no sale de la máquina.
+    {
+        LectorDocumentos::VisionLocal v;
+        agent::ModelosLocales* ml = modelos_;
+        v.disponible = [ml](QString* falta) {
+            if (ml == nullptr) return false;
+            QString f;
+            const QString gguf = ml->ggufParaChat({}, &f);
+            if (gguf.isEmpty()) {
+                if (falta != nullptr) *falta = f;
+                return false;
+            }
+            QString repo;
+            if (ml->mmprojPara(gguf, &repo).isEmpty()) {
+                if (falta != nullptr)
+                    *falta = repo.isEmpty() ? "el modelo local no tiene un proyector de visión en el catálogo"
+                                            : "falta bajar la visión del modelo local («" + repo + "», modelo_local_bajar)";
+                return false;
+            }
+            if (!QFileInfo::exists(agent::ServidorModeloLocal::ejecutable())) {
+                if (falta != nullptr) *falta = "falta llama-server en el programa";
+                return false;
+            }
+            return true;
+        };
+        AppRuntime* rt = &rt_;
+        v.pedir = [ml, rt](QObject* quien, std::function<void(quint16, QString)> listo) {
+            agent::ServidorModeloLocal::Pedido p;
+            p.ejecutable = agent::ServidorModeloLocal::ejecutable();
+            p.gguf = ml != nullptr ? ml->ggufParaChat() : QString();
+            p.mmproj = ml != nullptr ? ml->mmprojPara(p.gguf) : QString();
+            p.capasGpu = rt->config().modeloCapasGpu;
+            p.contexto = rt->config().modeloContexto; // el mismo que el chat: comparten el servidor
+            p.logs = QString::fromStdWString((rt->dataRoot() / "Logs").wstring());
+            p.cargaS = ba::ajustes::entero("modelo.cargaS", 180);
+            p.noReiniciar = true; // si el chat tiene cargado otro modelo, no se lo saca
+            agent::ServidorModeloLocal::el().pedir(quien, p, std::move(listo));
+        };
+        v.soltar = [](QObject* quien) { agent::ServidorModeloLocal::el().soltar(quien); };
+        lector_->setVisionLocal(std::move(v));
+        // Bajar o borrar la visión (o cambiar de modelo) cambia si se puede leer el dorso.
+        if (ml != nullptr) {
+            connect(ml, &agent::ModelosLocales::cambio, this, &TotemsViewModel::dorsoCambio);
+            connect(ml, &agent::ModelosLocales::discoCambio, this, &TotemsViewModel::dorsoCambio);
+        }
+    }
     connect(lector_.get(), &LectorDocumentos::tiposCambio, this, &TotemsViewModel::tiposDocumentoCambio);
     conectarAtencion();
     recargar();
@@ -388,6 +449,14 @@ QVariantList TotemsViewModel::tiposDocumento() const {
 }
 
 bool TotemsViewModel::lectorDisponible() const { return LectorDocumentos::disponible(); }
+
+QString TotemsViewModel::dorso() const {
+    if (!lector_) return {};
+    QString falta;
+    const QString con = lector_->dorsoCon(&falta);
+    if (!con.isEmpty()) return "Si el código no sale, pide la parte de atrás y la lee con el " + con + ".";
+    return "Sin lectura del dorso: " + falta + " (o configurá un modelo propio).";
+}
 
 QVariantList TotemsViewModel::tipos() const {
     QVariantList out;
@@ -826,6 +895,8 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     cara.nombre = nombre.toStdString();
     cara.yaRegistrado = !personaId.isEmpty() && ev != nullptr && ev->registradoPorTotem(personaId);
     c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_);
+    // El dorso se ofrece solo si hay con qué leerlo (el modelo propio del operador).
+    c.conv->ofrecerDorso(lector_ && lector_->dorsoDisponible());
     c.primeraDelCanal = false;
     c.esperaVacio = false;
     c.pedidoEnviado.clear();
@@ -888,9 +959,13 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
             c.buscandoDocumento = true;
             c.docDesdeMs = 0;
             c.docSugerencia.clear();
+            c.dorsoLecturas->reiniciar(); // lo pidió de nuevo (o «no»): las fotos de antes no cuentan
+            // Si después hace falta el dorso, que el modelo local con visión ya esté cargado.
+            if (c.conv->dorsoDisponible() && lector_) lector_->prepararDorso();
         }
     } else {
         c.buscandoDocumento = false;
+        c.dorsoLecturas->reiniciar();
     }
     // La foto de frente: se busca recién cuando terminó de pedirla (tic), no mientras habla.
     // Una respuesta vacía (algo que se oyó mientras mira a la cámara) no la interrumpe.
@@ -1012,6 +1087,10 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
 
 void TotemsViewModel::tic() {
     const qint64 ahora = ahoraMs();
+    // Nadie mostrando un documento: el modelo local con visión ya no hace falta cargado
+    // (si el chat lo usa, sigue; si no, se apaga y libera la GPU).
+    if (lector_ && std::none_of(conns_.begin(), conns_.end(), [](const auto& kv) { return kv.second->buscandoDocumento; }))
+        lector_->soltarDorso();
     for (auto& [k, cp] : conns_) {
         Conexion& c = *cp;
         if (c.canal > 0 && !c.oido) abrirOido(c);
@@ -1039,7 +1118,10 @@ void TotemsViewModel::tic() {
                     // Pidió la foto: desde ahora se buscan tomas de frente (y se cuenta el tiempo).
                     if (c.buscandoFoto) c.fotoDesdeMs = ahora;
                     if (c.buscandoDocumento) c.docDesdeMs = ahora; // pidió el documento: desde ahora se busca
-                    c.estado = c.buscandoFoto ? "foto" : c.buscandoDocumento ? "documento" : "escuchando";
+                    c.estado = c.buscandoFoto        ? "foto"
+                               : !c.buscandoDocumento ? "escuchando"
+                               : c.conv->buscandoDorso() ? "dorso" // la página guía: «la parte de atrás»
+                                                         : "documento";
                     enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
                     emit vivoCambio();
                 }
@@ -1056,7 +1138,9 @@ void TotemsViewModel::tic() {
         }
         if (c.buscandoDocumento && c.conv != nullptr) {
             if (c.docDesdeMs == 0) c.docDesdeMs = ahora; // sin voz: no hubo nada que esperar
-            if (ahora - c.docDesdeMs > kDocumentoMs) {
+            // Con una foto del dorso en el modelo, se espera su respuesta (hasta un tope).
+            const qint64 paso = ahora - c.docDesdeMs;
+            if ((paso > (c.conv->buscandoDorso() ? kDorsoMs : kDocumentoMs) && !c.leyendoDorso) || paso > kDorsoTopeMs) {
                 const auto r = c.conv->documentoFallo(c.docSugerencia.toStdString());
                 aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
             }
@@ -1148,6 +1232,16 @@ void TotemsViewModel::alCuadroDePagina(Conexion& c) {
                         return;
                     }
                     QPointer<TotemsViewModel> yo2(yo);
+                    // Pidió la parte de atrás: la misma foto, al modelo propio (el OCR de
+                    // la zona de lectura mecánica). Una por vez por conexión: mientras una
+                    // está en el modelo, las demás fotos solo buscan el código del frente.
+                    if (k.conv->buscandoDorso() && !k.leyendoDorso) {
+                        k.leyendoDorso = true;
+                        yo->lector_->leerDorso(img, k.conv->documentosAceptados(), k.dorsoLecturas,
+                                               [yo2, conn](LectorDocumentos::Resultado r) {
+                                                   if (yo2) yo2->alLeerDorso(conn, std::move(r));
+                                               });
+                    }
                     yo->lector_->leer(img.convertToFormat(QImage::Format_RGB32), k.conv->documentosAceptados(), false,
                                       [yo2, conn](LectorDocumentos::Resultado r) {
                                           if (yo2) yo2->alLeerDocumento(conn, std::move(r));
@@ -1175,6 +1269,31 @@ void TotemsViewModel::alLeerDocumento(const QString& conn, LectorDocumentos::Res
     // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
     if (!r.codigos.empty())
         k.docSugerencia = "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.";
+}
+
+void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resultado r) {
+    const auto it = conns_.find(conn);
+    if (it == conns_.end()) return;
+    Conexion& k = *it->second;
+    k.leyendoDorso = false;
+    if (!k.buscandoDocumento || k.conv == nullptr) return;
+    const registro::Totem* t = totems_.porId(k.totem.toStdString());
+    const std::string quien = "tótem «" + (t != nullptr ? t->id : k.totem.toStdString()) + "» (" + conn.toStdString() + ")";
+    if (r.leido) {
+        // Como el frente: a lo sumo el tipo y los últimos tres dígitos.
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                                   quien + ": documento leído por el dorso, con el " + r.con + " (" +
+                                       documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
+        const auto x = k.conv->documentoLeido(r.datos);
+        aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
+        return;
+    }
+    // Por qué no (sin datos): el modelo no contestó, no se ven los renglones o no cierran.
+    if (!r.error.isEmpty())
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0, quien + ": dorso: " + r.error.toStdString());
+    if (r.dudosa) return; // cerró casi todo: la próxima foto que coincida la confirma
+    if (r.noSeVe) k.docSugerencia = "No veo los renglones de abajo.";
+    else if (!r.detalle.empty()) k.docSugerencia = "No se leen bien los renglones de abajo.";
 }
 
 void TotemsViewModel::cortar(const QString& conn) {

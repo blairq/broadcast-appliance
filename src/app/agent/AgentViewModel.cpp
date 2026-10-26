@@ -1846,13 +1846,7 @@ void AgentViewModel::start() {
 
 // --- El servidor del modelo local (para pi) ---------------------------------------------
 
-QString AgentViewModel::rutaServidorLocal() const {
-#ifdef _WIN32
-    return QCoreApplication::applicationDirPath() + "/llama-server.exe";
-#else
-    return QCoreApplication::applicationDirPath() + "/llama/llama-server";
-#endif
-}
+QString AgentViewModel::rutaServidorLocal() const { return ServidorModeloLocal::ejecutable(); }
 
 void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
     QString falta, repoParaBajar;

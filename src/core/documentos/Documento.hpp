@@ -39,7 +39,8 @@
 namespace ba::documentos {
 
 /// Un código leído de una imagen (o tipeado): el formato como lo nombra zxing
-/// ("PDF417", "QRCode", "DataMatrix", "Code128", "Aztec"…), su texto (UTF-8) y
+/// ("PDF417", "QRCode", "DataMatrix", "Code128", "Aztec"…, o "MRZ": los renglones
+/// del dorso, ver Mrz.hpp), su texto (UTF-8) y
 /// los bytes tal como venían (para los formatos binarios).
 struct Codigo {
     std::string formato;
@@ -95,7 +96,7 @@ class TipoDocumento {
 /// tótem, el MCP y la interfaz.
 class Catalogo {
    public:
-    /// Con los de fábrica (el DNI argentino).
+    /// Con los de fábrica: el DNI argentino (frente y dorso) y cualquier cédula con MRZ TD1 (Mrz.hpp).
     Catalogo();
     ~Catalogo();
     Catalogo(const Catalogo&) = delete;

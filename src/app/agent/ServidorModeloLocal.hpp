@@ -7,6 +7,13 @@
 // proceso: el primero que lo pide lo arranca, los demás —con el mismo modelo—
 // usan el mismo puerto, y cuando el último lo suelta se apaga. Pedir otro modelo
 // lo reinicia (para todos: hay un solo modelo cargado).
+//
+// LA VISTA. Si está instalado el proyector de visión del modelo (el «mmproj» del
+// catálogo de modelos locales, tipo `vision`), se carga con --mmproj: el mismo
+// servidor contesta pedidos con imágenes (el dorso de un documento en el tótem,
+// ui/LectorDocumentos), y la imagen no sale de 127.0.0.1. Quién sabe qué mmproj va
+// con cada .gguf es ModelosLocales (mmprojPara): lo engancha StudioViewModel con
+// setMmprojPara, así todos los que piden el servidor lo cargan igual.
 // ============================================================================
 #pragma once
 
@@ -34,7 +41,20 @@ class ServidorModeloLocal : public QObject {
         int contexto = 32768;
         QString logs;       ///< carpeta de Logs
         int cargaS = 180;   ///< cuánto esperar a que cargue
+        /// El proyector de visión; vacío = el que diga setMmprojPara (si hay).
+        QString mmproj;
+        /// Si ya anda con OTRO modelo, no cambiarlo (para los demás): `listo(0, error)`.
+        /// Para quien solo quiere mirar algo y no puede dejar sin chat al asistente.
+        bool noReiniciar = false;
     };
+    /// El llama-server del programa (en la carpeta de binarios).
+    static QString ejecutable();
+    /// Qué mmproj va con un .gguf ("" = ninguno instalado). Lo pone StudioViewModel.
+    void setMmprojPara(std::function<QString(const QString& gguf)> f) { mmprojPara_ = std::move(f); }
+    /// El que se cargaría con ese .gguf (el de setMmprojPara, si existe el archivo).
+    QString mmprojPara(const QString& gguf) const;
+    /// Anda y cargó la visión (--mmproj).
+    bool conVision() const { return proc_ != nullptr && !mmproj_.isEmpty(); }
     /// `quien` lo usa. `listo(puerto, "")` cuando contesta /health (enseguida si ya
     /// estaba cargado con ese modelo); `listo(0, error)` si no arrancó. `estado`: los
     /// avisos de mientras («Cargando el modelo local…»).
@@ -54,6 +74,8 @@ class ServidorModeloLocal : public QObject {
     QTimer* reloj_ = nullptr;
     quint16 puerto_ = 0;
     QString gguf_;
+    QString mmproj_;
+    std::function<QString(const QString&)> mmprojPara_;
     bool listo_ = false;
     std::map<QObject*, std::pair<std::function<void(quint16, QString)>, std::function<void(QString)>>> esperan_;
     std::map<QObject*, bool> usan_;

@@ -770,6 +770,7 @@ void Conversacion::avanzar(Respuesta& r, const std::string& antes) {
         estado_ = Estado::Preguntando;
         actual_ = i;
         intentos_ = 0;
+        dorsoPedido_ = false;
         r.decir = antes.empty() ? pregunta(i) : antes + " " + pregunta(i);
         r.pedir = t_.campos[i].clave;
         // Un documento no se pregunta: se busca en la cámara (lo hace quien llama).
@@ -852,7 +853,8 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
             // Leyó mal (u otro documento): a mostrarlo de nuevo.
             estado_ = Estado::Documento;
             ++intentos_;
-            r.decir = "Perdón. Mostrámelo de nuevo, más cerca de la cámara.";
+            r.decir = dorsoPedido_ ? "Perdón. Mostrame de nuevo la parte de atrás, más cerca de la cámara."
+                                   : "Perdón. Mostrámelo de nuevo, más cerca de la cámara.";
             if (intentos_ >= 2) r.decir += " Si preferís, escribí el número en la pantalla.";
             r.documento = true;
             return r;
@@ -1044,7 +1046,7 @@ std::string Conversacion::paso() const {
         case Estado::Esperando: return "esperando";
         case Estado::Terminada: return "terminada";
         case Estado::Foto: return "mirando a la cámara";
-        case Estado::Documento: return "leyendo el documento";
+        case Estado::Documento: return dorsoPedido_ ? "leyendo el dorso del documento" : "leyendo el documento";
         case Estado::Preguntando:
         case Estado::Confirmando: {
             const Campo& c = t_.campos[actual_];
@@ -1056,6 +1058,13 @@ std::string Conversacion::paso() const {
 }
 
 // --- El documento ---------------------------------------------------------------
+
+namespace {
+/// Cómo se pide la parte de atrás: corto, hablado, y diciendo QUÉ mostrar (los
+/// renglones de abajo), que es lo que tiene que quedar frente a la cámara.
+constexpr const char* kPedirDorso =
+    "Dalo vuelta y mostrame la parte de atrás, la de los renglones de letras y números de abajo.";
+} // namespace
 
 Conversacion::Respuesta Conversacion::oidoDocumento(const std::string& texto, const std::string& f) {
     Respuesta r;
@@ -1072,7 +1081,7 @@ Conversacion::Respuesta Conversacion::oidoDocumento(const std::string& texto, co
         return r;
     }
     if (esRepetir(f)) {
-        r.decir = pregunta(actual_);
+        r.decir = dorsoPedido_ ? std::string(kPedirDorso) : pregunta(actual_);
         r.documento = true;
         return r;
     }
@@ -1126,7 +1135,19 @@ Conversacion::Respuesta Conversacion::documentoFallo(const std::string& sugerenc
     if (estado_ != Estado::Documento || atendida_) return r;
     const Campo& c = t_.campos[actual_];
     r.pedir = c.clave;
-    if (++intentos_ == 1) {
+    if (++intentos_ == 1 && dorsoDisponible_ && !dorsoPedido_) {
+        // El código del frente no sale (gastado, con reflejo, una cámara que no
+        // enfoca tan cerca): la parte de atrás tiene los mismos datos en renglones de
+        // letras grandes, que se leen con OCR. Se lo pide una vez, en vez de insistir
+        // con el frente; si lo vuelve a mostrar, también se lee. La sugerencia es del
+        // frente («mostrame el lado del código»): acá no va.
+        dorsoPedido_ = true;
+        r.decir = std::string("No pude leer el código. ") + kPedirDorso;
+        r.documento = true;
+        r.dorso = true;
+        return r;
+    }
+    if (intentos_ == 1) {
         r.decir = (sugerencia.empty() ? std::string("No lo pude leer.") : sugerencia) +
                   " Tenelo quieto frente a la cámara, del lado del código de barras, sin que le dé el reflejo."
                   " Si preferís, escribí el número en la pantalla.";

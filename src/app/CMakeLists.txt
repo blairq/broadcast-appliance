@@ -926,6 +926,11 @@ endif()
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_registro_atencion PRIVATE nlohmann_json::nlohmann_json ba_core) # ba_core: el paso «documento»
     add_test(NAME test_registro_atencion COMMAND test_registro_atencion)
+    # El dorso del documento leído por el modelo propio: el pedido y la validación de lo que contesta.
+    add_executable(test_documento_dorso tests/test_documento_dorso.cpp agent/MiradaCuerpo.cpp)
+    target_include_directories(test_documento_dorso PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_documento_dorso PRIVATE nlohmann_json::nlohmann_json ba_core)
+    add_test(NAME test_documento_dorso COMMAND test_documento_dorso)
 
     # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
     add_executable(test_reglas_sala tests/test_reglas_sala.cpp sala/ReglasSala.cpp)

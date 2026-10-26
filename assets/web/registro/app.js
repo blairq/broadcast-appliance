@@ -31,7 +31,8 @@ let estadoActual = "esperando";
 
 const kTextoEspera = "Mirá a la cámara para empezar.";
 const kEstados = { esperando: "Esperando", escuchando: "Te escucho", hablando: "Hablando", pensando: "Pensando",
-                   foto: "Mirá a la cámara", documento: "Mostrá tu documento", listo: "Listo", error: "Problema" };
+                   foto: "Mirá a la cámara", documento: "Mostrá tu documento",
+                   dorso: "Mostrá la parte de atrás: los renglones de abajo", listo: "Listo", error: "Problema" };
 
 function mostrar(id) {
   for (const s of ["inicio", "registro", "gracias", "qr", "cortado"]) $(s).classList.toggle("oculto", s !== id);
@@ -204,7 +205,9 @@ function oir() {
 // (unos 250 módulos en 4 cm) se borronea. Mientras se pide el documento, la página lo lee ella
 // con el lector del navegador (BarcodeDetector: Chrome en Mac, Android, tablets) y manda solo el
 // texto; y cada tanto manda una foto entera de la cámara, sin comprimir, que la app lee con zxing
-// (Safari no tiene BarcodeDetector) y le sirve para el dorso.
+// (Safari no tiene BarcodeDetector) y le sirve para el dorso: si el código no sale, la app pide la
+// parte de atrás (estado «dorso») y esas mismas fotos van a leer los renglones de abajo (la zona
+// de lectura mecánica). El código se sigue buscando, por si vuelve a mostrar el frente.
 const kFormatos = { pdf417: "PDF417", qr_code: "QRCode", data_matrix: "DataMatrix", aztec: "Aztec", code_128: "Code128" };
 let detector = null;      // BarcodeDetector, si el navegador lo tiene
 let timerLector = 0;
@@ -221,10 +224,12 @@ async function arrancarLector() {
       if (usar.length) detector = new BarcodeDetector({ formats: usar });
     } catch (e) { detector = null; }
   }
-  if (estadoActual !== "documento") return; // cambió mientras se preguntaba
+  if (!mostrandoDocumento(estadoActual)) return; // cambió mientras se preguntaba
   if (detector) timerLector = setInterval(leerAca, 250);
   timerCuadro = setInterval(mandarCuadro, detector ? 1500 : 700);
 }
+
+function mostrandoDocumento(e) { return e === "documento" || e === "dorso"; }
 
 function pararLector() {
   clearInterval(timerLector);
@@ -273,11 +278,12 @@ function ponerEstado(e) {
   const el = $("estado");
   el.className = "estado " + e;
   $("estadoTexto").textContent = kEstados[e];
-  const charlando = e === "escuchando" || e === "hablando" || e === "pensando" || e === "foto" || e === "documento";
+  const charlando = e === "escuchando" || e === "hablando" || e === "pensando" || e === "foto" || mostrandoDocumento(e);
   document.body.classList.toggle("foto", e === "foto");
   // Mostrando el documento: la cámara enmarcada, como en la foto (la app busca el código).
-  document.body.classList.toggle("documento", e === "documento");
-  if (e === "documento") arrancarLector(); else pararLector();
+  document.body.classList.toggle("documento", mostrandoDocumento(e));
+  document.body.classList.toggle("dorso", e === "dorso");
+  if (mostrandoDocumento(e)) arrancarLector(); else pararLector();
   $("cancelar").classList.toggle("oculto", !charlando);
   $("arrancar").classList.toggle("oculto", charlando);
 }

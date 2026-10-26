@@ -295,6 +295,34 @@ QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QStr
     return {};
 }
 
+QString ModelosLocales::mmprojPara(const QString& gguf, QString* repoParaBajar) const {
+    if (gguf.isEmpty()) return {};
+    // La base del modelo de ese archivo (por su nombre en el catálogo).
+    const std::string nombre = fs::path(gguf.toStdWString()).filename().string();
+    std::string base;
+    for (const json& m : catalogo_.value("modelos", json::array()))
+        if (m.value("formato", std::string()) == "gguf" && m.value("archivo", json()).is_string() &&
+            m["archivo"].get<std::string>() == nombre && m.value("tipo", std::string("reactivo")) != "vision") {
+            base = m.value("base", std::string());
+            break;
+        }
+    if (base.empty()) return {};
+    const std::string plat = plataformaCatalogo();
+    for (const json& m : catalogo_.value("modelos", json::array())) {
+        if (m.value("tipo", std::string()) != "vision" || m.value("base", std::string()) != base) continue;
+        const json plats = m.value("plataformas", json::array());
+        if (std::find(plats.begin(), plats.end(), plat) == plats.end()) continue;
+        const QString repo = QString::fromStdString(m.value("repo", std::string()));
+        if (instalado(repo) && m.value("archivo", json()).is_string()) {
+            const fs::path f = carpetaDe(repo) / m["archivo"].get<std::string>();
+            std::error_code ec;
+            if (fs::exists(f, ec)) return QString::fromStdWString(f.wstring());
+        }
+        if (repoParaBajar != nullptr && repoParaBajar->isEmpty()) *repoParaBajar = repo;
+    }
+    return {};
+}
+
 QString ModelosLocales::instaladoDeTipo(const QString& tipo) const {
     for (const QVariant& v : catalogo()) {
         const QVariantMap m = v.toMap();
@@ -925,6 +953,7 @@ std::string tipoPorNombre(const std::string& repo) {
     if (repo.rfind("argos/", 0) == 0) return "traduccion";
     if (repo.find("vits-piper") != std::string::npos) return "tts";
     if (repo.find("silero") != std::string::npos) return "vad";
+    if (repo.find("mmproj") != std::string::npos) return "vision";
     if (repo.find("sherpa") != std::string::npos || repo.find("parakeet") != std::string::npos) return "voz";
     return "reactivo";
 }

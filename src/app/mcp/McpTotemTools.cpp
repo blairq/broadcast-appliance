@@ -15,9 +15,12 @@
 #include "mcp/McpToolsCommon.hpp"
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QImage>
+#include <QPointer>
 
 #include "documentos/Documento.hpp"
+#include "documentos/Mrz.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/LectorDocumentos.hpp"
 #include "ui/PantallasViewModel.hpp"
@@ -90,7 +93,8 @@ void McpService::registerTotemTools() {
                         "se puede pasar todo lo demás de una (campos, saludo…).";
         t.details = "Tipos de campo: `nombre` (con mayúsculas), `correo` (dicho: «juan punto perez arroba gmail punto "
                     "com»), `telefono` (dígitos o palabras), `numero`, `sino`, `opcion` (con `opciones`), `texto` y "
-                    "`documento` (muestra su DNI a la cámara y se lee el código de barras; `documentos`: los tipos "
+                    "`documento` (muestra su DNI a la cámara y se lee el código de barras —si no sale y hay un modelo con visión "
+                    "(el local con su complemento de visión, o el propio), le pide el dorso y se leen los renglones de atrás—; `documentos`: los tipos "
                     "aceptados, de `documento_tipos`; completa el nombre y las claves apellido/nombres/dni/"
                     "nacimiento/cuil).\n\n"
                     "Los textos se dicen en voz alta: frases cortas, de a una pregunta, en castellano rioplatense. "
@@ -262,8 +266,9 @@ void McpService::registerTotemTools() {
     // devuelven NO trae los datos completos: el asistente puede ser un modelo en la
     // nube, y un DNI no sale de la máquina (queda en el padrón del evento).
     core_.addCategory("identidad", "Documentos de identidad",
-                      "Leer un DNI (u otro documento con código de barras: PDF417, QR…) de una cámara o una imagen, "
-                      "y qué tipos de documento se entienden (de fábrica y de plugins). No son los PDF del evento.");
+                      "Leer un DNI (u otro documento con código de barras: PDF417, QR…, o por el dorso: los renglones "
+                      "de la zona de lectura mecánica) de una cámara o una imagen, y qué tipos de documento se "
+                      "entienden (de fábrica y de plugins). No son los PDF del evento.");
     {
         Tool t;
         t.name = "documento_tipos";
@@ -271,16 +276,33 @@ void McpService::registerTotemTools() {
         t.category = "identidad";
         t.readOnly = true;
         t.description = "Los tipos de documento de identidad que se pueden leer por su código de barras: los de fábrica "
-                        "(el DNI argentino, `dni-ar`) y los de los plugins que corren (`plugin:<plugin>/<tipo>`). Son "
-                        "los que se eligen en un campo `documento` de un tótem.";
+                        "(el DNI argentino, `dni-ar`, y cualquier cédula con zona MRZ, `mrz-td1`) y los de los plugins "
+                        "que corren (`plugin:<plugin>/<tipo>`). Son los que se eligen en un campo `documento` de un "
+                        "tótem. `dorso`: si se puede leer la parte de atrás y con qué (el modelo local con visión o el modelo "
+                        "propio), o qué falta.";
         t.details = "Para sumar otro tipo (una licencia de conducir, el documento de otro país): un plugin con "
-                    "`@plugin.documento` (help {\"topic\": \"plugins\"}, ejemplo `documento-aamva`).";
+                    "`@plugin.documento` (help {\"topic\": \"plugins\"}, ejemplo `documento-aamva`).\n\n"
+                    "EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por la parte de "
+                    "atrás, los tres renglones de la zona de lectura mecánica. Los transcribe un modelo de visión: "
+                    "primero el MODELO LOCAL (llama-server del programa con el proyector de visión: hay que bajar el "
+                    "complemento «Visión para los modelos de 4B» con `modelo_local_bajar`; la foto no sale de la "
+                    "máquina) y, si no, el MODELO PROPIO del operador (Config/modelo-propio.json; la foto va solo a "
+                    "ese servidor). Se aceptan si cierran los verificadores del número, el nacimiento y el "
+                    "vencimiento y, además, el compuesto u otra foto que coincida. Sin ninguno de los dos, "
+                    "`dorso.disponible` es false (y `dorso.falta` dice qué falta) y el tótem no pide el dorso: se "
+                    "tipea el número o se saltea.";
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [tv](const json&, Done done) {
             if (tv() == nullptr || tv()->lector() == nullptr)
                 return done(ToolResult::error("No hay lector de documentos en este proceso."));
+            QString falta;
+            const QString con = tv()->lector()->dorsoCon(&falta);
+            json dorso{{"disponible", !con.isEmpty()}};
+            if (!con.isEmpty()) dorso["con"] = con.toStdString();
+            if (!falta.isEmpty()) dorso[con.isEmpty() ? "falta" : "faltaLocal"] = falta.toStdString();
             done(ToolResult().data({{"tipos", tv()->lector()->tipos()},
-                                    {"lectorDisponible", LectorDocumentos::disponible()}}));
+                                    {"lectorDisponible", LectorDocumentos::disponible()},
+                                    {"dorso", dorso}}));
         };
         core_.addTool(std::move(t));
     }
@@ -293,11 +315,20 @@ void McpService::registerTotemTools() {
         t.description = "Busca códigos de barras (PDF417, QR, DataMatrix…) en el cuadro de una cámara (`video`: una "
                         "clave de video, p. ej. «registro:1», la cámara del tótem del canal 1), en una imagen "
                         "(`archivo` o `imagen_base64`) o en un texto ya leído (`texto`), y dice si es un documento "
-                        "de los tipos aceptados. Devuelve un RESUMEN (tipo, nombre, últimos tres dígitos): los datos "
-                        "completos no salen de la máquina.";
+                        "de los tipos aceptados. Con `lado` lee también el DORSO (los renglones de la zona de lectura "
+                        "mecánica, con el modelo propio). Devuelve un RESUMEN (tipo, nombre, últimos tres dígitos): los "
+                        "datos completos no salen de la máquina.";
         t.details = "Sirve para probar la cámara de un tótem («¿lee el DNI?») o un tipo de documento de un plugin. "
                     "`tipos`: los aceptados en orden (vacío = todos; `documento_tipos`). Si no lee: más cerca, más "
-                    "quieto, sin reflejo, del lado del código de barras.";
+                    "quieto, sin reflejo, del lado del código de barras.\n\n"
+                    "`lado`: «frente» (solo el código de barras), «dorso» (solo los renglones de atrás: los "
+                    "transcribe el modelo de visión —el local primero— y se validan con los dígitos verificadores; "
+                    "unos segundos por foto) o «auto» (por defecto: el código y, si no hay un documento, el dorso si se "
+                    "puede). Del dorso hace falta una foto ENTERA y nítida (`archivo`/`imagen_base64`: la de la cámara "
+                    "de 1920x1080; el video `registro:<k>` llega comprimido a 960x540 y el modelo no ve los renglones). "
+                    "Si cierran todos los verificadores menos el compuesto, contesta `dudosa`: llamala de nuevo con "
+                    "otra foto de la misma fuente y, si coinciden, se acepta. Con `texto` y `formato` «MRZ» se "
+                    "validan unos renglones ya transcriptos (ahí se exige el compuesto).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -305,10 +336,14 @@ void McpService::registerTotemTools() {
               {"archivo", {{"type", "string"}, {"description", "ruta de una imagen (PNG, JPG)"}}},
               {"imagen_base64", {{"type", "string"}, {"description", "una imagen en base64"}}},
               {"texto", {{"type", "string"}, {"description", "el texto de un código ya leído (sin imagen)"}}},
-              {"formato", {{"type", "string"}, {"description", "con `texto`: PDF417, QRCode… (vacío = cualquiera)"}}},
+              {"formato", {{"type", "string"}, {"description", "con `texto`: PDF417, QRCode…, MRZ (vacío = cualquiera)"}}},
+              {"lado", {{"type", "string"}, {"enum", {"auto", "frente", "dorso"}}, {"description", "qué leer de la imagen (por defecto auto)"}}},
               {"tipos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "los tipos aceptados"}}}}}};
-        t.examples = {R"({"video": "registro:1"})", R"({"archivo": "/ruta/dni.jpg", "tipos": ["dni-ar"]})"};
-        t.run = [tv, &vm](const json& a, Done done) {
+        t.examples = {R"({"video": "registro:1"})", R"({"archivo": "/ruta/dni.jpg", "tipos": ["dni-ar"]})",
+                      R"({"archivo": "/ruta/dorso.jpg", "lado": "dorso"})"};
+        auto confirmadores =
+            std::make_shared<std::map<std::string, std::pair<std::shared_ptr<documentos::ConfirmadorMrz>, qint64>>>();
+        t.run = [tv, &vm, confirmadores](const json& a, Done done) {
             if (tv() == nullptr || tv()->lector() == nullptr)
                 return done(ToolResult::error("No hay lector de documentos en este proceso."));
             std::vector<std::string> tipos;
@@ -321,14 +356,26 @@ void McpService::registerTotemTools() {
                     json x{{"formato", c.formato}};
                     // El texto de un documento no sale; el de otro código (una url) sí, con
                     // los números largos tapados por las dudas.
-                    if (!r.leido) x["texto"] = documentos::taparNumeros(c.texto);
+                    // Los renglones de un dorso son los datos de la persona: tampoco.
+                    if (!r.leido && c.formato != documentos::kFormatoMrz && !c.texto.empty())
+                        x["texto"] = documentos::taparNumeros(c.texto);
                     cs.push_back(std::move(x));
                 }
-                json out{{"codigos", cs}, {"leido", r.leido}};
+                json out{{"codigos", cs}, {"leido", r.leido}, {"lado", r.dorso ? "dorso" : "frente"}};
+                if (!r.con.empty()) out["con"] = r.con;
+                if (!r.detalle.empty()) out["detalle"] = r.detalle;
                 if (r.leido) {
                     out["documento"] = documentos::resumenParaAfuera(r.datos);
                     out["aviso"] = "Los datos completos del documento quedan en esta máquina (en el padrón, si lo "
                                    "leyó un tótem); acá va solo un resumen.";
+                } else if (r.dorso) {
+                    if (r.dudosa) out["dudosa"] = true;
+                    out["aviso"] = r.noSeVe ? "El modelo no ve los renglones del dorso: más cerca, derecho, sin reflejo."
+                                   : r.dudosa
+                                       ? "Leído sin el verificador compuesto: llamá de nuevo con otra foto de la misma "
+                                         "fuente y, si coincide, se acepta."
+                                       : "No se aceptó el dorso (" + r.detalle +
+                                             "): lo que se transcribió no cierra con los dígitos verificadores.";
                 } else if (r.codigos.empty()) {
                     out["aviso"] = "No se vio ningún código. Más cerca, más quieto, sin reflejo, del lado del código.";
                 }
@@ -336,6 +383,16 @@ void McpService::registerTotemTools() {
             };
             if (a.contains("texto") && a["texto"].is_string()) {
                 documentos::Codigo c{a.value("formato", std::string()), a["texto"].get<std::string>(), {}};
+                // Unos renglones ya transcriptos: con un solo texto no hay otra foto que
+                // confirme, así que acá se exige el compuesto (los tipos no lo exigen).
+                if (c.formato == documentos::kFormatoMrz) {
+                    const documentos::LecturaMrz l = documentos::interpretarRespuestaMrz(c.texto);
+                    if (l.estado != documentos::LecturaMrz::Estado::Leida)
+                        return done(ToolResult().data(
+                            {{"leido", false}, {"lado", "dorso"}, {"detalle", l.motivo},
+                             {"aviso", "Esos renglones no se aceptan: no cierran los dígitos verificadores."}}));
+                    c.texto = l.texto;
+                }
                 return tv()->lector()->traducir({c}, tipos, responder);
             }
             QImage img;
@@ -353,7 +410,31 @@ void McpService::registerTotemTools() {
             } else {
                 return done(ToolResult::error("Pasá `video`, `archivo`, `imagen_base64` o `texto`."));
             }
-            tv()->lector()->leer(img, tipos, false, responder);
+            const std::string lado = a.value("lado", std::string("auto"));
+            LectorDocumentos* lector = tv()->lector();
+            // El criterio de dos fotos, entre llamadas: uno por fuente, que se olvida al
+            // minuto (una lectura dudosa vieja no confirma la de otra persona).
+            const std::string fuente = a.value("video", a.value("archivo", std::string("imagen")));
+            auto& [conf, cuando] = (*confirmadores)[fuente];
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            if (!conf || ahora - cuando > 60000) conf = std::make_shared<documentos::ConfirmadorMrz>();
+            cuando = ahora;
+            const auto confirmador = conf;
+            if (lado == "dorso") return lector->leerDorso(img, tipos, confirmador, responder);
+            if (lado != "auto" || !lector->dorsoDisponible()) return lector->leer(img, tipos, false, responder);
+            // Auto: el código del frente y, si no hay un documento, el dorso.
+            QPointer<LectorDocumentos> lp(lector);
+            lector->leer(img, tipos, false, [lp, img, tipos, responder, confirmador](LectorDocumentos::Resultado r) {
+                if (r.leido || !r.error.isEmpty() || lp.isNull()) return responder(std::move(r));
+                lp->leerDorso(img, tipos, confirmador, [responder, frente = std::move(r)](LectorDocumentos::Resultado d) mutable {
+                    if (!d.error.isEmpty()) {
+                        frente.detalle = "dorso: " + d.error.toStdString();
+                        return responder(std::move(frente));
+                    }
+                    if (!d.leido) d.codigos = frente.codigos; // lo que se vio del frente (otro código)
+                    responder(std::move(d));
+                });
+            });
         };
         core_.addTool(std::move(t));
     }

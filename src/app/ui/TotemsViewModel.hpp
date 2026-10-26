@@ -32,6 +32,10 @@
 //   - el documento (un campo `documento`): los mismos cuadros de "registro:<k>"
 //     van al lector de documentos (ui/LectorDocumentos: zxing-cpp fuera de este
 //     hilo, el DNI de fábrica y los tipos de los plugins). docs/funciones/DOCUMENTOS.md.
+//     Si el código del frente no sale, la conversación pide la parte de atrás y las
+//     fotos enteras que manda la página van también a un modelo de visión (el local con
+//     su proyector, en 127.0.0.1; si no, el propio), que lee la zona de lectura mecánica
+//     (LectorDocumentos::leerDorso), una por vez por conexión.
 //
 // Hasta ipc::kCanalesRegistro conversaciones a la vez (los canales de audio del gateway).
 // ============================================================================
@@ -99,6 +103,11 @@ class TotemsViewModel : public QObject {
     Q_PROPERTY(QVariantList tiposDocumento READ tiposDocumento NOTIFY tiposDocumentoCambio)
     /// Esta compilación trae el lector de códigos de barras (zxing-cpp).
     Q_PROPERTY(bool lectorDisponible READ lectorDisponible CONSTANT)
+    /// Si el tótem puede leer el dorso cuando el código no sale, en palabras: «con el
+    /// modelo local» / «con el modelo propio», o qué falta. Cambia al bajar o borrar la
+    /// visión del modelo local (ModelosLocales).
+    Q_PROPERTY(QString dorso READ dorso NOTIFY dorsoCambio)
+    Q_PROPERTY(bool dorsoDisponible READ dorsoDisponible NOTIFY dorsoCambio)
     // --- La atención remota (docs/funciones/REGISTRO-TOTEM.md, «Atención remota») ---
     /// El link de la página de atención del evento (/registro-atiende/#t=…): quien lo abre ve
     /// todas las conversaciones, mira y escucha una, la atiende y completa datos. "" sin evento.
@@ -122,6 +131,8 @@ class TotemsViewModel : public QObject {
     bool enLinea() const;
     QVariantList tiposDocumento() const;
     bool lectorDisponible() const;
+    QString dorso() const;
+    bool dorsoDisponible() const { return lector_ && lector_->dorsoDisponible(); }
     /// El lector de documentos (lo usa también el MCP: documento_leer, documento_tipos).
     LectorDocumentos* lector() const { return lector_.get(); }
 
@@ -186,6 +197,7 @@ class TotemsViewModel : public QObject {
     void vivoCambio();
     void registradosCambio();
     void tiposDocumentoCambio();
+    void dorsoCambio();
     void notify(const QString& texto, const QString& tipo);
 
    private:
@@ -232,6 +244,8 @@ class TotemsViewModel : public QObject {
     void alCuadroDePagina(Conexion& c);
     /// Lo leído (de la cámara, del navegador o de la foto), al paso «documento» de la conexión.
     void alLeerDocumento(const QString& conn, LectorDocumentos::Resultado r);
+    /// Lo que leyó el modelo propio del dorso (la zona de lectura mecánica).
+    void alLeerDorso(const QString& conn, LectorDocumentos::Resultado r);
     void guardarRegistro(Conexion& c);
     void tic();
 
