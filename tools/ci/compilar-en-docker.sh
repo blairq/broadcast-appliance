@@ -46,6 +46,15 @@ d run --rm --platform linux/amd64 \
     -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
     -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" ba-compilar bash -c '
 set -euo pipefail
+# Cuánto tarda cada etapa (al final, un resumen): para saber dónde se va el tiempo.
+T0=$(date +%s); TE=$T0; RESUMEN=""
+etapa() { local t=$(date +%s); RESUMEN="$RESUMEN$(printf "  %-28s %4d s" "$1" $((t - TE)))\n"; TE=$t; }
+resumen() {
+    printf "\n[tiempos] total %d s\n%b" $(( $(date +%s) - T0 )) "$RESUMEN"
+    ccache -s 2>/dev/null | grep -iE "hits|misses|cache size" | sed "s/^/  ccache: /" || true
+}
+trap resumen EXIT
+ccache -z >/dev/null 2>&1 || true
 # La caché de ccache, en su propio volumen (ba-ccache): en /root del contenedor
 # (--rm) se perdía en cada corrida y ccache no aceleraba nada.
 git config --global --add safe.directory "*"
@@ -54,6 +63,7 @@ cd /trabajo/ba
 git fetch -q /repo "$SHA"
 git checkout -q -f "$SHA"
 [ -x .venv/bin/python ] || python3 -m venv .venv
+etapa "checkout"
 J=$(nproc)
 SUF=""; [ "$PERFILAR" = 1 ] && SUF="-perfil"   # PERFILAR=1: un build que mide (diag/Perfil)
 if [ "$QUE" != win ]; then
@@ -68,13 +78,20 @@ if [ "$QUE" != win ]; then
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
+    etapa "deps-win"
+    make win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    etapa "compilar (win)"
     # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de
     # Rosetta y se cae de vez en cuando (rc 133) en tests que en el runner del
     # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el
     # .zip, pero se informa y la corrida termina con error: no es verde.
     tests_win=0
     make test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
-    make dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    etapa "tests bajo Wine"
+    make release-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    etapa "release-win (install+chequeo+manifest)"
+    make -o release-win dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    etapa "zip (7z)"
     cp dist/*-windows-x64$SUF.zip dist/*-windows-x64$SUF.zip.sha256 dist/*-windows-x64$SUF.zip.commit /salida/
     # Los binarios y los .pdb de este build, al almacén de dist/simbolos (en la
     # Mac): para leer después las pilas de sus volcados (tools/caidas/analizar.py).
