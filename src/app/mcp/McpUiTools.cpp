@@ -578,7 +578,8 @@ void McpService::registerUiTools() {
         t.readOnly = true;
         t.description =
             "Claves de video que la app puede mostrar o capturar (program, armada, guest:N, share:N, "
-            "lobby:K, backstage:K, operator) con su etiqueta y si ahora tienen imagen.\n\n"
+            "lobby:K, backstage:K, registro:K (la cámara de un tótem de registro), operator) con su etiqueta "
+            "y si ahora tienen imagen.\n\n"
             "`armada` es la escena del bus de preview, renderizada aunque no este al aire: es el "
             "monitor de preview de una mesa. Solo tiene imagen si hay algo armado (scene_preview).";
         t.run = [&vm](const json&, Done done) {
@@ -587,13 +588,14 @@ void McpService::registerUiTools() {
             for (int k = 1; k <= 8; ++k) {
                 keys << QString("lobby:%1").arg(k) << QString("backstage:%1").arg(k);
             }
+            for (int k = 1; k <= FrameService::kRegistroSlots; ++k) keys << QString("registro:%1").arg(k);
             keys << "operator";
             json out = json::array();
             for (const QString& k : keys) {
                 QImage img;
                 std::uint64_t serial = 0;
                 const bool live = frames->latest(k, img, serial);
-                if (!live && (k.startsWith("lobby:") || k.startsWith("backstage:")))
+                if (!live && (k.startsWith("lobby:") || k.startsWith("backstage:") || k.startsWith("registro:")))
                     continue; // los vacios no suman
                 out.push_back(json{
                     {"key", k.toStdString()}, {"label", frames->label(k).toStdString()}, {"hasImage", live}});

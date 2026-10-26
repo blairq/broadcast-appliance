@@ -1024,6 +1024,7 @@ const Fila kPropias[] = {
     {"totem_enlace", "link del totem url del registro qr para registrarse copiar el enlace renovar"},
     {"totem_proyectar", "mandar el registro a la tele proyectar el qr del registro en un televisor chromecast"},
     {"totem_estado", "quien se esta registrando ahora conexiones del totem en que paso va que le entendio"},
+    {"totem_cortar", "cortar la conexion de un totem colgado trabado echar desconectar celular tablet del registro"},
     {"totem_registrados", "quienes se registraron lo que contestaron datos del registro correos telefonos "
                           "lista de inscriptos"},
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "

@@ -194,11 +194,35 @@ void McpService::registerTotemTools() {
         t.category = "totems";
         t.readOnly = true;
         t.description = "Las conexiones en vivo de los tótems: en qué paso va cada una, qué se le oyó, qué le dijo el "
-                        "asistente y qué lleva anotado; y si falta algo para hablar (voz a texto, voz).";
+                        "asistente y qué lleva anotado; y si falta algo para hablar (voz a texto, voz). La cámara de "
+                        "una conexión con `canal` k se ve con capture_feed {key: \"registro:k\"}.";
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [tv](const json&, Done done) {
             if (tv() == nullptr) return done(ToolResult::error("No hay registro por tótem en este proceso."));
             done(ToolResult().data(tv()->estadoJson()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "totem_cortar";
+        t.title = "Cortar una conexión de un tótem";
+        t.category = "totems";
+        t.description = "Corta la conexión `conn` (de totem_estado): lo que se estaba conversando se pierde sin "
+                        "guardar y su canal queda libre. La página del tótem vuelve a conectarse sola (es lo mismo "
+                        "que la ✕ de la pestaña Registro).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"conn", {{"type", "string"}, {"description", "la conexión, p. ej. \"c3\""}}}}},
+                         {"required", {"conn"}}};
+        t.run = [tv](const json& a, Done done) {
+            if (tv() == nullptr) return done(ToolResult::error("No hay registro por tótem en este proceso."));
+            const std::string conn = a.value("conn", std::string());
+            const json est = tv()->estadoJson();
+            bool hay = false;
+            for (const auto& c : est.value("conexiones", json::array())) hay = hay || c.value("conn", std::string()) == conn;
+            if (!hay) return done(ToolResult::error("No hay ninguna conexión «" + conn + "» (totem_estado)."));
+            tv()->cortar(QString::fromStdString(conn));
+            done(ToolResult::ok("Cortada."));
         };
         core_.addTool(std::move(t));
     }
