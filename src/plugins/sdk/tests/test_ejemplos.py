@@ -152,6 +152,19 @@ def main() -> int:
     chequear("luz2=70" in str(control(inf, "orden").get("resultado", {}).get("respuesta", "")),
              "ejemplo-equipo-red: el estado del equipo trae la luz puesta")
 
+    # Un tipo de documento de identidad (la licencia AAMVA): sus ejemplos SINTÉTICOS dan lo esperado
+    # (lee las dos licencias, no lee un DNI argentino ni un QR).
+    inf = probar("documento-aamva")
+    chequear(inf.get("ok", False), "documento-aamva: el probador da ok")
+    doc = next((d for d in inf.get("documentos", []) if d.get("nombre") == "licencia"), {})
+    ejs = doc.get("ejemplos", [])
+    chequear(len(ejs) == 4 and all("error" not in e for e in ejs), "documento-aamva: los cuatro ejemplos dan lo esperado")
+    datos = (ejs[0].get("datos") or {}) if ejs else {}
+    chequear(datos.get("numero") == "E1234567" and datos.get("nacimiento") == "1990-03-15" and datos.get("sexo") == "F",
+             "documento-aamva: número, nacimiento (MMDDAAAA de EE.UU.) y sexo")
+    chequear(len(ejs) > 1 and (ejs[1].get("datos") or {}).get("nacimiento") == "1985-07-04",
+             "documento-aamva: la fecha de Canadá (AAAAMMDD)")
+
     print(f"\n{len(fallas)} fallas" if fallas else "\ntodo bien")
     return 1 if fallas else 0
 

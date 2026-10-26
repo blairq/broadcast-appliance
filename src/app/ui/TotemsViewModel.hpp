@@ -28,7 +28,10 @@
 //     reconocimiento (PersonasViewModel::identificarFoto, fuera de este hilo). La
 //     misma clave sirve para mirarla en la app, en un monitor o en una escena;
 //   - el gateway: la API de control /api/v1/registro/* y el evento SSE
-//     «registro» (ConferenceClient::registroEvento).
+//     «registro» (ConferenceClient::registroEvento);
+//   - el documento (un campo `documento`): los mismos cuadros de "registro:<k>"
+//     van al lector de documentos (ui/LectorDocumentos: zxing-cpp fuera de este
+//     hilo, el DNI de fábrica y los tipos de los plugins). docs/funciones/DOCUMENTOS.md.
 //
 // Hasta cuatro conversaciones a la vez (los canales de audio 1..4 del gateway).
 // ============================================================================
@@ -57,6 +60,7 @@ class Conversacion;
 namespace ba::app {
 
 class AppRuntime;
+class LectorDocumentos;
 class StudioViewModel;
 class VozAlLobby;
 
@@ -89,6 +93,11 @@ class TotemsViewModel : public QObject {
     Q_PROPERTY(QString hablarFalta READ hablarFalta NOTIFY cambio)
     /// La sala (el gateway) responde.
     Q_PROPERTY(bool enLinea READ enLinea NOTIFY cambio)
+    /// Los tipos de documento que puede aceptar un campo `documento` (los de fábrica
+    /// y los de los plugins que corren): [{id, titulo, origen, plugin?, formatos}].
+    Q_PROPERTY(QVariantList tiposDocumento READ tiposDocumento NOTIFY tiposDocumentoCambio)
+    /// Esta compilación trae el lector de códigos de barras (zxing-cpp).
+    Q_PROPERTY(bool lectorDisponible READ lectorDisponible CONSTANT)
 
    public:
     TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz* voz, agent::ModelosLocales* modelos,
@@ -103,6 +112,10 @@ class TotemsViewModel : public QObject {
     QVariantList tipos() const;
     QString hablarFalta() const;
     bool enLinea() const;
+    QVariantList tiposDocumento() const;
+    bool lectorDisponible() const;
+    /// El lector de documentos (lo usa también el MCP: documento_leer, documento_tipos).
+    LectorDocumentos* lector() const { return lector_.get(); }
 
     // --- Configurar -------------------------------------------------------------------
     /// Un tótem nuevo con valores de fábrica. Devuelve su id, o "" (y avisa).
@@ -142,6 +155,7 @@ class TotemsViewModel : public QObject {
     void cambio();
     void vivoCambio();
     void registradosCambio();
+    void tiposDocumentoCambio();
     void notify(const QString& texto, const QString& tipo);
 
    private:
@@ -179,6 +193,9 @@ class TotemsViewModel : public QObject {
     void aplicar(Conexion& c, const std::string& decir, bool campos, const std::string& pedir, bool guardar,
                  bool terminar, bool foto = false);
     void decir(Conexion& c, const std::string& texto);
+    /// El paso del documento: busca el código en el último cuadro de la cámara (más
+    /// seguido que la cara) y, si lo lee, se lo pasa a la conversación.
+    void mirarDocumento(Conexion& c);
     void guardarRegistro(Conexion& c);
     void tic();
 
@@ -198,6 +215,7 @@ class TotemsViewModel : public QObject {
     QString vozCargada_;
     bool vozLista_ = false;
     QTimer tic_;
+    std::unique_ptr<LectorDocumentos> lector_;
 };
 
 } // namespace ba::app

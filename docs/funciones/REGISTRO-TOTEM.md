@@ -33,7 +33,8 @@ Padrones viejos sin `datos` cargan igual.
 `Eventos/<x>/registro.json` (`src/app/registro/Totems`). Por tótem: `{id, nombre,
 activo, titulo, subtitulo, saludo, despedida, yaRegistrado, confirmar, reconocer,
 campos: [{clave, etiqueta, pregunta, tipo, obligatorio, opciones?, ejemplo?}]}`,
-con tipo `texto | nombre | correo | telefono | numero | sino | opcion`. Los textos
+con tipo `texto | nombre | correo | telefono | numero | sino | opcion | documento`
+(este último con `documentos`: los tipos aceptados; ver «El DNI por la cámara»). Los textos
 admiten `{evento}`, `{nombre}` y `{hola}` («Hola» o «Hola Ana»). Uno nuevo pide
 nombre (obligatorio) y correo.
 
@@ -69,6 +70,36 @@ Mientras habla, al oído le llegan ceros: no se transcribe a sí mismo (y WebRTC
 cancela el eco en el navegador). Sin voz a texto o sin voz, la página muestra el
 texto y se puede tipear.
 
+## El DNI por la cámara (campo `documento`)
+
+Un campo de tipo `documento` no se pregunta: se **muestra**
+(docs/funciones/DOCUMENTOS.md). El asistente dice «Mostrame tu DNI a la cámara, del
+lado del código de barras» («tu documento» si el campo no acepta el DNI) y la
+conversación pasa al estado `Documento`; la página enmarca la cámara (estado
+`documento`) y ofrece tipear el número. Mientras dure el paso, `TotemsViewModel` manda
+un cuadro de `registro:<k>` cada 300 ms (no se descartan: uno por conexión) al lector
+de documentos (`ui/LectorDocumentos`: zxing fuera del hilo de la interfaz, el DNI de
+fábrica y los tipos de los plugins), con los tipos que acepta el campo.
+
+- **Lo leyó:** con «confirmar», «Sos Juana Andrea Prueba, DNI 11.222.333. ¿Está bien?»;
+  con «no», a mostrarlo de nuevo. Al aceptarlo, el documento entero queda en
+  `datos[<clave>]` (objeto: los datos normalizados con `origen: "codigo"`) y se completan
+  los campos sin dato que salen de ahí: los de tipo `nombre` (nombre y apellido) y los de
+  texto/número con clave `apellido`, `nombres`, `dni`, `nacimiento`, `cuil` o `sexo`. Lo
+  que ya se sabía por la cara (el nombre de la ficha) no se pisa.
+- **No lo leyó en 15 s:** le dice qué corregir (tenelo quieto, del lado del código, sin
+  reflejo; «ese código no es de un documento que pueda leer» si vio otro código) y vuelve
+  a buscar. A la segunda, si no es obligatorio, lo saltea («seguimos sin el documento»);
+  si es, le pide que tipee el número y sigue buscando.
+- **Respaldo:** tipear el número en la pantalla (`{numero, origen: "tipeado"}`, sin
+  confirmar) o dictarlo («once, dos dos dos…», se confirma). «No tengo» lo saltea si no es
+  obligatorio. Los silencios no cuentan mientras lo muestra.
+- En el registro de la app, solo «documento leído (dni-ar …333)». Por MCP los documentos
+  salen resumidos (ver DOCUMENTOS.md, «Los datos son sensibles»).
+- En la interfaz: en el editor del campo, qué tipos acepta (los de fábrica y los de los
+  plugins que corren; ninguno marcado = cualquiera). Los registrados muestran el documento
+  como «Juana Andrea Prueba · DNI 11.222.333».
+
 ## La interfaz con el gateway (lo que quedó)
 
 API de control (loopback + Bearer):
@@ -91,7 +122,7 @@ errado: va al registro de la app).
 
 App → página (por `enviar`): `pantalla {titulo, subtitulo}`, `dice {texto}`,
 `oido {texto}`, `estado {estado: esperando | escuchando | hablando | pensando |
-listo | error}`, `campos {lista: [{clave, etiqueta, valor, listo}]}`, `pedir
+foto | documento | listo | error}`, `campos {lista: [{clave, etiqueta, valor, listo}]}`, `pedir
 {clave, etiqueta, tipo, ejemplo}`, `listo {texto}`, `reiniciar`. El gateway le
 manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
 `listo` (en el celular; con `?kiosco=1` se queda con el canal).
@@ -100,7 +131,10 @@ manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
 
 - Configuración y guion: `src/app/registro/Totems.{hpp,cpp}`,
   `src/app/registro/Conversacion.{hpp,cpp}`; tests `test_registro_totems`,
-  `test_registro_conversacion`; el padrón en `test_padron`.
+  `test_registro_conversacion` (con el paso del documento: leído, confirmado, corregido,
+  fallo y salteo, tipeado, dictado); el padrón en `test_padron`.
+- El documento: `src/core/documentos/` y `src/app/ui/LectorDocumentos.{hpp,cpp}`
+  (docs/funciones/DOCUMENTOS.md).
 - La app: `src/app/ui/TotemsViewModel.{hpp,cpp}` (`Studio.totems`; se llama así
   porque `Studio.registro` son los logs), `src/app/qml/controls/PanelTotems.qml`
   (Personas → pestaña Registro).
@@ -114,6 +148,9 @@ manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
 - El gateway y la página: `src/gateway/Registro.{hpp,cpp}`, `assets/web/registro/`.
 
 ## Falta probar a mano
+
+- El paso del documento con un DNI de verdad: distancia, luz, reflejo; la confirmación
+  hablada; tipear el número en el celular.
 
 - Con una TV o tablet con cámara y un celular: reconocer, saludar por el nombre,
   dictar un correo y un teléfono, corregir con «no», tipear, cancelar.

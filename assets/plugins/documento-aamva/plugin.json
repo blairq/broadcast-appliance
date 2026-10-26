@@ -1,0 +1,11 @@
+{
+  "id": "documento-aamva",
+  "nombre": "Documento: licencia de conducir de EE.UU. y Canadá (AAMVA)",
+  "descripcion": "Un tipo de documento de identidad más para el tótem de registro y `documento_leer`: la licencia de conducir (o la identificación estatal) de Estados Unidos y Canadá, que trae atrás un PDF417 con el estándar AAMVA. La app lee el código de la cámara y este plugin lo traduce a los datos normalizados (número, apellido, nombres, nacimiento, vencimiento, sexo, estado). Sirve de molde para cualquier otro documento con un código parseable (el de otro país, una credencial con QR): copialo y cambiá `leer`. Sin dependencias. Los datos no salen de la máquina.",
+  "version": "1.0",
+  "categoria": "documentos",
+  "principal": "plugin.py",
+  "dependencias": [],
+  "herramientas": [],
+  "config": {}
+}

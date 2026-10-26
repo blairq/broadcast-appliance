@@ -81,6 +81,11 @@ void ayudas() {
     CHECK(paraLog(d).find("11222") == std::string::npos, "el log no lleva el número entero");
 
     CHECK(digitoCuil("2711222333") == 4, "dígito del CUIL");
+
+    CHECK(taparNumeros("Sos Juana, DNI 11.222.333. ¿Está bien?") == "Sos Juana, DNI …333. ¿Está bien?", "tapa el DNI");
+    CHECK(taparNumeros("once 11222333 y 11 222 333") == "once …333 y …333", "tapa con y sin separadores");
+    CHECK(taparNumeros("tengo 25 años, 3.5 kilos") == "tengo 25 años, 3.5 kilos", "los números cortos quedan");
+    CHECK(taparNumeros("") == "", "vacío");
     CHECK(digitoCuil("27112223") == -1, "largo equivocado");
 }
 
@@ -167,6 +172,11 @@ void catalogo() {
     CHECK(c.leer(Codigo{"", kNuevo, {}}, {}, d), "tipeado (sin formato) se acepta");
     const auto j = d.aJson();
     CHECK(j.value("numero", "") == "11222333" && !j.contains("vencimiento"), "aJson solo con lo que hay");
+    const auto afuera = resumenParaAfuera(j);
+    CHECK(afuera.value("numero", "") == "…333" && afuera.value("nombre", "") == "Juana Andrea Prueba", "resumen para afuera");
+    CHECK(!afuera.contains("crudo") && !afuera.contains("cuil") && !afuera.contains("nacimiento") &&
+              !afuera.contains("tramite"),
+          "afuera no va lo sensible");
     const Datos v = Datos::deJson(j);
     CHECK(v.apellido == d.apellido && v.cuil == d.cuil && v.tipo == "dni-ar", "ida y vuelta por JSON");
 }

@@ -468,6 +468,40 @@ Item {
                                              onToggled: (wanted) => raiz.cambiarCampo(filaCampo.index, "obligatorio", wanted) }
                                     Text { text: "Obligatorio"; color: Theme.textDim; font.pixelSize: 11 }
                                 }
+                                // Documento: qué tipos se aceptan (los de fábrica y los de los plugins
+                                // que corren). Ninguno marcado = cualquiera.
+                                Flow {
+                                    Layout.columnSpan: 4
+                                    Layout.fillWidth: true
+                                    visible: filaCampo.c.tipo === "documento"
+                                    spacing: 8
+                                    Text {
+                                        text: raiz.tv.lectorDisponible ? "Acepta:" : "Esta compilación no trae el lector de códigos: solo se puede tipear el número."
+                                        color: raiz.tv.lectorDisponible ? Theme.textDim : Theme.warn
+                                        font.pixelSize: 11
+                                        height: 26; verticalAlignment: Text.AlignVCenter
+                                    }
+                                    Repeater {
+                                        model: raiz.tv.tiposDocumento
+                                        delegate: CheckBox {
+                                            required property var modelData
+                                            readonly property var aceptados: filaCampo.c.documentos || []
+                                            text: modelData.titulo + (modelData.origen === "plugin" ? " (plugin)" : "")
+                                            checked: aceptados.indexOf(modelData.id) >= 0
+                                            onToggled: {
+                                                const l = aceptados.filter(x => x !== modelData.id)
+                                                if (checked) l.push(modelData.id)
+                                                raiz.cambiarCampo(filaCampo.index, "documentos", l)
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        visible: (filaCampo.c.documentos || []).length === 0
+                                        text: "(ninguno marcado: cualquiera)"
+                                        color: Theme.textFaint; font.pixelSize: 11
+                                        height: 26; verticalAlignment: Text.AlignVCenter
+                                    }
+                                }
                                 TextField {
                                     Layout.columnSpan: 4
                                     Layout.fillWidth: true
@@ -546,7 +580,10 @@ Item {
                                             elide: Text.ElideRight
                                             color: Theme.textDim; font.pixelSize: 11
                                             readonly property var v: filaR.r.datos[modelData]
-                                            text: modelData + ": " + (v === true ? "sí" : v === false ? "no" : String(v))
+                                            // Un documento (objeto) viene ya escrito por el modelo en datosTexto.
+                                            readonly property var vt: (filaR.r.datosTexto || {})[modelData]
+                                            text: modelData + ": " + (vt !== undefined ? vt
+                                                                      : v === true ? "sí" : v === false ? "no" : String(v))
                                         }
                                     }
                                 }

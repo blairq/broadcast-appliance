@@ -107,6 +107,9 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"superficie_listar", "Que paginas del aparato estan vivas"},
     {"superficie_mostrar", "Cambiarle la pagina a una superficie viva"},
     {"qr_generar", "Generar un codigo"},
+    {"documento_leer", "Leer un documento de identidad"},
+    {"documento_tipos", "Que documentos de identidad entiende"},
+    {"documento_texto", "Leer el texto de un documento"},
     {"qr_exportar", "Dejar un codigo en un archivo"},
     {"evento_correr", "Correr el guion"},
     {"alert_create", "Crear una alerta"},
@@ -337,6 +340,10 @@ int main() {
     exigir(i, "camara por red", "ndi_sources", 5);
     exigir(i, "imprimir un codigo qr", "qr_exportar");
     exigir(i, "que televisores hay", "pantalla_listar");
+    exigir(i, "leer el dni de la camara", "documento_leer");
+    exigir(i, "escanear el codigo de barras del documento", "documento_leer");
+    exigir(i, "que documentos de identidad acepta el totem", "documento_tipos");
+    exigir(i, "leer el texto del pdf", "documento_texto");
     exigir(i, "el televisor esta realmente mostrando algo", "superficie_listar", 4);
 
     // --- Como se queja un operador, que no nombra la herramienta ------------

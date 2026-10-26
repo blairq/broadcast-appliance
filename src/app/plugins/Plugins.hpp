@@ -170,6 +170,11 @@ class Plugins : public QObject {
     void pedir(const std::string& id, const std::string& accion, const json& args,
                std::function<void(json)> listo, int timeoutMs = 0); ///< 0: el de Configuración (10 s)
     json eventos(const std::string& id, const std::string& canal, int cuantos) const;
+    /// Los tipos de documento de identidad que declaran los plugins que corren
+    /// (@plugin.documento; docs/funciones/DOCUMENTOS.md): [{id: "plugin:<plugin>/<nombre>",
+    /// plugin, nombre, titulo, comoSeDice, formatos, pais, descripcion}]. Se leen con
+    /// `pedir(plugin, "documento", {nombre, formato, texto, bytes_b64})`. Cambia con `cambio()`.
+    json tiposDocumento() const;
     json secretosDe(const std::string& id) const;
     /// Lo que hay conectado: cámaras y micrófonos (GStreamer) + USB, HID y serie (Python).
     void dispositivos(std::function<void(json)> listo);

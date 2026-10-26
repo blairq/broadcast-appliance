@@ -283,7 +283,8 @@ std::vector<Rol> deFabrica() {
         // Y `sesion`: el que espera en la sesión remota de la asamblea también
         // llega a la recepción (ui/AtencionViewModel), y habilitarlo es su parte.
         // Y `totems`: el registro por tótem es la otra puerta por donde llega la gente.
-        x.categorias = {"sala", "oradores", "imagenes", "operador", "rostros", "padron", "sesion", "totems"};
+        // Y `identidad`: leer el DNI de quien llega es parte de recibirlo.
+        x.categorias = {"sala", "oradores", "imagenes", "operador", "rostros", "padron", "sesion", "totems", "identidad"};
         x.disparadores = {"lobby", "hand", "guest_drop", "guest_message"};
         x.prompt = kRecepcion;
         x.agruparMs = 0;
@@ -335,7 +336,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "escenas", "fuentes", "imagenes", "sala", "oradores", "salidas", "graficos", "rostros", "interfaz",
         "ventanas", "operador", "medios", "recetas", "audio", "audio_rack", "config", "sistema", "equipo",
         "entradas", "alertas", "pantallas", "evento", "prompter", "qr", "cuentas", "asistente", "youtube",
-        "twitch", "facebook", "padron", "preguntas", "laminas", "totems",
+        "twitch", "facebook", "padron", "preguntas", "laminas", "totems", "identidad",
         // El grafo de video (tarjetas, módulos de GStreamer, controladores,
         // compositor, relojes y sincronía) y las cámaras PTZ: armar bien un
         // pipeline es justo lo que el operador le va a pedir. Faltaban, y la

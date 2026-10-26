@@ -7,9 +7,19 @@
 // contestaron los registrados (va al padrón, en `datos`).
 //
 // (La categoría es «totems» y no «registro»: «registro» ya son los logs.)
+//
+// Y la categoría «identidad»: leer un documento de identidad por su código de
+// barras (documento_leer, documento_tipos), con el lector del tótem.
 // ============================================================================
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+
+#include <QByteArray>
+#include <QImage>
+
+#include "documentos/Documento.hpp"
+#include "ui/FrameService.hpp"
+#include "ui/LectorDocumentos.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/TotemsViewModel.hpp"
@@ -26,10 +36,12 @@ json propiedadesDeTotem() {
          {{"clave", {{"type", "string"}, {"description", "[a-z0-9_], única: la clave en `datos` del padrón"}}},
           {"etiqueta", {{"type", "string"}, {"description", "cómo se muestra en la pantalla"}}},
           {"pregunta", {{"type", "string"}, {"description", "cómo se pregunta en voz alta (vacía = la de fábrica del tipo)"}}},
-          {"tipo", {{"type", "string"}, {"enum", {"texto", "nombre", "correo", "telefono", "numero", "sino", "opcion"}}}},
+          {"tipo", {{"type", "string"}, {"enum", {"texto", "nombre", "correo", "telefono", "numero", "sino", "opcion", "documento"}}}},
           {"obligatorio", {{"type", "boolean"}, {"description", "si no, a los dos reintentos se saltea"}}},
           {"opciones", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "solo tipo opcion (al menos dos)"}}},
-          {"ejemplo", {{"type", "string"}, {"description", "se dice si no se entiende"}}}}},
+          {"ejemplo", {{"type", "string"}, {"description", "se dice si no se entiende"}}},
+          {"documentos", {{"type", "array"}, {"items", {{"type", "string"}}},
+                          {"description", "solo tipo documento: los tipos aceptados (documento_tipos; vacío = cualquiera)"}}}}},
         {"required", {"clave", "tipo"}}};
     return {{"nombre", {{"type", "string"}, {"description", "para el operador («Entrada principal»)"}}},
             {"activo", {{"type", "boolean"}, {"description", "apagado: su url no entra"}}},
@@ -77,7 +89,10 @@ void McpService::registerTotemTools() {
         t.description = "Crea un tótem de registro en el evento abierto. De fábrica pide nombre (obligatorio) y correo; "
                         "se puede pasar todo lo demás de una (campos, saludo…).";
         t.details = "Tipos de campo: `nombre` (con mayúsculas), `correo` (dicho: «juan punto perez arroba gmail punto "
-                    "com»), `telefono` (dígitos o palabras), `numero`, `sino`, `opcion` (con `opciones`) y `texto`.\n\n"
+                    "com»), `telefono` (dígitos o palabras), `numero`, `sino`, `opcion` (con `opciones`), `texto` y "
+                    "`documento` (muestra su DNI a la cámara y se lee el código de barras; `documentos`: los tipos "
+                    "aceptados, de `documento_tipos`; completa el nombre y las claves apellido/nombres/dni/"
+                    "nacimiento/cuil).\n\n"
                     "Los textos se dicen en voz alta: frases cortas, de a una pregunta, en castellano rioplatense. "
                     "{evento} es el nombre del evento; {hola} es «Hola» o «Hola Ana» si la reconoce.\n\n"
                     "Después: `totem_enlace` (la url y el QR) o `totem_proyectar` (a una TV).";
@@ -214,6 +229,107 @@ void McpService::registerTotemTools() {
         t.run = [tv](const json&, Done done) {
             if (tv() == nullptr) return done(ToolResult::error("No hay registro por tótem en este proceso."));
             done(ToolResult().data({{"registrados", tv()->registradosJson()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    // --- Documentos de identidad (docs/funciones/DOCUMENTOS.md) ----------------------
+    // El mismo lector que el paso «documento» del tótem (ui/LectorDocumentos). Lo que
+    // devuelven NO trae los datos completos: el asistente puede ser un modelo en la
+    // nube, y un DNI no sale de la máquina (queda en el padrón del evento).
+    core_.addCategory("identidad", "Documentos de identidad",
+                      "Leer un DNI (u otro documento con código de barras: PDF417, QR…) de una cámara o una imagen, "
+                      "y qué tipos de documento se entienden (de fábrica y de plugins). No son los PDF del evento.");
+    {
+        Tool t;
+        t.name = "documento_tipos";
+        t.title = "Qué documentos de identidad entiende";
+        t.category = "identidad";
+        t.readOnly = true;
+        t.description = "Los tipos de documento de identidad que se pueden leer por su código de barras: los de fábrica "
+                        "(el DNI argentino, `dni-ar`) y los de los plugins que corren (`plugin:<plugin>/<tipo>`). Son "
+                        "los que se eligen en un campo `documento` de un tótem.";
+        t.details = "Para sumar otro tipo (una licencia de conducir, el documento de otro país): un plugin con "
+                    "`@plugin.documento` (help {\"topic\": \"plugins\"}, ejemplo `documento-aamva`).";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [tv](const json&, Done done) {
+            if (tv() == nullptr || tv()->lector() == nullptr)
+                return done(ToolResult::error("No hay lector de documentos en este proceso."));
+            done(ToolResult().data({{"tipos", tv()->lector()->tipos()},
+                                    {"lectorDisponible", LectorDocumentos::disponible()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "documento_leer";
+        t.title = "Leer un documento de identidad";
+        t.category = "identidad";
+        t.readOnly = true;
+        t.description = "Busca códigos de barras (PDF417, QR, DataMatrix…) en el cuadro de una cámara (`video`: una "
+                        "clave de video, p. ej. «registro:1», la cámara del tótem del canal 1), en una imagen "
+                        "(`archivo` o `imagen_base64`) o en un texto ya leído (`texto`), y dice si es un documento "
+                        "de los tipos aceptados. Devuelve un RESUMEN (tipo, nombre, últimos tres dígitos): los datos "
+                        "completos no salen de la máquina.";
+        t.details = "Sirve para probar la cámara de un tótem («¿lee el DNI?») o un tipo de documento de un plugin. "
+                    "`tipos`: los aceptados en orden (vacío = todos; `documento_tipos`). Si no lee: más cerca, más "
+                    "quieto, sin reflejo, del lado del código de barras.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"video", {{"type", "string"}, {"description", "clave de video de la app (registro:<k>, …)"}}},
+              {"archivo", {{"type", "string"}, {"description", "ruta de una imagen (PNG, JPG)"}}},
+              {"imagen_base64", {{"type", "string"}, {"description", "una imagen en base64"}}},
+              {"texto", {{"type", "string"}, {"description", "el texto de un código ya leído (sin imagen)"}}},
+              {"formato", {{"type", "string"}, {"description", "con `texto`: PDF417, QRCode… (vacío = cualquiera)"}}},
+              {"tipos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "los tipos aceptados"}}}}}};
+        t.examples = {R"({"video": "registro:1"})", R"({"archivo": "/ruta/dni.jpg", "tipos": ["dni-ar"]})"};
+        t.run = [tv, &vm](const json& a, Done done) {
+            if (tv() == nullptr || tv()->lector() == nullptr)
+                return done(ToolResult::error("No hay lector de documentos en este proceso."));
+            std::vector<std::string> tipos;
+            for (const json& x : a.value("tipos", json::array()))
+                if (x.is_string()) tipos.push_back(x.get<std::string>());
+            const auto responder = [done](LectorDocumentos::Resultado r) {
+                if (!r.error.isEmpty()) return done(ToolResult::error(r.error.toStdString()));
+                json cs = json::array();
+                for (const auto& c : r.codigos) {
+                    json x{{"formato", c.formato}};
+                    // El texto de un documento no sale; el de otro código (una url) sí, con
+                    // los números largos tapados por las dudas.
+                    if (!r.leido) x["texto"] = documentos::taparNumeros(c.texto);
+                    cs.push_back(std::move(x));
+                }
+                json out{{"codigos", cs}, {"leido", r.leido}};
+                if (r.leido) {
+                    out["documento"] = documentos::resumenParaAfuera(r.datos);
+                    out["aviso"] = "Los datos completos del documento quedan en esta máquina (en el padrón, si lo "
+                                   "leyó un tótem); acá va solo un resumen.";
+                } else if (r.codigos.empty()) {
+                    out["aviso"] = "No se vio ningún código. Más cerca, más quieto, sin reflejo, del lado del código.";
+                }
+                done(ToolResult().data(out));
+            };
+            if (a.contains("texto") && a["texto"].is_string()) {
+                documentos::Codigo c{a.value("formato", std::string()), a["texto"].get<std::string>(), {}};
+                return tv()->lector()->traducir({c}, tipos, responder);
+            }
+            QImage img;
+            if (const std::string v = a.value("video", std::string()); !v.empty()) {
+                auto* frames = static_cast<FrameService*>(vm.frames());
+                std::uint64_t serie = 0;
+                if (frames == nullptr || !frames->latest(QString::fromStdString(v), img, serie) || img.isNull())
+                    return done(ToolResult::error("No hay imagen en «" + v + "» (¿está conectada esa cámara?)."));
+            } else if (const std::string f = a.value("archivo", std::string()); !f.empty()) {
+                if (!img.load(QString::fromStdString(f)))
+                    return done(ToolResult::error("No pude abrir la imagen «" + f + "»."));
+            } else if (const std::string b = a.value("imagen_base64", std::string()); !b.empty()) {
+                if (!img.loadFromData(QByteArray::fromBase64(QByteArray::fromStdString(b))))
+                    return done(ToolResult::error("La imagen en base64 no se pudo leer."));
+            } else {
+                return done(ToolResult::error("Pasá `video`, `archivo`, `imagen_base64` o `texto`."));
+            }
+            tv()->lector()->leer(img, tipos, false, responder);
         };
         core_.addTool(std::move(t));
     }

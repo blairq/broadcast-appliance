@@ -20,6 +20,7 @@
 #include "agent/Voz.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
+#include "documentos/Documento.hpp"
 #include "emision/OperatorFeed.hpp"
 #include "emision/VozAlLobby.hpp"
 #include "registro/Conversacion.hpp"
@@ -31,6 +32,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/LectorDocumentos.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #if defined(BA_HAVE_VOZ)
@@ -52,6 +54,8 @@ constexpr qint64 kEntreFotosFrenteMs = 250; ///< en el paso de la foto, más seg
 constexpr qint64 kFotoMs = 7000;           ///< cuánto se espera una toma de frente antes de pedirla de nuevo
 constexpr qint64 kArranqueSinCaraMs = 2500; ///< con canal y sin cara a la vista: arranca igual
 constexpr qint64 kListoMs = 8000;          ///< la pantalla de gracias (la página vuelve sola)
+constexpr qint64 kEntreDocumentosMs = 300; ///< mostrando el documento: un cuadro al lector cada tanto
+constexpr qint64 kDocumentoMs = 15000;     ///< cuánto se espera leerlo antes de decirle qué corregir
 
 qint64 ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -86,6 +90,18 @@ QVariant aQv(const json& j) {
 
 std::string texto(const json& j, const char* k) {
     return j.is_object() && j.contains(k) && j[k].is_string() ? j[k].get<std::string>() : std::string();
+}
+
+/// Lo que sale por MCP (puede ir a un modelo en la nube) sin los datos de un
+/// documento: los objetos de un campo `documento` quedan en su resumen
+/// (documentos::resumenParaAfuera) y los números largos de lo dicho, tapados.
+json datosParaAfuera(const json& datos) {
+    if (!datos.is_object()) return datos;
+    json out = datos;
+    for (auto it = out.begin(); it != out.end(); ++it)
+        if (it.value().is_object() && it.value().contains("numero"))
+            it.value() = documentos::resumenParaAfuera(it.value());
+    return out;
 }
 
 EventoViewModel* eventoDe(StudioViewModel& vm) { return static_cast<EventoViewModel*>(vm.evento()); }
@@ -127,6 +143,13 @@ struct TotemsViewModel::Conexion {
     bool buscandoFoto = false;
     qint64 fotoDesdeMs = 0;  ///< desde cuándo se busca (0 = todavía lo está pidiendo)
     QString fotoSugerencia;  ///< qué corregir, según la última toma que no sirvió
+    // El paso del documento (Conversacion::Estado::Documento).
+    bool buscandoDocumento = false;
+    qint64 docDesdeMs = 0;          ///< desde cuándo se busca (0 = todavía lo está pidiendo)
+    qint64 ultimoDocMs = 0;
+    std::uint64_t ultimoCuadroDoc = 0;
+    bool leyendoDocumento = false;  ///< hay un cuadro en el lector
+    QString docSugerencia;          ///< qué corregir, según lo último que se vio
     /// Después de terminar, la próxima arranca recién cuando esa cara se va (o
     /// aparece otra conocida): si no, la misma persona empezaría de nuevo.
     bool esperaVacio = false;
@@ -178,6 +201,8 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
         });
     tic_.setInterval(200);
     connect(&tic_, &QTimer::timeout, this, &TotemsViewModel::tic);
+    lector_ = std::make_unique<LectorDocumentos>(vm_.plugins());
+    connect(lector_.get(), &LectorDocumentos::tiposCambio, this, &TotemsViewModel::tiposDocumentoCambio);
     recargar();
 }
 
@@ -339,6 +364,12 @@ void TotemsViewModel::reconocerConexiones() {
     });
 }
 
+QVariantList TotemsViewModel::tiposDocumento() const {
+    return lector_ ? aQv(lector_->tipos()).toList() : QVariantList{};
+}
+
+bool TotemsViewModel::lectorDisponible() const { return LectorDocumentos::disponible(); }
+
 QVariantList TotemsViewModel::tipos() const {
     QVariantList out;
     for (registro::TipoCampo t : registro::todosLosTipos())
@@ -450,6 +481,11 @@ QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
     c.clave = base;
     for (int n = 2; std::find(usadas.begin(), usadas.end(), c.clave) != usadas.end(); ++n) c.clave = base + "_" + std::to_string(n);
     if (c.tipo == registro::TipoCampo::Opcion) c.opciones = {"Opción 1", "Opción 2"};
+    // De fábrica, el DNI; los demás se marcan en el editor (o por MCP).
+    if (c.tipo == registro::TipoCampo::Documento) {
+        c.documentos = {"dni-ar"};
+        c.etiqueta = "DNI";
+    }
     json cs = camposDe(*t);
     cs.push_back(c.aJson());
     return QString::fromStdString(cambiarJson(id, {{"campos", cs}}));
@@ -803,6 +839,18 @@ void TotemsViewModel::alToque(Conexion& c, const json& ev) {
 void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool campos, const std::string& pedir,
                               bool guardar, bool terminar, bool foto) {
     if (c.conv == nullptr) return;
+    // El documento se busca mientras la conversación esté en ese paso (lo dice ella,
+    // no una bandera aparte). Cada vez que lo pide de nuevo, el tiempo cuenta de
+    // nuevo desde que termina de decirlo (tic); la charla oída mientras tanto, no.
+    if (c.conv->estado() == registro::Conversacion::Estado::Documento) {
+        if (!c.buscandoDocumento || !decirTxt.empty()) {
+            c.buscandoDocumento = true;
+            c.docDesdeMs = 0;
+            c.docSugerencia.clear();
+        }
+    } else {
+        c.buscandoDocumento = false;
+    }
     // La foto de frente: se busca recién cuando terminó de pedirla (tic), no mientras habla.
     // Una respuesta vacía (algo que se oyó mientras mira a la cámara) no la interrumpe.
     if (foto) {
@@ -836,7 +884,7 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
         if (c.ultimaPersona.isEmpty()) c.ultimaPersona = c.ultimaCara;
         c.terminoMs = ahoraMs();
         c.pedidoEnviado.clear();
-    } else if (decirTxt.empty() && !c.buscandoFoto) {
+    } else if (decirTxt.empty() && !c.buscandoFoto && !c.buscandoDocumento) {
         c.estado = "escuchando";
         enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});
     }
@@ -917,6 +965,7 @@ void TotemsViewModel::tic() {
     for (auto& [k, cp] : conns_) {
         Conexion& c = *cp;
         mirarCara(c);
+        mirarDocumento(c);
         // Terminó de hablar: lo sintetizado ya salió por el canal.
         if (c.hablando) {
             const VozAlLobby* v = c.canal > 0 && c.canal < static_cast<int>(voces_.size())
@@ -936,7 +985,8 @@ void TotemsViewModel::tic() {
                 if (c.conv != nullptr && c.conv->enCurso()) {
                     // Pidió la foto: desde ahora se buscan tomas de frente (y se cuenta el tiempo).
                     if (c.buscandoFoto) c.fotoDesdeMs = ahora;
-                    c.estado = c.buscandoFoto ? "foto" : "escuchando";
+                    if (c.buscandoDocumento) c.docDesdeMs = ahora; // pidió el documento: desde ahora se busca
+                    c.estado = c.buscandoFoto ? "foto" : c.buscandoDocumento ? "documento" : "escuchando";
                     enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
                     emit vivoCambio();
                 }
@@ -947,6 +997,14 @@ void TotemsViewModel::tic() {
             if (c.fotoDesdeMs == 0) c.fotoDesdeMs = ahora; // sin voz: no hubo nada que esperar
             if (ahora - c.fotoDesdeMs > kFotoMs) {
                 const auto r = c.conv->fotoFallo(c.fotoSugerencia.toStdString());
+                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+            }
+            continue;
+        }
+        if (c.buscandoDocumento && c.conv != nullptr) {
+            if (c.docDesdeMs == 0) c.docDesdeMs = ahora; // sin voz: no hubo nada que esperar
+            if (ahora - c.docDesdeMs > kDocumentoMs) {
+                const auto r = c.conv->documentoFallo(c.docSugerencia.toStdString());
                 aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
             }
             continue;
@@ -972,6 +1030,49 @@ void TotemsViewModel::tic() {
             empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
         }
     }
+}
+
+void TotemsViewModel::mirarDocumento(Conexion& c) {
+    if (!c.buscandoDocumento || c.docDesdeMs == 0 || c.leyendoDocumento || c.canal == 0 || !lector_ ||
+        c.conv == nullptr)
+        return;
+    if (ahoraMs() - c.ultimoDocMs < kEntreDocumentosMs) return;
+    auto* frames = static_cast<FrameService*>(vm_.frames());
+    if (frames == nullptr) return;
+    // El mismo cuadro de la cámara del tótem que se reconoce (y que ve el operador).
+    QImage img;
+    std::uint64_t serie = 0;
+    if (!frames->latest(QString("registro:%1").arg(c.canal), img, serie) || img.isNull() || serie == c.ultimoCuadroDoc)
+        return;
+    c.ultimoCuadroDoc = serie;
+    c.ultimoDocMs = ahoraMs();
+    c.leyendoDocumento = true;
+    const QString conn = c.conn;
+    QPointer<TotemsViewModel> yo(this);
+    // No descartable: ya hay a lo sumo uno por conexión (leyendoDocumento), y uno
+    // descartado no volvería y dejaría la conexión esperando para siempre.
+    lector_->leer(img, c.conv->documentosAceptados(), false, [yo, conn](LectorDocumentos::Resultado r) {
+        if (!yo) return;
+        const auto it = yo->conns_.find(conn);
+        if (it == yo->conns_.end()) return;
+        Conexion& k = *it->second;
+        k.leyendoDocumento = false;
+        if (!k.buscandoDocumento || k.conv == nullptr) return;
+        if (r.leido) {
+            // En el registro, a lo sumo el tipo y los últimos tres dígitos.
+            const registro::Totem* t = yo->totems_.porId(k.totem.toStdString());
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                                       "tótem «" + (t != nullptr ? t->id : k.totem.toStdString()) + "» (" +
+                                           conn.toStdString() + "): documento leído (" +
+                                           documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
+            const auto x = k.conv->documentoLeido(r.datos);
+            yo->aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
+            return;
+        }
+        // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
+        if (!r.codigos.empty())
+            k.docSugerencia = "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.";
+    });
 }
 
 void TotemsViewModel::cortar(const QString& conn) {
@@ -1006,7 +1107,24 @@ QVariantList TotemsViewModel::conexiones() const {
 
 json TotemsViewModel::estadoJson() const {
     json cs = json::array();
-    for (const auto& [k, c] : conns_) cs.push_back(aJson(QVariant(filaDe(*c))));
+    for (const auto& [k, c] : conns_) {
+        json f = aJson(QVariant(filaDe(*c)));
+        // Por MCP, sin los datos del documento (ver datosParaAfuera): lo dicho y oído
+        // con los números largos tapados, y el campo `documento` en su resumen.
+        f["dice"] = documentos::taparNumeros(f.value("dice", std::string()));
+        f["oido"] = documentos::taparNumeros(f.value("oido", std::string()));
+        if (c->conv != nullptr) {
+            const json d = c->conv->datos();
+            for (json& campo : f["campos"]) {
+                const std::string clave = campo.value("clave", std::string());
+                if (!d.contains(clave) || !d[clave].is_object()) continue;
+                const json r = documentos::resumenParaAfuera(d[clave]);
+                const std::string nombre = r.value("nombre", std::string()), numero = r.value("numero", std::string());
+                campo["valor"] = nombre.empty() ? numero : numero.empty() ? nombre : nombre + " · " + numero;
+            }
+        }
+        cs.push_back(std::move(f));
+    }
     return {{"conexiones", cs},
             {"hablarFalta", hablarFalta().toStdString()},
             {"enLinea", enLinea()},
@@ -1024,6 +1142,17 @@ QVariantList TotemsViewModel::registrados() const {
         if (reg.isEmpty() && m.value("porDonde").toString() != "registro") continue;
         const registro::Totem* t = totems_.porId(reg.toStdString());
         m["totem"] = t != nullptr ? QString::fromStdString(t->nombre) : reg;
+        // Cómo se lee cada dato (un documento es un objeto: «Juana Prueba · DNI
+        // 11.222.333»), con la MISMA regla que la pantalla del tótem.
+        QVariantMap texto;
+        const json datos = aJson(m.value("datos"));
+        for (auto it = datos.begin(); datos.is_object() && it != datos.end(); ++it) {
+            if (!it.value().is_object()) continue;
+            registro::Campo c;
+            c.tipo = registro::TipoCampo::Documento;
+            texto[QString::fromStdString(it.key())] = QString::fromStdString(registro::paraMostrar(c, it.value()));
+        }
+        m["datosTexto"] = texto;
         out << m;
     }
     // Lo último arriba: es lo que se mira mientras la gente llega.
@@ -1043,7 +1172,7 @@ json TotemsViewModel::registradosJson() const {
                        {"registro", m.value("registro").toString().toStdString()},
                        {"totem", m.value("totem").toString().toStdString()},
                        {"llegoMs", m.value("llegoMs").toLongLong()},
-                       {"datos", aJson(m.value("datos"))}});
+                       {"datos", datosParaAfuera(aJson(m.value("datos")))}});
     }
     return out;
 }

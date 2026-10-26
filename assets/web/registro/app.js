@@ -31,7 +31,7 @@ let estadoActual = "esperando";
 
 const kTextoEspera = "Mirá a la cámara para empezar.";
 const kEstados = { esperando: "Esperando", escuchando: "Te escucho", hablando: "Hablando", pensando: "Pensando",
-                   foto: "Mirá a la cámara", listo: "Listo", error: "Problema" };
+                   foto: "Mirá a la cámara", documento: "Mostrá tu documento", listo: "Listo", error: "Problema" };
 
 function mostrar(id) {
   for (const s of ["inicio", "registro", "gracias", "qr", "cortado"]) $(s).classList.toggle("oculto", s !== id);
@@ -205,8 +205,10 @@ function ponerEstado(e) {
   const el = $("estado");
   el.className = "estado " + e;
   $("estadoTexto").textContent = kEstados[e];
-  const charlando = e === "escuchando" || e === "hablando" || e === "pensando" || e === "foto";
+  const charlando = e === "escuchando" || e === "hablando" || e === "pensando" || e === "foto" || e === "documento";
   document.body.classList.toggle("foto", e === "foto");
+  // Mostrando el documento: la cámara enmarcada, como en la foto (la app busca el código).
+  document.body.classList.toggle("documento", e === "documento");
   $("cancelar").classList.toggle("oculto", !charlando);
   $("arrancar").classList.toggle("oculto", charlando);
 }
@@ -235,13 +237,15 @@ const kTipoInput = { correo: "email", telefono: "tel", numero: "number" };
 function ponerPedido(m) {
   pedido = m && m.clave ? m : null;
   if (!pedido) { $("caja").classList.add("oculto"); return; }
-  $("cajaEtiqueta").textContent = (pedido.etiqueta || pedido.clave) + (pedido.tipo === "sino" ? "" : " — si preferís, escribilo acá");
+  $("cajaEtiqueta").textContent = (pedido.etiqueta || pedido.clave) +
+    (pedido.tipo === "sino" ? "" : pedido.tipo === "documento" ? " — si no lo lee, escribí el número acá" : " — si preferís, escribilo acá");
   const sino = pedido.tipo === "sino";
   $("sino").classList.toggle("oculto", !sino);
   $("cajaValor").parentElement.classList.toggle("oculto", sino);
   const input = $("cajaValor");
   input.type = kTipoInput[pedido.tipo] || "text";
-  input.inputMode = pedido.tipo === "telefono" ? "tel" : pedido.tipo === "numero" ? "numeric" : pedido.tipo === "correo" ? "email" : "text";
+  input.inputMode = pedido.tipo === "telefono" ? "tel" : pedido.tipo === "numero" || pedido.tipo === "documento" ? "numeric"
+                  : pedido.tipo === "correo" ? "email" : "text";
   input.autocapitalize = pedido.tipo === "nombre" ? "words" : "off";
   input.placeholder = pedido.ejemplo || "";
   input.value = "";

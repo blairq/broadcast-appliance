@@ -218,6 +218,43 @@ std::string paraLog(const Datos& d) {
     return tipo + " …" + d.numero.substr(d.numero.size() - 3);
 }
 
+json resumenParaAfuera(const json& doc) {
+    const Datos d = Datos::deJson(doc);
+    json j = json::object();
+    if (!d.tipo.empty()) j["tipo"] = d.tipo;
+    if (!d.apellido.empty() || !d.nombres.empty()) j["nombre"] = d.nombreCompleto();
+    if (!d.numero.empty()) j["numero"] = d.numero.size() <= 3 ? std::string("…") : "…" + d.numero.substr(d.numero.size() - 3);
+    if (doc.is_object() && doc.contains("origen") && doc["origen"].is_string()) j["origen"] = doc["origen"];
+    return j;
+}
+
+std::string taparNumeros(const std::string& t) {
+    std::string out;
+    std::size_t i = 0;
+    while (i < t.size()) {
+        if (!esDigito(t[i])) {
+            out.push_back(t[i++]);
+            continue;
+        }
+        // La tira: dígitos con un punto o un espacio suelto entre medio («11.222.333», «11 222 333»).
+        std::size_t j = i;
+        std::string digitos;
+        while (j < t.size()) {
+            if (esDigito(t[j])) {
+                digitos.push_back(t[j++]);
+            } else if ((t[j] == '.' || t[j] == ' ') && j + 1 < t.size() && esDigito(t[j + 1])) {
+                ++j;
+            } else {
+                break;
+            }
+        }
+        if (digitos.size() >= 6) out += "…" + digitos.substr(digitos.size() - 3);
+        else out.append(t, i, j - i);
+        i = j;
+    }
+    return out;
+}
+
 int digitoCuil(const std::string& s) {
     if (s.size() != 10 || !std::all_of(s.begin(), s.end(), esDigito)) return -1;
     static const int kPesos[] = {5, 4, 3, 2, 7, 6, 5, 4, 3, 2};

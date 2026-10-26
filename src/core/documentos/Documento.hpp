@@ -129,6 +129,15 @@ std::string numeroConPuntos(const std::string& numero);
 /// Para un registro: el tipo y los últimos tres caracteres del número
 /// («dni-ar …678»). NUNCA el documento entero en un log.
 std::string paraLog(const Datos& d);
+/// Lo que se puede mostrar FUERA de la máquina (al asistente por MCP, que puede
+/// ser un modelo en la nube): {tipo, nombre, numero: "…333", origen}. Sin fechas,
+/// trámite, CUIL ni el texto crudo. `doc` es un documento ya en `datos`
+/// (Datos::aJson, o {numero, origen} si se tipeó).
+nlohmann::json resumenParaAfuera(const nlohmann::json& doc);
+/// Tapa los números largos de un texto («Sos Juana, DNI 11.222.333» -> «Sos
+/// Juana, DNI …333»): toda tira de dígitos (con puntos o espacios en el medio)
+/// de 6 dígitos o más queda en sus últimos tres. Para lo que se dijo o se oyó.
+std::string taparNumeros(const std::string& texto);
 /// El dígito verificador de un CUIL/CUIT (prefijo de 2 + documento de 8), o -1
 /// si no tiene (el resto da 10: se usa otro prefijo).
 int digitoCuil(const std::string& prefijoYDocumento);
