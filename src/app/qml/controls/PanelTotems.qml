@@ -576,14 +576,20 @@ Item {
                                         color: Theme.textFaint; font.pixelSize: 11
                                         height: 26; verticalAlignment: Text.AlignVCenter
                                     }
-                                    // El dorso: si el código no sale, la parte de atrás con un modelo de visión.
-                                    Text {
-                                        width: parent.width
-                                        wrapMode: Text.WordWrap
-                                        text: raiz.tv.dorso
-                                        color: raiz.tv.dorsoDisponible ? Theme.textDim : Theme.textFaint
-                                        font.pixelSize: 11
-                                    }
+                                }
+                                // El dorso: si el código no sale, la parte de atrás con un modelo de visión.
+                                // Una línea y recortada, en su propia fila: con salto de línea adentro del
+                                // Flow, su alto dependía del ancho y el del layout de su texto, y la
+                                // interfaz se quedaba acomodándose para siempre (el vigilante la mataba).
+                                Text {
+                                    Layout.columnSpan: 4
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 1
+                                    visible: filaCampo.c.tipo === "documento" && text !== ""
+                                    elide: Text.ElideRight
+                                    text: raiz.tv.dorso
+                                    color: raiz.tv.dorsoDisponible ? Theme.textDim : Theme.textFaint
+                                    font.pixelSize: 11
                                 }
                                 TextField {
                                     Layout.columnSpan: 4
