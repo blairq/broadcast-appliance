@@ -91,6 +91,9 @@ struct Totem {
     bool confirmar = true;
     /// Saludar por el nombre a quien reconoce la cara (y no preguntárselo).
     bool reconocer = true;
+    /// Al final, pedirle que mire derecho a la cámara y esperar una toma de frente y
+    /// nítida: es la foto de su ficha y la cara con que se lo va a reconocer.
+    bool foto = true;
     std::vector<Campo> campos;
 
     nlohmann::json aJson() const;

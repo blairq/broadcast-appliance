@@ -14,7 +14,7 @@
 // Entradas: la cara vista (conocida o no), lo que se le oyó, lo que tipeó en la
 // pantalla (el respaldo táctil), un silencio largo y «cancelar». Salidas, en
 // una `Respuesta`: qué decir, si cambiaron los campos, qué campo se pide,
-// guardar y terminar. No sabe de audio, ni de red, ni de Qt: ui/RegistroViewModel
+// guardar y terminar. No sabe de audio, ni de red, ni de Qt: ui/TotemsViewModel
 // lo conecta con el oído (agent::Voz), la boca (audio/Habla) y el gateway.
 //
 // LO DIFÍCIL ES ENTENDER, no preguntar. La voz a texto devuelve «jorge punto
@@ -76,7 +76,9 @@ std::string paraMostrar(const Campo& c, const nlohmann::json& valor);
 
 class Conversacion {
    public:
-    enum class Estado { Esperando, Preguntando, Confirmando, Terminada };
+    /// Foto: ya contestó todo y se le pidió que mire a la cámara (Totem::foto); quien
+    /// llama mira los cuadros y contesta con fotoLista() o fotoFallo().
+    enum class Estado { Esperando, Preguntando, Confirmando, Foto, Terminada };
 
     /// Quién está frente al tótem, según la cara.
     struct Cara {
@@ -92,6 +94,7 @@ class Conversacion {
         std::string pedir;    ///< la clave del campo que se está pidiendo ("" = ninguno)
         bool guardar = false; ///< terminó bien: guardar `datos()`
         bool terminar = false; ///< terminó (bien o no): pantalla de gracias y a esperar
+        bool foto = false;    ///< buscar una toma de frente (cuando termine de decirlo)
     };
 
     Conversacion(Totem totem, std::string evento);
@@ -110,9 +113,17 @@ class Conversacion {
     Respuesta silencio();
     /// Apretó «cancelar» (o lo dijo).
     Respuesta cancelar();
+    /// En el paso de la foto: hubo una toma de frente que sirve. Se despide y guarda.
+    Respuesta fotoLista();
+    /// En el paso de la foto: no salió (pasó el tiempo sin una cara que sirva).
+    /// `sugerencia` es qué corregir, en palabras que se le pueden decir («acercate un
+    /// poco»). La primera vez se lo pide de nuevo; la segunda sigue sin foto.
+    Respuesta fotoFallo(const std::string& sugerencia);
 
     Estado estado() const { return estado_; }
-    bool enCurso() const { return estado_ == Estado::Preguntando || estado_ == Estado::Confirmando; }
+    bool enCurso() const {
+        return estado_ == Estado::Preguntando || estado_ == Estado::Confirmando || estado_ == Estado::Foto;
+    }
     const Cara& cara() const { return cara_; }
     const Totem& totem() const { return t_; }
     /// clave -> valor, solo lo ya anotado.
@@ -148,6 +159,8 @@ class Conversacion {
     nlohmann::json propuesto_; ///< lo que se está confirmando
     int intentos_ = 0;
     int silencios_ = 0;
+    bool fotoHecha_ = false; ///< ya pasó por el paso de la foto (salió o se dio por perdida)
+    int fotoIntentos_ = 0;
 };
 
 } // namespace ba::registro

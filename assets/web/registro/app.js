@@ -31,7 +31,7 @@ let estadoActual = "esperando";
 
 const kTextoEspera = "Mirá a la cámara para empezar.";
 const kEstados = { esperando: "Esperando", escuchando: "Te escucho", hablando: "Hablando", pensando: "Pensando",
-                   listo: "Listo", error: "Problema" };
+                   foto: "Mirá a la cámara", listo: "Listo", error: "Problema" };
 
 function mostrar(id) {
   for (const s of ["inicio", "registro", "gracias", "qr", "cortado"]) $(s).classList.toggle("oculto", s !== id);
@@ -205,7 +205,8 @@ function ponerEstado(e) {
   const el = $("estado");
   el.className = "estado " + e;
   $("estadoTexto").textContent = kEstados[e];
-  const charlando = e === "escuchando" || e === "hablando" || e === "pensando";
+  const charlando = e === "escuchando" || e === "hablando" || e === "pensando" || e === "foto";
+  document.body.classList.toggle("foto", e === "foto");
   $("cancelar").classList.toggle("oculto", !charlando);
   $("arrancar").classList.toggle("oculto", charlando);
 }

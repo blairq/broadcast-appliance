@@ -48,6 +48,8 @@ namespace {
 constexpr qint64 kSilencioMs = 12000;      ///< sin decir nada: «¿seguís ahí?»
 constexpr qint64 kMargenVozMs = 350;       ///< después de hablar, antes de volver a escuchar
 constexpr qint64 kEntreFotosMs = 600;      ///< a lo sumo una foto al reconocimiento por conexión
+constexpr qint64 kEntreFotosFrenteMs = 250; ///< en el paso de la foto, más seguido: se busca el momento
+constexpr qint64 kFotoMs = 7000;           ///< cuánto se espera una toma de frente antes de pedirla de nuevo
 constexpr qint64 kArranqueSinCaraMs = 2500; ///< con canal y sin cara a la vista: arranca igual
 constexpr qint64 kListoMs = 8000;          ///< la pantalla de gracias (la página vuelve sola)
 
@@ -121,6 +123,10 @@ struct TotemsViewModel::Conexion {
     QString ultimoNombre;
     int vecesCara = 0;
     QByteArray mejorFoto; ///< la última foto con una cara que sirve (para el alta)
+    // El paso de la foto de frente (Conversacion::Estado::Foto).
+    bool buscandoFoto = false;
+    qint64 fotoDesdeMs = 0;  ///< desde cuándo se busca (0 = todavía lo está pidiendo)
+    QString fotoSugerencia;  ///< qué corregir, según la última toma que no sirvió
     /// Después de terminar, la próxima arranca recién cuando esa cara se va (o
     /// aparece otra conocida): si no, la misma persona empezaría de nuevo.
     bool esperaVacio = false;
@@ -649,8 +655,12 @@ void TotemsViewModel::mirarCara(Conexion& c) {
     if (c.identificando || c.canal == 0) return;
     if (ahoraMs() - c.ultimaFotoMs < kEntreFotosMs) return;
     // Conversando, solo hace falta si todavía no hay una foto que sirva (para
-    // el alta) o no se sabe quién es.
-    if (c.conv != nullptr && c.conv->enCurso() && !c.mejorFoto.isEmpty()) return;
+    // el alta) o no se sabe quién es; en el paso de la foto, siempre (y más seguido).
+    if (c.buscandoFoto) {
+        if (c.fotoDesdeMs == 0 || ahoraMs() - c.ultimaFotoMs < kEntreFotosFrenteMs) return;
+    } else if (c.conv != nullptr && c.conv->enCurso() && !c.mejorFoto.isEmpty()) {
+        return;
+    }
     PersonasViewModel* pv = personasDe(vm_);
     auto* frames = static_cast<FrameService*>(vm_.frames());
     if (pv == nullptr || !pv->disponible() || frames == nullptr) return;
@@ -676,15 +686,27 @@ void TotemsViewModel::mirarCara(Conexion& c) {
         if (it == yo->conns_.end()) return;
         it->second->identificando = false;
         if (!error.isEmpty()) return;
-        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve);
+        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve, q.sugerencia);
     });
 }
 
 void TotemsViewModel::alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
-                             bool hayCara, bool sirve) {
+                             bool hayCara, bool sirve, const QString& sugerencia) {
     auto it = conns_.find(conn);
     if (it == conns_.end()) return;
     Conexion& c = *it->second;
+    // El paso de la foto: la primera toma de frente que sirve es la de su ficha.
+    if (c.buscandoFoto && c.fotoDesdeMs > 0 && c.conv != nullptr) {
+        if (hayCara && sirve) {
+            c.mejorFoto = jpeg;
+            if (!personaId.isEmpty()) c.conv->conocerCara({personaId.toStdString(), nombre.toStdString(), false});
+            const auto r = c.conv->fotoLista();
+            aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+        } else {
+            c.fotoSugerencia = hayCara ? sugerencia : QString("No te veo la cara.");
+        }
+        return;
+    }
     if (c.conv != nullptr && c.conv->enCurso()) {
         if (hayCara && sirve && c.mejorFoto.isEmpty()) c.mejorFoto = jpeg;
         if (!personaId.isEmpty())
@@ -741,7 +763,7 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                "tótem «" + t->id + "» (" + c.conn.toStdString() + "): empieza" +
                                    (cara.personaId.empty() ? std::string() : " con " + cara.personaId));
-    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar);
+    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
 }
 
 void TotemsViewModel::alOido(const QString& conn, const QString& t) {
@@ -755,9 +777,9 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
     c.ultimaVozMs = ahoraMs();
     enviar(conn, {{"type", "oido"}, {"texto", c.oidoTexto.toStdString()}});
     if (c.conv != nullptr && c.conv->enCurso()) {
-        enviar(conn, {{"type", "estado"}, {"estado", "pensando"}});
+        if (!c.buscandoFoto) enviar(conn, {{"type", "estado"}, {"estado", "pensando"}});
         const auto r = c.conv->oido(c.oidoTexto.toStdString());
-        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar);
+        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     }
     emit vivoCambio();
 }
@@ -770,17 +792,26 @@ void TotemsViewModel::alToque(Conexion& c, const json& ev) {
         empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
     } else if (c.conv != nullptr && accion == "cancelar") {
         const auto r = c.conv->cancelar();
-        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar);
+        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     } else if (c.conv != nullptr && accion == "escrito") {
         c.ultimaVozMs = ahoraMs();
         const auto r = c.conv->escrito(texto(ev, "clave"), texto(ev, "valor"));
-        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar);
+        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     }
 }
 
 void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool campos, const std::string& pedir,
-                              bool guardar, bool terminar) {
+                              bool guardar, bool terminar, bool foto) {
     if (c.conv == nullptr) return;
+    // La foto de frente: se busca recién cuando terminó de pedirla (tic), no mientras habla.
+    // Una respuesta vacía (algo que se oyó mientras mira a la cámara) no la interrumpe.
+    if (foto) {
+        c.buscandoFoto = true;
+        c.fotoDesdeMs = 0;
+        c.fotoSugerencia.clear();
+    } else if (terminar || !decirTxt.empty()) {
+        c.buscandoFoto = false;
+    }
     if (campos) enviar(c.conn, {{"type", "campos"}, {"lista", c.conv->camposParaMostrar()}});
     if (!pedir.empty() && pedir != c.pedidoEnviado) {
         json p = c.conv->pedido();
@@ -805,7 +836,7 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
         if (c.ultimaPersona.isEmpty()) c.ultimaPersona = c.ultimaCara;
         c.terminoMs = ahoraMs();
         c.pedidoEnviado.clear();
-    } else if (decirTxt.empty()) {
+    } else if (decirTxt.empty() && !c.buscandoFoto) {
         c.estado = "escuchando";
         enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});
     }
@@ -903,10 +934,20 @@ void TotemsViewModel::tic() {
                     enviar(c.conn, {{"type", "listo"}, {"texto", c.listoPendiente}});
                 }
                 if (c.conv != nullptr && c.conv->enCurso()) {
-                    c.estado = "escuchando";
-                    enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});
+                    // Pidió la foto: desde ahora se buscan tomas de frente (y se cuenta el tiempo).
+                    if (c.buscandoFoto) c.fotoDesdeMs = ahora;
+                    c.estado = c.buscandoFoto ? "foto" : "escuchando";
+                    enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
                     emit vivoCambio();
                 }
+            }
+            continue;
+        }
+        if (c.buscandoFoto && c.conv != nullptr) {
+            if (c.fotoDesdeMs == 0) c.fotoDesdeMs = ahora; // sin voz: no hubo nada que esperar
+            if (ahora - c.fotoDesdeMs > kFotoMs) {
+                const auto r = c.conv->fotoFallo(c.fotoSugerencia.toStdString());
+                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
             }
             continue;
         }
@@ -914,7 +955,7 @@ void TotemsViewModel::tic() {
             if (ahora - c.ultimaVozMs > kSilencioMs) {
                 c.ultimaVozMs = ahora;
                 const auto r = c.conv->silencio();
-                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar);
+                aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
             }
             continue;
         }

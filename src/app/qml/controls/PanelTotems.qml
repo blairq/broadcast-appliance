@@ -375,6 +375,13 @@ Item {
                         Text { text: "Saludar por el nombre a quien reconoce la cara (y no preguntárselo)"
                                color: Theme.text; font.pixelSize: 12 }
                     }
+                    RowLayout {
+                        spacing: 8
+                        Toggle { checked: !!raiz.totem && raiz.totem.foto
+                                 onToggled: (wanted) => raiz.cambiar("foto", wanted) }
+                        Text { text: "Al final, pedirle que mire a la cámara para una foto de frente"
+                               color: Theme.text; font.pixelSize: 12 }
+                    }
 
                     // --- Los campos -----------------------------------------------
                     RowLayout {

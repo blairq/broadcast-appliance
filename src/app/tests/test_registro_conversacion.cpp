@@ -176,6 +176,7 @@ void paraDecirYMostrar() {
 
 Totem totemDePrueba() {
     Totem t = totemNuevo("entrada", "Entrada");
+    t.foto = false; // el paso de la foto se prueba aparte (fotoDeFrente)
     Campo tel;
     tel.clave = "telefono";
     tel.etiqueta = "Teléfono";
@@ -322,6 +323,7 @@ void silencioYCancelar() {
 
 void sinConfirmarYTipos() {
     Totem t = totemNuevo("t", "T");
+    t.foto = false;
     t.confirmar = false;
     Campo n;
     n.clave = "acompanantes";
@@ -353,6 +355,7 @@ void sinConfirmarYTipos() {
 
     // Sin campos: saluda, despide y guarda (queda acreditado).
     Totem vacio = totemNuevo("v", "V");
+    vacio.foto = false;
     vacio.campos.clear();
     Conversacion cv2(vacio, "Feria");
     r = cv2.empezar({"p", "Ana", false});
@@ -361,11 +364,53 @@ void sinConfirmarYTipos() {
 
     // El sí/no se confirma solo, aunque el tótem confirme lo demás.
     Totem t2 = totemNuevo("t2", "T2");
+    t2.foto = false;
     t2.campos = {s};
     Conversacion cv3(t2, "X");
     cv3.empezar({});
     r = cv3.oido("de una");
     CHECK(cv3.datos()["newsletter"] == true && r.guardar, "sí/no sin confirmar");
+}
+
+void fotoDeFrente() {
+    // Con `foto` (viene prendido): después del último dato pide que mire a la cámara, y
+    // recién con la toma de frente se despide y guarda.
+    Totem t = totemNuevo("f", "F");
+    CHECK(t.foto, "un tótem nuevo pide la foto");
+    t.confirmar = false;
+    t.campos.resize(1); // solo el nombre
+    Conversacion cv(t, "Expo");
+    cv.empezar({});
+    auto r = cv.oido("me llamo ana pérez");
+    CHECK(r.foto && !r.guardar && !r.terminar && contiene(r.decir, "mirá derecho a la cámara"),
+          "último dato: pide la foto y todavía no guarda");
+    CHECK(cv.estado() == Conversacion::Estado::Foto && cv.enCurso() && cv.pedido().is_null(),
+          "en el paso de la foto: en curso, sin campo pedido");
+    CHECK(cv.paso() == "mirando a la cámara", "el paso se lee");
+    CHECK(cv.oido("hola qué tal").decir.empty() && cv.estado() == Conversacion::Estado::Foto,
+          "lo que diga mientras mira no cambia nada");
+    CHECK(cv.silencio().decir.empty(), "callado es lo esperable: no es un silencio");
+    r = cv.fotoLista();
+    CHECK(r.guardar && r.terminar && !r.foto && contiene(r.decir, "Salió muy bien"), "con la foto, guarda y despide");
+    CHECK(cv.datos()["nombre"] == "Ana Pérez", "los datos siguen ahí");
+
+    // Si no sale: una vez le dice qué corregir; la segunda sigue sin foto.
+    Conversacion cv2(t, "Expo");
+    cv2.empezar({});
+    cv2.oido("juan gomez");
+    r = cv2.fotoFallo("Acercate un poco.");
+    CHECK(r.foto && !r.terminar && contiene(r.decir, "Acercate un poco.") && contiene(r.decir, "Mirá derecho"),
+          "primera vez: la sugerencia y otra vez");
+    r = cv2.fotoFallo("");
+    CHECK(r.guardar && r.terminar && contiene(r.decir, "sin la foto"), "segunda: sigue sin foto y guarda");
+    CHECK(cv2.fotoLista().decir.empty(), "terminada, una foto tardía no hace nada");
+
+    // Cancelar también vale mientras mira.
+    Conversacion cv3(t, "Expo");
+    cv3.empezar({});
+    cv3.oido("juan gomez");
+    r = cv3.oido("cancelar");
+    CHECK(r.terminar && !r.guardar, "cancelar en el paso de la foto: sin guardar");
 }
 
 } // namespace
@@ -380,6 +425,7 @@ int main() {
     reintentosYSalteo();
     silencioYCancelar();
     sinConfirmarYTipos();
+    fotoDeFrente();
     if (g_fallos == 0) std::printf("test_registro_conversacion: todo bien\n");
     return g_fallos == 0 ? 0 : 1;
 }

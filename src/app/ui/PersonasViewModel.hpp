@@ -131,6 +131,7 @@ class PersonasViewModel : public QObject {
         float parecido = 0.0f;
         bool hayCara = false;
         bool sirve = false;
+        QString sugerencia; ///< si no sirve, qué pedirle («acercate un poco», «mirá a la cámara»)
     };
     /// `luego(quien, error)` en el hilo de la interfaz. El trabajo pesado va al
     /// hilo del reconocimiento (Reconocedor), como compararFoto.

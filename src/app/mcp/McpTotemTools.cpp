@@ -40,6 +40,7 @@ json propiedadesDeTotem() {
             {"yaRegistrado", {{"type", "string"}, {"description", "lo que le dice a quien ya se registró en este evento"}}},
             {"confirmar", {{"type", "boolean"}, {"description", "repetir cada dato y preguntar «¿está bien?»"}}},
             {"reconocer", {{"type", "boolean"}, {"description", "saludar por el nombre a quien reconoce la cara"}}},
+            {"foto", {{"type", "boolean"}, {"description", "al final, pedirle que mire a la cámara y esperar una foto de frente que sirva"}}},
             {"campos", {{"type", "array"}, {"items", campo}, {"description", "reemplaza la lista entera, en orden"}}}};
 }
 

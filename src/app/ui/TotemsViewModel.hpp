@@ -170,13 +170,14 @@ class TotemsViewModel : public QObject {
     void cargarVoz();
     void mirarCara(Conexion& c);
     void alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
-                bool hayCara, bool sirve);
+                bool hayCara, bool sirve, const QString& sugerencia);
     void empezar(Conexion& c, const QString& personaId, const QString& nombre);
     void alOido(const QString& conn, const QString& texto);
     void alToque(Conexion& c, const nlohmann::json& ev);
-    /// Hace lo que dice la conversación: decir, mostrar, pedir, guardar, terminar.
+    /// Hace lo que dice la conversación: decir, mostrar, pedir, guardar, terminar, y
+    /// `foto`: buscar una toma de frente en la cámara cuando termine de decirlo.
     void aplicar(Conexion& c, const std::string& decir, bool campos, const std::string& pedir, bool guardar,
-                 bool terminar);
+                 bool terminar, bool foto = false);
     void decir(Conexion& c, const std::string& texto);
     void guardarRegistro(Conexion& c);
     void tic();

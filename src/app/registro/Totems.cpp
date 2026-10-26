@@ -146,6 +146,7 @@ json Totem::aJson() const {
                 {"yaRegistrado", yaRegistrado},
                 {"confirmar", confirmar},
                 {"reconocer", reconocer},
+                {"foto", foto},
                 {"campos", cs}};
 }
 
@@ -161,6 +162,7 @@ Totem Totem::deJson(const json& j) {
     t.yaRegistrado = textoDe(j, "yaRegistrado", t.yaRegistrado);
     t.confirmar = boolDe(j, "confirmar", t.confirmar);
     t.reconocer = boolDe(j, "reconocer", t.reconocer);
+    t.foto = boolDe(j, "foto", t.foto);
     if (j.is_object() && j.contains("campos") && j["campos"].is_array()) {
         t.campos.clear();
         for (const json& c : j["campos"]) t.campos.push_back(Campo::deJson(c));

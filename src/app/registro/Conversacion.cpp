@@ -733,6 +733,18 @@ void Conversacion::avanzar(Respuesta& r, const std::string& antes) {
 }
 
 void Conversacion::terminar(Respuesta& r, const std::string& antes) {
+    // Antes de despedirse, la foto de frente: la que tiene que quedar en la ficha es una
+    // mirando a la cámara, no la de alguien que se estaba acomodando.
+    if (t_.foto && !fotoHecha_) {
+        estado_ = Estado::Foto;
+        fotoIntentos_ = 0;
+        const std::string pedido = "Por último, mirá derecho a la cámara un momento, así te saco una foto de frente.";
+        r.decir = antes.empty() ? pedido : antes + " " + pedido;
+        r.foto = true;
+        r.campos = true;
+        r.pedir.clear();
+        return;
+    }
     estado_ = Estado::Terminada;
     // El nombre que dijo, o el de su ficha si se lo puede llamar por la cara.
     std::string quien = nombre();
@@ -773,6 +785,7 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     if (f.empty()) return r;
     silencios_ = 0;
     if (esCancelar(f)) return cancelar();
+    if (estado_ == Estado::Foto) return r; // mirando a la cámara: lo que diga no cambia nada
     const Campo& c = t_.campos[actual_];
     r.pedir = c.clave;
     if (estado_ == Estado::Confirmando) {
@@ -843,7 +856,7 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
 
 Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const std::string& valor) {
     Respuesta r;
-    if (!enCurso()) return r;
+    if (!enCurso() || estado_ == Estado::Foto) return r;
     std::size_t i = 0;
     while (i < t_.campos.size() && t_.campos[i].clave != clave) ++i;
     if (i == t_.campos.size()) return r;
@@ -866,7 +879,8 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
 
 Conversacion::Respuesta Conversacion::silencio() {
     Respuesta r;
-    if (!enCurso()) return r;
+    // En el paso de la foto el que espera es quien llama (fotoFallo): callado es lo esperable.
+    if (!enCurso() || estado_ == Estado::Foto) return r;
     r.pedir = t_.campos[actual_].clave;
     ++silencios_;
     if (silencios_ == 1) {
@@ -893,6 +907,29 @@ Conversacion::Respuesta Conversacion::cancelar() {
     return r;
 }
 
+Conversacion::Respuesta Conversacion::fotoLista() {
+    Respuesta r;
+    if (estado_ != Estado::Foto) return r;
+    fotoHecha_ = true;
+    terminar(r, "¡Salió muy bien!");
+    return r;
+}
+
+Conversacion::Respuesta Conversacion::fotoFallo(const std::string& sugerencia) {
+    Respuesta r;
+    if (estado_ != Estado::Foto) return r;
+    if (++fotoIntentos_ == 1) {
+        r.decir = (sugerencia.empty() ? std::string("No te veo bien.") : sugerencia) + " Mirá derecho a la cámara.";
+        r.foto = true;
+        return r;
+    }
+    // Una segunda vez no: la fila de la puerta importa más que la foto (la cara que
+    // se vio durante la charla queda igual, si sirvió).
+    fotoHecha_ = true;
+    terminar(r, "No pasa nada, seguimos sin la foto.");
+    return r;
+}
+
 json Conversacion::datos() const {
     json d = json::object();
     for (std::size_t i = 0; i < t_.campos.size(); ++i)
@@ -913,7 +950,7 @@ json Conversacion::camposParaMostrar() const {
 }
 
 json Conversacion::pedido() const {
-    if (!enCurso()) return nullptr;
+    if (!enCurso() || estado_ == Estado::Foto) return nullptr;
     const Campo& c = t_.campos[actual_];
     return {{"clave", c.clave},
             {"etiqueta", c.etiqueta.empty() ? c.clave : c.etiqueta},
@@ -931,6 +968,7 @@ std::string Conversacion::paso() const {
     switch (estado_) {
         case Estado::Esperando: return "esperando";
         case Estado::Terminada: return "terminada";
+        case Estado::Foto: return "mirando a la cámara";
         case Estado::Preguntando:
         case Estado::Confirmando: {
             const Campo& c = t_.campos[actual_];

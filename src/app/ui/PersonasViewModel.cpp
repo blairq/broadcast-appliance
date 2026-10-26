@@ -685,7 +685,9 @@ void PersonasViewModel::identificarFoto(const QByteArray& jpeg,
         if (i < 0) return luego(q, {});
         const auto& visto = v[static_cast<std::size_t>(i)];
         q.hayCara = true;
-        q.sirve = calidadDe(*img, visto.cara).sirve;
+        const Calidad cal = calidadDe(*img, visto.cara);
+        q.sirve = cal.sirve;
+        q.sugerencia = QString::fromStdString(cal.sugerencia);
         const auto c = yo->d_->libreta.buscar(visto.vector);
         q.parecido = c.parecido;
         if (!c.id.empty() && c.parecido >= ba::rostros::kMismaPersona()) {
