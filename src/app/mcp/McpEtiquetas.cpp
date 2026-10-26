@@ -1034,6 +1034,12 @@ const Fila kPropias[] = {
                        "identificar a la persona por su documento"},
     {"documento_tipos", "que documentos de identidad entiende tipos de dni licencias pasaportes que acepta el totem "
                         "documentos de otros paises plugin de documentos"},
+    {"totem_atencion_enlace", "link de atencion remota del registro qr para el equipo atender los totems desde "
+                              "el celular mirar y escuchar las conversaciones ayudar a la gente renovar"},
+    {"totem_atender", "atender una conversacion del totem tomar el registro pausar al asistente callar al asistente "
+                      "devolver al asistente guardar el registro ya cancelar intervenir ayudar a alguien que no puede"},
+    {"totem_dato", "completar un dato del registro corregir el correo poner el telefono cambiar el nombre "
+                   "borrar un dato que quedo mal escribirle los datos"},
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
                         "switch dar de alta sola lobby los que llegan"},
     {"rostro_lobby", "quien espera quien llego quien esta en el lobby reconocer a los que entran "

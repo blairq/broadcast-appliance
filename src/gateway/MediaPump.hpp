@@ -28,7 +28,12 @@
 //                 talk), la voz del asistente BA.Audio.Atendedor
 //     Atencion:   la voz del asistente BA.Audio.Atendedor (solo audio)
 //     Registro(k): la voz del asistente de ese canal BA.Audio.RegistroVoz.<k>
-//                 (solo audio, solo a esa conexión; k = 1..kMaxTotems)
+//                 (solo audio, solo a esa conexión; k = 1..kMaxTotems), más la
+//                 voz de quien la atiende por web, si la atiende
+//     RegistroAtiende(k): la cámara del tótem del canal k (los mismos cuadros
+//                 que suben, achicados) y lo que se oye ahí (la voz de la
+//                 persona más la del asistente). Su micrófono, solo si atiende,
+//                 baja a ese tótem (ColaVoz.hpp) y no va a ningún otro lado
 //
 //   Un sender existe siempre (spec §4.2): mientras un slot del programa no
 //   tiene video del invitado, B publica una placa.
@@ -218,6 +223,9 @@ class MediaPump {
     /// mezclar con nada: la del que atiende (MediaRoute::oyeAlAtendedor) y la de cada
     /// canal de registro (MediaRoute::oyeVozRegistro) son esto mismo.
     void vozAudioThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
+    /// La voz del asistente del canal de registro `canal`, con lo que hay que mezclarle:
+    /// al tótem, la voz de quien lo atiende por web; a quien lo atiende, la de la persona.
+    void vozRegistroThread(std::wstring nombre, int canal);
     void operatorVideoThread();
     void plateThread();
 
@@ -256,6 +264,16 @@ class MediaPump {
     std::unique_ptr<AudioOut> atencionAudio_; // BA.Audio.Atencion (ruta Atencion)
     std::vector<std::unique_ptr<AudioOut>> registroAudio_; // BA.Audio.Registro.<k> ([0] reservado)
     std::vector<std::unique_ptr<VideoOut>> registroVideo_; // BA.Registro.<k> ([0] reservado)
+    // La atención remota del registro, por canal ([0] reservado): las voces que esperan a
+    // mezclarse en la bajada del asistente (ColaVoz.hpp) y el cuadro achicado para quien mira.
+    struct MonitorRegistro {
+        std::mutex lock;
+        std::deque<float> persona; // la voz de la persona del tótem, para quien la atiende
+        std::deque<float> habla;   // la voz de quien la atiende, para el tótem
+        std::vector<uint8_t> video;
+        uint64_t videoNs = 0;
+    };
+    std::array<MonitorRegistro, kMaxTotems + 1> monitorRegistro_;
 
     // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
     // hilo del retorno la mezcla con el programa (una sola fuente por sesión).

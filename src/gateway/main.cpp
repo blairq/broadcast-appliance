@@ -69,6 +69,7 @@
 
 // ba_core (frozen headers).
 #include "ipc/CanalesEscena.hpp"
+#include "ipc/CanalesRegistro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "security/CredentialStore.hpp"
@@ -548,7 +549,8 @@ int main(int argc, char** argv) {
     WebrtcHub hub(kMaxInvitados + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
                       cfg.vistasRemotas /* lo que miran los integrantes en su celular */ +
                       1 /* el que espera en la sesión remota, atendido hablando (de a uno) */ +
-                      kMaxTotems /* las conversaciones de registro por tótem */, cfg.guestVideoW, cfg.guestVideoH,
+                      kMaxTotems /* las conversaciones de registro por tótem */ +
+                      kMaxAtiendenRegistro /* quienes las atienden por web (miran, escuchan y hablan) */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
@@ -570,9 +572,9 @@ int main(int argc, char** argv) {
     pumpCfg.registroVozAudioNames.emplace_back();
     pumpCfg.registroVideoNames.emplace_back();
     for (int k = 1; k <= kMaxTotems; ++k) {
-        pumpCfg.registroAudioNames.push_back(toWide("BA.Audio.Registro." + std::to_string(k)));
-        pumpCfg.registroVideoNames.push_back(toWide("BA.Registro." + std::to_string(k)));
-        pumpCfg.registroVozAudioNames.push_back(toWide("BA.Audio.RegistroVoz." + std::to_string(k)));
+        pumpCfg.registroAudioNames.push_back(ba::ipc::nombreAudioRegistro(k));
+        pumpCfg.registroVideoNames.push_back(ba::ipc::nombreVideoRegistro(k));
+        pumpCfg.registroVozAudioNames.push_back(ba::ipc::nombreVozRegistro(k));
     }
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,

@@ -162,8 +162,11 @@ int main() {
           "los tótems mal armados no se cargan");
 
     // --- Conexiones y canales ---------------------------------------------------------
+    // Una conexión más que canales en «entrada» (la que espera) y una de otro tótem.
+    constexpr int kN = ba::gateway::kMaxTotems;
+    const std::size_t espera = static_cast<std::size_t>(kN), otro = static_cast<std::size_t>(kN) + 1;
     std::vector<std::string> cs;
-    for (int i = 0; i < 6; ++i) cs.push_back(r.alta(i < 5 ? "entrada" : "sala-b", "192.168.1.10", "sala"));
+    for (int i = 0; i < kN + 2; ++i) cs.push_back(r.alta(i <= kN ? "entrada" : "sala-b", "192.168.1.10", "sala"));
     CHECK(cs[0] != cs[1] && !cs[0].empty() && cs[0][0] == 'c', "cada conexión tiene su conn");
     CHECK(ultimo("conexion").value("conectado", false) && ultimo("conexion").value("id", "") == "sala-b",
           "la app se entera de cada conexión");
@@ -171,35 +174,35 @@ int main() {
         CHECK(r.tomarCanal(cs[static_cast<size_t>(i)]) == i + 1, "canal libre, en orden");
     CHECK(ultimo("canal").value("canal", 0) == ba::gateway::kMaxTotems, "la app se entera del canal");
     CHECK(r.tomarCanal(cs[1]) == 2, "pedirlo de nuevo devuelve el mismo (sin otro aviso)");
-    CHECK(r.tomarCanal(cs[4]) == 0, "con los cuatro tomados: lleno");
+    CHECK(r.tomarCanal(cs[espera]) == 0, "con todos tomados: lleno");
     CHECK(r.tomarCanal("c999") == 0, "una conexión que no existe: nada");
     r.soltarCanal(cs[1]);
     CHECK(r.canalDe(cs[1]) == 0 && ultimo("canal").value("canal", -1) == 0 && ultimo("canal").value("conn", "") == cs[1],
           "soltarlo avisa canal 0");
     CHECK(cerradas == 1, "soltar el canal cierra su WebRTC");
-    CHECK(r.tomarCanal(cs[4]) == 2, "el canal suelto lo toma el que esperaba");
+    CHECK(r.tomarCanal(cs[espera]) == 2, "el canal suelto lo toma el que esperaba");
 
     // El audio: solo con canal, y solo si cambia.
     const std::size_t antesAudio = eventos.size();
-    r.audioListo(cs[4], true);
-    r.audioListo(cs[4], true);
+    r.audioListo(cs[espera], true);
+    r.audioListo(cs[espera], true);
     CHECK(eventos.size() == antesAudio + 1 && ultimo("audio").value("listo", false), "audio listo: un aviso");
     r.audioListo(cs[1], true);
     CHECK(eventos.size() == antesAudio + 1, "sin canal, el audio no cuenta");
-    r.soltarCanal(cs[4]);
-    CHECK(!ultimo("audio").value("listo", true) && ultimo("audio").value("conn", "") == cs[4],
+    r.soltarCanal(cs[espera]);
+    CHECK(!ultimo("audio").value("listo", true) && ultimo("audio").value("conn", "") == cs[espera],
           "soltar el canal con audio avisa que se cayó");
     const std::size_t antesTardio = eventos.size();
-    r.audioListo(cs[4], false);
+    r.audioListo(cs[espera], false);
     CHECK(eventos.size() == antesTardio, "el aviso tardío de la sesión cerrada no se repite");
 
     // La conexión que se va suelta su canal.
-    CHECK(r.tomarCanal(cs[5]) == 2, "otro tótem comparte los mismos canales");
-    r.baja(cs[5]);
-    CHECK(r.canalDe(cs[5]) == 0, "al irse, sin canal");
+    CHECK(r.tomarCanal(cs[otro]) == 2, "otro tótem comparte los mismos canales");
+    r.baja(cs[otro]);
+    CHECK(r.canalDe(cs[otro]) == 0, "al irse, sin canal");
     CHECK(!ultimo("conexion").value("conectado", true) && ultimo("canal").value("canal", -1) == 0,
           "la app se entera: canal 0 y desconectado");
-    CHECK(r.tomarCanal(cs[4]) == 2, "su canal queda libre");
+    CHECK(r.tomarCanal(cs[espera]) == 2, "su canal queda libre");
 
     // --- Lo que toca la persona va a la app ------------------------------------------
     CHECK(RegistroBorde::toque("c1", "entrada", {{"type", "empezar"}}).value("accion", "") == "empezar", "empezar");
@@ -222,10 +225,10 @@ int main() {
     auto cortar = r.ponerTotems(json::array({totem("entrada", sal, token, "Entrada"), totem("sala-b", sal, token2)}));
     CHECK(cortar.empty(), "reenviar la misma lista no corta a nadie");
     cortar = r.ponerTotems(json::array({totem("entrada", sal, std::string(64, 'c'))}));
-    CHECK(cortar.size() == 5, "el token regenerado corta las conexiones de ese tótem");
+    CHECK(cortar.size() == espera + 1, "el token regenerado corta las conexiones de ese tótem");
     CHECK(!r.autenticar("entrada", token, nombre), "el token viejo ya no anda");
     CHECK(!r.autenticar("sala-b", token2, nombre), "el que se dio de baja tampoco");
-    CHECK(r.conexionesDe("entrada").size() == 5, "hasta que su lazo sale, siguen anotadas");
+    CHECK(r.conexionesDe("entrada").size() == espera + 1, "hasta que su lazo sale, siguen anotadas");
 
     // --- La oferta: el micrófono y a lo sumo una cámara ---------------------------------
     const auto sdpDe = [](const std::string& secciones) { return "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n" + secciones; };

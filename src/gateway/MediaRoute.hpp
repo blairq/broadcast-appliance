@@ -31,7 +31,15 @@
 //               a texto; nunca va a la mezcla ni al aire), y su camara, a
 //               BA.Registro.<k> (la app reconoce la cara; se puede mirar)
 //               baja <- la voz del asistente de ese canal (BA.Audio.RegistroVoz.<k>),
-//               solo a esa conexion
+//               solo a esa conexion; con `talk`, mezclada con la voz de quien la
+//               atiende por web (RegistroAtiende con talk del mismo canal)
+//   RegistroAtiende(k) (una persona que atiende el registro desde la web, la
+//               pagina /registro-atiende/; k = el canal de la conversacion que
+//               mira, 0 = ninguna)
+//               sube -> su microfono: solo con `talk` (la esta atendiendo), y
+//               solo a la bajada de ese tótem (nunca a la mezcla, ni a la app)
+//               baja <- la camara del tótem del canal k y lo que se oye ahi: la
+//               voz de la persona y la del asistente, mezcladas
 //   None        nada (desconectado / sin lugar)
 //
 // Asi un invitado del lobby solo ve al operador (nunca a los demas del lobby
@@ -40,6 +48,8 @@
 #pragma once
 
 #include <cstdint>
+
+#include "ipc/CanalesRegistro.hpp"
 
 namespace ba::gateway {
 
@@ -50,8 +60,12 @@ namespace ba::gateway {
 inline constexpr int kMaxInvitados = 16;
 /// Las conversaciones de registro a la vez (canales de audio 1..kMaxTotems, ruta
 /// Registro). Son voces que la app pasa a texto y voces sintetizadas que contestan: cada
-/// una cuesta un oído y una voz en la app, por eso un tope chico y fijo.
-inline constexpr int kMaxTotems = 4;
+/// una cuesta un oído y una voz en la app, por eso un tope chico y fijo, el MISMO para los dos
+/// procesos (ipc/CanalesRegistro.hpp).
+inline constexpr int kMaxTotems = ba::ipc::kCanalesRegistro;
+/// Quienes atienden el registro por web con medios a la vez (cada una mira, escucha y le
+/// habla a un tótem por su propia sesión WebRTC del pool).
+inline constexpr int kMaxAtiendenRegistro = 4;
 
 struct MediaRoute {
     /// Backstage: admitido en modo oradores, esperando su turno: RECIBE el
@@ -65,7 +79,9 @@ struct MediaRoute {
     /// solo canal (la voz del que atiende es una sola: de a uno, ver sala::Turnos).
     /// Registro: una persona que se registra hablando frente a un tótem, por el canal
     /// `index` (1..kMaxTotems): sube solo su micrófono y le baja la voz de ese canal.
-    enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto, Escena, Atencion, Registro };
+    /// RegistroAtiende: quien atiende el registro desde la web, mirando el canal `index`
+    /// (0 = ninguno); con `talk`, la está atendiendo y su voz baja a ese tótem.
+    enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto, Escena, Atencion, Registro, RegistroAtiende };
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
     bool talk = false; ///< el operador le habla (le llega su voz; adentro, mezclada con el retorno: IFB)
@@ -84,6 +100,7 @@ struct MediaRoute {
     static MediaRoute escena(int canal) { return {Kind::Escena, canal, false}; }
     static MediaRoute atencion() { return {Kind::Atencion, 0, false}; }
     static MediaRoute registro(int canal) { return {Kind::Registro, canal, false}; }
+    static MediaRoute registroAtiende(int canal, bool habla) { return {Kind::RegistroAtiende, canal, habla}; }
     /// Le llega la voz del que atiende (BA.Audio.Atendedor): el del lobby con `atiende`
     /// (si el operador no le está hablando: gana el operador) y el de la sesión remota
     /// atendido hablando. Una sola regla para MediaPump y los tests.
@@ -91,6 +108,11 @@ struct MediaRoute {
     /// Le llega la voz del asistente del registro del canal `k` (BA.Audio.RegistroVoz.<k>):
     /// solo la conexión que tiene ese canal.
     bool oyeVozRegistro(int k) const { return kind == Kind::Registro && index == k && k >= 1 && k <= kMaxTotems; }
+    /// Mira y escucha la conversación del canal de registro `k` desde la web (la cámara del
+    /// tótem, la voz de la persona y la del asistente).
+    bool miraRegistro(int k) const { return kind == Kind::RegistroAtiende && index == k && k >= 1 && k <= kMaxTotems; }
+    /// Además la atiende: su micrófono baja SOLO al tótem del canal `k`.
+    bool hablaARegistro(int k) const { return miraRegistro(k) && talk; }
     bool operator==(const MediaRoute& o) const {
         return kind == o.kind && index == o.index && talk == o.talk && atiende == o.atiende;
     }

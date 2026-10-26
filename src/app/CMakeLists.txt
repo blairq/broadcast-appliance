@@ -921,6 +921,11 @@ endif()
     # ba_core: los tipos de documento (documentos/Documento, el DNI) del paso «documento».
     target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
+    # La conversación atendida por una persona (la atención remota del registro).
+    add_executable(test_registro_atencion tests/test_registro_atencion.cpp registro/Conversacion.cpp registro/Totems.cpp)
+    target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_atencion PRIVATE nlohmann_json::nlohmann_json ba_core) # ba_core: el paso «documento»
+    add_test(NAME test_registro_atencion COMMAND test_registro_atencion)
 
     # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
     add_executable(test_reglas_sala tests/test_reglas_sala.cpp sala/ReglasSala.cpp)

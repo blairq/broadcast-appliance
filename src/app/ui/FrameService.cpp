@@ -210,7 +210,7 @@ void FrameService::poll() {
         wanted.push_back(QString("backstage:%1").arg(k));
     }
     // Las cámaras de los tótems de registro (B publica una por canal de conversación,
-    // 1..4: kMaxTotems del gateway). Se reconoce la cara ahí y se las puede mirar.
+    // 1..ipc::kCanalesRegistro, el mismo tope que el gateway). Se reconoce la cara ahí y se las puede mirar.
     for (int k = 1; k <= kRegistroSlots; ++k) {
         wanted.push_back(QString("registro:%1").arg(k));
     }

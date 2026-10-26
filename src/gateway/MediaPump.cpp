@@ -21,6 +21,7 @@
 #if BA_GATEWAY_HAVE_WEBRTC
 #include "third_party/libyuv/include/libyuv/scale_argb.h"
 #endif
+#include "ColaVoz.hpp"
 #include "Log.hpp"
 
 #ifdef _WIN32
@@ -167,6 +168,10 @@ void drawWaitPlate(uint8_t* dst, int w, int h) {
     }
 }
 
+/// Cuánta voz espera a mezclarse en otra bajada (ColaVoz.hpp): 300 ms estéreo. Más sería
+/// retraso en una charla; si el reloj se para, lo viejo se tira.
+size_t kTopeColaVoz(int rate) { return static_cast<size_t>(rate) * 2u * 3u / 10u; }
+
 uint64_t monoNs() {
     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                      std::chrono::steady_clock::now().time_since_epoch())
@@ -256,9 +261,7 @@ void MediaPump::start() {
     for (size_t k = 1; k < cfg_.registroVozAudioNames.size() && k <= static_cast<size_t>(kMaxTotems); ++k) {
         if (cfg_.registroVozAudioNames[k].empty()) continue;
         const int canal = static_cast<int>(k);
-        threads_.emplace_back(&MediaPump::vozAudioThread, this, cfg_.registroVozAudioNames[k],
-                              "registro: voz del asistente del canal " + std::to_string(canal),
-                              [canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
+        threads_.emplace_back(&MediaPump::vozRegistroThread, this, cfg_.registroVozAudioNames[k], canal);
     }
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
@@ -689,6 +692,58 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
     }
 }
 
+void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
+    // La forma de vozAudioThread: el anillo del asistente de este canal marca el reloj (la app
+    // lo llena cada 10 ms, con voz o con silencio, mientras el canal conversa). Al tótem le
+    // baja esa voz más la de quien lo atiende por web; a quien lo atiende, esa voz más la de la
+    // persona del tótem. Cada uno oye al otro y al asistente, y nadie se oye a sí mismo.
+    SharedAudioRing reader;
+    bool open = false;
+    auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    std::vector<float> block, alTotem, alQueAtiende;
+    const std::string etiqueta = "registro: voz del asistente del canal " + std::to_string(canal);
+    MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(canal)];
+    while (!stop_.load(std::memory_order_relaxed)) {
+        if (!open) {
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastRetry >= std::chrono::milliseconds(500)) {
+                lastRetry = now;
+                if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
+                    open = true;
+                    log_.info(etiqueta + " abierta");
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            continue;
+        }
+        if (reader.stale()) {
+            reader = SharedAudioRing{};
+            open = false;
+            continue;
+        }
+        const size_t n = reader.blockFloats();
+        if (block.size() < n) block.resize(n);
+        PoppedBlock blk;
+        if (reader.pop(block.data(), blk)) {
+            const auto totem = sessionsWhere([canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
+            const auto miran = sessionsWhere([canal](const MediaRoute& r) { return r.miraRegistro(canal); });
+            alTotem.assign(blk.samples, blk.samples + n);
+            alQueAtiende.assign(blk.samples, blk.samples + n);
+            {
+                std::lock_guard<std::mutex> l(m.lock);
+                colavoz::mezclar(m.habla, alTotem.data(), n);
+                if (!miran.empty()) colavoz::mezclar(m.persona, alQueAtiende.data(), n);
+                else m.persona.clear();
+            }
+            for (int s : totem)
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alTotem.data(), n, cfg_.audioRate);
+            for (int s : miran)
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(alQueAtiende.data(), n, cfg_.audioRate);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
 void MediaPump::operatorVideoThread() {
     SpoutReceiver receiver;
     bool sub = false;
@@ -797,6 +852,22 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
         // La persona que se registra frente a un tótem: su voz, solo para pasarla a
         // texto (como la atención: una entrada interna de la app, fuera de la mezcla).
         publishAudio(*registroAudio_[static_cast<size_t>(r.index)], samples, n, rate);
+        // Y para quien la atiende por web, si alguien la está mirando: se suma a la voz del
+        // asistente en vozRegistroThread (un track, una fuente).
+        const int k = r.index;
+        if (k <= kMaxTotems && !sessionsWhere([k](const MediaRoute& x) { return x.miraRegistro(k); }).empty()) {
+            const std::vector<float> v = colavoz::remuestrear(samples, n, rate, cfg_.audioRate);
+            MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(k)];
+            std::lock_guard<std::mutex> l(m.lock);
+            colavoz::encolar(m.persona, v.data(), v.size(), kTopeColaVoz(cfg_.audioRate));
+        }
+    } else if (r.kind == MediaRoute::Kind::RegistroAtiende && r.talk && r.index >= 1 && r.index <= kMaxTotems) {
+        // Quien atiende el registro por web, mientras atiende: su voz baja SOLO a ese tótem
+        // (mezclada con la del asistente). Nunca a la mezcla, ni a la app.
+        const std::vector<float> v = colavoz::remuestrear(samples, n, rate, cfg_.audioRate);
+        MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(r.index)];
+        std::lock_guard<std::mutex> l(m.lock);
+        colavoz::encolar(m.habla, v.data(), v.size(), kTopeColaVoz(cfg_.audioRate));
     }
 }
 
@@ -888,6 +959,22 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
     } else if (r.kind == MediaRoute::Kind::Registro && r.index >= 1 &&
                r.index < static_cast<int>(registroVideo_.size()) && registroVideo_[static_cast<size_t>(r.index)]) {
         publishVideo(*registroVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+        // Quien atiende por web ve los mismos cuadros, achicados al tamaño del retorno y a lo
+        // sumo a 15 por segundo (es para ver qué pasa, no para el aire).
+        const int k = r.index;
+        if (k > kMaxTotems) return;
+        const auto miran = sessionsWhere([k](const MediaRoute& x) { return x.miraRegistro(k); });
+        if (miran.empty()) return;
+        MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(k)];
+        std::lock_guard<std::mutex> l(m.lock);
+        const uint64_t ahora = monoNs();
+        if (ahora - m.videoNs < 66'000'000ULL) return;
+        m.videoNs = ahora;
+        m.video.resize(static_cast<size_t>(cfg_.guestVideoW) * cfg_.guestVideoH * 4u);
+        fitBgra(pixels, w, h, m.video.data(), cfg_.guestVideoW, cfg_.guestVideoH);
+        for (int s : miran)
+            if (WebrtcSession* sess = hub_.session(s))
+                sess->pushLocalVideo(m.video.data(), m.video.size(), cfg_.guestVideoW, cfg_.guestVideoH);
     }
 }
 
@@ -908,6 +995,13 @@ void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, 
 void MediaPump::apagarRegistro(int canal) {
     if (canal < 1 || canal >= static_cast<int>(registroVideo_.size()) || !registroVideo_[static_cast<size_t>(canal)]) return;
     VideoOut& out = *registroVideo_[static_cast<size_t>(canal)];
+    if (canal <= kMaxTotems) {
+        // Lo que esperaba mezclarse era de la conversación que terminó.
+        MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(canal)];
+        std::lock_guard<std::mutex> l(m.lock);
+        m.persona.clear();
+        m.habla.clear();
+    }
     if (out.w <= 0 || out.h <= 0) return;
     std::vector<uint8_t> px(static_cast<size_t>(out.w) * out.h * 4u, 0);
     for (size_t i = 3; i < px.size(); i += 4) px[i] = 0xFF;

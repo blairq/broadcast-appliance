@@ -13,7 +13,7 @@
 //
 // Cada tótem admite varias conexiones a la vez (la TV que muestra el QR y cada
 // celular que lo escanea): cada una tiene su `conn` ("c17") y su conversación.
-// Conversaciones con voz a la vez: hasta kMaxTotems (los canales de audio 1..4,
+// Conversaciones con voz a la vez: hasta kMaxTotems (los canales de audio 1..8,
 // MediaRoute::registro). Sin canal libre, la página espera y vuelve a pedir.
 //
 // Página (puerto de invitados, el HTTPS de la sala o el túnel):
@@ -44,6 +44,27 @@
 //     {tipo:"toque", conn, id, accion:"empezar"|"cancelar"|"escrito", clave?, valor?}
 //     {tipo:"intento", id, ip}                 (un link que no vale: para el registro de la app)
 //
+// Atención remota (RegistroAtiende.cpp; docs/funciones/REGISTRO-TOTEM.md, «Atención remota»):
+// una persona del equipo, desde cualquier lado, ve TODAS las conversaciones del evento, mira y
+// escucha una en vivo, la atiende ella (el asistente se calla y su voz le llega solo a ese
+// tótem) y completa o corrige los datos. Un link por evento (cualquiera del equipo lo usa; cada
+// una pone su nombre, que es lo que ve la persona del tótem: «Te atiende Laura»).
+//   GET /registro-atiende/...          la página (Web/registro-atiende, al lado de Web/registro)
+//   GET /ws?registro_atiende=1         primer mensaje {type:"auth", t, nombre} (el token viene en
+//        el FRAGMENTO del link /registro-atiende/#t=<token>) -> {type:"hola", aconn, nombre}.
+//        Después:
+//        {type:"mirar", conn}        mira y escucha esa conversación ("" = ninguna) -> {type:"mirando", conn, canal}
+//        {type:"oferta", sdp}        su WebRTC: un audio (su micrófono; por ahí oye al tótem) y a lo
+//                                    sumo un video (por ahí ve la cámara del tótem) -> respuesta / ice
+//        {type:"atender"|"devolver"|"guardar"|"cancelar", conn} | {type:"dato", conn, clave, valor}
+//                                    -> a la app (evento «atiende»): ella decide
+//   App: POST /api/v1/registro/atencion {sal, hash_token} (vacío = sin atención remota; cambiarlo
+//        corta a quienes estaban), POST /api/v1/registro/atendida {conn, aconn} (quién atiende esa
+//        conversación; "" = el asistente: solo entonces la voz de esa persona baja al tótem),
+//        POST /api/v1/registro/enviar {aconn, msg} o {atiende:"*", msg}; en el estado, `atienden`.
+//   SSE «registro»: {tipo:"atiende-conexion", aconn, nombre, conectado, ip, lugar},
+//        {tipo:"atiende", aconn, nombre, accion, conn, clave?, valor?}, {tipo:"intento", atiende:true, ip}.
+//
 // Seguridad, como la sesión remota: el token (256 bits) se guarda solo como hash con
 // sal y se compara en tiempo constante; Origin igual a Host; 20 mensajes por segundo;
 // latido de 30 s; mensajes de hasta 64 KB. Los intentos por IP cuentan solo los FALLIDOS
@@ -58,6 +79,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -125,6 +147,40 @@ class RegistroBorde {
     /// Un mensaje de la página (ya autenticada) que va a la app como «toque»; null si no es uno.
     static nlohmann::json toque(const std::string& conn, const std::string& id, const nlohmann::json& m);
 
+    // --- La atención remota (RegistroAtiende.cpp) -----------------------------------------
+    /// Los medios de quien atiende: una sesión del pool por página (ruta RegistroAtiende). Lo
+    /// arma SignalingServer. `canal`: el de la conversación que mira (0 = ninguna); `habla`: la
+    /// atiende (su micrófono baja a ese tótem).
+    struct MediosAtiende {
+        std::function<bool(const std::string& aconn, int canal, bool habla, const std::string& sdp,
+                           std::function<void(const nlohmann::json&)> enviar)>
+            oferta;
+        std::function<void(const std::string& aconn, const std::string& candidato)> ice;
+        std::function<void(const std::string& aconn, int canal, bool habla)> ruta;
+        std::function<void(const std::string& aconn)> cerrar;
+    };
+    void setMediosAtiende(MediosAtiende m) { mediosAtiende_ = std::move(m); }
+    /// La credencial del link de atención {sal, hash_token} (vacía = no hay). Devuelve los
+    /// `aconn` a cortar (cambió o se sacó).
+    std::vector<std::string> ponerCredencialAtiende(const nlohmann::json& c);
+    bool autenticarAtiende(const std::string& token) const;
+    /// Anota una página de atención autenticada. Su `aconn` ("a3"), o "" si no hay lugar.
+    std::string altaAtiende(const std::string& nombre, const std::string& ip, const std::string& lugar, long long fd = -1);
+    void bajaAtiende(const std::string& aconn);
+    /// Mira la conversación `conn` ("" = ninguna). false si no hay esa página o esa conversación.
+    bool mirar(const std::string& aconn, const std::string& conn);
+    /// La app dice quién atiende la conversación `conn` ("" = nadie: el asistente). Quien la
+    /// atiende pasa a mirarla. false si no hay esa conversación (o esa página).
+    bool ponerAtendida(const std::string& conn, const std::string& aconn);
+    std::string atendidaPor(const std::string& conn) const;
+    /// La ruta de medios que le toca a `aconn` ahora: {canal que mira, si le habla}.
+    std::pair<int, bool> rutaAtiende(const std::string& aconn) const;
+    /// El nombre que puso quien atiende, prolijo: sin controles, a lo sumo 40 bytes; "" si no queda nada.
+    static std::string nombreAtiende(const std::string& s);
+    /// Un mensaje de la página de atención que va a la app (evento «atiende»); null si no es uno.
+    static nlohmann::json accionAtiende(const std::string& aconn, const std::string& nombre, const nlohmann::json& m);
+    std::vector<std::string> atiendenTodas() const;
+
    private:
     struct Conn {
         long long fd = -1;
@@ -139,6 +195,28 @@ class RegistroBorde {
         std::string nombre, sal, hashToken;
     };
     void wsLoop(long long fd, const std::string& ip, const std::string& lugar);
+
+    // La atención remota (RegistroAtiende.cpp).
+    struct Atiende {
+        long long fd = -1;
+        std::string aconn, nombre, ip, lugar;
+        std::string mira; // la conversación (`conn`) que mira; "" = ninguna
+        std::int64_t desdeMs = 0;
+        bool medios = false; // ya ofreció su WebRTC
+        std::mutex sendLock;
+    };
+    bool atenderAtiende(long long fd, const std::string& method, const std::string& path, const std::string& query,
+                        const std::string& headers, std::uint32_t clientIp, bool externo);
+    bool adminAtiende(long long fd, const std::string& method, const std::string& que, const std::string& body);
+    void wsLoopAtiende(long long fd, const std::string& ip, const std::string& lugar);
+    void enviarAtiende(const std::shared_ptr<Atiende>& a, const nlohmann::json& msg);
+    std::shared_ptr<Atiende> buscarAtiende(const std::string& aconn) const;
+    /// La conversación `conn` cambió de canal, se fue o cambió quién la atiende: las rutas de
+    /// quienes la miran se rehacen.
+    void reubicarAtienden(const std::string& conn);
+    void aplicarRuta(const std::shared_ptr<Atiende>& a);
+    std::pair<int, bool> rutaAtiendeSinLock(const Atiende& a) const;
+    nlohmann::json estadoAtiendenSinLock() const;
     void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     void enviarA(const std::string& conn, const nlohmann::json& msg);
     void cortarConn(const std::string& conn, const std::string& motivo);
@@ -156,6 +234,12 @@ class RegistroBorde {
     std::map<std::string, std::vector<std::int64_t>> fallidos_; // ip -> intentos fallidos
     std::map<int, std::string> canales_;                 // canal (1..kMaxTotems) -> conn
     unsigned long long siguiente_ = 0;                   // para el próximo `conn`
+    // La atención remota (bajo mu_).
+    MediosAtiende mediosAtiende_;
+    std::string salAtiende_, hashAtiende_;
+    std::map<std::string, std::shared_ptr<Atiende>> atienden_; // aconn -> página de atención
+    std::map<std::string, std::string> atendida_;               // conn -> aconn que la atiende
+    unsigned long long siguienteAtiende_ = 0;
 };
 
 } // namespace ba::gateway

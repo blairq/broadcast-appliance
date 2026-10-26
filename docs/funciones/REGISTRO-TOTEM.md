@@ -60,7 +60,10 @@ canal también la arranca: si a los 2,5 s no apareció una cara, empieza sin ell
 personas: después de terminar, la próxima arranca cuando esa cara se va (o aparece
 otra conocida), o con «Tocá para empezar».
 
-**Hasta cuatro a la vez.** Los canales de audio 1..4 del gateway. La voz de la
+**Hasta ocho a la vez.** Varios tótems en distintas puertas (o celulares). Los canales
+1..8 del gateway: un solo tope para los dos procesos, `ipc::kCanalesRegistro`
+(`src/core/ipc/CanalesRegistro.hpp`; en el gateway `kMaxTotems`, en la app
+`FrameService::kRegistroSlots` y `OperatorFeed::kMaxRegistro` salen de ahí). La voz de la
 persona sube por WebRTC a `BA.Audio.Registro.<k>` (`OperatorFeed::escucharRegistro`)
 y se pasa a texto con el **mismo** reconocedor del dictado (`agent::Voz::abrirOido`,
 clave `registro:<conn>`). El asistente habla con **la voz del atendedor**
@@ -100,6 +103,55 @@ fábrica y los tipos de los plugins), con los tipos que acepta el campo.
   plugins que corren; ninguno marcado = cualquiera). Los registrados muestran el documento
   como «Juana Andrea Prueba · DNI 11.222.333».
 
+## Atención remota
+
+Una persona del equipo, desde cualquier lado (un celular o una compu), **ve todas las
+conversaciones** de los tótems del evento, **mira y escucha** una en vivo, **interviene
+cuando quiere** y **completa o corrige los datos**. Todo por web: la página
+`/registro-atiende/` del gateway.
+
+**Un link por evento** (`<origen>/registro-atiende/#t=<token>`), como el de un tótem:
+token de 256 bits en el fragmento, guardado con su sal en el almacén de secretos
+(`registro-<sha256(carpeta|@atiende)>`), hash con sal en el gateway, intentos fallidos
+por IP (los mismos que los tótems), Origin igual a Host. Se puede volver a mostrar y
+**renovar** (el viejo deja de andar y se corta a quien lo tenía abierto). Se eligió uno
+compartido y no uno por persona porque es lo más simple de repartir en la puerta de un
+evento; cada una pone **su nombre** al entrar (queda en su navegador), y es lo que ve la
+persona del tótem: «Te atiende Laura». Sin evento o sin tótems no hay credencial y no
+entra nadie. En la app: Personas → Registro, «Atención remota» (copiar, QR, renovar,
+quiénes la tienen abierta); por MCP `totem_atencion_enlace`.
+
+**Mirar y escuchar.** Al elegir una conversación, la página abre UN WebRTC con el gateway
+(una sesión del pool, ruta `RegistroAtiende(k)`): baja la cámara del tótem (los mismos
+cuadros que suben a `BA.Registro.<k>`, achicados y a 15 por segundo) y lo que se oye ahí,
+la voz de la persona MÁS la del asistente. Cambiar de conversación cambia la ruta, sin
+renegociar. Sube su micrófono, que el gateway usa SOLO mientras la atiende.
+
+**Atender.** «Atender yo» pide el micrófono y la app decide (una persona por
+conversación; si otra ya la atiende, se lo dice). Atendida: el guion se pausa
+(`Conversacion::atender`: no pregunta, no cuenta silencios, lo oído y lo tipeado no lo
+hacen hablar), el asistente se calla en el acto (lo que faltaba decir se tira y lo que la
+síntesis entregue tarde no sale) y la pantalla del tótem dice en grande «Te atiende
+Laura». La voz de quien atiende baja **solo a ese tótem**, mezclada con la del asistente
+(`gateway/ColaVoz.hpp`: un track tiene una sola fuente; el anillo del asistente, que la
+app llena cada 10 ms, marca el reloj). La persona del tótem le contesta y ella la oye. Lo
+que se le entiende igual se muestra (a quien atiende también). Si quien atiende se va
+(cierra la página, se corta), la conversación vuelve al asistente.
+
+**Completar o corregir** en cualquier momento, atendiendo o no: cada campo es editable;
+lo que se pone va a la conversación como un dato tipeado (sin confirmación hablada) y se
+ve en el tótem. Vacío borra el dato. Sin atender, si era el que se pedía, el asistente
+sigue con el próximo.
+
+**Terminar:** «Guardar registro» (como si hubiera terminado el guion, sin el paso de la
+foto: padrón y, si la cara no se conocía, la libreta con la mejor foto que se vio; no
+anda si falta un obligatorio), «Devolver al asistente» (sigue desde el próximo campo sin
+dato) o «Cancelar».
+
+Lo mismo desde la app (Atender, Datos…, Devolver, Guardar, Cancelar en cada conversación;
+sin voz) y por MCP (`totem_atender {conn, accion: atender | guardar | devolver |
+cancelar, quien?}`, `totem_dato {conn, clave, valor}`).
+
 ## La interfaz con el gateway (lo que quedó)
 
 API de control (loopback + Bearer):
@@ -123,9 +175,40 @@ errado: va al registro de la app).
 App → página (por `enviar`): `pantalla {titulo, subtitulo}`, `dice {texto}`,
 `oido {texto}`, `estado {estado: esperando | escuchando | hablando | pensando |
 foto | documento | listo | error}`, `campos {lista: [{clave, etiqueta, valor, listo}]}`, `pedir
-{clave, etiqueta, tipo, ejemplo}`, `listo {texto}`, `reiniciar`. El gateway le
+{clave, etiqueta, tipo, ejemplo}`, `listo {texto}`, `reiniciar`, `atiende {activo,
+nombre}` (la atiende una persona: «Te atiende …»). El gateway le
 manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
 `listo` (en el celular; con `?kiosco=1` se queda con el canal).
+
+### La atención remota
+
+Página (`/registro-atiende/`, `Web/registro-atiende`): `GET /ws?registro_atiende=1`,
+primer mensaje `{type:"auth", t, nombre}` → `{type:"hola", aconn, nombre}`. Después
+`{type:"mirar", conn}` → `{type:"mirando", conn, canal, habla}` (también cuando la
+conversación toma o suelta su canal); `{type:"oferta", sdp}` (un audio y a lo sumo un
+video) → `respuesta` / `ice`; `{type:"atender" | "devolver" | "guardar" | "cancelar",
+conn}` y `{type:"dato", conn, clave, valor}` van a la app.
+
+API de control:
+
+- `POST /api/v1/registro/atencion {sal, hash_token}` — la credencial del link (`{}` =
+  sin atención remota). La app la publica junto con los tótems.
+- `POST /api/v1/registro/atendida {conn, aconn}` — quién atiende esa conversación (`""`
+  = el asistente). Solo entonces la voz de esa página baja al tótem; quien la atiende
+  pasa a mirarla.
+- `POST /api/v1/registro/enviar {aconn, msg}` o `{atiende: "*", msg}` — a las páginas de
+  atención. En `GET /api/v1/registro/estado`, `atienden: [{aconn, nombre, ip, lugar,
+  desdeMs, mira, canal, habla, medios}]`.
+
+SSE `registro`: `{tipo: "atiende-conexion", aconn, nombre, conectado, ip, lugar}`,
+`{tipo: "atiende", aconn, nombre, accion, conn, clave?, valor?}`, `{tipo: "intento",
+atiende: true, ip}`.
+
+App → páginas de atención: `conversaciones {evento, lista: [{conn, id, totem, canal,
+audio, estado, paso, quien, oido, dice, campos, atendida, atiende, atiendeConn, enCurso,
+pedido, editables: [{clave, etiqueta, valor, listo, tipo, obligatorio, opciones}]}]}`
+(la misma fila que la pestaña Registro y `totem_estado`, juntada cada 150 ms) y `aviso
+{texto, conn}` (lo que no se pudo: «Ya la atiende Laura», «Eso no parece un correo»).
 
 ## Dónde está
 
@@ -146,6 +229,11 @@ manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
   `?pantalla=1`); QR elegible `registro:<id>` (`QrViewModel::paraElegir`); fila
   «Registro de personas (tótems)» en Enlaces.
 - El gateway y la página: `src/gateway/Registro.{hpp,cpp}`, `assets/web/registro/`.
+- La atención remota: `src/gateway/RegistroAtiende.cpp` (el borde), `src/gateway/ColaVoz.hpp`
+  (la mezcla), la ruta `RegistroAtiende` en `MediaRoute.hpp`/`MediaPump.cpp`,
+  `SignalingServer::ofertaRegistroAtiende`, `assets/web/registro-atiende/`; en la app, la
+  región «La atención remota» de `TotemsViewModel.cpp` y `Conversacion::atender/devolver/
+  poner/guardarYa`. Tests: `test_registro_atiende` (gateway), `test_registro_atencion` (app).
 
 ## Falta probar a mano
 
@@ -155,7 +243,11 @@ manda además `audio-error` y `cortado`. La página manda `soltar` al recibir
 - Con una TV o tablet con cámara y un celular: reconocer, saludar por el nombre,
   dictar un correo y un teléfono, corregir con «no», tipear, cancelar.
 - Que la voz del asistente no se transcriba (el margen de 350 ms al terminar).
-- Cuatro conversaciones a la vez y la quinta esperando.
+- Ocho conversaciones a la vez y la novena esperando.
+- La atención remota con un celular de verdad: mirar y oír un tótem (que no se oiga a sí
+  misma), atender (que la persona del tótem la oiga y no haya eco), completar un dato,
+  guardar, devolver; dos personas atendiendo a la vez conversaciones distintas; entrar por
+  el túnel (TURN).
 - Chromecast con `?pantalla=1` sobre el HTTPS del aparato (certificado propio: la
   TV puede no aceptarlo; con el túnel anda). Si no, «Un código QR» con el QR
   `registro:<id>` (va por HTTP) muestra lo mismo.

@@ -392,6 +392,11 @@ class SignalingServer {
     /// La atención hablada del que espera en la sesión remota (pid «atiende:<id>», ruta
     /// Atencion): sube su micrófono a BA.Audio.Atencion y le baja la voz del que atiende.
     bool ofertaAtencion(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
+    /// Quien atiende el registro por web (pid «registro-atiende:<aconn>», ruta
+    /// RegistroAtiende(canal, habla)): recibe la cámara y el sonido del tótem que mira y, si
+    /// lo atiende, su micrófono baja solo a ese tótem.
+    bool ofertaRegistroAtiende(const std::string& aconn, int canal, bool habla, const std::string& sdp,
+                               std::function<void(const nlohmann::json&)> enviar);
     /// Una conversación del registro por tótem (pid «registro:<conn>», ruta Registro(canal)):
     /// sube su micrófono a BA.Audio.Registro.<canal> y le baja BA.Audio.RegistroVoz.<canal>.
     bool ofertaRegistro(const std::string& conn, int canal, const std::string& sdp,
