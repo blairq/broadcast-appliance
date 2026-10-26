@@ -208,7 +208,7 @@ class EventoViewModel : public QObject {
     // SOLO, en el momento. Por eso no tiene "sin guardar": en la puerta, con
     // cola, nadie va a acordarse de apretar guardar.
     /// [{id, personaId, nombre, papel, canal, estado, contacto, nota,
-    ///   dejarPasarSolo, vota, codigo, llegoMs, porDonde}]
+    ///   dejarPasarSolo, vota, codigo, llegoMs, porDonde, registro, datos}]
     ///
     /// PROPIEDAD y no método: como método, QML recibe la función en vez de la
     /// lista —y no se entera cuando el padrón cambia—. Se vio en la vista: la
@@ -231,6 +231,16 @@ class EventoViewModel : public QObject {
     /// Escribe el padron al disco. Lo llaman los de arriba; no hace falta
     /// desde afuera porque cada cambio ya se guarda solo.
     bool guardarPadronAhora();
+    /// La carpeta del evento abierto (la del padrón), vacía si no hay ninguno.
+    std::filesystem::path carpetaAbierta() const;
+    /// Lo que deja un tótem de registro (ui/RegistroViewModel): busca a la
+    /// persona por su ficha (o por el nombre, si ya estaba en la lista), le
+    /// suma `datos` y el tótem, o la anota; y la acredita («registro»).
+    /// Devuelve el id en el padrón, o vacío sin evento abierto.
+    QString registrarDesdeTotem(const QString& personaId, const QString& nombre, const QString& totem,
+                                const nlohmann::json& datos);
+    /// Si esa ficha ya se registró por un tótem en este evento.
+    bool registradoPorTotem(const QString& personaId) const;
     /// Si esa ficha de rostro tiene permiso para entrar sola a la sala.
     Q_INVOKABLE bool puedeEntrarSolo(const QString& personaId) const;
     /// Acredita por ficha de rostro. false si no esta en el padron.

@@ -146,6 +146,7 @@
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
 #include "ui/AtencionViewModel.hpp"
+#include "ui/TotemsViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/PrompterViewModel.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -1144,6 +1145,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         f.paginas = []() { return RielConfig::todasLasPaginas(); };
         f.contenidosRed = [this]() { return pantallas_ ? pantallas_->contenidos() : QVariantList{}; };
+        // Los tótems de registro: cada uno a una TV, que muestra el QR para registrarse.
+        f.totems = [this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; };
         // Las fuentes de video sueltas (invitados, sus pantallas, las entradas):
         // lo que antes solo se podía sacar a una ventana de video por su clave.
         f.videos = [this]() {
@@ -2050,6 +2053,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(atencion_.get(), &AtencionViewModel::notify, this, &StudioViewModel::notify);
         marca("atencion");
     }
+    // El registro de personas por tótem (docs/funciones/REGISTRO-TOTEM.md): con la
+    // atención (su voz), Personas, el evento y la sala ya armados. Existe aunque
+    // no haya motor de voz: la configuración y el catálogo no dependen de él.
+    totems_ = std::make_unique<TotemsViewModel>(rt, *this, voz_.get(), modelos_.get());
+    connect(totems_.get(), &TotemsViewModel::notify, this, &StudioViewModel::notify);
+    if (catalogo_) connect(totems_.get(), &TotemsViewModel::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
+    if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
+    if (catalogo_) catalogo_->refrescar();
+    marca("totems");
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
@@ -2823,6 +2835,7 @@ void StudioViewModel::actualizarRanurasBanca(bool forzar) {
 }
 QObject* StudioViewModel::personas() const { return personas_.get(); }
 QObject* StudioViewModel::atencion() const { return atencion_.get(); }
+QObject* StudioViewModel::totems() const { return totems_.get(); }
 QObject* StudioViewModel::publico() const { return publico_.get(); }
 QObject* StudioViewModel::medios() const { return medios_.get(); }
 QObject* StudioViewModel::carruseles() const { return carruseles_.get(); }

@@ -53,6 +53,7 @@ QString CatalogoVisible::tituloDeGrupo(const QString& g) {
     if (g == "pagina") return QStringLiteral("Página");
     if (g == "fondo") return QStringLiteral("Tablero");
     if (g == "web") return QStringLiteral("Para la TV");
+    if (g == "registro") return QStringLiteral("Registro de personas");
     return g;
 }
 
@@ -212,6 +213,19 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
             out.push_back({"web:" + tipo, "web", m.value("titulo").toString(), "⧉", {}, tipo, {}, ""});
         }
     }
+
+    // 9) Los tótems de registro: una página web (contenido «url») con su QR.
+    //    Van DESPUÉS de lo de arriba a propósito: si contaran como «url» ya
+    //    cubierta, «Una página web» suelta desaparecería del catálogo.
+    if (fuentes_.totems)
+        for (const QVariant& v : fuentes_.totems()) {
+            const QVariantMap m = v.toMap();
+            const QString id = m.value("id").toString();
+            const QString url = m.value("urlPantalla").toString();
+            if (id.isEmpty() || url.isEmpty()) continue;
+            out.push_back({"registro:" + id, "registro", m.value("nombre").toString(), "☺", {}, "url",
+                           QVariantMap{{"url", url}}, ""});
+        }
     return out;
 }
 

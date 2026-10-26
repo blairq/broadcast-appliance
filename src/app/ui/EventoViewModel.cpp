@@ -2127,6 +2127,12 @@ evento::Asistente desdeMapa(const QVariantMap& m, std::vector<std::string>& queC
     if (vino("nota")) a.nota = m.value("nota").toString().toStdString();
     if (vino("dejarPasarSolo")) a.dejarPasarSolo = m.value("dejarPasarSolo").toBool();
     if (vino("vota")) a.vota = m.value("vota").toBool();
+    if (vino("registro")) a.registro = m.value("registro").toString().toStdString();
+    if (vino("datos")) {
+        const QJsonObject o = QJsonObject::fromVariantMap(m.value("datos").toMap());
+        a.datos = nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+        if (!a.datos.is_object()) queCampos.pop_back();
+    }
     // Una palabra que no se entiende no se ignora en silencio: se saca de la
     // lista de campos y queda el valor que habia. Si no, "papel: moderdor" con
     // un dedazo convertiria a un orador en publico sin que nadie lo note.
@@ -2152,7 +2158,12 @@ QVariantMap aMapa(const evento::Asistente& a) {
                        {"vota", a.vota},
                        {"codigo", QString::fromStdString(a.codigo)},
                        {"llegoMs", static_cast<qint64>(a.llegoMs)},
-                       {"porDonde", QString::fromStdString(a.porDonde)}};
+                       {"porDonde", QString::fromStdString(a.porDonde)},
+                       {"registro", QString::fromStdString(a.registro)},
+                       {"datos", QJsonDocument::fromJson(QByteArray::fromStdString(a.datos.dump(
+                                                              -1, ' ', false, nlohmann::json::error_handler_t::replace)))
+                                     .object()
+                                     .toVariantMap()}};
 }
 
 } // namespace
@@ -2299,6 +2310,63 @@ void EventoViewModel::migrarAutoAceptar() {
     if (movidos > 0)
         emit notify(QString::number(movidos) + " de la lista de auto-aceptar pasaron al padrón del evento.",
                     "info");
+}
+
+std::filesystem::path EventoViewModel::carpetaAbierta() const {
+    if (abierto_.isEmpty()) return {};
+    return store_.carpetaDe(abierto_.toStdString());
+}
+
+QString EventoViewModel::registrarDesdeTotem(const QString& personaId, const QString& nombre, const QString& totem,
+                                             const nlohmann::json& datos) {
+    if (abierto_.isEmpty()) return {};
+    // La ficha de rostro manda (como buscarEnPadron); sin ficha, el nombre dicho
+    // solo engancha a alguien que ya estaba en la lista armada de antemano.
+    const evento::Asistente* a = padron_.porPersona(personaId.toStdString());
+    if (a == nullptr && !nombre.trimmed().isEmpty()) a = padron_.porNombre(nombre.toStdString());
+    std::string id;
+    if (a != nullptr) {
+        id = a->id;
+        evento::Asistente c;
+        std::vector<std::string> que{"datos", "registro"};
+        c.datos = datos.is_object() ? datos : nlohmann::json::object();
+        c.registro = totem.toStdString();
+        if (a->personaId.empty() && !personaId.isEmpty()) {
+            c.personaId = personaId.toStdString();
+            que.emplace_back("personaId");
+        }
+        if (a->nombre.empty() && !nombre.trimmed().isEmpty()) {
+            c.nombre = nombre.trimmed().toStdString();
+            que.emplace_back("nombre");
+        }
+        if (a->canal == evento::Canal::SinDefinir) {
+            c.canal = evento::Canal::Presencial;
+            que.emplace_back("canal");
+        }
+        padron_.cambiar(id, c, que);
+    } else {
+        evento::Asistente n;
+        n.personaId = personaId.toStdString();
+        n.nombre = nombre.trimmed().isEmpty() ? std::string("(sin nombre)") : nombre.trimmed().toStdString();
+        n.canal = evento::Canal::Presencial; // se paró frente a un tótem del lugar (o escaneó su QR ahí)
+        n.datos = datos.is_object() ? datos : nlohmann::json::object();
+        n.registro = totem.toStdString();
+        // El contacto legible sale de lo que dijo, si dijo un correo o un teléfono.
+        for (const char* k : {"correo", "email", "mail", "telefono", "celular"})
+            if (n.contacto.empty() && n.datos.contains(k) && n.datos[k].is_string()) n.contacto = n.datos[k].get<std::string>();
+        id = padron_.agregar(std::move(n));
+    }
+    const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
+    padron_.acreditar(id, "registro", static_cast<std::int64_t>(ahora));
+    guardarPadronAhora();
+    return QString::fromStdString(id);
+}
+
+bool EventoViewModel::registradoPorTotem(const QString& personaId) const {
+    const evento::Asistente* a = padron_.porPersona(personaId.toStdString());
+    return a != nullptr && !a->registro.empty();
 }
 
 bool EventoViewModel::puedeEntrarSolo(const QString& personaId) const {

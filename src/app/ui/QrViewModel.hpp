@@ -21,6 +21,7 @@
 // ============================================================================
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include <QObject>
@@ -135,8 +136,11 @@ class QrViewModel : public QObject {
     // --- Para elegir un QR desde otro lado (una pantalla, una escena) -----------
     // Los del aparato están SIEMPRE (no hace falta haberlos guardado): «aparato:publico»,
     // «aparato:sala», «aparato:prompter», «aparato:rotulos»; después los guardados (su id).
+    /// Y los de los tótems de registro del evento («registro:<id>»).
     /// [{value, label}] en ese orden.
     Q_INVOKABLE QVariantList paraElegir() const;
+    /// De dónde salen los tótems de registro: [{id, nombre, url}] (lo pone StudioViewModel).
+    void setTotems(std::function<QVariantList()> f);
     /// Lo de `paraProyectar` para lo elegido (un id o «aparato:x»). Un QR del aparato que
     /// la sala todavía no dio vuelve con {pendiente: true} (y se le pide).
     Q_INVOKABLE QVariantMap paraProyectarElegido(const QString& elegido);

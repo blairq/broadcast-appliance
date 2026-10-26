@@ -169,6 +169,9 @@ void PersonasViewModel::altaConFoto(const QByteArray&, const QString&, const QSt
                                     std::function<void(const QString&, const QString&)> luego) {
     luego({}, d_->aviso);
 }
+void PersonasViewModel::identificarFoto(const QByteArray&, std::function<void(const Identificado&, const QString&)> luego) {
+    luego({}, d_->aviso);
+}
 
 // Sin reconocimiento no hay a quien mirar en el lobby: se avisa, como sumarCara.
 void PersonasViewModel::setLobbyAuto(bool activo) {
@@ -661,6 +664,37 @@ void PersonasViewModel::compararFoto(const QByteArray& jpeg, const QString& pers
                           mejor = std::max(mejor, ba::rostros::parecido(v[static_cast<std::size_t>(i)].vector, c));
                       luego(mejor, calidadDe(*img, v[static_cast<std::size_t>(i)].cara).sirve, {});
                   });
+}
+
+void PersonasViewModel::identificarFoto(const QByteArray& jpeg,
+                                        std::function<void(const Identificado&, const QString&)> luego) {
+    if (!d_->listo) return luego({}, d_->aviso);
+    auto img = std::make_shared<QImage>();
+    std::vector<std::uint8_t> bgra;
+    if (!desdeJpeg(jpeg, *img, bgra)) return luego({}, "La foto no se pudo leer.");
+    const int w = img->width(), h = img->height();
+    QPointer<PersonasViewModel> yo(this);
+    // NO descartable: uno descartado no contesta nunca, y quien pregunta (el
+    // tótem) espera la respuesta para pedir la siguiente foto. El que no
+    // encola de más es quien llama: una foto por vez por tótem.
+    d_->rec.pedir(std::move(bgra), w, h, false, [yo, img, luego](std::vector<Reconocedor::Visto> v, const QString& error) {
+        if (!yo) return;
+        if (!error.isEmpty()) return luego({}, error);
+        Identificado q;
+        const int i = laMasGrande(v);
+        if (i < 0) return luego(q, {});
+        const auto& visto = v[static_cast<std::size_t>(i)];
+        q.hayCara = true;
+        q.sirve = calidadDe(*img, visto.cara).sirve;
+        const auto c = yo->d_->libreta.buscar(visto.vector);
+        q.parecido = c.parecido;
+        if (!c.id.empty() && c.parecido >= ba::rostros::kMismaPersona()) {
+            q.personaId = QString::fromStdString(c.id);
+            q.nombre = QString::fromStdString(c.nombre);
+            yo->d_->libreta.vistaAhora(c.id, QDateTime::currentMSecsSinceEpoch());
+        }
+        luego(q, {});
+    });
 }
 
 void PersonasViewModel::altaConFoto(const QByteArray& jpeg, const QString& nombre, const QString& cargo,

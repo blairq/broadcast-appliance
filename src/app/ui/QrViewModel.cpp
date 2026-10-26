@@ -180,6 +180,8 @@ QString limpiarNombre(QString n) {
 
 struct QrViewModel::Impl {
     AppRuntime* rt = nullptr;
+    /// Los tótems de registro: [{id, nombre, url}] (ui/TotemsViewModel).
+    std::function<QVariantList()> totems;
     EventoViewModel* evento = nullptr;
     ConferenceViewModel* sala = nullptr;
 
@@ -677,10 +679,29 @@ const DelAparato kDelAparato[] = {{"publico", "Público: preguntar y votar (con 
 
 QrViewModel* QrViewModel::elDeLaApp() { return gElDeLaApp; }
 
+void QrViewModel::setTotems(std::function<QVariantList()> f) { d_->totems = std::move(f); }
+
+namespace {
+/// La url de un tótem de registro por su id ("" si no está o está apagado).
+QString urlDeTotem(const std::function<QVariantList()>& totems, const QString& id) {
+    if (!totems) return {};
+    for (const QVariant& v : totems())
+        if (v.toMap().value("id").toString() == id) return v.toMap().value("url").toString();
+    return {};
+}
+} // namespace
+
 QVariantList QrViewModel::paraElegir() const {
     QVariantList out;
     for (const auto& x : kDelAparato)
         out << QVariantMap{{"value", QString("aparato:") + x.tipo}, {"label", QString::fromUtf8(x.etiqueta)}};
+    // Los tótems de registro del evento: el QR que se escanea para registrarse.
+    if (d_->totems)
+        for (const QVariant& v : d_->totems()) {
+            const QVariantMap m = v.toMap();
+            out << QVariantMap{{"value", "registro:" + m.value("id").toString()},
+                               {"label", "Registro de personas: " + m.value("nombre").toString()}};
+        }
     for (const QVariant& v : todos()) {
         const QVariantMap m = v.toMap();
         out << QVariantMap{{"value", m.value("id")}, {"label", m.value("nombre").toString() + " (guardado)"}};
@@ -689,6 +710,13 @@ QVariantList QrViewModel::paraElegir() const {
 }
 
 QVariantMap QrViewModel::paraProyectarElegido(const QString& elegido) {
+    if (elegido.startsWith("registro:")) {
+        const QString url = urlDeTotem(d_->totems, elegido.mid(9));
+        if (url.isEmpty()) return {};
+        return QVariantMap{{"texto", url},
+                           {"nombre", "Registro de personas"},
+                           {"estilo", QString::fromStdString(qr::aConsulta(aEstilo(estiloDeFabrica())))}};
+    }
     if (!elegido.startsWith("aparato:")) return paraProyectar(elegido);
     const QString tipo = elegido.mid(8);
     const QString texto = d_->delAparato.value(tipo);
@@ -705,6 +733,10 @@ QVariantMap QrViewModel::paraProyectarElegido(const QString& elegido) {
 }
 
 QString QrViewModel::svgElegido(const QString& elegido, const QString& textoLibre) {
+    if (elegido.startsWith("registro:")) {
+        const QString url = urlDeTotem(d_->totems, elegido.mid(9));
+        return url.isEmpty() ? QString() : QString::fromStdString(qr::svg(url.toStdString(), aEstilo(estiloDeFabrica())));
+    }
     if (elegido.startsWith("aparato:")) {
         const QString texto = d_->delAparato.value(elegido.mid(8));
         if (texto.isEmpty()) {
