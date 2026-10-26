@@ -1151,8 +1151,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // lo que antes solo se podía sacar a una ventana de video por su clave.
         f.videos = [this]() {
             QVariantList out;
-            if (frames_)
+            if (frames_) {
                 for (const QString& k : frames_->keys()) out << QVariantMap{{"clave", k}, {"titulo", frames_->label(k)}};
+                // Las cámaras de los tótems de registro: para ver en otro monitor quién se
+                // está registrando (negro mientras ese canal no conversa con nadie).
+                for (int k = 1; k <= FrameService::kRegistroSlots; ++k) {
+                    const QString clave = QString("registro:%1").arg(k);
+                    out << QVariantMap{{"clave", clave}, {"titulo", frames_->label(clave)}};
+                }
+            }
             if (video_)
                 for (const QString& e : video_->entradas()) out << QVariantMap{{"clave", "entrada:" + e}, {"titulo", e}};
             return out;

@@ -46,10 +46,14 @@ sesión remota: la url se puede volver a mostrar; «renovar» la cambia. Para un
 que solo muestra: `<origen>/registro/?pantalla=1#r=…&t=…` (dibuja el QR de la url
 sin `pantalla=1`).
 
-**Quién está frente al tótem.** La página manda fotos (cada 0,7 s, solo mientras
-tiene canal de audio); la app pide la última (`/api/v1/registro/foto`) y la mira
-fuera del hilo de la interfaz (`PersonasViewModel::identificarFoto`), una por vez
-por conexión. Dos fotos seguidas con la misma cara arrancan la conversación. Tomar
+**Quién está frente al tótem.** La cámara sube por WebRTC, junto con el micrófono,
+al canal de video `BA.Registro.<k>` (como el lobby). En la app es la clave
+`registro:<k>` de `FrameService`: la misma imagen se reconoce (cada 0,6 s, fuera del
+hilo de la interfaz, `PersonasViewModel::identificarFoto`, una por vez por conexión)
+y se puede **mirar**: en la pestaña Registro, en un monitor (Pantallas) o donde se
+muestre una clave de video. Al soltar el canal el gateway lo pone en negro, para
+que la cara no quede congelada. Dos cuadros seguidos con la misma cara arrancan la
+conversación. Tomar
 canal también la arranca: si a los 2,5 s no apareció una cara, empieza sin ella
 (solo la primera vez por canal). Con `?kiosco=1` el mismo canal atiende a varias
 personas: después de terminar, la próxima arranca cuando esa cara se va (o aparece
@@ -74,15 +78,14 @@ API de control (loopback + Bearer):
   `(sal + token)`, igual que la sesión remota. La app la republica al abrir el
   evento, al cambiar algo y cuando el gateway vuelve.
 - `GET /api/v1/registro/estado` → `{conexiones: [{conn, id, canal, ip, lugar,
-  desdeMs, audio, foto}], totems, canales}` (la app lo pide al reconectarse).
-- `GET /api/v1/registro/foto?conn=` → image/jpeg.
+  desdeMs, audio}], totems, canales}` (la app lo pide al reconectarse).
 - `POST /api/v1/registro/enviar {conn, msg}` o `{id, msg}` (a todas las de un tótem).
 - `POST /api/v1/registro/cortar {conn}` — también la única forma de soltar un canal
   desde la app.
 
 SSE `registro`: `{tipo: "conexion", conn, id, conectado, ip, lugar}`,
 `{tipo: "canal", conn, id, canal}` (0 = lo soltó), `{tipo: "audio", conn, id,
-listo}`, `{tipo: "foto", conn, id}`, `{tipo: "toque", conn, id, accion: "empezar" |
+listo}` (el WebRTC de micrófono y cámara), `{tipo: "toque", conn, id, accion: "empezar" |
 "cancelar" | "escrito", clave?, valor?}` y `{tipo: "intento", id, ip}` (un token
 errado: va al registro de la app).
 

@@ -568,8 +568,10 @@ int main(int argc, char** argv) {
     // El registro por tótem (docs/funciones/REGISTRO-TOTEM.md): [0] reservado, como los demás.
     pumpCfg.registroAudioNames.emplace_back();
     pumpCfg.registroVozAudioNames.emplace_back();
+    pumpCfg.registroVideoNames.emplace_back();
     for (int k = 1; k <= kMaxTotems; ++k) {
         pumpCfg.registroAudioNames.push_back(toWide("BA.Audio.Registro." + std::to_string(k)));
+        pumpCfg.registroVideoNames.push_back(toWide("BA.Registro." + std::to_string(k)));
         pumpCfg.registroVozAudioNames.push_back(toWide("BA.Audio.RegistroVoz." + std::to_string(k)));
     }
     // Nombres por slot con el [0] reservado (no hay slot 0).

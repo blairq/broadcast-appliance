@@ -18,8 +18,9 @@
 //                                                 o lo atiende el asistente hablando)
 //     Atencion:   audio   -> BA.Audio.Atencion   (el que espera en la sesión remota,
 //                                                 atendido hablando; nada de video)
-//     Registro(k): audio  -> BA.Audio.Registro.<k> (la persona que se registra
-//                                                 frente a un tótem; nada de video)
+//     Registro(k): camara -> BA.Registro.<k>       (la persona que se registra
+//                 audio   -> BA.Audio.Registro.<k>  frente a un tótem: la app
+//                                                 reconoce la cara y la pasa a texto)
 //   Bajada (A -> B -> participante):
 //     Program(n): BA.Program + BA.Audio.ContentForReturn
 //     Lobby(k):   BA.Operator (o una placa si A no lo publica) + la voz del
@@ -92,6 +93,10 @@ class MediaPump {
         // solo a esa conexión). Vacíos = no hay registro.
         std::vector<std::wstring> registroAudioNames;    // BA.Audio.Registro.<k>
         std::vector<std::wstring> registroVozAudioNames; // BA.Audio.RegistroVoz.<k>
+        // Y su cámara (B->A): la app reconoce la cara en el video y el operador lo ve en vivo.
+        std::vector<std::wstring> registroVideoNames;    // BA.Registro.<k>
+        int registroW = 960; // la cara se reconoce de lejos (un tótem): más que el preview del lobby
+        int registroH = 540;
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
         std::vector<std::wstring> guestVideoNames;     // BA.Guest.<n>
@@ -158,6 +163,8 @@ class MediaPump {
     /// un cuadro negro en su video, para que la entrada no se quede con la cara del
     /// anterior (a los 3 s el motor pone «sin señal»).
     void apagarRemoto(int canal);
+    /// La conversación del canal de registro `canal` terminó: un cuadro negro en su cámara.
+    void apagarRegistro(int canal);
 
     /// Prueba técnica de un invitado admitido (T33): durante `ms` le suma al retorno un
     /// tono de 1 kHz cortado (250 ms sí, 250 no) y mira cuánto de ese tono vuelve por su
@@ -248,6 +255,7 @@ class MediaPump {
     std::vector<std::unique_ptr<AudioOut>> remotoAudio_;
     std::unique_ptr<AudioOut> atencionAudio_; // BA.Audio.Atencion (ruta Atencion)
     std::vector<std::unique_ptr<AudioOut>> registroAudio_; // BA.Audio.Registro.<k> ([0] reservado)
+    std::vector<std::unique_ptr<VideoOut>> registroVideo_; // BA.Registro.<k> ([0] reservado)
 
     // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
     // hilo del retorno la mezcla con el programa (una sola fuente por sesión).

@@ -1,8 +1,8 @@
 // El registro de personas por tótem (docs/funciones/REGISTRO-TOTEM.md). La página es solo la
 // cara y los oídos: la conversación (qué se pregunta, qué se entendió, cuándo termina) la lleva
 // la app, que manda por el gateway lo que hay que mostrar. Acá: entrar con el enlace del tótem,
-// pedir un canal de audio, mandar el micrófono por WebRTC (y oír al asistente por la misma
-// conexión), mandar fotos de la cara por el WebSocket y mostrar en grande lo que llega.
+// pedir un canal, mandar el micrófono y la cámara por WebRTC (y oír al asistente por la misma
+// conexión) y mostrar en grande lo que llega. La cara se reconoce en la app, sobre ese video.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -20,11 +20,10 @@ let terminado = false;   // cortado o enlace inválido: no se reconecta
 let timerPing = 0;
 let medios = null;       // la cámara y el micrófono
 let empezado = false;    // ya hay cámara y micrófono (la persona tocó, o el kiosco arrancó solo)
-let canal = 0;           // el canal de audio (1..4) que dio el gateway; 0 = ninguno
+let canal = 0;           // el canal (1..4) que dio el gateway; 0 = ninguno
 let timerCanal = 0;
 let empezarConCanal = false; // tocó «Empezar» sin canal: al llegar el canal, se le avisa a la app
 let pc = null;
-let timerFoto = 0;
 let timerGracias = 0;
 let pedido = null;       // el campo que se está pidiendo {clave, etiqueta, tipo, ejemplo}
 let titulo = "";
@@ -89,7 +88,7 @@ async function empezar() {
   let falla = null;
   try {
     medios = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
   } catch (e) {
@@ -119,8 +118,6 @@ async function empezar() {
 
 function pararMedios() {
   cerrarAudio();
-  clearInterval(timerFoto);
-  timerFoto = 0;
   if (medios) for (const t of medios.getTracks()) { try { t.stop(); } catch (e) {} }
   medios = null;
   empezado = false;
@@ -144,8 +141,6 @@ function tomarCanal(k) {
   }
   canal = k;
   $("espera").classList.add("oculto");
-  clearInterval(timerFoto);
-  timerFoto = setInterval(mandarFoto, 700); // la cara, para que el sistema la reconozca
   iniciarAudio();
   if (empezarConCanal) {
     empezarConCanal = false;
@@ -155,15 +150,14 @@ function tomarCanal(k) {
 
 function soltarCanal() {
   clearTimeout(timerCanal);
-  clearInterval(timerFoto);
-  timerFoto = 0;
   cerrarAudio();
   if (canal && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "soltar" }));
   canal = 0;
 }
 
-// Solo el micrófono sube (el gateway rechaza cualquier otra cosa); la voz del asistente baja por
-// la misma pista, y así el navegador cancela su eco y no se transcribe a sí mismo.
+// Suben el micrófono y la cámara (el gateway rechaza cualquier otra cosa): la cámara va a la app,
+// que reconoce la cara y la puede mostrar (un monitor, una escena). La voz del asistente baja por
+// la pista del micrófono, y así el navegador cancela su eco y no se transcribe a sí mismo.
 async function iniciarAudio() {
   cerrarAudio();
   if (window.BAIce) await BAIce.listo();
@@ -172,7 +166,10 @@ async function iniciarAudio() {
   if (!pista) return;
   const p = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pc = p;
-  p.addTransceiver(pista, { direction: "sendrecv", streams: [new MediaStream([pista])] });
+  const camara = medios.getVideoTracks()[0];
+  const flujo = new MediaStream(camara ? [pista, camara] : [pista]);
+  p.addTransceiver(pista, { direction: "sendrecv", streams: [flujo] });
+  if (camara) p.addTransceiver(camara, { direction: "sendonly", streams: [flujo] });
   p.ontrack = (ev) => {
     $("voz").srcObject = ev.streams[0] || new MediaStream([ev.track]);
     oir();
@@ -199,16 +196,6 @@ function cerrarAudio() {
 function oir() {
   $("voz").play().then(() => $("oir").classList.add("oculto"))
     .catch(() => { if ($("voz").srcObject) $("oir").classList.remove("oculto"); });
-}
-
-// --- La cara ----------------------------------------------------------------------------------
-function mandarFoto() {
-  const v = $("propia");
-  if (!ws || ws.readyState !== 1 || !canal || !v.videoWidth) return;
-  const c = $("lienzo");
-  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
-  const datos = c.toDataURL("image/jpeg", 0.7).split(",")[1] || "";
-  if (datos && datos.length < 120000) ws.send(JSON.stringify({ type: "foto", jpeg: datos }));
 }
 
 // --- Lo que se muestra --------------------------------------------------------------------
@@ -311,8 +298,6 @@ function conectar() {
     conexion(false);
     clearInterval(timerPing);
     clearTimeout(timerCanal);
-    clearInterval(timerFoto);
-    timerFoto = 0;
     cerrarAudio();
     canal = 0; // el gateway lo soltó con la conexión: al volver se pide otro
     if (terminado) return;

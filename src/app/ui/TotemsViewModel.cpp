@@ -4,7 +4,9 @@
 #include "ui/TotemsViewModel.hpp"
 
 #include <QCryptographicHash>
+#include <QBuffer>
 #include <QDateTime>
+#include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
@@ -28,6 +30,7 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/FrameService.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #if defined(BA_HAVE_VOZ)
@@ -113,6 +116,7 @@ struct TotemsViewModel::Conexion {
     // La cara.
     bool identificando = false;
     qint64 ultimaFotoMs = 0;
+    std::uint64_t ultimoCuadro = 0; ///< el número del último cuadro mirado (uno nuevo o nada)
     QString ultimaCara; ///< "" sin cara, "?" desconocida, o el id de la ficha
     QString ultimoNombre;
     int vecesCara = 0;
@@ -570,9 +574,6 @@ void TotemsViewModel::alEvento(const json& ev) {
         }
     } else if (tipo == "audio") {
         c.audio = ev.value("listo", false);
-    } else if (tipo == "foto") {
-        pedirFoto(c);
-        return;
     } else if (tipo == "toque") {
         alToque(c, ev);
     }
@@ -644,37 +645,39 @@ void TotemsViewModel::cerrarAudio(Conexion& c) {
 
 // --- La cara ------------------------------------------------------------------------------
 
-void TotemsViewModel::pedirFoto(Conexion& c) {
+void TotemsViewModel::mirarCara(Conexion& c) {
     if (c.identificando || c.canal == 0) return;
     if (ahoraMs() - c.ultimaFotoMs < kEntreFotosMs) return;
     // Conversando, solo hace falta si todavía no hay una foto que sirva (para
     // el alta) o no se sabe quién es.
     if (c.conv != nullptr && c.conv->enCurso() && !c.mejorFoto.isEmpty()) return;
-    ConferenceClient* cli = clienteDe(vm_);
     PersonasViewModel* pv = personasDe(vm_);
-    if (cli == nullptr || pv == nullptr || !pv->disponible()) return;
-    c.identificando = true;
+    auto* frames = static_cast<FrameService*>(vm_.frames());
+    if (pv == nullptr || !pv->disponible() || frames == nullptr) return;
+    // La cámara del tótem llega por WebRTC al canal BA.Registro.<k>, como la del
+    // lobby: el mismo cuadro que ve el operador (o un monitor) es el que se reconoce.
+    QImage img;
+    std::uint64_t serie = 0;
+    if (!frames->latest(QString("registro:%1").arg(c.canal), img, serie) || img.isNull() || serie == c.ultimoCuadro)
+        return;
+    c.ultimoCuadro = serie;
     c.ultimaFotoMs = ahoraMs();
+    // En JPEG: es lo que guarda la libreta como foto de la ficha si hay alta.
+    QByteArray jpeg;
+    QBuffer buf(&jpeg);
+    buf.open(QIODevice::WriteOnly);
+    if (!img.convertToFormat(QImage::Format_RGB888).save(&buf, "JPG", 88) || jpeg.isEmpty()) return;
+    c.identificando = true;
     const QString conn = c.conn;
     QPointer<TotemsViewModel> yo(this);
-    cli->getRaw("/api/v1/registro/foto?conn=" + QString::fromUtf8(QUrl::toPercentEncoding(conn)),
-                [yo, conn, pv](bool ok, const QByteArray& jpeg) {
-                    if (!yo) return;
-                    const auto it = yo->conns_.find(conn);
-                    if (it == yo->conns_.end()) return;
-                    if (!ok || jpeg.isEmpty()) {
-                        it->second->identificando = false;
-                        return;
-                    }
-                    pv->identificarFoto(jpeg, [yo, conn, jpeg](const PersonasViewModel::Identificado& q, const QString& error) {
-                        if (!yo) return;
-                        const auto it2 = yo->conns_.find(conn);
-                        if (it2 == yo->conns_.end()) return;
-                        it2->second->identificando = false;
-                        if (!error.isEmpty()) return;
-                        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve);
-                    });
-                });
+    pv->identificarFoto(jpeg, [yo, conn, jpeg](const PersonasViewModel::Identificado& q, const QString& error) {
+        if (!yo) return;
+        const auto it = yo->conns_.find(conn);
+        if (it == yo->conns_.end()) return;
+        it->second->identificando = false;
+        if (!error.isEmpty()) return;
+        yo->alCara(conn, jpeg, q.personaId, q.nombre, q.hayCara, q.sirve);
+    });
 }
 
 void TotemsViewModel::alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
@@ -882,6 +885,7 @@ void TotemsViewModel::tic() {
     const qint64 ahora = ahoraMs();
     for (auto& [k, cp] : conns_) {
         Conexion& c = *cp;
+        mirarCara(c);
         // Terminó de hablar: lo sintetizado ya salió por el canal.
         if (c.hablando) {
             const VozAlLobby* v = c.canal > 0 && c.canal < static_cast<int>(voces_.size())

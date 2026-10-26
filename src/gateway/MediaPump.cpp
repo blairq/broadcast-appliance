@@ -229,6 +229,10 @@ void MediaPump::start() {
     registroAudio_.emplace_back();
     for (size_t k = 1; k < cfg_.registroAudioNames.size() && k <= static_cast<size_t>(kMaxTotems); ++k)
         registroAudio_.push_back(makeAudio(cfg_.registroAudioNames[k]));
+    registroVideo_.clear();
+    registroVideo_.emplace_back();
+    for (size_t k = 1; k < cfg_.registroVideoNames.size() && k <= static_cast<size_t>(kMaxTotems); ++k)
+        registroVideo_.push_back(makeVideo(cfg_.registroVideoNames[k], cfg_.registroW, cfg_.registroH));
     {
         std::lock_guard<std::mutex> lock(routesLock_);
         routes_.assign(static_cast<size_t>(hub_.sessions()) + 1, MediaRoute{});
@@ -881,6 +885,9 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
         publishVideo(*backstageVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
     } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoVideo_.size())) {
         publishVideo(*remotoVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+    } else if (r.kind == MediaRoute::Kind::Registro && r.index >= 1 &&
+               r.index < static_cast<int>(registroVideo_.size()) && registroVideo_[static_cast<size_t>(r.index)]) {
+        publishVideo(*registroVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
 }
 
@@ -896,6 +903,15 @@ void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, 
                r.index < static_cast<int>(remotoContenido_.size()) && remotoContenido_[static_cast<size_t>(r.index)]) {
         publishVideo(*remotoContenido_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
+}
+
+void MediaPump::apagarRegistro(int canal) {
+    if (canal < 1 || canal >= static_cast<int>(registroVideo_.size()) || !registroVideo_[static_cast<size_t>(canal)]) return;
+    VideoOut& out = *registroVideo_[static_cast<size_t>(canal)];
+    if (out.w <= 0 || out.h <= 0) return;
+    std::vector<uint8_t> px(static_cast<size_t>(out.w) * out.h * 4u, 0);
+    for (size_t i = 3; i < px.size(); i += 4) px[i] = 0xFF;
+    publishVideo(out, px.data(), out.w, out.h, false);
 }
 
 void MediaPump::apagarRemoto(int canal) {

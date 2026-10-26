@@ -195,6 +195,20 @@ Item {
                                     id: colC
                                     anchors { left: parent.left; right: parent.right; top: parent.top; margins: 7 }
                                     spacing: 2
+                                    // La cámara del tótem en vivo (llega por WebRTC, como el
+                                    // lobby): la misma imagen en la que se reconoce la cara.
+                                    // Alto fijo: nada de alto según el ancho dentro de un layout.
+                                    Rectangle {
+                                        visible: filaC.c.canal > 0
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 140
+                                        color: "black"; radius: 6; clip: true
+                                        VideoItem {
+                                            anchors.fill: parent
+                                            source: filaC.c.canal > 0 ? "registro:" + filaC.c.canal : ""
+                                            fillMode: VideoItem.Fit
+                                        }
+                                    }
                                     RowLayout {
                                         Layout.fillWidth: true
                                         Text {

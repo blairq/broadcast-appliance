@@ -27,8 +27,9 @@
 //               baja <- la voz del que atiende (BA.Audio.Atendedor), solo a el
 //   Registro(k) (una persona que se registra hablando frente a un tótem,
 //               docs/funciones/REGISTRO-TOTEM.md; k = 1..kMaxTotems)
-//               sube -> solo su microfono, a BA.Audio.Registro.<k> (la app lo
-//               pasa a texto; nunca va a la mezcla ni al aire)
+//               sube -> su microfono, a BA.Audio.Registro.<k> (la app lo pasa
+//               a texto; nunca va a la mezcla ni al aire), y su camara, a
+//               BA.Registro.<k> (la app reconoce la cara; se puede mirar)
 //               baja <- la voz del asistente de ese canal (BA.Audio.RegistroVoz.<k>),
 //               solo a esa conexion
 //   None        nada (desconectado / sin lugar)

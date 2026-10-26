@@ -14,8 +14,8 @@
     (docs/funciones/REGISTRO-TOTEM.md). La persona pone la cara, el asistente la saluda y le
     pregunta los datos HABLANDO; ella contesta con la voz (o tipea, si no se le entiende).
     El id y el token van en el FRAGMENTO (no viajan en la petición) y se mandan en el primer
-    mensaje del WebSocket. Solo el micrófono va por WebRTC (el navegador cancela el eco de lo
-    que dice el asistente); la cara, en fotos por el WebSocket.
+    mensaje del WebSocket. El micrófono y la cámara van por WebRTC (el navegador cancela el
+    eco de lo que dice el asistente); la app reconoce la cara en ese video.
       ?kiosco=1    arranca solo (un tótem sin nadie que toque la primera vez)
       ?pantalla=1  solo muestra el QR para registrarse desde el celular (una TV)
   -->
@@ -84,7 +84,6 @@
     <p id="cortadoTexto"></p>
   </section>
 
-  <canvas id="lienzo" class="oculto" width="480" height="360"></canvas>
   <audio id="voz" autoplay></audio>
   <script src="../comun/ice.js"></script>
   <script src="app.js"></script>

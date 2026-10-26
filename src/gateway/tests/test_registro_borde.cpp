@@ -1,7 +1,7 @@
 // test_registro_borde.cpp — el borde del registro de personas por tótem (Registro.hpp):
 // el token con hash y sal (y un tótem que cambia de token o se da de baja corta sus
 // conexiones), los canales de audio (de a kMaxTotems, se reusan al soltarse, la
-// conexión que se va los suelta), la oferta de solo audio, el tope de fotos, los
+// conexión que se va los suelta), la oferta de micrófono y cámara, los
 // «toques» que van a la app y las rutas de MediaRoute (la voz de cada canal le llega
 // solo a su conexión). Y las rutas de la API de control por un socket de verdad.
 
@@ -139,7 +139,7 @@ int main() {
         ofertas.push_back(conn + "@" + std::to_string(canal));
         return true;
     };
-    m.cerrar = [&](const std::string&) { ++cerradas; };
+    m.cerrar = [&](const std::string&, int) { ++cerradas; };
     r.setMedios(m);
 
     // --- Los ids y la autenticación ---------------------------------------------------
@@ -193,26 +193,13 @@ int main() {
     r.audioListo(cs[4], false);
     CHECK(eventos.size() == antesTardio, "el aviso tardío de la sesión cerrada no se repite");
 
-    // La conexión que se va suelta su canal y su foto.
+    // La conexión que se va suelta su canal.
     CHECK(r.tomarCanal(cs[5]) == 2, "otro tótem comparte los mismos canales");
-    const std::string jpeg = std::string("\xFF\xD8\xFF\xE0", 4) + std::string(100, 'x');
-    CHECK(r.ponerFoto(cs[5], jpeg, 1000) && r.foto(cs[5]) == jpeg, "la foto queda");
-    CHECK(ultimo("foto").value("conn", "") == cs[5], "y la app se entera");
     r.baja(cs[5]);
-    CHECK(r.canalDe(cs[5]) == 0 && r.foto(cs[5]).empty(), "al irse, sin canal y sin foto");
+    CHECK(r.canalDe(cs[5]) == 0, "al irse, sin canal");
     CHECK(!ultimo("conexion").value("conectado", true) && ultimo("canal").value("canal", -1) == 0,
           "la app se entera: canal 0 y desconectado");
     CHECK(r.tomarCanal(cs[4]) == 2, "su canal queda libre");
-
-    // --- Fotos: JPEG, tamaño y frecuencia ---------------------------------------------
-    CHECK(!r.ponerFoto(cs[0], "no es jpeg", 5000), "algo que no es JPEG: no");
-    CHECK(!r.ponerFoto(cs[0], std::string("\xFF\xD8", 2) + std::string(97 * 1024, 'x'), 5000), "más de 96 KB: no");
-    int guardadas = 0;
-    const std::size_t antesFotos = eventos.size();
-    for (int i = 0; i < 6; ++i) guardadas += r.ponerFoto(cs[0], jpeg, 10000 + i * 10) ? 1 : 0;
-    CHECK(guardadas == 3, "a lo sumo 3 por segundo");
-    CHECK(eventos.size() == antesFotos + 1, "a la app, un aviso cada medio segundo");
-    CHECK(r.ponerFoto(cs[0], jpeg, 11100), "pasado el segundo, otra vez");
 
     // --- Lo que toca la persona va a la app ------------------------------------------
     CHECK(RegistroBorde::toque("c1", "entrada", {{"type", "empezar"}}).value("accion", "") == "empezar", "empezar");
@@ -240,13 +227,16 @@ int main() {
     CHECK(!r.autenticar("sala-b", token2, nombre), "el que se dio de baja tampoco");
     CHECK(r.conexionesDe("entrada").size() == 5, "hasta que su lazo sale, siguen anotadas");
 
-    // --- La oferta de solo audio (la misma regla que la atención hablada) --------------
+    // --- La oferta: el micrófono y a lo sumo una cámara ---------------------------------
     const auto sdpDe = [](const std::string& secciones) { return "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\n" + secciones; };
-    CHECK(ba::gateway::SesionBorde::subeSoloAudio(sdpDe("m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n")),
-          "solo el micrófono: pasa");
-    CHECK(!ba::gateway::SesionBorde::subeSoloAudio(sdpDe("m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"
-                                                         "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=sendonly\r\n")),
-          "con la cámara: no");
+    const std::string mic = "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n";
+    const std::string cam = "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=sendonly\r\n";
+    CHECK(RegistroBorde::ofertaValida(sdpDe(mic)), "solo el micrófono: pasa");
+    CHECK(RegistroBorde::ofertaValida(sdpDe(mic + cam)), "micrófono y cámara: pasa");
+    CHECK(!RegistroBorde::ofertaValida(sdpDe(cam)), "sin micrófono: no");
+    CHECK(!RegistroBorde::ofertaValida(sdpDe(mic + cam + cam)), "dos videos (cámara y pantalla): no");
+    CHECK(!RegistroBorde::ofertaValida(sdpDe(mic + "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n")),
+          "un canal de datos: no");
 
     // --- Rutas de medios ---------------------------------------------------------------
     CHECK(MediaRoute::registro(2).oyeVozRegistro(2), "la conexión del canal 2 oye la voz del canal 2");
@@ -271,7 +261,6 @@ int main() {
         CHECK(t.codigo == 200 && json::parse(t.cuerpo, nullptr, false).value("totems", 0) == 1, "POST totems");
         const std::string c1 = a.alta("hall", "10.0.0.7", "sala");
         a.tomarCanal(c1);
-        a.ponerFoto(c1, jpeg, 1);
         t = pedir(a, "GET", "/api/v1/registro/estado", "", "");
         const json est = json::parse(t.cuerpo, nullptr, false);
         CHECK(t.codigo == 200 && est["conexiones"].size() == 1, "GET estado: la conexión");
@@ -282,10 +271,6 @@ int main() {
                       e.contains("audio"),
                   "con conn, id, canal, ip, lugar, desdeMs y audio");
         }
-        t = pedir(a, "GET", "/api/v1/registro/foto", "conn=" + c1, "");
-        CHECK(t.codigo == 200 && t.cuerpo == jpeg, "GET foto");
-        t = pedir(a, "GET", "/api/v1/registro/foto", "conn=c999", "");
-        CHECK(t.codigo == 404, "sin foto: 404");
         t = pedir(a, "POST", "/api/v1/registro/enviar", "", json{{"id", "hall"}, {"msg", {{"type", "reiniciar"}}}}.dump());
         CHECK(t.codigo == 200 && json::parse(t.cuerpo, nullptr, false).value("entregado", -1) == 1,
               "enviar a todas las del tótem");
@@ -318,7 +303,7 @@ int main() {
             enviar({{"type", "respuesta"}, {"sdp", "v=0"}});
             return true;
         };
-        mw.cerrar = [](const std::string&) {};
+        mw.cerrar = [](const std::string&, int) {};
         w.setMedios(mw);
         w.ponerTotems(json::array({totem("hall", sal, token, "Hall")}));
         const unsigned char lanB[4] = {192, 168, 1, 50};
@@ -390,11 +375,13 @@ int main() {
             mandar({{"type", "canal"}});
             CHECK(leerHasta("\"canal\":1"), "ws: pide canal -> el 1");
             mandar({{"type", "oferta"}, {"sdp", "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"
+                                                "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=sendonly\r\n"
                                                 "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=sendonly\r\n"}});
-            CHECK(leerHasta("algo más que el micrófono") && ofertasW.empty(), "ws: una oferta con cámara: no");
-            mandar({{"type", "oferta"}, {"sdp", "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"}});
+            CHECK(leerHasta("algo más que el micrófono") && ofertasW.empty(), "ws: una oferta con dos videos: no");
+            mandar({{"type", "oferta"}, {"sdp", "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=sendrecv\r\n"
+                                                "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=sendonly\r\n"}});
             CHECK(leerHasta("\"type\":\"respuesta\"") && ofertasW.size() == 1 && ofertasW[0] == conn + "@1",
-                  "ws: solo audio -> la oferta va por su canal y vuelve la respuesta");
+                  "ws: micrófono y cámara -> la oferta va por su canal y vuelve la respuesta");
             mandar({{"type", "escrito"}, {"clave", "nombre"}, {"valor", "Ana"}});
             mandar({{"type", "ping"}});
             CHECK(leerHasta("pong"), "ws: ping -> pong");

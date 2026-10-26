@@ -51,6 +51,8 @@ class FrameService : public QObject {
 
     /// Claves de video disponibles ("program", "guest:1"...).
     QStringList keys() const;
+    /// Las cámaras de los tótems de registro, "registro:1".."registro:4" (kMaxTotems del gateway).
+    static constexpr int kRegistroSlots = 4;
 
     /// Nombre legible de una clave ("Programa", "Invitado 1").
     Q_INVOKABLE QString label(const QString& key) const;

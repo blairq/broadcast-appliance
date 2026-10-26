@@ -67,6 +67,7 @@ QString FrameService::label(const QString& key) const {
     if (key.startsWith("share:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6)) + " — pantalla";
     if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);
     if (key.startsWith("backstage:")) return "Fila " + key.mid(10);
+    if (key.startsWith("registro:")) return "Tótem de registro " + key.mid(9);
     if (key.startsWith("entrada:")) return key.mid(8);
     if (key.startsWith("escena:")) return key.mid(7);
     return key;
@@ -136,6 +137,7 @@ std::wstring FrameService::channelOf(const QString& key) {
     if (key.startsWith("share:")) return L"BA.GuestShare." + n;
     if (key.startsWith("lobby:")) return L"BA.Lobby." + n;
     if (key.startsWith("backstage:")) return L"BA.Backstage." + n;
+    if (key.startsWith("registro:")) return L"BA.Registro." + n; // la cámara de un tótem de registro
     return {};
 }
 
@@ -206,6 +208,11 @@ void FrameService::poll() {
     // simplemente no se suscriben).
     for (int k = 1; k <= kBackstageSlots; ++k) {
         wanted.push_back(QString("backstage:%1").arg(k));
+    }
+    // Las cámaras de los tótems de registro (B publica una por canal de conversación,
+    // 1..4: kMaxTotems del gateway). Se reconoce la cara ahí y se las puede mirar.
+    for (int k = 1; k <= kRegistroSlots; ++k) {
+        wanted.push_back(QString("registro:%1").arg(k));
     }
     wanted.push_back("operator");
     for (const QString& key : wanted) {

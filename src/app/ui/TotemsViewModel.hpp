@@ -23,8 +23,10 @@
 //     que baja por BA.Audio.RegistroVoz.<k> (emision/VozAlLobby) SOLO a esa
 //     conexión. Mientras habla, al oído le llegan ceros: si no, se
 //     transcribiría a sí mismo;
-//   - la cara: las fotos que manda la página (/api/v1/registro/foto) van al
-//     reconocimiento (PersonasViewModel::identificarFoto, fuera de este hilo);
+//   - la cara: la cámara del tótem sube por WebRTC (video, como el lobby) a
+//     BA.Registro.<k>; sus cuadros (FrameService, clave "registro:<k>") van al
+//     reconocimiento (PersonasViewModel::identificarFoto, fuera de este hilo). La
+//     misma clave sirve para mirarla en la app, en un monitor o en una escena;
 //   - el gateway: la API de control /api/v1/registro/* y el evento SSE
 //     «registro» (ConferenceClient::registroEvento).
 //
@@ -166,7 +168,7 @@ class TotemsViewModel : public QObject {
     void abrirAudio(Conexion& c);
     void cerrarAudio(Conexion& c);
     void cargarVoz();
-    void pedirFoto(Conexion& c);
+    void mirarCara(Conexion& c);
     void alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
                 bool hayCara, bool sirve);
     void empezar(Conexion& c, const QString& personaId, const QString& nombre);

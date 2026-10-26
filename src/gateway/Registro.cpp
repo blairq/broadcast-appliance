@@ -11,7 +11,7 @@
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "MediaRoute.hpp"
-#include "Sesion.hpp" // servir, origenValido, subeSoloAudio: las mismas defensas
+#include "Sesion.hpp" // servir, origenValido: las mismas defensas
 #include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
@@ -51,12 +51,11 @@ inline int kMensajesPorSegundo() { return ba::ajustes::entero("sesion.mensajesPo
 inline int kLatidoMs() { return ba::ajustes::sAMs("sesion.latidoS", 30); }
 inline int kAuthMs() { return ba::ajustes::sAMs("sesion.authS", 15); }
 inline int kIntentosPorIp() { return ba::ajustes::entero("sesion.intentosPorIp", 10); } // fallidos, cada 10 minutos
-inline std::size_t kMaxFoto() { return static_cast<std::size_t>(ba::ajustes::entero("sesion.fotoKB", 96)) * 1024; }
 // Conexiones a la vez entre todos los tótems: cada una es un hilo y un socket. Una
 // TV con su QR y la gente que lo escanea en la entrada no se acercan a esto.
+// El mensaje más grande que manda la página: una oferta SDP con audio y video (unos 10 KB).
+constexpr std::size_t kMaxMensaje = 64 * 1024;
 inline int kMaxConexiones() { return ba::ajustes::entero("registro.maxConexiones", 256); }
-constexpr int kFotosPorSegundo = 3;
-constexpr std::int64_t kAvisoFotoMs = 500; // a la app, a lo sumo 2 por segundo por conexión
 
 } // namespace
 
@@ -152,7 +151,6 @@ void RegistroBorde::baja(const std::string& conn) {
         if (it == conns_.end()) return;
         c = it->second;
         conns_.erase(it);
-        fotos_.erase(conn);
     }
     {
         std::lock_guard<std::mutex> l(c->sendLock);
@@ -199,7 +197,7 @@ void RegistroBorde::soltarCanal(const std::string& conn) {
         id = it->second->id;
     }
     // Su WebRTC no sigue sin canal: la ruta Registro(k) queda para el próximo.
-    if (medios_.cerrar) medios_.cerrar(conn);
+    if (medios_.cerrar) medios_.cerrar(conn, canal);
     log_.info("registro: " + conn + " suelta el canal " + std::to_string(canal));
     if (conAudio) alApp_({{"tipo", "audio"}, {"conn", conn}, {"id", id}, {"listo", false}});
     alApp_({{"tipo", "canal"}, {"conn", conn}, {"id", id}, {"canal", 0}});
@@ -224,36 +222,21 @@ void RegistroBorde::audioListo(const std::string& conn, bool listo) {
     alApp_({{"tipo", "audio"}, {"conn", conn}, {"id", id}, {"listo", listo}});
 }
 
-bool RegistroBorde::ponerFoto(const std::string& conn, std::string jpeg, std::int64_t ahora) {
-    if (jpeg.size() < 4 || jpeg.size() > kMaxFoto() || static_cast<unsigned char>(jpeg[0]) != 0xFF ||
-        static_cast<unsigned char>(jpeg[1]) != 0xD8)
-        return false;
-    std::string id;
-    bool avisar = false;
-    {
-        std::lock_guard<std::mutex> l(mu_);
-        const auto it = conns_.find(conn);
-        if (it == conns_.end()) return false;
-        auto& v = it->second->fotos;
-        v.erase(std::remove_if(v.begin(), v.end(), [&](std::int64_t t) { return ahora - t >= 1000; }), v.end());
-        if (static_cast<int>(v.size()) >= kFotosPorSegundo) return false; // de más: se descarta
-        v.push_back(ahora);
-        fotos_[conn] = std::move(jpeg);
-        if (ahora - it->second->avisoFotoMs >= kAvisoFotoMs) {
-            it->second->avisoFotoMs = ahora;
-            avisar = true;
-        }
-        id = it->second->id;
+bool RegistroBorde::ofertaValida(const std::string& sdp) {
+    // Sección por sección (m=): audio (el micrófono, y por ahí baja la voz del asistente) y a
+    // lo sumo UN video (la cámara). Nada más: ni una segunda cámara, ni datos, ni una pantalla.
+    int audios = 0, videos = 0, otras = 0;
+    std::size_t pos = 0;
+    while (pos < sdp.size()) {
+        const std::size_t fin = sdp.find('\n', pos);
+        const std::string linea = sdp.substr(pos, fin == std::string::npos ? std::string::npos : fin - pos);
+        pos = fin == std::string::npos ? sdp.size() : fin + 1;
+        if (linea.rfind("m=", 0) != 0) continue;
+        if (linea.rfind("m=audio", 0) == 0) ++audios;
+        else if (linea.rfind("m=video", 0) == 0) ++videos;
+        else ++otras;
     }
-    // La app la pide cuando la quiere (/foto?conn=): el aviso es solo «hay una nueva».
-    if (avisar) alApp_({{"tipo", "foto"}, {"conn", conn}, {"id", id}});
-    return true;
-}
-
-std::string RegistroBorde::foto(const std::string& conn) const {
-    std::lock_guard<std::mutex> l(mu_);
-    const auto it = fotos_.find(conn);
-    return it == fotos_.end() ? std::string() : it->second;
+    return audios == 1 && videos <= 1 && otras == 0;
 }
 
 json RegistroBorde::estado() const {
@@ -261,7 +244,7 @@ json RegistroBorde::estado() const {
     std::lock_guard<std::mutex> l(mu_);
     for (const auto& [conn, c] : conns_)
         cs.push_back({{"conn", conn}, {"id", c->id}, {"canal", c->canal}, {"ip", c->ip}, {"lugar", c->lugar},
-                      {"desdeMs", c->desdeMs}, {"audio", c->audio}, {"foto", fotos_.count(conn) > 0}});
+                      {"desdeMs", c->desdeMs}, {"audio", c->audio}});
     return {{"conexiones", cs}, {"totems", totems_.size()}, {"canales", kMaxTotems}};
 }
 
@@ -398,7 +381,7 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
             http::writeWsFrame(fd, 0xA, payload);
             continue;
         }
-        if (op != 0x1 || payload.size() > kMaxFoto() * 2) continue;
+        if (op != 0x1 || payload.size() > kMaxMensaje) continue;
         const std::int64_t ahora = ahoraMs();
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
@@ -421,15 +404,15 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
         } else if (t == "soltar") {
             soltarCanal(conn);
         } else if (t == "oferta") {
-            // Solo audio y solo por su canal: el token lo tiene cualquiera que vio el QR, y lo
-            // que garantiza que nadie mande una cámara a ningún lado por acá es esto.
+            // Micrófono y cámara, y solo por su canal: el token lo tiene cualquiera que vio el QR,
+            // y lo que garantiza que no se cuele otra cosa (una pantalla, datos) es esto.
             const int k = canalDe(conn);
             const std::string sdp = m.value("sdp", std::string());
             if (k == 0) {
                 enviar(c, {{"type", "audio-error"}, {"error", "Todavía no hay un canal de audio para vos."}});
-            } else if (!SesionBorde::subeSoloAudio(sdp)) {
-                log_.warn("registro: " + conn + " quiso mandar algo más que audio; se ignora", -1);
-                enviar(c, {{"type", "audio-error"}, {"error", "La página ofreció algo más que el micrófono."}});
+            } else if (!ofertaValida(sdp)) {
+                log_.warn("registro: " + conn + " quiso mandar algo más que el micrófono y la cámara; se ignora", -1);
+                enviar(c, {{"type", "audio-error"}, {"error", "La página ofreció algo más que el micrófono y la cámara."}});
             } else {
                 std::weak_ptr<Conn> w = c;
                 if (!medios_.oferta || !medios_.oferta(conn, k, sdp, [this, w](const json& resp) {
@@ -441,8 +424,6 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
             if (canalDe(conn) == 0 || !medios_.ice) continue;
             const json& cand = m.contains("candidate") ? m["candidate"] : json();
             medios_.ice(conn, cand.is_string() ? cand.get<std::string>() : volcar(cand));
-        } else if (t == "foto") {
-            ponerFoto(conn, http::deBase64(m.value("jpeg", std::string())), ahora);
         } else {
             const json tq = toque(conn, id, m);
             if (!tq.is_null()) alApp_(tq);
@@ -458,13 +439,6 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     const std::string que = path.substr(kBase.size());
     if (method == "GET" && que == "estado") {
         http::sendResponse(fd, 200, "application/json", volcar(estado()));
-        return true;
-    }
-    if (method == "GET" && que == "foto") {
-        const auto q = http::parseQuery(query);
-        const std::string jpeg = foto(q.count("conn") ? http::urlDecode(q.at("conn")) : std::string());
-        if (jpeg.empty()) return http::sendResponse(fd, 404, "text/plain", "sin foto\n"), true;
-        http::sendResponse(fd, 200, "image/jpeg", jpeg, "Cache-Control: no-store\r\n");
         return true;
     }
     const json r = json::parse(body.empty() ? "{}" : body, nullptr, false);

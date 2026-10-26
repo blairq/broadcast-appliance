@@ -133,7 +133,11 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             }
             if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
         };
-        m.cerrar = [this](const std::string& conn) { releaseSession("registro:" + conn, 0, true); };
+        m.cerrar = [this](const std::string& conn, int canal) {
+            releaseSession("registro:" + conn, 0, true);
+            // Que su cara no quede congelada en un monitor (ni la reconozca el próximo).
+            if (pump_ != nullptr) pump_->apagarRegistro(canal);
+        };
         registro_->setMedios(std::move(m));
     }
     controlWeb_ = std::make_unique<ControlWebBorde>(cfg_.controlWebroot, log_,
@@ -2559,8 +2563,10 @@ bool SignalingServer::ofertaRegistro(const std::string& conn, int canal, const s
         }
         if (suya && registro_) registro_->audioListo(conn, up);
     };
-    if (pump_ != nullptr)
+    if (pump_ != nullptr) {
         cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+        cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+    }
     sess->configure(cb, hub_.rtcFactory());
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::registro(canal));
     if (!sess->setRemoteOffer(sdp)) {
