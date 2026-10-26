@@ -25,6 +25,13 @@ std::filesystem::path gstRaiz();
 /// no hay GStreamer en el bundle (entonces no hay que llamar a gst_init).
 bool prepararGst();
 
+/// Los plugins que se sacan del registro apenas termina gst_init, en todo proceso que
+/// lo inicie (motor::quitarPluginsDelSistema, el catálogo de la app): meten código de
+/// terceros en el proceso. directshow le ofrece a decodebin cualquier códec instalado
+/// (los LAV del K-Lite); asio carga cada driver ASIO instalado en cada búsqueda de
+/// dispositivos (los ASIO los prueba la sonda de drivers, aparte y con cuarentena).
+inline constexpr const char* kPluginsDelSistema[] = {"directshow", "asio"};
+
 // --- El registro de plugins ---------------------------------------------------
 // La primera vez en una PC (o con el bundle en otra ruta: el disco cambió de
 // letra, la carpeta se movió) gst_init rehace el registro: pasa cada plugin por

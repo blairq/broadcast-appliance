@@ -46,7 +46,9 @@ struct ProgresoGst {
 ProgresoGst progresoGStreamer();
 /// Saca del registro los plugins que meten código del sistema en el proceso
 /// (DirectShow: le ofrece a decodebin cualquier códec instalado, como los LAV
-/// del K-Lite). Por si quedó el .dll de una versión vieja. Después de gst_init.
+/// del K-Lite; ASIO: su proveedor carga cada driver ASIO instalado en cada
+/// búsqueda de dispositivos). Por si quedó el .dll de una versión vieja. Después
+/// de gst_init.
 void quitarPluginsDelSistema();
 /// Los convertidores de D3D12 se crean de a uno (d3d12convert/scale/colorconvert:
 /// su set_caps, bajo un candado de todo el proceso). GStreamer 1.26 comparte entre

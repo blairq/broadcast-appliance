@@ -79,12 +79,14 @@ bool iniciarGst() {
         if (e != nullptr) g_error_free(e);
         if (rehacer && !delUsuario) gst_debug_set_threshold_for_name("GST_PLUGIN_LOADING", GST_LEVEL_NONE);
         ba::platform::registroTerminado(g_ok);
-        // Lo mismo que motor::quitarPluginsDelSistema (este catálogo no enlaza el motor).
+        // Lo mismo que motor::quitarPluginsDelSistema (este catálogo no enlaza el motor): la
+        // lista es una sola, platform::kPluginsDelSistema.
         if (g_ok)
-            if (GstPlugin* p = gst_registry_find_plugin(gst_registry_get(), "directshow")) {
-                gst_registry_remove_plugin(gst_registry_get(), p);
-                gst_object_unref(p);
-            }
+            for (const char* n : ba::platform::kPluginsDelSistema)
+                if (GstPlugin* p = gst_registry_find_plugin(gst_registry_get(), n)) {
+                    gst_registry_remove_plugin(gst_registry_get(), p);
+                    gst_object_unref(p);
+                }
     });
     return g_ok;
 }

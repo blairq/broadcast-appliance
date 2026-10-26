@@ -246,7 +246,12 @@ bool iniciarGStreamer(std::string* error, const std::function<void()>& esperando
 
 void quitarPluginsDelSistema() {
     GstRegistry* reg = gst_registry_get();
-    for (const char* n : {"directshow"}) {
+    // Cuáles y por qué: platform/GstEntorno.hpp. Sobre asio: su proveedor de dispositivos
+    // CARGA cada driver ASIO instalado para listarlo, en cada búsqueda; en una notebook con
+    // SAR sobre JackRouter fueron 416 cargas en 12 minutos y la interfaz trabada hasta 12 s,
+    // y ni el rango NONE de GstEntorno alcanzó. Los ASIO los prueba la sonda de drivers por
+    // COM, en otro proceso y con cuarentena (dispositivos/SondaAsio).
+    for (const char* n : ba::platform::kPluginsDelSistema) {
         if (GstPlugin* p = gst_registry_find_plugin(reg, n)) {
             gst_registry_remove_plugin(reg, p);
             gst_object_unref(p);
