@@ -907,6 +907,16 @@ endif()
     target_link_libraries(test_atencion PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_atencion COMMAND test_atencion)
 
+    # El registro por tótem: la configuración (registro.json) y el guion hablado con sus normalizadores.
+    add_executable(test_registro_totems tests/test_registro_totems.cpp registro/Totems.cpp)
+    target_include_directories(test_registro_totems PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_totems PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_registro_totems COMMAND test_registro_totems)
+    add_executable(test_registro_conversacion tests/test_registro_conversacion.cpp registro/Conversacion.cpp registro/Totems.cpp)
+    target_include_directories(test_registro_conversacion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
+
     # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
     add_executable(test_reglas_sala tests/test_reglas_sala.cpp sala/ReglasSala.cpp)
     target_include_directories(test_reglas_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

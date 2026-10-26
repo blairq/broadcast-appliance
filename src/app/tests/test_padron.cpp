@@ -311,6 +311,53 @@ void disco() {
     fs::remove_all(tmp, ec);
 }
 
+// --- 7) Lo que contestó en un tótem de registro ----------------------------------
+void datos_del_registro() {
+    // Un padrón escrito antes de los tótems (sin `datos` ni `registro`) carga igual.
+    const auto viejo = nlohmann::json::parse(
+        R"({"gente":[{"id":"a1","nombre":"Ana","estado":"llego","porDonde":"rostro","codigo":"ABCD"}]})");
+    Padron p = Padron::deJson(viejo);
+    CHECK(p.gente().size() == 1, "el padrón viejo carga");
+    CHECK(p.gente()[0].datos.is_object() && p.gente()[0].datos.empty(), "con los datos vacíos");
+    CHECK(p.gente()[0].registro.empty(), "y sin tótem");
+
+    // Unos datos que no son un objeto no tiran la fila.
+    const auto raro = nlohmann::json::parse(R"({"gente":[{"id":"a2","nombre":"Luis","datos":"texto"}]})");
+    CHECK(Padron::deJson(raro).gente().size() == 1, "datos raros no tiran la fila");
+
+    // Se suman clave por clave; null saca una clave.
+    Asistente a;
+    a.nombre = "Jorge";
+    a.datos = {{"correo", "jorge@gmail.com"}, {"acompanantes", 2}};
+    a.registro = "entrada";
+    const std::string id = p.agregar(a);
+    Asistente cambio;
+    cambio.datos = {{"telefono", "1145678901"}, {"acompanantes", nullptr}};
+    CHECK(p.cambiar(id, cambio, {"datos"}), "cambiar datos");
+    const Asistente* j = p.porId(id);
+    CHECK(j->datos["correo"] == "jorge@gmail.com", "lo de antes queda");
+    CHECK(j->datos["telefono"] == "1145678901", "lo nuevo se suma");
+    CHECK(!j->datos.contains("acompanantes"), "null lo saca");
+    CHECK(j->registro == "entrada", "el tótem queda");
+
+    // Ida y vuelta por JSON, con números y booleanos adentro.
+    Asistente b;
+    b.nombre = "Lucía";
+    b.datos = {{"newsletter", true}, {"edad", 35}};
+    b.registro = "hall";
+    p.agregar(b);
+    const Padron vuelta = Padron::deJson(p.aJson());
+    const Asistente* l = vuelta.porNombre("lucia");
+    CHECK(l != nullptr && l->datos["newsletter"] == true && l->datos["edad"] == 35 && l->registro == "hall",
+          "los datos sobreviven al JSON");
+
+    // Acreditado por el tótem cuenta como presencial (vino al lugar).
+    const int antes = p.resumen().presenciales;
+    p.acreditar(id, "registro", 1000);
+    CHECK(p.resumen().presenciales == antes + 1, "el registro por tótem es presencial");
+    CHECK(p.porId(id)->porDonde == "registro", "y dice por dónde");
+}
+
 } // namespace
 
 int main() {
@@ -321,6 +368,7 @@ int main() {
     quienes_estan();
     ida_y_vuelta();
     disco();
+    datos_del_registro();
     if (g_fallos == 0) std::printf("test_padron: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

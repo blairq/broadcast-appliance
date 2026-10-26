@@ -101,9 +101,21 @@ struct Asistente {
     std::string codigo;
     /// Cuándo se lo acreditó (ms desde la época; 0 = no llegó).
     std::int64_t llegoMs = 0;
-    /// Por dónde se lo acreditó: "rostro", "qr", "mostrador", "lobby". Sirve
-    /// para saber en qué confiar cuando dos registros se contradicen.
+    /// Por dónde se lo acreditó: "rostro", "qr", "mostrador", "lobby",
+    /// "registro". Sirve para saber en qué confiar cuando dos registros se
+    /// contradicen.
     std::string porDonde;
+    /// Lo que contestó al registrarse (un tótem de registro, registro/Totems):
+    /// un objeto libre, clave -> valor, con las claves que configuró el
+    /// organizador para ESE evento («correo», «empresa», «viene_acompanado»).
+    ///
+    /// LIBRE A PROPÓSITO. Cada evento pide cosas distintas y no se sabe todavía
+    /// qué se va a hacer con ellas; un campo por dato obligaría a tocar el
+    /// padrón cada vez que alguien quiera preguntar algo nuevo. Va acá y no en
+    /// la libreta por la misma regla de arriba: caduca con el evento.
+    nlohmann::json datos = nlohmann::json::object();
+    /// El tótem por el que se registró (su id), o vacío.
+    std::string registro;
 
     nlohmann::json aJson() const;
     static Asistente deJson(const nlohmann::json& j);

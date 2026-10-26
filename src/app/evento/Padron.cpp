@@ -167,7 +167,9 @@ json Asistente::aJson() const {
                 {"vota", vota},
                 {"codigo", codigo},
                 {"llegoMs", llegoMs},
-                {"porDonde", porDonde}};
+                {"porDonde", porDonde},
+                {"datos", datos.is_object() ? datos : json::object()},
+                {"registro", registro}};
 }
 
 Asistente Asistente::deJson(const json& j) {
@@ -190,6 +192,11 @@ Asistente Asistente::deJson(const json& j) {
     if (j.contains("llegoMs") && j["llegoMs"].is_number_integer())
         a.llegoMs = j["llegoMs"].get<std::int64_t>();
     a.porDonde = textoDe(j, "porDonde");
+    // Los padrones escritos antes del registro por tótem no traen `datos`: se
+    // cargan igual, con el objeto vacío. Uno que trae otra cosa (un texto, una
+    // lista) tampoco tira la fila: se descarta solo ese dato.
+    if (j.contains("datos") && j["datos"].is_object()) a.datos = j["datos"];
+    a.registro = textoDe(j, "registro");
     // Sin ficha de rostro no se puede reconocer a nadie, así que dejar pasar
     // solo no significa nada: entraría por escribir un nombre, que es
     // justamente lo que no se quiere.
@@ -265,6 +272,17 @@ bool Padron::cambiar(const std::string& id, const Asistente& campos,
     if (pidieron("nota")) a->nota = campos.nota;
     if (pidieron("dejarPasarSolo")) a->dejarPasarSolo = campos.dejarPasarSolo;
     if (pidieron("vota")) a->vota = campos.vota;
+    if (pidieron("registro")) a->registro = campos.registro;
+    // Los datos se SUMAN, clave por clave: registrarse de nuevo por otro tótem
+    // (o corregir un dato) no tiene por qué borrar lo que contestó antes. Para
+    // sacar una clave se la manda en null.
+    if (pidieron("datos") && campos.datos.is_object()) {
+        if (!a->datos.is_object()) a->datos = json::object();
+        for (auto it = campos.datos.begin(); it != campos.datos.end(); ++it) {
+            if (it.value().is_null()) a->datos.erase(it.key());
+            else a->datos[it.key()] = it.value();
+        }
+    }
     if (a->personaId.empty()) a->dejarPasarSolo = false;
     return true;
 }
@@ -320,7 +338,8 @@ Resumen Padron::resumen() const {
         if (a.vota) ++r.votoPresente;
         // Sin canal previsto, lo dice por dónde se acreditó (el QR sirve en los dos lados).
         const bool aca = a.canal == Canal::Presencial ||
-                         (a.canal == Canal::SinDefinir && (a.porDonde == "mostrador" || a.porDonde == "rostro"));
+                         (a.canal == Canal::SinDefinir && (a.porDonde == "mostrador" || a.porDonde == "rostro" ||
+                                                     a.porDonde == "registro"));
         const bool online = a.canal == Canal::Online || (a.canal == Canal::SinDefinir && a.porDonde == "lobby");
         if (aca)
             ++r.presenciales;
