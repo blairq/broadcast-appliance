@@ -140,6 +140,29 @@ class Conversacion {
     std::string titulo() const;
     std::string subtitulo() const;
 
+    // --- Atendida por una persona (la atención remota; docs/funciones/REGISTRO-TOTEM.md) ----
+    // Alguien del equipo (desde la web, la app o el MCP) toma la conversación: el guion se
+    // PAUSA —no pregunta, no cuenta silencios, lo que se oye o se tipea no lo hace hablar—
+    // hasta que la devuelve al asistente, la guarda o la cancela.
+
+    /// La atiende `quien` (su nombre; "" = alguien del equipo). Si todavía no había
+    /// empezado, empieza callada en el primer campo sin dato. false si ya terminó.
+    bool atender(const std::string& quien);
+    bool atendida() const { return atendida_; }
+    const std::string& atendidaPor() const { return atendidaPor_; }
+    /// La devuelve al asistente: el guion sigue desde el próximo campo sin dato (o la foto,
+    /// o la despedida si ya está todo).
+    Respuesta devolver();
+    /// Un dato puesto desde afuera, atendiendo o no: como lo tipeado (sin confirmación
+    /// hablada). Vacío = borrarlo. Sin atender, si es el que se pedía, el guion sigue.
+    /// `error` dice por qué no (no hay ese campo, no se entiende).
+    Respuesta poner(const std::string& clave, const std::string& valor, std::string& error);
+    /// Guardar ya, como si hubiera terminado el guion (sin el paso de la foto). `error` si
+    /// no está en curso o falta algún obligatorio.
+    Respuesta guardarYa(std::string& error);
+    /// Las etiquetas de los obligatorios que todavía no tienen dato.
+    std::vector<std::string> faltan() const;
+
    private:
     std::string pregunta(std::size_t i) const;
     std::string reintento(const Campo& c, int intento) const;
@@ -161,6 +184,9 @@ class Conversacion {
     int silencios_ = 0;
     bool fotoHecha_ = false; ///< ya pasó por el paso de la foto (salió o se dio por perdida)
     int fotoIntentos_ = 0;
+    // Atendida por una persona (ver arriba).
+    bool atendida_ = false;
+    std::string atendidaPor_;
 };
 
 } // namespace ba::registro

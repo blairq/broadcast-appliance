@@ -780,7 +780,7 @@ void Conversacion::fallo(Respuesta& r) {
 
 Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     Respuesta r;
-    if (!enCurso()) return r;
+    if (!enCurso() || atendida_) return r; // atendida: le contesta una persona, no el guion
     const std::string f = sinSignos(texto);
     if (f.empty()) return r;
     silencios_ = 0;
@@ -855,6 +855,10 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
 }
 
 Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const std::string& valor) {
+    if (atendida_) { // lo anota sin que el asistente diga nada: le está hablando una persona
+        std::string error;
+        return poner(clave, valor, error);
+    }
     Respuesta r;
     if (!enCurso() || estado_ == Estado::Foto) return r;
     std::size_t i = 0;
@@ -880,7 +884,8 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
 Conversacion::Respuesta Conversacion::silencio() {
     Respuesta r;
     // En el paso de la foto el que espera es quien llama (fotoFallo): callado es lo esperable.
-    if (!enCurso() || estado_ == Estado::Foto) return r;
+    // Atendida: los silencios son de la charla con la persona, no del guion.
+    if (!enCurso() || estado_ == Estado::Foto || atendida_) return r;
     r.pedir = t_.campos[actual_].clave;
     ++silencios_;
     if (silencios_ == 1) {
@@ -909,7 +914,7 @@ Conversacion::Respuesta Conversacion::cancelar() {
 
 Conversacion::Respuesta Conversacion::fotoLista() {
     Respuesta r;
-    if (estado_ != Estado::Foto) return r;
+    if (estado_ != Estado::Foto || atendida_) return r;
     fotoHecha_ = true;
     terminar(r, "¡Salió muy bien!");
     return r;
@@ -917,7 +922,7 @@ Conversacion::Respuesta Conversacion::fotoLista() {
 
 Conversacion::Respuesta Conversacion::fotoFallo(const std::string& sugerencia) {
     Respuesta r;
-    if (estado_ != Estado::Foto) return r;
+    if (estado_ != Estado::Foto || atendida_) return r;
     if (++fotoIntentos_ == 1) {
         r.decir = (sugerencia.empty() ? std::string("No te veo bien.") : sugerencia) + " Mirá derecho a la cámara.";
         r.foto = true;
@@ -965,6 +970,7 @@ std::string Conversacion::nombre() const {
 }
 
 std::string Conversacion::paso() const {
+    if (atendida_ && enCurso()) return "la atiende " + (atendidaPor_.empty() ? std::string("alguien del equipo") : atendidaPor_);
     switch (estado_) {
         case Estado::Esperando: return "esperando";
         case Estado::Terminada: return "terminada";
@@ -977,6 +983,116 @@ std::string Conversacion::paso() const {
         }
     }
     return {};
+}
+
+// --- Atendida por una persona ------------------------------------------------------------
+
+bool Conversacion::atender(const std::string& quien) {
+    if (estado_ == Estado::Terminada) return false;
+    if (estado_ == Estado::Esperando) {
+        // Empieza callada: el saludo y las preguntas los hace la persona que atiende.
+        actual_ = 0;
+        for (std::size_t i = 0; i < t_.campos.size(); ++i)
+            if (valores_[i].is_null() && !salteado_[i]) {
+                actual_ = i;
+                break;
+            }
+        estado_ = Estado::Preguntando;
+    }
+    // Lo que se estaba confirmando queda sin confirmar: se lo dice a la persona, que lo anota.
+    if (estado_ == Estado::Confirmando) estado_ = Estado::Preguntando;
+    atendida_ = true;
+    atendidaPor_ = quien;
+    silencios_ = 0;
+    intentos_ = 0;
+    return true;
+}
+
+Conversacion::Respuesta Conversacion::devolver() {
+    Respuesta r;
+    if (!atendida_) return r;
+    atendida_ = false;
+    atendidaPor_.clear();
+    if (!enCurso()) return r;
+    silencios_ = 0;
+    if (estado_ == Estado::Confirmando) estado_ = Estado::Preguntando;
+    avanzar(r, "Sigo yo.");
+    r.campos = true;
+    return r;
+}
+
+Conversacion::Respuesta Conversacion::poner(const std::string& clave, const std::string& valor, std::string& error) {
+    Respuesta r;
+    error.clear();
+    if (!enCurso()) {
+        error = "Esa conversación no está en curso.";
+        return r;
+    }
+    std::size_t i = 0;
+    while (i < t_.campos.size() && t_.campos[i].clave != clave) ++i;
+    if (i == t_.campos.size()) {
+        error = "Ese tótem no pide «" + clave + "».";
+        return r;
+    }
+    if (estado_ != Estado::Foto) r.pedir = t_.campos[actual_].clave;
+    std::string limpio = valor;
+    while (!limpio.empty() && std::isspace(static_cast<unsigned char>(limpio.back()))) limpio.pop_back();
+    while (!limpio.empty() && std::isspace(static_cast<unsigned char>(limpio.front()))) limpio.erase(limpio.begin());
+    if (limpio.empty()) {
+        // Borrarlo: corregir es también sacar lo que quedó mal. Sin atender, si era el que
+        // se pedía, se lo vuelve a preguntar más adelante (avanzar lo encuentra sin dato).
+        valores_[i] = json();
+        salteado_[i] = false;
+        r.campos = true;
+        return r;
+    }
+    const Campo& c = t_.campos[i];
+    json v;
+    if (!entender(c, limpio, v)) {
+        error = c.tipo == TipoCampo::Correo     ? "Eso no parece un correo."
+                : c.tipo == TipoCampo::Telefono ? "Eso no parece un teléfono."
+                : c.tipo == TipoCampo::Numero   ? "Eso no es un número."
+                : c.tipo == TipoCampo::SiNo     ? "Tiene que ser sí o no."
+                : c.tipo == TipoCampo::Opcion   ? "Tiene que ser una de las opciones: " + listar(c.opciones) + "."
+                                                : "No se entiende ese valor.";
+        return r;
+    }
+    // Sin atender y en medio de las preguntas: es lo mismo que tipearlo en la pantalla (si era el
+    // que se pedía, el asistente lo agradece y sigue).
+    if (!atendida_ && estado_ != Estado::Foto) return escrito(clave, limpio);
+    valores_[i] = v;
+    salteado_[i] = false;
+    if (estado_ == Estado::Confirmando && i == actual_) estado_ = Estado::Preguntando;
+    r.campos = true;
+    return r;
+}
+
+std::vector<std::string> Conversacion::faltan() const {
+    std::vector<std::string> out;
+    for (std::size_t i = 0; i < t_.campos.size(); ++i)
+        if (t_.campos[i].obligatorio && valores_[i].is_null())
+            out.push_back(t_.campos[i].etiqueta.empty() ? t_.campos[i].clave : t_.campos[i].etiqueta);
+    return out;
+}
+
+Conversacion::Respuesta Conversacion::guardarYa(std::string& error) {
+    Respuesta r;
+    error.clear();
+    if (!enCurso()) {
+        error = "Esa conversación no está en curso.";
+        return r;
+    }
+    const auto f = faltan();
+    if (!f.empty()) {
+        error = "Falta " + listar(f) + " (es obligatorio).";
+        return r;
+    }
+    // Lo decidió una persona: sin el paso de la foto (queda la mejor que se vio en la charla).
+    atendida_ = false;
+    atendidaPor_.clear();
+    fotoHecha_ = true;
+    terminar(r, "");
+    return r;
 }
 
 } // namespace ba::registro
