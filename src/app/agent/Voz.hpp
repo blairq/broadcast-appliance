@@ -29,6 +29,14 @@
 // reconocedor (tipo "voz") y Silero VAD ("vad"). Apenas están los dos, se
 // cargan solos.
 //
+// DOS RECONOCEDORES, Y CADA UNO ELIGE (agent/Reconocedores): Parakeet (tipo
+// "voz", por frases) y Nemotron (tipo "voz_streaming": muchas voces a la vez,
+// con texto parcial). El dictado, la transcripción continua, la recepción y el
+// tótem eligen el suyo en la pestaña Agentes; cada motor se carga cuando alguno
+// lo usa y se descarga cuando ya nadie (con un margen). La forma de usarlos no
+// cambia: abrirOido/alimentarOido/cerrarOido con la clave de la corriente, y la
+// clave dice de quién es («registro:…», «atencion:…»).
+//
 // Y CONTESTA HABLANDO: una voz de piper (tipo "tts") elegida en la interfaz,
 // frase por frase y SOLO al monitoreo (audio/MonitorVoz). Si el operador
 // aprieta la tecla, se calla: está hablando él.
@@ -44,6 +52,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "agent/Reconocedores.hpp"
+
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -58,6 +68,8 @@ namespace ba::app {
 class AppRuntime;
 namespace audio {
 class Escucha;
+class EscuchaStreaming;
+class Reconocedor;
 class Habla;
 class MonitorVoz;
 class RackManager;
@@ -119,8 +131,12 @@ class Voz : public QObject {
     /// Cuándo corta una frase la transcripción continua (subtítulos, traducción):
     /// {pausa, maximo, umbral} (ver audio::Escucha::Cortes).
     Q_PROPERTY(QVariantMap cortes READ cortes NOTIFY cambio)
-    /// Lo que oye ahora cada transcripción continua: [{flujo, hablando, segundos}].
+    /// Lo que oye ahora cada transcripción continua: [{flujo, hablando, segundos, parcial, motor}].
     Q_PROPERTY(QVariantList oido READ oido NOTIFY oidoCambio)
+    /// Los dos reconocedores (Parakeet y Nemotron): cuál elige cada consumidor,
+    /// cuáles están cargados y por quién, y la alerta si están los dos a la vez
+    /// (Reconocedores::estado, más `instalado` por motor).
+    Q_PROPERTY(QVariantMap reconocedores READ reconocedores NOTIFY reconocedoresCambio)
 
    public:
     Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
@@ -181,7 +197,26 @@ class Voz : public QObject {
     // de texto: es una charla privada—.
     /// Abre una transcripción continua con `clave`; `alTexto` recibe cada frase
     /// (en el hilo de la interfaz). false si no hay reconocedor cargado.
-    bool abrirOido(const QString& clave, std::function<void(const QString& texto)> alTexto);
+    /// `alHablar` (opcional, hilo de la interfaz): la persona empezó a hablar,
+    /// solo si su consumidor puede interrumpir (el tótem con Nemotron): para
+    /// cortar al asistente en el acto.
+    bool abrirOido(const QString& clave, std::function<void(const QString& texto)> alTexto,
+                   std::function<void()> alHablar = {});
+    /// Si el reconocedor que eligió `consumidor` está bajado (aunque todavía no
+    /// esté cargado: se carga al abrir el oído).
+    bool puedeOir(const QString& consumidor) const;
+    /// Mientras habla el asistente, ¿el oído de `clave` sigue oyendo (para que lo
+    /// interrumpan) o le van ceros? La lee el hilo de audio; Voz la actualiza si
+    /// cambia el motor o la opción.
+    std::shared_ptr<std::atomic<bool>> oyeMientrasHabla(const QString& clave);
+    QVariantMap reconocedores() const { return reconocedoresEstado_; }
+    /// El motor de un consumidor ("parakeet" o "nemotron"): lo cambia, lo guarda
+    /// y pasa sus oídos abiertos al motor nuevo. "" o el error.
+    Q_INVOKABLE QString elegirReconocedor(const QString& consumidor, const QString& motor);
+    /// Que la persona pueda interrumpir al asistente hablando (el tótem, con Nemotron).
+    Q_INVOKABLE QString setInterrumpir(const QString& consumidor, bool on);
+    /// Lo mismo que `reconocedores`, en JSON (el MCP).
+    nlohmann::json reconocedoresJson() const;
     void cerrarOido(const QString& clave);
     /// Mono en float desde cualquier hilo (el de GStreamer).
     void alimentarOido(const std::string& clave, const float* m, std::size_t n, std::uint32_t f);
@@ -267,6 +302,7 @@ class Voz : public QObject {
 
    signals:
     void oidoCambio();
+    void reconocedoresCambio();
     void cambio();
     void transcripcionCambio();
     /// Una frase nueva de la transcripción continua.
@@ -281,6 +317,22 @@ class Voz : public QObject {
 
    private:
     void revisarModelos();
+    // --- Los reconocedores ---------------------------------------------------------
+    audio::Reconocedor* motorOido(MotorOido m) const;
+    /// La carpeta del modelo instalado de cada motor y su VAD ("" si falta alguno);
+    /// de paso, deja en `faltan_` qué decir si falta. Mira el disco: solo al cambiar los modelos.
+    QString claveModelos(MotorOido m);
+    void cargarMotor(MotorOido m);
+    void descargarMotor(MotorOido m);
+    /// Abre o cierra una corriente en el motor de su consumidor (y la cuenta).
+    void abrirCorriente(const std::string& clave, const std::string& consumidor);
+    void cerrarCorriente(const std::string& clave);
+    /// La corriente cambió de motor (se eligió otro): la pasa.
+    void moverCorriente(const std::string& clave);
+    /// Recalcula `reconocedores`, `lista` y el estado del dictado.
+    void actualizarReconocedores();
+    /// Una frase o el comienzo de una voz, de cualquiera de los dos motores (hilo del motor).
+    void alFrase(const std::string& flujo, const std::string& texto, double segundos);
     void revisarVoz();
     void revisarCorrientes();
     /// Lo que manda el rack (hilo de audio).
@@ -336,8 +388,21 @@ class Voz : public QObject {
     QStringList automaticas_;
     int ultimoId_ = 0;       ///< el `id` de la última frase atendida (bitácora)
     QSet<int> soloProponer_; ///< frases (id) cuyas acciones no se hacen solas (disparadores)
-    std::unique_ptr<audio::Escucha> escucha_;
-    QString cargados_; ///< los repos con los que se cargó (para recargar si cambian)
+    std::unique_ptr<audio::Escucha> escucha_;            ///< Parakeet
+    std::unique_ptr<audio::EscuchaStreaming> streaming_; ///< Nemotron
+    std::unique_ptr<Reconocedores> reconocedores_;
+    /// Los modelos bajados de cada motor ("" si falta alguno) y, si faltan, qué
+    /// decir. Se recalculan solo cuando cambian los modelos (ModelosLocales::cambio):
+    /// preguntarle al catálogo mira el disco.
+    std::map<MotorOido, QString> cargados_;
+    std::map<MotorOido, QString> faltan_;
+    QVariantMap reconocedoresEstado_;
+    ::QTimer* reconT_ = nullptr;
+    /// clave -> motor, para el hilo de audio (alimentarOido y el rack).
+    mutable std::mutex rutasLock_;
+    std::map<std::string, audio::Reconocedor*> rutas_;
+    std::map<QString, std::function<void()>> alHablar_;                   ///< clave -> (hilo de la interfaz)
+    std::map<QString, std::shared_ptr<std::atomic<bool>>> oyeMientras_; ///< clave -> bandera
     bool lista_ = false;
     bool grabando_ = false;
     bool transcribiendo_ = false;

@@ -11,7 +11,10 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QKeyEvent>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QTime>
 #include <QTimer>
@@ -29,7 +32,9 @@
 #include "audio/RackManager.hpp"
 #endif
 #if defined(BA_HAVE_VOZ)
+#include "ajustes/Ajustes.hpp"
 #include "audio/Escucha.hpp"
+#include "audio/EscuchaNemotron.hpp"
 #include "audio/Habla.hpp"
 #endif
 
@@ -37,26 +42,35 @@ namespace ba::app::agent {
 
 namespace {
 QString deRuta(const std::filesystem::path& p) { return QString::fromStdWString(p.wstring()); }
+std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
+/// El tipo de modelo (catálogo) de cada motor.
+QString tipoModelo(MotorOido m) { return m == MotorOido::Nemotron ? "voz_streaming" : "voz"; }
 } // namespace
 
 Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     : QObject(parent), rt_(rt), modelos_(modelos) {
 #if defined(BA_HAVE_VOZ)
     escucha_ = std::make_unique<audio::Escucha>();
+    streaming_ = std::make_unique<audio::EscuchaStreaming>();
     habla_ = std::make_unique<audio::Habla>();
     monitor_ = std::make_unique<audio::MonitorVoz>();
     monitor_->preparar(); // «Voz del sistema», ya en Audio y en la Matriz
     leerAjustes();
     escucha_->setCortes({cortePausa_, corteMaximo_, corteUmbral_});
+    streaming_->setCortes({cortePausa_, corteMaximo_, corteUmbral_});
     // Lo que oye cada transcripción continua, para el indicador de la interfaz
     // (encontrar el punto justo de los cortes hablando).
     oidoT_ = new QTimer(this);
     oidoT_->setInterval(200);
     connect(oidoT_, &QTimer::timeout, this, [this]() {
         QVariantList l;
-        for (const auto& [k, o] : escucha_->oido())
-            l << QVariantMap{
-                {"flujo", QString::fromStdString(k)}, {"hablando", o.hablando}, {"segundos", o.segundos}};
+        for (const MotorOido m : Reconocedores::motores())
+            for (const auto& [k, o] : motorOido(m)->oido())
+                l << QVariantMap{{"flujo", QString::fromStdString(k)},
+                                 {"hablando", o.hablando},
+                                 {"segundos", o.segundos},
+                                 {"parcial", QString::fromStdString(o.parcial)},
+                                 {"motor", QString::fromStdString(Reconocedores::nombre(m))}};
         if (l != oido_) {
             oido_ = l;
             emit oidoCambio();
@@ -65,34 +79,44 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     oidoT_->start();
     // Las frases de la transcripción continua (llegan en el hilo de Escucha).
     // La clave es el nombre de la SALIDA DE TEXTO (la tarjeta), no la fuente.
-    escucha_->setFrase([this](const std::string& flujo, const audio::Escucha::Resultado& r) {
-        QMetaObject::invokeMethod(this, [this, flujo, r]() {
-            const QString fl = QString::fromStdString(flujo), t = QString::fromStdString(r.texto);
-            // Un oído de afuera (la atención hablada): la frase es de quien lo abrió.
-            if (const auto o = oidos_.find(fl); o != oidos_.end()) {
-                if (o->second && !t.trimmed().isEmpty()) o->second(t);
-                return;
-            }
-            QString fuente = fl;
-#if defined(BA_HAVE_CLAP)
-            if (racks_ != nullptr) {
-                const auto d = racks_->textoDe(flujo);
-                if (d.is_object()) fuente = QString::fromStdString(d.value("fuente", flujo));
-            }
-#endif
-            transcripcion_.push_back(QVariantMap{{"fuente", fuente},
-                                                 {"flujo", fl},
-                                                 {"texto", t},
-                                                 {"hora", QTime::currentTime().toString("HH:mm:ss")},
-                                                 {"segundos", r.segundosDeAudio}});
-            while (transcripcion_.size() > 200)
-                transcripcion_.removeFirst();
-            emit transcripcionCambio();
-            emit frase(fuente, t);
-            if (flujos_ != nullptr)
-                flujos_->publicar(fl, t, "Voz a texto en «" + fuente + "»", r.segundosDeAudio);
+    const auto aFrase = [this](const std::string& flujo, const audio::Reconocedor::Resultado& r) {
+        alFrase(flujo, r.texto, r.segundosDeAudio);
+    };
+    escucha_->setFrase(aFrase);
+    streaming_->setFrase(aFrase);
+    // La persona empezó a hablar: si su consumidor puede interrumpir (el tótem
+    // con Nemotron), se avisa a quien abrió el oído para que corte al asistente.
+    const auto aVoz = [this](const std::string& clave) {
+        QMetaObject::invokeMethod(this, [this, clave]() {
+            const auto it = alHablar_.find(QString::fromStdString(clave));
+            if (it == alHablar_.end() || !it->second) return;
+            if (!reconocedores_->interrumpir(Reconocedores::consumidorDeClave(clave))) return;
+            it->second();
         });
+    };
+    escucha_->setEmpiezaVoz(aVoz);
+    streaming_->setEmpiezaVoz(aVoz);
+    {
+        audio::EscuchaStreaming::Margenes mg;
+        mg.antes = ajustes::numero("escucha.margenAntesS", mg.antes);
+        mg.despues = ajustes::numero("escucha.margenDespuesS", mg.despues);
+        streaming_->setMargenes(mg);
+    }
+    // Cada motor se carga cuando alguien lo usa y se suelta cuando ya nadie (con un margen).
+    reconocedores_ = std::make_unique<Reconocedores>(rt_.dataRoot() / "Config" / "reconocedores.json");
+    reconocedores_->setMargenMs(static_cast<std::int64_t>(ajustes::numero("escucha.descargarTrasS", 120.0) * 1000));
+    reconocedores_->setAcciones(
+        {[this](MotorOido m) { cargarMotor(m); }, [this](MotorOido m) { descargarMotor(m); }});
+    for (const MotorOido m : Reconocedores::motores()) cargados_[m] = claveModelos(m);
+    reconT_ = new QTimer(this);
+    reconT_->setInterval(1000);
+    connect(reconT_, &QTimer::timeout, this, [this]() {
+        if (reconocedores_->tic(ahoraMs())) actualizarReconocedores();
     });
+    reconT_->start();
+    // El dictado (F9) está siempre a mano: su reconocedor queda cargado, como siempre.
+    reconocedores_->usar("dictado", "dictado", ahoraMs());
+    actualizarReconocedores();
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarModelos);
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarVoz);
     qApp->installEventFilter(this);
@@ -131,36 +155,284 @@ void Voz::setEstado(const QString& e) {
 
 void Voz::revisarModelos() {
 #if defined(BA_HAVE_VOZ)
-    const QString voz = modelos_.instaladoDeTipo("voz");
+    // Se bajó o se borró un modelo: el motor que lo usa se vuelve a cargar (si
+    // alguien lo está usando) o se suelta.
+    for (const MotorOido m : Reconocedores::motores()) {
+        const QString clave = claveModelos(m);
+        if (cargados_[m] == clave) continue;
+        cargados_[m] = clave;
+        reconocedores_->recargar(m);
+    }
+    actualizarReconocedores();
+#endif
+}
+
+// --- Los reconocedores (agent/Reconocedores) ---------------------------------------------
+
+audio::Reconocedor* Voz::motorOido(MotorOido m) const {
+#if defined(BA_HAVE_VOZ)
+    if (m == MotorOido::Nemotron) return streaming_.get();
+    return escucha_.get();
+#else
+    Q_UNUSED(m);
+    return nullptr;
+#endif
+}
+
+QString Voz::claveModelos(MotorOido m) {
+    const QString voz = modelos_.instaladoDeTipo(tipoModelo(m));
+    const QString vad = modelos_.instaladoDeTipo("vad");
+    const QString titulo = QString::fromStdString(Reconocedores::titulo(m));
+    faltan_[m] = voz.isEmpty()   ? "Falta bajar el reconocedor de voz " + titulo + " (Configuración → Modelos locales)."
+            : vad.isEmpty() ? QString("Falta bajar el detector de voz (Silero VAD).")
+                            : QString();
+    if (voz.isEmpty() || vad.isEmpty()) return {};
+    return voz + "|" + vad;
+}
+
+bool Voz::puedeOir(const QString& consumidor) const {
+#if defined(BA_HAVE_VOZ)
+    const auto it = cargados_.find(reconocedores_->motorDe(consumidor.toStdString()));
+    return it != cargados_.end() && !it->second.isEmpty();
+#else
+    Q_UNUSED(consumidor);
+    return false;
+#endif
+}
+
+void Voz::cargarMotor(MotorOido m) {
+#if defined(BA_HAVE_VOZ)
+    const QString voz = modelos_.instaladoDeTipo(tipoModelo(m));
     const QString vad = modelos_.instaladoDeTipo("vad");
     if (voz.isEmpty() || vad.isEmpty()) {
-        lista_ = false;
-        cargados_.clear();
-        setEstado(voz.isEmpty() ? "Falta bajar el reconocedor de voz (Configuración → Modelos locales)."
-                                : "Falta bajar el detector de voz (Silero VAD).");
+        reconocedores_->informarCarga(m, false,
+                                      voz.isEmpty() ? "falta bajar " + Reconocedores::titulo(m) +
+                                                          " (Configuración → Modelos locales)"
+                                                    : std::string("falta bajar el detector de voz (Silero VAD)"));
         return;
     }
-    if (cargados_ == voz + "|" + vad) return;
-    cargados_ = voz + "|" + vad;
-    lista_ = false;
-    setEstado("Cargando el reconocedor de voz…");
     const std::filesystem::path d = modelos_.carpetaInstalada(voz);
     const std::filesystem::path v = modelos_.carpetaInstalada(vad);
-    audio::Escucha::Modelos m;
-    m.encoder = (d / "encoder.int8.onnx").string();
-    m.decoder = (d / "decoder.int8.onnx").string();
-    m.joiner = (d / "joiner.int8.onnx").string();
-    m.tokens = (d / "tokens.txt").string();
-    m.vad = (v / "silero_vad.onnx").string();
-    escucha_->cargar(m, [this](const std::string& error) {
-        QMetaObject::invokeMethod(this, [this, error]() {
-            lista_ = escucha_->cargado();
-            setEstado(!lista_         ? "No cargó el reconocedor: " + QString::fromStdString(error)
-                      : error.empty() ? "Lista: mantené " + tecla() + " (o el micrófono) y hablá."
-                                      : QString::fromStdString(error));
+    QPointer<Voz> yo(this);
+    // Llega en el hilo del motor.
+    const auto listo = [yo, m](const std::string& error) {
+        QMetaObject::invokeMethod(qApp, [yo, m, error]() {
+            if (!yo) return;
+            // Parakeet avisa «sin VAD» con error pero cargado: cuenta como cargado.
+            yo->reconocedores_->informarCarga(m, yo->motorOido(m)->cargado(), error);
+            yo->actualizarReconocedores();
         });
-    });
+    };
+    if (m == MotorOido::Nemotron) {
+        audio::ModelosNemotron n;
+        n.encoder = (d / "encoder.int8.onnx").string();
+        n.decoder = (d / "decoder.int8.onnx").string();
+        n.joiner = (d / "joiner.int8.onnx").string();
+        n.tokens = (d / "tokens.txt").string();
+        n.vad = (v / "silero_vad.onnx").string();
+        // El idioma (el «prompt» del modelo): castellano de fábrica; "auto" lo detecta solo.
+        n.idioma = ajustes::texto("escucha.nemotronIdioma", "es-US");
+        if (n.idioma == "auto") n.idioma.clear();
+        n.hilos = ajustes::entero("escucha.nemotronHilos", 2);
+        // El fin de turno del modelo, un poco más largo que la pausa del VAD:
+        // quien cierra una frase corta es el margen; el modelo, la que sigue sin parar.
+        n.pausaTurno = std::max(0.5, cortePausa_ + 0.3);
+        // El largo máximo lo maneja EscuchaStreaming (corta en una pausa); la
+        // regla del modelo corta en seco: queda de red, bien arriba.
+        n.maximoTurno = std::max(20.0, corteMaximo_ * 3);
+        audio::cargarNemotron(*streaming_, n, listo);
+    } else {
+        audio::Escucha::Modelos e;
+        e.encoder = (d / "encoder.int8.onnx").string();
+        e.decoder = (d / "decoder.int8.onnx").string();
+        e.joiner = (d / "joiner.int8.onnx").string();
+        e.tokens = (d / "tokens.txt").string();
+        e.vad = (v / "silero_vad.onnx").string();
+        escucha_->cargar(e, listo);
+    }
+#else
+    Q_UNUSED(m);
 #endif
+}
+
+void Voz::descargarMotor(MotorOido m) {
+    if (audio::Reconocedor* r = motorOido(m)) r->descargar();
+}
+
+void Voz::abrirCorriente(const std::string& clave, const std::string& consumidor) {
+#if defined(BA_HAVE_VOZ)
+    const MotorOido m = reconocedores_->usar(clave, consumidor, ahoraMs());
+    audio::Reconocedor* r = motorOido(m);
+    r->abrirContinuo(clave);
+    {
+        std::lock_guard<std::mutex> l(rutasLock_);
+        rutas_[clave] = r;
+    }
+    if (const auto b = oyeMientras_.find(QString::fromStdString(clave)); b != oyeMientras_.end())
+        b->second->store(reconocedores_->interrumpir(consumidor));
+    actualizarReconocedores();
+#else
+    Q_UNUSED(clave);
+    Q_UNUSED(consumidor);
+#endif
+}
+
+void Voz::cerrarCorriente(const std::string& clave) {
+    audio::Reconocedor* r = nullptr;
+    {
+        std::lock_guard<std::mutex> l(rutasLock_);
+        if (const auto it = rutas_.find(clave); it != rutas_.end()) {
+            r = it->second;
+            rutas_.erase(it);
+        }
+    }
+    if (r != nullptr) r->cerrarContinuo(clave);
+    if (reconocedores_) reconocedores_->soltar(clave, ahoraMs());
+    actualizarReconocedores();
+}
+
+void Voz::moverCorriente(const std::string& clave) {
+#if defined(BA_HAVE_VOZ)
+    const auto antes = reconocedores_->motorDeUso(clave);
+    if (!antes) return;
+    // Las salidas de texto del rack son de la transcripción aunque se llamen como otra cosa.
+    const std::string consumidor =
+        continuas_.contains(clave) ? std::string("transcripcion") : Reconocedores::consumidorDeClave(clave);
+    const MotorOido m = reconocedores_->usar(clave, consumidor, ahoraMs());
+    if (const auto b = oyeMientras_.find(QString::fromStdString(clave)); b != oyeMientras_.end())
+        b->second->store(reconocedores_->interrumpir(consumidor));
+    if (*antes == m || clave == "dictado") return; // el dictado no tiene corriente: solo cuenta
+    motorOido(*antes)->cerrarContinuo(clave);
+    audio::Reconocedor* r = motorOido(m);
+    r->abrirContinuo(clave);
+    std::lock_guard<std::mutex> l(rutasLock_);
+    rutas_[clave] = r;
+#else
+    Q_UNUSED(clave);
+#endif
+}
+
+QString Voz::elegirReconocedor(const QString& consumidor, const QString& motor) {
+#if defined(BA_HAVE_VOZ)
+    const std::string c = consumidor.toStdString();
+    if (const std::string e = reconocedores_->elegir(c, motor.toStdString()); !e.empty())
+        return QString::fromStdString(e);
+    // Lo que estaba abierto pasa al motor nuevo (el viejo se suelta con su margen).
+    for (const std::string& clave : reconocedores_->usosDe(c)) moverCorriente(clave);
+    actualizarReconocedores();
+    return {};
+#else
+    Q_UNUSED(consumidor);
+    Q_UNUSED(motor);
+    return "Esta compilación no trae el motor de voz.";
+#endif
+}
+
+QString Voz::setInterrumpir(const QString& consumidor, bool on) {
+#if defined(BA_HAVE_VOZ)
+    const std::string c = consumidor.toStdString();
+    if (const std::string e = reconocedores_->setInterrumpir(c, on); !e.empty()) return QString::fromStdString(e);
+    for (const std::string& clave : reconocedores_->usosDe(c))
+        if (const auto b = oyeMientras_.find(QString::fromStdString(clave)); b != oyeMientras_.end())
+            b->second->store(reconocedores_->interrumpir(c));
+    actualizarReconocedores();
+    return {};
+#else
+    Q_UNUSED(consumidor);
+    Q_UNUSED(on);
+    return "Esta compilación no trae el motor de voz.";
+#endif
+}
+
+std::shared_ptr<std::atomic<bool>> Voz::oyeMientrasHabla(const QString& clave) {
+    auto& b = oyeMientras_[clave];
+    if (!b) b = std::make_shared<std::atomic<bool>>(false);
+#if defined(BA_HAVE_VOZ)
+    b->store(reconocedores_->interrumpir(Reconocedores::consumidorDeClave(clave.toStdString())));
+#endif
+    return b;
+}
+
+nlohmann::json Voz::reconocedoresJson() const {
+#if defined(BA_HAVE_VOZ)
+    nlohmann::json j = reconocedores_->estado();
+    for (auto& m : j["motores"]) {
+        const auto motor = Reconocedores::deNombre(m.value("id", std::string()));
+        m["instalado"] = motor && cargados_.count(*motor) > 0 && !cargados_.at(*motor).isEmpty();
+    }
+    j["idioma_nemotron"] = ajustes::texto("escucha.nemotronIdioma", "es-US");
+    if (streaming_) {
+        const auto l = streaming_->lote();
+        j["lote_nemotron"] = {{"ultimo", l.ultimo},
+                              {"maximo", l.maximo},
+                              {"pasos", l.pasos},
+                              {"segundos_al_modelo", l.segundosAlModelo},
+                              {"segundos_oidos", l.segundosOidos}};
+    }
+    return j;
+#else
+    return nlohmann::json::object();
+#endif
+}
+
+void Voz::actualizarReconocedores() {
+#if defined(BA_HAVE_VOZ)
+    nlohmann::json j = reconocedoresJson();
+    j.erase("lote_nemotron"); // cambia a cada rato: va por MCP, no a la vista
+    const QVariantMap e = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    if (e != reconocedoresEstado_) {
+        reconocedoresEstado_ = e;
+        emit reconocedoresCambio();
+        emit cambio(); // EstadoIA mira `cambio` (la alerta de los dos a la vez)
+    }
+    // El dictado: listo cuando su motor está cargado.
+    const MotorOido m = reconocedores_->motorDeUso("dictado").value_or(reconocedores_->motorDe("dictado"));
+    const bool lista = reconocedores_->cargado(m) && motorOido(m)->cargado();
+    const QString titulo = QString::fromStdString(Reconocedores::titulo(m));
+    QString estado;
+    if (lista)
+        estado = "Lista: mantené " + tecla() + " (o el micrófono) y hablá.";
+    else if (reconocedores_->cargando(m))
+        estado = "Cargando el reconocedor de voz (" + titulo + ")…";
+    else if (const auto f = faltan_.find(m); f != faltan_.end() && !f->second.isEmpty())
+        estado = f->second;
+    else if (!reconocedores_->error(m).empty())
+        estado = "No cargó el reconocedor: " + QString::fromStdString(reconocedores_->error(m));
+    // El estado del dictado lo pisan también sus resultados («Lista · 3 s de
+    // habla…»): acá solo se cambia cuando cambia si está lista o por qué no.
+    if (lista != lista_ || (!lista && !estado.isEmpty() && estado != estado_)) {
+        lista_ = lista;
+        setEstado(estado);
+    }
+#endif
+}
+
+void Voz::alFrase(const std::string& flujo, const std::string& texto, double segundos) {
+    QMetaObject::invokeMethod(this, [this, flujo, texto, segundos]() {
+        const QString fl = QString::fromStdString(flujo), t = QString::fromStdString(texto);
+        // Un oído de afuera (la atención hablada, el tótem): la frase es de quien lo abrió.
+        if (const auto o = oidos_.find(fl); o != oidos_.end()) {
+            if (o->second && !t.trimmed().isEmpty()) o->second(t);
+            return;
+        }
+        QString fuente = fl;
+#if defined(BA_HAVE_CLAP)
+        if (racks_ != nullptr) {
+            const auto d = racks_->textoDe(flujo);
+            if (d.is_object()) fuente = QString::fromStdString(d.value("fuente", flujo));
+        }
+#endif
+        transcripcion_.push_back(QVariantMap{{"fuente", fuente},
+                                             {"flujo", fl},
+                                             {"texto", t},
+                                             {"hora", QTime::currentTime().toString("HH:mm:ss")},
+                                             {"segundos", segundos}});
+        while (transcripcion_.size() > 200)
+            transcripcion_.removeFirst();
+        emit transcripcionCambio();
+        emit frase(fuente, t);
+        if (flujos_ != nullptr) flujos_->publicar(fl, t, "Voz a texto en «" + fuente + "»", segundos);
+    });
 }
 
 void Voz::apretar() {
@@ -231,8 +503,10 @@ void Voz::soltar() {
     }
     transcribiendo_ = true;
     setEstado("Transcribiendo…");
-    escucha_->transcribir(
-        std::move(elegida.audio), elegida.frecuencia, [this, de](const audio::Escucha::Resultado& r) {
+    const MotorOido motorDictado =
+        reconocedores_->motorDeUso("dictado").value_or(reconocedores_->motorDe("dictado"));
+    motorOido(motorDictado)->transcribir(
+        std::move(elegida.audio), elegida.frecuencia, [this, de](const audio::Reconocedor::Resultado& r) {
             QMetaObject::invokeMethod(this, [this, r, de]() {
                 transcribiendo_ = false;
                 if (!r.error.empty()) {
@@ -271,7 +545,8 @@ void Voz::cancelar() {
 void Voz::alAudio(const std::string& fuente, int modo, const float* m, std::uint32_t n, std::uint32_t f) {
 #if defined(BA_HAVE_VOZ)
     if (modo == 2) {
-        escucha_->alimentarContinuo(fuente, m, n, f);
+        std::lock_guard<std::mutex> l(rutasLock_);
+        if (const auto it = rutas_.find(fuente); it != rutas_.end()) it->second->alimentarContinuo(fuente, m, n, f);
         return;
     }
     if (modo != 1 || !tomando_) return;
@@ -293,23 +568,31 @@ void Voz::alAudio(const std::string& fuente, int modo, const float* m, std::uint
 
 // --- Oídos de afuera de los racks ---------------------------------------------------
 
-bool Voz::abrirOido(const QString& clave, std::function<void(const QString&)> alTexto) {
+bool Voz::abrirOido(const QString& clave, std::function<void(const QString&)> alTexto,
+                    std::function<void()> alHablar) {
 #if defined(BA_HAVE_VOZ)
-    if (!lista_) return false;
+    // Basta con que el modelo de su motor esté bajado: si no está cargado, se
+    // carga ahora (lo que llegue mientras tanto no se transcribe).
+    const std::string consumidor = Reconocedores::consumidorDeClave(clave.toStdString());
+    if (!puedeOir(QString::fromStdString(consumidor))) return false;
     const bool nueva = oidos_.find(clave) == oidos_.end();
     oidos_[clave] = std::move(alTexto);
-    if (nueva) escucha_->abrirContinuo(clave.toStdString());
+    alHablar_[clave] = std::move(alHablar);
+    if (nueva) abrirCorriente(clave.toStdString(), consumidor);
     return true;
 #else
     Q_UNUSED(clave);
     Q_UNUSED(alTexto);
+    Q_UNUSED(alHablar);
     return false;
 #endif
 }
 
 void Voz::cerrarOido(const QString& clave) {
 #if defined(BA_HAVE_VOZ)
-    if (oidos_.erase(clave) > 0) escucha_->cerrarContinuo(clave.toStdString());
+    alHablar_.erase(clave);
+    oyeMientras_.erase(clave);
+    if (oidos_.erase(clave) > 0) cerrarCorriente(clave.toStdString());
 #else
     Q_UNUSED(clave);
 #endif
@@ -317,7 +600,9 @@ void Voz::cerrarOido(const QString& clave) {
 
 void Voz::alimentarOido(const std::string& clave, const float* m, std::size_t n, std::uint32_t f) {
 #if defined(BA_HAVE_VOZ)
-    escucha_->alimentarContinuo(clave, m, n, f); // sin corriente abierta no hace nada
+    std::lock_guard<std::mutex> l(rutasLock_);
+    if (const auto it = rutas_.find(clave); it != rutas_.end()) // sin corriente abierta no hace nada
+        it->second->alimentarContinuo(clave, m, n, f);
 #else
     Q_UNUSED(clave);
     Q_UNUSED(m);
@@ -352,9 +637,9 @@ void Voz::revisarCorrientes() {
     for (const auto& f : racks_->textos())
         if (f.value("modo", std::string()) == "continuo") ahora.insert(f.value("flujo", std::string()));
     for (const auto& c : continuas_)
-        if (!ahora.contains(c)) escucha_->cerrarContinuo(c);
+        if (!ahora.contains(c)) cerrarCorriente(c);
     for (const auto& c : ahora)
-        if (!continuas_.contains(c)) escucha_->abrirContinuo(c);
+        if (!continuas_.contains(c)) abrirCorriente(c, "transcripcion");
     continuas_ = std::move(ahora);
 #endif
 }
@@ -965,6 +1250,7 @@ QString Voz::setCortes(double pausa, double maximo, double umbral) {
     corteUmbral_ = umbral;
 #if defined(BA_HAVE_VOZ)
     escucha_->setCortes({pausa, maximo, umbral});
+    streaming_->setCortes({pausa, maximo, umbral});
 #endif
     guardarAjustes();
     emit cambio();

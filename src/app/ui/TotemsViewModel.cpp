@@ -757,23 +757,33 @@ void TotemsViewModel::abrirOido(Conexion& c) {
     // antes (la app se reinició y la página volvió sola) se queda sin oído hasta que
     // esté. tic() vuelve a probar.
     const int k = c.canal;
-    if (c.oido || voz_ == nullptr || !voz_->lista() || k < 1) return;
+    // El reconocedor del tótem es el que se eligió en la pestaña Agentes (Parakeet o
+    // Nemotron): con que esté bajado alcanza, se carga al abrir el oído.
+    if (c.oido || voz_ == nullptr || !voz_->puedeOir("registro") || k < 1) return;
     const QString conn = c.conn;
     const QString clave = "registro:" + conn;
     QPointer<TotemsViewModel> yo(this);
-    c.oido = voz_->abrirOido(clave, [yo, conn](const QString& t) {
-        if (yo) yo->alOido(conn, t);
-    });
+    c.oido = voz_->abrirOido(
+        clave,
+        [yo, conn](const QString& t) {
+            if (yo) yo->alOido(conn, t);
+        },
+        [yo, conn]() {
+            if (yo) yo->interrumpido(conn);
+        });
     if (!c.oido) return;
     agent::Voz* voz = voz_;
     const std::string cl = clave.toStdString();
     const auto callado = c.callado;
-    c.toma = rt_.operatorFeed().escucharRegistro(k, [voz, cl, callado](const float* d, std::size_t n) {
+    // Con Nemotron y «interrumpir», el oído sigue oyendo mientras habla el asistente: la
+    // página pide el micrófono con cancelación de eco y su voz baja por el mismo WebRTC.
+    const auto oye = voz_->oyeMientrasHabla(clave);
+    c.toma = rt_.operatorFeed().escucharRegistro(k, [voz, cl, callado, oye](const float* d, std::size_t n) {
         thread_local std::vector<float> mono;
         mono.resize(n);
         // Mientras habla el asistente, ceros: así el reconocedor cierra la frase
         // que tuviera abierta y no se transcribe la propia voz que vuelve.
-        const bool cero = callado->load(std::memory_order_relaxed);
+        const bool cero = callado->load(std::memory_order_relaxed) && !oye->load(std::memory_order_relaxed);
         for (std::size_t i = 0; i < n; ++i) mono[i] = cero ? 0.0f : d[2 * i]; // un micrófono es mono
         voz->alimentarOido(cl, mono.data(), n, 48000);
     });
@@ -1538,6 +1548,39 @@ void TotemsViewModel::callarAsistente(Conexion& c) {
     c.callado->store(false); // el oído sigue: quien atiende lee lo que se le entiende
     c.hayListo = false;
     c.buscandoFoto = false;
+}
+
+void TotemsViewModel::interrumpido(const QString& conn) {
+    auto it = conns_.find(conn);
+    if (it == conns_.end()) return;
+    Conexion& c = *it->second;
+    // Solo con el asistente hablando en una conversación en curso, y no en la despedida
+    // (el `listo` se manda cuando termina de decirla). Atendida, habla una persona.
+    if (!c.hablando || c.hayListo || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
+    c.mudo->store(true); // lo que la síntesis entregue todavía no sale
+    if (c.canal > 0 && c.canal < static_cast<int>(voces_.size()) && voces_[static_cast<std::size_t>(c.canal)])
+        voces_[static_cast<std::size_t>(c.canal)]->callar();
+#if defined(BA_HAVE_VOZ)
+    // La síntesis es una para todos los tótems: se corta solo si no habla en otro.
+    if (habla_ && std::none_of(conns_.begin(), conns_.end(), [&c](const auto& kv) {
+            return kv.second.get() != &c && kv.second->hablando;
+        }))
+        habla_->callar();
+#endif
+    const qint64 ahora = ahoraMs();
+    c.hablando = false;
+    c.sintetizando = false;
+    c.finHablaMs = 0;
+    c.callado->store(false);
+    c.ultimaVozMs = ahora;
+    // Lo mismo que cuando termina de hablar (tic): la foto o el documento se buscan desde ahora.
+    if (c.buscandoFoto) c.fotoDesdeMs = ahora;
+    if (c.buscandoDocumento) c.docDesdeMs = ahora;
+    c.estado = c.buscandoFoto ? "foto" : !c.buscandoDocumento ? "escuchando" : c.conv->buscandoDorso() ? "dorso" : "documento";
+    enviar(c.conn, {{"type", "estado"}, {"estado", c.estado.toStdString()}});
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                               "tótem (" + c.conn.toStdString() + "): la persona interrumpió al asistente");
+    emit vivoCambio();
 }
 
 void TotemsViewModel::liberarAtencion(Conexion& c) {

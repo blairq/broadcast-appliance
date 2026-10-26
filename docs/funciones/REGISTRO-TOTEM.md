@@ -71,7 +71,11 @@ clave `registro:<conn>`). El asistente habla con **la voz del atendedor**
 (`emision/VozAlLobby`, ahora con el canal como parámetro) solo a esa conexión.
 Mientras habla, al oído le llegan ceros: no se transcribe a sí mismo (y WebRTC le
 cancela el eco en el navegador). Sin voz a texto o sin voz, la página muestra el
-texto y se puede tipear.
+texto y se puede tipear. El reconocedor del tótem se elige en la pestaña Agentes (Parakeet de
+fábrica o Nemotron, streaming: varias personas a la vez con un solo modelo). Con
+Nemotron y «la persona puede interrumpir» (de fábrica prendida), no van ceros: si
+la persona habla mientras el asistente habla, la voz se corta en el acto y se la
+escucha (`TotemsViewModel::interrumpido`; ver AUDIO-TTS.md, «Dos reconocedores»).
 
 ## El DNI por la cámara (campo `documento`)
 

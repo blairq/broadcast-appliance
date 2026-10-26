@@ -104,6 +104,10 @@ void EstadoIA::recalcular() {
         if (!voz_->lista())
             agregar("voz-reconocedor", "El dictado no está listo", voz_->estado(), false, kConfig,
                     "Voz del sistema");
+        // Los dos reconocedores en memoria a la vez (Parakeet y Nemotron, por consumidores
+        // distintos): anda, pero ocupa el doble. Se elige en la pestaña Agentes.
+        if (const QString dos = voz_->reconocedores().value("alerta").toString(); !dos.isEmpty())
+            agregar("voz-dos-reconocedores", "Están cargados los dos reconocedores de voz", dos, false, "agentes");
         if (!voz_->dictadoConMicrofono())
             agregar("voz-microfono", "No hay micrófono para el dictado",
                     "Elegí el micrófono del operador (el que se usa con " + voz_->tecla() + ").", false, kConfig,

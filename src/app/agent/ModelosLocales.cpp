@@ -646,6 +646,12 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
     std::vector<std::string> soloArchivos;
     for (const json& a : entrada.value("archivos", json::array()))
         if (a.is_string()) soloArchivos.push_back(a.get<std::string>());
+    // El sha256 de cada archivo, fijo en el catálogo (si lo trae): el de Hugging
+    // Face tiene que coincidir, y los que no son LFS (tokens.txt) se verifican con este.
+    std::map<std::string, std::string> shaFijo;
+    const json shas = entrada.value("sha256_archivos", json::object());
+    for (const auto& [nombre, sha] : shas.items())
+        if (sha.is_string()) shaFijo[nombre] = sha.get<std::string>();
     ArchivoHf directo;
     if (entrada.contains("url")) {
         directo.nombre = archivo;
@@ -675,7 +681,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
         p.yaEsta = [destino, fijo]() { return commitInstalado(destino) == fijo; };
     QPointer<ModelosLocales> yo(this);
     const QString qrepo = repo;
-    p.trabajo = [yo, r, soloGguf, revision, soloArchivos, directo, destino, staging, fichas](
+    p.trabajo = [yo, r, soloGguf, revision, soloArchivos, shaFijo, directo, destino, staging, fichas](
                     net::Descargas::Contexto& ctx) -> std::string {
         // Lo que muestran Configuración y el panel de traducción (de a un modelo).
         const auto avisar = [&ctx, yo](double p, const QString& t) {
@@ -734,7 +740,13 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
             };
             if (!soloArchivos.empty() && std::none_of(soloArchivos.begin(), soloArchivos.end(), pedido))
                 continue;
-            archivos.push_back(a);
+            ArchivoHf conSha = a;
+            if (const auto f = shaFijo.find(a.nombre); f != shaFijo.end()) {
+                if (!a.sha256.empty() && a.sha256 != f->second)
+                    return "El sha256 de " + a.nombre + " no es el del catálogo: no se baja.";
+                conSha.sha256 = f->second;
+            }
+            archivos.push_back(conSha);
             total += a.tamano;
         }
         for (const std::string& f : soloArchivos)
@@ -953,6 +965,7 @@ std::string tipoPorNombre(const std::string& repo) {
     if (repo.rfind("argos/", 0) == 0) return "traduccion";
     if (repo.find("vits-piper") != std::string::npos) return "tts";
     if (repo.find("silero") != std::string::npos) return "vad";
+    if (repo.find("nemotron") != std::string::npos && repo.find("streaming") != std::string::npos) return "voz_streaming";
     if (repo.find("mmproj") != std::string::npos) return "vision";
     if (repo.find("sherpa") != std::string::npos || repo.find("parakeet") != std::string::npos) return "voz";
     return "reactivo";

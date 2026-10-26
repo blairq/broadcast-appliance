@@ -17,6 +17,10 @@
 // los modelos; pedido y callback, y NADA pesado en el hilo de la interfaz (el
 // latido se estanca y el launcher da la app por colgada). `alimentar` corre en
 // el hilo de audio de libobs: solo copia muestras bajo un mutex.
+//
+// ES UNO DE LOS DOS MOTORES (audio/Reconocedor.hpp): Parakeet, offline, frase
+// por frase. El otro es Nemotron en streaming (audio/EscuchaStreaming); cada
+// consumidor elige el suyo en la pestaña Agentes (agent/Reconocedores).
 // ============================================================================
 #pragma once
 
@@ -32,10 +36,11 @@
 #include <thread>
 #include <vector>
 #include "ajustes/Ajustes.hpp"
+#include "audio/Reconocedor.hpp"
 
 namespace ba::app::audio {
 
-class Escucha {
+class Escucha : public Reconocedor {
    public:
     /// Los archivos de los modelos (carpetas bajadas por ModelosLocales).
     struct Modelos {
@@ -44,28 +49,22 @@ class Escucha {
         std::string vad; ///< silero_vad.onnx (vacío: sin recortar silencios)
         int hilos = 2;
     };
-    /// Lo que salió de una toma.
-    struct Resultado {
-        std::string texto;
-        std::string error;
-        double segundosDeAudio = 0; ///< lo que se habló (después del VAD)
-        double ms = 0;              ///< lo que tardó en transcribir
-    };
-    using Listo = std::function<void(const Resultado&)>;
+    // Resultado, Listo, Frase, Cortes y Oido: los de Reconocedor.
 
     /// Lo más que se graba en una toma: una orden, no un discurso.
     /// Largo máximo de un segmento que va a transcripción (Configuración → avanzado).
     static double kMaxSegundosAhora() { return ajustes::numero("escucha.segmentoMaxS", 30.0); }
 
     Escucha();
-    ~Escucha();
+    ~Escucha() override;
     Escucha(const Escucha&) = delete;
     Escucha& operator=(const Escucha&) = delete;
 
     /// Carga (en su hilo). `listo` recibe error vacío si anduvo. Se puede
     /// volver a llamar para cambiar de modelos.
     void cargar(const Modelos& m, std::function<void(const std::string& error)> listo);
-    bool cargado() const { return cargado_; }
+    bool cargado() const override { return cargado_; }
+    void descargar() override;
 
     /// Tecla apretada: empieza una toma nueva (descarta lo anterior).
     void empezar();
@@ -80,38 +79,25 @@ class Escucha {
     bool grabando() const { return grabando_; }
     /// Transcribe una toma ya juntada afuera (el dictado desde los nodos del
     /// rack). Mismo resultado y mismo hilo que `terminar`.
-    void transcribir(std::vector<float> audio, std::uint32_t frecuencia, Listo listo);
+    void transcribir(std::vector<float> audio, std::uint32_t frecuencia, Listo listo) override;
 
     // --- Transcripción continua (subtítulos, acta) ------------------------------
     // Una «corriente» por fuente: el audio llega sin parar, su VAD corta las
     // frases y cada una se transcribe apenas termina (1-3 s de retraso). Usa
     // el MISMO reconocedor que el dictado (un solo modelo en memoria).
-    using Frase = std::function<void(const std::string& clave, const Resultado& r)>;
-    /// Cuándo se corta una frase. `pausa`: silencio que la termina (s);
-    /// `maximo`: lo más que dura (s; al pasarlo se corta en la próxima pausa
-    /// corta, no en seco); `umbral`: cuán seguro tiene que estar el detector de
-    /// que es voz (0..1; más alto ignora más el ruido de la sala).
-    struct Cortes {
-        double pausa = 0.35;
-        double maximo = 6.0;
-        double umbral = 0.5;
-    };
     /// Cambia los cortes de todas las corrientes (las rearma: se pierde la frase en curso).
-    void setCortes(const Cortes& c);
-    Cortes cortes() const;
+    void setCortes(const Cortes& c) override;
+    Cortes cortes() const override;
     /// Lo que oye cada corriente ahora: clave -> {hablando, segundos de la frase en curso}.
-    struct Oido {
-        bool hablando = false;
-        double segundos = 0;
-    };
-    std::map<std::string, Oido> oido() const;
+    std::map<std::string, Oido> oido() const override;
     /// A dónde van las frases (en el hilo de Escucha).
-    void setFrase(Frase f);
-    void abrirContinuo(const std::string& clave);
-    void cerrarContinuo(const std::string& clave);
+    void setFrase(Frase f) override;
+    void setEmpiezaVoz(EmpiezaVoz f) override;
+    void abrirContinuo(const std::string& clave) override;
+    void cerrarContinuo(const std::string& clave) override;
     /// Desde el hilo de audio: copia y vuelve. Sin corriente abierta no hace nada.
     void alimentarContinuo(const std::string& clave, const float* muestras, std::size_t n,
-                           std::uint32_t frecuencia);
+                           std::uint32_t frecuencia) override;
 
    private:
     struct Motor;     // sherpa-onnx: solo existe en el hilo de trabajo
@@ -139,6 +125,7 @@ class Escucha {
     std::map<std::string, Pendiente> pendientes_;
     std::map<std::string, std::unique_ptr<Corriente>> corrientes_; // solo el hilo de trabajo
     Frase frase_;
+    EmpiezaVoz empiezaVoz_;
     std::string vadModelo_;
     Cortes cortes_;                    ///< bajo contLock_
     int versionCortes_ = 0;            ///< bajo contLock_: al cambiar, las corrientes se rearman

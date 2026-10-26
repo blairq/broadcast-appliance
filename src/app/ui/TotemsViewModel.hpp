@@ -258,6 +258,9 @@ class TotemsViewModel : public QObject {
     void publicarAtencion();
     /// El asistente se calla en el acto (lo que estaba diciendo y lo que faltaba sintetizar).
     void callarAsistente(Conexion& c);
+    /// La persona habló mientras el asistente hablaba (solo con Nemotron y la
+    /// opción «interrumpir» de la pestaña Agentes): se corta la voz en el acto y se la escucha.
+    void interrumpido(const QString& conn);
     /// Deja de estar atendida: la pantalla del tótem y el gateway (su voz ya no baja ahí).
     void liberarAtencion(Conexion& c);
     nlohmann::json conversacionesJson() const;

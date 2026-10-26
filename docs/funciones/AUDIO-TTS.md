@@ -94,6 +94,73 @@ sha256 publicado — el mismo patrón que `make deps-rostros`.
 se habla, que es lo que hace que no se sienta lento. La licencia de Canary
 (CC-BY-4.0) es permisiva, lo que para distribuir no es un detalle.
 
+### Dos reconocedores: Parakeet o Nemotron, y cada uno elige (2026-10-26)
+
+Parakeet sigue (y es el de fábrica para todos). Al lado hay un segundo motor,
+**Nemotron 3.5 ASR Streaming 0.6B** (NVIDIA, OpenMDW-1.1, uso comercial;
+castellano `es-US`/`es-ES`, ~4,3 % en FLEURS con bloques de 560 ms), y cada
+consumidor elige el suyo en la **pestaña Agentes** (arriba de los roles) o por
+MCP (`voz_reconocedores`):
+
+| consumidor | qué es | clave de sus corrientes |
+|---|---|---|
+| `dictado` | F9 del operador y el micrófono de la barra | `dictado` (toma suelta) |
+| `transcripcion` | las «Voz a texto» en continuo: subtítulos, acta, disparadores y la **traducción en tiempo real** | el nombre de la salida de texto |
+| `recepcion` | la atención hablada (lobby o sesión remota) | `atencion:<id>` |
+| `registro` | el tótem (varias personas a la vez) | `registro:<conn>` |
+
+**Cómo es cada uno.** Parakeet (`audio/Escucha`) es offline: el VAD corta la
+frase en la primera pausa y recién ahí se transcribe entera; cada corriente de a
+una, 1–3 s después. Nemotron (`audio/EscuchaStreaming` + `audio/EscuchaNemotron`)
+es streaming: UN `OnlineRecognizer` de sherpa-onnx y un stream por corriente, que
+se decodifican **en lote** (`SherpaOnnxDecodeMultipleOnlineStreams`: una corrida
+del encoder para todas las voces que tienen un bloque listo). Da texto parcial
+mientras se habla (`oido[].parcial`) y cierra el turno con el endpoint del modelo
+(silencio después de lo dicho) o cuando se acaba el margen después de la voz.
+Medido en la Mac (M1 Pro, 2 hilos): 13,8 s de habla x8 voces a la vez en 7,9 s;
+una voz, 8 s en 0,8 s; carga en menos de 1 s (con el archivo en caché).
+
+**El VAD manda qué le llega a Nemotron.** El modelo streaming procesa todo lo
+que recibe, silencio incluido: cada corriente tiene su Silero y al modelo solo
+le llega la voz, con 0,5 s antes (Silero marca la voz recién a los 0,25 s) y
+0,8 s después (`escucha.margenAntesS` / `escucha.margenDespuesS`). Una frase que
+pasa el máximo de los cortes se cierra en la primera pausa, no en seco (cortada
+a mitad de palabra, el modelo pierde las palabras de los dos lados del corte: se
+vio con «… doce, y [vengo por] la sesión…»).
+
+**El idioma** va por stream (el «prompt» de idioma de Nemotron, la opción
+`language` de sherpa-onnx): `es-US` de fábrica (`escucha.nemotronIdioma`:
+`es-US`, `es-ES` o `auto`).
+
+**Una copia de cada modelo en memoria** (`agent/Reconocedores`): cada corriente
+abierta cuenta para el motor de su consumidor; el motor se carga con el primer
+uso y se suelta cuando no queda ninguno, pasados 2 min (`escucha.descargarTrasS`),
+para que un tótem que se reconecta no recargue 700 MB. El dictado cuenta siempre
+(F9 está siempre a mano), así que su motor queda cargado como antes. Si los dos
+motores están en uso por consumidores distintos, la pestaña Agentes muestra una
+**alerta** (quién usa cada uno, ~1,7 GB entre los dos) con «Todos con Parakeet» /
+«Todos con Nemotron»; lo mismo en `voz_reconocedores` (`alerta`) y en `ia_estado`.
+Lo elegido va en `Config/reconocedores.json`.
+
+**Interrumpir al asistente en el tótem.** La página del tótem pide el micrófono
+con cancelación de eco y la voz del asistente baja por el mismo WebRTC. Con
+Parakeet, mientras habla el asistente al oído le llegan ceros (si no, se
+transcribiría a sí mismo). Con Nemotron y la opción «la persona puede
+interrumpir» (pestaña Agentes; de fábrica prendida), el oído sigue oyendo: si el
+VAD detecta la voz de la persona mientras el asistente habla, se corta la voz en
+el acto (`VozAlLobby::callar`, y `Habla::callar` si no habla en otro tótem) y se
+la escucha. Depende de que la cancelación de eco del navegador ande: si el eco
+pasa, el asistente se cortaría solo (apagar la opción).
+
+**El modelo** está en el catálogo como tipo `voz_streaming`:
+`csukuangfj2/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11`
+(el export oficial de sherpa-onnx, revisión `ab43d89…` y el sha256 de cada
+archivo fijos), 0,68 GB. sherpa-onnx v1.13.8 (la fijada) ya lo soporta: no hizo
+falta actualizarla. Pruebas: `test_reconocedores` (sin modelos: la elección, la
+carga por usos y la alerta; el lote, los márgenes y los cortes con un modelo
+falso) y `test_nemotron` (con el modelo de verdad: `BA_NEMOTRON_MODELO`,
+`BA_VOZ_VAD`, opcional `BA_VOZ_WAV` y `BA_NEMOTRON_VOCES`; sin eso da SKIP).
+
 ### Contestar: piper
 
 TTS sobre **el ONNX Runtime que ya está vendoreado** para el reconocimiento de
@@ -161,6 +228,9 @@ no controla el aparato. Es otra cosa que lo de arriba y no lo reemplaza.
 | nodo «Voz a texto» del rack | en Audio, en cualquier fuente, como una salida: **dictado** (F9 al asistente; si hay varias, la que más habló) o **continuo** (subtítulos, acta; frase por frase con VAD, 1–3 s). Sin ninguno, F9 se lo pone al micrófono del operador |
 | Configuración → Voz del operador | el micrófono del operador (antes en Sala), dónde hay voz a texto, la voz que contesta y lo transcripto |
 | `audio/Habla` + `audio/MonitorVoz` | contesta hablando: piper frase por frase, solo al monitoreo (fuente privada MONITOR_ONLY) |
-| MCP | `voz_microfono`, `voz_texto`, `voz_transcripcion`, `voz_decir`, `voz_ajustes` |
-| `datos/modelos-catalogo.json` | Parakeet (fijado por commit) y Silero VAD (por URL y sha256), tipos `voz` y `vad` |
+| MCP | `voz_microfono`, `voz_texto`, `voz_transcripcion`, `voz_decir`, `voz_ajustes`, `voz_reconocedores` |
+| `datos/modelos-catalogo.json` | Parakeet (fijado por commit), Nemotron 3.5 streaming (commit y sha256 de cada archivo) y Silero VAD (por URL y sha256), tipos `voz`, `voz_streaming` y `vad` |
+| `src/app/audio/EscuchaStreaming` + `EscuchaNemotron` | Nemotron: un reconocedor, un stream por corriente, en lote; el VAD decide qué le llega |
+| `src/app/agent/Reconocedores` | qué motor usa cada consumidor, carga y descarga por usos, la alerta de los dos a la vez |
+| Agentes → Oído | el motor de cada consumidor, la alerta y la opción de interrumpir del tótem (`controls/PanelOidos.qml`) |
 | `test_escucha` | con modelos de verdad: wav a 22 kHz con silencio, el VAD lo recorta y el texto sale bien |
