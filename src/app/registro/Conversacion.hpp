@@ -105,6 +105,9 @@ class Conversacion {
         /// buscar el código del documento en la cámara (cuando termine de decirlo);
         /// también al volver a pedirlo, así quien llama cuenta el tiempo de nuevo
         bool documento = false;
+        /// pidió la parte de atrás del documento: desde ahora se busca también el dorso
+        /// (la zona de lectura mecánica, por OCR; ver documentos/Mrz y buscandoDorso())
+        bool dorso = false;
     };
 
     Conversacion(Totem totem, std::string evento);
@@ -136,9 +139,18 @@ class Conversacion {
     /// nacimiento/cuil/sexo) que todavía no tengan dato.
     Respuesta documentoLeido(const nlohmann::json& datos);
     /// En el paso del documento: pasó el tiempo sin leerlo. `sugerencia`, qué
-    /// corregir. La primera vez se lo pide de nuevo; la segunda, si no es
+    /// corregir. La primera vez se lo pide de nuevo (o, si se puede leer el dorso,
+    /// se le pide la parte de atrás: ofrecerDorso); la segunda, si no es
     /// obligatorio, se saltea (si es, se le pide que tipee el número).
     Respuesta documentoFallo(const std::string& sugerencia);
+    /// Si quien llama puede leer el dorso (la zona de lectura mecánica, con un modelo
+    /// de visión: el local o el propio). Sin eso, cuando el código del frente no sale se sigue
+    /// como siempre: tipear el número o saltear.
+    void ofrecerDorso(bool si) { dorsoDisponible_ = si; }
+    bool dorsoDisponible() const { return dorsoDisponible_; }
+    /// Se está buscando el documento y ya se le pidió la parte de atrás: quien llama
+    /// busca el dorso (además del código del frente, por si lo vuelve a mostrar).
+    bool buscandoDorso() const { return estado_ == Estado::Documento && dorsoPedido_; }
     /// Los tipos de documento que acepta el campo que se pide ahora (vacío =
     /// cualquiera, o no se está pidiendo un documento).
     std::vector<std::string> documentosAceptados() const;
@@ -213,6 +225,8 @@ class Conversacion {
     int silencios_ = 0;
     bool fotoHecha_ = false; ///< ya pasó por el paso de la foto (salió o se dio por perdida)
     int fotoIntentos_ = 0;
+    bool dorsoDisponible_ = false; ///< quien llama puede leer el dorso (ofrecerDorso)
+    bool dorsoPedido_ = false;     ///< en este campo ya se pidió la parte de atrás
     // Atendida por una persona (ver arriba).
     bool atendida_ = false;
     std::string atendidaPor_;

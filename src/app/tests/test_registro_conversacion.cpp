@@ -12,11 +12,15 @@
 //   4. El paso del documento: leído y confirmado (completa nombre y apellido),
 //      corregido, fallo y salteo (y obligatorio), tipeado, dictado, sin confirmar,
 //      con cara conocida, otro tipo de documento.
+//   5. El dorso: si el código del frente no sale y se puede leer el dorso, pide
+//      la parte de atrás (una vez), lo leído del dorso se confirma igual, el «no»
+//      lo vuelve a pedir del dorso, el segundo fallo saltea; sin dorso, como antes.
 // ============================================================================
 #include <cstdio>
 #include <string>
 
 #include "documentos/Documento.hpp"
+#include "documentos/Mrz.hpp"
 #include "registro/Conversacion.hpp"
 
 using namespace ba::registro;
@@ -546,6 +550,69 @@ void documentoFalloYSalteo() {
     CHECK(r.pedir == "nombre" && contiene(r.decir, "lo salteamos"), "«no tengo» lo saltea");
 }
 
+/// Un dorso SINTÉTICO de DNI (MRZ TD1 con sus verificadores), leído por el catálogo
+/// como lo haría la app con lo que contestó el modelo de visión.
+json dorsoLeido() {
+    using ba::documentos::digitoMrz;
+    const std::string num = "11222333<";
+    const std::string l1 = "IDARG" + num + std::to_string(digitoMrz(num)) + std::string(15, '<');
+    std::string l2 = "900315" + std::to_string(digitoMrz("900315")) + "F" + "340420" +
+                     std::to_string(digitoMrz("340420")) + "ARG" + std::string(11, '<');
+    l2 += std::to_string(digitoMrz(l1.substr(5, 25) + l2.substr(0, 7) + l2.substr(8, 7) + l2.substr(18, 11)));
+    std::string l3 = "PRUEBA<<JUANA<ANDREA";
+    l3.resize(30, '<');
+    const ba::documentos::LecturaMrz lm = ba::documentos::interpretarRespuestaMrz(l1 + "\n" + l2 + "\n" + l3);
+    ba::documentos::Catalogo cat;
+    ba::documentos::Datos d;
+    cat.leer({ba::documentos::kFormatoMrz, lm.texto, {}}, {"dni-ar"}, d);
+    return d.aJson();
+}
+
+void documentoDorso() {
+    Conversacion cv(totemConDocumento(), "Expo");
+    cv.ofrecerDorso(true);
+    auto r = cv.empezar({});
+    CHECK(r.documento && !cv.buscandoDorso(), "empieza por el frente");
+    r = cv.documentoFallo("Ese código no es de un documento que pueda leer.");
+    CHECK(r.documento && r.dorso && cv.buscandoDorso(), "primer fallo: pide el dorso");
+    CHECK(contiene(r.decir, "Dalo vuelta y mostrame la parte de atrás") && contiene(r.decir, "renglones"),
+          "lo dice corto y dice qué mostrar");
+    CHECK(!contiene(r.decir, "código no es de un documento"), "la sugerencia del frente no va");
+    CHECK(cv.paso() == "leyendo el dorso del documento", "paso legible");
+    CHECK(cv.estado() == Conversacion::Estado::Documento && cv.documentosAceptados() == std::vector<std::string>{"dni-ar"},
+          "sigue en el paso del documento, con los mismos tipos");
+    r = cv.oido("cómo");
+    CHECK(contiene(r.decir, "parte de atrás"), "repetir repite lo del dorso");
+
+    const json d = dorsoLeido();
+    CHECK(d.value("numero", std::string()) == "11222333" && d.value("tipo", std::string()) == "dni-ar",
+          "el dorso sintético se lee como dni-ar");
+    r = cv.documentoLeido(d);
+    CHECK(cv.estado() == Conversacion::Estado::Confirmando && contiene(r.decir, "Sos Juana Andrea Prueba, DNI 11.222.333"),
+          "lo del dorso se confirma igual que el frente");
+    r = cv.oido("no");
+    CHECK(r.documento && cv.buscandoDorso() && contiene(r.decir, "parte de atrás"), "el no lo vuelve a pedir del dorso");
+    cv.documentoLeido(d);
+    r = cv.oido("sí");
+    CHECK(cv.datos()["dni"]["numero"] == "11222333" && cv.datos()["apellido"] == "Prueba", "queda y completa el apellido");
+    CHECK(!cv.buscandoDorso(), "en el campo siguiente ya no se busca el dorso");
+
+    // El dorso tampoco sale: el segundo fallo saltea (no obligatorio), como antes.
+    Conversacion sx(totemConDocumento(), "Expo");
+    sx.ofrecerDorso(true);
+    sx.empezar({});
+    sx.documentoFallo("");
+    r = sx.documentoFallo("");
+    CHECK(!r.documento && r.pedir == "nombre" && contiene(r.decir, "seguimos sin el documento"),
+          "dorso tampoco: lo saltea");
+
+    // Sin dorso disponible (no hay modelo de visión): el primer fallo es el de siempre.
+    Conversacion sin(totemConDocumento(), "Expo");
+    sin.empezar({});
+    r = sin.documentoFallo("No veo ningún código.");
+    CHECK(!r.dorso && !sin.buscandoDorso() && contiene(r.decir, "reflejo"), "sin dorso: como antes");
+}
+
 void documentoTipeadoYDictado() {
     Conversacion cv(totemConDocumento(), "Expo");
     cv.empezar({});
@@ -610,6 +677,7 @@ int main() {
     documentoFalloYSalteo();
     documentoTipeadoYDictado();
     documentoSinConfirmarYCara();
+    documentoDorso();
     if (g_fallos == 0) std::printf("test_registro_conversacion: todo bien\n");
     return g_fallos == 0 ? 0 : 1;
 }

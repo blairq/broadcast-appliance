@@ -1031,9 +1031,9 @@ const Fila kPropias[] = {
     // de barras); documento_agregar/texto/abrir son los PDF del evento. Las palabras no se cruzan.
     {"documento_leer", "leer el dni escanear el documento de identidad codigo de barras pdf417 cedula licencia "
                        "de conducir pasaporte credencial mostrar el dni a la camara probar el lector del totem "
-                       "identificar a la persona por su documento"},
+                       "identificar a la persona por su documento dorso parte de atras renglones mrz zona de lectura mecanica ocr"},
     {"documento_tipos", "que documentos de identidad entiende tipos de dni licencias pasaportes que acepta el totem "
-                        "documentos de otros paises plugin de documentos"},
+                        "documentos de otros paises plugin de documentos se puede leer el dorso cedula mrz"},
     {"totem_atencion_enlace", "link de atencion remota del registro qr para el equipo atender los totems desde "
                               "el celular mirar y escuchar las conversaciones ayudar a la gente renovar"},
     {"totem_atender", "atender una conversacion del totem tomar el registro pausar al asistente callar al asistente "

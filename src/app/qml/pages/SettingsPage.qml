@@ -980,6 +980,9 @@ Rectangle {
                                             "error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
                                         : modelData.tipo === "vad"
                                           ? "Detector de voz (recorta los silencios) · " + modelData.licencia
+                                        : modelData.tipo === "vision"
+                                          ? "Visión para el modelo local (" + modelData.base + "): leer el dorso de un documento en el tótem, " +
+                                            "sin que la foto salga de la máquina · " + modelData.tamano_gb + " GB · " + modelData.licencia
                                         : modelData.tipo === "chat"
                                           ? "Para el chat sin internet (Asistente → Modelo local) · " + modelData.formato.toUpperCase() +
                                             " · " + modelData.tamano_gb + " GB · " + modelData.base + " · " + modelData.licencia

@@ -97,6 +97,7 @@
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
+#include "agent/ServidorModeloLocal.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "net/Descargas.hpp"
 
@@ -1011,6 +1012,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         return m->ggufParaChat(pedido, falta, repo);
                     },
                     [m = modelos_.get()](const QString& repo) { m->descargar(repo); });
+            // El llama-server carga la visión del modelo (--mmproj) si está bajada: la usan
+            // el chat y el tótem (el dorso de un documento). Quién va con qué, ModelosLocales.
+            agent::ServidorModeloLocal::el().setMmprojPara(
+                [m = modelos_.get()](const QString& gguf) { return m->mmprojPara(gguf); });
             agenteAuto_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
                 v->atenderDesde(texto, quien, disparador);
             });

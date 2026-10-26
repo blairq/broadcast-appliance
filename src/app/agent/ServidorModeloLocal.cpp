@@ -29,13 +29,35 @@ ServidorModeloLocal& ServidorModeloLocal::el() {
     return *s;
 }
 
-void ServidorModeloLocal::pedir(QObject* quien, const Pedido& p, std::function<void(quint16, QString)> listo,
+QString ServidorModeloLocal::ejecutable() {
+#ifdef _WIN32
+    return QCoreApplication::applicationDirPath() + "/llama-server.exe";
+#else
+    return QCoreApplication::applicationDirPath() + "/llama/llama-server";
+#endif
+}
+
+QString ServidorModeloLocal::mmprojPara(const QString& gguf) const {
+    const QString m = mmprojPara_ ? mmprojPara_(gguf) : QString();
+    return !m.isEmpty() && QFileInfo::exists(m) ? m : QString();
+}
+
+void ServidorModeloLocal::pedir(QObject* quien, const Pedido& pedido, std::function<void(quint16, QString)> listo,
                                 std::function<void(QString)> estado) {
+    Pedido p = pedido;
+    if (p.mmproj.isEmpty()) p.mmproj = mmprojPara(p.gguf);
     // Si `quien` desaparece sin soltarlo, que no quede contado. Una vez por cada uno:
     // Qt::UniqueConnection no sirve con una lambda (no conectaba nada).
     if (usan_.emplace(quien, true).second)
         connect(quien, &QObject::destroyed, this, [this, quien]() { soltar(quien); });
-    if (proc_ != nullptr && gguf_ == p.gguf) {
+    if (proc_ != nullptr && gguf_ != p.gguf && p.noReiniciar) {
+        // Anda con otro modelo (el que eligió alguien para el chat): no se le cambia.
+        if (usan_.erase(quien) > 0) disconnect(quien, &QObject::destroyed, this, nullptr);
+        listo(0, "El modelo local está cargado con otro modelo (el del chat).");
+        return;
+    }
+    // El mismo modelo: se usa el que anda (si hace falta la visión y no la cargó, se recarga con ella).
+    if (proc_ != nullptr && gguf_ == p.gguf && (mmproj_ == p.mmproj || p.mmproj.isEmpty())) {
         if (listo_) {
             listo(puerto_, {});
             return;
@@ -68,6 +90,7 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
         return;
     }
     gguf_ = p.gguf;
+    mmproj_ = p.mmproj;
     listo_ = false;
     {
         QTcpServer t; // un puerto libre de esta máquina (solo 127.0.0.1)
@@ -82,9 +105,12 @@ void ServidorModeloLocal::arrancar(const Pedido& p) {
     // Todas las capas a la GPU (Vulkan en Windows y Linux, Metal en la Mac). Sin MTP, a
     // propósito (pedido del dueño, 2026-10-11): con borradores es más lento en texto libre.
     // Se entrenó para contestar sin razonar: razonando, se enrosca y no termina.
-    proc_->start(p.ejecutable, {"-m", QDir::toNativeSeparators(p.gguf), "--host", "127.0.0.1", "--port",
-                                QString::number(puerto_), "--jinja", "-ngl", QString::number(p.capasGpu), "-c",
-                                QString::number(p.contexto), "--alias", "local", "--no-webui", "--reasoning", "off"});
+    QStringList args{"-m", QDir::toNativeSeparators(p.gguf), "--host", "127.0.0.1", "--port",
+                     QString::number(puerto_), "--jinja", "-ngl", QString::number(p.capasGpu), "-c",
+                     QString::number(p.contexto), "--alias", "local", "--no-webui", "--reasoning", "off"};
+    // La visión (el proyector del modelo base): las imágenes en /v1/chat/completions.
+    if (!p.mmproj.isEmpty()) args << "--mmproj" << QDir::toNativeSeparators(p.mmproj);
+    proc_->start(p.ejecutable, args);
     if (!proc_->waitForStarted(10000)) {
         const QString e = "No arrancó llama-server: " + proc_->errorString();
         parar();

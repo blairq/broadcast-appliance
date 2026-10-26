@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "documentos/Mrz.hpp"
+
 namespace ba::documentos {
 namespace {
 
@@ -44,10 +46,37 @@ std::string ejemplarDni(const std::string& s) {
     return x.size() == 1 && x[0] >= 'A' && x[0] <= 'Z' ? x : std::string();
 }
 
+/// El dorso: la MRZ TD1 de un documento emitido por la Argentina.
+bool leerDorso(const Codigo& c, Datos& out) {
+    Td1 t;
+    // Sin exigir el compuesto: lo decide quien leyó (ver MrzTd1::leer).
+    if (!leerTd1(c.texto, t, nullptr, 0, false) || t.emisor != "ARG" || t.codigo[0] != 'I') return false;
+    Datos d = datosDeTd1(t);
+    // El número: el del campo del documento si es un número de DNI; si no, el que
+    // vaya en los opcionales (sin los «<» de relleno ni lo que no sean dígitos).
+    std::string n = t.numero.size() <= 9 ? numeroDni(t.numero) : std::string();
+    if (n.empty()) {
+        std::string digitos;
+        for (char x : t.opcional1)
+            if (x >= '0' && x <= '9') digitos.push_back(x);
+            else if (!digitos.empty()) break;
+        n = numeroDni(digitos);
+        if (!n.empty() && soloDigitos(t.numero) && t.numero.size() == 11) d.tramite = t.numero;
+    }
+    if (n.empty()) return false;
+    d.numero = n;
+    d.pais = "AR";
+    out = std::move(d);
+    return true;
+}
+
 } // namespace
 
 bool DniArgentino::leer(const Codigo& c, Datos& out) const {
+    if (c.formato == kFormatoMrz) return leerDorso(c, out);
     const std::string texto = recortar(c.texto);
+    // Sin formato (un texto pegado): sin arrobas puede ser el dorso.
+    if (c.formato.empty() && texto.find('@') == std::string::npos) return leerDorso(c, out);
     if (texto.find('@') == std::string::npos) return false;
     const std::vector<std::string> f = partir(texto, '@');
     Datos d;

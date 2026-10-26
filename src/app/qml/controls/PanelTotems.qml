@@ -576,6 +576,14 @@ Item {
                                         color: Theme.textFaint; font.pixelSize: 11
                                         height: 26; verticalAlignment: Text.AlignVCenter
                                     }
+                                    // El dorso: si el código no sale, la parte de atrás con un modelo de visión.
+                                    Text {
+                                        width: parent.width
+                                        wrapMode: Text.WordWrap
+                                        text: raiz.tv.dorso
+                                        color: raiz.tv.dorsoDisponible ? Theme.textDim : Theme.textFaint
+                                        font.pixelSize: 11
+                                    }
                                 }
                                 TextField {
                                     Layout.columnSpan: 4

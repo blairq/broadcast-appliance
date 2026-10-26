@@ -163,7 +163,7 @@ void noEsDni() {
 void catalogo() {
     Catalogo c;
     CHECK(c.porId("dni-ar") != nullptr, "el DNI viene de fábrica");
-    CHECK(c.tipos().size() == 1, "un solo tipo de fábrica");
+    CHECK(c.tipos().size() == 2 && c.porId("mrz-td1") != nullptr, "de fábrica: el DNI y la cédula con MRZ (test_mrz)");
     Datos d;
     CHECK(c.leer(pdf(kNuevo), {}, d) && d.tipo == "dni-ar", "lee con todos");
     CHECK(c.leer(pdf(kNuevo), {"plugin:aamva/licencia", "dni-ar"}, d), "los de plugin se saltean");

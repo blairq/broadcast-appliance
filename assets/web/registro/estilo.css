@@ -51,6 +51,8 @@ body.documento .camara { box-shadow: 0 0 0 6px var(--ok); }
 /* Mostrando el documento, la vista SIN espejar: la persona lee su DNI derecho y sabe qué lado
    está mostrando (espejado, el texto al revés confundía). La cámara manda lo mismo en los dos casos. */
 body.documento .propia { transform: none; }
+/* La parte de atrás: lo mismo, y el estado lo dice en grande (los renglones de abajo). */
+.estado.dorso .punto { background: var(--ok); }
 .estado.listo .punto { background: var(--ok); }
 .estado.error .punto { background: var(--mal); }
 @keyframes latir { 50% { transform: scale(1.5); opacity: 0.6; } }
