@@ -1284,7 +1284,10 @@ void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resulta
         ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                    quien + ": documento leído por el dorso, con el " + r.con + " (" +
                                        documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
-        const auto x = k.conv->documentoLeido(r.datos);
+        // De dónde salió el dato, en el padrón: el dorso (si no, documentoLeido pone «codigo»).
+        json datos = r.datos;
+        if (datos.is_object()) datos["origen"] = "dorso";
+        const auto x = k.conv->documentoLeido(datos);
         aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
         return;
     }
