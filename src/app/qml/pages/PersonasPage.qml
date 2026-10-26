@@ -194,9 +194,13 @@ Rectangle {
                     // Las mismas opciones que en Sala y Asamblea (un solo
                     // control, un solo modelo): se ven donde se las busque.
                     OpcionesAtencion { Layout.fillWidth: true; conAtencion: false }
+                    // El video cede lugar: 16:9 si entra, más bajo si no, para
+                    // que la ficha de abajo siempre se vea (entra ajustado, Fit).
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: width * 9 / 16
+                        Layout.fillHeight: true
+                        Layout.minimumHeight: 120
+                        Layout.maximumHeight: width * 9 / 16
                         color: "black"; radius: 10; clip: true
                         VideoItem { anchors.fill: parent; source: page.fuente; fillMode: VideoItem.Fit }
                         // Los recuadros de las caras, con su nombre o el aviso
