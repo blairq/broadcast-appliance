@@ -184,6 +184,7 @@ Rectangle {
                     case "automatizacion": return "Automatización"
                     case "equipo": return "Equipos"
                     case "superficie": return "Superficies de control"
+                    case "documentos": return "Documentos de identidad"
                     default: return "Otros"
                     }
                 }

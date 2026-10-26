@@ -40,6 +40,13 @@ sistema cualquiera de estas cosas:
   dibuja el renderizador de gráficos, con tortas, barras, medios…) o sobre
   ``def f(lienzo, ms, valores)`` (dibuja cada cuadro con numpy). El gráfico
   aparece en Gráficos, Rótulos y el guion como cualquier otro.
+- DOCUMENTOS DE IDENTIDAD: ``@plugin.documento("licencia", formatos=["PDF417"])``
+  sobre ``def f(codigo) -> dict | None``. La app lee el código de barras de la
+  cámara (el tótem de registro, ``documento_leer``) y, si no es un tipo de
+  fábrica (el DNI argentino), le pasa ``{"formato", "texto", "bytes"}``; el
+  plugin devuelve los datos normalizados (``numero``, ``apellido``,
+  ``nombres``, fechas en ISO…) o None si no es suyo. Ver
+  docs/funciones/DOCUMENTOS.md y el ejemplo ``documento-aamva``.
 - Y puede ACTUAR SOBRE TODO EL SISTEMA: ``plugin.llamar("scene_switch",
   {"name": "Exterior"})`` llama cualquier herramienta del servidor MCP de la app
   (escenas, audio, PTZ, grafo de video, avisos al operador…).
@@ -63,6 +70,7 @@ datos masivos (va al registro), y las bibliotecas se declaran en plugin.json
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import inspect
 import json
@@ -85,6 +93,11 @@ from .medios import Cuadro, Bloque  # noqa: F401  (para los que lo importan de a
 __all__ = ["Plugin", "Cuadro", "Bloque", "Entrada", "necesita", "SDK_VERSION"]
 
 SDK_VERSION = 1
+
+#: Los datos normalizados de un documento de identidad (docs/funciones/DOCUMENTOS.md). Lo que
+#: un tipo devuelva con otra clave va a ``extra``.
+CAMPOS_DOCUMENTO = ("numero", "apellido", "nombres", "sexo", "nacimiento", "emision", "vencimiento",
+                    "nacionalidad", "tramite", "ejemplar", "cuil", "pais")
 
 
 def necesita(*paquetes: str) -> None:
@@ -262,6 +275,7 @@ class Plugin:
         self._ptz: dict[str, Any] = {}
         self._controles: dict[str, dict] = {}
         self._graficos: dict[str, dict] = {}
+        self._documentos: dict[str, dict] = {}
         self._escuchas: dict[str, list[Callable]] = {}
         self._al_iniciar: list[Callable] = []
         self._al_terminar: list[Callable] = []
@@ -400,6 +414,32 @@ class Plugin:
                 d["acciones"] = acciones
             self._graficos[nombre] = {"fn": fn, "modo": modo, "bucle": bool(bucle)}
             self._redeclarar(d)
+            return fn
+        return deco
+
+    def documento(self, nombre: str, titulo: str = "", formatos: list | tuple | None = None, pais: str = "",
+                  como_se_dice: str = "tu documento", descripcion: str = "", ejemplos: list | None = None):
+        """Decorador: un TIPO DE DOCUMENTO de identidad (docs/funciones/DOCUMENTOS.md).
+
+        ``def f(codigo) -> dict | None``: `codigo` es ``{"formato": "PDF417", "texto": str, "bytes": bytes}``,
+        un código de barras que la app leyó de la cámara (zxing). Si es de este tipo, devolvé los datos
+        normalizados: ``{"numero", "apellido", "nombres", "sexo" ("M"/"F"/"X"), "nacimiento", "emision",
+        "vencimiento" (las fechas en ISO: "1990-03-15"), "nacionalidad", "pais", ...}``; lo que no esté en
+        ``CAMPOS_DOCUMENTO`` va a ``extra``. Sin ``numero`` cuenta como no leído. Si no es tuyo, None (sin
+        excepciones: la app prueba los tipos en orden). Rápido: la persona está frente a la cámara.
+
+        Queda como el tipo ``plugin:<id>/<nombre>`` (``documento_tipos``), elegible en el campo
+        `documento` de un tótem. `formatos`: los códigos que puede traer (vacío = cualquiera); `como_se_dice`:
+        cómo se lo pide en voz alta («tu licencia»). `ejemplos`: ``[{"formato", "texto", "espera": True}]``
+        SINTÉTICOS (nunca datos de una persona real) que ``plugin_probar`` corre y muestra.
+
+        Los datos son sensibles: no los mandes a ningún servicio de afuera ni los imprimas enteros."""
+        def deco(fn):
+            self._documentos[nombre] = {"fn": fn}
+            self._redeclarar({"t": "documento", "nombre": nombre, "titulo": titulo or nombre,
+                              "formatos": list(formatos or []), "pais": pais, "como_se_dice": como_se_dice,
+                              "descripcion": descripcion or (fn.__doc__ or "").strip().split("\n")[0],
+                              "ejemplos": list(ejemplos or [])})
             return fn
         return deco
 
@@ -664,12 +704,39 @@ class Plugin:
             return c["fn"](args.get("args", {}) or {})
         if accion == "grafico":
             return self._grafico(args)
+        if accion == "documento":
+            return self._documento(args)
         if accion == "info":
             return {"entradas": [e.declaracion() for e in self._entradas.values()], "tarjetas": list(self._tarjetas),
-                    "graficos": list(self._graficos),
+                    "graficos": list(self._graficos), "documentos": list(self._documentos),
                     "ptz": list(self._ptz), "controles": list(self._controles), "escucha": list(self._escuchas), "valores": self.valores,
                     "medios": self._medios.resumen() if self._medios else {}}
         raise KeyError(f"no sé «{accion}»")
+
+    def _documento(self, args: dict) -> dict:
+        """Lo que pide la app para traducir un código (ver ``documento``): ``{"datos": {...} | None}``."""
+        d = self._documentos.get(args.get("nombre", ""))
+        if d is None:
+            raise KeyError(f"no hay un tipo de documento «{args.get('nombre')}» (hay: {', '.join(self._documentos) or 'ninguno'})")
+        codigo = {"formato": args.get("formato", ""), "texto": args.get("texto", ""),
+                  "bytes": base64.b64decode(args.get("bytes_b64") or "")}
+        r = d["fn"](codigo)
+        if r is None:
+            return {"datos": None}
+        if not isinstance(r, dict):
+            raise ValueError("un tipo de documento devuelve un dict con los datos o None")
+        datos: dict = {}
+        extra = dict(r.get("extra") or {}) if isinstance(r.get("extra"), dict) else {}
+        for k, v in r.items():
+            if k == "extra" or v is None or v == "":
+                continue
+            if k in CAMPOS_DOCUMENTO:
+                datos[k] = str(v)
+            else:
+                extra[k] = v
+        if extra:
+            datos["extra"] = extra
+        return {"datos": datos if datos.get("numero") else None}
 
     def _grafico(self, args: dict) -> dict:
         """Lo que pide la app para dibujar un gráfico del plugin (ver ``grafico``)."""

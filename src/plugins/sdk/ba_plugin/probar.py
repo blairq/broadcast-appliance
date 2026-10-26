@@ -185,7 +185,8 @@ def main():
     a = ap.parse_args()
     carpeta = os.path.abspath(a.carpeta)
     informe = {"plugin": os.path.basename(carpeta), "declarado": [], "tarjetas": [], "entradas": [], "controles": [],
-               "ptz": [], "graficos": [], "eventos": [], "llamadas_al_sistema": [], "avisos": [], "estado": None}
+               "ptz": [], "graficos": [], "documentos": [], "eventos": [], "llamadas_al_sistema": [], "avisos": [],
+               "estado": None}
 
     srv = socket.socket()
     srv.bind(("127.0.0.1", 0))
@@ -217,7 +218,7 @@ def main():
         if t == "hola":
             informe["sdk"] = m.get("sdk")
             informe["python"] = m.get("python")
-        elif t in ("entrada", "tarjeta", "ptz", "control", "escuchar", "grafico"):
+        elif t in ("entrada", "tarjeta", "ptz", "control", "escuchar", "grafico", "documento"):
             informe["declarado"].append(m)
         elif t == "evento":
             informe["eventos"].append({k: m.get(k) for k in ("canal", "datos")})
@@ -279,6 +280,9 @@ def main():
             elif d["t"] == "grafico":
                 informe["graficos"].append({"nombre": d["nombre"], "modo": d.get("modo"), "ancho": d.get("ancho"),
                                             "alto": d.get("alto"), "duracion_ms": d.get("duracion_ms")})
+            elif d["t"] == "documento":
+                informe["documentos"].append({"nombre": d["nombre"], "titulo": d.get("titulo"),
+                                              "formatos": d.get("formatos"), "ejemplos": []})
         for h in hilos:
             h.start()
 
@@ -320,6 +324,26 @@ def main():
             elif "qml" not in res:
                 g["error"] = "no devolvió ni declarativo, ni qml, ni secuencia"
 
+        # Los tipos de documento, con sus ejemplos (sintéticos): qué devuelve cada uno y si
+        # leyó lo que tenía que leer (`espera`, True de fábrica).
+        for doc in informe["documentos"]:
+            d = next(x for x in informe["declarado"] if x["t"] == "documento" and x["nombre"] == doc["nombre"])
+            for i, ej in enumerate(d.get("ejemplos") or []):
+                r = pedir("documento", {"nombre": doc["nombre"], "formato": ej.get("formato", ""),
+                                        "texto": ej.get("texto", "")})
+                fila = {"ejemplo": i}
+                if not r.get("ok"):
+                    fila["error"] = r.get("error")
+                else:
+                    datos = (r.get("resultado") or {}).get("datos")
+                    fila["leyo"] = datos is not None
+                    fila["datos"] = datos
+                    if fila["leyo"] != bool(ej.get("espera", True)):
+                        fila["error"] = "leyó lo que no tenía que leer" if fila["leyo"] else "no lo leyó"
+                doc["ejemplos"].append(fila)
+            if any("error" in f for f in doc["ejemplos"]):
+                doc["error"] = "algún ejemplo no dio lo esperado (mirá `ejemplos`)"
+
         for nombre, args in a.control:
             informe.setdefault("controles_llamados", []).append(
                 {"control": nombre, "respuesta": pedir("control", {"nombre": nombre, "args": json.loads(args or "{}")})})
@@ -347,7 +371,7 @@ def main():
     informe["registro"] = reg[-4000:]
     informe["salio_con"] = p.returncode
     informe["ok"] = listo and "error" not in informe and not any(
-        "error" in x for x in informe["tarjetas"] + informe["entradas"] + informe["graficos"])
+        "error" in x for x in informe["tarjetas"] + informe["entradas"] + informe["graficos"] + informe["documentos"])
     print(json.dumps(informe, ensure_ascii=False, indent=1, default=str))
     return 0 if informe["ok"] else 1
 

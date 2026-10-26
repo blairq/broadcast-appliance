@@ -76,14 +76,14 @@ copias.
 
 | Del plugin | A la app |
 |---|---|
-| `hola` (puerto de medios), `entrada`, `tarjeta`, `ptz`, `control`, `escuchar`, `grafico`, `listo` | declaraciones |
+| `hola` (puerto de medios), `entrada`, `tarjeta`, `ptz`, `control`, `escuchar`, `grafico`, `documento`, `listo` | declaraciones |
 | `evento` {canal, datos, hora_ns} | al bus |
 | `llamar` {n, herramienta, args} | una herramienta MCP → `respuesta` |
 | `estado`, `aviso` | lista de plugins / barra del operador |
 
 | De la app | Al plugin |
 |---|---|
-| `pedido` {n, accion: ptz.mover…, control, grafico, info} | → `respuesta` |
+| `pedido` {n, accion: ptz.mover…, control, grafico, documento, info} | → `respuesta` |
 | `evento` (de otro plugin al que escucha), `config`, `chau` | |
 
 ## El SDK
@@ -102,6 +102,13 @@ Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En 
   DESCRIBE (`{"declarativo"}` o `{"qml"}`, lo dibuja el renderizador de gráficos); sobre
   `def f(lienzo, ms, valores)` lo DIBUJA cuadro a cuadro con numpy (se guardan en `datos/.graficos`). Ver
   docs/funciones/GRAFICOS.md, «Gráficos de un plugin», y el ejemplo `ejemplo-grafico`.
+- `@plugin.documento(nombre, titulo, formatos=["PDF417"], pais, como_se_dice, ejemplos=[...])` sobre
+  `def f(codigo) -> dict | None`: un **tipo de documento de identidad** (docs/funciones/DOCUMENTOS.md). La app
+  lee el código de barras de la cámara (zxing) y, si no es uno de fábrica (el DNI argentino), le pasa
+  `{formato, texto, bytes}`; el plugin devuelve los datos normalizados (`numero`, `apellido`, `nombres`,
+  fechas en ISO…; lo demás va a `extra`) o None si no es suyo. Queda como el tipo `plugin:<id>/<nombre>`
+  (`documento_tipos`), elegible en el campo `documento` de un tótem. `plugin_probar` corre sus `ejemplos`
+  (sintéticos; `"espera": false` los que no tiene que leer). Ejemplo: `documento-aamva`.
 - `plugin.llamar(herramienta, args)`: cualquier herramienta MCP.
 - `plugin.estado(texto)`, `plugin.aviso(texto)`.
 - `@plugin.al_iniciar`, `@plugin.al_terminar`, `@plugin.cada(s)`, `@plugin.al_cambiar_config`.
@@ -182,6 +189,7 @@ por categoría, con un id sugerido, y `plugin_listar` los da en ese mismo orden 
 | `ejemplo-automatizacion` | «Cuando pasa X, hacé Y»: escucha `aire/escena` y `salida/stream`, lleva la minuta de lo que salió al aire, recuerda al operador cuánto lleva y le manda el resumen; `"herramientas": ["operator_message"]`; control `simular` para probarlo |
 | `ejemplo-equipo-red` | Un aparato con protocolo de texto por TCP: conexión con reconexión, órdenes con respuesta, avisos del equipo como eventos y acciones (`al_boton`), panel, y un simulador del aparato adentro (`modo: simulador`) |
 | `ejemplo-basico` | Todo lo que puede un plugin: tarjeta de video, filtro de audio, entrada propia, panel, control y evento |
+| `documento-aamva` | Un tipo de documento de identidad (la licencia de conducir de EE.UU. y Canadá, PDF417 AAMVA), categoría `documentos`: molde para cualquier documento con un código parseable |
 
 El camino completo de una tarjeta de video: `plugin_desde_ejemplo` (o la página) → `plugin_probar` →
 `plugin_activar` → `plugin_tarjeta {"id", "tarjeta", "entrada"}` (queda en el grafo como «Plugin ·
@@ -205,7 +213,7 @@ QML) lista las tarjetas de video de los plugins que corren, para el catálogo de
   - el audio pasa por una tarjeta de audio (0,4 → 0,2);
   - con el plugin caído, la tarjeta deja pasar la imagen.
 - Los ejemplos se prueban con `python3 -I src/plugins/sdk/ba_plugin/probar.py <carpeta>`.
-- `test_plugins_ejemplos` (ctest, `src/plugins/sdk/tests/test_ejemplos.py`): los cuatro moldes con el Python de extern y su GStreamer (las tarjetas cambian el cuadro, la automatización avisa, el equipo contesta a su simulador).
+- `test_plugins_ejemplos` (ctest, `src/plugins/sdk/tests/test_ejemplos.py`): los cuatro moldes con el Python de extern y su GStreamer (las tarjetas cambian el cuadro, la automatización avisa, el equipo contesta a su simulador), y `documento-aamva` (sus ejemplos sintéticos dan lo esperado).
 
 ## Pendiente
 

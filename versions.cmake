@@ -70,6 +70,13 @@ set(LIBDEFLATE_VERSION "1.22" CACHE STRING "Versión de libdeflate")
 set(LIBDEFLATE_SHA256 "7f343c7bf2ba46e774d8a632bf073235e1fd27723ef0a12a90f8947b7fe851d6" CACHE STRING "SHA-256 del tarball de libdeflate")
 mark_as_advanced(LIBDEFLATE_VERSION LIBDEFLATE_SHA256)
 
+# zxing-cpp (Apache-2.0): leer códigos de barras de la cámara (el PDF417 del DNI
+# argentino, QR, DataMatrix…). Se baja el tarball del tag con su SHA-256 y se
+# construye desde la fuente en los tres sistemas (cmake/BaZxing.cmake, make deps-zxing).
+set(ZXING_CPP_VERSION "2.3.0" CACHE STRING "Versión de zxing-cpp")
+set(ZXING_CPP_SHA256 "64e4139103fdbc57752698ee15b5f0b0f7af9a0331ecbdc492047e0772c417ba" CACHE STRING "SHA-256 del tarball de zxing-cpp")
+mark_as_advanced(ZXING_CPP_VERSION ZXING_CPP_SHA256)
+
 # --- libsamplerate (Secret Rabbit Code, MIT) --------------------------------
 # Re-muestreo de audio (cambio de frecuencia de muestreo) para la cadena DSP
 # (spec 7.4). Lib de C pura que compila en Linux y Windows; se trae por
@@ -107,6 +114,7 @@ message(STATUS "  mbedTLS     : ${MBEDTLS_VERSION}")
 message(STATUS "  nlohmann    : ${NLOHMANN_JSON_VERSION}")
 message(STATUS "  Argon2      : ${ARGON2_VERSION} (referencia P-H-C, KDF de secrets.json)")
 message(STATUS "  libdeflate  : ${LIBDEFLATE_VERSION} (gzip de ba-web)")
+message(STATUS "  zxing-cpp   : ${ZXING_CPP_VERSION} (códigos de barras: DNI, QR)")
 message(STATUS "  libsamplerate: ${LIBSAMPLERATE_VERSION}")
 message(STATUS "  LSP Plugins : ${LSP_VERSION} (CLAP)")
 message(STATUS "  clang-format: ${CLANG_FORMAT_VERSION} (herramienta de lint)")

@@ -391,7 +391,7 @@ json Plugins::estado(const std::string& id) const {
     }
     if (p.reinicios) e["reinicios"] = p.reinicios;
     json ent = json::array(), tar = json::array(), ptz = json::array(), ctl = json::array(),
-         esc = json::array();
+         esc = json::array(), doc = json::array();
     for (const auto& d : p.declarado) {
         const std::string t = d.value("t", "");
         json x = d;
@@ -406,14 +406,40 @@ json Plugins::estado(const std::string& id) const {
             ctl.push_back(x);
         else if (t == "escuchar")
             esc.push_back(d.value("canal", ""));
+        else if (t == "documento")
+            doc.push_back(x);
     }
     e["entradas"] = ent;
     e["tarjetas"] = tar;
     e["ptz"] = ptz;
     e["controles"] = ctl;
     if (!esc.empty()) e["escucha"] = esc;
+    if (!doc.empty()) e["documentos"] = doc;
     if (const json pn = panel(id); !pn.is_null()) e["panel"] = pn;
     return e;
+}
+
+json Plugins::tiposDocumento() const {
+    // Solo los que corren y terminaron de declararse: a uno apagado no se le puede
+    // pedir que lea nada, y ofrecerlo en el tótem sería un paso que nunca anda.
+    json out = json::array();
+    for (const auto& [id, p] : procesos_) {
+        if (!p || !p->listo || p->estado != "corriendo") continue;
+        for (const auto& d : p->declarado) {
+            if (d.value("t", "") != "documento") continue;
+            const std::string nombre = d.value("nombre", std::string());
+            if (nombre.empty()) continue;
+            out.push_back({{"id", "plugin:" + id + "/" + nombre},
+                           {"plugin", id},
+                           {"nombre", nombre},
+                           {"titulo", d.value("titulo", nombre)},
+                           {"comoSeDice", d.value("como_se_dice", std::string("tu documento"))},
+                           {"formatos", d.value("formatos", json::array())},
+                           {"pais", d.value("pais", std::string())},
+                           {"descripcion", d.value("descripcion", std::string())}});
+        }
+    }
+    return out;
 }
 
 json Plugins::listar() const {
@@ -437,7 +463,7 @@ json Plugins::ejemplosDisponibles() const {
     // Por categoría (en este orden) y, adentro, primero los «ejemplo-…» (los moldes
     // para arrancar uno nuevo) y después los listos para usar. El orden del disco
     // cambia de un sistema a otro: la lista tiene que salir igual en todos.
-    static const std::vector<std::string> kOrden{"inicio", "video", "automatizacion", "equipo", "superficie"};
+    static const std::vector<std::string> kOrden{"inicio", "video", "automatizacion", "equipo", "superficie", "documentos"};
     auto rango = [](const std::string& c) {
         const auto it = std::find(kOrden.begin(), kOrden.end(), c);
         return static_cast<int>(it - kOrden.begin());
@@ -1123,7 +1149,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
         p.python = m.value("python", std::string());
         anotarPuerto(id, p.puerto);
     } else if (t == "entrada" || t == "tarjeta" || t == "ptz" || t == "control" || t == "escuchar" ||
-               t == "panel" || t == "grafico") {
+               t == "panel" || t == "grafico" || t == "documento") {
         const std::string clave = m.value("nombre", m.value("entrada", m.value("canal", std::string())));
         auto& d = p.declarado;
         d.erase(std::remove_if(d.begin(), d.end(),

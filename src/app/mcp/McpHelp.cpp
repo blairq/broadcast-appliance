@@ -292,6 +292,7 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 1. **Armar:** `totem_crear {"nombre"}` (de fábrica pide nombre y correo). `totem_cambiar {"id", "campos": [...]}` reemplaza la lista de campos: `{clave, etiqueta, pregunta, tipo, obligatorio, opciones?, ejemplo?}` con tipo `texto | nombre | correo | telefono | numero | sino | opcion`. Saludo, despedida y «ya registrado» admiten {hola}, {nombre} y {evento}. `confirmar` repite cada dato y pregunta «¿está bien?»; `reconocer` saluda por el nombre a quien reconoce (y no le pregunta el nombre). Son de ESE evento (Eventos/<x>/registro.json).
 2. **Llevarlo a la gente:** `totem_enlace {"id", "mostrar": true}` (url y QR; la url lleva un secreto: no la publiques en cualquier lado), `totem_proyectar {"id", "pantalla"}` a una TV (muestra el QR grande para escanear), o el catálogo de pantallas («registro:<id>»).
 3. **Mirar:** `totem_estado` (quién se está registrando, en qué paso, qué se le entendió), `totem_registrados` (lo que contestaron). Hasta 4 conversaciones a la vez.
+- **El DNI por la cámara:** un campo `{"tipo": "documento", "documentos": ["dni-ar"]}` le pide «Mostrame tu DNI a la cámara, del lado del código de barras», lee el PDF417, lo confirma («Sos Juana Prueba, DNI 11.222.333, ¿está bien?») y completa el nombre (y las claves apellido/nombres/dni/nacimiento/cuil que no tengan dato); el documento entero queda en `datos[<clave>]`. Si no lo lee en 15 s le dice qué corregir y a la segunda, si no es obligatorio, lo saltea; se puede tipear o dictar el número. Otros tipos (una licencia, el documento de otro país) entran por plugin: `documento_tipos` los lista, `documento_leer {"video": "registro:<canal>"}` prueba la cámara. Por MCP los documentos salen resumidos (nombre y últimos tres dígitos): los datos completos no salen de la máquina.
 - Escribí las preguntas como se dicen: cortas, de a una, en castellano rioplatense («¿Me pasás tu teléfono?»).
 - Para hablar necesita el reconocedor de voz y la voz del atendedor (las mismas que la atención hablada: `atencion_estado`). Sin voz, la página muestra el texto y se puede tipear.
 - En la interfaz: Personas → Registro (`ui_show_page {"page": "personas", "seccion": "registro"}`).)md"},
@@ -787,6 +788,7 @@ Casos típicos:
 - Procesar video o audio en Python (numpy, OpenCV, **GStreamer**): una tarjeta del grafo. Un efecto, un filtro o un análisis de video que no está en `video_modulos`: ver «Video» abajo.
 - Automatizar («cuando pasa X, hacé Y») lo que los disparadores (`alert_types`) no cubren: escuchar eventos del estudio y llamar herramientas.
 - Un gráfico animado a pedido que el repertorio no tiene (con lógica, datos de afuera o dibujado cuadro a cuadro): `@plugin.grafico` (`help {"topic": "graficos"}`, ejemplo `ejemplo-grafico`).
+- Un DOCUMENTO DE IDENTIDAD que no es el DNI argentino (una licencia de conducir, el documento de otro país, una credencial con QR): `@plugin.documento` (abajo, ejemplo `documento-aamva`). El tótem lo ofrece en sus campos `documento`.
 
 ## El camino
 1. **Qué hay**: `dispositivos_listar` (cámaras y micrófonos con su `gst` listo para un pipeline, y USB/HID/serie con vid:pid). Si no sabés cómo se le habla al equipo: buscá el protocolo (WebSearch si lo tenés) y/o escribí un plugin de exploración (abajo).
@@ -850,6 +852,18 @@ plugin.evento("hablando", {"angulo": 37, "persona": 2})        # canal de datos 
 def al_hablar(datos, de): ...
 
 plugin.llamar("scene_switch", {"name": "Exterior"})             # CUALQUIER herramienta del sistema (las tuyas)
+
+# DOCUMENTOS DE IDENTIDAD (docs/funciones/DOCUMENTOS.md): la app lee el código de barras de la cámara (zxing) y,
+# si no es un tipo de fábrica (dni-ar), te pasa {formato, texto, bytes}. Devolvés los datos normalizados o None
+# (no es tuyo). Queda como el tipo «plugin:<id>/licencia» (documento_tipos; se elige en el campo del tótem).
+@plugin.documento("licencia", titulo="Licencia de conducir (EE.UU.)", formatos=["PDF417"], pais="US",
+                  como_se_dice="tu licencia", ejemplos=[{"formato": "PDF417", "texto": "@\n...ANSI 636000..."}])
+def licencia(codigo):                    # codigo["texto"] (str), codigo["bytes"] (bytes), codigo["formato"]
+    if "ANSI " not in codigo["texto"]: return None
+    return {"numero": "...", "apellido": "...", "nombres": "...", "nacimiento": "1990-03-15",   # fechas en ISO
+            "vencimiento": "...", "sexo": "F", "extra": {"estado": "CA"}}   # sin `numero` = no lo leyó
+# plugin_probar corre los `ejemplos` (SINTÉTICOS: nunca datos de una persona real) y muestra qué devolvió.
+# Los datos son sensibles: no los mandes a ningún servicio de afuera ni los imprimas enteros en el registro.
 plugin.aviso("texto", "warning"); plugin.estado("conectado a la Rally"); plugin.secreto("clave")  # claves cifradas
 @plugin.al_iniciar / @plugin.al_terminar / @plugin.cada(segundos) / @plugin.al_cambiar_config
 plugin.correr()                                                 # al final

@@ -1027,6 +1027,13 @@ const Fila kPropias[] = {
     {"totem_cortar", "cortar la conexion de un totem colgado trabado echar desconectar celular tablet del registro"},
     {"totem_registrados", "quienes se registraron lo que contestaron datos del registro correos telefonos "
                           "lista de inscriptos"},
+    // OJO: documento_leer/documento_tipos son documentos de IDENTIDAD (el DNI por su código
+    // de barras); documento_agregar/texto/abrir son los PDF del evento. Las palabras no se cruzan.
+    {"documento_leer", "leer el dni escanear el documento de identidad codigo de barras pdf417 cedula licencia "
+                       "de conducir pasaporte credencial mostrar el dni a la camara probar el lector del totem "
+                       "identificar a la persona por su documento"},
+    {"documento_tipos", "que documentos de identidad entiende tipos de dni licencias pasaportes que acepta el totem "
+                        "documentos de otros paises plugin de documentos"},
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
                         "switch dar de alta sola lobby los que llegan"},
     {"rostro_lobby", "quien espera quien llego quien esta en el lobby reconocer a los que entran "

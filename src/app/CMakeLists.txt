@@ -357,6 +357,10 @@ if(WIN32)
 endif()
 
 target_link_libraries(ba-app PRIVATE ba_core mbedtls mbedx509 mbedcrypto) # HTTPS propio (net/HttpsClient)
+# El lector de documentos (el DNI por su código de barras: ui/LectorDocumentos).
+if(TARGET ba_codigos)
+    target_link_libraries(ba-app PRIVATE ba_codigos)
+endif()
 if(APPLE)
     # Los canales físicos de cada dispositivo (audio/EquipoAudio: Qt informa de más en la Mac).
     target_link_libraries(ba-app PRIVATE "-framework CoreAudio" "-framework CoreFoundation" "-framework Carbon")
@@ -914,7 +918,8 @@ endif()
     add_test(NAME test_registro_totems COMMAND test_registro_totems)
     add_executable(test_registro_conversacion tests/test_registro_conversacion.cpp registro/Conversacion.cpp registro/Totems.cpp)
     target_include_directories(test_registro_conversacion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json)
+    # ba_core: los tipos de documento (documentos/Documento, el DNI) del paso «documento».
+    target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
 
     # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.

@@ -272,6 +272,8 @@ include(${CMAKE_SOURCE_DIR}/cmake/BaOnnxRuntime.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaGStreamer.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaPython.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaHerramientas.cmake)
+# zxing-cpp para leer documentos (el DNI) de la cámara: antes de src/core, que arma `ba_codigos`.
+include(${CMAKE_SOURCE_DIR}/cmake/BaZxing.cmake)
 
 # macOS 26 (Xcode 26) ya no trae AGL.framework, pero el FindWrapOpenGL de Qt
 # 6.6 lo enlaza igual ("framework 'AGL' not found"). Qt lo busca en la cache

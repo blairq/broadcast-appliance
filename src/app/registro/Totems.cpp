@@ -40,6 +40,9 @@ const Tipo kTipos[] = {
     {TipoCampo::SiNo, "sino", "Sí o no", "¿Sí o no?"},
     {TipoCampo::Opcion, "opcion", "Una de varias opciones", "¿Cuál elegís?"},
     {TipoCampo::Texto, "texto", "Texto libre", "Contame."},
+    // Al final: `tipo()` cae en el de índice 6 (texto) con uno que no conoce.
+    {TipoCampo::Documento, "documento", "Documento (DNI por su código)",
+     "Mostrame tu DNI a la cámara, del lado del código de barras."},
 };
 
 const Tipo& tipo(TipoCampo t) {
@@ -111,6 +114,7 @@ json Campo::aJson() const {
            {"tipo", nombreDeTipo(tipo)},
            {"obligatorio", obligatorio}};
     if (tipo == TipoCampo::Opcion) j["opciones"] = opciones;
+    if (tipo == TipoCampo::Documento) j["documentos"] = documentos;
     if (!ejemplo.empty()) j["ejemplo"] = ejemplo;
     return j;
 }
@@ -128,6 +132,9 @@ Campo Campo::deJson(const json& j) {
         for (const json& o : j["opciones"])
             if (o.is_string() && !o.get<std::string>().empty()) c.opciones.push_back(o.get<std::string>());
     c.ejemplo = textoDe(j, "ejemplo");
+    if (j.is_object() && j.contains("documentos") && j["documentos"].is_array())
+        for (const json& d : j["documentos"])
+            if (d.is_string() && !d.get<std::string>().empty()) c.documentos.push_back(d.get<std::string>());
     return c;
 }
 

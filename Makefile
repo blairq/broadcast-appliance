@@ -59,7 +59,7 @@ PIP       ?= .venv/bin/pip
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
         modelo-corpus modelo-inventario modelo-etiquetas \
         corpus-descubrir \
-        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-rostros deps-sherpa-onnx _ba_baja
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-zxing deps-rostros deps-sherpa-onnx _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -93,7 +93,7 @@ help:
 	@echo ""
 	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
 	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
-	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+libdeflate) -> extern/"
+	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+libdeflate+zxing-cpp) -> extern/"
 	@echo "  make deps-qt          SDK Qt 6.6.3 win64_msvc2019_64 (build de Windows) -> extern/qt6"
 	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, GStreamer, libwebrtc...)"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
@@ -714,6 +714,14 @@ LIBDEFLATE_SHA  := 7f343c7bf2ba46e774d8a632bf073235e1fd27723ef0a12a90f8947b7fe85
 LIBDEFLATE_TAR  := $(DL_DIR)/libdeflate-1.22.tar.gz
 LIBDEFLATE_DEST := $(EXTERNS_DIR)/libdeflate
 LIBDEFLATE_SENT := $(LIBDEFLATE_DEST)/CMakeLists.txt
+# zxing-cpp 2.3.0 (Apache-2.0): el lector de códigos de barras (DNI, QR). Se
+# construye desde la fuente (cmake/BaZxing.cmake); la versión y el hash, también
+# en versions.cmake.
+ZXING_URL  := https://codeload.github.com/zxing-cpp/zxing-cpp/tar.gz/refs/tags/v2.3.0
+ZXING_SHA  := 64e4139103fdbc57752698ee15b5f0b0f7af9a0331ecbdc492047e0772c417ba
+ZXING_TAR  := $(DL_DIR)/zxing-cpp-2.3.0.tar.gz
+ZXING_DEST := $(EXTERNS_DIR)/zxing-cpp
+ZXING_SENT := $(ZXING_DEST)/CMakeLists.txt
 ARGON2_URL  := https://codeload.github.com/P-H-C/phc-winner-argon2/tar.gz/refs/tags/20190702
 ARGON2_SHA  := daf972a89577f8772602bf2eb38b6a3dd3d922bf5724d45e7f9589b5e830442c
 ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
@@ -1239,7 +1247,7 @@ deps-clap:
 # Agrupado: baja y extrae los 4 árboles de código de terceros que el
 # CMakeLists raíz consume vía FetchContent. Con `extern/` poblado, el configure
 # es OFFLINE (prefiere la copia vendored); sin él, cae a git.
-deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate
+deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-zxing
 
 deps-mbedtls:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
@@ -1361,6 +1369,27 @@ deps-libdeflate:
 	  rm -rf "$(LIBDEFLATE_DEST)"; \
 	  mkdir -p "$(LIBDEFLATE_DEST)"; \
 	  tar xzf "$(LIBDEFLATE_TAR)" -C "$(LIBDEFLATE_DEST)" --strip-components=1; \
+	fi
+
+deps-zxing:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(ZXING_DEST)"
+	@if [ -f "$(ZXING_TAR)" ] && [ "$$($(SHA256) "$(ZXING_TAR)" | cut -d' ' -f1)" = "$(ZXING_SHA)" ]; then \
+	  echo "[deps] zxing-cpp: ya presente y verificado ($(ZXING_TAR))"; \
+	else \
+	  echo "[deps] zxing-cpp: descargando $(ZXING_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(ZXING_TAR).part" "$(ZXING_URL)" \
+	    && mv "$(ZXING_TAR).part" "$(ZXING_TAR)" \
+	    && printf '%s  %s\n' "$(ZXING_SHA)" "$(ZXING_TAR)" | $(SHA256_CHECK) \
+	    || { echo "[deps] ERROR zxing-cpp: fallo de descarga o hash" >&2; rm -f "$(ZXING_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(ZXING_SENT)" ]; then \
+	  echo "[deps] zxing-cpp: ya extraído en $(ZXING_DEST)"; \
+	else \
+	  echo "[deps] zxing-cpp: extrayendo a $(ZXING_DEST)"; \
+	  rm -rf "$(ZXING_DEST)"; \
+	  mkdir -p "$(ZXING_DEST)"; \
+	  tar xzf "$(ZXING_TAR)" -C "$(ZXING_DEST)" --strip-components=1; \
 	fi
 
 # --- Estado / limpieza de dependencias --------------------------------------
