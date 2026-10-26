@@ -108,6 +108,21 @@ bool prepararGst() {
     const fs::path cache = cacheDir();
     if (!cache.empty()) poner("GST_REGISTRY_1_0", cache / "gstreamer-1.0-registry.bin");
     poner("GIO_EXTRA_MODULES", raiz / "lib" / "gio" / "modules");
+    // ASIO (Windows) nunca por su cuenta. Enumerar dispositivos con el proveedor de ASIO
+    // CARGA cada driver ASIO instalado (ASIO4ALL, JackRouter, SAR…) para preguntarle los
+    // canales: ASIO4ALL se adueña de la placa (WDM-KS) y la suelta, Windows avisa que
+    // cambiaron los dispositivos, el registro vuelve a enumerar y el driver «entra y
+    // sale» todo el tiempo (y JackRouter sin JACK abre su error en cada vuelta). Probado
+    // en una notebook con los tres. El audio va por WASAPI; con rango NONE ni los
+    // monitores de dispositivos ni autoaudiosrc/sink los eligen (asiosrc/asiosink siguen
+    // existiendo para quien los pida por nombre). Lo que el operador haya puesto en
+    // GST_PLUGIN_FEATURE_RANK se respeta (va adelante; GStreamer toma el último).
+    {
+        const char* previo = std::getenv("GST_PLUGIN_FEATURE_RANK");
+        const std::string rangos = "asiodeviceprovider:NONE,asiosrc:NONE,asiosink:NONE";
+        ponerTexto("GST_PLUGIN_FEATURE_RANK",
+                   (previo != nullptr && *previo != '\0' ? rangos + "," + previo : rangos).c_str());
+    }
     // Python con GStreamer (los plugins de Python del usuario y libgstpython):
     // la introspección del bundle, y el Python del bundle para el que se
     // compilaron los bindings (libgstpython lo inicializa adentro de este
