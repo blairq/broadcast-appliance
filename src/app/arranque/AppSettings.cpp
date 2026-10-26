@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
 
@@ -285,7 +286,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.streamKeyEnv = get<std::string>(st, "keyEnv", "BA_STREAM_KEY");
 
     const json g = j.value("guests", json::object());
-    c.guests = std::clamp(get(g, "count", 2), 0, 16);
+    c.guests = std::clamp(get(g, "count", 2), 0, ba::ipc::kMaxInvitados);
     c.guestVideo = get(g, "video", true);
     c.guestAudio = get(g, "audio", true);
     c.guestAudioPreset = get<std::string>(g, "audioPreset", "podium");

@@ -18,6 +18,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "ui/AjustesAvanzados.hpp"
 #include "control/TemasWeb.hpp"
+#include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
 
@@ -141,7 +142,9 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"encoder.preset", "Codificación", "Preset de x264", "choice", choices({{"ultrafast","ultrafast"},{"superfast","superfast"},{"veryfast","veryfast"},{"faster","faster"},{"fast","fast"},{"medium","medium"}}), 0, 0, "", "Solo aplica a x264: más lento = mejor calidad y más CPU.", "live", "veryfast"},
         {"encoder.audioBitrate", "Codificación", "Bitrate de audio", "choice", choices({{"96","96"},{"128","128"},{"160","160"},{"192","192"},{"256","256"},{"320","320"}}), 0, 0, "kbps", "", "live", "160"},
         // --- Invitados -------------------------------------------------------------
-        {"guests.count", "Invitados", "Cantidad de invitados", "int", {}, 0, 16, "", "Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la sala» antes de subirlo mucho. Cambia en caliente (hasta 16), sin cortar a nadie.", "live", 2},
+        {"guests.count", "Invitados", "Cantidad de invitados", "int", {}, 0, ba::ipc::kMaxInvitados, "",
+         QString("Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la sala» antes de subirlo mucho. Cambia en caliente (hasta %1), sin cortar a nadie.").arg(ba::ipc::kMaxInvitados),
+         "live", 2},
         {"guests.reserva", "Invitados", "Lugares reservados", "int", {}, 1, 16, "", "Los lugares que la sala deja listos al arrancar (sus canales de video y audio). Ya no limita el cupo: los que faltan se crean cuando el cupo sube. Cambiarlo reinicia el gateway.", "gateway", 4},
         {"guests.video", "Invitados", "Video de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audio", "Invitados", "Audio de invitados", "bool", {}, 0, 0, "", "", "restart", true},
@@ -633,7 +636,7 @@ QString SettingsModel::apply() {
     // la sala lo rechaza (aviso) y no saca a nadie. Nunca reinicia la sala por el cupo:
     // eso cortaba a todos (pasó al bajar de 6 a 3 con 6 conectados).
     bool cupoEnVivo = false;
-    if (changed("guests.count") && cupoEnCaliente_ && i("guests.count") >= 1 && i("guests.count") <= 16) {
+    if (changed("guests.count") && cupoEnCaliente_ && i("guests.count") >= 1 && i("guests.count") <= ba::ipc::kMaxInvitados) {
         const std::string e = cupoEnCaliente_(i("guests.count")); // el resultado llega como aviso
         cupoEnVivo = true;
         if (!e.empty()) notes << "Cupo: " + QString::fromStdString(e);

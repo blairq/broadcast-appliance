@@ -238,7 +238,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
 - **Archivos compartidos:** tipo detectado por contenido, hasta 2 GB.
 - **Chat:** general y privado.
 - **Llegada a B:** túnel Cloudflare (HTTP/WS) o WireGuard propio en espacio de usuario con HTTPS en 8789.
-- **Cupo:** 2 invitados de fábrica y hasta 16 (`kMaxGuests`). Lobby de 4 (máximo 8), fila de 12 (máximo 32).
+- **Cupo:** 2 invitados de fábrica y hasta 64 (`ba::ipc::kMaxInvitados`, en `src/core/ipc/LugaresSala.hpp`: un solo número para el gateway y la app). Lobby de 4 (máximo 8), fila de 12 (máximo 32).
 - **Web del invitado** (`assets/web/guest/`): 720p30 con AEC, NS y AGC del navegador, mano levantada, reconexión con su lugar guardado 30 s, y una vista de orador con el prompter.
 
 **Cómo se usa.** Página **Sala** (`ConferencePage.qml`):

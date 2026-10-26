@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <string>
+#include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
 class AppRuntime;
@@ -41,7 +42,7 @@ class CupoSala {
     /// de la sala llega después a `listo` y a los observadores.
     std::string cambiar(int n, Listo listo = {});
 
-    static constexpr int kMax = 16; ///< el tope del gateway (kMaxInvitados)
+    static constexpr int kMax = ba::ipc::kMaxInvitados; ///< el mismo tope que el gateway (ipc/LugaresSala)
 
    private:
     AppRuntime& rt_;

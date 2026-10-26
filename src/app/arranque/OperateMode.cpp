@@ -49,6 +49,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "ipc/LugaresSala.hpp"
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -161,8 +163,8 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     if (c.guests < 0) {
         c.guests = 0;
     }
-    if (c.guests > 4) {
-        c.guests = 4;
+    if (c.guests > ba::ipc::kMaxInvitados) {
+        c.guests = ba::ipc::kMaxInvitados;
     }
 }
 

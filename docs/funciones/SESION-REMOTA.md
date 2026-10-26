@@ -114,7 +114,7 @@ integrantes abren su link en el celular, votan y lo usan de micrófono, y la ses
 
 ## 7. Escala (hasta 4096)
 
-Lo que cambia respecto de la sala de invitados (hoy 16 lugares fijos en memoria compartida):
+Lo que cambia respecto de la sala de invitados (hoy hasta 64 lugares, `ipc/LugaresSala.hpp`, con los canales de memoria compartida creados al subir el cupo):
 
 - **Lugares dinámicos.** Las colas de memoria compartida se crean y liberan a pedido (audio y video
   por separado), no un número fijo al arrancar.

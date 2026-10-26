@@ -50,6 +50,7 @@
 #include <cstdint>
 
 #include "ipc/CanalesRegistro.hpp"
+#include "ipc/LugaresSala.hpp"
 
 namespace ba::gateway {
 
@@ -57,7 +58,7 @@ namespace ba::gateway {
 /// el gateway crea los canales de un lugar cuando el cupo lo alcanza
 /// (MediaPump::ampliar) y las sesiones WebRTC del pool son livianas hasta que
 /// alguien se conecta, así que no hace falta reiniciar la sala.
-inline constexpr int kMaxInvitados = 16;
+using ::ba::ipc::kMaxInvitados; // un solo número para los dos procesos (ipc/LugaresSala)
 /// Las conversaciones de registro a la vez (canales de audio 1..kMaxTotems, ruta
 /// Registro). Son voces que la app pasa a texto y voces sintetizadas que contestan: cada
 /// una cuesta un oído y una voz en la app, por eso un tope chico y fijo, el MISMO para los dos
