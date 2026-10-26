@@ -151,6 +151,12 @@ const std::vector<AjusteAvanzado>& ajustesAvanzados() {
         {"modelo.temperatura", "Modelos locales", "Temperatura", "float", {}, 0, 2, "", "Más alta, respuestas más variadas; más baja, más previsibles.", "live", QVariant(0.7), Destino::App},
         {"modelo.penalidadRepeticion", "Modelos locales", "Penalidad por repetir", "float", {}, 0, 3, "", "Ayuda a que no repita la misma llamada en un bucle.", "live", QVariant(1.5), Destino::App},
         {"modelo.cargaS", "Modelos locales", "Tope para cargar el modelo", "int", {}, 10, 1800, "s", "", "live", QVariant(180), Destino::App},
+        // El modelo de los tótems de registro (registro/AgenteTotem): si no contesta a tiempo, el guion solo.
+        {"registro.agentePrimeraS", "Tótems de registro", "Espera a la primera palabra del modelo", "int", {}, 1, 60, "s", "Pasado esto, contesta el guion (la persona está esperando frente a la pantalla).", "live", QVariant(5), Destino::App},
+        {"registro.agenteTurnoS", "Tótems de registro", "Tope de un turno del modelo", "int", {}, 2, 120, "s", "", "live", QVariant(15), Destino::App},
+        {"registro.agenteFallas", "Tótems de registro", "Fallas seguidas antes de seguir con el guion solo", "int", {}, 1, 20, "", "Por conversación.", "live", QVariant(2), Destino::App},
+        {"registro.agenteParalelo", "Tótems de registro", "Pedidos juntos al mismo modelo", "int", {}, 1, 8, "", "Los demás tótems esperan en cola (el modelo local reparte la GPU entre los que atiende).", "restart", QVariant(2), Destino::App},
+        {"registro.agenteRedS", "Tótems de registro", "Espera de red del modelo", "int", {}, 5, 300, "s", "", "live", QVariant(30), Destino::App},
         {"modelos.timeoutHfS", "Modelos locales", "Hugging Face: espera", "int", {}, 5, 600, "s", "", "live", QVariant(20), Destino::App},
         {"modelos.cacheFichasHoras", "Modelos locales", "Recordar que un modelo no tiene ficha", "int", {}, 1, 720, "h", "", "live", QVariant(6), Destino::App},
         {"traductor.maxCaidas", "Traducción", "Caídas del traductor antes de rendirse", "int", {}, 1, 100, "", "", "live", QVariant(5), Destino::App},

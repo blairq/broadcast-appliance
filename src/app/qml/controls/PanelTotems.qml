@@ -458,6 +458,37 @@ Item {
                                color: Theme.text; font.pixelSize: 12 }
                     }
 
+                    // --- El modelo que entiende (el rol «registro» de la pestaña Agentes) -------
+                    RowLayout {
+                        spacing: 8
+                        Toggle { checked: !!raiz.totem && raiz.totem.conModelo
+                                 onToggled: (wanted) => raiz.cambiar("conModelo", wanted) }
+                        Text { text: "Entender con el modelo: respuestas de corrido, correcciones y preguntas sobre el evento"
+                               color: Theme.text; font.pixelSize: 12 }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !!raiz.totem && raiz.totem.conModelo
+                        wrapMode: Text.WordWrap
+                        color: raiz.tv.agenteAfuera ? Theme.amber : Theme.textFaint; font.pixelSize: 10
+                        text: raiz.tv.agente + " El guion sigue haciendo las preguntas; si el modelo no contesta a tiempo, sigue el guion solo."
+                    }
+                    Text {
+                        visible: !!raiz.totem && raiz.totem.conModelo
+                        text: "Ficha del evento"; color: Theme.textDim; font.pixelSize: 12
+                    }
+                    TextArea {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 90
+                        visible: !!raiz.totem && raiz.totem.conModelo
+                        wrapMode: TextEdit.Wrap
+                        text: raiz.totem ? raiz.totem.ficha : ""
+                        placeholderText: "Lo que puede contestar si le preguntan: horarios, lugar, salas, baños, wifi…"
+                        color: Theme.text; font.pixelSize: 12
+                        background: Rectangle { color: Theme.field; radius: 8 }
+                        onEditingFinished: if (raiz.totem && text !== raiz.totem.ficha) raiz.cambiar("ficha", text)
+                    }
+
                     // --- Los campos -----------------------------------------------
                     RowLayout {
                         Layout.fillWidth: true

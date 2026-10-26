@@ -173,6 +173,11 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
         if (error != nullptr) *error = "el rol `" + rolId + "` esta apagado (pagina Agentes)";
         return {};
     }
+    // Un rol que usa la app por dentro (el tótem de registro) no corre como agente de consola.
+    if (rol->enLaApp) {
+        if (error != nullptr) *error = "el rol `" + rolId + "` no se encarga: lo usa la app por dentro (" + rol->titulo + ")";
+        return {};
+    }
     if (profundidad > kProfundidadMax) {
         if (error != nullptr)
             *error = "un encargo de otro agente no puede encargar a un tercero (profundidad maxima " +

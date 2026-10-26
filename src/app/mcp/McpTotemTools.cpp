@@ -56,6 +56,8 @@ json propiedadesDeTotem() {
             {"confirmar", {{"type", "boolean"}, {"description", "repetir cada dato y preguntar «¿está bien?»"}}},
             {"reconocer", {{"type", "boolean"}, {"description", "saludar por el nombre a quien reconoce la cara"}}},
             {"foto", {{"type", "boolean"}, {"description", "al final, pedirle que mire a la cámara y esperar una foto de frente que sirva"}}},
+            {"ficha", {{"type", "string"}, {"description", "la ficha del evento: lo que el asistente puede contestar si le preguntan (horarios, lugar, salas), en texto libre, hasta 4000 letras"}}},
+            {"conModelo", {{"type", "boolean"}, {"description", "entender con el modelo del rol «registro» (respuestas de corrido, correcciones, preguntas); apagado, el guion solo"}}},
             {"campos", {{"type", "array"}, {"items", campo}, {"description", "reemplaza la lista entera, en orden"}}}};
 }
 
@@ -213,8 +215,9 @@ void McpService::registerTotemTools() {
         t.category = "totems";
         t.readOnly = true;
         t.description = "Las conexiones en vivo de los tótems: en qué paso va cada una, qué se le oyó, qué le dijo el "
-                        "asistente y qué lleva anotado; y si falta algo para hablar (voz a texto, voz). La cámara de "
-                        "una conexión con `canal` k se ve con capture_feed {key: \"registro:k\"}.";
+                        "asistente y qué lleva anotado; si falta algo para hablar (voz a texto, voz); con qué entiende "
+                        "(`agente`; y por conexión `modo`: agente = el modelo del rol «registro», guion = el guion solo, "
+                        "con `modoPorQue`). La cámara de una conexión con `canal` k se ve con capture_feed {key: \"registro:k\"}.";
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [tv](const json&, Done done) {
             if (tv() == nullptr) return done(ToolResult::error("No hay registro por tótem en este proceso."));

@@ -62,6 +62,11 @@ struct Rol {
     /// esto prendido toca el disco y la red sin pasar por ahí, en la máquina
     /// del estudio.
     bool consola = false;
+    /// No es un agente de consola que despacha el Despachador: lo usa la APP por dentro, con
+    /// un cliente de chat en el mismo proceso (el tótem de registro: registro/AgenteRegistro).
+    /// No se le encargan cosas («Hablar directo», agente_encargar): solo se elige su modelo y
+    /// se editan sus instrucciones.
+    bool enLaApp = false;
 };
 
 class Roles {

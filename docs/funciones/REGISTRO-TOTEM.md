@@ -11,6 +11,10 @@ acreditada. Lo mismo por MCP (`totem_*`, categoría `totems`; tema de ayuda
 
 ## Las decisiones
 
+**Un guion, y un modelo que entiende (2026-10-26).** El guion de abajo sigue llevando la
+estructura; lo que dice la persona lo entiende además un modelo de lenguaje: ver «El modelo que
+entiende». Sin modelo, todo esto sigue igual.
+
 **Un guion, no un agente.** Quien conversa es un guion determinista
 (`src/app/registro/Conversacion`, puro y con test): tiene que contestar en el acto
 y con varias personas a la vez, y lo que pide lo decidió el organizador. Lo
@@ -76,6 +80,59 @@ fábrica o Nemotron, streaming: varias personas a la vez con un solo modelo). Co
 Nemotron y «la persona puede interrumpir» (de fábrica prendida), no van ceros: si
 la persona habla mientras el asistente habla, la voz se corta en el acto y se la
 escucha (`TotemsViewModel::interrumpido`; ver AUDIO-TTS.md, «Dos reconocedores»).
+
+## El modelo que entiende (iniciativa mixta)
+
+**Hecho (2026-10-26), probado contra un servidor falso; sin probar con el modelo local real ni
+con gente.** En la prueba con personas el guion solo entendía poco (correos mal dictados, las
+correcciones), no contestaba preguntas y obligaba a contestar de a un dato. Ahora:
+
+- **El guion pregunta, el modelo entiende.** El guion (`Conversacion`) sigue preguntando campo
+  por campo en su orden, confirma, pide la foto y el documento: es lo que guía a quien no sabe
+  qué decir. Pero lo que la persona dice en cada turno va a un modelo de lenguaje
+  (`registro/AgenteRegistro`, `registro/AgenteTotem`), sea la respuesta a la pregunta o un
+  parrafazo («soy Jorge Ortega, de Mendoza, mi correo es…, mi teléfono…»). El modelo anota
+  **cada** dato que reconoce con la herramienta `registro_poner {campo, valor}` (varias en un
+  turno) y el guion, al avanzar, saltea lo que ya tiene dato.
+- **Los datos los guardan las herramientas, no el modelo.** `registro_poner` pasa por los
+  mismos normalizadores del guion (`Conversacion::proponer` → `entender()`): si no valida,
+  devuelve el error y el modelo repregunta con sus palabras (una segunda vuelta del mismo
+  turno). Lo anotado queda **pendiente** hasta el «sí»: el guion lo confirma todo junto en una
+  frase («Anoté nombre Jorge Ortega, correo jorge punto ortega arroba gmail punto com y teléfono
+  …; ¿es correcto?»), con los botones «Sí, es correcto» / «No, corregir» de la pantalla. Un
+  «sí» o un «no» suelto los resuelve el guion al instante (`Conversacion::paraElGuion`); con
+  más palabras («sí, y mi teléfono es…», «no, el correo es con jota») van al modelo, que
+  corrige ese campo o llama `registro_confirmar`. Un «no» suelto a varios datos: «¿Qué dato
+  está mal?» (sin modelo, se preguntan de nuevo).
+- **Preguntas sobre el evento.** El tótem tiene una **ficha del evento** (`ficha`, texto libre:
+  horarios, lugar, salas; en PanelTotems y por `totem_cambiar`). El modelo contesta con eso y
+  el guion retoma la pregunta pendiente; a lo que no está en la ficha o se va de tema, dice
+  amablemente que no puede ayudar con eso, y el guion retoma.
+- **Qué dice cada uno.** Las preguntas y confirmaciones salen del guion (frases conocidas y
+  cortas); el modelo solo dice lo que el guion no sabe decir (la respuesta a una pregunta, una
+  repregunta), **en streaming y frase por frase**: la primera frase se sintetiza mientras el
+  modelo escribe la segunda (`TrozadorFrases`: corta en . ? ! … ; : con espacio después, no en
+  «gmail.com»), y la pantalla muestra el texto a medida que llega.
+- **El modelo es un rol: «registro»** (pestaña Agentes), con su prompt corto y editable
+  (`{evento}`, `{campos}` y `{ficha}` los pone la app). De fábrica el **modelo local**
+  (`broadcast-reactivo` en el llama-server del programa, el mismo que lee el dorso: se carga
+  cuando se conecta un tótem y se suelta cuando no queda ninguno): contesta rápido y lo que
+  dice la gente no sale de la máquina. El modelo propio, OpenRouter o Gemini con clave, solo si
+  el organizador los elige (la pestaña Agentes y PanelTotems avisan que la voz y los datos
+  salen). Los de cuenta (Claude, OpenCode Go) no: solo andan por su agente de consola, que
+  tarda minutos en arrancar. **No hay agente de consola**: un cliente de
+  `/v1/chat/completions` en la app (`agent/ChatEnVivo`, con `stream: true` y herramientas, sobre
+  `net/HttpsClient`), un pedido por turno con el estado del guion y los últimos cuatro
+  intercambios. Por tótem se apaga con `conModelo: false`.
+- **Varias conversaciones a la vez:** contra un mismo servidor van a lo sumo
+  `registro.agenteParalelo` pedidos juntos (2); los demás esperan en una cola, y el tiempo de
+  la cola cuenta.
+- **El guion es el respaldo, sin perder nada.** Si el modelo no empieza a contestar en
+  `registro.agentePrimeraS` (5 s), si el turno pasa `registro.agenteTurnoS` (15 s) o si falla,
+  lo oído lo contesta el guion con sus normalizadores; con `registro.agenteFallas` (2) fallas
+  seguidas, la conversación sigue con el guion solo. Lo anotado queda. La atención remota pausa
+  también al modelo (lo que estuviera pensando no se dice). `totem_estado` dice con qué entiende
+  (`agente`; por conexión `modo`: `agente` | `guion`, y `modoPorQue`).
 
 ## El DNI por la cámara (campo `documento`)
 
@@ -234,6 +291,14 @@ pedido, editables: [{clave, etiqueta, valor, listo, tipo, obligatorio, opciones}
 
 ## Dónde está
 
+- El modelo que entiende: `src/app/registro/AgenteRegistro.{hpp,cpp}` (lo puro: frases,
+  streaming, herramientas, turnos), `src/app/registro/AgenteTotem.{hpp,cpp}` (los tiempos y el
+  respaldo), `src/app/agent/ChatEnVivo.{hpp,cpp}` y `ChatEnVivoFuentes.cpp` (el cliente y qué
+  servidor usa cada proveedor), el rol `registro` en `src/app/agent/Roles.cpp`, la región «El
+  modelo que entiende» de `TotemsViewModel.cpp` y la de «Con un modelo que entiende» de
+  `Conversacion`. Tests: `test_registro_agente` (sin red) y `test_registro_agente_totem`
+  (contra un servidor falso: varios datos de una, frase por frase, repregunta, el corte por
+  tiempo que cae al guion, dos conversaciones con un solo lugar).
 - Configuración y guion: `src/app/registro/Totems.{hpp,cpp}`,
   `src/app/registro/Conversacion.{hpp,cpp}`; tests `test_registro_totems`,
   `test_registro_conversacion` (con el paso del documento: leído, confirmado, corregido,
@@ -258,6 +323,12 @@ pedido, editables: [{clave, etiqueta, valor, listo, tipo, obligatorio, opciones}
   poner/guardarYa`. Tests: `test_registro_atiende` (gateway), `test_registro_atencion` (app).
 
 ## Falta probar a mano
+
+- El modelo que entiende con el modelo local de verdad: cuánto tarda la primera palabra en frío
+  y en caliente (si 5 s alcanzan), si anota bien varios datos de una y las correcciones, si
+  contesta con la ficha y se niega a lo demás, si no habla de más cuando solo anotó. Con
+  varios tótems a la vez (la cola, el tiempo que espera el segundo). Con el modelo propio y con
+  OpenRouter.
 
 - El paso del documento con un DNI de verdad: distancia, luz, reflejo; la confirmación
   hablada; tipear el número en el celular.

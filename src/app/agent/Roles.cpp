@@ -202,6 +202,27 @@ el que está operando sigue vivo.
 4. Nunca devuelvas la imagen ni pidas otra. Una imagen por corrida.
 )md";
 
+// El tótem de registro (registro/AgenteRegistro). Corto a propósito: va entero en cada turno
+// de una conversación hablada, contra el modelo local, y lo que importa es la primera palabra
+// rápido. {evento}, {campos} y {ficha} los pone la app en cada conversación.
+const char* kRegistro = R"md(Sos el asistente de registro de {evento}. Hablás con una persona parada frente a un tótem: lo que decís se dice en voz alta.
+
+Tu trabajo es registrarla. Los datos que se piden son estos:
+{campos}
+
+Un guion le va haciendo las preguntas de a una y confirma los datos; vos ENTENDÉS lo que dice. En cada turno te llega en qué paso va el guion y lo que dijo la persona.
+- Si dice uno o varios datos (aunque no sean el que se le preguntó, o los diga todos de una), anotá CADA uno con `registro_poner` (campo y valor, tal como lo dijo). No inventes ni completes datos que no dijo.
+- Si corrige algo («no, el correo es con jota»), volvé a anotar ese campo con el valor bueno.
+- Si dice que sí a lo que se le está confirmando, llamá `registro_confirmar`.
+- Si una herramienta te devuelve un error, pedile ese dato de nuevo en una frase corta.
+- Si anotaste y no hay nada más que decir, no digas nada: el guion confirma y sigue.
+
+Podés contestar preguntas cortas sobre el evento con lo que dice esta ficha:
+{ficha}
+Para cualquier otra cosa, decí amablemente que con eso no podés ayudar. El guion retoma la pregunta solo: no la repitas.
+
+Hablá en castellano rioplatense (vos), con frases cortas y sin listas, emojis ni símbolos: todo se dice en voz alta.)md";
+
 std::vector<Rol> deFabrica() {
     std::vector<Rol> r;
     {
@@ -318,6 +339,28 @@ std::vector<Rol> deFabrica() {
         x.disparadores = {"media_end", "speaker_time", "chat", "disk", "timer"};
         x.prompt.clear(); // solo las reglas comunes
         x.proveedor = "local";
+        r.push_back(std::move(x));
+    }
+    {
+        // El tótem de registro: entiende lo que dice la persona (varios datos de una, una
+        // corrección, una pregunta sobre el evento) mientras el guion lleva las preguntas.
+        // No lo despacha el Despachador: la app le habla directo por chat-completions, una
+        // conversación por tótem (agent/ChatEnVivo). Ver registro/AgenteRegistro.
+        Rol x;
+        x.id = "registro";
+        x.titulo = "Registro (tótem)";
+        x.descripcion = "Entiende a quien se registra en un tótem: datos dichos de una, correcciones y preguntas "
+                        "sobre el evento (con la ficha del tótem). El guion sigue llevando las preguntas.";
+        x.categorias = {}; // no usa el MCP: sus únicas herramientas son las del registro, en la app
+        x.disparadores = {};
+        x.prompt = kRegistro;
+        // El modelo LOCAL de fábrica: contesta en el acto y la voz de la persona (sus datos) no
+        // sale de la máquina. Otro motor solo si el organizador lo elige (y se le avisa).
+        x.proveedor = "local";
+        // Prendido de fábrica, como `vision`: no actúa solo, solo entiende lo que se le dice a
+        // un tótem. Apagado, los tótems usan el guion solo.
+        x.activo = true;
+        x.enLaApp = true;
         r.push_back(std::move(x));
     }
     return r;
@@ -473,6 +516,7 @@ json Roles::aJson() const {
                            {"agruparMax", r.agruparMax},
                            {"activo", r.activo},
                            {"consola", r.consola},
+                           {"enLaApp", r.enLaApp},
                            {"proveedor", r.proveedor},
                            {"modelo", r.modelo},
                            {"prompt", r.promptPropio.empty() ? r.prompt : r.promptPropio},

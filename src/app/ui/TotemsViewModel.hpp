@@ -61,7 +61,8 @@
 
 namespace ba::registro {
 class Conversacion;
-}
+class AgenteTotem;
+} // namespace ba::registro
 
 namespace ba::app {
 
@@ -75,6 +76,8 @@ class Habla;
 namespace agent {
 class Voz;
 class ModelosLocales;
+class Roles;
+struct FuenteMirada;
 } // namespace agent
 
 class TotemsViewModel : public QObject {
@@ -115,6 +118,12 @@ class TotemsViewModel : public QObject {
     /// Quienes tienen abierta la página de atención: [{aconn, nombre, lugar, ip, atiende}]
     /// (`atiende`: el conn de la conversación que atiende, o "").
     Q_PROPERTY(QVariantList atienden READ atienden NOTIFY vivoCambio)
+    // --- El modelo que entiende (el rol «registro»; registro/AgenteRegistro) ---
+    /// Con qué entienden los tótems lo que dice la gente, en palabras: «con el modelo local»,
+    /// «con OpenRouter (los datos salen de esta máquina)», o por qué el guion solo.
+    Q_PROPERTY(QString agente READ agente NOTIFY cambio)
+    /// El modelo del rol «registro» es de la nube (o el propio): la voz y los datos salen.
+    Q_PROPERTY(bool agenteAfuera READ agenteAfuera NOTIFY cambio)
 
    public:
     TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz* voz, agent::ModelosLocales* modelos,
@@ -177,6 +186,12 @@ class TotemsViewModel : public QObject {
     std::string ponerDatoConn(const QString& conn, const QString& clave, const QString& valor, const QString& aconn);
     /// {url, atienden: [...]} para el MCP.
     nlohmann::json atencionJson() const;
+
+    // --- El modelo que entiende (región propia al final de TotemsViewModel.cpp) -------------
+    /// Los roles (para el del tótem, «registro»): lo engancha StudioViewModel.
+    void setRoles(agent::Roles* roles);
+    QString agente() const;
+    bool agenteAfuera() const;
 
     // --- Para el MCP, el catálogo de pantallas y los QR ---------------------------------
     /// El tótem como JSON (con url y urlPantalla), o null.
@@ -267,6 +282,19 @@ class TotemsViewModel : public QObject {
     /// Las conversaciones a las páginas de atención ("" = a todas).
     void enviarAtencion(const QString& aconn = {});
 
+    // El modelo que entiende (región propia al final de TotemsViewModel.cpp).
+    /// Si los tótems lo van a usar con el modelo local, que el llama-server vaya cargando.
+    void prepararModelo();
+    void soltarModelo();
+    /// El servidor y el prompt del rol «registro». false y `falta` si no hay.
+    bool fuenteAgente(agent::FuenteMirada& f, std::string& prompt, std::string& falta) const;
+    /// Uno nuevo para la conversación de `c` (o ninguno: el guion solo).
+    void crearAgente(Conexion& c);
+    /// Lo oído, al modelo. false = lo contesta el guion (como sin modelo).
+    bool alOidoAgente(Conexion& c, const std::string& texto);
+    /// Solo la voz (sin la pantalla): de a una frase, mientras el modelo sigue escribiendo.
+    void hablar(Conexion& c, const std::string& texto);
+
     AppRuntime& rt_;
     StudioViewModel& vm_;
     agent::Voz* voz_;
@@ -288,6 +316,11 @@ class TotemsViewModel : public QObject {
     // La atención remota.
     std::map<QString, Atiende> atienden_;
     QTimer atencionTimer_; ///< junta los cambios: a las páginas de atención, a lo sumo cada 150 ms
+    // El modelo que entiende.
+    agent::Roles* roles_ = nullptr;
+    quint16 puertoLocal_ = 0;  ///< el llama-server del programa, listo
+    bool pidiendoLocal_ = false;
+    QString faltaLocal_;       ///< por qué no hay modelo local
 };
 
 } // namespace ba::app

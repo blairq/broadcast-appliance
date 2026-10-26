@@ -698,6 +698,8 @@ std::string paraMostrar(const Campo& c, const json& v) {
 Conversacion::Conversacion(Totem totem, std::string evento) : t_(std::move(totem)), evento_(std::move(evento)) {
     valores_.assign(t_.campos.size(), json());
     salteado_.assign(t_.campos.size(), false);
+    pendiente_.assign(t_.campos.size(), false);
+    pendienteAntes_.assign(t_.campos.size(), false);
 }
 
 std::string Conversacion::titulo() const { return conDatos(t_.titulo, evento_, {}); }
@@ -769,6 +771,22 @@ void Conversacion::conocerCara(const Cara& cara) {
 }
 
 void Conversacion::avanzar(Respuesta& r, const std::string& antes) {
+    // Lo que anotó el modelo no pasa sin el «sí»: antes de seguir, se lo confirma todo junto.
+    if (hayPendientes()) {
+        estado_ = Estado::Confirmando;
+        confirmandoVarios_ = true;
+        for (std::size_t i = 0; i < pendiente_.size(); ++i)
+            if (pendiente_[i]) {
+                actual_ = i;
+                break;
+            }
+        r.decir = antes.empty() ? fraseConfirmarVarios() : antes + " " + fraseConfirmarVarios();
+        r.pedir = t_.campos[actual_].clave;
+        r.campos = true;
+        return;
+    }
+    confirmandoVarios_ = false;
+    corrigiendo_ = false;
     for (std::size_t i = 0; i < t_.campos.size(); ++i) {
         if (!valores_[i].is_null() || salteado_[i]) continue;
         estado_ = Estado::Preguntando;
@@ -845,6 +863,7 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     if (estado_ == Estado::Documento) return oidoDocumento(texto, f);
     const Campo& c = t_.campos[actual_];
     r.pedir = c.clave;
+    if (estado_ == Estado::Confirmando && confirmandoVarios_) return oidoConfirmandoVarios(texto);
     if (estado_ == Estado::Confirmando) {
         const int sn = entenderSiNo(texto);
         if (sn == 1) {
@@ -952,9 +971,12 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
     // Lo tipeado no se confirma: lo está viendo escrito.
     valores_[i] = v;
     salteado_[i] = false;
+    pendiente_[i] = false;
     if (c.tipo == TipoCampo::Documento) completarDesdeDocumento(v);
     r.campos = true;
-    if (i == actual_) avanzar(r, "Gracias, ya lo anoté.");
+    // Confirmando lo que anotó el modelo, lo tipeado es una corrección: se vuelve a confirmar
+    // lo que quede pendiente (avanzar), o se sigue.
+    if (i == actual_ || confirmandoVarios_) avanzar(r, "Gracias, ya lo anoté.");
     return r;
 }
 
@@ -967,9 +989,7 @@ Conversacion::Respuesta Conversacion::silencio() {
     r.pedir = t_.campos[actual_].clave;
     ++silencios_;
     if (silencios_ == 1) {
-        r.decir = estado_ == Estado::Confirmando
-                      ? "¿Seguís ahí? Anoté " + paraDecir(t_.campos[actual_], propuesto_) + ". " + kConfirmar
-                      : "¿Seguís ahí? " + pregunta(actual_);
+        r.decir = "¿Seguís ahí? " + retomar();
         return r;
     }
     // Se fue (o se distrajo con otra cosa): se corta sin guardar, para que el
@@ -1027,7 +1047,9 @@ json Conversacion::camposParaMostrar() const {
         out.push_back({{"clave", c.clave},
                        {"etiqueta", c.etiqueta.empty() ? c.clave : c.etiqueta},
                        {"valor", paraMostrar(c, valores_[i])},
-                       {"listo", !valores_[i].is_null()}});
+                       {"listo", !valores_[i].is_null() && !pendiente_[i]},
+                       // anotado por el modelo, esperando el «sí» (la pantalla lo muestra a confirmar)
+                       {"pendiente", pendiente_[i]}});
     }
     return out;
 }
@@ -1223,6 +1245,8 @@ bool Conversacion::atender(const std::string& quien) {
         estado_ = Estado::Preguntando;
     }
     // Lo que se estaba confirmando queda sin confirmar: se lo dice a la persona, que lo anota.
+    // Lo que anotó el modelo sí queda: la persona que atiende lo ve en la lista y lo corrige.
+    aceptarPendientes();
     if (estado_ == Estado::Confirmando) estado_ = Estado::Preguntando;
     atendida_ = true;
     atendidaPor_ = quien;
@@ -1266,6 +1290,7 @@ Conversacion::Respuesta Conversacion::poner(const std::string& clave, const std:
         // se pedía, se lo vuelve a preguntar más adelante (avanzar lo encuentra sin dato).
         valores_[i] = json();
         salteado_[i] = false;
+        pendiente_[i] = false;
         r.campos = true;
         return r;
     }
@@ -1285,6 +1310,7 @@ Conversacion::Respuesta Conversacion::poner(const std::string& clave, const std:
     if (!atendida_ && estado_ != Estado::Foto) return escrito(clave, limpio);
     valores_[i] = v;
     salteado_[i] = false;
+    pendiente_[i] = false;
     if (estado_ == Estado::Confirmando && i == actual_) estado_ = Estado::Preguntando;
     r.campos = true;
     return r;
@@ -1311,11 +1337,259 @@ Conversacion::Respuesta Conversacion::guardarYa(std::string& error) {
         return r;
     }
     // Lo decidió una persona: sin el paso de la foto (queda la mejor que se vio en la charla).
+    aceptarPendientes();
     atendida_ = false;
     atendidaPor_.clear();
     fotoHecha_ = true;
     terminar(r, "");
     return r;
+}
+
+// --- Con un modelo que entiende (iniciativa mixta) ------------------------------------------
+
+namespace {
+/// «a, b y c»: lo anotado se dice como se enumera hablando (listar() es para opciones: «o»).
+std::string enumerar(const std::vector<std::string>& v) {
+    std::string out;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        if (i > 0) out += i + 1 == v.size() ? " y " : ", ";
+        out += v[i];
+    }
+    return out;
+}
+
+/// La etiqueta en minúscula para decirla en medio de una frase («correo», «teléfono»). Solo
+/// la primera letra: una sigla («DNI») queda como está.
+std::string etiquetaHablada(const Campo& c) {
+    std::string e = c.etiqueta.empty() ? c.clave : c.etiqueta;
+    if (e.size() > 1 && std::isupper(static_cast<unsigned char>(e[0])) && !std::isupper(static_cast<unsigned char>(e[1])))
+        e[0] = static_cast<char>(std::tolower(static_cast<unsigned char>(e[0])));
+    return e;
+}
+} // namespace
+
+bool Conversacion::hayPendientes() const {
+    return std::find(pendiente_.begin(), pendiente_.end(), true) != pendiente_.end();
+}
+
+bool Conversacion::paraElGuion(const std::string& dicho) const {
+    const std::string f = sinSignos(dicho);
+    if (f.empty() || !enCurso() || atendida_) return true;
+    if (esCancelar(f) || esRepetir(f)) return true;
+    // Mirando a la cámara o mostrando el documento, lo que diga lo maneja el guion (dictar el
+    // número, «saltear»): el modelo no ve la cámara.
+    if (estado_ == Estado::Foto || estado_ == Estado::Documento) return true;
+    // Un «sí, es correcto» o un «no» suelto a una confirmación: al instante. Con más palabras
+    // («no, el correo es con jota») puede traer la corrección: eso lo entiende el modelo.
+    if (estado_ == Estado::Confirmando && entenderSiNo(dicho) != -1 && palabras(f).size() <= 3) return true;
+    return false;
+}
+
+void Conversacion::empezarTurnoModelo() {
+    pendienteAntes_ = pendiente_;
+    anotadosTurno_ = 0;
+    propuestosTurno_ = 0;
+    confirmoTurno_ = false;
+}
+
+bool Conversacion::proponer(const std::string& clave, const std::string& valor, std::string& error,
+                            std::string* comoQuedo) {
+    error.clear();
+    if (!enCurso() || atendida_ || estado_ == Estado::Foto) {
+        error = "Ahora no se anotan datos (la conversación no está en un paso de preguntas).";
+        return false;
+    }
+    std::size_t i = 0;
+    while (i < t_.campos.size() && t_.campos[i].clave != clave) ++i;
+    if (i == t_.campos.size()) {
+        error = "No hay un campo «" + clave + "» en este registro.";
+        return false;
+    }
+    const Campo& c = t_.campos[i];
+    json v;
+    if (!entender(c, valor, v)) {
+        error = c.tipo == TipoCampo::Correo      ? "No es un correo válido. Pedile que lo repita despacio."
+                : c.tipo == TipoCampo::Telefono  ? "No es un teléfono válido (de 6 a 15 dígitos). Pedile que lo repita."
+                : c.tipo == TipoCampo::Numero    ? "No es un número."
+                : c.tipo == TipoCampo::SiNo      ? "Tiene que ser sí o no."
+                : c.tipo == TipoCampo::Opcion    ? "Tiene que ser una de estas opciones: " + listar(c.opciones) + "."
+                : c.tipo == TipoCampo::Documento ? "No es un número de documento (de 6 a 9 dígitos)."
+                : c.tipo == TipoCampo::Nombre    ? "No es un nombre."
+                                                 : "No se entiende ese valor.";
+        if (!c.ejemplo.empty()) error += " Por ejemplo: " + c.ejemplo + ".";
+        return false;
+    }
+    // Lo que se estaba confirmando por el guion (un solo dato) pasa a ser un pendiente más:
+    // así lo nuevo y lo de antes se confirman juntos, sin perder ninguno.
+    if (estado_ == Estado::Confirmando && !confirmandoVarios_ && !propuesto_.is_null() && actual_ != i &&
+        valores_[actual_].is_null()) {
+        valores_[actual_] = propuesto_;
+        pendiente_[actual_] = true;
+        pendienteAntes_[actual_] = true;
+    }
+    valores_[i] = v;
+    salteado_[i] = false;
+    // Un sí o un no no se confirma con otro sí o no (como en el guion), ni nada si el tótem no
+    // confirma.
+    pendiente_[i] = t_.confirmar && c.tipo != TipoCampo::SiNo;
+    if (!pendiente_[i]) ++anotadosTurno_;
+    ++propuestosTurno_;
+    if (comoQuedo != nullptr) *comoQuedo = paraDecir(c, v);
+    return true;
+}
+
+bool Conversacion::confirmarPendientes() {
+    bool alguno = false;
+    for (std::size_t i = 0; i < pendiente_.size(); ++i)
+        if (pendiente_[i] && pendienteAntes_[i]) {
+            pendiente_[i] = false;
+            alguno = true;
+        }
+    // El dato que confirmaba el guion (uno solo, sin pasar por el modelo).
+    if (!alguno && estado_ == Estado::Confirmando && !confirmandoVarios_ && !propuesto_.is_null()) {
+        aceptar(propuesto_);
+        alguno = true;
+    }
+    if (alguno) confirmoTurno_ = true;
+    return alguno;
+}
+
+void Conversacion::aceptarPendientes() {
+    pendiente_.assign(pendiente_.size(), false);
+    confirmandoVarios_ = false;
+    corrigiendo_ = false;
+}
+
+std::string Conversacion::fraseConfirmarVarios() const {
+    std::vector<std::string> v;
+    std::size_t solo = 0;
+    for (std::size_t i = 0; i < pendiente_.size(); ++i)
+        if (pendiente_[i]) {
+            solo = i;
+            v.push_back(etiquetaHablada(t_.campos[i]) + " " + paraDecir(t_.campos[i], valores_[i]));
+        }
+    if (v.empty()) return {};
+    // Uno solo, con la misma frase del guion («Anoté jorge punto…»).
+    if (v.size() == 1) return "Anoté " + paraDecir(t_.campos[solo], valores_[solo]) + ". " + kConfirmar;
+    return "Anoté " + enumerar(v) + ". " + kConfirmar;
+}
+
+std::string Conversacion::retomar() const {
+    switch (estado_) {
+        case Estado::Preguntando: return pregunta(actual_);
+        case Estado::Confirmando:
+            if (confirmandoVarios_) return corrigiendo_ ? "¿Qué dato está mal?" : fraseConfirmarVarios();
+            return "Anoté " + paraDecir(t_.campos[actual_], propuesto_) + ". " + kConfirmar;
+        case Estado::Documento: return dorsoPedido_ ? std::string(kPedirDorso) : pregunta(actual_);
+        case Estado::Foto: return "Mirá derecho a la cámara un momento.";
+        case Estado::Esperando:
+        case Estado::Terminada: break;
+    }
+    return {};
+}
+
+Conversacion::Respuesta Conversacion::oidoConfirmandoVarios(const std::string& texto) {
+    Respuesta r;
+    r.pedir = t_.campos[actual_].clave;
+    const int sn = entenderSiNo(texto);
+    if (sn == 1) {
+        aceptarPendientes();
+        estado_ = Estado::Preguntando;
+        r.campos = true;
+        avanzar(r, "Perfecto.");
+        return r;
+    }
+    if (sn == 0) {
+        std::vector<std::size_t> pend;
+        for (std::size_t i = 0; i < pendiente_.size(); ++i)
+            if (pendiente_[i]) pend.push_back(i);
+        if (pend.size() == 1) {
+            // Uno solo: como en el guion, se lo pide de nuevo.
+            valores_[pend[0]] = json();
+            pendiente_[pend[0]] = false;
+            confirmandoVarios_ = false;
+            corrigiendo_ = false;
+            estado_ = Estado::Preguntando;
+            actual_ = pend[0];
+            ++intentos_;
+            r.pedir = t_.campos[actual_].clave;
+            r.decir = "Perdón. Decímelo de nuevo, despacio.";
+            if (intentos_ >= 2) r.decir += " Si preferís, escribilo en la pantalla.";
+            r.campos = true;
+            return r;
+        }
+        if (modelo_ && !corrigiendo_) {
+            // Con el modelo, lo que diga ahora («el correo está mal, es con jota») lo corrige.
+            corrigiendo_ = true;
+            r.decir = "Perdón. ¿Qué dato está mal?";
+            return r;
+        }
+        // Sin modelo no hay cómo saber cuál: se pregunta de nuevo todo lo pendiente.
+        for (std::size_t i : pend) {
+            valores_[i] = json();
+            pendiente_[i] = false;
+        }
+        confirmandoVarios_ = false;
+        corrigiendo_ = false;
+        estado_ = Estado::Preguntando;
+        r.campos = true;
+        avanzar(r, "Perdón, vamos de nuevo.");
+        return r;
+    }
+    r.decir = "No te entendí. " + retomar();
+    return r;
+}
+
+Conversacion::Respuesta Conversacion::despuesDelModelo(bool dijoAlgo, bool rechazos, bool& usarGuion) {
+    Respuesta r;
+    usarGuion = false;
+    if (!enCurso() || atendida_) return r;
+    // Anotó algo a confirmar (nuevo, o una corrección de algo que ya esperaba el «sí»).
+    const bool anoto = hayPendientes() && propuestosTurno_ > anotadosTurno_;
+    if (anoto || anotadosTurno_ > 0 || confirmoTurno_) {
+        // Lo anotado sin «sí» lo confirma avanzar() todo junto; lo ya confirmado, sigue.
+        if (estado_ == Estado::Confirmando && !confirmandoVarios_) estado_ = Estado::Preguntando;
+        corrigiendo_ = false;
+        intentos_ = 0;
+        r.campos = true;
+        avanzar(r, anoto ? std::string() : "Perfecto.");
+        return r;
+    }
+    r.pedir = t_.campos[actual_].clave;
+    if (rechazos) {
+        // Algo no validó: si el modelo ya lo repreguntó, nada más; si no, el reintento del guion.
+        if (!dijoAlgo && estado_ == Estado::Preguntando) fallo(r);
+        else if (!dijoAlgo) r.decir = retomar();
+        return r;
+    }
+    if (dijoAlgo) {
+        // Contestó una pregunta (o dijo que con eso no puede ayudar): se retoma lo pendiente.
+        r.decir = retomar();
+        return r;
+    }
+    r.pedir.clear();
+    usarGuion = true;
+    return r;
+}
+
+json Conversacion::estadoParaModelo() const {
+    json anotados = json::object(), pend = json::array(), faltanAun = json::array();
+    for (std::size_t i = 0; i < t_.campos.size(); ++i) {
+        const Campo& c = t_.campos[i];
+        if (!valores_[i].is_null()) anotados[c.clave] = paraMostrar(c, valores_[i]);
+        if (pendiente_[i]) pend.push_back(c.clave);
+        if (valores_[i].is_null() && !salteado_[i]) faltanAun.push_back(c.clave);
+    }
+    json j{{"anotados", anotados}, {"pendientes", pend}, {"faltan", faltanAun}, {"paso", paso()}};
+    if (estado_ == Estado::Preguntando || estado_ == Estado::Confirmando) {
+        j["campo"] = t_.campos[actual_].clave;
+        j["pregunta"] = retomar();
+    }
+    j["confirmando"] = estado_ == Estado::Confirmando;
+    if (estado_ == Estado::Confirmando && !confirmandoVarios_ && !propuesto_.is_null())
+        j["seConfirma"] = {{t_.campos[actual_].clave, paraMostrar(t_.campos[actual_], propuesto_)}};
+    j["corrigiendo"] = corrigiendo_;
+    return j;
 }
 
 } // namespace ba::registro
