@@ -79,16 +79,16 @@ fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
     etapa "deps-win"
-    make win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    make -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "compilar (win)"
     # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de
     # Rosetta y se cae de vez en cuando (rc 133) en tests que en el runner del
     # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el
     # .zip, pero se informa y la corrida termina con error: no es verde.
     tests_win=0
-    make test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
+    make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
     etapa "tests bajo Wine"
-    make release-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    make -o deps-win -o win release-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "release-win (install+chequeo+manifest)"
     make -o release-win dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "zip (7z)"

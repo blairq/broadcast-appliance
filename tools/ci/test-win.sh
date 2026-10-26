@@ -55,22 +55,40 @@ fi
 W="$TC/wine/bin/wine"
 timeout 300 "$W" wineboot -u >/dev/null 2>&1
 
-pass=0
-skip=0
-failed=()
+# En paralelo (como ctest -j en la Mac: los tests ya se bancan correr a la vez). En
+# serie eran 13 minutos de 17 en un build de Windows sin nada que compilar: los del
+# motor son pipelines en tiempo real que, bajo Wine sobre Rosetta, esperan más de lo
+# que calculan. TESTS_WIN_JOBS lo fija (1 = en serie, para buscar un test que molesta).
+JOBS="${TESTS_WIN_JOBS:-$(nproc)}"
 mkdir -p "$B/wine-logs"
-while IFS= read -r t; do
+RES="$B/wine-logs/.resultados"
+rm -f "$RES" && : >"$RES"
+uno() {
+    local t="$1" n tree log rc t0
     n="$(basename "$t" .exe)"
     tree="$(basename "$(dirname "$(dirname "$t")")")"
     log="$B/wine-logs/$tree-$n.log"
+    t0=$(date +%s)
     (cd "$(dirname "$t")" && timeout 180 "$W" "$t" >"$log" 2>&1)
     rc=$?
+    echo "$rc $(( $(date +%s) - t0 )) $n $log" >>"$RES"
+}
+export -f uno
+export B W RES
+find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort | xargs -P "$JOBS" -I{} bash -c 'uno "$1"' _ {}
+
+pass=0
+skip=0
+failed=()
+while read -r rc seg n log; do
     case $rc in
         0) pass=$((pass + 1)) ;;
         77) skip=$((skip + 1)) ;;
-        *) failed+=("$n($rc)"); echo "---- $n (rc=$rc)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
+        *) failed+=("$n($rc)"); echo "---- $n (rc=$rc, ${seg} s)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
     esac
-done < <(find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort)
+done < <(sort -k3 "$RES")
+echo "Los más lentos bajo Wine:"
+sort -k2 -rn "$RES" | head -8 | awk '{printf "  %4d s  %s\n", $2, $3}'
 "$TC/wine/bin/wineserver" -k 2>/dev/null
 
 echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-}"

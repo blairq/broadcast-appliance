@@ -296,7 +296,9 @@ dist-win: release-win
 	@# los archivos del programa en la carpeta del usuario.
 	rm -rf dist/.zip-stage && mkdir -p dist/.zip-stage
 	cp -al $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance 2>/dev/null || cp -a $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance
-	cd dist/.zip-stage && 7z a -tzip -mx=7 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip BroadcastAppliance
+	@# -mx=3 y no 7: medido sobre el bundle (2,7 GB, casi todo DLLs ya comprimidas), 13 s y
+	@# 826 MB contra 164 s y 814 MB; bajo Docker en una Mac el 7z corre emulado.
+	cd dist/.zip-stage && 7z a -tzip -mx=3 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip BroadcastAppliance
 	rm -rf dist/.zip-stage
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip > BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.sha256
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.commit
