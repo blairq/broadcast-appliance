@@ -28,6 +28,10 @@
 //        {type:"oferta", sdp}        WebRTC de micrófono y cámara (ofertaValida) por su canal
 //                                    -> {type:"respuesta", sdp}; {type:"ice", candidate} en los dos sentidos
 //        {type:"empezar"} | {type:"cancelar"} | {type:"escrito", clave, valor}  -> a la app («toque»)
+//        {type:"codigo", formato, texto}  lo que leyó el navegador (BarcodeDetector) mientras se le
+//                                    pide el documento -> a la app, evento «codigo»
+//        {type:"cuadro", jpeg}       una foto entera de la cámara (sin la compresión del video, para
+//                                    leer el documento) -> queda la última; a la app, evento «cuadro»
 //        {type:"ping"}               -> {type:"pong"}
 //        y le llega tal cual lo que la app mande por /api/v1/registro/enviar.
 //
@@ -36,6 +40,7 @@
 //        hash_token = sha256 hex de (sal + token). Un tótem que desaparece (o cambia de token)
 //        corta sus conexiones.
 //   GET  /api/v1/registro/estado  {conexiones:[{conn, id, canal, ip, lugar, desdeMs, audio}]}
+//   GET  /api/v1/registro/cuadro?conn=  la última foto entera (image/jpeg; 404 si no hay)
 //   POST /api/v1/registro/enviar  {conn, msg} o {id, msg} (a todas las de ese tótem)
 //   POST /api/v1/registro/cortar  {conn}
 //   y por el SSE de siempre, evento "registro":
@@ -146,6 +151,10 @@ class RegistroBorde {
     std::vector<std::string> conexionesDe(const std::string& id) const;
     /// Un mensaje de la página (ya autenticada) que va a la app como «toque»; null si no es uno.
     static nlohmann::json toque(const std::string& conn, const std::string& id, const nlohmann::json& m);
+    /// La foto entera de la cámara que manda la página mientras muestra su documento (JPEG,
+    /// hasta 1,5 MB, a lo sumo una cada 400 ms, solo con canal). true si la guardó.
+    bool ponerCuadro(const std::string& conn, std::string jpeg, std::int64_t ahoraMs);
+    std::string cuadro(const std::string& conn) const;
 
     // --- La atención remota (RegistroAtiende.cpp) -----------------------------------------
     /// Los medios de quien atiende: una sesión del pool por página (ruta RegistroAtiende). Lo
@@ -189,6 +198,7 @@ class RegistroBorde {
         std::int64_t desdeMs = 0;
         int canal = 0;
         bool audio = false;
+        std::int64_t cuadroMs = 0; // el último `cuadro` guardado (tope por segundo)
         std::mutex sendLock;
     };
     struct Totem {
@@ -233,6 +243,7 @@ class RegistroBorde {
     std::map<std::string, std::shared_ptr<Conn>> conns_; // conn -> conexión
     std::map<std::string, std::vector<std::int64_t>> fallidos_; // ip -> intentos fallidos
     std::map<int, std::string> canales_;                 // canal (1..kMaxTotems) -> conn
+    std::map<std::string, std::string> cuadros_;         // conn -> la última foto entera (documento)
     unsigned long long siguiente_ = 0;                   // para el próximo `conn`
     // La atención remota (bajo mu_).
     MediosAtiende mediosAtiende_;

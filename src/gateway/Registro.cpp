@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <set>
 
 #include "Botonera.hpp" // sha256Hex, ipLocal
 #include "HttpIo.hpp"
@@ -53,8 +54,12 @@ inline int kAuthMs() { return ba::ajustes::sAMs("sesion.authS", 15); }
 inline int kIntentosPorIp() { return ba::ajustes::entero("sesion.intentosPorIp", 10); } // fallidos, cada 10 minutos
 // Conexiones a la vez entre todos los tótems: cada una es un hilo y un socket. Una
 // TV con su QR y la gente que lo escanea en la entrada no se acercan a esto.
-// El mensaje más grande que manda la página: una oferta SDP con audio y video (unos 10 KB).
-constexpr std::size_t kMaxMensaje = 64 * 1024;
+// El mensaje más grande que manda la página: una foto entera de la cámara mientras muestra
+// su documento (JPEG en base64, ver `cuadro`). Lo demás no pasa de una oferta SDP (~10 KB).
+constexpr std::size_t kMaxCuadro = 1500 * 1024;
+constexpr std::size_t kMaxMensaje = kMaxCuadro * 4 / 3 + 1024;
+constexpr std::int64_t kEntreCuadrosMs = 400;  // a lo sumo dos y pico por segundo
+constexpr std::size_t kMaxTextoCodigo = 4096;  // un PDF417 de documento no llega a 1 KB
 inline int kMaxConexiones() { return ba::ajustes::entero("registro.maxConexiones", 256); }
 
 } // namespace
@@ -151,6 +156,7 @@ void RegistroBorde::baja(const std::string& conn) {
         if (it == conns_.end()) return;
         c = it->second;
         conns_.erase(it);
+        cuadros_.erase(conn);
     }
     {
         std::lock_guard<std::mutex> l(c->sendLock);
@@ -241,6 +247,25 @@ bool RegistroBorde::ofertaValida(const std::string& sdp) {
         else ++otras;
     }
     return audios == 1 && videos <= 1 && otras == 0;
+}
+
+bool RegistroBorde::ponerCuadro(const std::string& conn, std::string jpeg, std::int64_t ahora) {
+    if (jpeg.size() < 4 || jpeg.size() > kMaxCuadro || static_cast<unsigned char>(jpeg[0]) != 0xFF ||
+        static_cast<unsigned char>(jpeg[1]) != 0xD8)
+        return false;
+    std::lock_guard<std::mutex> l(mu_);
+    const auto it = conns_.find(conn);
+    if (it == conns_.end() || it->second->canal == 0) return false;
+    if (ahora - it->second->cuadroMs < kEntreCuadrosMs) return false; // de más: se descarta
+    it->second->cuadroMs = ahora;
+    cuadros_[conn] = std::move(jpeg);
+    return true;
+}
+
+std::string RegistroBorde::cuadro(const std::string& conn) const {
+    std::lock_guard<std::mutex> l(mu_);
+    const auto it = cuadros_.find(conn);
+    return it == cuadros_.end() ? std::string() : it->second;
 }
 
 json RegistroBorde::estado() const {
@@ -426,6 +451,18 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
                     }))
                     enviar(c, {{"type", "audio-error"}, {"error", "No hay lugar para escucharte ahora."}});
             }
+        } else if (t == "codigo") {
+            // Lo que leyó el navegador mismo (BarcodeDetector) mientras se le pide el documento.
+            // Solo con canal (conversando) y con un formato conocido; el texto no va al registro.
+            static const std::set<std::string> kFormatosCodigo{"PDF417", "QRCode", "DataMatrix", "Aztec", "Code128"};
+            const std::string formato = m.value("formato", std::string());
+            const std::string texto = m.value("texto", std::string());
+            if (canalDe(conn) == 0 || !kFormatosCodigo.count(formato) || texto.empty() || texto.size() > kMaxTextoCodigo)
+                continue;
+            alApp_({{"tipo", "codigo"}, {"conn", conn}, {"id", id}, {"formato", formato}, {"texto", texto}});
+        } else if (t == "cuadro") {
+            if (ponerCuadro(conn, http::deBase64(m.value("jpeg", std::string())), ahora))
+                alApp_({{"tipo", "cuadro"}, {"conn", conn}, {"id", id}});
         } else if (t == "ice") {
             if (canalDe(conn) == 0 || !medios_.ice) continue;
             const json& cand = m.contains("candidate") ? m["candidate"] : json();
@@ -444,6 +481,13 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     if (path.rfind(kBase, 0) != 0) return false;
     const std::string que = path.substr(kBase.size());
     if (adminAtiende(fd, method, que, body)) return true; // la atención remota: RegistroAtiende.cpp
+    if (method == "GET" && que == "cuadro") {
+        const auto q = http::parseQuery(query);
+        const std::string jpeg = cuadro(q.count("conn") ? http::urlDecode(q.at("conn")) : std::string());
+        if (jpeg.empty()) return http::sendResponse(fd, 404, "text/plain", "sin cuadro\n"), true;
+        http::sendResponse(fd, 200, "image/jpeg", jpeg, "Cache-Control: no-store\r\n");
+        return true;
+    }
     if (method == "GET" && que == "estado") {
         http::sendResponse(fd, 200, "application/json", volcar(estado()));
         return true;

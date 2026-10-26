@@ -263,7 +263,13 @@ int main() {
                             json{{"totems", json::array({totem("hall", sal, token, "Hall")})}}.dump());
         CHECK(t.codigo == 200 && json::parse(t.cuerpo, nullptr, false).value("totems", 0) == 1, "POST totems");
         const std::string c1 = a.alta("hall", "10.0.0.7", "sala");
+        const std::string jpeg = std::string("\xFF\xD8\xFF\xE0", 4) + std::string(2000, 'x');
+        CHECK(!a.ponerCuadro(c1, jpeg, 1000), "cuadro sin canal: no (solo conversando)");
         a.tomarCanal(c1);
+        CHECK(!a.ponerCuadro(c1, "no es jpeg", 1000), "cuadro que no es JPEG: no");
+        CHECK(a.ponerCuadro(c1, jpeg, 1000) && a.cuadro(c1) == jpeg, "el cuadro queda");
+        CHECK(!a.ponerCuadro(c1, jpeg, 1100), "dos cuadros pegados: el segundo se descarta");
+        CHECK(a.ponerCuadro(c1, jpeg, 1500), "pasados 400 ms, otro");
         t = pedir(a, "GET", "/api/v1/registro/estado", "", "");
         const json est = json::parse(t.cuerpo, nullptr, false);
         CHECK(t.codigo == 200 && est["conexiones"].size() == 1, "GET estado: la conexión");
@@ -274,6 +280,10 @@ int main() {
                       e.contains("audio"),
                   "con conn, id, canal, ip, lugar, desdeMs y audio");
         }
+        t = pedir(a, "GET", "/api/v1/registro/cuadro", "conn=" + c1, "");
+        CHECK(t.codigo == 200 && t.cuerpo == jpeg, "GET cuadro");
+        t = pedir(a, "GET", "/api/v1/registro/cuadro", "conn=c999", "");
+        CHECK(t.codigo == 404, "sin cuadro: 404");
         t = pedir(a, "POST", "/api/v1/registro/enviar", "", json{{"id", "hall"}, {"msg", {{"type", "reiniciar"}}}}.dump());
         CHECK(t.codigo == 200 && json::parse(t.cuerpo, nullptr, false).value("entregado", -1) == 1,
               "enviar a todas las del tótem");

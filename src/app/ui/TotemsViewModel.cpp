@@ -638,6 +638,12 @@ void TotemsViewModel::alEvento(const json& ev) {
         c.audio = ev.value("listo", false);
     } else if (tipo == "toque") {
         alToque(c, ev);
+    } else if (tipo == "codigo") {
+        alCodigoDePagina(c, ev);
+        return;
+    } else if (tipo == "cuadro") {
+        alCuadroDePagina(c);
+        return;
     }
     emit vivoCambio();
 }
@@ -1099,27 +1105,76 @@ void TotemsViewModel::mirarDocumento(Conexion& c) {
     // No descartable: ya hay a lo sumo uno por conexión (leyendoDocumento), y uno
     // descartado no volvería y dejaría la conexión esperando para siempre.
     lector_->leer(img, c.conv->documentosAceptados(), false, [yo, conn](LectorDocumentos::Resultado r) {
-        if (!yo) return;
-        const auto it = yo->conns_.find(conn);
-        if (it == yo->conns_.end()) return;
-        Conexion& k = *it->second;
-        k.leyendoDocumento = false;
-        if (!k.buscandoDocumento || k.conv == nullptr) return;
-        if (r.leido) {
-            // En el registro, a lo sumo el tipo y los últimos tres dígitos.
-            const registro::Totem* t = yo->totems_.porId(k.totem.toStdString());
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                       "tótem «" + (t != nullptr ? t->id : k.totem.toStdString()) + "» (" +
-                                           conn.toStdString() + "): documento leído (" +
-                                           documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
-            const auto x = k.conv->documentoLeido(r.datos);
-            yo->aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
-            return;
-        }
-        // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
-        if (!r.codigos.empty())
-            k.docSugerencia = "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.";
+        if (yo) yo->alLeerDocumento(conn, std::move(r));
     });
+}
+
+void TotemsViewModel::alCodigoDePagina(Conexion& c, const json& ev) {
+    // La página leyó el código ella (BarcodeDetector del navegador, sobre la imagen ORIGINAL
+    // de la cámara: el PDF417 de un DNI es demasiado denso para el video comprimido) y manda
+    // solo el texto. Se traduce con los mismos tipos de documento (los de fábrica y los de
+    // los plugins).
+    if (!c.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
+    documentos::Codigo cod;
+    cod.formato = texto(ev, "formato");
+    cod.texto = texto(ev, "texto");
+    if (cod.texto.empty()) return;
+    c.leyendoDocumento = true;
+    const QString conn = c.conn;
+    QPointer<TotemsViewModel> yo(this);
+    lector_->traducir({cod}, c.conv->documentosAceptados(), [yo, conn](LectorDocumentos::Resultado r) {
+        if (yo) yo->alLeerDocumento(conn, std::move(r));
+    });
+}
+
+void TotemsViewModel::alCuadroDePagina(Conexion& c) {
+    // El respaldo de los navegadores sin BarcodeDetector (Safari): una foto entera de la
+    // cámara, sin la compresión del video, que se lee acá con zxing.
+    if (!c.buscandoDocumento || c.leyendoDocumento || !lector_ || c.conv == nullptr) return;
+    ConferenceClient* cli = clienteDe(vm_);
+    if (cli == nullptr) return;
+    c.leyendoDocumento = true;
+    const QString conn = c.conn;
+    QPointer<TotemsViewModel> yo(this);
+    cli->getRaw("/api/v1/registro/cuadro?conn=" + QString::fromUtf8(QUrl::toPercentEncoding(conn)),
+                [yo, conn](bool ok, const QByteArray& jpeg) {
+                    if (!yo) return;
+                    const auto it = yo->conns_.find(conn);
+                    if (it == yo->conns_.end()) return;
+                    Conexion& k = *it->second;
+                    const QImage img = ok ? QImage::fromData(jpeg, "JPG") : QImage();
+                    if (img.isNull() || k.conv == nullptr) {
+                        k.leyendoDocumento = false;
+                        return;
+                    }
+                    QPointer<TotemsViewModel> yo2(yo);
+                    yo->lector_->leer(img.convertToFormat(QImage::Format_RGB32), k.conv->documentosAceptados(), false,
+                                      [yo2, conn](LectorDocumentos::Resultado r) {
+                                          if (yo2) yo2->alLeerDocumento(conn, std::move(r));
+                                      });
+                });
+}
+
+void TotemsViewModel::alLeerDocumento(const QString& conn, LectorDocumentos::Resultado r) {
+    const auto it = conns_.find(conn);
+    if (it == conns_.end()) return;
+    Conexion& k = *it->second;
+    k.leyendoDocumento = false;
+    if (!k.buscandoDocumento || k.conv == nullptr) return;
+    if (r.leido) {
+        // En el registro, a lo sumo el tipo y los últimos tres dígitos.
+        const registro::Totem* t = totems_.porId(k.totem.toStdString());
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                                   "tótem «" + (t != nullptr ? t->id : k.totem.toStdString()) + "» (" +
+                                       conn.toStdString() + "): documento leído (" +
+                                       documentos::paraLog(documentos::Datos::deJson(r.datos)) + ")");
+        const auto x = k.conv->documentoLeido(r.datos);
+        aplicar(k, x.decir, x.campos, x.pedir, x.guardar, x.terminar, x.foto);
+        return;
+    }
+    // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
+    if (!r.codigos.empty())
+        k.docSugerencia = "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.";
 }
 
 void TotemsViewModel::cortar(const QString& conn) {

@@ -53,6 +53,7 @@
 
 #include "ipc/CanalesRegistro.hpp"
 #include "registro/Totems.hpp"
+#include "ui/LectorDocumentos.hpp"
 
 namespace ba::registro {
 class Conversacion;
@@ -61,7 +62,6 @@ class Conversacion;
 namespace ba::app {
 
 class AppRuntime;
-class LectorDocumentos;
 class StudioViewModel;
 class VozAlLobby;
 
@@ -227,6 +227,11 @@ class TotemsViewModel : public QObject {
     /// El paso del documento: busca el código en el último cuadro de la cámara (más
     /// seguido que la cara) y, si lo lee, se lo pasa a la conversación.
     void mirarDocumento(Conexion& c);
+    /// El código que leyó la página (BarcodeDetector) o la foto entera que mandó (respaldo).
+    void alCodigoDePagina(Conexion& c, const nlohmann::json& ev);
+    void alCuadroDePagina(Conexion& c);
+    /// Lo leído (de la cámara, del navegador o de la foto), al paso «documento» de la conexión.
+    void alLeerDocumento(const QString& conn, LectorDocumentos::Resultado r);
     void guardarRegistro(Conexion& c);
     void tic();
 

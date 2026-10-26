@@ -88,7 +88,8 @@ async function empezar() {
   let falla = null;
   try {
     medios = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+      // Más de lo que hace falta para la cara: el código de barras de un documento es denso.
+      video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
   } catch (e) {
@@ -198,6 +199,73 @@ function oir() {
     .catch(() => { if ($("voz").srcObject) $("oir").classList.remove("oculto"); });
 }
 
+// --- El documento: leerlo acá, sobre la imagen original -----------------------------------------
+// El video llega a la app comprimido y achicado: para la cara alcanza, pero el PDF417 de un DNI
+// (unos 250 módulos en 4 cm) se borronea. Mientras se pide el documento, la página lo lee ella
+// con el lector del navegador (BarcodeDetector: Chrome en Mac, Android, tablets) y manda solo el
+// texto; y cada tanto manda una foto entera de la cámara, sin comprimir, que la app lee con zxing
+// (Safari no tiene BarcodeDetector) y le sirve para el dorso.
+const kFormatos = { pdf417: "PDF417", qr_code: "QRCode", data_matrix: "DataMatrix", aztec: "Aztec", code_128: "Code128" };
+let detector = null;      // BarcodeDetector, si el navegador lo tiene
+let timerLector = 0;
+let timerCuadro = 0;
+let ultimoCodigo = "";
+
+async function arrancarLector() {
+  if (timerLector || timerCuadro) return;
+  ultimoCodigo = "";
+  if (!detector && "BarcodeDetector" in window) {
+    try {
+      const hay = await BarcodeDetector.getSupportedFormats();
+      const usar = Object.keys(kFormatos).filter((f) => hay.includes(f));
+      if (usar.length) detector = new BarcodeDetector({ formats: usar });
+    } catch (e) { detector = null; }
+  }
+  if (estadoActual !== "documento") return; // cambió mientras se preguntaba
+  if (detector) timerLector = setInterval(leerAca, 250);
+  timerCuadro = setInterval(mandarCuadro, detector ? 1500 : 700);
+}
+
+function pararLector() {
+  clearInterval(timerLector);
+  clearInterval(timerCuadro);
+  timerLector = timerCuadro = 0;
+}
+
+let leyendo = false;
+async function leerAca() {
+  const v = $("propia");
+  if (leyendo || !v.videoWidth || !ws || ws.readyState !== 1) return;
+  leyendo = true;
+  try {
+    for (const b of await detector.detect(v)) {
+      const formato = kFormatos[b.format];
+      if (!formato || !b.rawValue || b.rawValue === ultimoCodigo) continue;
+      ultimoCodigo = b.rawValue;
+      ws.send(JSON.stringify({ type: "codigo", formato, texto: b.rawValue }));
+    }
+  } catch (e) { /* un cuadro que no se pudo leer: el próximo */ }
+  leyendo = false;
+}
+
+function mandarCuadro() {
+  const v = $("propia");
+  if (!v.videoWidth || !ws || ws.readyState !== 1 || !canal) return;
+  const c = document.createElement("canvas");
+  c.width = v.videoWidth;
+  c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0); // sin espejar: es lo que ve la cámara
+  c.toBlob((blob) => {
+    if (!blob || blob.size > 1500000) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const b64 = String(r.result).split(",")[1] || "";
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "cuadro", jpeg: b64 }));
+    };
+    r.readAsDataURL(blob);
+  }, "image/jpeg", 0.92);
+}
+
 // --- Lo que se muestra --------------------------------------------------------------------
 function ponerEstado(e) {
   if (!kEstados[e]) return;
@@ -209,6 +277,7 @@ function ponerEstado(e) {
   document.body.classList.toggle("foto", e === "foto");
   // Mostrando el documento: la cámara enmarcada, como en la foto (la app busca el código).
   document.body.classList.toggle("documento", e === "documento");
+  if (e === "documento") arrancarLector(); else pararLector();
   $("cancelar").classList.toggle("oculto", !charlando);
   $("arrancar").classList.toggle("oculto", charlando);
 }
