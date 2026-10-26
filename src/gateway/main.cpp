@@ -102,6 +102,7 @@
 #include "SignalingServer.hpp"
 #include "TokenAuth.hpp"
 #include "Webrtc.hpp"
+#include "platform/Energia.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -423,6 +424,7 @@ int main(int argc, char** argv) {
     ba::diag::desacoplarSalidaEstandar();
     std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
+    ba::platform::sinAhorroDeEnergia(); // los medios en vivo, fuera del modo eficiencia (platform/Energia)
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
     ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot());
     Config cfg;

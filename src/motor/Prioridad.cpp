@@ -5,6 +5,7 @@
 
 #include "Reloj.hpp" // registrar
 #include "ajustes/Ajustes.hpp"
+#include "platform/Energia.hpp"
 
 #include <gst/base/gstaggregator.h>
 
@@ -312,20 +313,11 @@ void prioridadDelProceso() {
         g_activa = activa;
         json topo = leerTopologia();
         if (activa) {
-#if defined(__APPLE__)
-            sinAppNap();
-#elif defined(_WIN32)
+            // Sin App Nap (macOS) ni EcoQoS (Windows): el ahorro por proceso, el mismo que
+            // usan el gateway y los gráficos (platform/Energia).
+            ba::platform::sinAhorroDeEnergia();
+#if defined(_WIN32)
             SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
-#ifdef PROCESS_POWER_THROTTLING_CURRENT_VERSION
-            PROCESS_POWER_THROTTLING_STATE p{};
-            p.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-            p.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-#ifdef PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
-            p.ControlMask |= PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
-#endif
-            p.StateMask = 0;
-            SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &p, sizeof p);
-#endif
 #endif
         }
         topo["prioridad"] = activa;

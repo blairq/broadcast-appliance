@@ -21,6 +21,7 @@
 #include "Datos.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "Log.hpp"
+#include "platform/Energia.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 #include "Supervisor.hpp"
@@ -32,6 +33,7 @@
 #include <csignal>
 #include <cstdio>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -174,6 +176,15 @@ int runLauncher(const std::vector<std::string>& args) {
         }
     }
     BA_LOG_INFO("launcher", 0, "raiz del bundle: " + root.string());
+
+    // Mientras el programa esté abierto, la máquina no se duerme (ni la pantalla del
+    // multiview se apaga): el lanzador vive lo mismo que el programa (platform/Energia).
+    std::unique_ptr<ba::platform::Despierta> despierta;
+    if (ba::ajustes::siNo("energia.mantenerDespierta", true)) {
+        despierta = std::make_unique<ba::platform::Despierta>("Broadcast Appliance: estudio abierto",
+                                                              ba::ajustes::siNo("energia.mantenerPantalla", true));
+        BA_LOG_INFO("energia", 0, despierta->detalle());
+    }
 
     ba::launcher::Supervisor sup(std::move(cfg));
     const int rc = sup.run();

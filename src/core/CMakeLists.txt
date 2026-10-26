@@ -131,6 +131,14 @@ else()
     find_package(Threads REQUIRED)
     target_link_libraries(ba_core PUBLIC Threads::Threads)
 endif()
+# platform/Energia: que la máquina no se duerma con el programa abierto.
+#   macOS: IOKit (aserciones de energía) y Foundation (NSProcessInfo, sin App Nap).
+#   Linux: dlopen de libdbus-1 (de la base del sistema; no se enlaza).
+if(APPLE)
+    target_link_libraries(ba_core PUBLIC "-framework IOKit" "-framework Foundation")
+elseif(UNIX)
+    target_link_libraries(ba_core PUBLIC ${CMAKE_DL_LIBS})
+endif()
 
 # --- Unit tests de ba_core (CTest) ------------------------------------------
 # Cada test_*.cpp en src/core/tests/ se convierte en un ejecutable que enlaza

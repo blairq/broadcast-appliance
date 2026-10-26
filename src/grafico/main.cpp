@@ -58,6 +58,7 @@
 #include "diag/Registro.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Segmento.hpp"
+#include "platform/Energia.hpp"
 
 namespace {
 
@@ -211,6 +212,7 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
 } // namespace
 
 int main(int argc, char** argv) {
+    ba::platform::sinAhorroDeEnergia(); // dibuja en vivo: fuera del modo eficiencia (platform/Energia)
     // Sin ventana de verdad: se dibuja a una textura. Aun asi hace falta un
     // contexto de OpenGL, asi que la plataforma de Qt importa.
     //

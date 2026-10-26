@@ -175,6 +175,8 @@ const std::vector<AjusteAvanzado>& ajustesAvanzados() {
         {"launcher.cierreOrdenadoMs", "Sistema y datos", "Cierre ordenado: espera", "int", {}, 500, 120000, "ms", "", "restart", QVariant(5000), Destino::Launcher},
         {"launcher.terminarMs", "Sistema y datos", "Cierre forzado: espera", "int", {}, 500, 60000, "ms", "", "restart", QVariant(3000), Destino::Launcher},
         {"launcher.reintentoEntornoS", "Sistema y datos", "Falla del entorno: reintentar a los", "int", {}, 5, 3600, "s", "", "restart", QVariant(60), Destino::Launcher},
+        {"energia.mantenerDespierta", "Sistema y datos", "Que la máquina no se duerma con el programa abierto", "bool", {}, 0, 0, "", "Mientras el programa está abierto, el sistema no se suspende (Windows: powercfg /requests; macOS: pmset -g assertions; Linux: systemd-inhibit --list). Al cerrar el programa vuelve a lo de siempre.", "restart", QVariant(true), Destino::Launcher},
+        {"energia.mantenerPantalla", "Sistema y datos", "Ni que se apague la pantalla", "bool", {}, 0, 0, "", "Con el programa abierto, las pantallas no se apagan por inactividad (el multiview, un monitor de sala). En Linux lo decide el escritorio.", "restart", QVariant(true), Destino::Launcher},
         {"launcher.esperaCierreS", "Sistema y datos", "Actualizar o reiniciar: esperar el cierre", "int", {}, 5, 600, "s", "", "restart", QVariant(60), Destino::Launcher},
         {"launcher.salidaHijosMB", "Sistema y datos", "Salida de los procesos: tope por archivo", "int", {}, 1, 1024, "MB", "", "restart", QVariant(5), Destino::Launcher},
         {"supervisor.sinAvanceMs", "Sistema y datos", "Programa sin avance a los", "int", {}, 200, 30000, "ms", "", "live", QVariant(1000), Destino::App},

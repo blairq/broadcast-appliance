@@ -50,9 +50,4 @@ void prioridadEnPipeline(GstElement* pipeline);
 /// El procesador: núcleos por clase, grupos de L3, lo aplicado. Para el diagnóstico.
 nlohmann::json topologiaCpu();
 
-#if defined(__APPLE__)
-/// Prioridad_mac.mm: sin App Nap ni temporizadores juntados mientras viva el proceso.
-void sinAppNap();
-#endif
-
 } // namespace ba::motor
