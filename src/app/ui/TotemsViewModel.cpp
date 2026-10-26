@@ -221,6 +221,8 @@ void TotemsViewModel::recargar() {
     totems_ = registro::cargarTotems(carpeta_, &ok, &err);
     if (!ok) emit notify("No pude leer los tótems de registro: " + QString::fromStdString(err), "error");
     publicar();
+    // La voz se carga ya, no con la primera persona: si no, el primer saludo sale mudo.
+    if (!totems_.lista().empty()) cargarVoz();
     emit cambio();
     emit registradosCambio();
 }
@@ -593,15 +595,17 @@ void TotemsViewModel::cargarVoz() {
     AtencionViewModel* a = vm_.atencionVm();
     if (a == nullptr || modelos_ == nullptr) return;
     const QString repo = a->vozElegida();
-    if (vozLista_ && repo == vozCargada_) return;
+    if (repo == vozCargada_ && (vozLista_ || cargandoVoz_)) return;
     audio::Habla::Voz v;
     if (!AtencionViewModel::rutasDeVoz(*modelos_, repo, v.modelo, v.tokens, v.datos)) return;
     if (!habla_) habla_ = std::make_unique<audio::Habla>();
     vozCargada_ = repo;
+    cargandoVoz_ = true;
     QPointer<TotemsViewModel> yo(this);
     habla_->cargar(v, [yo](const std::string& error) {
         QMetaObject::invokeMethod(yo.data(), [yo, error]() {
             if (!yo) return;
+            yo->cargandoVoz_ = false;
             yo->vozLista_ = yo->habla_ && yo->habla_->cargada();
             if (!error.empty()) emit yo->notify("La voz de los tótems no cargó: " + QString::fromStdString(error), "warn");
         });
@@ -616,7 +620,15 @@ void TotemsViewModel::abrirAudio(Conexion& c) {
     if (!voces_[static_cast<std::size_t>(k)])
         voces_[static_cast<std::size_t>(k)] = std::make_unique<VozAlLobby>(L"BA.Audio.RegistroVoz." + std::to_wstring(k));
     voces_[static_cast<std::size_t>(k)]->abrir();
-    if (voz_ == nullptr) return;
+    abrirOido(c);
+}
+
+void TotemsViewModel::abrirOido(Conexion& c) {
+    // El reconocedor carga en segundo plano al arrancar la app: un tótem que se conecta
+    // antes (la app se reinició y la página volvió sola) se queda sin oído hasta que
+    // esté. tic() vuelve a probar.
+    const int k = c.canal;
+    if (c.oido || voz_ == nullptr || !voz_->lista() || k < 1) return;
     const QString conn = c.conn;
     const QString clave = "registro:" + conn;
     QPointer<TotemsViewModel> yo(this);
@@ -904,8 +916,13 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
     // lo dijo), así la próxima vez la reconoce la puerta, el lobby o el tótem.
     if (personaId.isEmpty() && !c.mejorFoto.isEmpty() && pv != nullptr && pv->disponible()) {
         QPointer<TotemsViewModel> yo(this);
-        pv->altaConFoto(c.mejorFoto, nombre, {}, [yo, anotar](const QString& id, const QString&) {
-            if (yo) anotar(id);
+        const QString conn = c.conn;
+        pv->altaConFoto(c.mejorFoto, nombre, {}, [yo, anotar, conn](const QString& id, const QString&) {
+            if (!yo) return;
+            // Desde ahora esa cara es conocida: la que acaba de terminar, no «otra persona»
+            // frente al tótem (si no, el kiosco la saludaría de nuevo enseguida).
+            if (auto it = yo->conns_.find(conn); it != yo->conns_.end() && !id.isEmpty()) it->second->ultimaPersona = id;
+            anotar(id);
         });
         return;
     }
@@ -916,6 +933,7 @@ void TotemsViewModel::tic() {
     const qint64 ahora = ahoraMs();
     for (auto& [k, cp] : conns_) {
         Conexion& c = *cp;
+        if (c.canal > 0 && !c.oido) abrirOido(c);
         mirarCara(c);
         // Terminó de hablar: lo sintetizado ya salió por el canal.
         if (c.hablando) {

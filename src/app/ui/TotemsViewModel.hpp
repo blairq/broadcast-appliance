@@ -169,6 +169,7 @@ class TotemsViewModel : public QObject {
     void cerrarAudio(Conexion& c);
     void cargarVoz();
     void mirarCara(Conexion& c);
+    void abrirOido(Conexion& c);
     void alCara(const QString& conn, const QByteArray& jpeg, const QString& personaId, const QString& nombre,
                 bool hayCara, bool sirve, const QString& sugerencia);
     void empezar(Conexion& c, const QString& personaId, const QString& nombre);
@@ -197,6 +198,7 @@ class TotemsViewModel : public QObject {
     std::unique_ptr<audio::Habla> habla_;
     QString vozCargada_;
     bool vozLista_ = false;
+    bool cargandoVoz_ = false;
     QTimer tic_;
 };
 
