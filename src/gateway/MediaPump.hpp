@@ -18,19 +18,24 @@
 //                                                 o lo atiende el asistente hablando)
 //     Atencion:   audio   -> BA.Audio.Atencion   (el que espera en la sesión remota,
 //                                                 atendido hablando; nada de video)
+//     Registro(k): audio  -> BA.Audio.Registro.<k> (la persona que se registra
+//                                                 frente a un tótem; nada de video)
 //   Bajada (A -> B -> participante):
 //     Program(n): BA.Program + BA.Audio.ContentForReturn
 //     Lobby(k):   BA.Operator (o una placa si A no lo publica) + la voz del
 //                 operador BA.Audio.Operator solo si talk; con atiende (y sin
 //                 talk), la voz del asistente BA.Audio.Atendedor
 //     Atencion:   la voz del asistente BA.Audio.Atendedor (solo audio)
+//     Registro(k): la voz del asistente de ese canal BA.Audio.RegistroVoz.<k>
+//                 (solo audio, solo a esa conexión; k = 1..kMaxTotems)
 //
 //   Un sender existe siempre (spec §4.2): mientras un slot del programa no
 //   tiene video del invitado, B publica una placa.
 //
 // Threading:
-//   - 4 threads de bajada (audio/video del programa, audio/video del operador)
-//     con reintento de apertura cada 500 ms y resuscripcion si A se reinicia.
+//   - threads de bajada (audio/video del programa, audio/video del operador, la
+//     voz del que atiende y una voz por canal de registro) con reintento de
+//     apertura cada 500 ms y resuscripcion si A se reinicia.
 //   - 1 thread de placas.
 //   - forwardAudio/forwardVideo/forwardScreen: desde los threads de libwebrtc;
 //     un lock por canal de salida.
@@ -82,6 +87,11 @@ class MediaPump {
         // La voz del integrante que espera en la sesión remota y lo atiende el asistente
         // hablando (B->A, ruta Atencion): la app la pasa a texto. Vacío = no hay.
         std::wstring atencionAudioName; // BA.Audio.Atencion
+        // El registro por tótem (docs/funciones/REGISTRO-TOTEM.md), [0] reservado, 1..kMaxTotems:
+        // la voz de la persona (B->A, ruta Registro(k)) y la del asistente que le contesta (A->B,
+        // solo a esa conexión). Vacíos = no hay registro.
+        std::vector<std::wstring> registroAudioNames;    // BA.Audio.Registro.<k>
+        std::vector<std::wstring> registroVozAudioNames; // BA.Audio.RegistroVoz.<k>
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
         std::vector<std::wstring> guestVideoNames;     // BA.Guest.<n>
@@ -197,8 +207,10 @@ class MediaPump {
     /// canal de escena son esto mismo con otro nombre y otro filtro.
     void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
     void operatorAudioThread();
-    /// BA.Audio.Atendedor -> los que lo oyen (MediaRoute::oyeAlAtendedor).
-    void atendedorAudioThread();
+    /// Una voz sintetizada A->B (`nombre`) a las sesiones que cumplen `para`, sin
+    /// mezclar con nada: la del que atiende (MediaRoute::oyeAlAtendedor) y la de cada
+    /// canal de registro (MediaRoute::oyeVozRegistro) son esto mismo.
+    void vozAudioThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
     void operatorVideoThread();
     void plateThread();
 
@@ -235,6 +247,7 @@ class MediaPump {
     std::vector<std::unique_ptr<VideoOut>> remotoContenido_;
     std::vector<std::unique_ptr<AudioOut>> remotoAudio_;
     std::unique_ptr<AudioOut> atencionAudio_; // BA.Audio.Atencion (ruta Atencion)
+    std::vector<std::unique_ptr<AudioOut>> registroAudio_; // BA.Audio.Registro.<k> ([0] reservado)
 
     // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
     // hilo del retorno la mezcla con el programa (una sola fuente por sesión).

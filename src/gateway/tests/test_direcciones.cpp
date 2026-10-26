@@ -66,6 +66,9 @@ int main() {
         CHECK(servicio(c, "presidencia")["local"] == "https://192.168.1.42:8792/presidencia/",
               "con túnel, el local sigue siendo la red");
         CHECK(servicio(c, "presidencia")["remoto"] == "https://clase.a.pinggy.link/presidencia/", "el túnel, aparte");
+        CHECK(servicio(c, "registro")["local"] == "https://192.168.1.42:8792/registro/" &&
+                  servicio(c, "registro")["remoto"] == "https://clase.a.pinggy.link/registro/",
+              "el registro por tótem: la misma puerta que la sesión, y por el túnel");
         CHECK(servicio(c, "invitados")["remoto"] == "https://clase.a.pinggy.link/invitados/", "invitados por el túnel");
         CHECK(servicio(c, "botonera")["remoto"].is_null(), "la botonera nunca por el túnel");
         CHECK(servicio(c, "control")["remoto"].is_null(), "el control web desde afuera, apagado");

@@ -393,6 +393,7 @@ endif()
 #   presidencia/ consola de la presidencia         sesion/    integrantes remotos (SESION-REMOTA.md)
 #   botonera/    superficie de control (tablet)    publico/   la butaca: preguntar y votar
 #   evento/      marco de la página del evento     rotulos/   el nombre del que habla
+#   registro/    registro de personas por tótem (REGISTRO-TOTEM.md)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/" DESTINATION Web)
 
 # --- TURN de la caja (src/gateway/turn, docs/funciones/TURN.md) --------------

@@ -129,6 +129,10 @@ class SesionBorde {
     /// A quién se atiende hablando ahora ("" = a nadie).
     std::string conAtiende() const;
 
+    /// Sirve `rel` de `webroot` con la CSP estricta de estas páginas (cámara y micrófono
+    /// solo para ellas). La usa también el registro por tótem (Registro.hpp).
+    static bool servir(long long fd, const std::string& rel, const std::string& webroot);
+
     // --- Para las pruebas ---
     static bool origenValido(const std::string& headers);
     /// La oferta de la atención hablada: sube SOLO audio (un video tiene que ser recvonly
@@ -160,7 +164,6 @@ class SesionBorde {
     };
     void wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola);
     void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
-    bool servir(long long fd, const std::string& rel, const std::string& webroot);
     bool intentoPermitido(const std::string& ip);
 
     std::string webroot_;

@@ -40,7 +40,7 @@ json GestorProxy::serviciosDeFabrica(uint16_t puertoSala) {
         return json{{"nombre", n}, {"destino", puertoSala}, {"ruta", ruta}, {"soloLan", soloLan}};
     };
     return json::array({s("sala", "/", false), s("sesion", "/sesion/", false), s("presidencia", "/presidencia/", false),
-                        s("botonera", "/botonera/", true), s("prompter", "/prompter/", true), s("tablero", "/board/", true)});
+                        s("registro", "/registro/", false), s("botonera", "/botonera/", true), s("prompter", "/prompter/", true), s("tablero", "/board/", true)});
 }
 
 GestorProxy::GestorProxy(json cfg, uint16_t puertoSala, std::string credenciales, std::vector<std::string> ipsLan, LogFn log)

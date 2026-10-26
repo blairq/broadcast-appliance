@@ -224,6 +224,11 @@ void MediaPump::start() {
     // La atención hablada de la sesión remota: un canal (de a uno por voz).
     atencionAudio_.reset();
     if (!cfg_.atencionAudioName.empty()) atencionAudio_ = makeAudio(cfg_.atencionAudioName);
+    // El registro por tótem: un canal por conversación a la vez (1..kMaxTotems).
+    registroAudio_.clear();
+    registroAudio_.emplace_back();
+    for (size_t k = 1; k < cfg_.registroAudioNames.size() && k <= static_cast<size_t>(kMaxTotems); ++k)
+        registroAudio_.push_back(makeAudio(cfg_.registroAudioNames[k]));
     {
         std::lock_guard<std::mutex> lock(routesLock_);
         routes_.assign(static_cast<size_t>(hub_.sessions()) + 1, MediaRoute{});
@@ -240,7 +245,17 @@ void MediaPump::start() {
                               });
     }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
-    if (!cfg_.atendedorAudioName.empty()) threads_.emplace_back(&MediaPump::atendedorAudioThread, this);
+    if (!cfg_.atendedorAudioName.empty())
+        threads_.emplace_back(&MediaPump::vozAudioThread, this, cfg_.atendedorAudioName,
+                              "atencion: voz del que atiende (BA.Audio.Atendedor)",
+                              [](const MediaRoute& r) { return r.oyeAlAtendedor(); });
+    for (size_t k = 1; k < cfg_.registroVozAudioNames.size() && k <= static_cast<size_t>(kMaxTotems); ++k) {
+        if (cfg_.registroVozAudioNames[k].empty()) continue;
+        const int canal = static_cast<int>(k);
+        threads_.emplace_back(&MediaPump::vozAudioThread, this, cfg_.registroVozAudioNames[k],
+                              "registro: voz del asistente del canal " + std::to_string(canal),
+                              [canal](const MediaRoute& r) { return r.oyeVozRegistro(canal); });
+    }
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
     log_.info("MediaPump: en marcha (slots=" + std::to_string(guests) + ", lobby=" + std::to_string(lobby) +
@@ -629,12 +644,13 @@ void MediaPump::operatorAudioThread() {
     }
 }
 
-void MediaPump::atendedorAudioThread() {
-    // La forma de operatorAudioThread, con otro canal y otro destino: la voz
-    // sintetizada del que atiende le llega SOLO a quien atiende hablando (en el
-    // lobby de la sala o esperando en la sesión remota: MediaRoute::oyeAlAtendedor).
-    // Si el operador le está hablando a esa misma persona, la voz del operador gana
-    // (empujar dos fuentes al mismo track las pisa).
+void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para) {
+    // La forma de operatorAudioThread, con otro canal y otro destino: una voz
+    // sintetizada le llega SOLO a quien le habla. La del que atiende, a quien atiende
+    // hablando (en el lobby de la sala o esperando en la sesión remota:
+    // MediaRoute::oyeAlAtendedor; si el operador le está hablando a esa misma
+    // persona, gana el operador: empujar dos fuentes al mismo track las pisa). La de
+    // cada canal de registro, a la conexión que tiene ese canal.
     SharedAudioRing reader;
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
@@ -644,9 +660,9 @@ void MediaPump::atendedorAudioThread() {
             const auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
                 lastRetry = now;
-                if (SharedAudioRing::openReader(cfg_.atendedorAudioName.c_str(), reader).ok) {
+                if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
-                    log_.info("atencion: voz del que atiende (BA.Audio.Atendedor) abierta");
+                    log_.info(etiqueta + " abierta");
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -661,7 +677,7 @@ void MediaPump::atendedorAudioThread() {
         if (block.size() < n) block.resize(n);
         PoppedBlock blk;
         if (reader.pop(block.data(), blk)) {
-            for (int s : sessionsWhere([](const MediaRoute& r) { return r.oyeAlAtendedor(); })) {
+            for (int s : sessionsWhere(para)) {
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
         }
@@ -772,6 +788,11 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
         // El que espera en la sesión remota, atendido hablando: su voz, solo para
         // pasarla a texto (la app la toma con una entrada interna, fuera de la mezcla).
         publishAudio(*atencionAudio_, samples, n, rate);
+    } else if (r.kind == MediaRoute::Kind::Registro && r.index >= 1 &&
+               r.index < static_cast<int>(registroAudio_.size()) && registroAudio_[static_cast<size_t>(r.index)]) {
+        // La persona que se registra frente a un tótem: su voz, solo para pasarla a
+        // texto (como la atención: una entrada interna de la app, fuera de la mezcla).
+        publishAudio(*registroAudio_[static_cast<size_t>(r.index)], samples, n, rate);
     }
 }
 

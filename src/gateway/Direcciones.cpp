@@ -33,6 +33,7 @@ const std::vector<Servicio>& servicios() {
         {"invitados", "Invitados (sala)", "/invitados/", Puerta::Invitados, true, ""},
         {"sesion", "Integrantes (sesión remota)", "/sesion/", Puerta::Sala, true, ""},
         {"presidencia", "Consola de la presidencia", "/presidencia/", Puerta::Sala, true, ""},
+        {"registro", "Registro de personas (tótems)", "/registro/", Puerta::Sala, true, ""},
         {"botonera", "Botonera (tablet)", "/botonera/", Puerta::Sala, false,
          "La botonera anda solo en la red local (nunca por el túnel)."},
         {"control", "Control web (dashboard)", "/control/", Puerta::Sala, true, ""},

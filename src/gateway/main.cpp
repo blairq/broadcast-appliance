@@ -547,7 +547,8 @@ int main(int argc, char** argv) {
     // vacía hasta que alguien se conecta, y así el cupo sube sin reiniciar la sala.
     WebrtcHub hub(kMaxInvitados + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
                       cfg.vistasRemotas /* lo que miran los integrantes en su celular */ +
-                      1 /* el que espera en la sesión remota, atendido hablando (de a uno) */, cfg.guestVideoW, cfg.guestVideoH,
+                      1 /* el que espera en la sesión remota, atendido hablando (de a uno) */ +
+                      kMaxTotems /* las conversaciones de registro por tótem */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
@@ -564,6 +565,13 @@ int main(int argc, char** argv) {
     pumpCfg.operatorAudioName = toWide("BA.Audio.Operator");
     pumpCfg.atendedorAudioName = toWide("BA.Audio.Atendedor");
     pumpCfg.atencionAudioName = toWide("BA.Audio.Atencion");
+    // El registro por tótem (docs/funciones/REGISTRO-TOTEM.md): [0] reservado, como los demás.
+    pumpCfg.registroAudioNames.emplace_back();
+    pumpCfg.registroVozAudioNames.emplace_back();
+    for (int k = 1; k <= kMaxTotems; ++k) {
+        pumpCfg.registroAudioNames.push_back(toWide("BA.Audio.Registro." + std::to_string(k)));
+        pumpCfg.registroVozAudioNames.push_back(toWide("BA.Audio.RegistroVoz." + std::to_string(k)));
+    }
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,
                     &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {
@@ -664,6 +672,7 @@ int main(int argc, char** argv) {
         sigCfg.eventoWebroot = (guestRoot.parent_path() / "evento").string();
         sigCfg.botoneraWebroot = (guestRoot.parent_path() / "botonera").string();
         sigCfg.sesionWebroot = (guestRoot.parent_path() / "sesion").string();
+        sigCfg.registroWebroot = (guestRoot.parent_path() / "registro").string();
         sigCfg.controlWebroot = (guestRoot.parent_path() / "control").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace

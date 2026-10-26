@@ -114,6 +114,28 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     botonera_->setCaras(cfg_.carasBotonera);
     sesion_ = std::make_unique<SesionBorde>(cfg_.sesionWebroot, log_,
                                             [this](const json& d) { broadcastToHosts("sesion", d); });
+    registro_ = std::make_unique<RegistroBorde>(cfg_.registroWebroot, log_,
+                                                [this](const json& d) { broadcastToHosts("registro", d); });
+    // El audio de cada conversación de registro: una sesión del pool por conexión que
+    // tiene canal (ruta Registro(k)), como la atención hablada.
+    {
+        RegistroBorde::Medios m;
+        m.oferta = [this](const std::string& conn, int canal, const std::string& sdp,
+                          std::function<void(const json&)> enviar) {
+            return ofertaRegistro(conn, canal, sdp, std::move(enviar));
+        };
+        m.ice = [this](const std::string& conn, const std::string& cand) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessLock_);
+                const auto it = sessionOf_.find("registro:" + conn);
+                if (it != sessionOf_.end()) idx = it->second;
+            }
+            if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
+        };
+        m.cerrar = [this](const std::string& conn) { releaseSession("registro:" + conn, 0, true); };
+        registro_->setMedios(std::move(m));
+    }
     controlWeb_ = std::make_unique<ControlWebBorde>(cfg_.controlWebroot, log_,
                                                     [this](const json& d) { broadcastToHosts("control", d); });
     // R3: el micrófono y la cámara del remoto con la palabra van a la app por el
@@ -753,6 +775,8 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     if (botonera_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     // La sesión remota (página y su WebSocket), también antes que la sala.
     if (sesion_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    // El registro de personas por tótem (página y su WebSocket), también antes que la sala.
+    if (registro_->atender(fd, method, path, query, headers, clientIp, externo)) return;
     // El control web (dashboard /control/, emparejar y /ws?control), también antes que la sala.
     if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     if (path == "/api/ice" && method == "GET" && !admin) {
@@ -2467,6 +2491,80 @@ bool SignalingServer::ofertaAtencion(const std::string& id, const std::string& s
     if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::atencion());
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn("sesion: setRemoteOffer de la atención de " + id + " falló", -1);
+        releaseSession(pid, 0, true);
+        return false;
+    }
+    return true;
+}
+
+bool SignalingServer::ofertaRegistro(const std::string& conn, int canal, const std::string& sdp,
+                                     std::function<void(const json&)> enviar) {
+    // La forma de ofertaAtencion, con la ruta Registro(canal): una sesión por conexión (la
+    // oferta nueva reemplaza a la anterior). El borde ya garantizó que el canal es suyo y
+    // que sube solo audio.
+    if (canal < 1 || canal > kMaxTotems) return false;
+    const std::string pid = "registro:" + conn;
+    releaseSession(pid, 0, true);
+    int idx = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        for (int s = 1; s <= hub_.sessions() && idx == 0; ++s)
+            if (sessionOwner_.count(s) == 0) idx = s;
+        if (idx > 0) {
+            sessionOwner_[idx] = SessionOwner{pid, 0};
+            sessionOf_[pid] = idx;
+        }
+    }
+    WebrtcSession* sess = hub_.session(idx);
+    if (sess == nullptr) {
+        log_.warn("registro: sin sesiones WebRTC libres para " + conn, -1);
+        return false;
+    }
+    SessionCallbacks cb;
+    cb.onLocalAnswer = [this, enviar](const std::string& s) {
+        std::string out;
+        size_t pos = 0;
+        while (pos < s.size()) {
+            const size_t eol = s.find('\n', pos);
+            const std::string line = s.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos + 1);
+            if (line.rfind("a=candidate:", 0) == 0) {
+                const std::string pub = publicCandidate(line.substr(2));
+                if (!pub.empty()) out += "a=" + pub;
+            } else {
+                out += line;
+            }
+            if (eol == std::string::npos) break;
+            pos = eol + 1;
+        }
+        enviar(json{{"type", "respuesta"}, {"sdp", out}});
+    };
+    cb.onLocalIce = [this, enviar](const std::string& c) {
+        json cand = json::parse(c, nullptr, false);
+        if (cand.is_object() && cand.contains("candidate") && cand["candidate"].is_string()) {
+            const std::string pub = publicCandidate(cand["candidate"].get<std::string>());
+            if (pub.empty()) return;
+            cand["candidate"] = pub;
+        }
+        enviar(json{{"type", "ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
+    };
+    cb.onStateChange = [this, conn, idx, pid](bool up) {
+        log_.fmt("info", 0, "registro: audio de %s (sesion %d) %s", conn.c_str(), idx, up ? "conectado" : "cerrado");
+        // Solo si la sesión sigue siendo de esta conversación: la de una oferta vieja (o
+        // la que se soltó con el canal, que el borde ya dio por caída) no avisa nada.
+        bool suya = false;
+        {
+            std::lock_guard<std::mutex> lock(sessLock_);
+            const auto it = sessionOf_.find(pid);
+            suya = it != sessionOf_.end() && it->second == idx;
+        }
+        if (suya && registro_) registro_->audioListo(conn, up);
+    };
+    if (pump_ != nullptr)
+        cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+    sess->configure(cb, hub_.rtcFactory());
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::registro(canal));
+    if (!sess->setRemoteOffer(sdp)) {
+        log_.warn("registro: setRemoteOffer de " + conn + " falló", -1);
         releaseSession(pid, 0, true);
         return false;
     }

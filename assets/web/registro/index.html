@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1014" />
+  <title>Registro</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="estilo.css" />
+</head>
+<body>
+  <!--
+    El registro de personas por tótem: /registro/#r=<tótem>&t=<token>
+    (docs/funciones/REGISTRO-TOTEM.md). La persona pone la cara, el asistente la saluda y le
+    pregunta los datos HABLANDO; ella contesta con la voz (o tipea, si no se le entiende).
+    El id y el token van en el FRAGMENTO (no viajan en la petición) y se mandan en el primer
+    mensaje del WebSocket. Solo el micrófono va por WebRTC (el navegador cancela el eco de lo
+    que dice el asistente); la cara, en fotos por el WebSocket.
+      ?kiosco=1    arranca solo (un tótem sin nadie que toque la primera vez)
+      ?pantalla=1  solo muestra el QR para registrarse desde el celular (una TV)
+  -->
+  <header class="barra">
+    <div class="encabezado">
+      <h1 id="titulo" class="titulo">Registro</h1>
+      <p id="subtitulo" class="subtitulo oculto"></p>
+    </div>
+    <span id="estado" class="estado esperando" aria-live="polite">
+      <span class="punto"></span><span id="estadoTexto">Esperando</span>
+    </span>
+    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
+  </header>
+
+  <!-- Antes de empezar: el navegador exige un toque para la cámara, el micrófono y el sonido. -->
+  <section id="inicio" class="inicio oculto">
+    <button id="empezar" type="button" class="enorme">Tocá para empezar</button>
+    <p id="inicioTexto" class="tenue">Vamos a usar la cámara y el micrófono para registrarte. Hablale al asistente: te escucha.</p>
+  </section>
+
+  <!-- La conversación. -->
+  <main id="registro" class="registro oculto">
+    <div class="camara">
+      <video id="propia" class="propia" autoplay muted playsinline></video>
+      <p id="espera" class="aviso oculto">Hay mucha gente registrándose, esperá un momento…</p>
+    </div>
+    <div class="charla">
+      <p id="dice" class="dice">Mirá a la cámara para empezar.</p>
+      <p id="oido" class="oido oculto"></p>
+      <button id="oir" type="button" class="oculto">🔊 Tocá para oír al asistente</button>
+      <form id="caja" class="caja oculto" autocomplete="off">
+        <label id="cajaEtiqueta" for="cajaValor">Escribilo acá</label>
+        <div class="fila">
+          <input id="cajaValor" type="text" maxlength="200" />
+          <button id="cajaMandar" type="submit">Listo</button>
+        </div>
+        <div id="sino" class="fila oculto">
+          <button id="si" type="button" class="grande">Sí</button>
+          <button id="no" type="button" class="grande secundario">No</button>
+        </div>
+      </form>
+      <ul id="campos" class="campos"></ul>
+      <div class="acciones">
+        <button id="arrancar" type="button" class="secundario">Empezar</button>
+        <button id="cancelar" type="button" class="secundario oculto">Cancelar</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Gracias: a los segundos vuelve a esperar a la próxima persona. -->
+  <section id="gracias" class="gracias oculto" aria-live="polite">
+    <div class="tilde">✓</div>
+    <p id="graciasTexto" class="grande-texto">¡Listo! Ya quedaste registrado.</p>
+    <button id="otra" type="button" class="secundario oculto">Registrar a otra persona</button>
+  </section>
+
+  <!-- Una pantalla que solo muestra (una TV, un Chromecast) o sin cámara ni micrófono: el QR. -->
+  <section id="qr" class="qr oculto">
+    <img id="qrImagen" class="qr-imagen" alt="Código QR para registrarse" />
+    <p class="grande-texto">Escaneá para registrarte</p>
+    <p id="qrTitulo" class="tenue"></p>
+  </section>
+
+  <section id="cortado" class="panel oculto">
+    <h2>Registro cerrado</h2>
+    <p id="cortadoTexto"></p>
+  </section>
+
+  <canvas id="lienzo" class="oculto" width="480" height="360"></canvas>
+  <audio id="voz" autoplay></audio>
+  <script src="../comun/ice.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -97,6 +97,7 @@
 
 #include "Botonera.hpp"
 #include "Direcciones.hpp"
+#include "Registro.hpp"
 #include "Sesion.hpp"
 #include "ControlWeb.hpp"
 #include "Carruseles.hpp"
@@ -165,6 +166,7 @@ class SignalingServer {
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
         std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
         std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
+        std::string registroWebroot; // Web/registro (el registro de personas por tótem)
         std::string controlWebroot;  // Web/control (el dashboard web del operador, /control/)
         // --- Escucha del tunel de pinggy (siempre 127.0.0.1, todo externo) ---
         bool tunel = false;         // abrirla (main: pinggy activo)
@@ -390,6 +392,10 @@ class SignalingServer {
     /// La atención hablada del que espera en la sesión remota (pid «atiende:<id>», ruta
     /// Atencion): sube su micrófono a BA.Audio.Atencion y le baja la voz del que atiende.
     bool ofertaAtencion(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
+    /// Una conversación del registro por tótem (pid «registro:<conn>», ruta Registro(canal)):
+    /// sube su micrófono a BA.Audio.Registro.<canal> y le baja BA.Audio.RegistroVoz.<canal>.
+    bool ofertaRegistro(const std::string& conn, int canal, const std::string& sdp,
+                        std::function<void(const nlohmann::json&)> enviar);
 
     struct WsConn {
         long long fd = -1;
@@ -491,6 +497,8 @@ class SignalingServer {
     std::unique_ptr<BotoneraBorde> botonera_;
     /// La sesión remota (integrantes desde afuera): borde de red, ver Sesion.hpp.
     std::unique_ptr<SesionBorde> sesion_;
+    /// El registro de personas por tótem: borde de red, ver Registro.hpp.
+    std::unique_ptr<RegistroBorde> registro_;
     /// El control web (/control/ y /ws?control): borde de red, ver ControlWeb.hpp.
     std::unique_ptr<ControlWebBorde> controlWeb_;
     Preguntas preguntas_;
