@@ -126,6 +126,10 @@ struct TotemsViewModel::Conexion {
     qint64 terminoMs = 0;
     // Para la vista.
     std::string pedidoEnviado;
+    /// El `listo` se manda cuando termina de decir la despedida: el celular
+    /// suelta el canal al recibirlo, y con él se cortaría la voz a mitad.
+    std::string listoPendiente;
+    bool hayListo = false;
     QString oidoTexto, diceTexto, estado = "esperando";
 };
 
@@ -786,7 +790,12 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
     if (!decirTxt.empty()) decir(c, decirTxt);
     if (guardar) guardarRegistro(c);
     if (terminar) {
-        enviar(c.conn, {{"type", "listo"}, {"texto", decirTxt}});
+        if (c.hablando) {
+            c.listoPendiente = decirTxt;
+            c.hayListo = true;
+        } else {
+            enviar(c.conn, {{"type", "listo"}, {"texto", decirTxt}});
+        }
         c.estado = "listo";
         c.esperaVacio = true;
         c.ultimaPersona = QString::fromStdString(c.conv->cara().personaId);
@@ -884,6 +893,11 @@ void TotemsViewModel::tic() {
                 c.hablando = false;
                 c.callado->store(false);
                 c.ultimaVozMs = ahora;
+                if (c.hayListo) {
+                    c.hayListo = false;
+                    c.terminoMs = ahora;
+                    enviar(c.conn, {{"type", "listo"}, {"texto", c.listoPendiente}});
+                }
                 if (c.conv != nullptr && c.conv->enCurso()) {
                     c.estado = "escuchando";
                     enviar(c.conn, {{"type", "estado"}, {"estado", "escuchando"}});

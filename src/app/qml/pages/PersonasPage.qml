@@ -24,6 +24,9 @@ Rectangle {
     property real leftInset: 92
     readonly property var pv: Studio.personas
 
+    // «Libreta» (quién es quién) o «Registro» (los tótems donde la gente se
+    // registra hablando: controls/PanelTotems).
+    property string pestana: "libreta"
     property string editando: ""     // id de la ficha abierta ("" = una nueva)
     property string fuente: "program"
     // Lo último que se vio. NO se pide y se usa en la misma línea: el
@@ -43,11 +46,18 @@ Rectangle {
         // Cada segundo alcanza: esto es para confirmar a quién se está viendo,
         // no para seguirle la cara a nadie. Mirar más seguido gasta CPU que le
         // hace falta al video.
-        interval: 1000; running: page.visible && page.pv.disponible; repeat: true
+        interval: 1000; running: page.visible && page.pestana === "libreta" && page.pv.disponible; repeat: true
         onTriggered: page.mirar()
     }
     Component.onCompleted: page.pv.refrescar()
     Connections { target: page.pv; function onNotify(t, k) { Studio.notify(t, k) } }
+    // ui_show_page {page: "personas", seccion: "libreta" | "registro"}
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina === "personas" && (seccion === "libreta" || seccion === "registro")) page.pestana = seccion
+        }
+    }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }
@@ -69,6 +79,15 @@ Rectangle {
                 dot: Theme.warn
             }
             GlassButton { compact: true; text: "Cuerpo (integrantes)…"; onClicked: panelCuerpo.open() }
+            Item { implicitWidth: 10 }
+            GlassButton { compact: true; text: "Libreta"; active: page.pestana === "libreta"
+                          onClicked: page.pestana = "libreta" }
+            GlassButton {
+                compact: true; text: "Registro"; active: page.pestana === "registro"
+                onClicked: page.pestana = "registro"
+                ToolTip.visible: hovered
+                ToolTip.text: "Tótems de registro: una TV con cámara o el celular, la gente se registra hablando"
+            }
             Item { Layout.fillWidth: true }
             Text {
                 text: "Se reconoce a quien ya se dio de alta. La foto es para que vos confirmes; " +
@@ -82,7 +101,7 @@ Rectangle {
         // lista vacía se lee como «no hay nadie guardado».
         Panel {
             Layout.fillWidth: true
-            visible: !page.pv.disponible
+            visible: page.pestana === "libreta" && !page.pv.disponible
             padding: 14
             implicitHeight: sinModelos.implicitHeight + 2 * padding
             ColumnLayout {
@@ -96,10 +115,16 @@ Rectangle {
             }
         }
 
+        PanelTotems {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: page.pestana === "registro"
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: page.pv.disponible
+            visible: page.pestana === "libreta" && page.pv.disponible
             spacing: 14
 
             // --- La cámara: a quién estoy viendo ---------------------------
