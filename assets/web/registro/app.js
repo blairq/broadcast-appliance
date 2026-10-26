@@ -20,7 +20,7 @@ let terminado = false;   // cortado o enlace inválido: no se reconecta
 let timerPing = 0;
 let medios = null;       // la cámara y el micrófono
 let empezado = false;    // ya hay cámara y micrófono (la persona tocó, o el kiosco arrancó solo)
-let canal = 0;           // el canal (1..4) que dio el gateway; 0 = ninguno
+let canal = 0;           // el canal (1..8) que dio el gateway; 0 = ninguno
 let timerCanal = 0;
 let empezarConCanal = false; // tocó «Empezar» sin canal: al llegar el canal, se le avisa a la app
 let pc = null;
@@ -134,7 +134,7 @@ function pedirCanal() {
 function tomarCanal(k) {
   clearTimeout(timerCanal);
   if (!k) {
-    // Están los cuatro ocupados: se espera y se vuelve a pedir.
+    // Están todos ocupados: se espera y se vuelve a pedir.
     $("espera").classList.remove("oculto");
     timerCanal = setTimeout(pedirCanal, 3000);
     return;
@@ -258,6 +258,7 @@ function mandarEscrito(valor) {
 
 function limpiar() {
   clearTimeout(timerGracias);
+  ponerAtiende(false);
   $("dice").textContent = kTextoEspera;
   $("oido").textContent = "";
   $("oido").classList.add("oculto");
@@ -370,8 +371,29 @@ function recibir(m) {
     case "reiniciar":
       if (empezado && !soloPantalla) { limpiar(); mostrar("registro"); }
       break;
+    case "atiende":
+      ponerAtiende(!!m.activo, m.nombre);
+      break;
     case "pong":
       break;
+  }
+}
+
+// --- La atiende una persona (la atención remota) -------------------------------------------
+// Alguien del equipo tomó la conversación: el asistente se calla y lo que se oye por el
+// parlante es esa persona. Se dice en grande, para que nadie piense que se colgó.
+function ponerAtiende(activo, quien) {
+  const el = $("atiende");
+  el.textContent = activo ? "Te atiende " + (quien || "una persona del equipo") : "";
+  el.classList.toggle("oculto", !activo);
+  if (activo) {
+    $("estado").className = "estado atendida";
+    $("estadoTexto").textContent = "Te atiende una persona";
+    $("cancelar").classList.remove("oculto");
+    $("arrancar").classList.add("oculto");
+    oir(); // su voz llega por la misma pista que la del asistente
+  } else if ($("estado").classList.contains("atendida")) {
+    ponerEstado(estadoActual === "atendida" ? "escuchando" : estadoActual);
   }
 }
 

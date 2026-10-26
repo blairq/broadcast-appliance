@@ -1,0 +1,98 @@
+/* La atención remota del registro: para gente del equipo, en un celular o una compu.
+   Los colores del tótem (registro/estilo.css). Sin estilos en línea (la CSP no los deja). */
+:root {
+  --fondo: #0d1014;
+  --panel: #161a21;
+  --hundido: #10141a;
+  --texto: #f2f4f7;
+  --tenue: #8a93a3;
+  --borde: rgba(255, 255, 255, 0.10);
+  --acento: #ff6a2b;
+  --ok: #2ecc71;
+  --ambar: #f5a623;
+  --mal: #e53935;
+  --azul: #6cace4;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--fondo); color: var(--texto);
+  font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; font-size: 16px; }
+body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.oculto { display: none !important; }
+.tenue { color: var(--tenue); font-weight: 400; }
+.grande { font-size: 18px; }
+h2 { font-size: 17px; margin: 0 0 10px; }
+h3 { font-size: 15px; margin: 18px 0 8px; }
+
+button { font: inherit; font-size: 15px; font-weight: 700; padding: 10px 16px; min-height: 44px; border-radius: 12px;
+  border: none; background: var(--acento); color: white; cursor: pointer; }
+button.secundario { background: #3b4252; }
+button.ok { background: #1f8f4e; }
+button.peligro { background: #8f2a27; }
+button:disabled { opacity: 0.45; cursor: default; }
+input, select { font: inherit; font-size: 16px; padding: 9px 12px; min-height: 44px; border-radius: 10px;
+  border: 1px solid var(--borde); background: var(--hundido); color: var(--texto); min-width: 0; }
+input:focus, select:focus { outline: 2px solid var(--azul); outline-offset: 1px; }
+
+/* El encabezado. */
+.barra { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--borde);
+  position: sticky; top: 0; background: var(--fondo); z-index: 2; }
+.encabezado { flex: 1; min-width: 0; }
+.titulo { margin: 0; font-size: 19px; }
+.subtitulo { margin: 2px 0 0; color: var(--tenue); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { background: var(--panel); border: 1px solid var(--borde); color: var(--texto); font-weight: 600; padding: 6px 12px;
+  min-height: 36px; border-radius: 999px; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conexion { font-size: 18px; }
+.conexion.viva { color: var(--ok); }
+.conexion.apagada { color: var(--mal); }
+
+/* Entrar / cortado. */
+.panel { max-width: 480px; margin: 40px auto; padding: 24px; background: var(--panel); border: 1px solid var(--borde);
+  border-radius: 16px; width: calc(100% - 32px); }
+.fila { display: flex; gap: 10px; }
+.fila input { flex: 1; }
+
+/* La lista y el detalle: lado a lado en una compu, uno arriba del otro en un celular. */
+.atencion { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: 16px; padding: 16px; }
+@media (max-width: 820px) { .atencion { grid-template-columns: 1fr; } }
+.lista, .detalle { background: var(--panel); border: 1px solid var(--borde); border-radius: 16px; padding: 14px; min-width: 0; }
+.conversaciones { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.conversaciones li { padding: 10px 12px; border-radius: 12px; background: var(--hundido); border: 1px solid var(--borde);
+  cursor: pointer; display: grid; gap: 3px; }
+.conversaciones li.elegida { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul); }
+.conversaciones li.atendida { border-left: 4px solid var(--ok); }
+.conversaciones li.mia { border-left: 4px solid var(--acento); }
+.conversaciones .arriba { display: flex; gap: 8px; align-items: baseline; }
+.conversaciones .totem { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversaciones .lugar { font-size: 12px; color: var(--tenue); }
+.conversaciones .paso { font-size: 13px; color: var(--acento); }
+.conversaciones .ultimo { font-size: 13px; color: var(--tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cabeza { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+.cabeza h2 { margin: 0; }
+.paso { margin: 2px 0 0; color: var(--acento); font-size: 14px; }
+.insignia { padding: 6px 10px; border-radius: 999px; background: rgba(46, 204, 113, 0.15); color: var(--ok); font-weight: 700;
+  font-size: 13px; white-space: nowrap; }
+.insignia.otra { background: rgba(245, 166, 35, 0.15); color: var(--ambar); }
+
+.video { position: relative; margin-top: 10px; aspect-ratio: 16 / 9; background: black; border-radius: 12px; overflow: hidden; }
+.video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.aviso { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 16px; color: var(--tenue); }
+.flotante { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); }
+.mic { position: absolute; top: 10px; left: 10px; padding: 5px 10px; border-radius: 999px; background: rgba(0, 0, 0, 0.6);
+  color: var(--ok); font-weight: 700; font-size: 13px; }
+.mic.mudo { color: var(--ambar); }
+
+.charla p { margin: 8px 0 0; overflow-wrap: anywhere; }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.campos { display: grid; gap: 8px; }
+.campo { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 1fr); gap: 8px; align-items: center; }
+@media (max-width: 420px) { .campo { grid-template-columns: 1fr; } }
+.campo label { color: var(--tenue); font-size: 14px; }
+.campo.listo label::after { content: " ✓"; color: var(--ok); }
+.campo.pidiendo input, .campo.pidiendo select { border-color: var(--acento); }
+.campo .obligatorio { color: var(--acento); }
+
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100% - 32px);
+  background: #2b313c; border: 1px solid var(--borde); padding: 10px 16px; border-radius: 12px; z-index: 5; }

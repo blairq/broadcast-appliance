@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1014" />
+  <title>Atención del registro</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="atiende.css" />
+</head>
+<body>
+  <!--
+    La atención remota del registro por tótem: /registro-atiende/#t=<token>
+    (docs/funciones/REGISTRO-TOTEM.md, «Atención remota»). Para gente del equipo, desde un
+    celular o una compu: ve todas las conversaciones de los tótems del evento, mira y escucha
+    una en vivo, la atiende (el asistente se calla y tu voz le llega solo a ese tótem) y
+    completa o corrige los datos. El link lo da la app (Personas → Registro, «Atención remota»,
+    o totem_atencion_enlace). El token va en el FRAGMENTO: no viaja en la petición.
+  -->
+  <header class="barra">
+    <div class="encabezado">
+      <h1 class="titulo">Atención del registro</h1>
+      <p id="evento" class="subtitulo"></p>
+    </div>
+    <button id="quien" type="button" class="chip" title="Cambiar tu nombre"></button>
+    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
+  </header>
+
+  <!-- Entrar: tu nombre es lo que ve la persona del tótem («Te atiende Laura»). -->
+  <section id="entrar" class="panel oculto">
+    <h2>¿Cómo te llamás?</h2>
+    <p class="tenue">Es lo que ve la persona del tótem cuando la atendés: «Te atiende …».</p>
+    <form id="formNombre" class="fila" autocomplete="off">
+      <input id="nombre" type="text" maxlength="40" placeholder="Tu nombre" autocapitalize="words" />
+      <button type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <main id="atencion" class="atencion oculto">
+    <!-- Todas las conversaciones, en vivo. -->
+    <section class="lista">
+      <h2>Conversaciones <span id="cuantas" class="tenue"></span></h2>
+      <p id="vacia" class="tenue">Nadie se está registrando ahora.</p>
+      <ul id="conversaciones" class="conversaciones"></ul>
+    </section>
+
+    <!-- La elegida: mirarla, escucharla, atenderla, completar datos. -->
+    <section id="detalle" class="detalle">
+      <p id="elegi" class="tenue grande">Elegí una conversación para mirarla y escucharla.</p>
+      <div id="elegida" class="oculto">
+        <div class="cabeza">
+          <div>
+            <h2 id="dTotem"></h2>
+            <p id="dPaso" class="paso"></p>
+          </div>
+          <span id="dAtiende" class="insignia oculto"></span>
+        </div>
+        <div class="video">
+          <video id="video" autoplay playsinline muted></video>
+          <p id="sinVideo" class="aviso">Esperando la cámara del tótem…</p>
+          <button id="oir" type="button" class="flotante oculto">🔊 Tocá para escuchar</button>
+          <span id="microfono" class="mic oculto">● Te escucha</span>
+        </div>
+        <div class="charla">
+          <p><span class="tenue">Se oyó:</span> <span id="dOido"></span></p>
+          <p><span class="tenue">El asistente dijo:</span> <span id="dDice"></span></p>
+        </div>
+        <div class="acciones">
+          <button id="atender" type="button">Atender yo</button>
+          <button id="devolver" type="button" class="secundario oculto">Devolver al asistente</button>
+          <button id="guardar" type="button" class="ok oculto">Guardar registro</button>
+          <button id="cancelar" type="button" class="peligro oculto">Cancelar</button>
+          <button id="silenciar" type="button" class="secundario oculto">Silenciar mi micrófono</button>
+        </div>
+        <h3>Datos <span class="tenue">— lo que pongas se ve en el tótem; vacío lo borra</span></h3>
+        <form id="campos" class="campos" autocomplete="off"></form>
+      </div>
+    </section>
+  </main>
+
+  <section id="cortado" class="panel oculto">
+    <h2>Atención cerrada</h2>
+    <p id="cortadoTexto"></p>
+  </section>
+
+  <div id="aviso" class="toast oculto" role="status" aria-live="polite"></div>
+  <audio id="sonido" autoplay></audio>
+  <script src="../comun/ice.js"></script>
+  <script src="atiende.js"></script>
+</body>
+</html>

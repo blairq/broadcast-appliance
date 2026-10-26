@@ -13,7 +13,7 @@
 //
 // Cada tótem admite varias conexiones a la vez (la TV que muestra el QR y cada
 // celular que lo escanea): cada una tiene su `conn` ("c17") y su conversación.
-// Conversaciones con voz a la vez: hasta kMaxTotems (los canales de audio 1..4,
+// Conversaciones con voz a la vez: hasta kMaxTotems (los canales de audio 1..8,
 // MediaRoute::registro). Sin canal libre, la página espera y vuelve a pedir.
 //
 // Página (puerto de invitados, el HTTPS de la sala o el túnel):

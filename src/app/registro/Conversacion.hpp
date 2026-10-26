@@ -5,7 +5,7 @@
 // con voz. Esto es lo que decide qué contestarle. Un guion determinista y no un
 // agente de lenguaje, a propósito:
 //   - tiene que contestar EN EL ACTO (una pausa de tres segundos frente a una
-//     pantalla es «se colgó»), y con varias personas a la vez (hasta cuatro
+//     pantalla es «se colgó»), y con varias personas a la vez (hasta ocho
 //     tótems/celulares conversando);
 //   - lo que pide lo configuró el organizador (registro/Totems): no hay nada
 //     que improvisar, y un modelo que improvisa en la puerta de un evento es un
