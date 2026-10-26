@@ -145,6 +145,7 @@ class AccesoRemoto;
 class ConferenceViewModel;
 class EventoViewModel;
 class AtencionViewModel;
+class TotemsViewModel;
 class HistoricoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
@@ -334,6 +335,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* personas READ personas CONSTANT)
     /// La atención a quien se conecta (Sala y Asamblea): ui/AtencionViewModel.
     Q_PROPERTY(QObject* atencion READ atencion CONSTANT)
+    /// El registro de personas por tótem (Personas → Registro): ui/TotemsViewModel.
+    Q_PROPERTY(QObject* totems READ totems CONSTANT)
     /// Las preguntas del publico y la urna (viven en B; esto las trae).
     Q_PROPERTY(QObject* publico READ publico CONSTANT)
     /// Los archivos del operador: musica, videos, imagenes, presentaciones.
@@ -727,6 +730,8 @@ class StudioViewModel : public QObject {
     QObject* personas() const;
     QObject* atencion() const;
     AtencionViewModel* atencionVm() const { return atencion_.get(); }
+    QObject* totems() const;
+    TotemsViewModel* totemsVm() const { return totems_.get(); }
     QObject* publico() const;
     QObject* medios() const;
     QObject* carruseles() const;
@@ -1270,6 +1275,9 @@ class StudioViewModel : public QObject {
     /// agentes, Personas, el evento y la sesión remota. Declarada última, se
     /// destruye antes que todos ellos.
     std::unique_ptr<AtencionViewModel> atencion_;
+    /// Los tótems de registro: usan la atención (su voz), Personas, el evento y
+    /// la sala. Después de la atención, se destruyen antes.
+    std::unique_ptr<TotemsViewModel> totems_;
 };
 
 } // namespace ba::app

@@ -38,6 +38,9 @@ const std::vector<ServicioEnlace>& catalogo() {
          "publico"},
         {"invitaciones", "Sala y público", "Invitaciones personales",
          "Una por persona del padrón: acredita al entrar. Se dan desde el evento.", "", "guion", true},
+        {"registro", "Sala y público", "Registro de personas (tótems)",
+         "Una TV con cámara o el celular de quien escanea el QR: se registra hablando. Uno o varios por evento.", "",
+         "personas", true},
         {"prompter-control", "Producción", "Teleprompter: control",
          "El celular del operador o del orador: avanzar, pausar, velocidad.", "prompter-control", "prompter"},
         {"prompter-orador", "Producción", "Teleprompter: lo que lee el orador",
@@ -244,6 +247,9 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
             poner(segunEnlaces());
     } else if (id == "pantallas") {
         poner(enLinea ? estado("ok", "Cada televisor, desde Pantallas") : estado("error", "La sala no responde"));
+    } else if (id == "registro") {
+        // Sin enlace acá: el de cada tótem lleva su token y se da desde Personas.
+        poner(enLinea ? estado("ok", "Uno por tótem, desde Personas → Registro") : estado("error", "La sala no responde"));
     } else if (id == "invitaciones") {
         poner(enLinea ? estado("ok", "Una por persona, desde el evento") : estado("error", "La sala no responde"));
     } else if (id == "tunel") {

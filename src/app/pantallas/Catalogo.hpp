@@ -13,7 +13,7 @@
 // Cada cosa tiene:
 //   id       corto y ESTABLE: es lo que se guarda (el monitor recuerda «escena:
 //            Plano general», no un índice) y lo que se pide por MCP.
-//   grupo    programa | escena | multiview | video | tarjeta | panel | pagina | fondo | web
+//   grupo    programa | escena | multiview | video | tarjeta | panel | pagina | fondo | web | registro
 //   titulo   para leer.
 //   dibujo   cómo se dibuja EN ESTA MÁQUINA (ventana o monitor), o vacío si no
 //            se puede (un cartel de la TV es una página del gateway):
@@ -104,6 +104,10 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
         /// [{clave, titulo}] con las claves de FrameService («guest:1»,
         /// «entrada:Cámara 1»). Van como «video:<clave>».
         std::function<QVariantList()> videos;
+        /// Los tótems de registro (ui/TotemsViewModel): [{id, nombre, urlPantalla}].
+        /// Van como «registro:<id>» y solo a la TV: la página con ?pantalla=1
+        /// muestra el QR para registrarse desde el celular.
+        std::function<QVariantList()> totems;
     };
 
     using Cosa = CosaVisible;
