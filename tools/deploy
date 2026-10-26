@@ -304,6 +304,7 @@ if command -v sha256sum >/dev/null 2>&1; then SHA=(sha256sum); else SHA=(shasum 
 if [ -n "${BA_MANIFEST_CACHE:-}" ]; then
   if stat --version >/dev/null 2>&1; then STATF=(stat -c '%Z|%s|%n'); else STATF=(stat -f '%c|%z|%N'); fi
   ( cd "$BUNDLE_DIR" && xargs -0 "${STATF[@]}" < "$MTMP/lista" ) > "$MTMP/ahora"
+  mkdir -p "$(dirname "$BA_MANIFEST_CACHE")" # la primera vez la carpeta de atajos no existe
   [ -f "$BA_MANIFEST_CACHE" ] || : > "$BA_MANIFEST_CACHE"
   # Del cache, los que siguen iguales (ruta\thash); los otros, a calcular.
   awk -F'|' -v sabidos="$MTMP/sabidos" -v faltan="$MTMP/faltan" '
