@@ -1,0 +1,159 @@
+// ============================================================================
+// src/app/registro/AgenteTotem.cpp — ver AgenteTotem.hpp
+// ============================================================================
+#include "registro/AgenteTotem.hpp"
+
+#include <QPointer>
+
+#include "ajustes/Ajustes.hpp"
+
+namespace ba::registro {
+
+AgenteTotem::Tiempos AgenteTotem::tiemposDeAjustes() {
+    Tiempos t;
+    t.primeraMs = ba::ajustes::sAMs("registro.agentePrimeraS", 5);
+    t.turnoMs = ba::ajustes::sAMs("registro.agenteTurnoS", 15);
+    t.fallasMax = ba::ajustes::entero("registro.agenteFallas", 2);
+    return t;
+}
+
+AgenteTotem::AgenteTotem(ba::app::agent::FuenteMirada fuente, std::string prompt, Conversacion& conv, Tiempos tiempos,
+                         QObject* parent)
+    : QObject(parent), fuente_(std::move(fuente)), conv_(conv), agente_(std::move(prompt), fuente_.modelo),
+      tiempos_(tiempos) {
+    primera_.setSingleShot(true);
+    tope_.setSingleShot(true);
+    connect(&primera_, &QTimer::timeout, this, [this]() {
+        falla("no empezó a contestar en " + std::to_string(tiempos_.primeraMs / 1000) + " s");
+    });
+    connect(&tope_, &QTimer::timeout, this,
+            [this]() { falla("tardó más de " + std::to_string(tiempos_.turnoMs / 1000) + " s en contestar"); });
+    conv_.usarModelo(true);
+}
+
+AgenteTotem::~AgenteTotem() {
+    if (pedido_) pedido_->cancelar();
+}
+
+bool AgenteTotem::oido(const std::string& dicho) {
+    if (caido_ || !conv_.enCurso() || conv_.atendida()) return false;
+    if (ocupado_) {
+        // Siguió hablando mientras el modelo pensaba: va todo junto en el turno siguiente.
+        pendiente_ += (pendiente_.empty() ? "" : " ") + dicho;
+        return true;
+    }
+    if (conv_.paraElGuion(dicho)) return false;
+    empezar(dicho);
+    return true;
+}
+
+void AgenteTotem::cancelar() {
+    if (pedido_) pedido_->cancelar();
+    pedido_.reset();
+    primera_.stop();
+    tope_.stop();
+    ocupado_ = false;
+    pendiente_.clear();
+    frases_.terminar();
+}
+
+void AgenteTotem::empezar(const std::string& dicho) {
+    ocupado_ = true;
+    dicho_ = dicho;
+    texto_.clear();
+    frases_.terminar();
+    dijoAlgo_ = rechazos_ = false;
+    mandar(agente_.empezarTurno(conv_, dicho));
+    tope_.start(tiempos_.turnoMs);
+}
+
+void AgenteTotem::mandar(const nlohmann::json& cuerpo) {
+    empezo_ = false;
+    primera_.start(tiempos_.primeraMs);
+    QPointer<AgenteTotem> yo(this);
+    pedido_ = ba::app::agent::ChatEnVivo::el().pedir(
+        fuente_, cuerpo, this,
+        [yo](const std::string& nuevo) {
+            if (yo) yo->alNuevo(nuevo);
+        },
+        [yo](TurnoModelo t, std::string error) {
+            if (yo) yo->alTerminarVuelta(t, error);
+        });
+}
+
+void AgenteTotem::alNuevo(const std::string& nuevo) {
+    if (!ocupado_) return;
+    empezo_ = true;
+    primera_.stop();
+    if (nuevo.empty()) return;
+    texto_ += nuevo;
+    if (alTexto) alTexto(paraHablar(texto_));
+    // La primera frase sale apenas está entera: la voz arranca mientras el modelo sigue.
+    for (const std::string& f : frases_.agregar(nuevo)) {
+        const std::string h = paraHablar(f);
+        if (!h.empty() && alFrase) alFrase(h);
+    }
+}
+
+void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& error) {
+    if (!ocupado_) return;
+    pedido_.reset();
+    primera_.stop();
+    if (!error.empty()) {
+        falla(error);
+        return;
+    }
+    if (const std::string resto = paraHablar(frases_.terminar()); !resto.empty() && alFrase) alFrase(resto);
+    const AgenteRegistro::Vuelta v = agente_.alTerminarVuelta(conv_, t);
+    dijoAlgo_ = v.dijoAlgo;
+    rechazos_ = v.rechazos;
+    if (v.otraVuelta) {
+        // Algo no validó: una vuelta más para que lo repregunte (dentro del mismo tope).
+        mandar(v.cuerpo);
+        return;
+    }
+    tope_.stop();
+    fallas_ = 0;
+    bool usarGuion = false;
+    Conversacion::Respuesta r = conv_.despuesDelModelo(v.dijoAlgo, v.rechazos, usarGuion);
+    if (usarGuion) r = conv_.oido(dicho_); // no anotó ni dijo nada: lo entiende el guion
+    cerrar(r, usarGuion);
+}
+
+void AgenteTotem::falla(const std::string& motivo) {
+    if (!ocupado_) return;
+    if (pedido_) pedido_->cancelar();
+    pedido_.reset();
+    primera_.stop();
+    tope_.stop();
+    frases_.terminar();
+    if (++fallas_ >= tiempos_.fallasMax && !caido_) {
+        caido_ = true;
+        motivo_ = motivo;
+        conv_.usarModelo(false);
+        if (alCaer) alCaer(motivo);
+    }
+    // Lo que el modelo alcanzó a anotar (una primera vuelta) queda; si no anotó nada, el guion
+    // entiende lo oído con sus normalizadores, como sin modelo.
+    bool usarGuion = false;
+    Conversacion::Respuesta r = conv_.despuesDelModelo(dijoAlgo_, rechazos_, usarGuion);
+    if (usarGuion) r = conv_.oido(dicho_);
+    cerrar(r, true);
+}
+
+void AgenteTotem::cerrar(const Conversacion::Respuesta& r, bool porGuion) {
+    ocupado_ = false;
+    agente_.anotarIntercambio(dicho_, paraHablar(texto_ + (texto_.empty() || r.decir.empty() ? "" : " ") + r.decir));
+    // `alListo` puede terminar la conversación (o borrar esto): lo juntado se toma antes.
+    const std::string juntado = std::move(pendiente_);
+    pendiente_.clear();
+    QPointer<AgenteTotem> yo(this);
+    if (alListo) alListo(r, porGuion);
+    if (!yo || juntado.empty() || !conv_.enCurso()) return;
+    if (!oido(juntado)) {
+        const Conversacion::Respuesta r2 = conv_.oido(juntado);
+        if (alListo) alListo(r2, true);
+    }
+}
+
+} // namespace ba::registro

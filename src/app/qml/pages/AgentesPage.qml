@@ -107,6 +107,8 @@ Rectangle {
                                 Layout.fillWidth: false
                                 Layout.preferredWidth: 110
                                 spacing: 1
+                                // Un rol que usa la app por dentro (el tótem) no corre en una consola.
+                                visible: fila.modelData.enLaApp !== true
                                 RowLayout {
                                     spacing: 6
                                     Toggle {
@@ -180,6 +182,7 @@ Rectangle {
                             GlassButton {
                                 compact: true; text: "Hablar directo"; icon: "✎"
                                 enabled: fila.modelData.activo
+                                visible: fila.modelData.enLaApp !== true // no se le encargan cosas: lo usa la app
                                 onClicked: encargo.visible = !encargo.visible
                                 ToolTip.visible: hovered; ToolTip.delay: 400
                                 ToolTip.text: "Pedirle algo a este rol ahora, sin esperar un disparador"
@@ -255,8 +258,23 @@ Rectangle {
                         }
                         Text {
                             Layout.leftMargin: 56
+                            visible: fila.modelData.enLaApp !== true
                             text: "ve: " + fila.modelData.categorias.join(", ") + "   ·   atiende: " + fila.modelData.disparadores.join(", ")
                             color: Theme.textFaint; font.pixelSize: 10
+                        }
+                        // El rol del tótem: corre en la app (sin consola) y entiende lo que dice la gente.
+                        // Con un motor que no es el local, lo que dicen (sus datos) sale de la máquina.
+                        Text {
+                            Layout.leftMargin: 56
+                            Layout.fillWidth: true
+                            visible: fila.modelData.enLaApp === true
+                            wrapMode: Text.WordWrap
+                            readonly property bool local: fila.modelData.proveedor === "" || fila.modelData.proveedor === "local"
+                            text: local ? "Corre en la app, con el modelo local: contesta en el acto y lo que dice la gente no sale de esta máquina."
+                                        : "Atención: con este motor, lo que dice la gente en el tótem (sus datos) sale de esta máquina hacia ese servicio. " +
+                                          "Sirven el modelo propio, OpenRouter y Gemini con clave; los de cuenta (Claude, OpenCode Go) no."
+                            color: local ? Theme.textFaint : Theme.amber
+                            font.pixelSize: 10
                         }
                     }
                 }

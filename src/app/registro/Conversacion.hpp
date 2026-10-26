@@ -21,6 +21,11 @@
 // ortega arroba gmail punto com», «once cuatro cinco seis…» o «dale»: de eso
 // se ocupan los normalizadores de abajo (públicos para probarlos uno por uno,
 // test_registro_conversacion). Castellano rioplatense.
+//
+// CON UN MODELO (2026-10-26): el guion sigue llevando la estructura, pero lo que se le oye lo
+// entiende además un modelo de lenguaje (registro/AgenteRegistro), que anota por acá
+// (proponer) los datos dichos de una o corregidos; ver la región «Con un modelo que entiende».
+// Sin modelo, todo es como antes.
 // ============================================================================
 #pragma once
 
@@ -200,6 +205,50 @@ class Conversacion {
     /// Las etiquetas de los obligatorios que todavía no tienen dato.
     std::vector<std::string> faltan() const;
 
+    // --- Con un modelo que entiende (iniciativa mixta; registro/AgenteRegistro) ----------------
+    // El guion sigue llevando la estructura (pregunta campo por campo, confirma, foto,
+    // documento): es lo que guía a quien no sabe qué contestar. Pero quien contesta todo de
+    // una («soy Jorge Ortega, mi correo es…, mi teléfono…») o corrige («no, el correo es con
+    // jota») no entra en un normalizador por campo: eso lo entiende un modelo de lenguaje, que
+    // anota CADA dato por acá (la herramienta `registro_poner`). Lo anotado queda PENDIENTE:
+    // el guion lo confirma todo junto en una frase («Anoté nombre Jorge Ortega y correo…; ¿es
+    // correcto?») y, al avanzar, saltea lo que ya tiene dato. El modelo no inventa: lo que no
+    // pasa por entender() no se anota.
+
+    /// Hay un modelo andando para esta conversación (cambia cómo se pide una corrección: con
+    /// modelo, «¿qué dato está mal?»; sin él, se pregunta todo de nuevo).
+    void usarModelo(bool si) { modelo_ = si; }
+    bool conModelo() const { return modelo_; }
+    /// Si lo oído lo resuelve el guion solo, al instante y sin preguntarle al modelo:
+    /// cancelar, repetir, un sí o un no suelto confirmando, y todo mientras busca la foto o
+    /// el documento (o si no está en curso, o la atiende una persona).
+    bool paraElGuion(const std::string& dicho) const;
+    /// Empieza un turno del modelo: lo que se cuenta como «de este turno» vuelve a cero.
+    void empezarTurnoModelo();
+    /// Un dato que entendió el modelo (`clave` de un campo, `valor` como texto). Pasa por
+    /// entender(); si no se entiende, false y `error` dice por qué (para que repregunte).
+    /// `comoQuedo`, lo anotado como se lo diría en voz alta.
+    bool proponer(const std::string& clave, const std::string& valor, std::string& error,
+                  std::string* comoQuedo = nullptr);
+    /// La persona dijo que sí a lo que se le estaba confirmando (lo pendiente de ANTES de este
+    /// turno: lo que el modelo acaba de anotar todavía no se le leyó). false si no había nada.
+    bool confirmarPendientes();
+    /// Terminó el turno del modelo. `dijoAlgo`: contestó con texto (una pregunta sobre el
+    /// evento, una repregunta); `rechazos`: alguna herramienta no validó. Con lo anotado, el
+    /// guion lo confirma o sigue; si no anotó nada y contestó algo, el guion retoma lo que
+    /// estaba preguntando. `usarGuion` = true si el modelo no hizo nada útil: quien llama le
+    /// pasa lo oído al guion (oido()), como sin modelo.
+    Respuesta despuesDelModelo(bool dijoAlgo, bool rechazos, bool& usarGuion);
+    /// Lo que se le estaba diciendo, para retomarlo (la pregunta, o la confirmación).
+    std::string retomar() const;
+    /// Para el modelo: {pregunta, campo, anotados: {clave: valor}, pendientes: [claves],
+    /// faltan: [claves], confirmando, corrigiendo}.
+    nlohmann::json estadoParaModelo() const;
+    /// Hay datos anotados por el modelo esperando el «sí».
+    bool hayPendientes() const;
+    /// El nombre del evento (lo que va en {evento}).
+    const std::string& evento() const { return evento_; }
+
    private:
     std::string pregunta(std::size_t i) const;
     std::string reintento(const Campo& c, int intento) const;
@@ -230,6 +279,20 @@ class Conversacion {
     // Atendida por una persona (ver arriba).
     bool atendida_ = false;
     std::string atendidaPor_;
+    // Con un modelo que entiende (ver arriba).
+    /// Lo que se confirma todo junto (lo dicho por el modelo, o lo pendiente de varios datos).
+    std::string fraseConfirmarVarios() const;
+    Respuesta oidoConfirmandoVarios(const std::string& texto);
+    /// Lo pendiente queda anotado tal cual (lo atiende una persona, que lo ve y lo corrige).
+    void aceptarPendientes();
+    bool modelo_ = false;
+    std::vector<bool> pendiente_;        ///< anotado por el modelo, sin el «sí» todavía
+    std::vector<bool> pendienteAntes_;   ///< los pendientes al empezar el turno del modelo
+    bool confirmandoVarios_ = false;     ///< Confirmando lo pendiente (no `propuesto_`)
+    bool corrigiendo_ = false;           ///< dijo que no a varios: «¿qué dato está mal?»
+    int anotadosTurno_ = 0;              ///< datos que el modelo anotó sin confirmar (confirmar apagado)
+    int propuestosTurno_ = 0;            ///< datos que el modelo anotó en este turno (con o sin confirmar)
+    bool confirmoTurno_ = false;         ///< el modelo confirmó lo pendiente en este turno
 };
 
 } // namespace ba::registro

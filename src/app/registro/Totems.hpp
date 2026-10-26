@@ -100,6 +100,14 @@ struct Totem {
     /// Al final, pedirle que mire derecho a la cámara y esperar una toma de frente y
     /// nítida: es la foto de su ficha y la cara con que se lo va a reconocer.
     bool foto = true;
+    /// La ficha del evento: lo que el asistente puede contestar si le preguntan («¿a qué hora
+    /// empieza?», «¿dónde es la charla?»): horarios, lugar, salas, en texto libre. Solo eso:
+    /// a lo demás dice amablemente que no puede ayudar (el rol «registro», agent/Roles).
+    std::string ficha;
+    /// Entender lo que dice con el modelo del rol «registro» (iniciativa mixta: el guion
+    /// pregunta, el modelo entiende respuestas largas, correcciones y preguntas). Apagado, o sin
+    /// modelo, el guion solo con sus normalizadores. Ver registro/AgenteRegistro.
+    bool conModelo = true;
     std::vector<Campo> campos;
 
     nlohmann::json aJson() const;

@@ -154,6 +154,8 @@ json Totem::aJson() const {
                 {"confirmar", confirmar},
                 {"reconocer", reconocer},
                 {"foto", foto},
+                {"ficha", ficha},
+                {"conModelo", conModelo},
                 {"campos", cs}};
 }
 
@@ -170,6 +172,8 @@ Totem Totem::deJson(const json& j) {
     t.confirmar = boolDe(j, "confirmar", t.confirmar);
     t.reconocer = boolDe(j, "reconocer", t.reconocer);
     t.foto = boolDe(j, "foto", t.foto);
+    t.ficha = textoDe(j, "ficha", t.ficha);
+    t.conModelo = boolDe(j, "conModelo", t.conModelo);
     if (j.is_object() && j.contains("campos") && j["campos"].is_array()) {
         t.campos.clear();
         for (const json& c : j["campos"]) t.campos.push_back(Campo::deJson(c));
@@ -241,6 +245,9 @@ std::string validar(const Totem& t) {
         if (c.tipo == TipoCampo::Opcion && c.opciones.size() < 2)
             return "El campo «" + (c.etiqueta.empty() ? c.clave : c.etiqueta) + "» es de opciones: hacen falta al menos dos.";
     }
+    // La ficha va entera en cada pedido al modelo: larga, el modelo local tarda más en cada
+    // respuesta (y se dice en voz alta lo que haga falta, no un folleto).
+    if (t.ficha.size() > 4000) return "La ficha del evento es muy larga (hasta 4000 letras): dejá lo que se pregunta en la puerta.";
     return {};
 }
 

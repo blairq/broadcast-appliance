@@ -50,6 +50,10 @@ struct HttpRequest {
     std::uint64_t resumeFrom = 0;
     /// Si se pone en true, la descarga se corta (error "cancelado").
     const std::atomic<bool>* cancel = nullptr;
+    /// Si está, el cuerpo de una respuesta 2xx va llegando acá a medida que se lee (ya sin el
+    /// «chunked») y `body` queda vacío: una respuesta en streaming, como los eventos SSE de un
+    /// modelo que escribe de a poco (agent/ChatEnVivo). También mira `cancel`.
+    std::function<void(const char* datos, std::size_t n)> bodyChunk;
 };
 
 struct HttpResponse {

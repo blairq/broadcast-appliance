@@ -936,6 +936,21 @@ endif()
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_registro_atencion PRIVATE nlohmann_json::nlohmann_json ba_core) # ba_core: el paso «documento»
     add_test(NAME test_registro_atencion COMMAND test_registro_atencion)
+    # El modelo que entiende en el tótem (iniciativa mixta): frases, streaming, herramientas y turnos, sin red.
+    add_executable(test_registro_agente tests/test_registro_agente.cpp registro/AgenteRegistro.cpp registro/Conversacion.cpp
+                   registro/Totems.cpp)
+    target_include_directories(test_registro_agente PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_agente PRIVATE nlohmann_json::nlohmann_json ba_core)
+    add_test(NAME test_registro_agente COMMAND test_registro_agente)
+    # El ciclo entero contra un servidor de chat-completions falso (streaming, tiempos, la cola).
+    add_executable(test_registro_agente_totem tests/test_registro_agente_totem.cpp registro/AgenteTotem.cpp
+                   registro/AgenteTotem.hpp agent/ChatEnVivo.cpp net/HttpsClient.cpp registro/AgenteRegistro.cpp
+                   registro/Conversacion.cpp registro/Totems.cpp)
+    target_include_directories(test_registro_agente_totem PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_agente_totem PRIVATE ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto
+                          nlohmann_json::nlohmann_json)
+    set_target_properties(test_registro_agente_totem PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_registro_agente_totem COMMAND test_registro_agente_totem)
     # El dorso del documento leído por el modelo propio: el pedido y la validación de lo que contesta.
     add_executable(test_documento_dorso tests/test_documento_dorso.cpp agent/MiradaCuerpo.cpp)
     target_include_directories(test_documento_dorso PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

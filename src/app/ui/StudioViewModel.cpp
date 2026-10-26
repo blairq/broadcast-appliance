@@ -2070,6 +2070,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // no haya motor de voz: la configuración y el catálogo no dependen de él.
     totems_ = std::make_unique<TotemsViewModel>(rt, *this, voz_.get(), modelos_.get());
     connect(totems_.get(), &TotemsViewModel::notify, this, &StudioViewModel::notify);
+    // El modelo que entiende en los tótems es el del rol «registro» (pestaña Agentes): si lo
+    // cambian (motor, modelo, apagarlo), la página de tótems dice con qué entiende.
+    if (roles_) totems_->setRoles(roles_.get());
+    if (despachador_) connect(despachador_.get(), &agent::Despachador::cambio, totems_.get(), &TotemsViewModel::cambio);
     if (catalogo_) connect(totems_.get(), &TotemsViewModel::cambio, catalogo_.get(), [this]() { catalogo_->refrescar(); });
     if (qr_) qr_->setTotems([this]() { return totems_ ? totems_->paraElegir() : QVariantList{}; });
     if (catalogo_) catalogo_->refrescar();

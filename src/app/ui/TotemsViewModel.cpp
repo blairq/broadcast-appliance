@@ -18,7 +18,9 @@
 #include <atomic>
 #include <vector>
 
+#include "agent/ChatEnVivo.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "agent/Roles.hpp"
 #include "agent/ServidorModeloLocal.hpp"
 #include "agent/Voz.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -28,6 +30,7 @@
 #include "documentos/Mrz.hpp"
 #include "emision/OperatorFeed.hpp"
 #include "emision/VozAlLobby.hpp"
+#include "registro/AgenteTotem.hpp"
 #include "registro/Conversacion.hpp"
 #include "sala/Direcciones.hpp"
 #include "sala/Pedido.hpp"
@@ -115,6 +118,22 @@ json datosParaAfuera(const json& datos) {
     return out;
 }
 
+/// El llama-server del programa como lo piden los tótems: la visión (el dorso) y el modelo que
+/// entiende (el rol «registro») con el MISMO pedido, así comparten un solo servidor cargado.
+/// `gguf` vacío = el del modelo local activo.
+agent::ServidorModeloLocal::Pedido pedidoLocal(agent::ModelosLocales* ml, AppRuntime& rt, const QString& gguf = {}) {
+    agent::ServidorModeloLocal::Pedido p;
+    p.ejecutable = agent::ServidorModeloLocal::ejecutable();
+    p.gguf = !gguf.isEmpty() ? gguf : ml != nullptr ? ml->ggufParaChat() : QString();
+    p.mmproj = ml != nullptr ? ml->mmprojPara(p.gguf) : QString();
+    p.capasGpu = rt.config().modeloCapasGpu;
+    p.contexto = rt.config().modeloContexto; // el mismo que el chat: comparten el servidor
+    p.logs = QString::fromStdWString((rt.dataRoot() / "Logs").wstring());
+    p.cargaS = ba::ajustes::entero("modelo.cargaS", 180);
+    p.noReiniciar = true; // si el chat tiene cargado otro modelo, no se lo saca
+    return p;
+}
+
 EventoViewModel* eventoDe(StudioViewModel& vm) { return static_cast<EventoViewModel*>(vm.evento()); }
 PersonasViewModel* personasDe(StudioViewModel& vm) { return static_cast<PersonasViewModel*>(vm.personas()); }
 ConferenceClient* clienteDe(StudioViewModel& vm) {
@@ -184,6 +203,14 @@ struct TotemsViewModel::Conexion {
     QString atiendeConn;
     bool enAtencion = false;
     std::shared_ptr<std::atomic<bool>> mudo = std::make_shared<std::atomic<bool>>(false);
+    // El modelo que entiende (región propia al final). Declarado después de `conv`, que usa: se
+    // destruye antes. `piezas`: frases en la síntesis (la voz termina con la última);
+    // `textoModelo`: lo que escribió en este turno; `diceAntes`: va adelante de lo próximo que
+    // diga el guion en la pantalla (lo del modelo ya se dijo en voz).
+    std::unique_ptr<registro::AgenteTotem> agente;
+    int piezas = 0;
+    std::string textoModelo;
+    std::string diceAntes;
 };
 
 TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz* voz, agent::ModelosLocales* modelos,
@@ -250,16 +277,7 @@ TotemsViewModel::TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz
         };
         AppRuntime* rt = &rt_;
         v.pedir = [ml, rt](QObject* quien, std::function<void(quint16, QString)> listo) {
-            agent::ServidorModeloLocal::Pedido p;
-            p.ejecutable = agent::ServidorModeloLocal::ejecutable();
-            p.gguf = ml != nullptr ? ml->ggufParaChat() : QString();
-            p.mmproj = ml != nullptr ? ml->mmprojPara(p.gguf) : QString();
-            p.capasGpu = rt->config().modeloCapasGpu;
-            p.contexto = rt->config().modeloContexto; // el mismo que el chat: comparten el servidor
-            p.logs = QString::fromStdWString((rt->dataRoot() / "Logs").wstring());
-            p.cargaS = ba::ajustes::entero("modelo.cargaS", 180);
-            p.noReiniciar = true; // si el chat tiene cargado otro modelo, no se lo saca
-            agent::ServidorModeloLocal::el().pedir(quien, p, std::move(listo));
+            agent::ServidorModeloLocal::el().pedir(quien, pedidoLocal(ml, *rt), std::move(listo));
         };
         v.soltar = [](QObject* quien) { agent::ServidorModeloLocal::el().soltar(quien); };
         lector_->setVisionLocal(std::move(v));
@@ -660,7 +678,10 @@ void TotemsViewModel::soltar(const QString& conn) {
     if (it == conns_.end()) return;
     cerrarAudio(*it->second);
     conns_.erase(it);
-    if (conns_.empty()) tic_.stop();
+    if (conns_.empty()) {
+        tic_.stop();
+        soltarModelo();
+    }
     emit vivoCambio();
 }
 
@@ -683,6 +704,7 @@ void TotemsViewModel::alEvento(const json& ev) {
         Conexion& c = conexion(conn, totem);
         c.ip = QString::fromStdString(texto(ev, "ip"));
         c.lugar = QString::fromStdString(texto(ev, "lugar"));
+        prepararModelo(); // que el modelo que entiende ya esté cargado cuando alguien hable
         mandarPantalla(c);
         emit vivoCambio();
         emit cambio(); // `conectados` de cada tótem
@@ -695,7 +717,10 @@ void TotemsViewModel::alEvento(const json& ev) {
         if (k == c.canal) return;
         cerrarAudio(c);
         // Sin canal no hay voz: lo que se conversaba se pierde (no se guarda a medias).
-        if (k == 0 && c.conv != nullptr && c.conv->enCurso()) c.conv.reset();
+        if (k == 0 && c.conv != nullptr && c.conv->enCurso()) {
+            c.agente.reset(); // usa la conversación
+            c.conv.reset();
+        }
         c.canal = k;
         if (k > 0) {
             c.canalDesdeMs = ahoraMs();
@@ -894,9 +919,11 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     cara.personaId = personaId.toStdString();
     cara.nombre = nombre.toStdString();
     cara.yaRegistrado = !personaId.isEmpty() && ev != nullptr && ev->registradoPorTotem(personaId);
+    c.agente.reset(); // el de la conversación anterior
     c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_);
     // El dorso se ofrece solo si hay con qué leerlo (el modelo propio del operador).
     c.conv->ofrecerDorso(lector_ && lector_->dorsoDisponible());
+    crearAgente(c); // el modelo que entiende, si hay (si no, el guion solo)
     c.primeraDelCanal = false;
     c.esperaVacio = false;
     c.pedidoEnviado.clear();
@@ -926,6 +953,10 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
     }
     if (c.conv != nullptr && c.conv->enCurso()) {
         if (!c.buscandoFoto) enviar(conn, {{"type", "estado"}, {"estado", "pensando"}});
+        if (alOidoAgente(c, c.oidoTexto.toStdString())) { // lo entiende el modelo (y el guion retoma)
+            emit vivoCambio();
+            return;
+        }
         const auto r = c.conv->oido(c.oidoTexto.toStdString());
         aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     }
@@ -939,10 +970,12 @@ void TotemsViewModel::alToque(Conexion& c, const json& ev) {
         const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
         empezar(c, conocida ? c.ultimaCara : QString(), conocida ? c.ultimoNombre : QString());
     } else if (c.conv != nullptr && accion == "cancelar") {
+        if (c.agente) c.agente->cancelar();
         const auto r = c.conv->cancelar();
         aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     } else if (c.conv != nullptr && accion == "escrito") {
         c.ultimaVozMs = ahoraMs();
+        if (c.agente) c.agente->cancelar(); // lo tocado manda sobre lo que el modelo estuviera pensando
         const auto r = c.conv->escrito(texto(ev, "clave"), texto(ev, "valor"));
         aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     }
@@ -992,6 +1025,7 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
     if (!decirTxt.empty()) decir(c, decirTxt);
     if (guardar) guardarRegistro(c);
     if (terminar && c.enAtencion) liberarAtencion(c); // cancelada desde el tótem, por ejemplo
+    if (terminar && c.agente) c.agente->cancelar();
     if (terminar) {
         if (c.hablando) {
             c.listoPendiente = decirTxt;
@@ -1013,8 +1047,15 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
 }
 
 void TotemsViewModel::decir(Conexion& c, const std::string& t) {
-    c.diceTexto = QString::fromStdString(t);
-    enviar(c.conn, {{"type", "dice"}, {"texto", t}});
+    // Lo que dijo el modelo en este turno (ya en voz) queda en la pantalla adelante.
+    const std::string pantalla = c.diceAntes.empty() ? t : c.diceAntes + " " + t;
+    c.diceAntes.clear();
+    c.diceTexto = QString::fromStdString(pantalla);
+    enviar(c.conn, {{"type", "dice"}, {"texto", pantalla}});
+    hablar(c, t);
+}
+
+void TotemsViewModel::hablar(Conexion& c, const std::string& t) {
 #if defined(BA_HAVE_VOZ)
     const int k = c.canal;
     AtencionViewModel* a = vm_.atencionVm();
@@ -1024,6 +1065,7 @@ void TotemsViewModel::decir(Conexion& c, const std::string& t) {
         c.mudo->store(false);
         c.hablando = true;
         c.sintetizando = true;
+        ++c.piezas; // varias frases en cola (el modelo, frase por frase): la voz termina con la última
         c.finHablaMs = 0;
         c.callado->store(true);
         if (c.estado != "listo") {
@@ -1040,7 +1082,10 @@ void TotemsViewModel::decir(Conexion& c, const std::string& t) {
             [yo, conn]() {
                 QMetaObject::invokeMethod(yo.data(), [yo, conn]() {
                     if (!yo) return;
-                    if (auto it = yo->conns_.find(conn); it != yo->conns_.end()) it->second->sintetizando = false;
+                    if (auto it = yo->conns_.find(conn); it != yo->conns_.end() && --it->second->piezas <= 0) {
+                        it->second->piezas = 0;
+                        it->second->sintetizando = false;
+                    }
                 });
             });
         return;
@@ -1107,7 +1152,8 @@ void TotemsViewModel::tic() {
             const VozAlLobby* v = c.canal > 0 && c.canal < static_cast<int>(voces_.size())
                                       ? voces_[static_cast<std::size_t>(c.canal)].get()
                                       : nullptr;
-            const bool salio = !c.sintetizando && (v == nullptr || v->pendiente() < 0.02);
+            const bool salio = !c.sintetizando && (v == nullptr || v->pendiente() < 0.02) &&
+                               !(c.agente && c.agente->ocupado()); // el modelo sigue escribiendo: viene otra frase
             if (salio && c.finHablaMs == 0) c.finHablaMs = ahora;
             if (salio && ahora - c.finHablaMs >= kMargenVozMs) {
                 c.hablando = false;
@@ -1329,7 +1375,12 @@ QVariantMap TotemsViewModel::filaDe(const Conexion& c) const {
                                        ? QString::fromStdString(c.conv->atendidaPor().empty() ? std::string("alguien del equipo")
                                                                                               : c.conv->atendidaPor())
                                        : QString()},
-                       {"campos", c.conv != nullptr ? aQv(c.conv->camposParaMostrar()) : QVariant(QVariantList{})}};
+                       {"campos", c.conv != nullptr ? aQv(c.conv->camposParaMostrar()) : QVariant(QVariantList{})},
+                       // Con qué entiende esta conversación: el modelo del rol «registro» o el guion solo.
+                       {"modo", c.agente && !c.agente->caido() ? QString("agente") : QString("guion")},
+                       {"modelo", c.agente ? QString::fromStdString(c.agente->fuente().nombre) : QString()},
+                       {"modoPorQue", c.agente && c.agente->caido() ? QString::fromStdString(c.agente->motivoCaida())
+                                                                    : QString()}};
 }
 
 QVariantList TotemsViewModel::conexiones() const {
@@ -1361,6 +1412,7 @@ json TotemsViewModel::estadoJson() const {
     return {{"conexiones", cs},
             {"atienden", atencionJson()["atienden"]},
             {"hablarFalta", hablarFalta().toStdString()},
+            {"agente", agente().toStdString()},
             {"enLinea", enLinea()},
             {"conversando", std::count_if(conns_.begin(), conns_.end(),
                                           [](const auto& p) { return p.second->conv && p.second->conv->enCurso(); })}};
@@ -1562,6 +1614,7 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
         // Todavía no conversa (o ya terminó y la persona sigue ahí): empieza una, atendida.
         const registro::Totem* t = totems_.porId(c.totem.toStdString());
         if (t == nullptr) return "Ese tótem ya no existe.";
+        c.agente.reset(); // usa la conversación anterior
         c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_);
         const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
         if (conocida) c.conv->conocerCara({c.ultimaCara.toStdString(), c.ultimoNombre.toStdString(), false});
@@ -1570,6 +1623,7 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
         c.pedidoEnviado.clear();
     }
     if (!c.conv->atender(quien.toStdString())) return "Esa conversación ya terminó.";
+    if (c.agente) c.agente->cancelar(); // lo que el modelo estuviera pensando ya no se dice
     callarAsistente(c);
     c.atiendeConn = aconn;
     c.enAtencion = true;
@@ -1697,6 +1751,171 @@ bool TotemsViewModel::alEventoAtencion(const json& ev) {
                         [](const std::string&, const json&) {});
     }
     return true;
+}
+
+// ============================================================================
+// El modelo que entiende (el rol «registro»; registro/AgenteRegistro, registro/AgenteTotem)
+//
+// Iniciativa mixta: el guion pregunta y confirma; el modelo entiende lo que la persona dice
+// (varios datos de una, correcciones, preguntas sobre el evento con la ficha del tótem) y anota
+// por herramientas que validan. Un AgenteTotem por conversación, con el servidor del rol: de
+// fábrica el llama-server del programa (se carga cuando se conecta un tótem y se suelta cuando
+// no queda ninguno), o el propio o uno de la nube si el organizador lo eligió en la pestaña
+// Agentes. Sin modelo, o si no contesta a tiempo, el guion solo.
+// ============================================================================
+
+void TotemsViewModel::setRoles(agent::Roles* roles) {
+    roles_ = roles;
+    emit cambio();
+}
+
+namespace {
+const agent::Rol* rolRegistro(const agent::Roles* roles) { return roles != nullptr ? roles->porId("registro") : nullptr; }
+bool esLocal(const agent::Rol& r) { return r.proveedor.empty() || r.proveedor == "local"; }
+} // namespace
+
+bool TotemsViewModel::agenteAfuera() const {
+    const agent::Rol* r = rolRegistro(roles_);
+    return r != nullptr && r->activo && !esLocal(*r);
+}
+
+QString TotemsViewModel::agente() const {
+    const agent::Rol* r = rolRegistro(roles_);
+    if (r == nullptr) return "Guion solo (sin el rol «registro»).";
+    if (!r->activo) return "Guion solo: el rol «" + QString::fromStdString(r->titulo) + "» está apagado (pestaña Agentes).";
+    if (esLocal(*r)) {
+        if (puertoLocal_ != 0) return "Entiende con el modelo local: lo que dice la gente no sale de esta máquina.";
+        if (pidiendoLocal_) return "Cargando el modelo local…";
+        if (!faltaLocal_.isEmpty()) return "Guion solo: " + faltaLocal_;
+        return "Con el modelo local (se carga cuando se conecta un tótem).";
+    }
+    agent::FuenteMirada f;
+    std::string falta;
+    if (!agent::ChatEnVivo::fuenteDeProveedor(r->proveedor, r->modelo, rt_.dataRoot(), f, &falta))
+        return "Guion solo: " + QString::fromStdString(falta) + ".";
+    return "Entiende con " + QString::fromStdString(f.nombre) +
+           ": lo que dice la gente (sus datos) sale de esta máquina hacia ese servicio.";
+}
+
+void TotemsViewModel::prepararModelo() {
+    const agent::Rol* r = rolRegistro(roles_);
+    if (r == nullptr || !r->activo || !esLocal(*r) || modelos_ == nullptr) return;
+    // El servidor se reinició (otro modelo para el chat, se cayó): se pide de nuevo.
+    if (puertoLocal_ != 0 && agent::ServidorModeloLocal::el().puerto() != puertoLocal_) puertoLocal_ = 0;
+    if (pidiendoLocal_ || puertoLocal_ != 0) return;
+    const bool alguno = std::any_of(totems_.lista().begin(), totems_.lista().end(),
+                                    [](const registro::Totem& t) { return t.activo && t.conModelo; });
+    if (!alguno) return;
+    QString falta;
+    const QString gguf = modelos_->ggufParaChat(QString::fromStdString(r->modelo), &falta);
+    if (gguf.isEmpty() || !QFileInfo::exists(agent::ServidorModeloLocal::ejecutable())) {
+        faltaLocal_ = gguf.isEmpty() ? (falta.isEmpty() ? QString("no hay un modelo local instalado") : falta)
+                                     : QString("falta llama-server en el programa");
+        emit cambio();
+        return;
+    }
+    pidiendoLocal_ = true;
+    faltaLocal_.clear();
+    emit cambio();
+    QPointer<TotemsViewModel> yo(this);
+    agent::ServidorModeloLocal::el().pedir(this, pedidoLocal(modelos_, rt_, gguf), [yo](quint16 puerto, QString error) {
+        if (!yo) return;
+        yo->pidiendoLocal_ = false;
+        yo->puertoLocal_ = puerto;
+        yo->faltaLocal_ = puerto != 0 ? QString() : error;
+        if (puerto == 0)
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
+                                       "el modelo de los tótems no cargó (sigue el guion solo): " + error.toStdString());
+        emit yo->cambio();
+    });
+}
+
+void TotemsViewModel::soltarModelo() {
+    if (puertoLocal_ == 0 && !pidiendoLocal_) return;
+    agent::ServidorModeloLocal::el().soltar(this); // sin nadie más que lo use, se apaga y libera la GPU
+    puertoLocal_ = 0;
+    pidiendoLocal_ = false;
+    emit cambio();
+}
+
+bool TotemsViewModel::fuenteAgente(agent::FuenteMirada& f, std::string& prompt, std::string& falta) const {
+    const agent::Rol* r = rolRegistro(roles_);
+    if (r == nullptr || !r->activo) {
+        falta = "el rol «registro» está apagado";
+        return false;
+    }
+    prompt = r->promptPropio.empty() ? r->prompt : r->promptPropio;
+    if (!esLocal(*r)) return agent::ChatEnVivo::fuenteDeProveedor(r->proveedor, r->modelo, rt_.dataRoot(), f, &falta);
+    if (puertoLocal_ == 0) {
+        falta = faltaLocal_.isEmpty() ? std::string("el modelo local todavía está cargando") : faltaLocal_.toStdString();
+        return false;
+    }
+    f.url = "http://127.0.0.1:" + std::to_string(puertoLocal_) + "/v1";
+    f.clave.clear();
+    f.modelo = "local"; // el alias del llama-server del programa
+    f.nombre = "modelo local";
+    return true;
+}
+
+void TotemsViewModel::crearAgente(Conexion& c) {
+    c.agente.reset();
+    c.textoModelo.clear();
+    c.diceAntes.clear();
+    if (c.conv == nullptr || !c.conv->totem().conModelo) return;
+    prepararModelo(); // por si el servidor se reinició: la próxima conversación ya lo tiene
+    agent::FuenteMirada f;
+    std::string prompt, falta;
+    if (!fuenteAgente(f, prompt, falta)) {
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                                   "tótem «" + c.totem.toStdString() + "» (" + c.conn.toStdString() +
+                                       "): guion solo (" + falta + ")");
+        return;
+    }
+    auto a = std::make_unique<registro::AgenteTotem>(f, prompt, *c.conv, registro::AgenteTotem::tiemposDeAjustes());
+    const QString conn = c.conn;
+    QPointer<TotemsViewModel> yo(this);
+    const auto de = [yo, conn]() -> Conexion* {
+        if (!yo) return nullptr;
+        const auto it = yo->conns_.find(conn);
+        return it == yo->conns_.end() ? nullptr : it->second.get();
+    };
+    // Lo que va escribiendo: a la pantalla del tótem en el acto (y a quien mira la conversación).
+    a->alTexto = [yo, de](const std::string& acumulado) {
+        Conexion* k = de();
+        if (k == nullptr) return;
+        k->textoModelo = acumulado;
+        k->diceTexto = QString::fromStdString(acumulado);
+        k->ultimaVozMs = ahoraMs(); // pensando no es un silencio
+        yo->enviar(k->conn, {{"type", "dice"}, {"texto", acumulado}});
+        emit yo->vivoCambio();
+    };
+    // Frase por frase a la voz, mientras sigue escribiendo.
+    a->alFrase = [yo, de](const std::string& frase) {
+        if (Conexion* k = de()) yo->hablar(*k, frase);
+    };
+    // Terminó el turno: lo que hace el guion (confirmar lo anotado, retomar la pregunta…).
+    a->alListo = [yo, de](const registro::Conversacion::Respuesta& r, bool) {
+        Conexion* k = de();
+        if (k == nullptr || k->conv == nullptr) return;
+        k->diceAntes = std::move(k->textoModelo);
+        k->textoModelo.clear();
+        k->ultimaVozMs = ahoraMs();
+        yo->aplicar(*k, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+        k->diceAntes.clear(); // si el guion no dijo nada, lo del modelo ya está en la pantalla
+    };
+    a->alCaer = [yo, de](const std::string& motivo) {
+        Conexion* k = de();
+        if (k == nullptr) return;
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
+                                   "tótem «" + k->totem.toStdString() + "» (" + k->conn.toStdString() +
+                                       "): el modelo no contesta, sigue el guion solo (" + motivo + ")");
+        emit yo->vivoCambio();
+    };
+    c.agente = std::move(a);
+}
+
+bool TotemsViewModel::alOidoAgente(Conexion& c, const std::string& texto) {
+    return c.agente != nullptr && c.agente->oido(texto);
 }
 
 } // namespace ba::app

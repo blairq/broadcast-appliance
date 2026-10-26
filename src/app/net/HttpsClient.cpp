@@ -438,6 +438,50 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         if ((total != 0 && got < total) || !out) res.error = "descarga incompleta";
         return res;
     }
+    if (req.bodyChunk && res.status >= 200 && res.status < 300 && req.method != "HEAD" && res.status != 204) {
+        // En streaming: cada pedazo apenas llega (quien lo usa arma los eventos). Lo mismo que
+        // abajo, pero entregando en vez de juntar.
+        const auto cancelado = [&]() {
+            if (req.cancel == nullptr || !req.cancel->load()) return false;
+            res.error = "cancelado";
+            return true;
+        };
+        if (chunked) {
+            size_t p = 0;
+            for (;;) {
+                if (cancelado()) return res;
+                size_t eol;
+                while ((eol = body.find("\r\n", p)) == std::string::npos)
+                    if (cancelado() || !readMore()) break;
+                eol = body.find("\r\n", p);
+                if (eol == std::string::npos) break;
+                const size_t n = std::strtoul(body.substr(p, eol - p).c_str(), nullptr, 16);
+                if (n == 0) break;
+                while (body.size() < eol + 2 + n + 2)
+                    if (cancelado() || !readMore()) break;
+                if (body.size() < eol + 2 + n) break;
+                req.bodyChunk(body.data() + eol + 2, n);
+                p = eol + 2 + n + 2;
+                // Lo ya entregado se descarta: una respuesta larga no crece en memoria.
+                if (p > 65536 && p <= body.size()) {
+                    body.erase(0, p);
+                    p = 0;
+                }
+            }
+        } else {
+            const size_t want = cl.empty() ? std::string::npos : std::strtoull(cl.c_str(), nullptr, 10);
+            size_t got = std::min(body.size(), want);
+            if (got > 0) req.bodyChunk(body.data(), got);
+            while (got < want && !cancelado()) {
+                const int r = c.read(buf, sizeof(buf));
+                if (r <= 0) break;
+                const size_t n = std::min(static_cast<size_t>(r), want - got);
+                req.bodyChunk(buf, n);
+                got += n;
+            }
+        }
+        return res;
+    }
     if (res.status == 204 || res.status == 304 || req.method == "HEAD") {
         body.clear();
     } else if (chunked) {
