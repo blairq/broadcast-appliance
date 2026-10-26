@@ -15,6 +15,20 @@
 #
 # Uso: tools/ci/compilar-en-docker.sh [linux|win|todo]     (por defecto: todo)
 #      DOCKER="limactl shell colima sudo docker" ...        si no hay `docker`
+#
+# Si no cambió nada, casi nada se rehace, y cada paso dice qué salteó y por qué
+# (líneas «[atajo]», «[instalar]», «[tests-cache]»). Todo por CONTENIDO, nunca
+# por fechas:
+#   - deps-win/deps-linux: no se verifican si no cambiaron Makefile,
+#     versions.cmake, tools/deps/, el toolchain ni lo que hay en extern/;
+#   - tests (ctest en Linux, Wine en Windows): los que ya pasaron con las mismas
+#     entradas no se corren (tools/ci/tests-con-cache.py);
+#   - release-win/release: instalación incremental (tools/ci/instalar-incremental.sh);
+#     chequeo de portabilidad y manifest solo si cambió el bundle;
+#   - .zip/.tar.gz y su copia a dist/ de acá: solo si cambió el bundle;
+#   - símbolos de Windows: solo si cambió el bundle.
+# SIN_CACHE=1 lo hace todo de cero (`make publicar` lo pone solo).
+# TESTS_SIN_CACHE=1, TESTS_SIN_LENTOS=1, TESTS_JOBS y TESTS_WIN_JOBS también llegan adentro.
 # ============================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -44,7 +58,10 @@ log "compilando $QUE en el commit $(git rev-parse --short HEAD) (la primera vez 
 d run --rm --platform linux/amd64 \
     -v ba-trabajo:/trabajo -v "$ROOT:/repo:ro" -v "$ROOT/dist:/salida" \
     -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
-    -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" ba-compilar bash -c '
+    -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" \
+    -e SIN_CACHE="${SIN_CACHE:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
+    -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
+    ba-compilar bash -c '
 set -euo pipefail
 # Cuánto tarda cada etapa (al final, un resumen): para saber dónde se va el tiempo.
 T0=$(date +%s); TE=$T0; RESUMEN=""
@@ -66,6 +83,18 @@ git checkout -q -f "$SHA"
 etapa "checkout"
 J=$(nproc)
 SUF=""; [ "$PERFILAR" = 1 ] && SUF="-perfil"   # PERFILAR=1: un build que mide (diag/Perfil)
+[ "$SIN_CACHE" != 0 ] && echo "[compilar-en-docker] SIN_CACHE=1: todo de cero (sin caché de tests ni atajos)"
+# A dist/ de la Mac: solo si cambió (el .zip son 800 MB por el volumen compartido).
+# El .commit, siempre: el mismo contenido es lo que sale de este commit.
+llevar() {
+    local f="$1" n; n="$(basename "$1")"
+    if [ -f "/salida/$n" ] && cmp -s "$f.sha256" "/salida/$n.sha256" 2>/dev/null; then
+        echo "[atajo] copia de $n a dist/: salteada (mismo sha256 que el que ya está)"
+    else
+        cp "$f" "$f.sha256" /salida/
+    fi
+    cp "$f.commit" /salida/
+}
 if [ "$QUE" != win ]; then
     make deps-linux JOBS=$J
     make build JOBS=$J PERFILAR=$PERFILAR
@@ -73,7 +102,7 @@ if [ "$QUE" != win ]; then
     .venv/bin/pip install -q -r requirements-dev.lock
     .venv/bin/pytest -q
     make dist-linux JOBS=$J PERFILAR=$PERFILAR
-    cp dist/*-linux-x64$SUF.tar.gz dist/*-linux-x64$SUF.tar.gz.sha256 dist/*-linux-x64$SUF.tar.gz.commit /salida/
+    for f in dist/*-linux-x64$SUF.tar.gz; do llevar "$f"; done
     mkdir -p /salida/simbolos && cp -rn dist/simbolos/linux /salida/simbolos/ 2>/dev/null || true
 fi
 if [ "$QUE" != linux ]; then
@@ -92,11 +121,16 @@ if [ "$QUE" != linux ]; then
     etapa "release-win (install+chequeo+manifest)"
     make -o release-win dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "zip (7z)"
-    cp dist/*-windows-x64$SUF.zip dist/*-windows-x64$SUF.zip.sha256 dist/*-windows-x64$SUF.zip.commit /salida/
+    for f in dist/*-windows-x64$SUF.zip; do llevar "$f"; done
+    etapa "copia a dist/"
     # Los binarios y los .pdb de este build, al almacén de dist/simbolos (en la
     # Mac): para leer después las pilas de sus volcados (tools/caidas/analizar.py).
-    python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
+    # Si el bundle es el mismo que la última vez, ya están.
+    python3 tools/ci/huellas.py atajo --nombre "símbolos de Windows" --clave-en build/win/atajos/simbolos.json \
+        --memo build/win/atajos/huellas.json --entrada release-win --salida /salida/simbolos/compilaciones.jsonl -- \
+        python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
         --destino /salida/simbolos --commit "$SHA" || echo "ATENCION: no se guardaron los símbolos" >&2
+    etapa "símbolos"
     if [ "$tests_win" != 0 ]; then
         echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
         exit 3

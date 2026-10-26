@@ -30,6 +30,64 @@ Estado verificado (último build conocido bueno, 2026-09-18): **30 tests,
 Windows; el WebRTC real de Linux lo cubre ``test_webrtc_loopback``).
 ``test_ba_sources_real`` solo se registra si libobs está en ``extern/obs-linux``.
 
+Caché de tests, rápidos y lentos
+--------------------------------
+
+``make test`` no vuelve a correr un test que ya **pasó con exactamente las mismas
+entradas**: lo informa como ``pasó (caché)`` (como Bazel). Lo hace
+``tools/ci/tests-con-cache.py``, alrededor de ``ctest``; ``ctest`` a secas sigue
+corriendo todo.
+
+.. code-block:: bash
+
+   make test                 # con caché; los lentos, solo si cambió lo que prueban
+   make test-rapido          # sin los de la etiqueta «lento» (TESTS_SIN_LENTOS=1)
+   make test-completo        # todo, sin caché (TESTS_SIN_CACHE=1)
+   python3 tools/ci/tests-con-cache.py --test-dir build --explicar test_motor
+
+La **clave** de cada test es el sha256 de todo lo que puede cambiar su resultado:
+
+- el ejecutable y **las bibliotecas que carga**, siguiendo la cadena entera
+  (macOS: ``otool -l`` con ``@rpath``/``@loader_path``; Linux: ``ldd``; Windows:
+  la tabla de importaciones de cada PE, con el mismo ``llvm-objdump`` y el mismo
+  formato de caché que ``tools/deps/check-portable-win.sh``). Lo del sistema no
+  entra: lo cubre la versión del sistema;
+- lo que **lee**: las rutas de su comando y de su ``ENVIRONMENT``, las que CMake le
+  pasa por **definiciones de compilación** (``BA_TEST_DATOS="${CMAKE_SOURCE_DIR}/datos"``,
+  ``"$<TARGET_FILE:ba-web>"``: la manera de siempre de darle una ruta a un test ya
+  alcanza) y las **declaradas** con ``ba_test_entradas()`` en
+  ``cmake/BaTestsCache.cmake``, para lo que el test encuentra por otro camino
+  (al lado de su ejecutable, módulos de Python, el modelo de los datos del
+  desarrollo). Un archivo entra por su contenido; una carpeta, entera, sin lo
+  intermedio del build (``CMakeFiles``, ``*.o``, registros);
+- el comando, las propiedades de ctest, las variables de entorno que importan
+  (``BA_*``, ``GST_*``, ``QT_*``, ``DYLD_*``, ``LD_*``, ``WINE*``, ``PYTHON*``,
+  ``LANG``, ``LC_*``), la versión de ctest (o de Wine), la del sistema y la del
+  propio script.
+
+Solo se anota un test que pasó (0) o se salteó (77); un fallo nunca. Todo por
+**contenido**, nunca por fechas: para no releer gigas cada vez, el sha256 de cada
+archivo se recuerda con su tamaño, mtime, ctime e inodo (``tools/ci/huellas.py``;
+el ctime cambia con cualquier escritura y nadie lo puede volver atrás). La caché
+vive en ``<build>/.cache-tests/`` (en Docker, en el volumen ``ba-trabajo``).
+El corredor de Wine (``tools/ci/test-win.sh``) usa la misma caché, y si no queda
+ningún test por correr ni arranca Wine.
+
+**Qué podría quedar en caché sin deber**: un test que lee algo que no le llega por
+ninguno de esos caminos (una ruta armada a mano en el código, un módulo de Python
+de otra carpeta, la red, el hardware: una cámara, la GPU). Si escribís un test así,
+declará lo que lee con ``ba_test_entradas(<test> <ruta>...)``. Las rutas donde el
+test **escribe** (definiciones ``*_TMP``/``*_SALIDA``) no son entradas. Si un test
+apunta a la raíz del repo o del build, esa ruta no entra (cambiaría con
+cualquier cosa) y ``--explicar`` lo dice: declará lo que lee de ahí. Antes de un
+release todo corre sin caché: ``make publicar`` pone ``SIN_CACHE=1``.
+
+**Lentos**: los tests de más de ~10 s en la Mac llevan la etiqueta ``lento``
+(una sola lista, ``BA_TESTS_LENTOS`` en ``cmake/BaTestsCache.cmake``, que usan
+ctest y el corredor de Wine). ``make test`` los corre solo si cambió lo que
+prueban; ``make test-rapido`` (o ``TESTS_SIN_LENTOS=1``, también para
+``tools/ci/test-win.sh``) los deja afuera; ``make publicar``, siempre.
+
 Tests de `ba_core`
 ------------------
 

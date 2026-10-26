@@ -11,7 +11,7 @@
 #   make dev      -> build de desarrollo (Debug) en build/
 #   make prod     -> build de producción (Release) + bundle portable
 #   make docs     -> genera la documentación (Sphinx/HTML)
-#   make test     -> corre ctest (tests unitarios de ba_core)
+#   make test     -> corre los tests (ctest) con caché por contenido (ver "Tests")
 #   make help     -> muestra estos targets
 #
 # Variables (sobrescribibles desde la línea de comando):
@@ -51,7 +51,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
+.PHONY: test-rapido test-completo deps-win-todo deps-linux-todo dist-win-zip dist-linux-tar app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
         deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -69,7 +69,9 @@ help:
 	@echo "  make build      Configura y compila (build type por defecto de CMake)"
 	@echo "  make prod       Build de producción (Release) + bundle portable en release"
 	@echo "  make docs       Genera la documentación (Sphinx -> docs/_build/html)"
-	@echo "  make test       Corre ctest (tests unitarios de ba_core)"
+	@echo "  make test       Corre los tests (ctest) con la caché: no repite los que ya pasaron con las mismas entradas"
+	@echo "  make test-rapido   Lo mismo sin los de la etiqueta «lento» (TESTS_SIN_LENTOS=1)"
+	@echo "  make test-completo Todos, sin caché (TESTS_SIN_CACHE=1; lo que corre make publicar)"
 	@echo "  make test-unit  Alias de 'make test'"
 	@echo "  make lint       Revisa el formato con clang-format del sistema (apt)"
 	@echo "  make release    Instala el bundle portable (layout §5.1) en release/"
@@ -165,11 +167,26 @@ docs:
 	@echo "Docs HTML: docs/_build/html/index.html"
 
 # --- Tests ------------------------------------------------------------------
+# Con caché por contenido (tools/ci/tests-con-cache.py): un test que ya pasó con
+# exactamente el mismo ejecutable, las mismas bibliotecas, los mismos datos y el
+# mismo entorno se informa «pasó (caché)» sin correrlo. `ctest` a secas sigue
+# corriendo todo. TESTS_SIN_CACHE=1 (o SIN_CACHE=1) corre todo igual;
+# TESTS_SIN_LENTOS=1 deja afuera los `lento` (cmake/BaTestsCache.cmake).
+# Explicar la clave de uno: python3 tools/ci/tests-con-cache.py --test-dir build --explicar test_x
+# En paralelo (-j): bajo carga algún test del motor puede fallar por tiempo (no se
+# anota, y la próxima corre solo); TESTS_JOBS=1 los corre en serie.
+TESTS_JOBS ?= $(JOBS)
+TESTS_CACHE = python3 tools/ci/tests-con-cache.py --test-dir $(BUILD_DIR) -- --output-on-failure -j$(TESTS_JOBS)
 test:
-	ctest --test-dir $(BUILD_DIR) --output-on-failure
+	$(TESTS_CACHE)
 
-test-unit:
-	ctest --test-dir $(BUILD_DIR) --output-on-failure
+test-unit: test
+
+test-rapido:
+	TESTS_SIN_LENTOS=1 $(TESTS_CACHE)
+
+test-completo:
+	TESTS_SIN_CACHE=1 $(TESTS_CACHE)
 
 # --- Tests Python (pytest) --------------------------------------------------
 # Suite Python en tests/ (22 tests), corriendo con el pytest del venv local
@@ -212,14 +229,20 @@ lint:
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
 # gst-plugins, data, Config, Logs, Recordings, Web/guest).
 release:
-	@# Desde cero: lo que se instaló antes y ya no va (de una receta vieja) no queda.
-	rm -rf release
-	cmake --install $(BUILD_DIR) --prefix release --component bundle
+	@# Incremental: solo se copia lo que cambió y se borra lo que ya no se instala
+	@# (lo de una receta vieja no queda). SIN_CACHE=1: de cero.
+	tools/ci/instalar-incremental.sh $(BUILD_DIR) release
 	@# Linux: el bundle no puede depender de bibliotecas de terceros del sistema.
-	@if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release; fi
 	@# Sin manifest el launcher verifica cero archivos y la comprobacion de
 	@# integridad no sirve de nada. Solo lo que no cambia al usar el programa.
-	tools/deploy --solo-manifest release
+	@# Los dos, solo si cambió el contenido del bundle (tools/ci/huellas.py).
+	@python3 tools/ci/huellas.py atajo --nombre "release (chequeo + manifest)" \
+	  --clave-en $(BUILD_DIR)/atajos/release.json --memo $(BUILD_DIR)/atajos/huellas.json \
+	  --entrada release --excluir manifest.json --entrada tools/deploy --entrada tools/deps/check-portable.sh \
+	  --entrada tools/deps/linux-baseline.txt --entrada tools/deps/linux-baseline-libreoffice.txt \
+	  --salida release/manifest.json -- sh -c '\
+	    if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release || exit 1; fi; \
+	    BA_MANIFEST_CACHE=$(BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest release'
 
 # --- Windows x64 desde Linux (ABI MSVC: clang-cl + lld-link) ---------------
 # `make win` baja TODO lo necesario (idempotente, con hash) y compila el bundle
@@ -243,7 +266,16 @@ deps-webrtc-win:
 # también las DLL que viajan) mas el Qt del host (moc, rcc, qmlcachegen corren
 # en Linux), GStreamer oficial de MSVC (trae su FFmpeg), libwebrtc de Windows y
 # las fuentes compartidas.
-deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
+# Atajo: si no cambiaron las versiones fijadas ni las recetas (Makefile,
+# versions.cmake, tools/deps/, el toolchain) ni lo que hay en extern/ (qué
+# dependencias y sus .version), no se vuelve a verificar nada (eran ~23 s de
+# sha256 de archivos bajados en cada build). SIN_CACHE=1 verifica todo.
+DEPS_ATAJO = python3 tools/ci/huellas.py atajo --entrada Makefile --entrada versions.cmake --entrada tools/deps \
+	--entrada cmake/toolchains --centinelas $(EXTERNS_DIR) --texto "BA_ACCEPT_MSVC_LICENSE=$(BA_ACCEPT_MSVC_LICENSE)"
+deps-win:
+	@$(DEPS_ATAJO) --nombre deps-win --clave-en $(EXTERNS_DIR)/.atajos/deps-win.json -- $(MAKE) deps-win-todo
+
+deps-win-todo: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
           deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
@@ -277,19 +309,35 @@ test-win: win
 	tools/ci/test-win.sh $(WIN_BUILD_DIR)
 
 release-win: win
-	rm -rf $(WIN_RELEASE)
-	cmake --install $(WIN_BUILD_DIR) --prefix $(WIN_RELEASE) --component bundle
-	tools/deps/check-portable-win.sh $(WIN_RELEASE)
-	@# El manifest, igual que en Linux: sin el, el launcher de Windows verifica
-	@# CERO archivos y la comprobacion de integridad no sirve de nada, sin que
-	@# nada lo avise. El bundle de Windows salia sin manifest desde siempre.
-	tools/deploy --solo-manifest $(WIN_RELEASE)
+	@# Incremental (antes rm -rf y 2,7 GB de nuevo): ver tools/ci/instalar-incremental.sh.
+	tools/ci/instalar-incremental.sh $(WIN_BUILD_DIR) $(WIN_RELEASE)
+	@# El chequeo de portabilidad y el manifest, solo si cambió el contenido del
+	@# bundle. El manifest, igual que en Linux: sin el, el launcher de Windows
+	@# verifica CERO archivos y la comprobacion de integridad no sirve de nada.
+	@python3 tools/ci/huellas.py atajo --nombre "release-win (chequeo + manifest)" \
+	  --clave-en $(WIN_BUILD_DIR)/atajos/release-win.json --memo $(WIN_BUILD_DIR)/atajos/huellas.json \
+	  --entrada $(WIN_RELEASE) --excluir manifest.json --entrada tools/deploy --entrada tools/deps/check-portable-win.sh \
+	  --entrada tools/deps/windows-baseline.txt --entrada tools/deps/windows-baseline-libreoffice.txt \
+	  --salida $(WIN_RELEASE)/manifest.json -- sh -c '\
+	    tools/deps/check-portable-win.sh $(WIN_RELEASE) && \
+	    BA_MANIFEST_CACHE=$(WIN_BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest $(WIN_RELEASE)'
 
 # --- Archivos de distribucion (los que sube el CI a un release) --------------
 # dist/BroadcastAppliance-<version>-<plataforma>.{zip,tar.gz}: la carpeta
 # portable completa, lista para descomprimir y usar (o para `--update`).
 BA_VERSION := $(shell awk '/^project\(/,/\)/' CMakeLists.txt | awk '/VERSION/{print $$2; exit}')
+# El .zip se saltea si el bundle es idéntico (por contenido) al del último .zip:
+# la clave queda al lado (<zip>.clave). El .commit se escribe siempre: el mismo
+# contenido es lo que sale de este commit.
 dist-win: release-win
+	@mkdir -p dist
+	@python3 tools/ci/huellas.py atajo --nombre "zip de Windows" --clave-en $(DIST_WIN).clave \
+	  --memo $(WIN_BUILD_DIR)/atajos/huellas.json --entrada $(WIN_RELEASE) --texto "$(DIST_WIN) 7z -tzip -mx=3" \
+	  --salida $(DIST_WIN) --salida $(DIST_WIN).sha256 -- $(MAKE) dist-win-zip
+	@echo "$(ESTE_COMMIT)" > $(DIST_WIN).commit
+	@echo "$(DIST_WIN)"
+
+dist-win-zip:
 	@mkdir -p dist
 	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip
 	@# Con carpeta raiz (como el .tar.gz de Linux): "Extraer aqui" no desparrama
@@ -301,13 +349,14 @@ dist-win: release-win
 	cd dist/.zip-stage && 7z a -tzip -mx=3 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip BroadcastAppliance
 	rm -rf dist/.zip-stage
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip > BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip"
 
 # Todo lo que el build completo de Linux necesita (las bibliotecas de terceros
 # y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
 # compartidas...).
-deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
+deps-linux:
+	@$(DEPS_ATAJO) --nombre deps-linux --clave-en $(EXTERNS_DIR)/.atajos/deps-linux.json -- $(MAKE) deps-linux-todo
+
+deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
             deps-clap deps-lsp deps-lspdsp-linux deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
             deps-llamacpp-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
@@ -346,7 +395,7 @@ macos: modelo-mac
 	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 	cmake --build $(BUILD_DIR) -j$(JOBS)
-	ctest --test-dir $(BUILD_DIR) --output-on-failure
+	$(TESTS_CACHE)
 
 # ba-modelo: el modelo local con MLX (src/modelo-mac). xcodebuild y no `swift
 # build`: este no compila los shaders de Metal de MLX. Las dependencias de
@@ -454,6 +503,12 @@ subir:
 	  [ -n "$$archivos" ] || { echo "ERROR: no hay nada armado en dist/ para la version $(BA_VERSION)" >&2; exit 1; }; \
 	  tools/publicar.sh $$archivos
 
+# Lo que se publica se arma y se prueba entero: sin la caché de tests ni los
+# atajos de «no cambió nada» (SIN_CACHE=1 llega a Docker y a cada sub-make).
+# Y los tests en serie, como siempre: en paralelo, los del motor (tiempo real)
+# pueden fallar por la carga sin que el programa ande mal.
+publicar publicar-macos publicar-linux publicar-win: export SIN_CACHE = 1
+publicar publicar-macos publicar-linux publicar-win: export TESTS_JOBS = 1
 publicar:
 	tools/publicar.sh --solo-chequear
 	rm -f $(DIST_LINUX)* $(DIST_WIN)* $(DIST_MACOS)*
@@ -492,14 +547,21 @@ dist-macos: release-macos
 dist-linux:
 	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
-	rm -rf release
+	@# Incremental (`make release`; SIN_CACHE=1 lo arma de cero).
 	$(MAKE) release
 	@mkdir -p dist
 	tools/caidas/simbolos-linux.sh release dist/simbolos/linux
+	@# El .tar.gz, solo si el contenido del bundle cambió desde el último (clave al lado).
+	@python3 tools/ci/huellas.py atajo --nombre "tar.gz de Linux" --clave-en $(DIST_LINUX).clave \
+	  --memo $(BUILD_DIR)/atajos/huellas.json --entrada release --texto "$(DIST_LINUX) tar -czf" \
+	  --salida $(DIST_LINUX) --salida $(DIST_LINUX).sha256 -- $(MAKE) dist-linux-tar
+	@echo "$(ESTE_COMMIT)" > $(DIST_LINUX).commit
+	@echo "$(DIST_LINUX)"
+
+dist-linux-tar:
+	@mkdir -p dist
 	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz --transform 's,^\.,BroadcastAppliance,' .
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz"
 
 # ============================================================================
 # Dependencias de terceros (extern/) — descarga reproducible e idempotente

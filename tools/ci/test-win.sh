@@ -9,6 +9,12 @@
 # Microsoft enlazado estatico, asi que tambien atrapan diferencias del CRT
 # real que el ucrtbase propio de Wine taparia.
 #
+# Con caché por contenido (tools/ci/tests-con-cache.py): un test que ya pasó
+# con el mismo .exe, las mismas DLL (el cierre de importaciones), los mismos
+# datos, el mismo entorno y el mismo Wine no se vuelve a correr («pasó
+# (caché)»); si no queda ninguno por correr, ni se arranca Wine.
+# TESTS_SIN_CACHE=1 (o SIN_CACHE=1): todos. TESTS_SIN_LENTOS=1: sin los `lento`.
+#
 # Uso: tools/ci/test-win.sh [--solo-wine] [build/win]
 # ============================================================================
 set -uo pipefail
@@ -53,6 +59,17 @@ if [ -f "$ROOT/extern/lsp/windows-x86_64/lsp-plugins.clap" ]; then
     export BA_LSP_CLAP="Z:${ROOT//\//\\}\\extern\\lsp\\windows-x86_64\\lsp-plugins.clap"
 fi
 W="$TC/wine/bin/wine"
+mkdir -p "$B/wine-logs"
+RES="$B/wine-logs/.resultados"
+PEND="$B/wine-logs/.pendientes"
+rm -f "$RES" && : >"$RES"
+
+# Qué hay que correr: lo que no está en la caché.
+find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort |
+    python3 "$ROOT/tools/ci/tests-con-cache.py" wine-preparar --build "$B" --herramienta "$WINE_NAME" \
+        --objdump "$TC/llvm/bin/llvm-objdump" --ruta "$WINEPATH" --pendientes "$PEND" || exit 1
+
+if [ -s "$PEND" ]; then
 timeout 300 "$W" wineboot -u >/dev/null 2>&1
 
 # En paralelo (como ctest -j en la Mac: los tests ya se bancan correr a la vez). En
@@ -60,9 +77,6 @@ timeout 300 "$W" wineboot -u >/dev/null 2>&1
 # motor son pipelines en tiempo real que, bajo Wine sobre Rosetta, esperan más de lo
 # que calculan. TESTS_WIN_JOBS lo fija (1 = en serie, para buscar un test que molesta).
 JOBS="${TESTS_WIN_JOBS:-$(nproc)}"
-mkdir -p "$B/wine-logs"
-RES="$B/wine-logs/.resultados"
-rm -f "$RES" && : >"$RES"
 uno() {
     local t="$1" n tree log rc t0
     n="$(basename "$t" .exe)"
@@ -71,25 +85,30 @@ uno() {
     t0=$(date +%s)
     (cd "$(dirname "$t")" && timeout 180 "$W" "$t" >"$log" 2>&1)
     rc=$?
-    echo "$rc $(( $(date +%s) - t0 )) $n $log" >>"$RES"
+    echo "$rc $(( $(date +%s) - t0 )) $n $log $t" >>"$RES"
 }
 export -f uno
 export B W RES
-find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort | xargs -P "$JOBS" -I{} bash -c 'uno "$1"' _ {}
+xargs -P "$JOBS" -I{} bash -c 'uno "$1"' _ {} <"$PEND"
+"$TC/wine/bin/wineserver" -k 2>/dev/null
+# Los que pasaron (o se saltearon), a la caché.
+python3 "$ROOT/tools/ci/tests-con-cache.py" wine-guardar --build "$B" --resultados "$RES"
+fi
 
 pass=0
 skip=0
 failed=()
-while read -r rc seg n log; do
+while read -r rc seg n log _; do
     case $rc in
         0) pass=$((pass + 1)) ;;
         77) skip=$((skip + 1)) ;;
         *) failed+=("$n($rc)"); echo "---- $n (rc=$rc, ${seg} s)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
     esac
 done < <(sort -k3 "$RES")
-echo "Los más lentos bajo Wine:"
-sort -k2 -rn "$RES" | head -8 | awk '{printf "  %4d s  %s\n", $2, $3}'
-"$TC/wine/bin/wineserver" -k 2>/dev/null
-
-echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-}"
+if [ -s "$RES" ]; then
+    echo "Los más lentos bajo Wine:"
+    sort -k2 -rn "$RES" | head -8 | awk '{printf "  %4d s  %s\n", $2, $3}'
+fi
+sin_correr=$(( $(wc -l <"$B/wine-logs/.claves") - $(wc -l <"$PEND") ))
+echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-} (${sin_correr} sin correr: caché o lentos afuera)"
 [ "${#failed[@]}" -eq 0 ]

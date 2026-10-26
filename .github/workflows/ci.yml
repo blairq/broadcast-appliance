@@ -140,7 +140,7 @@ jobs:
 
       # Los tests que necesitan GPU/sesion grafica devuelven 77 (saltados).
       - name: Tests C++ (ctest)
-        run: make test
+        run: make test TESTS_JOBS=1
 
       - name: Tests Python (pytest)
         run: |

@@ -72,3 +72,29 @@ esqueleto::
   ├── Logs/                 # logs rotativos y dumps
   ├── Recordings/           # grabación de respaldo
   └── Web/guest/            # app web del invitado (la sirve B)
+
+Builds sin cambios (atajos)
+---------------------------
+
+Un build de Linux o Windows en Docker (``tools/ci/compilar-en-docker.sh``) sin
+nada que compilar casi no rehace nada, y cada paso dice qué salteó y por qué
+(líneas ``[atajo]``, ``[instalar]``, ``[tests-cache]``). Todo por **contenido**
+(``tools/ci/huellas.py``), nunca por fechas:
+
+- ``deps-win`` / ``deps-linux``: no se verifican si no cambiaron ``Makefile``,
+  ``versions.cmake``, ``tools/deps/``, ``cmake/toolchains/`` ni lo que hay en
+  ``extern/`` (qué dependencias y sus ``.version``). La clave queda en
+  ``extern/.atajos/``.
+- Tests: ver :doc:`tests` (caché de tests).
+- ``release-win`` / ``release``: instalación incremental
+  (``tools/ci/instalar-incremental.sh``: ``cmake --install`` sin ``rm -rf``; lo
+  que ya no se instala sale comparando con el ``install_manifest`` anterior). El
+  chequeo de portabilidad y el ``manifest.json``, solo si cambió el contenido del
+  bundle.
+- El ``.zip`` / ``.tar.gz``: solo si el bundle cambió desde el último (la clave,
+  al lado: ``<archivo>.clave``); la copia a ``dist/`` de la Mac, solo si cambió su
+  sha256; los símbolos de Windows, solo si cambió el bundle. El ``.commit`` se
+  escribe siempre.
+
+``SIN_CACHE=1`` hace todo de cero (``make publicar`` lo pone solo, y llega a Docker).
+Si algo raro pasa con un atajo, ``SIN_CACHE=1`` y listo.

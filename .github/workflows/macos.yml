@@ -68,7 +68,7 @@ jobs:
       # Build + ctest. Los tests que necesitan sesion grafica o red devuelven
       # 77 (saltados).
       - name: Build y tests (make macos)
-        run: make macos JOBS=$(sysctl -n hw.ncpu)
+        run: make macos JOBS=$(sysctl -n hw.ncpu) TESTS_JOBS=1
 
       - name: Tests Python (pytest)
         run: |

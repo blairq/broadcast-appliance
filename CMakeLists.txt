@@ -255,6 +255,8 @@ enable_testing()
 include(CTest)
 # Lo que el programa tiene que traer: si falta algo, la configuración frena (ver el archivo).
 include(${CMAKE_SOURCE_DIR}/cmake/BaRequisitos.cmake)
+# Lo que la caché de tests tiene que saber de cada uno (tools/ci/tests-con-cache.py).
+include(${CMAKE_SOURCE_DIR}/cmake/BaTestsCache.cmake)
 
 # --- Componentes ------------------------------------------------------------
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
@@ -264,6 +266,7 @@ if(BA_WIN_STATIC_PART)
     add_subdirectory(src/core)
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
+    ba_tests_registrar()
     ba_revisar_requisitos()
     return()
 endif()
@@ -449,6 +452,9 @@ endif()
 if(APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaMacBundle.cmake)
 endif()
+
+# Con todos los tests ya declarados: etiquetas y entradas para la caché de tests.
+ba_tests_registrar()
 
 # Al final: si a algo de lo de arriba le faltó una parte, acá frena (cmake/BaRequisitos.cmake).
 ba_revisar_requisitos()
