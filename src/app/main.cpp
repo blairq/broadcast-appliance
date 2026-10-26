@@ -7,6 +7,7 @@
 //   --headless-selftest  autotest de OperatorEngine (sin libobs)
 //   --engine-selftest    autotest del motor de emision (libobs)
 //   --no-ui              modo consola aunque haya pantalla
+//   --sonda-drivers      prueba drivers en un proceso aparte (lo lanza la app)
 //   (default)            interfaz grafica si hay Qt y pantalla; si no, consola
 //
 // "Hay pantalla": Windows y macOS siempre; Linux si hay WAYLAND_DISPLAY o
@@ -21,6 +22,7 @@
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
 #include "arranque/Registrar.hpp"
+#include "dispositivos/SondaReal.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <algorithm>
@@ -158,6 +160,11 @@ bool hasFlag(int argc, char** argv, const char* flag) {
 }
 
 int dispatch(int argc, char** argv) {
+    // La sonda de drivers (dispositivos/SondaDrivers.hpp): la app se lanza a sí misma
+    // para cargar y probar un driver de terceros FUERA de su proceso. Antes que nada:
+    // sin registro, sin diario de arranque ni nada que la confunda con la app.
+    if (argc > 1 && std::strcmp(argv[1], ba::app::dispositivos::sonda::kBandera) == 0)
+        return ba::app::dispositivos::sonda::principalDeLaApp(argc, argv);
 #ifndef _WIN32
     // El tope de archivos abiertos (lo sube el launcher; esto, si se lanza sola):
     // cada pipeline del motor usa dos, y el de 256 de una app del Finder no alcanza.

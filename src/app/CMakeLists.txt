@@ -354,6 +354,8 @@ if(WIN32)
     # main.cpp trae su propio wWinMain: sin el de Qt (Qt6::EntryPointPrivate).
     set_target_properties(ba-app PROPERTIES WIN32_EXECUTABLE ON qt_no_entrypoint ON)
     target_link_libraries(ba-app PRIVATE dxgi) # placas de video (system_hardware)
+    # La sonda de drivers crea cada driver ASIO por COM (dispositivos/SondaAsio.cpp).
+    target_link_libraries(ba-app PRIVATE ole32)
 endif()
 
 target_link_libraries(ba-app PRIVATE ba_core mbedtls mbedx509 mbedcrypto) # HTTPS propio (net/HttpsClient)
@@ -565,6 +567,14 @@ endif()
     target_link_libraries(test_dispositivos PRIVATE ba_core Qt6::Core)
     set_target_properties(test_dispositivos PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dispositivos COMMAND test_dispositivos)
+    # La cuarentena de drivers de punta a punta: la sonda en un proceso hijo (este mismo
+    # test con --sonda-drivers) con drivers de mentira que andan, fallan, se cuelgan y se caen.
+    add_executable(test_drivers tests/test_drivers.cpp dispositivos/Drivers.cpp dispositivos/Sondeo.cpp
+                                dispositivos/SondaDrivers.cpp)
+    target_include_directories(test_drivers PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_drivers PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_drivers PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_drivers COMMAND test_drivers)
     # El catálogo de cosas que se pueden mostrar y los monitores (Salidas → Pantallas):
     # orden físico, ids estables, asignación, persistencia y espera, sin monitores reales.
     add_executable(test_pantallas_catalogo tests/test_pantallas_catalogo.cpp pantallas/Catalogo.cpp

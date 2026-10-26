@@ -1147,6 +1147,18 @@
       "herramientas": [
         "speakers_config"
       ]
+    },
+    {
+      "pregunta": "la placa asio no anda, qué driver está fallando",
+      "herramientas": [
+        "drivers_listar"
+      ]
+    },
+    {
+      "pregunta": "ya arranqué jack, sacá el driver de la cuarentena",
+      "herramientas": [
+        "driver_probar"
+      ]
     }
   ]
 }

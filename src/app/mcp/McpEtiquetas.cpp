@@ -746,6 +746,10 @@ const Fila kPropias[] = {
                          "nombre del operador como se llama"},
     {"equipo_configurar", "configurar dispositivo nota formato preferido modo de la camara"},
     {"equipo_olvidar", "olvidar dispositivo ausente desconectado sacar de la lista borrar equipo viejo"},
+    {"drivers_listar", "drivers cuarentena driver colgado asio jack jackrouter asio4all sar placa de sonido no anda "
+                       "proveedor de dispositivos wasapi media foundation decklink que driver falla"},
+    {"driver_probar", "probar driver de nuevo sacar de cuarentena reintentar driver asio jack volver a cargar driver"},
+    {"drivers_revisar", "revisar todos los drivers volver a probar drivers chequear drivers instalados"},
     {"equipo_accion", "hacer algo con un equipo funciones onvif operacion onvif ficha agregar camara "
                       "explorar uvc pedir clave activar ptz"},
     {"plugin_listar", "plugins python extensiones programar equipo raro camara rara que plugins hay"},

@@ -8,15 +8,20 @@
 // Y lo mismo que hace el operador en «Dispositivos y equipos» con los de audio
 // y video de la máquina: ponerles nombre (equipo_renombrar), configurarlos
 // (equipo_configurar) y olvidar uno que ya no está (equipo_olvidar).
+// Y los DRIVERS de la máquina (dispositivos/Drivers): cuáles andan, cuáles están
+// en cuarentena y por qué (drivers_listar), probar uno de nuevo (driver_probar)
+// y volver a revisar todo (drivers_revisar): lo mismo que la sección «Drivers».
 // ============================================================================
 
 #include "dispositivos/Dispositivos.hpp"
+#include "dispositivos/Drivers.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include <QJsonDocument>
 #include <QPointer>
+#include <QTimer>
 
 namespace ba::app::mcp {
 
@@ -226,6 +231,94 @@ void McpService::registerEquiposTools() {
             const QString err = d->olvidar(QString::fromStdString(a.value("id", std::string())));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok("Olvidado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    registerDriversTools();
+}
+
+void McpService::registerDriversTools() {
+    dispositivos::Dispositivos* dd = vm_.equipos();
+    auto* drv = dd != nullptr ? qobject_cast<dispositivos::Drivers*>(dd->drivers()) : nullptr;
+    if (drv == nullptr) return;
+    const QPointer<dispositivos::Drivers> dr = drv;
+    const auto estado = [](dispositivos::Drivers& x) {
+        return json{{"resumen", x.resumen().toStdString()},
+                    {"maquina", x.maquina().toStdString()},
+                    {"maquina_conocida", x.maquinaConocida()},
+                    {"revisando", x.revisando()},
+                    {"fallas_para_cuarentena", x.umbral()},
+                    {"drivers", aJ(x.lista())}};
+    };
+    {
+        Tool t;
+        t.name = "drivers_listar";
+        t.title = "Los drivers y su cuarentena";
+        t.category = "equipos";
+        t.readOnly = true;
+        t.description =
+            "Los drivers y proveedores de dispositivos de ESTA máquina (GStreamer: WASAPI, Media Foundation, Core "
+            "Audio, AVFoundation, Pulse, V4L2, DeckLink, los de plugins; cada driver ASIO en Windows) con su "
+            "`estado`: anda, falla (falló menos veces que el tope), cuarentena (falló `fallas_para_cuarentena` "
+            "veces seguidas: no se vuelve a cargar solo), sin_probar, probando o ausente (no está instalado). Con "
+            "`motivo` (el último, legible), `ultima_falla` (error | tiempo | caida), `fallas` seguidas y `detalle` "
+            "(canales, dispositivos) del último éxito. `resumen`: «máquina conocida: N drivers listos, revisando "
+            "novedades…» o «máquina nueva: revisando todo (k de n)…». Para sacar uno de la cuarentena: "
+            "driver_probar.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [dr, estado](const json&, Done done) {
+            if (!dr) return done(ToolResult::error("los drivers no están disponibles"));
+            done(ToolResult().data(estado(*dr)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "driver_probar";
+        t.title = "Probar un driver de nuevo";
+        t.category = "equipos";
+        t.description =
+            "«Probar de nuevo»: saca de la cuarentena al driver `id` (de drivers_listar) para UNA prueba, en un "
+            "proceso aparte con tiempo límite (si se cuelga o se cae, la app sigue). Si anda, sale de la "
+            "cuarentena y se vuelve a usar; si no, se queda. Espera el resultado (hasta ~1 minuto). Sirve después "
+            "de arreglar la causa (p. ej. arrancar el servidor de JACK, actualizar el driver).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties", {{"id", {{"type", "string"}, {"description", "«asio:{CLSID}», «gst:<proveedor>»"}}}}}};
+        t.examples = {R"({"id": "gst:decklinkdeviceprovider"})"};
+        t.run = [dr](const json& a, Done done) {
+            if (!dr) return done(ToolResult::error("los drivers no están disponibles"));
+            const QString id = QString::fromStdString(a.value("id", std::string()));
+            const QString err = dr->reintentar(id);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            // Se espera a que deje de estar «probando» (lo dice el modelo), con un tope.
+            auto* reloj = new QTimer(dr.data());
+            auto vueltas = std::make_shared<int>(0);
+            QObject::connect(reloj, &QTimer::timeout, reloj, [dr, id, reloj, vueltas, done]() {
+                if (!dr) return reloj->deleteLater();
+                const QVariantMap u = dr->uno(id);
+                if (u.value("estado").toString() == "probando" && ++*vueltas < 300) return;
+                reloj->stop();
+                reloj->deleteLater();
+                done(ToolResult().data(aJ(u)));
+            });
+            reloj->start(200);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "drivers_revisar";
+        t.title = "Revisar todos los drivers";
+        t.category = "equipos";
+        t.description = "Vuelve a probar TODOS los drivers instalados (los que andan también; los de cuarentena no: "
+                        "esos, de a uno con driver_probar), en segundo plano y fuera de la app. El avance, en "
+                        "drivers_listar (`revisando`, `resumen`).";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [dr, estado](const json&, Done done) {
+            if (!dr) return done(ToolResult::error("los drivers no están disponibles"));
+            dr->revisarTodo();
+            done(ToolResult().data(estado(*dr)));
         };
         core_.addTool(std::move(t));
     }

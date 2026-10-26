@@ -13,6 +13,10 @@
 //   - las acciones de cada equipo, con sus parámetros, salen de lo que se registró
 //     para su tipo (dispositivos/Registro.cpp).
 // El botón y su formulario se arman solos. Sumar una acción no toca esta página.
+//
+// «Drivers»: los drivers y proveedores de dispositivos de la máquina con su
+// salud (dispositivos/Drivers, un modelo de lista que se actualiza en su lugar):
+// anda / en cuarentena (motivo, fallas) / probando, y «Probar de nuevo».
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -31,6 +35,12 @@ Rectangle {
     property var resultado: null         // {accion, texto|error, datos}
     property bool corriendo: false
     property string msgNombre: ""        // lo que contestó el último renombre/configuración
+    readonly property var drv: dd ? dd.drivers : null
+    property bool verDrivers: false      // a la derecha, la lista de drivers (en vez de un equipo)
+    property string msgDriver: ""        // lo que contestó el último «Probar de nuevo»
+    function colorDriver(e) {
+        return e === "anda" ? Theme.ok : e === "cuarentena" ? Theme.live : e === "falla" || e === "probando" ? Theme.amber : Theme.textFaint
+    }
     // Al entrar se buscan de nuevo los de la máquina (la red y el USB, a pedido).
     onVisibleChanged: if (visible) Studio.inputs.refresh()
 
@@ -83,7 +93,7 @@ Rectangle {
             page.resultado = Object.assign({ accion: accion }, r)
         }
     }
-    onSelChanged: { accionAbierta = null; resultado = null; valores = ({}); cargarCampos() }
+    onSelChanged: { accionAbierta = null; resultado = null; valores = ({}); cargarCampos(); if (sel !== "") verDrivers = false }
 
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -132,6 +142,27 @@ Rectangle {
                         enabled: !modelData.escaneando
                         onClicked: page.dd.escanearUi(modelData.id)
                     }
+                }
+            }
+            // Los drivers: una fila como la de los detectores; la lista, a la derecha.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                visible: page.drv !== null
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    Text { text: "Drivers"; color: Theme.text; font.pixelSize: 13 }
+                    Text {
+                        Layout.fillWidth: true
+                        text: page.drv ? page.drv.resumen : ""
+                        color: page.drv && page.drv.enCuarentena > 0 ? Theme.warn : Theme.textFaint
+                        font.pixelSize: 10; elide: Text.ElideRight
+                    }
+                }
+                GlassButton {
+                    compact: true; text: "Ver"; active: page.verDrivers
+                    onClicked: { page.sel = ""; page.verDrivers = true }
                 }
             }
             TextField {
@@ -184,7 +215,7 @@ Rectangle {
                         Text { Layout.fillWidth: true; color: Theme.textFaint; font.pixelSize: 10; elide: Text.ElideRight
                                text: (modelData.nombre_propio ? modelData.tecnico + " · " : "") + modelData.detalle }
                     }
-                    MouseArea { anchors.fill: parent; onClicked: page.sel = modelData.id }
+                    MouseArea { anchors.fill: parent; onClicked: { page.verDrivers = false; page.sel = modelData.id } }
                 }
             }
         }
@@ -196,7 +227,7 @@ Rectangle {
             Layout.fillHeight: true
             contentWidth: availableWidth
             clip: true
-            visible: page.equipo !== null
+            visible: page.equipo !== null && !page.verDrivers
 
             ColumnLayout {
                 width: sv.availableWidth
@@ -500,8 +531,99 @@ Rectangle {
                 }
             }
         }
+        // --- Los drivers de la máquina -------------------------------------------------
+        // Filas de alto fijo (sin texto que se parta): la lista no se acomoda sola.
+        ColumnLayout {
+            visible: page.verDrivers && page.drv !== null
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 8
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Text { text: "Drivers de esta máquina"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
+                Item { Layout.fillWidth: true }
+                GlassButton {
+                    compact: true; text: "Revisar todo"
+                    enabled: page.drv && !page.drv.revisando
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Vuelve a probar todo lo instalado, de a uno y fuera del programa (los que están en cuarentena, no: esos con «Probar de nuevo»)"
+                    onClicked: page.drv.revisarTodo()
+                }
+            }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: page.drv ? page.drv.maquina + " · " + page.drv.resumen : ""
+                color: page.drv && page.drv.revisando ? Theme.amber : Theme.textDim; font.pixelSize: 12
+            }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: page.drv ? "Cada driver se prueba aparte: si se cuelga o se cae, el programa sigue. A las " + page.drv.umbral + " fallas seguidas queda en cuarentena y no se vuelve a cargar solo." : ""
+                color: Theme.textFaint; font.pixelSize: 11
+                ToolTip.visible: dExpl.hovered; ToolTip.text: text
+                HoverHandler { id: dExpl }
+            }
+            Text {
+                visible: page.msgDriver !== ""
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: page.msgDriver; color: Theme.warn; font.pixelSize: 12
+            }
+            ListView {
+                id: lvDrivers
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 4
+                model: page.drv
+                Text {
+                    anchors.centerIn: parent; visible: lvDrivers.count === 0
+                    text: "Todavía no se revisaron los drivers."; color: Theme.textFaint; font.pixelSize: 12
+                }
+                delegate: Rectangle {
+                    id: filaDriver
+                    required property var model
+                    width: lvDrivers.width
+                    height: 46
+                    radius: 8
+                    color: Qt.rgba(1, 1, 1, 0.04)
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 10; rightMargin: 8 }
+                        spacing: 8
+                        Rectangle { width: 8; height: 8; radius: 4; color: page.colorDriver(filaDriver.model.estado) }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            Text {
+                                Layout.fillWidth: true; elide: Text.ElideRight
+                                text: filaDriver.model.nombre + (filaDriver.model.tipo === "asio" ? "  · ASIO" : "")
+                                color: filaDriver.model.estado === "ausente" ? Theme.textDim : Theme.text; font.pixelSize: 12
+                            }
+                            Text {
+                                Layout.fillWidth: true; elide: Text.ElideRight
+                                text: filaDriver.model.texto
+                                color: filaDriver.model.estado === "cuarentena" ? Theme.live
+                                     : filaDriver.model.estado === "falla" ? Theme.warn : Theme.textFaint
+                                font.pixelSize: 10
+                                ToolTip.visible: dTexto.hovered && truncated; ToolTip.text: text
+                                HoverHandler { id: dTexto }
+                            }
+                        }
+                        GlassButton {
+                            visible: filaDriver.model.estado === "cuarentena" || filaDriver.model.estado === "falla"
+                                     || filaDriver.model.estado === "probando"
+                            compact: true
+                            text: filaDriver.model.estado === "probando" ? "Probando…" : "Probar de nuevo"
+                            enabled: filaDriver.model.estado !== "probando"
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Lo prueba una vez más, aparte. Si anda, sale de la cuarentena; si no, se queda."
+                            onClicked: { const e = page.drv.reintentar(filaDriver.model.id); page.msgDriver = e !== "" ? "✕ " + e : "" }
+                        }
+                    }
+                }
+            }
+        }
         Text {
-            visible: page.equipo === null
+            visible: page.equipo === null && !page.verDrivers
             Layout.fillWidth: true
             text: "Elegí un dispositivo de la lista para ponerle nombre, configurarlo, ver lo que se sabe de él y qué se le puede hacer."
             color: Theme.textFaint; font.pixelSize: 13; wrapMode: Text.WordWrap

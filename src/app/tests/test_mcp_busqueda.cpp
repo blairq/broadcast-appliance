@@ -133,6 +133,10 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"historico_buscar", "Buscar en todos los eventos"},
     {"botonera_cara", "Poner la cara de un boton (foto o video corto)"},
     {"record_start", "Grabar"},
+    // Los drivers y su cuarentena (2026-10-26).
+    {"drivers_listar", "Los drivers y su cuarentena"},
+    {"driver_probar", "Probar un driver de nuevo"},
+    {"drivers_revisar", "Revisar todos los drivers"},
 };
 
 // --- La bateria de preguntas tipicas ----------------------------------------

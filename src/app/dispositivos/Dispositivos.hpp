@@ -80,6 +80,8 @@ class Dispositivos : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList equipos READ equiposQml NOTIFY cambio)
     Q_PROPERTY(QVariantList detectores READ detectoresQml NOTIFY cambio)
+    /// Los drivers de la máquina y su cuarentena (dispositivos/Drivers, un modelo de lista).
+    Q_PROPERTY(QObject* drivers READ drivers NOTIFY driversCambio)
    public:
     /// `nombres`: el archivo de la máquina con los nombres del operador
     /// (<datos>/Config/dispositivos.json); vacío, en memoria.
@@ -113,6 +115,12 @@ class Dispositivos : public QObject {
     /// que guarda una entrada (id de la cámara, del micrófono, nombre NDI, IP).
     QVariantMap porValor(const QString& tipo, const QString& valor) const;
     Conocidos& conocidos() { return *conocidos_; }
+    /// Los drivers (dispositivos/Drivers): los arma Registro.cpp.
+    QObject* drivers() const { return drivers_; }
+    void setDrivers(QObject* d) {
+        drivers_ = d;
+        emit driversCambio();
+    }
 
     // --- La interfaz (pages/EquiposPage.qml) ---------------------------------------
     QVariantList equiposQml() const { return equipos(); }
@@ -122,6 +130,7 @@ class Dispositivos : public QObject {
 
    signals:
     void cambio();
+    void driversCambio();
     void resultado(const QString& id, const QString& accion, const QVariantMap& resultado);
 
    private:
@@ -138,6 +147,7 @@ class Dispositivos : public QObject {
     std::map<QString, std::vector<Accion>> acciones_; ///< tipo -> acciones
     std::map<QString, QVariantMap> equipos_;          ///< id -> equipo
     std::map<QString, QVariantMap> estadoDetector_;   ///< id -> {escaneando, cuando, cuantos, error}
+    QObject* drivers_ = nullptr;
 };
 
 } // namespace ba::app::dispositivos

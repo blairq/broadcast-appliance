@@ -2,6 +2,8 @@
 
 #include "platform/GstEntorno.hpp"
 
+#include "hw/SaludDrivers.hpp"
+#include "platform/Maquina.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -119,7 +121,14 @@ bool prepararGst() {
     // GST_PLUGIN_FEATURE_RANK se respeta (va adelante; GStreamer toma el último).
     {
         const char* previo = std::getenv("GST_PLUGIN_FEATURE_RANK");
-        const std::string rangos = "asiodeviceprovider:NONE,asiosrc:NONE,asiosink:NONE";
+        std::string rangos = "asiodeviceprovider:NONE,asiosrc:NONE,asiosink:NONE";
+        // Y los proveedores de dispositivos que en ESTA máquina quedaron en cuarentena
+        // (se colgaron o tumbaron la prueba 4 veces seguidas: hw/SaludDrivers.hpp): con
+        // rango NONE ningún monitor de dispositivos los carga, ni una vez, desde el
+        // arranque. «Probar de nuevo» (Dispositivos → Drivers) los prueba aparte.
+        for (const std::string& id :
+             ba::hw::SaludDrivers::cuarentenaDe(dataRoot() / "Config" / "drivers.json", huellaDeMaquina(), "gst:"))
+            rangos += "," + id.substr(4) + ":NONE";
         ponerTexto("GST_PLUGIN_FEATURE_RANK",
                    (previo != nullptr && *previo != '\0' ? rangos + "," + previo : rangos).c_str());
     }

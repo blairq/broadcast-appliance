@@ -94,6 +94,7 @@ class McpService : public QObject {
     void registerConfiguracionesTools();
     void registerDocumentosTools();
     void registerEquiposTools();
+    void registerDriversTools(); ///< drivers_listar, driver_probar, drivers_revisar (McpEquiposTools.cpp)
     void registerPrompterTools();
     void registerPantallaTools();
     void registerLaminaTools();

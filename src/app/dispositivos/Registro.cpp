@@ -11,7 +11,13 @@
 #include "arranque/AppRuntime.hpp"
 #include "audio/EntradasAudio.hpp"
 #include "audio/UnificarEntradas.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "dispositivos/Dispositivos.hpp"
+#include "dispositivos/Drivers.hpp"
+#include "dispositivos/SondaReal.hpp"
+#include "hw/Antibucle.hpp"
+#include "platform/Maquina.hpp"
+#include "platform/Paths.hpp"
 #include "dispositivos/Onvif.hpp"
 #include "plugins/Plugins.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -27,16 +33,21 @@
 
 #include <QAudioDevice>
 #include <QAuthenticator>
+#include <QCameraDevice>
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QJsonDocument>
 #include <QMediaDevices>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPointer>
+#include <QProcessEnvironment>
 #include <QTimer>
 #include <QUrl>
 
+#include <algorithm>
+#include <memory>
 #include <thread>
 
 namespace ba::app::dispositivos {
@@ -81,12 +92,16 @@ QVariantMap equipoDeRed(const json& e) {
             {"detalle", detalle},
             {"datos", aV(e)}};
 }
-/// Las cámaras, los micrófonos y las salidas de audio de la máquina, cada uno
-/// con su id ESTABLE (el mismo que guarda una entrada: uniqueID de AVFoundation,
-/// ruta del dispositivo, UID de Core Audio, id de WASAPI/Pulse), nunca el índice:
-/// el nombre que le pone el operador queda pegado a ese equipo aunque se lo
-/// reenchufe en otro puerto.
-QVariantList localesDe(AppRuntime& rt) {
+/// Las cámaras y los micrófonos de la máquina, cada uno con su id ESTABLE (el
+/// mismo que guarda una entrada: uniqueID de AVFoundation, ruta del dispositivo,
+/// UID de Core Audio, id de WASAPI/Pulse), nunca el índice: el nombre que le pone
+/// el operador queda pegado a ese equipo aunque se lo reenchufe en otro puerto.
+///
+/// Corre en OTRO HILO: enumerar carga los proveedores de dispositivos de
+/// GStreamer y uno de terceros puede tardar segundos o colgarse (la interfaz
+/// llegó a quedar trabada 12,8 s). Lo que está en cuarentena no se carga (rango
+/// NONE: dispositivos/Drivers).
+QVariantList camarasYMicrofonos(AppRuntime& rt) {
     video::iniciarGStreamer();
     QVariantList eq;
     for (const auto& c : video::camarasDelEquipo(rt.engine()))
@@ -111,7 +126,13 @@ QVariantList localesDe(AppRuntime& rt) {
                           {"datos", QVariantMap{{"id", qs(m.value)},
                                                 {"pipeline", qs(audio::pipelineDeMicrofono(m.value))}}}};
     }
-    // Las mismas que ofrece el mezclador para escuchar y para las salidas (QMediaDevices).
+    return eq;
+}
+
+/// Las salidas de audio: las mismas que ofrece el mezclador para escuchar y para
+/// las salidas (QMediaDevices, que ya las tiene: es barato y va en el hilo de la interfaz).
+QVariantList salidasDeAudio() {
+    QVariantList eq;
     for (const QAudioDevice& s : QMediaDevices::audioOutputs()) {
         const QString id = QString::fromLatin1(s.id());
         eq << QVariantMap{{"clave", "salida:" + id},
@@ -123,6 +144,38 @@ QVariantList localesDe(AppRuntime& rt) {
     }
     return eq;
 }
+
+/// Lo que el sistema dice que hay (los ids que Qt ya tiene, sin enumerar nada):
+/// para saber si un aviso de «cambiaron los dispositivos» cambió algo de verdad.
+std::string firmaDelSistema() {
+    QStringList ids;
+    for (const QAudioDevice& a : QMediaDevices::audioInputs()) ids << "i:" + QString::fromLatin1(a.id());
+    for (const QAudioDevice& a : QMediaDevices::audioOutputs()) ids << "o:" + QString::fromLatin1(a.id());
+    for (const QCameraDevice& c : QMediaDevices::videoInputs()) ids << "v:" + QString::fromLatin1(c.id());
+    ids.sort();
+    return ids.join('|').toStdString();
+}
+
+std::int64_t ahoraMs() {
+    static QElapsedTimer t = [] {
+        QElapsedTimer x;
+        x.start();
+        return x;
+    }();
+    return t.elapsed();
+}
+
+/// La búsqueda de cámaras y micrófonos: una a la vez, en otro hilo, con tiempo
+/// límite, y sin entrar en el círculo «enumerar → el sistema avisa → enumerar».
+struct BusquedaLocal {
+    bool enCurso = false;
+    bool trabada = false; ///< la última no volvió a tiempo (su hilo sigue adentro de un driver)
+    int vuelta = 0;
+    bool primera = false; ///< ya se hizo la del arranque
+    std::vector<Listo> esperan;
+    hw::Antibucle antibucle;
+    std::function<void()> rearmar;
+};
 } // namespace
 
 void registrarTodo(Dispositivos& d, const Dependencias& dep) {
@@ -158,28 +211,139 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
     }
     if (dep.rt) {
         AppRuntime* rt = dep.rt;
+        // Los drivers de la máquina (dispositivos/Drivers): qué anduvo, qué está en
+        // cuarentena, y la prueba de lo nuevo en un proceso hijo (ba-app --sonda-drivers).
+        Drivers::Opciones od;
+        od.archivo = ba::platform::dataRoot() / "Config" / "drivers.json";
+        od.huella = ba::platform::huellaDeMaquina();
+        od.etiqueta = ba::platform::modeloDeMaquina();
+        od.umbral = ba::ajustes::entero("drivers.fallasCuarentena", 4);
+        od.sondeo.programa = QCoreApplication::applicationFilePath();
+        od.sondeo.argsBase = {sonda::kBandera};
+        od.sondeo.limiteMs = ba::ajustes::sAMs("drivers.tiempoLimiteS", 8);
+        // El hijo ve los rangos verdaderos (sin los NONE de la cuarentena) y no rehace el
+        // registro de GStreamer (lo hace la app; dos a la vez se pisan).
+        QProcessEnvironment entorno = QProcessEnvironment::systemEnvironment();
+        entorno.remove("GST_PLUGIN_FEATURE_RANK");
+        entorno.insert("GST_REGISTRY_UPDATE", "no");
+        od.sondeo.entorno = entorno;
+        od.ponerRango = [](const std::string& proveedor, int rango) { sonda::ponerRangoDeProveedor(proveedor, rango); };
+        auto* drivers = new Drivers(std::move(od), &d);
+        d.setDrivers(drivers);
+        QPointer<Drivers> drv(drivers);
+        if (mensajes)
+            QObject::connect(drivers, &Drivers::cuarentenaNueva, &d,
+                             [mensajes](const QString&, const QString& nombre, const QString& motivo) {
+                                 if (!mensajes) return;
+                                 mensajes->post({{"kind", "message"},
+                                                 {"priority", "info"},
+                                                 {"title", "Driver en cuarentena: " + nombre.toStdString()},
+                                                 {"text", motivo.toStdString() +
+                                                              ". No se vuelve a cargar solo; «Probar de nuevo» en "
+                                                              "Dispositivos y equipos → Drivers."}});
+                             });
+
+        auto est = std::make_shared<BusquedaLocal>();
+        est->antibucle.setTiempos({800, 2000, ba::ajustes::entero("dispositivos.minimoEntreBusquedasMs", 10000)});
         d.registrar(Detector{
             "local", "Cámaras, micrófonos y placas de sonido de esta máquina",
             "Las cámaras y capturadoras, los micrófonos y entradas de audio y las salidas de las placas de "
             "sonido, con su id estable. Se vuelve a buscar solo cuando se enchufa o se desenchufa algo.",
-            [rt](Listo listo) { listo({{"equipos", localesDe(*rt)}}); }});
+            [rt, est, drv](Listo listo) {
+                if (est->trabada)
+                    return listo({{"error", "la búsqueda anterior sigue trabada adentro de un driver: se lo está "
+                                            "probando aparte (Dispositivos y equipos → Drivers)"}});
+                est->esperan.push_back(std::move(listo));
+                if (est->enCurso) return; // contesta la que ya está andando
+                est->enCurso = true;
+                const int vuelta = ++est->vuelta;
+                est->antibucle.empieza(ahoraMs(), firmaDelSistema());
+                std::thread([rt, est, vuelta]() {
+                    QVariantList eq = camarasYMicrofonos(*rt);
+                    QMetaObject::invokeMethod(
+                        qApp,
+                        [est, vuelta, eq]() mutable {
+                            if (vuelta != est->vuelta) {
+                                est->trabada = false; // volvió, tarde: ya se la había dado por trabada
+                                return;
+                            }
+                            est->enCurso = false;
+                            est->antibucle.termina(ahoraMs(), firmaDelSistema());
+                            eq += salidasDeAudio();
+                            std::vector<Listo> esperan;
+                            esperan.swap(est->esperan);
+                            for (auto& l : esperan) l({{"equipos", eq}});
+                            if (est->rearmar) est->rearmar();
+                        },
+                        Qt::QueuedConnection);
+                }).detach();
+                const int limite = ba::ajustes::sAMs("dispositivos.busquedaLimiteS", 15);
+                QTimer::singleShot(limite, qApp, [est, vuelta, drv, limite]() {
+                    if (!est->enCurso || vuelta != est->vuelta) return;
+                    // No volvió: un proveedor se colgó adentro de su hilo. La app sigue; lo
+                    // que esperaba la lista se entera, y los proveedores se prueban aparte
+                    // (en el hijo, con tiempo límite) para saber cuál fue y ponerlo en cuarentena.
+                    est->enCurso = false;
+                    est->trabada = true;
+                    ++est->vuelta;
+                    est->antibucle.termina(ahoraMs(), firmaDelSistema());
+                    std::vector<Listo> esperan;
+                    esperan.swap(est->esperan);
+                    const QString err = QString("la búsqueda de cámaras y micrófonos no terminó en %1 s: se prueban "
+                                                "los drivers aparte")
+                                            .arg(limite / 1000);
+                    for (auto& l : esperan) l({{"error", err}});
+                    if (drv) drv->sospechar(err);
+                    if (est->rearmar) est->rearmar();
+                });
+            }});
         // Enchufar o desenchufar algo se ve solo (conectado / ausente), sin tocar
-        // «Buscar»: el sistema avisa y se busca de nuevo (con una espera corta,
-        // porque un equipo USB llega en varios avisos seguidos).
+        // «Buscar»: el sistema avisa y se busca de nuevo, con hw::Antibucle en el medio
+        // (espera corta porque un USB llega en varios avisos; los avisos que provoca la
+        // búsqueda misma no cuentan; nunca más de una cada 10 s).
         auto* md = new QMediaDevices(&d);
-        auto* espera = new QTimer(&d);
-        espera->setSingleShot(true);
-        espera->setInterval(800);
-        QObject::connect(espera, &QTimer::timeout, &d, [yo]() {
-            if (yo) yo->escanear("local", [](QVariantMap) {});
+        auto* reloj = new QTimer(&d);
+        reloj->setSingleShot(true);
+        est->rearmar = [est = std::weak_ptr<BusquedaLocal>(est), reloj]() {
+            auto e = est.lock();
+            if (!e || e->antibucle.enumerando()) return; // al terminar se rearma
+            const std::int64_t f = e->antibucle.falta(ahoraMs());
+            if (f >= 0)
+                reloj->start(static_cast<int>(std::min<std::int64_t>(f, 600000)));
+            else
+                reloj->stop();
+        };
+        QObject::connect(reloj, &QTimer::timeout, &d, [yo, est]() {
+            // Antes de la primera (que espera a los drivers) los avisos no disparan nada: en
+            // una máquina nueva, probar un ASIO en el hijo mueve los dispositivos de Windows.
+            if (!yo || !est->primera) return;
+            if (est->antibucle.vence(ahoraMs(), firmaDelSistema()))
+                yo->escanear("local", [](QVariantMap) {});
+            else
+                est->rearmar();
         });
-        QObject::connect(md, &QMediaDevices::audioInputsChanged, espera, qOverload<>(&QTimer::start));
-        QObject::connect(md, &QMediaDevices::audioOutputsChanged, espera, qOverload<>(&QTimer::start));
-        QObject::connect(md, &QMediaDevices::videoInputsChanged, espera, qOverload<>(&QTimer::start));
+        auto aviso = [est]() {
+            est->antibucle.aviso(ahoraMs(), firmaDelSistema());
+            est->rearmar();
+        };
+        QObject::connect(md, &QMediaDevices::audioInputsChanged, &d, aviso);
+        QObject::connect(md, &QMediaDevices::audioOutputsChanged, &d, aviso);
+        QObject::connect(md, &QMediaDevices::videoInputsChanged, &d, aviso);
         // Una búsqueda al arrancar (fuera del arranque mismo): las entradas, el
-        // mezclador y esta página muestran los nombres y lo que falta desde el principio.
-        QTimer::singleShot(2000, &d, [yo]() {
-            if (yo) yo->escanear("local", [](QVariantMap) {});
+        // mezclador y esta página muestran los nombres y lo que falta desde el
+        // principio. Espera a los drivers: en una máquina conocida es un momento
+        // (lo de cuarentena ya arrancó afuera y solo se mira si hay algo nuevo); en
+        // una nueva, que se prueben todos aparte antes de cargarlos acá. Con un tope,
+        // por si la prueba se demora.
+        auto primera = [yo, est]() {
+            if (!yo || est->primera) return;
+            est->primera = true;
+            yo->escanear("local", [](QVariantMap) {});
+        };
+        QObject::connect(drivers, &Drivers::listoArranque, &d, primera);
+        QTimer::singleShot(ba::ajustes::sAMs("drivers.esperaPrimeraBusquedaS", 90), &d, primera);
+        QTimer::singleShot(1500, drivers, [drv]() {
+            if (drv) drv->arrancar();
         });
     }
 #if defined(BA_HAVE_NDI)
