@@ -34,6 +34,7 @@ struct Escucha::Corriente {
     std::vector<float> resto; // muestras a 16 kHz que no completan una ventana del VAD
     int version = -1;         // de los cortes con que se armó el VAD
     std::size_t hablado = 0;  // muestras de la frase en curso (para el indicador)
+    bool oia = false;         // el VAD detectaba voz en la vuelta anterior (para EmpiezaVoz)
 };
 
 Escucha::Escucha() : hilo_([this]() { bucle(); }) {}
@@ -119,6 +120,18 @@ void Escucha::cargar(const Modelos& m, std::function<void(const std::string&)> l
     });
 }
 
+void Escucha::descargar() {
+    encolar([this]() {
+        cargado_ = false;
+        corrientes_.clear(); // sus VAD se rearman al volver a cargar
+        motor_.reset();
+        // Con el reconocedor fuera, lo que no se lee no tiene que contar como
+        // «cargado» para la próxima carga: se vuelve a leer todo.
+        std::lock_guard<std::mutex> l(contLock_);
+        vadModelo_.clear();
+    });
+}
+
 void Escucha::empezar() {
     std::lock_guard<std::mutex> l(tomaLock_);
     toma_.clear();
@@ -175,6 +188,11 @@ void Escucha::setCortes(const Cortes& c) {
     ++versionCortes_;
 }
 
+void Escucha::setEmpiezaVoz(EmpiezaVoz f) {
+    std::lock_guard<std::mutex> l(contLock_);
+    empiezaVoz_ = std::move(f);
+}
+
 Escucha::Cortes Escucha::cortes() const {
     std::lock_guard<std::mutex> l(contLock_);
     return cortes_;
@@ -211,6 +229,7 @@ void Escucha::alimentarContinuo(const std::string& clave, const float* muestras,
 void Escucha::atenderCorrientes() {
     std::map<std::string, Pendiente> lote;
     Frase frase;
+    EmpiezaVoz empieza;
     Cortes cortes;
     int version = 0;
     std::string vadModelo;
@@ -230,6 +249,7 @@ void Escucha::atenderCorrientes() {
             ++it;
         }
         frase = frase_;
+        empieza = empiezaVoz_;
         vadModelo = vadModelo_;
         cortes = cortes_;
         version = versionCortes_;
@@ -276,8 +296,10 @@ void Escucha::atenderCorrientes() {
         }
         {
             std::lock_guard<std::mutex> l(contLock_);
-            oido_[clave] = Oido{c->vad->IsDetected(), static_cast<double>(c->hablado) / kFrecuenciaModelo};
+            oido_[clave] = Oido{c->vad->IsDetected(), static_cast<double>(c->hablado) / kFrecuenciaModelo, {}};
         }
+        if (c->vad->IsDetected() && !c->oia && empieza) empieza(clave);
+        c->oia = c->vad->IsDetected();
         c->resto.erase(c->resto.begin(), c->resto.begin() + static_cast<std::ptrdiff_t>(usado));
         while (!c->vad->IsEmpty()) {
             const so::SpeechSegment seg = c->vad->Front();

@@ -1004,6 +1004,7 @@ Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
 2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`crear_fuente` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
 3. `texto_a_voz {"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador · en"}` y en la Matriz esa fuente a la pista 2.
 4. `traducciones` muestra la última frase traducida y cuánto tardó.
+5. Varios oradores a la vez, o el texto tarda: la transcripción puede usar Nemotron (streaming) en vez de Parakeet: `voz_reconocedores {"consumidor": "transcripcion", "motor": "nemotron"}` (help {"topic": "agentes"}).
 
 ## El glosario (lo que no se puede traducir mal)
 Antes de traducir, cada término conocido se reemplaza por su traducción ya hecha. Sin esto «cuarto intermedio» sale «middle room» y «no es moco de pavo» «turkey mucus». Viene con tres grupos: «general» (cabina), «asamblea» (sesiones, mociones, sobre tablas, bloques, comisiones) y «localidades». **Antes de un evento, sumá sus términos**: nombres de comisiones, programas, leyes con nombre, cargos, instituciones.
@@ -1186,7 +1187,10 @@ Un encargo que nacio de otro encargo NO puede encargar a un tercero. Si te falta
 Siempre con una linea que empiece con `RESUMEN:`: que paso, que quedo hecho, que quedo pendiente. Es lo que lee el operador y lo que recibe la proxima corrida de tu rol como contexto.
 
 ## Mirar
-`agente_roles` (cuales hay y como estan), `agente_corridas` (las ultimas, con su resumen), `agente_corrida {"id"}` (una, paso a paso). Lo mismo esta en la pagina Agentes.)md"},
+`agente_roles` (cuales hay y como estan), `agente_corridas` (las ultimas, con su resumen), `agente_corrida {"id"}` (una, paso a paso). Lo mismo esta en la pagina Agentes.
+
+## El oído de cada uno: Parakeet o Nemotron
+Hay dos reconocedores de voz a texto y cada consumidor elige el suyo (pestaña Agentes, arriba de los roles; `voz_reconocedores`): `dictado` (F9 del operador), `transcripcion` (las «Voz a texto» en continuo: subtítulos, acta y la **traducción en tiempo real**), `recepcion` (la atención hablada) y `registro` (el tótem). De fábrica, todos **Parakeet** (por frases: muy preciso, el texto llega 1-3 s después de cada pausa). **Nemotron** es streaming: UNA copia en memoria atiende muchas voces a la vez (se decodifican juntas), da texto parcial y, en el tótem, deja que la persona interrumpa al asistente (`interrumpir`, prendido de fábrica). Cada motor se carga cuando alguno lo usa y se suelta a los 2 min sin uso. Si `voz_reconocedores` trae `alerta`, están los DOS en memoria (~1,7 GB): proponé que todos usen el mismo. Nemotron hay que bajarlo antes (Configuración → Modelos locales, o `modelo_local_bajar` con su repo del catálogo, tipo `voz_streaming`).)md"},
 };
 
 std::string settingsJson(SettingsModel& s) {

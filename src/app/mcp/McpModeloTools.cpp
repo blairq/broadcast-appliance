@@ -84,7 +84,8 @@ json estado(agent::ModelosLocales& ml, agent::Voz* voz) {
                     {"hablante", voz->hablante()},
                     {"hablantes", voz->hablantes()},
                     {"velocidad", voz->velocidad()},
-                    {"hablando", voz->hablando()}};
+                    {"hablando", voz->hablando()},
+                    {"reconocedores", voz->reconocedoresJson()}};
     return r;
 }
 
@@ -396,6 +397,48 @@ void McpService::registerModeloTools() {
             if (a.contains("velocidad") && a["velocidad"].is_number())
                 voz->setVelocidad(a["velocidad"].get<double>());
             done(ToolResult::ok("Listo.").data(estado(ml, voz)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_reconocedores";
+        t.title = "Qué reconocedor de voz usa cada uno (Parakeet o Nemotron)";
+        t.category = "agentes";
+        t.idempotent = true;
+        t.description =
+            "Los dos reconocedores de voz a texto: Parakeet (por frases, el de fábrica) y Nemotron (streaming: "
+            "muchas voces a la vez, con texto parcial; se lo puede interrumpir en el tótem). Sin argumentos: "
+            "cuál elige cada consumidor (`dictado`, `transcripcion` —subtítulos y traducción en tiempo real—, "
+            "`recepcion`, `registro` —el tótem—), cuáles están cargados, por quién, cuánta memoria ocupan, el "
+            "lote de Nemotron y `alerta` si están los dos a la vez (sugerí unificar). Con `consumidor` y "
+            "`motor` (\"parakeet\" o \"nemotron\"): lo cambia, lo guarda y pasa sus oídos abiertos al motor "
+            "nuevo. Con `consumidor` e `interrumpir` (solo `registro`): que la persona pueda cortar al asistente "
+            "hablando (anda con Nemotron). Es lo mismo que la pestaña Agentes. Nemotron hay que bajarlo antes "
+            "(modelo_local_bajar con su repo, tipo voz_streaming).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"consumidor",
+                            {{"type", "string"}, {"enum", {"dictado", "transcripcion", "recepcion", "registro"}}}},
+                           {"motor", {{"type", "string"}, {"enum", {"parakeet", "nemotron"}}}},
+                           {"interrumpir", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"consumidor": "registro", "motor": "nemotron"})",
+                      R"({"consumidor": "transcripcion", "motor": "nemotron"})"};
+        t.run = [voz](const json& a, Done done) {
+            const QString c = QString::fromStdString(a.value("consumidor", std::string()));
+            if (a.contains("motor") || a.contains("interrumpir")) {
+                if (c.isEmpty()) return done(ToolResult::error("falta `consumidor`"));
+                if (a.contains("motor") && a["motor"].is_string()) {
+                    const QString e =
+                        voz->elegirReconocedor(c, QString::fromStdString(a["motor"].get<std::string>()));
+                    if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                }
+                if (a.contains("interrumpir") && a["interrumpir"].is_boolean()) {
+                    const QString e = voz->setInterrumpir(c, a["interrumpir"].get<bool>());
+                    if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                }
+            }
+            done(ToolResult().data(voz->reconocedoresJson()));
         };
         core_.addTool(std::move(t));
     }

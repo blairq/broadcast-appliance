@@ -296,7 +296,7 @@ endif()
 if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${_ba_sherpa_lib}" AND BA_HAVE_ORT)
     set(BA_HAVE_VOZ ON)
 else()
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|Habla)\\.cpp$")
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|EscuchaNemotron|Habla)\\.cpp$")
 endif()
 
 if(MSVC)
@@ -685,7 +685,25 @@ endif()
         add_test(NAME test_habla COMMAND test_habla)
         set_tests_properties(test_habla PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
         set_tests_properties(test_escucha PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+        # Nemotron streaming con el modelo de verdad (BA_NEMOTRON_MODELO; si no, se saltea).
+        add_executable(test_nemotron tests/test_nemotron.cpp audio/EscuchaNemotron.cpp audio/EscuchaStreaming.cpp
+                       agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
+        target_include_directories(test_nemotron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            target_link_libraries(test_nemotron PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+        else()
+            target_link_libraries(test_nemotron PRIVATE ${BA_SHERPA_LIBS} ba_core)
+        endif()
+        add_test(NAME test_nemotron COMMAND test_nemotron)
+        set_tests_properties(test_nemotron PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
     endif()
+    # Los dos reconocedores (agent/Reconocedores) y el motor streaming con un modelo falso:
+    # el lote, los márgenes del VAD, la carga por usos y la alerta. Sin sherpa-onnx.
+    add_executable(test_reconocedores tests/test_reconocedores.cpp audio/EscuchaStreaming.cpp agent/Reconocedores.cpp
+                   agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
+    target_include_directories(test_reconocedores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_reconocedores PRIVATE ba_core)
+    add_test(NAME test_reconocedores COMMAND test_reconocedores)
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
     # Las cuentas de la voz del teleprompter (agent/VozPrompterPlan).

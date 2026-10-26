@@ -978,6 +978,9 @@ Rectangle {
                                     text: modelData.tipo === "voz"
                                           ? "Voz a texto · " + modelData.idiomas + " · " + modelData.tamano_gb + " GB · " +
                                             "error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
+                                        : modelData.tipo === "voz_streaming"
+                                          ? "Voz a texto en streaming (muchas voces a la vez; se elige en Agentes) · " + modelData.idiomas + " · " +
+                                            modelData.tamano_gb + " GB · error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
                                         : modelData.tipo === "vad"
                                           ? "Detector de voz (recorta los silencios) · " + modelData.licencia
                                         : modelData.tipo === "vision"

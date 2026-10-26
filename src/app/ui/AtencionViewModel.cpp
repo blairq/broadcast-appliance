@@ -227,8 +227,11 @@ QString AtencionViewModel::quienAtiendeTexto() const {
 
 QString AtencionViewModel::hablarFalta() const {
     if (!voz_.disponible()) return "Esta compilación no trae el motor de voz.";
-    if (!voz_.lista())
-        return "Falta el reconocedor de voz (voz a texto): bajalo en Configuración → Modelos locales.";
+    // El reconocedor que eligió la recepción (pestaña Agentes): con que esté bajado
+    // alcanza, se carga al abrir el oído.
+    if (!voz_.puedeOir("recepcion"))
+        return "Falta el reconocedor de voz (voz a texto) que usa la recepción: bajalo en Configuración → "
+               "Modelos locales (o elegí otro en Agentes).";
     if (!vozLista_)
         return "Falta la voz del atendedor: elegila en Configuración → Voz del sistema → Voz del atendedor.";
     return {};

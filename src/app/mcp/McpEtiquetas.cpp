@@ -468,6 +468,8 @@ const Fila kPropias[] = {
     {"voz_automaticas", "acciones automaticas sin confirmar sin preguntar permitir"},
     {"voz_decir", "decir hablar decirle al operador por los auriculares avisar en voz"},
     {"voz_microfono", "microfono del operador mic de cabina talkback hablarle al lobby"},
+    {"voz_reconocedores", "reconocedor de voz parakeet nemotron streaming varias voces a la vez interrumpir al asistente "
+                          "voz a texto memoria los dos modelos cargados unificar transcripcion traduccion en tiempo real"},
     {"voz_teleprompter", "leer el teleprompter en voz alta locutor virtual"},
     {"voz_texto", "voz a texto dictado transcribir subtitular reconocimiento de voz stt"},
     {"voz_transcripcion", "transcripcion lo que se dijo texto transcripto ultimas frases"},

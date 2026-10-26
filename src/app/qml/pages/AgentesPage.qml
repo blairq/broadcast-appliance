@@ -61,6 +61,9 @@ Rectangle {
             }
         }
 
+        // --- El oído: Parakeet o Nemotron para cada uno (y la alerta de los dos a la vez) ---
+        PanelOidos { Layout.fillWidth: true }
+
         // --- Roles ---------------------------------------------------------------
         Panel {
             Layout.fillWidth: true

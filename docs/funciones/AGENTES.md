@@ -94,6 +94,12 @@ modelo; las corridas, que se despliegan paso a paso; y un campo para
 encargarle algo a mano. Una sola fuente (`Studio.despachador`), así lo que se
 toca por un lado se ve por el otro.
 
+Arriba de los roles, **Oído (voz a texto)**: qué reconocedor usa cada uno que
+escucha —el dictado, la transcripción continua y la traducción en tiempo real, la
+recepción, el tótem—, Parakeet (de fábrica) o Nemotron (streaming), cuáles están
+en memoria y la alerta si están los dos a la vez. Por MCP, `voz_reconocedores`.
+Detalle en AUDIO-TTS.md («Dos reconocedores»).
+
 `chat_wait` (categoría `sala`) existe para esto: un agente de un tiro que
 atiende a alguien hace una pregunta con `chat_send` y espera la respuesta con
 `chat_wait`, en vez de consultar `invitados_chat_leer` cada tanto.
