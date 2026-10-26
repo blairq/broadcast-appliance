@@ -57,11 +57,11 @@ input:focus, select:focus { outline: 2px solid var(--azul); outline-offset: 1px;
 .lista, .detalle { background: var(--panel); border: 1px solid var(--borde); border-radius: 16px; padding: 14px; min-width: 0; }
 .conversaciones { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .conversaciones li { padding: 10px 12px; border-radius: 12px; background: var(--hundido); border: 1px solid var(--borde);
-  cursor: pointer; display: grid; gap: 3px; }
+  cursor: pointer; display: grid; gap: 3px; min-width: 0; } /* sin min-width el texto largo la estiraba fuera del panel */
 .conversaciones li.elegida { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul); }
 .conversaciones li.atendida { border-left: 4px solid var(--ok); }
 .conversaciones li.mia { border-left: 4px solid var(--acento); }
-.conversaciones .arriba { display: flex; gap: 8px; align-items: baseline; }
+.conversaciones .arriba { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
 .conversaciones .totem { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversaciones .lugar { font-size: 12px; color: var(--tenue); }
 .conversaciones .paso { font-size: 13px; color: var(--acento); }

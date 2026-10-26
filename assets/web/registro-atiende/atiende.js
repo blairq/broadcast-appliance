@@ -22,6 +22,8 @@ let pc = null;
 let audioTx = null;      // el transceptor del audio: baja lo del tótem, sube mi micrófono
 let remoto = null;       // lo que baja (video y audio del tótem)
 let mic = null;          // mi micrófono, solo mientras atiendo
+let pidoAtender = 0;     // cuándo pedí atender (0 = no estoy esperando la confirmación)
+const kEsperaAtenderMs = 5000;
 let micMudo = false;
 let camposDe = "";       // de qué conversación y con qué claves está armado el formulario
 const sucios = new Map(); // clave -> cuándo lo mandé (hasta que la app lo devuelve, no se pisa)
@@ -164,7 +166,9 @@ function pintarLista() {
       ul.appendChild(li);
     }
     li.querySelector(".totem").textContent = (c.totem || c.id || "") + (c.quien ? " · " + c.quien : "");
-    li.querySelector(".lugar").textContent = c.canal > 0 ? "conversando" : "sin cámara";
+    // Con cámara no quiere decir conversando: el tótem sigue conectado entre una persona y otra.
+    const charla = c.estado !== "esperando" && c.estado !== "listo";
+    li.querySelector(".lugar").textContent = c.canal === 0 ? "sin cámara" : charla ? "conversando" : "esperando a alguien";
     li.querySelector(".paso").textContent = textoPaso(c);
     li.querySelector(".ultimo").textContent = c.oido ? "«" + c.oido + "»" : c.dice ? "Asistente: «" + c.dice + "»" : "";
     li.classList.toggle("elegida", c.conn === elegida);
@@ -286,7 +290,12 @@ function pintarDetalle() {
   }
   ponerValores(c);
   // Mi micrófono, solo mientras la atiendo (si dejé de atenderla de cualquier forma, se suelta).
-  if (!lista.some((x) => x.atendida && x.atiendeConn === aconn) && mic) soltarMic();
+  // Recién pedida, la lista que llega todavía puede ser la de antes: se espera la confirmación
+  // (si no, el micrófono se soltaba en el mismo instante en que se abría y la persona no me oía).
+  const atiendoAlguna = lista.some((x) => x.atendida && x.atiendeConn === aconn);
+  if (atiendoAlguna) pidoAtender = 0;
+  const esperando = pidoAtender > 0 && Date.now() - pidoAtender < kEsperaAtenderMs;
+  if (!atiendoAlguna && !esperando && mic) soltarMic();
 }
 
 // --- El WebSocket ------------------------------------------------------------------------------------
@@ -371,6 +380,7 @@ $("atender").addEventListener("click", async () => {
   iniciarMedios();
   oir();
   // El micrófono se pide acá, con el toque (algunos navegadores lo exigen).
+  pidoAtender = Date.now();
   const conMic = await pedirMic();
   if (!conMic) aviso("Sin micrófono: la persona no te va a oír, pero podés completar los datos.");
   mandar({ type: "atender", conn: c.conn });
