@@ -44,7 +44,7 @@ void VozAlLobby::abrir() {
     // El canal se crea una vez y queda: rearmarlo con el mismo nombre y la
     // misma identidad confundiría al lector del gateway (no vería que cambió).
     if (ring_.header() == nullptr &&
-        !ba::ipc::SharedAudioRing::init(L"BA.Audio.Atendedor", 2, ba::ipc::audio_ring::kDefaultCapacityBlocks,
+        !ba::ipc::SharedAudioRing::init(canal_.c_str(), 2, ba::ipc::audio_ring::kDefaultCapacityBlocks,
                                         pidPropio(), 1, ring_)
              .ok)
         return;

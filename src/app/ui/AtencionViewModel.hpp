@@ -157,6 +157,11 @@ class AtencionViewModel : public QObject {
     /// Decirle `texto` al que espera en la sesión remota (chat_send {to: <id>}): con la
     /// voz del atendedor, solo a él, y escrito en su página. "" o el error.
     QString decirAlIntegrante(const QString& id, const QString& texto);
+    /// Las rutas de una voz bajada del catálogo (lo que pide audio::Habla::Voz).
+    /// false si no está bajada. La usa también el registro por tótem
+    /// (ui/RegistroViewModel), que habla con la MISMA voz del atendedor.
+    static bool rutasDeVoz(agent::ModelosLocales& modelos, const QString& repo, std::string& modelo,
+                           std::string& tokens, std::string& datos);
     /// Todo junto, para `atencion_estado`.
     nlohmann::json estado() const;
     /// Cambia lo que venga ({salaAtiende, salaHablando, asambleaAtiende,

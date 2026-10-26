@@ -65,6 +65,8 @@ class ConferenceClient : public QObject {
     void direccionesEvento(const QJsonObject& catalogo);
     /// Cambió quién habla en la sala o la asamblea (lo mide el gateway): {ids: [clave, …]}.
     void hablanEvento(const QJsonObject& ev);
+    /// Los tótems de registro (/registro/): conexión, canal, audio, foto, toque, intento.
+    void registroEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

@@ -15,6 +15,10 @@
 // ms al ritmo del reloj —con silencio cuando no hay nada que decir, para que
 // el gateway no dé el canal por muerto entre frase y frase—.
 //
+// EL CANAL ES UN PARÁMETRO. La atención usa BA.Audio.Atendedor; cada tótem de
+// registro que conversa tiene el suyo (BA.Audio.RegistroVoz.<k>, ver
+// ui/RegistroViewModel), así lo que se le dice a uno no le llega a otro.
+//
 // Threading: abrir/cerrar desde la interfaz; encolar desde cualquier hilo (el
 // de la síntesis).
 // ============================================================================
@@ -25,6 +29,7 @@
 #include <cstdint>
 #include <deque>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #include "ipc/SharedAudioRing.hpp"
@@ -33,7 +38,8 @@ namespace ba::app {
 
 class VozAlLobby {
    public:
-    VozAlLobby() = default;
+    /// `canal`: el nombre del anillo compartido que lee el gateway.
+    explicit VozAlLobby(std::wstring canal = L"BA.Audio.Atendedor") : canal_(std::move(canal)) {}
     ~VozAlLobby();
     VozAlLobby(const VozAlLobby&) = delete;
     VozAlLobby& operator=(const VozAlLobby&) = delete;
@@ -54,6 +60,7 @@ class VozAlLobby {
    private:
     void bucle();
 
+    std::wstring canal_;
     ba::ipc::SharedAudioRing ring_;
     std::thread hilo_;
     std::atomic<bool> salir_{false};

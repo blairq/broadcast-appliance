@@ -48,9 +48,11 @@ void OperatorFeed::shutdown() {
     if (motor::Motor* m = motorAndando()) {
         for (const auto& n : lobbyMonitors_) m->quitarEntrada(n);
         if (!atencionMonitor_.empty()) m->quitarEntrada(atencionMonitor_);
+        for (const auto& n : registroMonitors_) m->quitarEntrada(n);
     }
     lobbyMonitors_.clear();
     atencionMonitor_.clear();
+    registroMonitors_.clear();
 }
 
 bool OperatorFeed::configure(BroadcastEngine& engine, const std::string& videoSource,
@@ -200,6 +202,19 @@ void OperatorFeed::startLobbyMonitor(int count) {
     // La voz del que espera en la sesión remota atendido hablando: la misma forma,
     // un canal solo (la voz del que atiende es una sola).
     if (interna("ba-atencion-remota", "BA.Audio.Atencion")) atencionMonitor_ = "ba-atencion-remota";
+    // La voz de quien se registra en cada tótem que conversa (ui/RegistroViewModel):
+    // uno por canal, la misma forma. Nunca a la mezcla ni a los auriculares.
+    for (int k = 1; k <= kMaxRegistro; ++k) {
+        const std::string name = "ba-registro-" + std::to_string(k);
+        if (interna(name, "BA.Audio.Registro." + std::to_string(k))) registroMonitors_.push_back(name);
+    }
+}
+
+int OperatorFeed::escucharRegistro(int canal, std::function<void(const float*, std::size_t)> fn) {
+    if (canal < 1 || canal > static_cast<int>(registroMonitors_.size())) return 0;
+    motor::Motor* m = motorAndando();
+    if (m == nullptr) return 0;
+    return m->escucharEntrada(registroMonitors_[static_cast<std::size_t>(canal - 1)], std::move(fn));
 }
 
 int OperatorFeed::escucharAtencionRemota(std::function<void(const float*, std::size_t)> fn) {

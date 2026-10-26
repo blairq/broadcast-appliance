@@ -630,6 +630,19 @@ QVariantList AtencionViewModel::voces() const {
     return out;
 }
 
+bool AtencionViewModel::rutasDeVoz(agent::ModelosLocales& modelos, const QString& repo, std::string& modelo,
+                                   std::string& tokens, std::string& datos) {
+    const std::filesystem::path d = repo.isEmpty() ? std::filesystem::path() : modelos.carpetaInstalada(repo);
+    if (d.empty()) return false;
+    QString archivo;
+    for (const QVariant& v : modelos.catalogo())
+        if (v.toMap().value("repo").toString() == repo) archivo = v.toMap().value("modelo").toString();
+    modelo = (d / archivo.toStdString()).string();
+    tokens = (d / "tokens.txt").string();
+    datos = (d / "espeak-ng-data").string();
+    return true;
+}
+
 void AtencionViewModel::revisarVoz() {
 #if defined(BA_HAVE_VOZ)
     const QString repo = vozElegida();
@@ -646,13 +659,8 @@ void AtencionViewModel::revisarVoz() {
     }
     vozCargada_ = repo;
     vozLista_ = false;
-    QString modelo;
-    for (const QVariant& v : modelos_.catalogo())
-        if (v.toMap().value("repo").toString() == repo) modelo = v.toMap().value("modelo").toString();
     audio::Habla::Voz v;
-    v.modelo = (d / modelo.toStdString()).string();
-    v.tokens = (d / "tokens.txt").string();
-    v.datos = (d / "espeak-ng-data").string();
+    rutasDeVoz(modelos_, repo, v.modelo, v.tokens, v.datos);
     emit cambio();
     QPointer<AtencionViewModel> yo(this);
     habla_->cargar(v, [yo](const std::string& error) {

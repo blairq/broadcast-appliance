@@ -12,6 +12,9 @@
 //   B decide a quien le llega (video a todo el lobby; voz solo a con quien el
 //   operador esta hablando).
 //
+//   Y la voz de quien se registra en un tótem (BA.Audio.Registro.<k>, k = 1..4),
+//   solo para pasarla a texto (ui/RegistroViewModel).
+//
 //   Y a la inversa, el MONITOREO: la voz de quien espera (BA.Audio.Lobby.<k>)
 //   se escucha por los auriculares del operador (la escucha «seleccion» del
 //   motor, nunca la mezcla del programa) solo mientras le esta hablando.
@@ -40,6 +43,8 @@ class OperatorFeed {
     static constexpr int kWidth = 640;
     static constexpr int kHeight = 360;
     static constexpr int kMaxLobby = 8;
+    /// Los tótems de registro que conversan a la vez (canales 1..4, como el gateway).
+    static constexpr int kMaxRegistro = 4;
 
     OperatorFeed() = default;
     ~OperatorFeed();
@@ -69,6 +74,10 @@ class OperatorFeed {
     /// lo atiende el asistente hablando (BA.Audio.Atencion, un canal: de a uno). Se
     /// suelta con dejarDeEscucharLobby. 0 = no se pudo.
     int escucharAtencionRemota(std::function<void(const float* estereo, std::size_t cuadros)> fn);
+    /// La voz de quien se registra por el tótem que tiene el canal `canal` (1..4,
+    /// BA.Audio.Registro.<k>; ui/RegistroViewModel). Se suelta con
+    /// dejarDeEscucharLobby. 0 = no se pudo.
+    int escucharRegistro(int canal, std::function<void(const float* estereo, std::size_t cuadros)> fn);
 
     // --- Push-to-talk (docs/funciones/AUDIO-TTS.md) -------------------------------------
     /// Mono en float con su frecuencia: el oído del control por voz.
@@ -113,6 +122,7 @@ class OperatorFeed {
     // Monitoreo del lobby: entradas internas del motor (no van a la mezcla ni a las listas)
     std::vector<std::string> lobbyMonitors_;
     std::string atencionMonitor_; ///< la de BA.Audio.Atencion ("" = no se armó)
+    std::vector<std::string> registroMonitors_; ///< las de BA.Audio.Registro.<k>
 };
 
 } // namespace ba::app

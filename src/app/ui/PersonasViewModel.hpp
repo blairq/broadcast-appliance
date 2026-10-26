@@ -123,6 +123,18 @@ class PersonasViewModel : public QObject {
     /// error)` en el hilo de la interfaz; parecido 0 si no hay cara o ficha.
     void compararFoto(const QByteArray& jpeg, const QString& personaId,
                       std::function<void(float parecido, bool sirve, const QString& error)> luego);
+    /// Quién es la cara más grande de una foto (la que manda un tótem de
+    /// registro), contra la libreta. `personaId` vacío si no se la conoce (o no
+    /// hay cara); `sirve` dice si la cara alcanza para darla de alta.
+    struct Identificado {
+        QString personaId, nombre;
+        float parecido = 0.0f;
+        bool hayCara = false;
+        bool sirve = false;
+    };
+    /// `luego(quien, error)` en el hilo de la interfaz. El trabajo pesado va al
+    /// hilo del reconocimiento (Reconocedor), como compararFoto.
+    void identificarFoto(const QByteArray& jpeg, std::function<void(const Identificado& quien, const QString& error)> luego);
     /// Alta automática desde una foto: ficha nueva con ese nombre y cargo, su
     /// cara y su foto. `luego(id, error)` (id vacío si no se pudo: sin cara, o
     /// la cara no sirve, o ya es de otra ficha con nombre).

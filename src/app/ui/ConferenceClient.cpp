@@ -116,6 +116,8 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit direccionesEvento(obj);
     } else if (event == "hablan") {
         emit hablanEvento(obj);
+    } else if (event == "registro") {
+        emit registroEvento(obj);
     } else if (event == "programa") {
         miranPrograma_ = obj.value("mirando").toInt(-1);
     }
