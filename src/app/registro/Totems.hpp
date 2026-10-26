@@ -20,7 +20,7 @@
 // fragmento (`#r=<id>&t=<token>`); se guarda cifrado en el almacén de secretos
 // (security/CredentialStore), como los links de la sesión remota, así la url
 // se puede volver a mostrar y el json se puede copiar a otro evento sin
-// llevarse la llave. Eso lo hace ui/RegistroViewModel.
+// llevarse la llave. Eso lo hace ui/TotemsViewModel.
 //
 // C++ puro, como el padrón: se prueba entero sin Qt (test_registro_totems).
 // ============================================================================

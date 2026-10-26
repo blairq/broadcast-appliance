@@ -17,7 +17,7 @@
 //
 // EL CANAL ES UN PARÁMETRO. La atención usa BA.Audio.Atendedor; cada tótem de
 // registro que conversa tiene el suyo (BA.Audio.RegistroVoz.<k>, ver
-// ui/RegistroViewModel), así lo que se le dice a uno no le llega a otro.
+// ui/TotemsViewModel), así lo que se le dice a uno no le llega a otro.
 //
 // Threading: abrir/cerrar desde la interfaz; encolar desde cualquier hilo (el
 // de la síntesis).
