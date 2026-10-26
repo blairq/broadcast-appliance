@@ -44,13 +44,12 @@ void Sondeo::lanzar(const QStringList& args) {
     proceso_->setProgram(o_.programa);
     proceso_->setArguments(o_.argsBase + args);
     proceso_->setProcessEnvironment(o_.entorno);
-    proceso_->setProcessChannelMode(QProcess::SeparateChannels);
+    // UN solo caño (stdout y stderr juntos): lo que el driver escribe por stderr llega en el
+    // orden en que se escribió, antes del resultado que lo explica. Con dos caños no hay orden
+    // entre ellos y, con la máquina cargada, el resultado llegaba antes que «is JACK server
+    // running?» y el motivo salía genérico.
+    proceso_->setProcessChannelMode(QProcess::MergedChannels);
     connect(proceso_, &QProcess::readyReadStandardOutput, this, &Sondeo::leerLineas);
-    connect(proceso_, &QProcess::readyReadStandardError, this, [this]() {
-        if (proceso_ == nullptr) return;
-        errores_ += proceso_->readAllStandardError();
-        if (errores_.size() > kTopeStderr) errores_ = errores_.right(kTopeStderr);
-    });
     connect(proceso_, &QProcess::finished, this, &Sondeo::alTerminarProceso);
     connect(proceso_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
         if (e != QProcess::FailedToStart || proceso_ == nullptr) return;
@@ -95,7 +94,13 @@ void Sondeo::leerLineas() {
         pendiente_.remove(0, n + 1);
         if (linea.isEmpty()) continue;
         const json j = json::parse(linea.constData(), linea.constData() + linea.size(), nullptr, false);
-        if (!j.is_object()) continue; // lo que no es nuestro (un driver que escribe por stdout)
+        if (!j.is_object()) {
+            // Lo que no es nuestro: lo que dice el driver (por stderr o stdout). Es lo que
+            // explica una falla («Open error: is JACK server running?»).
+            errores_ += linea + '\n';
+            if (errores_.size() > kTopeStderr) errores_ = errores_.right(kTopeStderr);
+            continue;
+        }
         if (j.contains("fin")) {
             fin_ = true;
             reloj_.stop();
