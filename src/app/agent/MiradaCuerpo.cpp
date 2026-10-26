@@ -35,7 +35,10 @@ PedidoMirada pedidoDelDorso() {
     // la foto, la firma ni el código de arriba. Las capturas del video (960x540)
     // daban «NO SE VE»: van las fotos enteras que manda la página del tótem.
     p.recorteDesde = 0.58;
-    p.anchoMax = 1920;
+    // 1280 de ancho: medido con un DNI real, 3,4 s por foto en vez de 5,7 (1920), con los
+    // verificadores del número, el nacimiento y el vencimiento cerrando igual; más chico ya
+    // falla seguido el compuesto.
+    p.anchoMax = 1280;
     p.calidad = 95;
     p.maxTokens = 200; // tres renglones de 30 y algo de sobra
     p.esperaMs = 20000; // más, y la persona ya se cansó de sostener el documento

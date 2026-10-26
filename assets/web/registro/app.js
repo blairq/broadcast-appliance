@@ -315,7 +315,11 @@ function ponerPedido(m) {
   $("cajaEtiqueta").textContent = (pedido.etiqueta || pedido.clave) +
     (pedido.tipo === "sino" ? "" : pedido.tipo === "documento" ? " — si no lo lee, escribí el número acá" : " — si preferís, escribilo acá");
   const sino = pedido.tipo === "sino";
-  $("sino").classList.toggle("oculto", !sino);
+  // Confirmando un dato: los mismos botones, con la respuesta entera (y la caja para corregirlo).
+  const confirma = !!pedido.confirmando && !sino;
+  $("sino").classList.toggle("oculto", !sino && !confirma);
+  $("si").textContent = confirma ? "Sí, es correcto" : "Sí";
+  $("no").textContent = confirma ? "No, corregir" : "No";
   $("cajaValor").parentElement.classList.toggle("oculto", sino);
   const input = $("cajaValor");
   input.type = kTipoInput[pedido.tipo] || "text";

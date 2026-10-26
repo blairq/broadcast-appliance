@@ -60,7 +60,7 @@ constexpr qint64 kFotoMs = 7000;           ///< cuánto se espera una toma de fr
 constexpr qint64 kArranqueSinCaraMs = 2500; ///< con canal y sin cara a la vista: arranca igual
 constexpr qint64 kListoMs = 8000;          ///< la pantalla de gracias (la página vuelve sola)
 constexpr qint64 kEntreDocumentosMs = 300; ///< mostrando el documento: un cuadro al lector cada tanto
-constexpr qint64 kDocumentoMs = 15000;     ///< cuánto se espera leerlo antes de decirle qué corregir
+constexpr qint64 kDocumentoMs = 9000;      ///< cuánto se espera leerlo antes de decirle qué corregir (o pedir el dorso: con una cámara que enfoca, el frente sale en un par de segundos)
 /// Lo mismo con el dorso: cada foto tarda lo que tarde el modelo propio en leerla
 /// (uno a pocos segundos), así que se le da más tiempo para varios intentos.
 constexpr qint64 kDorsoMs = 25000;
@@ -977,13 +977,17 @@ void TotemsViewModel::aplicar(Conexion& c, const std::string& decirTxt, bool cam
         c.buscandoFoto = false;
     }
     if (campos) enviar(c.conn, {{"type", "campos"}, {"lista", c.conv->camposParaMostrar()}});
-    if (!pedir.empty() && pedir != c.pedidoEnviado) {
+    // Lo que se pide cambia también al pasar a confirmar (aparecen los botones Sí / No).
+    const std::string clavePedido =
+        pedir.empty() ? std::string()
+                      : pedir + (c.conv->estado() == registro::Conversacion::Estado::Confirmando ? "?" : "");
+    if (!clavePedido.empty() && clavePedido != c.pedidoEnviado) {
         json p = c.conv->pedido();
         if (p.is_object()) {
             p["type"] = "pedir";
             enviar(c.conn, p);
         }
-        c.pedidoEnviado = pedir;
+        c.pedidoEnviado = clavePedido;
     }
     if (!decirTxt.empty()) decir(c, decirTxt);
     if (guardar) guardarRegistro(c);

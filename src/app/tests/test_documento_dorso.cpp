@@ -69,7 +69,7 @@ void pedido() {
     int x = 0, y = 0, w = 0, h = 0;
     recorteMirada(1920, 1080, p, x, y, w, h);
     CHECK(x == 0 && w == 1920 && y == 626 && h == 1080 - 626, "la franja de abajo, desde el 58 %, ancho completo");
-    CHECK(p.anchoMax >= 1920, "una foto de 1920 no se achica");
+    CHECK(p.anchoMax == 1280, "a 1280 de ancho (medido: 3,4 s por foto y los verificadores cierran igual)");
     const json b = cuerpoMirada("local", p, "QUJD");
     CHECK(b["model"] == "local", "el modelo (el alias del llama-server)");
     CHECK(b["messages"].size() == 1 && b["messages"][0]["role"] == "user", "sin sistema: un solo mensaje");

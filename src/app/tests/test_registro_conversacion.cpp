@@ -207,7 +207,7 @@ void conversacionCompleta() {
     CHECK(cv.empezar({}).decir.empty(), "empezar dos veces no hace nada");
 
     r = cv.oido("me llamo jorge ortega");
-    CHECK(r.decir == "Anoté Jorge Ortega. ¿Está bien?", "confirma el nombre");
+    CHECK(r.decir == "Anoté Jorge Ortega. ¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».", "confirma el nombre");
     CHECK(cv.estado() == Conversacion::Estado::Confirmando, "confirmando");
     r = cv.oido("dale");
     CHECK(contiene(r.decir, "Perfecto.") && contiene(r.decir, "correo"), "acepta y pide el correo");
@@ -215,7 +215,7 @@ void conversacionCompleta() {
     CHECK(cv.datos()["nombre"] == "Jorge Ortega", "nombre anotado");
 
     r = cv.oido("jorge punto ortega arroba gmail punto com");
-    CHECK(r.decir == "Anoté jorge punto ortega arroba gmail punto com. ¿Está bien?", "repite el correo dicho");
+    CHECK(r.decir == "Anoté jorge punto ortega arroba gmail punto com. ¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».", "repite el correo dicho");
     r = cv.oido("no");
     CHECK(contiene(r.decir, "Decímelo de nuevo") && cv.estado() == Conversacion::Estado::Preguntando, "no -> de nuevo");
     r = cv.oido("jorge punto ortegas arroba gmail punto com");
@@ -224,7 +224,7 @@ void conversacionCompleta() {
     r = cv.oido("jorge punto ortega arroba gmail punto com");
     CHECK(contiene(r.decir, "Anoté jorge punto ortega arroba"), "corrección directa en la confirmación");
     r = cv.oido("eh, el martes");
-    CHECK(contiene(r.decir, "Decime sí o no"), "ni sí ni no: vuelve a preguntar");
+    CHECK(contiene(r.decir, "No te entendí") && contiene(r.decir, "«sí, es correcto»"), "ni sí ni no: vuelve a preguntar");
     r = cv.oido("sí");
     CHECK(cv.datos()["correo"] == "jorge.ortega@gmail.com", "correo anotado");
     CHECK(r.pedir == "telefono", "pide teléfono");
@@ -314,7 +314,7 @@ void silencioYCancelar() {
     CHECK(contiene(r.decir, "¿Seguís ahí?") && contiene(r.decir, "¿Cómo te llamás?"), "primer silencio");
     cv.oido("Pedro Gómez"); // habló: el contador vuelve a cero
     r = cv.silencio();
-    CHECK(contiene(r.decir, "¿Seguís ahí? ¿Está bien Pedro Gómez?"), "silencio confirmando");
+    CHECK(contiene(r.decir, "¿Seguís ahí? Anoté Pedro Gómez."), "silencio confirmando");
     r = cv.silencio();
     CHECK(r.terminar && !r.guardar, "dos silencios seguidos: termina sin guardar");
 
@@ -493,7 +493,7 @@ void documentoLeidoYConfirmado() {
     CHECK(cv.oido("ahí va, a ver").decir.empty(), "la charla mientras lo acomoda no cambia nada");
 
     r = cv.documentoLeido(dniLeido());
-    CHECK(r.decir == "Sos Juana Andrea Prueba, DNI 11.222.333. ¿Está bien?", "lo confirma en voz alta");
+    CHECK(r.decir == "Sos Juana Andrea Prueba, DNI 11.222.333. ¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».", "lo confirma en voz alta");
     CHECK(cv.estado() == Conversacion::Estado::Confirmando && !r.documento, "confirmando, sin buscar más");
     r = cv.oido("sí");
     CHECK(r.campos && contiene(r.decir, "Perfecto.") && r.pedir == "correo", "acepta y salta lo que ya sabe");
@@ -625,7 +625,7 @@ void documentoTipeadoYDictado() {
     Conversacion di(totemConDocumento(), "Expo");
     di.empezar({});
     r = di.oido("once dos dos dos tres tres tres");
-    CHECK(r.decir == "Anoté DNI 11.222.333. ¿Está bien?", "dictado se confirma");
+    CHECK(r.decir == "Anoté DNI 11.222.333. ¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».", "dictado se confirma");
     r = di.oido("sí");
     CHECK(di.datos()["dni"]["origen"] == "dicho" && r.pedir == "nombre", "dictado queda");
 }
@@ -658,6 +658,22 @@ void documentoSinConfirmarYCara() {
     CHECK(r.terminar && !r.guardar, "cancelar en el paso del documento");
 }
 
+void confirmarConBotones() {
+    // Confirmando, la pantalla muestra «Sí, es correcto» / «No, corregir»: mandan «sí» o «no»
+    // como escrito del campo que se confirma, y valen lo mismo que la respuesta hablada.
+    Conversacion cv(totemDePrueba(), "Expo");
+    cv.empezar({});
+    cv.oido("pedro gómez");
+    CHECK(cv.pedido().value("confirmando", false), "confirmando: la pantalla lo sabe");
+    auto r = cv.escrito("nombre", "sí");
+    CHECK(cv.datos()["nombre"] == "Pedro Gómez" && !cv.pedido().value("confirmando", true), "el botón Sí lo anota");
+    cv.oido("pedro punto gomez arroba gmail punto com");
+    r = cv.escrito("correo", "no");
+    CHECK(!cv.datos().contains("correo") && cv.estado() == Conversacion::Estado::Preguntando, "el botón No lo vuelve a pedir");
+    CHECK(entenderSiNo("sí, es correcto") == 1 && entenderSiNo("no, es incorrecto") == 0 && entenderSiNo("es incorrecto") == 0,
+          "las frases largas que pide");
+}
+
 } // namespace
 
 int main() {
@@ -671,6 +687,7 @@ int main() {
     silencioYCancelar();
     sinConfirmarYTipos();
     fotoDeFrente();
+    confirmarConBotones();
     documentoNormalizadores();
     documentoLeidoYConfirmado();
     documentoCorregido();

@@ -152,6 +152,10 @@ const std::vector<std::string>& kNo() {
     return v;
 }
 
+// Cómo se pide la confirmación. Una frase larga y no un «sí» suelto: medio segundo de voz se
+// pierde entre el detector de voz y el reconocedor (probado en un tótem: el «sí» no entraba).
+const std::string kConfirmar = "¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».";
+
 bool esCancelar(const std::string& f) {
     return f == "cancelar" || f == "cancela" || f == "cancelalo" || tiene(f, "cancelar el registro") ||
            tiene(f, "cancela el registro") || f == "me voy" || f == "chau";
@@ -871,10 +875,10 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
         json v;
         if (entender(c, texto, v) && v != propuesto_) {
             propuesto_ = v;
-            r.decir = "Anoté " + paraDecir(c, v) + ". ¿Está bien?";
+            r.decir = "Anoté " + paraDecir(c, v) + ". " + kConfirmar;
             return r;
         }
-        r.decir = "¿Está bien " + paraDecir(c, propuesto_) + "? Decime sí o no.";
+        r.decir = "No te entendí. Anoté " + paraDecir(c, propuesto_) + ". " + kConfirmar;
         return r;
     }
     if (esRepetir(f)) {
@@ -908,7 +912,7 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     if (t_.confirmar && c.tipo != TipoCampo::SiNo) {
         estado_ = Estado::Confirmando;
         propuesto_ = v;
-        r.decir = "Anoté " + paraDecir(c, v) + ". ¿Está bien?";
+        r.decir = "Anoté " + paraDecir(c, v) + ". " + kConfirmar;
         return r;
     }
     aceptar(v);
@@ -927,6 +931,9 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
     std::size_t i = 0;
     while (i < t_.campos.size() && t_.campos[i].clave != clave) ++i;
     if (i == t_.campos.size()) return r;
+    // Confirmando, los botones «Sí, es correcto» / «No, corregir» mandan «sí» o «no» para el
+    // campo que se confirma: es la misma respuesta que la hablada.
+    if (estado_ == Estado::Confirmando && i == actual_ && entenderSiNo(valor) != -1) return oido(valor);
     const Campo& c = t_.campos[i];
     json v;
     r.pedir = t_.campos[actual_].clave;
@@ -961,7 +968,7 @@ Conversacion::Respuesta Conversacion::silencio() {
     ++silencios_;
     if (silencios_ == 1) {
         r.decir = estado_ == Estado::Confirmando
-                      ? "¿Seguís ahí? ¿Está bien " + paraDecir(t_.campos[actual_], propuesto_) + "?"
+                      ? "¿Seguís ahí? Anoté " + paraDecir(t_.campos[actual_], propuesto_) + ". " + kConfirmar
                       : "¿Seguís ahí? " + pregunta(actual_);
         return r;
     }
@@ -1031,7 +1038,10 @@ json Conversacion::pedido() const {
     return {{"clave", c.clave},
             {"etiqueta", c.etiqueta.empty() ? c.clave : c.etiqueta},
             {"tipo", nombreDeTipo(c.tipo)},
-            {"ejemplo", c.ejemplo}};
+            {"ejemplo", c.ejemplo},
+            // Confirmando: la pantalla muestra «Sí, es correcto» / «No, corregir» (el respaldo
+            // táctil del sí hablado).
+            {"confirmando", estado_ == Estado::Confirmando}};
 }
 
 std::string Conversacion::nombre() const {
@@ -1091,7 +1101,7 @@ Conversacion::Respuesta Conversacion::oidoDocumento(const std::string& texto, co
         if (t_.confirmar) {
             estado_ = Estado::Confirmando;
             propuesto_ = v;
-            r.decir = "Anoté " + paraDecir(c, v) + ". ¿Está bien?";
+            r.decir = "Anoté " + paraDecir(c, v) + ". " + kConfirmar;
             return r;
         }
         aceptar(v);
@@ -1120,7 +1130,7 @@ Conversacion::Respuesta Conversacion::documentoLeido(const json& datos) {
     if (t_.confirmar) {
         estado_ = Estado::Confirmando;
         propuesto_ = v;
-        r.decir = (d.apellido.empty() ? "Leí " : "Sos ") + paraDecir(c, v) + ". ¿Está bien?";
+        r.decir = (d.apellido.empty() ? "Leí " : "Sos ") + paraDecir(c, v) + ". " + kConfirmar;
         return r;
     }
     aceptar(v);
