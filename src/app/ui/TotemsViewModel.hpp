@@ -90,6 +90,13 @@ class TotemsViewModel : public QObject {
     Q_PROPERTY(QString hablarFalta READ hablarFalta NOTIFY cambio)
     /// La sala (el gateway) responde.
     Q_PROPERTY(bool enLinea READ enLinea NOTIFY cambio)
+    // --- La atención remota (docs/funciones/REGISTRO-TOTEM.md, «Atención remota») ---
+    /// El link de la página de atención del evento (/registro-atiende/#t=…): quien lo abre ve
+    /// todas las conversaciones, mira y escucha una, la atiende y completa datos. "" sin evento.
+    Q_PROPERTY(QString urlAtencion READ urlAtencion NOTIFY cambio)
+    /// Quienes tienen abierta la página de atención: [{aconn, nombre, lugar, ip, atiende}]
+    /// (`atiende`: el conn de la conversación que atiende, o "").
+    Q_PROPERTY(QVariantList atienden READ atienden NOTIFY vivoCambio)
 
    public:
     TotemsViewModel(AppRuntime& rt, StudioViewModel& vm, agent::Voz* voz, agent::ModelosLocales* modelos,
@@ -124,6 +131,28 @@ class TotemsViewModel : public QObject {
     Q_INVOKABLE QString renovar(const QString& id);
     /// Corta una conexión en vivo.
     Q_INVOKABLE void cortar(const QString& conn);
+
+    // --- La atención remota (también desde la app y el MCP) --------------------------------
+    QString urlAtencion() const;
+    QVariantList atienden() const;
+    /// Token nuevo para el link de atención: el viejo deja de andar (y se corta a quien entró
+    /// con él). Devuelve el nuevo.
+    Q_INVOKABLE QString renovarAtencion();
+    /// Atender una conversación desde la app (sin voz): el asistente se calla y deja de
+    /// preguntar; la pantalla del tótem dice «Te atiende una persona del equipo». "" o el error.
+    Q_INVOKABLE QString atender(const QString& conn);
+    /// Terminar la atención: `como` = "asistente" (sigue el guion), "guardar" (guarda ya) o
+    /// "cancelar". "" o el error.
+    Q_INVOKABLE QString terminarAtencion(const QString& conn, const QString& como);
+    /// Completar o corregir un dato (atendida o no), como si lo hubiera tipeado. Vacío = borrarlo.
+    Q_INVOKABLE QString ponerDato(const QString& conn, const QString& clave, const QString& valor);
+    /// Lo mismo, diciendo quién (`quien`, para la pantalla del tótem) y desde qué página de
+    /// atención (`aconn`; "" = la app o el MCP, que pueden siempre).
+    std::string atenderConn(const QString& conn, const QString& quien, const QString& aconn);
+    std::string terminarConn(const QString& conn, const QString& como, const QString& aconn);
+    std::string ponerDatoConn(const QString& conn, const QString& clave, const QString& valor, const QString& aconn);
+    /// {url, atienden: [...]} para el MCP.
+    nlohmann::json atencionJson() const;
 
     // --- Para el MCP, el catálogo de pantallas y los QR ---------------------------------
     /// El tótem como JSON (con url y urlPantalla), o null.
@@ -184,6 +213,21 @@ class TotemsViewModel : public QObject {
     void guardarRegistro(Conexion& c);
     void tic();
 
+    // La atención remota (región propia al final de TotemsViewModel.cpp).
+    struct Atiende {
+        QString aconn, nombre, ip, lugar;
+    };
+    void conectarAtencion();
+    bool alEventoAtencion(const nlohmann::json& ev);
+    void publicarAtencion();
+    /// El asistente se calla en el acto (lo que estaba diciendo y lo que faltaba sintetizar).
+    void callarAsistente(Conexion& c);
+    /// Deja de estar atendida: la pantalla del tótem y el gateway (su voz ya no baja ahí).
+    void liberarAtencion(Conexion& c);
+    nlohmann::json conversacionesJson() const;
+    /// Las conversaciones a las páginas de atención ("" = a todas).
+    void enviarAtencion(const QString& aconn = {});
+
     AppRuntime& rt_;
     StudioViewModel& vm_;
     agent::Voz* voz_;
@@ -201,6 +245,9 @@ class TotemsViewModel : public QObject {
     bool vozLista_ = false;
     bool cargandoVoz_ = false;
     QTimer tic_;
+    // La atención remota.
+    std::map<QString, Atiende> atienden_;
+    QTimer atencionTimer_; ///< junta los cambios: a las páginas de atención, a lo sumo cada 150 ms
 };
 
 } // namespace ba::app

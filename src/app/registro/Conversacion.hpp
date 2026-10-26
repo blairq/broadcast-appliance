@@ -148,7 +148,8 @@ class Conversacion {
     /// La atiende `quien` (su nombre; "" = alguien del equipo). Si todavía no había
     /// empezado, empieza callada en el primer campo sin dato. false si ya terminó.
     bool atender(const std::string& quien);
-    bool atendida() const { return atendida_; }
+    /// Atendida y en curso (al terminar, de cualquier forma, deja de estarlo).
+    bool atendida() const { return atendida_ && enCurso(); }
     const std::string& atendidaPor() const { return atendidaPor_; }
     /// La devuelve al asistente: el guion sigue desde el próximo campo sin dato (o la foto,
     /// o la despedida si ya está todo).

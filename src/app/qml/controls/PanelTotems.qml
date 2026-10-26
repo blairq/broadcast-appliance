@@ -158,6 +158,51 @@ Item {
                     }
                 }
 
+                // --- La atención remota: alguien del equipo, por web, mira, atiende y completa ---
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.08); visible: raiz.tv.totems.length > 0 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: raiz.tv.totems.length > 0
+                    spacing: 4
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Atención remota"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold }
+                    }
+                    GlassButton {
+                        compact: true; text: "Copiar link"
+                        onClicked: { Studio.copiar(raiz.tv.urlAtencion); Studio.notify("Link de atención copiado", "ok") }
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Quien lo abre ve todas las conversaciones, las mira y escucha, las atiende y " +
+                                      "completa datos. Pasalo solo a gente del equipo."
+                    }
+                    GlassButton {
+                        compact: true; text: "QR"
+                        onClicked: Studio.mostrarQr(raiz.tv.urlAtencion, "Atención del registro",
+                                                    "Para el equipo: mirar y atender los tótems", "azul")
+                    }
+                    GlassButton {
+                        compact: true; text: "⟳"
+                        onClicked: {
+                            const hoja = raiz
+                            ApplicationWindow.window.confirm({
+                                title: "¿Cambiar el link de atención?",
+                                text: "El link de ahora deja de andar y se corta a quien lo tenga abierto.",
+                                accept: "Cambiar",
+                                action: () => { hoja.tv.renovarAtencion() }
+                            })
+                        }
+                        ToolTip.visible: hovered; ToolTip.text: "Cambiar el link (el viejo deja de andar)"
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: raiz.tv.totems.length > 0
+                    wrapMode: Text.WordWrap
+                    color: raiz.tv.atienden.length > 0 ? Theme.ok : Theme.textFaint; font.pixelSize: 11
+                    text: raiz.tv.atienden.length === 0 ? "Nadie con la página de atención abierta."
+                          : "Atendiendo: " + raiz.tv.atienden.map(a => a.nombre + (a.atiende ? " (con una persona)" : "")).join(", ")
+                }
+
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.08) }
                 Text { text: "Registrándose ahora"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } }
                 Text {
@@ -228,7 +273,37 @@ Item {
                                             ToolTip.visible: hovered; ToolTip.text: "Cortar esta conexión"
                                         }
                                     }
-                                    Text { color: Theme.accent; font.pixelSize: 11; text: filaC.c.paso || "" }
+                                    Text { color: filaC.c.atendida ? Theme.ok : Theme.accent; font.pixelSize: 11; text: filaC.c.paso || "" }
+                                    // Atenderla desde acá (sin voz): el asistente se calla y deja de
+                                    // preguntar; se completan los datos y se guarda o se le devuelve.
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: 4
+                                        visible: filaC.c.canal > 0
+                                        GlassButton {
+                                            compact: true; visible: !filaC.c.atendida; text: "Atender"
+                                            onClicked: raiz.resultado(raiz.tv.atender(filaC.conn))
+                                            ToolTip.visible: hovered
+                                            ToolTip.text: "El asistente se calla; en el tótem dice «Te atiende una persona del equipo»"
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "Datos…"
+                                            onClicked: datosDlg.abrir(filaC.conn)
+                                        }
+                                        GlassButton {
+                                            compact: true; visible: filaC.c.atendida; text: "Devolver"
+                                            onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "asistente"))
+                                            ToolTip.visible: hovered; ToolTip.text: "Que siga el asistente, desde el próximo dato que falta"
+                                        }
+                                        GlassButton {
+                                            compact: true; visible: filaC.c.atendida; text: "Guardar"
+                                            onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "guardar"))
+                                        }
+                                        GlassButton {
+                                            compact: true; visible: filaC.c.atendida; text: "Cancelar"
+                                            onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "cancelar"))
+                                        }
+                                    }
                                     Text {
                                         Layout.fillWidth: true; elide: Text.ElideRight
                                         visible: !!filaC.c.oido
@@ -597,6 +672,58 @@ Item {
                 text: "No hay ninguna pantalla. Buscalas en la página de Pantallas."
                 color: Theme.textFaint
                 font.pixelSize: 12
+            }
+        }
+    }
+
+    // Completar o corregir los datos de una conversación (atendida o no): una foto de los
+    // campos al abrir (un ListModel propio: lo que cambia mientras se tipea no pisa lo que se
+    // está escribiendo); cada uno se manda al terminar de editarlo, como si lo hubiera tipeado.
+    Dialog {
+        id: datosDlg
+        property string conn: ""
+        anchors.centerIn: Overlay.overlay
+        width: 460
+        modal: true
+        title: "Los datos de esta conversación"
+        standardButtons: Dialog.Close
+        ListModel { id: camposDlg }
+        function abrir(conn) {
+            datosDlg.conn = conn
+            camposDlg.clear()
+            const c = raiz.porConn[conn]
+            for (const f of (c && c.campos) || [])
+                camposDlg.append({ clave: f.clave, etiqueta: f.etiqueta || f.clave, valor: String(f.valor || "") })
+            datosDlg.open()
+        }
+        ColumnLayout {
+            spacing: 6
+            Text {
+                Layout.preferredWidth: 420
+                wrapMode: Text.WordWrap
+                color: Theme.textDim; font.pixelSize: 12
+                text: "Lo que pongas se ve en la pantalla del tótem. Vacío borra el dato."
+            }
+            Text {
+                Layout.preferredWidth: 420
+                visible: camposDlg.count === 0
+                color: Theme.textFaint; font.pixelSize: 12
+                text: "Todavía no hay una conversación: «Atender» para empezarla."
+            }
+            Repeater {
+                model: camposDlg
+                delegate: RowLayout {
+                    required property string clave
+                    required property string etiqueta
+                    required property string valor
+                    Layout.preferredWidth: 420
+                    Text { Layout.preferredWidth: 110; text: etiqueta; color: Theme.textDim; font.pixelSize: 12; elide: Text.ElideRight }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: valor
+                        onEditingFinished: if (text !== valor) raiz.resultado(raiz.tv.ponerDato(datosDlg.conn, clave, text))
+                    }
+                }
             }
         }
     }
