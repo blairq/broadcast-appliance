@@ -256,8 +256,9 @@ std::vector<Rol> deFabrica() {
         // `laminas` si: la presentacion del orador es parte de armar el evento,
         // y desarmar el .pptx que alguien mando por mail es de lo primero que
         // hay que hacer. No saca nada al aire: arma la tira y queda ahi.
+        // `totems`: qué se le pregunta a la gente al registrarse es parte de armar el evento.
         x.categorias = {"evento",   "padron", "preguntas", "medios",  "prompter",
-                        "graficos", "qr",     "operador",  "rostros", "laminas"};
+                        "graficos", "qr",     "operador",  "rostros", "laminas", "totems"};
         x.disparadores = {}; // no se dispara solo: lo llama quien organiza
         x.prompt = kOrganizador;
         // PRENDIDO de fabrica, por la misma razon que `vision`: no tiene
@@ -281,7 +282,8 @@ std::vector<Rol> deFabrica() {
         // sala quedaba sin anotar mientras que el que entra por la puerta si.
         // Y `sesion`: el que espera en la sesión remota de la asamblea también
         // llega a la recepción (ui/AtencionViewModel), y habilitarlo es su parte.
-        x.categorias = {"sala", "oradores", "imagenes", "operador", "rostros", "padron", "sesion"};
+        // Y `totems`: el registro por tótem es la otra puerta por donde llega la gente.
+        x.categorias = {"sala", "oradores", "imagenes", "operador", "rostros", "padron", "sesion", "totems"};
         x.disparadores = {"lobby", "hand", "guest_drop", "guest_message"};
         x.prompt = kRecepcion;
         x.agruparMs = 0;
@@ -333,7 +335,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "escenas", "fuentes", "imagenes", "sala", "oradores", "salidas", "graficos", "rostros", "interfaz",
         "ventanas", "operador", "medios", "recetas", "audio", "audio_rack", "config", "sistema", "equipo",
         "entradas", "alertas", "pantallas", "evento", "prompter", "qr", "cuentas", "asistente", "youtube",
-        "twitch", "facebook", "padron", "preguntas", "laminas",
+        "twitch", "facebook", "padron", "preguntas", "laminas", "totems",
         // El grafo de video (tarjetas, módulos de GStreamer, controladores,
         // compositor, relojes y sincronía) y las cámaras PTZ: armar bien un
         // pipeline es justo lo que el operador le va a pedir. Faltaban, y la

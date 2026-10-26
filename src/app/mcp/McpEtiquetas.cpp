@@ -65,6 +65,8 @@ const Fila kFamilias[] = {
     {"control_", "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador "
                  "permisos computadora maquina pc"},
     {"media_", "medio archivo video musica audio cancion tema clip pelicula reproducir"},
+    {"totem_", "totem registro de personas registrarse acreditacion inscripcion formulario hablado kiosco "
+               "pantalla de bienvenida tv con camara qr para registrarse datos de los asistentes"},
     {"rostro_", "rostro cara persona quien es reconocer identificar nombre cargo libreta "
                 "caras conocidas quien llego quien esta"},
     {"ventana_", "ventana monitor pantalla escritorio mover acomodar ordenar posicion tamaño "
@@ -1013,6 +1015,17 @@ const Fila kPropias[] = {
                             "sesion remota microfono del que espera alta automatica anotar en personas voz del "
                             "atendedor"},
     {"atencion_voz_probar", "probar la voz del atendedor como suena generar audio sin reproducir wav"},
+    {"totem_listar", "que totems hay paginas de registro configuradas que pregunta cada uno"},
+    {"totem_crear", "crear un totem armar un registro nuevo pedir nombre correo telefono a los que llegan "
+                    "registrar gente hablando"},
+    {"totem_cambiar", "cambiar las preguntas del registro agregar un campo saludo despedida que pida el telefono "
+                      "confirmar los datos"},
+    {"totem_borrar", "borrar un totem sacar el registro"},
+    {"totem_enlace", "link del totem url del registro qr para registrarse copiar el enlace renovar"},
+    {"totem_proyectar", "mandar el registro a la tele proyectar el qr del registro en un televisor chromecast"},
+    {"totem_estado", "quien se esta registrando ahora conexiones del totem en que paso va que le entendio"},
+    {"totem_registrados", "quienes se registraron lo que contestaron datos del registro correos telefonos "
+                          "lista de inscriptos"},
     {"rostro_autoalta", "anotar solo automatico registrar a todos los que pasen interruptor "
                         "switch dar de alta sola lobby los que llegan"},
     {"rostro_lobby", "quien espera quien llego quien esta en el lobby reconocer a los que entran "
