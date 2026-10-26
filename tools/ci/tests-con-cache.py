@@ -442,9 +442,25 @@ def leer_entradas(arbol):
         return None
 
 
+def hilos():
+    """Cuántos hilos para calcular las claves. TESTS_CACHE_HILOS lo fija. Bajo Rosetta (el
+    contenedor x86 de Docker en una Mac) UNO: lanzar llvm-objdump desde varios hilos a la
+    vez trabó el proceso entero (17 hilos esperando un candado de Rosetta, 47 minutos,
+    sin hijos). Lo que se lee queda en la caché de importaciones: lento solo la primera vez."""
+    v = os.environ.get("TESTS_CACHE_HILOS", "")
+    if v.isdigit() and int(v) > 0:
+        return int(v)
+    if os.path.exists("/mnt/lima-rosetta") or os.path.exists("/proc/sys/fs/binfmt_misc/rosetta"):
+        return 1
+    return min(16, (os.cpu_count() or 4) * 2)
+
+
 def calcular(cache, items, fn):
-    """fn(item) -> (clave, partes), en paralelo (sha256 suelta el GIL)."""
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, (os.cpu_count() or 4) * 2)) as ex:
+    """fn(item) -> (clave, partes), en paralelo (sha256 suelta el GIL), salvo bajo Rosetta."""
+    n = hilos()
+    if n == 1:
+        return [fn(i) for i in items]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=n) as ex:
         return list(ex.map(fn, items))
 
 
