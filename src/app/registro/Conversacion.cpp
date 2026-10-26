@@ -7,6 +7,8 @@
 #include <cctype>
 #include <map>
 
+#include "documentos/Documento.hpp"
+
 namespace ba::registro {
 namespace {
 
@@ -577,9 +579,45 @@ bool entender(const Campo& c, const std::string& dicho, json& out) {
             out = v;
             return true;
         }
+        case TipoCampo::Documento: {
+            // Lo que se dice (o tipea) es el número: el respaldo de la cámara.
+            std::string v;
+            if (!entenderNumeroDocumento(dicho, v)) return false;
+            out = json{{"numero", v}, {"origen", "dicho"}};
+            return true;
+        }
     }
     return false;
 }
+
+bool entenderNumeroDocumento(const std::string& dicho, std::string& out) {
+    // «11.222.333» tipeado o «once dos dos dos…» dicho: lo mismo que un teléfono
+    // (dígitos o palabras, con lo que se dice antes), con el largo de un documento.
+    std::string t;
+    if (!entenderTelefono(dicho, t) || t.empty() || t[0] == '+') {
+        long long n = 0;
+        if (!entenderNumero(dicho, n) || n <= 0) return false;
+        t = std::to_string(n);
+    }
+    t.erase(0, std::min(t.find_first_not_of('0'), t.size()));
+    if (t.size() < 6 || t.size() > 9 || !todoDigitos(t)) return false;
+    out = t;
+    return true;
+}
+
+namespace {
+/// «Juana Andrea Prueba, DNI 11.222.333» (o lo que haya) de un documento ya en `datos`.
+std::string documentoParaDecir(const json& v, const char* separador) {
+    const ba::documentos::Datos d = ba::documentos::Datos::deJson(v);
+    const bool dni = d.tipo.empty() || d.tipo == "dni-ar";
+    const std::string n = d.numero.empty() ? std::string()
+                                           : std::string(dni ? "DNI " : "documento ") +
+                                                 ba::documentos::numeroConPuntos(d.numero);
+    const std::string quien = d.apellido.empty() ? std::string() : d.nombreCompleto();
+    if (quien.empty()) return n;
+    return n.empty() ? quien : quien + separador + n;
+}
+} // namespace
 
 namespace {
 /// Los dígitos de un teléfono en grupos («11 4567 8901»): el primero con lo
@@ -598,6 +636,7 @@ std::vector<std::string> gruposDeTelefono(const std::string& t) {
 } // namespace
 
 std::string paraDecir(const Campo& c, const json& v) {
+    if (c.tipo == TipoCampo::Documento && v.is_object()) return documentoParaDecir(v, ", ");
     if (v.is_boolean()) return v.get<bool>() ? "que sí" : "que no";
     if (v.is_number_integer()) return std::to_string(v.get<long long>());
     if (!v.is_string()) return {};
@@ -637,6 +676,7 @@ std::string paraDecir(const Campo& c, const json& v) {
 
 std::string paraMostrar(const Campo& c, const json& v) {
     if (v.is_null()) return {};
+    if (c.tipo == TipoCampo::Documento && v.is_object()) return documentoParaDecir(v, " · ");
     if (v.is_boolean()) return v.get<bool>() ? "Sí" : "No";
     if (v.is_number_integer()) return std::to_string(v.get<long long>());
     if (!v.is_string()) return v.dump();
@@ -664,6 +704,10 @@ std::string Conversacion::pregunta(std::size_t i) const {
     std::string p = c.pregunta.empty() ? preguntaDeFabrica(c.tipo) : c.pregunta;
     // Las opciones se dicen siempre: por voz no hay una lista que mirar.
     if (c.tipo == TipoCampo::Opcion && !c.opciones.empty()) p += " Puede ser: " + listar(c.opciones) + ".";
+    // Si no se acepta el DNI, no se pide «tu DNI».
+    if (c.tipo == TipoCampo::Documento && c.pregunta.empty() && !c.documentos.empty() &&
+        std::find(c.documentos.begin(), c.documentos.end(), "dni-ar") == c.documentos.end())
+        p = "Mostrame tu documento a la cámara, del lado del código de barras.";
     return p;
 }
 
@@ -683,6 +727,7 @@ std::string Conversacion::reintento(const Campo& c, int intento) const {
         case TipoCampo::Opcion: r = "No te entendí. Puede ser: " + listar(c.opciones) + "."; break;
         case TipoCampo::Nombre: r = "No te escuché bien. ¿Me repetís tu nombre?"; break;
         case TipoCampo::Texto: r = "No te escuché bien. ¿Me lo repetís?"; break;
+        case TipoCampo::Documento: r = "No te entendí el número. Decímelo de a un número."; break;
     }
     if (!c.ejemplo.empty() && (c.tipo == TipoCampo::Numero || c.tipo == TipoCampo::Texto || c.tipo == TipoCampo::Nombre))
         r += " Por ejemplo: " + c.ejemplo + ".";
@@ -727,6 +772,11 @@ void Conversacion::avanzar(Respuesta& r, const std::string& antes) {
         intentos_ = 0;
         r.decir = antes.empty() ? pregunta(i) : antes + " " + pregunta(i);
         r.pedir = t_.campos[i].clave;
+        // Un documento no se pregunta: se busca en la cámara (lo hace quien llama).
+        if (t_.campos[i].tipo == TipoCampo::Documento) {
+            estado_ = Estado::Documento;
+            r.documento = true;
+        }
         return;
     }
     terminar(r, antes);
@@ -760,6 +810,7 @@ void Conversacion::terminar(Respuesta& r, const std::string& antes) {
 void Conversacion::aceptar(const json& v) {
     valores_[actual_] = v;
     salteado_[actual_] = false;
+    if (t_.campos[actual_].tipo == TipoCampo::Documento) completarDesdeDocumento(v);
 }
 
 void Conversacion::fallo(Respuesta& r) {
@@ -786,6 +837,7 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     silencios_ = 0;
     if (esCancelar(f)) return cancelar();
     if (estado_ == Estado::Foto) return r; // mirando a la cámara: lo que diga no cambia nada
+    if (estado_ == Estado::Documento) return oidoDocumento(texto, f);
     const Campo& c = t_.campos[actual_];
     r.pedir = c.clave;
     if (estado_ == Estado::Confirmando) {
@@ -794,6 +846,15 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
             aceptar(propuesto_);
             r.campos = true;
             avanzar(r, "Perfecto.");
+            return r;
+        }
+        if (sn == 0 && c.tipo == TipoCampo::Documento) {
+            // Leyó mal (u otro documento): a mostrarlo de nuevo.
+            estado_ = Estado::Documento;
+            ++intentos_;
+            r.decir = "Perdón. Mostrámelo de nuevo, más cerca de la cámara.";
+            if (intentos_ >= 2) r.decir += " Si preferís, escribí el número en la pantalla.";
+            r.documento = true;
             return r;
         }
         if (sn == 0) {
@@ -863,7 +924,13 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
     const Campo& c = t_.campos[i];
     json v;
     r.pedir = t_.campos[actual_].clave;
-    if (!entender(c, valor, v)) {
+    if (c.tipo == TipoCampo::Documento) {
+        if (!entender(c, valor, v)) {
+            r.decir = "Eso no parece un número de documento. Fijate si está bien escrito.";
+            return r;
+        }
+        v["origen"] = "tipeado";
+    } else if (!entender(c, valor, v)) {
         r.decir = c.tipo == TipoCampo::Correo     ? "Eso no parece un correo. Fijate si está bien escrito."
                   : c.tipo == TipoCampo::Telefono ? "Eso no parece un teléfono. Fijate si está bien escrito."
                                                   : "No entendí lo que escribiste. Fijate si está bien.";
@@ -872,6 +939,7 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
     // Lo tipeado no se confirma: lo está viendo escrito.
     valores_[i] = v;
     salteado_[i] = false;
+    if (c.tipo == TipoCampo::Documento) completarDesdeDocumento(v);
     r.campos = true;
     if (i == actual_) avanzar(r, "Gracias, ya lo anoté.");
     return r;
@@ -880,7 +948,8 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
 Conversacion::Respuesta Conversacion::silencio() {
     Respuesta r;
     // En el paso de la foto el que espera es quien llama (fotoFallo): callado es lo esperable.
-    if (!enCurso() || estado_ == Estado::Foto) return r;
+    // Lo mismo mostrando el documento (documentoFallo).
+    if (!enCurso() || estado_ == Estado::Foto || estado_ == Estado::Documento) return r;
     r.pedir = t_.campos[actual_].clave;
     ++silencios_;
     if (silencios_ == 1) {
@@ -969,6 +1038,7 @@ std::string Conversacion::paso() const {
         case Estado::Esperando: return "esperando";
         case Estado::Terminada: return "terminada";
         case Estado::Foto: return "mirando a la cámara";
+        case Estado::Documento: return "leyendo el documento";
         case Estado::Preguntando:
         case Estado::Confirmando: {
             const Campo& c = t_.campos[actual_];
@@ -977,6 +1047,121 @@ std::string Conversacion::paso() const {
         }
     }
     return {};
+}
+
+// --- El documento ---------------------------------------------------------------
+
+Conversacion::Respuesta Conversacion::oidoDocumento(const std::string& texto, const std::string& f) {
+    Respuesta r;
+    const Campo& c = t_.campos[actual_];
+    r.pedir = c.clave;
+    if (esSaltear(f)) {
+        if (!c.obligatorio) {
+            salteado_[actual_] = true;
+            avanzar(r, "Dale, lo salteamos.");
+        } else {
+            r.decir = "Este dato lo necesitamos. Si la cámara no lo lee, escribí el número en la pantalla.";
+            r.documento = true;
+        }
+        return r;
+    }
+    if (esRepetir(f)) {
+        r.decir = pregunta(actual_);
+        r.documento = true;
+        return r;
+    }
+    // Dictó el número: se toma como si lo hubiera tipeado, pero dicho se confirma.
+    json v;
+    if (entender(c, texto, v)) {
+        if (t_.confirmar) {
+            estado_ = Estado::Confirmando;
+            propuesto_ = v;
+            r.decir = "Anoté " + paraDecir(c, v) + ". ¿Está bien?";
+            return r;
+        }
+        aceptar(v);
+        r.campos = true;
+        avanzar(r, "Perfecto.");
+    }
+    // Lo demás («ahí va», «a ver») es charla mientras acomoda el documento: nada.
+    return r;
+}
+
+Conversacion::Respuesta Conversacion::documentoLeido(const json& datos) {
+    Respuesta r;
+    if (estado_ != Estado::Documento || !datos.is_object()) return r;
+    const Campo& c = t_.campos[actual_];
+    json v = datos;
+    if (!v.contains("origen")) v["origen"] = "codigo";
+    r.pedir = c.clave;
+    const ba::documentos::Datos d = ba::documentos::Datos::deJson(v);
+    if (t_.confirmar) {
+        estado_ = Estado::Confirmando;
+        propuesto_ = v;
+        r.decir = (d.apellido.empty() ? "Leí " : "Sos ") + paraDecir(c, v) + ". ¿Está bien?";
+        return r;
+    }
+    aceptar(v);
+    r.campos = true;
+    avanzar(r, d.nombres.empty() ? std::string("Listo, ya lo leí.")
+                                 : "Gracias, " + d.nombres.substr(0, d.nombres.find(' ')) + ". Ya lo leí.");
+    return r;
+}
+
+Conversacion::Respuesta Conversacion::documentoFallo(const std::string& sugerencia) {
+    Respuesta r;
+    if (estado_ != Estado::Documento) return r;
+    const Campo& c = t_.campos[actual_];
+    r.pedir = c.clave;
+    if (++intentos_ == 1) {
+        r.decir = (sugerencia.empty() ? std::string("No lo pude leer.") : sugerencia) +
+                  " Tenelo quieto frente a la cámara, del lado del código de barras, sin que le dé el reflejo."
+                  " Si preferís, escribí el número en la pantalla.";
+        r.documento = true;
+        return r;
+    }
+    // La segunda vez no se insiste: la fila de la puerta importa más que el documento.
+    if (!c.obligatorio) {
+        salteado_[actual_] = true;
+        avanzar(r, "No pasa nada, seguimos sin el documento.");
+        return r;
+    }
+    r.decir = "No lo puedo leer. Escribí el número en la pantalla, así seguimos.";
+    r.documento = true;
+    return r;
+}
+
+std::vector<std::string> Conversacion::documentosAceptados() const {
+    if (!enCurso() || actual_ >= t_.campos.size() || t_.campos[actual_].tipo != TipoCampo::Documento) return {};
+    return t_.campos[actual_].documentos;
+}
+
+void Conversacion::completarDesdeDocumento(const json& doc) {
+    const ba::documentos::Datos d = ba::documentos::Datos::deJson(doc);
+    for (std::size_t i = 0; i < t_.campos.size(); ++i) {
+        if (i == actual_ || !valores_[i].is_null()) continue; // lo que ya contestó no se pisa
+        const Campo& c = t_.campos[i];
+        json x;
+        if (c.tipo == TipoCampo::Nombre) {
+            if (!d.apellido.empty() && !d.nombres.empty()) x = d.nombreCompleto();
+        } else if (c.tipo == TipoCampo::Texto || c.tipo == TipoCampo::Numero) {
+            // Por la clave: es lo único que dice qué dato es un campo de texto libre.
+            std::string v;
+            if (c.clave == "apellido" || c.clave == "apellidos") v = d.apellido;
+            else if (c.clave == "nombres" || c.clave == "nombre_pila") v = d.nombres;
+            else if (c.clave == "dni" || c.clave == "documento" || c.clave == "numero_documento") v = d.numero;
+            else if (c.clave == "nacimiento" || c.clave == "fecha_nacimiento") v = d.nacimiento;
+            else if (c.clave == "cuil") v = d.cuil;
+            else if (c.clave == "sexo") v = d.sexo;
+            if (!v.empty()) {
+                if (c.tipo != TipoCampo::Numero) x = v;
+                else if (todoDigitos(v)) x = std::stoll(v);
+            }
+        }
+        if (x.is_null()) continue;
+        valores_[i] = x;
+        salteado_[i] = false;
+    }
 }
 
 } // namespace ba::registro

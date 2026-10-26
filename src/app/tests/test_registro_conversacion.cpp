@@ -9,10 +9,14 @@
 //   3. La conversación entera: saludo (con y sin cara conocida), confirmar,
 //      corregir, reintentos y salteo, lo tipeado, silencio, cancelar, ya
 //      registrado, sin confirmar, sin campos.
+//   4. El paso del documento: leído y confirmado (completa nombre y apellido),
+//      corregido, fallo y salteo (y obligatorio), tipeado, dictado, sin confirmar,
+//      con cara conocida, otro tipo de documento.
 // ============================================================================
 #include <cstdio>
 #include <string>
 
+#include "documentos/Documento.hpp"
 #include "registro/Conversacion.hpp"
 
 using namespace ba::registro;
@@ -413,6 +417,180 @@ void fotoDeFrente() {
     CHECK(r.terminar && !r.guardar, "cancelar en el paso de la foto: sin guardar");
 }
 
+
+// --- El paso del documento (docs/funciones/DOCUMENTOS.md) ----------------------------
+// Con un DNI SINTÉTICO leído por el tipo de fábrica, como lo haría la app.
+
+nlohmann::json dniLeido() {
+    ba::documentos::Catalogo cat;
+    ba::documentos::Datos d;
+    cat.leer({"PDF417", "00500000001@PRUEBA@JUANA ANDREA@F@11222333@A@15/03/1990@20/04/2016@274", {}}, {"dni-ar"}, d);
+    return d.aJson();
+}
+
+/// documento (no obligatorio), nombre (obligatorio), apellido (texto), correo.
+Totem totemConDocumento(bool obligatorio = false) {
+    Totem t = totemNuevo("entrada", "Entrada");
+    t.foto = false;
+    Campo doc;
+    doc.clave = "dni";
+    doc.etiqueta = "DNI";
+    doc.tipo = TipoCampo::Documento;
+    doc.documentos = {"dni-ar"};
+    doc.obligatorio = obligatorio;
+    Campo ape;
+    ape.clave = "apellido";
+    ape.etiqueta = "Apellido";
+    ape.tipo = TipoCampo::Texto;
+    t.campos.insert(t.campos.begin(), doc);
+    t.campos.insert(t.campos.begin() + 2, ape);
+    return t;
+}
+
+void documentoNormalizadores() {
+    std::string n;
+    CHECK(entenderNumeroDocumento("11.222.333", n) && n == "11222333", "número con puntos");
+    CHECK(entenderNumeroDocumento("once dos dos dos tres tres tres", n) && n == "11222333", "número dicho");
+    CHECK(entenderNumeroDocumento("mi documento es 9.888.777", n) && n == "9888777", "con lo que se dice antes");
+    CHECK(entenderNumeroDocumento("011222333", n) && n == "11222333", "sin ceros adelante");
+    CHECK(!entenderNumeroDocumento("1234", n), "corto no");
+    CHECK(!entenderNumeroDocumento("+54 11 4567 8901", n), "un teléfono no");
+    CHECK(!entenderNumeroDocumento("no tengo", n), "palabras no");
+
+    Campo c;
+    c.tipo = TipoCampo::Documento;
+    const json d = dniLeido();
+    CHECK(paraDecir(c, d) == "Juana Andrea Prueba, DNI 11.222.333", "decir el documento");
+    CHECK(paraMostrar(c, d) == "Juana Andrea Prueba · DNI 11.222.333", "mostrar el documento");
+    CHECK(paraMostrar(c, json{{"numero", "11222333"}}) == "DNI 11.222.333", "solo el número");
+    CHECK(paraMostrar(c, json{{"numero", "X123"}, {"tipo", "plugin:x/licencia"}, {"apellido", "Ejemplo"}, {"nombres", "Ana"}}) ==
+              "Ana Ejemplo · documento X123",
+          "otro tipo no dice DNI");
+
+    // La configuración guarda los tipos aceptados.
+    c.clave = "dni";
+    c.documentos = {"dni-ar", "plugin:aamva/licencia"};
+    const Campo v = Campo::deJson(c.aJson());
+    CHECK(v.tipo == TipoCampo::Documento && v.documentos == c.documentos, "ida y vuelta con los tipos aceptados");
+    TipoCampo t;
+    CHECK(tipoDeNombre("documento", t) && t == TipoCampo::Documento, "el tipo por su nombre");
+    CHECK(nombreDeTipo(TipoCampo::Texto) == std::string("texto"), "texto sigue siendo el de índice 6");
+}
+
+void documentoLeidoYConfirmado() {
+    Conversacion cv(totemConDocumento(), "Expo");
+    auto r = cv.empezar({});
+    CHECK(r.documento && cv.estado() == Conversacion::Estado::Documento, "empieza pidiendo el documento");
+    CHECK(contiene(r.decir, "Mostrame tu DNI a la cámara, del lado del código de barras."), "lo pide hablando");
+    CHECK(r.pedir == "dni" && cv.pedido()["tipo"] == "documento", "pide el campo (para tipearlo)");
+    CHECK(cv.documentosAceptados() == std::vector<std::string>{"dni-ar"}, "los tipos aceptados");
+    CHECK(cv.paso() == "leyendo el documento", "paso legible");
+    CHECK(cv.silencio().decir.empty(), "callado mostrando el documento: espera quien llama");
+    CHECK(cv.oido("ahí va, a ver").decir.empty(), "la charla mientras lo acomoda no cambia nada");
+
+    r = cv.documentoLeido(dniLeido());
+    CHECK(r.decir == "Sos Juana Andrea Prueba, DNI 11.222.333. ¿Está bien?", "lo confirma en voz alta");
+    CHECK(cv.estado() == Conversacion::Estado::Confirmando && !r.documento, "confirmando, sin buscar más");
+    r = cv.oido("sí");
+    CHECK(r.campos && contiene(r.decir, "Perfecto.") && r.pedir == "correo", "acepta y salta lo que ya sabe");
+    const json d = cv.datos();
+    CHECK(d["dni"].is_object() && d["dni"]["numero"] == "11222333" && d["dni"]["origen"] == "codigo",
+          "el documento entero en datos");
+    CHECK(d["dni"]["cuil"] == "27-11222333-4", "con el CUIL");
+    CHECK(d["nombre"] == "Juana Andrea Prueba" && d["apellido"] == "Prueba", "completa nombre y apellido");
+    CHECK(cv.camposParaMostrar()[0]["valor"] == "Juana Andrea Prueba · DNI 11.222.333", "se muestra prolijo");
+    CHECK(cv.documentoLeido(dniLeido()).decir.empty(), "fuera del paso, un documento tardío no hace nada");
+}
+
+void documentoCorregido() {
+    Conversacion cv(totemConDocumento(), "Expo");
+    cv.empezar({});
+    cv.documentoLeido(dniLeido());
+    auto r = cv.oido("no");
+    CHECK(r.documento && cv.estado() == Conversacion::Estado::Documento, "no: a mostrarlo de nuevo");
+    CHECK(contiene(r.decir, "Mostrámelo de nuevo"), "lo pide de nuevo");
+    r = cv.documentoLeido(dniLeido());
+    CHECK(contiene(r.decir, "Sos Juana"), "lo vuelve a confirmar");
+    r = cv.oido("dale");
+    CHECK(cv.datos()["dni"]["numero"] == "11222333", "y queda");
+}
+
+void documentoFalloYSalteo() {
+    Conversacion cv(totemConDocumento(), "Expo");
+    cv.empezar({});
+    auto r = cv.documentoFallo("No veo ningún código.");
+    CHECK(r.documento && contiene(r.decir, "No veo ningún código.") && contiene(r.decir, "reflejo") &&
+              contiene(r.decir, "escribí el número"),
+          "primera: qué corregir y el respaldo táctil");
+    r = cv.documentoFallo("");
+    CHECK(!r.documento && r.pedir == "nombre" && contiene(r.decir, "seguimos sin el documento"),
+          "segunda: no obligatorio, lo saltea");
+    CHECK(!cv.datos().contains("dni"), "sin documento");
+    CHECK(contiene(r.decir, "¿Cómo te llamás?"), "sigue con el nombre");
+
+    // Obligatorio: no se saltea, se pide tipearlo y se sigue buscando.
+    Conversacion ob(totemConDocumento(true), "Expo");
+    ob.empezar({});
+    ob.documentoFallo("");
+    r = ob.documentoFallo("");
+    CHECK(r.documento && contiene(r.decir, "Escribí el número en la pantalla") &&
+              ob.estado() == Conversacion::Estado::Documento,
+          "obligatorio: a tipearlo");
+    r = ob.oido("no tengo");
+    CHECK(contiene(r.decir, "Este dato lo necesitamos"), "obligatorio no se saltea de palabra");
+
+    // De palabra, si no es obligatorio.
+    Conversacion pa(totemConDocumento(), "Expo");
+    pa.empezar({});
+    r = pa.oido("no tengo");
+    CHECK(r.pedir == "nombre" && contiene(r.decir, "lo salteamos"), "«no tengo» lo saltea");
+}
+
+void documentoTipeadoYDictado() {
+    Conversacion cv(totemConDocumento(), "Expo");
+    cv.empezar({});
+    auto r = cv.escrito("dni", "11.22");
+    CHECK(contiene(r.decir, "no parece un número de documento"), "tipeado mal");
+    r = cv.escrito("dni", "11.222.333");
+    CHECK(cv.datos()["dni"]["numero"] == "11222333" && cv.datos()["dni"]["origen"] == "tipeado", "tipeado");
+    CHECK(r.pedir == "nombre" && contiene(r.decir, "Gracias, ya lo anoté."), "tipeado no se confirma; sin nombre, lo pide");
+
+    Conversacion di(totemConDocumento(), "Expo");
+    di.empezar({});
+    r = di.oido("once dos dos dos tres tres tres");
+    CHECK(r.decir == "Anoté DNI 11.222.333. ¿Está bien?", "dictado se confirma");
+    r = di.oido("sí");
+    CHECK(di.datos()["dni"]["origen"] == "dicho" && r.pedir == "nombre", "dictado queda");
+}
+
+void documentoSinConfirmarYCara() {
+    Totem t = totemConDocumento();
+    t.confirmar = false;
+    Conversacion cv(t, "Expo");
+    cv.empezar({});
+    auto r = cv.documentoLeido(dniLeido());
+    CHECK(contiene(r.decir, "Gracias, Juana. Ya lo leí.") && r.pedir == "correo", "sin confirmar: sigue de una");
+
+    // A quien reconoce la cara no le cambia el nombre de su ficha.
+    Conversacion ca(totemConDocumento(), "Expo");
+    ca.empezar({"p-ana", "Ana Ejemplo", false});
+    ca.documentoLeido(dniLeido());
+    ca.oido("sí");
+    CHECK(ca.datos()["nombre"] == "Ana Ejemplo" && ca.datos()["apellido"] == "Prueba", "lo dicho por la cara no se pisa");
+
+    // Si no se acepta el DNI, se pide «tu documento».
+    Totem o = totemConDocumento();
+    o.campos[0].documentos = {"plugin:aamva/licencia"};
+    Conversacion ot(o, "Expo");
+    CHECK(contiene(ot.empezar({}).decir, "Mostrame tu documento a la cámara"), "otro tipo: «tu documento»");
+
+    // Cancelar vale mientras lo muestra.
+    Conversacion cc(totemConDocumento(), "Expo");
+    cc.empezar({});
+    r = cc.oido("cancelar");
+    CHECK(r.terminar && !r.guardar, "cancelar en el paso del documento");
+}
+
 } // namespace
 
 int main() {
@@ -426,6 +604,12 @@ int main() {
     silencioYCancelar();
     sinConfirmarYTipos();
     fotoDeFrente();
+    documentoNormalizadores();
+    documentoLeidoYConfirmado();
+    documentoCorregido();
+    documentoFalloYSalteo();
+    documentoTipeadoYDictado();
+    documentoSinConfirmarYCara();
     if (g_fallos == 0) std::printf("test_registro_conversacion: todo bien\n");
     return g_fallos == 0 ? 0 : 1;
 }

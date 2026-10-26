@@ -61,6 +61,10 @@ bool entenderNombre(const std::string& dicho, std::string& out);
 bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& opciones, std::string& out);
 /// Texto libre: lo dicho, prolijo (sin el punto final, con mayúscula).
 bool entenderTexto(const std::string& dicho, std::string& out);
+/// El número de un documento dicho o tipeado («once, dos dos dos, tres tres
+/// tres», «11.222.333») -> "11222333": de 6 a 9 dígitos, sin ceros adelante. Es
+/// el respaldo de cuando la cámara no lee el código.
+bool entenderNumeroDocumento(const std::string& dicho, std::string& out);
 
 /// Lo dicho como dato de un campo, ya en su forma de `datos` (texto, número o
 /// booleano). false si no se entiende.
@@ -78,7 +82,10 @@ class Conversacion {
    public:
     /// Foto: ya contestó todo y se le pidió que mire a la cámara (Totem::foto); quien
     /// llama mira los cuadros y contesta con fotoLista() o fotoFallo().
-    enum class Estado { Esperando, Preguntando, Confirmando, Foto, Terminada };
+    /// Documento: se le pidió que muestre su documento (un campo `documento`); quien
+    /// llama busca el código en los cuadros y contesta con documentoLeido() o
+    /// documentoFallo(). Mientras tanto se lo puede tipear (escrito) o dictar el número.
+    enum class Estado { Esperando, Preguntando, Confirmando, Foto, Terminada, Documento };
 
     /// Quién está frente al tótem, según la cara.
     struct Cara {
@@ -95,6 +102,9 @@ class Conversacion {
         bool guardar = false; ///< terminó bien: guardar `datos()`
         bool terminar = false; ///< terminó (bien o no): pantalla de gracias y a esperar
         bool foto = false;    ///< buscar una toma de frente (cuando termine de decirlo)
+        /// buscar el código del documento en la cámara (cuando termine de decirlo);
+        /// también al volver a pedirlo, así quien llama cuenta el tiempo de nuevo
+        bool documento = false;
     };
 
     Conversacion(Totem totem, std::string evento);
@@ -119,10 +129,24 @@ class Conversacion {
     /// `sugerencia` es qué corregir, en palabras que se le pueden decir («acercate un
     /// poco»). La primera vez se lo pide de nuevo; la segunda sigue sin foto.
     Respuesta fotoFallo(const std::string& sugerencia);
+    /// En el paso del documento: se leyó uno de los tipos aceptados. `datos` son los
+    /// normalizados (documentos::Datos::aJson). Con «confirmar» se lo repite («Sos
+    /// Juana Prueba, DNI 11.222.333, ¿está bien?»); al aceptarlo completa los campos
+    /// que se pueden sacar de ahí (el nombre, y las claves apellido/nombres/dni/
+    /// nacimiento/cuil/sexo) que todavía no tengan dato.
+    Respuesta documentoLeido(const nlohmann::json& datos);
+    /// En el paso del documento: pasó el tiempo sin leerlo. `sugerencia`, qué
+    /// corregir. La primera vez se lo pide de nuevo; la segunda, si no es
+    /// obligatorio, se saltea (si es, se le pide que tipee el número).
+    Respuesta documentoFallo(const std::string& sugerencia);
+    /// Los tipos de documento que acepta el campo que se pide ahora (vacío =
+    /// cualquiera, o no se está pidiendo un documento).
+    std::vector<std::string> documentosAceptados() const;
 
     Estado estado() const { return estado_; }
     bool enCurso() const {
-        return estado_ == Estado::Preguntando || estado_ == Estado::Confirmando || estado_ == Estado::Foto;
+        return estado_ == Estado::Preguntando || estado_ == Estado::Confirmando || estado_ == Estado::Foto ||
+               estado_ == Estado::Documento;
     }
     const Cara& cara() const { return cara_; }
     const Totem& totem() const { return t_; }
@@ -148,6 +172,10 @@ class Conversacion {
     void terminar(Respuesta& r, const std::string& antes);
     void fallo(Respuesta& r);
     void aceptar(const nlohmann::json& v);
+    /// Lo que dijo mientras se busca el documento (saltear, repetir, el número).
+    Respuesta oidoDocumento(const std::string& texto, const std::string& aplanado);
+    /// Los campos sin dato que salen del documento leído (ver documentoLeido).
+    void completarDesdeDocumento(const nlohmann::json& doc);
 
     Totem t_;
     std::string evento_;

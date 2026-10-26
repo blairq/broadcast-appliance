@@ -24,6 +24,9 @@ file(GLOB_RECURSE BA_CORE_SOURCES CONFIGURE_DEPENDS
 
 # Excluir los unit tests del propio lib: son ejecutables, no parte de la lib.
 list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/tests/.*")
+# El lector de códigos de barras (zxing-cpp) es otra biblioteca, `ba_codigos`
+# (abajo): el launcher y el gateway enlazan ba_core y no leen códigos.
+list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/documentos/lector/.*")
 
 # --- Capa de plataforma (`platform/`) ----------------------------------------
 # Cada interfaz de `ba::platform` tiene una implementacion por sistema, elegida
@@ -140,6 +143,8 @@ file(GLOB_RECURSE BA_CORE_TESTS CONFIGURE_DEPENDS
 if(NOT BA_HAVE_ROSTROS)
     list(FILTER BA_CORE_TESTS EXCLUDE REGEX ".*/test_rostros\\.cpp$")
 endif()
+# El del lector de códigos enlaza `ba_codigos`: se registra aparte, abajo.
+list(FILTER BA_CORE_TESTS EXCLUDE REGEX ".*/test_codigos\\.cpp$")
 
 foreach(test_source ${BA_CORE_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)
@@ -151,6 +156,20 @@ foreach(test_source ${BA_CORE_TESTS})
     # enteros (libwebrtc, el motor) no se ejercitaban nunca.
     set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
+
+# --- Lector de códigos de barras (`ba_codigos`, zxing-cpp) -------------------
+# documentos/lector: leer el PDF417 del DNI (y QR, DataMatrix…) de un cuadro.
+# zxing lo trae cmake/BaZxing.cmake (fuera del sub-build /MT de Windows); sin él
+# ya frenó la configuración (ba_falta). Lo enlaza ba-app.
+if(BA_HAVE_CODIGOS AND NOT BA_WIN_STATIC_PART)
+    add_library(ba_codigos STATIC "${CMAKE_CURRENT_SOURCE_DIR}/documentos/lector/LectorCodigos.cpp")
+    set_target_properties(ba_codigos PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(ba_codigos PUBLIC ba_core PRIVATE ZXing::ZXing)
+    target_compile_definitions(ba_codigos PUBLIC BA_HAVE_CODIGOS=1)
+    add_executable(test_codigos "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_codigos.cpp")
+    target_link_libraries(test_codigos PRIVATE ba_codigos)
+    add_test(NAME test_codigos COMMAND test_codigos)
+endif()
 
 # --- Instalación ------------------------------------------------------------
 # ba_core es estática y se enlaza dentro de los ejecutables/DLLs propias; no se

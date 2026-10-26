@@ -36,7 +36,9 @@ namespace ba::registro {
 
 /// Qué clase de dato es: decide cómo se entiende lo que la persona dice (ver
 /// Conversacion.hpp) y cómo se lo repite para confirmarlo.
-enum class TipoCampo { Texto, Nombre, Correo, Telefono, Numero, SiNo, Opcion };
+/// `Documento`: no se dice, se MUESTRA: la persona pone su DNI (u otro documento
+/// con código de barras) frente a la cámara y se lee el código (docs/funciones/DOCUMENTOS.md).
+enum class TipoCampo { Texto, Nombre, Correo, Telefono, Numero, SiNo, Opcion, Documento };
 
 const char* nombreDeTipo(TipoCampo t);
 bool tipoDeNombre(const std::string& s, TipoCampo& out);
@@ -62,6 +64,10 @@ struct Campo {
     /// Un ejemplo para cuando no se entiende («juan punto perez arroba gmail
     /// punto com»).
     std::string ejemplo;
+    /// Solo para `documento`: los tipos de documento que se aceptan, en orden
+    /// ("dni-ar", "plugin:<plugin>/<tipo>"). Vacío = cualquiera de los que haya
+    /// (los de fábrica y los de los plugins que corren).
+    std::vector<std::string> documentos;
 
     nlohmann::json aJson() const;
     static Campo deJson(const nlohmann::json& j);
