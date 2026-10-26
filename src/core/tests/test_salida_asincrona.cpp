@@ -42,7 +42,9 @@ int main() {
         return 1;
     }
     std::setvbuf(stderr, nullptr, _IONBF, 0); // como el stderr de siempre (freopen le pone buffer)
-    ba::diag::desacoplarSalidaEstandar(1u << 20);
+    // Tope chico (64 KB): pasarlo pide pocas escrituras. Con el de fábrica (1 MB) eran 1500
+    // escrituras de 1 KB sin búfer: 0,6 s en la Mac pero 156 s bajo Wine sobre Rosetta.
+    ba::diag::desacoplarSalidaEstandar(64u << 10);
     CHECK(ba::diag::estadoSalidaEstandar().activa, "stderr a un archivo: se desacopla");
 
     std::fprintf(stderr, "primera\n");
@@ -62,7 +64,7 @@ int main() {
     // Más de lo que entra: se descarta lo que sobra y se avisa en el archivo.
     ba::diag::retenerSalidaEstandar(true);
     const std::string kb(1024, 'x');
-    for (int i = 0; i < 1500; ++i) std::fprintf(stderr, "%s\n", kb.c_str());
+    for (int i = 0; i < 100; ++i) std::fprintf(stderr, "%s\n", kb.c_str());
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
     CHECK(ba::diag::estadoSalidaEstandar().perdidos > 0, "pasado el tope: se pierde (sin trabar)");
     ba::diag::retenerSalidaEstandar(false);
