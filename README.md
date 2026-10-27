@@ -88,7 +88,8 @@ Windows, macOS and Linux.
 | [Architecture](docs/en/architecture.md) | Processes, core, status of each part, repository layout, dependencies. |
 | [Configuration reference](docs/en/configuration.md) | What can be tuned by hand (normally the assistant does it). |
 | [How each feature works](docs/funciones/) | One file per feature *(Spanish)*. |
-| [Guest guide](docs/manual/guia-del-invitado.md) | For people joining the conference *(Spanish)*. |
+| [Operator manual](docs/en/manual/README.md) | For people who use it: first live show, guests, audio, troubleshooting. |
+| [Guest guide](docs/en/manual/guest-guide.md) | For people joining the conference. |
 | [`docs/`](docs/README.md) | Everything else: plans, local models, history *(Spanish)*. |
 
 ---

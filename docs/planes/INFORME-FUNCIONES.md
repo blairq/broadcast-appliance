@@ -249,7 +249,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
 
 **MCP.** `room_status`, `room_set`, `room_pin`, `room_link`, `network_status`, `operator_feed`, `gateway_restart`, `participant_admit`, `participant_admit_all`, `participant_reject`, `participant_kick`, `participant_talk`, `participant_request`, `participant_profile`, `chat_send`, `invitados_chat_leer`, `chat_wait`, `share_list`, `compartida_revisar`, `share_take`, `share_delete`, `guest_chat_pending`, `guest_reply_suggest`, `invitado_chequeo`, `rostro_lobby`, `foto_todos_invitados`, `foto_invitado`.
 
-**Archivos.** `src/gateway/Room.*`, `Webrtc.*`, `SignalingServer.*`, `MediaPump.*`, `MediaRoute.hpp`, `TokenAuth.*`, `ShareStore.*`, `AdminApi.cpp`, `Cloudflared.*`, `src/gateway/net/*`, `src/app/ui/ConferenceViewModel.*`, `ConferenceClient.*`, `assets/web/guest/`, `docs/funciones/CONFERENCIA.md`, `docs/manual/guia-del-invitado.md`.
+**Archivos.** `src/gateway/Room.*`, `Webrtc.*`, `SignalingServer.*`, `MediaPump.*`, `MediaRoute.hpp`, `TokenAuth.*`, `ShareStore.*`, `AdminApi.cpp`, `Cloudflared.*`, `src/gateway/net/*`, `src/app/ui/ConferenceViewModel.*`, `ConferenceClient.*`, `assets/web/guest/`, `docs/funciones/CONFERENCIA.md`, `docs/es/manual/guia-del-invitado.md`.
 
 **Limitaciones.**
 - **No hay mix-minus.** El retorno de audio sale de `obs_add_raw_audio_callback(0, …)` (`BroadcastEngine.cpp:~440`), que es la mezcla 0 completa, y se manda igual a todos. Cada invitado recibe su propia voz y queda a merced del AEC del navegador.

@@ -4,6 +4,7 @@ Para quien **usa** Broadcast Appliance (no para quien lo compila). Si recién lo
 bajaste, empezá por `LEEME.txt`, que viene dentro de la carpeta del programa.
 
 - [Guía del invitado](guia-del-invitado.md) — una página para pasarle a quien participa.
+- *In English:* [Operator manual](../../en/manual/README.md).
 
 ## 1. Qué es y qué necesitás
 

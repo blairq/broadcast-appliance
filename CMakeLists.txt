@@ -362,8 +362,9 @@ install(DIRECTORY
 install(DIRECTORY
     DESTINATION Web/guest
 )
-# Lo primero que ve quien descomprime el bundle: instrucciones y licencia.
-install(FILES packaging/bundle/LEEME.txt LICENSE DESTINATION . COMPONENT bundle)
+# Lo primero que ve quien descomprime el bundle: instrucciones (LEEME.txt en
+# español, README.txt en inglés) y licencia.
+install(FILES packaging/bundle/LEEME.txt packaging/bundle/README.txt LICENSE DESTINATION . COMPONENT bundle)
 
 # El ícono viaja con el bundle: en Windows ya esta dentro del .exe, pero en
 # Linux lo necesita el acceso directo, que se arma en la maquina donde se

@@ -13,7 +13,7 @@
 #
 # Firma AD-HOC: no hay cuenta de Apple Developer (y no la va a haber), asi que
 # no se notariza. La primera vez que se abre en otra Mac hay que hacerlo con
-# clic derecho -> Abrir (lo explica el "Leeme primero" del .dmg).
+# clic derecho -> Abrir (lo explican el "Leeme primero" y el "Read me first" del .dmg).
 #
 # Uso: tools/deps/app-macos.sh [--rapida] <release/> <salida.app> [<salida.dmg>]
 #
@@ -176,8 +176,33 @@ BROADCAST APPLIANCE PARA macOS (Apple Silicon, macOS 13.3 o más nuevo)
 
 Las grabaciones y la configuración quedan en "BroadcastAppliance Datos", al
 lado de la app (no adentro: así la app sigue sellada y macOS no la vuelve a
-verificar ni a pedir los permisos). El manual completo está en
-Contents/Resources/LEEME.txt.
+verificar ni a pedir los permisos). Las instrucciones completas están en
+Contents/Resources/LEEME.txt (en inglés: Contents/Resources/README.txt).
+TXT
+cat >"$STAGE/Read me first.txt" <<'TXT'
+BROADCAST APPLIANCE FOR macOS (Apple Silicon, macOS 13.3 or newer)
+==================================================================
+
+1. Drag "BroadcastAppliance" to Applications or, better, to a folder of your
+   own (on an external disk, for example): it's portable. A folder called
+   "BroadcastAppliance Datos" is created next to the app with the settings,
+   the recordings and the models: to take it to another Mac, take both.
+   Don't open it from this disk (.dmg): it's read-only.
+
+2. The FIRST time: right-click BroadcastAppliance -> Open -> Open.
+   The program isn't signed with an Apple certificate, so a double-click
+   shows "the developer cannot be verified". Once you've opened it this way,
+   it opens normally from then on.
+   (Or from a terminal:  xattr -dr com.apple.quarantine /Applications/BroadcastAppliance.app)
+
+3. macOS asks for permission to use the camera, the microphone and the local
+   network: allow them. To capture the screen, grant it in System Settings ->
+   Privacy & Security -> Screen Recording, and open the program again.
+
+Recordings and settings are kept in "BroadcastAppliance Datos", next to the
+app (not inside it: that way the app stays sealed and macOS doesn't verify it
+again or ask for the permissions again). The full instructions are in
+Contents/Resources/README.txt (in Spanish: Contents/Resources/LEEME.txt).
 TXT
 rm -f "$DMG"
 log "armando $(basename "$DMG")"

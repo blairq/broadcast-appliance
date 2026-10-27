@@ -348,7 +348,8 @@ tarballs ya verificados de `extern/.downloads`.
   ├── Logs/                 # logs rotativos y dumps
   ├── Recordings/           # grabación de respaldo
   ├── Web/guest/            # app web del invitado (la sirve B)
-  ├── LEEME.txt, LICENSE    # instrucciones para quien lo descomprime
+  ├── LEEME.txt, README.txt # instrucciones para quien lo descomprime (español, inglés)
+  ├── LICENSE
   └── Credenciales/, Respaldos/, Runtime/, Cache/, Shares/, Media/, plugins/
                             # se crean al usarlo (ver "Todo en la carpeta portable")
   ```

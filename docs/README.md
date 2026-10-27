@@ -2,7 +2,8 @@
 
 | Carpeta | Qué hay |
 |---|---|
-| [`manual/`](manual/README.md) | Para quien **usa** el aparato: manual del operador y guía del invitado. |
+| [`es/manual/`](es/manual/README.md) · [`en/manual/`](en/manual/README.md) | Para quien **usa** el aparato: manual del operador y guía del invitado, en español y en inglés. |
+| [`es/`](es/) · [`en/`](en/) | Para quien lo compila: compilar, arquitectura y configuración, en español y en inglés. |
 | [`funciones/`](funciones/) | Cómo funciona cada parte, una por archivo: video, audio, plugins, MCP, sesión remota, eventos, PTZ, superresolución… |
 | [`desarrollo/`](desarrollo/) | Para quien lo compila: macOS, compilación, tests, el mapa GPU/CPU del motor, la migración a GStreamer. |
 | [`planes/`](planes/) | Planes en curso, ideas, decisiones pendientes y el informe de experto con sus tareas. |

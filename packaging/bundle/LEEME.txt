@@ -55,5 +55,6 @@ SI ALGO FALLA
     que toque Avanzado -> Continuar. Hay una guía para pasarle en Web/guest/ayuda.html
   - Para pedir ayuda, enviá la carpeta Logs/ (no envíes Credenciales/).
 
-Manual completo: docs/manual/ en https://github.com/blairq/broadcast-appliance
+Manual completo: docs/es/manual/ en https://github.com/blairq/broadcast-appliance
+(en inglés: README.txt y docs/en/manual/)
 Licencia: GPL-3.0 (ver LICENSE y data/licencias/).

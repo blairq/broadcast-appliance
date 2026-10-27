@@ -348,7 +348,8 @@ already-verified tarballs in `extern/.downloads`.
   ├── Logs/                 # rotating logs and dumps
   ├── Recordings/           # backup recording
   ├── Web/guest/            # guest web app (served by B)
-  ├── LEEME.txt, LICENSE    # instructions for whoever unpacks it
+  ├── README.txt, LEEME.txt # instructions for whoever unpacks it (English, Spanish)
+  ├── LICENSE
   └── Credenciales/, Respaldos/, Runtime/, Cache/, Shares/, Media/, plugins/
                             # created on use (see "Everything in the portable folder")
   ```

@@ -87,7 +87,8 @@ adentro de la carpeta, en Windows, macOS y Linux.
 | [Arquitectura](docs/es/arquitectura.md) | Procesos, núcleo, estado de cada parte, estructura del repositorio, dependencias. |
 | [Configuración de referencia](docs/es/configuracion.md) | Lo que se puede ajustar a mano (normalmente lo hace el asistente). |
 | [Cómo funciona cada parte](docs/funciones/) | Un archivo por función. |
-| [Guía del invitado](docs/manual/guia-del-invitado.md) | Para quien entra a la conferencia. |
+| [Manual del operador](docs/es/manual/README.md) | Para quien lo usa: primer vivo, invitados, audio, problemas. |
+| [Guía del invitado](docs/es/manual/guia-del-invitado.md) | Para quien entra a la conferencia. |
 | [`docs/`](docs/README.md) | Todo lo demás: planes, modelos locales, historia. |
 
 ---
