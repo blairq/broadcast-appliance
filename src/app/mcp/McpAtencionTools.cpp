@@ -15,6 +15,7 @@
 // del evento (padron_ver {solos: true}, padron_cambiar {id, dejarPasarSolo}),
 // la misma que usa la interfaz. Dos listas para lo mismo se desincronizan.
 // ============================================================================
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/AtencionViewModel.hpp"
@@ -26,23 +27,23 @@ void McpService::registerAtencionTools() {
     StudioViewModel* vm = &vm_;
     const auto atencion = [vm]() { return vm->atencionVm(); };
     const auto sinAtencion = []() {
-        return ToolResult::error("Esta compilación no tiene la atención a quien se conecta (falta el motor de voz).");
+        return ToolResult::error(ba::i18n::traducir("mcp", "Esta compilación no tiene la atención a quien se conecta (falta el motor de voz)."));
     };
     {
         Tool t;
         t.name = "atencion_estado";
-        t.title = "Cómo se atiende a quien se conecta";
+        t.title = ba::i18n::traducir("mcp", "Cómo se atiende a quien se conecta");
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién "
+        t.description = ba::i18n::traducir("mcp", "Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién "
                         "atiende (recepción o automatización), a quién está atendiendo y de qué forma, el alta "
-                        "automática en Personas y la voz del atendedor.";
-        t.details = "QUIÉN ATIENDE: el rol «recepcion» si está prendido; si no, el asistente de automatización; "
+                        "automática en Personas y la voz del atendedor.");
+        t.details = ba::i18n::traducir("mcp", "QUIÉN ATIENDE: el rol «recepcion» si está prendido; si no, el asistente de automatización; "
                     "nunca el del evento. CUÁNDO TERMINA: al admitirla (o al irse): la atención es del lobby. "
                     "HABLANDO: de a uno (hay un solo canal de voz del que atiende, para el lobby y la sesión "
                     "remota); los demás, por chat (en la asamblea, sin voz: mirándole la cara). `conLaVoz` y "
                     "`conLaVozAmbito` dicen quién la tiene. En la asamblea, al que espera se le habla con "
-                    "`chat_send {to: <id del integrante>}` y se lo oye con `chat_wait {participant: <id>}`.";
+                    "`chat_send {to: <id del integrante>}` y se lo oye con `chat_wait {participant: <id>}`.");
         t.run = [atencion, sinAtencion](const json&, Done done) {
             AtencionViewModel* a = atencion();
             if (a == nullptr) return done(sinAtencion());
@@ -53,20 +54,20 @@ void McpService::registerAtencionTools() {
     {
         Tool t;
         t.name = "atencion_configurar";
-        t.title = "Prender o apagar la atención a quien se conecta";
+        t.title = ba::i18n::traducir("mcp", "Prender o apagar la atención a quien se conecta");
         t.category = "sala";
         t.idempotent = true;
-        t.description = "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la conferencia), "
+        t.description = ba::i18n::traducir("mcp", "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la conferencia), "
                         "`salaHablando` (lo que dice se pasa a texto y se le contesta con voz), `asambleaAtiende` "
                         "(mira la cara de quien espera en la sesión remota y lo habilita si el padrón lo deja "
                         "entrar solo; si no, le pregunta al operador), `asambleaHablando` (además, mientras espera "
                         "su página abre el micrófono: lo que dice pasa a texto y se le contesta con voz, solo a "
                         "él; termina al habilitarlo), `altaAutomatica` (anota en Personas a quien "
                         "dio su nombre y tiene cara reconocible) y `voz` {repo, hablante, velocidad} (la voz del "
-                        "atendedor).";
-        t.details = "Prender la atención sin quién atienda (ni recepción ni automatización) da error. Con la de "
+                        "atendedor).");
+        t.details = ba::i18n::traducir("mcp", "Prender la atención sin quién atienda (ni recepción ni automatización) da error. Con la de "
                     "la conferencia prendida, el reconocimiento del lobby corre siempre. Quién entra solo si se lo "
-                    "reconoce se cambia en el padrón del evento: padron_cambiar {id, dejarPasarSolo}.";
+                    "reconoce se cambia en el padrón del evento: padron_cambiar {id, dejarPasarSolo}.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"salaAtiende", {{"type", "boolean"}}},
@@ -77,7 +78,7 @@ void McpService::registerAtencionTools() {
                            {"voz",
                             {{"type", "object"},
                              {"properties",
-                              {{"repo", {{"type", "string"}, {"description", "una voz bajada (tipo tts)"}}},
+                              {{"repo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una voz bajada (tipo tts)")}}},
                                {"hablante", {{"type", "integer"}, {"minimum", 0}}},
                                {"velocidad", {{"type", "number"}, {"minimum", 0.7}, {"maximum", 1.5}}}}}}}}}};
         t.examples = {R"({"salaAtiende": true, "salaHablando": true})",
@@ -95,12 +96,12 @@ void McpService::registerAtencionTools() {
     {
         Tool t;
         t.name = "atencion_voz_probar";
-        t.title = "Probar la voz del atendedor sin que suene";
+        t.title = ba::i18n::traducir("mcp", "Probar la voz del atendedor sin que suene");
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Genera `texto` (o una frase de ejemplo) con la voz del atendedor SIN reproducirlo: devuelve "
+        t.description = ba::i18n::traducir("mcp", "Genera `texto` (o una frase de ejemplo) con la voz del atendedor SIN reproducirlo: devuelve "
                         "cuánto dura, su forma de onda (picos de 0 a 1) y dónde quedó el .wav para escucharlo "
-                        "aparte.";
+                        "aparte.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"texto", {{"type", "string"}}}}}};
         t.run = [atencion, sinAtencion](const json& a, Done done) {
             AtencionViewModel* at = atencion();

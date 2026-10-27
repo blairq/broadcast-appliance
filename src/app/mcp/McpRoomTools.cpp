@@ -20,6 +20,7 @@
 #include <memory>
 #include <set>
 
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/ControlSala.hpp"
@@ -79,9 +80,10 @@ bool resolveParticipant(const json& snapshot, const std::string& query, json& ou
     std::string names;
     for (const auto& p : people)
         names += (names.empty() ? "" : ", ") + p.value("name", "") + " (" + p.value("id", "") + ")";
-    err = prefix.size() > 1 ? "'" + query + "' coincide con varias personas: " + names + ". Usa el id."
-                            : "No hay nadie '" + query + "' en la conferencia." +
-                                  (names.empty() ? " La conferencia esta vacia." : " Estan: " + names + ".");
+    err = prefix.size() > 1 ? ba::i18n::llenar(ba::i18n::traducir("mcp", "'%1' coincide con varias personas: %2. Usa el id."), {query, names})
+                            : ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay nadie '%1' en la conferencia."), {query}) + " " +
+                                  (names.empty() ? ba::i18n::traducir("mcp", "La conferencia esta vacia.")
+                                                 : ba::i18n::llenar(ba::i18n::traducir("mcp", "Estan: %1."), {names}));
     return false;
 }
 
@@ -122,10 +124,10 @@ std::string qrPng(const json& modules) {
 
 void McpService::registerRoomTools() {
     core_.addCategory(
-        "sala", "Conferencia (videollamada con invitados)",
-        "Invitados por WebRTC: lobby, admitir, hablar, pedir cosas, chat, archivos, enlaces y QR, red.");
-    core_.addCategory("oradores", "Modo oradores",
-                      "Fila de oradores con reloj: al aire por turno, orden, tiempos, carrusel.");
+        "sala", ba::i18n::traducir("mcp", "Conferencia (videollamada con invitados)"),
+        ba::i18n::traducir("mcp", "Invitados por WebRTC: lobby, admitir, hablar, pedir cosas, chat, archivos, enlaces y QR, red."));
+    core_.addCategory("oradores", ba::i18n::traducir("mcp", "Modo oradores"),
+                      ba::i18n::traducir("mcp", "Fila de oradores con reloj: al aire por turno, orden, tiempos, carrusel."));
 
     StudioViewModel& vm = vm_;
     AppRuntime& rt = rt_;
@@ -140,7 +142,7 @@ void McpService::registerRoomTools() {
     const auto contestar = [](const std::string& okText, Done done) -> sala::Listo {
         return [okText, done](const std::string& err, const json&) {
             done(err.empty() ? ToolResult::ok(okText)
-                             : ToolResult::error("La conferencia respondio: " + sala::explicarError(err)));
+                             : ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {sala::explicarError(err)})));
         };
     };
     const auto withPerson = [&vm](const json& a, const char* field, json& p, Done& done) {
@@ -152,20 +154,20 @@ void McpService::registerRoomTools() {
         return true;
     };
     const json personProp = {{"type", "string"},
-                             {"description", "Nombre (o prefijo unico) o id de la persona."}};
+                             {"description", ba::i18n::traducir("mcp", "Nombre (o prefijo unico) o id de la persona.")}};
 
     {
         Tool t;
         t.name = "room_status";
-        t.title = "Estado de la conferencia";
+        t.title = ba::i18n::traducir("mcp", "Estado de la conferencia");
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
+            ba::i18n::traducir("mcp", "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
             "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
-            "archivos compartidos, chat reciente y config de oradores.";
+            "archivos compartidos, chat reciente y config de oradores.");
         t.run = [&vm, conf](const json&, Done done) {
-            if (!conf->online()) return done(ToolResult::error("La conferencia (gateway) no esta conectada."));
+            if (!conf->online()) return done(ToolResult::error(ba::i18n::traducir("mcp", "La conferencia (gateway) no esta conectada.")));
             json s = roomSnapshot(vm);
             if (s.contains("chat") && s["chat"].size() > 20) {
                 json last = json::array();
@@ -180,12 +182,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "room_set";
-        t.title = "Lobby / conferencia cerrada";
+        t.title = ba::i18n::traducir("mcp", "Lobby / conferencia cerrada");
         t.category = "sala";
         t.description =
-            "Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie "
+            ba::i18n::traducir("mcp", "Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie "
             "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la conferencia: los "
-            "lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).";
+            "lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -197,8 +199,8 @@ void McpService::registerRoomTools() {
             if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
                 const int n = a.value("cupo", 2);
                 const std::string e = vm.cupoSala().cambiar(n, [done, n](const std::string& err) {
-                    if (!err.empty()) done(ToolResult::error("La conferencia respondio: " + err));
-                    else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la conferencia."));
+                    if (!err.empty()) done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {err})));
+                    else done(ToolResult::ok(ba::i18n::traducir("mcp", "Cupo: %n invitado, sin reiniciar la conferencia.", nullptr, n)));
                 });
                 if (!e.empty()) done(ToolResult::error(e));
                 return;
@@ -210,7 +212,7 @@ void McpService::registerRoomTools() {
             const auto si = [&a](const char* k) {
                 return a.contains(k) && a[k].is_boolean() ? std::optional<bool>(a[k].get<bool>()) : std::nullopt;
             };
-            const std::string e = control.entrada(si("lobby"), si("locked"), contestar("Conferencia actualizada.", done));
+            const std::string e = control.entrada(si("lobby"), si("locked"), contestar(ba::i18n::traducir("mcp", "Conferencia actualizada."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -218,16 +220,16 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "room_pin";
-        t.title = "Cambiar el PIN";
+        t.title = ba::i18n::traducir("mcp", "Cambiar el PIN");
         t.category = "sala";
         t.description =
-            "PIN nuevo para entrar a la conferencia (sin `pin`: se genera uno). El anterior deja de servir.";
+            ba::i18n::traducir("mcp", "PIN nuevo para entrar a la conferencia (sin `pin`: se genera uno). El anterior deja de servir.");
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"pin", {{"type", "string"}, {"description", "4 a 32 caracteres."}}}}}};
+            {"properties", {{"pin", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "4 a 32 caracteres.")}}}}}};
         t.run = [&control](const json& a, Done done) {
             control.cambiarPin(a.value("pin", std::string()), [done](const std::string& err, const json& r) {
-                done(err.empty() ? ToolResult::ok("PIN nuevo: " + r.value("pin", std::string()))
+                done(err.empty() ? ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "PIN nuevo: %1"), {r.value("pin", std::string())}))
                                  : ToolResult::error(sala::explicarError(err)));
             });
         };
@@ -236,22 +238,22 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "room_pin_bloqueos";
-        t.title = "Bloqueos por PIN mal";
+        t.title = ba::i18n::traducir("mcp", "Bloqueos por PIN mal");
         t.category = "sala";
         t.description =
-            "Quién quedó bloqueado por poner mal el PIN y cómo destrabarlo. `accion`: «ver» (de fábrica) o "
-            "«desbloquear» (con `ip`, solo esa; sin `ip`, todas y también el bloqueo global).";
+            ba::i18n::traducir("mcp", "Quién quedó bloqueado por poner mal el PIN y cómo destrabarlo. `accion`: «ver» (de fábrica) o "
+            "«desbloquear» (con `ip`, solo esa; sin `ip`, todas y también el bloqueo global).");
         t.details =
-            "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
+            ba::i18n::traducir("mcp", "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
             "puede entrar por `bloqueoS` segundos (Configuración → Conferencia). GLOBAL: de último recurso, si hay "
             "muchísimos fallos entre todos (un ataque repartido) se cierra la entrada para todos un rato. "
             "Por internet la IP es la real (la pasa ba-web desde el túnel). Desbloquear no cambia el PIN: si "
             "alguien lo está adivinando, mejor cambiarlo (room_pin). Usalo cuando un invitado legítimo se "
-            "equivocó varias veces y no puede entrar, o cuando nadie puede entrar (global).";
+            "equivocó varias veces y no puede entrar, o cuando nadie puede entrar (global).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"accion", {{"type", "string"}, {"enum", {"ver", "desbloquear"}}}},
-                           {"ip", {{"type", "string"}, {"description", "Solo esta IP (al desbloquear)."}}}}}};
+                           {"ip", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Solo esta IP (al desbloquear).")}}}}}};
         t.examples = {R"({})", R"({"accion": "desbloquear"})", R"({"accion": "desbloquear", "ip": "190.12.34.56"})"};
         t.run = [&control](const json& a, Done done) {
             const auto mostrar = [done](const json& r, const std::string& antes) {
@@ -259,30 +261,33 @@ void McpService::registerRoomTools() {
                 std::string txt = antes;
                 const json g = b.value("global", json::object());
                 if (g.value("bloqueado", false))
-                    txt += "BLOQUEO GLOBAL activo: nadie puede entrar por " + std::to_string(g.value("quedanS", 0)) +
-                           " s más (" + std::to_string(g.value("fallos", 0)) + " fallos entre todos).\n";
+                    txt += ba::i18n::llenar(ba::i18n::traducir("mcp", "BLOQUEO GLOBAL activo: nadie puede entrar por %1 s más (%2 fallos entre todos)."),
+                                            {std::to_string(g.value("quedanS", 0)), std::to_string(g.value("fallos", 0))}) +
+                           "\n";
                 int n = 0;
                 for (const auto& ip : b.value("ips", json::array()))
                     if (ip.value("bloqueada", false)) {
-                        txt += "- " + ip.value("ip", std::string()) + ": bloqueada " +
-                               std::to_string(ip.value("quedanS", 0)) + " s más\n";
+                        txt += "- " + ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: bloqueada %2 s más"),
+                                                        {ip.value("ip", std::string()), std::to_string(ip.value("quedanS", 0))}) +
+                               "\n";
                         ++n;
                     }
-                if (!n && !g.value("bloqueado", false)) txt += "No hay nadie bloqueado.";
+                if (!n && !g.value("bloqueado", false)) txt += ba::i18n::traducir("mcp", "No hay nadie bloqueado.");
                 done(ToolResult::ok(txt).data(b));
             };
             if (a.value("accion", std::string("ver")) == "desbloquear") {
                 const std::string ip = a.contains("ip") && a["ip"].is_string() ? a["ip"].get<std::string>() : "";
                 control.desbloquearPin(ip, [done, mostrar, ip](const std::string& err, const json& j) {
-                    if (!err.empty()) return done(ToolResult::error("La conferencia respondio: " + sala::explicarError(err)));
-                    mostrar(j, !ip.empty() ? "Desbloqueada " + ip + ".\n"
-                                           : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
-                                                 " IP y el bloqueo global.\n");
+                    if (!err.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "La conferencia respondio: %1"), {sala::explicarError(err)})));
+                    mostrar(j, (!ip.empty() ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Desbloqueada %1."), {ip})
+                                            : ba::i18n::llenar(ba::i18n::traducir("mcp", "Desbloqueadas %1 IP y el bloqueo global."),
+                                                               {std::to_string(j.value("desbloqueadas", 0))})) +
+                                   "\n");
                 });
                 return;
             }
             control.verBloqueosPin([done, mostrar](const std::string& err, const json& r) {
-                if (!err.empty()) return done(ToolResult::error("La conferencia (gateway) no respondió."));
+                if (!err.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "La conferencia (gateway) no respondió.")));
                 mostrar(r, "");
             });
         };
@@ -297,93 +302,94 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_requeue";
-        t.title = "Volver a la fila";
+        t.title = ba::i18n::traducir("mcp", "Volver a la fila");
         t.category = "oradores";
-        t.description = "Orador que ya hablo: vuelve al final de la fila.";
+        t.description = ba::i18n::traducir("mcp", "Orador que ya hablo: vuelve al final de la fila.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Marta"})"};
         t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            oradores.aLaFila(p["id"], contestar("Vuelve a la fila.", done));
+            oradores.aLaFila(p["id"], contestar(ba::i18n::traducir("mcp", "Vuelve a la fila."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "participant_admit";
-        t.title = "Hacer pasar a alguien del lobby";
+        t.title = ba::i18n::traducir("mcp", "Hacer pasar a alguien del lobby");
         t.category = "sala";
-        t.description = "Hace PASAR a alguien que espera en el lobby: entra a la conferencia. Admite a UNA persona "
+        t.description = ba::i18n::traducir("mcp", "Hace PASAR a alguien que espera en el lobby: entra a la conferencia. Admite a UNA persona "
                         "que espera: deja el lobby y entra a la conferencia, con su camara y su "
-                        "microfono.";
-        t.details = "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
+                        "microfono.");
+        t.details = ba::i18n::traducir("mcp", "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
                     "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
                     "el operador decida, y esto cuando dijo que si.\n\n"
                     "Si no hay lugar libre en la conferencia (`room_status` -> `slotsFree`) el gateway la deja "
-                    "esperando: admitir no crea lugares.";
+                    "esperando: admitir no crea lugares.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Jorge"})"};
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.admitir(p["id"], contestar("Adentro.", done));
+            gente.admitir(p["id"], contestar(ba::i18n::traducir("mcp", "Adentro."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "participant_reject";
-        t.title = "No dejar pasar a alguien del lobby";
+        t.title = ba::i18n::traducir("mcp", "No dejar pasar a alguien del lobby");
         t.category = "sala";
         t.destructive = true;
-        t.description = "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.";
-        t.details = "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
-                    "esto: dejala en el lobby y avisale por `chat_send`.";
+        t.description = ba::i18n::traducir("mcp", "Le niega la entrada a quien espera: se le cierra la sesion y sale del lobby.");
+        t.details = ba::i18n::traducir("mcp", "Para el que no tiene que estar. Si solo querés que espere un rato mas, no uses "
+                    "esto: dejala en el lobby y avisale por `chat_send`.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.rechazar(p["id"], contestar("Afuera.", done));
+            gente.rechazar(p["id"], contestar(ba::i18n::traducir("mcp", "Afuera."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "participant_kick";
-        t.title = "Sacar a alguien de la conferencia";
+        t.title = ba::i18n::traducir("mcp", "Sacar a alguien de la conferencia");
         t.category = "sala";
         t.destructive = true;
-        t.description = "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.";
-        t.details = "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
+        t.description = ba::i18n::traducir("mcp", "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.");
+        t.details = ba::i18n::traducir("mcp", "Mira `room_status` antes: si esa persona esta en una escena al aire, sacarla se "
                     "ve en la transmision. Pasar el programa a otra escena primero es gratis; "
-                    "deshacer esto no.";
+                    "deshacer esto no.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.sacar(p["id"], contestar("Listo.", done));
+            gente.sacar(p["id"], contestar(ba::i18n::traducir("mcp", "Listo."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "participant_admit_all";
-        t.title = "Admitir a todos";
+        t.title = ba::i18n::traducir("mcp", "Admitir a todos");
         t.category = "sala";
-        t.description = "Hace pasar a todos los que esperan en el lobby, en orden de llegada.";
+        t.description = ba::i18n::traducir("mcp", "Hace pasar a todos los que esperan en el lobby, en orden de llegada.");
         t.run = [&gente](const json&, Done done) {
             // La misma operación que el botón «Admitir a todos»: de a uno, en
             // orden de llegada, y corta al primer «sala llena».
             gente.admitirATodos([done](int pedidos, int admitidos, const std::string& err) {
-                if (pedidos == 0) return done(ToolResult::ok("No hay nadie esperando en el lobby."));
-                const std::string cuenta = std::to_string(admitidos) + " de " + std::to_string(pedidos);
-                if (err.empty()) return done(ToolResult::ok("Pasaron " + cuenta + "."));
-                const std::string txt = "Pasaron " + cuenta + ". La conferencia respondio: " + sala::explicarError(err);
+                if (pedidos == 0) return done(ToolResult::ok(ba::i18n::traducir("mcp", "No hay nadie esperando en el lobby.")));
+                const std::string a = std::to_string(admitidos), de = std::to_string(pedidos);
+                if (err.empty()) return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pasaron %1 de %2."), {a, de})));
+                const std::string txt = ba::i18n::llenar(ba::i18n::traducir("mcp", "Pasaron %1 de %2. La conferencia respondio: %3"),
+                                                         {a, de, sala::explicarError(err)});
                 done(admitidos > 0 ? ToolResult::ok(txt) : ToolResult::error(txt));
             });
         };
@@ -392,12 +398,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_talk";
-        t.title = "Hablarle a un invitado (lobby en privado, adentro IFB)";
+        t.title = ba::i18n::traducir("mcp", "Hablarle a un invitado (lobby en privado, adentro IFB)");
         t.category = "sala";
         t.description =
-            "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas). "
+            ba::i18n::traducir("mcp", "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas). "
             "Con alguien de ADENTRO (programa o fila de oradores) es IFB: le llega tu voz mezclada con su "
-            "retorno (el programa baja), sin salir al aire. on=false corta.";
+            "retorno (el programa baja), sin salir al aire. on=false corta.");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}, {"default", true}}}}},
@@ -405,7 +411,7 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            gente.hablar(p["id"], a.value("on", true), contestar("Listo.", done));
+            gente.hablar(p["id"], a.value("on", true), contestar(ba::i18n::traducir("mcp", "Listo."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -413,16 +419,16 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "proxy_estado";
-        t.title = "Proxy por nombre: servicios y certificados";
+        t.title = ba::i18n::traducir("mcp", "Proxy por nombre: servicios y certificados");
         t.category = "sala";
         t.readOnly = true;
-        t.description = "El proxy propio (443/80): cada servicio con su nombre (sesion.<dominio>, botonera.<dominio>…), "
+        t.description = ba::i18n::traducir("mcp", "El proxy propio (443/80): cada servicio con su nombre (sesion.<dominio>, botonera.<dominio>…), "
                         "a qué va, si es solo de la red local, y su certificado (acme = Let's Encrypt, casa = "
                         "autofirmado) con la fecha en que vence (segundos desde 1970). Más el estado de ACME: último "
-                        "error y si está pidiendo ahora.";
+                        "error y si está pidiendo ahora.");
         t.run = [&control](const json&, Done done) {
             control.verProxy([done](const std::string& err, const json& r) {
-                if (!err.empty()) return done(ToolResult::error("la conferencia no contestó"));
+                if (!err.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "la conferencia no contestó")));
                 done(ToolResult().data(r));
             });
         };
@@ -433,12 +439,12 @@ void McpService::registerRoomTools() {
         const QPointer<AccesoRemoto> acc = ar;
         Tool t;
         t.name = "acceso_remoto_estado";
-        t.title = "Acceso remoto por pinggy: estado y direcciones";
+        t.title = ba::i18n::traducir("mcp", "Acceso remoto por pinggy: estado y direcciones");
         t.category = "sala";
         t.readOnly = true;
         t.openWorld = true;
         t.description =
-            "El túnel de pinggy.io por el que entran los de afuera: `pinggy.estado` (apagado, conectando, listo, "
+            ba::i18n::traducir("mcp", "El túnel de pinggy.io por el que entran los de afuera: `pinggy.estado` (apagado, conectando, listo, "
             "reconectando, error), la dirección pública (`pinggy.urlPublica`) y `enlaces` (invitados, sesión remota, "
             "público, botonera), el último `pinggy.error` y el TURN (`pinggy.turn`). `configuracion`: activo, región, "
             "tipo de dirección (azar | pinggy = subdominio fijo | propio = dominio propio), host y destino del CNAME. "
@@ -448,9 +454,9 @@ void McpService::registerRoomTools() {
             "`disponible` false = la conferencia no está andando o es una versión que no informa el túnel. "
             "SIN TOKEN (gratis): dirección al azar que cambia cada vez, 60 minutos por túnel y pinggy le muestra a cada "
             "navegador un aviso que hay que aceptar. CON TOKEN (Pro): sin límite ni aviso, dirección fija (subdominio de "
-            "pinggy o dominio propio con CNAME), puertos fijos; un token por equipo.";
+            "pinggy o dominio propio con CNAME), puertos fijos; un token por equipo.");
         t.run = [acc](const json&, Done done) {
-            if (!acc) return done(ToolResult::error("no disponible"));
+            if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
             acc->consultar([done](json r) { done(ToolResult().data(r)); });
         };
         core_.addTool(std::move(t));
@@ -476,34 +482,34 @@ void McpService::registerRoomTools() {
                 if (*listo) return;
                 *listo = true;
                 QObject::disconnect(*conn);
-                done(ToolResult::error("pinggy/DNS no contestó en 30 s"));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "pinggy/DNS no contestó en 30 s")));
             });
             terminar(); // por si ya terminó
         };
         {
             Tool t;
             t.name = "acceso_remoto_clave";
-            t.title = "Acceso remoto: guardar o borrar una clave (pinggy o Cloudflare)";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: guardar o borrar una clave (pinggy o Cloudflare)");
             t.category = "sala";
             t.idempotent = true;
             t.description =
-                "Guarda CIFRADA en la bóveda (Credenciales/) la clave que te pasó el operador, o la borra. "
+                ba::i18n::traducir("mcp", "Guarda CIFRADA en la bóveda (Credenciales/) la clave que te pasó el operador, o la borra. "
                 "`tipo`: \"token\" (el token del PLAN de pinggy: abre el túnel; el del comando …@pro.pinggy.io), \"api_key\" (la "
                 "API key de pinggy: control de la cuenta por API, con acceso_remoto_panel; NO abre túneles) o "
                 "\"cloudflare\" (el token del túnel de Cloudflare, Configuración → Cloudflare). Nunca se devuelve ni se escribe "
                 "en el registro: la respuesta dice solo «guardada». Con pinggy lo normal es guardar SOLO la api_key y "
                 "seguir con acceso_remoto_configurar_con_api_key (trae el token sola); el token a mano es solo si no "
                 "hay API key. Si no sabés cuál es, guardala como api_key y probá acceso_remoto_panel (si la acepta, es "
-                "la API key). El token rige al reiniciar la conferencia. Guía: help {\"topic\": \"acceso_remoto\"}.";
+                "la API key). El token rige al reiniciar la conferencia. Guía: help {\"topic\": \"acceso_remoto\"}.");
             t.inputSchema = {
                 {"type", "object"},
                 {"properties",
                  {{"tipo", {{"type", "string"}, {"enum", {"token", "api_key", "cloudflare"}}}},
-                  {"clave", {{"type", "string"}, {"description", "la clave (no hace falta para borrar)"}}},
+                  {"clave", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "la clave (no hace falta para borrar)")}}},
                   {"borrar", {{"type", "boolean"}, {"default", false}}}}},
                 {"required", {"tipo"}}};
             t.run = [acc, &vm](const json& a, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const std::string tipo = a.value("tipo", std::string());
                 const bool borrar = a.value("borrar", false);
                 const QString clave = QString::fromStdString(a.value("clave", std::string())).trimmed();
@@ -519,53 +525,60 @@ void McpService::registerRoomTools() {
                 } else if (tipo == "token") e = acc->borrarToken();
                 else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : acc->guardarApiKey(clave);
                 else if (tipo == "cloudflare") e = borrar ? acc->borrarTokenCloudflare() : acc->guardarTokenCloudflare(clave);
-                else return done(ToolResult::error("tipo: \"token\", \"api_key\" o \"cloudflare\""));
+                else return done(ToolResult::error(ba::i18n::traducir("mcp", "tipo: \"token\", \"api_key\" o \"cloudflare\"")));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel de pinggy " : tipo == "cloudflare" ? "Token de Cloudflare " : "API key ") +
-                                    (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
-                                    (reiniciarAhora ? " La conferencia lo lee al arrancar y está andando con el túnel "
-                                                      "prendido: reiniciala (gateway_restart) para que rija."
-                                     : tipo != "api_key" && !borrar ? " Rige al reiniciar la conferencia (gateway_restart o "
-                                                                      "aplicar Configuración)."
-                                                                    : "") +
+                // Una frase entera por caso (no «Token de…» + «borrado/a»).
+                const std::string hecho =
+                    tipo == "token"        ? (borrar ? ba::i18n::traducir("mcp", "Token de túnel de pinggy borrado/a.")
+                                                     : ba::i18n::traducir("mcp", "Token de túnel de pinggy guardado/a, cifrado/a en Credenciales/."))
+                    : tipo == "cloudflare" ? (borrar ? ba::i18n::traducir("mcp", "Token de Cloudflare borrado/a.")
+                                                     : ba::i18n::traducir("mcp", "Token de Cloudflare guardado/a, cifrado/a en Credenciales/."))
+                                           : (borrar ? ba::i18n::traducir("mcp", "API key borrado/a.")
+                                                     : ba::i18n::traducir("mcp", "API key guardado/a, cifrado/a en Credenciales/."));
+                done(ToolResult::ok(hecho +
+                                    (reiniciarAhora ? " " + ba::i18n::traducir("mcp", "La conferencia lo lee al arrancar y está andando con el túnel "
+                                                      "prendido: reiniciala (gateway_restart) para que rija.")
+                                     : tipo != "api_key" && !borrar ? " " + ba::i18n::traducir("mcp", "Rige al reiniciar la conferencia (gateway_restart o "
+                                                                      "aplicar Configuración).")
+                                                                    : std::string()) +
                                     (acc->clavesIguales()
-                                         ? " OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
+                                         ? " " + ba::i18n::traducir("mcp", "OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
                                            "panel de pinggy: el token (el del comando del túnel, …@pro.pinggy.io) abre el túnel; la "
                                            "API key (API keys) solo sirve para consultar la cuenta. Con la API key como token el "
-                                           "túnel no abre."
-                                         : "")));
+                                           "túnel no abre.")
+                                         : std::string())));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "acceso_remoto_configurar";
-            t.title = "Acceso remoto: configurar pinggy";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: configurar pinggy");
             t.category = "sala";
             t.description =
-                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la conferencia (corta a los invitados un momento). "
+                ba::i18n::traducir("mcp", "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la conferencia (corta a los invitados un momento). "
                 "Para armarlo de cero con la API key (token, subdominio y puerto de la cuenta) usá acceso_remoto_configurar_con_api_key. "
                 "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
-                "propio: va con `host` y `cname_destino`).";
+                "propio: va con `host` y `cname_destino`).");
             t.inputSchema = {
                 {"type", "object"},
                 {"properties",
                  {{"activo", {{"type", "boolean"}}},
                   {"region", {{"type", "string"}, {"enum", {"auto", "us", "eu", "ap"}}}},
                   {"direccion", {{"type", "string"}, {"enum", {"azar", "pinggy", "propio"}}}},
-                  {"host", {{"type", "string"}, {"description", "subdominio fijo o dominio propio"}}},
-                  {"cname_destino", {{"type", "string"}, {"description", "lo que muestra el panel de pinggy"}}},
-                  {"turn", {{"type", "boolean"}, {"description", "video de los invitados de afuera por el túnel"}}},
+                  {"host", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "subdominio fijo o dominio propio")}}},
+                  {"cname_destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que muestra el panel de pinggy")}}},
+                  {"turn", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "video de los invitados de afuera por el túnel")}}},
                   {"turn_udp", {{"type", "boolean"}}},
                   {"turn_tcp_puerto", {{"type", "integer"}}},
                   {"turn_udp_puerto", {{"type", "integer"}}},
-                  {"lista_blanca", {{"type", "string"}, {"description", "IPs o redes separadas por coma; vacío = todos"}}}}}};
+                  {"lista_blanca", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "IPs o redes separadas por coma; vacío = todos")}}}}}};
             t.examples = {R"({"activo": true, "direccion": "propio", "host": "sala.miorganismo.gob.ar", "cname_destino": "abc.a.pinggy.link"})"};
             SettingsModel* settings = settings_.get();
             t.run = [settings, &vm](const json& a, Done done) {
                 if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
-                                                  "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app."));
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento está corriendo: el túnel no se toca hasta que termine "
+                                                  "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app.")));
                 static const std::vector<std::pair<const char*, const char*>> kMapa = {
                     {"activo", "pinggy.activo"},           {"region", "pinggy.region"},
                     {"direccion", "pinggy.dominioTipo"},   {"host", "pinggy.host"},
@@ -578,12 +591,12 @@ void McpService::registerRoomTools() {
                     if (!a.contains(arg)) continue;
                     if (!settings->value(clave).isValid()) {
                         settings->revert();
-                        return done(ToolResult::error(std::string("esta versión no tiene ") + clave));
+                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "esta versión no tiene %1"), {clave})));
                     }
                     settings->setValue(clave, jsonToQv(a[arg]));
                     ++n;
                 }
-                if (n == 0) return done(ToolResult::error("no mandaste nada para cambiar"));
+                if (n == 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "no mandaste nada para cambiar")));
                 const QString summary = settings->apply(); // la vista se recarga sola (aviso «Ajustes»)
                 done(settings->fallo() ? ToolResult::error(summary.toStdString()) : ToolResult::ok(summary.toStdString()));
             };
@@ -592,19 +605,19 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_dns_instrucciones";
-            t.title = "Acceso remoto: instrucciones para el DNS";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: instrucciones para el DNS");
             t.category = "sala";
             t.readOnly = true;
-            t.description = "El texto para mandarle al que administra el DNS (registro CNAME, pasos en el panel de "
-                            "pinggy, comodín, dominio raíz). Sin argumentos, con el dominio y el destino configurados.";
+            t.description = ba::i18n::traducir("mcp", "El texto para mandarle al que administra el DNS (registro CNAME, pasos en el panel de "
+                            "pinggy, comodín, dominio raíz). Sin argumentos, con el dominio y el destino configurados.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
             t.run = [acc, &rt = rt_](const json& a, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
                 const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
-                if (host.isEmpty()) return done(ToolResult::error("falta el dominio (host)"));
+                if (host.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta el dominio (host)")));
                 done(ToolResult::ok(acc->instruccionesDns(host, dest).toStdString()));
             };
             core_.addTool(std::move(t));
@@ -612,17 +625,17 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_dns_verificar";
-            t.title = "Acceso remoto: verificar el DNS del dominio propio";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: verificar el DNS del dominio propio");
             t.category = "sala";
             t.readOnly = true;
             t.openWorld = true;
-            t.description = "Resuelve el CNAME del dominio y dice si apunta al destino de pinggy (estado: ok, otro, "
-                            "mal, error). Sin argumentos, con lo configurado.";
+            t.description = ba::i18n::traducir("mcp", "Resuelve el CNAME del dominio y dice si apunta al destino de pinggy (estado: ok, otro, "
+                            "mal, error). Sin argumentos, con lo configurado.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
             t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
                 const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
                 acc->verificarDns(host, dest);
@@ -633,22 +646,22 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_probar_direccion";
-            t.title = "Acceso remoto: probar si pinggy da esa dirección";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: probar si pinggy da esa dirección");
             t.category = "sala";
             t.readOnly = true;
             t.openWorld = true;
             t.description =
-                "Prueba un subdominio fijo o un dominio propio con el token guardado: abre un túnel de prueba de unos "
+                ba::i18n::traducir("mcp", "Prueba un subdominio fijo o un dominio propio con el token guardado: abre un túnel de prueba de unos "
                 "segundos (sin desplazar a otro) y se fija si pinggy da esa dirección. ok = asignada al token y libre; "
                 "mal = no asignada (pinggy dio otra al azar) o en uso por otro túnel (con la API key también mira los "
                 "túneles activos de la cuenta); error = falta el token, el túnel de este equipo está prendido, etc. "
-                "Sin argumentos, con lo configurado.";
+                "Sin argumentos, con lo configurado.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"direccion", {{"type", "string"}, {"enum", {"pinggy", "propio"}}}},
                                {"host", {{"type", "string"}}}}}};
             t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const QString tipo = QString::fromStdString(a.value("direccion", rt.gateway().pinggyDominioTipo));
                 const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
                 acc->probarDireccion(tipo, host);
@@ -663,21 +676,21 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_configurar_con_api_key";
-            t.title = "Acceso remoto: armar pinggy solo con la API key";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: armar pinggy solo con la API key");
             t.category = "sala";
             t.openWorld = true;
-            t.description = "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
+            t.description = ba::i18n::traducir("mcp", "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
                             "la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su "
                             "puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el "
                             "nombre, p. ej. \"sala-concejo\") primero lo cambia en la cuenta: queda "
                             "sala-concejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
-                            "panel de pinggy.";
+                            "panel de pinggy.");
             t.inputSchema = {{"type", "object"},
-                             {"properties", {{"subdominio", {{"type", "string"}, {"description", "opcional: el nombre que se quiere"}}}}}};
+                             {"properties", {{"subdominio", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "opcional: el nombre que se quiere")}}}}}};
             t.run = [acc, esperar, &vm](const json& a, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia)."));
+                    return done(ToolResult::error(ba::i18n::traducir("mcp", "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).")));
                 acc->configurarConApiKey(QString::fromStdString(a.value("subdominio", std::string())));
                 esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
             };
@@ -686,23 +699,23 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_conectar";
-            t.title = "Acceso remoto: conectar o desconectar la conferencia de internet";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: conectar o desconectar la conferencia de internet");
             t.category = "sala";
             t.openWorld = true;
-            t.description = "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la conferencia a internet por "
+            t.description = ba::i18n::traducir("mcp", "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la conferencia a internet por "
                             "`via` o la vuelve a dejar solo en la red local (`via`: \"desconectar\"). Sin `via` dice "
-                            "cómo está y las formas que hay con lo guardado.";
-            t.details = "Las formas (solo las que se pueden con lo que hay guardado; la lista la da la llamada sin "
+                            "cómo está y las formas que hay con lo guardado.");
+            t.details = ba::i18n::traducir("mcp", "Las formas (solo las que se pueden con lo que hay guardado; la lista la da la llamada sin "
                         "`via`): pinggy (el token de la cuenta, con su dirección), pinggy-cuenta (solo la API key: "
                         "arma todo), cloudflare (el token de Cloudflare), pinggy-gratis (sin cuenta, dirección al "
                         "azar, se corta a los 60 min). Conectar por una apaga la otra. Reinicia la conferencia: los "
-                        "invitados se reconectan solos. Con el evento corriendo no se toca.";
+                        "invitados se reconectan solos. Con el evento corriendo no se toca.");
             t.inputSchema = {{"type", "object"},
                              {"properties",
                               {{"via", {{"type", "string"},
                                         {"enum", {"pinggy", "pinggy-cuenta", "cloudflare", "pinggy-gratis", "desconectar"}}}}}}};
             t.run = [acc](const json& a, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 const auto aJson = [](const QVariant& v) {
                     return json::parse(QJsonDocument::fromVariant(v).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
                 };
@@ -711,23 +724,24 @@ void McpService::registerRoomTools() {
                 const QString via = QString::fromStdString(a["via"].get<std::string>());
                 const QString e = via == "desconectar" ? acc->desconectar() : acc->conectar(via);
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult::ok(via == "desconectar" ? "La conferencia vuelve a ser solo de la red local (se reinicia)."
-                                                         : "Conectando por " + via.toStdString() +
-                                                               " (la conferencia se reinicia). Mirá acceso_remoto_estado en unos segundos."));
+                done(ToolResult::ok(via == "desconectar" ? ba::i18n::traducir("mcp", "La conferencia vuelve a ser solo de la red local (se reinicia).")
+                                                         : ba::i18n::llenar(ba::i18n::traducir("mcp", "Conectando por %1 (la conferencia se reinicia). "
+                                                                                             "Mirá acceso_remoto_estado en unos segundos."),
+                                                                           {via.toStdString()})));
             };
             core_.addTool(std::move(t));
         }
         {
             Tool t;
             t.name = "acceso_remoto_cortar_tuneles";
-            t.title = "Acceso remoto: cortar los túneles activos de la cuenta de pinggy";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: cortar los túneles activos de la cuenta de pinggy");
             t.category = "sala";
             t.destructive = true;
             t.openWorld = true;
-            t.description = "Con la API key, corta todos los túneles activos de la cuenta de pinggy (p. ej. otro equipo "
-                            "que quedó con el mismo token). El de este equipo, si está prendido, vuelve a conectarse solo.";
+            t.description = ba::i18n::traducir("mcp", "Con la API key, corta todos los túneles activos de la cuenta de pinggy (p. ej. otro equipo "
+                            "que quedó con el mismo token). El de este equipo, si está prendido, vuelve a conectarse solo.");
             t.run = [acc, esperar](const json&, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 acc->cortarTunelesDeLaCuenta();
                 esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
             };
@@ -736,15 +750,15 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_panel";
-            t.title = "Acceso remoto: túneles activos en la cuenta de pinggy";
+            t.title = ba::i18n::traducir("mcp", "Acceso remoto: túneles activos en la cuenta de pinggy");
             t.category = "sala";
             t.readOnly = true;
             t.openWorld = true;
-            t.description = "Consulta el panel de pinggy con la API key guardada (acceso_remoto_clave tipo api_key): "
+            t.description = ba::i18n::traducir("mcp", "Consulta el panel de pinggy con la API key guardada (acceso_remoto_clave tipo api_key): "
                             "qué túneles tiene activos la cuenta, con qué dominio y puertos. Los secretos que vengan "
-                            "en la respuesta salen tapados.";
+                            "en la respuesta salen tapados.");
             t.run = [acc, esperar](const json&, Done done) {
-                if (!acc) return done(ToolResult::error("no disponible"));
+                if (!acc) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
                 acc->verEnPinggy();
                 esperar(&AccesoRemoto::panelChanged, [acc]() { return acc ? acc->panel() : QVariantMap{}; }, done);
             };
@@ -754,28 +768,28 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "proxy_renovar";
-        t.title = "Proxy: pedir los certificados ya";
+        t.title = ba::i18n::traducir("mcp", "Proxy: pedir los certificados ya");
         t.category = "sala";
-        t.description = "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
-                        "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).";
+        t.description = ba::i18n::traducir("mcp", "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
+                        "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"host", {{"type", "string"}}}}}};
         t.run = [&control, contestar](const json& a, Done done) {
-            control.renovarProxy(a.value("host", std::string()), contestar("Pedido: mirá proxy_estado en un rato.", done));
+            control.renovarProxy(a.value("host", std::string()), contestar(ba::i18n::traducir("mcp", "Pedido: mirá proxy_estado en un rato."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "proxy_configurar";
-        t.title = "Proxy: dominio, puertos, servicios y ACME";
+        t.title = ba::i18n::traducir("mcp", "Proxy: dominio, puertos, servicios y ACME");
         t.category = "sala";
         t.description =
-            "Configura el proxy por nombre y REINICIA la conferencia (corta a los invitados): `activo`, `dominio` (los "
+            ba::i18n::traducir("mcp", "Configura el proxy por nombre y REINICIA la conferencia (corta a los invitados): `activo`, `dominio` (los "
             "servicios quedan en <nombre>.<dominio>: hay que apuntar esos nombres a esta máquina en el DNS), "
             "`puertoTls` (443) y `puertoHttp` (80; en Linux los de menos de 1024 piden permiso), `servicios` "
             "([{nombre, destino, ruta, soloLan}]; sin esto, los de siempre: sala, sesion, presidencia, botonera, "
             "prompter, tablero) y `acme` ({activo, email, pruebas}: Let's Encrypt; `pruebas` usa su entorno de "
-            "prueba, sin límites). Lo que no se pasa queda como estaba.";
+            "prueba, sin límites). Lo que no se pasa queda como estaba.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
@@ -798,13 +812,13 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "invitado_prueba";
-        t.title = "Prueba técnica de un invitado: eco y red";
+        t.title = ba::i18n::traducir("mcp", "Prueba técnica de un invitado: eco y red");
         t.category = "sala";
         t.description =
-            "Con alguien de ADENTRO (programa o fila de oradores): le manda un tono de 1 kHz cortado por su "
+            ba::i18n::traducir("mcp", "Con alguien de ADENTRO (programa o fila de oradores): le manda un tono de 1 kHz cortado por su "
             "retorno durante 4 s y mide cuánto vuelve por su micrófono (`eco_db`; más de 10 dB = se escucha el "
             "parlante: auriculares), y lee su red (rtt, pérdida, jitter, semáforo). Mientras dura, el invitado "
-            "escucha el tono y el programa más bajo: avisale antes. Devuelve `recomendacion` en castellano.";
+            "escucha el tono y el programa más bajo: avisale antes. Devuelve `recomendacion` en castellano.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.run = [withPerson, &gente](const json& a, Done done) {
             json p;
@@ -819,11 +833,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_request";
-        t.title = "Pedirle algo a un invitado";
+        t.title = ba::i18n::traducir("mcp", "Pedirle algo a un invitado");
         t.category = "sala";
         t.description =
-            "Le pide al navegador del invitado: silenciar el microfono, apagar la camara, dejar de "
-            "compartir pantalla o bajar la mano.";
+            ba::i18n::traducir("mcp", "Le pide al navegador del invitado: silenciar el microfono, apagar la camara, dejar de "
+            "compartir pantalla o bajar la mano.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -837,7 +851,7 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const std::string e =
-                gente.pedirle(p["id"], a.value("what", std::string()), contestar("Pedido enviado.", done));
+                gente.pedirle(p["id"], a.value("what", std::string()), contestar(ba::i18n::traducir("mcp", "Pedido enviado."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -845,12 +859,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_calidad";
-        t.title = "Bajar o devolver la calidad de la camara de un invitado";
+        t.title = ba::i18n::traducir("mcp", "Bajar o devolver la calidad de la camara de un invitado");
         t.category = "sala";
         t.description =
-            "Cuando la red de un invitado no da (room_status: `red.semaforo` ambar o rojo, perdida, jitter, RTT), "
+            ba::i18n::traducir("mcp", "Cuando la red de un invitado no da (room_status: `red.semaforo` ambar o rojo, perdida, jitter, RTT), "
             "le pide a su navegador que mande menos: `maximo` 720p (techo 1,5 Mbps) o 360p (0,5 Mbps); 1080p "
-            "devuelve la calidad completa. No corta nada: baja resolucion y bitrate.";
+            "devuelve la calidad completa. No corta nada: baja resolucion y bitrate.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"participant", personProp},
@@ -861,7 +875,7 @@ void McpService::registerRoomTools() {
             if (!withPerson(a, "participant", p, done)) return;
             const std::string m = a.value("maximo", std::string("720p"));
             const std::string e = gente.pedirle(p["id"], m == "1080p" ? "calidad-max" : "calidad-" + m,
-                                                contestar("Pedido enviado: el navegador del invitado ajusta su camara.", done));
+                                                contestar(ba::i18n::traducir("mcp", "Pedido enviado: el navegador del invitado ajusta su camara."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -869,10 +883,10 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_profile";
-        t.title = "Datos de una persona";
+        t.title = ba::i18n::traducir("mcp", "Datos de una persona");
         t.category = "sala";
         t.description =
-            "Cambia nombre, informacion y/o contacto de una persona (los ve la produccion y el tablero).";
+            ba::i18n::traducir("mcp", "Cambia nombre, informacion y/o contacto de una persona (los ve la produccion y el tablero).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"participant", personProp},
@@ -887,21 +901,21 @@ void McpService::registerRoomTools() {
                 return a.contains(k) && a[k].is_string() ? std::optional<std::string>(a[k].get<std::string>())
                                                          : std::nullopt;
             };
-            gente.perfil(p["id"], campo("name"), campo("info"), campo("contact"), contestar("Datos actualizados.", done));
+            gente.perfil(p["id"], campo("name"), campo("info"), campo("contact"), contestar(ba::i18n::traducir("mcp", "Datos actualizados."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "chat_send";
-        t.title = "Escribir en el chat";
+        t.title = ba::i18n::traducir("mcp", "Escribir en el chat");
         t.category = "sala";
-        t.description = "Mensaje del operador a toda la conferencia o a una persona (también al integrante que espera en "
-                        "la sesión remota y se lo atiende hablando: se le dice con la voz del atendedor).";
+        t.description = ba::i18n::traducir("mcp", "Mensaje del operador a toda la conferencia o a una persona (también al integrante que espera en "
+                        "la sesión remota y se lo atiende hablando: se le dice con la voz del atendedor).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"text", {{"type", "string"}}},
-                           {"to", {{"type", "string"}, {"description", "'all' (defecto) o una persona."}}}}},
+                           {"to", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "'all' (defecto) o una persona.")}}}}},
                          {"required", {"text"}}};
         t.run = [&vm, &control, contestar](const json& a, Done done) {
             std::string to = a.value("to", std::string("all"));
@@ -910,7 +924,7 @@ void McpService::registerRoomTools() {
             // él (docs/funciones/ATENCION.md). Las mismas herramientas que en el lobby.
             if (AtencionViewModel* at = vm.atencionVm(); at != nullptr && at->atiendeHablandoEnAsamblea(QString::fromStdString(to))) {
                 const QString e = at->decirAlIntegrante(QString::fromStdString(to), QString::fromStdString(a.value("text", std::string())));
-                return done(e.isEmpty() ? ToolResult().text("Dicho.") : ToolResult::error(e.toStdString()));
+                return done(e.isEmpty() ? ToolResult().text(ba::i18n::traducir("mcp", "Dicho.")) : ToolResult::error(e.toStdString()));
             }
             if (to != "all") {
                 json p;
@@ -918,7 +932,7 @@ void McpService::registerRoomTools() {
                 if (!resolveParticipant(roomSnapshot(vm), to, p, err)) return done(ToolResult::error(err));
                 to = p["id"];
             }
-            const std::string e = control.chatear(to, a.value("text", std::string()), contestar("Enviado.", done));
+            const std::string e = control.chatear(to, a.value("text", std::string()), contestar(ba::i18n::traducir("mcp", "Enviado."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -926,11 +940,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "invitados_chat_leer";
-        t.title = "Chat reciente";
+        t.title = ba::i18n::traducir("mcp", "Chat reciente");
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Lee el chat PRIVADO con los invitados de la conferencia (de quién, a quién, texto, hora); no es el chat del "
-            "público.";
+        t.description = ba::i18n::traducir("mcp", "Lee el chat PRIVADO con los invitados de la conferencia (de quién, a quién, texto, hora); no es el chat del "
+            "público.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -959,20 +973,20 @@ void McpService::registerRoomTools() {
         // que es caro (cada consulta es un turno) y torpe.
         Tool t;
         t.name = "chat_wait";
-        t.title = "Esperar que alguien escriba";
+        t.title = ba::i18n::traducir("mcp", "Esperar que alguien escriba");
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la conferencia y "
+            ba::i18n::traducir("mcp", "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la conferencia y "
             "devuelve "
             "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
             "pregunta con chat_send, un chat_wait, y asi. Si se lo atiende hablando (en el lobby o esperando en "
-            "la sesión remota), lo que dice llega acá pasado a texto (`voz: true`).";
+            "la sesión remota), lo que dice llega acá pasado a texto (`voz: true`).");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"participant"}},
             {"properties",
-             {{"participant", {{"type", "string"}, {"description", "id o nombre"}}},
+             {{"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id o nombre")}}},
               {"timeoutSec", {{"type", "integer"}, {"minimum", 1}, {"maximum", 120}, {"default", 60}}}}}};
         t.run = [conf, &vm](const json& a, Done done) {
             json p;
@@ -1023,11 +1037,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "share_list";
-        t.title = "Archivos compartidos";
+        t.title = ba::i18n::traducir("mcp", "Archivos compartidos");
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Archivos que compartieron los invitados (imagen, video, audio) con id, nombre, quien, tamaño.";
+            ba::i18n::traducir("mcp", "Archivos que compartieron los invitados (imagen, video, audio) con id, nombre, quien, tamaño.");
         t.run = [&vm](const json&, Done done) {
             done(ToolResult().data(json{{"shares", roomSnapshot(vm).value("shares", json::array())}}));
         };
@@ -1036,12 +1050,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "compartida_revisar";
-        t.title = "Ver un archivo compartido";
+        t.title = ba::i18n::traducir("mcp", "Ver un archivo compartido");
         t.category = "sala";
         t.readOnly = true;
         t.description =
-             "Muestra una imagen que COMPARTIÓ un invitado, para revisarla antes de ponerla al aire. Videos y "
-            "audios: da sus datos.";
+             ba::i18n::traducir("mcp", "Muestra una imagen que COMPARTIÓ un invitado, para revisarla antes de ponerla al aire. Videos y "
+            "audios: da sus datos.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1050,10 +1064,10 @@ void McpService::registerRoomTools() {
         t.run = [&control](const json& a, Done done) {
             control.verArchivo(a["id"].get<std::string>(), [a, done](const std::string& err, const json& share,
                                                                       const QByteArray& bytes) {
-                if (!err.empty()) return done(ToolResult::error(err + " share_list dice cuáles hay."));
+                if (!err.empty()) return done(ToolResult::error(err + " " + ba::i18n::traducir("mcp", "share_list dice cuáles hay.")));
                 if (bytes.isEmpty()) return done(ToolResult().data(share)); // video o audio: sus datos
                 QImage img;
-                if (!img.loadFromData(bytes)) return done(ToolResult::error("No se pudo leer la imagen."));
+                if (!img.loadFromData(bytes)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo leer la imagen.")));
                 ToolResult r;
                 r.text(share.value("name", "") + " — de " + share.value("participantName", ""));
                 addImage(r, img, a, 1280);
@@ -1065,33 +1079,33 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "share_take";
-        t.title = "Poner un archivo compartido en la escena";
+        t.title = ba::i18n::traducir("mcp", "Poner un archivo compartido en la escena");
         t.category = "sala";
         t.description =
-            "Copia el archivo compartido a la carpeta de medios y lo agrega a la escena al aire (imagen, "
-            "video o audio).";
+            ba::i18n::traducir("mcp", "Copia el archivo compartido a la carpeta de medios y lo agrega a la escena al aire (imagen, "
+            "video o audio).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&control](const json& a, Done done) {
             // La misma operación que el botón «Tomar» de la página Sala.
             const sala::ControlSala::Tomado r = control.tomarArchivo(a["id"].get<std::string>());
             if (!r.error.empty()) return done(ToolResult::error(r.error));
-            done(ToolResult::ok("«" + r.nombre + "» agregado a la escena «" + r.escena + "» como «" + r.fuente + "»."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» agregado a la escena «%2» como «%3»."), {r.nombre, r.escena, r.fuente})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "share_delete";
-        t.title = "Borrar archivo compartido";
+        t.title = ba::i18n::traducir("mcp", "Borrar archivo compartido");
         t.category = "sala";
         t.destructive = true;
-        t.description = "Borra un archivo compartido del gateway.";
+        t.description = ba::i18n::traducir("mcp", "Borra un archivo compartido del gateway.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&control](const json& a, Done done) {
             control.borrarArchivo(a.value("id", std::string()), [done](const std::string& err, const json&) {
-                done(err.empty() ? ToolResult::ok("Borrado.") : ToolResult::error(sala::explicarError(err)));
+                done(err.empty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Borrado.")) : ToolResult::error(sala::explicarError(err)));
             });
         };
         core_.addTool(std::move(t));
@@ -1099,14 +1113,14 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "room_link";
-        t.title = "Enlace y QR de ingreso (o del tablero)";
+        t.title = ba::i18n::traducir("mcp", "Enlace y QR de ingreso (o del tablero)");
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Enlace para entrar a la conferencia (target local = misma red; remote = la dirección pública de pinggy, "
+            ba::i18n::traducir("mcp", "Enlace para entrar a la conferencia (target local = misma red; remote = la dirección pública de pinggy, "
             "Cloudflare o WireGuard, para los de afuera) con su QR como imagen; con withPin el PIN va incluido. "
             "Con board=true, el del tablero de oradores. La imagen la ves solo vos: para que el operador vea el QR "
-            "y lo pueda copiar, después llamá a qr_mostrar con la URL.";
+            "y lo pueda copiar, después llamá a qr_mostrar con la URL.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1116,12 +1130,14 @@ void McpService::registerRoomTools() {
         t.run = [&enlaces](const json& a, Done done) {
             const bool remoto = a.value("target", std::string("local")) == "remote";
             const auto alVolver = [done, remoto](const sala::Enlace& e) {
-                if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? std::string("sin enlace") : e.mensaje));
+                if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? ba::i18n::traducir("mcp", "sin enlace") : e.mensaje));
                 ToolResult res;
                 const std::string url = e.url;
-                res.text(url + "\n\n(El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
-                               "qr_mostrar {\"texto\": \"" + url + "\", \"descripcion\": \"…\"}." +
-                         (!remoto ? std::string(" Es la dirección de la red local: para alguien de afuera, "
+                res.text(url + "\n\n(" +
+                         ba::i18n::llenar(ba::i18n::traducir("mcp", "El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
+                                                               "qr_mostrar {\"texto\": \"%1\", \"descripcion\": \"…\"}."),
+                                          {url}) +
+                         (!remoto ? " " + ba::i18n::traducir("mcp", "Es la dirección de la red local: para alguien de afuera, "
                                                 "room_link {\"target\": \"remote\"}.")
                                   : std::string()) + ")");
                 res.structured = json{{"url", url}, {"remoto", remoto}};
@@ -1139,14 +1155,14 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "network_status";
-        t.title = "Red y acceso de invitados";
+        t.title = ba::i18n::traducir("mcp", "Red y acceso de invitados");
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
-                        "enlaces y puertos WebRTC del gateway.";
+        t.description = ba::i18n::traducir("mcp", "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
+                        "enlaces y puertos WebRTC del gateway.");
         t.run = [&control](const json&, Done done) {
             control.verRed([done](const std::string& err, const json& r) {
-                done(err.empty() ? ToolResult().data(r) : ToolResult::error("La conferencia no responde."));
+                done(err.empty() ? ToolResult().data(r) : ToolResult::error(ba::i18n::traducir("mcp", "La conferencia no responde.")));
             });
         };
         core_.addTool(std::move(t));
@@ -1154,11 +1170,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "operator_feed";
-        t.title = "Como te ve y oye el lobby";
+        t.title = ba::i18n::traducir("mcp", "Como te ve y oye el lobby");
         t.category = "sala";
         t.description =
-            "Elige con que fuente de video y de audio (por nombre) te ven y oyen los que esperan en el "
-            "lobby. Vacio = placa de espera / sin voz. Sin argumentos lista las opciones.";
+            ba::i18n::traducir("mcp", "Elige con que fuente de video y de audio (por nombre) te ven y oyen los que esperan en el "
+            "lobby. Vacio = placa de espera / sin voz. Sin argumentos lista las opciones.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"video", {{"type", "string"}}}, {"audio", {{"type", "string"}}}}}};
         t.run = [conf](const json& a, Done done) {
@@ -1177,24 +1193,24 @@ void McpService::registerRoomTools() {
             conf->setOperatorFeed(
                 QString::fromStdString(a.value("video", conf->operatorVideo().toStdString())),
                 QString::fromStdString(a.value("audio", conf->operatorAudio().toStdString())));
-            done(ToolResult::ok("Listo: el lobby te ve con '" + conf->operatorVideo().toStdString() +
-                                "' y te oye con '" + conf->operatorAudio().toStdString() + "'."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: el lobby te ve con '%1' y te oye con '%2'."),
+                                                {conf->operatorVideo().toStdString(), conf->operatorAudio().toStdString()})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "gateway_restart";
-        t.title = "Reiniciar la conferencia (gateway)";
+        t.title = ba::i18n::traducir("mcp", "Reiniciar la conferencia (gateway)");
         t.category = "sala";
         t.destructive = true;
         t.description =
-            "Reinicia el proceso de la conferencia: se cortan todos (se reconectan solos en segundos si el "
-            "estado se puede recuperar). Solo si algo no responde.";
+            ba::i18n::traducir("mcp", "Reinicia el proceso de la conferencia: se cortan todos (se reconectan solos en segundos si el "
+            "estado se puede recuperar). Solo si algo no responde.");
         t.run = [&rt](const json&, Done done) {
             rt.reiniciarSalaEnElFondo([done](const std::string& e) {
                 QMetaObject::invokeMethod(QCoreApplication::instance(), [done, e]() {
-                    done(e.empty() ? ToolResult::ok("Gateway reiniciandose.") : ToolResult::error(e));
+                    done(e.empty() ? ToolResult::ok(ba::i18n::traducir("mcp", "Gateway reiniciandose.")) : ToolResult::error(e));
                 }, Qt::QueuedConnection);
             });
         };
@@ -1205,12 +1221,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "remotos_fila_ver";
-        t.title = "Fila de oradores";
+        t.title = ba::i18n::traducir("mcp", "Fila de oradores");
         t.category = "oradores";
         t.readOnly = true;
         t.description =
-             "Los oradores REMOTOS (por videollamada): la fila en orden, el estado de cada uno y cuánto le queda "
-            "al que habla; no son las bancas del recinto.";
+             ba::i18n::traducir("mcp", "Los oradores REMOTOS (por videollamada): la fila en orden, el estado de cada uno y cuánto le queda "
+            "al que habla; no son las bancas del recinto.");
         t.run = [&vm](const json&, Done done) {
             const json s = roomSnapshot(vm);
             const double now = s.value("serverNowMs", 0.0);
@@ -1246,18 +1262,18 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "speakers_config";
-        t.title = "Configurar el modo oradores";
+        t.title = ba::i18n::traducir("mcp", "Configurar el modo oradores");
         t.category = "oradores";
         t.description =
-            "Activa/desactiva el modo oradores y define: tiempo general por orador, al aire uno a la vez "
+            ba::i18n::traducir("mcp", "Activa/desactiva el modo oradores y define: tiempo general por orador, al aire uno a la vez "
             "o varios, slot por defecto, carrusel (manual; chain = al sacar entra el siguiente; time = "
-            "rota solo pasado el tiempo + margen) y margen.";
+            "rota solo pasado el tiempo + margen) y margen.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"enabled", {{"type", "boolean"}}},
               {"defaultTime",
-               {{"type", json::array({"string", "integer"})}, {"description", "Segundos o 'm:ss'."}}},
+               {{"type", json::array({"string", "integer"})}, {"description", ba::i18n::traducir("mcp", "Segundos o 'm:ss'.")}}},
               {"multi", {{"type", "boolean"}}},
               {"defaultSlot", {{"type", "integer"}, {"minimum", 1}}},
               {"carousel", {{"type", "string"}, {"enum", {"manual", "chain", "time"}}}},
@@ -1268,10 +1284,10 @@ void McpService::registerRoomTools() {
                 if (a.contains(k)) b[k] = a[k];
             if (a.contains("defaultTime")) {
                 const int s = parseSeconds(a["defaultTime"]);
-                if (s <= 0) return done(ToolResult::error("defaultTime invalido (segundos o 'm:ss')."));
+                if (s <= 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "defaultTime invalido (segundos o 'm:ss').")));
                 b["defaultSec"] = s;
             }
-            const std::string e = oradores.configurar(b, contestar("Modo oradores actualizado.", done));
+            const std::string e = oradores.configurar(b, contestar(ba::i18n::traducir("mcp", "Modo oradores actualizado."), done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -1279,11 +1295,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "speaker_on_air";
-        t.title = "Orador al aire / fuera";
+        t.title = ba::i18n::traducir("mcp", "Orador al aire / fuera");
         t.category = "oradores";
         t.description =
-            "Pone al aire a un orador (on=true, arranca su reloj) o lo saca (on=false: vuelve a la fila "
-            "como 'hablo', nunca se lo echa).";
+            ba::i18n::traducir("mcp", "Pone al aire a un orador (on=true, arranca su reloj) o lo saca (on=false: vuelve a la fila "
+            "como 'hablo', nunca se lo echa).");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}, {"default", true}}}}},
@@ -1292,28 +1308,28 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const bool on = a.value("on", true);
-            oradores.alAire(p["id"], on, contestar(p.value("name", "") + (on ? " al aire." : " fuera del aire."), done));
+            oradores.alAire(p["id"], on, contestar(ba::i18n::llenar(on ? ba::i18n::traducir("mcp", "%1 al aire.") : ba::i18n::traducir("mcp", "%1 fuera del aire."), {p.value("name", "")}), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "speaker_next";
-        t.title = "Siguiente orador";
+        t.title = ba::i18n::traducir("mcp", "Siguiente orador");
         t.category = "oradores";
-        t.description = "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
-                        "'uno a la vez', el que estaba sale).";
+        t.description = ba::i18n::traducir("mcp", "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
+                        "'uno a la vez', el que estaba sale).");
         t.run = [&oradores, contestar](const json&, Done done) {
-            oradores.siguiente(contestar("Siguiente al aire.", done));
+            oradores.siguiente(contestar(ba::i18n::traducir("mcp", "Siguiente al aire."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "speaker_move";
-        t.title = "Reordenar la fila";
+        t.title = ba::i18n::traducir("mcp", "Reordenar la fila");
         t.category = "oradores";
-        t.description = "Mueve a una persona a una posicion de la fila (1 = primera).";
+        t.description = ba::i18n::traducir("mcp", "Mueve a una persona a una posicion de la fila (1 = primera).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"participant", personProp}, {"position", {{"type", "integer"}, {"minimum", 1}}}}},
@@ -1321,41 +1337,41 @@ void McpService::registerRoomTools() {
         t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            oradores.mover(p["id"], a.value("position", 1) - 1, contestar("Fila reordenada.", done));
+            oradores.mover(p["id"], a.value("position", 1) - 1, contestar(ba::i18n::traducir("mcp", "Fila reordenada."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "speaker_queue";
-        t.title = "Mandar a la fila de oradores";
+        t.title = ba::i18n::traducir("mcp", "Mandar a la fila de oradores");
         t.category = "oradores";
         t.description =
-            "QUE ES: pone en la FILA de oradores a alguien que ya esta en la conferencia (o devuelve a la fila a "
+            ba::i18n::traducir("mcp", "QUE ES: pone en la FILA de oradores a alguien que ya esta en la conferencia (o devuelve a la fila a "
             "quien ya hablo). PARA QUE: en modo oradores todos siguen en la conferencia y la fila es solo el "
             "orden en que se los saca al aire. COMO SE USA: `participant` (nombre o id). Sale del aire "
             "hasta que le toque; `speaker_on_air` o `speaker_next` lo suben. Si era presentador, deja de "
-            "serlo.";
+            "serlo.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            oradores.aLaFila(p["id"], contestar("A la fila de oradores.", done));
+            oradores.aLaFila(p["id"], contestar(ba::i18n::traducir("mcp", "A la fila de oradores."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "speaker_presenter";
-        t.title = "Presentador fijo";
+        t.title = ba::i18n::traducir("mcp", "Presentador fijo");
         t.category = "oradores";
         t.description =
-            "QUE ES: marca a una persona como PRESENTADOR: se queda al aire con su propio lugar mientras "
+            ba::i18n::traducir("mcp", "QUE ES: marca a una persona como PRESENTADOR: se queda al aire con su propio lugar mientras "
             "los oradores rotan a su lado. PARA QUE: un conductor remoto fijo con invitados que entran y "
             "salen. COMO SE USA: `participant` (nombre o id) y `on` (true/false). Hay uno solo a la vez; "
             "no entra en la fila y la rotacion no lo saca. Con `on=false` deja de serlo y sale del aire "
-            "(despues se lo puede mandar a la fila con `speaker_queue`).";
+            "(despues se lo puede mandar a la fila con `speaker_queue`).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}}}}},
                          {"required", {"participant"}}};
@@ -1363,18 +1379,18 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const bool on = a.value("on", true);
-            oradores.presentador(p["id"], on, contestar(on ? "Presentador fijo." : "Ya no es presentador.", done));
+            oradores.presentador(p["id"], on, contestar(on ? ba::i18n::traducir("mcp", "Presentador fijo.") : ba::i18n::traducir("mcp", "Ya no es presentador."), done));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "speaker_time";
-        t.title = "Tiempo de un orador";
+        t.title = ba::i18n::traducir("mcp", "Tiempo de un orador");
         t.category = "oradores";
-        t.description = "Tiempo asignado para hablar de una persona (segundos o 'm:ss'): '+2:00' le suma dos "
+        t.description = ba::i18n::traducir("mcp", "Tiempo asignado para hablar de una persona (segundos o 'm:ss'): '+2:00' le suma dos "
                         "minutos, '-30' le saca treinta segundos, '2:30' o '=2:30' lo deja en eso. Se puede "
-                        "cambiar estando al aire.";
+                        "cambiar estando al aire.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1398,8 +1414,8 @@ void McpService::registerRoomTools() {
             } else {
                 s = parseSeconds(a["time"]);
             }
-            const std::string e = oradores.tiempo(p["id"], s, contestar("Tiempo: " + std::to_string(s) + " s.", done));
-            if (!e.empty()) done(ToolResult::error(e + " (segundos o 'm:ss')."));
+            const std::string e = oradores.tiempo(p["id"], s, contestar(ba::i18n::llenar(ba::i18n::traducir("mcp", "Tiempo: %1 s."), {std::to_string(s)}), done));
+            if (!e.empty()) done(ToolResult::error(e + " " + ba::i18n::traducir("mcp", "(segundos o 'm:ss').")));
         };
         core_.addTool(std::move(t));
     }
