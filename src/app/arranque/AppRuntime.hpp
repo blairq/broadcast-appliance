@@ -177,6 +177,9 @@ class AppRuntime {
     bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
                        float abajo);
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
+    /// El volumen general de un grupo de audio (VCA; BroadcastEngine::setGananciaGrupo), y queda
+    /// guardado con la configuración.
+    bool setGananciaGrupo(const std::string& grupo, float mul);
     bool setVolume(const std::string& name, float mul);
     bool setMuted(const std::string& name, bool muted);
 

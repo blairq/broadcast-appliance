@@ -359,6 +359,9 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
             c.audioInputs.push_back(spec);
         }
     }
+    if (j.contains("gruposAudio") && j["gruposAudio"].is_object())
+        for (const auto& [g, v] : j["gruposAudio"].items())
+            if (v.is_number()) c.gruposAudio[g] = std::max(0.0f, v.get<float>());
     if (c.scenes.empty()) {
         c.scenes.push_back(SceneConfig{"Principal", {}});
     }
@@ -444,6 +447,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"ajustes", c.ajustes},
         {"scenes", scenes},
         {"audioInputs", audioIns},
+        {"gruposAudio", c.gruposAudio},
         {"currentScene", c.currentScene},
     };
     return writeJson(path, j, err);

@@ -126,12 +126,15 @@ void McpService::registerAudioTools() {
         t.description = "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los "
                         "remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un "
                         "bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` "
-                        "y `mudo`, silencia o abre todo el grupo.";
+                        "y `mudo`, silencia o abre todo el grupo; con `grupo` y `volumenDb`, el volumen general del "
+                        "grupo (un VCA: mueve a todos juntos sin tocar el fader de cada uno, así las diferencias entre "
+                        "ellos quedan; 0 dB = como si no estuviera).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"grupo", {{"type", "string"}, {"description", "la clave, como la lista esta herramienta"}}},
                            {"compacto", {{"type", "boolean"}}},
-                           {"mudo", {{"type", "boolean"}}}}}};
+                           {"mudo", {{"type", "boolean"}}},
+                           {"volumenDb", {{"type", "number"}, {"description", "de -60 a +12; 0 = sin cambio"}}}}}};
         t.run = [vm](const json& a, Done done) {
             auto* m = qobject_cast<MixerModel*>(vm->mixer());
             if (m == nullptr) return done(ToolResult::error("No hay mezclador en este proceso."));
@@ -143,6 +146,8 @@ void McpService::registerAudioTools() {
                 return done(ToolResult::error("No hay un grupo «" + g.toStdString() + "»: los grupos los lista esta herramienta sin argumentos."));
             if (!g.isEmpty() && a.contains("compacto")) m->setCompacto(g, a["compacto"].get<bool>());
             if (!g.isEmpty() && a.contains("mudo")) m->setMutedGrupo(g, a["mudo"].get<bool>());
+            if (!g.isEmpty() && a.contains("volumenDb") && a["volumenDb"].is_number())
+                m->setGananciaGrupoDb(g, a["volumenDb"].get<double>());
             done(ToolResult().data(json{{"grupos", json::parse(QJsonDocument(QJsonArray::fromVariantList(m->grupos())).toJson().toStdString())}}));
         };
         core_.addTool(std::move(t));

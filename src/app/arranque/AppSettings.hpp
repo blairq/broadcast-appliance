@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -113,6 +114,8 @@ struct AppConfig {
     /// invitados, van a un canal GLOBAL: suenan en todas las escenas, asi que
     /// no pertenecen a ninguna.
     std::vector<SourceSpec> audioInputs;
+    /// El volumen general de cada grupo de audio (BroadcastEngine::setGananciaGrupo): grupo -> ganancia.
+    std::map<std::string, float> gruposAudio;
     bool guestVideo = true;
     bool guestAudio = true;
     std::string guestAudioPreset = "podium"; ///< channel strip de los invitados ("" = sin)

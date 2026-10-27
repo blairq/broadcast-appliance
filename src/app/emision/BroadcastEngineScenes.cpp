@@ -669,7 +669,7 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         setError("fuente '" + spec.name + "': el tipo '" + spec.id + "' todavía no lo arma el motor");
         return false;
     }
-    json opciones{{"global", global}, {"nivel", spec.volume}, {"mute", spec.muted}};
+    json opciones{{"global", global}, {"nivel", nivelAplicado(spec.name, spec.volume)}, {"mute", spec.muted}};
     const std::string e = motor_->agregarEntrada(spec.name, ajustes, opciones);
     if (!e.empty()) {
         setError("fuente '" + spec.name + "': " + e);
@@ -876,7 +876,7 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     json ajustes;
     if (!ajustesMotor(f.spec, ajustes)) return false;
     const std::string e = motor_->agregarEntrada(
-        to, ajustes, json{{"global", f.global}, {"nivel", f.spec.volume}, {"mute", f.spec.muted}});
+        to, ajustes, json{{"global", f.global}, {"nivel", nivelAplicado(to, f.spec.volume)}, {"mute", f.spec.muted}});
     if (!e.empty()) {
         setError(e);
         return false;
@@ -1111,9 +1111,45 @@ bool BroadcastEngine::setSourceVolume(const std::string& name, float mul) {
     const float v = std::max(0.0f, mul);
     const bool cambia = it->second.spec.volume != v;
     it->second.spec.volume = v;
-    const bool ok = motor_->ponerNivel(name, v).empty();
+    const bool ok = motor_->ponerNivel(name, nivelAplicado(name, v)).empty();
     if (cambia && cambioAudio_) cambioAudio_(name, "volumen");
     return ok;
+}
+
+std::string BroadcastEngine::grupoDeAudio(const std::string& nombre) {
+    std::string g;
+    for (char c : nombre) {
+        if (c >= '0' && c <= '9') continue;
+        if (c == ' ' && (g.empty() || g.back() == ' ')) continue;
+        g.push_back(c);
+    }
+    while (!g.empty() && g.back() == ' ') g.pop_back();
+    // «Invitado  (audio)» queda con un espacio solo antes del paréntesis.
+    for (std::size_t p = g.find(" )"); p != std::string::npos; p = g.find(" )")) g.erase(p, 1);
+    return g;
+}
+
+float BroadcastEngine::nivelAplicado(const std::string& name, float volumen) const {
+    if (gananciaGrupo_.empty()) return volumen;
+    const auto it = gananciaGrupo_.find(grupoDeAudio(name));
+    return it != gananciaGrupo_.end() ? volumen * it->second : volumen;
+}
+
+void BroadcastEngine::setGananciaGrupo(const std::string& grupo, float mul) {
+    const float g = std::max(0.0f, mul);
+    if (std::abs(g - gananciaGrupo(grupo)) < 1e-6f) return;
+    if (std::abs(g - 1.0f) < 1e-6f) gananciaGrupo_.erase(grupo);
+    else gananciaGrupo_[grupo] = g;
+    for (auto& [nombre, f] : sources_) {
+        if (grupoDeAudio(nombre) != grupo) continue;
+        if (motor_) motor_->ponerNivel(nombre, nivelAplicado(nombre, f.spec.volume)); // sin audio no tiene nivel: no importa
+        if (cambioAudio_) cambioAudio_(nombre, "volumen");
+    }
+}
+
+float BroadcastEngine::gananciaGrupo(const std::string& grupo) const {
+    const auto it = gananciaGrupo_.find(grupo);
+    return it != gananciaGrupo_.end() ? it->second : 1.0f;
 }
 
 float BroadcastEngine::sourceVolume(const std::string& name) const {

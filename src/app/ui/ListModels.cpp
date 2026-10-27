@@ -359,6 +359,8 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
             return n;
         }
         case CompactoRole: return !grupos_[i].empty() && compactos_.count(grupos_[i]) > 0;
+        case GananciaGrupoDbRole:
+            return grupos_[i].empty() ? 0.0 : mulToDb(rt_.engine().gananciaGrupo(grupos_[i]));
         case NombreGrupoRole: {
             const auto it = nombresGrupo_.find(grupos_[i]);
             return qs(it != nombresGrupo_.end() ? it->second : grupos_[i]);
@@ -377,20 +379,8 @@ QHash<int, QByteArray> MixerModel::roleNames() const {
             {PrimeroDeGrupoRole, "primeroDeGrupo"},
             {TamGrupoRole, "tamGrupo"},
             {CompactoRole, "compacto"},
-            {NombreGrupoRole, "nombreGrupo"}};
-}
-
-std::string MixerModel::grupoDe(const std::string& nombre) {
-    std::string g;
-    for (char c : nombre) {
-        if (c >= '0' && c <= '9') continue;
-        if (c == ' ' && (g.empty() || g.back() == ' ')) continue;
-        g.push_back(c);
-    }
-    while (!g.empty() && g.back() == ' ') g.pop_back();
-    // «Invitado  (audio)» queda con un espacio solo antes del paréntesis.
-    for (std::size_t p = g.find(" )"); p != std::string::npos; p = g.find(" )")) g.erase(p, 1);
-    return g;
+            {NombreGrupoRole, "nombreGrupo"},
+            {GananciaGrupoDbRole, "gananciaGrupoDb"}};
 }
 
 void MixerModel::reload() {
@@ -400,9 +390,9 @@ void MixerModel::reload() {
     // Los grupos: tiras seguidas con la misma clave (dos o más); las demás, sueltas.
     grupos_.assign(names_.size(), std::string());
     for (std::size_t i = 0; i < names_.size();) {
-        const std::string g = grupoDe(names_[i]);
+        const std::string g = BroadcastEngine::grupoDeAudio(names_[i]);
         std::size_t j = i + 1;
-        while (j < names_.size() && grupoDe(names_[j]) == g) ++j;
+        while (j < names_.size() && BroadcastEngine::grupoDeAudio(names_[j]) == g) ++j;
         if (j - i >= 2) {
             for (std::size_t k = i; k < j; ++k) grupos_[k] = g;
             // La gente conectada se llama como en Audio y Video: Conferencia o Asamblea.
@@ -439,9 +429,16 @@ QVariantList MixerModel::grupos() const {
         out.push_back(QVariantMap{{"grupo", qs(grupos_[i])},
                                   {"nombre", qs(nom != nombresGrupo_.end() ? nom->second : grupos_[i])},
                                   {"tiras", tiras},
+                                  {"volumenDb", mulToDb(rt_.engine().gananciaGrupo(grupos_[i]))},
                                   {"compacto", compactos_.count(grupos_[i]) > 0}});
     }
     return out;
+}
+
+bool MixerModel::setGananciaGrupoDb(const QString& grupo, double db) {
+    if (grupo.isEmpty()) return false;
+    const double d = std::clamp(db, -60.0, 12.0);
+    return rt_.setGananciaGrupo(grupo.toStdString(), d <= -60.0 ? 0.0f : static_cast<float>(std::pow(10.0, d / 20.0)));
 }
 
 void MixerModel::setMutedGrupo(const QString& grupo, bool muted) {
@@ -529,7 +526,7 @@ void MixerModel::avisarCambio(const std::string& fuente) {
                 const auto it = std::find(names_.begin(), names_.end(), f);
                 if (it == names_.end()) continue;
                 const int row = static_cast<int>(it - names_.begin());
-                emit dataChanged(index(row), index(row), {VolumeDbRole, MutedRole, RetardoMsRole});
+                emit dataChanged(index(row), index(row), {VolumeDbRole, MutedRole, RetardoMsRole, GananciaGrupoDbRole});
             }
         },
         Qt::QueuedConnection);

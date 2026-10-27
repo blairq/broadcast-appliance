@@ -138,14 +138,13 @@ class MixerModel : public QAbstractListModel {
         PrimeroDeGrupoRole, ///< la primera tira del grupo (lleva el botón de compactar)
         TamGrupoRole,       ///< cuántas tiras tiene su grupo
         CompactoRole,       ///< su grupo está compactado: sin fader, solo los botones
-        NombreGrupoRole     ///< el nombre que se muestra: «Conferencia», «Asamblea» o la clave
+        NombreGrupoRole,    ///< el nombre que se muestra: «Conferencia», «Asamblea» o la clave
+        GananciaGrupoDbRole ///< el volumen general de su grupo (VCA), en dB
     };
     explicit MixerModel(AppRuntime& rt, QObject* parent = nullptr);
-    /// El grupo de una tira: el nombre sin los números y con los espacios en orden
-    /// («Invitado 3 (audio)» -> «Invitado (audio)»; «Remoto con la palabra 2 (audio)» y
-    /// «Remoto con la palabra (audio)», el mismo). Tiras SEGUIDAS con la misma clave, dos o
-    /// más, son un grupo.
-    static std::string grupoDe(const std::string& nombre);
+    /// El grupo de una tira: BroadcastEngine::grupoDeAudio («Invitado 3 (audio)» -> «Invitado
+    /// (audio)»; los dos «Remoto con la palabra…», el mismo). Tiras SEGUIDAS con la misma
+    /// clave, dos o más, son un grupo.
     /// El motor cambió el audio de una fuente (volumen, mute, retardo…: BroadcastEngine::
     /// alCambiarAudioFuente), lo haya pedido quien sea. Desde cualquier hilo; los de una
     /// misma vuelta se juntan en un dataChanged por fila, en el hilo del modelo.
@@ -173,6 +172,9 @@ class MixerModel : public QAbstractListModel {
     Q_INVOKABLE QAbstractItemModel* delGrupo(const QString& grupo);
     /// Silenciar (o no) todas las tiras de un grupo.
     Q_INVOKABLE void setMutedGrupo(const QString& grupo, bool muted);
+    /// El volumen general de un grupo (VCA), de -60 a +12 dB: mueve el grupo entero sin tocar
+    /// el fader de cada uno (las diferencias entre ellos quedan); 0 dB = como si no estuviera.
+    Q_INVOKABLE bool setGananciaGrupoDb(const QString& grupo, double db);
     /// Los grupos de ahora: [{grupo, tiras: [nombres], compacto}] (MCP).
     QVariantList grupos() const;
     /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.

@@ -467,7 +467,16 @@ class BroadcastEngine {
     /// Todas las fuentes que maneja el motor, sin repetir.
     std::vector<std::string> sourceNames() const;
     bool setSourceVolume(const std::string& name, float mul);
+    /// El volumen de la fuente (su fader), SIN la ganancia de su grupo.
     float sourceVolume(const std::string& name) const;
+    /// El grupo de audio de una fuente: su nombre sin los números y con los espacios en orden
+    /// («Invitado 3 (audio)» -> «Invitado (audio)»). El mismo que agrupa el mezclador.
+    static std::string grupoDeAudio(const std::string& nombre);
+    /// El volumen general de un grupo (un VCA): multiplica el volumen de cada fuente del grupo
+    /// sin tocar su fader, en el mismo control de nivel (no agrega nada al camino del audio).
+    /// En 1 (0 dB), como si no estuviera. Una fuente que se suma después al grupo ya lo trae.
+    void setGananciaGrupo(const std::string& grupo, float mul);
+    float gananciaGrupo(const std::string& grupo) const;
     bool setSourceMuted(const std::string& name, bool muted);
     bool sourceMuted(const std::string& name) const;
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio): lo que entrega la
@@ -923,6 +932,9 @@ class BroadcastEngine {
     std::mutex falloMotorM_;
     std::function<void(const std::string&)> falloMotor_;
     std::function<void(const std::string&, const char*)> cambioAudio_; ///< alCambiarAudioFuente (se fija una vez, al armar)
+    std::map<std::string, float> gananciaGrupo_; ///< los VCA: grupo -> ganancia (solo los que no son 1)
+    /// Lo que va al control de nivel del motor: el fader de la fuente por la ganancia de su grupo.
+    float nivelAplicado(const std::string& name, float volumen) const;
     std::string pfl_; ///< el canal en PFL ("" = ninguno); no se guarda
     void enviarEscena(int k, const motor::Cuadro& c);
 

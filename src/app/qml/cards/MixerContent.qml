@@ -209,16 +209,58 @@ Item {
                 required property int tamGrupo
                 required property bool compacto
                 required property string nombreGrupo
+                required property real gananciaGrupoDb
                 // Del grupo compactado, la primera tira es el bloque entero y las demás no ocupan lugar.
                 readonly property bool oculta: compacto && !primeroDeGrupo
                 readonly property bool bloque: compacto && primeroDeGrupo
+                // Desplegado, el grupo empieza con su fader general (VCA), como en una consola.
+                readonly property bool conVca: primeroDeGrupo && !compacto
+                readonly property int anchoVca: 46
                 height: ListView.view.height
-                width: oculta ? 0 : (bloque ? bloqueCol.width : 70) + canales.espacio
+                width: oculta ? 0 : (bloque ? bloqueCol.width : 70 + (conVca ? anchoVca + 8 : 0)) + canales.espacio
                 visible: !oculta
+
+                // El volumen general del grupo (VCA): mueve a todos juntos sin tocar el fader de
+                // cada uno, así las diferencias entre ellos quedan. Doble clic: a 0 dB.
+                ColumnLayout {
+                    visible: tira.conVca
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    width: tira.anchoVca
+                    spacing: 6
+                    Text {
+                        Layout.fillWidth: true; Layout.preferredHeight: 16
+                        horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                        text: "VCA"; color: Theme.accentSoft; font { pixelSize: 9; weight: Font.Bold; letterSpacing: 1 }
+                    }
+                    Slider {
+                        id: vcaV
+                        Layout.fillHeight: true
+                        Layout.alignment: Qt.AlignHCenter
+                        orientation: Qt.Vertical
+                        from: -60; to: 12
+                        value: Math.max(-60, tira.gananciaGrupoDb)
+                        onMoved: Studio.mixer.setGananciaGrupoDb(tira.grupo, value)
+                        ToolTip.visible: pressed || vcaVMa.containsMouse; ToolTip.delay: pressed ? 0 : 500
+                        ToolTip.text: "Volumen general de " + tira.nombreGrupo + ": " + value.toFixed(1)
+                                      + " dB (mueve a todos sin tocar el fader de cada uno; doble clic: 0 dB)"
+                        MouseArea { id: vcaVMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                        TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
+                    }
+                    Text {
+                        Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                        text: (tira.gananciaGrupoDb > 0 ? "+" : "") + Math.max(-60, tira.gananciaGrupoDb).toFixed(1)
+                        color: Math.abs(tira.gananciaGrupoDb) > 0.05 ? Theme.accent : Theme.textFaint
+                        font { pixelSize: 10; weight: Font.DemiBold }
+                    }
+                    Text {
+                        Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                        text: tira.nombreGrupo; color: Theme.accentSoft; elide: Text.ElideRight; font.pixelSize: 9
+                    }
+                }
 
                 ColumnLayout {
                     visible: !tira.compacto
-                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    anchors { left: parent.left; leftMargin: tira.conVca ? tira.anchoVca + 8 : 0; top: parent.top; bottom: parent.bottom }
                     width: 70
                     spacing: 6
                     Item {
@@ -380,6 +422,25 @@ Item {
                         }
                         ToolTip.visible: todosMa.containsMouse; ToolTip.delay: 400
                         ToolTip.text: "Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)"
+                    }
+                    // El volumen general del grupo (VCA), acostado: compactado no hay lugar para uno parado.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Slider {
+                            id: vcaH
+                            Layout.fillWidth: true
+                            from: -60; to: 12
+                            value: Math.max(-60, tira.gananciaGrupoDb)
+                            onMoved: Studio.mixer.setGananciaGrupoDb(tira.grupo, value)
+                            ToolTip.visible: pressed; ToolTip.text: value.toFixed(1) + " dB"
+                            TapHandler { onDoubleTapped: Studio.mixer.setGananciaGrupoDb(tira.grupo, 0) }
+                        }
+                        Text {
+                            text: (tira.gananciaGrupoDb > 0 ? "+" : "") + Math.max(-60, tira.gananciaGrupoDb).toFixed(0)
+                            color: Math.abs(tira.gananciaGrupoDb) > 0.05 ? Theme.accent : Theme.textFaint
+                            font { pixelSize: 9; weight: Font.DemiBold }
+                        }
                     }
                     GridView {
                         id: grilla

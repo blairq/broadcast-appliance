@@ -620,6 +620,8 @@ int AppRuntime::start() {
     arranque::avisar("Armando las escenas…");
     // Lo que oye cada invitado (mix-minus de fábrica): lo guardado en Config/retornos.json.
     emision::RetornosInvitados(*this).cargar();
+    // Los volúmenes generales de los grupos, antes que las fuentes: cada una ya entra con el suyo.
+    for (const auto& [grupo, g] : cfg_.gruposAudio) engine_.setGananciaGrupo(grupo, g);
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         arranque::avisar("Armando la escena «" + sc.name + "»…");
@@ -1525,6 +1527,16 @@ bool AppRuntime::setVolume(const std::string& name, float mul) {
     }
     for (auto& s : cfg_.audioInputs)
         if (s.name == name) s.volume = mul;
+    avisar(Cambio::Audio);
+    return true;
+}
+
+bool AppRuntime::setGananciaGrupo(const std::string& grupo, float mul) {
+    if (grupo.empty()) return false;
+    const float g = std::max(0.0f, mul);
+    engine_.setGananciaGrupo(grupo, g);
+    if (std::abs(g - 1.0f) < 1e-6f) cfg_.gruposAudio.erase(grupo);
+    else cfg_.gruposAudio[grupo] = g;
     avisar(Cambio::Audio);
     return true;
 }
