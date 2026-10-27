@@ -61,8 +61,8 @@ QString FrameService::label(const QString& key) const {
         return n.isEmpty() ? fallback : n;
     };
     if (key == "program") return "Programa";
-    if (key == "armada") return "Armada (preview)";
-    if (key == "operator") return "Tu cámara";
+    if (key == "armada") return tr("Armada (preview)");
+    if (key == "operator") return tr("Tu cámara");
     if (key.startsWith("guest:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6));
     if (key.startsWith("share:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6)) + " — pantalla";
     if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);

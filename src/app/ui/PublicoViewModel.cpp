@@ -87,7 +87,7 @@ void PublicoViewModel::moderar(const QString& accion, const QString& id) {
     const std::string e = preguntasSala_->moderar(accion.toStdString(), id.toStdString(),
                                                   [yo](const std::string& err, const nlohmann::json& r) {
                                                       if (!yo) return;
-                                                      if (!err.empty()) return emit yo->notify("No pude hablar con el servidor.", "error");
+                                                      if (!err.empty()) return emit yo->notify(tr("No pude hablar con el servidor."), "error");
                                                       yo->tomarPreguntas(r);
                                                   });
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");
@@ -99,7 +99,7 @@ void PublicoViewModel::sumar(const QString& texto, const QString& nombre, const 
     const std::string e = preguntasSala_->sumar(texto.toStdString(), nombre.toStdString(), deDonde.toStdString(),
                                                 [yo](const std::string& err, const nlohmann::json& r) {
                                                     if (!yo) return;
-                                                    if (!err.empty()) return emit yo->notify("No pude sumarla.", "error");
+                                                    if (!err.empty()) return emit yo->notify(tr("No pude sumarla."), "error");
                                                     yo->tomarPreguntas(r);
                                                 });
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");
@@ -186,8 +186,8 @@ void PublicoViewModel::cambiarPagina(const QVariantMap& cambios) {
                                                          [yo](const std::string& err, const nlohmann::json&) {
                                                              if (!yo) return;
                                                              if (!err.empty())
-                                                                 return emit yo->notify("No pude cambiar la página: " + QString::fromStdString(err), "error");
-                                                             emit yo->notify("Página del público actualizada.", "ok");
+                                                                 return emit yo->notify(tr("No pude cambiar la página: %1").arg(QString::fromStdString(err)), "error");
+                                                             emit yo->notify(tr("Página del público actualizada."), "ok");
                                                          });
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");
 }

@@ -78,7 +78,7 @@ void FacebookViewModel::track(bool start) {
 QString FacebookViewModel::saveClient(const QString& appId, const QString& secret, int port) {
     QString err;
     if (!client_->saveClient(appId, secret, port, err)) return err;
-    emit notify("App de Meta guardada: ahora conecta tu cuenta.", "ok");
+    emit notify(tr("App de Meta guardada: ahora conecta tu cuenta."), "ok");
     return {};
 }
 
@@ -103,7 +103,7 @@ void FacebookViewModel::logout() {
     client_->logout([this](bool, const QJsonObject&, const QString&) {
         lives_->setItems({});
         videos_->setItems({});
-        emit notify("Cuenta de Facebook desconectada.", "info");
+        emit notify(tr("Cuenta de Facebook desconectada."), "info");
     });
 }
 
@@ -196,7 +196,7 @@ void FacebookViewModel::goLive(const QJsonObject& p, FacebookClient::Done done) 
 void FacebookViewModel::publishLive(const QString& id) {
     client_->publishLive(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Vivo publicado en la Pagina.", "ok");
+        emit notify(tr("Vivo publicado en la Pagina."), "ok");
         refresh();
     });
 }
@@ -204,7 +204,7 @@ void FacebookViewModel::publishLive(const QString& id) {
 void FacebookViewModel::endLive(const QString& id) {
     endLive(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Vivo de Facebook terminado.", "ok");
+        emit notify(tr("Vivo de Facebook terminado."), "ok");
     });
 }
 
@@ -223,7 +223,7 @@ void FacebookViewModel::endLive(const QString& id, FacebookClient::Done done) {
 void FacebookViewModel::deleteItem(const QString& id) {
     client_->deleteObject(id, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Borrado de Facebook.", "ok");
+        emit notify(tr("Borrado de Facebook."), "ok");
         refresh();
     });
 }
@@ -232,7 +232,7 @@ void FacebookViewModel::updateVideo(const QString& id, const QString& title, con
     client_->updateVideo(id, QJsonObject{{"title", title}, {"description", description}},
                          [this](bool ok, const QJsonObject&, const QString& e) {
                              if (!ok) return setError(e);
-                             emit notify("Video actualizado.", "ok");
+                             emit notify(tr("Video actualizado."), "ok");
                              refresh();
                          });
 }

@@ -89,7 +89,7 @@ QObject* YouTubeViewModel::chat() const { return chat_.get(); }
 void YouTubeViewModel::setError(const QString& e) {
     lastError_ = e;
     emit errorChanged();
-    if (!e.isEmpty()) emit notify("YouTube: " + e, "error");
+    if (!e.isEmpty()) emit notify(tr("YouTube: %1").arg(e), "error");
 }
 
 void YouTubeViewModel::track(bool start) {
@@ -102,7 +102,7 @@ void YouTubeViewModel::track(bool start) {
 QString YouTubeViewModel::saveClient(const QString& jsonOrId, const QString& secret) {
     QString err;
     if (!client_->saveClient(jsonOrId, secret, err)) return err;
-    emit notify("Credenciales de Google guardadas: ahora conecta tu cuenta.", "ok");
+    emit notify(tr("Credenciales de Google guardadas: ahora conecta tu cuenta."), "ok");
     return {};
 }
 
@@ -131,7 +131,7 @@ void YouTubeViewModel::logout() {
     client_->logout([this](bool, const QJsonObject&, const QString&) {
         videos_->setItems({});
         broadcasts_->setItems({});
-        emit notify("Cuenta de YouTube desconectada.", "info");
+        emit notify(tr("Cuenta de YouTube desconectada."), "info");
     });
 }
 
@@ -220,7 +220,7 @@ void YouTubeViewModel::updateVideo(const QString& id, const QString& title, cons
                          [this](bool ok, const QJsonObject&, const QString& e) {
                              track(false);
                              if (!ok) return setError(e);
-                             emit notify("Video actualizado.", "ok");
+                             emit notify(tr("Video actualizado."), "ok");
                              refresh();
                          });
 }
@@ -230,7 +230,7 @@ void YouTubeViewModel::deleteVideo(const QString& id) {
     client_->deleteVideo(id, [this](bool ok, const QJsonObject&, const QString& e) {
         track(false);
         if (!ok) return setError(e);
-        emit notify("Video borrado de YouTube.", "ok");
+        emit notify(tr("Video borrado de YouTube."), "ok");
         refresh();
     });
 }
@@ -372,7 +372,7 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
 void YouTubeViewModel::endBroadcast(const QString& broadcastId) {
     endBroadcast(broadcastId, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Evento terminado en YouTube.", "ok");
+        emit notify(tr("Evento terminado en YouTube."), "ok");
     });
 }
 
@@ -396,7 +396,7 @@ void YouTubeViewModel::deleteBroadcast(const QString& broadcastId) {
     client_->deleteBroadcast(broadcastId, [this](bool ok, const QJsonObject&, const QString& e) {
         track(false);
         if (!ok) return setError(e);
-        emit notify("Evento borrado.", "ok");
+        emit notify(tr("Evento borrado."), "ok");
         refresh();
     });
 }

@@ -883,7 +883,7 @@ QString PersonasViewModel::guardar(const QString& id, const QString& nombre, con
                                    const QString& nota) {
     if (!d_->listo) return {};
     if (nombre.trimmed().isEmpty()) {
-        emit notify("Ponele un nombre: sin eso la ficha no sirve para nada.", "aviso");
+        emit notify(tr("Ponele un nombre: sin eso la ficha no sirve para nada."), "aviso");
         return {};
     }
     ba::rostros::Persona p;
@@ -921,7 +921,7 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
                   [this, id, nuevaFoto](std::vector<Reconocedor::Visto> vistos, const QImage& img,
                                         const QString& error) {
                       if (!error.isEmpty()) return emit notify(error, "error");
-                      if (vistos.empty()) return emit notify("No se ve ninguna cara ahí.", "aviso");
+                      if (vistos.empty()) return emit notify(tr("No se ve ninguna cara ahí."), "aviso");
                       if (vistos.size() > 1)
                           return emit notify("Hay " + QString::number(vistos.size()) +
                                                  " caras en el cuadro: no adivino cuál es. Elegí una fuente "
@@ -929,7 +929,7 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
                                              "aviso");
                       const auto alta = d_->libreta.sumarCara(id.toStdString(), vistos[0].vector);
                       if (alta == ba::rostros::Personas::Alta::NoExiste)
-                          return emit notify("No existe esa persona.", "error");
+                          return emit notify(tr("No existe esa persona."), "error");
                       const auto* p = d_->libreta.porId(id.toStdString());
                       if (p != nullptr && (p->foto.empty() || nuevaFoto)) {
                           const QString archivo = escribirFoto(img, vistos[0].cara, d_->carpetaFotos, id);

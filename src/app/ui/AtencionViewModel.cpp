@@ -226,14 +226,14 @@ QString AtencionViewModel::quienAtiendeTexto() const {
 }
 
 QString AtencionViewModel::hablarFalta() const {
-    if (!voz_.disponible()) return "Esta compilación no trae el motor de voz.";
+    if (!voz_.disponible()) return tr("Esta compilación no trae el motor de voz.");
     // El reconocedor que eligió la recepción (pestaña Agentes): con que esté bajado
     // alcanza, se carga al abrir el oído.
     if (!voz_.puedeOir("recepcion"))
         return "Falta el reconocedor de voz (voz a texto) que usa la recepción: bajalo en Configuración → "
                "Modelos locales (o elegí otro en Agentes).";
     if (!vozLista_)
-        return "Falta la voz del atendedor: elegila en Configuración → Voz del sistema → Voz del atendedor.";
+        return tr("Falta la voz del atendedor: elegila en Configuración → Voz del sistema → Voz del atendedor.");
     return {};
 }
 
@@ -448,7 +448,7 @@ QString AtencionViewModel::decirAlIntegrante(const QString& id, const QString& t
     if (!atiendeHablandoEnAsamblea(id))
         return "A «" + id + "» no se lo está atendiendo hablando en la sesión remota (atencion_estado dice a quién).";
     const QString t = texto.trimmed();
-    if (t.isEmpty()) return "Falta qué decirle.";
+    if (t.isEmpty()) return tr("Falta qué decirle.");
     decir(t);
     const auto* turno = turnos_.turno(id.toStdString());
     const QString nombre = turno != nullptr ? QString::fromStdString(turno->nombre) : id;
@@ -673,7 +673,7 @@ void AtencionViewModel::revisarVoz() {
             yo->hablantes_ = yo->habla_->hablantes();
             if (yo->aj_.vozHablante >= yo->hablantes_) yo->aj_.vozHablante = 0;
             if (!error.empty())
-                emit yo->notify("La voz del atendedor no cargó: " + QString::fromStdString(error), "warn");
+                emit yo->notify(tr("La voz del atendedor no cargó: %1").arg(QString::fromStdString(error)), "warn");
             emit yo->cambio();
         });
     });
@@ -683,7 +683,7 @@ void AtencionViewModel::revisarVoz() {
 void AtencionViewModel::elegirVoz(const QString& repo) {
     if (repo == vozElegida()) return;
     if (modelos_.carpetaInstalada(repo).empty()) {
-        emit notify("Primero hay que bajar esa voz (Configuración → Modelos locales).", "warn");
+        emit notify(tr("Primero hay que bajar esa voz (Configuración → Modelos locales)."), "warn");
         return;
     }
     aj_.vozRepo = repo.toStdString();
@@ -815,7 +815,7 @@ nlohmann::json AtencionViewModel::estado() const {
 }
 
 QString AtencionViewModel::configurar(const nlohmann::json& c) {
-    if (!c.is_object()) return "Se esperaba un objeto.";
+    if (!c.is_object()) return tr("Se esperaba un objeto.");
     const auto booleano = [&c](const char* k, bool& out) {
         const auto it = c.find(k);
         if (it == c.end() || !it->is_boolean()) return false;
@@ -835,7 +835,7 @@ QString AtencionViewModel::configurar(const nlohmann::json& c) {
     if (booleano("asambleaHablando", b)) setAsambleaHablando(b);
     if (booleano("altaAutomatica", b)) {
         PersonasViewModel* pv = personas(vm_);
-        if (pv == nullptr || !pv->disponible()) return "Este equipo no tiene reconocimiento de rostros.";
+        if (pv == nullptr || !pv->disponible()) return tr("Este equipo no tiene reconocimiento de rostros.");
         pv->setAltaAutomatica(b);
     }
     if (const auto v = c.find("voz"); v != c.end() && v->is_object()) {

@@ -164,7 +164,7 @@ QString PdfEscena::elegirArchivo(const QString& fuente, const QString& ruta) {
     if (n.empty()) return err;
     const QString r = ruta.startsWith("file:") ? QUrl(ruta).toLocalFile() : ruta;
     if (!QFileInfo::exists(r)) return "no existe " + r;
-    if (abrir(r) == nullptr) return "no es un PDF que se pueda abrir";
+    if (abrir(r) == nullptr) return tr("no es un PDF que se pueda abrir");
     fuentes::cambiarAjustes(n, json{{"documento", ""}, {"archivo", r.toStdString()}, {"pagina", 1}, {"zoom", 1.0}, {"x", 0.5}, {"y", 0.5}});
     tic();
     return {};
@@ -177,13 +177,13 @@ QString PdfEscena::irA(const QString& fuente, int pagina) {
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) {
             const QString ruta = rutaDe(f.ajustes);
-            if (abrir(ruta) == nullptr) return "esa fuente no tiene un PDF que se pueda abrir";
+            if (abrir(ruta) == nullptr) return tr("esa fuente no tiene un PDF que se pueda abrir");
             const int total = std::max(1, paginasDe(ruta));
             fuentes::cambiarAjustes(n, json{{"pagina", std::clamp(pagina, 1, total)}});
             tic();
             return {};
         }
-    return "no está la fuente";
+    return tr("no está la fuente");
 }
 
 QString PdfEscena::paso(const QString& fuente, int delta) {
@@ -192,7 +192,7 @@ QString PdfEscena::paso(const QString& fuente, int delta) {
     if (n.empty()) return err;
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) return irA(QString::fromStdString(n), std::max(1, f.ajustes.value("pagina", 1)) + delta);
-    return "no está la fuente";
+    return tr("no está la fuente");
 }
 
 PdfEscena::Geometria PdfEscena::geometria(const json& a) {
@@ -232,7 +232,7 @@ QString PdfEscena::mover(const QString& fuente, double dx, double dy) {
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) {
             const Geometria g = geometria(f.ajustes);
-            if (g.W <= 0) return "esa fuente no tiene un PDF que se pueda abrir";
+            if (g.W <= 0) return tr("esa fuente no tiene un PDF que se pueda abrir");
             // El centro, acotado para que lo visible no se salga de la página.
             const auto acotar = [](double v, double visible, double total) {
                 if (visible >= total) return 0.5;
@@ -245,7 +245,7 @@ QString PdfEscena::mover(const QString& fuente, double dx, double dy) {
             tic();
             return {};
         }
-    return "no está la fuente";
+    return tr("no está la fuente");
 }
 
 QString PdfEscena::crearEscena(const QString& nombre) {

@@ -21,6 +21,7 @@
 // ============================================================================
 #pragma once
 
+#include <QCoreApplication>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -28,6 +29,8 @@
 namespace ba::app {
 
 class Discursos {
+    Q_DECLARE_TR_FUNCTIONS(ba::app::Discursos) // tr() para los errores que se muestran
+
    public:
     /// Palabras por minuto de una lectura normal en castellano (la misma que
     /// usa el gateway para estimar cuanto dura un discurso).

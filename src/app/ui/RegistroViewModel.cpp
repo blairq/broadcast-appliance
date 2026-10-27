@@ -168,7 +168,7 @@ void RegistroViewModel::prender(const QString& id) {
     ba::diag::registro().linea(ba::diag::Nivel::Info, "arranque", 0,
                                "«" + id.toStdString() + "» vuelve a cargarse en el próximo arranque");
     emit cambio();
-    emit notify("«" + id + "» se va a cargar en el próximo arranque", "ok");
+    emit notify(tr("«%1» se va a cargar en el próximo arranque").arg(id), "ok");
 }
 
 QString RegistroViewModel::exportar() {
@@ -176,7 +176,7 @@ QString RegistroViewModel::exportar() {
     const QString ruta = QDir(d_->carpeta()).filePath(nombre);
     QFile f(ruta);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emit notify("No se pudo escribir " + ruta, "error");
+        emit notify(tr("No se pudo escribir %1").arg(ruta), "error");
         return {};
     }
     // Con el filtro adelante: quien lo reciba tiene que saber que esta mirando
@@ -192,7 +192,7 @@ QString RegistroViewModel::exportar() {
     f.close();
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
                                "registro exportado a " + nombre.toStdString());
-    emit notify("Registro guardado en Logs/" + nombre, "ok");
+    emit notify(tr("Registro guardado en Logs/%1").arg(nombre), "ok");
     return ruta;
 }
 
@@ -262,7 +262,7 @@ void RegistroViewModel::marcar(const QString& texto) {
     ba::diag::registro().linea(ba::diag::Nivel::Info, "marca", 0,
                                texto.isEmpty() ? "marca del operador" : texto.toStdString());
     refrescar();
-    emit notify("Marca puesta en el registro", "ok");
+    emit notify(tr("Marca puesta en el registro"), "ok");
 }
 
 } // namespace ba::app

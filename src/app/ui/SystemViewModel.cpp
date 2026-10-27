@@ -107,14 +107,14 @@ void SystemViewModel::refresh() { emit changed(); }
 
 QString SystemViewModel::checkUpdate(const QString& folder) const {
     const QString src = QDir::cleanPath(localPath(folder));
-    if (src.isEmpty()) return "Elegi la carpeta de la version nueva.";
+    if (src.isEmpty()) return tr("Elegi la carpeta de la version nueva.");
     if (!QFileInfo::exists(src + "/" + kLauncher) || !QFileInfo::exists(src + "/" + kApp))
         return QString("Esa carpeta no es una version de Broadcast Appliance (tiene que tener %1 y %2).")
             .arg(kLauncher, kApp);
     const QString r = QDir::cleanPath(QFileInfo(programa()).canonicalFilePath());
     const QString s = QFileInfo(src).canonicalFilePath();
     if (s == r || s.startsWith(r + "/"))
-        return "La version nueva tiene que estar fuera de la carpeta del sistema.";
+        return tr("La version nueva tiene que estar fuera de la carpeta del sistema.");
     return {};
 }
 
@@ -122,7 +122,7 @@ QString SystemViewModel::launch(const QStringList& args, const QString& aviso) {
     const QString exe = launcherPath();
     if (!QFileInfo::exists(exe)) return "No encuentro el launcher (" + exe + ").";
     qint64 pid = 0;
-    if (!QProcess::startDetached(exe, args, programa(), &pid)) return "No se pudo lanzar el actualizador.";
+    if (!QProcess::startDetached(exe, args, programa(), &pid)) return tr("No se pudo lanzar el actualizador.");
     emit quitForUpdate(aviso);
     return {};
 }
@@ -134,7 +134,7 @@ QString SystemViewModel::startUpdate(const QString& folder) {
 }
 
 QString SystemViewModel::startRollback() {
-    if (!canRollback()) return "No hay una version anterior guardada.";
+    if (!canRollback()) return tr("No hay una version anterior guardada.");
     return launch({"--update-rollback", "--start"});
 }
 

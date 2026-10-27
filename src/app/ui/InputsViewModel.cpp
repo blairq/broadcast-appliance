@@ -118,7 +118,7 @@ void InputsViewModel::searchNdi() {
 
 QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, const QString& scene) {
 #if defined(BA_HAVE_NDI)
-    if (ndiName.isEmpty()) return "Elegi una fuente NDI.";
+    if (ndiName.isEmpty()) return tr("Elegi una fuente NDI.");
     QString nm = name.trimmed();
     if (nm.isEmpty()) {
         nm = "NDI " + ndiName;
@@ -140,7 +140,7 @@ QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, con
     (void)ndiName;
     (void)name;
     (void)scene;
-    return "Esta version no trae NDI.";
+    return tr("Esta version no trae NDI.");
 #endif
 }
 
@@ -224,7 +224,7 @@ QString InputsViewModel::audioInputName(const QString& device) const {
 }
 
 QString InputsViewModel::addAudioInput(const QString& device, const QString& name) {
-    if (device.isEmpty()) return "Elegí una entrada de audio.";
+    if (device.isEmpty()) return tr("Elegí una entrada de audio.");
     QString nm = name.trimmed();
     if (nm.isEmpty()) nm = audioInputName(device);
     const SourceSpec spec = inputs::audioInputSpec(device.toStdString(), nm.toStdString());
@@ -368,7 +368,7 @@ QVariantList InputsViewModel::modes(const QString& device) const {
 
 QString InputsViewModel::addHardware(const QString& device, const QString& name, const QString& scene,
                                      const QVariantMap& mode) {
-    if (device.isEmpty()) return "Elegi una camara.";
+    if (device.isEmpty()) return tr("Elegi una camara.");
     json opts = json::object();
     if (!mode.value("modo").toString().isEmpty()) opts["modo"] = mode.value("modo").toString().toStdString(); // vacío: automático
     QString nm = name.trimmed();
@@ -393,7 +393,7 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
                                     bool lowLatency) {
     const std::string u = url.trimmed().toStdString();
     if (inputs::networkScheme(u).empty())
-        return "La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.";
+        return tr("La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.");
     const std::string nm =
         name.trimmed().isEmpty() ? "Red " + inputs::redactUrl(u).substr(0, 40) : name.trimmed().toStdString();
     const SourceSpec spec =

@@ -113,7 +113,7 @@ QString Discursos::leer(const QString& rel, bool* ok) const {
 
 QString Discursos::escribir(const QString& rel, const QString& texto) {
     const QString abs = ruta(rel);
-    if (abs.isEmpty()) return "Esa ruta se sale de la carpeta de discursos.";
+    if (abs.isEmpty()) return tr("Esa ruta se sale de la carpeta de discursos.");
     QDir().mkpath(QFileInfo(abs).absolutePath());
     QFile f(abs);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
@@ -123,13 +123,13 @@ QString Discursos::escribir(const QString& rel, const QString& texto) {
 }
 
 QString Discursos::crear(const QString& carpeta, const QString& nombre, QString* relOut) {
-    if (raiz_.isEmpty()) return "No hay carpeta de discursos.";
+    if (raiz_.isEmpty()) return tr("No hay carpeta de discursos.");
     const QString limpio = limpiarNombre(nombre);
-    if (limpio.isEmpty()) return "Ponele un nombre.";
+    if (limpio.isEmpty()) return tr("Ponele un nombre.");
     const QString rel = carpeta.isEmpty() ? limpio : carpeta + "/" + limpio;
     const QString abs = ruta(rel);
-    if (abs.isEmpty()) return "Ese nombre no se puede usar.";
-    if (QFile::exists(abs)) return "Ya hay un discurso que se llama así.";
+    if (abs.isEmpty()) return tr("Ese nombre no se puede usar.");
+    if (QFile::exists(abs)) return tr("Ya hay un discurso que se llama así.");
     QDir().mkpath(QFileInfo(abs).absolutePath());
     QFile f(abs);
     if (!f.open(QIODevice::WriteOnly)) return "No pude crear " + abs;
@@ -138,56 +138,56 @@ QString Discursos::crear(const QString& carpeta, const QString& nombre, QString*
 }
 
 QString Discursos::crearCarpeta(const QString& carpeta, const QString& nombre, QString* relOut) {
-    if (raiz_.isEmpty()) return "No hay carpeta de discursos.";
+    if (raiz_.isEmpty()) return tr("No hay carpeta de discursos.");
     const QString limpio = limpiarNombre(nombre, false);
-    if (limpio.isEmpty()) return "Ponele un nombre.";
+    if (limpio.isEmpty()) return tr("Ponele un nombre.");
     const QString rel = carpeta.isEmpty() ? limpio : carpeta + "/" + limpio;
     const QString abs = ruta(rel);
-    if (abs.isEmpty()) return "Ese nombre no se puede usar.";
-    if (QDir(abs).exists()) return "Ya hay una carpeta que se llama así.";
-    if (!QDir().mkpath(abs)) return "No pude crear la carpeta.";
+    if (abs.isEmpty()) return tr("Ese nombre no se puede usar.");
+    if (QDir(abs).exists()) return tr("Ya hay una carpeta que se llama así.");
+    if (!QDir().mkpath(abs)) return tr("No pude crear la carpeta.");
     if (relOut != nullptr) *relOut = rel;
     return {};
 }
 
 QString Discursos::renombrar(const QString& rel, const QString& nombre, QString* relOut) {
     const QString abs = ruta(rel);
-    if (abs.isEmpty() || !QFile::exists(abs)) return "No encuentro ese discurso.";
+    if (abs.isEmpty() || !QFile::exists(abs)) return tr("No encuentro ese discurso.");
     const QString limpio = limpiarNombre(nombre);
-    if (limpio.isEmpty()) return "Ponele un nombre.";
+    if (limpio.isEmpty()) return tr("Ponele un nombre.");
     const QString carpeta = QFileInfo(rel).path(); // "." si está en la raíz
     const QString nuevoRel = carpeta == "." ? limpio : carpeta + "/" + limpio;
     const QString nueva = ruta(nuevoRel);
-    if (nueva.isEmpty()) return "Ese nombre no se puede usar.";
+    if (nueva.isEmpty()) return tr("Ese nombre no se puede usar.");
     if (nueva == abs) {
         if (relOut != nullptr) *relOut = nuevoRel;
         return {}; // el mismo nombre: no es un error
     }
-    if (QFile::exists(nueva)) return "Ya hay un discurso que se llama así.";
-    if (!QFile::rename(abs, nueva)) return "No pude renombrarlo.";
+    if (QFile::exists(nueva)) return tr("Ya hay un discurso que se llama así.");
+    if (!QFile::rename(abs, nueva)) return tr("No pude renombrarlo.");
     if (relOut != nullptr) *relOut = nuevoRel;
     return {};
 }
 
 QString Discursos::mover(const QString& rel, const QString& aCarpeta, QString* relOut) {
     const QString abs = ruta(rel);
-    if (abs.isEmpty() || !QFile::exists(abs)) return "No encuentro ese discurso.";
+    if (abs.isEmpty() || !QFile::exists(abs)) return tr("No encuentro ese discurso.");
     const QString nombre = QFileInfo(rel).fileName();
     const QString nuevoRel = aCarpeta.isEmpty() ? nombre : aCarpeta + "/" + nombre;
     if (relOut != nullptr) *relOut = nuevoRel;
     if (nuevoRel == rel) return {};
     const QString nueva = ruta(nuevoRel);
-    if (nueva.isEmpty()) return "Esa carpeta no se puede usar.";
-    if (QFile::exists(nueva)) return "Allá ya hay un discurso que se llama así.";
+    if (nueva.isEmpty()) return tr("Esa carpeta no se puede usar.");
+    if (QFile::exists(nueva)) return tr("Allá ya hay un discurso que se llama así.");
     QDir().mkpath(QFileInfo(nueva).absolutePath());
-    if (!QFile::rename(abs, nueva)) return "No pude moverlo.";
+    if (!QFile::rename(abs, nueva)) return tr("No pude moverlo.");
     return {};
 }
 
 QString Discursos::borrar(const QString& rel) {
     const QString abs = ruta(rel);
-    if (abs.isEmpty() || !QFile::exists(abs)) return "No encuentro ese discurso.";
-    if (!QFile::remove(abs)) return "No pude borrarlo.";
+    if (abs.isEmpty() || !QFile::exists(abs)) return tr("No encuentro ese discurso.");
+    if (!QFile::remove(abs)) return tr("No pude borrarlo.");
     return {};
 }
 

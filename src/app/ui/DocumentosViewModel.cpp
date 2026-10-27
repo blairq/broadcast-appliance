@@ -171,7 +171,7 @@ std::string DocumentosViewModel::editar(const std::string& id, const json& cambi
         const fs::path r = d.ruta(id);
         if (r.empty()) return "no hay un documento «" + id + "»";
         QPdfDocument pdf;
-        if (pdf.load(qp(r)) != QPdfDocument::Error::None) return "solo un PDF tiene páginas para elegir la carátula";
+        if (pdf.load(qp(r)) != QPdfDocument::Error::None) return tr("solo un PDF tiene páginas para elegir la carátula").toStdString();
         const int p = cambios["pagina_tapa"].is_number_integer() ? cambios["pagina_tapa"].get<int>() : 0;
         if (p < 1 || p > pdf.pageCount()) return "la página tiene que ir de 1 a " + std::to_string(pdf.pageCount());
         if (!tapa(pdf, p - 1, d.miniatura(id))) return "no se pudo hacer la carátula de la página " + std::to_string(p);
@@ -208,7 +208,7 @@ QString DocumentosViewModel::agregarUi(const QStringList& archivos) {
         const QString nombre = QFileInfo(local).fileName();
         if (APdf::necesitaConvertir(local) || local.endsWith(".md", Qt::CaseInsensitive) ||
             local.endsWith(".txt", Qt::CaseInsensitive) || local.endsWith(".markdown", Qt::CaseInsensitive))
-            emit notify("Pasando «" + nombre + "» a PDF…", "info");
+            emit notify(tr("Pasando «%1» a PDF…").arg(nombre), "info");
         QPointer<DocumentosViewModel> yo(this);
         agregarConvirtiendo(fs::path(local.toStdU16String()), json::object(), [yo, nombre](const json& r) {
             if (yo && r.contains("error"))

@@ -251,7 +251,7 @@ int MediosViewModel::moverElegidos(const QString& destino) {
         emit notify(QString("%1 %2 a «%3»").arg(n).arg(n == 1 ? "archivo" : "archivos", destino), "ok");
         abrirHasta(destino);
     }
-    if (!ultimoError.isEmpty()) emit notify("No se pudo mover todo: " + ultimoError, "error");
+    if (!ultimoError.isEmpty()) emit notify(tr("No se pudo mover todo: %1").arg(ultimoError), "error");
     noElegirNada();
     refrescar();
     return n;
@@ -260,7 +260,7 @@ int MediosViewModel::moverElegidos(const QString& destino) {
 bool MediosViewModel::nuevaCarpeta(const QString& padre, const QString& nombre) {
     QString e;
     if (!medios::crearCarpeta(raiz(), padre.isEmpty() ? QString("Media") : padre, nombre, &e)) {
-        emit notify("No se pudo crear la carpeta: " + e, "error");
+        emit notify(tr("No se pudo crear la carpeta: %1").arg(e), "error");
         return false;
     }
     refrescar();
@@ -271,7 +271,7 @@ bool MediosViewModel::nuevaCarpeta(const QString& padre, const QString& nombre) 
 bool MediosViewModel::renombrar(const QString& relativa, const QString& nombre) {
     QString e;
     if (!medios::renombrar(raiz(), relativa, nombre, &e)) {
-        emit notify("No se pudo renombrar: " + e, "error");
+        emit notify(tr("No se pudo renombrar: %1").arg(e), "error");
         return false;
     }
     refrescar();
@@ -289,7 +289,7 @@ int MediosViewModel::borrarElegidos() {
             ultimoError = e;
     }
     if (n > 0) emit notify(QString("%1 a la papelera. Están en Papelera/, no se perdieron.").arg(n), "ok");
-    if (!ultimoError.isEmpty()) emit notify("No se pudo borrar todo: " + ultimoError, "error");
+    if (!ultimoError.isEmpty()) emit notify(tr("No se pudo borrar todo: %1").arg(ultimoError), "error");
     noElegirNada();
     refrescar();
     return n;

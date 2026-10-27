@@ -276,7 +276,7 @@ void ConferenceViewModel::speakerOnAir(const QString& id, bool on) { oradores_->
 void ConferenceViewModel::speakerNext() {
     QPointer<ConferenceViewModel> yo(this);
     oradores_->siguiente([yo](const std::string& err, const nlohmann::json&) {
-        if (yo && !err.empty()) emit yo->notify("No hay nadie mas en la fila", "info");
+        if (yo && !err.empty()) emit yo->notify(tr("No hay nadie mas en la fila"), "info");
     });
 }
 void ConferenceViewModel::speakerMove(const QString& id, int index) { oradores_->mover(ss(id), index); }
@@ -671,7 +671,7 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
             if (!yo) return;
             if (!err.empty()) return emit yo->serverConfigReady({}, qs(err));
             emit yo->serverConfigReady(qs(r.value("config", std::string())), {});
-            emit yo->notify("Tunel configurado: reiniciando la conferencia", "ok");
+            emit yo->notify(tr("Tunel configurado: reiniciando la conferencia"), "ok");
         },
         [yo](const std::string& err) {
             if (yo && !err.empty())
@@ -727,7 +727,7 @@ void ConferenceViewModel::desbloquearPin(const QString& ip) {
     const QString cual = ip.trimmed();
     control_->desbloquearPin(ss(cual), [yo, cual](const std::string& err, const nlohmann::json& r) {
         if (!yo) return;
-        if (!err.empty()) return emit yo->notify("No se pudo desbloquear (¿la conferencia está conectada?)", "error");
+        if (!err.empty()) return emit yo->notify(tr("No se pudo desbloquear (¿la conferencia está conectada?)"), "error");
         yo->bloqueosPin_ = aMapa(r.value("bloqueos", nlohmann::json::object()));
         emit yo->bloqueosPinChanged();
         emit yo->notify(cual.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + cual,

@@ -92,7 +92,7 @@ int PrompterViewModel::duracionSeg() const {
 }
 
 QString PrompterViewModel::sinEvento() const {
-    if (d_->evento == nullptr) return "El guion del evento no está disponible.";
+    if (d_->evento == nullptr) return tr("El guion del evento no está disponible.");
     if (d_->evento->carpetaDeDiscursos().isEmpty())
         return "Los discursos viven en la carpeta del evento. Abrí o creá un evento en la pestaña Guion "
                "y volvé: son los mismos archivos que usa el cue «teleprompter».";
@@ -123,7 +123,7 @@ void PrompterViewModel::abrir(const QString& rel) {
     bool ok = false;
     const QString texto = d_->docs.leer(rel, &ok);
     if (!ok) {
-        emit notify("No pude abrir «" + rel + "»", "error");
+        emit notify(tr("No pude abrir «%1»").arg(rel), "error");
         return;
     }
     d_->abierto = rel;
@@ -139,7 +139,7 @@ void PrompterViewModel::editar(const QString& texto) {
 }
 
 QString PrompterViewModel::guardar() {
-    if (d_->abierto.isEmpty()) return "No hay ningún documento abierto.";
+    if (d_->abierto.isEmpty()) return tr("No hay ningún documento abierto.");
     const QString err = d_->docs.escribir(d_->abierto, d_->texto);
     if (!err.isEmpty()) return err;
     d_->enDisco = d_->texto;
@@ -306,12 +306,12 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
 // está, no pasa nada y la pantalla lo dice (`enLinea`).
 
 QString PrompterViewModel::cargar(const QString& rel) {
-    if (d_->sala == nullptr) return "El servidor no está disponible.";
+    if (d_->sala == nullptr) return tr("El servidor no está disponible.");
     return QString::fromStdString(d_->sala->teleprompter().cargarDiscurso(d_->docs, rel.toStdString()));
 }
 
 QString PrompterViewModel::cargarDelEditor() {
-    if (d_->abierto.isEmpty()) return "No hay ningún documento abierto.";
+    if (d_->abierto.isEmpty()) return tr("No hay ningún documento abierto.");
     if (d_->sala != nullptr) d_->sala->teleprompter().cargarTexto(d_->abierto.toStdString(), d_->texto.toStdString());
     return {};
 }

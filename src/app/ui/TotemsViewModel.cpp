@@ -340,7 +340,7 @@ void TotemsViewModel::recargar() {
     bool ok = true;
     std::string err;
     totems_ = registro::cargarTotems(carpeta_, &ok, &err);
-    if (!ok) emit notify("No pude leer los tótems de registro: " + QString::fromStdString(err), "error");
+    if (!ok) emit notify(tr("No pude leer los tótems de registro: %1").arg(QString::fromStdString(err)), "error");
     publicar();
     // La voz se carga ya, no con la primera persona: si no, el primer saludo sale mudo.
     if (!totems_.lista().empty()) cargarVoz();
@@ -531,7 +531,7 @@ QVariantList TotemsViewModel::paraElegir() const {
 }
 
 std::string TotemsViewModel::crearJson(const json& j, std::string& id) {
-    if (!hayEvento()) return "No hay un evento abierto: los tótems son de un evento (abrí o creá uno).";
+    if (!hayEvento()) return tr("No hay un evento abierto: los tótems son de un evento (abrí o creá uno).").toStdString();
     std::vector<std::string> usados;
     for (const registro::Totem& t : totems_.lista()) usados.push_back(t.id);
     const std::string nombre = texto(j, "nombre").empty() ? std::string("Registro") : texto(j, "nombre");
@@ -551,7 +551,7 @@ std::string TotemsViewModel::crearJson(const json& j, std::string& id) {
 }
 
 std::string TotemsViewModel::cambiarJson(const QString& id, const json& cambios) {
-    if (!hayEvento()) return "No hay un evento abierto.";
+    if (!hayEvento()) return tr("No hay un evento abierto.").toStdString();
     if (std::string e = totems_.cambiar(id.toStdString(), cambios); !e.empty()) return e;
     return guardarYPublicar();
 }
@@ -586,7 +586,7 @@ json camposDe(const registro::Totem& t) { return t.aJson()["campos"]; }
 
 QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
     const registro::Totem* t = totems_.porId(id.toStdString());
-    if (t == nullptr) return "No hay ese tótem.";
+    if (t == nullptr) return tr("No hay ese tótem.");
     registro::Campo c;
     registro::tipoDeNombre(tipo.toStdString(), c.tipo);
     c.etiqueta = registro::etiquetaDeTipo(c.tipo);
@@ -609,7 +609,7 @@ QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
 
 QString TotemsViewModel::quitarCampo(const QString& id, int indice) {
     const registro::Totem* t = totems_.porId(id.toStdString());
-    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return "No hay ese campo.";
+    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return tr("No hay ese campo.");
     json cs = camposDe(*t);
     cs.erase(static_cast<std::size_t>(indice));
     return QString::fromStdString(cambiarJson(id, {{"campos", cs}}));
@@ -618,7 +618,7 @@ QString TotemsViewModel::quitarCampo(const QString& id, int indice) {
 QString TotemsViewModel::moverCampo(const QString& id, int desde, int hasta) {
     const registro::Totem* t = totems_.porId(id.toStdString());
     const int n = t != nullptr ? static_cast<int>(t->campos.size()) : 0;
-    if (desde < 0 || desde >= n || hasta < 0 || hasta >= n) return "No hay ese campo.";
+    if (desde < 0 || desde >= n || hasta < 0 || hasta >= n) return tr("No hay ese campo.");
     if (desde == hasta) return {};
     json cs = camposDe(*t);
     json c = cs[static_cast<std::size_t>(desde)];
@@ -629,7 +629,7 @@ QString TotemsViewModel::moverCampo(const QString& id, int desde, int hasta) {
 
 QString TotemsViewModel::cambiarCampo(const QString& id, int indice, const QVariantMap& cambios) {
     const registro::Totem* t = totems_.porId(id.toStdString());
-    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return "No hay ese campo.";
+    if (t == nullptr || indice < 0 || indice >= static_cast<int>(t->campos.size())) return tr("No hay ese campo.");
     json cs = camposDe(*t);
     const json c = aJson(QVariant(cambios));
     for (auto it = c.begin(); c.is_object() && it != c.end(); ++it) cs[static_cast<std::size_t>(indice)][it.key()] = it.value();
@@ -644,7 +644,7 @@ bool TotemsViewModel::enLinea() const {
 }
 
 QString TotemsViewModel::hablarFalta() const {
-    if (voz_ == nullptr) return "Esta compilación no trae el motor de voz.";
+    if (voz_ == nullptr) return tr("Esta compilación no trae el motor de voz.");
     // Lo mismo que hace falta para atender hablando: el reconocedor y la voz del atendedor.
     if (AtencionViewModel* a = vm_.atencionVm()) return a->hablarFalta();
     return {};
@@ -771,7 +771,7 @@ void TotemsViewModel::cargarVoz() {
             if (!yo) return;
             yo->cargandoVoz_ = false;
             yo->vozLista_ = yo->habla_ && yo->habla_->cargada();
-            if (!error.empty()) emit yo->notify("La voz de los tótems no cargó: " + QString::fromStdString(error), "warn");
+            if (!error.empty()) emit yo->notify(tr("La voz de los tótems no cargó: %1").arg(QString::fromStdString(error)), "warn");
         });
     });
 #endif
@@ -1157,7 +1157,7 @@ void TotemsViewModel::guardarRegistro(Conexion& c) {
     const auto anotar = [this, ev, nombre, totem, datos](const QString& persona) {
         const QString id = ev->registrarDesdeTotem(persona, nombre, totem, datos);
         if (id.isEmpty()) {
-            emit notify("Alguien se registró en un tótem pero no hay un evento abierto: no quedó anotado.", "warn");
+            emit notify(tr("Alguien se registró en un tótem pero no hay un evento abierto: no quedó anotado."), "warn");
             return;
         }
         ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
@@ -1693,7 +1693,7 @@ void TotemsViewModel::liberarAtencion(Conexion& c) {
 
 std::string TotemsViewModel::atenderConn(const QString& conn, const QString& quien, const QString& aconn) {
     auto it = conns_.find(conn);
-    if (it == conns_.end()) return "No hay esa conexión (ya se fue).";
+    if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
     Conexion& c = *it->second;
     if (c.conv != nullptr && c.conv->atendida() && c.atiendeConn != aconn)
         return "Ya la atiende " +
@@ -1701,7 +1701,7 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
     if (c.conv == nullptr || !c.conv->enCurso()) {
         // Todavía no conversa (o ya terminó y la persona sigue ahí): empieza una, atendida.
         const registro::Totem* t = totems_.porId(c.totem.toStdString());
-        if (t == nullptr) return "Ese tótem ya no existe.";
+        if (t == nullptr) return tr("Ese tótem ya no existe.").toStdString();
         c.agente.reset(); // usa la conversación anterior
         c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_);
         const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
@@ -1710,7 +1710,7 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
         c.esperaVacio = false;
         c.pedidoEnviado.clear();
     }
-    if (!c.conv->atender(quien.toStdString())) return "Esa conversación ya terminó.";
+    if (!c.conv->atender(quien.toStdString())) return tr("Esa conversación ya terminó.").toStdString();
     if (c.agente) c.agente->cancelar(); // lo que el modelo estuviera pensando ya no se dice
     callarAsistente(c);
     c.atiendeConn = aconn;
@@ -1732,15 +1732,15 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
 
 std::string TotemsViewModel::terminarConn(const QString& conn, const QString& como, const QString& aconn) {
     auto it = conns_.find(conn);
-    if (it == conns_.end()) return "No hay esa conexión (ya se fue).";
+    if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
     Conexion& c = *it->second;
-    if (c.conv == nullptr || !c.conv->enCurso()) return "Esa conversación no está en curso.";
+    if (c.conv == nullptr || !c.conv->enCurso()) return tr("Esa conversación no está en curso.").toStdString();
     // Una página de atención termina solo lo que atiende ella (o lo que no atiende nadie); la
     // app y el MCP pueden siempre.
-    if (!aconn.isEmpty() && c.conv->atendida() && c.atiendeConn != aconn) return "La atiende otra persona.";
+    if (!aconn.isEmpty() && c.conv->atendida() && c.atiendeConn != aconn) return tr("La atiende otra persona.").toStdString();
     registro::Conversacion::Respuesta r;
     if (como == "asistente") {
-        if (!c.conv->atendida()) return "No la está atendiendo nadie: ya la lleva el asistente.";
+        if (!c.conv->atendida()) return tr("No la está atendiendo nadie: ya la lleva el asistente.").toStdString();
         r = c.conv->devolver();
     } else if (como == "guardar") {
         std::string error;
@@ -1749,7 +1749,7 @@ std::string TotemsViewModel::terminarConn(const QString& conn, const QString& co
     } else if (como == "cancelar") {
         r = c.conv->cancelar();
     } else {
-        return "«como» es asistente, guardar o cancelar.";
+        return tr("«como» es asistente, guardar o cancelar.").toStdString();
     }
     liberarAtencion(c);
     c.ultimaVozMs = ahoraMs();
@@ -1765,11 +1765,11 @@ std::string TotemsViewModel::terminarConn(const QString& conn, const QString& co
 std::string TotemsViewModel::ponerDatoConn(const QString& conn, const QString& clave, const QString& valor,
                                            const QString& aconn) {
     auto it = conns_.find(conn);
-    if (it == conns_.end()) return "No hay esa conexión (ya se fue).";
+    if (it == conns_.end()) return tr("No hay esa conexión (ya se fue).").toStdString();
     Conexion& c = *it->second;
     if (c.conv == nullptr || !c.conv->enCurso())
-        return "Todavía no hay una conversación en curso ahí: atendela para empezarla.";
-    if (!aconn.isEmpty() && c.conv->atendida() && c.atiendeConn != aconn) return "La atiende otra persona.";
+        return tr("Todavía no hay una conversación en curso ahí: atendela para empezarla.").toStdString();
+    if (!aconn.isEmpty() && c.conv->atendida() && c.atiendeConn != aconn) return tr("La atiende otra persona.").toStdString();
     std::string error;
     const auto r = c.conv->poner(clave.toStdString(), valor.toStdString(), error);
     if (!error.empty()) return error;
@@ -1869,13 +1869,13 @@ bool TotemsViewModel::agenteAfuera() const {
 
 QString TotemsViewModel::agente() const {
     const agent::Rol* r = rolRegistro(roles_);
-    if (r == nullptr) return "Guion solo (sin el rol «registro»).";
+    if (r == nullptr) return tr("Guion solo (sin el rol «registro»).");
     if (!r->activo) return "Guion solo: el rol «" + QString::fromStdString(r->titulo) + "» está apagado (pestaña Agentes).";
     if (esLocal(*r)) {
-        if (puertoLocal_ != 0) return "Entiende con el modelo local: lo que dice la gente no sale de esta máquina.";
-        if (pidiendoLocal_) return "Cargando el modelo local…";
+        if (puertoLocal_ != 0) return tr("Entiende con el modelo local: lo que dice la gente no sale de esta máquina.");
+        if (pidiendoLocal_) return tr("Cargando el modelo local…");
         if (!faltaLocal_.isEmpty()) return "Guion solo: " + faltaLocal_;
-        return "Con el modelo local (se carga cuando se conecta un tótem).";
+        return tr("Con el modelo local (se carga cuando se conecta un tótem).");
     }
     agent::FuenteMirada f;
     std::string falta;

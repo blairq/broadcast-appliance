@@ -188,7 +188,7 @@ void ExtensionesModel::cargada(const QString& id, bool bien, const QString& erro
 
 QString ExtensionesModel::motivoNoCarga(const QString& id) const {
     if (enVivo_ && enVivo_() && !yaCargadas_.count(id))
-        return "En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.";
+        return tr("En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.");
     return {};
 }
 
@@ -198,7 +198,7 @@ void ExtensionesModel::tardo(const QString& id, int ms) {
     ba::diag::registro().linea(ba::diag::Nivel::Aviso, "extensiones", 0,
                                "la tarjeta «" + id.toStdString() + "» tardó más de " + std::to_string(ms) +
                                    " ms en cargar: se cortó y quedó apagada (se prende desde el Registro)");
-    emit notify("La tarjeta «" + id + "» tardaba demasiado en cargar: quedó apagada", "error");
+    emit notify(tr("La tarjeta «%1» tardaba demasiado en cargar: quedó apagada").arg(id), "error");
 }
 
 void ExtensionesModel::prender(const QString& id) {
@@ -206,7 +206,7 @@ void ExtensionesModel::prender(const QString& id) {
     ba::diag::registro().linea(ba::diag::Nivel::Info, "extensiones", 0,
                                "«" + id.toStdString() + "» vuelve a cargarse");
     refrescar();
-    emit notify("«" + id + "» se va a cargar de nuevo", "ok");
+    emit notify(tr("«%1» se va a cargar de nuevo").arg(id), "ok");
 }
 
 } // namespace ba::app

@@ -86,9 +86,9 @@ bool LectorDocumentos::disponible() {
 
 QString LectorDocumentos::dorsoCon(QString* falta) const {
     QString f;
-    if (vision_.disponible && vision_.disponible(&f)) return "modelo local";
+    if (vision_.disponible && vision_.disponible(&f)) return tr("modelo local");
     if (falta != nullptr) *falta = f;
-    if (!dataRoot_.empty() && agent::modeloPropioListo(dataRoot_)) return "modelo propio";
+    if (!dataRoot_.empty() && agent::modeloPropioListo(dataRoot_)) return tr("modelo propio");
     return {};
 }
 

@@ -343,11 +343,11 @@ QVariantList HistoricoViewModel::comparar(const QString& carpeta, const QString&
 
 QString HistoricoViewModel::prepararRestauracion(const QString& carpeta, const QString& foto, const QStringList& archivos) {
     const fs::path dir = carpetaEvento(carpeta.toStdString());
-    if (dir.empty()) return "No está ese evento.";
+    if (dir.empty()) return tr("No está ese evento.");
     if (!lugar(carpeta.toStdString()).abierto)
-        return "Es de otro evento: abrilo para volver a esa configuración, o creá un evento nuevo desde esta foto.";
+        return tr("Es de otro evento: abrilo para volver a esa configuración, o creá un evento nuevo desde esta foto.");
     const auto f = evento::FotosConfig::cargar(dir / "config" / ((foto.isEmpty() ? QString("inicio") : foto) + ".json").toStdString());
-    if (f.is_null()) return "Ese evento no tiene esa foto de la configuración.";
+    if (f.is_null()) return tr("Ese evento no tiene esa foto de la configuración.");
     std::vector<std::string> l;
     for (const QString& a : archivos) l.push_back(a.toStdString());
     evento::FotosConfig fotos(ev_.carpetaConfig(), ev_.raizEventos() / ".objetos");
@@ -521,7 +521,7 @@ std::string HistoricoViewModel::guardarAjustesJson(const nlohmann::json& c) {
         j["registrar"] = reg;
     }
     if (c.contains("retencion")) {
-        if (!c["retencion"].is_object()) return "`retencion`: {grabaciones_dias, aviso_disco_pct}";
+        if (!c["retencion"].is_object()) return tr("`retencion`: {grabaciones_dias, aviso_disco_pct}").toStdString();
         json ret = j.value("retencion", json::object());
         if (!ret.is_object()) ret = json::object();
         for (const auto& [k, v] : c["retencion"].items()) {
@@ -533,7 +533,7 @@ std::string HistoricoViewModel::guardarAjustesJson(const nlohmann::json& c) {
         j["retencion"] = ret;
     }
     if (c.contains("bus_excluir")) {
-        if (!c["bus_excluir"].is_array()) return "`bus_excluir`: una lista de patrones del bus";
+        if (!c["bus_excluir"].is_array()) return tr("`bus_excluir`: una lista de patrones del bus").toStdString();
         j["bus_excluir"] = c["bus_excluir"];
     }
     std::error_code ec;

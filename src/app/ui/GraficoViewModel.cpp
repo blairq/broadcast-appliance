@@ -260,14 +260,14 @@ bool GraficoViewModel::guardar() {
     if (d_->abierto.isEmpty() || !d_->plugin().isEmpty()) return false;
     const QString err = d_->catalogo().guardar(d_->abierto, d_->fuente);
     if (!err.isEmpty()) {
-        emit notify("No se guardó: " + err, "error");
+        emit notify(tr("No se guardó: %1").arg(err), "error");
         return false;
     }
     d_->ficha = d_->catalogo().ficha(d_->abierto);
     d_->fuenteEnDisco = d_->fuente;
     emit sucioChanged();
     emit recuadrosChanged();
-    emit notify("Gráfico guardado", "ok");
+    emit notify(tr("Gráfico guardado"), "ok");
     return true;
 }
 
@@ -329,7 +329,7 @@ void GraficoViewModel::agregarMedio(const QUrl& archivo) {
     QPointer<GraficoViewModel> yo(this);
     d_->em.medios().importar(d_->abierto, ruta, {}, [yo](QJsonObject r, QString err) {
         if (!yo) return;
-        if (!err.isEmpty()) return emit yo->notify("No se agregó el medio: " + err, "error");
+        if (!err.isEmpty()) return emit yo->notify(tr("No se agregó el medio: %1").arg(err), "error");
         QString aviso = "Medio agregado: " + r.value("archivo").toString();
         if (r.value("tipo").toString() == "secuencia" && r.contains("alfa") && !r.value("alfa").toBool())
             aviso += " (ojo: el video no trae transparencia, va a tapar lo de atrás)";

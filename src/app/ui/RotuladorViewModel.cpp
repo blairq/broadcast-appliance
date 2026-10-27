@@ -167,9 +167,9 @@ void RotuladorViewModel::quitarVinculo(const QString& id) {
 }
 
 QString RotuladorViewModel::dispararVinculo(const QString& id) {
-    if (d_->vin == nullptr) return "no hay motor de gráficos";
+    if (d_->vin == nullptr) return tr("no hay motor de gráficos");
     const QString e = d_->vin->disparar(id);
-    if (!e.isEmpty()) emit notify("No se pudo disparar el vínculo: " + e, "error");
+    if (!e.isEmpty()) emit notify(tr("No se pudo disparar el vínculo: %1").arg(e), "error");
     return e;
 }
 
@@ -196,7 +196,7 @@ QString RotuladorViewModel::disparar(qulonglong fuente, bool repetir) {
     QString grafico;
     for (const auto& i : graficos::instancias())
         if (i.id == fuente) grafico = d_->graficoDe(i);
-    if (grafico.isEmpty()) return "esa fuente no tiene ningún gráfico elegido";
+    if (grafico.isEmpty()) return tr("esa fuente no tiene ningún gráfico elegido");
 
     // Se manda la lista completa de valores (lo escrito sobre lo que ya había),
     // no solo lo que se tocó: así lo que sale al aire es lo que se ve en la
@@ -213,7 +213,7 @@ QString RotuladorViewModel::disparar(qulonglong fuente, bool repetir) {
     // votación con tortas o barras), los valores nuevos se mueven en su lugar en
     // vez de hacerlo entrar de nuevo.
     const QString err = d_->em.mostrarOCambiar(grafico, valores, fuente, repetir);
-    if (!err.isEmpty()) emit notify("No se pudo sacar el gráfico al aire: " + err, "error");
+    if (!err.isEmpty()) emit notify(tr("No se pudo sacar el gráfico al aire: %1").arg(err), "error");
     return err;
 }
 
@@ -271,9 +271,9 @@ void RotuladorViewModel::atender(const QJsonObject& e) {
     // Lo que se encargo desde un celular y fallo tiene que verse en la app: el
     // que lo mando esta mirando la pantalla, no el telefono.
     if (!err.isEmpty())
-        emit notify("Un rótulo pedido desde el celular no salió: " + err, "error");
+        emit notify(tr("Un rótulo pedido desde el celular no salió: %1").arg(err), "error");
     else
-        emit notify("Rótulo al aire desde el celular", "ok");
+        emit notify(tr("Rótulo al aire desde el celular"), "ok");
 }
 
 void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {

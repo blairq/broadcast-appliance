@@ -342,7 +342,7 @@ void QrViewModel::setAmbito(const QString& a) {
 
 QString QrViewModel::sinEvento() const {
     if (d_->evento == nullptr || d_->evento->carpetaDeDiscursos().isEmpty())
-        return "No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.";
+        return tr("No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.");
     return {};
 }
 
@@ -539,7 +539,7 @@ void QrViewModel::setEstilo(const QString& clave, const QVariant& valor) {
 
 QString QrViewModel::guardar(const QString& nombre) {
     const QString n = limpiarNombre(nombre.isEmpty() ? d_->nombre : nombre);
-    if (n.isEmpty()) return "Ponele un nombre.";
+    if (n.isEmpty()) return tr("Ponele un nombre.");
     if (d_->ambito == "evento" && !sinEvento().isEmpty()) return sinEvento();
     QVariantList lista = d_->biblioteca.value(d_->ambito);
     QVariantMap m;
@@ -577,7 +577,7 @@ QString QrViewModel::borrar(const QString& id) {
             lista.removeAt(i);
             break;
         }
-    if (lista.size() == antes) return "No lo encuentro.";
+    if (lista.size() == antes) return tr("No lo encuentro.");
     d_->biblioteca[d_->ambito] = lista;
     d_->guardarArchivo(d_->ambito);
     diag::registro().linea(diag::Nivel::Info, "qr", 0, "borrado " + id.toStdString());
@@ -592,7 +592,7 @@ QString QrViewModel::borrar(const QString& id) {
 
 QString QrViewModel::copiarA(const QString& id, const QString& ambito) {
     const QString destino = ambito == "evento" ? "evento" : "global";
-    if (destino == d_->ambito) return "Ya está en ese ámbito.";
+    if (destino == d_->ambito) return tr("Ya está en ese ámbito.");
     if (destino == "evento" && !sinEvento().isEmpty()) return sinEvento();
     for (const QVariant& v : d_->biblioteca.value(d_->ambito)) {
         QVariantMap m = v.toMap();
@@ -607,7 +607,7 @@ QString QrViewModel::copiarA(const QString& id, const QString& ambito) {
                     "ok");
         return {};
     }
-    return "No lo encuentro.";
+    return tr("No lo encuentro.");
 }
 
 // --- Salidas --------------------------------------------------------------------
@@ -798,11 +798,11 @@ QString QrViewModel::exportar(const QString& formato, int px) {
     // que puedan diferir.
     const QString ruta = escribir(svgTexto, d_->nombre, formato, px);
     if (ruta.isEmpty()) {
-        emit notify("No pude escribir el archivo.", "error");
+        emit notify(tr("No pude escribir el archivo."), "error");
         return {};
     }
     diag::registro().linea(diag::Nivel::Info, "qr", 0, "exportado a " + ruta.toStdString());
-    emit notify("Guardado en " + ruta, "ok");
+    emit notify(tr("Guardado en %1").arg(ruta), "ok");
     return ruta;
 }
 

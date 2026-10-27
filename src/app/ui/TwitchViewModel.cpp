@@ -90,7 +90,7 @@ void TwitchViewModel::track(bool start) {
 QString TwitchViewModel::saveClient(const QString& id, const QString& secret) {
     QString err;
     if (!client_->saveClient(id, secret, err)) return err;
-    emit notify("App de Twitch guardada: ahora conecta tu cuenta.", "ok");
+    emit notify(tr("App de Twitch guardada: ahora conecta tu cuenta."), "ok");
     return {};
 }
 
@@ -113,7 +113,7 @@ void TwitchViewModel::logout() {
         channel_ = {};
         stream_ = {};
         emit channelChanged();
-        emit notify("Cuenta de Twitch desconectada.", "info");
+        emit notify(tr("Cuenta de Twitch desconectada."), "info");
     });
 }
 
@@ -177,7 +177,7 @@ void TwitchViewModel::updateChannel(const QString& title, const QString& categor
     client_->updateChannel(changes, [this](bool ok, const QJsonObject&, const QString& e) {
         track(false);
         if (!ok) return setError(e);
-        emit notify("Canal de Twitch actualizado.", "ok");
+        emit notify(tr("Canal de Twitch actualizado."), "ok");
         refresh();
     });
 }
@@ -192,7 +192,7 @@ void TwitchViewModel::searchCategories(const QString& text) {
 void TwitchViewModel::goLive() {
     goLive([this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Transmitiendo a Twitch.", "ok");
+        emit notify(tr("Transmitiendo a Twitch."), "ok");
     });
 }
 
@@ -230,7 +230,7 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
 
 void TwitchViewModel::stopLive() {
     stopLive([this](bool, const QJsonObject&, const QString&) {
-        emit notify("Transmision a Twitch cortada.", "info");
+        emit notify(tr("Transmision a Twitch cortada."), "info");
     });
 }
 
@@ -245,7 +245,7 @@ void TwitchViewModel::stopLive(TwitchClient::Done done) {
 void TwitchViewModel::deleteVideo(const QString& id) {
     client_->deleteVideos({id}, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("VOD borrado de Twitch.", "ok");
+        emit notify(tr("VOD borrado de Twitch."), "ok");
         refresh();
     });
 }
