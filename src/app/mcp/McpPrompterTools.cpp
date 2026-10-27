@@ -247,7 +247,7 @@ void McpService::registerPrompterTools() {
                 if (a.size() == 1) return done(ToolResult::ok(a.value("espejo", false) ? "Espejado." : "Sin espejo."));
             }
             if (!p->enLinea()) {
-                done(ToolResult::error("El teleprompter no contesta: la sala no esta corriendo."));
+                done(ToolResult::error("El teleprompter no contesta: el servidor no esta corriendo."));
                 return;
             }
             std::string hecho;

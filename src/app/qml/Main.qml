@@ -97,7 +97,7 @@ ApplicationWindow {
                 color: Theme.text; font.pixelSize: 13
             }
             TextField { id: confirmarF; Layout.fillWidth: true; placeholderText: "CONFIRMAR"; color: Theme.text }
-            TextField { id: motivoF; Layout.fillWidth: true; placeholderText: "Motivo (p. ej. cambiar la sala de los invitados)"; color: Theme.text }
+            TextField { id: motivoF; Layout.fillWidth: true; placeholderText: "Motivo (p. ej. cambiar la conferencia de los invitados)"; color: Theme.text }
             RowLayout {
                 Item { Layout.fillWidth: true }
                 GlassButton { compact: true; text: "Cancelar"; onClicked: desbloqueo.close() }
@@ -134,7 +134,7 @@ ApplicationWindow {
         confirm({
             title: "¿Cerrar Broadcast Appliance?",
             text: Studio.impactoDeCerrar.hay ? Studio.avisoDeCerrar("")
-                  : "Se cierran la sala, las salidas y los asistentes.",
+                  : "Se cierran la conferencia, las salidas y los asistentes.",
             accept: "Cerrar",
             reject: "Cancelar",
             action: function() { win.quitting = true; Qt.quit() }
@@ -422,7 +422,7 @@ ApplicationWindow {
         switch (i) {
         case 0: return "Estoy en el Dashboard, mirando el programa y las salidas."
         case 1: return "Estoy en Escenas y fuentes. La escena al aire es «" + Studio.currentScene + "»."
-        case 2: return "Estoy en la Sala (lobby, invitados y chat)."
+        case 2: return "Estoy en la Conferencia (lobby, invitados y chat)."
         case 3: return "Estoy en la pagina de YouTube (cuenta, videos y vivos)."
         case 4: return "Estoy en la pagina de Twitch."
         case 5: return "Estoy en la pagina de Facebook."
@@ -446,11 +446,11 @@ ApplicationWindow {
     // estando ahi. Son los que antes vivian adentro de cada pagina.
     function sugerenciasDePagina(i) {
         switch (i) {
-        case 0: return [ { t: "¿Como venimos?", p: "Deci en dos lineas como esta todo ahora: aire, grabacion, sala y alertas." },
+        case 0: return [ { t: "¿Como venimos?", p: "Deci en dos lineas como esta todo ahora: aire, grabacion, conferencia y alertas." },
                          { t: "Revisar antes de salir", p: "Revisa todo lo que conviene mirar antes de salir al aire y deci que esta mal." } ]
         case 1: return [ { t: "Escena nueva", p: "Arma una escena nueva parecida a la que esta al aire y deci como te quedo." },
                          { t: "¿Que hay en esta escena?", p: "Deci que fuentes tiene la escena al aire y para que sirve cada una." } ]
-        case 2: return [ { t: "¿Quien esta?", p: "Deci quien esta conectado en la sala, quien espera y quien esta al aire." },
+        case 2: return [ { t: "¿Quien esta?", p: "Deci quien esta conectado en la conferencia, quien espera y quien esta al aire." },
                          { t: "Pasar al que sigue", p: "Pone al aire al siguiente de la cola de oradores." } ]
         case 9: return [ { t: "Se escucha mal", p: "Mira los niveles de audio y deci que fuente esta mal y que le harias." } ]
         case 10: return [ { t: "Revisar el guion", p: "Revisa el guion y deci que le falta a cada cue para poder correrlo." },
@@ -631,7 +631,7 @@ ApplicationWindow {
             spacing: 4
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: (cartelCaida.c.componente === "gateway" ? "El gateway (la sala)" : "El programa") + " se reinició: " + (cartelCaida.c.causa || "")
+                text: (cartelCaida.c.componente === "gateway" ? "El servidor (gateway)" : "El programa") + " se reinició: " + (cartelCaida.c.causa || "")
                 color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
             }
             Text {

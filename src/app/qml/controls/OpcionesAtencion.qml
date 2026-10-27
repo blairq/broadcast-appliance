@@ -88,7 +88,7 @@ ColumnLayout {
                         : (oa.hablando
                            ? "Mientras espera, su página le pide el micrófono y le avisa que lo atiende el asistente: lo que " +
                              "dice pasa a texto y la respuesta le llega con voz, solo a él (nunca a la sesión ni al aire). " +
-                             "De a uno, con la misma voz que la sala; termina al habilitarlo."
+                             "De a uno, con la misma voz que en la Conferencia; termina al habilitarlo."
                            : "Además de mirarle la cara, se le habla mientras espera: su página abre el micrófono solo para " +
                              "el asistente y la respuesta le llega con voz.")
             }

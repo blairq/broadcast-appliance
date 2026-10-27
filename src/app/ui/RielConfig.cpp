@@ -37,7 +37,7 @@ const std::vector<Grupo>& catalogo() {
          {{0, "dashboard", "⌂", "Dashboard"},
           {1, "escenas", "▦", "Escenas y fuentes"},
           {21, "camaras", "⌖", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara"},
-          {2, "sala", "☎", "Sala (lobby, invitados, chat)"},
+          {2, "sala", "☎", "Conferencia (lobby, invitados, chat)"},
           {12, "rotulos", "✎", "Rótulos en vivo: los textos de la escena que está al aire"},
           {15, "prompter", "▤", "Teleprompter: los discursos y el control del atril"},
           {19, "publico", "☷", "Público: las preguntas de la gente y la urna, para moderar en vivo"},

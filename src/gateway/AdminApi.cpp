@@ -171,7 +171,7 @@ std::string SignalingServer::changePin(const std::string& pin) {
     const json snap = room_.snapshot();
     room_.setHostInfo(p, snap.value("guestUrl", ""));
     guardarPinDeHoy(p); // los reinicios de la sala de hoy siguen con este
-    log_.info("control: PIN de la sala cambiado");
+    log_.info("control: PIN de la conferencia cambiado");
     return p;
 }
 
@@ -756,7 +756,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200,
                      json{{"ok", false},
                           {"message",
-                           "La sala esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
+                           "La conferencia esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
             return;
         }
         const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));

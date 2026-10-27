@@ -49,7 +49,7 @@ ColumnLayout {
                 GlassButton { compact: true; text: "Abrir"; visible: !modelData.activa; active: true
                               onClicked: ApplicationWindow.window.confirm({
                                   title: "¿Abrir «" + modelData.nombre + "»?",
-                                  text: "La app se reinicia con ese evento: se corta lo que esté andando (transmisión, grabación, sala).",
+                                  text: "La app se reinicia con ese evento: se corta lo que esté andando (transmisión, grabación, conferencia).",
                                   accept: "Abrir", reject: "Cancelar",
                                   action: function() { pc.avisar(pc.cf.cambiarUi(modelData.nombre)) } }) }
                 GlassButton { compact: true; text: "Duplicar"

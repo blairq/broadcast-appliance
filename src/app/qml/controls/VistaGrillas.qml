@@ -123,7 +123,7 @@ ColumnLayout {
                 visible: caras.count === 0
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 12
-                text: "Nadie por ahora: entran los admitidos de la Sala y los integrantes habilitados de la Asamblea, según los ajustes."
+                text: "Nadie por ahora: entran los admitidos de la Conferencia y los integrantes habilitados de la Asamblea, según los ajustes."
             }
             Flow {
                 Layout.fillWidth: true

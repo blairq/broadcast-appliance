@@ -19,7 +19,7 @@ Item {
     Binding { target: tarjeta.acceso; property: "siguiendo"; value: tarjeta.visible; when: !!tarjeta.acceso }
     function conectar(id) {
         const e = acceso.conectar(id)
-        Studio.notify(e !== "" ? e : "Conectando la sala a internet… (la sala se reinicia: los invitados se reconectan solos)",
+        Studio.notify(e !== "" ? e : "Conectando la conferencia a internet… (la conferencia se reinicia: los invitados se reconectan solos)",
                       e !== "" ? "error" : "info")
     }
     DialogoQrSala { id: qrDlg }
@@ -31,12 +31,12 @@ Item {
             Layout.fillWidth: true
             spacing: 8
             StatusPill {
-                text: Studio.gatewayAlive ? "Sala lista" : "Sala caída"
+                text: Studio.gatewayAlive ? "Conferencia lista" : "Conferencia caída"
                 dot: Studio.gatewayAlive ? Theme.ok : Theme.live; pulse: !Studio.gatewayAlive
                 HoverHandler { id: salaHov }
                 ToolTip.visible: salaHov.hovered; ToolTip.delay: 400
-                ToolTip.text: Studio.gatewayAlive ? "El servidor de la sala (el gateway) está andando: recibe a los invitados por el navegador."
-                                                  : "El servidor de la sala (el gateway) no responde: se reinicia solo. Mientras tanto nadie puede entrar."
+                ToolTip.text: Studio.gatewayAlive ? "El servidor de la conferencia (el gateway) está andando: recibe a los invitados por el navegador."
+                                                  : "El servidor de la conferencia (el gateway) no responde: se reinicia solo. Mientras tanto nadie puede entrar."
             }
             // Por dónde se puede entrar: solo la red local, o también por internet.
             Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4
@@ -50,7 +50,7 @@ Item {
                 HoverHandler { id: cxHov }
                 ToolTip.visible: cxHov.hovered && truncated; ToolTip.text: text
             }
-            Text { text: "Sala: " + Studio.room; color: Theme.textFaint; font.pixelSize: 11 }
+            Text { text: "Conferencia: " + Studio.room; color: Theme.textFaint; font.pixelSize: 11 }
         }
         RowLayout {
             Layout.fillWidth: true
@@ -85,12 +85,12 @@ Item {
                         // Desconectar saca a todos los que entraron de afuera: se confirma y
                         // el botón tarda 3 s en habilitarse (no se aprieta de apuro).
                         ApplicationWindow.window.confirm({
-                            title: "¿Desconectar la sala de internet?",
-                            text: "Los invitados y los integrantes que entraron desde afuera se cortan, y nadie de afuera puede volver a entrar hasta que la conectes de nuevo. La sala se reinicia (los de la red local se reconectan solos).",
+                            title: "¿Desconectar la conferencia de internet?",
+                            text: "Los invitados y los integrantes que entraron desde afuera se cortan, y nadie de afuera puede volver a entrar hasta que la conectes de nuevo. La conferencia se reinicia (los de la red local se reconectan solos).",
                             accept: "Desconectar", reject: "Cancelar", espera: 3,
                             action: function() {
                                 const e = tarjeta.acceso.desconectar()
-                                Studio.notify(e !== "" ? e : "La sala vuelve a ser solo de la red local (se reinicia)", e !== "" ? "error" : "info")
+                                Studio.notify(e !== "" ? e : "La conferencia vuelve a ser solo de la red local (se reinicia)", e !== "" ? "error" : "info")
                             }
                         })
                     } else {
@@ -98,8 +98,8 @@ Item {
                     }
                 }
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: tarjeta.cx.activo ? "Corta el acceso desde internet (la sala se reinicia)."
-                                                : "Saca la sala a internet para que entren invitados de afuera."
+                ToolTip.text: tarjeta.cx.activo ? "Corta el acceso desde internet (la conferencia se reinicia)."
+                                                : "Saca la conferencia a internet para que entren invitados de afuera."
                 Menu {
                     id: vpnMenu
                     ItemsDeMenu {

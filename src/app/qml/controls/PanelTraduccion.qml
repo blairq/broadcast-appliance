@@ -272,7 +272,7 @@ ColumnLayout {
             fuente: Studio.puestoCorreccion
             title: "Puesto de corrección de subtítulos"
             ofreceClave: false
-            avisoConClave: "El enlace lleva la clave del puesto (cambia en cada arranque de la sala): quien lo tenga puede corregir lo que sale al aire."
+            avisoConClave: "El enlace lleva la clave del puesto (cambia en cada arranque del servidor): quien lo tenga puede corregir lo que sale al aire."
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap

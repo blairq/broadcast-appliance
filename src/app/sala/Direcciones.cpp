@@ -69,7 +69,7 @@ std::string Direcciones::origen(const std::string& id, bool afuera) const {
 
 std::string Direcciones::motivo(const std::string& id, bool afuera) const {
     const json* s = servicio(id);
-    if (s == nullptr) return sala_.online() ? "La sala no informó ese servicio." : "La sala no responde.";
+    if (s == nullptr) return sala_.online() ? "La conferencia no informó ese servicio." : "La conferencia no responde.";
     return s->value(afuera ? "motivo_remoto" : "motivo_local", std::string());
 }
 

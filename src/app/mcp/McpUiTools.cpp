@@ -179,7 +179,7 @@ void McpService::registerUiTools() {
               {"seccion",
                {{"type", "string"},
                 {"description", "Con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                                "muestra la lista, p. ej. \"Video\", \"Red de la sala\", "
+                                "muestra la lista, p. ej. \"Video\", \"Red de la conferencia\", "
                                 "\"Apariencia\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
                                 "o el nombre de una entrada. Con page=audio: \"estudio\" (todo el audio, "
                                 "cada fuente con su cadena), \"racks\", \"matriz\", \"mesa\" (automixer) o el "
@@ -280,7 +280,7 @@ void McpService::registerUiTools() {
               {"seccion",
                {{"type", "string"},
                 {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                                "muestra la lista, p. ej. \"Video\", \"Red de la sala\", "
+                                "muestra la lista, p. ej. \"Video\", \"Red de la conferencia\", "
                                 "\"Apariencia\"). Sin esto queda la que estaba."}}},
               {"cerrar", {{"type", "boolean"}, {"description", "true: cierra su ventana (vuelve a la principal)"}}}}},
             {"required", {"page"}}};

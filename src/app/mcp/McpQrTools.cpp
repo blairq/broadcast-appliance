@@ -61,7 +61,7 @@ QVariantMap aMapa(const json& o) {
 void McpService::registerQrTools() {
     core_.addCategory("qr", "Códigos QR",
                       "Generar códigos QR (enlace, WiFi, contacto, reunión, y los del propio aparato: "
-                      "sala, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos.");
+                      "conferencia, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos.");
     auto* q = static_cast<QrViewModel*>(vm_.qr());
     if (q == nullptr) return;
     // Los tipos que existen (los de qr_listar): un tipo mal escrito se rechaza en la
@@ -127,7 +127,7 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.readOnly = true;
         t.description =
-            "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la sala, "
+            "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la conferencia, "
             "un PIN…), una `descripcion` grande, el texto seleccionable y los botones «Copiar al portapapeles» y "
             "«Abrir». USALO SIEMPRE que le pases una URL o un dato largo al operador: desde el chat no lo puede copiar "
             "cómodo; así lo escanea con el celular o lo copia con un clic. `color` (verde, azul, rojo, amarillo, "
@@ -189,7 +189,7 @@ void McpService::registerQrTools() {
             if (texto.isEmpty()) {
                 done(ToolResult::error(
                     "No pude armar el contenido: ¿es un tipo que existe y estan sus campos? "
-                    "(qr_listar los da). Los del aparato necesitan la sala corriendo."));
+                    "(qr_listar los da). Los del aparato necesitan el servidor corriendo."));
                 return;
             }
             const QString s = q->svgSuelto(tipo, datos, aMapa(a.value("estilo", json::object())));
@@ -352,8 +352,8 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.readOnly = true;
         t.description =
-            "De dónde sale TODO enlace: lo calcula la sala con lo que sabe (dónde escucha, la IP de la máquina, si el "
-            "túnel está listo). `local`: la IP de la red y la puerta de la sala; `remoto`: el túnel (o null). Por "
+            "De dónde sale TODO enlace: lo calcula la conferencia con lo que sabe (dónde escucha, la IP de la máquina, si el "
+            "túnel está listo). `local`: la IP de la red y el puerto de la conferencia; `remoto`: el túnel (o null). Por "
             "servicio (invitados, sesion, presidencia, botonera, control, prompter, rotulos, correccion, tablero, "
             "publico, pantalla, companion, evento): `local` (la de la red; nunca 127.0.0.1), `remoto` (por el túnel) "
             "y, si falta alguno, `motivo_local`/`motivo_remoto`. Para los de la sala, pasá el local; el remoto es "
@@ -370,10 +370,10 @@ void McpService::registerQrTools() {
         t.category = "qr";
         t.description =
             "Prende o apaga un servicio de `enlaces_listar` que sea `activable`: `invitados` (abre o cierra la "
-            "sala con llave), `companion` (la API HTTP de la botonera), `satellite` "
-            "(Companion Satellite) o `tunel` (la salida a internet: reinicia la sala, los invitados se "
+            "conferencia con llave), `companion` (la API HTTP de la botonera), `satellite` "
+            "(Companion Satellite) o `tunel` (la salida a internet: reinicia la conferencia, los invitados se "
             "reconectan). Es el interruptor de la lista de servicios; para ajustar uno con sus opciones: la "
-            "sala con room_set (lobby, cupo, `locked`) y el túnel con acceso_remoto_configurar.";
+            "conferencia con room_set (lobby, cupo, `locked`) y el túnel con acceso_remoto_configurar.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"id", "activo"}},
                          {"properties",
@@ -388,7 +388,7 @@ void McpService::registerQrTools() {
             if (a.value("id", std::string()) == "tunel")
                 if (auto* ev = static_cast<EventoViewModel*>(vmp->evento()); ev != nullptr && ev->enVivo())
                     return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
-                                                  "(reinicia la sala). Si hace falta, lo hace el operador desde la app."));
+                                                  "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app."));
             const QString err = e->activar(QString::fromStdString(a.value("id", std::string())), a.value("activo", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             done(ToolResult::ok(a.value("activo", false) ? "Prendido." : "Apagado."));

@@ -80,8 +80,8 @@ bool resolveParticipant(const json& snapshot, const std::string& query, json& ou
     for (const auto& p : people)
         names += (names.empty() ? "" : ", ") + p.value("name", "") + " (" + p.value("id", "") + ")";
     err = prefix.size() > 1 ? "'" + query + "' coincide con varias personas: " + names + ". Usa el id."
-                            : "No hay nadie '" + query + "' en la sala." +
-                                  (names.empty() ? " La sala esta vacia." : " Estan: " + names + ".");
+                            : "No hay nadie '" + query + "' en la conferencia." +
+                                  (names.empty() ? " La conferencia esta vacia." : " Estan: " + names + ".");
     return false;
 }
 
@@ -122,7 +122,7 @@ std::string qrPng(const json& modules) {
 
 void McpService::registerRoomTools() {
     core_.addCategory(
-        "sala", "Sala de videoconferencia",
+        "sala", "Conferencia (videollamada con invitados)",
         "Invitados por WebRTC: lobby, admitir, hablar, pedir cosas, chat, archivos, enlaces y QR, red.");
     core_.addCategory("oradores", "Modo oradores",
                       "Fila de oradores con reloj: al aire por turno, orden, tiempos, carrusel.");
@@ -140,7 +140,7 @@ void McpService::registerRoomTools() {
     const auto contestar = [](const std::string& okText, Done done) -> sala::Listo {
         return [okText, done](const std::string& err, const json&) {
             done(err.empty() ? ToolResult::ok(okText)
-                             : ToolResult::error("La sala respondio: " + sala::explicarError(err)));
+                             : ToolResult::error("La conferencia respondio: " + sala::explicarError(err)));
         };
     };
     const auto withPerson = [&vm](const json& a, const char* field, json& p, Done& done) {
@@ -157,15 +157,15 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "room_status";
-        t.title = "Estado de la sala";
+        t.title = "Estado de la conferencia";
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Todo lo de la sala: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
+            "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, "
             "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
             "archivos compartidos, chat reciente y config de oradores.";
         t.run = [&vm, conf](const json&, Done done) {
-            if (!conf->online()) return done(ToolResult::error("La sala (gateway) no esta conectada."));
+            if (!conf->online()) return done(ToolResult::error("La conferencia (gateway) no esta conectada."));
             json s = roomSnapshot(vm);
             if (s.contains("chat") && s["chat"].size() > 20) {
                 json last = json::array();
@@ -180,11 +180,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "room_set";
-        t.title = "Lobby / sala cerrada";
+        t.title = "Lobby / conferencia cerrada";
         t.category = "sala";
         t.description =
-            "Lobby de admision (true = cada invitado espera que lo hagas pasar), sala cerrada (nadie "
-            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la sala: los "
+            "Lobby de admision (true = cada invitado espera que lo hagas pasar), conferencia cerrada (nadie "
+            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la conferencia: los "
             "lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).";
         t.inputSchema = {
             {"type", "object"},
@@ -197,8 +197,8 @@ void McpService::registerRoomTools() {
             if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
                 const int n = a.value("cupo", 2);
                 const std::string e = vm.cupoSala().cambiar(n, [done, n](const std::string& err) {
-                    if (!err.empty()) done(ToolResult::error("La sala respondio: " + err));
-                    else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la sala."));
+                    if (!err.empty()) done(ToolResult::error("La conferencia respondio: " + err));
+                    else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la conferencia."));
                 });
                 if (!e.empty()) done(ToolResult::error(e));
                 return;
@@ -210,7 +210,7 @@ void McpService::registerRoomTools() {
             const auto si = [&a](const char* k) {
                 return a.contains(k) && a[k].is_boolean() ? std::optional<bool>(a[k].get<bool>()) : std::nullopt;
             };
-            const std::string e = control.entrada(si("lobby"), si("locked"), contestar("Sala actualizada.", done));
+            const std::string e = control.entrada(si("lobby"), si("locked"), contestar("Conferencia actualizada.", done));
             if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
@@ -221,7 +221,7 @@ void McpService::registerRoomTools() {
         t.title = "Cambiar el PIN";
         t.category = "sala";
         t.description =
-            "PIN nuevo para entrar a la sala (sin `pin`: se genera uno). El anterior deja de servir.";
+            "PIN nuevo para entrar a la conferencia (sin `pin`: se genera uno). El anterior deja de servir.";
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"pin", {{"type", "string"}, {"description", "4 a 32 caracteres."}}}}}};
@@ -243,7 +243,7 @@ void McpService::registerRoomTools() {
             "«desbloquear» (con `ip`, solo esa; sin `ip`, todas y también el bloqueo global).";
         t.details =
             "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
-            "puede entrar por `bloqueoS` segundos (Configuración → Sala). GLOBAL: de último recurso, si hay "
+            "puede entrar por `bloqueoS` segundos (Configuración → Conferencia). GLOBAL: de último recurso, si hay "
             "muchísimos fallos entre todos (un ataque repartido) se cierra la entrada para todos un rato. "
             "Por internet la IP es la real (la pasa ba-web desde el túnel). Desbloquear no cambia el PIN: si "
             "alguien lo está adivinando, mejor cambiarlo (room_pin). Usalo cuando un invitado legítimo se "
@@ -274,7 +274,7 @@ void McpService::registerRoomTools() {
             if (a.value("accion", std::string("ver")) == "desbloquear") {
                 const std::string ip = a.contains("ip") && a["ip"].is_string() ? a["ip"].get<std::string>() : "";
                 control.desbloquearPin(ip, [done, mostrar, ip](const std::string& err, const json& j) {
-                    if (!err.empty()) return done(ToolResult::error("La sala respondio: " + sala::explicarError(err)));
+                    if (!err.empty()) return done(ToolResult::error("La conferencia respondio: " + sala::explicarError(err)));
                     mostrar(j, !ip.empty() ? "Desbloqueada " + ip + ".\n"
                                            : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
                                                  " IP y el bloqueo global.\n");
@@ -282,7 +282,7 @@ void McpService::registerRoomTools() {
                 return;
             }
             control.verBloqueosPin([done, mostrar](const std::string& err, const json& r) {
-                if (!err.empty()) return done(ToolResult::error("La sala (gateway) no respondió."));
+                if (!err.empty()) return done(ToolResult::error("La conferencia (gateway) no respondió."));
                 mostrar(r, "");
             });
         };
@@ -315,13 +315,13 @@ void McpService::registerRoomTools() {
         t.name = "participant_admit";
         t.title = "Hacer pasar a alguien del lobby";
         t.category = "sala";
-        t.description = "Hace PASAR a alguien que espera en el lobby: entra a la sala. Admite a UNA persona "
-                        "que espera: deja el lobby y entra a la sala, con su camara y su "
+        t.description = "Hace PASAR a alguien que espera en el lobby: entra a la conferencia. Admite a UNA persona "
+                        "que espera: deja el lobby y entra a la conferencia, con su camara y su "
                         "microfono.";
         t.details = "Es el final del camino de la atencion en el lobby: `rostro_lobby` / `chat_send` para "
                     "saber quien es, `participant_profile` para dejarle la ficha, `operator_ask` para que "
                     "el operador decida, y esto cuando dijo que si.\n\n"
-                    "Si no hay lugar libre en la sala (`room_status` -> `slotsFree`) el gateway la deja "
+                    "Si no hay lugar libre en la conferencia (`room_status` -> `slotsFree`) el gateway la deja "
                     "esperando: admitir no crea lugares.";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
@@ -354,7 +354,7 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_kick";
-        t.title = "Sacar a alguien de la sala";
+        t.title = "Sacar a alguien de la conferencia";
         t.category = "sala";
         t.destructive = true;
         t.description = "Saca a alguien que YA esta adentro. Si esta al aire, sale al aire que se fue.";
@@ -383,7 +383,7 @@ void McpService::registerRoomTools() {
                 if (pedidos == 0) return done(ToolResult::ok("No hay nadie esperando en el lobby."));
                 const std::string cuenta = std::to_string(admitidos) + " de " + std::to_string(pedidos);
                 if (err.empty()) return done(ToolResult::ok("Pasaron " + cuenta + "."));
-                const std::string txt = "Pasaron " + cuenta + ". La sala respondio: " + sala::explicarError(err);
+                const std::string txt = "Pasaron " + cuenta + ". La conferencia respondio: " + sala::explicarError(err);
                 done(admitidos > 0 ? ToolResult::ok(txt) : ToolResult::error(txt));
             });
         };
@@ -422,7 +422,7 @@ void McpService::registerRoomTools() {
                         "error y si está pidiendo ahora.";
         t.run = [&control](const json&, Done done) {
             control.verProxy([done](const std::string& err, const json& r) {
-                if (!err.empty()) return done(ToolResult::error("la sala no contestó"));
+                if (!err.empty()) return done(ToolResult::error("la conferencia no contestó"));
                 done(ToolResult().data(r));
             });
         };
@@ -444,8 +444,8 @@ void McpService::registerRoomTools() {
             "tipo de dirección (azar | pinggy = subdominio fijo | propio = dominio propio), host y destino del CNAME. "
             "`token_tunel` dice solo si está guardado o falta: el token lo carga el operador en Configuración → Acceso "
             "remoto, vos nunca lo pedís ni lo ves. Con dominio propio trae `instrucciones_dns` para pasarle al que "
-            "administra el DNS. Para cambiar la configuración: settings_set con las claves pinggy.* (reinicia la sala). "
-            "`disponible` false = la sala no está andando o es una versión que no informa el túnel. "
+            "administra el DNS. Para cambiar la configuración: settings_set con las claves pinggy.* (reinicia la conferencia). "
+            "`disponible` false = la conferencia no está andando o es una versión que no informa el túnel. "
             "SIN TOKEN (gratis): dirección al azar que cambia cada vez, 60 minutos por túnel y pinggy le muestra a cada "
             "navegador un aviso que hay que aceptar. CON TOKEN (Pro): sin límite ni aviso, dirección fija (subdominio de "
             "pinggy o dominio propio con CNAME), puertos fijos; un token por equipo.";
@@ -494,7 +494,7 @@ void McpService::registerRoomTools() {
                 "en el registro: la respuesta dice solo «guardada». Con pinggy lo normal es guardar SOLO la api_key y "
                 "seguir con acceso_remoto_configurar_con_api_key (trae el token sola); el token a mano es solo si no "
                 "hay API key. Si no sabés cuál es, guardala como api_key y probá acceso_remoto_panel (si la acepta, es "
-                "la API key). El token rige al reiniciar la sala. Guía: help {\"topic\": \"acceso_remoto\"}.";
+                "la API key). El token rige al reiniciar la conferencia. Guía: help {\"topic\": \"acceso_remoto\"}.";
             t.inputSchema = {
                 {"type", "object"},
                 {"properties",
@@ -523,9 +523,9 @@ void McpService::registerRoomTools() {
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel de pinggy " : tipo == "cloudflare" ? "Token de Cloudflare " : "API key ") +
                                     (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
-                                    (reiniciarAhora ? " La sala lo lee al arrancar y está andando con el túnel "
+                                    (reiniciarAhora ? " La conferencia lo lee al arrancar y está andando con el túnel "
                                                       "prendido: reiniciala (gateway_restart) para que rija."
-                                     : tipo != "api_key" && !borrar ? " Rige al reiniciar la sala (gateway_restart o "
+                                     : tipo != "api_key" && !borrar ? " Rige al reiniciar la conferencia (gateway_restart o "
                                                                       "aplicar Configuración)."
                                                                     : "") +
                                     (acc->clavesIguales()
@@ -543,7 +543,7 @@ void McpService::registerRoomTools() {
             t.title = "Acceso remoto: configurar pinggy";
             t.category = "sala";
             t.description =
-                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la sala (corta a los invitados un momento). "
+                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la conferencia (corta a los invitados un momento). "
                 "Para armarlo de cero con la API key (token, subdominio y puerto de la cuenta) usá acceso_remoto_configurar_con_api_key. "
                 "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
                 "propio: va con `host` y `cname_destino`).";
@@ -565,7 +565,7 @@ void McpService::registerRoomTools() {
             t.run = [settings, &vm](const json& a, Done done) {
                 if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
                     return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
-                                                  "(reinicia la sala). Si hace falta, lo hace el operador desde la app."));
+                                                  "(reinicia la conferencia). Si hace falta, lo hace el operador desde la app."));
                 static const std::vector<std::pair<const char*, const char*>> kMapa = {
                     {"activo", "pinggy.activo"},           {"region", "pinggy.region"},
                     {"direccion", "pinggy.dominioTipo"},   {"host", "pinggy.host"},
@@ -669,7 +669,7 @@ void McpService::registerRoomTools() {
             t.openWorld = true;
             t.description = "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
                             "la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su "
-                            "puerto TCP fijo, y prende el túnel con eso (reinicia la sala). Con `subdominio` (solo el "
+                            "puerto TCP fijo, y prende el túnel con eso (reinicia la conferencia). Con `subdominio` (solo el "
                             "nombre, p. ej. \"sala-concejo\") primero lo cambia en la cuenta: queda "
                             "sala-concejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
                             "panel de pinggy.";
@@ -678,7 +678,7 @@ void McpService::registerRoomTools() {
             t.run = [acc, esperar, &vm](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error("no disponible"));
                 if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
-                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala)."));
+                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia)."));
                 acc->configurarConApiKey(QString::fromStdString(a.value("subdominio", std::string())));
                 esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
             };
@@ -687,16 +687,16 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_conectar";
-            t.title = "Acceso remoto: conectar o desconectar la sala de internet";
+            t.title = "Acceso remoto: conectar o desconectar la conferencia de internet";
             t.category = "sala";
             t.openWorld = true;
-            t.description = "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la sala a internet por "
+            t.description = "Lo mismo que el botón «Conectar VPN» de la tarjeta Invitados: saca la conferencia a internet por "
                             "`via` o la vuelve a dejar solo en la red local (`via`: \"desconectar\"). Sin `via` dice "
                             "cómo está y las formas que hay con lo guardado.";
             t.details = "Las formas (solo las que se pueden con lo que hay guardado; la lista la da la llamada sin "
                         "`via`): pinggy (el token de la cuenta, con su dirección), pinggy-cuenta (solo la API key: "
                         "arma todo), cloudflare (el token de Cloudflare), pinggy-gratis (sin cuenta, dirección al "
-                        "azar, se corta a los 60 min). Conectar por una apaga la otra. Reinicia la sala: los "
+                        "azar, se corta a los 60 min). Conectar por una apaga la otra. Reinicia la conferencia: los "
                         "invitados se reconectan solos. Con el evento corriendo no se toca.";
             t.inputSchema = {{"type", "object"},
                              {"properties",
@@ -712,9 +712,9 @@ void McpService::registerRoomTools() {
                 const QString via = QString::fromStdString(a["via"].get<std::string>());
                 const QString e = via == "desconectar" ? acc->desconectar() : acc->conectar(via);
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult::ok(via == "desconectar" ? "La sala vuelve a ser solo de la red local (se reinicia)."
+                done(ToolResult::ok(via == "desconectar" ? "La conferencia vuelve a ser solo de la red local (se reinicia)."
                                                          : "Conectando por " + via.toStdString() +
-                                                               " (la sala se reinicia). Mirá acceso_remoto_estado en unos segundos."));
+                                                               " (la conferencia se reinicia). Mirá acceso_remoto_estado en unos segundos."));
             };
             core_.addTool(std::move(t));
         }
@@ -771,7 +771,7 @@ void McpService::registerRoomTools() {
         t.title = "Proxy: dominio, puertos, servicios y ACME";
         t.category = "sala";
         t.description =
-            "Configura el proxy por nombre y REINICIA la sala (corta a los invitados): `activo`, `dominio` (los "
+            "Configura el proxy por nombre y REINICIA la conferencia (corta a los invitados): `activo`, `dominio` (los "
             "servicios quedan en <nombre>.<dominio>: hay que apuntar esos nombres a esta máquina en el DNS), "
             "`puertoTls` (443) y `puertoHttp` (80; en Linux los de menos de 1024 piden permiso), `servicios` "
             "([{nombre, destino, ruta, soloLan}]; sin esto, los de siempre: sala, sesion, presidencia, botonera, "
@@ -897,7 +897,7 @@ void McpService::registerRoomTools() {
         t.name = "chat_send";
         t.title = "Escribir en el chat";
         t.category = "sala";
-        t.description = "Mensaje del operador a toda la sala o a una persona (también al integrante que espera en "
+        t.description = "Mensaje del operador a toda la conferencia o a una persona (también al integrante que espera en "
                         "la sesión remota y se lo atiende hablando: se le dice con la voz del atendedor).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -930,7 +930,7 @@ void McpService::registerRoomTools() {
         t.title = "Chat reciente";
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Lee el chat PRIVADO con los invitados de la sala (de quién, a quién, texto, hora); no es el chat del "
+        t.description = "Lee el chat PRIVADO con los invitados de la conferencia (de quién, a quién, texto, hora); no es el chat del "
             "público.";
         t.inputSchema = {
             {"type", "object"},
@@ -964,7 +964,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la sala y "
+            "Espera hasta `timeoutSec` (max. 120) a que `participant` escriba en el chat de la conferencia y "
             "devuelve "
             "sus mensajes nuevos (`timedOut` true y lista vacia si no escribio). Para atender a alguien: una "
             "pregunta con chat_send, un chat_wait, y asi. Si se lo atiende hablando (en el lobby o esperando en "
@@ -1104,7 +1104,7 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Enlace para entrar a la sala (target local = misma red; remote = la dirección pública de pinggy, "
+            "Enlace para entrar a la conferencia (target local = misma red; remote = la dirección pública de pinggy, "
             "Cloudflare o WireGuard, para los de afuera) con su QR como imagen; con withPin el PIN va incluido. "
             "Con board=true, el del tablero de oradores. La imagen la ves solo vos: para que el operador vea el QR "
             "y lo pueda copiar, después llamá a qr_mostrar con la URL.";
@@ -1147,7 +1147,7 @@ void McpService::registerRoomTools() {
                         "enlaces y puertos WebRTC del gateway.";
         t.run = [&control](const json&, Done done) {
             control.verRed([done](const std::string& err, const json& r) {
-                done(err.empty() ? ToolResult().data(r) : ToolResult::error("La sala no responde."));
+                done(err.empty() ? ToolResult().data(r) : ToolResult::error("La conferencia no responde."));
             });
         };
         core_.addTool(std::move(t));
@@ -1186,11 +1186,11 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "gateway_restart";
-        t.title = "Reiniciar la sala (gateway)";
+        t.title = "Reiniciar la conferencia (gateway)";
         t.category = "sala";
         t.destructive = true;
         t.description =
-            "Reinicia el proceso de la sala: se cortan todos (se reconectan solos en segundos si el "
+            "Reinicia el proceso de la conferencia: se cortan todos (se reconectan solos en segundos si el "
             "estado se puede recuperar). Solo si algo no responde.";
         t.run = [&rt](const json&, Done done) {
             rt.reiniciarSalaEnElFondo([done](const std::string& e) {
@@ -1332,8 +1332,8 @@ void McpService::registerRoomTools() {
         t.title = "Mandar a la fila de oradores";
         t.category = "oradores";
         t.description =
-            "QUE ES: pone en la FILA de oradores a alguien que ya esta en la sala (o devuelve a la fila a "
-            "quien ya hablo). PARA QUE: en modo oradores todos siguen en la sala y la fila es solo el "
+            "QUE ES: pone en la FILA de oradores a alguien que ya esta en la conferencia (o devuelve a la fila a "
+            "quien ya hablo). PARA QUE: en modo oradores todos siguen en la conferencia y la fila es solo el "
             "orden en que se los saca al aire. COMO SE USA: `participant` (nombre o id). Sale del aire "
             "hasta que le toque; `speaker_on_air` o `speaker_next` lo suben. Si era presentador, deja de "
             "serlo.";

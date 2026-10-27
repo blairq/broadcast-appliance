@@ -549,7 +549,7 @@ Rectangle {
                         spacing: 6
                         Repeater {
                             model: [
-                                { t: "¿Cómo está todo?", p: "Mirá el estado general, el programa y la sala y contame en pocas líneas cómo está todo." },
+                                { t: "¿Cómo está todo?", p: "Mirá el estado general, el programa y la conferencia y contame en pocas líneas cómo está todo." },
                                 { t: "Cuidá el audio", p: "Vigilá que ningún canal de audio sature (más de -1 dBFS) y que no haya silencio al aire; si satura, bajá 3 dB ese canal y avisame." },
                                 { t: "Revisá cómo se ve", p: "Capturá el programa y todas las escenas y decime si ves algo mal (encuadres, textos, fuentes fuera de lugar)." },
                                 { t: "Oradores", p: "Vigilá el tiempo de los oradores: avisame a los 30 segundos y cuando se cumple, y mandales un aviso por chat." },

@@ -34,7 +34,7 @@ void registrar() {
             if (gOpciones)
                 for (const auto& o : gOpciones()) qr.opciones.push_back(o);
         }
-        qr.ayuda = "Los del aparato (Público, Sala, Prompter, Rótulos) se mantienen al día solos: si cambia la "
+        qr.ayuda = "Los del aparato (Público, Conferencia, Prompter, Rótulos) se mantienen al día solos: si cambia la "
                    "clave o el PIN, el QR cambia. Los guardados se diseñan en «Códigos QR».";
         std::vector<P> out{qr};
         if (a.value("qr", std::string()).empty()) {

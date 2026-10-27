@@ -30,7 +30,7 @@ void EnlacesSala::pedirEnlace(const std::string& ruta, Listo listo) {
         for (const QJsonValue& v : r.value("modules").toArray()) e.filas.push_back(v.toString().toStdString());
         QString msg = r.value("message").toString();
         if (msg.isEmpty()) msg = r.value("warning").toString();
-        if (!e.ok && msg.isEmpty()) msg = "La sala no responde";
+        if (!e.ok && msg.isEmpty()) msg = "La conferencia no responde";
         e.mensaje = msg.toStdString();
         e.clave = r.value("clave").toString().toStdString();
         if (listo) listo(e);
@@ -50,7 +50,7 @@ void EnlacesSala::correccion(bool remoto, Listo listo) {
     // que dar (y no se avisa «la sala no responde» como si fuera una falla).
     if (!sala_.online()) {
         Enlace e;
-        e.mensaje = "La sala no está corriendo";
+        e.mensaje = "La conferencia no está corriendo";
         e.respuesta = nlohmann::json::object();
         if (listo) listo(e);
         return;

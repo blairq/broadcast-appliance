@@ -57,7 +57,7 @@ Instance leer(const fuentes::Instancia& f) {
 void registerSourceType() {
     fuentes::Tipo t;
     t.id = kSourceId;
-    t.nombre = "Chat en vivo (YouTube, Twitch, Facebook, sala)";
+    t.nombre = "Chat en vivo (YouTube, Twitch, Facebook, conferencia)";
     t.deApp = true;
     t.defectos = {{"width", 640},         {"height", 720},         {"font_size", 28},     {"max_messages", 8},
                   {"channel", "all"},     {"solo_destacados", true}, {"show_youtube", true}, {"show_twitch", true},
@@ -70,13 +70,13 @@ void registerSourceType() {
                                       {{"value", "youtube"}, {"label", "Solo YouTube"}},
                                       {{"value", "twitch"}, {"label", "Solo Twitch"}},
                                       {{"value", "facebook"}, {"label", "Solo Facebook"}},
-                                      {{"value", "room"}, {"label", "Solo la sala (invitados)"}}});
+                                      {{"value", "room"}, {"label", "Solo la conferencia (invitados)"}}});
         return std::vector<P>{canal,
                               {"solo_destacados", "Solo los mensajes destacados por el operador", "bool"},
                               {"show_youtube", "YouTube", "bool"},
                               {"show_twitch", "Twitch", "bool"},
                               {"show_facebook", "Facebook", "bool"},
-                              {"show_room", "Sala (invitados)", "bool"},
+                              {"show_room", "Conferencia (invitados)", "bool"},
                               {"max_messages", "Mensajes a la vista", "int", 1, 50, 1},
                               {"font_size", "Tamaño de letra", "int", 10, 120, 1},
                               {"width", "Ancho", "int", 64, 3840, 8},

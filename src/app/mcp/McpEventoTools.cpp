@@ -137,7 +137,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "{pagina, html} | sitio {titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar, vivos, participacion} | "
             "aviso {texto, nivel: info|urgente} (el cartel de arriba de la página; texto vacío lo saca) | "
             "direccion {subdominio?} (pasa la dirección pública a <subdominio>.a.pinggy.link con la API key; reinicia "
-            "la sala).";
+            "la conferencia).";
         t.details =
             "`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. "
             "LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; "
@@ -225,12 +225,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (!ar || !ar->apiKeyGuardada())
                     return done(ToolResult::error("Falta la API key de pinggy (acceso_remoto_clave tipo api_key)."));
                 if (vm.alAire())
-                    return done(ToolResult::error("Se está transmitiendo o grabando: cambiar la dirección reinicia la sala. Esperá a que termine."));
+                    return done(ToolResult::error("Se está transmitiendo o grabando: cambiar la dirección reinicia la conferencia. Esperá a que termine."));
                 QString sub = QString::fromStdString(a.value("subdominio", std::string()));
                 if (sub.isEmpty()) sub = ev.web().value("sitio").toMap().value("subdominio").toString();
                 if (sub.isEmpty()) return done(ToolResult::error("El evento no tiene subdominio: evento_web sitio {subdominio}."));
                 ar->configurarConApiKey(sub);
-                return done(ToolResult::ok(("Pidiendo " + sub + ".a.pinggy.link a pinggy (la sala se reinicia). Mirá el "
+                return done(ToolResult::ok(("Pidiendo " + sub + ".a.pinggy.link a pinggy (la conferencia se reinicia). Mirá el "
                                             "resultado con acceso_remoto_estado.").toStdString()));
             }
             done(ToolResult::error("accion: ver, generar, leer, escribir, sitio o direccion"));
@@ -1126,7 +1126,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"huso",
                {{"type", "string"},
                 {"description", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires."}}},
-              {"invitados", {{"type", "boolean"}, {"description", "el evento usa invitados en la sala (la página ofrece entrar)"}}},
+              {"invitados", {{"type", "boolean"}, {"description", "el evento usa invitados en la conferencia (la página ofrece entrar)"}}},
               {"preguntas", {{"type", "boolean"}, {"description", "el público puede preguntar y votar (/publico/)"}}},
               {"asamblea", {{"type", "boolean"}, {"description", "es una sesión de asamblea: la página muestra integrantes, quórum, orden del día y votaciones"}}}}}};
         t.run = [&ev](const json& a, Done done) {
@@ -1346,7 +1346,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "tarde.\n\n"
             "Mientras el guion corre sin ensayo, el sistema entra en MODO EVENTO: la app le avisa al "
             "operador antes de cualquier accion de riesgo, y settings_set queda bloqueado (un ajuste que "
-            "reinicia la sala sacaria a todos los invitados en el peor momento posible).";
+            "reinicia la conferencia sacaria a todos los invitados en el peor momento posible).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1494,7 +1494,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"inicio", {{"type", "string"}, {"description", "HH:MM"}}},
               {"huso", {{"type", "string"}, {"description", "nombre IANA"}}},
               {"nota", {{"type", "string"}}},
-              {"invitados", {{"type", "boolean"}, {"description", "usa invitados en la sala de videoconferencia"}}},
+              {"invitados", {{"type", "boolean"}, {"description", "usa invitados en la conferencia (videoconferencia por WebRTC)"}}},
               {"preguntas", {{"type", "boolean"}, {"description", "el público puede preguntar y votar"}}},
               {"asamblea", {{"type", "boolean"}, {"description", "es una sesión de asamblea"}}},
               {"bloques",
@@ -1674,7 +1674,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
 void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     core.addCategory("padron", "La gente del evento",
                      "Quién viene, con qué papel, por dónde asiste y si ya llegó. Vale para los "
-                     "que entran por la puerta y para los que entran por la sala: es una sola lista.");
+                     "que entran por la puerta y para los que entran por la conferencia: es una sola lista.");
 
     const auto sinEvento = [](Done& done) {
         done(ToolResult::error("No hay ningun evento abierto: abri uno con guion_abrir."));
@@ -1752,7 +1752,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             "cuantos llegaron.";
         t.details =
             "ESTO CONTESTA \"quienes estan\", que en un evento hibrido es LA pregunta y hasta ahora no "
-            "tenia quien la contestara: los de la sala se veian con participant_* y los que entran por "
+            "tenia quien la contestara: los de la conferencia se veian con participant_* y los que entran por "
             "la puerta no se veian en ningun lado. El padron es UNO para los dos mundos.\n\n"
             "Cada persona trae:\n"
             "- `papel`: orador, panelista, publico, prensa o staff.\n"
@@ -1780,7 +1780,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
               {"estado", {{"type", "string"}, {"enum", {"invitado", "confirmo", "llego", "se_fue"}}}},
               {"solos",
                {{"type", "boolean"},
-                {"description", "Solo los que entran a la sala sin que el operador apruebe."}}}}}};
+                {"description", "Solo los que entran a la conferencia sin que el operador apruebe."}}}}}};
         t.run = [&ev, listaDe, resumenDe, sinEvento](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
             json gente = json::array();
@@ -1809,7 +1809,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             "Lo unico obligatorio es el `nombre`. El resto se puede completar despues con "
             "padron_cambiar: una lista a medias sirve, una lista que no se pudo empezar no.\n\n"
             "`personaId` es su ficha en la libreta de rostros (ver rostro_listar). Con ella se la "
-            "reconoce en la puerta y puede entrar sola a la sala; sin ella solo se la busca por nombre.\n\n"
+            "reconoce en la puerta y puede entrar sola a la conferencia; sin ella solo se la busca por nombre.\n\n"
             "`dejarPasarSolo` NECESITA `personaId`: dejar pasar a quien ESCRIBIO un nombre es dejar "
             "pasar a cualquiera que sepa escribirlo, asi que sin ficha se apaga solo.\n\n"
             "Esto NO da de alta a nadie en la libreta de rostros: son dos cosas distintas a proposito. "
@@ -1831,7 +1831,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
               {"dejarPasarSolo",
                {{"type", "boolean"},
                 {"description",
-                 "Entra a la sala sin que el operador apruebe. Exige `personaId`: se lo reconoce por "
+                 "Entra a la conferencia sin que el operador apruebe. Exige `personaId`: se lo reconoce por "
                  "la CARA, no por el nombre que escriba al entrar."}}}}}};
         t.run = [&ev, aMapaQt, resumenDe, sinEvento, fichaFalla](const json& a, Done done) {
             if (ev.abierto().isEmpty()) return sinEvento(done);
@@ -1898,7 +1898,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
             "Deja constancia de que una persona esta en el evento, con la hora y por donde entro.";
         t.details =
             "Es la acreditacion, y vale igual para el que entra por la puerta y para el que entra por "
-            "la sala: una sola lista para los dos mundos.\n\n"
+            "la conferencia: una sola lista para los dos mundos.\n\n"
             "Se puede identificar de tres maneras, en este orden de confianza:\n"
             "- `id`: el del padron, cuando ya se sabe quien es.\n"
             "- `personaId`: la ficha de rostro, que es como lo dice la camara de la puerta.\n"

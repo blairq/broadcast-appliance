@@ -711,7 +711,7 @@ void AtencionViewModel::probarVoz(const QString& texto) { probar(texto, {}); }
 
 void AtencionViewModel::probar(const QString& texto, std::function<void(const QVariantMap&)> fin) {
     const QString t = texto.trimmed().isEmpty()
-                          ? QString("Hola, ¿qué tal? Soy la que atiende la sala. ¿Me decís tu nombre y apellido, "
+                          ? QString("Hola, ¿qué tal? Soy la que atiende la conferencia. ¿Me decís tu nombre y apellido, "
                                     "tal como querés que se lea en pantalla?")
                           : texto.trimmed();
 #if defined(BA_HAVE_VOZ)

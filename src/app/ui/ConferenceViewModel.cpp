@@ -158,7 +158,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
             authSeguidos_ = 0;
         }
         const std::string t = sala::explicarError(ss(e));
-        emit notify(t == ss(e) ? "La sala respondio: " + e : frase(t), "error");
+        emit notify(t == ss(e) ? "La conferencia respondio: " + e : frase(t), "error");
     });
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (!on) return;
@@ -572,7 +572,7 @@ QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
     QPointer<ConferenceViewModel> yo(this);
     return qs(control_->configurarProxy(c, [yo](const std::string& e) {
         if (yo && !e.empty())
-            emit yo->notify("No se pudo reiniciar la sala: " + qs(e) + ". Si sigue, cerrá y volvé a abrir el programa.",
+            emit yo->notify("No se pudo reiniciar la conferencia: " + qs(e) + ". Si sigue, cerrá y volvé a abrir el programa.",
                             "error");
     }));
 }
@@ -584,7 +584,7 @@ QString ConferenceViewModel::reiniciarSala() {
         if (e.empty() || !yo) return;
         QMetaObject::invokeMethod(yo.data(), [yo, e]() {
             if (yo)
-                emit yo->notify("No se pudo reiniciar la sala: " + QString::fromStdString(e) +
+                emit yo->notify("No se pudo reiniciar la conferencia: " + QString::fromStdString(e) +
                                     ". Si sigue, cerrá y volvé a abrir el programa.",
                                 "error");
         }, Qt::QueuedConnection);
@@ -671,11 +671,11 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
             if (!yo) return;
             if (!err.empty()) return emit yo->serverConfigReady({}, qs(err));
             emit yo->serverConfigReady(qs(r.value("config", std::string())), {});
-            emit yo->notify("Tunel configurado: reiniciando la sala", "ok");
+            emit yo->notify("Tunel configurado: reiniciando la conferencia", "ok");
         },
         [yo](const std::string& err) {
             if (yo && !err.empty())
-                emit yo->notify("No se pudo reiniciar la sala: " + qs(err) +
+                emit yo->notify("No se pudo reiniciar la conferencia: " + qs(err) +
                                     ". Si sigue, cerrá y volvé a abrir el programa.",
                                 "error");
         });
@@ -727,7 +727,7 @@ void ConferenceViewModel::desbloquearPin(const QString& ip) {
     const QString cual = ip.trimmed();
     control_->desbloquearPin(ss(cual), [yo, cual](const std::string& err, const nlohmann::json& r) {
         if (!yo) return;
-        if (!err.empty()) return emit yo->notify("No se pudo desbloquear (¿la sala está conectada?)", "error");
+        if (!err.empty()) return emit yo->notify("No se pudo desbloquear (¿la conferencia está conectada?)", "error");
         yo->bloqueosPin_ = aMapa(r.value("bloqueos", nlohmann::json::object()));
         emit yo->bloqueosPinChanged();
         emit yo->notify(cual.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + cual,

@@ -4,7 +4,7 @@
   const { el, boton, maxDb, ms, vacio, texto, attr, sincronizar } = BA.tj;
   BA.tarjetas.push(
   {
-    id: "sala", titulo: "Sala de invitados", temas: ["sala"], ancha: true,
+    id: "sala", titulo: "Conferencia", temas: ["sala"], ancha: true,
     herramientas: ["participant_admit", "participant_reject", "room_set", "room_pin", "chat_send"],
     crear(c, api) {
       this.api = api;
@@ -14,7 +14,7 @@
       this.lugares = el("ba-chip");
       this.lobby = el("ba-toggle"); this.lobby.setAttribute("etiqueta", "Lobby");
       this.lobby.addEventListener("cambio", (e) => api.hacer("room_set", { lobby: e.detail.valor }).catch(() => {}));
-      this.cerrada = el("ba-toggle"); this.cerrada.setAttribute("etiqueta", "Sala cerrada");
+      this.cerrada = el("ba-toggle"); this.cerrada.setAttribute("etiqueta", "Conferencia cerrada");
       this.cerrada.addEventListener("cambio", (e) => api.hacer("room_set", { locked: e.detail.valor }).catch(() => {}));
       cab.append(this.pin, boton("PIN nuevo", () => api.hacer("room_pin", {}).then(() => api.avisar("PIN nuevo")), { compacto: true, confirmar: "¿Cambiar el PIN?" }),
                  this.lugares, el("span", "espacio"), this.lobby, this.cerrada);
@@ -31,7 +31,7 @@
       // El chat.
       this.chat = el("div", "chat");
       const escribir = el("div", "fila");
-      this.campoChat = el("input"); this.campoChat.type = "text"; this.campoChat.maxLength = 1000; this.campoChat.placeholder = "Escribile a la sala…";
+      this.campoChat = el("input"); this.campoChat.type = "text"; this.campoChat.maxLength = 1000; this.campoChat.placeholder = "Escribile a la conferencia…";
       this.campoChat.className = "lleno";
       const mandar = () => { const t = this.campoChat.value.trim(); if (!t) return; api.hacer("chat_send", { text: t }).then(() => { this.campoChat.value = ""; }).catch(() => {}); };
       this.campoChat.addEventListener("keydown", (e) => { if (e.key === "Enter") mandar(); });
@@ -76,7 +76,7 @@
                              boton("✕", () => this.api.hacer("participant_reject", { participant: id }), { compacto: true }));
         else {
           f.hablar = boton("🎙 Hablar", () => this.api.hacer("participant_talk", { participant: id, on: !f.p.talk }), { compacto: true });
-          f.append(f.hablar, boton("Sacar", () => this.api.hacer("participant_kick", { participant: id }), { compacto: true, confirmar: "¿Sacarlo de la sala?" }));
+          f.append(f.hablar, boton("Sacar", () => this.api.hacer("participant_kick", { participant: id }), { compacto: true, confirmar: "¿Sacarlo de la conferencia?" }));
         }
         return f;
       };

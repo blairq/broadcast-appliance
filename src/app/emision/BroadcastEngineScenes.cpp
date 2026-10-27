@@ -1009,10 +1009,10 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
             {"image_source", "Imagen", true, false},
             {"screen_capture", "Captura de pantalla", true, false},
             {video::kTipoVentana, "Captura de una aplicación", true, false},
-            {"ba_qr", "Código QR (Público, Sala, uno guardado…)", true, false},
+            {"ba_qr", "Código QR (Público, Conferencia, uno guardado…)", true, false},
             {kTipoBanca, "Banca con la palabra (asamblea: la cámara de quien habla)", true, false},
             {"ba_pdf", "PDF (una página por vez)", true, false},
-            {"ba_grilla", "Grilla de personas (la gente de la Sala y la Asamblea)", true, false},
+            {"ba_grilla", "Grilla de personas (la gente de la Conferencia y la Asamblea)", true, false},
             {"ba_app", "Lo que pinta la app", true, false}};
 }
 

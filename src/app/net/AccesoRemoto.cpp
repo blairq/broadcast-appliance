@@ -142,7 +142,7 @@ QVariantList AccesoRemoto::formasDeConectar() const {
 
 QString AccesoRemoto::conectar(const QString& id) {
     if (!aplicarPinggy_) return "no disponible";
-    if (enVivo_ && enVivo_()) return "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala).";
+    if (enVivo_ && enVivo_()) return "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).";
     if (id == "pinggy-cuenta") {
         if (!apiKeyGuardada()) return "No hay API key de pinggy guardada (Configuración → Pinggy).";
         if (rt_.gateway().tunnel)
@@ -167,7 +167,7 @@ QString AccesoRemoto::conectar(const QString& id) {
 
 QString AccesoRemoto::desconectar() {
     if (!aplicarPinggy_) return "no disponible";
-    if (enVivo_ && enVivo_()) return "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala).";
+    if (enVivo_ && enVivo_()) return "El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).";
     const auto& g = rt_.gateway();
     if (!g.pinggyActivo && !g.tunnel) return {};
     return aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}});
@@ -222,9 +222,9 @@ void AccesoRemoto::aplicarEstado(bool ok, const QVariantMap& r) {
     m["sala"] = cli_.online();
     m["disponible"] = ok;
     if (!cli_.online())
-        m["texto"] = "La sala no está andando: el estado del túnel se ve cuando arranca.";
+        m["texto"] = "La conferencia no está andando: el estado del túnel se ve cuando arranca.";
     else if (!ok)
-        m["texto"] = "La sala no informa el estado del túnel (el gateway es de una versión anterior).";
+        m["texto"] = "La conferencia no informa el estado del túnel (el gateway es de una versión anterior).";
     const QVariantMap p = r.value("pinggy").toMap();
     m["pinggy"] = p;
 
@@ -305,7 +305,7 @@ QString AccesoRemoto::instruccionesDns(const QString& hostCrudo, const QString& 
     const QString primero = h.section('.', 0, 0);
     const QString zona = h.section('.', 1);
     QStringList t;
-    t << "Para que " + h + " lleve a la sala por pinggy:"
+    t << "Para que " + h + " lleve a la conferencia por pinggy:"
       << ""
       << "1) En el DNS de " + (zona.isEmpty() ? h : zona) + " (lo hace quien administra el dominio), crear este registro:"
       << "     Tipo:     CNAME"
@@ -680,7 +680,7 @@ void AccesoRemoto::seguirConToken(const std::string& clave, const QString& sub) 
         if (!e.isEmpty()) return self->ponerCuenta("error", "Token guardado, pero no se pudo prender el túnel: " + e, extra);
         self->ponerCuenta("ok", "Listo: el túnel sale con tu plan Pro por https://" + dir +
                                     (puerto > 0 ? QString(" (video de los de afuera por el puerto %1)").arg(puerto) : QString()) +
-                                    ". La sala se reinicia sola con eso.", extra);
+                                    ". La conferencia se reinicia sola con eso.", extra);
     });
 }
 

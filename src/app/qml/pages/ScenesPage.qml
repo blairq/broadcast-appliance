@@ -523,7 +523,7 @@ Rectangle {
                         text: "Agregar código QR"; icon: "▦"; compact: true
                         onClicked: qrMenu.popup()
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "Un QR en esta escena: el de la página del Público, el de la Sala, o uno de «Códigos QR». Se mantiene al día solo."
+                        ToolTip.text: "Un QR en esta escena: el de la página del Público, el de la Conferencia, o uno de «Códigos QR». Se mantiene al día solo."
                         Menu {
                             id: qrMenu
                             property var opciones: []

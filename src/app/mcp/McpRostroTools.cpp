@@ -691,7 +691,7 @@ void McpService::registerRostroTools() {
             "true volve a preguntar.\n\n"
             "Para que esto conteste algo hace falta que el reconocimiento del lobby este prendido: "
             "`rostro_autoalta {activo: true, feed: \"lobby\"}`, o el interruptor «Reconocer a los que "
-            "llegan» en la pestaña Sala. Sin eso nadie esta mirando esas camaras.";
+            "llegan» en la página Conferencia. Sin eso nadie esta mirando esas camaras.";
         t.run = [pvDe, preparar](const json&, Done done) {
             if (const std::string e = preparar(); !e.empty()) return done(ToolResult::error(e));
             PersonasViewModel* pv = pvDe();

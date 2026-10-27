@@ -94,7 +94,7 @@ json AlertEngine::types() {
          {"summary", "Un invitado admitido pierde la conexion."},
          {"params", json::object()}},
         {{"type", "chat"},
-         {"summary", "Llega un mensaje de chat (de las plataformas o de la sala) que coincide."},
+         {"summary", "Llega un mensaje de chat (de las plataformas o de la conferencia) que coincide."},
          {"params",
           {{"platform", "all | youtube | twitch | facebook | room (por defecto all)"},
            {"contains", "texto a buscar (sin distinguir mayusculas); vacio = cualquier mensaje"},
@@ -110,7 +110,7 @@ json AlertEngine::types() {
            {"regex", "alternativa: expresión regular"}}},
          {"cooldownSec", 0}},
         {{"type", "guest_message"},
-         {"summary", "Un invitado escribe en el chat de la sala (a vos en privado o a todos)."},
+         {"summary", "Un invitado escribe en el chat de la conferencia (a vos en privado o a todos)."},
          {"params", {{"privateOnly", "solo los mensajes privados al operador (por defecto false)"}}},
          {"cooldownSec", 0}},
         {{"type", "stream_health"},
@@ -350,12 +350,12 @@ void AlertEngine::novedades(std::int64_t now) {
             const auto it = previo_.find("p:" + id);
             if (it == previo_.end()) {
                 contar(estado == "waiting" ? "Alguien (id " + id + ") entró al lobby."
-                                           : "Alguien (id " + id + ") entró a la sala.");
+                                           : "Alguien (id " + id + ") entró a la conferencia.");
                 continue;
             }
             const QStringList antes = QString::fromStdString(it->second).split('|');
             if (antes.value(0).toStdString() != estado && estado == "admitted")
-                contar("El participante " + id + " pasó del lobby a la sala.");
+                contar("El participante " + id + " pasó del lobby a la conferencia.");
             if (estado == "admitted" && antes.value(1) == "1" && !conectado)
                 contar("El participante " + id + " perdió la conexión.");
             if (estado == "admitted" && antes.value(1) == "0" && conectado)

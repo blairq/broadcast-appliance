@@ -82,7 +82,7 @@ const Fila kFamilias[] = {
     {"video_", "video camara webcam dispositivo entrada"},
     {"mixer_", "mezcla audio volumen canal pista mixer"},
     {"transition_", "transicion corte fundido disolvencia cambio de escena"},
-    {"guest_", "invitado participante persona sala"},
+    {"guest_", "invitado participante persona sala conferencia"},
     {"help", "ayuda como se hace no se que herramienta buscar manual documentacion"},
     {"feeds_", "feed señal fuente video vista"},
     {"monitors", "monitor pantalla fisica display escritorio"},
@@ -145,7 +145,7 @@ const Fila kPropias[] = {
     {"calibracion_aplicar", "calibracion aplicar eq sala ecualizador revertir sacar"},
     {"mezclador_analisis_lsp", "lsp analizador espectro fase osciloscopio latencia profiler perfil rt60 ver interfaz abrir medir"},
     {"mezclador_estado", "mezclador niveles vumetros entradas salidas loudness lufs pico rms programa sin salida mezcla consola"},
-    {"acceso_remoto_conectar", "conectar vpn internet afuera tunel prender apagar desconectar pinggy cloudflare sacar la sala"},
+    {"acceso_remoto_conectar", "conectar vpn internet afuera tunel prender apagar desconectar pinggy cloudflare sacar la sala sacar la conferencia"},
     {"acceso_remoto_cortar_tuneles", "pinggy cortar bajar tunel matar sesion activa otro equipo mismo token liberar"},
     {"evento_web", "pagina web del evento sitio frontend en vivo seccion portada cierre html personalizar dominio subdominio url del evento pagina publica"},
     {"acceso_remoto_estado", "pinggy tunel acceso remoto desde afuera internet url publica enlace externo dns cname dominio propio subdominio turn invitados de afuera"},
@@ -434,19 +434,19 @@ const Fila kPropias[] = {
     {"foto_invitado", "ver a una persona invitado invitada camara de alguien cara como esta saliendo "
                        "como sale como se ve el invitado mostrame al invitado mostrame a la invitada"},
     {"foto_todos_invitados",
-     "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala"},
+     "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala quienes estan en la conferencia"},
     {"capture_sequence", "varias capturas seguidas ver que cambia movimiento" " cuadros seguidos congelado trabado titila varias fotos"},
     {"capture_ui", "ver la interfaz de la app pantalla del operador"},
     {"feeds_list", "que camaras hay conectadas que señales llegan que señales hay entrando fuentes de video"},
 
     // --- Sala --------------------------------------------------------------
-    {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala conectados "
+    {"room_status", "se cayo un invitado se desconecto se fue quien quedo quien esta en la sala en la conferencia conectados "
                     "lista de gente cuanta gente "
                     "cuantos hay cuantos son quienes estan esperando en el lobby "
-                    "estado de la sala"},
-    {"room_set", "configurar sala cupo cerrar abrir limite"},
-    {"room_pin", "pin clave codigo de acceso contrasena de la sala"},
-    {"room_link", "enlace invitacion link para entrar compartir acceso url de la sala"},
+                    "estado de la sala estado de la conferencia"},
+    {"room_set", "configurar sala configurar conferencia cupo cerrar abrir limite"},
+    {"room_pin", "pin clave codigo de acceso contrasena de la sala de la conferencia"},
+    {"room_link", "enlace invitacion link para entrar compartir acceso url de la sala url de la conferencia"},
     // las que solo tenian las palabras de su familia (revision de la busqueda, 17/10/2026)
     {"audio_set", "subir bajar volumen silenciar mutear desmutear callar cerrar abrir el micro mic acople satura fuerte despacio nivel db"},
     {"descarga_actualizar", "actualizar instalar version nueva"},
@@ -525,7 +525,7 @@ const Fila kPropias[] = {
     {"youtube_login", "conectar la cuenta de youtube iniciar sesion google login"},
     {"youtube_logout", "desconectar la cuenta de youtube cerrar sesion"},
     {"enlaces_listar", "enlaces links servicios web urls que esta prendido estado de los servicios lista de enlaces"},
-    {"enlace_activar", "prender apagar habilitar deshabilitar servicio web companion satellite tunel abrir cerrar la sala"},
+    {"enlace_activar", "prender apagar habilitar deshabilitar servicio web companion satellite tunel abrir cerrar la sala cerrar la conferencia"},
     {"multiview", "multiview multivista muro mosaico de camaras ver varias fuentes juntas pantalla dividida"},
     {"diag_probar_caida", "probar una caida volcado crash dump prueba de errores"},
     {"direcciones", "direccion ip url enlace link red local tunel afuera puerto donde entra 127.0.0.1 localhost pinggy"},
@@ -534,7 +534,7 @@ const Fila kPropias[] = {
     {"participant_admit",
      "hace pasar hacelo pasar que pase dejalo entrar adentro dejar entrar aceptar admitir aprobar del lobby"},
     {"participant_reject", "rechazar no dejar entrar negar acceso"},
-    {"participant_kick", "echar expulsar sacar desconectar de la sala"},
+    {"participant_kick", "echar expulsar sacar desconectar de la sala de la conferencia"},
     {"participant_requeue", "devolver mandar atras de nuevo al final de la fila el que ya hablo"},
     {"participant_admit_all", "dejar entrar a todos admitir todos vaciar lobby"},
     {"participant_talk", "hablarle privado audio al invitado susurrar"},
@@ -556,7 +556,7 @@ const Fila kPropias[] = {
     {"network_status", "se esta cortando se corta entrecortado se cae la transmision va lento red internet "
                        "conexion ancho de banda tunel calidad"},
     {"gateway_restart",
-     "reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada"},
+     "reiniciar sala gateway reiniciar servidor de la sala la sala no responde esta colgada reiniciar conferencia la conferencia no responde"},
     {"operator_feed",
      "camara del operador cabina mi camara con que imagen me ven y me oyen los que esperan en el lobby"},
 
@@ -879,7 +879,7 @@ const Fila kPropias[] = {
     {"superficie_mostrar", "cambiar lo que muestra sin recastear empujar url recargar"},
 
     // --- QR -----------------------------------------------------------------------
-    {"qr_listar", "que codigos qr hay guardados tipos iconos qr del publico qr de la sala para elegir"},
+    {"qr_listar", "que codigos qr hay guardados tipos iconos qr del publico qr de la sala qr de la conferencia para elegir"},
     {"grilla_personas_estado", "quienes se ven en la grilla cuantos quedaron afuera mas n quien habla"},
     {"grilla_personas_ajustar", "cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara"},
     {"grilla_personas_fijar", "fijar dejar fijo siempre en la grilla que no salga poner a alguien en el mosaico"},
@@ -997,9 +997,9 @@ const Fila kPropias[] = {
                       "mitad izquierda derecha organizar el escritorio armar el puesto"},
     {"ventana_cerrar", "cerrar ventana quitar sacar de pantalla"},
     {"participant_admit", "admitir hacer pasar dejar entrar aceptar al invitado que espera "
-                          "sacarlo del lobby meterlo a la sala"},
+                          "sacarlo del lobby meterlo a la sala meterlo a la conferencia"},
     {"participant_reject", "rechazar no dejar entrar negar la entrada echar del lobby"},
-    {"participant_kick", "echar sacar de la sala expulsar desconectar a alguien que ya entro"},
+    {"participant_kick", "echar sacar de la sala sacar de la conferencia expulsar desconectar a alguien que ya entro"},
     {"imagen_preguntar", "mirar la imagen que se ve ahi que hay en camara revisar visualmente "
                         "analizar captura vision hay alguien cuadro negro se lee el rotulo" " preguntarle a la imagen contar personas leer el texto de la imagen"},
     {"audio_plugin_buscar", "que filtros hay que plugins tengo hay algun filtro para buscar "

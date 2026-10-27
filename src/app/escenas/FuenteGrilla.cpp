@@ -45,13 +45,13 @@ void registrarTipo() {
             return p;
         };
         out.push_back({"_quienes", "Quiénes", "header"});
-        out.push_back(lista("origen", "De dónde", {{"ambas", "Sala y Asamblea"}, {"sala", "Solo la Sala"}, {"asamblea", "Solo la Asamblea"}},
-                            "Sala: los admitidos (al aire o en la fila de oradores). Asamblea: los integrantes habilitados "
+        out.push_back(lista("origen", "De dónde", {{"ambas", "Conferencia y Asamblea"}, {"sala", "Solo la Conferencia"}, {"asamblea", "Solo la Asamblea"}},
+                            "Conferencia: los admitidos (al aire o en la fila de oradores). Asamblea: los integrantes habilitados "
                             "en la sesión remota."));
         out.push_back(lista("orden", "Orden",
                             {{"llegada", "Por llegada"}, {"habla", "Quien habla, primero"}, {"prioridad", "Por prioridad"}},
                             "Decide quiénes entran cuando no entran todos y dónde va el que llega; a los que ya están no los "
-                            "mueve. Prioridad: el campo «prioridad» del integrante (Asamblea); en la Sala, el presentador fijo."));
+                            "mueve. Prioridad: el campo «prioridad» del integrante (Asamblea); en la Conferencia, el presentador fijo."));
         {
             P tope{"tope", "Celdas como mucho", "int", 0, kMaxCeldas, 1};
             tope.ayuda = "Si no entran todos, la última celda es un cuadro «+N». 0 = sin tope (hasta 64).";
@@ -103,8 +103,8 @@ void registrarTipo() {
         {
             const int canal = a.value("canal", 0);
             P info{"_canal",
-                   canal > 0 ? "La arma la sala en el canal BA.Grilla." + std::to_string(canal) + "."
-                             : "Todavía sin canal: hay más de 8 grillas, o la sala no arrancó.",
+                   canal > 0 ? "La arma la conferencia en el canal BA.Grilla." + std::to_string(canal) + "."
+                             : "Todavía sin canal: hay más de 8 grillas, o la conferencia no arrancó.",
                    "info"};
             out.push_back(info);
         }

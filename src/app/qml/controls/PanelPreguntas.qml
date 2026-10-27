@@ -41,7 +41,7 @@ Item {
         Text {
             text: {
                 const r = raiz.pub.recuento
-                if (!raiz.pub.enLinea) return "Sin conexión con la sala"
+                if (!raiz.pub.enLinea) return "Sin conexión con el servidor"
                 if (!r || r.total === undefined) return "…"
                 return r.nuevas + " sin mirar · " + r.elegidas + " en la cola · " +
                        r.respondidas + " respondidas"
@@ -192,7 +192,7 @@ Item {
             font.pixelSize: 12
             text: raiz.pub.enLinea
                   ? "Todavía no preguntó nadie. El QR de la página del público es por donde entran."
-                  : "No puedo ver las preguntas: la sala no responde."
+                  : "No puedo ver las preguntas: el servidor no responde."
         }
     }
 
@@ -212,7 +212,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Para lo que llegó por otro lado: el chat de la sala, el de una plataforma, o " +
+                text: "Para lo que llegó por otro lado: el chat de la conferencia, el de una plataforma, o " +
                       "alguien que levantó la mano en el salón. Va a la MISMA cola que las demás."
                 color: Theme.textDim
                 font.pixelSize: 12

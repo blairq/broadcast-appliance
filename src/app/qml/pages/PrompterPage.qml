@@ -51,7 +51,7 @@ Rectangle {
             spacing: 10
             Text { text: "Teleprompter"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             StatusPill {
-                text: page.p.enLinea ? (page.est.corriendo ? "corriendo" : "listo") : "sin sala"
+                text: page.p.enLinea ? (page.est.corriendo ? "corriendo" : "listo") : "sin servidor"
                 dot: page.p.enLinea ? (page.est.corriendo ? Theme.live : Theme.ok) : Theme.textFaint
                 pulse: page.est.corriendo === true
                 medidaDe: "corriendo"
@@ -491,7 +491,7 @@ Rectangle {
                                 color: Theme.textFaint; font.pixelSize: 11
                                 text: page.p.enLinea
                                     ? "Nadie conectado. Los QR de arriba abren la pantalla del atril y el control."
-                                    : "La sala no está corriendo: sin ella no hay teleprompter."
+                                    : "El servidor no está corriendo: sin él no hay teleprompter."
                             }
                         }
 

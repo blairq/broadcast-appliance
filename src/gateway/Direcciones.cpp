@@ -30,7 +30,7 @@ struct Servicio {
 // cada endpoint sobre el origen: acá solo el camino.
 const std::vector<Servicio>& servicios() {
     static const std::vector<Servicio> s{
-        {"invitados", "Invitados (sala)", "/invitados/", Puerta::Invitados, true, ""},
+        {"invitados", "Invitados (conferencia)", "/invitados/", Puerta::Invitados, true, ""},
         {"sesion", "Integrantes (sesión remota)", "/sesion/", Puerta::Sala, true, ""},
         {"presidencia", "Consola de la presidencia", "/presidencia/", Puerta::Sala, true, ""},
         {"registro", "Registro de personas (tótems)", "/registro/", Puerta::Sala, true, ""},
@@ -68,7 +68,7 @@ json armar(const Entradas& e) {
     std::string httpsSala, httpSala, motivoSala;
     if (host.empty()) {
         motivoSala = "No encontré ninguna dirección de red en esta máquina (¿está conectada la red?). Se puede "
-                     "escribir en Configuración → Red de la sala → «Dirección para el QR».";
+                     "escribir en Configuración → Red de la conferencia → «Dirección para el QR».";
     } else {
         if (e.puertaHttps > 0) httpsSala = "https://" + host + ":" + std::to_string(e.puertaHttps);
         if (e.puertaHttp > 0) httpSala = "http://" + host + ":" + std::to_string(e.puertaHttp);
@@ -117,7 +117,7 @@ json armar(const Entradas& e) {
                 f["local"] = "http://" + host + ":" + std::to_string(e.invitadosHttp) + s.ruta;
                 f["motivo_local"] = "Sin HTTPS el navegador no da cámara ni micrófono por la red local.";
             } else {
-                f["motivo_local"] = "La sala de invitados escucha solo en esta máquina (Configuración → Red de la "
+                f["motivo_local"] = "La conferencia escucha solo en esta máquina (Configuración → Red de la "
                                     "sala → Acceso): por la red local no entran; desde afuera, por el túnel.";
             }
         } else if (s.puerta == Puerta::Evento && !e.eventoWeb) {

@@ -128,7 +128,7 @@ void ParticipantesSala::prueba(const std::string& id, Listo listo) {
             if (!j.is_object()) j = nlohmann::json::object();
             j["recomendacion"] = recomendacionPrueba(j);
             std::string error;
-            if (!ok) error = j.value("error", std::string("la sala no pudo hacer la prueba"));
+            if (!ok) error = j.value("error", std::string("la conferencia no pudo hacer la prueba"));
             if (listo) listo(error, j);
         },
         15000);

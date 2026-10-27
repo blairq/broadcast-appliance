@@ -2062,7 +2062,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         http::writeWsFrame(fd, 0x8, "");
         return {};
     }
-    log_.info("ws: '" + Room::cleanName(arg("name")) + "' entro a la sala (" + j.id + ")");
+    log_.info("ws: '" + Room::cleanName(arg("name")) + "' entro a la conferencia (" + j.id + ")");
     return j.id;
 }
 

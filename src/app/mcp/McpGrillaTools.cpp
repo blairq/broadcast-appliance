@@ -35,10 +35,10 @@ void McpService::registerGrillaTools() {
         t.readOnly = true;
         t.untrustedOutput = true; // los nombres los escribieron los invitados
         t.description = "Las fuentes «Grilla de personas» (ba_grilla): a quién muestra cada una ahora, cuántos quedaron en el "
-                        "«+N», su canal y sus ajustes principales; y la gente que puede aparecer (sala y asamblea) con "
+                        "«+N», su canal y sus ajustes principales; y la gente que puede aparecer (conferencia y asamblea) con "
                         "quién habla, quién ya está al aire (en otra fuente o en una grilla que se ve), quién tiene la "
                         "cámara prendida, en qué grillas está cada uno y lo decidido a mano (fijo, fuera).";
-        t.details = "Una grilla crece y se acomoda sola con la gente conectada: los admitidos de la Sala (al aire o en la "
+        t.details = "Una grilla crece y se acomoda sola con la gente conectada: los admitidos de la Conferencia (al aire o en la "
                     "fila de oradores) y los integrantes habilitados de la Asamblea. La misma fuente en dos escenas es la "
                     "misma imagen: para repartir gente entre escenas se crean varias con el mismo `grupo`. Crear una: "
                     "crear_fuente {type: \"ba_grilla\", name, settings: {…}}. Ajustes: " + ajustesAyuda;
@@ -94,7 +94,7 @@ void McpService::registerGrillaTools() {
         t.idempotent = true;
         t.description = descripcion;
         t.details = "Lo decidido a mano vive mientras la app está abierta (las claves son de la conexión de cada uno) y "
-                    "se ve en la vista de las grillas: en las Propiedades de la fuente, en la Sala y en la Asamblea.";
+                    "se ve en la vista de las grillas: en las Propiedades de la fuente, en la Conferencia y en la Asamblea.";
         t.inputSchema = {{"type", "object"}, {"required", requeridos}, {"properties", props}};
         t.examples = std::move(ejemplos);
         t.run = [vmp, hacer, listo](const json& a, Done done) {

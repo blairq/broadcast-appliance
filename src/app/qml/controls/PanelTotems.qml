@@ -215,7 +215,7 @@ Item {
                 Text {
                     visible: filasConexiones.count === 0
                     color: Theme.textFaint; font.pixelSize: 11
-                    text: raiz.tv.enLinea ? "Nadie." : "La sala no responde."
+                    text: raiz.tv.enLinea ? "Nadie." : "El servidor no responde."
                 }
                 ScrollView {
                     id: scConn

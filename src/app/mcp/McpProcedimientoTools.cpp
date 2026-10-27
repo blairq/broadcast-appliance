@@ -394,7 +394,7 @@ void McpService::registerProcedimientoTools() {
             "con evento_chequeo {item, hecho: true}).\n\n"
             "Revisa: el evento (fecha, hora, huso), el guion (evento_revisar: escenas, archivos, disco, entradas sin "
             "señal), las escenas de la previa y el cierre (evento_preparar), adónde se transmite y las cuentas, el disco "
-            "para grabar, las entradas de audio, la página web del evento, la sala de invitados y las preguntas del "
+            "para grabar, las entradas de audio, la página web del evento, la conferencia de invitados y las preguntas del "
             "público si el evento las usa, el padrón; y en una asamblea, además, el Cuerpo, el recinto, las cámaras y "
             "escenas de las bancas, la central (asamblea_revisar), el quórum, el orden del día y los votantes.\n\n"
             "No cambia nada del evento salvo agregar los ítems a mano que falten en su lista de chequeo (nunca marca "
@@ -531,10 +531,10 @@ void McpService::registerProcedimientoTools() {
 
                     // --- invitados y preguntas (si el evento los usa) ---
                     if (invitados) {
-                        if (no("sala")) item("sala", "sala de invitados", "falta", "La sala no responde: " + (*r)["sala"].texto, "network_status");
+                        if (no("sala")) item("sala", "conferencia de invitados", "falta", "La conferencia no responde: " + (*r)["sala"].texto, "network_status");
                         else
-                            item("sala", "sala de invitados", (*r)["sala"].datos.value("pin", std::string()).empty() ? "falta" : "ok",
-                                 (*r)["sala"].datos.value("pin", std::string()).empty() ? "La sala no tiene PIN." : "Lista (con PIN y enlace).",
+                            item("sala", "conferencia de invitados", (*r)["sala"].datos.value("pin", std::string()).empty() ? "falta" : "ok",
+                                 (*r)["sala"].datos.value("pin", std::string()).empty() ? "La conferencia no tiene PIN." : "Lista (con PIN y enlace).",
                                  "room_pin / room_link");
                     }
                     if (preguntas)

@@ -46,7 +46,7 @@ void McpService::registerRegistroTools() {
                     "conviene mirar primero cuando algo anda mal.\n\n"
                     "Los MÓDULOS que suele haber: `app` (lo que no dice de dónde viene: printf y salida "
                     "cruda), `qml` (lo que se rompe en la interfaz), `qt`, `obs` (el motor de emisión, muy "
-                    "hablador), `gateway` (el Proceso B: sala, WebRTC, túnel), `launcher`, `graficos`, "
+                    "hablador), `gateway` (el Proceso B: conferencia, WebRTC, túnel), `launcher`, `graficos`, "
                     "`registro` y `marca`. `log_leer` sin filtros te devuelve cuáles hay ahora.\n\n"
                     "Cómo usarlo bien cuando algo falla:\n"
                     "  1. Primero sin filtros y con `minimo: \"aviso\"`: si hay un error, está ahí.\n"
@@ -132,10 +132,10 @@ void McpService::registerRegistroTools() {
             // El gateway es otro proceso: se le pide por su API de control.
             if (a.value("donde", std::string("app")) == "gateway") {
                 auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-                if (conf == nullptr) return done(ToolResult::error("La sala no esta corriendo."));
+                if (conf == nullptr) return done(ToolResult::error("El servidor no esta corriendo."));
                 if (!a.contains("nivel")) {
                     conf->control().nivelLog([done](const std::string& err, const json& r) {
-                        if (!err.empty()) return done(ToolResult::error("La sala no responde."));
+                        if (!err.empty()) return done(ToolResult::error("El servidor no responde."));
                         done(ToolResult().data(json{{"nivel", r.value("nivel", std::string())}, {"donde", "gateway"}}));
                     });
                     return;

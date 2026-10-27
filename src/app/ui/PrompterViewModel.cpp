@@ -306,7 +306,7 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
 // está, no pasa nada y la pantalla lo dice (`enLinea`).
 
 QString PrompterViewModel::cargar(const QString& rel) {
-    if (d_->sala == nullptr) return "La sala no está disponible.";
+    if (d_->sala == nullptr) return "El servidor no está disponible.";
     return QString::fromStdString(d_->sala->teleprompter().cargarDiscurso(d_->docs, rel.toStdString()));
 }
 
@@ -347,7 +347,7 @@ void PrompterViewModel::irAParrafo(int n) {
 
 void PrompterViewModel::pedirQr(const QString& target, const QString& vista, bool conClave) {
     if (d_->sala == nullptr) {
-        emit qrListo({}, {}, "La sala no está corriendo", {});
+        emit qrListo({}, {}, "El servidor no está corriendo", {});
         return;
     }
     QPointer<PrompterViewModel> yo(this);

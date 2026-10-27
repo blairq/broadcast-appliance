@@ -127,7 +127,7 @@
           // offer ofrecía subir algo. Si aparece, es que esta página cambió.
           avisar("El servidor me cortó", "Esta pantalla solo puede mirar");
         } else {
-          avisar("La sala no me dejó entrar", m.reason === "locked" ? "Está cerrada" : "No hay lugar");
+          avisar("La conferencia no me dejó entrar", m.reason === "locked" ? "Está cerrada" : "No hay lugar");
         }
       } else if (m.type === "busy") {
         avisar("No hay lugar para otra pantalla", "Probá cerrando alguna");

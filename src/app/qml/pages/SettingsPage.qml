@@ -1,5 +1,5 @@
 // Configuracion completa: secciones a la izquierda (agrupadas: Imagen, Salida,
-// Sala de invitados, Asistente, Sistema), formulario generado desde el esquema
+// Conferencia, Asistente, Sistema), formulario generado desde el esquema
 // (SettingsModel) y, en las que lo necesitan, una vista propia. Barra de
 // Aplicar/Revertir cuando hay cambios.
 import QtQuick
@@ -31,8 +31,8 @@ Rectangle {
     readonly property var grupos: [
         { titulo: "Imagen y sonido", secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
         { titulo: "Salida", secciones: ["Transmisión", "Grabación", "Codificación"] },
-        { titulo: "Sala de invitados", secciones: ["Invitados", "Sala", "Red de la sala"] },
-        // Las tres formas de sacar la sala a internet, cada una con su página.
+        { titulo: "Conferencia", secciones: ["Invitados", "Conferencia", "Red de la conferencia"] },
+        // Las tres formas de sacar la conferencia a internet, cada una con su página.
         { titulo: "Acceso desde internet", secciones: [page.pinggySection, "Cloudflare", "Túnel propio (WireGuard)"] },
         { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
         { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", page.systemSection] }
@@ -44,11 +44,11 @@ Rectangle {
     /// Las que tienen vista propia (el formulario del esquema, si tienen campos, va adentro).
     readonly property var propias: [page.systemSection, page.aparienciaSection, page.modelosSection,
                                     page.vozSection, page.traduccionSection, page.controlSection, page.pinggySection]
-    /// Las que reinician la sala al aplicar (y ofrecen reiniciarla a mano).
-    readonly property var deLaSala: ["Invitados", "Sala", "Red de la sala", "Cloudflare", "Túnel propio (WireGuard)", "Pinggy"]
+    /// Las que reinician la conferencia al aplicar (y ofrecen reiniciarla a mano).
+    readonly property var deLaSala: ["Invitados", "Conferencia", "Red de la conferencia", "Cloudflare", "Túnel propio (WireGuard)", "Pinggy"]
     /// Lo que va arriba de las páginas de túnel: qué es y cuándo conviene.
     readonly property var introducciones: ({
-        "Cloudflare": "Saca la sala a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.",
+        "Cloudflare": "Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.",
         "Túnel propio (WireGuard)": "El túnel común a un servidor propio con IP pública (un VPS): este equipo se conecta por WireGuard y los invitados entran directo por la IP o el dominio del servidor, sin intermediarios. Es el mejor camino para el video, pero necesita el servidor configurado. Sin permisos de administrador ni drivers. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio."
     })
     /// Subtítulos dentro de una sección: van arriba del campo con esa clave.
@@ -77,7 +77,7 @@ Rectangle {
     property string updateError: ""
 
     // Actualizar o volver atras cierra la app: emitiendo, grabando o con gente en
-    // la sala o en la sesion remota eso corta todo, asi que se advierte y se pide una
+    // la conferencia o en la sesion remota eso corta todo, asi que se advierte y se pide una
     // confirmacion explicita. Lo que se corta lo dice Studio (Main.qml usa lo mismo).
     readonly property bool onAir: Studio.impactoDeCerrar.hay
     function onAirWarning(what) { return Studio.avisoDeCerrar(what) }
@@ -186,7 +186,7 @@ Rectangle {
                     Seccion {
                         visible: page.section === "Cloudflare"
                         titulo: "Token del túnel de Cloudflare"
-                        subtitulo: "Sin token el túnel no arranca aunque esté prendido. Se guarda cifrado en este equipo y no se vuelve a mostrar. Rige cuando la sala arranca."
+                        subtitulo: "Sin token el túnel no arranca aunque esté prendido. Se guarda cifrado en este equipo y no se vuelve a mostrar. Rige cuando la conferencia arranca."
                         Text {
                             text: Studio.accesoRemoto && Studio.accesoRemoto.tokenCloudflareGuardado ? "● Guardado" : "● Sin token"
                             color: Studio.accesoRemoto && Studio.accesoRemoto.tokenCloudflareGuardado ? Theme.ok : Theme.warn; font.pixelSize: 12
@@ -221,7 +221,7 @@ Rectangle {
                         text: "Valores por defecto de esta sección"; compact: true
                         onClicked: Studio.settings.resetSection(page.section)
                     }
-                    // Las secciones de la sala: al aplicar se reinicia sola, y acá
+                    // Las secciones de la conferencia: al aplicar se reinicia sola, y acá
                     // también a mano (sin cerrar el programa).
                     RowLayout {
                         visible: page.deLaSala.indexOf(page.section) >= 0
@@ -229,20 +229,20 @@ Rectangle {
                         Layout.topMargin: 4
                         spacing: 10
                         GlassButton {
-                            compact: true; text: "Reiniciar la sala ahora"; icon: "↻"
+                            compact: true; text: "Reiniciar la conferencia ahora"; icon: "↻"
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Reiniciar la sala?",
-                                text: "Se reinicia solo el servidor de la sala (gateway) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
+                                title: "¿Reiniciar la conferencia?",
+                                text: "Se reinicia solo el servidor de la conferencia (gateway) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
                                 accept: "Reiniciar", reject: "Cancelar",
                                 action: function() {
                                     const e = Studio.conference.reiniciarSala()
-                                    Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                                    Studio.notify(e === "" ? "La conferencia se está reiniciando." : e, e === "" ? "ok" : "error")
                                 }
                             })
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Los cambios marcados «reinicia la sala» la reinician solos al aplicarlos; el resto del programa sigue andando."
+                            text: "Los cambios marcados «reinicia la conferencia» la reinician solos al aplicarlos; el resto del programa sigue andando."
                         }
                     }
                 }
@@ -387,29 +387,29 @@ Rectangle {
                         Studio.notify("API key guardada (cifrada).", "ok")
                         return
                     }
-                    // Si hay que reiniciar la sala para que rija lo decide el modelo.
+                    // Si hay que reiniciar la conferencia para que rija lo decide el modelo.
                     const r = pg.ar.guardarTokenTunel(campo.text, Studio.settings.dirty)
                     if (r.error !== "") { Studio.notify(r.error, "error"); return }
                     campo.text = ""
                     if (r.reiniciarAhora) {
                         ApplicationWindow.window.confirm({
                             title: "Token guardado",
-                            text: "La sala lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
-                            accept: "Reiniciar la sala", reject: "Después",
+                            text: "La conferencia lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
+                            accept: "Reiniciar la conferencia", reject: "Después",
                             action: function() {
                                 const e = Studio.conference.reiniciarSala()
-                                Studio.notify(e === "" ? "La sala se está reiniciando con el token nuevo." : e, e === "" ? "ok" : "error")
+                                Studio.notify(e === "" ? "La conferencia se está reiniciando con el token nuevo." : e, e === "" ? "ok" : "error")
                             }
                         })
                     } else {
-                        Studio.notify("Token guardado (cifrado). Rige cuando la sala arranca: prendé «Túnel de pinggy» y aplicá, o reiniciá la sala.", "ok")
+                        Studio.notify("Token guardado (cifrado). Rige cuando la conferencia arranca: prendé «Túnel de pinggy» y aplicá, o reiniciá la conferencia.", "ok")
                     }
                 }
 
 
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "Saca las páginas de la sala a internet por pinggy.io (una dirección para todo: invitados, sesión remota, público) y el video de los de afuera por un TURN propio. Lo de la red local sigue igual."
+                    text: "Saca las páginas de la conferencia a internet por pinggy.io (una dirección para todo: invitados, sesión remota, público) y el video de los de afuera por un TURN propio. Lo de la red local sigue igual."
                 }
                 // Gratis o Pro: qué se puede y qué no (lo de Pro, según pinggy: probado solo el gratis).
                 RowLayout {
@@ -580,7 +580,7 @@ Rectangle {
                                 compact: true; text: "Borrar"; enabled: pg.ar.tokenGuardado
                                 onClicked: ApplicationWindow.window.confirm({
                                     title: "¿Borrar el token de pinggy?",
-                                    text: "Cuando la sala vuelva a arrancar, el túnel queda en modo gratis hasta que guardes otro.",
+                                    text: "Cuando la conferencia vuelva a arrancar, el túnel queda en modo gratis hasta que guardes otro.",
                                     accept: "Borrar", reject: "Cancelar",
                                     action: function() { const e = pg.ar.borrarToken(); Studio.notify(e === "" ? "Token borrado." : e, e === "" ? "ok" : "error") }
                                 })
@@ -588,7 +588,7 @@ Rectangle {
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Dónde está: en el panel de pinggy, el token de acceso que aparece en el comando para abrir un túnel (ssh … <token>@pro.pinggy.io). Uno por equipo. Rige cuando la sala arranca."
+                            text: "Dónde está: en el panel de pinggy, el token de acceso que aparece en el comando para abrir un túnel (ssh … <token>@pro.pinggy.io). Uno por equipo. Rige cuando la conferencia arranca."
                         }
                     }
                     // --- 2. La API key ---
@@ -636,7 +636,7 @@ Rectangle {
                 // Armar todo con la API key: token, subdominio (y cambiarlo), puerto, y prender.
                 Seccion {
                     titulo: "Armar todo con la API key"
-                    subtitulo: pg.ar.apiKeyGuardada ? "Trae el token del túnel, tu subdominio y tu puerto TCP fijo desde la cuenta, y prende el túnel (la sala se reinicia)."
+                    subtitulo: pg.ar.apiKeyGuardada ? "Trae el token del túnel, tu subdominio y tu puerto TCP fijo desde la cuenta, y prende el túnel (la conferencia se reinicia)."
                                                     : "Primero guardá la API key (arriba)."
                     resaltado: pg.ar.cuenta.estado === "error" ? Theme.live : pg.ar.cuenta.estado === "ok" ? Theme.ok : "transparent"
                     RowLayout {
@@ -769,14 +769,14 @@ Rectangle {
                     spacing: 10
                     GlassButton { compact: true; text: "Valores por defecto de esta sección"; onClicked: Studio.settings.resetSection("Pinggy") }
                     GlassButton {
-                        compact: true; text: "Reiniciar la sala ahora"; icon: "↻"
+                        compact: true; text: "Reiniciar la conferencia ahora"; icon: "↻"
                         onClicked: ApplicationWindow.window.confirm({
-                            title: "¿Reiniciar la sala?",
-                            text: "Se reinicia solo el servidor de la sala (y el túnel) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
+                            title: "¿Reiniciar la conferencia?",
+                            text: "Se reinicia solo el servidor de la conferencia (y el túnel) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
                             accept: "Reiniciar", reject: "Cancelar",
                             action: function() {
                                 const e = Studio.conference.reiniciarSala()
-                                Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                                Studio.notify(e === "" ? "La conferencia se está reiniciando." : e, e === "" ? "ok" : "error")
                             }
                         })
                     }

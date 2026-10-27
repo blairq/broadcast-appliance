@@ -206,7 +206,7 @@ void McpService::registerConfiguracionesTools() {
         t.title = "Cambiar de configuración";
         t.category = "configuraciones";
         t.description = "Pasa a la configuración `nombre`: queda anotada y la app se REINICIA con ella (no copia nada). "
-                        "Se corta todo lo que esté andando (transmisión, grabación, sala): pedile confirmación al "
+                        "Se corta todo lo que esté andando (transmisión, grabación, conferencia): pedile confirmación al "
                         "operador antes.";
         t.inputSchema = {{"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", nombre}}}};
         t.run = [cf](const json& a, Done done) {

@@ -136,7 +136,7 @@ void McpService::registerOperatorTools() {
               {"photoOf",
                {{"type", "string"},
                 {"description",
-                 "Nombre o id de una persona de la sala: adjunta su foto (la ultima que mando su "
+                 "Nombre o id de una persona de la conferencia: adjunta su foto (la ultima que mando su "
                  "camara) a la tarjeta que ve el operador."}}}}},
             {"required", {"text"}}};
         t.examples = {
@@ -192,7 +192,7 @@ void McpService::registerOperatorTools() {
         t.category = "operador";
         t.readOnly = true;
         t.description =
-            "Conversaciones del chat de la sala donde un invitado escribio y el operador todavia no "
+            "Conversaciones del chat de la conferencia donde un invitado escribio y el operador todavia no "
             "contesto (privadas al operador y la general), con los mensajes pendientes.";
         t.run = [&vm](const json&, Done done) {
             const json p = pendingGuestChat(vm);

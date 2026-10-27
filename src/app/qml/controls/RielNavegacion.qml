@@ -514,7 +514,7 @@ Item {
                     model: [
                         { on: Studio.streaming, c: Theme.live,   si: "Al aire",       no: "Fuera del aire" },
                         { on: Studio.recording, c: Theme.accent, si: "Grabando",      no: "Sin grabar" },
-                        { on: Studio.gatewayAlive, c: Theme.ok,  si: "Sala en línea", no: "Sala sin conexión" }
+                        { on: Studio.gatewayAlive, c: Theme.ok,  si: "Conferencia en línea", no: "Conferencia sin conexión" }
                     ]
                     delegate: Item {
                         id: luz

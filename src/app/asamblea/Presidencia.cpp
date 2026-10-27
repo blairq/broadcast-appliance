@@ -178,8 +178,8 @@ void Presidencia::prioridadCambio() {
 
 std::string Presidencia::hablarARemoto(const std::string& integrante, bool activo) {
     if (activo && !(p_.microfonoOperador && p_.microfonoOperador()))
-        return "Para hablarle hace falta tu micrófono: elegilo en Sala → Tu cámara y micrófono.";
-    if (activo && !p_.sala.online()) return "La sala (el gateway) no está andando.";
+        return "Para hablarle hace falta tu micrófono: elegilo en Configuración → Voz del sistema.";
+    if (activo && !p_.sala.online()) return "El servidor (el gateway) no está andando.";
     sala::pedir(p_.sala, "POST", "/api/v1/sesion/hablar", {{"id", integrante}, {"activo", activo}}, sinRespuesta);
     // Su celular muestra «Te están hablando» y abre el sonido aunque esté en la sala.
     p_.sesion.ptt(integrante, activo, "operador");

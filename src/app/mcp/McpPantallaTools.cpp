@@ -189,7 +189,7 @@ void McpService::registerPantallaTools() {
                 const QString qid = QString::fromStdString(a["qr"].get<std::string>());
                 const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectarElegido(qid);
                 if (guardado.value("pendiente").toBool()) {
-                    done(ToolResult::error("La sala todavia no dio ese enlace (¿esta andando?): proba de nuevo en un momento."));
+                    done(ToolResult::error("La conferencia todavia no dio ese enlace (¿esta andando?): proba de nuevo en un momento."));
                     return;
                 }
                 if (guardado.isEmpty()) {
@@ -222,7 +222,7 @@ void McpService::registerPantallaTools() {
             "Deja fijo lo que esa pantalla tiene que mostrar: se lo manda ahora y CADA VEZ que el aparato "
             "vuelva a aparecer (se apago de noche, se reinicio, le cambio la direccion). Con `quitar` en "
             "true deja de tener algo fijo (no apaga lo que este mostrando).";
-        t.details = "Es para las pantallas que viven puestas: la del hall con el QR de la sala, la del "
+        t.details = "Es para las pantallas que viven puestas: la del hall con el QR de la conferencia, la del "
                     "fondo con el reloj. Lo fijado se guarda contra el nombre de servicio del aparato, no "
                     "contra su IP, asi que sobrevive a que el router le de otra direccion.";
         t.inputSchema = {
@@ -392,7 +392,7 @@ void McpService::registerPantallaTools() {
                     {"segundos",
                      {{"type", "integer"}, {"minimum", 3}, {"maximum", 3600}, {"default", 15}}}}}}}}}}}};
         t.examples = {
-            R"({"nombre": "Hall", "pasos": [{"tipo": "qr", "texto": "https://…", "pie": "Entrá a la sala", "segundos": 20}, {"tipo": "mensaje", "texto": "Empezamos 20:00", "segundos": 10}, {"tipo": "reloj", "segundos": 10}]})"};
+            R"({"nombre": "Hall", "pasos": [{"tipo": "qr", "texto": "https://…", "pie": "Entrá a la conferencia", "segundos": 20}, {"tipo": "mensaje", "texto": "Empezamos 20:00", "segundos": 10}, {"tipo": "reloj", "segundos": 10}]})"};
         t.run = [p](const json& a, Done done) {
             QString id = QString::fromStdString(a.value("id", ""));
             if (a.value("borrar", false)) {

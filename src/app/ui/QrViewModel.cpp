@@ -98,7 +98,7 @@ const std::vector<Tipo>& catalogo() {
           {"cuerpo", "Texto", "", true}},
          false},
         // --- Los del aparato: el contenido lo arma el sistema ----------------
-        {"sala", "Entrar a la sala", "El enlace de invitados de esta sala, con su PIN adentro.", {}, true},
+        {"sala", "Entrar a la conferencia", "El enlace de invitados de esta conferencia, con su PIN adentro.", {}, true},
         {"prompter", "El teleprompter", "La pantalla del orador (solo lee, no lleva clave).", {}, true},
         {"rotulos", "Rotular desde el celular", "Los textos de la escena al aire, con su clave.", {}, true},
         // El que se proyecta o se imprime en el programa: lo escanean todos los
@@ -495,7 +495,7 @@ void QrViewModel::setTipo(const QString& tipo) {
     if (t->delAparato) {
         d_->contenido = d_->delAparato.value(tipo);
         d_->aviso = d_->contenido.isEmpty()
-                        ? "Todavía no tengo ese enlace: hace falta que la sala esté corriendo."
+                        ? "Todavía no tengo ese enlace: hace falta que el servidor esté corriendo."
                         : QString();
     } else {
         d_->contenido = armar(tipo, d_->datos);
@@ -672,7 +672,7 @@ struct DelAparato {
     const char* etiqueta;
 };
 const DelAparato kDelAparato[] = {{"publico", "Público: preguntar y votar (con la clave adentro)"},
-                                  {"sala", "Sala: entrar como invitado (con el PIN adentro)"},
+                                  {"sala", "Conferencia: entrar como invitado (con el PIN adentro)"},
                                   {"prompter", "Prompter: la vista del orador"},
                                   {"rotulos", "Rótulos: cargarlos desde el teléfono"}};
 } // namespace

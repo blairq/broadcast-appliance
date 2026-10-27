@@ -137,7 +137,7 @@ McpCore::McpCore() {
     sec.category = "ayuda";
     sec.readOnly = true;
     sec.description =
-        "Dice si esta sesion leyo contenido de los invitados de la sala (su chat, nombres, archivos o "
+        "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
         "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
         "click: es "
         "una regla del servidor, no depende de vos. Para volver a actuar directo hace falta una sesion nueva "
@@ -759,7 +759,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                                              : "invitados";
         finish(
             ToolResult()
-                .text(t ? "Esta sesion leyo contenido de invitados de la sala: toda accion que modifica algo "
+                .text(t ? "Esta sesion leyo contenido de invitados de la conferencia: toda accion que modifica algo "
                           "necesita "
                           "que el operador la apruebe con un click."
                         : "Esta sesion no leyo contenido de invitados: las acciones se ejecutan directo "
@@ -880,7 +880,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                   "» necesita tu confirmación."
         : policy_ == ApprovalPolicy::Always
             ? "La politica pide aprobar toda accion del asistente."
-            : "El asistente leyo contenido de invitados de la sala (" + taint_[session].source +
+            : "El asistente leyo contenido de invitados de la conferencia (" + taint_[session].source +
                   "): por seguridad, lo que modifica algo necesita tu aprobacion.";
     approver_(*tool, args, reason, [execute, finish, name](bool ok) {
         if (ok) {

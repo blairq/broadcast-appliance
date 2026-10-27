@@ -53,7 +53,7 @@ Item {
         spacing: 8
         RowLayout {
             Layout.fillWidth: true
-            StatusPill { text: conf.online ? "Sala " + conf.room : "Sin sala"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
+            StatusPill { text: conf.online ? "Conferencia " + conf.room : "Sin conferencia"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
             Item { Layout.fillWidth: true }
             Text {
                 visible: conf.online
@@ -101,7 +101,7 @@ Item {
                 text: conf.shares.count > 0 ? "📎 " + conf.shares.count + " archivo(s) compartido(s)" : ""
                 color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true
             }
-            GlassButton { text: "Abrir sala"; compact: true; onClicked: ApplicationWindow.window.showPage(2) }
+            GlassButton { text: "Abrir conferencia"; compact: true; onClicked: ApplicationWindow.window.showPage(2) }
         }
     }
 }

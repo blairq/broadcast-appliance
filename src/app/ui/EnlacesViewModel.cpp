@@ -29,16 +29,16 @@ namespace {
 
 const std::vector<ServicioEnlace>& catalogo() {
     static const std::vector<ServicioEnlace> c = {
-        {"invitados", "Sala y público", "Ingreso de invitados",
-         "Los que entran a la sala con cámara y micrófono (pasan por el lobby).", "ingreso", "sala"},
-        {"tablero", "Sala y público", "Tablero de oradores",
+        {"invitados", "Conferencia y público", "Ingreso de invitados",
+         "Los que entran a la conferencia con cámara y micrófono (pasan por el lobby).", "ingreso", "sala"},
+        {"tablero", "Conferencia y público", "Tablero de oradores",
          "Una tablet o un monitor que muestra quién habla y su tiempo (solo mirar).", "tablero", "sala"},
-        {"publico", "Sala y público", "Página del público",
+        {"publico", "Conferencia y público", "Página del público",
          "La gente de la sala o de afuera: preguntas, urna y votaciones. Se proyecta o se imprime.", "publico",
          "publico"},
-        {"invitaciones", "Sala y público", "Invitaciones personales",
+        {"invitaciones", "Conferencia y público", "Invitaciones personales",
          "Una por persona del padrón: acredita al entrar. Se dan desde el evento.", "", "guion", true},
-        {"registro", "Sala y público", "Registro de personas (tótems)",
+        {"registro", "Conferencia y público", "Registro de personas (tótems)",
          "Una TV con cámara o el celular de quien escanea el QR: se registra hablando. Uno o varios por evento.", "",
          "personas", true},
         {"prompter-control", "Producción", "Teleprompter: control",
@@ -141,7 +141,7 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
         return u.empty() ? QVariant() : QVariant(QString::fromStdString(u));
     };
     const auto porQue = [d, enLinea](const char* servicio) {
-        if (!enLinea || d == nullptr) return QString("La sala no responde");
+        if (!enLinea || d == nullptr) return QString("El servidor no responde");
         return QString::fromStdString(d->motivo(servicio, false));
     };
     const auto it = urls_.find(s.id);
@@ -165,7 +165,7 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
     // El estado según qué enlaces hay: el local de verdad (no 127.0.0.1) y el de afuera.
     // Sin la sala no anda nada.
     const auto segunEnlaces = [&]() {
-        if (!enLinea) return estado("error", "La sala no responde");
+        if (!enLinea) return estado("error", "El servidor no responde");
         const QString local = m.value("local").toString();
         const QString nota = m.value("nota").toString();
         const bool hayAfuera = !m.value("remoto").toString().isEmpty();
@@ -188,7 +188,7 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
     } else if (id == "botonera") {
         m["local"] = dir("botonera", false);
         m["nota"] = "Se abre con el QR de emparejar (Botonera → Generar QR); sin el código no entra.";
-        poner(!enLinea                   ? estado("error", "La sala no responde")
+        poner(!enLinea                   ? estado("error", "El servidor no responde")
               : m.value("local").isNull() ? estado("aviso", "Ninguna tablet llega: " + porQue("botonera"))
                                           : estado("ok", "Lista para emparejar (solo red local)"));
     } else if (id == "control") {
@@ -201,7 +201,7 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
                         .arg(c.value("tunel").toBool() ? " · desde afuera, con PIN" : "");
         // El LED: verde si hay algún aparato conectado ahora.
         // (Los que esperan aprobación los pone abajo, como en todos los que aprueban.)
-        poner(!enLinea                ? estado("error", "La sala no responde")
+        poner(!enLinea                ? estado("error", "El servidor no responde")
               : m.value("local").isNull() ? estado("aviso", "Ningún aparato llega: " + porQue("control"))
               : conectados > 0        ? estado("ok", conectados == 1 ? QString("Un aparato conectado")
                                                                      : QString::number(conectados) + " aparatos conectados")
@@ -246,12 +246,12 @@ QVariantMap EnlacesViewModel::fila(const ServicioEnlace& s) const {
         else
             poner(segunEnlaces());
     } else if (id == "pantallas") {
-        poner(enLinea ? estado("ok", "Cada televisor, desde Pantallas") : estado("error", "La sala no responde"));
+        poner(enLinea ? estado("ok", "Cada televisor, desde Pantallas") : estado("error", "El servidor no responde"));
     } else if (id == "registro") {
         // Sin enlace acá: el de cada tótem lleva su token y se da desde Personas.
-        poner(enLinea ? estado("ok", "Uno por tótem, desde Personas → Registro") : estado("error", "La sala no responde"));
+        poner(enLinea ? estado("ok", "Uno por tótem, desde Personas → Registro") : estado("error", "El servidor no responde"));
     } else if (id == "invitaciones") {
-        poner(enLinea ? estado("ok", "Una por persona, desde el evento") : estado("error", "La sala no responde"));
+        poner(enLinea ? estado("ok", "Una por persona, desde el evento") : estado("error", "El servidor no responde"));
     } else if (id == "tunel") {
         const QString e = t.value("estado").toString();
         m["activable"] = true;

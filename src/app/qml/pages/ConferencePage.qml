@@ -166,7 +166,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         visible: spkList.count === 0
-                        text: "Nadie en la fila. Admití gente del lobby, o usá «→ Oradores» en alguien que ya esté en la sala."
+                        text: "Nadie en la fila. Admití gente del lobby, o usá «→ Oradores» en alguien que ya esté en la conferencia."
                         color: Theme.textFaint; font.pixelSize: 13
                     }
                 }
@@ -407,25 +407,25 @@ Rectangle {
                     // de apretarse: las baldosas de la sala tienen de sobra con
                     // menos, y quedarse sin Chat visible es peor.
                     Layout.minimumHeight: 220
-                    title: "En la sala"
+                    title: "En la conferencia"
                     RowLayout {
                         anchors { right: parent.right; top: parent.top; topMargin: -34 }
                         spacing: 8
-                        StatusPill { text: conf.online ? "Sala " + conf.room : "Sala sin conexion"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
+                        StatusPill { text: conf.online ? "Conferencia " + conf.room : "Conferencia sin conexion"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
                         StatusPill { visible: conf.online; text: (conf.maxGuests - conf.slotsFree) + "/" + conf.maxGuests + " lugares"; dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
                         // Reinicia SOLO la sala (el gateway): relee su configuración (IP,
                         // puertos, túnel) sin cerrar el programa.
                         GlassButton {
-                            compact: true; text: "Reiniciar la sala"; icon: "↻"
+                            compact: true; text: "Reiniciar la conferencia"; icon: "↻"
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Reinicia solo el servidor de la sala (gateway) con su configuración actual, sin cerrar el programa. Los invitados se cortan y vuelven a entrar."
+                            ToolTip.text: "Reinicia solo el servidor de la conferencia (gateway) con su configuración actual, sin cerrar el programa. Los invitados se cortan y vuelven a entrar."
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Reiniciar la sala?",
-                                text: "Se reinicia solo el servidor de la sala con su configuración actual. Los invitados conectados se cortan y vuelven a entrar solos.",
+                                title: "¿Reiniciar la conferencia?",
+                                text: "Se reinicia solo el servidor de la conferencia con su configuración actual. Los invitados conectados se cortan y vuelven a entrar solos.",
                                 accept: "Reiniciar", reject: "Cancelar",
                                 action: function() {
                                     const e = conf.reiniciarSala()
-                                    Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                                    Studio.notify(e === "" ? "La conferencia se está reiniciando." : e, e === "" ? "ok" : "error")
                                 }
                             })
                         }
@@ -670,7 +670,7 @@ Rectangle {
                             onCurrentIndexChanged: page.hiloChat =
                                 currentIndex === 0 || currentIndex > conf.chatHilos.length
                                     ? "" : conf.chatHilos[currentIndex - 1].uid
-                            TabButton { text: "Sala"; width: implicitWidth }
+                            TabButton { text: "Conferencia"; width: implicitWidth }
                             Repeater {
                                 model: conf.chatHilos
                                 delegate: TabButton {
@@ -727,7 +727,7 @@ Rectangle {
                                 id: chatInput
                                 Layout.fillWidth: true
                                 placeholderText: page.hiloChat === ""
-                                                 ? "Escribí a toda la sala…"
+                                                 ? "Escribí a toda la conferencia…"
                                                  : "En privado a " + conf.nameOf(page.hiloChat) + "…"
                                 onAccepted: send()
                                 function send() {
@@ -806,7 +806,7 @@ Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         icon: "⟨"; compact: true
                         onClicked: page.expandirDer()
-                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir el panel (Acceso, uso de la sala…)"
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir el panel (Acceso, uso de la conferencia…)"
                     }
                     GlassButton {
                         Layout.alignment: Qt.AlignHCenter
@@ -818,7 +818,7 @@ Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         text: "PIN"; compact: true
                         onClicked: { Studio.copiar(conf.pin); Studio.notify("PIN copiado: " + conf.pin, "info") }
-                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Copiar el PIN de la sala"
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Copiar el PIN de la conferencia"
                     }
                     GlassButton {
                         Layout.alignment: Qt.AlignHCenter
@@ -834,7 +834,7 @@ Rectangle {
                         active: conf.locked; activeColor: Theme.live
                         onClicked: conf.setLocked(!conf.locked)
                         ToolTip.visible: hovered; ToolTip.delay: 300
-                        ToolTip.text: conf.locked ? "Sala cerrada: nadie nuevo puede pedir entrar" : "Sala abierta a quien tenga el PIN"
+                        ToolTip.text: conf.locked ? "Conferencia cerrada: nadie nuevo puede pedir entrar" : "Conferencia abierta a quien tenga el PIN"
                     }
                 }
 
@@ -857,7 +857,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: usoCol.implicitHeight + 56
-                    title: "Uso de la sala"
+                    title: "Uso de la conferencia"
                     ColumnLayout {
                         id: usoCol
                         anchors.fill: parent
@@ -870,7 +870,7 @@ Rectangle {
                             spacing: 6
                             StatusPill {
                                 text: (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0) + "/" +
-                                      (usoCol.u.lugares !== undefined ? usoCol.u.lugares : 0) + " en la sala"
+                                      (usoCol.u.lugares !== undefined ? usoCol.u.lugares : 0) + " en la conferencia"
                                 dot: Theme.accent
                             }
                             StatusPill {
@@ -1020,7 +1020,7 @@ Rectangle {
                             ColumnLayout {
                                 spacing: 0
                                 Layout.fillWidth: true
-                                Text { text: "Sala cerrada"; color: Theme.text; font.pixelSize: 13 }
+                                Text { text: "Conferencia cerrada"; color: Theme.text; font.pixelSize: 13 }
                                 Text { text: conf.locked ? "Nadie nuevo puede pedir entrar" : "Abierta a quien tenga el PIN"; color: Theme.textFaint; font.pixelSize: 11 }
                             }
                         }
@@ -1098,15 +1098,15 @@ Rectangle {
                         RowLayout {
                             Item { Layout.fillWidth: true }
                             GlassButton {
-                                compact: true; text: "Guardar y reiniciar la sala"
+                                compact: true; text: "Guardar y reiniciar la conferencia"
                                 onClicked: ApplicationWindow.window.confirm({
-                                    title: "¿Reiniciar la sala con el proxy nuevo?",
+                                    title: "¿Reiniciar la conferencia con el proxy nuevo?",
                                     text: "Los invitados conectados se cortan y vuelven a entrar.",
                                     accept: "Reiniciar", reject: "Cancelar",
                                     action: function() {
                                         const e = conf.configurarProxy({ activo: pxActivo.checked, dominio: pxDominio.text.trim(),
                                                                          acme: { activo: pxAcme.checked, email: pxEmail.text.trim(), pruebas: pxPruebas.checked } })
-                                        Studio.notify(e === "" ? "Proxy guardado: la sala se reinicia." : e, e === "" ? "ok" : "error")
+                                        Studio.notify(e === "" ? "Proxy guardado: la conferencia se reinicia." : e, e === "" ? "ok" : "error")
                                     }
                                 })
                             }
@@ -1281,7 +1281,7 @@ Rectangle {
         property string whoName: ""
         anchors.centerIn: parent
         modal: true
-        title: "¿Sacar a " + whoName + " de la sala?"
+        title: "¿Sacar a " + whoName + " de la conferencia?"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: conf.kick(who)
     }
@@ -1311,7 +1311,7 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: "Un servidor con IP publica (un VPS con Linux) le da a esta sala su propia direccion en internet: los invitados entran directo, sin Cloudflare. " +
+                text: "Un servidor con IP publica (un VPS con Linux) le da a esta conferencia su propia direccion en internet: los invitados entran directo, sin Cloudflare. " +
                       "Este equipo se conecta por WireGuard en espacio de usuario: no necesita permisos de administrador ni drivers."
             }
             GridLayout {

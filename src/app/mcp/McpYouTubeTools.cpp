@@ -517,7 +517,7 @@ void McpService::registerYouTubeTools() {
         t.category = "youtube";
         t.description =
             "Agrega a una escena la fuente \"Chat en vivo\": los mensajes de YouTube, Twitch, Facebook y/o "
-            "la sala sobre el video, con fondo transparente. Se ajusta con source_update (settings: "
+            "la conferencia sobre el video, con fondo transparente. Se ajusta con source_update (settings: "
             "channel all|youtube|twitch|facebook|room, show_youtube, show_twitch, show_facebook, "
             "show_room, max_messages, font_size, width, height, bg_opacity, show_names, fade_sec).";
         t.inputSchema = {
@@ -558,7 +558,7 @@ void McpService::registerYouTubeTools() {
             rt.save();
             done(ToolResult::ok("Chat en pantalla en '" + scene + "'" +
                                 (yt->chatBroadcastId().isEmpty()
-                                     ? " (sin evento de YouTube elegido: por ahora solo la sala; "
+                                     ? " (sin evento de YouTube elegido: por ahora solo la conferencia; "
                                        "youtube_chat {\"broadcast\"})"
                                      : "") +
                                 ". Verifica con foto_fuente."));

@@ -25,7 +25,7 @@ inline constexpr Tipo kTipos[] = {
     {"direccion", "Dirección", "◎"}, {"aire", "Aire", "●"},         {"outputs", "Salidas", "⇪"},
     {"scenes", "Escenas", "▦"},      {"mixer", "Mezclador", "🎚"},  {"guests", "Invitados", "☺"},
     {"health", "Sistema", "♥"},      {"monitor", "Monitor", "▭"},   {"sources", "Fuentes", "◉"},
-    {"lobby", "Sala", "☎"},          {"speakers", "Oradores", "✋"}, {"carrusel", "Carrusel", "⟳"},
+    {"lobby", "Conferencia", "☎"},   {"speakers", "Oradores", "✋"}, {"carrusel", "Carrusel", "⟳"},
     {"ptz", "Control PTZ", "⌖"},     {"pdf", "PDF", "▤"},
 };
 

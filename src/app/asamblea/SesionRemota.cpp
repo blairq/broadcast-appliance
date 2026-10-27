@@ -149,7 +149,7 @@ json SesionRemota::armarAcceso(const json& i, const std::string& token, const st
     } catch (...) {
     }
     if (origen().empty())
-        out["aviso"] = motivoOrigen_.empty() ? std::string("La sala todavía no dio su dirección: completá el comienzo del link.")
+        out["aviso"] = motivoOrigen_.empty() ? std::string("El servidor todavía no dio su dirección: completá el comienzo del link.")
                                              : motivoOrigen_;
     return out;
 }
@@ -644,7 +644,7 @@ json SesionRemota::generarConsola(const std::string& nombre) {
     // Sin origen el link sería «/presidencia/#…» (sin https ni dirección): un QR que no
     // abre nada. Mejor decirlo que entregar una credencial rota (y se ve una sola vez).
     if (origen().empty())
-        return {{"error", motivoOrigen_.empty() ? std::string("La sala todavía no dio su dirección: esperá unos segundos y "
+        return {{"error", motivoOrigen_.empty() ? std::string("El servidor todavía no dio su dirección: esperá unos segundos y "
                                                               "probá de nuevo.")
                                                 : "Todavía no hay una dirección para el link: " + motivoOrigen_}};
     const std::string id = hexAleatorio(4);

@@ -371,7 +371,7 @@ Item {
         wrapMode: Text.WordWrap
         color: Theme.textFaint
         font.pixelSize: 12
-        text: raiz.pub.enLinea ? "" : "No puedo ver la urna: la sala no responde."
+        text: raiz.pub.enLinea ? "" : "No puedo ver la urna: el servidor no responde."
     }
 
     Popup {

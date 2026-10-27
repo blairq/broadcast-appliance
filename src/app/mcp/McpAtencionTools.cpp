@@ -34,7 +34,7 @@ void McpService::registerAtencionTools() {
         t.title = "Cómo se atiende a quien se conecta";
         t.category = "sala";
         t.readOnly = true;
-        t.description = "Si el asistente atiende a los que llegan (sala y asamblea), si lo hace hablando, quién "
+        t.description = "Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién "
                         "atiende (recepción o automatización), a quién está atendiendo y de qué forma, el alta "
                         "automática en Personas y la voz del atendedor.";
         t.details = "QUIÉN ATIENDE: el rol «recepcion» si está prendido; si no, el asistente de automatización; "
@@ -56,7 +56,7 @@ void McpService::registerAtencionTools() {
         t.title = "Prender o apagar la atención a quien se conecta";
         t.category = "sala";
         t.idempotent = true;
-        t.description = "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la sala), "
+        t.description = "Cambia lo que venga: `salaAtiende` («Los atiende el asistente» en la conferencia), "
                         "`salaHablando` (lo que dice se pasa a texto y se le contesta con voz), `asambleaAtiende` "
                         "(mira la cara de quien espera en la sesión remota y lo habilita si el padrón lo deja "
                         "entrar solo; si no, le pregunta al operador), `asambleaHablando` (además, mientras espera "
@@ -65,7 +65,7 @@ void McpService::registerAtencionTools() {
                         "dio su nombre y tiene cara reconocible) y `voz` {repo, hablante, velocidad} (la voz del "
                         "atendedor).";
         t.details = "Prender la atención sin quién atienda (ni recepción ni automatización) da error. Con la de "
-                    "la sala prendida, el reconocimiento del lobby corre siempre. Quién entra solo si se lo "
+                    "la conferencia prendida, el reconocimiento del lobby corre siempre. Quién entra solo si se lo "
                     "reconoce se cambia en el padrón del evento: padron_cambiar {id, dejarPasarSolo}.";
         t.inputSchema = {{"type", "object"},
                          {"properties",

@@ -50,7 +50,7 @@ ColumnLayout {
         color: Theme.textDim; font.pixelSize: 12
         text: !les.hayEvento
               ? "Abrí un evento: quién entra solo es de cada evento (su padrón)."
-              : "Los que tienen el permiso entran solos si la cámara los reconoce: a la sala sin esperar, y en la " +
+              : "Los que tienen el permiso entran solos si la cámara los reconoce: a la conferencia sin esperar, y en la " +
                 "asamblea quedan habilitados. Se avisa siempre. Sin ficha de rostro no se puede dar el permiso."
     }
     ListView {

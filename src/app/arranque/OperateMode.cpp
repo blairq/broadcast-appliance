@@ -1652,7 +1652,7 @@ bool AppRuntime::restartGateway() {
 
 void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo) {
     if (reiniciandoSala_.exchange(true)) {
-        if (listo) listo("ya se está reiniciando la sala");
+        if (listo) listo("ya se está reiniciando la conferencia");
         return;
     }
     if (reinicioSala_.joinable()) reinicioSala_.join(); // el anterior ya terminó

@@ -124,9 +124,9 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         err.textContent = {
-          pin: room ? "PIN o sala incorrectos. Revisá los datos que te pasó el operador." : "PIN incorrecto.",
+          pin: room ? "PIN o conferencia incorrectos. Revisá los datos que te pasó el operador." : "PIN incorrecto.",
           rate: "Demasiados intentos desde este equipo. Esperá un minuto.",
-          locked: "La sala está cerrada en este momento.",
+          locked: "La conferencia está cerrada en este momento.",
         }[data.error] || (res.status === 503
           ? "El servidor está muy ocupado. Probá de nuevo en un momento."
           : "No se pudo entrar. Revisá los datos que te pasó el operador.");
@@ -316,7 +316,7 @@
           if (state.ws !== ws || state.left) return;
           if (++state.resumeFailures >= 2) {
             clearSession();
-            end("Tu lugar en la sala venció", "Pasó demasiado tiempo desconectado. Volvé a entrar.");
+            end("Tu lugar en la conferencia venció", "Pasó demasiado tiempo desconectado. Volvé a entrar.");
             return;
           }
         }
@@ -404,7 +404,7 @@
         if (!state.pc) startPeer();
         break;
       case "busy":
-        toast("La sala no tiene lugar para tu video en este momento", "bad");
+        toast("La conferencia no tiene lugar para tu video en este momento", "bad");
         break;
       case "talk":
         $("talk-badge").textContent = "● Te está hablando";
@@ -454,7 +454,7 @@
         state.left = true;
         clearSession();
         const why = {
-          locked: ["La sala está cerrada", "El operador cerró la sala a nuevos ingresos."],
+          locked: ["La conferencia está cerrada", "El operador cerró la conferencia a nuevos ingresos."],
           lobby_full: ["Hay mucha gente esperando", "La sala de espera está llena. Probá de nuevo en un minuto."],
           error: ["No se pudo entrar", "El servidor tuvo un problema. Probá de nuevo en un momento."],
         }[msg.reason] || ["No pudiste entrar", "El operador no te hizo pasar esta vez."];
@@ -464,7 +464,7 @@
       case "kicked":
         state.left = true;
         clearSession();
-        end("Saliste de la sala", "El operador te sacó de la sala.");
+        end("Saliste de la conferencia", "El operador te sacó de la conferencia.");
         break;
       case "request":
         onRequest(msg.what);
@@ -974,7 +974,7 @@
     el.className = "status " + cls;
     el.textContent = text;
     // El lobby no tiene ese cartel: alli el estado va en el texto de espera.
-    if (!state.admitted) $("lobby-text").textContent = cls === "ok" ? LOBBY_TEXT : "Se cortó la conexión. Reconectando con la sala…";
+    if (!state.admitted) $("lobby-text").textContent = cls === "ok" ? LOBBY_TEXT : "Se cortó la conexión. Reconectando con la conferencia…";
   }
 
   function leave() {
@@ -983,7 +983,7 @@
     try { if (state.ws) state.ws.close(); } catch (e) {}
     teardownPeer();
     clearSession();
-    end("Saliste de la sala", "Gracias por participar.");
+    end("Saliste de la conferencia", "Gracias por participar.");
   }
 
   function end(title, text) {
@@ -1032,7 +1032,7 @@
   $("btn-chat-close").addEventListener("click", () => toggleChat(false));
   // Dentro de la sala, salir pide confirmacion: un toque sin querer obliga a
   // volver a pasar por el lobby en pleno vivo.
-  $("btn-leave").addEventListener("click", () => { if (window.confirm("¿Salir de la sala?")) leave(); });
+  $("btn-leave").addEventListener("click", () => { if (window.confirm("¿Salir de la conferencia?")) leave(); });
   window.addEventListener("online", reconnectNow);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
@@ -1093,7 +1093,7 @@
   if (saved && saved.id && saved.key) {
     Object.assign(state, { id: saved.id, key: saved.key, room: saved.room, name: saved.name || "" });
     show("lobby");
-    $("lobby-text").textContent = "Reconectando con la sala…";
+    $("lobby-text").textContent = "Reconectando con la conferencia…";
     const resume = () => connect();
     navigator.mediaDevices && navigator.mediaDevices.getUserMedia
       ? navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(setLocalStream, () => {}).finally(resume)

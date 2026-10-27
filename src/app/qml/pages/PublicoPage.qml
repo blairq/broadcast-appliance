@@ -45,7 +45,7 @@ Rectangle {
                         font { pixelSize: 17; weight: Font.DemiBold }
                     }
                     Text {
-                        text: "El que está en la butaca, con su teléfono. No entra a la sala: no " +
+                        text: "El que está en la butaca, con su teléfono. No entra a la conferencia: no " +
                               "pide cámara ni micrófono."
                         color: Theme.textDim
                         font.pixelSize: 12
@@ -54,7 +54,7 @@ Rectangle {
                 Item { Layout.fillWidth: true }
                 Text {
                     visible: !page.pub.enLinea
-                    text: "Sin conexión con la sala"
+                    text: "Sin conexión con el servidor"
                     color: Theme.live
                     font.pixelSize: 12
                 }

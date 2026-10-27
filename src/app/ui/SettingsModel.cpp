@@ -143,9 +143,9 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"encoder.audioBitrate", "Codificación", "Bitrate de audio", "choice", choices({{"96","96"},{"128","128"},{"160","160"},{"192","192"},{"256","256"},{"320","320"}}), 0, 0, "kbps", "", "live", "160"},
         // --- Invitados -------------------------------------------------------------
         {"guests.count", "Invitados", "Cantidad de invitados", "int", {}, 0, ba::ipc::kMaxInvitados, "",
-         QString("Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la sala» antes de subirlo mucho. Cambia en caliente (hasta %1), sin cortar a nadie.").arg(ba::ipc::kMaxInvitados),
+         QString("Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la conferencia» antes de subirlo mucho. Cambia en caliente (hasta %1), sin cortar a nadie.").arg(ba::ipc::kMaxInvitados),
          "live", 2},
-        {"guests.reserva", "Invitados", "Lugares reservados", "int", {}, 1, 16, "", "Los lugares que la sala deja listos al arrancar (sus canales de video y audio). Ya no limita el cupo: los que faltan se crean cuando el cupo sube. Cambiarlo reinicia el gateway.", "gateway", 4},
+        {"guests.reserva", "Invitados", "Lugares reservados", "int", {}, 1, 16, "", "Los lugares que la conferencia deja listos al arrancar (sus canales de video y audio). Ya no limita el cupo: los que faltan se crean cuando el cupo sube. Cambiarlo reinicia el gateway.", "gateway", 4},
         {"guests.video", "Invitados", "Video de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audio", "Invitados", "Audio de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audioPreset", "Invitados", "Procesamiento de voz", "choice", choices({{"podium","Podio"},{"lavalier","Corbatero"},{"handheld","De mano"},{"","Sin procesar"}}), 0, 0, "", "Channel strip nativo: HPF, EQ, de-esser, gate, compresor y limitador.", "restart", "podium"},
@@ -154,29 +154,29 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"gateway.videoH", "Invitados", "Video del invitado: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
         {"gateway.returnW", "Invitados", "Retorno al invitado: ancho", "int", {}, 320, 1920, "px", "", "gateway", 640},
         {"gateway.returnH", "Invitados", "Retorno al invitado: alto", "int", {}, 180, 1080, "px", "", "gateway", 360},
-        // --- Sala ------------------------------------------------------------------
-        {"gateway.room", "Sala", "Nombre de la sala", "text", {}, 0, 0, "", "Nombre de la sala a la que entran los invitados.", "gateway", "sala1"},
-        {"room.lobby", "Sala", "Lobby de admisión", "bool", {}, 0, 0, "", "Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos).", "gateway", true},
-        {"room.lobbySlots", "Sala", "Previews del lobby", "int", {}, 0, 8, "", "Cuántos de los que esperan pueden mostrarte su cámara a la vez.", "gateway", 4},
-        {"room.maxBackstage", "Sala", "Fila de oradores", "int", {}, 0, 32, "", "Modo oradores: cuántos en la fila pueden ver el programa a la vez (cada uno usa una sesión de video).", "gateway", 12},
-        {"room.backstagePreviews", "Sala", "Previews de la fila", "int", {}, 0, 8, "", "Modo oradores: cuántos de la fila (los primeros) te muestran su cámara en la app.", "gateway", 6},
-        {"room.vistasRemotas", "Sala", "Integrantes mirando a la vez", "int", {}, 1, 64, "", "Sesión remota: cuántos integrantes pueden mirar un canal a la vez en su celular (cada uno es una conexión de video).", "gateway", 16},
-        {"gateway.programaW", "Sala", "Retorno a las pantallas: ancho", "int", {}, 320, 3840, "px", "Resolución del programa que va a las pantallas de la sala y a los celulares.", "gateway", 1280},
-        {"gateway.programaH", "Sala", "Retorno a las pantallas: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
-        {"room.pinIntentos", "Sala", "PIN: intentos por dirección", "int", {}, 1, 100, "", "PIN mal tantas veces desde una misma dirección: se la bloquea un rato.", "gateway", 5},
-        {"room.pinBloqueo", "Sala", "PIN: bloqueo", "int", {}, 5, 86400, "s", "Cuánto queda bloqueada esa dirección.", "gateway", 60},
-        {"room.maxUploadMB", "Sala", "Tope por archivo compartido", "int", {}, 1, 20480, "MB", "", "gateway", 2048},
-        // --- Red de la sala --------------------------------------------------------
-        {"gateway.port", "Red de la sala", "Puerto de la sala", "int", {}, 1024, 65535, "", "", "gateway", 8787},
-        {"gateway.bind", "Red de la sala", "Acceso (dónde escucha)", "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la sala.", "gateway", "127.0.0.1"},
-        {"gateway.urlHost", "Red de la sala", "Dirección para el QR y el enlace", "combo", opcionesUrlHost(rt.gateway().urlHost), 0, 0, "", "Lo que va en el QR de la sala y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la sala.", "gateway", ""},
-        {"direct.https", "Red de la sala", "HTTPS propio", "bool", {}, 0, 0, "", "Los navegadores solo dan cámara y micrófono en paginas seguras: sin HTTPS, un invitado por la red local o por IP pública no puede usarlos.", "gateway", true},
-        {"direct.httpsPort", "Red de la sala", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).", "gateway", 8789},
-        {"direct.rtcMin", "Red de la sala", "WebRTC: primer puerto UDP", "int", {}, 1024, 65000, "", "Rango fijo para el firewall y la redirección del servidor.", "gateway", 40000},
-        {"direct.rtcMax", "Red de la sala", "WebRTC: último puerto UDP", "int", {}, 1024, 65535, "", "", "gateway", 40099},
-        {"room.adminPort", "Red de la sala", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: la usa esta app.", "gateway", 8788},
+        // --- Conferencia -----------------------------------------------------------
+        {"gateway.room", "Conferencia", "Nombre de la conferencia", "text", {}, 0, 0, "", "Nombre de la conferencia a la que entran los invitados.", "gateway", "sala1"},
+        {"room.lobby", "Conferencia", "Lobby de admisión", "bool", {}, 0, 0, "", "Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos).", "gateway", true},
+        {"room.lobbySlots", "Conferencia", "Previews del lobby", "int", {}, 0, 8, "", "Cuántos de los que esperan pueden mostrarte su cámara a la vez.", "gateway", 4},
+        {"room.maxBackstage", "Conferencia", "Fila de oradores", "int", {}, 0, 32, "", "Modo oradores: cuántos en la fila pueden ver el programa a la vez (cada uno usa una sesión de video).", "gateway", 12},
+        {"room.backstagePreviews", "Conferencia", "Previews de la fila", "int", {}, 0, 8, "", "Modo oradores: cuántos de la fila (los primeros) te muestran su cámara en la app.", "gateway", 6},
+        {"room.vistasRemotas", "Conferencia", "Integrantes mirando a la vez", "int", {}, 1, 64, "", "Sesión remota: cuántos integrantes pueden mirar un canal a la vez en su celular (cada uno es una conexión de video).", "gateway", 16},
+        {"gateway.programaW", "Conferencia", "Retorno a las pantallas: ancho", "int", {}, 320, 3840, "px", "Resolución del programa que va a las pantallas de la sala y a los celulares.", "gateway", 1280},
+        {"gateway.programaH", "Conferencia", "Retorno a las pantallas: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
+        {"room.pinIntentos", "Conferencia", "PIN: intentos por dirección", "int", {}, 1, 100, "", "PIN mal tantas veces desde una misma dirección: se la bloquea un rato.", "gateway", 5},
+        {"room.pinBloqueo", "Conferencia", "PIN: bloqueo", "int", {}, 5, 86400, "s", "Cuánto queda bloqueada esa dirección.", "gateway", 60},
+        {"room.maxUploadMB", "Conferencia", "Tope por archivo compartido", "int", {}, 1, 20480, "MB", "", "gateway", 2048},
+        // --- Red de la conferencia -------------------------------------------------
+        {"gateway.port", "Red de la conferencia", "Puerto de la conferencia", "int", {}, 1024, 65535, "", "", "gateway", 8787},
+        {"gateway.bind", "Red de la conferencia", "Acceso (dónde escucha)", "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la conferencia.", "gateway", "127.0.0.1"},
+        {"gateway.urlHost", "Red de la conferencia", "Dirección para el QR y el enlace", "combo", opcionesUrlHost(rt.gateway().urlHost), 0, 0, "", "Lo que va en el QR de la conferencia y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la conferencia.", "gateway", ""},
+        {"direct.https", "Red de la conferencia", "HTTPS propio", "bool", {}, 0, 0, "", "Los navegadores solo dan cámara y micrófono en paginas seguras: sin HTTPS, un invitado por la red local o por IP pública no puede usarlos.", "gateway", true},
+        {"direct.httpsPort", "Red de la conferencia", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).", "gateway", 8789},
+        {"direct.rtcMin", "Red de la conferencia", "WebRTC: primer puerto UDP", "int", {}, 1024, 65000, "", "Rango fijo para el firewall y la redirección del servidor.", "gateway", 40000},
+        {"direct.rtcMax", "Red de la conferencia", "WebRTC: último puerto UDP", "int", {}, 1024, 65535, "", "", "gateway", 40099},
+        {"room.adminPort", "Red de la conferencia", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: la usa esta app.", "gateway", 8788},
         // --- Acceso remoto ---------------------------------------------------------
-        {"gateway.tunnel", "Cloudflare", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Saca la sala a internet por un túnel de Cloudflare (cloudflared). Necesita el token del túnel (acá arriba).", "gateway", false},
+        {"gateway.tunnel", "Cloudflare", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Saca la conferencia a internet por un túnel de Cloudflare (cloudflared). Necesita el token del túnel (acá arriba).", "gateway", false},
         {"gateway.tunnelHost", "Cloudflare", "Dominio público (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},
         {"wg.enabled", "Túnel propio (WireGuard)", "Túnel WireGuard", "bool", {}, 0, 0, "", "Conecta a un servidor propio con IP pública: los invitados entran directo, sin Cloudflare. Sin permisos de administrador ni drivers.", "gateway", false},
         {"wg.endpoint", "Túnel propio (WireGuard)", "Servidor WireGuard", "text", {}, 0, 0, "", "host:puerto (p. ej. vps.midominio.com:51820).", "gateway", ""},
@@ -187,7 +187,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"wg.httpPort", "Túnel propio (WireGuard)", "WireGuard: puerto web que redirige el servidor", "int", {}, 1, 65535, "", "", "gateway", 80},
         {"wg.httpsPort", "Túnel propio (WireGuard)", "WireGuard: puerto seguro que redirige el servidor", "int", {}, 1, 65535, "", "", "gateway", 443},
         {"wg.keepalive", "Túnel propio (WireGuard)", "Keepalive", "int", {}, 0, 120, "s", "Mantiene abierto el NAT del lado de este equipo.", "gateway", 25},
-        {"pinggy.activo", "Pinggy", "Túnel de pinggy", "bool", {}, 0, 0, "", "Saca todas las páginas de la sala (invitados, sesión remota, público, botonera) por una sola dirección pública de pinggy.io, sin abrir puertos ni tener IP pública. Necesita el token de túnel guardado acá abajo. La API de control y el MCP nunca salen por el túnel.", "gateway", false},
+        {"pinggy.activo", "Pinggy", "Túnel de pinggy", "bool", {}, 0, 0, "", "Saca todas las páginas de la conferencia (invitados, sesión remota, público, botonera) por una sola dirección pública de pinggy.io, sin abrir puertos ni tener IP pública. Necesita el token de túnel guardado acá abajo. La API de control y el MCP nunca salen por el túnel.", "gateway", false},
         {"pinggy.region", "Pinggy", "Región del servidor", "choice", choices({{"auto","Automática (la más cercana)"},{"us","Estados Unidos"},{"eu","Europa"},{"ap","Asia-Pacífico"}}), 0, 0, "", "Por dónde pasa el tráfico. La automática elige la de menos demora; si se corta seguido, probá con Estados Unidos.", "gateway", "auto"},
         {"pinggy.dominioTipo", "Pinggy", "Dirección pública", "choice", choices({{"azar","La que dé pinggy (al azar, cambia cada vez)"},{"pinggy","Subdominio fijo de pinggy"},{"propio","Dominio propio"}}), 0, 0, "", "Al azar: anda sin configurar nada, pero el enlace (y el QR) cambia cada vez que se conecta. Subdominio fijo (plan Pro): el que pinggy le asigna al token en dashboard.pinggy.io → Domains. Dominio propio (plan Pro): un nombre de la organización (p. ej. sala.miorganismo.gob.ar) cargado en el panel de pinggy y apuntado con un CNAME.", "gateway", "azar"},
         {"pinggy.host", "Pinggy", "Subdominio o dominio", "text", {}, 0, 0, "", "Tal cual figura en el panel de pinggy: p. ej. sala-concejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras.", "gateway", ""},
@@ -212,7 +212,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"web.tema", "Apariencia", "Tema de las interfaces web", "choice", opcionesTemaWeb(), 0, 0, "", "El de todas las páginas de control (dashboard, botonera, presidencia, rótulos, corrección): cambia en todos los aparatos sin recargar. También en Servicios → Templates.", "live", "neuro-oscuro"},
         // --- Sistema y datos -------------------------------------------------------
         {"launcher.shadow", "Sistema y datos", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
-        {"launcher.cuelgue", "Sistema y datos", "Colgado si no responde", "int", {}, 2, 120, "s", "Si el programa (o la sala) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa.", "restart", 5},
+        {"launcher.cuelgue", "Sistema y datos", "Colgado si no responde", "int", {}, 2, 120, "s", "Si el programa (o la conferencia) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa.", "restart", 5},
         {"launcher.graciaArranque", "Sistema y datos", "Gracia al arrancar", "int", {}, 5, 600, "s", "Recién abierto, el programa todavía no late: no se lo vigila durante este tiempo.", "restart", 20},
         {"launcher.maxCaidas", "Sistema y datos", "Caídas antes del modo seguro", "int", {}, 1, 100, "", "Si se cae más veces que esto en la ventana de abajo, arranca en modo seguro (sin restaurar lo que estaba andando).", "restart", 5},
         {"launcher.ventanaCaidas", "Sistema y datos", "Ventana de caídas", "int", {}, 1, 120, "min", "", "restart", 2},
@@ -753,10 +753,10 @@ QString SettingsModel::apply() {
         notes << "Configuracion guardada.";
     }
     if (restartB) {
-        if (!porQue.isEmpty()) notes << "Se reinicia la sala por: " + porQue.join(", ") + ".";
+        if (!porQue.isEmpty()) notes << "Se reinicia la conferencia por: " + porQue.join(", ") + ".";
         // Aparte: esperar que el gateway se cierre trababa la interfaz unos segundos
         // (al prender o apagar pinggy, por ejemplo). El resultado llega como señal.
-        notes << "Reiniciando la sala con la configuración nueva…";
+        notes << "Reiniciando la conferencia con la configuración nueva…";
         QPointer<SettingsModel> yo(this);
         rt_.reiniciarSalaEnElFondo([yo](const std::string& e) {
             if (!yo) return;

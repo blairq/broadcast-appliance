@@ -53,7 +53,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
     const auto contestarSala = [](Done done, std::string texto) {
         return [done, texto](const std::string& err, const json& r) {
             if (!err.empty())
-                return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                return done(ToolResult::error("No pude hablar con el servidor (gateway): " + err +
                                               ". Fijate `room_status`: si esta caida, las preguntas del publico no llegan a ningun lado."));
             ToolResult res;
             res.structured = r;
@@ -132,7 +132,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.title = "Meter en la cola una pregunta que llego por otro lado";
         t.category = "preguntas";
         t.description =
-            "Agrega a la cola una pregunta que no vino de la pagina del publico: del chat de la sala, "
+            "Agrega a la cola una pregunta que no vino de la pagina del publico: del chat de la conferencia, "
             "del de YouTube, o dicha a viva voz en el salon.";
         t.details =
             "Es lo que mantiene UNA SOLA COLA. El que pregunta por el chat de YouTube y el que levanta "
@@ -283,7 +283,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const std::string e = vm.votacion().abrir(
                 a.value("pregunta", std::string()), opciones, a.value("modo", std::string("encuesta")),
                 a.value("secreta", false), a.value("enVivo", false), [done](const std::string& err, const json& r) {
-                    if (!err.empty()) return done(ToolResult::error("La sala respondio: " + err));
+                    if (!err.empty()) return done(ToolResult::error("La conferencia respondio: " + err));
                     ToolResult res;
                     res.structured = r;
                     res.text("Votacion abierta.");
@@ -322,7 +322,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const auto contestar = [done](const std::string& texto) {
                 return [done, texto](const std::string& err, const json& r) {
                     if (!err.empty())
-                        return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                        return done(ToolResult::error("No pude hablar con el servidor (gateway): " + err +
                                                       ". Fijate `room_status`."));
                     ToolResult res;
                     res.structured = r;
@@ -365,7 +365,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             if (pv == nullptr)
                 return done(ToolResult::error("El reconocimiento no esta disponible en esta sesion."));
             auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-            if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible."));
+            if (conf == nullptr) return done(ToolResult::error("El servidor no esta disponible."));
 
             const QVariantMap lobby = pv->enLobby();
             json gente = json::array();
@@ -449,7 +449,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 return done(ToolResult::error(
                     "No hay evento abierto: el acta es de un evento. Abri uno con `guion_abrir`."));
             ConferenceViewModel* conf = salaDe();
-            if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
+            if (conf == nullptr) return done(ToolResult::error("El servidor no esta disponible en esta sesion."));
 
             const bool soloVer = a.value("soloVer", false);
             // El historial de la urna vive en B: hay que ir a buscarlo antes de
@@ -473,7 +473,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     // la que le faltan las votaciones y no lo aclara es peor que
                     // ninguna.
                     if (!err.empty())
-                        out["aviso"] = "No pude hablar con la sala: el acta va SIN las votaciones. Fijate "
+                        out["aviso"] = "No pude hablar con el servidor: el acta va SIN las votaciones. Fijate "
                                        "`room_status` y volve a pedirla.";
                     res.structured = out;
                     done(res);
@@ -490,15 +490,15 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             "El enlace con QR de la pagina donde el publico pregunta y vota, y el titulo y el fondo "
             "que esa pagina muestra.";
         t.details =
-            "LA PAGINA DEL PUBLICO NO ES LA SALA. El que la abre no entra por WebRTC: no le pide "
+            "LA PAGINA DEL PUBLICO NO ES LA CONFERENCIA. El que la abre no entra por WebRTC: no le pide "
             "camara ni microfono y no ocupa un lugar de invitado. Es a proposito — doscientas personas "
             "en el mismo salon entrando con microfono es un acople garantizado y el ancho de banda "
-            "tirado—. Para que alguien entre a la sala de verdad, `room_link`.\\n\\n"
+            "tirado—. Para que alguien entre a la conferencia de verdad, `room_link`.\\n\\n"
             "El QR va CON LA CLAVE ADENTRO: se proyecta en una pantalla o se imprime en el programa, y "
             "pedirle a doscientas personas que tipeen una clave es perder a la mitad. La clave es "
-            "nueva en cada arranque de la sala.\\n\\n"
+            "nueva en cada arranque del servidor.\\n\\n"
             "Con `titulo` y `cuando` se escribe lo que la pagina muestra arriba; con `fondo` (la ruta "
-            "de una imagen del disco) se le pone el fondo del evento. La imagen se manda a la sala una "
+            "de una imagen del disco) se le pone el fondo del evento. La imagen se manda a la conferencia una "
             "vez y de ahi la toman todos los telefonos; sale atenuada detras del texto, porque es "
             "identidad visual y no decoracion: si compite con el texto, la pregunta no se lee.\\n\\n"
             "`fondo` en vacio lo saca.";
@@ -513,7 +513,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 {"description", "el enlace por internet en vez del de la red local"}}}}}};
         t.run = [salaDe](const json& a, Done done) {
             ConferenceViewModel* conf = salaDe();
-            if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
+            if (conf == nullptr) return done(ToolResult::error("El servidor no esta disponible en esta sesion."));
             // El enlace y el cambio son operaciones del modelo (sala::EnlacesSala,
             // sala::PaginaPublico), las mismas que usa la GUI (PublicoViewModel).
             sala::EnlacesSala* enlaces = &conf->enlaces();
@@ -539,7 +539,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const std::string e = conf->paginaPublico().cambiar(
                 texto("titulo"), texto("cuando"), texto("fondo"), [darEnlace, done](const std::string& err, const json&) {
                     if (!err.empty())
-                        return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                        return done(ToolResult::error("No pude hablar con el servidor (gateway): " + err +
                                                       ". Fijate `room_status`."));
                     // Despues de cambiarla, se devuelve el enlace: quien la
                     // configura casi siempre quiere el QR a continuacion.

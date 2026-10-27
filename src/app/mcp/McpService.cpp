@@ -538,7 +538,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
             // evento. Pedirle los datos de cero a alguien que el sistema
             // reconocio y dejo pasar es contradecirse en la misma frase.
             ag->send("«" + name + "» (id " + id +
-                     ") YA ENTRO A LA SALA sola: el sistema la reconocio y estaba en la lista de "
+                     ") YA ENTRO A LA CONFERENCIA sola: el sistema la reconocio y estaba en la lista de "
                      "auto-aceptar del evento. NO le pidas los datos de cero. Hablale por "
                      "`chat_send`, saludala por su nombre, deciles que ya esta adentro, y mostrale "
                      "los datos que ya tenemos de ella (`participant_profile` y `rostro_listar`) "
@@ -808,7 +808,7 @@ void McpService::registerTools() {
     core_.addCategory("audio", "Audio", "Mezclador: volumen, silencio, niveles.");
     core_.addCategory("salidas", "Salidas", "Transmisión (RTMP) y grabación.");
     core_.addCategory("config", "Configuración",
-                      "Todos los ajustes del appliance (video, codificación, sala, red...).");
+                      "Todos los ajustes del appliance (video, codificación, conferencia, red...).");
     // La botonera y el bus de eventos (ver McpBotoneraTools.cpp).
     registerBotoneraTools(core_, vm_);
     // El control web (dashboard /control/): sus aparatos (ver McpControlWebTools.cpp).
@@ -897,7 +897,7 @@ void McpService::registerTools() {
         t.idempotent = true;
         t.description =
             "Estado del appliance: escena al aire, transmision y grabacion (con tiempos), fps, cuadros "
-            "perdidos, codificador, CPU, niveles del programa, gateway, sala y oradores al aire. "
+            "perdidos, codificador, CPU, niveles del programa, gateway, conferencia y oradores al aire. "
             "Buen primer llamado.";
         t.run = [&rt, &vm](const json&, Done done) {
             const EngineStatus st = rt.engine().status();
@@ -1980,7 +1980,7 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.description =
             "Agrega la camara (o la pantalla compartida) del invitado del lugar `slot` a una escena. Es "
-            "la misma fuente en todas las escenas; se ve quien este en ese lugar de la sala.";
+            "la misma fuente en todas las escenas; se ve quien este en ese lugar de la conferencia.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -2393,7 +2393,7 @@ void McpService::registerTools() {
         t.name = "seguridad_estado";
         t.title = "Seguridad: estado y ajustes";
         t.category = "config";
-        t.description = "Lo que protege los accesos: si el token del MCP se rota en cada arranque, si la sala cambia de "
+        t.description = "Lo que protege los accesos: si el token del MCP se rota en cada arranque, si la conferencia cambia de "
                         "PIN al empezar una sesion en vivo en un dia nuevo (el PIN es uno por dia: los reinicios "
                         "del mismo dia lo conservan), y el modo en vivo. Con `rotar_token_mcp` o `pin_por_sesion` "
                         "los cambia (fuera de vivo).";
@@ -3615,7 +3615,7 @@ void McpService::registerTools() {
               {"todas",
                {{"type", "boolean"}, {"description", "Con `arrancar`: todas las de la escena al aire."}}},
               {"invitado",
-               {{"type", "string"}, {"description", "Id o nombre de un invitado de la sala: graba su fuente."}}}}}};
+               {{"type", "string"}, {"description", "Id o nombre de un invitado de la conferencia: graba su fuente."}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             std::vector<std::string> arrancar;
             if (a.contains("invitado")) {
@@ -3722,7 +3722,7 @@ void McpService::registerTools() {
         t.readOnly = true;
         t.description =
             "Todos los ajustes (o los de una seccion) con clave, valor, tipo, opciones, rango, ayuda y "
-            "alcance (live = en el momento, gateway = reinicia la sala, restart = al proximo arranque).";
+            "alcance (live = en el momento, gateway = reinicia la conferencia, restart = al proximo arranque).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"section", {{"type", "string"}}}}}};
         SettingsModel* settings = settings_.get();
         t.run = [settings](const json& a, Done done) {
@@ -3755,7 +3755,7 @@ void McpService::registerTools() {
         t.category = "config";
         t.description =
             "Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance 'gateway' "
-            "reinician la sala (los invitados se reconectan solos); los 'restart', al proximo arranque.";
+            "reinician la conferencia (los invitados se reconectan solos); los 'restart', al proximo arranque.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

@@ -94,7 +94,7 @@ const std::vector<Contenido>& catalogo() {
         {"qr",
          "Un código QR",
          "El QR ocupa la pantalla entera: se escanea desde lejos. Uno del aparato (el del Público, el de "
-         "la Sala…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba.",
+         "la Conferencia…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba.",
          {{"guardado", "Qué QR", "", false, "qrs"},
           {"texto", "Qué codifica (si es a mano)", "https://…", false},
           {"pie", "Abajo, más chico", "Escaneá para entrar a la sala", false}},
@@ -138,7 +138,7 @@ const std::vector<Contenido>& catalogo() {
         {"programa",
          "Lo que sale al aire",
          "El programa en vivo por WebRTC: unas décimas de retardo, no los segundos del reproductor de "
-         "fábrica del televisor. La pantalla entra a la sala como una más: si el lobby está prendido, "
+         "fábrica del televisor. La pantalla entra a la conferencia como una más: si el lobby está prendido, "
          "hay que hacerla pasar, y ocupa un lugar mientras dure.",
          {},
          true,
@@ -1106,7 +1106,7 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     // recien despues manda, porque una pantalla con el QR equivocado manda a
     // toda la sala a un lugar que no existe.
     if (tipo == "votacion" && datos.value("clavePublico").toString().isEmpty()) {
-        if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay urna que mostrar.";
+        if (d_->sala == nullptr) return "El servidor no está corriendo: sin él no hay urna que mostrar.";
         d->trabajando = true;
         emit cambio();
         d_->sala->enlaces().publico(false, [this, id, datos](const sala::Enlace& e) mutable {
@@ -1127,7 +1127,7 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
         return {};
     }
     if (tipo == "programa") {
-        if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay programa que mandar.";
+        if (d_->sala == nullptr) return "El servidor no está corriendo: sin él no hay programa que mandar.";
         d->trabajando = true;
         emit cambio();
         const QString nombre = d->nombre;
@@ -1152,7 +1152,7 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     if (url.isEmpty())
         return tipo == "url" ? "Poné una dirección."
                              : "Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos "
-                               "segundos, o fijate que la sala esté corriendo.";
+                               "segundos, o fijate que el servidor esté corriendo.";
 
     // Lo legible, para la lista: qué le mandamos, no la URL entera.
     QString que = QString::fromUtf8(c->titulo);
@@ -1175,7 +1175,7 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
     Destino* d = d_->porId(id);
     if (d == nullptr) return "No encuentro esa pantalla.";
     if (escena.isEmpty()) return "Elegí qué escena mostrar.";
-    if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay escena que mandar.";
+    if (d_->sala == nullptr) return "El servidor no está corriendo: sin él no hay escena que mandar.";
     BroadcastEngine& eng = d_->rt->engine();
     const auto nombres = eng.sceneNames();
     if (std::find(nombres.begin(), nombres.end(), escena.toStdString()) == nombres.end())

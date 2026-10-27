@@ -90,7 +90,7 @@ ScrollView {
                     enabled: !pw.esLaDelEvento && pw.dirEvento !== "" && pw.ar && pw.ar.apiKeyGuardada
                     onClicked: ApplicationWindow.window.confirm({
                         title: "¿Pasar la dirección a " + pw.dirEvento + "?",
-                        text: "Se cambia en tu cuenta de pinggy y la sala se reinicia (los que estén conectados vuelven a entrar). "
+                        text: "Se cambia en tu cuenta de pinggy y la conferencia se reinicia (los que estén conectados vuelven a entrar). "
                               + "Los enlaces repartidos con la dirección anterior dejan de andar.",
                         accept: "Cambiar", reject: "Cancelar",
                         action: function() { pw.ar.configurarConApiKey(pw.sitio.subdominio) } })
@@ -134,7 +134,7 @@ ScrollView {
             RowLayout {
                 spacing: 8
                 Toggle { checked: pw.ev.guion.invitados === true; onToggled: (v) => { pw.ev.setInvitados(v); pw.ev.guardar() } }
-                Text { text: "Usa invitados en la sala (la página ofrece «Entrar a la sala»)"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: "Usa invitados en la conferencia (la página ofrece «Entrar a la conferencia»)"; color: Theme.text; font.pixelSize: 12 }
             }
             RowLayout {
                 spacing: 8

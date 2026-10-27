@@ -1215,7 +1215,7 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
 
 void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
                                       std::function<void(const QVariantMap&)> luego) {
-    if (sala_ == nullptr) return luego(QVariantMap{{"ok", false}, {"motivo", "La sala no está disponible."}});
+    if (sala_ == nullptr) return luego(QVariantMap{{"ok", false}, {"motivo", "El servidor no está disponible."}});
     const QString codigo = quien.value("codigo").toString();
     // El nombre y la fecha salen del evento; el enlace, del gateway.
     const QString nombreEvento = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
@@ -1229,7 +1229,7 @@ void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
         remoto, [luego, quien, codigo, nombreEvento, cuandoTexto, instante](const sala::Enlace& e) {
             if (!e.ok)
                 return luego(QVariantMap{
-                    {"ok", false}, {"motivo", "No pude pedirle el enlace a la sala. Fijate `room_status`."}});
+                    {"ok", false}, {"motivo", "No pude pedirle el enlace a la conferencia. Fijate `room_status`."}});
             // El código va en el FRAGMENTO, con la clave: no viaja en la petición
             // ni queda en los registros de ningún servidor por el que pase.
             const QString url = QString::fromStdString(e.url) + "&c=" + codigo;

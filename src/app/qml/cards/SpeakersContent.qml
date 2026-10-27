@@ -171,11 +171,11 @@ Item {
             StatusPill { text: conf.speakerMode ? "Modo oradores" : "Oradores apagado"; dot: conf.speakerMode ? Theme.ok : Theme.textFaint }
             Item { Layout.fillWidth: true }
             GlassButton { visible: conf.speakerMode; text: "Siguiente ▶"; compact: true; onClicked: conf.speakerNext() }
-            GlassButton { text: "Abrir sala"; compact: true; onClicked: ApplicationWindow.window.showPage(2) }
+            GlassButton { text: "Abrir conferencia"; compact: true; onClicked: ApplicationWindow.window.showPage(2) }
         }
         Text {
             visible: root.vista === "remotos" && conf.onAir.length === 0
-            text: conf.speakerMode ? "Nadie al aire" : "Activalo en la página Sala"
+            text: conf.speakerMode ? "Nadie al aire" : "Activalo en la página Conferencia"
             color: Theme.textFaint; font.pixelSize: 13
         }
         Repeater {

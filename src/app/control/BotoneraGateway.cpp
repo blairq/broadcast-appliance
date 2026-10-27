@@ -114,7 +114,7 @@ void BotoneraGateway::baseRedLocal(ConferenceClient& gw, const std::string& serv
     // servicio, por la puerta de la sala. Se pide en el momento (es lo que va en el QR).
     sala::pedir(gw, "GET", "/api/v1/direcciones", {}, [servicio, listo](const std::string& error, const json& r) {
         if (!error.empty() || !r.is_object()) {
-            listo({{"error", "No pude preguntarle a la sala su dirección en la red local."}, {"sin_respuesta", true}});
+            listo({{"error", "No pude preguntarle a la conferencia su dirección en la red local."}, {"sin_respuesta", true}});
             return;
         }
         for (const auto& s : r.value("servicios", json::array())) {
@@ -135,7 +135,7 @@ void BotoneraGateway::baseRedLocal(ConferenceClient& gw, const std::string& serv
             listo(out);
             return;
         }
-        listo({{"error", "La sala no informó la dirección de «" + servicio + "»."}});
+        listo({{"error", "La conferencia no informó la dirección de «" + servicio + "»."}});
     });
 }
 

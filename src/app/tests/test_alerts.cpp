@@ -379,7 +379,7 @@ int main(int argc, char** argv) {
         v.room["participants"][1]["state"] = "admitted";
         v.room["participants"][0]["connected"] = false;
         paso(500);
-        CHECK(nov.size() == 3 && nov.join(" ").contains("pasó del lobby a la sala") &&
+        CHECK(nov.size() == 3 && nov.join(" ").contains("pasó del lobby a la conferencia") &&
                   nov.join(" ").contains("p1 perdió la conexión") && !nov.join(" ").contains("Ignorá"),
               "novedades: entra a la sala y otro pierde la conexión");
         senales[0].second = false;

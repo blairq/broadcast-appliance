@@ -9,7 +9,7 @@
     crear(c) {
       this.grilla = el("div", "grilla-estado");
       this.datos = {};
-      for (const k of ["CPU", "Cuadros", "Perdidos", "Transmisión", "Grabación", "Sala", "Gateway", "Interfaz"]) {
+      for (const k of ["CPU", "Cuadros", "Perdidos", "Transmisión", "Grabación", "Conferencia", "Gateway", "Interfaz"]) {
         const x = el("div", "dato"); x.v = el("strong", "numero", "—");
         x.append(el("span", "suave", k), x.v); this.grilla.append(x); this.datos[k] = x;
       }
@@ -22,7 +22,7 @@
       dato("Perdidos", String(d.droppedFrames || 0), d.droppedFrames > 0);
       dato("Transmisión", d.streamKbps ? d.streamKbps + " kbps" : "—");
       dato("Grabación", d.recording ? d.recordTime || "sí" : "—");
-      dato("Sala", d.room ? (d.room.inside || 0) + " adentro · " + (d.room.waiting || 0) + " esperan" : "—");
+      dato("Conferencia", d.room ? (d.room.inside || 0) + " adentro · " + (d.room.waiting || 0) + " esperan" : "—");
       dato("Gateway", d.gatewayAlive ? "vivo" : "caído", !d.gatewayAlive);
       dato("Interfaz", d.latido && d.latido.ui_viva ? "viva" : "trabada", d.latido && !d.latido.ui_viva);
     },

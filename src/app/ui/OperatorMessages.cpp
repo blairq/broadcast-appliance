@@ -193,7 +193,7 @@ QString OperatorMessages::sendReply(int id, const QString& text) {
     if (m.is_null() || m.value("status", "") != "open") return "Ese mensaje ya no esta.";
     if (text.trimmed().isEmpty()) return "Escribi la respuesta.";
     const QString to = qs(m, "to").isEmpty() ? qs(m, "participantId") : qs(m, "to");
-    if (!sendChat_) return "El chat de la sala no esta disponible.";
+    if (!sendChat_) return "El chat de la conferencia no esta disponible.";
     const QString err = sendChat_(to.isEmpty() ? "all" : to, text.trimmed());
     if (!err.isEmpty()) return err;
     close(id, "sent", text.trimmed());

@@ -387,7 +387,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "La foto de UNA persona de la sala, por nombre o id: su cámara en vivo o su última imagen. Con "
+             "La foto de UNA persona de la conferencia, por nombre o id: su cámara en vivo o su última imagen. Con "
             "includeScreen tambien su pantalla compartida.";
         t.inputSchema =
             withImageProps(json{{"participant", {{"type", "string"}, {"description", "Nombre o id."}}},
@@ -425,7 +425,7 @@ void McpService::registerImageTools() {
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "Una foto de CADA persona de la sala (lobby, adentro y fila de oradores), con su nombre y estado. "
+             "Una foto de CADA persona de la conferencia (lobby, adentro y fila de oradores), con su nombre y estado. "
             "Default 480 px.";
         t.inputSchema = withImageProps(json{
             {"state", {{"type", "string"}, {"enum", {"all", "waiting", "admitted"}}, {"default", "all"}}}});
@@ -435,7 +435,7 @@ void McpService::registerImageTools() {
             std::vector<json> people;
             for (const auto& p : snap.value("participants", json::array()))
                 if (only == "all" || p.value("state", "") == only) people.push_back(p);
-            if (people.empty()) return done(ToolResult::ok("No hay nadie en la sala."));
+            if (people.empty()) return done(ToolResult::ok("No hay nadie en la conferencia."));
             struct Acc {
                 ToolResult r;
                 size_t pending;

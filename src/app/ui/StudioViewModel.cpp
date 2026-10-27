@@ -366,10 +366,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (actual.contains("//" + sub + ".")) return; // ya es esa
         if (streaming_ || recording_) {
             emit notify("El evento tiene su dirección (" + sub + ".a.pinggy.link) pero se está transmitiendo o grabando: "
-                        "no se cambia ahora (reinicia la sala). Cambiala desde Guion → Página web cuando se pueda.", "warning");
+                        "no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.", "warning");
             return;
         }
-        emit notify("Pasando la dirección pública a " + sub + ".a.pinggy.link (la sala se reinicia)…", "info");
+        emit notify("Pasando la dirección pública a " + sub + ".a.pinggy.link (la conferencia se reinicia)…", "info");
         accesoRemoto_->configurarConApiKey(sub);
     });
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
@@ -1219,7 +1219,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (canal != "guest" && canal != "share") continue; // el remoto con la palabra: la sesión remota
                 const int slot = a.value("slot", 0);
                 if (slot > 0 && conference_->participanteEnSlot(slot).isEmpty())
-                    f.enEspera[n] = "el lugar " + std::to_string(slot) + " de la sala está vacío (llega la placa)";
+                    f.enEspera[n] = "el lugar " + std::to_string(slot) + " de la conferencia está vacío (llega la placa)";
             }
         }
         return f;
@@ -1865,8 +1865,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
     connect(settings_.get(), &SettingsModel::salaReiniciada, this, [this](const QString& e) {
-        emit notify(e.isEmpty() ? QString("Sala reiniciada con la configuración nueva.")
-                                : "La sala no se reinició (" + e + "): apretá «Reiniciar la sala» en Configuración o en la página Sala.",
+        emit notify(e.isEmpty() ? QString("Conferencia reiniciada con la configuración nueva.")
+                                : "La conferencia no se reinició (" + e + "): apretá «Reiniciar la conferencia» en Configuración o en la página Conferencia.",
                     e.isEmpty() ? "ok" : "error");
     });
     // El resumen de lo que aplicó el formulario de la GUI; lo que rige ya (lienzo,
@@ -2863,8 +2863,10 @@ void StudioViewModel::setSeccionConfig(const QString& pedida) {
     // Los nombres de antes de reordenar Configuración (2026-10-11), por si el
     // asistente o una guía los usan todavía.
     static const QHash<QString, QString> kAntes{{"Escena", "Video"},
-                                                {"Gateway", "Red de la sala"},
-                                                {"Red", "Red de la sala"},
+                                                {"Gateway", "Red de la conferencia"},
+                                                {"Red", "Red de la conferencia"},
+                                                {"Sala", "Conferencia"},
+                                                {"Red de la sala", "Red de la conferencia"},
                                                 {"Acceso directo", "Cloudflare"},
                                                 {"Acceso remoto", "Cloudflare"},
                                                 {"cloudflare", "Cloudflare"},
@@ -3506,7 +3508,7 @@ QString StudioViewModel::aprobarInfoInvitado(const QString& participante, const 
             return {};
         }
     }
-    return "no hay un invitado «" + participante + "» en la sala";
+    return "no hay un invitado «" + participante + "» en la conferencia";
 }
 
 QVariantList StudioViewModel::chatRecientesUi() const {
@@ -3630,7 +3632,7 @@ void StudioViewModel::publicarEventos() {
         const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
         if (ev && !eventoEnVivo_ && seguridad_)
             seguridad_->rotarPinSiCambioElDia([this](const std::string& error, bool cambio, const std::string& pin) {
-                if (error.empty() && cambio) emit notify("Día nuevo: la sala tiene PIN nuevo (" + qs(pin) + ")", "info");
+                if (error.empty() && cambio) emit notify("Día nuevo: la conferencia tiene PIN nuevo (" + qs(pin) + ")", "info");
             });
         eventoEnVivo_ = ev;
     }
@@ -4258,13 +4260,13 @@ QString StudioViewModel::avisoDeCerrar(const QString& accion) const {
     if (!streaming_ && !recording_ && n == 0) return {};
     QStringList corta;
     if (accion.isEmpty()) {
-        // Cerrar la ventana: «Estás AL AIRE y hay 2 personas en la sala. Si cerrás, …».
+        // Cerrar la ventana: «Estás AL AIRE y hay 2 personas conectadas. Si cerrás, …».
         QString que = streaming_ && recording_ ? "Estás AL AIRE y grabando"
                       : streaming_             ? "Estás AL AIRE"
                       : recording_             ? "Estás grabando"
                                                : QString();
         if (n > 0) {
-            const QString gente = n == 1 ? "1 persona en la sala" : QString::number(n) + " personas en la sala";
+            const QString gente = n == 1 ? "1 persona conectada" : QString::number(n) + " personas conectadas";
             que = que.isEmpty() ? "Hay " + gente : que + (streaming_ && recording_ ? ", y hay " : " y hay ") + gente;
         }
         if (streaming_) corta << "se corta la emisión";
@@ -4273,10 +4275,10 @@ QString StudioViewModel::avisoDeCerrar(const QString& accion) const {
         return que + ". Si cerrás, " + enumerar(corta) + ".";
     }
     // Actualizar, volver atrás…: «Estás AL AIRE: actualizar cierra la aplicación y …».
-    const QString que = streaming_ ? "Estás AL AIRE" : recording_ ? "Estás GRABANDO" : "Hay gente en la sala";
+    const QString que = streaming_ ? "Estás AL AIRE" : recording_ ? "Estás GRABANDO" : "Hay gente conectada";
     if (streaming_) corta << "corta la emisión";
     if (recording_) corta << "corta la grabación";
-    if (n > 0) corta << (corta.isEmpty() ? "la desconecta" : "desconecta a quienes están en la sala");
+    if (n > 0) corta << (corta.isEmpty() ? "la desconecta" : "desconecta a quienes están conectados");
     return que + ": " + accion + " cierra la aplicación y " + enumerar(corta) + ".";
 }
 

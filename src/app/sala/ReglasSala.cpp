@@ -9,18 +9,18 @@ namespace ba::app::sala {
 
 std::string explicarError(const std::string& codigo) {
     static const std::map<std::string, std::string> kTexto{
-        {"full", "la sala está llena: sacá a alguien primero"},
-        {"not_found", "ya no está en la sala"},
+        {"full", "la conferencia está llena: sacá a alguien primero"},
+        {"not_found", "ya no está en la conferencia"},
         {"state", "no aplica en su estado actual"},
         {"empty", "no hay nadie más en la fila"},
-        {"offline", "la sala (gateway) no responde"},
-        {"", "la sala (gateway) no responde"}};
+        {"offline", "la conferencia (gateway) no responde"},
+        {"", "la conferencia (gateway) no responde"}};
     const auto it = kTexto.find(codigo);
     return it != kTexto.end() ? it->second : codigo;
 }
 
 std::string recomendacionPrueba(const nlohmann::json& r) {
-    if (!r.is_object()) return "La sala no pudo hacer la prueba.";
+    if (!r.is_object()) return "La conferencia no pudo hacer la prueba.";
     if (r.contains("error") && r["error"].is_string()) return r["error"].get<std::string>();
     std::string out;
     const auto sumar = [&out](const std::string& s) { out += (out.empty() ? "" : " ") + s; };

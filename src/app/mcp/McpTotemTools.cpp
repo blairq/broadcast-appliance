@@ -178,7 +178,7 @@ void McpService::registerTotemTools() {
             const std::string url = tj.value("url", std::string());
             json out{{"id", id.toStdString()}, {"url", url}, {"urlPantalla", tj.value("urlPantalla", std::string())}};
             if (url.rfind("/registro/", 0) == 0)
-                out["aviso"] = "La sala todavía no dio su dirección: la url no tiene el comienzo.";
+                out["aviso"] = "El servidor todavía no dio su dirección: la url no tiene el comienzo.";
             if (a.value("mostrar", false))
                 emit vm.mostrarQr(QString::fromStdString(url), "Registro — " + QString::fromStdString(tj.value("nombre", std::string())),
                                   "Escaneá para registrarte", "verde");
@@ -464,7 +464,7 @@ void McpService::registerTotemTools() {
             json out = tv()->atencionJson();
             const std::string url = out.value("url", std::string());
             if (url.rfind("/registro-atiende/", 0) == 0)
-                out["aviso"] = "La sala todavía no dio su dirección: el link no tiene el comienzo.";
+                out["aviso"] = "El servidor todavía no dio su dirección: el link no tiene el comienzo.";
             if (a.value("mostrar", false))
                 emit vm.mostrarQr(QString::fromStdString(url), "Atención del registro",
                                   "Para el equipo: mirar y atender los tótems", "azul");

@@ -522,13 +522,13 @@ int main(int argc, char** argv) {
     const bool pinFijo = !roomPin.empty();
     if (roomPin.empty()) roomPin = ba::gateway::SignalingServer::pinDeHoy();
     if (!roomPin.empty()) {
-        if (!pinFijo) log.info("auth: PIN de sala: el de hoy");
+        if (!pinFijo) log.info("auth: PIN de la conferencia: el de hoy");
     } else {
         if (randomPin(6, roomPin)) {
             ba::gateway::SignalingServer::guardarPinDeHoy(roomPin);
-            log.info("auth: PIN de sala nuevo del día: " + roomPin);
+            log.info("auth: PIN de la conferencia nuevo del día: " + roomPin);
         } else {
-            log.error("auth: no se pudo generar un PIN; la sala queda cerrada hasta un ChangePin", -1);
+            log.error("auth: no se pudo generar un PIN; la conferencia queda cerrada hasta un ChangePin", -1);
         }
     }
     // Umbral del lockout GLOBAL del TokenService. El freno real contra la

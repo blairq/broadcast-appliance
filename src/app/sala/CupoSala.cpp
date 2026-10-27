@@ -32,9 +32,9 @@ std::string CupoSala::cambiar(int n, Listo listo) {
             if (!error.empty())
                 avisar_("Cupo: " + error, true);
             else if (!ok)
-                avisar_("Cupo de invitados: " + std::to_string(n) + " (la sala no contesta: rige cuando arranque).", false);
+                avisar_("Cupo de invitados: " + std::to_string(n) + " (la conferencia no contesta: rige cuando arranque).", false);
             else
-                avisar_("Cupo de invitados: " + std::to_string(antes) + " → " + std::to_string(n) + ", sin reiniciar la sala.",
+                avisar_("Cupo de invitados: " + std::to_string(antes) + " → " + std::to_string(n) + ", sin reiniciar la conferencia.",
                         false);
         }
     });

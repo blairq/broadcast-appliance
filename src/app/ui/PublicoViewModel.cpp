@@ -87,7 +87,7 @@ void PublicoViewModel::moderar(const QString& accion, const QString& id) {
     const std::string e = preguntasSala_->moderar(accion.toStdString(), id.toStdString(),
                                                   [yo](const std::string& err, const nlohmann::json& r) {
                                                       if (!yo) return;
-                                                      if (!err.empty()) return emit yo->notify("No pude hablar con la sala.", "error");
+                                                      if (!err.empty()) return emit yo->notify("No pude hablar con el servidor.", "error");
                                                       yo->tomarPreguntas(r);
                                                   });
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");

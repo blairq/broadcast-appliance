@@ -508,7 +508,7 @@ Rectangle {
                                             if (currentValue === "") { delete d.estilo; page.datos = d; return }
                                             const q = Studio.qr.paraProyectarElegido(currentValue)
                                             if (q.pendiente) {
-                                                Studio.notify("La sala todavía no dio ese enlace: probá de nuevo en un momento (¿está andando la sala?).", "warning")
+                                                Studio.notify("El servidor todavía no dio ese enlace: probá de nuevo en un momento (¿está andando el servidor?).", "warning")
                                                 return
                                             }
                                             d.texto = q.texto; d.estilo = q.estilo

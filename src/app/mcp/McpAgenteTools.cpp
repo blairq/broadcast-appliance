@@ -222,7 +222,7 @@ void McpService::registerAgenteTools() {
             else
                 adentro += (adentro.empty() ? "" : ", ") + linea;
         }
-        return "En la sala ahora — adentro: " + (adentro.empty() ? "nadie" : adentro) +
+        return "En la conferencia ahora — adentro: " + (adentro.empty() ? "nadie" : adentro) +
                ". Esperando en el lobby: " + (esperando.empty() ? "nadie" : esperando) + ".";
     });
 
