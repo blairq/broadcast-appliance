@@ -4,6 +4,8 @@
 
 #include "net/HttpsClient.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <chrono>
 
 #include <mbedtls/ctr_drbg.h>
@@ -117,12 +119,13 @@ class Conn {
         timeout_ = static_cast<uint32_t>(timeoutMs);
         const int r = mbedtls_net_connect(&net_, u.host.c_str(), u.port.c_str(), MBEDTLS_NET_PROTO_TCP);
         if (r != 0) {
-            err = "no se pudo conectar a " + u.host + ":" + u.port + " (" + tlsError(r) + ")";
+            err = ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo conectar a %1 (%2)"),
+                                   {u.host + ":" + u.port, tlsError(r)});
             return false;
         }
         if (!u.tls) return true;
         if (!ensureCa()) {
-            err = "sin raices de certificados (falta data/cacert.pem: make deps-cacert)";
+            err = ba::i18n::traducir("red", "sin raices de certificados (falta data/cacert.pem: make deps-cacert)");
             return false;
         }
         static std::once_flag psa;
@@ -137,7 +140,7 @@ class Conn {
                                   reinterpret_cast<const unsigned char*>(pers), 8) != 0 ||
             mbedtls_ssl_config_defaults(&conf_, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
                                         MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
-            err = "no se pudo preparar TLS";
+            err = ba::i18n::traducir("red", "no se pudo preparar TLS");
             return false;
         }
         mbedtls_ssl_conf_authmode(&conf_, MBEDTLS_SSL_VERIFY_REQUIRED);
@@ -148,7 +151,7 @@ class Conn {
         mbedtls_ssl_conf_rng(&conf_, mbedtls_ctr_drbg_random, &drbg_);
         mbedtls_ssl_conf_read_timeout(&conf_, timeout_);
         if (mbedtls_ssl_setup(&ssl_, &conf_) != 0 || mbedtls_ssl_set_hostname(&ssl_, u.host.c_str()) != 0) {
-            err = "no se pudo preparar TLS";
+            err = ba::i18n::traducir("red", "no se pudo preparar TLS");
             return false;
         }
         mbedtls_ssl_set_bio(&ssl_, &net_, mbedtls_net_send, nullptr, mbedtls_net_recv_timeout);
@@ -159,9 +162,9 @@ class Conn {
             if (flags != 0) {
                 char info[256] = {0};
                 mbedtls_x509_crt_verify_info(info, sizeof(info), "", flags);
-                err = "certificado de " + u.host + " no valido: " + info;
+                err = ba::i18n::llenar(ba::i18n::traducir("red", "certificado de %1 no valido: %2"), {u.host, info});
             } else {
-                err = "TLS con " + u.host + " fallo: " + tlsError(h);
+                err = ba::i18n::llenar(ba::i18n::traducir("red", "TLS con %1 fallo: %2"), {u.host, tlsError(h)});
             }
             return false;
         }
@@ -311,7 +314,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
     if (!req.bodyFile.empty()) {
         file.open(req.bodyFile, std::ios::binary | std::ios::ate);
         if (!file) {
-            res.error = "no se pudo abrir " + req.bodyFile;
+            res.error = ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo abrir %1"), {req.bodyFile});
             return res;
         }
         bodySize = static_cast<std::uint64_t>(file.tellg());
@@ -333,7 +336,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         head += "Content-Length: " + std::to_string(bodySize) + "\r\n";
     head += "\r\n";
     if (!c.write(head.data(), head.size())) {
-        res.error = "se corto al enviar";
+        res.error = ba::i18n::traducir("red", "se corto al enviar");
         return res;
     }
     if (!req.bodyFile.empty()) {
@@ -344,8 +347,8 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
                       static_cast<std::streamsize>(std::min<std::uint64_t>(chunk.size(), bodySize - sent)));
             const std::streamsize got = file.gcount();
             if (got <= 0 || !c.write(chunk.data(), static_cast<size_t>(got))) {
-                res.error = "se corto la subida en " + std::to_string(sent) + " de " +
-                            std::to_string(bodySize) + " bytes";
+                res.error = ba::i18n::llenar(ba::i18n::traducir("red", "se corto la subida en %1 de %2 bytes"),
+                                             {std::to_string(sent), std::to_string(bodySize)});
                 return res;
             }
             sent += static_cast<std::uint64_t>(got);
@@ -353,7 +356,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         }
     } else if (!req.body.empty()) {
         if (!c.write(req.body.data(), req.body.size())) {
-            res.error = "se corto al enviar";
+            res.error = ba::i18n::traducir("red", "se corto al enviar");
             return res;
         }
         if (req.progress) req.progress(bodySize, bodySize);
@@ -366,12 +369,13 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
     while ((headEnd = raw.find("\r\n\r\n")) == std::string::npos) {
         const int r = c.read(buf, sizeof(buf));
         if (r <= 0) {
-            res.error = raw.empty() ? "el servidor no respondio" : "respuesta cortada";
+            res.error = raw.empty() ? ba::i18n::traducir("red", "el servidor no respondio")
+                                    : ba::i18n::traducir("red", "respuesta cortada");
             return res;
         }
         raw.append(buf, static_cast<size_t>(r));
         if (raw.size() > 256 * 1024) {
-            res.error = "cabeceras demasiado grandes";
+            res.error = ba::i18n::traducir("red", "cabeceras demasiado grandes");
             return res;
         }
     }
@@ -380,7 +384,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
     size_t pos = headers.find("\r\n");
     const std::string status = headers.substr(0, pos);
     if (std::sscanf(status.c_str(), "HTTP/%*d.%*d %d", &res.status) != 1) {
-        res.error = "respuesta HTTP invalida";
+        res.error = ba::i18n::traducir("red", "respuesta HTTP invalida");
         return res;
     }
     while (pos != std::string::npos) {
@@ -409,7 +413,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         const bool sigue = req.resumeFrom > 0 && res.status == 206;
         std::ofstream out(req.responseFile, std::ios::binary | (sigue ? std::ios::app : std::ios::trunc));
         if (!out) {
-            res.error = "no se pudo escribir " + req.responseFile;
+            res.error = ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo escribir %1"), {req.responseFile});
             return res;
         }
         const std::uint64_t ya = sigue ? req.resumeFrom : 0;
@@ -435,7 +439,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         }
         out.flush();
         if (req.downloadProgress) req.downloadProgress(got, total);
-        if ((total != 0 && got < total) || !out) res.error = "descarga incompleta";
+        if ((total != 0 && got < total) || !out) res.error = ba::i18n::traducir("red", "descarga incompleta");
         return res;
     }
     if (req.bodyChunk && res.status >= 200 && res.status < 300 && req.method != "HEAD" && res.status != 204) {

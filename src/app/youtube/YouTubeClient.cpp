@@ -119,18 +119,18 @@ bool YouTubeClient::saveClient(const QString& jsonOrId, const QString& secret, Q
         id = inner.value("client_id").toString();
         sec = inner.value("client_secret").toString();
         if (o.contains("web")) {
-            error = "Ese cliente es de tipo \"Aplicacion web\": crea uno de tipo \"App de escritorio\".";
+            error = tr("Ese cliente es de tipo \"Aplicacion web\": crea uno de tipo \"App de escritorio\".");
             return false;
         }
     }
     if (!id.endsWith(".apps.googleusercontent.com") || sec.isEmpty()) {
-        error = "No parece un cliente OAuth de Google: el ID termina en .apps.googleusercontent.com y hace "
-                "falta el secreto. Pega el JSON completo que descargaste.";
+        error = tr("No parece un cliente OAuth de Google: el ID termina en .apps.googleusercontent.com y hace "
+                   "falta el secreto. Pega el JSON completo que descargaste.");
         return false;
     }
     const QJsonObject o{{"client_id", id}, {"client_secret", sec}};
     if (!cred::write(configDir_, "youtube-client", QJsonDocument(o).toJson())) {
-        error = "No se pudo guardar en " + configDir_;
+        error = tr("No se pudo guardar en %1").arg(configDir_);
         return false;
     }
     if (id != clientId_) { // otra app de Google: la sesion anterior no sirve
@@ -203,37 +203,37 @@ QString YouTubeClient::explain(int status, const QByteArray& body) {
         reason = ev.toString();
         message = o.value("error_description").toString();
     }
-    static const QHash<QString, QString> kText{
-        {"quotaExceeded", "Se agoto la cuota diaria de la API de YouTube (10.000 unidades). Se renueva a la "
-                          "medianoche, hora del Pacifico."},
-        {"liveStreamingNotEnabled", "Tu canal no tiene habilitadas las transmisiones en vivo. Habilitalas en "
-                                    "youtube.com/features (tarda hasta 24 h la primera vez)."},
-        {"insufficientPermissions",
-         "El permiso otorgado no alcanza: desconecta y volve a conectar la cuenta."},
-        {"forbidden", "YouTube no permite esa operacion con esta cuenta."},
-        {"invalid_grant", "La sesion de YouTube vencio o fue revocada: conecta la cuenta de nuevo."},
-        {"invalid_client", "El cliente OAuth no es valido (ID o secreto): revisa la configuracion."},
-        {"redirectUriMismatch", "El cliente OAuth debe ser de tipo \"App de escritorio\"."},
-        {"invalidTransition", "El evento no puede pasar a ese estado ahora (¿el stream esta llegando?)."},
-        {"redundantTransition", "El evento ya esta en ese estado."},
+    // Se arma una vez: el texto se traduce al devolverlo.
+    static const QHash<QString, const char*> kText{
+        {"quotaExceeded", QT_TR_NOOP("Se agoto la cuota diaria de la API de YouTube (10.000 unidades). Se renueva a la "
+                                     "medianoche, hora del Pacifico.")},
+        {"liveStreamingNotEnabled", QT_TR_NOOP("Tu canal no tiene habilitadas las transmisiones en vivo. Habilitalas "
+                                               "en youtube.com/features (tarda hasta 24 h la primera vez).")},
+        {"insufficientPermissions", QT_TR_NOOP("El permiso otorgado no alcanza: desconecta y volve a conectar la cuenta.")},
+        {"forbidden", QT_TR_NOOP("YouTube no permite esa operacion con esta cuenta.")},
+        {"invalid_grant", QT_TR_NOOP("La sesion de YouTube vencio o fue revocada: conecta la cuenta de nuevo.")},
+        {"invalid_client", QT_TR_NOOP("El cliente OAuth no es valido (ID o secreto): revisa la configuracion.")},
+        {"redirectUriMismatch", QT_TR_NOOP("El cliente OAuth debe ser de tipo \"App de escritorio\".")},
+        {"invalidTransition", QT_TR_NOOP("El evento no puede pasar a ese estado ahora (¿el stream esta llegando?).")},
+        {"redundantTransition", QT_TR_NOOP("El evento ya esta en ese estado.")},
         {"errorStreamInactive",
-         "YouTube todavia no recibe video: empeza a transmitir desde la app y espera unos segundos."},
-        {"videoNotFound", "No existe ese video (o no es de este canal)."},
-        {"liveBroadcastNotFound", "No existe ese evento en vivo."},
-        {"uploadLimitExceeded", "Llegaste al limite de subidas de YouTube por hoy."},
-        {"accessNotConfigured", "La API de YouTube no esta habilitada en tu proyecto de Google Cloud "
-                                "(Biblioteca -> YouTube Data API v3)."},
-        {"SERVICE_DISABLED", "La API de YouTube no esta habilitada en tu proyecto de Google Cloud "
-                             "(Biblioteca -> YouTube Data API v3)."},
+         QT_TR_NOOP("YouTube todavia no recibe video: empeza a transmitir desde la app y espera unos segundos.")},
+        {"videoNotFound", QT_TR_NOOP("No existe ese video (o no es de este canal).")},
+        {"liveBroadcastNotFound", QT_TR_NOOP("No existe ese evento en vivo.")},
+        {"uploadLimitExceeded", QT_TR_NOOP("Llegaste al limite de subidas de YouTube por hoy.")},
+        {"accessNotConfigured", QT_TR_NOOP("La API de YouTube no esta habilitada en tu proyecto de Google Cloud "
+                                           "(Biblioteca -> YouTube Data API v3).")},
+        {"SERVICE_DISABLED", QT_TR_NOOP("La API de YouTube no esta habilitada en tu proyecto de Google Cloud "
+                                        "(Biblioteca -> YouTube Data API v3).")},
     };
-    if (kText.contains(reason)) return kText.value(reason);
+    if (kText.contains(reason)) return tr(kText.value(reason));
     if (!message.isEmpty()) return message + (reason.isEmpty() ? "" : " (" + reason + ")");
-    return QString("YouTube respondio %1").arg(status);
+    return tr("YouTube respondio %1").arg(status);
 }
 
 void YouTubeClient::ensureToken(std::function<void(QString, QString)> cb) {
     if (!loggedIn()) {
-        cb({}, "No hay una cuenta de YouTube conectada.");
+        cb({}, tr("No hay una cuenta de YouTube conectada."));
         return;
     }
     if (!accessToken_.isEmpty() && QDateTime::currentMSecsSinceEpoch() < accessExpiresMs_ - 60000) {
@@ -316,7 +316,7 @@ void YouTubeClient::api(const QString& method, const QString& path, const QUrlQu
                     done(true, parse(rb), {});
                 } else {
                     done(false, parse(rb),
-                         nerr.isEmpty() ? explain(status, rb) : "Sin conexion con YouTube: " + nerr);
+                         nerr.isEmpty() ? explain(status, rb) : tr("Sin conexion con YouTube: %1").arg(nerr));
                 }
             });
         });
@@ -339,7 +339,7 @@ QString YouTubeClient::redirectUri() const {
 
 void YouTubeClient::login(Done done) {
     if (!hasClient()) {
-        done(false, {}, "Falta configurar el cliente OAuth (ID y secreto de Google Cloud).");
+        done(false, {}, tr("Falta configurar el cliente OAuth (ID y secreto de Google Cloud)."));
         return;
     }
     cancelLogin();
@@ -347,7 +347,7 @@ void YouTubeClient::login(Done done) {
     if (!loginServer_->listen(QHostAddress::LocalHost, 0)) {
         delete loginServer_;
         loginServer_ = nullptr;
-        done(false, {}, "No se pudo abrir el puerto local para el login.");
+        done(false, {}, tr("No se pudo abrir el puerto local para el login."));
         return;
     }
     loginDone_ = std::move(done);
@@ -394,24 +394,24 @@ void YouTubeClient::login(Done done) {
                     s->disconnectFromHost();
                 };
                 if (!q.hasQueryItem("code") && !q.hasQueryItem("error")) {
-                    page("…", "Esperando la respuesta de Google.", false); // favicon u otro pedido
+                    page("…", tr("Esperando la respuesta de Google."), false); // favicon u otro pedido
                     return;
                 }
                 if (q.queryItemValue("state") != loginState_) {
-                    page("No coincide", "Este enlace no corresponde al login en curso.", false);
+                    page(tr("No coincide"), tr("Este enlace no corresponde al login en curso."), false);
                     return;
                 }
                 if (q.hasQueryItem("error")) {
-                    page("Cancelado", "No se dio permiso. Podes cerrar esta pestaña.", false);
+                    page(tr("Cancelado"), tr("No se dio permiso. Podes cerrar esta pestaña."), false);
                     finishLogin(false,
                                 q.queryItemValue("error") == "access_denied"
-                                    ? "Cancelaste el permiso (o tu cuenta no esta como usuario de prueba "
-                                      "en la pantalla de consentimiento)."
-                                    : "Google respondio: " + q.queryItemValue("error"));
+                                    ? tr("Cancelaste el permiso (o tu cuenta no esta como usuario de prueba "
+                                         "en la pantalla de consentimiento).")
+                                    : tr("Google respondio: %1").arg(q.queryItemValue("error")));
                     return;
                 }
-                page("¡Listo!",
-                     "Broadcast Appliance ya puede usar tu cuenta de YouTube. Podes cerrar esta pestaña.",
+                page(tr("¡Listo!"),
+                     tr("Broadcast Appliance ya puede usar tu cuenta de YouTube. Podes cerrar esta pestaña."),
                      true);
                 exchangeCode(q.queryItemValue("code", QUrl::FullyDecoded),
                              [this](bool ok, const QJsonObject&, const QString& e) { finishLogin(ok, e); });
@@ -420,7 +420,7 @@ void YouTubeClient::login(Done done) {
     });
     QPointer<QTcpServer> server(loginServer_);
     QTimer::singleShot(kLoginTimeoutMs(), this, [this, server]() {
-        if (server && server == loginServer_) finishLogin(false, "El login no se completo en 5 minutos.");
+        if (server && server == loginServer_) finishLogin(false, tr("El login no se completo en 5 minutos."));
     });
     emit stateChanged();
     openBrowser_(url);
@@ -442,12 +442,12 @@ void YouTubeClient::exchangeCode(const QString& code, Done done) {
         const QJsonObject o = parse(body);
         if (status != 200 || !o.contains("refresh_token")) {
             done(false, {},
-                 err.isEmpty() ? (o.contains("access_token") ? "Google no entrego un refresh token: "
-                                                               "quita el acceso de la app en "
-                                                               "myaccount.google.com/permissions y "
-                                                               "volve a conectar."
+                 err.isEmpty() ? (o.contains("access_token") ? tr("Google no entrego un refresh token: "
+                                                                  "quita el acceso de la app en "
+                                                                  "myaccount.google.com/permissions y "
+                                                                  "volve a conectar.")
                                                              : explain(status, body))
-                               : "Sin conexion con Google: " + err);
+                               : tr("Sin conexion con Google: %1").arg(err));
             return;
         }
         refreshToken_ = o.value("refresh_token").toString();
@@ -471,7 +471,7 @@ void YouTubeClient::finishLogin(bool ok, const QString& error) {
 }
 
 void YouTubeClient::cancelLogin() {
-    if (loginServer_) finishLogin(false, "Login cancelado.");
+    if (loginServer_) finishLogin(false, tr("Login cancelado."));
 }
 
 void YouTubeClient::logout(Done done) {
@@ -504,7 +504,7 @@ void YouTubeClient::loadChannel(Done done) {
         if (!ok) return done(false, {}, e);
         const QJsonObject ch = d.value("items").toArray().at(0).toObject();
         if (ch.isEmpty())
-            return done(false, {}, "Esa cuenta no tiene un canal de YouTube (crealo en youtube.com).");
+            return done(false, {}, tr("Esa cuenta no tiene un canal de YouTube (crealo en youtube.com)."));
         const QJsonObject sn = ch.value("snippet").toObject();
         account_ = QJsonObject{
             {"id", ch.value("id")},
@@ -587,7 +587,7 @@ void YouTubeClient::updateVideo(const QString& id, const QJsonObject& changes, D
     api("GET", "/videos", q, {}, [this, id, changes, done](bool ok, const QJsonObject& d, const QString& e) {
         if (!ok) return done(false, {}, e);
         const QJsonObject v = d.value("items").toArray().at(0).toObject();
-        if (v.isEmpty()) return done(false, {}, "No existe ese video (o no es de este canal).");
+        if (v.isEmpty()) return done(false, {}, tr("No existe ese video (o no es de este canal)."));
         QJsonObject sn = v.value("snippet").toObject();
         QJsonObject st = v.value("status").toObject();
         QJsonObject newSn{
@@ -615,7 +615,7 @@ void YouTubeClient::deleteVideo(const QString& id, Done done) {
 
 void YouTubeClient::uploadVideo(const QString& path, const QJsonObject& meta, Done done) {
     const QFileInfo fi(path);
-    if (!fi.isFile()) return done(false, {}, "No existe el archivo " + path);
+    if (!fi.isFile()) return done(false, {}, tr("No existe el archivo %1").arg(path));
     QPointer<YouTubeClient> self(this);
     ensureToken([self, path, fi, meta, done](QString token, QString err) {
         if (!self) return;
@@ -642,7 +642,7 @@ void YouTubeClient::uploadVideo(const QString& path, const QJsonObject& meta, Do
             if (!self) return;
             if (status != 200 || location.isEmpty())
                 return done(false, {},
-                            nerr.isEmpty() ? explain(status, rb) : "Sin conexion con YouTube: " + nerr);
+                            nerr.isEmpty() ? explain(status, rb) : tr("Sin conexion con YouTube: %1").arg(nerr));
             // 2) El archivo, en streaming, con progreso.
             auto put = std::make_shared<Req>();
             put->http.method = "PUT";
@@ -660,7 +660,7 @@ void YouTubeClient::uploadVideo(const QString& path, const QJsonObject& meta, Do
                                      {"url", "https://youtu.be/" + v.value("id").toString()}},
                          {});
                 } else {
-                    done(false, {}, e2.isEmpty() ? explain(st2, b2) : "La subida se corto: " + e2);
+                    done(false, {}, e2.isEmpty() ? explain(st2, b2) : tr("La subida se corto: %1").arg(e2));
                 }
             });
         });
@@ -753,7 +753,7 @@ void YouTubeClient::createBroadcast(const QJsonObject& p, Done done) {
                                 {"studioUrl", "https://studio.youtube.com/video/" + b.value("id").toString() +
                                                   "/livestreaming"}};
                 if (!ok2)
-                    return done(false, out, "El evento se creo pero no se pudo preparar la ingesta: " + e2);
+                    return done(false, out, tr("El evento se creo pero no se pudo preparar la ingesta: %1").arg(e2));
                 out.insert("ingestion", ing);
                 done(true, out, {});
             });
@@ -768,7 +768,7 @@ void YouTubeClient::ingestion(const QString& broadcastId, Done done) {
         [this, broadcastId, done](bool ok, const QJsonObject& d, const QString& e) {
             if (!ok) return done(false, {}, e);
             const QJsonObject b = d.value("items").toArray().at(0).toObject();
-            if (b.isEmpty()) return done(false, {}, "No existe ese evento en vivo.");
+            if (b.isEmpty()) return done(false, {}, tr("No existe ese evento en vivo."));
             const auto describe = [this, done](const QString& streamId) {
                 QUrlQuery sq;
                 sq.addQueryItem("part", "cdn,status");
@@ -836,7 +836,7 @@ void YouTubeClient::updateBroadcast(const QString& id, const QJsonObject& change
         [this, id, changes, done](bool ok, const QJsonObject& d, const QString& e) {
             if (!ok) return done(false, {}, e);
             const QJsonObject b = d.value("items").toArray().at(0).toObject();
-            if (b.isEmpty()) return done(false, {}, "No existe ese evento en vivo.");
+            if (b.isEmpty()) return done(false, {}, tr("No existe ese evento en vivo."));
             const QJsonObject sn = b.value("snippet").toObject();
             const QJsonObject st = b.value("status").toObject();
             const QJsonObject cd = b.value("contentDetails").toObject();

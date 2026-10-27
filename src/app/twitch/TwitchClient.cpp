@@ -83,14 +83,14 @@ void TwitchClient::persistToken() {
 bool TwitchClient::saveClient(const QString& id, const QString& secret, QString& error) {
     const QString i = id.trimmed();
     if (i.size() < 20 || i.contains(' ')) {
-        error = "El Client ID de Twitch son unos 30 caracteres (lo muestra la consola de desarrolladores al "
-                "administrar la app).";
+        error = tr("El Client ID de Twitch son unos 30 caracteres (lo muestra la consola de desarrolladores al "
+                   "administrar la app).");
         return false;
     }
     QJsonObject o{{"client_id", i}};
     if (!secret.trimmed().isEmpty()) o.insert("client_secret", secret.trimmed());
     if (!cred::write(configDir_, "twitch-client", QJsonDocument(o).toJson())) {
-        error = "No se pudo guardar en " + configDir_;
+        error = tr("No se pudo guardar en %1").arg(configDir_);
         return false;
     }
     if (i != clientId_) {
@@ -122,19 +122,19 @@ QString TwitchClient::explain(int status, const QByteArray& body) {
     const QJsonObject o = QJsonDocument::fromJson(body).object();
     const QString msg = o.value("message").toString();
     if (msg == "invalid refresh token" || msg.contains("Invalid refresh token", Qt::CaseInsensitive))
-        return "La sesion de Twitch vencio o fue revocada: conecta la cuenta de nuevo.";
+        return tr("La sesion de Twitch vencio o fue revocada: conecta la cuenta de nuevo.");
     if (msg.contains("missing required oauth scope", Qt::CaseInsensitive))
-        return "Falta un permiso: desconecta y volve a conectar la cuenta.";
-    if (msg.contains("invalid client", Qt::CaseInsensitive)) return "El Client ID de Twitch no es valido.";
-    if (status == 429) return "Twitch pide esperar (demasiados pedidos seguidos).";
+        return tr("Falta un permiso: desconecta y volve a conectar la cuenta.");
+    if (msg.contains("invalid client", Qt::CaseInsensitive)) return tr("El Client ID de Twitch no es valido.");
+    if (status == 429) return tr("Twitch pide esperar (demasiados pedidos seguidos).");
     if (!msg.isEmpty()) return "Twitch: " + msg;
-    return QString("Twitch respondio %1").arg(status);
+    return tr("Twitch respondio %1").arg(status);
 }
 
 // --- Login por codigo ------------------------------------------------------------------
 
 void TwitchClient::login(Done done) {
-    if (!hasClient()) return done(false, {}, "Falta el Client ID de la app de Twitch.");
+    if (!hasClient()) return done(false, {}, tr("Falta el Client ID de la app de Twitch."));
     cancelLogin();
     net::HttpRequest req;
     req.method = "POST";
@@ -146,7 +146,7 @@ void TwitchClient::login(Done done) {
         const QJsonObject o = parse(r.body);
         if (r.status != 200 || !o.contains("device_code"))
             return done(false, {},
-                        r.status == 0 ? "Sin conexion con Twitch: " + QString::fromStdString(r.error)
+                        r.status == 0 ? tr("Sin conexion con Twitch: %1").arg(QString::fromStdString(r.error))
                                       : explain(r.status, QByteArray::fromStdString(r.body)));
         self->deviceCode_ = o.value("device_code").toString();
         self->userCode_ = o.value("user_code").toString();
@@ -167,7 +167,7 @@ void TwitchClient::pollDevice(Done done) {
     if (!loginPending()) return;
     if (QDateTime::currentMSecsSinceEpoch() > deviceExpiresMs_) {
         cancelLogin();
-        return done(false, {}, "El codigo vencio sin que se autorizara. Proba de nuevo.");
+        return done(false, {}, tr("El codigo vencio sin que se autorizara. Proba de nuevo."));
     }
     net::HttpRequest req;
     req.method = "POST";
@@ -207,7 +207,7 @@ void TwitchClient::pollDevice(Done done) {
         }
         self->cancelLogin();
         done(false, {},
-             msg == "access_denied" ? "Cancelaste el permiso en Twitch."
+             msg == "access_denied" ? tr("Cancelaste el permiso en Twitch.")
                                     : explain(r.status, QByteArray::fromStdString(r.body)));
     });
 }
@@ -254,7 +254,7 @@ void TwitchClient::logout(Done done) {
 // --- Tokens y API ----------------------------------------------------------------------
 
 void TwitchClient::ensureToken(std::function<void(QString, QString)> cb) {
-    if (!loggedIn()) return cb({}, "No hay una cuenta de Twitch conectada.");
+    if (!loggedIn()) return cb({}, tr("No hay una cuenta de Twitch conectada."));
     if (!accessToken_.isEmpty() && QDateTime::currentMSecsSinceEpoch() < expiresAtMs_ - 60000)
         return cb(accessToken_, {});
     tokenWaiters_.push_back(std::move(cb));
@@ -282,7 +282,7 @@ void TwitchClient::ensureToken(std::function<void(QString, QString)> cb) {
             persistToken();
             token = accessToken_;
         } else if (r.status == 0) {
-            err = "Sin conexion con Twitch: " + QString::fromStdString(r.error);
+            err = tr("Sin conexion con Twitch: %1").arg(QString::fromStdString(r.error));
         } else {
             err = explain(r.status, QByteArray::fromStdString(r.body));
             if (r.status == 400 || r.status == 401) { // refresh invalido: hay que reconectar
@@ -333,7 +333,7 @@ void TwitchClient::api(const QString& method, const QString& path, const QUrlQue
                     *attempt = nullptr;
                     if (r.status >= 200 && r.status < 300) return done(true, parse(r.body), {});
                     done(false, parse(r.body),
-                         r.status == 0 ? "Sin conexion con Twitch: " + QString::fromStdString(r.error)
+                         r.status == 0 ? tr("Sin conexion con Twitch: %1").arg(QString::fromStdString(r.error))
                                        : explain(r.status, QByteArray::fromStdString(r.body)));
                 });
             });
@@ -377,8 +377,8 @@ void TwitchClient::updateChannel(const QJsonObject& changes, Done done) {
                          const QJsonArray items = d.value("items").toArray();
                          if (items.isEmpty())
                              return done(false, {},
-                                         "No hay ninguna categoria de Twitch llamada \"" +
-                                             changes.value("game").toString() + "\".");
+                                         tr("No hay ninguna categoria de Twitch llamada \"%1\".")
+                                             .arg(changes.value("game").toString()));
                          // Coincidencia exacta si la hay; si no, la primera.
                          QString id = items.at(0).toObject().value("id").toString();
                          for (const QJsonValue& v : items)
@@ -415,7 +415,7 @@ void TwitchClient::ingest(Done done) {
     api("GET", "/streams/key", q, {}, [this, done](bool ok, const QJsonObject& d, const QString& e) {
         if (!ok) return done(false, {}, e);
         const QString key = d.value("data").toArray().at(0).toObject().value("stream_key").toString();
-        if (key.isEmpty()) return done(false, {}, "Twitch no entrego la clave de transmision.");
+        if (key.isEmpty()) return done(false, {}, tr("Twitch no entrego la clave de transmision."));
         done(true, QJsonObject{{"url", ep_.ingest}, {"key", key}}, {});
     });
 }
@@ -475,7 +475,7 @@ void TwitchClient::startChat() {
     ensureToken([self](QString token, QString err) {
         if (!self || self->chatRunning()) return;
         if (token.isEmpty()) {
-            emit self->chatStatus("Chat de Twitch: " + err);
+            emit self->chatStatus(tr("Chat de Twitch: %1").arg(err));
             return;
         }
         self->chatStop_ = false;
@@ -539,14 +539,14 @@ void TwitchClient::chatLoop(QString token, QString login) {
         net::LineSocket sock;
         std::string err;
         if (!sock.open(ep_.ircHost.toStdString(), ep_.ircPort.toStdString(), ep_.ircTls, 1000, err)) {
-            status("Chat de Twitch: " + QString::fromStdString(err));
+            status(tr("Chat de Twitch: %1").arg(QString::fromStdString(err)));
         } else {
             const std::string chan = "#" + login.toLower().toStdString();
             sock.write("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n");
             sock.write("PASS oauth:" + token.toStdString() + "\r\n");
             sock.write("NICK " + login.toLower().toStdString() + "\r\n");
             sock.write("JOIN " + chan + "\r\n");
-            status("Chat de Twitch conectado");
+            status(tr("Chat de Twitch conectado"));
             backoff = 2000;
             std::string line;
             for (;;) {
@@ -568,7 +568,7 @@ void TwitchClient::chatLoop(QString token, QString login) {
                     continue;
                 }
                 if (line.find("Login authentication failed") != std::string::npos) {
-                    status("Chat de Twitch: la sesion no es valida (reconecta la cuenta).");
+                    status(tr("Chat de Twitch: la sesion no es valida (reconecta la cuenta)."));
                     chatStop_ = true;
                     break;
                 }
@@ -611,7 +611,7 @@ void TwitchClient::chatLoop(QString token, QString login) {
             }
         }
         if (chatStop_) break;
-        status("Chat de Twitch: reconectando…");
+        status(tr("Chat de Twitch: reconectando…"));
         for (int waited = 0; waited < backoff && !chatStop_; waited += 200)
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         backoff = std::min(backoff * 2, ba::ajustes::sAMs("twitch.reconexionMaxS", 60));

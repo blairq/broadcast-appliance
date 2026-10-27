@@ -6,6 +6,8 @@
 
 #include "net/HttpsClient.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <QDateTime>
 #include <QMetaObject>
 #include <QTimer>
@@ -40,11 +42,12 @@ const char* nombreEstado(Descargas::Estado e) {
 
 const char* Descargas::texto(Resultado r) {
     switch (r) {
-        case Resultado::Encolada: return "encolada";
-        case Resultado::YaEnCola: return "ya estaba en la cola";
-        case Resultado::Bajando: return "ya se está bajando";
-        case Resultado::YaEsta: return "ya está bajado";
-        case Resultado::Invalida: return "pedido inválido";
+        // Para mostrarlo: ba::i18n::traducir("descargas", texto(r)).
+        case Resultado::Encolada: return QT_TRANSLATE_NOOP("descargas", "encolada");
+        case Resultado::YaEnCola: return QT_TRANSLATE_NOOP("descargas", "ya estaba en la cola");
+        case Resultado::Bajando: return QT_TRANSLATE_NOOP("descargas", "ya se está bajando");
+        case Resultado::YaEsta: return QT_TRANSLATE_NOOP("descargas", "ya está bajado");
+        case Resultado::Invalida: return QT_TRANSLATE_NOOP("descargas", "pedido inválido");
     }
     return "?";
 }
@@ -92,7 +95,7 @@ Descargas::Resultado Descargas::pedir(Pedido p) {
     auto it = std::make_shared<Item>();
     it->pedido = std::move(p);
     it->desde = ahoraMs();
-    it->texto = "En la cola";
+    it->texto = ba::i18n::traducir("descargas", "En la cola");
     {
         std::lock_guard<std::mutex> l(mu_);
         // Lo terminado con el mismo id sale del historial (queda el nuevo).
@@ -151,7 +154,7 @@ void Descargas::correr() {
             hay_.wait(l, [&] { return fin_ || (it = tomar()) != nullptr; });
             if (fin_) return;
             it->estado = Estado::Bajando;
-            it->texto = "Empezando…";
+            it->texto = ba::i18n::traducir("descargas", "Empezando…");
         }
         avisar();
         Contexto ctx;
@@ -162,7 +165,7 @@ void Descargas::correr() {
         try {
             err = it->pedido.trabajo(ctx);
         } catch (const std::exception& e) {
-            err = std::string("falló: ") + e.what();
+            err = ba::i18n::llenar(ba::i18n::traducir("descargas", "falló: %1"), {e.what()});
         }
         const bool cancelado = it->cancelado->load();
         {
@@ -227,10 +230,11 @@ std::string Descargas::Contexto::bajar(const std::string& url, const fs::path& d
                     i->total = todo;
                     i->kbps = kbps;
                     i->progreso = todo > 0 ? static_cast<double>(hecho) / static_cast<double>(todo) : 0;
-                    char t[160];
-                    std::snprintf(t, sizeof t, "Bajando %s… %.0f / %.0f MB", quien.c_str(),
-                                  static_cast<double>(hecho) / 1048576.0, static_cast<double>(todo) / 1048576.0);
-                    i->texto = t;
+                    char mb[2][32];
+                    std::snprintf(mb[0], sizeof mb[0], "%.0f", static_cast<double>(hecho) / 1048576.0);
+                    std::snprintf(mb[1], sizeof mb[1], "%.0f", static_cast<double>(todo) / 1048576.0);
+                    i->texto = ba::i18n::llenar(ba::i18n::traducir("descargas", "Bajando %1… %2 / %3 MB"),
+                                                {quien, mb[0], mb[1]});
                 }
         }
         d_->avisar();
@@ -243,13 +247,16 @@ std::string Descargas::Contexto::bajar(const std::string& url, const fs::path& d
         req.resumeFrom = 0;
         const HttpResponse otra = HttpsClient::download(req);
         if (!otra.error.empty() || otra.status / 100 != 2)
-            return "no se pudo bajar " + quien + ": " + (otra.error.empty() ? "HTTP " + std::to_string(otra.status) : otra.error);
+            return ba::i18n::llenar(ba::i18n::traducir("descargas", "no se pudo bajar %1: %2"),
+                                    {quien, otra.error.empty() ? "HTTP " + std::to_string(otra.status) : otra.error});
     } else if (!res.error.empty() || res.status / 100 != 2) {
         // La parte queda: el próximo intento sigue desde ahí.
-        return "no se pudo bajar " + quien + ": " + (res.error.empty() ? "HTTP " + std::to_string(res.status) : res.error);
+        return ba::i18n::llenar(ba::i18n::traducir("descargas", "no se pudo bajar %1: %2"),
+                                {quien, res.error.empty() ? "HTTP " + std::to_string(res.status) : res.error});
     }
     fs::rename(parte, destino, ec);
-    if (ec) return "no se pudo dejar " + destino.string() + ": " + ec.message();
+    if (ec)
+        return ba::i18n::llenar(ba::i18n::traducir("descargas", "no se pudo dejar %1: %2"), {destino.string(), ec.message()});
     return {};
 }
 
