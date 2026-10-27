@@ -98,10 +98,14 @@ std::string bajarVerificado(net::Descargas::Contexto& ctx, const std::string& ur
     if (fs::exists(destino, ec) && sha256De(destino) == sha) return {};
     const std::string e = ctx.bajar(url, destino);
     if (!e.empty()) return e;
-    ctx.avance(0.95, "Verificando " + destino.filename().string() + "…");
+    ctx.avance(0.95, QCoreApplication::translate("superres", "Verificando %1…")
+                         .arg(QString::fromStdString(destino.filename().string()))
+                         .toStdString());
     if (sha256De(destino) != sha) {
         fs::remove(destino, ec);
-        return "el archivo bajado (" + destino.filename().string() + ") no coincide con el sha256 publicado";
+        return QCoreApplication::translate("superres", "el archivo bajado (%1) no coincide con el sha256 publicado")
+            .arg(QString::fromStdString(destino.filename().string()))
+            .toStdString();
     }
     return {};
 }
@@ -154,7 +158,7 @@ SuperRes::~SuperRes() {
     if (video_ != nullptr) video_->setResolverPlugin({});
     // Lo que la cola de descargas espera de acá termina (cancelado): si no, su
     // hilo se quedaba esperando para siempre.
-    for (auto& l : listosVivos_) l("cancelada");
+    for (auto& l : listosVivos_) l(tr("cancelada").toStdString());
     listosVivos_.clear();
     if (hijo_) {
         hijo_->disconnect(this);
@@ -209,12 +213,12 @@ json SuperRes::modelos() const {
 
 QVariantList SuperRes::modelosQml() const { return qv(modelos()).toList(); }
 
-std::string SuperRes::correr(const QString& que, const QString& entrada, const QStringList& args,
+std::string SuperRes::correr(const char* tipo, const QString& que, const QString& entrada, const QStringList& args,
                              std::function<void(bool)> fin) {
     if (hijo_ && hijo_->corriendo())
-        return "ya hay un trabajo andando: «" + trabajo_.value("que").toString().toStdString() + "»";
+        return tr("ya hay un trabajo andando: «%1»").arg(trabajo_.value("que").toString()).toStdString();
     std::error_code ec;
-    if (!fs::exists(python(), ec)) return "el programa no trae Python";
+    if (!fs::exists(python(), ec)) return tr("el programa no trae Python").toStdString();
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     for (const QString& k : env.keys())
         if (k.startsWith("PYTHON")) env.remove(k);
@@ -238,7 +242,7 @@ std::string SuperRes::correr(const QString& que, const QString& entrada, const Q
         const bool ok = codigo == 0 && !trabajo_.contains("error");
         trabajo_["corriendo"] = false;
         if (!ok && !trabajo_.contains("error"))
-            trabajo_["error"] = QString("terminó con código %1").arg(codigo);
+            trabajo_["error"] = tr("terminó con código %1").arg(codigo);
         if (ok) trabajo_["pct"] = 100;
         emit trabajoCambio();
         emit cambio();
@@ -247,8 +251,13 @@ std::string SuperRes::correr(const QString& que, const QString& entrada, const Q
         if (f) QTimer::singleShot(0, this, [f = std::move(f), ok]() { f(ok); });
     });
     trabajo_ = {
-        {"que", que}, {"entrada", entrada},     {"corriendo", true},
-        {"pct", 0},   {"texto", "Arrancando…"}, {"desde", QDateTime::currentDateTime().toString("HH:mm:ss")}};
+        {"tipo", QString::fromLatin1(tipo)},
+        {"que", que},
+        {"entrada", entrada},
+        {"corriendo", true},
+        {"pct", 0},
+        {"texto", tr("Arrancando…")},
+        {"desde", QDateTime::currentDateTime().toString("HH:mm:ss")}};
     fin_ = std::move(fin);
     pendiente_.clear();
     QString err;
@@ -279,7 +288,7 @@ void SuperRes::linea(const QByteArray& l) {
     if (ctxCola_ != nullptr)
         ctxCola_->avance(trabajo_.value("pct").toDouble() / 100.0, trabajo_.value("texto").toString().toStdString());
     if (m.value("ev", "") == "error")
-        trabajo_["error"] = QString::fromStdString(m.value("error", std::string("falló")));
+        trabajo_["error"] = m.contains("error") ? QString::fromStdString(m.value("error", std::string())) : tr("falló");
     emit trabajoCambio();
 }
 
@@ -300,11 +309,11 @@ json SuperRes::laboratorio() const {
 }
 
 std::string SuperRes::borrarLaboratorio() {
-    if (hijo_ && hijo_->corriendo()) return "hay un trabajo andando: cancelalo primero";
+    if (hijo_ && hijo_->corriendo()) return tr("hay un trabajo andando: cancelalo primero").toStdString();
     std::error_code ec;
     fs::remove_all(libs(), ec);
     emit cambio();
-    return ec ? "no se pudo borrar: " + ec.message() : std::string();
+    return ec ? tr("no se pudo borrar: %1").arg(q(ec.message())).toStdString() : std::string();
 }
 
 // --- Lo que se baja: por la cola de descargas (net/Descargas) ------------------------------
@@ -319,11 +328,11 @@ std::string SuperRes::encolar(net::Descargas::Pedido p, std::function<std::strin
             const std::string e = bajar(ctx);
             if (!e.empty()) return e;
         }
-        if (!lanzar || ctx.cancelado()) return ctx.cancelado() ? "cancelada" : "";
+        if (!lanzar || ctx.cancelado()) return ctx.cancelado() ? tr("cancelada").toStdString() : std::string();
         net::Descargas::Contexto* c = &ctx;
         return ctx.enLaInterfaz(
             [yo, lanzar, c, id](std::function<void(const std::string&)> listo) {
-                if (!yo) return listo("cancelada");
+                if (!yo) return listo(tr("cancelada").toStdString());
                 // Para avisarle si esto se destruye antes (listo no avisa dos veces).
                 yo->listosVivos_.push_back(listo);
                 yo->esperarYLanzar(lanzar, listo, c, id);
@@ -333,16 +342,16 @@ std::string SuperRes::encolar(net::Descargas::Pedido p, std::function<std::strin
             });
     };
     const auto r = net::Descargas::la().pedir(std::move(p));
-    return r == net::Descargas::Resultado::Invalida ? std::string("pedido inválido") : std::string();
+    return r == net::Descargas::Resultado::Invalida ? tr("pedido inválido").toStdString() : std::string();
 }
 
 void SuperRes::esperarYLanzar(std::function<std::string(std::function<void(bool)>)> lanzar,
                               std::function<void(const std::string&)> listo, net::Descargas::Contexto* c,
                               const std::string& id) {
-    if (c->cancelado()) return listo("cancelada");
+    if (c->cancelado()) return listo(tr("cancelada").toStdString());
     // El laboratorio corre de a un proceso: si está entrenando (u otro), espera.
     if (hijo_ && hijo_->corriendo()) {
-        c->avance(0, "Esperando que termine «" + trabajo_.value("que").toString().toStdString() + "»");
+        c->avance(0, tr("Esperando que termine «%1»").arg(trabajo_.value("que").toString()).toStdString());
         QTimer::singleShot(2000, this, [this, lanzar, listo, c, id]() { esperarYLanzar(lanzar, listo, c, id); });
         return;
     }
@@ -377,8 +386,9 @@ std::string SuperRes::prepararLaboratorio(std::function<void()> despues) {
     const fs::path dir = libs();
     net::Descargas::Pedido p;
     p.id = "superres:laboratorio";
-    p.titulo = conDirectml() ? "Laboratorio de superresolución (PyTorch con DirectML, ~800 MB)"
-                             : "Laboratorio de superresolución (PyTorch, ~800 MB)";
+    p.titulo = (conDirectml() ? tr("Laboratorio de superresolución (PyTorch con DirectML, ~800 MB)")
+                              : tr("Laboratorio de superresolución (PyTorch, ~800 MB)"))
+                   .toStdString();
     p.version = bib.join(" ").toStdString();
     QPointer<SuperRes> yo(this);
     p.yaEsta = [yo]() { return yo && yo->laboratorioListo(); };
@@ -395,17 +405,17 @@ std::string SuperRes::prepararLaboratorio(std::function<void()> despues) {
             // Si había uno a medias o de otra combinación (p. ej. sin DirectML), de
             // cero: pip --target no desinstala lo que pisa y quedaban dos PyTorch
             // mezclados. En el hilo de la cola: son cientos de MB para borrar.
-            ctx.avance(0, "Preparando la carpeta…");
+            ctx.avance(0, tr("Preparando la carpeta…").toStdString());
             std::error_code ec;
             if (fs::exists(dir, ec)) fs::remove_all(dir, ec);
             fs::create_directories(dir, ec);
             return {};
         },
         [yo, bib](std::function<void(bool)> alFin) -> std::string {
-            if (!yo) return "cancelada";
+            if (!yo) return tr("cancelada").toStdString();
             SuperRes* s = yo.data();
-            return s->correr(conDirectml() ? "Preparar el laboratorio (PyTorch con DirectML para la GPU, ~800 MB)"
-                                           : "Preparar el laboratorio (PyTorch, ~800 MB)",
+            return s->correr("laboratorio", conDirectml() ? tr("Preparar el laboratorio (PyTorch con DirectML para la GPU, ~800 MB)")
+                                           : tr("Preparar el laboratorio (PyTorch, ~800 MB)"),
                              {},
                              QStringList{"-m", "pip", "install", "--disable-pip-version-check",
                                          "--no-warn-script-location", "--progress-bar", "off", "--target",
@@ -415,7 +425,7 @@ std::string SuperRes::prepararLaboratorio(std::function<void()> despues) {
                                  if (yo && ok) {
                                      std::ofstream(yo->libs() / ".ok")
                                          << "listo\n" << bib.join(" ").toStdString() << "\n";
-                                     yo->trabajo_["texto"] = "Laboratorio listo";
+                                     yo->trabajo_["texto"] = tr("Laboratorio listo");
                                      emit yo->trabajoCambio();
                                      emit yo->cambio();
                                  }
@@ -426,7 +436,7 @@ std::string SuperRes::prepararLaboratorio(std::function<void()> despues) {
 
 std::string SuperRes::convertir(const std::string& cual) {
     const Pesos* pesos = pesosDe(cual);
-    if (pesos == nullptr) return "se convierte «span» o «esrgan»";
+    if (pesos == nullptr) return tr("se convierte «span» o «esrgan»").toStdString();
     const bool hayQuePreparar = !laboratorioListo();
     if (hayQuePreparar) {
         const std::string e = prepararLaboratorio();
@@ -436,7 +446,7 @@ std::string SuperRes::convertir(const std::string& cual) {
     const fs::path archivo = carpetaModelos() / pesos->archivo;
     net::Descargas::Pedido p;
     p.id = "superres:convertir:" + cual;
-    p.titulo = cual == "span" ? "SPAN x2 (superresolución)" : "Real-ESRGAN x4 (superresolución)";
+    p.titulo = (cual == "span" ? tr("SPAN x2 (superresolución)") : tr("Real-ESRGAN x4 (superresolución)")).toStdString();
     p.version = std::string(pesos->sha256).substr(0, 12);
     if (hayQuePreparar) p.despuesDe = {"superres:laboratorio"};
     QPointer<SuperRes> yo(this);
@@ -445,10 +455,11 @@ std::string SuperRes::convertir(const std::string& cual) {
         std::move(p),
         [url, archivo, sha](net::Descargas::Contexto& ctx) { return bajarVerificado(ctx, url, archivo, sha); },
         [yo, cual, salida](std::function<void(bool)> alFin) -> std::string {
-            if (!yo) return "cancelada";
-            if (!yo->laboratorioListo()) return "no está el laboratorio (falló su descarga): probá de nuevo";
+            if (!yo) return tr("cancelada").toStdString();
+            if (!yo->laboratorioListo())
+                return tr("no está el laboratorio (falló su descarga): probá de nuevo").toStdString();
             const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
-            return yo->correr(cual == "span" ? "Convertir SPAN" : "Convertir Real-ESRGAN", {},
+            return yo->correr("convertir", cual == "span" ? tr("Convertir SPAN") : tr("Convertir Real-ESRGAN"), {},
                               {q8(lab), QString::fromStdString(cual), "--libs", q8(yo->libs()), "--salida", q8(salida)},
                               [yo, alFin](bool ok) {
                                   if (yo) emit yo->cambio();
@@ -463,8 +474,8 @@ std::string SuperRes::origen(const std::string& entrada, int segundos, std::func
         listo({"--uri", QString::fromStdString(uri)});
         return {};
     }
-    if (!video_->esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
-    if (captura_.isActive()) return "ya se están capturando cuadros de otra entrada";
+    if (!video_->esEntrada(entrada)) return tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString();
+    if (captura_.isActive()) return tr("ya se están capturando cuadros de otra entrada").toStdString();
     // Una cámara local: cuatro cuadros por segundo de lo que sale de su grafo, a una
     // carpeta (el laboratorio la toma como «--entrada»).
     std::string seguro;
@@ -476,9 +487,9 @@ std::string SuperRes::origen(const std::string& entrada, int segundos, std::func
     fs::create_directories(carpeta, ec);
     capturados_ = 0;
     aCapturar_ = std::clamp(segundos, 10, 300) * 4;
-    trabajo_ = QVariantMap{{"que", "Capturar cuadros de «" + QString::fromStdString(entrada) + "»"},
+    trabajo_ = QVariantMap{{"tipo", "capturar"}, {"que", tr("Capturar cuadros de «%1»").arg(q(entrada))},
                            {"entrada", QString::fromStdString(entrada)}, {"corriendo", true}, {"pct", 0},
-                           {"texto", "Capturando lo que ve la cámara…"}};
+                           {"texto", tr("Capturando lo que ve la cámara…")}};
     emit trabajoCambio();
     captura_.disconnect();
     captura_.setInterval(250);
@@ -499,7 +510,7 @@ std::string SuperRes::origen(const std::string& entrada, int segundos, std::func
                 ++yo->capturados_;
             }
             yo->trabajo_["pct"] = 100 * yo->capturados_ / std::max(1, yo->aCapturar_);
-            yo->trabajo_["texto"] = QString("Capturando cuadros: %1 de %2").arg(yo->capturados_).arg(yo->aCapturar_);
+            yo->trabajo_["texto"] = tr("Capturando cuadros: %1 de %2").arg(yo->capturados_).arg(yo->aCapturar_);
             emit yo->trabajoCambio();
             if (yo->capturados_ >= yo->aCapturar_) {
                 yo->captura_.stop();
@@ -513,7 +524,7 @@ std::string SuperRes::origen(const std::string& entrada, int segundos, std::func
 }
 
 std::string SuperRes::entrenar(const std::string& entrada, double minutos, int segundos, bool aplicarAlFin) {
-    if (video_ == nullptr) return "no hay video";
+    if (video_ == nullptr) return tr("no hay video").toStdString();
     minutos = std::clamp(minutos, 1.0, 120.0);
     std::string seguro;
     for (char c : entrada)
@@ -527,17 +538,17 @@ std::string SuperRes::entrenar(const std::string& entrada, double minutos, int s
         a << QStringList{"--segundos", QString::number(segundos),
                          "--minutos",  QString::number(minutos),
                          "--salida",   q8(salida),
-                         "--nombre",   QString::fromStdString("Red chica de «" + entrada + "»")};
+                         "--nombre",   tr("Red chica de «%1»").arg(q(entrada))};
         std::error_code ec;
         if (fs::exists(salida.string() + ".pt", ec)) a << "--desde" << q8(salida);
         return correr(
-            "Entrenar con lo que ve «" + QString::fromStdString(entrada) + "»",
+            "entrenar", tr("Entrenar con lo que ve «%1»").arg(q(entrada)),
             QString::fromStdString(entrada), a, [this, entrada, salida, aplicarAlFin](bool ok) {
                 if (ok && aplicarAlFin) {
                     const std::string e = aplicar(entrada, "onnx", salida.string());
                     trabajo_["texto"] =
-                        e.empty() ? QString("Listo y aplicado a «%1»").arg(QString::fromStdString(entrada))
-                                  : QString::fromStdString("Listo, pero no se pudo aplicar: " + e);
+                        e.empty() ? tr("Listo y aplicado a «%1»").arg(QString::fromStdString(entrada))
+                                  : tr("Listo, pero no se pudo aplicar: %1").arg(q(e));
                     emit trabajoCambio();
                 }
                 emit cambio();
@@ -561,12 +572,14 @@ std::string SuperRes::entrenar(const std::string& entrada, double minutos, int s
 
 std::string SuperRes::destilar(const std::string& entrada, const std::string& maestro, double minutos,
                                bool aplicarAlFin, bool cpu) {
-    if (video_ == nullptr) return "no hay video";
+    if (video_ == nullptr) return tr("no hay video").toStdString();
     json receta;
     for (const auto& r : catalogo_)
         if (r.value("id", "") == (maestro.empty() ? std::string("realesr-general-x4v3") : maestro)) receta = r;
     if (!receta.is_object() || receta.value("tipo", "") != "red")
-        return "el maestro tiene que ser una red del catálogo (superres_plugins: realesr-general-x4v3, lsdir-compact-x4…)";
+        return tr("el maestro tiene que ser una red del catálogo (superres_plugins: realesr-general-x4v3, "
+                  "lsdir-compact-x4…)")
+            .toStdString();
     minutos = std::clamp(minutos, 1.0, 240.0);
     std::string seguro;
     for (char c : entrada)
@@ -581,19 +594,16 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
         a << desde;
         a << QStringList{"--segundos", "60",               "--minutos",  QString::number(minutos),
                       "--salida",  q8(salida),          "--pesos",    q8(carpetaModelos() / ".pesos"),
-                      "--nombre",  QString::fromStdString("Destilada de " + receta.value("nombre", maestro) +
-                                                           " para «" + entrada + "»")};
+                      "--nombre",  tr("Destilada de %1 para «%2»").arg(q(receta.value("nombre", maestro)), q(entrada))};
         if (cpu) a << "--cpu";
         std::error_code ec;
         if (fs::exists(salida.string() + ".pt", ec)) a << "--desde" << q8(salida);
-        return correr("Destilar «" + QString::fromStdString(receta.value("nombre", maestro)) + "» para «" +
-                          QString::fromStdString(entrada) + "»",
+        return correr("destilar", tr("Destilar «%1» para «%2»").arg(q(receta.value("nombre", maestro)), q(entrada)),
                       QString::fromStdString(entrada), a, [this, entrada, salida, aplicarAlFin](bool ok) {
                           if (ok && aplicarAlFin) {
                               const std::string e = aplicar(entrada, "onnx", salida.string());
-                              trabajo_["texto"] = e.empty() ? QString("Lista y aplicada a «%1»")
-                                                                  .arg(QString::fromStdString(entrada))
-                                                            : QString::fromStdString("Lista, pero no se pudo aplicar: " + e);
+                              trabajo_["texto"] = e.empty() ? tr("Lista y aplicada a «%1»").arg(q(entrada))
+                                                            : tr("Lista, pero no se pudo aplicar: %1").arg(q(e));
                               emit trabajoCambio();
                           }
                           emit cambio();
@@ -627,21 +637,21 @@ void SuperRes::cancelar() {
 
 void SuperRes::cortarHijo() {
     if (hijo_ && hijo_->corriendo()) {
-        trabajo_["error"] = "cancelado";
+        trabajo_["error"] = tr("cancelado");
         hijo_->terminar();
     }
 }
 
 std::string SuperRes::aplicar(const std::string& entrada, const std::string& motor,
                               const std::string& modelo) {
-    if (video_ == nullptr) return "no hay video";
+    if (video_ == nullptr) return tr("no hay video").toStdString();
     std::string ruta = modelo;
     if (motor == "onnx" && !modelo.empty() && modelo.find('/') == std::string::npos &&
         modelo.find('\\') == std::string::npos)
         ruta = (carpetaModelos() / modelo).string();
     std::error_code ec;
     if (motor == "onnx" && !fs::exists(ruta, ec))
-        return "no existe el modelo «" + modelo + "» (superres_estado lista los que hay)";
+        return tr("no existe el modelo «%1» (superres_estado lista los que hay)").arg(q(modelo)).toStdString();
     // Relativa a los datos: la carpeta se puede mover y la tarjeta sigue andando.
     return video_->superresMotor(entrada, motor, motor == "onnx" ? ba::platform::rutaGuardable(ruta) : std::string());
 }
@@ -728,8 +738,10 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
     json receta;
     for (const auto& r : catalogo_)
         if (r.value("id", "") == id) receta = r;
-    if (!receta.is_object()) return "no hay un plugin «" + id + "» en el catálogo (superres_plugins los lista)";
-    if (receta.value("tipo", "") == "integrado") return "«" + id + "» viene con el programa: no hace falta instalarlo";
+    if (!receta.is_object())
+        return tr("no hay un plugin «%1» en el catálogo (superres_plugins los lista)").arg(q(id)).toStdString();
+    if (receta.value("tipo", "") == "integrado")
+        return tr("«%1» viene con el programa: no hace falta instalarlo").arg(q(id)).toStdString();
     const fs::path dir = carpetaModelos() / id;
     const fs::path archivoReceta = carpetaModelos() / (".receta-" + id + ".json");
     std::ofstream(archivoReceta) << receta.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -751,7 +763,7 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
     }
     net::Descargas::Pedido p;
     p.id = "superres:plugin:" + id;
-    p.titulo = receta.value("nombre", id) + " (superresolución)";
+    p.titulo = tr("%1 (superresolución)").arg(q(receta.value("nombre", id))).toStdString();
     const json origen = receta.value("origen", json::object());
     const std::string url = origen.value("url", std::string()), sha = origen.value("sha256", std::string());
     p.version = sha.substr(0, 12);
@@ -770,10 +782,11 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
             return bajarVerificado(ctx, url, archivo, sha);
         },
         [yo, receta, dir, archivoReceta, tamanos, esRed](std::function<void(bool)> alFin) -> std::string {
-            if (!yo) return "cancelada";
-            if (esRed && !yo->laboratorioListo()) return "no está el laboratorio (falló su descarga): probá de nuevo";
+            if (!yo) return tr("cancelada").toStdString();
+            if (esRed && !yo->laboratorioListo())
+                return tr("no está el laboratorio (falló su descarga): probá de nuevo").toStdString();
             const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
-            return yo->correr("Instalar «" + QString::fromStdString(receta.value("nombre", std::string())) + "»", {},
+            return yo->correr("instalar", tr("Instalar «%1»").arg(q(receta.value("nombre", std::string()))), {},
                               {q8(lab), "instalar", "--receta", q8(archivoReceta), "--salida", q8(dir), "--libs",
                                q8(yo->libs()), "--tamanos", QString::fromStdString(tamanos)},
                               [yo, archivoReceta, alFin](bool ok) {
@@ -814,7 +827,8 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         return json::object();
     };
     if (id == "apple" || id == "fsr") {
-        if (!motores().contains(QString::fromStdString(id))) return fallar("este sistema no tiene «" + id + "»");
+        if (!motores().contains(QString::fromStdString(id)))
+            return fallar(tr("este sistema no tiene «%1»").arg(q(id)).toStdString());
         return json{{"motor", id}, {"modelo", ""}, {"escala_red", 2}};
     }
     const fs::path dir = carpetaModelos() / id;
@@ -824,10 +838,10 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         std::error_code ec;
         if (fs::exists(carpetaModelos() / (id + ".onnx"), ec))
             return json{{"motor", "onnx"}, {"modelo", (carpetaModelos() / (id + ".onnx")).string()}, {"escala_red", 2}};
-        return fallar("el plugin «" + id + "» no está instalado (superres_instalar)");
+        return fallar(tr("el plugin «%1» no está instalado (superres_instalar)").arg(q(id)).toStdString());
     }
     const json p = json::parse(f, nullptr, false);
-    if (!p.is_object()) return fallar("plugin.json de «" + id + "» roto");
+    if (!p.is_object()) return fallar(tr("plugin.json de «%1» roto").arg(q(id)).toStdString());
     const json archivos = p.value("archivos", json::object());
     if (p.value("tipo", "") == "elemento") {
         // CONTRATO ABIERTO: un elemento de GStreamer cualquiera (de GStreamer, o
@@ -839,13 +853,15 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         //    "plataformas": ["windows", "linux"]}
         // Las propiedades pueden usar {dir} (la carpeta del plugin).
         const std::string el = p.value("elemento", std::string());
-        if (el.empty()) return fallar("plugin.json de «" + id + "» sin `elemento`");
+        if (el.empty()) return fallar(tr("plugin.json de «%1» sin `elemento`").arg(q(id)).toStdString());
 #if defined(BA_HAVE_GST)
         std::error_code e3;
         if (fs::is_directory(dir / "gst", e3)) gst_registry_scan_path(gst_registry_get(), (dir / "gst").string().c_str());
         GstElementFactory* fac = gst_element_factory_find(el.c_str());
-        if (fac == nullptr) return fallar("GStreamer no tiene el elemento «" + el + "» (¿falta su biblioteca en " +
-                                          (dir / "gst").string() + "?)");
+        if (fac == nullptr)
+            return fallar(tr("GStreamer no tiene el elemento «%1» (¿falta su biblioteca en %2?)")
+                              .arg(q(el), q((dir / "gst").string()))
+                              .toStdString());
         gst_object_unref(fac);
 #endif
         json props = json::object();
@@ -862,8 +878,9 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         return r;
     }
     if (p.value("tipo", "") == "glsl") {
-        if (!archivos.contains("glsl")) return fallar("plugin.json de «" + id + "» sin shader");
-        if (!motores().contains("glsl")) return fallar("este sistema no tiene el motor de shaders (baglsl)");
+        if (!archivos.contains("glsl")) return fallar(tr("plugin.json de «%1» sin shader").arg(q(id)).toStdString());
+        if (!motores().contains("glsl"))
+            return fallar(tr("este sistema no tiene el motor de shaders (baglsl)").toStdString());
         return json{{"motor", "glsl"}, {"modelo", (dir / archivos["glsl"].get<std::string>()).string()}, {"escala_red", 2}};
     }
     const int escala = p.value("escala", 2);
@@ -902,7 +919,7 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
                 r["modelo_float"] = (dir / archivos["onnx"].get<std::string>()).string();
             return r;
         }
-    return fallar("«" + id + "» no tiene un modelo que corra en esta máquina");
+    return fallar(tr("«%1» no tiene un modelo que corra en esta máquina").arg(q(id)).toStdString());
 }
 
 namespace {
@@ -945,17 +962,23 @@ json SuperRes::runtimeGpu() const {
     const std::string placa = out["placa"];
 #if defined(__APPLE__)
     out["sugerido"] = "";
-    out["nota"] = "en la Mac el ONNX Runtime del programa ya usa CoreML (GPU y Neural Engine), y las redes "
-                  "instaladas corren en CoreML nativo: no hace falta bajar nada";
+    out["nota"] = tr("en la Mac el ONNX Runtime del programa ya usa CoreML (GPU y Neural Engine), y las redes "
+                     "instaladas corren en CoreML nativo: no hace falta bajar nada")
+                      .toStdString();
 #elif defined(_WIN32)
     out["sugerido"] = placa == "nvidia" ? "nvidia" : placa == "intel" ? "intel" : "";
     out["nota"] = placa == "amd" || placa.empty()
-                      ? "con AMD (también las integradas Ryzen) el programa ya usa DirectML: no hace falta bajar nada"
-                      : "DirectML ya anda; el runtime de " + placa + " es más rápido (TensorRT compila la red para la placa)";
+                      ? tr("con AMD (también las integradas Ryzen) el programa ya usa DirectML: no hace falta bajar "
+                           "nada")
+                            .toStdString()
+                      : tr("DirectML ya anda; el runtime de %1 es más rápido (TensorRT compila la red para la placa)")
+                            .arg(q(placa))
+                            .toStdString();
 #else
     out["sugerido"] = placa;
     if (placa == "amd")
-        out["nota"] = "AMD en Linux usa ROCm/MIGraphX: necesita el controlador amdgpu y ROCm 6.4 del sistema";
+        out["nota"] =
+            tr("AMD en Linux usa ROCm/MIGraphX: necesita el controlador amdgpu y ROCm 6.4 del sistema").toStdString();
 #endif
     out["activo"] = !qEnvironmentVariableIsEmpty("BA_ORT_GPU");
     return out;
@@ -965,23 +988,23 @@ std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool con
 #if defined(__APPLE__)
     (void)tipoPedido;
     (void)conTensorRt;
-    return "en la Mac no hace falta: CoreML ya viene";
+    return tr("en la Mac no hace falta: CoreML ya viene").toStdString();
 #else
     const std::string tipo = tipoPedido.empty() ? runtimeGpu().value("sugerido", std::string()) : tipoPedido;
     if (tipo != "nvidia" && tipo != "amd" && tipo != "intel")
-        return "no hay un runtime de GPU para bajar acá (tipo: nvidia, amd o intel)";
+        return tr("no hay un runtime de GPU para bajar acá (tipo: nvidia, amd o intel)").toStdString();
     const fs::path script = ba::platform::bundleRoot() / "superres" / "runtime_gpu.py";
     QStringList args{q8(script), "--tipo", QString::fromStdString(tipo), "--salida",
                      q8(ba::platform::dataRoot() / "Herramientas" / "onnxruntime-gpu")};
     if (!conTensorRt) args << "--sin-tensorrt";
     net::Descargas::Pedido p;
     p.id = "superres:runtime-gpu:" + tipo;
-    p.titulo = "ONNX Runtime de GPU (" + tipo + ")";
-    p.version = conTensorRt ? "con TensorRT" : "";
+    p.titulo = tr("ONNX Runtime de GPU (%1)").arg(q(tipo)).toStdString();
+    p.version = conTensorRt ? tr("con TensorRT").toStdString() : std::string();
     QPointer<SuperRes> yo(this);
     return encolar(std::move(p), {}, [yo, tipo, args](std::function<void(bool)> alFin) -> std::string {
-        if (!yo) return "cancelada";
-        return yo->correr("Bajar el ONNX Runtime de GPU (" + QString::fromStdString(tipo) + ")", {}, args,
+        if (!yo) return tr("cancelada").toStdString();
+        return yo->correr("onnx", tr("Bajar el ONNX Runtime de GPU (%1)").arg(q(tipo)), {}, args,
                           [yo, alFin](bool ok) {
                               if (yo) emit yo->cambio();
                               alFin(ok);
@@ -991,7 +1014,7 @@ std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool con
 }
 
 std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra) {
-    if (video_ == nullptr) return "no hay video";
+    if (video_ == nullptr) return tr("no hay video").toStdString();
     std::string err;
     if (resolverPlugin(id, &err).empty()) return err;
     return video_->superresPlugin(entrada, id, extra);
@@ -1003,14 +1026,14 @@ std::string SuperRes::guardarPluginElemento(const json& p) {
     std::string id = p.value("id", std::string());
     for (char& c : id)
         if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') c = '-';
-    if (id.empty()) return "falta el id (letras, números y guiones)";
+    if (id.empty()) return tr("falta el id (letras, números y guiones)").toStdString();
     const std::string el = p.value("elemento", std::string());
-    if (el.empty()) return "falta el elemento de GStreamer";
+    if (el.empty()) return tr("falta el elemento de GStreamer").toStdString();
     for (const auto& r : catalogo_)
-        if (r.value("id", "") == id) return "«" + id + "» es un plugin del catálogo: elegí otro id";
+        if (r.value("id", "") == id) return tr("«%1» es un plugin del catálogo: elegí otro id").arg(q(id)).toStdString();
     const std::string mem = p.value("memoria", std::string());
     if (!mem.empty() && mem != "CUDAMemory" && mem != "GLMemory" && mem != "D3D11Memory" && mem != "D3D12Memory")
-        return "memoria: vacía (sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory";
+        return tr("memoria: vacía (sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory").toStdString();
     json props = json::object();
     const json propsIn = p.value("propiedades", json::object()); // en una variable: items() no alarga la vida del temporal
     for (const auto& [k, v] : propsIn.items())
@@ -1031,22 +1054,23 @@ std::string SuperRes::guardarPluginElemento(const json& p) {
     std::error_code ec;
     fs::create_directories(dir / "gst", ec);
     std::ofstream f(dir / "plugin.json");
-    if (!f) return "no se pudo escribir " + (dir / "plugin.json").string();
+    if (!f) return tr("no se pudo escribir %1").arg(q((dir / "plugin.json").string())).toStdString();
     f << out.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     f.close();
     // Que ande acá ya (si el elemento no está, lo dice: puede faltar su biblioteca en gst/).
     std::string err;
     resolverPlugin(id, &err);
     emit cambio();
+    // Sin traducir: PanelSuperres.qml lo distingue de un error porque empieza con «guardado».
     return err.empty() ? std::string() : "guardado, pero: " + err;
 }
 
 std::string SuperRes::borrarPlugin(const std::string& id) {
     if (id.empty() || id.find('/') != std::string::npos || id.find('\\') != std::string::npos || id[0] == '.')
-        return "id inválido";
+        return tr("id inválido").toStdString();
     const fs::path dir = carpetaModelos() / id;
     std::error_code ec;
-    if (!fs::exists(dir / "plugin.json", ec)) return "no hay un plugin instalado «" + id + "»";
+    if (!fs::exists(dir / "plugin.json", ec)) return tr("no hay un plugin instalado «%1»").arg(q(id)).toStdString();
     fs::remove_all(dir, ec);
     emit cambio();
     return ec ? ec.message() : std::string();
@@ -1141,14 +1165,14 @@ std::string SuperRes::crearVariantes(const std::string& plugin, const std::vecto
     const fs::path dir = carpetaModelos() / plugin;
     std::error_code ec;
     if (plugin.empty() || !fs::exists(dir / "plugin.json", ec))
-        return "el plugin «" + plugin + "» no está instalado (superres_plugins los lista)";
-    if (tamanos.empty()) return "falta el tamaño (ancho y alto, o `faltantes`)";
-    if (!id.empty() && tamanos.size() > 1) return "`id` es para una sola variante";
+        return tr("el plugin «%1» no está instalado (superres_plugins los lista)").arg(q(plugin)).toStdString();
+    if (tamanos.empty()) return tr("falta el tamaño (ancho y alto, o `faltantes`)").toStdString();
+    if (!id.empty() && tamanos.size() > 1) return tr("`id` es para una sola variante").toStdString();
     std::string lista;
     for (const auto& t : tamanos) {
         const auto x = t.find('x');
         if (x == std::string::npos || std::atoi(t.c_str()) < 16 || std::atoi(t.c_str() + x + 1) < 16)
-            return "tamaño inválido: «" + t + "» (ancho x alto, p. ej. 1024x576)";
+            return tr("tamaño inválido: «%1» (ancho x alto, p. ej. 1024x576)").arg(q(t)).toStdString();
         lista += (lista.empty() ? "" : ",") + t;
     }
     const fs::path script = ba::platform::bundleRoot() / "superres" / "variantes.py";
@@ -1158,7 +1182,7 @@ std::string SuperRes::crearVariantes(const std::string& plugin, const std::vecto
     if (!para.empty()) args << "--para" << QString::fromStdString(para);
     if (!descripcion.empty()) args << "--descripcion" << QString::fromStdString(descripcion);
     if (reemplazar) args << "--reemplazar";
-    return correr("Variantes de «" + QString::fromStdString(plugin) + "» (" + QString::fromStdString(lista) + ")",
+    return correr("variantes", tr("Variantes de «%1» (%2)").arg(q(plugin), q(lista)),
                   {}, args, [this](bool ok) {
                       if (ok && video_ != nullptr) video_->reaplicarEntradas(); // las tarjetas la usan ya
                       emit cambio();
@@ -1167,10 +1191,11 @@ std::string SuperRes::crearVariantes(const std::string& plugin, const std::vecto
 
 std::string SuperRes::borrarVariante(const std::string& plugin, const std::string& id) {
     if (id.empty() || id.find('/') != std::string::npos || id.find('\\') != std::string::npos || id == "..")
-        return "id inválido";
+        return tr("id inválido").toStdString();
     const fs::path d = carpetaModelos() / plugin / "variantes" / id;
     std::error_code ec;
-    if (!fs::exists(d / "variante.json", ec)) return "no hay una variante «" + id + "» de «" + plugin + "»";
+    if (!fs::exists(d / "variante.json", ec))
+        return tr("no hay una variante «%1» de «%2»").arg(q(id), q(plugin)).toStdString();
     fs::remove_all(d, ec);
     if (ec) return ec.message();
     if (video_ != nullptr) video_->reaplicarEntradas();
@@ -1183,12 +1208,12 @@ std::string SuperRes::editarVariante(const std::string& plugin, const std::strin
     std::ifstream f(j);
     json v = json::parse(f, nullptr, false);
     f.close();
-    if (!v.is_object()) return "no hay una variante «" + id + "» de «" + plugin + "»";
+    if (!v.is_object()) return tr("no hay una variante «%1» de «%2»").arg(q(id), q(plugin)).toStdString();
     for (const char* k : {"para", "descripcion", "nombre"})
         if (cambios.contains(k) && cambios[k].is_string()) v[k] = cambios[k];
     std::ofstream o(j);
     o << v.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    if (!o) return "no se pudo guardar " + j.string();
+    if (!o) return tr("no se pudo guardar %1").arg(q(j.string())).toStdString();
     emit cambio();
     return {};
 }
@@ -1203,7 +1228,7 @@ QString SuperRes::crearVarianteUi(const QString& plugin, int ancho, int alto, co
 
 QString SuperRes::crearFaltantesUi(const QString& plugin) {
     const auto t = tamanosSinVariante(plugin.toStdString());
-    if (t.empty()) return "todas las cámaras del estudio ya tienen su variante";
+    if (t.empty()) return tr("todas las cámaras del estudio ya tienen su variante");
     return q(crearVariantes(plugin.toStdString(), t, {}, {}, {}, {}, false));
 }
 

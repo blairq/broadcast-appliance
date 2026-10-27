@@ -6,6 +6,7 @@
 #include "Piezas.hpp" // motor::resondearSinAviso
 
 #include "emision/InputSpecs.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -184,7 +185,8 @@ nlohmann::json fichasDeVideo(const std::string& id) {
             }
             f["propiedades"] = props;
             if (!usable)
-                f["por_que_no"] = "en Windows se abre por Media Foundation (mfvideosrc): esta es la misma cámara vista por otra API";
+                f["por_que_no"] = ba::i18n::traducir(
+                    "camaras", "en Windows se abre por Media Foundation (mfvideosrc): esta es la misma cámara vista por otra API");
             GstCaps* caps = gst_device_get_caps(dev);
             nlohmann::json crudas = nlohmann::json::array(), modos = nlohmann::json::array();
             if (caps != nullptr) {
@@ -201,7 +203,7 @@ nlohmann::json fichasDeVideo(const std::string& id) {
                     std::string porque;
                     const auto a = ba::motor::elegirModo(ms, pedidoDelLienzo(), &porque);
                     nlohmann::json j = a.ancho > 0 ? a.json() : nlohmann::json::object();
-                    j["porque"] = a.ancho > 0 ? porque : "no anuncia sus modos: negocia GStreamer";
+                    j["porque"] = a.ancho > 0 ? porque : ba::i18n::traducir("camaras", "no anuncia sus modos: negocia GStreamer");
                     f["automatico"] = j;
                 }
                 gst_caps_unref(caps);

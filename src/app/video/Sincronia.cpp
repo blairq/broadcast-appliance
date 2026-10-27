@@ -2,6 +2,8 @@
 
 #include "video/Sincronia.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -76,7 +78,7 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
                       double maxMs) {
     Medicion m;
     if (ta.size() < 30 || tb.size() < 30 || ga.size() < ta.size() * kLado || gb.size() < tb.size() * kLado) {
-        m.motivo = "hacen falta más cuadros de las dos entradas (al menos 30 de cada una)";
+        m.motivo = ba::i18n::traducir("sincronia", "hacen falta más cuadros de las dos entradas (al menos 30 de cada una)");
         return m;
     }
     // El período: la mediana de las diferencias entre cuadros seguidos.
@@ -84,7 +86,7 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
     for (size_t i = 1; i < ta.size(); ++i)
         if (ta[i] > ta[i - 1]) difs.push_back(ta[i] - ta[i - 1]);
     if (difs.empty()) {
-        m.motivo = "las horas de los cuadros no avanzan";
+        m.motivo = ba::i18n::traducir("sincronia", "las horas de los cuadros no avanzan");
         return m;
     }
     std::nth_element(difs.begin(), difs.begin() + static_cast<long>(difs.size() / 2), difs.end());
@@ -104,8 +106,10 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
         return n > 0 ? sum / n : 0.0;
     };
     if (actividad(a) < 0.05 || actividad(b) < 0.05) {
-        m.motivo = "una de las dos no cambia (imagen quieta): para medir, que las dos vean algo que se mueva "
-                   "(un aplauso, un flash, alguien caminando, la misma pantalla con video)";
+        m.motivo = ba::i18n::traducir("sincronia",
+                                      "una de las dos no cambia (imagen quieta): para medir, que las dos vean algo "
+                                      "que se mueva (un aplauso, un flash, alguien caminando, la misma pantalla con "
+                                      "video)");
         return m;
     }
 
@@ -160,9 +164,11 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
     m.confianza = std::clamp(espacial ? esp.valor : (ene.valor - std::max(0.0, ene.segundo)) * 2, 0.0, 1.0);
     if (p.valor < 0.3 || p.lag == -L || p.lag == L) {
         m.motivo = p.lag == -L || p.lag == L
-                       ? "el mejor ajuste quedó en el borde de lo buscado: el desfase es mayor que " +
-                             std::to_string(static_cast<int>(maxMs)) + " ms, o no hay nada en común"
-                       : "no se encontró un momento en común entre las dos (¿ven lo mismo?)";
+                       ? ba::i18n::llenar(ba::i18n::traducir("sincronia", "el mejor ajuste quedó en el borde de lo "
+                                                                         "buscado: el desfase es mayor que %1 ms, o "
+                                                                         "no hay nada en común"),
+                                          {std::to_string(static_cast<int>(maxMs))})
+                       : ba::i18n::traducir("sincronia", "no se encontró un momento en común entre las dos (¿ven lo mismo?)");
         return m;
     }
     // Afinar entre cuadros: parábola por el pico y sus vecinos.
@@ -177,9 +183,10 @@ Medicion medirDesfase(const std::vector<std::uint64_t>& ta, const std::vector<st
     // Un pico apenas más alto que el resto no es una medición: mejor decir
     // que no se pudo que dar un número que no vale.
     if (m.confianza < 0.3) {
-        m.motivo = "no hay una coincidencia clara entre las dos (confianza " +
-                   std::to_string(m.confianza).substr(0, 4) +
-                   "): hace falta más movimiento en común, o que las dos vean lo mismo";
+        m.motivo = ba::i18n::llenar(ba::i18n::traducir("sincronia", "no hay una coincidencia clara entre las dos "
+                                                                    "(confianza %1): hace falta más movimiento en "
+                                                                    "común, o que las dos vean lo mismo"),
+                                    {std::to_string(m.confianza).substr(0, 4)});
         return m;
     }
     m.ok = true;

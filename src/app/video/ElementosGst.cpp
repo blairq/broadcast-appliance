@@ -6,7 +6,10 @@
 #include "ajustes/Ajustes.hpp"
 
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include "video/CatalogoGst.hpp"
+
+#include <QtGlobal>
 
 #include <thread>
 
@@ -25,35 +28,35 @@ struct Elemento {
 // Los de la app (barack, bavoz, bandisrc) se registran solos al arrancar: van
 // igual en la lista para que se note si no se registraron.
 const Elemento kElementos[] = {
-    {"uridecodebin3", "cámaras de red y archivos", true},
-    {"audioconvert", "todas las entradas de audio", true},
-    {"audioresample", "todas las entradas de audio", true},
-    {"videoconvert", "todas las entradas de video", true},
-    {"videorate", "normalizar al lienzo", true},
-    {"deinterlace", "normalizar al lienzo", true},
-    {"appsink", "entregar a la mezcla", true},
-    {"baanillo", "audio de los invitados y del remoto", true},
-    {"bavideoanillo", "video de los invitados y del remoto", true},
-    {"baautomixer", "automixer de las bancas", true},
-    {"barack", "racks de audio (LSP/CLAP)", true},
-    {"bavoz", "voces del asistente y del teleprompter", true},
-    {"avdec_speedhq", "NDI (decodificar SpeedHQ)", true},
-    {"bandisrc", "NDI (recibir)", false},
-    {"level", "medidores", true},
-    {"ebur128level", "loudness del programa (T11)", false},
-    {"intersink", "motor sin libobs: unir pipelines", false},
-    {"intersrc", "motor sin libobs: unir pipelines", false},
-    {"fallbackswitch", "robustez: placa «sin señal» sin corte", false},
-    {"livesync", "robustez: tapar microcortes", false},
-    {"audiomixer", "motor sin libobs: mezcla de audio", false},
-    {"compositor", "motor sin libobs: composición (CPU)", false},
-    {"glvideomixer", "motor sin libobs: composición (placa)", false},
-    {"cccombiner", "subtítulos 608/708", false},
-    {"tttocea608", "subtítulos 608", false},
-    {"h264ccinserter", "subtítulos en H.264", false},
-    {"rtmp2sink", "transmitir (motor sin libobs)", false},
-    {"srtsink", "SRT (motor sin libobs)", false},
-    {"splitmuxsink", "grabación en tramos (motor sin libobs)", false},
+    {"uridecodebin3", QT_TRANSLATE_NOOP("gstreamer", "cámaras de red y archivos"), true},
+    {"audioconvert", QT_TRANSLATE_NOOP("gstreamer", "todas las entradas de audio"), true},
+    {"audioresample", QT_TRANSLATE_NOOP("gstreamer", "todas las entradas de audio"), true},
+    {"videoconvert", QT_TRANSLATE_NOOP("gstreamer", "todas las entradas de video"), true},
+    {"videorate", QT_TRANSLATE_NOOP("gstreamer", "normalizar al lienzo"), true},
+    {"deinterlace", QT_TRANSLATE_NOOP("gstreamer", "normalizar al lienzo"), true},
+    {"appsink", QT_TRANSLATE_NOOP("gstreamer", "entregar a la mezcla"), true},
+    {"baanillo", QT_TRANSLATE_NOOP("gstreamer", "audio de los invitados y del remoto"), true},
+    {"bavideoanillo", QT_TRANSLATE_NOOP("gstreamer", "video de los invitados y del remoto"), true},
+    {"baautomixer", QT_TRANSLATE_NOOP("gstreamer", "automixer de las bancas"), true},
+    {"barack", QT_TRANSLATE_NOOP("gstreamer", "racks de audio (LSP/CLAP)"), true},
+    {"bavoz", QT_TRANSLATE_NOOP("gstreamer", "voces del asistente y del teleprompter"), true},
+    {"avdec_speedhq", QT_TRANSLATE_NOOP("gstreamer", "NDI (decodificar SpeedHQ)"), true},
+    {"bandisrc", QT_TRANSLATE_NOOP("gstreamer", "NDI (recibir)"), false},
+    {"level", QT_TRANSLATE_NOOP("gstreamer", "medidores"), true},
+    {"ebur128level", QT_TRANSLATE_NOOP("gstreamer", "loudness del programa (T11)"), false},
+    {"intersink", QT_TRANSLATE_NOOP("gstreamer", "motor sin libobs: unir pipelines"), false},
+    {"intersrc", QT_TRANSLATE_NOOP("gstreamer", "motor sin libobs: unir pipelines"), false},
+    {"fallbackswitch", QT_TRANSLATE_NOOP("gstreamer", "robustez: placa «sin señal» sin corte"), false},
+    {"livesync", QT_TRANSLATE_NOOP("gstreamer", "robustez: tapar microcortes"), false},
+    {"audiomixer", QT_TRANSLATE_NOOP("gstreamer", "motor sin libobs: mezcla de audio"), false},
+    {"compositor", QT_TRANSLATE_NOOP("gstreamer", "motor sin libobs: composición (CPU)"), false},
+    {"glvideomixer", QT_TRANSLATE_NOOP("gstreamer", "motor sin libobs: composición (placa)"), false},
+    {"cccombiner", QT_TRANSLATE_NOOP("gstreamer", "subtítulos 608/708"), false},
+    {"tttocea608", QT_TRANSLATE_NOOP("gstreamer", "subtítulos 608"), false},
+    {"h264ccinserter", QT_TRANSLATE_NOOP("gstreamer", "subtítulos en H.264"), false},
+    {"rtmp2sink", QT_TRANSLATE_NOOP("gstreamer", "transmitir (motor sin libobs)"), false},
+    {"srtsink", QT_TRANSLATE_NOOP("gstreamer", "SRT (motor sin libobs)"), false},
+    {"splitmuxsink", QT_TRANSLATE_NOOP("gstreamer", "grabación en tramos (motor sin libobs)"), false},
 };
 } // namespace
 
@@ -62,7 +65,7 @@ nlohmann::json revisarElementosGst() {
 #if defined(BA_HAVE_GST)
     for (const auto& e : kElementos) {
         GstElementFactory* f = gst_is_initialized() ? gst_element_factory_find(e.nombre) : nullptr;
-        out.push_back({{"elemento", e.nombre}, {"para", e.para}, {"esta", f != nullptr}, {"imprescindible", e.imprescindible}});
+        out.push_back({{"elemento", e.nombre}, {"para", ba::i18n::traducir("gstreamer", e.para)}, {"esta", f != nullptr}, {"imprescindible", e.imprescindible}});
         if (f != nullptr) gst_object_unref(f);
     }
 #endif
@@ -78,8 +81,9 @@ void revisarElementosGstAlArrancar() {
             if (!e.value("esta", true))
                 ba::diag::registro().linea(e.value("imprescindible", false) ? ba::diag::Nivel::Error : ba::diag::Nivel::Aviso,
                                            "gstreamer", 0,
-                                           "falta el elemento " + e.value("elemento", std::string()) + " (" +
-                                               e.value("para", std::string()) + ")");
+                                           ba::i18n::llenar(ba::i18n::traducir("gstreamer", "falta el elemento %1 (%2)"),
+                                                            {e.value("elemento", std::string()),
+                                                             e.value("para", std::string())}));
     }).detach();
 }
 

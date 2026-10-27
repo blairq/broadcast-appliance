@@ -58,12 +58,12 @@ std::vector<std::string> proveedoresOnnx() {
 
 std::string nombreAcelerador(const std::string& a) {
     static const std::map<std::string, std::string> n{
-        {"ane", "Neural Engine"}, {"gpu", "GPU"},        {"cpu", "procesador"},     {"dml", "DirectML"},
+        {"ane", "Neural Engine"}, {"gpu", "GPU"},        {"cpu", QT_TRANSLATE_NOOP("superres", "procesador")},{"dml", "DirectML"},
         {"tensorrt", "TensorRT"}, {"cuda", "CUDA"},      {"migraphx", "MIGraphX"},  {"rocm", "ROCm"},
         {"openvino", "OpenVINO"}, {"vulkan", "Vulkan"},  {"coreml", "CoreML"},      {"gl", "OpenGL"},
         {"videotoolbox", "VideoToolbox"}};
     const auto it = n.find(a);
-    return it == n.end() ? a : it->second;
+    return it == n.end() ? a : QCoreApplication::translate("superres", it->second.c_str()).toStdString();
 }
 
 } // namespace
@@ -157,11 +157,12 @@ nlohmann::json BancoSuperRes::candidatos() const {
 std::string BancoSuperRes::correr(const json& op) {
     {
         std::lock_guard<std::mutex> l(mu_);
-        if (estado_.value("corriendo", false)) return "ya está midiendo";
+        if (estado_.value("corriendo", false)) return tr("ya está midiendo").toStdString();
     }
     if (!op.value("forzar", false) && en_.alAire && en_.alAire())
-        return "hay una transmisión o una grabación andando: medir le quita placa (y lo medido sale peor). Con "
-               "`forzar` mide igual";
+        return tr("hay una transmisión o una grabación andando: medir le quita placa (y lo medido sale peor). Con "
+                  "`forzar` mide igual")
+            .toStdString();
     json cands = candidatos();
     if (op.contains("metodos") && op["metodos"].is_array() && !op["metodos"].empty()) {
         std::set<std::string> m;
@@ -171,7 +172,7 @@ std::string BancoSuperRes::correr(const json& op) {
             if (m.count(c.value("metodo", std::string())) || m.count(c.value("id", std::string()))) f.push_back(c);
         cands = f;
     }
-    if (cands.empty()) return "no hay nada para medir (¿ninguna superresolución instalada?)";
+    if (cands.empty()) return tr("no hay nada para medir (¿ninguna superresolución instalada?)").toStdString();
     std::vector<std::pair<int, int>> tamanos;
     const auto agregarTam = [&](int w, int h) {
         w &= ~1, h &= ~1;
@@ -190,7 +191,7 @@ std::string BancoSuperRes::correr(const json& op) {
         if (en_.tamanosCamaras)
             for (const auto& [w, h] : en_.tamanosCamaras()) agregarTam(w, h);
     }
-    if (tamanos.empty()) return "ninguna resolución válida («1280x720»)";
+    if (tamanos.empty()) return tr("ninguna resolución válida («1280x720»)").toStdString();
     std::sort(tamanos.begin(), tamanos.end(), [](auto a, auto b) { return a.first * a.second < b.first * b.second; });
     const double segundos = std::clamp(op.value("segundos", 4.0), 1.0, 30.0);
     const auto [fpsN, fpsD] = en_.fps ? en_.fps() : std::make_pair(30, 1);
@@ -210,7 +211,7 @@ std::string BancoSuperRes::correr(const json& op) {
         } catch (const std::exception& e) {
             std::lock_guard<std::mutex> l(mu_);
             estado_["corriendo"] = false;
-            estado_["actual"] = std::string("error: ") + e.what();
+            estado_["actual"] = tr("error: %1").arg(QString::fromUtf8(e.what())).toStdString();
         }
     });
     emit cambio();
@@ -325,7 +326,7 @@ void BancoSuperRes::trabajar(json cands, std::vector<std::pair<int, int>> tamano
         std::lock_guard<std::mutex> l(mu_);
         if (!cancelado || !resultados.empty()) resultado_ = res;
         estado_["corriendo"] = false;
-        estado_["actual"] = cancelado ? "cancelado" : "listo";
+        estado_["actual"] = (cancelado ? tr("cancelado") : tr("listo")).toStdString();
     }
     avisar();
 }

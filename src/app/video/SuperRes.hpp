@@ -173,7 +173,9 @@ class SuperRes : public QObject {
     std::filesystem::path python() const;
     std::filesystem::path libs() const;
     /// Corre `args` con el Python del programa; cada línea JSON va a `trabajo`; `fin` al terminar.
-    std::string correr(const QString& que, const QString& entrada, const QStringList& args,
+    /// `tipo` es la clave estable del trabajo (`trabajo.tipo`: laboratorio, convertir,
+    /// entrenar, destilar, instalar, onnx, variantes); `que`, lo que se le muestra al operador.
+    std::string correr(const char* tipo, const QString& que, const QString& entrada, const QStringList& args,
                        std::function<void(bool ok)> fin);
     void linea(const QByteArray& l);
     /// De dónde graba el laboratorio: la dirección de red de la entrada (--uri) o, si
