@@ -22,7 +22,13 @@ ColumnLayout {
         return c
     }
     function avisar(e, ok) { if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info") }
-    readonly property var destinos: (tr ? tr.idiomas : []).filter(x => x.codigo !== "es")
+    // Se traduce desde el idioma del evento (el del guion; "" = el del operador): los destinos
+    // son los que tienen paquete desde ese idioma. Se rehace cuando cambia el guion.
+    readonly property string idiomaEvento: Studio.evento && Studio.evento.guion ? (Studio.evento.guion.idioma || "") : ""
+    readonly property var delEvento: tr ? tr.idiomasDelEvento(idiomaEvento) : ({ destinos: [] })
+    readonly property var destinos: delEvento.destinos || []
+    // Las columnas del glosario: los idiomas además del de su clave (ver Traductor::idiomasGlosario).
+    readonly property var idiomasGlosario: tr ? tr.idiomasGlosario : []
 
     Connections {
         target: panel.tr
@@ -69,13 +75,19 @@ ColumnLayout {
 
     // --- Probar ---------------------------------------------------------------------
     Text { text: qsTr("Probar"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        text: panel.delEvento.error ? panel.delEvento.error
+              : qsTr("Se traduce desde el idioma del evento: %1.").arg(panel.delEvento.nombre || "")
+        color: panel.delEvento.error ? Theme.amber : Theme.textDim; font.pixelSize: 12
+    }
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
         TextField {
             id: prueba
             Layout.fillWidth: true
-            placeholderText: "Señor presidente, solicito pasar a cuarto intermedio."
+            placeholderText: panel.delEvento.ejemplo || ""
             color: Theme.text; font.pixelSize: 12
             background: Rectangle { color: Theme.field; radius: 6 }
             onAccepted: probar.clicked()
@@ -88,17 +100,18 @@ ColumnLayout {
         GlassButton {
             id: probar
             compact: true; text: qsTr("Traducir"); active: true
+            enabled: panel.destinos.length > 0
             onClicked: {
                 panel.resultado = qsTr("Traduciendo…"); panel.resultadoOk = true
-                panel.tr.probarUi(prueba.text !== "" ? prueba.text : prueba.placeholderText, panel.destinos[idiomaPrueba.currentIndex].codigo)
+                panel.tr.probarUi(prueba.text !== "" ? prueba.text : prueba.placeholderText, panel.destinos[idiomaPrueba.currentIndex].codigo, panel.delEvento.origen)
             }
         }
         GlassButton {
             compact: true; text: qsTr("Bajar idioma"); icon: "⇩"
-            enabled: !!panel.ml
-            onClicked: panel.avisar(panel.tr.bajarUi("es", panel.destinos[idiomaPrueba.currentIndex].codigo), "")
+            enabled: !!panel.ml && panel.destinos.length > 0
+            onClicked: panel.avisar(panel.tr.bajarUi(panel.delEvento.origen, panel.destinos[idiomaPrueba.currentIndex].codigo), "")
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: qsTr("Baja los paquetes para traducir del castellano a este idioma (70 a 300 MB; los que no son inglés ni portugués pasan por el inglés)")
+            ToolTip.text: qsTr("Baja los paquetes para traducir del idioma del evento a este (70 a 300 MB cada uno; si no hay uno directo, pasa por otro idioma, casi siempre el inglés)")
         }
     }
     Text {
@@ -214,9 +227,9 @@ ColumnLayout {
         }
         GlassButton {
             compact: true; text: qsTr("Agregar"); active: true
-            enabled: desde.currentText !== ""
+            enabled: desde.currentText !== "" && panel.destinos.length > 0
             onClicked: {
-                const e = panel.tr.agregarUi(desde.currentText, panel.destinos[hacia.currentIndex].codigo, nombreNueva.text)
+                const e = panel.tr.agregarUi(desde.currentText, panel.destinos[hacia.currentIndex].codigo, nombreNueva.text, panel.delEvento.origen)
                 panel.avisar(e, qsTr("Traducción agregada"))
                 if (e === "") nombreNueva.text = ""
             }
@@ -370,7 +383,7 @@ ColumnLayout {
         }
         Repeater {
             id: campos
-            model: panel.destinos
+            model: panel.idiomasGlosario
             delegate: RowLayout {
                 required property var modelData
                 property alias texto: campo.text
@@ -397,7 +410,7 @@ ColumnLayout {
                 const e = { es: tEs.text.split(",").map(x => x.trim()).filter(x => x !== "") }
                 for (let i = 0; i < campos.count; ++i) {
                     const it = campos.itemAt(i)
-                    if (it.texto.trim() !== "") e[panel.destinos[i].codigo] = it.texto.trim()
+                    if (it.texto.trim() !== "") e[panel.idiomasGlosario[i].codigo] = it.texto.trim()
                 }
                 const err = panel.tr.glosarioAgregarUi(e)
                 panel.avisar(err, qsTr("Término agregado"))

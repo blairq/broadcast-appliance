@@ -775,7 +775,9 @@ void TotemsViewModel::cargarVoz() {
 #if defined(BA_HAVE_VOZ)
     AtencionViewModel* a = vm_.atencionVm();
     if (a == nullptr || modelos_ == nullptr) return;
-    const QString repo = a->vozElegida();
+    // El tótem le habla al público en el idioma del evento: la voz del atendedor si
+    // habla esa lengua; si no, la del perfil del idioma (agent/VozIdioma).
+    const QString repo = modelos_->vozPara(idiomaDelEvento().codigo(), a->vozElegida());
     if (repo == vozCargada_ && (vozLista_ || cargandoVoz_)) return;
     audio::Habla::Voz v;
     if (!AtencionViewModel::rutasDeVoz(*modelos_, repo, v.modelo, v.tokens, v.datos)) return;
@@ -1123,6 +1125,7 @@ void TotemsViewModel::decir(Conexion& c, const std::string& t) {
 
 void TotemsViewModel::hablar(Conexion& c, const std::string& t) {
 #if defined(BA_HAVE_VOZ)
+    cargarVoz(); // si cambió el idioma del evento, la voz de ese idioma (la frase que sigue)
     const int k = c.canal;
     AtencionViewModel* a = vm_.atencionVm();
     if (vozLista_ && habla_ && a != nullptr && k > 0 && k < static_cast<int>(voces_.size()) &&
@@ -1141,7 +1144,8 @@ void TotemsViewModel::hablar(Conexion& c, const std::string& t) {
         const QString conn = c.conn;
         QPointer<TotemsViewModel> yo(this);
         habla_->decir(
-            t, a->hablante(), static_cast<float>(a->velocidad()),
+            // El hablante elegido es de la voz del atendedor: con la del idioma del evento, el primero.
+            t, vozCargada_ == a->vozElegida() ? a->hablante() : 0, static_cast<float>(a->velocidad()),
             [destino, mudo = c.mudo](const float* m, std::size_t n, std::uint32_t f) {
                 if (!mudo->load()) destino->encolar(m, n, f); // atendida en el medio: no sale
             },

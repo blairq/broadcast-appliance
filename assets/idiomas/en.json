@@ -4,5 +4,15 @@
   "locale": "en_US",
   "direccion": "ltr",
   "plural": "uno-otro",
-  "respaldo": []
+  "respaldo": [],
+  "voz": {
+    "_comentario": "Ver docs/desarrollo/I18N.md, «Perfil del idioma: voz». palabrasPorSegundo: estimado (sin medir con estas voces); el prompter lo corrige solo al hablar.",
+    "sintesis": [
+      {"repo": "csukuangfj/vits-piper-en_US-amy-medium"},
+      {"repo": "csukuangfj/vits-piper-en_US-lessac-medium"},
+      {"repo": "csukuangfj/vits-piper-en_GB-alba-medium"}
+    ],
+    "palabrasPorSegundo": 2.9,
+    "reconocimiento": {"parakeet": "auto", "nemotron": "en-US"}
+  }
 }

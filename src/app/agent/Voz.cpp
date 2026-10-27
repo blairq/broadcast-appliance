@@ -26,6 +26,7 @@
 
 #include "agent/ArgumentosLocales.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "agent/VozIdioma.hpp"
 #include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
@@ -46,6 +47,12 @@ QString deRuta(const std::filesystem::path& p) { return QString::fromStdWString(
 std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 /// El tipo de modelo (catálogo) de cada motor.
 QString tipoModelo(MotorOido m) { return m == MotorOido::Nemotron ? "voz_streaming" : "voz"; }
+/// El idioma que se le fija a Nemotron en la corriente `clave`: el de quien habla ahí
+/// (Reconocedores::idiomaDe), como lo dice su perfil. "" = que lo detecte.
+std::string idiomaNemotron(const std::string& clave) {
+    return voz_idioma::comoLoDice(Reconocedores::nombre(MotorOido::Nemotron),
+                                  Reconocedores::idiomaDe(Reconocedores::consumidorDeClave(clave)));
+}
 } // namespace
 
 Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
@@ -111,8 +118,10 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     for (const MotorOido m : Reconocedores::motores()) cargados_[m] = claveModelos(m);
     reconT_ = new QTimer(this);
     reconT_->setInterval(1000);
+    idiomaEvento_ = ba::i18n::idiomaDelEvento();
     connect(reconT_, &QTimer::timeout, this, [this]() {
         if (reconocedores_->tic(ahoraMs())) actualizarReconocedores();
+        revisarIdiomaEvento();
     });
     reconT_->start();
     // El dictado (F9) está siempre a mano: su reconocedor queda cargado, como siempre.
@@ -232,9 +241,14 @@ void Voz::cargarMotor(MotorOido m) {
         n.joiner = (d / "joiner.int8.onnx").string();
         n.tokens = (d / "tokens.txt").string();
         n.vad = (v / "silero_vad.onnx").string();
-        // El idioma (el «prompt» del modelo): castellano de fábrica; "auto" lo detecta solo.
-        n.idioma = ajustes::texto("escucha.nemotronIdioma", "es-US");
-        if (n.idioma == "auto") n.idioma.clear();
+        // El idioma (el «prompt» del modelo): el de quien habla en cada corriente (el del
+        // operador para el dictado, el del evento para lo demás), salvo que se haya fijado
+        // uno a mano en Configuración ("auto": que lo detecte).
+        const std::string fijo = ajustes::texto("escucha.nemotronIdioma", "");
+        if (fijo.empty())
+            n.idiomaDe = idiomaNemotron;
+        else
+            n.idioma = fijo == "auto" ? std::string() : fijo;
         n.hilos = ajustes::entero("escucha.nemotronHilos", 2);
         // El fin de turno del modelo, un poco más largo que la pausa del VAD:
         // quien cierra una frase corta es el margen; el modelo, la que sigue sin parar.
@@ -377,7 +391,12 @@ nlohmann::json Voz::reconocedoresJson() const {
         const auto motor = Reconocedores::deNombre(m.value("id", std::string()));
         m["instalado"] = motor && cargados_.count(*motor) > 0 && !cargados_.at(*motor).isEmpty();
     }
-    j["idioma_nemotron"] = ajustes::texto("escucha.nemotronIdioma", "es-US");
+    // El que se le fija ahora a lo que oye el público (el dictado puede llevar otro: el del operador).
+    {
+        const std::string fijo = ajustes::texto("escucha.nemotronIdioma", "");
+        j["idioma_nemotron"] = !fijo.empty() ? fijo : idiomaNemotron("transcripcion");
+        if (j["idioma_nemotron"].get<std::string>().empty()) j["idioma_nemotron"] = "auto";
+    }
     if (streaming_) {
         const auto l = streaming_->lote();
         j["lote_nemotron"] = {{"ultimo", l.ultimo},
@@ -421,7 +440,28 @@ void Voz::actualizarReconocedores() {
         lista_ = lista;
         setEstado(estado);
     }
+    // Un reconocedor que no entiende el idioma que oye: se le avisa al operador una vez
+    // (vuelve a avisar si cambia: otro idioma, otro motor).
+    const QString aviso = QString::fromStdString(reconocedores_->avisoIdioma());
+    if (aviso != avisoIdioma_) {
+        avisoIdioma_ = aviso;
+        if (!aviso.isEmpty()) emit notify(aviso, "warn");
+    }
 #endif
+}
+
+void Voz::revisarIdiomaEvento() {
+    const std::string idioma = ba::i18n::idiomaDelEvento();
+    if (idioma == idiomaEvento_) return;
+    idiomaEvento_ = idioma;
+#if defined(BA_HAVE_VOZ)
+    // El motor de fábrica de cada consumidor depende del idioma: lo abierto se pasa al
+    // que corresponde ahora (Nemotron toma el idioma nuevo en la próxima frase).
+    for (const auto& c : Reconocedores::consumidores())
+        for (const std::string& clave : reconocedores_->usosDe(c.id)) moverCorriente(clave);
+    actualizarReconocedores();
+#endif
+    emit idiomaEventoCambio();
 }
 
 void Voz::alFrase(const std::string& flujo, const std::string& texto, double segundos) {
@@ -1228,6 +1268,7 @@ void Voz::leerAjustes() {
     const nlohmann::json j = nlohmann::json::parse(f.readAll().toStdString(), nullptr, false);
     if (!j.is_object()) return;
     vozElegida_ = QString::fromStdString(j.value("voz", std::string()));
+    vozAMano_ = !vozElegida_.isEmpty();
     hablante_ = j.value("hablante", 0);
     velocidad_ = std::clamp(j.value("velocidad", 1.0), 0.7, 1.5);
     usarModeloLocal_ = j.value("modeloLocal", true);
@@ -1244,7 +1285,8 @@ void Voz::guardarAjustes() const {
     nlohmann::json autos = nlohmann::json::array();
     for (const QString& h : automaticas_)
         autos.push_back(h.toStdString());
-    const nlohmann::json j{{"voz", vozElegida_.toStdString()},
+    // La voz solo si se eligió a mano: la de fábrica sigue al idioma del operador.
+    const nlohmann::json j{{"voz", vozAMano_ ? vozElegida_.toStdString() : std::string()},
                            {"hablante", hablante_},
                            {"velocidad", velocidad_},
                            {"modeloLocal", usarModeloLocal_},
@@ -1292,13 +1334,14 @@ QVariantList Voz::voces() const {
 
 void Voz::revisarVoz() {
 #if defined(BA_HAVE_VOZ)
-    // Sin elegir (o borrada): la primera bajada.
-    if (vozElegida_.isEmpty() || modelos_.carpetaInstalada(vozElegida_).empty()) {
-        const QString primera = modelos_.instaladoDeTipo("tts");
-        if (primera != vozElegida_) {
-            vozElegida_ = primera;
+    // Sin elegir a mano (o borrada): la del idioma del operador (le habla a él, por sus
+    // auriculares), y si no hay, la primera bajada. No se guarda: sigue al idioma.
+    if (!vozAMano_ || modelos_.carpetaInstalada(vozElegida_).empty()) {
+        vozAMano_ = false; // la elegida se borró: vuelve a la de fábrica
+        const QString deFabrica = modelos_.vozPara(ba::i18n::actual().codigo);
+        if (deFabrica != vozElegida_) {
+            vozElegida_ = deFabrica;
             hablante_ = 0;
-            guardarAjustes();
         }
     }
     const std::filesystem::path d =
@@ -1348,6 +1391,7 @@ void Voz::elegirVoz(const QString& repo) {
     }
     callar();
     vozElegida_ = repo;
+    vozAMano_ = true;
     hablante_ = 0;
     guardarAjustes();
     revisarVoz();

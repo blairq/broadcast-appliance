@@ -6,6 +6,16 @@
   "direccion": "ltr",
   "plural": "uno-otro",
   "fuente": true,
+  "voz": {
+    "_comentario": "La voz del idioma: con qué voz se habla (síntesis, repos del catálogo datos/modelos-catalogo.json, en orden de preferencia: la primera bajada), qué reconocedores lo entienden y cómo se les dice el idioma, y a qué ritmo lee el prompter. Ver docs/desarrollo/I18N.md, «Perfil del idioma: voz».",
+    "sintesis": [
+      {"repo": "csukuangfj/vits-piper-es_AR-daniela-high", "palabrasPorSegundo": 3.7},
+      {"repo": "csukuangfj/vits-piper-es_ES-davefx-medium"},
+      {"repo": "csukuangfj/vits-piper-es_ES-sharvard-medium"}
+    ],
+    "palabrasPorSegundo": 3.7,
+    "reconocimiento": {"parakeet": "auto", "nemotron": "es-US"}
+  },
   "buscador": {
     "_comentario": "Cómo parte y normaliza las palabras el buscador de herramientas del asistente (src/app/mcp/McpIndice.cpp). Ver docs/desarrollo/I18N.md, «Perfil del idioma: buscador».",
     "letras": {"á": "á", "é": "é", "í": "í", "ó": "ó", "ú": "ú", "ü": "ü", "ñ": "ñ",

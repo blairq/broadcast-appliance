@@ -376,7 +376,7 @@ void EscuchaStreaming::atenderCorrientes() {
                     continue;
                 }
                 // Empieza una frase: el stream nuevo recibe el margen de antes y la ventana.
-                c.stream = modelo_->nuevoStream();
+                c.stream = modelo_->nuevoStreamDe(clave);
                 ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "escucha", 0,
                                            ba::i18n::llenar(ba::i18n::traducir("escucha", "%1: voz, frase nueva (%2 ms antes)"),
                                                           {clave, std::to_string(c.antes.size() * 1000 / kFrecuencia)}));
@@ -520,7 +520,7 @@ void EscuchaStreaming::transcribir(std::vector<float> audio, std::uint32_t frecu
             habla = a16;
         }
         r.segundosDeAudio = static_cast<double>(habla.size()) / kFrecuencia;
-        const int s = modelo_->nuevoStream();
+        const int s = modelo_->nuevoStreamDe("dictado"); // lo de a una frase es el dictado (F9)
         modelo_->aceptar(s, habla.data(), habla.size());
         modelo_->terminarEntrada(s);
         decodificarListos({s});

@@ -14,6 +14,11 @@
 // palabra en la que está; salto, cambio de velocidad o de texto → corta y
 // vuelve a agendar desde ahí. Cada frase es un punto de resincronización.
 // Las cuentas: VozPrompterPlan (con su test).
+//
+// LA VOZ es la del idioma del EVENTO (el guion es para el público): la del sistema
+// si habla esa lengua; si no, la del perfil del idioma (agent/VozIdioma). Cambia
+// si cambia el idioma del evento (Voz::idiomaEventoCambio). El ritmo de arranque
+// de cada voz (palabras por segundo) también sale del perfil.
 
 #pragma once
 
@@ -66,7 +71,8 @@ class VozPrompter : public QObject {
     void tick();
     void reiniciar(const QString& porque);
     void agendar(int desde, int hasta, double inicioMs);
-    void revisarVoz();
+    /// Elige la voz (y la carga si cambió). `siempre`: aunque la del sistema sea la misma.
+    void revisarVoz(bool siempre);
     void setEstado(const QString& e, bool noPuedeLeer = false);
     void guardar() const;
 
@@ -77,6 +83,7 @@ class VozPrompter : public QObject {
     std::unique_ptr<audio::MonitorVoz> monitor_;
     QTimer reloj_;
     QString vozCargada_;
+    QString vozSistema_; ///< la voz del sistema la última vez que se eligió
     bool activa_ = false;
     bool consultando_ = false;
     QString estado_;
@@ -91,7 +98,8 @@ class VozPrompter : public QObject {
     bool hayEstado_ = false;
 
     int siguiente_ = -1; ///< la próxima frase a agendar (-1: hay que ubicarse)
-    /// Palabras por segundo de la voz a velocidad 1 (se aprende al hablar).
+    /// Palabras por segundo de la voz a velocidad 1: la del perfil al cargarla, y se
+    /// aprende al hablar.
     std::shared_ptr<std::atomic<double>> naturalPps_;
 };
 

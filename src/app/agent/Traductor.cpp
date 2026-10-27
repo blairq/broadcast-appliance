@@ -5,6 +5,8 @@
 
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "agent/VozIdioma.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
 
@@ -76,6 +78,9 @@ std::string clave(const json& e) {
     return v.empty() ? std::string() : QString::fromStdString(v[0]).toLower().toStdString();
 }
 const char* kIdiomas[] = {"es", "en", "pt", "fr", "de", "ru", "zh"};
+/// La clave de cada término del glosario: sus formas en castellano (es el formato del
+/// archivo, datos/glosario-traduccion.json; los demás idiomas son columnas).
+constexpr const char* kClaveGlosario = "es";
 inline int kMaxCaidas() { return ba::ajustes::entero("traductor.maxCaidas", 5); }
 } // namespace
 
@@ -88,6 +93,48 @@ const std::map<std::string, std::string>& Traductor::nombresIdiomas() {
         {"de", QT_TRANSLATE_NOOP("idiomas", "alemán")}, {"ru", QT_TRANSLATE_NOOP("idiomas", "ruso")},
         {"zh", QT_TRANSLATE_NOOP("idiomas", "chino mandarín")}};
     return m;
+}
+
+std::string Traductor::codigoDe(const std::string& idioma) {
+    // La única correspondencia entre los dos: ba::i18n dice "pt-BR"; los paquetes, "pt".
+    const std::string l = voz_idioma::lengua(idioma);
+    return nombresIdiomas().count(l) ? l : std::string();
+}
+
+std::string Traductor::origen() { return codigoDe(ba::i18n::idiomaDelEvento()); }
+
+json Traductor::destinos(const std::string& de) const {
+    json out = json::array();
+    for (const char* k : kIdiomas) {
+        if (de.empty() || de == k) continue;
+        std::string err;
+        const json ps = pasos(de, k, &err);
+        if (!err.empty()) continue;
+        out.push_back({{"codigo", k},
+                       {"nombre", QCoreApplication::translate("idiomas", nombresIdiomas().at(k).c_str()).toStdString()},
+                       {"pasos", ps.size()}});
+    }
+    return out;
+}
+
+QVariantMap Traductor::idiomasDelEvento(const QString& idiomaEvento) const {
+    // "" = el del operador (como ba::i18n::idiomaDelEvento).
+    const std::string ev = idiomaEvento.isEmpty() ? ba::i18n::actual().codigo : idiomaEvento.toStdString();
+    const std::string de = codigoDe(ev);
+    const ba::i18n::Perfil p = ba::i18n::perfil(ev);
+    const QString nombreEv = QString::fromStdString(p.nombre.empty() ? ev : p.nombre);
+    QVariantMap out{{"evento", nombreEv},
+                    {"origen", q(de)},
+                    {"nombre", de.empty() ? nombreEv
+                                          : QCoreApplication::translate("idiomas", nombresIdiomas().at(de).c_str())},
+                    {"destinos", qv(destinos(de)).toList()},
+                    {"ejemplo", QString::fromStdString(ba::i18n::En(ev).traducir(
+                                    "traduccion", "Señor presidente, solicito pasar a cuarto intermedio."))}};
+    if (de.empty())
+        out["error"] = tr("No hay paquetes para traducir desde el idioma del evento (%1).").arg(nombreEv);
+    else if (out["destinos"].toList().isEmpty())
+        out["error"] = tr("No hay paquetes para traducir del %1 a otro idioma.").arg(out["nombre"].toString());
+    return out;
 }
 
 Traductor::Traductor(fs::path dataRoot, ModelosLocales& modelos, FlujosTexto& flujos, QObject* parent)
@@ -187,8 +234,8 @@ json Traductor::lista() const {
     json out = json::array();
     for (json t : traducciones_) {
         std::string err;
-        pasos(t.value("idioma_desde", std::string("es")), t.value("a", std::string()), &err);
-        const json f = faltan(t.value("idioma_desde", std::string("es")), t.value("a", std::string()));
+        pasos(t.value("idioma_desde", std::string()), t.value("a", std::string()), &err);
+        const json f = faltan(t.value("idioma_desde", std::string()), t.value("a", std::string()));
         t["faltan"] = f;
         // «pausada» y «lista» son estados (los compara EstadoIA); el resto, el texto que se muestra.
         t["estado"] = t.value("desde", std::string()).empty() ? tr("elegí qué salida de texto traducir").toStdString()
@@ -206,8 +253,9 @@ json Traductor::lista() const {
 
 std::string Traductor::agregar(const std::string& desde, const std::string& idiomaDesde, const std::string& a,
                                const std::string& nombre, const json& opciones, json* hecha) {
-    const std::string de = idiomaDesde.empty() ? "es" : idiomaDesde;
+    const std::string de = idiomaDesde.empty() ? origen() : idiomaDesde;
     if (desde.empty()) return tr("falta la salida de texto a traducir (`desde`)").toStdString();
+    if (de.empty()) return sinOrigen();
     if (!nombresIdiomas().count(a)) return tr("idioma «%1» desconocido (hay: es, en, pt, fr, de, ru, zh)").arg(q(a)).toStdString();
     if (!nombresIdiomas().count(de)) return tr("idioma de origen «%1» desconocido").arg(q(de)).toStdString();
     std::string err;
@@ -333,7 +381,21 @@ json Traductor::salidaDe(const std::string& flujo) const {
 
 // --- Paquetes -----------------------------------------------------------------------------
 
-json Traductor::pasos(const std::string& de, const std::string& a, std::string* error) const {
+std::string Traductor::sinOrigen() {
+    const std::string ev = ba::i18n::idiomaDelEvento();
+    const ba::i18n::Perfil p = ba::i18n::perfil(ev);
+    return tr("no hay paquetes para traducir desde el idioma del evento (%1); hay: es, en, pt, fr, de, ru, zh")
+        .arg(QString::fromStdString(p.nombre.empty() ? ev : p.nombre))
+        .toStdString();
+}
+
+json Traductor::pasos(const std::string& desde, const std::string& a, std::string* error) const {
+    // Sin origen: el idioma del evento.
+    const std::string de = desde.empty() ? origen() : desde;
+    if (de.empty()) {
+        if (error) *error = sinOrigen();
+        return json::array();
+    }
     json directos = json::object(); // "es>en" -> {repo, archivo, instalado}
     for (const QVariant& v : modelos_.catalogo()) {
         const QVariantMap m = v.toMap();
@@ -358,7 +420,16 @@ json Traductor::pasos(const std::string& de, const std::string& a, std::string* 
     };
     if (armar(de, a)) return out;
     out = json::array();
-    if (de != "en" && a != "en" && armar(de, "en") && armar("en", a)) return out;
+    // Sin paquete directo, pasando por otro idioma: el inglés primero (casi todos los
+    // paquetes van y vienen del inglés), después cualquiera que tenga los dos tramos.
+    std::vector<std::string> intermedios{"en"};
+    for (const char* k : kIdiomas)
+        if (std::string(k) != "en") intermedios.emplace_back(k);
+    for (const std::string& x : intermedios) {
+        if (x == de || x == a) continue;
+        out = json::array();
+        if (armar(de, x) && armar(x, a)) return out;
+    }
     if (error) *error = tr("no hay cómo traducir de %1 a %2").arg(q(de)).arg(q(a)).toStdString();
     return json::array();
 }
@@ -487,7 +558,7 @@ void Traductor::mandar() {
 }
 
 void Traductor::traducir(const QString& texto, const std::string& de, const std::string& a, Listo listo) {
-    const std::string desde = de.empty() ? "es" : de;
+    const std::string desde = de.empty() ? origen() : de;
     std::string err;
     const json ps = pasos(desde, a, &err);
     if (!err.empty()) return listo({{"error", err}});
@@ -575,7 +646,7 @@ void Traductor::soltar(const std::string& id) {
         const std::string nombre = t.value("nombre", "");
         const QString flujo = QString::fromStdString(t.value("desde", std::string()));
         QPointer<Traductor> yo(this);
-        traducir(texto, t.value("idioma_desde", std::string("es")), t.value("a", std::string()),
+        traducir(texto, t.value("idioma_desde", std::string()), t.value("a", std::string()),
                  [yo, id, nombre, flujo](json r) {
                      if (!yo) return;
                      if (r.contains("texto") && !r["texto"].get<std::string>().empty()) {
@@ -803,6 +874,14 @@ QVariantList Traductor::idiomasQml() const {
     return out;
 }
 
+QVariantList Traductor::idiomasGlosarioQml() const {
+    QVariantList out;
+    for (const char* k : kIdiomas)
+        if (std::string(k) != kClaveGlosario)
+            out << QVariantMap{{"codigo", k}, {"nombre", QCoreApplication::translate("idiomas", nombresIdiomas().at(k).c_str())}};
+    return out;
+}
+
 QVariantList Traductor::glosarioQml() const { return qv(glosario()).toList(); }
 
 QVariantList Traductor::gruposQml() const {
@@ -841,21 +920,21 @@ QStringList Traductor::salidasDisponibles() const {
     return out;
 }
 
-QString Traductor::agregarUi(const QString& desde, const QString& a, const QString& nombre) {
-    return q(
-        agregar(desde.toStdString(), "es", a.toStdString(), nombre.toStdString(), json::object(), nullptr));
+QString Traductor::agregarUi(const QString& desde, const QString& a, const QString& nombre, const QString& de) {
+    return q(agregar(desde.toStdString(), de.toStdString(), a.toStdString(), nombre.toStdString(), json::object(),
+                     nullptr)); // "" = el idioma del evento
 }
 QString Traductor::ajustarUi(const QString& id, const QVariantMap& cambios) {
     return q(ajustar(id.toStdString(), dejson(cambios)));
 }
 QString Traductor::quitarUi(const QString& id) { return q(quitar(id.toStdString())); }
 QString Traductor::bajarUi(const QString& de, const QString& a) {
-    return q(bajar(de.isEmpty() ? "es" : de.toStdString(), a.toStdString()));
+    return q(bajar(de.toStdString(), a.toStdString())); // "" = el idioma del evento
 }
 
 void Traductor::probarUi(const QString& texto, const QString& a, const QString& de) {
     QPointer<Traductor> yo(this);
-    traducir(texto, de.isEmpty() ? "es" : de.toStdString(), a.toStdString(), [yo, a](json r) {
+    traducir(texto, de.toStdString(), a.toStdString(), [yo, a](json r) { // "" = el idioma del evento
         if (!yo) return;
         const bool ok = r.contains("texto");
         emit yo->probado(a,

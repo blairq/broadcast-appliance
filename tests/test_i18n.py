@@ -127,10 +127,7 @@ RAMA_POR_IDIOMA = re.compile(
 
 # Still language-specific, each with the phase that removes it. A file listed here that no
 # longer matches fails too: the list only shrinks.
-PENDIENTES = {
-    "src/app/qml/controls/PanelTraduccion.qml":
-        "I7: live translation goes from Spanish (its models are es <-> X); the source becomes the event language",
-}
+PENDIENTES: dict[str, str] = {}
 
 
 def test_no_code_branches_on_a_language() -> None:

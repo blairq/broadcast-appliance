@@ -20,17 +20,24 @@ namespace {
 
 class ModeloSherpa : public EscuchaStreaming::Modelo {
    public:
-    ModeloSherpa(so::OnlineRecognizer r, std::string idioma) : rec_(std::move(r)), idioma_(std::move(idioma)) {}
+    ModeloSherpa(so::OnlineRecognizer r, std::string idioma, std::function<std::string(const std::string&)> idiomaDe)
+        : rec_(std::move(r)), idioma_(std::move(idioma)), idiomaDe_(std::move(idiomaDe)) {}
     ~ModeloSherpa() override { streams_.clear(); } // antes que el reconocedor
 
-    int nuevoStream() override {
+    int nuevoStream() override { return crear(idioma_); }
+    int nuevoStreamDe(const std::string& clave) override { return crear(idiomaDe_ ? idiomaDe_(clave) : idioma_); }
+
+   private:
+    int crear(const std::string& idioma) {
         auto s = std::make_unique<so::OnlineStream>(rec_.CreateStream());
         // El idioma va por stream (es el «prompt» de idioma del modelo).
-        if (!idioma_.empty()) s->SetOption("language", idioma_.c_str());
+        if (!idioma.empty()) s->SetOption("language", idioma.c_str());
         const int id = ++ultimo_;
         streams_[id] = std::move(s);
         return id;
     }
+
+   public:
     void soltarStream(int s) override { streams_.erase(s); }
     void aceptar(int s, const float* m, std::size_t n) override {
         if (auto* st = stream(s)) st->AcceptWaveform(EscuchaStreaming::kFrecuencia, m, static_cast<std::int32_t>(n));
@@ -82,6 +89,7 @@ class ModeloSherpa : public EscuchaStreaming::Modelo {
     }
     so::OnlineRecognizer rec_;
     std::string idioma_;
+    std::function<std::string(const std::string&)> idiomaDe_;
     std::map<int, std::unique_ptr<so::OnlineStream>> streams_;
     int ultimo_ = 0;
 };
@@ -127,7 +135,7 @@ void cargarNemotron(EscuchaStreaming& e, const ModelosNemotron& m, std::function
             error = ba::i18n::traducir("escucha", "no se pudo cargar Nemotron (¿faltan archivos del modelo?)");
             return nullptr;
         }
-        return std::make_unique<ModeloSherpa>(std::move(r), m.idioma);
+        return std::make_unique<ModeloSherpa>(std::move(r), m.idioma, m.idiomaDe);
     };
     const std::string vad = m.vad;
     EscuchaStreaming::FabricaDetector detector =

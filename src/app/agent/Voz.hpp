@@ -39,7 +39,14 @@
 //
 // Y CONTESTA HABLANDO: una voz de piper (tipo "tts") elegida en la interfaz,
 // frase por frase y SOLO al monitoreo (audio/MonitorVoz). Si el operador
-// aprieta la tecla, se calla: está hablando él.
+// aprieta la tecla, se calla: está hablando él. Sin elegir, la del idioma del
+// OPERADOR (su perfil: agent/VozIdioma); lo del público (prompter, tótem,
+// «Texto a voz») toma la del idioma del EVENTO.
+//
+// EL IDIOMA DEL EVENTO. Se mira con el reloj de los reconocedores (1 s): si
+// cambia, los consumidores pasan al motor que entiende el idioma nuevo, se avisa
+// si el elegido a mano no lo entiende, y sale `idiomaEventoCambio` (el prompter
+// cambia de voz).
 // ============================================================================
 #pragma once
 
@@ -266,6 +273,8 @@ class Voz : public QObject {
     /// La voz cargada, para otras fuentes que hablan (el teleprompter):
     /// {modelo, tokens, datos, hablante, repo}. Vacío si no hay voz.
     QVariantMap vozParaOtros() const { return vozParaOtros_; }
+    /// El catálogo de modelos (el prompter elige su voz por el idioma del evento).
+    ModelosLocales& modelos() const { return modelos_; }
     QString auriculares() const;
     QVariantList salidasAudio() const;
     /// Elige los auriculares ("" = la salida del sistema). Devuelve el error o "".
@@ -314,6 +323,8 @@ class Voz : public QObject {
     void dictado(const QString& texto);
     void notify(const QString& text, const QString& kind);
     void propuestaCambio();
+    /// Cambió el idioma del evento (ba::i18n::idiomaDelEvento).
+    void idiomaEventoCambio();
 
    protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
@@ -338,6 +349,8 @@ class Voz : public QObject {
     void alFrase(const std::string& flujo, const std::string& texto, double segundos);
     void revisarVoz();
     void revisarCorrientes();
+    /// Si cambió el idioma del evento: los motores de fábrica, el aviso y la señal.
+    void revisarIdiomaEvento();
     /// Lo que manda el rack (hilo de audio).
     void alAudio(const std::string& fuente, int modo, const float* m, std::uint32_t n, std::uint32_t f);
     void setEstado(const QString& e);
@@ -400,6 +413,8 @@ class Voz : public QObject {
     std::map<MotorOido, QString> cargados_;
     std::map<MotorOido, QString> faltan_;
     QVariantMap reconocedoresEstado_;
+    QString avisoIdioma_;      ///< el último aviso de un reconocedor que no entiende el idioma
+    std::string idiomaEvento_; ///< el último visto (revisarIdiomaEvento)
     ::QTimer* reconT_ = nullptr;
     /// clave -> motor, para el hilo de audio (alimentarOido y el rack).
     mutable std::mutex rutasLock_;
@@ -415,6 +430,7 @@ class Voz : public QObject {
     std::unique_ptr<audio::Habla> habla_;
     std::unique_ptr<audio::MonitorVoz> monitor_;
     QString vozElegida_;
+    bool vozAMano_ = false; ///< la eligió el operador (si no, la del idioma del operador)
     QString vozCargada_;
     int hablante_ = 0;
     int hablantes_ = 0;
