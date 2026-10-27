@@ -38,6 +38,7 @@ struct Estado {
     std::map<std::string, std::shared_ptr<const Catalogo>> cargados;
     Perfil actual;
     std::vector<std::shared_ptr<const Catalogo>> cadenaActual; ///< el idioma y sus respaldos
+    std::string evento; ///< usarEnEvento ("" = el del operador)
 };
 
 Estado& estado() {
@@ -388,6 +389,26 @@ fs::path archivo(const std::string& relativo) { return archivoEn(actual().codigo
 std::string leer(const std::string& relativo) { return leerArchivo(archivo(relativo)); }
 fs::path En::archivo(const std::string& relativo) const { return archivoEn(codigo_, relativo); }
 std::string En::leer(const std::string& relativo) const { return leerArchivo(archivo(relativo)); }
+
+void usarEnEvento(const std::string& codigo) {
+    const std::string c = codigo.empty() ? std::string() : resolver(codigo);
+    Estado& e = estado();
+    std::lock_guard<std::mutex> l(e.mu);
+    e.evento = c;
+}
+
+std::string idiomaDelEvento() {
+    {
+        Estado& e = estado();
+        std::lock_guard<std::mutex> l(e.mu);
+        if (!e.evento.empty()) return e.evento;
+    }
+    return actual().codigo;
+}
+
+std::string traducirEvento(const char* contexto, const char* texto, const char* desambiguacion, int n) {
+    return En(idiomaDelEvento()).traducir(contexto, texto, desambiguacion, n);
+}
 
 std::string llenar(const std::string& plantilla, std::initializer_list<std::string> valores) {
     std::string out;

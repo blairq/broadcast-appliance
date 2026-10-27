@@ -114,6 +114,16 @@ private:
     std::string codigo_;
 };
 
+/// El idioma del EVENTO abierto en este proceso: lo que ven y escuchan el público y los
+/// invitados (gráficos, placas, tótems, voz, la web, el acta). Lo fija la app al abrir el
+/// evento (y al cambiarle el idioma) y el gateway con el estado que le manda la app.
+/// Vacío o sin fijar = el del operador.
+void usarEnEvento(const std::string& codigo);
+std::string idiomaDelEvento();
+/// traducir() en el idioma del evento abierto (lupdate la reconoce igual):
+/// `ba::i18n::traducirEvento("graficos", "Volvemos enseguida")`.
+std::string traducirEvento(const char* contexto, const char* texto, const char* desambiguacion = nullptr, int n = -1);
+
 /// Los archivos de un idioma, para lo que es largo (los prompts del asistente, la ayuda
 /// del MCP, las guías y plantillas de eventos): `<perfiles>/<código>/<relativo>`, en la
 /// fuente `assets/idiomas/es/prompts/oficina.md`. El del idioma del operador; si no lo

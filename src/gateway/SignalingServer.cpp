@@ -437,6 +437,11 @@ void SignalingServer::setEventoWeb(const nlohmann::json& e) {
         std::lock_guard<std::mutex> g(eventoWebM_);
         eventoWeb_ = e.is_object() ? e : nlohmann::json::object();
     }
+    // El idioma del evento abierto: lo que el gateway le dice al público y a los invitados.
+    {
+        const auto est = e.is_object() ? e.find("estado") : e.end();
+        ba::i18n::usarEnEvento(est != e.end() && est->is_object() ? est->value("idioma", std::string()) : std::string());
+    }
     // ba-web sirve la carpeta Web/ del evento: se le avisa (escribe un archivo solo si cambió).
     if (alCambiarEventoDir_) {
         std::string dir;

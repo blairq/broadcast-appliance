@@ -126,6 +126,16 @@ int main() {
     check(i18n::En("zz").traducir("sala", "Conferencia") == "Conference", "lo que falta sale del respaldo");
     check(i18n::traducir("sala", "Conferencia") == "Conference", "otro idioma a la vez no cambia el del operador");
 
+    // --- El idioma del evento abierto -------------------------------------------------
+    check(i18n::idiomaDelEvento() == "en", "sin evento: el del operador");
+    i18n::usarEnEvento("es");
+    check(i18n::traducirEvento("sala", "Conferencia") == "Conferencia" && i18n::traducir("sala", "Conferencia") == "Conference",
+          "el del evento y el del operador a la vez");
+    i18n::usarEnEvento("en-AU");
+    check(i18n::idiomaDelEvento() == "en", "el del evento se resuelve");
+    i18n::usarEnEvento("");
+    check(i18n::idiomaDelEvento() == "en", "vacío: vuelve al del operador");
+
     i18n::usar("xx");
     const std::string p = i18n::traducir("sala", "Conferencia %1 <b>en vivo</b> &amp; %n", nullptr, 2);
     check(p.rfind("⟦Çöñfërëñçïä %1 <b>ëñ vïvö</b> &amp; 2", 0) == 0, "pseudo: acentos, respeta %1, etiquetas y &amp;");

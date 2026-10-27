@@ -616,6 +616,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
     parar();
     ultimoGuion_.reset();
     e_ = std::move(e);
+    ba::i18n::usarEnEvento(e_.idioma); // lo que ven y escuchan el público y los invitados
     abierto_ = carpeta;
     sucio_ = false;
     reparos_.clear();
@@ -655,6 +656,7 @@ void EventoViewModel::cerrar() {
     ultimoGuion_.reset();
     buzon_.stop();
     e_ = {};
+    ba::i18n::usarEnEvento({});
     padron_ = {};
     abierto_.clear();
     sucio_ = false;
@@ -947,6 +949,7 @@ void EventoViewModel::setHuso(const QString& iana) {
 
 void EventoViewModel::setIdioma(const QString& codigo) {
     e_.idioma = codigo.toStdString();
+    ba::i18n::usarEnEvento(e_.idioma);
     marcarSucio();
 }
 

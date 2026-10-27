@@ -55,7 +55,7 @@ def main() -> int:
     lista = TRABAJO / "fuentes.lst"
     lista.write_text("\n".join(str(f) for f in fuentes() + [web]) + "\n", encoding="utf-8")
     exe = lupdate()
-    comunes = ["-tr-function-alias", "translate+=traducir", "-locations", "relative", "-no-obsolete",
+    comunes = ["-tr-function-alias", "translate+=traducir,translate+=traducirEvento", "-locations", "relative", "-no-obsolete",
                "-source-language", "es_AR"]
     for p in sorted(PERFILES.glob("*.json")):
         perfil = json.loads(p.read_text(encoding="utf-8"))
