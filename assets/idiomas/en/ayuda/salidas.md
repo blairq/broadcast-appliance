@@ -1,0 +1,4 @@
+- `stream_start {"server"?, "key"?}`: the key is NEVER saved (it comes from the BA_STREAM_KEY variable or is passed in `key`, memory only).
+- `stream_stop`, `record_start`, `record_stop`. `status` shows times, kbps, dropped frames and encoder.
+- Before going on air: `status` (steady fps, low droppedFrames), `foto_programa`, `mixer_list` (levels).
+- Encoding/resolution: settings `encoder.*`, `video.*` (`settings_list {"section": "Codificación"}`).

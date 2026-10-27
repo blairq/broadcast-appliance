@@ -1,0 +1,241 @@
+{
+ "nombre": "‹Panel›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Moderator and several panelists (in person or remote), turns and questions.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b218-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c211-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c212-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c213-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c214-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Panel›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Panel›",
+       "bajada": "‹Subtitle›",
+       "acento": "#ef4444"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c215-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c216-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#ef4444",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c217-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b222-g",
+   "nombre": "Opening round",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c219-g",
+     "tipo": "escena",
+     "texto": "On air: Panelists",
+     "datos": {
+      "escena": "Panelists"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c220-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Panelist 1›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Panelist 1›",
+       "cargo": "‹Title›",
+       "acento": "#ef4444",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c221-g",
+     "tipo": "nota",
+     "texto": "Each panelist: 5 minutes",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b225-g",
+   "nombre": "Exchange",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c223-g",
+     "tipo": "escena",
+     "texto": "On air: Wide shot",
+     "datos": {
+      "escena": "Wide shot"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c224-g",
+     "tipo": "nota",
+     "texto": "Cross questions",
+     "datos": {},
+     "duracionSeg": 1500,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b227-g",
+   "nombre": "Audience questions",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c226-g",
+     "tipo": "nota",
+     "texto": "Questions",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b233-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c228-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c229-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c230-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c231-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c232-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

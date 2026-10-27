@@ -1,0 +1,118 @@
+{
+  "nombre": "Antes de empezar",
+  "descripcion": "La placa de la previa: el nombre del evento y a qué hora empieza. Pantalla completa, se queda hasta que arranca (va con la música de espera).",
+  "seVa": "al-avanzar",
+  "ancho": 1920,
+  "alto": 1080,
+  "parametros": [
+    {
+      "clave": "evento",
+      "titulo": "Evento",
+      "tipo": "texto",
+      "porDefecto": "Nombre del evento",
+      "ayuda": "El nombre como lo conoce el público. Más de 40 caracteres se sale: acortalo o pasá parte a la bajada."
+    },
+    {
+      "clave": "empieza",
+      "titulo": "Cuándo empieza",
+      "tipo": "texto",
+      "porDefecto": "Empezamos a las 19:00",
+      "ayuda": "Con la hora del evento y su huso si hay gente de otros lados («Empezamos a las 19:00 (hora de Buenos Aires)»)."
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Bajada",
+      "tipo": "texto",
+      "porDefecto": "",
+      "ayuda": "Fecha, lugar o dónde seguirlo. Puede ir vacía."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#ff4d2e",
+      "ayuda": "La línea fina sobre el nombre (el color del evento)."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "0 = se queda hasta que se cambia de escena: es la placa de espera."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 1080,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 700
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 500
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 1920,
+        "alto": 1080,
+        "color": "#0b0b0c",
+        "opacidad": 1
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 160,
+        "arriba": 400,
+        "ancho": 220,
+        "alto": 6,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "evento",
+        "valor": "{evento}",
+        "tamano": 88,
+        "peso": "negrita",
+        "izquierda": 156,
+        "arriba": 430,
+        "ancho": 1600
+      },
+      {
+        "tipo": "texto",
+        "id": "empieza",
+        "valor": "{empieza}",
+        "tamano": 46,
+        "peso": "normal",
+        "color": "#f4f4f5",
+        "izquierda": 160,
+        "arriba": 580,
+        "ancho": 1600,
+        "aparece": 350
+      },
+      {
+        "tipo": "texto",
+        "id": "bajada",
+        "valor": "{bajada}",
+        "tamano": 32,
+        "peso": "liviana",
+        "color": "#a1a1aa",
+        "izquierda": 160,
+        "arriba": 660,
+        "ancho": 1600,
+        "aparece": 550
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "⏱",
+      "titulo": "Con los datos del evento",
+      "prompt": "Mirá el evento abierto (guion_ver) y poné en esta placa su nombre, «Empezamos a las» con la hora de inicio (y el huso si hay gente de afuera) y, de bajada, la fecha. Dejala armada en el preview."
+    }
+  ]
+}

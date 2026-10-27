@@ -1,0 +1,116 @@
+[
+ {
+  "id": "reunion-chica",
+  "titulo": "Small meeting",
+  "icono": "☺",
+  "resumen": "Up to about 10 people, in person, remote or mixed. Little setup: it just has to work and get recorded."
+ },
+ {
+  "id": "reunion-hibrida",
+  "titulo": "Hybrid working meeting",
+  "icono": "⧉",
+  "resumen": "Board, team or committee with some people in the room and some remote; presentations and documents."
+ },
+ {
+  "id": "comision",
+  "titulo": "Committee meeting",
+  "icono": "§",
+  "resumen": "Committee of a deliberative body: agenda, files, committee reports, orderly turns to speak."
+ },
+ {
+  "id": "sesion-deliberativa",
+  "titulo": "Deliberative body session",
+  "icono": "⚖",
+  "resumen": "City council, board or chamber: seats, microphone central unit, the floor, quorum and roll-call vote."
+ },
+ {
+  "id": "asamblea-votacion",
+  "titulo": "Large assembly with voting and quorum",
+  "icono": "✋",
+  "resumen": "Large in-person assembly: check-in at the door, quorum, votes and results on screen."
+ },
+ {
+  "id": "asamblea-remota",
+  "titulo": "Assembly with remote members",
+  "icono": "⌂",
+  "resumen": "Assembly or session with quorum and voting where some members take part remotely."
+ },
+ {
+  "id": "consorcio",
+  "titulo": "Condo, co-op or club meeting",
+  "icono": "⌘",
+  "resumen": "Owners or members, in person and by video call, voting by majority or percentage."
+ },
+ {
+  "id": "clase-hibrida",
+  "titulo": "Hybrid class",
+  "icono": "✎",
+  "resumen": "Teacher with students in the classroom and remote; materials, attendance at hand, questions, maybe translation."
+ },
+ {
+  "id": "conferencia",
+  "titulo": "Conference or talk with an audience",
+  "icono": "◉",
+  "resumen": "One or more speakers, audience in the room and online, questions, streaming."
+ },
+ {
+  "id": "panel",
+  "titulo": "Panel or round table",
+  "icono": "☰",
+  "resumen": "Moderator and several panelists (in person or remote), turns and questions."
+ },
+ {
+  "id": "entrevista",
+  "titulo": "Interview or podcast",
+  "icono": "🎙",
+  "resumen": "One or two hosts with guests, careful audio, video for social media."
+ },
+ {
+  "id": "webinar",
+  "titulo": "Webinar or training",
+  "icono": "▣",
+  "resumen": "Online presentation with registrants, questions, polls and downloadable material."
+ },
+ {
+  "id": "streaming-juegos",
+  "titulo": "Game streaming (streamer)",
+  "icono": "▶",
+  "resumen": "Game on screen, streamer camera, audience chat on screen, alerts."
+ },
+ {
+  "id": "acto",
+  "titulo": "Official ceremony or graduation",
+  "icono": "★",
+  "resumen": "School ceremony, graduation, anniversary: anthem, flags, crest, speeches and names."
+ },
+ {
+  "id": "ceremonia",
+  "titulo": "Religious service or celebration",
+  "icono": "✧",
+  "resumen": "Mass, service, wedding or celebration: music, lyrics on screen, readings, streaming."
+ },
+ {
+  "id": "audiencia-publica",
+  "titulo": "Public hearing",
+  "icono": "◎",
+  "resumen": "Registered residents who speak in turns with a fixed time; speaker registration and minutes."
+ },
+ {
+  "id": "lanzamiento",
+  "titulo": "Presentation or launch",
+  "icono": "✦",
+  "resumen": "Launch of a product, book or project: video, presentation, guests and press."
+ },
+ {
+  "id": "deportivo",
+  "titulo": "Local sports event",
+  "icono": "⚽",
+  "resumen": "Match or tournament: scoreboard, clock, commentary, replays and sponsors."
+ },
+ {
+  "id": "senaletica",
+  "titulo": "Room screens and signage",
+  "icono": "⊞",
+  "resumen": "TVs at the venue, printed or on-screen QR codes, signage that changes during the event."
+ }
+]

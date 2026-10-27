@@ -1,0 +1,300 @@
+{
+ "nombre": "‹Official ceremony›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "School ceremony, graduation, anniversary: anthem, flags, crest, speeches and names.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b291-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c284-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c285-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c286-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c287-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Official ceremony›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Official ceremony›",
+       "bajada": "‹Subtitle›",
+       "acento": "#1e3a8a"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c288-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c289-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#1e3a8a",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c290-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b294-g",
+   "nombre": "Anthem and flags",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c292-g",
+     "tipo": "escena",
+     "texto": "On air: Stage",
+     "datos": {
+      "escena": "Stage"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c293-g",
+     "tipo": "nota",
+     "texto": "Entrance of the flags and National Anthem",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b299-g",
+   "nombre": "Remarks by officials",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c295-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Official 1›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Official 1›",
+       "cargo": "‹Title›",
+       "acento": "#1e3a8a",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c296-g",
+     "tipo": "nota",
+     "texto": "Speech",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    },
+    {
+     "id": "c297-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Official 2›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Official 2›",
+       "cargo": "‹Title›",
+       "acento": "#1e3a8a",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c298-g",
+     "tipo": "nota",
+     "texto": "Speech",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b304-g",
+   "nombre": "Diplomas",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c300-g",
+     "tipo": "escena",
+     "texto": "On air: Graduates",
+     "datos": {
+      "escena": "Graduates"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c301-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Graduate 1›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Graduate 1›",
+       "cargo": "‹Degree›",
+       "acento": "#1e3a8a",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c302-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Graduate 2›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Graduate 2›",
+       "cargo": "‹Degree›",
+       "acento": "#1e3a8a",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c303-g",
+     "tipo": "nota",
+     "texto": "Presentation of diplomas",
+     "datos": {},
+     "duracionSeg": 1800,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b310-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c305-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c306-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c307-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c308-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c309-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

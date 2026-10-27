@@ -1,0 +1,260 @@
+{
+ "nombre": "‹Assembly›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Assembly or session with quorum and voting where some members take part remotely.",
+ "asamblea": true,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b111-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c104-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c105-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c106-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c107-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Assembly›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Assembly›",
+       "bajada": "‹Subtitle›",
+       "acento": "#0e7490"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c108-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c109-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#0e7490",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c110-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b114-g",
+   "nombre": "Quorum (present and remote)",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c112-g",
+     "tipo": "escena",
+     "texto": "On air: Remote members",
+     "datos": {
+      "escena": "Remote members"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c113-g",
+     "tipo": "nota",
+     "texto": "Roll call of present and remote members",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b121-g",
+   "nombre": "‹Item 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c115-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Item 1›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Item 1›",
+       "bajada": "‹Subtitle›",
+       "acento": "#0e7490"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c116-g",
+     "tipo": "escena",
+     "texto": "On air: Remote guest",
+     "datos": {
+      "escena": "Remote guest"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c117-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Remote member›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Remote member›",
+       "cargo": "‹Caucus›",
+       "acento": "#0e7490",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c118-g",
+     "tipo": "nota",
+     "texto": "Debate",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c119-g",
+     "tipo": "escena",
+     "texto": "On air: Vote",
+     "datos": {
+      "escena": "Vote"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c120-g",
+     "tipo": "nota",
+     "texto": "Vote (remote members too)",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b127-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c122-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c123-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c124-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c125-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c126-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

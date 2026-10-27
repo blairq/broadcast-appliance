@@ -1,0 +1,10 @@
+{
+ "descripcion": "Registered residents who speak in turns with a fixed time; speaker registration and minutes.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "audiencia-publica",
+  "icono": "◎",
+  "orden": 15
+ }
+}

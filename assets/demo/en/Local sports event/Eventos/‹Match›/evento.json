@@ -1,0 +1,186 @@
+{
+ "nombre": "‹Match›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Match or tournament: scoreboard, clock, commentary, replays and sponsors.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b374-g",
+   "nombre": "Pre-game",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c372-g",
+     "tipo": "escena",
+     "texto": "On air: Standby",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c373-g",
+     "tipo": "escena",
+     "texto": "On air: Commentators",
+     "datos": {
+      "escena": "Commentators"
+     },
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b379-g",
+   "nombre": "First half",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c375-g",
+     "tipo": "escena",
+     "texto": "On air: Field",
+     "datos": {
+      "escena": "Field"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c376-g",
+     "tipo": "grafico",
+     "texto": "Scoreboard: kickoff",
+     "datos": {
+      "fuente": "Scoreboard",
+      "grafico": "marcador",
+      "valores": {
+       "local": "‹HOM›",
+       "visitante": "‹AWY›",
+       "golesLocal": 0,
+       "golesVisitante": 0,
+       "tiempo": "1H"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c377-g",
+     "tipo": "nota",
+     "texto": "First half (for a goal: the cue below with the new score)",
+     "datos": {},
+     "duracionSeg": 2700,
+     "automatico": false
+    },
+    {
+     "id": "c378-g",
+     "tipo": "grafico",
+     "texto": "Scoreboard: ‹goal›",
+     "datos": {
+      "fuente": "Scoreboard",
+      "grafico": "marcador",
+      "valores": {
+       "local": "‹HOM›",
+       "visitante": "‹AWY›",
+       "golesLocal": 1,
+       "golesVisitante": 0,
+       "tiempo": "1H"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b381-g",
+   "nombre": "Halftime",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c380-g",
+     "tipo": "escena",
+     "texto": "On air: Halftime",
+     "datos": {
+      "escena": "Halftime"
+     },
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b385-g",
+   "nombre": "Second half",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c382-g",
+     "tipo": "escena",
+     "texto": "On air: Field",
+     "datos": {
+      "escena": "Field"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c383-g",
+     "tipo": "grafico",
+     "texto": "Scoreboard: second half",
+     "datos": {
+      "fuente": "Scoreboard",
+      "grafico": "marcador",
+      "valores": {
+       "local": "‹HOM›",
+       "visitante": "‹AWY›",
+       "golesLocal": 1,
+       "golesVisitante": 0,
+       "tiempo": "2H"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c384-g",
+     "tipo": "nota",
+     "texto": "Second half",
+     "datos": {},
+     "duracionSeg": 2700,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b388-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c386-g",
+     "tipo": "escena",
+     "texto": "On air: Commentators",
+     "datos": {
+      "escena": "Commentators"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    },
+    {
+     "id": "c387-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

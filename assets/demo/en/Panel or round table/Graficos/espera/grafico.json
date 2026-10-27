@@ -1,0 +1,47 @@
+{
+  "nombre": "Standby slate",
+  "descripcion": "Before starting: the event's name and what time it starts. “Debate” style.",
+  "categoria": "From the template",
+  "ancho": 1600,
+  "alto": 620,
+  "duracionMs": 2000,
+  "parametros": [
+    {
+      "clave": "etiqueta",
+      "titulo": "Label",
+      "tipo": "texto",
+      "porDefecto": "Starting soon",
+      "ayuda": "The small line on top, in capitals."
+    },
+    {
+      "clave": "titulo",
+      "titulo": "Title",
+      "tipo": "texto",
+      "porDefecto": "‹Event name›",
+      "ayuda": ""
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Subtitle",
+      "tipo": "texto",
+      "porDefecto": "We start at ‹time›",
+      "ayuda": ""
+    },
+    {
+      "clave": "acento",
+      "titulo": "Accent color",
+      "tipo": "color",
+      "ayuda": "The event's color.",
+      "porDefecto": "#ef4444"
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "When it leaves",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milliseconds since it appeared. 0 = stays until taken off."
+    }
+  ]
+}

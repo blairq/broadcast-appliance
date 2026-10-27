@@ -1,0 +1,10 @@
+{
+ "descripcion": "Teacher with students in the classroom and remote; materials, attendance at hand, questions, maybe translation.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "clase-hibrida",
+  "icono": "✎",
+  "orden": 7
+ }
+}

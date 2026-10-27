@@ -14,5 +14,16 @@
     ],
     "palabrasPorSegundo": 2.9,
     "reconocimiento": {"parakeet": "auto", "nemotron": "en-US"}
+  },
+  "buscador": {
+    "_comentario": "How the assistant's tool search splits and normalizes words (src/app/mcp/McpIndice.cpp). English: the imperative is already the base form, so there is no «imperativo», «infinitivo» or «pegados». The accented letters stay part of a word (names, «café») and compare without the accent. Not in «vacias» because they tell what is asked: no, not, off, on, up, down, out, all, stop, new, next. See docs/desarrollo/I18N.md, «Perfil del idioma: buscador».",
+    "letras": {"á": "á", "é": "é", "í": "í", "ó": "ó", "ú": "ú", "ü": "ü", "ñ": "ñ", "è": "è", "ç": "ç",
+               "Á": "á", "É": "é", "Í": "í", "Ó": "ó", "Ú": "ú", "Ü": "ü", "Ñ": "ñ", "È": "è", "Ç": "ç"},
+    "sinTildes": {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n", "è": "e", "ç": "c"},
+    "vacias": ["the", "a", "an", "of", "to", "in", "at", "for", "with", "by", "from", "and", "or", "is", "are", "be",
+               "it", "its", "this", "that", "these", "those", "my", "your", "our", "me", "i", "you", "we", "us",
+               "please", "pls", "can", "could", "would", "will", "just", "now", "so", "very", "really", "hey", "ok",
+               "okay", "um", "uh", "there", "here", "some", "any", "do", "does", "want", "wanna", "need", "let",
+               "lets", "s", "t", "m", "d", "ll", "re", "ve", "how", "what"]
   }
 }

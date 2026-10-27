@@ -1,0 +1,121 @@
+{
+  "nombre": "Próximo orador",
+  "descripcion": "La tarjeta de «a continuación»: quién sigue y sobre qué habla. Entra desde la derecha; se suele poner arriba a la derecha del cuadro.",
+  "seVa": "al-avanzar",
+  "ancho": 780,
+  "alto": 300,
+  "parametros": [
+    {
+      "clave": "rotulo",
+      "titulo": "Rótulo",
+      "tipo": "texto",
+      "porDefecto": "A CONTINUACIÓN",
+      "ayuda": "El renglón chico de arriba, en el color de acento. En mayúsculas se lee mejor a este tamaño."
+    },
+    {
+      "clave": "nombre",
+      "titulo": "Nombre",
+      "tipo": "texto",
+      "porDefecto": "Nombre Apellido",
+      "ayuda": "Hasta 22 caracteres entran cómodos. Más largo, bajale el tamaño en la descripción."
+    },
+    {
+      "clave": "tema",
+      "titulo": "Tema",
+      "tipo": "texto",
+      "porDefecto": "El tema de la charla",
+      "ayuda": "Corta por palabras en dos renglones si hace falta."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#ff6a2b",
+      "ayuda": "La franja de arriba y el rótulo."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 5000,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ],
+  "declarativo": {
+    "ancho": 780,
+    "alto": 300,
+    "entrada": {
+      "efecto": "desliza-derecha",
+      "duracion": 480
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 320
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 780,
+        "alto": 300,
+        "color": "#12151a",
+        "opacidad": 0.94
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 780,
+        "alto": 8,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "rotulo",
+        "izquierda": 44,
+        "arriba": 48,
+        "valor": "{rotulo}",
+        "tamano": 22,
+        "peso": "semi",
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "nombre",
+        "izquierda": 44,
+        "arriba": 92,
+        "valor": "{nombre}",
+        "tamano": 52,
+        "peso": "negrita",
+        "aparece": 240
+      },
+      {
+        "tipo": "texto",
+        "id": "tema",
+        "izquierda": 44,
+        "arriba": 174,
+        "valor": "{tema}",
+        "tamano": 28,
+        "peso": "liviana",
+        "color": "#9aa4b2",
+        "ancho": 690,
+        "aparece": 420
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "→",
+      "titulo": "El que sigue",
+      "prompt": "Mirá el guion del evento, buscá el próximo cue de orador y poné en esta tarjeta su nombre y el tema de su charla. Sacala al aire."
+    },
+    {
+      "icono": "☎",
+      "titulo": "El próximo de la sala",
+      "prompt": "Mirá los invitados que están en el lobby de la sala y poné en esta tarjeta el que sigue en la lista."
+    }
+  ]
+}

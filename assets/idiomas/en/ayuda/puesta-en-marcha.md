@@ -1,0 +1,11 @@
+For someone who doesn't know the system, or when something with AI or voice isn't responding. **Always start with `ia_estado`**: it says what's missing, why and where to go (`pagina` and `seccion`, for `ui_show_page`). It's the same as the “AI” pill in the header. Go in this order, one step at a time, and check `ia_estado` again until it says `todo_bien`.
+
+1. **The assistant** (Assistant tab). `assistant_status`: provider, whether it's installed, whether it's running. `assistant_config {"provider", "model"}` to choose; `assistant_install` if it's missing; `assistant_run` to start it. With an account (Claude or Gemini, no API key) the first time you have to type `/login` in its terminal: the operator does that. With an API key, it's pasted in the Assistant tab (never through the chat). If it runs but doesn't see the system, it's the MCP: Settings › Assistant (MCP).
+2. **The local model** (only if the assistant uses the “local” provider or the operator voice uses the local model). `modelo_local_estado` → `modelo_local_bajar` → `modelo_local_activar`. Downloading takes a while: say how big it is first.
+3. **The operator's microphone** (dictation with the key and “talking” to the assistant). `voz_microfono` lists and chooses. If the recognizer isn't there, `voz_ajustes` says what to download. Test it: have the operator dictate a sentence with the key.
+4. **The operator's headphones**: where they hear the voice that answers and what's being listened to (PFL). `voz_automaticas {"auriculares": id}` (the outputs come from `audio_outputs`). Never the room speakers if there are open microphones: it feeds back.
+5. **The voice that answers** (the assistant speaking): `voz_ajustes` (choose and download an English voice if there is one) and test it with `voz_decir {"texto": "Hi, I'm up and running"}` through the headphones.
+6. **The teleprompter voice** (if they're going to use it): `voz_teleprompter`.
+7. **Translation and captions** (if needed): `traducciones`, `traduccion_agregar`; missing packages are downloaded from Settings › Translation.
+
+When you're done, tell the operator in two lines what is working and what was deliberately left unconfigured.

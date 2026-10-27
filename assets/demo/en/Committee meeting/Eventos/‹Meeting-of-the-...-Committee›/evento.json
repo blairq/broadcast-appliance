@@ -1,0 +1,269 @@
+{
+ "nombre": "‹Meeting of the ... Committee›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Committee of a deliberative body: agenda, files, committee reports, orderly turns to speak.",
+ "asamblea": true,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b55-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c48-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c49-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c50-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c51-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Committee›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Committee›",
+       "bajada": "‹Subtitle›",
+       "acento": "#74acdf"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c52-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c53-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#74acdf",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c54-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b60-g",
+   "nombre": "Agenda",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c56-g",
+     "tipo": "escena",
+     "texto": "On air: Chair",
+     "datos": {
+      "escena": "Chair"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c57-g",
+     "tipo": "nota",
+     "texto": "Reading of the agenda and quorum check",
+     "datos": {},
+     "duracionSeg": 180,
+     "automatico": false
+    },
+    {
+     "id": "c58-g",
+     "tipo": "escena",
+     "texto": "The file on screen",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c59-g",
+     "tipo": "nota",
+     "texto": "‹File 1›: discussion",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b64-g",
+   "nombre": "Guests",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c61-g",
+     "tipo": "escena",
+     "texto": "On air: Remote guest",
+     "datos": {
+      "escena": "Remote guest"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c62-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Guest›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Guest›",
+       "cargo": "‹Organization›",
+       "acento": "#74acdf",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c63-g",
+     "tipo": "nota",
+     "texto": "Guest presentation",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b67-g",
+   "nombre": "Committee report",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c65-g",
+     "tipo": "escena",
+     "texto": "On air: Vote",
+     "datos": {
+      "escena": "Vote"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c66-g",
+     "tipo": "nota",
+     "texto": "Vote on the committee report",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b73-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c68-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c69-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c70-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c71-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c72-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

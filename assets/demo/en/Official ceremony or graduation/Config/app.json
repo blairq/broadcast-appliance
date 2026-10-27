@@ -1,0 +1,893 @@
+{
+ "scenes": [
+  {
+   "name": "Standby",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Background",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4281211405,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Standby slate",
+     "rect": [
+      0.08333333333333331,
+      0.21296296296296297,
+      0.8333333333333334,
+      0.5740740740740741
+     ],
+     "settings": {
+      "grafico": "espera",
+      "ancho": 1600,
+      "alto": 620,
+      "alAbrir": true,
+      "bucle": false,
+      "valores": {
+       "titulo": "‹Official ceremony›",
+       "bajada": "We start at ‹time›"
+      }
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Host",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Camera",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Lower third",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Remote guest",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Background",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4281211405,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Remoto con la palabra",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "remoto",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Remoto.1",
+      "pipeline_audio": "",
+      "slot": 1,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Lower third",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Presentation",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Background",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4281211405,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Remoto con la palabra — contenido",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "remoto_contenido",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.RemotoContenido.1",
+      "pipeline_audio": "",
+      "slot": 1,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Camera",
+     "rect": [
+      0.74,
+      0.7,
+      0.24,
+      0.27
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Grid",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Background",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4281211405,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Guest 1",
+     "rect": [
+      0,
+      0,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.1",
+      "pipeline_audio": "",
+      "slot": 1,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Guest 2",
+     "rect": [
+      0.5,
+      0,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.2",
+      "pipeline_audio": "",
+      "slot": 2,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Guest 3",
+     "rect": [
+      0,
+      0.5,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.3",
+      "pipeline_audio": "",
+      "slot": 3,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_gst_fuente",
+     "name": "Guest 4",
+     "rect": [
+      0.5,
+      0.5,
+      0.5,
+      0.5
+     ],
+     "settings": {
+      "audio": false,
+      "channel": "guest",
+      "estudio": false,
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": false,
+      "pipeline": "bavideoanillo canal=BA.Guest.4",
+      "pipeline_audio": "",
+      "slot": 4,
+      "video_invitado": true
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "PDF",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Background",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4278190080,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_pdf",
+     "name": "PDF",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "documento": "",
+      "pagina": 1
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Slate",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Camera",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0.0,
+      0.33333333333333337,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Closing",
+   "folder": "",
+   "sources": [
+    {
+     "id": "color_source_v3",
+     "name": "Background",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "color": 4281211405,
+      "width": 1920,
+      "height": 1080
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Closing slate",
+     "rect": [
+      0.08333333333333331,
+      0.21296296296296297,
+      0.8333333333333334,
+      0.5740740740740741
+     ],
+     "settings": {
+      "grafico": "cierre",
+      "ancho": 1600,
+      "alto": 620,
+      "alAbrir": true,
+      "bucle": false,
+      "valores": {}
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Stage",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Camera",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Lower third",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Crest",
+     "rect": [
+      0.02,
+      0.03,
+      0.1,
+      0.17
+     ],
+     "settings": {
+      "file": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "Graduates",
+   "folder": "",
+   "sources": [
+    {
+     "id": "ba_gst_fuente",
+     "name": "Camera",
+     "rect": [
+      0,
+      0,
+      1,
+      1
+     ],
+     "settings": {
+      "audio": false,
+      "camara": "default",
+      "camara_modo": "",
+      "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+      "normalizar": true,
+      "pipeline": "",
+      "pipeline_audio": ""
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Lower third",
+     "rect": [
+      0.04,
+      0.7162962962962963,
+      0.46875,
+      0.2037037037037037
+     ],
+     "settings": {
+      "grafico": "zocalo",
+      "ancho": 900,
+      "alto": 220
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "ba_grafico",
+     "name": "Slate",
+     "rect": [
+      0,
+      0.6,
+      1.0,
+      0.3333333333333333
+     ],
+     "settings": {
+      "grafico": "placa-titulo",
+      "ancho": 1920,
+      "alto": 360
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false
+    },
+    {
+     "id": "image_source",
+     "name": "Flag",
+     "rect": [
+      0.875,
+      0.025,
+      0.11,
+      0.11842735042735042
+     ],
+     "settings": {
+      "file": "Media/bandera-malvinas.png"
+     },
+     "visible": true,
+     "volume": 1.0,
+     "muted": false,
+     "efectos": {
+      "opacidad": 0.85
+     }
+    }
+   ]
+  }
+ ],
+ "currentScene": "Standby"
+}

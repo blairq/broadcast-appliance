@@ -1,0 +1,34 @@
+{
+  "nombre": "Lyrics",
+  "descripcion": "A verse to sing along, centered at the bottom. “Serene” style.",
+  "seVa": "al-avanzar",
+  "categoria": "From the template",
+  "ancho": 1700,
+  "alto": 300,
+  "duracionMs": 1500,
+  "parametros": [
+    {
+      "clave": "estrofa",
+      "titulo": "Verse",
+      "tipo": "texto",
+      "porDefecto": "‹First line›\n‹Second line›",
+      "ayuda": "Up to three lines (separated by a line break)."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Accent color",
+      "tipo": "color",
+      "ayuda": "The event's color.",
+      "porDefecto": "#b08d57"
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "When it leaves",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milliseconds since it appeared. 0 = stays until taken off."
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+This is the back of an identity document. At the bottom there is a machine-readable zone (MRZ) of three lines of 30 characters each, using only A-Z, 0-9 and the < sign. Transcribe it EXACTLY, character by character, counting the < signs carefully. Answer ONLY the three lines, one per line, with nothing else. If it can't be seen, answer %1.

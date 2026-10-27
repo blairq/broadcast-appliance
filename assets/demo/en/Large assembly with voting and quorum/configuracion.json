@@ -1,0 +1,10 @@
+{
+ "descripcion": "Large in-person assembly: check-in at the door, quorum, votes and results on screen.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "asamblea-votacion",
+  "icono": "✋",
+  "orden": 4
+ }
+}

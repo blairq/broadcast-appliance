@@ -1,0 +1,310 @@
+{
+ "nombre": "‹General Assembly›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Large in-person assembly: check-in at the door, quorum, votes and results on screen.",
+ "asamblea": true,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b81-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c74-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c75-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c76-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c77-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹General Assembly›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹General Assembly›",
+       "bajada": "‹Subtitle›",
+       "acento": "#9f1239"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c78-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c79-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#9f1239",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c80-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b86-g",
+   "nombre": "Quorum and agenda",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c82-g",
+     "tipo": "escena",
+     "texto": "On air: Quorum",
+     "datos": {
+      "escena": "Quorum"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c83-g",
+     "tipo": "nota",
+     "texto": "Check-in and quorum check",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    },
+    {
+     "id": "c84-g",
+     "tipo": "escena",
+     "texto": "On air: Head table",
+     "datos": {
+      "escena": "Head table"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c85-g",
+     "tipo": "nota",
+     "texto": "Reading of the agenda",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b92-g",
+   "nombre": "‹Item 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c87-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Item 1›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Item 1›",
+       "bajada": "‹Subtitle›",
+       "acento": "#9f1239"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c88-g",
+     "tipo": "escena",
+     "texto": "The item's documents",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c89-g",
+     "tipo": "nota",
+     "texto": "Debate",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c90-g",
+     "tipo": "escena",
+     "texto": "On air: Vote",
+     "datos": {
+      "escena": "Vote"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c91-g",
+     "tipo": "nota",
+     "texto": "Vote on the item",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b97-g",
+   "nombre": "‹Item 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c93-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Item 2›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Item 2›",
+       "bajada": "‹Subtitle›",
+       "acento": "#9f1239"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c94-g",
+     "tipo": "nota",
+     "texto": "Debate",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c95-g",
+     "tipo": "escena",
+     "texto": "On air: Vote",
+     "datos": {
+      "escena": "Vote"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c96-g",
+     "tipo": "nota",
+     "texto": "Vote on the item",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b103-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c98-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c99-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c100-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c101-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c102-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

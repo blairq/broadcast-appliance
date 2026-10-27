@@ -1,0 +1,107 @@
+{
+ "nombre": "‹Stream›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Game on screen, streamer camera, audience chat on screen, alerts.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b276-g",
+   "nombre": "Start",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c273-g",
+     "tipo": "escena",
+     "texto": "On air: Standby",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c274-g",
+     "tipo": "espera",
+     "texto": "Start the stream",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c275-g",
+     "tipo": "escena",
+     "texto": "On air: Just chatting",
+     "datos": {
+      "escena": "Just chatting"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b278-g",
+   "nombre": "Let's play",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c277-g",
+     "tipo": "escena",
+     "texto": "On air: Game",
+     "datos": {
+      "escena": "Game"
+     },
+     "duracionSeg": 3600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b280-g",
+   "nombre": "Break",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c279-g",
+     "tipo": "escena",
+     "texto": "On air: Break",
+     "datos": {
+      "escena": "Break"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b283-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c281-g",
+     "tipo": "escena",
+     "texto": "On air: Just chatting",
+     "datos": {
+      "escena": "Just chatting"
+     },
+     "duracionSeg": 300,
+     "automatico": false
+    },
+    {
+     "id": "c282-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

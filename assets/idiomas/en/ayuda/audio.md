@@ -1,0 +1,5 @@
+- `mixer_list`: each audio source with volume (dB), mute and current peak (dBFS), plus the program peak.
+- `audio_set {"name", "volumeDb", "muted"}` (also `source_update`).
+- References: well-leveled voice = peaks of -18 to -6 dBFS on the program. Near 0 = clipping (turn it down). -100 = silence (source muted, off or no signal).
+- Guests have voice processing (setting guests.audioPreset).
+- To improve HOW a source sounds (noise, sibilance, compression, EQ) with LSP modules: `help {"topic": "audio_rack"}`.

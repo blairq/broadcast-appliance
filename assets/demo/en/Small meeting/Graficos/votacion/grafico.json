@@ -1,0 +1,204 @@
+{
+  "nombre": "Resultado de votación",
+  "categoria": "Asamblea",
+  "descripcion": "El resultado oficial de una votación: afirmativos, negativos, abstenciones y si se aprobó. Pantalla completa.",
+  "ancho": 1920,
+  "alto": 1080,
+  "parametros": [
+    {
+      "clave": "asunto",
+      "titulo": "Asunto",
+      "tipo": "texto",
+      "porDefecto": "Asunto votado",
+      "ayuda": "Lo que se votó, en una línea o dos."
+    },
+    {
+      "clave": "afirmativos",
+      "titulo": "Afirmativos",
+      "tipo": "texto",
+      "porDefecto": "0",
+      "ayuda": "Del resultado OFICIAL (quorum_votacion_oficial), nunca estimado."
+    },
+    {
+      "clave": "negativos",
+      "titulo": "Negativos",
+      "tipo": "texto",
+      "porDefecto": "0",
+      "ayuda": ""
+    },
+    {
+      "clave": "abstenciones",
+      "titulo": "Abstenciones",
+      "tipo": "texto",
+      "porDefecto": "0",
+      "ayuda": ""
+    },
+    {
+      "clave": "resultado",
+      "titulo": "Resultado",
+      "tipo": "texto",
+      "porDefecto": "APROBADO",
+      "ayuda": "APROBADO o RECHAZADO."
+    },
+    {
+      "clave": "colorResultado",
+      "titulo": "Color del resultado",
+      "tipo": "color",
+      "porDefecto": "#2e7d32",
+      "ayuda": "Verde aprobado, rojo rechazado."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#1f6fb2",
+      "ayuda": "El color del cuerpo o del bloque."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 10000,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Un resultado se lee: 8 a 12 segundos."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 1080,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 500
+    },
+    "salida": {
+      "efecto": "desenfoca",
+      "duracion": 420
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 260,
+        "arriba": 250,
+        "ancho": 1400,
+        "alto": 580,
+        "color": "#0d1014",
+        "opacidad": 0.94
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 260,
+        "arriba": 250,
+        "ancho": 1400,
+        "alto": 6,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "titulo",
+        "valor": "VOTACIÓN",
+        "tamano": 28,
+        "peso": "negrita",
+        "color": "{acento}",
+        "izquierda": 320,
+        "arriba": 290
+      },
+      {
+        "tipo": "texto",
+        "id": "asunto",
+        "valor": "{asunto}",
+        "tamano": 40,
+        "peso": "semi",
+        "izquierda": 320,
+        "arriba": 335,
+        "ancho": 1280
+      },
+      {
+        "tipo": "texto",
+        "id": "af",
+        "valor": "{afirmativos}",
+        "tamano": 110,
+        "peso": "negrita",
+        "izquierda": 340,
+        "arriba": 470,
+        "aparece": 250
+      },
+      {
+        "tipo": "texto",
+        "id": "afl",
+        "valor": "AFIRMATIVOS",
+        "tamano": 24,
+        "color": "#9aa4b2",
+        "izquierda": 344,
+        "arriba": 610,
+        "aparece": 250
+      },
+      {
+        "tipo": "texto",
+        "id": "ne",
+        "valor": "{negativos}",
+        "tamano": 110,
+        "peso": "negrita",
+        "izquierda": 800,
+        "arriba": 470,
+        "aparece": 350
+      },
+      {
+        "tipo": "texto",
+        "id": "nel",
+        "valor": "NEGATIVOS",
+        "tamano": 24,
+        "color": "#9aa4b2",
+        "izquierda": 804,
+        "arriba": 610,
+        "aparece": 350
+      },
+      {
+        "tipo": "texto",
+        "id": "ab",
+        "valor": "{abstenciones}",
+        "tamano": 110,
+        "peso": "negrita",
+        "izquierda": 1240,
+        "arriba": 470,
+        "aparece": 450
+      },
+      {
+        "tipo": "texto",
+        "id": "abl",
+        "valor": "ABSTENCIONES",
+        "tamano": 24,
+        "color": "#9aa4b2",
+        "izquierda": 1244,
+        "arriba": 610,
+        "aparece": 450
+      },
+      {
+        "tipo": "barra",
+        "izquierda": 320,
+        "arriba": 690,
+        "ancho": 1280,
+        "alto": 96,
+        "color": "{colorResultado}",
+        "aparece": 650
+      },
+      {
+        "tipo": "texto",
+        "id": "resultado",
+        "valor": "{resultado}",
+        "tamano": 56,
+        "peso": "negrita",
+        "izquierda": 350,
+        "arriba": 706,
+        "aparece": 700
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "✓",
+      "titulo": "La última votación",
+      "prompt": "Llená esta placa con la última votación OFICIAL ({votacion.*}): asunto, afirmativos, negativos, abstenciones, resultado y su color ({votacion.color}). Sacala al aire 10 segundos."
+    }
+  ]
+}
