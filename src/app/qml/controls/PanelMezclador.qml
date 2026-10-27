@@ -48,6 +48,48 @@ Item {
         const t = {}
         for (let i = 0; i < entradas.length; ++i) t[entradas[i]] = mz.tira(entradas[i])
         tiras = t
+        // Los grupos (los mismos de la tarjeta, del modelo del mezclador): cuáles están
+        // compactados y su volumen general (VCA).
+        const gs = Studio.mixer ? Studio.mixer.grupos() : []
+        const porClave = {}, deTira = {}
+        for (let i = 0; i < gs.length; ++i) {
+            porClave[gs[i].grupo] = gs[i]
+            for (let k = 0; k < gs[i].tiras.length; ++k) deTira[gs[i].tiras[k]] = gs[i].grupo
+        }
+        grupos = porClave
+        // La estructura (qué grupos, qué tiras, cuáles compactados) cambia poco: la vista se
+        // rearma solo si cambió. Si se rearmara en cada lectura, titilaría y cortaría el
+        // arrastre de un fader (el VCA cambia mientras se lo mueve: va por `grupos`).
+        const est = JSON.stringify(gs.map((x) => [x.grupo, x.tiras, x.compacto]))
+        if (est !== estructura) { estructura = est; grupoDe = deTira }
+    }
+    property var grupos: ({})  // clave -> {grupo, nombre, tiras, compacto, volumenDb}
+    property var grupoDe: ({}) // tira -> clave de su grupo
+    property string estructura: ""
+    // Lo que muestra la consola, en orden: cada tira; al empezar un grupo desplegado, su VCA;
+    // un grupo compactado, un solo bloque (sin faders, una casilla por tira).
+    readonly property var vista: {
+        const out = [], vistos = {}
+        for (let i = 0; i < entradas.length; ++i) {
+            const n = entradas[i], g = grupoDe[n]
+            const compacto = g !== undefined && estructura.length > 0 && m.compactoEnEstructura(g)
+            if (g !== undefined && !vistos[g]) {
+                vistos[g] = true
+                out.push({ tipo: compacto ? "bloque" : "vca", grupo: g })
+            }
+            if (!compacto) out.push({ tipo: "tira", nombre: n })
+        }
+        return out
+    }
+    // De la estructura (no de `grupos`, que cambia con el VCA): ¿ese grupo está compactado?
+    function compactoEnEstructura(g) {
+        const est = JSON.parse(estructura)
+        for (let i = 0; i < est.length; ++i) if (est[i][0] === g) return est[i][2]
+        return false
+    }
+    function indiceEnVista(nombre) {
+        for (let i = 0; i < vista.length; ++i) if (vista[i].tipo === "tira" && vista[i].nombre === nombre) return i
+        return -1
     }
     function nv(arr, i, k) { const v = arr[i * 6 + k]; return v === undefined ? -100 : v }
     // Las salidas que se muestran: Programa siempre; las pistas 2–6 solo si alguien les manda.
@@ -109,14 +151,13 @@ Item {
     // --- Una tira de entrada ---------------------------------------------------------
     component TiraEntrada: Rectangle {
         id: t
-        required property int index
-        required property string modelData
-        readonly property string nombre: modelData
+        property string nombre
+        readonly property int index: m.entradas.indexOf(nombre) // su lugar en los niveles (nE)
         readonly property var st: m.tiras[nombre] || ({})
         readonly property real ret: Math.max(m.nv(m.nE, index, 4), m.nv(m.nE, index, 5))
         readonly property bool elegida: m.elegida === nombre
         width: 92
-        height: ListView.view ? ListView.view.height : 400
+        height: parent ? parent.height : 400
         radius: 12
         color: elegida ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.035)
         border.color: elegida ? Theme.accent : Qt.rgba(1, 1, 1, 0.08)
@@ -338,6 +379,156 @@ Item {
         TapHandler { onTapped: if (b.alTocar) b.alTocar() }
     }
 
+    // --- El volumen general de un grupo (VCA), al empezar el grupo desplegado ---------
+    // Mueve a todos juntos sin tocar el fader de cada uno (las diferencias quedan); el «−»
+    // lo compacta. Doble clic en «VCA» (o en el fader): a 0 dB.
+    component TiraVca: Rectangle {
+        id: v
+        property string clave
+        readonly property var g: m.grupos[clave] || ({})
+        readonly property real db: g.volumenDb !== undefined ? Math.max(-60, g.volumenDb) : 0
+        width: 64
+        height: parent ? parent.height : 400
+        radius: 12
+        color: Qt.rgba(1, 0.42, 0.17, 0.06)
+        border.color: Qt.rgba(1, 0.42, 0.17, 0.35)
+        ColumnLayout {
+            anchors { fill: parent; margins: 6 }
+            spacing: 5
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Text {
+                    Layout.fillWidth: true
+                    text: "VCA"; color: Theme.accentSoft
+                    font { family: Theme.font; pixelSize: 10; weight: Font.Bold; letterSpacing: 1 }
+                    TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(v.clave, 0); m.leerTiras() } }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+                Boton { texto: "−"; Layout.fillWidth: false; Layout.preferredWidth: 20
+                        ayuda: "Compactar " + (v.g.nombre || "") + ": sin faders, una casilla por tira"
+                        alTocar: () => { Studio.mixer.setCompacto(v.clave, true); m.leerTiras() } }
+            }
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Fader {
+                    anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; bottom: parent.bottom }
+                    width: 30
+                    db: v.db
+                    alMover: (x) => Studio.mixer.setGananciaGrupoDb(v.clave, x)
+                    alCero: () => { Studio.mixer.setGananciaGrupoDb(v.clave, 0); m.leerTiras() }
+                }
+            }
+            Text {
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                text: m.texto(v.db)
+                color: Math.abs(v.db) > 0.05 ? Theme.accent : Theme.textDim
+                font { family: Theme.font; pixelSize: 10 }
+                TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(v.clave, 0); m.leerTiras() } }
+            }
+            Text {
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                text: v.g.nombre || ""; color: Theme.accentSoft; elide: Text.ElideRight
+                font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold }
+            }
+        }
+    }
+
+    // --- Un grupo compactado: un bloque en vez de sus tiras ---------------------------
+    // «M todos», su VCA acostado y una casilla por tira (su número, verde cuando habla, roja
+    // muda; un clic la silencia). Las casillas llenan la altura y suman columnas.
+    component BloqueGrupo: Rectangle {
+        id: bq
+        property string clave
+        readonly property var g: m.grupos[clave] || ({})
+        readonly property var miembros: g.tiras || []
+        readonly property real db: g.volumenDb !== undefined ? Math.max(-60, g.volumenDb) : 0
+        readonly property int filas: Math.max(1, Math.floor(grilla.height / 26))
+        width: Math.max(110, Math.ceil(miembros.length / filas) * 38 + 12)
+        height: parent ? parent.height : 400
+        radius: 12
+        color: Qt.rgba(1, 1, 1, 0.035)
+        border.color: Qt.rgba(1, 0.42, 0.17, 0.35)
+        ColumnLayout {
+            anchors { fill: parent; margins: 6 }
+            spacing: 5
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Boton { texto: "+"; Layout.fillWidth: false; Layout.preferredWidth: 20
+                        ayuda: "Mostrar los faders de " + (bq.g.nombre || "") + " (" + bq.miembros.length + " tiras)"
+                        alTocar: () => { Studio.mixer.setCompacto(bq.clave, false); m.leerTiras() } }
+                Text {
+                    Layout.fillWidth: true
+                    text: bq.g.nombre || ""; color: Theme.text; elide: Text.ElideRight
+                    font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
+                }
+            }
+            Boton {
+                Layout.fillWidth: true
+                texto: "M todos"; ayuda: "Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)"
+                alTocar: () => {
+                    const alguna = bq.miembros.some((n) => !(m.tiras[n] || {}).mute)
+                    Studio.mixer.setMutedGrupo(bq.clave, alguna)
+                    m.leerTiras()
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                Text {
+                    text: "VCA"; color: Theme.accentSoft; font { family: Theme.font; pixelSize: 9; weight: Font.Bold }
+                    TapHandler { onDoubleTapped: { Studio.mixer.setGananciaGrupoDb(bq.clave, 0); m.leerTiras() } }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    from: -60; to: 12
+                    value: bq.db
+                    onMoved: Studio.mixer.setGananciaGrupoDb(bq.clave, value)
+                    ToolTip.visible: pressed; ToolTip.text: m.texto(value) + " dB"
+                }
+                Text {
+                    text: m.texto(bq.db); color: Math.abs(bq.db) > 0.05 ? Theme.accent : Theme.textFaint
+                    font { family: Theme.font; pixelSize: 9 }
+                }
+            }
+            Item {
+                id: grilla
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Grid {
+                    flow: Grid.TopToBottom
+                    rows: bq.filas
+                    spacing: 4
+                    Repeater {
+                        model: bq.miembros
+                        delegate: Rectangle {
+                            id: cas
+                            required property string modelData
+                            required property int index
+                            readonly property bool muda: !!(m.tiras[modelData] || {}).mute
+                            readonly property real pico: m.nv(m.nE, m.entradas.indexOf(modelData), 0)
+                            width: 34; height: 22; radius: 5
+                            color: muda ? Theme.canalMute : Qt.rgba(0.24, 0.86, 0.59, Math.max(0.08, Math.min(0.85, (pico + 50) / 50)))
+                            Text {
+                                anchors.centerIn: parent
+                                // Su número; si el nombre no lo tiene, su lugar en el grupo.
+                                text: (cas.modelData.match(/\d+/) || [String(cas.index + 1)])[0]
+                                color: Theme.text; font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold }
+                            }
+                            HoverHandler { id: casHov; cursorShape: Qt.PointingHandCursor }
+                            ToolTip.visible: casHov.hovered; ToolTip.delay: 400
+                            ToolTip.text: cas.modelData + (cas.muda ? " · muda" : "") + " (un clic la silencia)"
+                            TapHandler { onTapped: { Studio.mixer.setMuted(cas.modelData, !cas.muda); m.leerTiras() } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Una salida (bus, pista, placa).
     component TiraSalida: Rectangle {
         id: so
@@ -455,8 +646,19 @@ Item {
                 orientation: ListView.Horizontal
                 spacing: 6
                 clip: true
-                model: m.entradas
-                delegate: TiraEntrada {}
+                model: m.vista
+                delegate: Loader {
+                    required property var modelData
+                    height: ListView.view ? ListView.view.height : 400
+                    sourceComponent: modelData.tipo === "tira" ? tiraComp : modelData.tipo === "vca" ? vcaComp : bloqueComp
+                    onLoaded: {
+                        if (modelData.tipo === "tira") item.nombre = Qt.binding(() => modelData.nombre)
+                        else item.clave = Qt.binding(() => modelData.grupo)
+                    }
+                }
+                Component { id: tiraComp; TiraEntrada {} }
+                Component { id: vcaComp; TiraVca {} }
+                Component { id: bloqueComp; BloqueGrupo {} }
                 ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
                 // CON EL TECLADO (un clic en una tira o Tab le da el foco): ← → o Tab elige
                 // la tira y la trae a la vista; ↑ ↓ el fader de a 1 dB (Shift: 3); M mute;
@@ -469,7 +671,8 @@ Item {
                     const i = m.entradas.indexOf(m.elegida)
                     const j = i < 0 ? (paso > 0 ? 0 : n - 1) : Math.max(0, Math.min(n - 1, i + paso))
                     m.elegida = m.entradas[j]
-                    lista.positionViewAtIndex(j, ListView.Contain)
+                    const v = m.indiceEnVista(m.elegida)
+                    if (v >= 0) lista.positionViewAtIndex(v, ListView.Contain)
                 }
                 function ajustar(db) {
                     if (m.elegida === "") return

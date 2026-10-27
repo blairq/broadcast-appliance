@@ -175,8 +175,9 @@ class MixerModel : public QAbstractListModel {
     /// El volumen general de un grupo (VCA), de -60 a +12 dB: mueve el grupo entero sin tocar
     /// el fader de cada uno (las diferencias entre ellos quedan); 0 dB = como si no estuviera.
     Q_INVOKABLE bool setGananciaGrupoDb(const QString& grupo, double db);
-    /// Los grupos de ahora: [{grupo, tiras: [nombres], compacto}] (MCP).
-    QVariantList grupos() const;
+    /// Los grupos de ahora: [{grupo, nombre, tiras: [nombres], compacto, volumenDb}] (MCP y la
+    /// ventana del mezclador, que arma sus tiras con esto).
+    Q_INVOKABLE QVariantList grupos() const;
     /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
     double picoDe(const std::string& nombre) const;
 
