@@ -2,6 +2,7 @@
 
 #include "ptz/Posiciones.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QSet>
 
@@ -90,15 +91,15 @@ const Posicion* Posiciones::buscar(const QString& idONombre) const {
 }
 
 QString Posiciones::validarNombre(const QString& nombre, const QString& excepto) const {
-    if (nombre.trimmed().isEmpty()) return QStringLiteral("La posición necesita un nombre");
+    if (nombre.trimmed().isEmpty()) return QCoreApplication::translate("ptz", "La posición necesita un nombre");
     const QString n = normalizar(nombre);
     for (const Posicion& p : lista_)
         if (p.id != excepto && normalizar(p.nombre) == n)
-            return QStringLiteral("Ya hay una posición «%1» en esta cámara").arg(p.nombre);
+            return QCoreApplication::translate("ptz", "Ya hay una posición «%1» en esta cámara").arg(p.nombre);
     // Un nombre que es solo un número se confundiría con un id.
     bool esNumero = false;
     nombre.trimmed().toInt(&esNumero);
-    if (esNumero) return QStringLiteral("El nombre no puede ser solo un número (se confunde con el id)");
+    if (esNumero) return QCoreApplication::translate("ptz", "El nombre no puede ser solo un número (se confunde con el id)");
     return {};
 }
 

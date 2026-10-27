@@ -5,6 +5,7 @@
 
 #include "ptz/PtzProtocolos.hpp"
 
+#include <QCoreApplication>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -37,10 +38,10 @@ void PtzPanasonic::configurar(const QJsonObject& conf) {
     clave_ = conf.value("clave").toString();
     cola_.clear();
     if (host_.isEmpty()) {
-        setEstado(false, QStringLiteral("Falta la dirección de la cámara"));
+        setEstado(false, QCoreApplication::translate("ptz", "Falta la dirección de la cámara"));
         return;
     }
-    setEstado(false, QStringLiteral("Probando %1…").arg(host_));
+    setEstado(false, QCoreApplication::translate("ptz", "Probando %1…").arg(host_));
     // Una orden inocua para ver si contesta: pan/tilt quieto.
     encolar(panasonic::panTilt(0, 0));
 }
@@ -76,13 +77,13 @@ void PtzPanasonic::siguiente() {
         r->deleteLater();
         enVuelo_ = false;
         if (r->error() != QNetworkReply::NoError) {
-            setEstado(false, QStringLiteral("Sin respuesta de %1 (%2)").arg(host_, r->errorString()));
+            setEstado(false, QCoreApplication::translate("ptz", "Sin respuesta de %1 (%2)").arg(host_, r->errorString()));
         } else {
             const QByteArray cuerpo = r->readAll();
             if (panasonic::respuestaOk(orden, cuerpo))
-                setEstado(true, QStringLiteral("Conectada (Panasonic %1)").arg(host_));
+                setEstado(true, QCoreApplication::translate("ptz", "Conectada (Panasonic %1)").arg(host_));
             else
-                setEstado(true, QStringLiteral("La cámara rechazó %1 (%2)")
+                setEstado(true, QCoreApplication::translate("ptz", "La cámara rechazó %1 (%2)")
                                     .arg(orden, QString::fromLatin1(cuerpo).trimmed()));
         }
         espacio_.start();
@@ -104,12 +105,12 @@ void PtzPanasonic::autoFoco(bool automatico) { encolar(panasonic::focoAuto(autom
 
 void PtzPanasonic::irAPreset(int n) {
     encolar(panasonic::preset(false, n), false);
-    setEstado(listo(), QStringLiteral("Yendo al preset %1").arg(n));
+    setEstado(listo(), QCoreApplication::translate("ptz", "Yendo al preset %1").arg(n));
 }
 
 void PtzPanasonic::guardarPreset(int n) {
     encolar(panasonic::preset(true, n), false);
-    setEstado(listo(), QStringLiteral("Preset %1 guardado en la cámara").arg(n));
+    setEstado(listo(), QCoreApplication::translate("ptz", "Preset %1 guardado en la cámara").arg(n));
 }
 
 void PtzPanasonic::home() { encolar(panasonic::home(), false); }

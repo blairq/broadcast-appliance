@@ -82,7 +82,7 @@ QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString&
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     Posicion* p = c->posiciones.buscar(idONombre);
-    if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    if (p == nullptr) return QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada);
     // El cuadro llega aparte (la interfaz no lo espera); lo que sigue, cuando llega.
     const std::string fuente = c->entrada;
     const QString posicion = p->id;
@@ -110,12 +110,12 @@ QString ControlCamaras::guardarMiniatura(const QString& entrada, const QString& 
     if (c == nullptr) return error;
     Posicion* p = c->posiciones.buscar(idONombre);
     if (p == nullptr) return {}; // la borraron mientras tanto
-    if (img.isNull()) return QStringLiteral("La entrada «%1» no da imagen ahora: la posición queda sin foto").arg(entrada);
+    if (img.isNull()) return QCoreApplication::translate("ptz", "La entrada «%1» no da imagen ahora: la posición queda sin foto").arg(entrada);
     std::error_code ec;
     std::filesystem::create_directories(carpetaMiniaturas(), ec);
     const QString nombre = QString::fromStdString(nombreClave(c->entrada)) + "-" + p->id + ".jpg";
     const QString ruta = QString::fromStdWString((carpetaMiniaturas() / nombre.toStdWString()).wstring());
-    if (!img.save(ruta, "JPG", 82)) return QStringLiteral("No se pudo guardar la foto en %1").arg(ruta);
+    if (!img.save(ruta, "JPG", 82)) return QCoreApplication::translate("ptz", "No se pudo guardar la foto en %1").arg(ruta);
     p->miniatura = nombre;
     p->modificada = Posiciones::ahora();
     guardarPronto();
@@ -180,7 +180,7 @@ bool ControlCamaras::migrarPresets(Camara& c, const QJsonObject& digitales) {
         if (n < 1 || c.posiciones.porNumero(n) != nullptr) continue;
         Posicion p;
         p.numero = n;
-        p.nombre = nombreLibre(c, QStringLiteral("Preset %1").arg(n));
+        p.nombre = nombreLibre(c, QCoreApplication::translate("ptz", "Preset %1").arg(n));
         p.digital = true;
         p.x = d.value("x").toDouble(0.5);
         p.y = d.value("y").toDouble(0.5);
@@ -201,7 +201,7 @@ bool ControlCamaras::migrarPresets(Camara& c, const QJsonObject& digitales) {
             if (n < 1 || c.posiciones.porNumero(n) != nullptr) continue;
             Posicion p;
             p.numero = n;
-            p.nombre = nombreLibre(c, QStringLiteral("Preset %1").arg(n));
+            p.nombre = nombreLibre(c, QCoreApplication::translate("ptz", "Preset %1").arg(n));
             p.backend = c.backend;
             p.memoria = n;
             p.miniatura = f;
@@ -221,8 +221,8 @@ void ControlCamaras::importarPresetsDeLaCamara(Camara& c) {
                                     [&](const Posicion& p) { return p.token == token; });
         if (ya) continue;
         Posicion p;
-        p.nombre = nombreLibre(c, nombre.trimmed().isEmpty() ? QStringLiteral("Preset de la cámara") : nombre.trimmed());
-        p.comentario = QStringLiteral("Traído de la cámara");
+        p.nombre = nombreLibre(c, nombre.trimmed().isEmpty() ? QCoreApplication::translate("ptz", "Preset de la cámara") : nombre.trimmed());
+        p.comentario = QCoreApplication::translate("ptz", "Traído de la cámara");
         p.backend = c.backend;
         p.token = token;
         c.posiciones.agregar(p);
@@ -258,9 +258,9 @@ QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
     QStringList faltas;
     if (c.hw) {
         if (!c.hw->listo()) {
-            faltas << QStringLiteral("la cámara no contesta: no se grabó en ella");
+            faltas << QCoreApplication::translate("ptz", "la cámara no contesta: no se grabó en ella");
         } else if (c.hw->memorias() <= 0) {
-            faltas << QStringLiteral("la cámara no tiene memorias");
+            faltas << QCoreApplication::translate("ptz", "la cámara no tiene memorias");
         } else if (c.hw->usaTokens()) {
             p.backend = c.backend;
             p.memoria = 0;
@@ -279,7 +279,7 @@ QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
         } else {
             const int m = p.memoria > 0 ? p.memoria : c.posiciones.memoriaLibre(c.hw->memorias());
             if (m <= 0) {
-                faltas << QStringLiteral("no quedan memorias libres en la cámara");
+                faltas << QCoreApplication::translate("ptz", "no quedan memorias libres en la cámara");
             } else {
                 p.backend = c.backend;
                 p.memoria = m;
@@ -289,7 +289,7 @@ QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
     }
     aviso = faltas.join("; ");
     if (!p.digital && !p.tieneCamara() && !(c.hw && c.hw->usaTokens() && c.hw->listo()))
-        return QStringLiteral("No hay nada que registrar: prendé el PTZ digital o configurá la cámara (%1)")
+        return QCoreApplication::translate("ptz", "No hay nada que registrar: prendé el PTZ digital o configurá la cámara (%1)")
             .arg(aviso);
     return {};
 }
@@ -329,7 +329,7 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
     Posicion* p = c->posiciones.buscar(idONombre);
     if (p == nullptr)
         return {{"ok", false},
-                {"error", QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada)}};
+                {"error", QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada)}};
     // Todo revisado antes de cambiar nada (con el número mal, el nombre quedaba cambiado igual).
     const bool cambiaNombre = cambios.contains("nombre") && cambios["nombre"].toString().trimmed() != p->nombre;
     if (cambiaNombre) {
@@ -339,10 +339,10 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
     const bool cambiaNumero = cambios.contains("numero") && cambios["numero"].toInt() != p->numero;
     if (cambiaNumero) {
         const int n = cambios["numero"].toInt();
-        if (n < 1) return {{"ok", false}, {"error", QStringLiteral("El número de preset va desde 1")}};
+        if (n < 1) return {{"ok", false}, {"error", QCoreApplication::translate("ptz", "El número de preset va desde 1")}};
         if (const Posicion* otra = c->posiciones.porNumero(n))
             return {{"ok", false},
-                    {"error", QStringLiteral("El número %1 ya es de «%2»").arg(n).arg(otra->nombre)}};
+                    {"error", QCoreApplication::translate("ptz", "El número %1 ya es de «%2»").arg(n).arg(otra->nombre)}};
     }
     if (cambiaNombre) p->nombre = cambios["nombre"].toString().trimmed();
     if (cambios.contains("comentario")) p->comentario = cambios["comentario"].toString().trimmed();
@@ -379,7 +379,7 @@ QString ControlCamaras::borrarPosicion(const QString& entrada, const QString& id
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     const Posicion* p = c->posiciones.buscar(idONombre);
-    if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    if (p == nullptr) return QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2»").arg(idONombre, entrada);
     // Libera la memoria en la cámara (si es la misma cámara que la grabó).
     if (c->hw && p->tieneCamara() && p->backend == c->backend) c->hw->borrarPosicion(p->memoria, p->token);
     if (!p->miniatura.isEmpty()) {
@@ -402,7 +402,7 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
         for (const Posicion& x : c->posiciones.lista())
             if (!x.interna) nombres << x.nombre;
         return {{"ok", false},
-                {"error", QStringLiteral("No hay una posición «%1» en «%2» (hay: %3)")
+                {"error", QCoreApplication::translate("ptz", "No hay una posición «%1» en «%2» (hay: %3)")
                               .arg(idONombre, entrada,
                                    nombres.isEmpty() ? QStringLiteral("ninguna") : nombres.join(", "))}};
     }
@@ -412,18 +412,17 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
     bool algo = false;
     if (p->tieneCamara()) {
         if (!c->hw || c->backend != p->backend) {
-            avisos << QStringLiteral(
-                          "se grabó con el backend %1 y la cámara ahora tiene %2: la cabeza no se mueve")
+            avisos << QCoreApplication::translate("ptz", "se grabó con el backend %1 y la cámara ahora tiene %2: la cabeza no se mueve")
                           .arg(p->backend, c->backend);
         } else {
-            if (!c->hw->listo()) avisos << QStringLiteral("la cámara no contesta");
+            if (!c->hw->listo()) avisos << QCoreApplication::translate("ptz", "la cámara no contesta");
             c->hw->irAPosicionCon(p->memoria, p->token, p->velocidad);
             algo = true;
         }
     }
     if (p->digital) {
         if (!c->digital || !c->dig) {
-            avisos << QStringLiteral("el PTZ digital está apagado: el recorte no se aplica");
+            avisos << QCoreApplication::translate("ptz", "el PTZ digital está apagado: el recorte no se aplica");
         } else if (c->dig->ir(p->x, p->y, p->zoom,
                               qBound(0.0, segundos >= 0 ? segundos : (p->segundos >= 0 ? p->segundos : 1.0), 10.0))) {
             algo = true;
@@ -432,14 +431,14 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
     int w = 0, h = 0;
     rt_.engine().sourceSize(c->entrada, w, h);
     if (p->ancho > 0 && w > 0 && (p->ancho != w || p->alto != h))
-        avisos << QStringLiteral("se registró en %1 y la entrada ahora es %2x%3 (el recorte es proporcional: "
+        avisos << QCoreApplication::translate("ptz", "se registró en %1 y la entrada ahora es %2x%3 (el recorte es proporcional: "
                                  "cae en el mismo lugar)")
                       .arg(p->definicion())
                       .arg(w)
                       .arg(h);
     if (!algo)
         return {{"ok", false},
-                {"error", QStringLiteral("No se pudo ir a «%1»: %2").arg(p->nombre, avisos.join("; "))}};
+                {"error", QCoreApplication::translate("ptz", "No se pudo ir a «%1»: %2").arg(p->nombre, avisos.join("; "))}};
     guardarPronto();
     emit cambio();
     return {{"ok", true}, {"nombre", p->nombre}, {"aviso", avisos.join("; ")}};

@@ -5,6 +5,7 @@
 
 #include "ptz/PtzProtocolos.hpp"
 
+#include <QCoreApplication>
 #include <QHostInfo>
 #include <QTcpSocket>
 #include <QUdpSocket>
@@ -17,7 +18,7 @@ PtzVisca::PtzVisca(QObject* parent) : PtzBackend(parent) {
     silencio_.setSingleShot(true);
     silencio_.setInterval(ba::ajustes::entero("ptz.sinRespuestaMs", 1500));
     connect(&silencio_, &QTimer::timeout, this,
-            [this]() { setEstado(false, QStringLiteral("Sin respuesta de %1:%2").arg(host_).arg(puerto_)); });
+            [this]() { setEstado(false, QCoreApplication::translate("ptz", "Sin respuesta de %1:%2").arg(host_).arg(puerto_)); });
     reconexion_.setSingleShot(true);
     reconexion_.setInterval(ba::ajustes::entero("ptz.reconexionMs", 3000));
     connect(&reconexion_, &QTimer::timeout, this, &PtzVisca::conectarTcp);
@@ -55,21 +56,21 @@ void PtzVisca::configurar(const QJsonObject& conf) {
     reconexion_.stop();
     silencio_.stop();
     if (host_.isEmpty()) {
-        setEstado(false, QStringLiteral("Falta la dirección de la cámara"));
+        setEstado(false, QCoreApplication::translate("ptz", "Falta la dirección de la cámara"));
         return;
     }
     if (transporte_ == "tcp") {
         tcp_ = new QTcpSocket(this);
         connect(tcp_, &QTcpSocket::readyRead, this, &PtzVisca::leer);
         connect(tcp_, &QTcpSocket::connected, this, [this]() {
-            setEstado(true, QStringLiteral("Conectada (VISCA TCP %1:%2)").arg(host_).arg(puerto_));
+            setEstado(true, QCoreApplication::translate("ptz", "Conectada (VISCA TCP %1:%2)").arg(host_).arg(puerto_));
             if (!pendienteTcp_.isEmpty()) tcp_->write(pendienteTcp_);
             pendienteTcp_.clear();
         });
         connect(tcp_, &QTcpSocket::errorOccurred, this, [this]() {
             setEstado(
                 false,
-                QStringLiteral("No conecta con %1:%2 (%3)").arg(host_).arg(puerto_).arg(tcp_->errorString()));
+                QCoreApplication::translate("ptz", "No conecta con %1:%2 (%3)").arg(host_).arg(puerto_).arg(tcp_->errorString()));
             reconexion_.start();
         });
         conectarTcp();
@@ -78,11 +79,11 @@ void PtzVisca::configurar(const QJsonObject& conf) {
     udp_ = new QUdpSocket(this);
     udp_->bind(QHostAddress::AnyIPv4, 0);
     connect(udp_, &QUdpSocket::readyRead, this, &PtzVisca::leer);
-    setEstado(false, QStringLiteral("Buscando %1…").arg(host_));
+    setEstado(false, QCoreApplication::translate("ptz", "Buscando %1…").arg(host_));
     QHostInfo::lookupHost(host_, this, [this, h = host_](const QHostInfo& info) {
         if (h != host_) return; // se reconfiguró mientras tanto
         if (info.addresses().isEmpty()) {
-            setEstado(false, QStringLiteral("No encuentro «%1» en la red").arg(host_));
+            setEstado(false, QCoreApplication::translate("ptz", "No encuentro «%1» en la red").arg(host_));
             return;
         }
         for (const QHostAddress& a : info.addresses())
@@ -141,11 +142,11 @@ void PtzVisca::leer() {
     for (const QByteArray& m : respuestas) {
         const auto r = visca::leer(m);
         if (r.tipo == visca::Respuesta::Error) {
-            setEstado(true, QStringLiteral("La cámara contestó: %1").arg(visca::textoError(r.codigo)));
+            setEstado(true, QCoreApplication::translate("ptz", "La cámara contestó: %1").arg(visca::textoError(r.codigo)));
             return;
         }
     }
-    setEstado(true, QStringLiteral("Conectada (VISCA %1 %2:%3)").arg(transporte_, host_).arg(puerto_));
+    setEstado(true, QCoreApplication::translate("ptz", "Conectada (VISCA %1 %2:%3)").arg(transporte_, host_).arg(puerto_));
 }
 
 void PtzVisca::mover(double pan, double tilt, double zoom) {
@@ -204,7 +205,7 @@ void PtzVisca::autoFoco(bool automatico) { enviar(visca::focoAuto(automatico, di
 
 void PtzVisca::irAPreset(int n) {
     enviar(visca::preset(false, n, direccion_));
-    setEstado(listo(), QStringLiteral("Yendo al preset %1").arg(n));
+    setEstado(listo(), QCoreApplication::translate("ptz", "Yendo al preset %1").arg(n));
 }
 
 void PtzVisca::irAPosicionCon(int n, const QString&, double velocidad) {
@@ -214,7 +215,7 @@ void PtzVisca::irAPosicionCon(int n, const QString&, double velocidad) {
 
 void PtzVisca::guardarPreset(int n) {
     enviar(visca::preset(true, n, direccion_));
-    setEstado(listo(), QStringLiteral("Preset %1 guardado en la cámara").arg(n));
+    setEstado(listo(), QCoreApplication::translate("ptz", "Preset %1 guardado en la cámara").arg(n));
 }
 
 void PtzVisca::home() { enviar(visca::home(direccion_)); }
