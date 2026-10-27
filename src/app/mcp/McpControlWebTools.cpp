@@ -147,9 +147,10 @@ void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
             const json cats = a.value("categorias", json::array());
             const bool humano = core.contextoEnCurso().humano;
             // Primero como asistente: si solo achica, listo.
-            std::string e = cw.setPerfil(ap, cats, humano);
+            bool amplia = false;
+            std::string e = cw.setPerfil(ap, cats, humano, &amplia);
             if (e.empty()) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Perfil guardado.")));
-            if (humano || e.rfind("ampliar", 0) != 0) return done(ToolResult::error(e));
+            if (humano || !amplia) return done(ToolResult::error(e));
             core.pedirAprobacion("control_web_perfil", a,
                                  ba::i18n::traducir("mcp", "Ampliar el perfil de un aparato del control web (lo que puede tocar desde la red "
                                  "local): lo decide una persona."),

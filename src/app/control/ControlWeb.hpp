@@ -146,7 +146,8 @@ class ControlWeb : public QObject {
     /// null = el que propuso el código. Aprobar SOLO si `humano`: si no, {error}.
     json resolverSolicitud(const std::string& solicitud, bool aprobar, const json& perfil, bool humano);
     /// Cambia el perfil. Sin `humano` solo se puede achicar. "" o el error.
-    std::string setPerfil(const std::string& aparato, const json& categorias, bool humano);
+    /// `amplia`: si no se guardó porque lo ampliaba el asistente (lo decide una persona).
+    std::string setPerfil(const std::string& aparato, const json& categorias, bool humano, bool* amplia = nullptr);
     /// Saca un aparato: su token deja de valer y se cortan sus conexiones.
     bool quitar(const std::string& aparato);
     /// Habilita (con un PIN de 4 a 12 cifras) o apaga el acceso desde afuera.

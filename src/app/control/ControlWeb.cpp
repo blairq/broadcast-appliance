@@ -343,15 +343,18 @@ json ControlWeb::resolverSolicitud(const std::string& sol, bool aprobar, const j
     return {{"aprobada", true}, {"aparato", id}, {"token", token}, {"perfil", p}};
 }
 
-std::string ControlWeb::setPerfil(const std::string& aparato, const json& categorias, bool humano) {
+std::string ControlWeb::setPerfil(const std::string& aparato, const json& categorias, bool humano, bool* ampliaba) {
+    if (ampliaba != nullptr) *ampliaba = false;
     json* a = buscarAparato(aparato);
     if (a == nullptr) return llenar(traducir("control-web", "no hay un aparato «%1»"), {aparato});
     std::string e;
     const json p = normalizarPerfil(categorias, &e);
     if (p.is_null()) return e;
     const json antes = a->value("perfil", json::array());
-    if (!humano && amplia(antes, p))
+    if (!humano && amplia(antes, p)) {
+        if (ampliaba != nullptr) *ampliaba = true;
         return traducir("control-web", "ampliar el perfil de un aparato lo hace una persona: solo se puede achicar");
+    }
     (*a)["perfil"] = p;
     guardar();
     auditar(aparato, humano ? llenar(traducir("control-web", "perfil %1 → %2"), {perfilTexto(antes), perfilTexto(p)})
