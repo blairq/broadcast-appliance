@@ -5,5 +5,28 @@
   "locale": "es_AR",
   "direccion": "ltr",
   "plural": "uno-otro",
-  "fuente": true
+  "fuente": true,
+  "buscador": {
+    "_comentario": "Cómo parte y normaliza las palabras el buscador de herramientas del asistente (src/app/mcp/McpIndice.cpp). Ver docs/desarrollo/I18N.md, «Perfil del idioma: buscador».",
+    "letras": {"á": "á", "é": "é", "í": "í", "ó": "ó", "ú": "ú", "ü": "ü", "ñ": "ñ",
+               "Á": "á", "É": "é", "Í": "í", "Ó": "ó", "Ú": "ú", "Ü": "ü", "Ñ": "ñ"},
+    "sinTildes": {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n"},
+    "vacias": ["el", "la", "lo", "los", "las", "un", "una", "unos", "unas", "de", "del", "al", "es",
+               "son", "en", "y", "o", "que", "con", "por",
+               "su", "sus", "mi", "mis", "tu", "tus", "ya", "muy", "pero", "porque", "porfa", "dale",
+               "che", "eh", "ahi", "aca", "aqui", "alla", "asi", "mas"],
+    "imperativo": {
+      "excepciones": ["está", "estás"],
+      "agudas": {"á": "a", "é": "e", "í": "i"},
+      "sufijo": "r",
+      "letrasMinimas": 3,
+      "pronombres": ["selos", "selas", "selo", "sela", "melos", "melas", "melo", "mela",
+                     "les", "nos", "los", "las", "le", "me", "lo", "la"],
+      "pronombresSinTilde": ["le", "les", "me", "nos"],
+      "vocalesSinTilde": ["a", "e", "i"],
+      "letrasDelVerbo": 4
+    },
+    "infinitivo": ["ar", "er", "ir"],
+    "pegados": ["selos", "selas", "selo", "sela", "nos", "les", "los", "las", "me", "te", "le", "lo", "la", "se"]
+  }
 }
