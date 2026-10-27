@@ -190,7 +190,7 @@ void InputsViewModel::rebuildDevices() {
         // addNdi recibe el nombre con que se anuncia el emisor (el valor); se muestra el del operador.
         m["name"] = m.value("value");
         if (v.toMap().value("estado").toString() == "ausente")
-            m["label"] = v.toMap().value("nombre").toString() + " (no se ve)";
+            m["label"] = tr("%1 (no se ve)").arg(v.toMap().value("nombre").toString());
         ndi << m;
     }
     if (dev != devices_ || aud != audioDevices_) {
@@ -219,8 +219,8 @@ QString InputsViewModel::audioInputName(const QString& device) const {
     // no sabe que es. El resto ya trae el nombre del equipo.
     for (const QVariant& d : audioDevices_)
         if (d.toMap().value("value").toString() == device) return d.toMap().value("name").toString();
-    if (device == "default") return QStringLiteral("Entrada de audio predeterminada");
-    return QStringLiteral("Micrófono");
+    if (device == "default") return tr("Entrada de audio predeterminada");
+    return tr("Micrófono");
 }
 
 QString InputsViewModel::addAudioInput(const QString& device, const QString& name) {
@@ -272,10 +272,10 @@ void InputsViewModel::rebuildInputs() {
                              : "red"},
             {"where", QString::fromStdString(
                           hw      ? inputs::camaraDe(type, s)
-                          : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
+                          : isNdi ? tr("NDI: %1").arg(QString::fromStdString(s.value("ndi_name", s.value("host", std::string())))).toStdString()
                           : type == "ba_gst_fuente"
                               ? (s.contains("ba_plugin")
-                                     ? "Plugin: " + s.value("ba_plugin", std::string())
+                                     ? tr("Plugin: %1").arg(QString::fromStdString(s.value("ba_plugin", std::string()))).toStdString()
                                      : inputs::redactUrl(s.value("uri", s.value("pipeline", std::string()))))
                               : inputs::redactUrl(s.value("input", std::string())))},
             {"width", w},
@@ -307,7 +307,7 @@ void InputsViewModel::rebuildInputs() {
                          // después de un corte) no manda nada: se lo espera.
                          {"receiving", disp.value("conectado").toBool()},
                          {"state", QString()},
-                         {"scenes", QStringList{QStringLiteral("todas (audio)")}}};
+                         {"scenes", QStringList{tr("todas (audio)")}}};
         fila.insert(disp);
         out << fila;
         audio << fila;
@@ -356,7 +356,7 @@ QVariantList InputsViewModel::modes(const QString& device) const {
     QVariantList out;
     std::string porque;
     const auto a = video::modoAutomatico(device.toStdString(), &porque);
-    out << QVariantMap{{"label", a.ancho > 0 ? QString::fromStdString("Automático: " + a.etiqueta()) : QStringLiteral("Automático")},
+    out << QVariantMap{{"label", a.ancho > 0 ? tr("Automático: %1").arg(QString::fromStdString(a.etiqueta())) : tr("Automático")},
                        {"modo", QString()},
                        {"detalle", QString::fromStdString(porque)}};
     for (const auto& m : video::modosDeCamara(device.toStdString())) {
@@ -376,7 +376,7 @@ QString InputsViewModel::addHardware(const QString& device, const QString& name,
         const QVariantMap d = v.toMap();
         if (d.value("value").toString() != device) continue;
         // Con el nombre que le puso el operador, tal cual; sin nombre propio, «Cámara <la del sistema>».
-        if (nm.isEmpty()) nm = d.value("propio").toBool() ? d.value("name").toString() : "Cámara " + d.value("name").toString();
+        if (nm.isEmpty()) nm = d.value("propio").toBool() ? d.value("name").toString() : tr("Cámara %1").arg(d.value("name").toString());
         // El formato preferido de ese dispositivo (Dispositivos y equipos), si no se eligió otro.
         const QString preferido = d.value("config").toMap().value("modo").toString();
         if (!opts.contains("modo") && !preferido.isEmpty()) opts["modo"] = preferido.toStdString();
@@ -395,7 +395,8 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
     if (inputs::networkScheme(u).empty())
         return tr("La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.");
     const std::string nm =
-        name.trimmed().isEmpty() ? "Red " + inputs::redactUrl(u).substr(0, 40) : name.trimmed().toStdString();
+        name.trimmed().isEmpty() ? tr("Red %1").arg(QString::fromStdString(inputs::redactUrl(u).substr(0, 40))).toStdString()
+                                 : name.trimmed().toStdString();
     const SourceSpec spec =
         inputs::networkSpec(u, nm, json{{"latency", lowLatency ? "low" : "normal"}},
                             (ba::platform::bundleRoot() / "data" / "cacert.pem").string());

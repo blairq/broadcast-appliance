@@ -67,7 +67,7 @@ QObject* FacebookViewModel::chat() const { return chat_.get(); }
 void FacebookViewModel::setError(const QString& e) {
     lastError_ = e;
     emit errorChanged();
-    if (!e.isEmpty()) emit notify(e.startsWith("Facebook") ? e : "Facebook: " + e, "error");
+    if (!e.isEmpty()) emit notify(e.startsWith("Facebook") ? e : tr("Facebook: %1").arg(e), "error");
 }
 
 void FacebookViewModel::track(bool start) {
@@ -91,7 +91,7 @@ void FacebookViewModel::login() {
             if (e != "Login cancelado.") setError(e);
             return;
         }
-        emit notify("Conectado a Facebook: " + d.value("user").toObject().value("name").toString(), "ok");
+        emit notify(tr("Conectado a Facebook: %1").arg(d.value("user").toObject().value("name").toString()), "ok");
         refresh();
     });
 }
@@ -158,15 +158,15 @@ void FacebookViewModel::goLive(const QString& title, const QString& description,
             {"title", title}, {"description", description}, {"status", test ? "UNPUBLISHED" : "LIVE_NOW"}},
         [this, test](bool ok, const QJsonObject&, const QString& e) {
             if (!ok) return setError(e);
-            emit notify(test ? "Transmitiendo a Facebook en PRUEBA (sin publicar): publicalo cuando quieras."
-                             : "Transmitiendo en vivo a Facebook.",
+            emit notify(test ? tr("Transmitiendo a Facebook en PRUEBA (sin publicar): publicalo cuando quieras.")
+                             : tr("Transmitiendo en vivo a Facebook."),
                         "ok");
         });
 }
 
 void FacebookViewModel::goLive(const QJsonObject& p, FacebookClient::Done done) {
     if (rt_.engine().status().streaming)
-        return done(false, {}, "La app ya esta transmitiendo: corta esa transmision primero.");
+        return done(false, {}, tr("La app ya esta transmitiendo: corta esa transmision primero."));
     track(true);
     QPointer<FacebookViewModel> self(this);
     client_->createLive(p, [self, done](bool ok, const QJsonObject& d, const QString& e) {
@@ -178,8 +178,7 @@ void FacebookViewModel::goLive(const QJsonObject& p, FacebookClient::Done done) 
         if (!self->rt_.startStreaming(ing.value("url").toString().toStdString(),
                                       ing.value("key").toString().toStdString()))
             return done(false, {},
-                        "La app no pudo empezar a transmitir: " +
-                            QString::fromStdString(self->rt_.lastError()));
+                        tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(self->rt_.lastError())));
         self->liveId_ = d.value("id").toString();
         self->setChatLive(self->liveId_);
         emit self->stateChanged();
@@ -242,13 +241,13 @@ void FacebookViewModel::uploadRecording(const QString& path, const QString& titl
     uploadRecording(path, QJsonObject{{"title", title}, {"description", description}},
                     [this](bool ok, const QJsonObject& d, const QString& e) {
                         if (!ok) return setError(e);
-                        emit notify("Subido a Facebook: " + d.value("url").toString(), "ok");
+                        emit notify(tr("Subido a Facebook: %1").arg(d.value("url").toString()), "ok");
                     });
 }
 
 void FacebookViewModel::uploadRecording(const QString& path, const QJsonObject& meta,
                                         FacebookClient::Done done) {
-    if (!upload_.isEmpty()) return done(false, {}, "Ya hay una subida en curso.");
+    if (!upload_.isEmpty()) return done(false, {}, tr("Ya hay una subida en curso."));
     upload_ = QVariantMap{{"path", path},
                           {"title", meta.value("title").toString(QFileInfo(path).completeBaseName())},
                           {"sent", 0},
