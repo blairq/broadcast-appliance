@@ -34,7 +34,7 @@ Rectangle {
     }
     function irA(id) { ApplicationWindow.window.showPage(Studio.riel.paginaDeId(id)) }
     function verQr(url, nombre, remoto) {
-        Studio.mostrarQr(url, nombre, remoto ? "Desde cualquier lugar (por el túnel)." : "Desde la red local de la sala.",
+        Studio.mostrarQr(url, nombre, remoto ? qsTr("Desde cualquier lugar (por el túnel).") : qsTr("Desde la red local de la sala."),
                          remoto ? "azul" : "verde")
     }
 
@@ -45,23 +45,23 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Servicios"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
-            GlassButton { compact: true; text: "Servicios"; active: page.pestana === "servicios"; onClicked: page.pestana = "servicios" }
+            Text { text: qsTr("Servicios"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            GlassButton { compact: true; text: qsTr("Servicios"); active: page.pestana === "servicios"; onClicked: page.pestana = "servicios" }
             GlassButton {
-                compact: true; text: "Aspecto de las páginas web"; active: page.pestana === "templates"; onClicked: page.pestana = "templates"
+                compact: true; text: qsTr("Aspecto de las páginas web"); active: page.pestana === "templates"; onClicked: page.pestana = "templates"
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "El tema (template) de todas las páginas web de control: dashboard, botonera, presidencia, rótulos, corrección"
+                ToolTip.text: qsTr("El tema (template) de todas las páginas web de control: dashboard, botonera, presidencia, rótulos, corrección")
             }
             StatusPill {
                 visible: page.pestana === "servicios"
-                text: page.en.hayTunel ? "Con salida a internet" : "Solo red local"
+                text: page.en.hayTunel ? qsTr("Con salida a internet") : qsTr("Solo red local")
                 dot: page.en.hayTunel ? Theme.ok : Theme.textFaint
                 on: page.en.hayTunel
             }
             Item { Layout.fillWidth: true }
             Text {
                 visible: page.pestana === "servicios"
-                text: "Para copiar, abrir o mostrar en QR. Verde: andando · ámbar: con un problema · rojo: no anda · gris: apagado."
+                text: qsTr("Para copiar, abrir o mostrar en QR. Verde: andando · ámbar: con un problema · rojo: no anda · gris: apagado.")
                 color: Theme.textFaint
                 font.pixelSize: 11
                 elide: Text.ElideRight
@@ -69,7 +69,7 @@ Rectangle {
             }
             GlassButton {
                 visible: page.pestana === "servicios"
-                compact: true; text: "Actualizar"; icon: "↻"; onClicked: page.en.refrescar()
+                compact: true; text: qsTr("Actualizar"); icon: "↻"; onClicked: page.en.refrescar()
             }
         }
 
@@ -174,7 +174,7 @@ Rectangle {
                                         GlassButton {
                                             visible: fila.s.pagina !== "" && (fila.s.porPersona || fila.s.accion === "Emparejar")
                                             compact: true
-                                            text: fila.s.accion === "Emparejar" ? "Emparejar" : "Ir a darlos"
+                                            text: fila.s.accion === "Emparejar" ? qsTr("Emparejar") : qsTr("Ir a darlos")
                                             icon: "→"
                                             onClicked: page.irA(fila.s.pagina)
                                         }
@@ -183,7 +183,7 @@ Rectangle {
                                             visible: fila.s.activable
                                             spacing: 6
                                             Text {
-                                                text: fila.s.activo ? "Activo" : "Apagado"
+                                                text: fila.s.activo ? qsTr("Activo") : qsTr("Apagado")
                                                 color: fila.s.activo ? Theme.ok : Theme.textFaint
                                                 font.pixelSize: 12
                                             }
@@ -202,8 +202,8 @@ Rectangle {
                                     Repeater {
                                         model: fila.s.porPersona ? [] : [
                                             { remoto: false, url: fila.s.local || "",
-                                              etiqueta: (fila.s.local || "").indexOf("://127.0.0.1") >= 0 ? "Esta máquina" : "Red local" },
-                                            { remoto: true, etiqueta: "Desde afuera", url: fila.s.remoto || "" }]
+                                              etiqueta: (fila.s.local || "").indexOf("://127.0.0.1") >= 0 ? qsTr("Esta máquina") : qsTr("Red local") },
+                                            { remoto: true, etiqueta: qsTr("Desde afuera"), url: fila.s.remoto || "" }]
                                         delegate: RowLayout {
                                             id: enl
                                             required property var modelData
@@ -244,16 +244,16 @@ Rectangle {
                                                 readOnly: true
                                                 selectByMouse: true
                                                 text: enl.hay ? enl.modelData.url
-                                                              : "Prendé la salida a internet (abajo, «Internet») para tener este enlace"
+                                                              : qsTr("Prendé la salida a internet (abajo, «Internet») para tener este enlace")
                                                 color: enl.hay ? Theme.text : Theme.textFaint
                                                 font { pixelSize: 12; family: Theme.mono }
                                             }
                                             GlassButton {
-                                                visible: enl.hay; compact: true; text: "Copiar"
-                                                onClicked: { Studio.copiar(enl.modelData.url); Studio.notify("Copiado: " + fila.s.nombre, "ok") }
+                                                visible: enl.hay; compact: true; text: qsTr("Copiar")
+                                                onClicked: { Studio.copiar(enl.modelData.url); Studio.notify(qsTr("Copiado: %1").arg(fila.s.nombre), "ok") }
                                             }
                                             GlassButton {
-                                                visible: enl.hay; compact: true; text: "Abrir"
+                                                visible: enl.hay; compact: true; text: qsTr("Abrir")
                                                 onClicked: Qt.openUrlExternally(enl.modelData.url)
                                             }
                                             GlassButton {
@@ -271,7 +271,7 @@ Rectangle {
                                         perfilModo: fila.ap ? fila.ap.perfilModo : ""
                                         perfiles: fila.ap ? fila.ap.perfiles : []
                                         perfilAyuda: fila.ap ? fila.ap.perfilAyuda : ""
-                                        textoAprobar: fila.ap ? fila.ap.textoAprobar : "Aprobar"
+                                        textoAprobar: fila.ap ? fila.ap.textoAprobar : qsTr("Aprobar")
                                         onResolver: (id, aprobar, perfil) => {
                                             const e = page.en.resolver(fila.modelData.id, id, aprobar, perfil)
                                             if (e !== "") Studio.notify(e, "error")

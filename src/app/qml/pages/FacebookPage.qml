@@ -15,24 +15,28 @@ Rectangle {
     readonly property color blue: "#1877f2"
     function day(iso) { return iso ? new Date(iso).toLocaleString(Qt.locale(), "dd/MM/yyyy HH:mm") : "" }
     function mb(b) { return (b / 1048576).toFixed(1) + " MB" }
-    readonly property var statusNames: ({ "LIVE": "EN VIVO", "UNPUBLISHED": "Prueba (sin publicar)", "LIVE_STOPPED": "Detenido", "VOD": "Terminado",
-                                          "SCHEDULED_UNPUBLISHED": "Programado", "PROCESSING": "Procesando" })
+    readonly property var statusNames: ({ "LIVE": qsTr("EN VIVO"), "UNPUBLISHED": qsTr("Prueba (sin publicar)"), "LIVE_STOPPED": qsTr("Detenido"), "VOD": qsTr("Terminado"),
+                                          "SCHEDULED_UNPUBLISHED": qsTr("Programado"), "PROCESSING": qsTr("Procesando") })
     // Confirmaciones. Reciben copias (id, nombre): el delegate que las pide puede destruirse con el dialogo abierto.
     function askEnd(id, name) {
         ApplicationWindow.window.confirm({
-            title: name ? "¿Terminar «" + name + "»?" : "¿Terminar el vivo de Facebook?",
-            text: (id === fb.liveId ? "La app deja de transmitir y el vivo se cierra en Facebook." : "El vivo se cierra en Facebook.")
-                  + " Es definitivo: no se puede reanudar.",
-            accept: "Terminar",
+            title: name ? qsTr("¿Terminar «%1»?").arg(name) : qsTr("¿Terminar el vivo de Facebook?"),
+            text: id === fb.liveId ? qsTr("La app deja de transmitir y el vivo se cierra en Facebook. Es definitivo: no se puede reanudar.")
+                                   : qsTr("El vivo se cierra en Facebook. Es definitivo: no se puede reanudar."),
+            accept: qsTr("Terminar"),
             action: () => fb.endLive(id)
         })
     }
+    // what: "vivo" o "video" (una clave: elige la frase, no se muestra).
     function askDelete(id, name, what) {
+        const vivo = what === "vivo"
         ApplicationWindow.window.confirm({
-            title: "¿Borrar " + (name ? "«" + name + "»" : "este " + what) + " de Facebook?",
-            text: "El " + what + " se elimina de la Página. No se puede deshacer.",
-            accept: "Borrar",
-            reject: "Cancelar",
+            title: name ? qsTr("¿Borrar «%1» de Facebook?").arg(name)
+                        : (vivo ? qsTr("¿Borrar este vivo de Facebook?") : qsTr("¿Borrar este video de Facebook?")),
+            text: vivo ? qsTr("El vivo se elimina de la Página. No se puede deshacer.")
+                       : qsTr("El video se elimina de la Página. No se puede deshacer."),
+            accept: qsTr("Borrar"),
+            reject: qsTr("Cancelar"),
             action: () => fb.deleteItem(id)
         })
     }
@@ -53,7 +57,7 @@ Rectangle {
                 visible: fb.loggedIn
                 spacing: 10
                 Text { text: fb.user.name || ""; color: Theme.textDim; font.pixelSize: 13 }
-                Text { text: "Página:"; color: Theme.textDim; font.pixelSize: 13 }
+                Text { text: qsTr("Página:"); color: Theme.textDim; font.pixelSize: 13 }
                 ComboBox {
                     id: pageBox
                     Layout.preferredWidth: 240
@@ -63,14 +67,14 @@ Rectangle {
                     currentIndex: { for (let i = 0; i < fb.pages.length; ++i) if (fb.pages[i].id === fb.pageId) return i; return -1 }
                     onActivated: (i) => fb.selectPage(fb.pages[i].id)
                 }
-                GlassButton { text: "Actualizar"; compact: true; onClicked: fb.refresh() }
-                GlassButton { text: "Desconectar"; compact: true
+                GlassButton { text: qsTr("Actualizar"); compact: true; onClicked: fb.refresh() }
+                GlassButton { text: qsTr("Desconectar"); compact: true
                               onClicked: ApplicationWindow.window.confirm({
-                                  title: "¿Desconectar la cuenta de Facebook?",
-                                  text: (fb.liveId !== "" ? "Hay un vivo en curso: desconectar no lo termina, pero se cortan los comentarios en pantalla y ya no vas a poder terminarlo desde acá. " : "")
-                                        + "Se revoca el acceso en Facebook y se borra el token guardado.",
-                                  accept: "Desconectar",
-                                  reject: "Cancelar",
+                                  title: qsTr("¿Desconectar la cuenta de Facebook?"),
+                                  text: fb.liveId !== "" ? qsTr("Hay un vivo en curso: desconectar no lo termina, pero se cortan los comentarios en pantalla y ya no vas a poder terminarlo desde acá. Se revoca el acceso en Facebook y se borra el token guardado.")
+                                                         : qsTr("Se revoca el acceso en Facebook y se borra el token guardado."),
+                                  accept: qsTr("Desconectar"),
+                                  reject: qsTr("Cancelar"),
                                   action: () => fb.logout() }) }
             }
         }
@@ -86,7 +90,7 @@ Rectangle {
                 width: parent.width
                 spacing: 12
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 14
-                       text: "La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:" }
+                       text: qsTr("La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:") }
                 Repeater {
                     // Depende de redirectUri: se rearma si cambia el puerto.
                     model: fb.redirectUri !== "" ? Studio.accountGuide("facebook").steps : []
@@ -123,21 +127,21 @@ Rectangle {
                         id: fbForm
                         anchors { fill: parent; margins: 14 }
                         spacing: 10
-                        Text { text: "4 · Cargá los datos de la app"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                        Text { text: qsTr("4 · Cargá los datos de la app"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { id: fbId; Layout.fillWidth: true; placeholderText: "Identificador de la app (número)" }
-                            TextField { id: fbSecret; Layout.fillWidth: true; placeholderText: "Clave secreta de la app"; echoMode: TextInput.Password }
+                            TextField { id: fbId; Layout.fillWidth: true; placeholderText: qsTr("Identificador de la app (número)") }
+                            TextField { id: fbSecret; Layout.fillWidth: true; placeholderText: qsTr("Clave secreta de la app"); echoMode: TextInput.Password }
                             TextField { id: fbPort; Layout.preferredWidth: 90; text: String(fb.port); validator: IntValidator { bottom: 1024; top: 65535 }
-                                        ToolTip.visible: hovered; ToolTip.text: "Puerto de la redirección (el de la URI del paso 2)" }
+                                        ToolTip.visible: hovered; ToolTip.text: qsTr("Puerto de la redirección (el de la URI del paso 2)") }
                         }
                         RowLayout {
-                            GlassButton { text: "Guardar"; active: true; activeColor: page.blue
+                            GlassButton { text: qsTr("Guardar"); active: true; activeColor: page.blue
                                           onClicked: { fbErr.text = fb.saveClient(fbId.text, fbSecret.text, parseInt(fbPort.text) || 8791); if (fbErr.text === "") fbSecret.text = "" } }
                             Text { id: fbErr; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "Se guarda cifrado en Credenciales/, dentro de la carpeta portable (una actualización no lo toca). Permisos que se piden al conectar: páginas (listar, leer, publicar, comentarios) y video en vivo." }
+                               text: qsTr("Se guarda cifrado en Credenciales/, dentro de la carpeta portable (una actualización no lo toca). Permisos que se piden al conectar: páginas (listar, leer, publicar, comentarios) y video en vivo.") }
                     }
                 }
             }
@@ -151,22 +155,22 @@ Rectangle {
             spacing: 14
             Item { Layout.fillHeight: true }
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold }
-                   text: fb.loginPending ? "Esperando que autorices en el navegador…" : "Conectá tu cuenta de Facebook" }
+                   text: fb.loginPending ? qsTr("Esperando que autorices en el navegador…") : qsTr("Conectá tu cuenta de Facebook") }
             Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 640; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                    color: Theme.textDim; font.pixelSize: 14
-                   text: fb.loginPending ? "Elegí la cuenta, marcá las Páginas a las que querés transmitir y aceptá los permisos."
-                                         : "Se abre Facebook en el navegador. La app guarda solo los tokens (no tu contraseña), dentro de la carpeta portable." }
+                   text: fb.loginPending ? qsTr("Elegí la cuenta, marcá las Páginas a las que querés transmitir y aceptá los permisos.")
+                                         : qsTr("Se abre Facebook en el navegador. La app guarda solo los tokens (no tu contraseña), dentro de la carpeta portable.") }
             BusyIndicator { Layout.alignment: Qt.AlignHCenter; visible: fb.loginPending; running: fb.loginPending }
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                GlassButton { visible: !fb.loginPending; text: "Conectar con Facebook"; icon: "f"; active: true; activeColor: page.blue; onClicked: fb.login() }
-                GlassButton { visible: fb.loginPending; text: "Cancelar"; onClicked: fb.cancelLogin() }
-                GlassButton { visible: !fb.loginPending; text: "Cambiar app"
+                GlassButton { visible: !fb.loginPending; text: qsTr("Conectar con Facebook"); icon: "f"; active: true; activeColor: page.blue; onClicked: fb.login() }
+                GlassButton { visible: fb.loginPending; text: qsTr("Cancelar"); onClicked: fb.cancelLogin() }
+                GlassButton { visible: !fb.loginPending; text: qsTr("Cambiar app")
                               onClicked: ApplicationWindow.window.confirm({
-                                  title: "¿Cambiar la app de Meta?",
-                                  text: "Se borran el identificador y la clave secreta guardados y vuelven las instrucciones para cargar otra app.",
-                                  accept: "Cambiar app",
-                                  reject: "Cancelar",
+                                  title: qsTr("¿Cambiar la app de Meta?"),
+                                  text: qsTr("Se borran el identificador y la clave secreta guardados y vuelven las instrucciones para cargar otra app."),
+                                  accept: qsTr("Cambiar app"),
+                                  reject: qsTr("Cancelar"),
                                   action: () => fb.clearClient() }) }
             }
             Text { Layout.alignment: Qt.AlignHCenter; Layout.maximumWidth: 640; wrapMode: Text.WordWrap; visible: fb.lastError !== ""; color: Theme.live; font.pixelSize: 13; text: fb.lastError }
@@ -191,19 +195,19 @@ Rectangle {
                     spacing: 10
                     ColumnLayout {
                         Layout.fillWidth: true
-                        Text { text: "Título del vivo"; color: Theme.textDim; font.pixelSize: 12 }
-                        TextField { id: fbTitle; Layout.fillWidth: true; placeholderText: "Transmisión en vivo" }
+                        Text { text: qsTr("Título del vivo"); color: Theme.textDim; font.pixelSize: 12 }
+                        TextField { id: fbTitle; Layout.fillWidth: true; placeholderText: qsTr("Transmisión en vivo") }
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
-                        Text { text: "Descripción"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Descripción"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField { id: fbDesc; Layout.fillWidth: true }
                     }
-                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId === ""; text: "Transmitir en prueba"
-                                  onClicked: fb.goLive(fbTitle.text || "Transmisión en vivo", fbDesc.text, true) }
-                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId === ""; text: "Transmitir en vivo"; icon: "●"; active: true; activeColor: page.blue
-                                  onClicked: fb.goLive(fbTitle.text || "Transmisión en vivo", fbDesc.text, false) }
-                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId !== ""; text: "Terminar"; onClicked: page.askEnd(fb.liveId, "") }
+                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId === ""; text: qsTr("Transmitir en prueba")
+                                  onClicked: fb.goLive(fbTitle.text || qsTr("Transmisión en vivo"), fbDesc.text, true) }
+                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId === ""; text: qsTr("Transmitir en vivo"); icon: "●"; active: true; activeColor: page.blue
+                                  onClicked: fb.goLive(fbTitle.text || qsTr("Transmisión en vivo"), fbDesc.text, false) }
+                    GlassButton { Layout.alignment: Qt.AlignBottom; visible: fb.liveId !== ""; text: qsTr("Terminar"); onClicked: page.askEnd(fb.liveId, "") }
                 }
             }
             Rectangle {
@@ -214,7 +218,7 @@ Rectangle {
                 color: Qt.rgba(1, 1, 1, 0.05)
                 RowLayout {
                     anchors { fill: parent; margins: 10 }
-                    Text { text: "Subiendo «" + (fb.upload.title || "") + "»"; color: Theme.text; font.pixelSize: 13 }
+                    Text { text: qsTr("Subiendo «%1»").arg(fb.upload.title || ""); color: Theme.text; font.pixelSize: 13 }
                     ProgressBar { Layout.fillWidth: true; from: 0; to: Math.max(1, fb.upload.total || 1); value: fb.upload.sent || 0 }
                 }
             }
@@ -222,10 +226,10 @@ Rectangle {
                 id: fbTabs
                 Layout.fillWidth: true
                 background: Rectangle { color: "transparent" }
-                TabButton { text: "Vivos"; width: implicitWidth + 30 }
-                TabButton { text: "Videos"; width: implicitWidth + 30 }
-                TabButton { text: "Grabaciones"; width: implicitWidth + 30 }
-                TabButton { text: "Comentarios"; width: implicitWidth + 30 }
+                TabButton { text: qsTr("Vivos"); width: implicitWidth + 30 }
+                TabButton { text: qsTr("Videos"); width: implicitWidth + 30 }
+                TabButton { text: qsTr("Grabaciones"); width: implicitWidth + 30 }
+                TabButton { text: qsTr("Comentarios"); width: implicitWidth + 30 }
             }
             StackLayout {
                 Layout.fillWidth: true
@@ -236,7 +240,7 @@ Rectangle {
                     clip: true
                     spacing: 8
                     model: fb.lives
-                    Text { anchors.centerIn: parent; visible: fbLives.count === 0; text: "No hay vivos en esta Página."; color: Theme.textFaint }
+                    Text { anchors.centerIn: parent; visible: fbLives.count === 0; text: qsTr("No hay vivos en esta Página."); color: Theme.textFaint }
                     delegate: Rectangle {
                         required property string uid
                         required property string title
@@ -251,14 +255,14 @@ Rectangle {
                         RowLayout {
                             anchors { fill: parent; margins: 10 }
                             spacing: 8
-                            Text { text: title || "(sin título)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
+                            Text { text: title || qsTr("(sin título)"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                             StatusPill { text: page.statusNames[status] || status; dot: status === "LIVE" ? Theme.live : Theme.textFaint; pulse: status === "LIVE" }
-                            StatusPill { visible: fb.chatLiveId === uid; text: "comentarios en pantalla"; dot: Theme.accent }
-                            GlassButton { compact: true; visible: status === "UNPUBLISHED"; text: "Publicar"; onClicked: fb.publishLive(uid) }
-                            GlassButton { compact: true; visible: status === "LIVE" || status === "UNPUBLISHED"; text: "Terminar"; onClicked: page.askEnd(uid, title) }
-                            GlassButton { compact: true; text: fb.chatLiveId === uid ? "Sin comentarios" : "Comentarios"; onClicked: fb.setChatLive(fb.chatLiveId === uid ? "" : uid) }
-                            GlassButton { compact: true; text: "Ver"; onClicked: fb.openUrl(url) }
-                            GlassButton { compact: true; visible: status !== "LIVE" && fb.liveId !== uid; text: "Borrar"; onClicked: page.askDelete(uid, title, "vivo") }
+                            StatusPill { visible: fb.chatLiveId === uid; text: qsTr("comentarios en pantalla"); dot: Theme.accent }
+                            GlassButton { compact: true; visible: status === "UNPUBLISHED"; text: qsTr("Publicar"); onClicked: fb.publishLive(uid) }
+                            GlassButton { compact: true; visible: status === "LIVE" || status === "UNPUBLISHED"; text: qsTr("Terminar"); onClicked: page.askEnd(uid, title) }
+                            GlassButton { compact: true; text: fb.chatLiveId === uid ? qsTr("Sin comentarios") : qsTr("Comentarios"); onClicked: fb.setChatLive(fb.chatLiveId === uid ? "" : uid) }
+                            GlassButton { compact: true; text: qsTr("Ver"); onClicked: fb.openUrl(url) }
+                            GlassButton { compact: true; visible: status !== "LIVE" && fb.liveId !== uid; text: qsTr("Borrar"); onClicked: page.askDelete(uid, title, "vivo") }
                         }
                     }
                 }
@@ -267,7 +271,7 @@ Rectangle {
                     clip: true
                     spacing: 8
                     model: fb.videos
-                    Text { anchors.centerIn: parent; visible: fbVideos.count === 0; text: "No hay videos en esta Página."; color: Theme.textFaint }
+                    Text { anchors.centerIn: parent; visible: fbVideos.count === 0; text: qsTr("No hay videos en esta Página."); color: Theme.textFaint }
                     delegate: Rectangle {
                         required property string uid
                         required property string title
@@ -282,12 +286,12 @@ Rectangle {
                             anchors { fill: parent; margins: 10 }
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                Text { text: title || "(sin título)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: title || qsTr("(sin título)"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { text: page.day(created); color: Theme.textFaint; font.pixelSize: 11 }
                             }
-                            GlassButton { compact: true; text: "Editar"; onClicked: fbEdit.edit(uid, title, description) }
-                            GlassButton { compact: true; text: "Ver"; onClicked: fb.openUrl(url) }
-                            GlassButton { compact: true; text: "Borrar"; onClicked: page.askDelete(uid, title, "video") }
+                            GlassButton { compact: true; text: qsTr("Editar"); onClicked: fbEdit.edit(uid, title, description) }
+                            GlassButton { compact: true; text: qsTr("Ver"); onClicked: fb.openUrl(url) }
+                            GlassButton { compact: true; text: qsTr("Borrar"); onClicked: page.askDelete(uid, title, "video") }
                         }
                     }
                 }
@@ -296,7 +300,7 @@ Rectangle {
                     clip: true
                     spacing: 6
                     model: fb.recordings
-                    Text { anchors.centerIn: parent; visible: fbRecs.count === 0; text: "Todavía no hay grabaciones."; color: Theme.textFaint }
+                    Text { anchors.centerIn: parent; visible: fbRecs.count === 0; text: qsTr("Todavía no hay grabaciones."); color: Theme.textFaint }
                     delegate: Rectangle {
                         required property string name
                         required property var size
@@ -310,7 +314,7 @@ Rectangle {
                             anchors { fill: parent; margins: 10 }
                             Text { text: name; color: Theme.text; font.pixelSize: 13; elide: Text.ElideMiddle; Layout.fillWidth: true }
                             Text { text: page.mb(size) + "  ·  " + modified; color: Theme.textFaint; font.pixelSize: 12 }
-                            GlassButton { compact: true; text: "Subir a la Página"; enabled: fb.upload.path === undefined
+                            GlassButton { compact: true; text: qsTr("Subir a la Página"); enabled: fb.upload.path === undefined
                                           onClicked: fb.uploadRecording(path, name.replace(/\.[^.]+$/, ""), "") }
                         }
                     }
@@ -318,8 +322,8 @@ Rectangle {
                 ColumnLayout {
                     spacing: 8
                     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                           text: fb.chatLiveId === "" ? "Elegí un vivo («Vivos» → «Comentarios»). Para mostrarlos en el video: fuente «Chat en vivo» en una escena."
-                                                      : "Comentarios del vivo elegido (se leen cada 5 s)." }
+                           text: fb.chatLiveId === "" ? qsTr("Elegí un vivo («Vivos» → «Comentarios»). Para mostrarlos en el video: fuente «Chat en vivo» en una escena.")
+                                                      : qsTr("Comentarios del vivo elegido (se leen cada 5 s).") }
                     ListView {
                         id: fbChat
                         Layout.fillWidth: true
@@ -349,7 +353,7 @@ Rectangle {
                                     if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
                                     else dest = Studio.destacarChatUi(k)
                                 }
-                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Destacar para el chat en pantalla"
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Destacar para el chat en pantalla")
                             }
                             // A la cola de preguntas (una sola cola para la sala y las plataformas).
                             GlassButton {
@@ -357,15 +361,15 @@ Rectangle {
                                 compact: true
                                 text: "?"
                                 onClicked: { const e = Studio.preguntaDesdeChatUi("fb:" + fmsg.model.id); if (e !== "") Studio.notify(e, "error") }
-                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sumar a la cola de preguntas"
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sumar a la cola de preguntas")
                             }
                         }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         enabled: fb.chatLiveId !== ""
-                        TextField { id: fbInput; Layout.fillWidth: true; placeholderText: "Comentar como la Página…"; onAccepted: { fb.sendChat(text); text = "" } }
-                        GlassButton { text: "Enviar"; onClicked: { fb.sendChat(fbInput.text); fbInput.text = "" } }
+                        TextField { id: fbInput; Layout.fillWidth: true; placeholderText: qsTr("Comentar como la Página…"); onAccepted: { fb.sendChat(text); text = "" } }
+                        GlassButton { text: qsTr("Enviar"); onClicked: { fb.sendChat(fbInput.text); fbInput.text = "" } }
                     }
                 }
             }
@@ -378,13 +382,13 @@ Rectangle {
         function edit(id, t, d) { vid = id; feTitle.text = t; feDesc.text = d; open() }
         anchors.centerIn: parent
         modal: true
-        title: "Editar video"
+        title: qsTr("Editar video")
         standardButtons: Dialog.Save | Dialog.Cancel
         onAccepted: fb.updateVideo(vid, feTitle.text, feDesc.text)
         ColumnLayout {
-            Label { text: "Título" }
+            Label { text: qsTr("Título") }
             TextField { id: feTitle; Layout.preferredWidth: 480 }
-            Label { text: "Descripción" }
+            Label { text: qsTr("Descripción") }
             TextField { id: feDesc; Layout.preferredWidth: 480 }
         }
     }

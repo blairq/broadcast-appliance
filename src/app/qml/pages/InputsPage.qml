@@ -43,14 +43,14 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: hwCol.implicitHeight + 64
-                    title: "Hardware: cámaras y capturadoras"
+                    title: qsTr("Hardware: cámaras y capturadoras")
                     ColumnLayout {
                         id: hwCol
                         anchors.fill: parent
                         spacing: 8
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                               text: page.inp.hardwareAvailable ? "Cámaras USB, capturadoras HDMI/SDI y placas de captura de esta máquina, con el nombre que les pusiste en Dispositivos y equipos."
-                                                                : "El plugin de cámaras no está cargado en esta plataforma." }
+                               text: page.inp.hardwareAvailable ? qsTr("Cámaras USB, capturadoras HDMI/SDI y placas de captura de esta máquina, con el nombre que les pusiste en Dispositivos y equipos.")
+                                                                : qsTr("El plugin de cámaras no está cargado en esta plataforma.") }
                         LinkDispositivos { Layout.fillWidth: true }
                         RowLayout {
                             Layout.fillWidth: true
@@ -63,15 +63,15 @@ Rectangle {
                                 onActivated: modeBox.model = page.inp.modes(currentValue)
                             }
                             GlassButton { compact: true; text: "↻"; onClicked: page.inp.refresh()
-                                          ToolTip.visible: hovered; ToolTip.text: "Buscar dispositivos de nuevo" }
+                                          ToolTip.visible: hovered; ToolTip.text: qsTr("Buscar dispositivos de nuevo") }
                         }
-                        Text { visible: page.inp.devices.length === 0; text: "No se encontraron cámaras ni capturadoras."; color: Theme.textFaint; font.pixelSize: 12 }
+                        Text { visible: page.inp.devices.length === 0; text: qsTr("No se encontraron cámaras ni capturadoras."); color: Theme.textFaint; font.pixelSize: 12 }
                         ComboBox {
                             id: modeBox
                             Layout.fillWidth: true
                             visible: count > 0
                             textRole: "label"
-                            displayText: currentIndex < 0 ? "Formato automático" : currentText
+                            displayText: currentIndex < 0 ? qsTr("Formato automático") : currentText
                             onModelChanged: currentIndex = count > 0 ? 0 : -1 // el primero es «Automático»
                         }
                         // Por qué el automático elige ese (tamaño, cps, formato y quién lo decodifica).
@@ -82,13 +82,13 @@ Rectangle {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
                             color: Theme.textFaint; font.pixelSize: 11
                         }
-                        TextField { id: hwName; Layout.fillWidth: true; placeholderText: "Nombre (opcional: si no, el del dispositivo)" }
+                        TextField { id: hwName; Layout.fillWidth: true; placeholderText: qsTr("Nombre (opcional: si no, el del dispositivo)") }
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox { id: hwScene; Layout.fillWidth: true; model: page.inp.scenes
                                        Component.onCompleted: currentIndex = Math.max(0, page.inp.scenes.indexOf(Studio.currentScene)) }
                             GlassButton {
-                                text: "Agregar"; active: true; enabled: devBox.currentIndex >= 0
+                                text: qsTr("Agregar"); active: true; enabled: devBox.currentIndex >= 0
                                 onClicked: {
                                     page.hwError = page.inp.addHardware(devBox.currentValue, hwName.text, hwScene.currentText,
                                                                         modeBox.currentIndex >= 0 ? modeBox.model[modeBox.currentIndex] : ({}))
@@ -104,7 +104,7 @@ Rectangle {
                     Layout.fillWidth: true
                     visible: page.inp.ndiAvailable
                     Layout.preferredHeight: visible ? ndiCol.implicitHeight + 64 : 0
-                    title: "Red: NDI®"
+                    title: qsTr("Red: NDI®")
                     ColumnLayout {
                         id: ndiCol
                         anchors.fill: parent
@@ -112,46 +112,46 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox { id: ndiBox; Layout.fillWidth: true; model: page.inp.ndiFound; textRole: "label"; valueRole: "name"
-                                       displayText: count === 0 ? (page.inp.ndiSearching ? "Buscando en la red…" : "Tocá Buscar") : currentText }
-                            GlassButton { compact: true; text: page.inp.ndiSearching ? "…" : "Buscar"; enabled: !page.inp.ndiSearching; onClicked: page.inp.searchNdi() }
+                                       displayText: count === 0 ? (page.inp.ndiSearching ? qsTr("Buscando en la red…") : qsTr("Tocá Buscar")) : currentText }
+                            GlassButton { compact: true; text: page.inp.ndiSearching ? "…" : qsTr("Buscar"); enabled: !page.inp.ndiSearching; onClicked: page.inp.searchNdi() }
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox { id: ndiScene; Layout.fillWidth: true; model: page.inp.scenes
                                        Component.onCompleted: currentIndex = Math.max(0, page.inp.scenes.indexOf(Studio.currentScene)) }
-                            GlassButton { text: "Agregar"; active: true; enabled: ndiBox.count > 0
+                            GlassButton { text: qsTr("Agregar"); active: true; enabled: ndiBox.count > 0
                                           onClicked: page.netError = page.inp.addNdi(ndiBox.currentValue, "", ndiScene.currentText) }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "Recepción abierta con libNoIDea (VideoLAN, experimental): NDI completo (SpeedHQ); NDI|HX no. NDI® es una marca de Vizrt NDI AB; este programa no está afiliado a Vizrt." }
+                               text: qsTr("Recepción abierta con libNoIDea (VideoLAN, experimental): NDI completo (SpeedHQ); NDI|HX no. NDI® es una marca de Vizrt NDI AB; este programa no está afiliado a Vizrt.") }
                     }
                 }
 
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: netCol.implicitHeight + 64
-                    title: "Red: cámaras IP y señales"
+                    title: qsTr("Red: cámaras IP y señales")
                     ColumnLayout {
                         id: netCol
                         anchors.fill: parent
                         spacing: 8
                         GlassButton {
                             Layout.fillWidth: true
-                            text: "Buscar cámaras en la red…"
+                            text: qsTr("Buscar cámaras en la red…")
                             icon: "⌕"
                             active: true
                             onClicked: { buscador.escenas = page.inp.scenes; buscador.open() }
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Encuentra cámaras IP y grabadores (ONVIF, RTSP), reconoce la marca, prueba sus URLs típicas, guarda la clave cifrada y las conecta con su PTZ"
+                            ToolTip.text: qsTr("Encuentra cámaras IP y grabadores (ONVIF, RTSP), reconoce la marca, prueba sus URLs típicas, guarda la clave cifrada y las conecta con su PTZ")
                         }
-                        Text { text: "o a mano:"; color: Theme.textFaint; font.pixelSize: 11 }
+                        Text { text: qsTr("o a mano:"); color: Theme.textFaint; font.pixelSize: 11 }
                         TextField { id: netUrl; Layout.fillWidth: true; placeholderText: "rtsp://usuario:clave@192.168.1.50:554/stream1" }
                         Flow {
                             Layout.fillWidth: true
                             spacing: 6
                             Repeater {
                                 model: [
-                                    { t: "Cámara IP (RTSP)", u: "rtsp://usuario:clave@192.168.1.50:554/stream1" },
+                                    { t: qsTr("Cámara IP (RTSP)"), u: "rtsp://usuario:clave@192.168.1.50:554/stream1" },
                                     { t: "SRT", u: "srt://192.168.1.20:9000?mode=caller&latency=120000" },
                                     { t: "RTMP", u: "rtmp://servidor/app/clave" },
                                     { t: "HLS", u: "https://servidor/live/playlist.m3u8" },
@@ -161,18 +161,18 @@ Rectangle {
                                                         onClicked: { netUrl.text = modelData.u; netUrl.forceActiveFocus(); netUrl.selectAll() } }
                             }
                         }
-                        TextField { id: netName; Layout.fillWidth: true; placeholderText: "Nombre (opcional)" }
+                        TextField { id: netName; Layout.fillWidth: true; placeholderText: qsTr("Nombre (opcional)") }
                         RowLayout {
                             // Estado local (no hay modelo detras): lo mueve el propio handler.
                             Toggle { id: lowLat; checked: true; onToggled: (wanted) => lowLat.checked = wanted }
-                            Text { text: "Latencia baja (desactivar si la señal es inestable)"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Text { text: qsTr("Latencia baja (desactivar si la señal es inestable)"); color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             ComboBox { id: netScene; Layout.fillWidth: true; model: page.inp.scenes
                                        Component.onCompleted: currentIndex = Math.max(0, page.inp.scenes.indexOf(Studio.currentScene)) }
                             GlassButton {
-                                text: "Agregar"; active: true; enabled: netUrl.text.trim() !== ""
+                                text: qsTr("Agregar"); active: true; enabled: netUrl.text.trim() !== ""
                                 onClicked: {
                                     page.netError = page.inp.addNetwork(netUrl.text, netName.text, netScene.currentText, lowLat.checked)
                                     if (page.netError === "") { netUrl.text = ""; netName.text = "" }
@@ -181,7 +181,7 @@ Rectangle {
                         }
                         Text { visible: page.netError !== ""; text: page.netError; color: Theme.live; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "Reconecta sola si la señal se corta. HTTPS/RTMPS se verifican con las raíces de certificados del sistema portable. Por MCP: network_input_add." }
+                               text: qsTr("Reconecta sola si la señal se corta. HTTPS/RTMPS se verifican con las raíces de certificados del sistema portable. Por MCP: network_input_add.") }
                     }
                 }
             }
@@ -191,7 +191,7 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Entradas de video (" + page.inp.videoInputs.length + ")"
+            title: qsTr("Entradas de video (%1)").arg(page.inp.videoInputs.length)
             GridView {
                 id: grid
                 anchors.fill: parent
@@ -200,7 +200,7 @@ Rectangle {
                 cellHeight: cellWidth * 9 / 16 + 76
                 model: page.inp.videoInputs
                 Text { anchors.centerIn: parent; visible: grid.count === 0; color: Theme.textFaint; font.pixelSize: 13
-                       text: "Todavía no hay entradas de video: agregá una cámara o una señal de red." }
+                       text: qsTr("Todavía no hay entradas de video: agregá una cámara o una señal de red.") }
                 delegate: Item {
                     required property var modelData
                     width: grid.cellWidth
@@ -232,10 +232,10 @@ Rectangle {
                                        text: "🎙"; font.pixelSize: 34; color: Theme.textFaint }
                                 Text { anchors.centerIn: parent; visible: !modelData.receiving && modelData.kind !== "audio"; color: Theme.textFaint; font.pixelSize: 12
                                        width: parent.width - 16; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                                       text: modelData.estado === "ausente" ? "«" + modelData.dispositivo + "» no está conectado: se lo espera"
-                                             : modelData.kind === "red" ? "sin señal (reintentando…)" : "sin imagen" }
+                                       text: modelData.estado === "ausente" ? qsTr("«%1» no está conectado: se lo espera").arg(modelData.dispositivo)
+                                             : modelData.kind === "red" ? qsTr("sin señal (reintentando…)") : qsTr("sin imagen") }
                                 StatusPill { anchors { left: parent.left; top: parent.top; margins: 6 }
-                                             text: modelData.kind === "red" ? "RED" : modelData.kind === "ndi" ? "NDI" : modelData.kind === "audio" ? "AUDIO" : "HARDWARE"
+                                             text: modelData.kind === "red" ? qsTr("RED") : modelData.kind === "ndi" ? "NDI" : modelData.kind === "audio" ? qsTr("AUDIO") : qsTr("HARDWARE")
                                              dot: modelData.receiving ? Theme.ok : Theme.live }
                             }
                             RowLayout {
@@ -252,10 +252,10 @@ Rectangle {
                                     activeColor: Theme.live
                                     onClicked: { const e = Studio.isoUi(modelData.name, !grabando); if (e !== "") Studio.notify(e, "error"); page.isos = Studio.isosUi() }
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: grabando ? "Se graba aparte en Recordings/entradas/: tocá para parar" : "Grabar esta entrada aparte (es un encode más)"
+                                    ToolTip.text: grabando ? qsTr("Se graba aparte en Recordings/entradas/: tocá para parar") : qsTr("Grabar esta entrada aparte (es un encode más)")
                                 }
                                 GlassButton {
-                                    compact: true; text: "Quitar"
+                                    compact: true; text: qsTr("Quitar")
                                     onClicked: {
                                         // La grilla se rearma cuando cambia el estado de una entrada y este delegate
                                         // puede morir con el dialogo abierto: la accion usa solo estas copias.
@@ -264,12 +264,12 @@ Rectangle {
                                         const escenas = modelData.scenes.join(", ")
                                         const alAire = modelData.scenes.indexOf(Studio.currentScene) >= 0
                                         ApplicationWindow.window.confirm({
-                                            title: "¿Quitar la entrada «" + nombre + "»?",
-                                            text: (alAire ? "Está en la escena al aire: desaparece del aire al instante. " : "")
-                                                  + (escenas !== "" ? "Se saca de todas las escenas donde está (" + escenas + ") y el cambio se guarda."
-                                                                    : "No está en ninguna escena."),
-                                            accept: "Quitar",
-                                            reject: "Cancelar",
+                                            title: qsTr("¿Quitar la entrada «%1»?").arg(nombre),
+                                            text: (alAire ? qsTr("Está en la escena al aire: desaparece del aire al instante.") + " " : "")
+                                                  + (escenas !== "" ? qsTr("Se saca de todas las escenas donde está (%1) y el cambio se guarda.").arg(escenas)
+                                                                    : qsTr("No está en ninguna escena.")),
+                                            accept: qsTr("Quitar"),
+                                            reject: qsTr("Cancelar"),
                                             action: function() { inp.remove(nombre) }
                                         })
                                     }
@@ -278,14 +278,14 @@ Rectangle {
                             // El dispositivo, con el nombre del operador (el id técnico, al pasar el mouse).
                             Text {
                                 Layout.fillWidth: true
-                                text: (modelData.estado === "ausente" ? "● desconectado · " : "") + modelData.where
+                                text: modelData.estado === "ausente" ? qsTr("● desconectado · %1").arg(modelData.where) : modelData.where
                                 color: modelData.estado === "ausente" ? Theme.warn : Theme.textFaint
                                 font.pixelSize: 11; elide: Text.ElideMiddle
                                 ToolTip.visible: whereHover.hovered && modelData.tecnico !== modelData.where
                                 ToolTip.text: modelData.tecnico || ""
                                 HoverHandler { id: whereHover }
                             }
-                            Text { Layout.fillWidth: true; text: modelData.scenes.length > 0 ? "En: " + modelData.scenes.join(", ") : "No está en ninguna escena"
+                            Text { Layout.fillWidth: true; text: modelData.scenes.length > 0 ? qsTr("En: %1").arg(modelData.scenes.join(", ")) : qsTr("No está en ninguna escena")
                                    color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight }
                         }
                     }

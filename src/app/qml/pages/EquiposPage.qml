@@ -76,9 +76,9 @@ Rectangle {
         return f === "" ? l : l.filter(e => (e.nombre + " " + (e.tecnico || "") + " " + e.detalle + " " + e.tipo).toLowerCase().indexOf(f) >= 0)
     }
     function nombreTipo(t) {
-        return ({ camara_red: "Cámaras de la red", equipo_red: "Otros equipos de la red", camara_local: "Cámaras y capturadoras",
-                  microfono: "Micrófonos y entradas de audio", salida_audio: "Salidas de audio (placas de sonido)", ndi: "NDI®",
-                  usb: "USB", hid: "HID", serie: "Puertos serie" })[t] || t
+        return ({ camara_red: qsTr("Cámaras de la red"), equipo_red: qsTr("Otros equipos de la red"), camara_local: qsTr("Cámaras y capturadoras"),
+                  microfono: qsTr("Micrófonos y entradas de audio"), salida_audio: qsTr("Salidas de audio (placas de sonido)"), ndi: "NDI®",
+                  usb: "USB", hid: "HID", serie: qsTr("Puertos serie") })[t] || t
     }
     function correr(a) {
         page.corriendo = true
@@ -109,12 +109,12 @@ Rectangle {
             Layout.maximumWidth: 380
             Layout.fillHeight: true
             spacing: 10
-            Text { text: "Dispositivos y equipos"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("Dispositivos y equipos"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             Text {
                 // El ancho de la columna, fijo: con fillWidth su ancho natural era el texto entero en
                 // un renglón y, al partirse, el alto cambiaba y el RowLayout de la página no paraba.
                 Layout.preferredWidth: 380; Layout.maximumWidth: 380; wrapMode: Text.WordWrap
-                text: "Los de audio y video de esta máquina, con el nombre que les pongas (vale para todos los eventos). Las entradas, el mezclador y las salidas los muestran así."
+                text: qsTr("Los de audio y video de esta máquina, con el nombre que les pongas (vale para todos los eventos). Las entradas, el mezclador y las salidas los muestran así.")
                 color: Theme.textFaint; font.pixelSize: 11
             }
             Repeater {
@@ -129,16 +129,16 @@ Rectangle {
                         Text { text: modelData.nombre; color: Theme.text; font.pixelSize: 13 }
                         Text {
                             Layout.fillWidth: true
-                            text: modelData.escaneando ? "buscando…"
+                            text: modelData.escaneando ? qsTr("buscando…")
                                 : modelData.error ? "✕ " + modelData.error
-                                : modelData.cuando ? modelData.cuantos + " encontrados (" + modelData.cuando + ")" : modelData.descripcion
+                                : modelData.cuando ? qsTr("%n encontrado (%1)", "", modelData.cuantos).arg(modelData.cuando) : modelData.descripcion
                             color: modelData.error ? Theme.warn : Theme.textFaint; font.pixelSize: 10; elide: Text.ElideRight
                             ToolTip.visible: dHover.hovered; ToolTip.text: modelData.descripcion
                             HoverHandler { id: dHover }
                         }
                     }
                     GlassButton {
-                        compact: true; text: modelData.escaneando ? "…" : "Buscar"; icon: "⌕"
+                        compact: true; text: modelData.escaneando ? "…" : qsTr("Buscar"); icon: "⌕"
                         enabled: !modelData.escaneando
                         onClicked: page.dd.escanearUi(modelData.id)
                     }
@@ -152,7 +152,7 @@ Rectangle {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { text: "Drivers"; color: Theme.text; font.pixelSize: 13 }
+                    Text { text: qsTr("Drivers"); color: Theme.text; font.pixelSize: 13 }
                     Text {
                         Layout.fillWidth: true
                         text: page.drv ? page.drv.resumen : ""
@@ -161,13 +161,13 @@ Rectangle {
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Ver"; active: page.verDrivers
+                    compact: true; text: qsTr("Ver"); active: page.verDrivers
                     onClicked: { page.sel = ""; page.verDrivers = true }
                 }
             }
             TextField {
                 Layout.fillWidth: true
-                placeholderText: "Filtrar (nombre, IP, marca, nombre del sistema…)"
+                placeholderText: qsTr("Filtrar (nombre, IP, marca, nombre del sistema…)")
                 color: Theme.text; font.pixelSize: 12
                 onTextChanged: page.filtro = text
             }
@@ -188,7 +188,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent; width: parent.width - 20; visible: lv.count === 0
                     wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
-                    text: "Todavía no hay equipos: tocá «Buscar» en un detector."; color: Theme.textFaint; font.pixelSize: 12
+                    text: qsTr("Todavía no hay equipos: tocá «Buscar» en un detector."); color: Theme.textFaint; font.pixelSize: 12
                 }
                 delegate: Rectangle {
                     required property var modelData
@@ -247,8 +247,8 @@ Rectangle {
                                    color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
                             StatusPill {
                                 visible: !!page.equipo && page.conNombre(page.equipo.tipo)
-                                text: !page.equipo ? "" : page.equipo.estado === "ausente" ? "AUSENTE"
-                                      : page.equipo.estado === "sin_buscar" ? "SIN BUSCAR" : "CONECTADO"
+                                text: !page.equipo ? "" : page.equipo.estado === "ausente" ? qsTr("AUSENTE")
+                                      : page.equipo.estado === "sin_buscar" ? qsTr("SIN BUSCAR") : qsTr("CONECTADO")
                                 dot: page.equipo && page.equipo.estado === "ausente" ? Theme.live
                                      : page.equipo && page.equipo.estado === "sin_buscar" ? Theme.textFaint : Theme.ok
                             }
@@ -269,16 +269,16 @@ Rectangle {
                         id: nomCol
                         anchors.fill: parent
                         spacing: 8
-                        Text { text: "Nombre y configuración"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text { text: qsTr("Nombre y configuración"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
-                            text: "El nombre es de esta máquina: lo ven todos los eventos, las entradas, el mezclador y las salidas. Vacío: el del sistema."
+                            text: qsTr("El nombre es de esta máquina: lo ven todos los eventos, las entradas, el mezclador y las salidas. Vacío: el del sistema.")
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Text { text: "Nombre"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
+                            Text { text: qsTr("Nombre"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
                             TextField {
                                 id: nombreCampo
                                 Layout.fillWidth: true
@@ -287,35 +287,35 @@ Rectangle {
                             }
                             GlassButton {
                                 id: guardarNombre
-                                compact: true; text: "Guardar"; active: true
+                                compact: true; text: qsTr("Guardar"); active: true
                                 onClicked: {
                                     const e = page.dd.renombrar(page.sel, nombreCampo.text)
-                                    page.msgNombre = e !== "" ? "✕ " + e : "✓ Guardado"
+                                    page.msgNombre = e !== "" ? "✕ " + e : qsTr("✓ Guardado")
                                 }
                             }
                         }
                         Text {
                             visible: !!page.equipo && page.equipo.nombre_propio
-                            text: page.equipo ? "Del sistema: " + page.equipo.tecnico : ""
+                            text: page.equipo ? qsTr("Del sistema: %1").arg(page.equipo.tecnico) : ""
                             Layout.fillWidth: true; elide: Text.ElideRight
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Text { text: "Nota"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
+                            Text { text: qsTr("Nota"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
                             TextField {
                                 id: notaCampo
                                 Layout.fillWidth: true
-                                placeholderText: "Dónde está, para qué se usa…"
+                                placeholderText: qsTr("Dónde está, para qué se usa…")
                                 onAccepted: guardarNota.clicked()
                             }
                             GlassButton {
                                 id: guardarNota
-                                compact: true; text: "Guardar"
+                                compact: true; text: qsTr("Guardar")
                                 onClicked: {
                                     const e = page.dd.configurar(page.sel, { nota: notaCampo.text })
-                                    page.msgNombre = e !== "" ? "✕ " + e : "✓ Guardado"
+                                    page.msgNombre = e !== "" ? "✕ " + e : qsTr("✓ Guardado")
                                 }
                             }
                         }
@@ -324,7 +324,7 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 8
                             visible: !!page.equipo && page.equipo.tipo === "camara_local" && page.equipo.conectado
-                            Text { text: "Formato preferido"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110; elide: Text.ElideRight }
+                            Text { text: qsTr("Formato preferido"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110; elide: Text.ElideRight }
                             ComboBox {
                                 id: modoBox
                                 Layout.fillWidth: true
@@ -338,7 +338,7 @@ Rectangle {
                                 }
                                 onActivated: (i) => {
                                     const e = page.dd.configurar(page.sel, { modo: model[i].modo })
-                                    page.msgNombre = e !== "" ? "✕ " + e : "✓ Guardado"
+                                    page.msgNombre = e !== "" ? "✕ " + e : qsTr("✓ Guardado")
                                 }
                             }
                         }
@@ -351,22 +351,22 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
                             color: Theme.textDim
-                            text: page.usos.length > 0 ? "Lo usan: " + page.usos.join(", ") : "Ninguna entrada lo usa todavía."
+                            text: page.usos.length > 0 ? qsTr("Lo usan: %1").arg(page.usos.join(", ")) : qsTr("Ninguna entrada lo usa todavía.")
                         }
                         GlassButton {
                             visible: !!page.equipo && page.equipo.estado === "ausente"
-                            compact: true; text: "Olvidar este dispositivo"
+                            compact: true; text: qsTr("Olvidar este dispositivo")
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Lo saca de la lista con su nombre y su configuración (las entradas que lo usan quedan como están)"
+                            ToolTip.text: qsTr("Lo saca de la lista con su nombre y su configuración (las entradas que lo usan quedan como están)")
                             onClicked: {
                                 const dd = page.dd
                                 const id = page.sel
                                 const nombre = page.equipo.nombre
                                 ApplicationWindow.window.confirm({
-                                    title: "¿Olvidar «" + nombre + "»?",
-                                    text: "Se borran su nombre y su configuración de esta máquina. Si se vuelve a enchufar, aparece con el nombre del sistema.",
-                                    accept: "Olvidar",
-                                    reject: "Cancelar",
+                                    title: qsTr("¿Olvidar «%1»?").arg(nombre),
+                                    text: qsTr("Se borran su nombre y su configuración de esta máquina. Si se vuelve a enchufar, aparece con el nombre del sistema."),
+                                    accept: qsTr("Olvidar"),
+                                    reject: qsTr("Cancelar"),
                                     action: function() { const e = dd.olvidar(id); if (e !== "") Studio.notify(e, "error") }
                                 })
                             }
@@ -384,10 +384,10 @@ Rectangle {
                         id: acc
                         anchors.fill: parent
                         spacing: 8
-                        Text { text: "Acciones"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text { text: qsTr("Acciones"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                         Text {
                             visible: page.equipo && page.equipo.acciones.length === 0
-                            text: "Este tipo de equipo todavía no tiene acciones."; color: Theme.textFaint; font.pixelSize: 12
+                            text: qsTr("Este tipo de equipo todavía no tiene acciones."); color: Theme.textFaint; font.pixelSize: 12
                         }
                         Flow {
                             Layout.fillWidth: true
@@ -475,7 +475,7 @@ Rectangle {
                         }
                         Text {
                             visible: page.corriendo
-                            text: "Trabajando…"; color: Theme.amber; font.pixelSize: 12
+                            text: qsTr("Trabajando…"); color: Theme.amber; font.pixelSize: 12
                         }
                     }
                 }
@@ -492,7 +492,7 @@ Rectangle {
                         spacing: 6
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 13
-                            text: !page.resultado ? "" : page.resultado.error ? "✕ " + page.resultado.error : "✓ " + (page.resultado.texto || "Hecho")
+                            text: !page.resultado ? "" : page.resultado.error ? "✕ " + page.resultado.error : "✓ " + (page.resultado.texto || qsTr("Hecho"))
                             color: page.resultado && page.resultado.error ? Theme.warn : Theme.ok
                         }
                         ScrollView {
@@ -519,7 +519,7 @@ Rectangle {
                         id: datosCol
                         anchors.fill: parent
                         spacing: 6
-                        Text { text: "Lo que se sabe"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text { text: qsTr("Lo que se sabe"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                         TextArea {
                             Layout.fillWidth: true
                             readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
@@ -541,13 +541,13 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                Text { text: "Drivers de esta máquina"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
+                Text { text: qsTr("Drivers de esta máquina"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
                 Item { Layout.fillWidth: true }
                 GlassButton {
-                    compact: true; text: "Revisar todo"
+                    compact: true; text: qsTr("Revisar todo")
                     enabled: page.drv && !page.drv.revisando
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Vuelve a probar todo lo instalado, de a uno y fuera del programa (los que están en cuarentena, no: esos con «Probar de nuevo»)"
+                    ToolTip.text: qsTr("Vuelve a probar todo lo instalado, de a uno y fuera del programa (los que están en cuarentena, no: esos con «Probar de nuevo»)")
                     onClicked: page.drv.revisarTodo()
                 }
             }
@@ -558,7 +558,7 @@ Rectangle {
             }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
-                text: page.drv ? "Cada driver se prueba aparte: si se cuelga o se cae, el programa sigue. A las " + page.drv.umbral + " fallas seguidas queda en cuarentena y no se vuelve a cargar solo." : ""
+                text: page.drv ? qsTr("Cada driver se prueba aparte: si se cuelga o se cae, el programa sigue. A las %1 fallas seguidas queda en cuarentena y no se vuelve a cargar solo.").arg(page.drv.umbral) : ""
                 color: Theme.textFaint; font.pixelSize: 11
                 ToolTip.visible: dExpl.hovered; ToolTip.text: text
                 HoverHandler { id: dExpl }
@@ -577,7 +577,7 @@ Rectangle {
                 model: page.drv
                 Text {
                     anchors.centerIn: parent; visible: lvDrivers.count === 0
-                    text: "Todavía no se revisaron los drivers."; color: Theme.textFaint; font.pixelSize: 12
+                    text: qsTr("Todavía no se revisaron los drivers."); color: Theme.textFaint; font.pixelSize: 12
                 }
                 delegate: Rectangle {
                     id: filaDriver
@@ -612,10 +612,10 @@ Rectangle {
                             visible: filaDriver.model.estado === "cuarentena" || filaDriver.model.estado === "falla"
                                      || filaDriver.model.estado === "probando"
                             compact: true
-                            text: filaDriver.model.estado === "probando" ? "Probando…" : "Probar de nuevo"
+                            text: filaDriver.model.estado === "probando" ? qsTr("Probando…") : qsTr("Probar de nuevo")
                             enabled: filaDriver.model.estado !== "probando"
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Lo prueba una vez más, aparte. Si anda, sale de la cuarentena; si no, se queda."
+                            ToolTip.text: qsTr("Lo prueba una vez más, aparte. Si anda, sale de la cuarentena; si no, se queda.")
                             onClicked: { const e = page.drv.reintentar(filaDriver.model.id); page.msgDriver = e !== "" ? "✕ " + e : "" }
                         }
                     }
@@ -625,7 +625,7 @@ Rectangle {
         Text {
             visible: page.equipo === null && !page.verDrivers
             Layout.fillWidth: true
-            text: "Elegí un dispositivo de la lista para ponerle nombre, configurarlo, ver lo que se sabe de él y qué se le puede hacer."
+            text: qsTr("Elegí un dispositivo de la lista para ponerle nombre, configurarlo, ver lo que se sabe de él y qué se le puede hacer.")
             color: Theme.textFaint; font.pixelSize: 13; wrapMode: Text.WordWrap
         }
     }

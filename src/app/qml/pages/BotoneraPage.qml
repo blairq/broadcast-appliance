@@ -119,24 +119,24 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             Text {
-                text: "Botonera"
+                text: qsTr("Botonera")
                 color: Theme.text
                 font.pixelSize: 20
                 font.weight: Font.DemiBold
             }
             StatusPill {
-                text: page.bot.dispositivos.filter(d => d.conectado).length + " conectados de " + page.bot.dispositivos.length
+                text: qsTr("%n conectado de %1", "", page.bot.dispositivos.filter(d => d.conectado).length).arg(page.bot.dispositivos.length)
                 dot: page.bot.dispositivos.some(d => d.conectado) ? Theme.ok : Theme.textFaint
             }
             StatusPill {
                 visible: page.bot.solicitudes.length > 0
-                text: page.bot.solicitudes.length + " esperan aprobación"
+                text: qsTr("%n espera aprobación", "", page.bot.solicitudes.length)
                 dot: Theme.amber
             }
             Item { Layout.fillWidth: true }
             Repeater {
-                model: [ { id: "editor", t: "Editor" }, { id: "aparatos", t: "Aparatos" }, { id: "atajos", t: "Atajos" },
-                         { id: "eventos", t: "Eventos" }, { id: "auditoria", t: "Auditoría" } ]
+                model: [ { id: "editor", t: qsTr("Editor") }, { id: "aparatos", t: qsTr("Aparatos") }, { id: "atajos", t: qsTr("Atajos") },
+                         { id: "eventos", t: qsTr("Eventos") }, { id: "auditoria", t: qsTr("Auditoría") } ]
                 delegate: GlassButton {
                     required property var modelData
                     compact: true
@@ -151,10 +151,10 @@ Rectangle {
             wrapMode: Text.WordWrap
             color: Theme.textDim
             font.pixelSize: 12
-            text: "Una grilla de botones, faders y perillas en una tablet (emparejada por QR) o en un Stream Deck o controlador MIDI " +
-                  "(por plugin). Cada celda dispara una herramienta del sistema y muestra estado vivo. Cada perfil es un puesto con " +
-                  "sus herramientas permitidas: lo que no está en la lista, el aparato no lo puede hacer. Lo que cambia el aire, al " +
-                  "aire, se confirma en el propio aparato."
+            text: qsTr("Una grilla de botones, faders y perillas en una tablet (emparejada por QR) o en un Stream Deck o controlador MIDI "
+                  + "(por plugin). Cada celda dispara una herramienta del sistema y muestra estado vivo. Cada perfil es un puesto con "
+                  + "sus herramientas permitidas: lo que no está en la lista, el aparato no lo puede hacer. Lo que cambia el aire, al "
+                  + "aire, se confirma en el propio aparato.")
         }
 
         // ========================= EDITOR =========================
@@ -174,7 +174,7 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Perfiles"; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
+                    Text { text: qsTr("Perfiles"); color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
                     ListView {
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.min(contentHeight, 180)
@@ -184,7 +184,7 @@ Rectangle {
                             required property var modelData
                             width: ListView.view.width
                             compact: true
-                            text: modelData.nombre + " · " + modelData.herramientas_permitidas.length + " herr."
+                            text: qsTr("%1 · %n herr.", "", modelData.herramientas_permitidas.length).arg(modelData.nombre)
                             active: page.perfilId === modelData.id
                             onClicked: { page.perfilId = modelData.id; page.paginaId = ""; page.selX = -1; page.refrescar() }
                         }
@@ -194,12 +194,12 @@ Rectangle {
                         ComboBox {
                             id: plantillaBox
                             Layout.fillWidth: true
-                            model: [{ id: "", nombre: "Vacío" }].concat(page.bot.plantillasUi())
+                            model: [{ id: "", nombre: qsTr("Vacío") }].concat(page.bot.plantillasUi())
                             textRole: "nombre"
                         }
                         GlassButton {
                             compact: true; text: "＋"
-                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Perfil nuevo desde la plantilla elegida"
+                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Perfil nuevo desde la plantilla elegida")
                             onClicked: {
                                 const r = page.bot.crearPerfilUi("", plantillaBox.model[plantillaBox.currentIndex].id)
                                 if (r.startsWith("error")) Studio.notify(r, "error")
@@ -208,7 +208,7 @@ Rectangle {
                         }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                    Text { text: "Páginas"; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
+                    Text { text: qsTr("Páginas"); color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
@@ -223,18 +223,18 @@ Rectangle {
                             }
                         }
                     }
-                    TextField { id: pagNombre; Layout.fillWidth: true; placeholderText: "Nombre de la página nueva"; color: Theme.text }
+                    TextField { id: pagNombre; Layout.fillWidth: true; placeholderText: qsTr("Nombre de la página nueva"); color: Theme.text }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 4
-                        Text { text: "Col."; color: Theme.textDim; font.pixelSize: 11 }
+                        Text { text: qsTr("Col."); color: Theme.textDim; font.pixelSize: 11 }
                         SpinBox { id: pagCols; from: 1; to: 16; value: 5; editable: true; Layout.fillWidth: true }
-                        Text { text: "Filas"; color: Theme.textDim; font.pixelSize: 11 }
+                        Text { text: qsTr("Filas"); color: Theme.textDim; font.pixelSize: 11 }
                         SpinBox { id: pagFilas; from: 1; to: 16; value: 3; editable: true; Layout.fillWidth: true }
                     }
                     RowLayout {
                         GlassButton {
-                            compact: true; text: "Crear página"
+                            compact: true; text: qsTr("Crear página")
                             onClicked: {
                                 const r = page.bot.crearPaginaUi(page.perfilId, pagNombre.text, pagCols.value, pagFilas.value)
                                 if (r.startsWith("error")) Studio.notify(r, "error")
@@ -242,20 +242,20 @@ Rectangle {
                             }
                         }
                         GlassButton {
-                            compact: true; text: "Grilla"
-                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Cambiar columnas y filas de esta página a las de arriba"
+                            compact: true; text: qsTr("Grilla")
+                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Cambiar columnas y filas de esta página a las de arriba")
                             onClicked: {
                                 const e = page.bot.editarPaginaUi(page.perfilId, page.paginaId, { columnas: pagCols.value, filas: pagFilas.value })
                                 if (e !== "") Studio.notify(e, "error")
                             }
                         }
                         GlassButton {
-                            compact: true; text: "Borrar"
-                            onClicked: if (!page.bot.borrarPaginaUi(page.perfilId, page.paginaId)) Studio.notify("Un perfil necesita al menos una página.", "aviso")
+                            compact: true; text: qsTr("Borrar")
+                            onClicked: if (!page.bot.borrarPaginaUi(page.perfilId, page.paginaId)) Studio.notify(qsTr("Un perfil necesita al menos una página."), "aviso")
                         }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                    Text { text: "Permisos del perfil"; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
+                    Text { text: qsTr("Permisos del perfil"); color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold }
                     TextArea {
                         id: permisos
                         Layout.fillWidth: true
@@ -264,33 +264,33 @@ Rectangle {
                         color: Theme.text
                         font.pixelSize: 11
                         text: page.perfilActual() ? page.perfilActual().herramientas_permitidas.join(", ") : ""
-                        placeholderText: "herramientas separadas por coma (* = todas)"
+                        placeholderText: qsTr("herramientas separadas por coma (* = todas)")
                     }
                     CheckBox {
                         id: puedeEditar
-                        text: "Se puede editar desde el aparato"
+                        text: qsTr("Se puede editar desde el aparato")
                         checked: page.perfilActual() ? page.perfilActual().puede_editar : false
                     }
                     RowLayout {
                         GlassButton {
-                            compact: true; text: "Guardar permisos"
+                            compact: true; text: qsTr("Guardar permisos")
                             onClicked: {
                                 const l = permisos.text.split(",").map(s => s.trim()).filter(s => s !== "")
                                 const e = page.bot.editarPerfilUi(page.perfilId, { herramientas_permitidas: l, puede_editar: puedeEditar.checked })
-                                Studio.notify(e === "" ? "Permisos guardados" : e, e === "" ? "ok" : "error")
+                                Studio.notify(e === "" ? qsTr("Permisos guardados") : e, e === "" ? "ok" : "error")
                             }
                         }
                         GlassButton {
-                            compact: true; text: "Exportar"
+                            compact: true; text: qsTr("Exportar")
                             onClicked: editor.mostrarPerfil(page.bot.exportarUi(page.perfilId))
                         }
                     }
                     Item { Layout.fillHeight: true }
                     GlassButton {
-                        compact: true; text: "Borrar el perfil"
+                        compact: true; text: qsTr("Borrar el perfil")
                         onClicked: ApplicationWindow.window.confirm({
-                            title: "¿Borrar el perfil?",
-                            text: "Los aparatos que lo tenían quedan sin perfil hasta que les asignes otro.",
+                            title: qsTr("¿Borrar el perfil?"),
+                            text: qsTr("Los aparatos que lo tenían quedan sin perfil hasta que les asignes otro."),
                             action: () => { page.bot.borrarPerfilUi(page.perfilId); page.perfilId = ""; page.refrescar() }
                         })
                     }
@@ -431,7 +431,7 @@ Rectangle {
                         else editor.recargarCara()
                     }
                     Text {
-                        text: editor.modo === "perfil" ? "Perfil (JSON)" : page.selX < 0 ? "Tocá una celda" : "Celda " + page.selX + ", " + page.selY
+                        text: editor.modo === "perfil" ? qsTr("Perfil (JSON)") : page.selX < 0 ? qsTr("Tocá una celda") : qsTr("Celda %1, %2").arg(page.selX).arg(page.selY)
                         color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold
                     }
                     GridLayout {
@@ -440,15 +440,15 @@ Rectangle {
                         columnSpacing: 8
                         rowSpacing: 6
                         Layout.fillWidth: true
-                        Text { text: "Tipo"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Tipo"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox { id: tipoBox; Layout.fillWidth: true; model: ["boton", "fader", "perilla", "medidor", "texto", "reloj"] }
-                        Text { text: "Texto"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Texto"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField { id: textoF; Layout.fillWidth: true; color: Theme.text }
-                        Text { text: "Fondo"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Fondo"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField { id: fondoF; Layout.fillWidth: true; color: Theme.text; placeholderText: "#2b2f3a" }
-                        Text { text: "Letra"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Letra"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField { id: colorF; Layout.fillWidth: true; color: Theme.text; placeholderText: "#ffffff" }
-                        Text { text: "Cara"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Cara"); color: Theme.textDim; font.pixelSize: 12 }
                         // Una foto o un video de hasta 5 s (archivo o cámara): EditorCara.
                         RowLayout {
                             Layout.fillWidth: true
@@ -464,8 +464,8 @@ Rectangle {
                                        visible: !!editor.caraInfo.video; text: "▶"; color: "white"; font.pixelSize: 10
                                        style: Text.Outline; styleColor: "black" }
                             }
-                            GlassButton { compact: true; text: "Archivo…"; onClicked: editorCara.abrir(false) }
-                            GlassButton { compact: true; text: "Cámara…"; onClicked: editorCara.abrir(true) }
+                            GlassButton { compact: true; text: qsTr("Archivo…"); onClicked: editorCara.abrir(false) }
+                            GlassButton { compact: true; text: qsTr("Cámara…"); onClicked: editorCara.abrir(true) }
                             GlassButton { compact: true; text: "✕"; visible: editor.caraRef !== ""
                                           onClicked: editor.hecho(page.bot.quitarCaraUi(page.perfilId, page.paginaId, page.selX, page.selY), false) }
                             Item { Layout.fillWidth: true }
@@ -474,7 +474,7 @@ Rectangle {
                         CheckBox {
                             id: alAireCara
                             visible: !!editor.caraInfo.medio
-                            text: "Al tocar, poner este medio en la escena al aire"
+                            text: qsTr("Al tocar, poner este medio en la escena al aire")
                             checked: editor.alTocar
                             onToggled: {
                                 const on = checked
@@ -482,7 +482,7 @@ Rectangle {
                                 editor.hecho(page.bot.alTocarCaraUi(page.perfilId, page.paginaId, page.selX, page.selY, on), false)
                             }
                         }
-                        Text { text: "Herramienta"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Herramienta"); color: Theme.textDim; font.pixelSize: 12 }
                         // El nombre se puede escribir; «Elegir…» abre el catálogo con
                         // secciones, explicaciones y búsqueda (SelectorHerramientas).
                         RowLayout {
@@ -493,20 +493,20 @@ Rectangle {
                                 Layout.fillWidth: true
                                 color: Theme.text
                                 font.family: Theme.mono
-                                placeholderText: "ninguna"
+                                placeholderText: qsTr("ninguna")
                             }
                             GlassButton {
                                 compact: true
-                                text: "Elegir…"
+                                text: qsTr("Elegir…")
                                 onClicked: selectorHerr.abrir(herrF.text.trim())
                             }
                         }
-                        Text { text: "Argumentos"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Argumentos"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             id: argsF
                             Layout.fillWidth: true
                             color: Theme.text
-                            placeholderText: "{\"name\": \"Cámara 2\"}  ·  fader: \"{{valor}}\""
+                            placeholderText: qsTr("{\"name\": \"Cámara 2\"}  ·  fader: \"{{valor}}\"")
                         }
                     }
                     Text {
@@ -515,8 +515,8 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         color: Theme.textFaint
                         font.pixelSize: 11
-                        text: "Ligaduras (estado vivo), valor del fader y acciones al soltar o mantener: en el JSON de abajo. " +
-                              "Los temas están en la pestaña Eventos. Doble clic en una celda de la grilla: probar."
+                        text: qsTr("Ligaduras (estado vivo), valor del fader y acciones al soltar o mantener: en el JSON de abajo. "
+                              + "Los temas están en la pestaña Eventos. Doble clic en una celda de la grilla: probar.")
                     }
                     ScrollView {
                         Layout.fillWidth: true
@@ -534,33 +534,33 @@ Rectangle {
                     RowLayout {
                         visible: editor.modo === "celda" && page.selX >= 0
                         GlassButton {
-                            compact: true; text: "Guardar"; active: true
+                            compact: true; text: qsTr("Guardar"); active: true
                             onClicked: editor.hecho(page.bot.editarCeldaUi(page.perfilId, page.paginaId, page.selX, page.selY, {
                                 tipo: tipoBox.currentText, texto: textoF.text, fondo: fondoF.text, color: colorF.text,
                                 herramienta: herrF.text.trim(), args: argsF.text
                             }), true)
                         }
                         GlassButton {
-                            compact: true; text: "Guardar JSON"
+                            compact: true; text: qsTr("Guardar JSON")
                             onClicked: editor.hecho(page.bot.guardarCeldaJsonUi(page.perfilId, page.paginaId, page.selX, page.selY, jsonF.text), true)
                         }
-                        GlassButton { compact: true; text: "Probar"; onClicked: page.bot.probarUi(page.perfilId, page.paginaId, page.selX, page.selY) }
+                        GlassButton { compact: true; text: qsTr("Probar"); onClicked: page.bot.probarUi(page.perfilId, page.paginaId, page.selX, page.selY) }
                         GlassButton {
-                            compact: true; text: "Borrar"
+                            compact: true; text: qsTr("Borrar")
                             onClicked: { page.bot.borrarCeldaUi(page.perfilId, page.paginaId, page.selX, page.selY); editor.cargar({}) }
                         }
                     }
                     RowLayout {
                         visible: editor.modo === "perfil"
                         GlassButton {
-                            compact: true; text: "Importar como perfil nuevo"
+                            compact: true; text: qsTr("Importar como perfil nuevo")
                             onClicked: {
                                 const r = page.bot.importarUi(jsonF.text)
                                 if (r.startsWith("error")) Studio.notify(r, "error")
-                                else { page.perfilId = r; editor.modo = "celda"; page.refrescar(); Studio.notify("Importado (sin permisos: dalos a mano)", "info") }
+                                else { page.perfilId = r; editor.modo = "celda"; page.refrescar(); Studio.notify(qsTr("Importado (sin permisos: dalos a mano)"), "info") }
                             }
                         }
-                        GlassButton { compact: true; text: "Cerrar"; onClicked: editor.recargar() }
+                        GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: editor.recargar() }
                     }
                 }
             }
@@ -580,7 +580,7 @@ Rectangle {
                 // Solicitudes que esperan a una persona (también se aprueban en Servicios).
                 SolicitudesPendientes {
                     Layout.fillWidth: true
-                    solicitudes: page.bot.solicitudes.map(s => Object.assign({}, s, { perfil: s.perfilId, detalle: "pide emparejarse" }))
+                    solicitudes: page.bot.solicitudes.map(s => Object.assign({}, s, { perfil: s.perfilId, detalle: qsTr("pide emparejarse") }))
                     perfilModo: "lista"
                     perfiles: page.bot.perfiles.map(p => ({ id: p.id, nombre: p.nombre }))
                     onResolver: (id, aprobar, perfil) => Studio.aprobarTabletUi(id, aprobar, perfil)
@@ -594,7 +594,7 @@ Rectangle {
                         id: empCol
                         anchors.fill: parent
                         spacing: 10
-                        Text { text: "Emparejar una tablet"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
+                        Text { text: qsTr("Emparejar una tablet"); color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
                         RowLayout {
                             spacing: 8
                             ComboBox {
@@ -603,11 +603,11 @@ Rectangle {
                                 model: page.bot.perfiles
                                 textRole: "nombre"
                             }
-                            TextField { id: empNombre; Layout.preferredWidth: 200; placeholderText: "Nombre (iPad Dirección)"; color: Theme.text }
-                            Text { text: "Vence sin uso (días)"; color: Theme.textDim; font.pixelSize: 12 }
+                            TextField { id: empNombre; Layout.preferredWidth: 200; placeholderText: qsTr("Nombre (iPad Dirección)"); color: Theme.text }
+                            Text { text: qsTr("Vence sin uso (días)"); color: Theme.textDim; font.pixelSize: 12 }
                             SpinBox { id: empDias; from: 0; to: 365; value: 30; implicitWidth: 100 }
                             GlassButton {
-                                compact: true; text: "Generar QR"; active: true
+                                compact: true; text: qsTr("Generar QR"); active: true
                                 enabled: empPerfil.currentIndex >= 0
                                 onClicked: Studio.emparejarTabletUi(page.bot.perfiles[empPerfil.currentIndex].id, empNombre.text, empDias.value)
                             }
@@ -624,14 +624,14 @@ Rectangle {
                                 spacing: 6
                                 Text {
                                     readonly property int resta: Math.max(0, Math.round((page.emparejoHasta - reloj.ahora) / 1000))
-                                    text: resta > 0 ? "Escaneala con la tablet: vence en " + resta + " s" : "El código venció: generá otro"
+                                    text: resta > 0 ? qsTr("Escaneala con la tablet: vence en %1 s").arg(resta) : qsTr("El código venció: generá otro")
                                     color: resta > 0 ? Theme.text : Theme.live; font.pixelSize: 14
                                 }
                                 TextField { Layout.fillWidth: true; readOnly: true; text: page.emparejo.url || ""; color: Theme.textDim; font.pixelSize: 11 }
                                 Text {
                                     visible: !!page.emparejo.huella
                                     Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                                    text: "El certificado es propio: la tablet avisa la primera vez. Huella para comparar: " + (page.emparejo.huella || "")
+                                    text: qsTr("El certificado es propio: la tablet avisa la primera vez. Huella para comparar: %1").arg(page.emparejo.huella || "")
                                     color: Theme.textFaint; font.pixelSize: 11
                                 }
                                 Text {
@@ -642,7 +642,7 @@ Rectangle {
                                 }
                                 Text {
                                     Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                    text: "Cuando la tablet lo pida, aparece arriba (y en Servicios) para aprobar. El código sirve una sola vez."
+                                    text: qsTr("Cuando la tablet lo pida, aparece arriba (y en Servicios) para aprobar. El código sirve una sola vez.")
                                     color: Theme.textFaint; font.pixelSize: 11
                                 }
                             }
@@ -664,14 +664,14 @@ Rectangle {
                             spacing: 10
                             Text { text: "Companion Satellite"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
                             StatusPill {
-                                text: Studio.satellite.activo ? (Studio.satellite.error !== "" ? Studio.satellite.error : "escuchando en " + Studio.satellite.puerto) : "apagado"
+                                text: Studio.satellite.activo ? (Studio.satellite.error !== "" ? Studio.satellite.error : qsTr("escuchando en %1").arg(Studio.satellite.puerto)) : qsTr("apagado")
                                 dot: Studio.satellite.activo ? (Studio.satellite.error !== "" ? Theme.live : Theme.ok) : Theme.textFaint
                             }
                             Item { Layout.fillWidth: true }
                             SpinBox { id: satPuerto; from: 1024; to: 65535; value: Studio.satellite.puerto; editable: true; Layout.preferredWidth: 120 }
                             GlassButton {
                                 compact: true
-                                text: Studio.satellite.activo ? "Apagar" : "Prender"
+                                text: Studio.satellite.activo ? qsTr("Apagar") : qsTr("Prender")
                                 active: !Studio.satellite.activo
                                 onClicked: {
                                     const e = Studio.satellite.configurar(!Studio.satellite.activo, satPuerto.value)
@@ -682,19 +682,19 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
                             color: Theme.textDim; font.pixelSize: 11
-                            text: "Instalá Companion Satellite (de Bitfocus, gratis) en la máquina o Raspberry Pi donde están enchufados los " +
-                                  "Stream Deck, Loupedeck, X-keys o paneles, y apuntalo a la IP de esta máquina. Cada aparato aparece abajo " +
-                                  "como uno más. El protocolo no tiene clave: solo se acepta la red local y las IP que permitas acá."
+                            text: qsTr("Instalá Companion Satellite (de Bitfocus, gratis) en la máquina o Raspberry Pi donde están enchufados los "
+                                  + "Stream Deck, Loupedeck, X-keys o paneles, y apuntalo a la IP de esta máquina. Cada aparato aparece abajo "
+                                  + "como uno más. El protocolo no tiene clave: solo se acepta la red local y las IP que permitas acá.")
                         }
                         SolicitudesPendientes {
                             Layout.fillWidth: true
-                            solicitudes: Studio.satellite.solicitudes.map(s => Object.assign({}, s, { detalle: "quiere conectar un Satellite" }))
-                            textoAprobar: "Permitir"
+                            solicitudes: Studio.satellite.solicitudes.map(s => Object.assign({}, s, { detalle: qsTr("quiere conectar un Satellite") }))
+                            textoAprobar: qsTr("Permitir")
                             onResolver: (ip, aprobar) => aprobar ? Studio.satellite.permitir(ip, true) : Studio.satellite.rechazar(ip)
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "IP permitidas"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("IP permitidas"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField {
                                 id: satIps
                                 Layout.fillWidth: true
@@ -703,7 +703,7 @@ Rectangle {
                                 placeholderText: "192.168.1.40, 192.168.1.41"
                             }
                             GlassButton {
-                                compact: true; text: "Guardar"
+                                compact: true; text: qsTr("Guardar")
                                 onClicked: Studio.satellite.setIpPermitidas(satIps.text.split(",").map(s => s.trim()).filter(s => s !== ""))
                             }
                         }
@@ -711,7 +711,7 @@ Rectangle {
                             model: Studio.satellite.clientes
                             delegate: Text {
                                 required property var modelData
-                                text: "● " + modelData.ip + (modelData.aparatos ? " — " + modelData.aparatos : " — sin aparatos")
+                                text: modelData.aparatos ? "● " + modelData.ip + " — " + modelData.aparatos : qsTr("● %1 — sin aparatos").arg(modelData.ip)
                                 color: Theme.ok; font.pixelSize: 12
                             }
                         }
@@ -734,12 +734,12 @@ Rectangle {
                         spacing: 8
                         RowLayout {
                             spacing: 10
-                            Text { text: "API remota (HTTP)"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
-                            StatusPill { text: apiPanel.api.activo ? "prendida" : "apagada"; dot: apiPanel.api.activo ? Theme.ok : Theme.textFaint }
+                            Text { text: qsTr("API remota (HTTP)"); color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            StatusPill { text: apiPanel.api.activo ? qsTr("prendida") : qsTr("apagada"); dot: apiPanel.api.activo ? Theme.ok : Theme.textFaint }
                             Item { Layout.fillWidth: true }
                             ComboBox { id: apiPerfil; Layout.preferredWidth: 160; textRole: "nombre"; model: page.bot.perfiles }
                             GlassButton {
-                                compact: true; text: "Nuevo acceso HTTP…"
+                                compact: true; text: qsTr("Nuevo acceso HTTP…")
                                 onClicked: {
                                     const r = Studio.crearAccesoHttpUi(page.bot.perfiles[apiPerfil.currentIndex].id, "Companion (HTTP)")
                                     if (r.error) Studio.notify(r.error, "error"); else apiPanel.nuevo = r
@@ -747,15 +747,15 @@ Rectangle {
                                 }
                             }
                             GlassButton {
-                                compact: true; text: apiPanel.api.activo ? "Apagar" : "Prender"; active: !apiPanel.api.activo
+                                compact: true; text: apiPanel.api.activo ? qsTr("Apagar") : qsTr("Prender"); active: !apiPanel.api.activo
                                 onClicked: { Studio.setApiRemotaUi(!apiPanel.api.activo); apiPanel.refrescar() }
                             }
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                            text: "En Companion, una acción «Generic HTTP → POST» a la URL de la celda, con el encabezado " +
-                                  "Authorization: Bearer <token>. «tocar» aprieta y suelta; «presionar» y «soltar» por separado " +
-                                  "sirven para «mantener». Cada acceso usa los permisos de su perfil, como una tablet."
+                            text: qsTr("En Companion, una acción «Generic HTTP → POST» a la URL de la celda, con el encabezado "
+                                  + "Authorization: Bearer <token>. «tocar» aprieta y suelta; «presionar» y «soltar» por separado "
+                                  + "sirven para «mantener». Cada acceso usa los permisos de su perfil, como una tablet.")
                         }
                         Text { visible: !!apiPanel.api.aviso; text: apiPanel.api.aviso || ""; color: Theme.amber; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         // El token recién creado: se ve una sola vez.
@@ -763,24 +763,24 @@ Rectangle {
                             visible: !!apiPanel.nuevo.token
                             Layout.fillWidth: true
                             spacing: 4
-                            Text { text: "Copiá el token ahora: no se vuelve a mostrar."; color: Theme.amber; font.pixelSize: 12 }
+                            Text { text: qsTr("Copiá el token ahora: no se vuelve a mostrar."); color: Theme.amber; font.pixelSize: 12 }
                             RowLayout {
                                 Layout.fillWidth: true
                                 TextField { Layout.fillWidth: true; readOnly: true; text: apiPanel.nuevo.token || ""; font.family: "Menlo"; color: Theme.text }
-                                GlassButton { compact: true; text: "Copiar token"; onClicked: { Studio.copiar(apiPanel.nuevo.token); Studio.notify("Token copiado", "ok") } }
+                                GlassButton { compact: true; text: qsTr("Copiar token"); onClicked: { Studio.copiar(apiPanel.nuevo.token); Studio.notify(qsTr("Token copiado"), "ok") } }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
                                 TextField { Layout.fillWidth: true; readOnly: true; text: apiPanel.nuevo.url_ejemplo || ""; color: Theme.textDim }
-                                GlassButton { compact: true; text: "Copiar URL"; onClicked: { Studio.copiar(apiPanel.nuevo.url_ejemplo); Studio.notify("URL copiada", "ok") } }
-                                GlassButton { compact: true; text: "Listo"; onClicked: apiPanel.nuevo = ({}) }
+                                GlassButton { compact: true; text: qsTr("Copiar URL"); onClicked: { Studio.copiar(apiPanel.nuevo.url_ejemplo); Studio.notify(qsTr("URL copiada"), "ok") } }
+                                GlassButton { compact: true; text: qsTr("Listo"); onClicked: apiPanel.nuevo = ({}) }
                             }
                         }
                         Repeater {
                             model: apiPanel.api.accesos || []
                             delegate: Text {
                                 required property var modelData
-                                text: "● " + modelData.nombre + " — perfil " + modelData.perfil + " (se revoca abajo, en Aparatos)"
+                                text: qsTr("● %1 — perfil %2 (se revoca abajo, en Aparatos)").arg(modelData.nombre).arg(modelData.perfil)
                                 color: apiPanel.api.activo ? Theme.ok : Theme.textFaint; font.pixelSize: 12
                             }
                         }
@@ -789,17 +789,17 @@ Rectangle {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Aparatos"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
+                    Text { text: qsTr("Aparatos"); color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
-                    GlassButton { compact: true; text: "Revocar todas las tablets"; onClicked: ApplicationWindow.window.confirm({
-                        title: "¿Revocar todas las tablets?",
-                        text: "Dejan de funcionar ya y hay que volver a emparejarlas con un QR.",
-                        action: () => Studio.notify("Revocadas: " + page.bot.revocarUi("todos"), "info")
+                    GlassButton { compact: true; text: qsTr("Revocar todas las tablets"); onClicked: ApplicationWindow.window.confirm({
+                        title: qsTr("¿Revocar todas las tablets?"),
+                        text: qsTr("Dejan de funcionar ya y hay que volver a emparejarlas con un QR."),
+                        action: () => Studio.notify(qsTr("Revocadas: %1").arg(page.bot.revocarUi("todos")), "info")
                     }) }
                 }
                 Text {
                     visible: page.bot.dispositivos.length === 0
-                    text: "Todavía no hay ninguno. Los Stream Deck y controladores MIDI aparecen solos cuando su plugin está prendido."
+                    text: qsTr("Todavía no hay ninguno. Los Stream Deck y controladores MIDI aparecen solos cuando su plugin está prendido.")
                     color: Theme.textFaint; font.pixelSize: 12
                 }
                 Repeater {
@@ -817,12 +817,12 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text {
-                                    text: modelData.nombre + "  ·  " + (modelData.origen === "plugin" ? "hardware (plugin)" : modelData.origen === "satellite" ? "Companion Satellite" : "tablet")
+                                    text: modelData.nombre + "  ·  " + (modelData.origen === "plugin" ? qsTr("hardware (plugin)") : modelData.origen === "satellite" ? "Companion Satellite" : qsTr("tablet"))
                                     color: Theme.text; font.pixelSize: 13
                                 }
                                 Text {
-                                    text: (modelData.ip ? modelData.ip + " · " : "") + (modelData.ultimo_uso_ms ? "último uso " + new Date(modelData.ultimo_uso_ms).toLocaleString(Qt.locale(), "dd/MM HH:mm") : "") +
-                                          (modelData.vence_dias === 0 ? " · no vence" : modelData.vence_dias ? " · vence a los " + modelData.vence_dias + " días sin uso" : "")
+                                    text: (modelData.ip ? modelData.ip + " · " : "") + (modelData.ultimo_uso_ms ? qsTr("último uso %1").arg(new Date(modelData.ultimo_uso_ms).toLocaleString(Qt.locale(), "dd/MM HH:mm")) : "") +
+                                          (modelData.vence_dias === 0 ? qsTr(" · no vence") : modelData.vence_dias ? qsTr(" · vence a los %n día sin uso", "", modelData.vence_dias) : "")
                                     color: Theme.textFaint; font.pixelSize: 11
                                 }
                             }
@@ -837,7 +837,7 @@ Rectangle {
                                 }
                             }
                             GlassButton {
-                                compact: true; text: "Revocar"
+                                compact: true; text: qsTr("Revocar")
                                 onClicked: page.bot.revocarUi(modelData.id)
                             }
                         }
@@ -878,9 +878,11 @@ Rectangle {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: "Tocá «Asignar» y apretá la tecla (o el pedal del prompter, si manda una tecla). «Global»: funciona aunque " +
-                      "el programa no esté al frente" + (Studio.acciones.globalesDisponibles ? "." : " (en este sistema todavía no).") +
-                      " En la Mac, «Ctrl» es la tecla Comando."
+                text: Studio.acciones.globalesDisponibles
+                  ? qsTr("Tocá «Asignar» y apretá la tecla (o el pedal del prompter, si manda una tecla). «Global»: funciona aunque "
+                         + "el programa no esté al frente. En la Mac, «Ctrl» es la tecla Comando.")
+                  : qsTr("Tocá «Asignar» y apretá la tecla (o el pedal del prompter, si manda una tecla). «Global»: funciona aunque "
+                         + "el programa no esté al frente (en este sistema todavía no). En la Mac, «Ctrl» es la tecla Comando.")
             }
             ListView {
                 Layout.fillWidth: true
@@ -905,7 +907,7 @@ Rectangle {
                         focus: atajosTab.capturando === modelData.id
                         Text {
                             anchors.centerIn: parent
-                            text: atajosTab.capturando === modelData.id ? "Apretá la tecla…" : (parent.parent.atajo ? parent.parent.atajo.tecla : "—")
+                            text: atajosTab.capturando === modelData.id ? qsTr("Apretá la tecla…") : (parent.parent.atajo ? parent.parent.atajo.tecla : "—")
                             color: Theme.text; font.pixelSize: 12; font.family: Theme.mono
                         }
                         Keys.onPressed: (ev) => {
@@ -921,7 +923,7 @@ Rectangle {
                     }
                     CheckBox {
                         id: globalF
-                        text: "Global"
+                        text: qsTr("Global")
                         enabled: Studio.acciones.globalesDisponibles
                         checked: !!(parent.atajo && parent.atajo.global)
                         onToggled: if (parent.atajo) {
@@ -929,7 +931,7 @@ Rectangle {
                             if (e !== "") Studio.notify(e, "error")
                         }
                     }
-                    GlassButton { compact: true; text: "Asignar"; onClicked: atajosTab.capturando = modelData.id }
+                    GlassButton { compact: true; text: qsTr("Asignar"); onClicked: atajosTab.capturando = modelData.id }
                     GlassButton { compact: true; text: "✕"; enabled: !!parent.atajo; onClicked: Studio.acciones.quitarUi(modelData.id) }
                     GlassButton { compact: true; text: "▶"; onClicked: { const e = Studio.acciones.ejecutarUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
                 }
@@ -943,16 +945,16 @@ Rectangle {
             Layout.fillHeight: true
             spacing: 8
             RowLayout {
-                TextField { id: filtroEv; Layout.preferredWidth: 280; placeholderText: "Filtro: aire/#, audio/nivel/+, alarma…"; color: Theme.text }
+                TextField { id: filtroEv; Layout.preferredWidth: 280; placeholderText: qsTr("Filtro: aire/#, audio/nivel/+, alarma…"); color: Theme.text }
                 CheckBox {
                     id: conMediciones
-                    text: "Mediciones en «recientes»"
+                    text: qsTr("Mediciones en «recientes»")
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Niveles, loudness, tiempos de oradores, salud de la salida y tally: se publican cada segundo y tapan los hechos"
+                    ToolTip.text: qsTr("Niveles, loudness, tiempos de oradores, salud de la salida y tally: se publican cada segundo y tapan los hechos")
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
-                    text: "Lo que publica la app. Sirve para el estado de una celda (ligadura) y para @plugin.escuchar(\"tema\")."
+                    text: qsTr("Lo que publica la app. Sirve para el estado de una celda (ligadura) y para @plugin.escuchar(\"tema\").")
                     color: Theme.textFaint; font.pixelSize: 11
                 }
             }
@@ -1028,7 +1030,7 @@ Rectangle {
                     spacing: 8
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
-                        text: detalleEv.tema + (detalleEv.hora !== "" ? "  ·  " + detalleEv.hora : "  ·  último valor")
+                        text: detalleEv.tema + (detalleEv.hora !== "" ? "  ·  " + detalleEv.hora : qsTr("  ·  último valor"))
                         color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold; family: Theme.mono }
                     }
                     ScrollView {
@@ -1045,8 +1047,8 @@ Rectangle {
                     }
                     RowLayout {
                         Item { Layout.fillWidth: true }
-                        GlassButton { compact: true; text: "Copiar"; onClicked: { detalleTexto.selectAll(); detalleTexto.copy(); detalleTexto.deselect() } }
-                        GlassButton { compact: true; text: "Cerrar"; onClicked: detalleEv.close() }
+                        GlassButton { compact: true; text: qsTr("Copiar"); onClicked: { detalleTexto.selectAll(); detalleTexto.copy(); detalleTexto.deselect() } }
+                        GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: detalleEv.close() }
                     }
                 }
             }

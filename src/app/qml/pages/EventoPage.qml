@@ -52,9 +52,9 @@ Rectangle {
         const cual = ev.abierto
         if (cual === "") return
         ApplicationWindow.window.confirm({
-            title: "Descartar el evento armado",
-            text: "Se borra «" + cual + "» con su guion y su padrón. No se puede deshacer.",
-            accept: "Descartar", reject: "Dejarlo",
+            title: qsTr("Descartar el evento armado"),
+            text: qsTr("Se borra «%1» con su guion y su padrón. No se puede deshacer.").arg(cual),
+            accept: qsTr("Descartar"), reject: qsTr("Dejarlo"),
             // borrar cierra el abierto sin guardarlo antes de tirarlo
             action: () => { ev.borrar(cual); corridaId = ""; armando = false }
         })
@@ -83,9 +83,9 @@ Rectangle {
     function cuandoCorto() {
         const f = ev.guion.fecha || ""
         const h = ev.guion.inicio || ""
-        if (f === "" && h === "") return "Sin fecha"
-        if (f === "") return "Sin fecha · " + h
-        if (h === "") return f + " · sin hora"
+        if (f === "" && h === "") return qsTr("Sin fecha")
+        if (f === "") return qsTr("Sin fecha · %1").arg(h)
+        if (h === "") return qsTr("%1 · sin hora").arg(f)
         return f + " · " + h
     }
 
@@ -125,7 +125,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 90
                     Layout.maximumWidth: 260
-                    Text { text: "EVENTO"; color: Theme.textFaint; font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
+                    Text { text: qsTr("EVENTO"); color: Theme.textFaint; font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
                     Text {
                         text: Studio.configuraciones ? Studio.configuraciones.activa : ""
                         color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
@@ -134,22 +134,22 @@ Rectangle {
                     }
                 }
                 GlassButton {
-                    icon: "+"; text: "Evento nuevo…"
+                    icon: "+"; text: qsTr("Evento nuevo…")
                     onClicked: nuevoEventoDlg.open()
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Un evento aparte, con sus propias escenas, mezclador, medios, asamblea y web: desde cero, copiando este, desde uno anterior o desde una plantilla"
+                    ToolTip.text: qsTr("Un evento aparte, con sus propias escenas, mezclador, medios, asamblea y web: desde cero, copiando este, desde uno anterior o desde una plantilla")
                 }
                 GlassButton {
-                    text: "Abrir otro…"
+                    text: qsTr("Abrir otro…")
                     onClicked: abrirEventoDlg.open()
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Pasar a otro evento (reinicia la app con todo lo suyo)"
+                    ToolTip.text: qsTr("Pasar a otro evento (reinicia la app con todo lo suyo)")
                 }
                 GlassButton {
-                    compact: true; text: "Plantillas…"
+                    compact: true; text: qsTr("Plantillas…")
                     onClicked: plantillasDlg.open()
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Las plantillas de evento: orden, nombre, visibilidad, editarlas, guardar este evento como plantilla"
+                    ToolTip.text: qsTr("Las plantillas de evento: orden, nombre, visibilidad, editarlas, guardar este evento como plantilla")
                 }
                 Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 8; color: Qt.rgba(1, 1, 1, 0.1) }
                 ComboBox {
@@ -159,7 +159,7 @@ Rectangle {
                     Layout.maximumWidth: 220
                     model: page.ev.eventos
                     textRole: "nombre"
-                    displayText: page.ev.abierto === "" ? "Elegí un evento…" : (page.ev.guion.nombre || page.ev.abierto)
+                    displayText: page.ev.abierto === "" ? qsTr("Elegí un evento…") : (page.ev.guion.nombre || page.ev.abierto)
                     onActivated: (i) => page.ev.abrir(page.ev.eventos[i].carpeta)
                     Component.onCompleted: page.ev.refrescar()
                     // Con su carpeta adelante: con el histórico hay muchos y se agrupan.
@@ -168,32 +168,32 @@ Rectangle {
                         required property int index
                         width: selector.width
                         text: (modelData.grupo ? modelData.grupo + " / " : "") + modelData.nombre +
-                              (modelData.enCurso ? "  ● en curso" : "")
+                              (modelData.enCurso ? qsTr("  ● en curso") : "")
                         highlighted: selector.highlightedIndex === index
                     }
                 }
                 GlassButton {
-                    icon: "+"; text: "Guion"; compact: true
+                    icon: "+"; text: qsTr("Guion"); compact: true
                     onClicked: nuevoDlg.open()
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Otro guion dentro de este mismo evento (comparte escenas y medios). Para un evento aparte: «Evento nuevo…»"
+                    ToolTip.text: qsTr("Otro guion dentro de este mismo evento (comparte escenas y medios). Para un evento aparte: «Evento nuevo…»")
                 }
                 // Armar contándolo, en vez de llenando un formulario. No es un
                 // motor aparte: es el asistente que ya existe, usando las
                 // herramientas del evento (ver `evento_armar`).
                 GlassButton {
-                    icon: "✦"; text: "Armar contándolo"
+                    icon: "✦"; text: qsTr("Armar contándolo")
                     active: page.armando
                     onClicked: { page.armando = true; page.corridaId = ""; }
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Contale al asistente cómo va a ser el evento y lo deja escrito"
+                    ToolTip.text: qsTr("Contale al asistente cómo va a ser el evento y lo deja escrito")
                 }
                 Item { Layout.fillWidth: true }
 
                 Text {
                     visible: page.ev.abierto !== ""
-                    text: page.ev.guion.cues + " cues · " + page.mmss(page.ev.guion.duracionSeg)
+                    text: qsTr("%1 cues · %2").arg(page.ev.guion.cues).arg(page.mmss(page.ev.guion.duracionSeg))
                     color: Theme.textDim
                     font.pixelSize: 12
                     elide: Text.ElideRight
@@ -213,18 +213,18 @@ Rectangle {
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: page.ev.guion.cuando !== ""
-                                  ? "Arranca " + page.ev.guion.cuando
-                                  : "Poner el dia y la hora del evento"
+                                  ? qsTr("Arranca %1").arg(page.ev.guion.cuando)
+                                  : qsTr("Poner el dia y la hora del evento")
                 }
                 Text {
                     visible: page.ev.sucio
-                    text: "sin guardar"
+                    text: qsTr("sin guardar")
                     color: Theme.amber
                     font.pixelSize: 12
                 }
                 GlassButton {
                     visible: page.ev.abierto !== ""
-                    text: "Guardar"; compact: true
+                    text: qsTr("Guardar"); compact: true
                     active: page.ev.sucio
                     onClicked: page.ev.guardar()
                 }
@@ -246,10 +246,11 @@ Rectangle {
                     Layout.fillWidth: true
                     readonly property var c: panelCopia.c
                     color: Theme.text; font.pixelSize: 13
-                    text: "Copiando «" + (c.nombre || "") + "»… " +
-                          (c.total > 0 ? Math.min(100, Math.round(100 * c.hechos / c.total)) + " % (" +
-                                         page.bytesLegibles(c.hechos) + " de " + page.bytesLegibles(c.total) + ")"
-                                       : page.bytesLegibles(c.hechos))
+                    text: c.total > 0
+                          ? qsTr("Copiando «%1»… %2 % (%3 de %4)").arg(c.nombre || "")
+                                .arg(Math.min(100, Math.round(100 * c.hechos / c.total)))
+                                .arg(page.bytesLegibles(c.hechos)).arg(page.bytesLegibles(c.total))
+                          : qsTr("Copiando «%1»… %2").arg(c.nombre || "").arg(page.bytesLegibles(c.hechos))
                 }
             }
         }
@@ -271,49 +272,49 @@ Rectangle {
                     color: Theme.text
                     font.pixelSize: 13
                     text: page.ev.enCurso.carpeta
-                          ? "En curso: " + page.ev.enCurso.nombre +
+                          ? qsTr("En curso: %1").arg(page.ev.enCurso.nombre) +
                             (page.ev.enCurso.grupo ? "  ·  " + page.ev.enCurso.grupo : "") +
-                            (page.ev.enCurso.desdeMs ? "  ·  desde las " + Qt.formatTime(new Date(page.ev.enCurso.desdeMs), "HH:mm") : "") +
-                            (page.ev.enCurso.automatico ? "  (la jornada del día: se creó sola)" : "")
-                          : "Ningún evento en curso: lo que pase no queda en ningún evento"
+                            (page.ev.enCurso.desdeMs ? qsTr("  ·  desde las %1").arg(Qt.formatTime(new Date(page.ev.enCurso.desdeMs), "HH:mm")) : "") +
+                            (page.ev.enCurso.automatico ? qsTr("  (la jornada del día: se creó sola)") : "")
+                          : qsTr("Ningún evento en curso: lo que pase no queda en ningún evento")
                 }
                 GlassButton {
                     compact: true
                     visible: page.ev.abierto !== "" && page.ev.enCurso.carpeta !== page.ev.abierto
-                    text: "Poner en curso este"
+                    text: qsTr("Poner en curso este")
                     onClicked: page.ev.iniciarEvento(page.ev.abierto)
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Desde ahora, grabaciones, vivos y registro van a «" + (page.ev.guion.nombre || page.ev.abierto) +
-                                  "». Correr el guion de verdad lo hace solo."
+                    ToolTip.text: qsTr("Desde ahora, grabaciones, vivos y registro van a «%1». Correr el guion de verdad lo hace solo.")
+                                  .arg(page.ev.guion.nombre || page.ev.abierto)
                 }
                 GlassButton {
                     compact: true
                     visible: !!page.ev.enCurso.carpeta
-                    text: "Terminar"
+                    text: qsTr("Terminar")
                     onClicked: page.ev.terminarEvento()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: page.ev.eventoAutomatico
-                                  ? "Queda en el histórico como terminado; lo que siga va a la jornada del día"
-                                  : "Queda en el histórico como terminado"
+                                  ? qsTr("Queda en el histórico como terminado; lo que siga va a la jornada del día")
+                                  : qsTr("Queda en el histórico como terminado")
                 }
                 GlassButton {
                     compact: true
                     visible: page.ev.abierto !== ""
-                    text: "Carpeta…"
+                    text: qsTr("Carpeta…")
                     onClicked: moverDlg.open()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Llevar el evento abierto a otra carpeta (2026/Octubre, Consejo/Ordinarias…)"
+                    ToolTip.text: qsTr("Llevar el evento abierto a otra carpeta (2026/Octubre, Consejo/Ordinarias…)")
                 }
                 CheckBox {
-                    text: "Jornada automática"
+                    text: qsTr("Jornada automática")
                     checked: page.ev.eventoAutomatico
                     onToggled: page.ev.eventoAutomatico = checked
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Si no hay ningún evento en curso, se crea solo el del día: nada queda sin evento"
+                    ToolTip.text: qsTr("Si no hay ningún evento en curso, se crea solo el del día: nada queda sin evento")
                 }
             }
         }
@@ -328,7 +329,7 @@ Rectangle {
             visible: page.armando
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Armar el evento contándolo"
+            title: qsTr("Armar el evento contándolo")
 
             ColumnLayout {
                 anchors.fill: parent
@@ -337,9 +338,9 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: "Contá cómo va a ser: qué pasa, en qué orden, cuánto dura, quién habla y " +
+                    text: qsTr("Contá cómo va a ser: qué pasa, en qué orden, cuánto dura, quién habla y " +
                           "quién viene. Lo arma el agente Organizador, que lo deja escrito y " +
-                          "revisado. No sale nada al aire."
+                          "revisado. No sale nada al aire.")
                     color: Theme.textDim
                     font.pixelSize: 12
                 }
@@ -351,22 +352,22 @@ Rectangle {
                     enabled: !page.corriendo
                     wrapMode: TextArea.Wrap
                     color: Theme.text
-                    placeholderText: "Asamblea del consorcio, el jueves 8 de octubre a las 19, dos " +
+                    placeholderText: qsTr("Asamblea del consorcio, el jueves 8 de octubre a las 19, dos " +
                                      "horas, presencial en el salón y por videollamada. Hay que " +
                                      "votar tres puntos: balance, expensas y el portón. Son 40 " +
-                                     "propietarios y todos votan."
+                                     "propietarios y todos votan.")
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
-                        text: page.corriendo ? "Armando…" : "Armar"
+                        text: page.corriendo ? qsTr("Armando…") : qsTr("Armar")
                         enabled: !page.corriendo && contalo.text.trim() !== ""
                         onClicked: page.armar(contalo.text.trim())
                     }
                     GlassButton {
-                        text: page.corriendo ? "Detener" : "Cerrar"
+                        text: page.corriendo ? qsTr("Detener") : qsTr("Cerrar")
                         onClicked: {
                             if (page.corriendo) Studio.despachador.detener(page.corridaId)
                             else { page.armando = false; page.corridaId = "" }
@@ -376,7 +377,7 @@ Rectangle {
                     Text {
                         visible: page.corriendo
                         text: page.corrida.herramientas !== undefined
-                              ? page.corrida.herramientas + " herramientas · " + page.corrida.duracionS + " s"
+                              ? qsTr("%n herramienta · %1 s", "", page.corrida.herramientas).arg(page.corrida.duracionS)
                               : ""
                         color: Theme.textDim
                         font.pixelSize: 11
@@ -405,7 +406,7 @@ Rectangle {
                             font { family: Theme.font; pixelSize: 13 }
                             text: page.corrida.error ? page.corrida.error
                                 : page.corrida.resumen ? page.corrida.resumen
-                                : (page.corriendo ? "Pensando…" : "")
+                                : (page.corriendo ? qsTr("Pensando…") : "")
                         }
                     }
                 }
@@ -420,19 +421,18 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         color: Theme.textDim
                         font.pixelSize: 12
-                        text: "Quedó abierto «" + page.ev.abierto + "»: " +
-                              page.ev.guion.bloques.length + " bloques, " + page.ev.guion.cues +
-                              " cues, " + page.mmss(page.ev.guion.duracionSeg) + "." +
+                        text: qsTr("Quedó abierto «%1»: %n bloque, %2 cues, %3.", "", page.ev.guion.bloques.length)
+                                  .arg(page.ev.abierto).arg(page.ev.guion.cues).arg(page.mmss(page.ev.guion.duracionSeg)) +
                               (page.ev.reparos.length > 0
-                               ? " " + page.ev.reparos.length + " cosa(s) para mirar."
+                               ? " " + qsTr("%n cosa para mirar.", "", page.ev.reparos.length)
                                : "")
                     }
                     GlassButton {
-                        text: "Verlo"
+                        text: qsTr("Verlo")
                         onClicked: { page.armando = false; page.ev.revisar() }
                     }
                     GlassButton {
-                        text: "Descartarlo"
+                        text: qsTr("Descartarlo")
                         onClicked: page.descartarLoArmado()
                     }
                 }
@@ -450,7 +450,7 @@ Rectangle {
                 spacing: 10
                 Text {
                     Layout.fillWidth: true
-                    text: "Todavía no hay ningún evento abierto"
+                    text: qsTr("Todavía no hay ningún evento abierto")
                     color: Theme.text
                     font { family: Theme.font; pixelSize: 17; weight: Font.DemiBold }
                     horizontalAlignment: Text.AlignHCenter
@@ -461,9 +461,9 @@ Rectangle {
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.textDim
                     font.pixelSize: 13
-                    text: "Un evento es el guion de lo que va a pasar: bloques (apertura, discurso, cierre) " +
+                    text: qsTr("Un evento es el guion de lo que va a pasar: bloques (apertura, discurso, cierre) " +
                           "y dentro de cada uno los cues concretos. Con los tiempos previstos, durante el " +
-                          "evento se ve cuánto nos estamos desviando."
+                          "evento se ve cuánto nos estamos desviando.")
                 }
                 Text {
                     Layout.fillWidth: true
@@ -471,8 +471,8 @@ Rectangle {
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.textFaint
                     font.pixelSize: 12
-                    text: "Se guarda en su propia carpeta, con su música, sus videos y sus discursos adentro, " +
-                          "para poder llevárselo entero a otra máquina."
+                    text: qsTr("Se guarda en su propia carpeta, con su música, sus videos y sus discursos adentro, " +
+                          "para poder llevárselo entero a otra máquina.")
                 }
             }
         }
@@ -496,22 +496,21 @@ Rectangle {
             id: pestanas
             visible: page.ev.abierto !== "" && !page.armando
             Layout.fillWidth: true
-            TabButton { text: "Guion" }
+            TabButton { text: qsTr("Guion") }
             TabButton {
                 text: page.ev.resumenPadron.total > 0
-                      ? "Padrón (" + page.ev.resumenPadron.presentes + "/" +
-                        page.ev.resumenPadron.total + ")"
-                      : "Padrón"
+                      ? qsTr("Padrón (%1/%2)").arg(page.ev.resumenPadron.presentes).arg(page.ev.resumenPadron.total)
+                      : qsTr("Padrón")
             }
             TabButton {
                 text: {
                     const r = Studio.publico.recuento
-                    return r && r.nuevas > 0 ? "Público (" + r.nuevas + ")" : "Público"
+                    return r && r.nuevas > 0 ? qsTr("Público (%1)").arg(r.nuevas) : qsTr("Público")
                 }
             }
-            TabButton { text: "Orden del día" }
-            TabButton { text: "Página web" }
-            TabButton { text: Studio.documentos && Studio.documentos.lista.length ? "Documentos (" + Studio.documentos.lista.length + ")" : "Documentos" }
+            TabButton { text: qsTr("Orden del día") }
+            TabButton { text: qsTr("Página web") }
+            TabButton { text: Studio.documentos && Studio.documentos.lista.length ? qsTr("Documentos (%1)").arg(Studio.documentos.lista.length) : qsTr("Documentos") }
         }
 
         // ---- Documentación del evento (PDF con carátula, por punto y sección) ----------
@@ -519,7 +518,7 @@ Rectangle {
             visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 5
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Documentación del evento"
+            title: qsTr("Documentación del evento")
             PanelDocumentos { anchors.fill: parent; bloques: page.ev.guion.bloques || [] }
         }
 
@@ -528,7 +527,7 @@ Rectangle {
             visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 4
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "La página web del evento en vivo"
+            title: qsTr("La página web del evento en vivo")
             PanelEventoWeb { anchors.fill: parent; onPedirAsistente: (t) => page.pedirAsistente(t) }
         }
 
@@ -537,7 +536,7 @@ Rectangle {
             visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 3
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Orden del día y uso de la palabra"
+            title: qsTr("Orden del día y uso de la palabra")
             PanelOrdenDelDia { anchors.fill: parent }
         }
 
@@ -546,7 +545,7 @@ Rectangle {
             visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 1
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Quiénes vienen y quiénes llegaron"
+            title: qsTr("Quiénes vienen y quiénes llegaron")
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 10
@@ -561,26 +560,26 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
-                        text: "Acta del evento"
+                        text: qsTr("Acta del evento")
                         icon: "❑"
                         onClicked: page.pedirAsistente(
                             "Armá el acta de este evento con `evento_acta` y contame qué quedó.")
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Quiénes asistieron, el quórum y qué se votó"
+                        ToolTip.text: qsTr("Quiénes asistieron, el quórum y qué se votó")
                     }
                     GlassButton {
-                        text: "Capítulos"
+                        text: qsTr("Capítulos")
                         icon: "▤"
                         onClicked: page.pedirAsistente(
                             "Dame los capítulos de la grabación con `evento_capitulos`, listos para " +
                             "pegar en la descripción del video.")
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Las marcas de tiempo de cada bloque, para la descripción del video"
+                        ToolTip.text: qsTr("Las marcas de tiempo de cada bloque, para la descripción del video")
                     }
                     GlassButton {
-                        text: "Invitaciones"
+                        text: qsTr("Invitaciones")
                         icon: "✉"
                         enabled: page.ev.resumenPadron.total > 0
                         onClicked: page.pedirAsistente(
@@ -588,7 +587,7 @@ Rectangle {
                             "persona, con su enlace y su código.")
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "El enlace personal de cada uno: lo acredita al llegar y le deja el código"
+                        ToolTip.text: qsTr("El enlace personal de cada uno: lo acredita al llegar y le deja el código")
                     }
                     Item { Layout.fillWidth: true }
                 }
@@ -605,13 +604,13 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: 360
-                title: "Preguntas"
+                title: qsTr("Preguntas")
                 PanelPreguntas { anchors.fill: parent }
             }
             Panel {
                 Layout.preferredWidth: 460
                 Layout.fillHeight: true
-                title: "Votación"
+                title: qsTr("Votación")
                 PanelVotacion { anchors.fill: parent }
             }
         }
@@ -630,7 +629,7 @@ Rectangle {
                 // Sin minimo, el ancho implicito de la columna de la derecha
                 // (que tiene textos largos) se comia todo el guion.
                 Layout.minimumWidth: 420
-                title: "Guion"
+                title: qsTr("Guion")
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -639,20 +638,20 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        GlassButton { text: "+ Bloque"; compact: true; onClicked: page.ev.agregarBloque("") }
+                        GlassButton { text: qsTr("+ Bloque"); compact: true; onClicked: page.ev.agregarBloque("") }
                         Item { Layout.fillWidth: true }
                         GlassButton {
-                            text: "Revisar"; compact: true
+                            text: qsTr("Revisar"); compact: true
                             onClicked: page.ev.revisar()
                             ToolTip.visible: hovered
-                            ToolTip.text: "Busca lo que impide correr el guion, sin tocar nada"
+                            ToolTip.text: qsTr("Busca lo que impide correr el guion, sin tocar nada")
                         }
                         GlassButton {
-                            text: "Ensayo rápido"; compact: true
+                            text: qsTr("Ensayo rápido"); compact: true
                             onClicked: page.ev.ensayoAcelerado()
                             ToolTip.visible: hovered
-                            ToolTip.text: "Recorre el guion entero de una, sin esperar las duraciones, " +
-                                          "para ver si cada cue se podría ejecutar"
+                            ToolTip.text: qsTr("Recorre el guion entero de una, sin esperar las duraciones, " +
+                                          "para ver si cada cue se podría ejecutar")
                         }
                     }
 
@@ -690,7 +689,7 @@ Rectangle {
                                                 Layout.minimumWidth: 60
                                                 implicitWidth: 0 // que no empuje el ancho del panel
                                                 text: modelData.nombre
-                                                placeholderText: "Nombre del bloque"
+                                                placeholderText: qsTr("Nombre del bloque")
                                                 color: Theme.text
                                                 font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
                                                 background: Item {}
@@ -704,7 +703,7 @@ Rectangle {
                                                 color: Theme.textDim
                                                 font { family: Theme.mono; pixelSize: 12 }
                                             }
-                                            GlassButton { text: "+ Cue"; compact: true; onClicked: tipoDlg.abrir(index) }
+                                            GlassButton { text: qsTr("+ Cue"); compact: true; onClicked: tipoDlg.abrir(index) }
                                             GlassButton { icon: "↑"; compact: true; onClicked: page.ev.moverBloque(index, index - 1) }
                                             GlassButton { icon: "↓"; compact: true; onClicked: page.ev.moverBloque(index, index + 1) }
                                             GlassButton { icon: "✕"; compact: true; onClicked: page.ev.quitarBloque(index) }
@@ -717,7 +716,7 @@ Rectangle {
                                         Layout.leftMargin: 12
                                         Layout.topMargin: 4
                                         Layout.bottomMargin: 4
-                                        text: "Bloque vacío: agregale un cue para que pase algo."
+                                        text: qsTr("Bloque vacío: agregale un cue para que pase algo.")
                                         color: Theme.textFaint
                                         font.pixelSize: 12
                                     }
@@ -783,7 +782,7 @@ Rectangle {
                                                     elide: Text.ElideRight
                                                     text: modelData.texto !== "" ? modelData.texto
                                                           : (modelData.datos.escena || modelData.datos.archivo
-                                                             || modelData.datos.participante || "sin descripción")
+                                                             || modelData.datos.participante || qsTr("sin descripción"))
                                                     color: modelData.texto !== "" ? Theme.text : Theme.textFaint
                                                     font.pixelSize: 12
                                                 }
@@ -798,7 +797,7 @@ Rectangle {
                                                 }
                                                 Text {
                                                     visible: modelData.automatico
-                                                    text: "auto"
+                                                    text: qsTr("auto")
                                                     color: Theme.amber
                                                     font.pixelSize: 10
                                                 }
@@ -812,7 +811,7 @@ Rectangle {
                                                     compact: true; text: "✎"
                                                     active: elegido
                                                     onClicked: { page.selB = modelData.bloque; page.selC = modelData.cue; cueDlg.abrir(modelData.bloque, modelData.cue) }
-                                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Editar este cue"
+                                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Editar este cue")
                                                 }
                                             }
                                         }
@@ -836,7 +835,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 268
-                    title: page.ev.ensayo ? "Conducción (ensayo)" : "Conducción"
+                    title: page.ev.ensayo ? qsTr("Conducción (ensayo)") : qsTr("Conducción")
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -849,8 +848,8 @@ Rectangle {
                             visible: page.ev.estado !== "parado"
                             text: {
                                 const d = page.ev.reloj.desvioSeg
-                                if (Math.abs(d) < 5) return "en hora"
-                                return page.mmss(Math.abs(d)) + (d > 0 ? " tarde" : " adelantados")
+                                if (Math.abs(d) < 5) return qsTr("en hora")
+                                return (d > 0 ? qsTr("%1 tarde") : qsTr("%1 adelantados")).arg(page.mmss(Math.abs(d)))
                             }
                             color: {
                                 const d = Math.abs(page.ev.reloj.desvioSeg)
@@ -863,7 +862,7 @@ Rectangle {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             visible: page.ev.estado === "parado"
-                            text: "El guion no está corriendo"
+                            text: qsTr("El guion no está corriendo")
                             color: Theme.textFaint
                             font.pixelSize: 13
                         }
@@ -892,10 +891,12 @@ Rectangle {
                                     font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold }
                                 }
                                 Text {
-                                    text: "va " + page.mmss(page.ev.reloj.enCueSeg) +
-                                          (page.ev.actual.duracionSeg > 0
-                                           ? " de " + page.mmss(page.ev.actual.duracionSeg) : "") +
-                                          " · cue " + page.ev.reloj.cueNro + " de " + page.ev.reloj.cuesTotal
+                                    text: (page.ev.actual.duracionSeg > 0
+                                           ? qsTr("va %1 de %2 · cue %3 de %4").arg(page.mmss(page.ev.reloj.enCueSeg))
+                                                 .arg(page.mmss(page.ev.actual.duracionSeg))
+                                                 .arg(page.ev.reloj.cueNro).arg(page.ev.reloj.cuesTotal)
+                                           : qsTr("va %1 · cue %2 de %3").arg(page.mmss(page.ev.reloj.enCueSeg))
+                                                 .arg(page.ev.reloj.cueNro).arg(page.ev.reloj.cuesTotal))
                                     color: Theme.textDim
                                     font { family: Theme.mono; pixelSize: 11 }
                                 }
@@ -912,12 +913,12 @@ Rectangle {
                             ColumnLayout {
                                 anchors { fill: parent; margins: 8 }
                                 spacing: 0
-                                Text { text: "sigue"; color: Theme.textFaint; font.pixelSize: 10 }
+                                Text { text: qsTr("sigue"); color: Theme.textFaint; font.pixelSize: 10 }
                                 Text {
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                     text: page.ev.siguiente.texto
-                                          || (page.ev.siguiente.tipo ? page.ev.siguiente.tipo : "nada: es el último")
+                                          || (page.ev.siguiente.tipo ? page.ev.siguiente.tipo : qsTr("nada: es el último"))
                                     color: Theme.textDim
                                     font.pixelSize: 12
                                 }
@@ -930,7 +931,7 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 6
                             GlassButton {
-                                text: page.ev.estado === "parado" ? "Arrancar" : "Siguiente"
+                                text: page.ev.estado === "parado" ? qsTr("Arrancar") : qsTr("Siguiente")
                                 active: page.ev.estado !== "parado"
                                 Layout.fillWidth: true
                                 onClicked: {
@@ -939,9 +940,9 @@ Rectangle {
                                     const graves = page.ev.arrancarRevisando(false)
                                     if (graves === 0) return
                                     ApplicationWindow.window.confirm({
-                                        title: "¿Correr el guion igual?",
-                                        text: "La revisión encontró " + graves + " problema(s) grave(s). Mirá «Revisión» antes de salir.",
-                                        accept: "Correr igual", reject: "Revisar",
+                                        title: qsTr("¿Correr el guion igual?"),
+                                        text: qsTr("La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.", "", graves),
+                                        accept: qsTr("Correr igual"), reject: qsTr("Revisar"),
                                         action: function() { page.ev.arrancarRevisando(true) }
                                     })
                                 }
@@ -966,7 +967,7 @@ Rectangle {
                                 visible: page.ev.estado !== "parado"
                                 onClicked: { page.informe = page.ev.informe(); informeDlg.open() }
                                 ToolTip.visible: hovered
-                                ToolTip.text: "Ver cuánto duró de verdad cada bloque"
+                                ToolTip.text: qsTr("Ver cuánto duró de verdad cada bloque")
                             }
                         }
                         RowLayout {
@@ -980,8 +981,8 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: page.ev.ensayo ? "Ensayo: recorre el guion sin tocar lo que sale al aire"
-                                                     : "Ensayo apagado: los cues salen al aire de verdad"
+                                text: page.ev.ensayo ? qsTr("Ensayo: recorre el guion sin tocar lo que sale al aire")
+                                                     : qsTr("Ensayo apagado: los cues salen al aire de verdad")
                                 color: page.ev.ensayo ? Theme.amber : Theme.textDim
                                 font.pixelSize: 11
                             }
@@ -994,7 +995,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: page.selCue ? "Cue " + (page.selC + 1) + " del bloque " + (page.selB + 1) : ""
+                    title: page.selCue ? qsTr("Cue %1 del bloque %2").arg(page.selC + 1).arg(page.selB + 1) : ""
                     visible: !!page.selCue
 
                     GlassButton {
@@ -1002,7 +1003,7 @@ Rectangle {
                         anchors { right: parent.right; top: parent.top; topMargin: -40 }
                         compact: true; text: "✕"
                         onClicked: page.selC = -1
-                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Volver al chequeo y la bitácora"
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Volver al chequeo y la bitácora")
                     }
 
                     ScrollView {
@@ -1030,7 +1031,7 @@ Rectangle {
                                     }
                                 }
                                 Text {
-                                    text: page.selCue ? page.mmss(page.selCue.duracionSeg) + (page.selCue.automatico ? " · encadena solo" : "") : ""
+                                    text: page.selCue ? (page.selCue.automatico ? qsTr("%1 · encadena solo").arg(page.mmss(page.selCue.duracionSeg)) : page.mmss(page.selCue.duracionSeg)) : ""
                                     color: Theme.textDim; font { family: Theme.mono; pixelSize: 11 }
                                 }
                             }
@@ -1045,7 +1046,7 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: page.selCue ? (page.selCue.texto || "(sin texto)") : ""
+                                text: page.selCue ? (page.selCue.texto || qsTr("(sin texto)")) : ""
                                 color: Theme.text
                                 font.pixelSize: 12
                             }
@@ -1076,14 +1077,14 @@ Rectangle {
                                 Layout.fillWidth: true
                                 Layout.topMargin: 6
                                 spacing: 6
-                                GlassButton { text: "Editar…"; compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
-                                GlassButton { text: "Poner al aire"; compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
+                                GlassButton { text: qsTr("Editar…"); compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
+                                GlassButton { text: qsTr("Poner al aire"); compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
                                 GlassButton {
                                     readonly property string url: page.selCue ? page.ev.enlaceDeCue(page.selCue.tipo) : ""
                                     visible: url !== ""
-                                    text: "Ver el teleprompter ↗"; compact: true
+                                    text: qsTr("Ver el teleprompter ↗"); compact: true
                                     onClicked: Qt.openUrlExternally(url)
-                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La pantalla del orador en el navegador: para ver si carga y avanza (" + url + ")"
+                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La pantalla del orador en el navegador: para ver si carga y avanza (%1)").arg(url)
                                 }
                             }
                         }
@@ -1106,7 +1107,7 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: "Tocá un cue para ver qué hace; el lápiz lo edita. Doble clic lo pone al aire."
+                            text: qsTr("Tocá un cue para ver qué hace; el lápiz lo edita. Doble clic lo pone al aire.")
                             color: Theme.textFaint
                             font.pixelSize: 11
                         }
@@ -1115,7 +1116,7 @@ Rectangle {
                             id: chequeoPanel
                             Layout.fillWidth: true
                             Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
-                            title: "Antes de salir · " + lista.filter(x => x.hecho).length + "/" + lista.length
+                            title: qsTr("Antes de salir · %1/%2").arg(lista.filter(x => x.hecho).length).arg(lista.length)
                             property var lista: page.ev.chequeo()
                             Connections {
                                 target: page.ev
@@ -1149,7 +1150,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: Math.min(150, 40 + page.ev.reparos.length * 34)
                             visible: page.ev.reparos.length > 0
-                            title: "Revisión"
+                            title: qsTr("Revisión")
                             ListView {
                                 anchors.fill: parent
                                 clip: true
@@ -1167,9 +1168,9 @@ Rectangle {
                                     Text {
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
-                                        text: (modelData.bloque >= 0 ? "Bloque " + (modelData.bloque + 1) +
-                                               (modelData.cue >= 0 ? ", cue " + (modelData.cue + 1) : "") + ": " : "") +
-                                              modelData.texto
+                                        text: modelData.bloque < 0 ? modelData.texto
+                                              : modelData.cue >= 0 ? qsTr("Bloque %1, cue %2: %3").arg(modelData.bloque + 1).arg(modelData.cue + 1).arg(modelData.texto)
+                                              : qsTr("Bloque %1: %2").arg(modelData.bloque + 1).arg(modelData.texto)
                                         color: Theme.textDim
                                         font.pixelSize: 11
                                     }
@@ -1187,7 +1188,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 130
                             visible: page.ev.bitacora.length > 0
-                            title: "Lo que pasó"
+                            title: qsTr("Lo que pasó")
                             ListView {
                                 anchors.fill: parent
                                 clip: true
@@ -1225,7 +1226,7 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(page.width - 80, 620)
         modal: true
-        title: "Lo que duró de verdad"
+        title: qsTr("Lo que duró de verdad")
         standardButtons: Dialog.Close
 
         ColumnLayout {
@@ -1238,12 +1239,12 @@ Rectangle {
                 color: Theme.textDim
                 font.pixelSize: 12
                 text: page.informe && page.informe.bloques
-                      ? "Previsto " + page.mmss(page.informe.previstoSeg) + " · real " +
-                        page.mmss(page.informe.realSeg) + " · " +
-                        (page.informe.desvioSeg >= 0 ? "nos pasamos " : "sobró ") +
-                        page.mmss(Math.abs(page.informe.desvioSeg)) +
-                        (page.informe.ensayo ? "  (fue un ensayo)" : "")
-                      : "El guion todavía no se corrió."
+                      ? (page.informe.desvioSeg >= 0 ? qsTr("Previsto %1 · real %2 · nos pasamos %3")
+                                                     : qsTr("Previsto %1 · real %2 · sobró %3"))
+                            .arg(page.mmss(page.informe.previstoSeg)).arg(page.mmss(page.informe.realSeg))
+                            .arg(page.mmss(Math.abs(page.informe.desvioSeg))) +
+                        (page.informe.ensayo ? qsTr("  (fue un ensayo)") : "")
+                      : qsTr("El guion todavía no se corrió.")
             }
 
             ListView {
@@ -1280,7 +1281,7 @@ Rectangle {
             }
 
             GlassButton {
-                text: "Guardar en la carpeta del evento"; compact: true
+                text: qsTr("Guardar en la carpeta del evento"); compact: true
                 onClicked: page.ev.guardarInforme()
             }
         }
@@ -1292,7 +1293,7 @@ Rectangle {
         anchors.centerIn: parent
         width: 460
         modal: true
-        title: "Cuándo es el evento"
+        title: qsTr("Cuándo es el evento")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: {
             fechaCampo.text = page.ev.guion.fecha || ""
@@ -1313,9 +1314,9 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "De la hora salen las horas previstas de cada bloque. De la fecha con el huso " +
+                text: qsTr("De la hora salen las horas previstas de cada bloque. De la fecha con el huso " +
                       "sale el momento exacto, que es lo único que le sirve al que se conecta desde " +
-                      "otro huso horario."
+                      "otro huso horario.")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -1351,7 +1352,7 @@ Rectangle {
                 // el evento esta en el lugar del evento.
                 GlassButton {
                     compact: true
-                    text: "El de acá"
+                    text: qsTr("El de acá")
                     onClicked: husoCampo.text = page.ev.husoDelAparato()
                 }
             }
@@ -1378,7 +1379,7 @@ Rectangle {
         anchors.centerIn: parent
         width: 420
         modal: true
-        title: "Otro guion en este evento"
+        title: qsTr("Otro guion en este evento")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: { nombreCampo.text = ""; carpetaNueva.editText = "" }
         onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim(), carpetaNueva.editText.trim())
@@ -1388,19 +1389,19 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Un guion más dentro de este evento: usa sus mismas escenas, mezclador y medios. " +
-                      "Para un evento aparte, con lo suyo, es «Evento nuevo…»."
+                text: qsTr("Un guion más dentro de este evento: usa sus mismas escenas, mezclador y medios. " +
+                      "Para un evento aparte, con lo suyo, es «Evento nuevo…».")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
             TextField {
                 id: nombreCampo
                 Layout.fillWidth: true
-                placeholderText: "Acto del 25 de mayo"
+                placeholderText: qsTr("Acto del 25 de mayo")
                 color: Theme.text
                 onAccepted: nuevoDlg.accept()
             }
-            Text { text: "En la carpeta (vacío = Eventos/; se crea si no está)"; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("En la carpeta (vacío = Eventos/; se crea si no está)"); color: Theme.textDim; font.pixelSize: 12 }
             ComboBox {
                 id: carpetaNueva
                 Layout.fillWidth: true
@@ -1418,40 +1419,40 @@ Rectangle {
         anchors.centerIn: parent
         width: 500
         modal: true
-        title: "Evento nuevo"
+        title: qsTr("Evento nuevo")
         onAboutToShow: { nombreEv.text = ""; modo = "cero"; abrirlo.checked = !(Studio.streaming || Studio.recording) }
         ColumnLayout {
             width: nuevoEventoDlg.availableWidth
             spacing: 8
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                text: "Un evento tiene TODO lo suyo: escenas, mezclador, medios, gráficos, distribución de la asamblea, " +
+                text: qsTr("Un evento tiene TODO lo suyo: escenas, mezclador, medios, gráficos, distribución de la asamblea, " +
                       "orden del día, votaciones, página web y guion. Copiar es copia total (también la web, el historial y " +
-                      "las grabaciones). El evento abierto no se toca."
+                      "las grabaciones). El evento abierto no se toca.")
             }
             // Lo recomendado: que el asistente lo prepare entero siguiendo la guía de su tipo
             // (pregunta lo que hace falta, arma, verifica y entrega).
             GlassButton {
                 Layout.fillWidth: true
-                icon: "✦"; text: "Prepararlo con el asistente (recomendado)"; active: true
+                icon: "✦"; text: qsTr("Prepararlo con el asistente (recomendado)"); active: true
                 onClicked: { nuevoEventoDlg.close(); asistenteEvtDlg.open() }
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "Elegís el tipo de evento y el asistente te hace las preguntas, lo arma desde cero, lo verifica y te pasa los enlaces"
+                ToolTip.text: qsTr("Elegís el tipo de evento y el asistente te hace las preguntas, lo arma desde cero, lo verifica y te pasa los enlaces")
             }
             RowLayout {
                 Layout.fillWidth: true
-                Text { Layout.fillWidth: true; text: "O crealo a mano:"; color: Theme.textFaint; font.pixelSize: 11 }
-                GlassButton { compact: true; text: "Administrar plantillas…"; onClicked: { nuevoEventoDlg.close(); plantillasDlg.open() } }
+                Text { Layout.fillWidth: true; text: qsTr("O crealo a mano:"); color: Theme.textFaint; font.pixelSize: 11 }
+                GlassButton { compact: true; text: qsTr("Administrar plantillas…"); onClicked: { nuevoEventoDlg.close(); plantillasDlg.open() } }
             }
-            TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: "Sesión ordinaria del 20 de octubre"; color: Theme.text }
+            TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: qsTr("Sesión ordinaria del 20 de octubre"); color: Theme.text }
             ButtonGroup { id: grupoDesde }
             RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "cero"; onClicked: nuevoEventoDlg.modo = "cero"
-                          text: "Desde cero (de fábrica: escenas base, sin medios ni asamblea)" }
+                          text: qsTr("Desde cero (de fábrica: escenas base, sin medios ni asamblea)") }
             RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "actual"; onClicked: nuevoEventoDlg.modo = "actual"
-                          text: "Copiando este («" + (nuevoEventoDlg.cf ? nuevoEventoDlg.cf.activa : "") + "»): copia total" }
+                          text: qsTr("Copiando este («%1»): copia total").arg(nuevoEventoDlg.cf ? nuevoEventoDlg.cf.activa : "") }
             RowLayout {
                 RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "anterior"; onClicked: nuevoEventoDlg.modo = "anterior"
-                              text: "Copiando otro evento" }
+                              text: qsTr("Copiando otro evento") }
                 ComboBox {
                     id: anterior
                     Layout.fillWidth: true
@@ -1461,7 +1462,7 @@ Rectangle {
             }
             RowLayout {
                 RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "plantilla"; onClicked: nuevoEventoDlg.modo = "plantilla"
-                              text: "Desde una plantilla" }
+                              text: qsTr("Desde una plantilla") }
                 ComboBox {
                     id: plantilla
                     Layout.fillWidth: true
@@ -1474,14 +1475,14 @@ Rectangle {
             }
             CheckBox {
                 id: abrirlo
-                text: (Studio.streaming || Studio.recording) ? "Abrirlo ahora (no: hay algo al aire o grabando)" : "Abrirlo ahora (la app se reinicia con él)"
+                text: (Studio.streaming || Studio.recording) ? qsTr("Abrirlo ahora (no: hay algo al aire o grabando)") : qsTr("Abrirlo ahora (la app se reinicia con él)")
                 enabled: !(Studio.streaming || Studio.recording)
             }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: nuevoEventoDlg.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: nuevoEventoDlg.close() }
                 GlassButton {
-                    compact: true; active: true; text: "Crear"
+                    compact: true; active: true; text: qsTr("Crear")
                     enabled: nombreEv.text.trim() !== "" && (nuevoEventoDlg.modo !== "anterior" || anterior.currentIndex >= 0)
                              && (nuevoEventoDlg.modo !== "plantilla" || plantilla.currentIndex >= 0)
                     onClicked: {
@@ -1512,7 +1513,7 @@ Rectangle {
         width: Math.min(page.width - 80, 760)
         height: Math.min(page.height - 60, 680)
         modal: true
-        title: "Preparar un evento con el asistente"
+        title: qsTr("Preparar un evento con el asistente")
         onAboutToShow: {
             elegido = ""; plantillaElegida = ""; notasEvt.text = ""
             tipos = (Studio.configuraciones ? Studio.configuraciones.plantillasUi() : []).filter(p => p.escenario !== "")
@@ -1522,9 +1523,9 @@ Rectangle {
             spacing: 8
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                text: "¿Qué tipo de evento es? El asistente sigue la guía de ese tipo: te pregunta lo que hace falta " +
+                text: qsTr("¿Qué tipo de evento es? El asistente sigue la guía de ese tipo: te pregunta lo que hace falta " +
                       "(gente, invitados, registro, documentos, gráficos, teleprompter, música, logos, traducción, pantallas), " +
-                      "lo arma desde cero, prueba la conexión y la cámara antes de invitar, te sugiere el ensayo y te pasa los enlaces."
+                      "lo arma desde cero, prueba la conexión y la cámara antes de invitar, te sugiere el ensayo y te pasa los enlaces.")
             }
             GridView {
                 id: gridEsc
@@ -1567,20 +1568,20 @@ Rectangle {
                     }
                 }
             }
-            Text { text: "Lo que ya sabés (opcional): fecha, cuántos son, quién habla…"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Lo que ya sabés (opcional): fecha, cuántos son, quién habla…"); color: Theme.textDim; font.pixelSize: 11 }
             TextArea {
                 id: notasEvt
                 Layout.fillWidth: true
                 Layout.preferredHeight: 60
                 wrapMode: TextEdit.Wrap
                 color: Theme.text
-                placeholderText: "Clase de historia el jueves 16 a las 16, 60 minutos, 30 alumnos (la mitad remotos)…"
+                placeholderText: qsTr("Clase de historia el jueves 16 a las 16, 60 minutos, 30 alumnos (la mitad remotos)…")
             }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: asistenteEvtDlg.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: asistenteEvtDlg.close() }
                 GlassButton {
-                    compact: true; active: true; text: "Empezar con el asistente"
+                    compact: true; active: true; text: qsTr("Empezar con el asistente")
                     enabled: asistenteEvtDlg.elegido !== ""
                     onClicked: {
                         Studio.agent.encargar(page.ev.pedidoDeEscenario(asistenteEvtDlg.elegido, notasEvt.text, asistenteEvtDlg.plantillaElegida))
@@ -1598,39 +1599,39 @@ Rectangle {
         anchors.centerIn: parent
         width: 500
         modal: true
-        title: "Abrir otro evento"
+        title: qsTr("Abrir otro evento")
         ColumnLayout {
             width: abrirEventoDlg.availableWidth
             spacing: 6
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                   text: "Cada evento tiene sus escenas, mezclador, medios, asamblea y web. Abrir otro reinicia la app." }
+                   text: qsTr("Cada evento tiene sus escenas, mezclador, medios, asamblea y web. Abrir otro reinicia la app.") }
             Repeater {
                 model: abrirEventoDlg.cf ? abrirEventoDlg.cf.lista : []
                 delegate: RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 13
-                           text: modelData.nombre + (modelData.activa ? "  ● abierto" : "") + (modelData.plantilla ? "  (plantilla)" : "") }
+                           text: modelData.nombre + (modelData.activa ? qsTr("  ● abierto") : "") + (modelData.plantilla ? qsTr("  (plantilla)") : "") }
                     Text { color: Theme.textFaint; font.pixelSize: 11
-                           text: modelData.midiendo ? "midiendo…" : page.bytesLegibles(modelData.bytes) }
+                           text: modelData.midiendo ? qsTr("midiendo…") : page.bytesLegibles(modelData.bytes) }
                     GlassButton {
-                        compact: true; text: "Abrir"; visible: !modelData.activa
+                        compact: true; text: qsTr("Abrir"); visible: !modelData.activa
                         enabled: !(Studio.streaming || Studio.recording)
                         onClicked: {
                             const n = modelData.nombre
                             abrirEventoDlg.close()
                             ApplicationWindow.window.confirm({
-                                title: "¿Abrir «" + n + "»?",
-                                text: "La app se reinicia con ese evento (sus escenas, mezclador, medios y asamblea).",
-                                accept: "Abrir", reject: "Cancelar",
+                                title: qsTr("¿Abrir «%1»?").arg(n),
+                                text: qsTr("La app se reinicia con ese evento (sus escenas, mezclador, medios y asamblea)."),
+                                accept: qsTr("Abrir"), reject: qsTr("Cancelar"),
                                 action: function() { const e = abrirEventoDlg.cf.cambiarUi(n); if (e !== "") Studio.notify(e, "error") } })
                         }
                     }
                 }
             }
             Text { visible: (Studio.streaming || Studio.recording); color: Theme.amber; font.pixelSize: 12
-                   text: "Hay una transmisión o una grabación en curso: terminala para abrir otro evento." }
-            RowLayout { Item { Layout.fillWidth: true } GlassButton { compact: true; text: "Cerrar"; onClicked: abrirEventoDlg.close() } }
+                   text: qsTr("Hay una transmisión o una grabación en curso: terminala para abrir otro evento.") }
+            RowLayout { Item { Layout.fillWidth: true } GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: abrirEventoDlg.close() } }
         }
     }
 
@@ -1640,7 +1641,7 @@ Rectangle {
         anchors.centerIn: parent
         width: 420
         modal: true
-        title: "Llevar a otra carpeta"
+        title: qsTr("Llevar a otra carpeta")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: {
             const c = page.ev.abierto
@@ -1654,8 +1655,8 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Las carpetas ordenan el histórico como quieras («2026/Octubre», «Consejo/Ordinarias»). " +
-                      "Vacío es la raíz de Eventos/. Mover no cambia nada del evento."
+                text: qsTr("Las carpetas ordenan el histórico como quieras («2026/Octubre», «Consejo/Ordinarias»). " +
+                      "Vacío es la raíz de Eventos/. Mover no cambia nada del evento.")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -1677,7 +1678,7 @@ Rectangle {
         anchors.centerIn: parent
         width: 460
         modal: true
-        title: "¿Qué pasa en este cue?"
+        title: qsTr("¿Qué pasa en este cue?")
         standardButtons: Dialog.Cancel
         property int bloque: -1
         function abrir(b) { bloque = b; open() }

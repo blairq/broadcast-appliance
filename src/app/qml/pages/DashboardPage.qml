@@ -71,13 +71,13 @@ Item {
         ColumnLayout {
             spacing: 0
             Text { text: "Broadcast Appliance"; color: Theme.text; font { family: Theme.font; pixelSize: 20; weight: Font.DemiBold } }
-            Text { text: "Escena: " + Studio.currentScene + "   ·   " + Studio.canvasLabel; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("Escena: %1   ·   %2").arg(Studio.currentScene).arg(Studio.canvasLabel); color: Theme.textDim; font.pixelSize: 12 }
         }
         Item { Layout.fillWidth: true }
         // Al aire = sale algo (Studio.alAire), igual que el cartel de arriba de las otras páginas.
-        StatusPill { text: Studio.reconnecting ? "RECONECTANDO"
-                           : Studio.transmitiendo ? "AL AIRE" + (Studio.streaming ? "  " + Studio.streamTime : "")
-                           : Studio.alAire ? "AL AIRE · GRABANDO" : "FUERA DEL AIRE"
+        StatusPill { text: Studio.reconnecting ? qsTr("RECONECTANDO")
+                           : Studio.transmitiendo ? (Studio.streaming ? qsTr("AL AIRE  %1").arg(Studio.streamTime) : qsTr("AL AIRE"))
+                           : Studio.alAire ? qsTr("AL AIRE · GRABANDO") : qsTr("FUERA DEL AIRE")
                      dot: Studio.reconnecting ? Theme.amber : Theme.live; on: Studio.alAire || Studio.reconnecting; pulse: true }
         StatusPill { text: Studio.recording ? "REC  " + Studio.recordTime : "REC"; dot: Theme.accent; on: Studio.recording; pulse: true }
         // Se mide por «CPU 100%» y no por su propio texto: si no, al pasar de
@@ -93,7 +93,7 @@ Item {
         PastillaIA {}
         Item { width: 8 }
         GlassButton {
-            text: "Tarjeta"; icon: "+"
+            text: qsTr("Tarjeta"); icon: "+"
             onClicked: addMenu.popup()
             Menu {
                 id: addMenu
@@ -126,14 +126,14 @@ Item {
             }
         }
         GlassButton {
-            text: "Sacar a ventana"; icon: "⧉"
+            text: qsTr("Sacar a ventana"); icon: "⧉"
             onClicked: Studio.ventanas.abrir(["fondo"], "")
-            ToolTip.visible: hovered_; ToolTip.text: "Abre el video de fondo en una ventana aparte (sin cortes), p. ej. para otro monitor"
+            ToolTip.visible: hovered_; ToolTip.text: qsTr("Abre el video de fondo en una ventana aparte (sin cortes), p. ej. para otro monitor")
             property bool hovered_: false
             HoverHandler { onHoveredChanged: parent.hovered_ = hovered }
         }
         GlassButton {
-            text: "Fondo"; icon: "◐"
+            text: qsTr("Fondo"); icon: "◐"
             onClicked: bgMenu.popup()
             Menu {
                 id: bgMenu
@@ -152,7 +152,7 @@ Item {
                     }
                 }
                 MenuSeparator { visible: Studio.multiviews.length > 0 }
-                MenuItem { id: tituloFuentes; text: "Fuentes"; enabled: false; height: implicitHeight }
+                MenuItem { id: tituloFuentes; text: qsTr("Fuentes"); enabled: false; height: implicitHeight }
                 ItemsDeMenu {
                     menu: bgMenu
                     despuesDe: tituloFuentes
@@ -179,8 +179,8 @@ Item {
                 ItemsDeMenu {
                     menu: bgMenu
                     despuesDe: sepDistribucion
-                    model: [ { id: "grid", t: "Distribucion: cuadricula" }, { id: "focus", t: "Distribucion: foco" },
-                             { id: "pip", t: "Distribucion: imagen en imagen" }, { id: "row", t: "Distribucion: fila" } ]
+                    model: [ { id: "grid", t: qsTr("Distribucion: cuadricula") }, { id: "focus", t: qsTr("Distribucion: foco") },
+                             { id: "pip", t: qsTr("Distribucion: imagen en imagen") }, { id: "row", t: qsTr("Distribucion: fila") } ]
                     delegate: MenuItem {
                         required property var modelData
                         text: modelData.t; checkable: true
@@ -190,18 +190,18 @@ Item {
                     }
                 }
                 MenuSeparator {}
-                MenuItem { text: "Sacar a una ventana"; onTriggered: Studio.ventanas.abrir(["fondo"], "") }
+                MenuItem { text: qsTr("Sacar a una ventana"); onTriggered: Studio.ventanas.abrir(["fondo"], "") }
                 MenuSeparator {}
-                MenuItem { text: "Mas oscuro"; onTriggered: Studio.dashboard.backgroundDim += 0.1 }
-                MenuItem { text: "Mas claro"; onTriggered: Studio.dashboard.backgroundDim -= 0.1 }
+                MenuItem { text: qsTr("Mas oscuro"); onTriggered: Studio.dashboard.backgroundDim += 0.1 }
+                MenuItem { text: qsTr("Mas claro"); onTriggered: Studio.dashboard.backgroundDim -= 0.1 }
                 MenuSeparator {}
                 MenuItem {
-                    text: "Restablecer disposicion"
+                    text: qsTr("Restablecer disposicion")
                     onTriggered: ApplicationWindow.window.confirm({
-                        title: "¿Restablecer la disposición del tablero?",
-                        text: "Se pierden las tarjetas que agregaste, cómo las acomodaste y el fondo que elegiste: el tablero vuelve a como vino de fábrica.",
-                        accept: "Restablecer",
-                        reject: "Cancelar",
+                        title: qsTr("¿Restablecer la disposición del tablero?"),
+                        text: qsTr("Se pierden las tarjetas que agregaste, cómo las acomodaste y el fondo que elegiste: el tablero vuelve a como vino de fábrica."),
+                        accept: qsTr("Restablecer"),
+                        reject: qsTr("Cancelar"),
                         action: function() { Studio.dashboard.resetLayout() }
                     })
                 }
@@ -333,17 +333,15 @@ Item {
                     color: Theme.textDim
                     font.pixelSize: 11
                     text: {
-                        if (!content.esExt) return "Esta tarjeta no se pudo cargar."
+                        if (!content.esExt) return qsTr("Esta tarjeta no se pudo cargar.")
                         const f = Studio.extensiones ? Studio.extensiones.ficha(content.extId) : null
-                        if (!f || !f.id) return "La extensión «" + content.extId + "» ya no está."
+                        if (!f || !f.id) return qsTr("La extensión «%1» ya no está.").arg(content.extId)
                         const vivo = Studio.extensiones.motivoNoCarga(content.extId)
-                        if (vivo !== "") return "«" + f.nombre + "»: " + vivo
+                        if (vivo !== "") return qsTr("«%1»: %2").arg(f.nombre).arg(vivo)
                         if (f.apagada)
-                            return "«" + f.nombre + "» está apagada: se llevó puesto el arranque.\n" +
-                                   "Se prende desde el Registro."
-                        if (f.problema) return "«" + f.nombre + "»: " + f.problema
-                        return "«" + f.nombre + "» tiene un error de QML. Mirá el Registro, que trae " +
-                               "el archivo y la línea."
+                            return qsTr("«%1» está apagada: se llevó puesto el arranque.\nSe prende desde el Registro.").arg(f.nombre)
+                        if (f.problema) return qsTr("«%1»: %2").arg(f.nombre).arg(f.problema)
+                        return qsTr("«%1» tiene un error de QML. Mirá el Registro, que trae el archivo y la línea.").arg(f.nombre)
                     }
                 }
                 Binding { target: content.item; property: "cardId"; value: card.cardId; when: content.status === Loader.Ready && (card.kind === "monitor" || card.kind === "ptz") }

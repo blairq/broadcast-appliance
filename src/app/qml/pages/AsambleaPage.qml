@@ -31,16 +31,16 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 2
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text
-                       text: "Asamblea" + (Studio.cuerpo.nombre ? " · " + Studio.cuerpo.nombre : "")
+                       text: Studio.cuerpo.nombre ? qsTr("Asamblea · %1").arg(Studio.cuerpo.nombre) : qsTr("Asamblea")
                        font { pixelSize: 20; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 12
-                       text: "La sesión del cuerpo: micrófonos de la sala, bancas, orden del día, votaciones, los que entran desde afuera y los debates." }
+                       text: qsTr("La sesión del cuerpo: micrófonos de la sala, bancas, orden del día, votaciones, los que entran desde afuera y los debates.") }
             }
-            GlassButton { text: "Integrantes (" + Studio.cuerpo.integrantes.length + ")…"
+            GlassButton { text: qsTr("Integrantes (%1)…").arg(Studio.cuerpo.integrantes.length)
                           active: Studio.cuerpo.integrantes.length === 0
                           onClicked: cuerpo.open()
                           ToolTip.visible: hovered; ToolTip.delay: 400
-                          ToolTip.text: "Quién se sienta en cada banca: nombre, bloque, foto, cámara y unidad de la central" }
+                          ToolTip.text: qsTr("Quién se sienta en cada banca: nombre, bloque, foto, cámara y unidad de la central") }
         }
         // De un vistazo cómo está la sesión; cada pastilla lleva a su pestaña.
         Flow {
@@ -75,37 +75,41 @@ Rectangle {
                 pestana: 0
                 punto: parent.dcn && parent.dcn.conectada ? Theme.ok : Theme.live
                 texto: parent.dcn && parent.dcn.conectada
-                       ? "Central: " + (parent.de.abiertos || []).length + " micrófono" + ((parent.de.abiertos || []).length === 1 ? "" : "s") + " abierto"
-                         + ((parent.de.abiertos || []).length === 1 ? "" : "s") + ((parent.de.pedidos || []).length ? " · " + parent.de.pedidos.length + " pidieron la palabra" : "")
-                       : "Central sin conectar"
+                       ? ((parent.de.pedidos || []).length
+                          ? qsTr("Central: %1 · %2", "micrófonos abiertos · pedidos de palabra")
+                                .arg(qsTr("%n micrófono abierto", "", (parent.de.abiertos || []).length))
+                                .arg(qsTr("%n pidió la palabra", "", parent.de.pedidos.length))
+                          : qsTr("Central: %1").arg(qsTr("%n micrófono abierto", "", (parent.de.abiertos || []).length)))
+                       : qsTr("Central sin conectar")
             }
             Pastilla {
                 pestana: 1
                 punto: Studio.cuerpo.integrantes.length > 0 ? Theme.ok : Theme.amber
                 texto: Studio.cuerpo.integrantes.length > 0
-                       ? Studio.cuerpo.integrantes.length + " integrante" + (Studio.cuerpo.integrantes.length === 1 ? "" : "s")
-                         + " · " + ((Studio.cuerpo.recinto.bancas || []).length) + " bancas"
-                       : "Sin integrantes cargados"
+                       ? qsTr("%1 · %2").arg(qsTr("%n integrante", "", Studio.cuerpo.integrantes.length))
+                                        .arg(qsTr("%n banca", "", (Studio.cuerpo.recinto.bancas || []).length))
+                       : qsTr("Sin integrantes cargados")
             }
             Pastilla {
                 pestana: 2
                 punto: parent.od.actual && parent.od.actual.n ? Theme.live : parent.od.puntos.length > 0 ? Theme.ok : Theme.textFaint
-                texto: parent.od.actual && parent.od.actual.n ? "En tratamiento: punto " + parent.od.actual.n
-                       : parent.od.puntos.length > 0 ? parent.od.puntos.length + " puntos en el orden del día" : "Sin orden del día"
+                texto: parent.od.actual && parent.od.actual.n ? qsTr("En tratamiento: punto %1").arg(parent.od.actual.n)
+                       : parent.od.puntos.length > 0 ? qsTr("%n punto en el orden del día", "", parent.od.puntos.length) : qsTr("Sin orden del día")
             }
             Pastilla {
                 pestana: 4
                 punto: parent.sr && parent.sr.conectados > 0 ? Theme.ok : Theme.textFaint
                 texto: parent.sr && parent.sr.conectados > 0
-                       ? parent.sr.presentes + " remoto" + (parent.sr.presentes === 1 ? "" : "s") + " presente" + (parent.sr.presentes === 1 ? "" : "s")
-                         + " de " + parent.sr.conectados + " conectado" + (parent.sr.conectados === 1 ? "" : "s")
-                       : "Nadie conectado desde afuera"
+                       ? qsTr("%1 de %2", "remotos presentes de conectados")
+                             .arg(qsTr("%n remoto presente", "", parent.sr.presentes))
+                             .arg(qsTr("%n conectado", "", parent.sr.conectados))
+                       : qsTr("Nadie conectado desde afuera")
             }
             Pastilla {
                 pestana: 5
                 visible: !!(Studio.debate && Studio.debate.estado.activo)
                 punto: Theme.live
-                texto: "Debate en curso"
+                texto: qsTr("Debate en curso")
             }
             // Las grillas de personas (si hay): cuántos integrantes se ven; abre quién está en cada una.
             Pastilla {
@@ -118,20 +122,20 @@ Rectangle {
                 pestana: -1
                 visible: gs.length > 0
                 punto: gs.some(g => g.al_aire) ? Theme.live : Theme.ok
-                texto: "Grillas: " + integrantes + " integrante" + (integrantes === 1 ? "" : "s") + " en " + gs.length
-                       + " grilla" + (gs.length === 1 ? "" : "s")
+                texto: qsTr("Grillas: %1 en %2").arg(qsTr("%n integrante", "", integrantes))
+                                                 .arg(qsTr("%n grilla", "", gs.length))
                 onTocada: grillasDlg.open()
             }
         }
         TabBar {
             id: tabs
             Layout.fillWidth: true
-            TabButton { text: "Conferencia" }
-            TabButton { text: "Recinto" }
-            TabButton { text: "Orden del día" }
-            TabButton { text: "Votación" }
-            TabButton { text: "Conexiones remotas" + (Studio.sesionRemota && Studio.sesionRemota.conectados > 0 ? " (" + Studio.sesionRemota.conectados + ")" : "") }
-            TabButton { text: "Debate" + (Studio.debate && Studio.debate.estado.activo ? " ●" : "") }
+            TabButton { text: qsTr("Conferencia") }
+            TabButton { text: qsTr("Recinto") }
+            TabButton { text: qsTr("Orden del día") }
+            TabButton { text: qsTr("Votación") }
+            TabButton { text: Studio.sesionRemota && Studio.sesionRemota.conectados > 0 ? qsTr("Conexiones remotas (%1)").arg(Studio.sesionRemota.conectados) : qsTr("Conexiones remotas") }
+            TabButton { text: qsTr("Debate") + (Studio.debate && Studio.debate.estado.activo ? " ●" : "") }
         }
         StackLayout {
             Layout.fillWidth: true
@@ -174,7 +178,7 @@ Rectangle {
     // Quién está en cada grilla de personas (integrantes y gente de la sala), con fijar/sacar/mover.
     Dialog {
         id: grillasDlg
-        title: "Grillas de personas"
+        title: qsTr("Grillas de personas")
         anchors.centerIn: parent
         modal: true
         width: Math.min(page.width - 80, 560)

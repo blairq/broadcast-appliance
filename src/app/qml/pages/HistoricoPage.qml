@@ -35,7 +35,7 @@ Rectangle {
         return b + " B"
     }
     function colorEstado(e) { return e === "en_curso" ? Theme.live : e === "terminado" ? Theme.ok : Theme.textFaint }
-    function textoEstado(e) { return e === "en_curso" ? "EN CURSO" : e === "terminado" ? "terminado" : "planificado" }
+    function textoEstado(e) { return e === "en_curso" ? qsTr("EN CURSO") : e === "terminado" ? qsTr("terminado") : qsTr("planificado") }
     function colorTipo(t) {
         return ({ bus: "#5aa9ff", mcp: "#b48cff", botonera: "#ffb02e", guion: "#35c46b",
                   aviso: "#ff6a6a", evento: Theme.accent, config: "#4dd0c8" })[t] || Theme.textDim
@@ -67,14 +67,14 @@ Rectangle {
         function onCambio() { page.version++ }
         function onResultados(texto, l) { resultados.lista = l; resultados.texto = texto; resultados.open() }
         function onVerificado(carpeta, r) {
-            if (r.ok) page.toast("«" + carpeta + "»: intacto (" + r.archivos + " archivos sellados)", "ok")
+            if (r.ok) page.toast(qsTr("«%1»: intacto (%n archivo sellado)", "", r.archivos).arg(carpeta), "ok")
             else if (r.error) page.toast(r.error, "warn")
-            else page.toast("«" + carpeta + "»: " + (r.cambiados.length) + " cambiados, " + r.faltan.length + " faltan, "
-                            + r.nuevos.length + " nuevos" + (r.aviso ? " — " + r.aviso : ""), r.aviso ? "info" : "warn")
+            else page.toast(qsTr("«%1»: %2 cambiados, %3 faltan, %4 nuevos").arg(carpeta).arg(r.cambiados.length).arg(r.faltan.length)
+                            .arg(r.nuevos.length) + (r.aviso ? " — " + r.aviso : ""), r.aviso ? "info" : "warn")
         }
         function onExportado(carpeta, error, copia) {
-            if (error) page.toast("No se pudo exportar: " + error, "error")
-            else page.toast("Exportado en " + copia, "ok")
+            if (error) page.toast(qsTr("No se pudo exportar: %1").arg(error), "error")
+            else page.toast(qsTr("Exportado en %1").arg(copia), "ok")
         }
     }
 
@@ -86,20 +86,20 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Histórico"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
-            Text { text: page.lista.length + " eventos"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Histórico"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("%n evento", "", page.lista.length); color: Theme.textDim; font.pixelSize: 11 }
             Item { Layout.fillWidth: true }
             TextField {
                 id: buscarTodo
                 Layout.preferredWidth: 320
-                placeholderText: "Buscar en todos los eventos (bitácora, transcripciones, actas…)"
+                placeholderText: qsTr("Buscar en todos los eventos (bitácora, transcripciones, actas…)")
                 color: Theme.text
                 font.pixelSize: 12
                 onAccepted: if (text.trim().length >= 2) page.h.buscar(text.trim())
             }
             BusyIndicator { running: !!page.h && page.h.buscando; visible: running; implicitWidth: 22; implicitHeight: 22 }
-            GlassButton { compact: true; text: "Carpeta Eventos"; onClicked: page.h.abrirCarpeta("") }
-            GlassButton { compact: true; text: "Qué se registra…"; onClicked: ajustes.open() }
+            GlassButton { compact: true; text: qsTr("Carpeta Eventos"); onClicked: page.h.abrirCarpeta("") }
+            GlassButton { compact: true; text: qsTr("Qué se registra…"); onClicked: ajustes.open() }
         }
 
         // Una configuración preparada para el próximo arranque.
@@ -117,11 +117,11 @@ Rectangle {
                     elide: Text.ElideRight
                     color: Theme.text; font.pixelSize: 12
                     text: page.h && page.h.restauracion && page.h.restauracion.desde
-                          ? "Al próximo arranque se vuelve a la configuración de «" + page.h.restauracion.desde + "» ("
-                            + (page.h.restauracion.archivos || []).length + " archivos). Lo de ahora queda respaldado."
+                          ? qsTr("Al próximo arranque se vuelve a la configuración de «%1» (%n archivo). Lo de ahora queda respaldado.", "",
+                                 (page.h.restauracion.archivos || []).length).arg(page.h.restauracion.desde)
                           : ""
                 }
-                GlassButton { compact: true; text: "Descartar"; onClicked: page.h.cancelarRestauracion() }
+                GlassButton { compact: true; text: qsTr("Descartar"); onClicked: page.h.cancelarRestauracion() }
             }
         }
 
@@ -140,7 +140,7 @@ Rectangle {
                     spacing: 4
                     // Los eventos guardados (cada uno con todo lo suyo) y cuánto ocupa cada uno;
                     // debajo del abierto, sus subcarpetas (jornadas por año y mes).
-                    Text { text: "Eventos"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Eventos"); color: Theme.textDim; font.pixelSize: 11 }
                     ListView {
                         id: listaEventos
                         Layout.fillWidth: true
@@ -149,7 +149,7 @@ Rectangle {
                         readonly property var cf: Studio.configuraciones
                         readonly property string abierto: cf ? cf.activa : ""
                         model: {
-                            const l = [{ grupo: "", texto: "Todos", nivel: 0 }]
+                            const l = [{ grupo: "", texto: qsTr("Todos"), nivel: 0 }]
                             for (const e of (cf ? cf.lista : [])) {
                                 l.push({ grupo: "@" + e.nombre, texto: e.nombre, nivel: 0, ev: e })
                                 if (e.activa)
@@ -178,19 +178,20 @@ Rectangle {
                                     visible: !!modelData.ev
                                     width: parent.width; elide: Text.ElideRight
                                     color: Theme.textFaint; font.pixelSize: 10
-                                    text: !modelData.ev ? "" : modelData.ev.midiendo ? "midiendo…"
-                                          : page.bytes(modelData.ev.bytes) + (modelData.ev.bytes_grabaciones > 0
-                                                ? " · " + page.bytes(modelData.ev.bytes_grabaciones) + " de grabaciones" : "")
+                                    text: !modelData.ev ? "" : modelData.ev.midiendo ? qsTr("midiendo…")
+                                          : modelData.ev.bytes_grabaciones > 0
+                                                ? qsTr("%1 · %2 de grabaciones").arg(page.bytes(modelData.ev.bytes)).arg(page.bytes(modelData.ev.bytes_grabaciones))
+                                                : page.bytes(modelData.ev.bytes)
                                 }
                             }
                             MouseArea { anchors.fill: parent; onClicked: page.grupo = modelData.grupo }
                             ToolTip.visible: hov.hovered && !!modelData.ev; ToolTip.delay: 500
-                            ToolTip.text: modelData.ev ? "«" + modelData.ev.nombre + "»: todo lo suyo (escenas, medios, grabaciones…) ocupa " +
-                                                         page.bytes(modelData.ev.bytes) : ""
+                            ToolTip.text: modelData.ev ? qsTr("«%1»: todo lo suyo (escenas, medios, grabaciones…) ocupa %2")
+                                                         .arg(modelData.ev.nombre).arg(page.bytes(modelData.ev.bytes)) : ""
                             HoverHandler { id: hov }
                         }
                     }
-                    GlassButton { compact: true; text: "Volver a medir"; Layout.fillWidth: true
+                    GlassButton { compact: true; text: qsTr("Volver a medir"); Layout.fillWidth: true
                                   onClicked: if (listaEventos.cf) listaEventos.cf.medir() }
                 }
             }
@@ -206,7 +207,7 @@ Rectangle {
                     TextField {
                         id: filtro
                         Layout.fillWidth: true
-                        placeholderText: "Filtrar por nombre…"
+                        placeholderText: qsTr("Filtrar por nombre…")
                         color: Theme.text; font.pixelSize: 12
                     }
                     ListView {
@@ -240,12 +241,12 @@ Rectangle {
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
                                     color: Theme.textDim; font.pixelSize: 11
-                                    text: (modelData.desde || modelData.fecha || "sin fecha")
-                                          + (modelData.duracionMin ? " · " + Math.floor(modelData.duracionMin / 60) + " h " + (modelData.duracionMin % 60) + " min" : "")
+                                    text: (modelData.desde || modelData.fecha || qsTr("sin fecha"))
+                                          + (modelData.duracionMin ? qsTr(" · %1 h %2 min").arg(Math.floor(modelData.duracionMin / 60)).arg(modelData.duracionMin % 60) : "")
                                           + (modelData.resumen && modelData.resumen.grabaciones ? " · ⏺ " + modelData.resumen.grabaciones : "")
                                           + (modelData.resumen && modelData.resumen.transmisiones ? " · 📡 " + modelData.resumen.transmisiones : "")
-                                          + (modelData.resumen && modelData.resumen.sellado ? " · sellado ✓" : "")
-                                          + (modelData.resumen && modelData.resumen.acta ? " · acta" : "")
+                                          + (modelData.resumen && modelData.resumen.sellado ? qsTr(" · sellado ✓") : "")
+                                          + (modelData.resumen && modelData.resumen.acta ? qsTr(" · acta") : "")
                                           + (modelData.resumen ? " · " + page.bytes((modelData.resumen.bytes || 0) + (modelData.resumen.bytes_grabaciones || 0)) : "")
                                 }
                             }
@@ -254,7 +255,7 @@ Rectangle {
                         Text {
                             anchors.centerIn: parent
                             visible: page.lista.length === 0
-                            text: "No hay eventos acá"
+                            text: qsTr("No hay eventos acá")
                             color: Theme.textFaint
                         }
                     }
@@ -269,7 +270,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     visible: !page.sel
-                    text: "Elegí un evento a la izquierda"
+                    text: qsTr("Elegí un evento a la izquierda")
                     color: Theme.textFaint
                 }
                 ColumnLayout {
@@ -293,24 +294,24 @@ Rectangle {
                                 elide: Text.ElideRight
                                 color: Theme.textDim; font.pixelSize: 11
                                 text: page.sel + (page.resumen.desde ? " · " + page.resumen.desde : "")
-                                      + (page.resumen.hasta ? " → " + page.resumen.hasta : (page.resumen.enCurso ? " → (en curso)" : ""))
+                                      + (page.resumen.hasta ? " → " + page.resumen.hasta : (page.resumen.enCurso ? qsTr(" → (en curso)") : ""))
                             }
                         }
-                        GlassButton { compact: true; text: "Abrir carpeta"; onClicked: page.h.abrirCarpeta(page.sel) }
+                        GlassButton { compact: true; text: qsTr("Abrir carpeta"); onClicked: page.h.abrirCarpeta(page.sel) }
                         GlassButton {
-                            compact: true; text: "Verificar sellos"
+                            compact: true; text: qsTr("Verificar sellos")
                             enabled: !!page.resumen.sellado
-                            onClicked: { page.toast("Verificando… (con grabaciones grandes tarda)"); page.h.verificar(page.sel) }
+                            onClicked: { page.toast(qsTr("Verificando… (con grabaciones grandes tarda)")); page.h.verificar(page.sel) }
                         }
-                        GlassButton { compact: true; text: "Exportar…"; onClicked: exportar.open() }
+                        GlassButton { compact: true; text: qsTr("Exportar…"); onClicked: exportar.open() }
                     }
                     // Pestañas
                     RowLayout {
                         spacing: 6
                         Repeater {
-                            model: [{ id: "resumen", t: "Resumen" }, { id: "tiempo", t: "Línea de tiempo" },
-                                    { id: "grabaciones", t: "Grabaciones y vivos" }, { id: "config", t: "Configuración" },
-                                    { id: "archivos", t: "Archivos" }]
+                            model: [{ id: "resumen", t: qsTr("Resumen") }, { id: "tiempo", t: qsTr("Línea de tiempo") },
+                                    { id: "grabaciones", t: qsTr("Grabaciones y vivos") }, { id: "config", t: qsTr("Configuración") },
+                                    { id: "archivos", t: qsTr("Archivos") }]
                             delegate: GlassButton {
                                 required property var modelData
                                 compact: true
@@ -338,18 +339,18 @@ Rectangle {
                                     rowSpacing: 6
                                     Repeater {
                                         model: [
-                                            ["Estado", page.textoEstado(page.resumen.estado) + (page.resumen.automatico ? " (jornada automática)" : "")],
-                                            ["Lugar", page.resumen.lugar || "—"],
-                                            ["Etiquetas", (page.resumen.etiquetas || []).join(", ") || "—"],
-                                            ["Grabaciones", page.resumen.grabaciones || 0],
-                                            ["Transmisiones", page.resumen.transmisiones || 0],
-                                            ["Transcripciones", page.resumen.transcripciones || 0],
-                                            ["Configuración", page.resumen.config ? "foto al empezar" + (page.resumen.sellado ? " y al cerrar" : "") : "—"],
-                                            ["Sellado", page.resumen.sellado ? "sí (Verificar sellos)" : (page.resumen.enCurso ? "se sella al terminar" : "no")],
-                                            ["Acta", page.resumen.acta ? "sí" : "no"],
-                                            ["Evento", (page.resumen.evento || "—") + (page.resumen.abierto === false ? " (no es el abierto)" : "")],
-                                            ["Ocupa", page.bytes((page.resumen.bytes || 0) + (page.resumen.bytes_grabaciones || 0)) +
-                                                      (page.resumen.bytes_grabaciones ? " (" + page.bytes(page.resumen.bytes_grabaciones) + " de grabaciones)" : "")]
+                                            [qsTr("Estado"), page.textoEstado(page.resumen.estado) + (page.resumen.automatico ? qsTr(" (jornada automática)") : "")],
+                                            [qsTr("Lugar"), page.resumen.lugar || "—"],
+                                            [qsTr("Etiquetas"), (page.resumen.etiquetas || []).join(", ") || "—"],
+                                            [qsTr("Grabaciones"), page.resumen.grabaciones || 0],
+                                            [qsTr("Transmisiones"), page.resumen.transmisiones || 0],
+                                            [qsTr("Transcripciones"), page.resumen.transcripciones || 0],
+                                            [qsTr("Configuración"), page.resumen.config ? (page.resumen.sellado ? qsTr("foto al empezar y al cerrar") : qsTr("foto al empezar")) : "—"],
+                                            [qsTr("Sellado"), page.resumen.sellado ? qsTr("sí (Verificar sellos)") : (page.resumen.enCurso ? qsTr("se sella al terminar") : qsTr("no"))],
+                                            [qsTr("Acta"), page.resumen.acta ? qsTr("sí") : qsTr("no")],
+                                            [qsTr("Evento"), (page.resumen.evento || "—") + (page.resumen.abierto === false ? qsTr(" (no es el abierto)") : "")],
+                                            [qsTr("Ocupa"), page.bytes((page.resumen.bytes || 0) + (page.resumen.bytes_grabaciones || 0)) +
+                                                      (page.resumen.bytes_grabaciones ? qsTr(" (%1 de grabaciones)").arg(page.bytes(page.resumen.bytes_grabaciones)) : "")]
                                         ]
                                         delegate: RowLayout {
                                             required property var modelData
@@ -361,17 +362,17 @@ Rectangle {
                                 }
                                 Text {
                                     visible: (page.resumen.documentos || []).length > 0
-                                    text: "Acta, informe y capítulos"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6
+                                    text: qsTr("Acta, informe y capítulos"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6
                                 }
                                 Repeater {
                                     model: page.resumen.documentos || []
                                     delegate: RowLayout {
                                         required property var modelData
                                         Text { text: modelData.archivo; color: Theme.text; font.pixelSize: 12 }
-                                        GlassButton { compact: true; text: "Abrir"; onClicked: page.h.abrirArchivo(modelData.ruta) }
+                                        GlassButton { compact: true; text: qsTr("Abrir"); onClicked: page.h.abrirArchivo(modelData.ruta) }
                                     }
                                 }
-                                Text { text: "En la bitácora"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
+                                Text { text: qsTr("En la bitácora"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: 6
@@ -417,7 +418,7 @@ Rectangle {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 4
-                                GlassButton { compact: true; text: "Todo"; active: tiempo.tipos.length === 0; onClicked: tiempo.tipos = [] }
+                                GlassButton { compact: true; text: qsTr("Todo"); active: tiempo.tipos.length === 0; onClicked: tiempo.tipos = [] }
                                 Repeater {
                                     model: ["bus", "mcp", "botonera", "guion", "aviso", "evento", "config"]
                                     delegate: GlassButton {
@@ -438,7 +439,7 @@ Rectangle {
                                 TextField {
                                     id: filtroTiempo
                                     Layout.preferredWidth: 200
-                                    placeholderText: "Buscar…"
+                                    placeholderText: qsTr("Buscar…")
                                     color: Theme.text; font.pixelSize: 12
                                 }
                                 GlassButton { compact: true; text: "↻"; onClicked: page.version++ }
@@ -469,7 +470,7 @@ Rectangle {
                                 Text {
                                     anchors.centerIn: parent
                                     visible: tiempo.lineas.length === 0
-                                    text: "Nada en la bitácora con ese filtro"
+                                    text: qsTr("Nada en la bitácora con ese filtro")
                                     color: Theme.textFaint
                                 }
                             }
@@ -485,20 +486,21 @@ Rectangle {
                                 width: parent.width
                                 spacing: 6
                                 RowLayout {
-                                    Text { text: "Grabaciones"; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
-                                    CheckBox { id: moverlas; text: "moverlas a la carpeta del evento"; font.pixelSize: 11 }
+                                    Text { text: qsTr("Grabaciones"); color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
+                                    CheckBox { id: moverlas; text: qsTr("moverlas a la carpeta del evento"); font.pixelSize: 11 }
                                     GlassButton {
-                                        compact: true; text: "Traer lo del día"
+                                        compact: true; text: qsTr("Traer lo del día")
                                         onClicked: {
                                             const r = page.h.traerDelDia(page.sel, moverlas.checked)
                                             if (r.error) page.toast(r.error, "error")
-                                            else page.toast((r.grabaciones || []).length + " grabaciones y " + (r.transcripciones || []).length
-                                                            + " transcripciones del " + r.desde.split(" ")[0], "ok")
+                                            else page.toast(qsTr("%1 y %2 del %3").arg(qsTr("%n grabación", "", (r.grabaciones || []).length))
+                                                            .arg(qsTr("%n transcripción", "", (r.transcripciones || []).length))
+                                                            .arg(r.desde.split(" ")[0]), "ok")
                                             page.version++
                                         }
                                     }
                                 }
-                                Text { visible: (gv.d.grabaciones || []).length === 0; text: "Ninguna"; color: Theme.textFaint; font.pixelSize: 12 }
+                                Text { visible: (gv.d.grabaciones || []).length === 0; text: qsTr("Ninguna"); color: Theme.textFaint; font.pixelSize: 12 }
                                 Repeater {
                                     model: gv.d.grabaciones || []
                                     delegate: Rectangle {
@@ -520,10 +522,10 @@ Rectangle {
                                                 Text {
                                                     text: modelData.desde + (modelData.duracion_seg !== undefined
                                                           ? " · " + Math.floor(modelData.duracion_seg / 60) + ":" + String(modelData.duracion_seg % 60).padStart(2, "0")
-                                                          : " · grabando") + " · " + page.bytes(modelData.bytes)
+                                                          : qsTr(" · grabando")) + " · " + page.bytes(modelData.bytes)
                                                     color: Theme.textDim; font.pixelSize: 11
                                                 }
-                                                GlassButton { compact: true; text: "Abrir"; enabled: !!modelData.existe; onClicked: page.h.abrirArchivo(modelData.archivo) }
+                                                GlassButton { compact: true; text: qsTr("Abrir"); enabled: !!modelData.existe; onClicked: page.h.abrirArchivo(modelData.archivo) }
                                             }
                                             Text {
                                                 Layout.fillWidth: true
@@ -535,34 +537,34 @@ Rectangle {
                                         }
                                     }
                                 }
-                                Text { text: "Transmisiones"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 8 }
-                                Text { visible: (gv.d.transmisiones || []).length === 0; text: "Ninguna"; color: Theme.textFaint; font.pixelSize: 12 }
+                                Text { text: qsTr("Transmisiones"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 8 }
+                                Text { visible: (gv.d.transmisiones || []).length === 0; text: qsTr("Ninguna"); color: Theme.textFaint; font.pixelSize: 12 }
                                 Repeater {
                                     model: gv.d.transmisiones || []
                                     delegate: RowLayout {
                                         required property var modelData
                                         Layout.fillWidth: true
-                                        Text { text: modelData.plataforma || "transmisión"; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 90 }
+                                        Text { text: modelData.plataforma || qsTr("transmisión"); color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 90 }
                                         Text {
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
-                                            text: (modelData.url || modelData.servidor || "") + "  " + modelData.desde + (modelData.hasta ? " → " + modelData.hasta : " → (al aire)")
-                                                  + (modelData.caidas ? " · " + modelData.caidas + " caídas" : "")
+                                            text: (modelData.url || modelData.servidor || "") + "  " + modelData.desde + (modelData.hasta ? " → " + modelData.hasta : qsTr(" → (al aire)"))
+                                                  + (modelData.caidas ? qsTr(" · %n caída", "", modelData.caidas) : "")
                                             color: Theme.textDim; font.pixelSize: 11
                                         }
-                                        GlassButton { compact: true; text: "Ver"; visible: !!modelData.url; onClicked: Qt.openUrlExternally(modelData.url) }
-                                        GlassButton { compact: true; text: "Estudio"; visible: !!modelData.estudio; onClicked: Qt.openUrlExternally(modelData.estudio) }
+                                        GlassButton { compact: true; text: qsTr("Ver"); visible: !!modelData.url; onClicked: Qt.openUrlExternally(modelData.url) }
+                                        GlassButton { compact: true; text: qsTr("Estudio"); visible: !!modelData.estudio; onClicked: Qt.openUrlExternally(modelData.estudio) }
                                     }
                                 }
-                                Text { text: "Transcripciones"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 8 }
-                                Text { visible: (gv.d.transcripciones || []).length === 0; text: "Ninguna"; color: Theme.textFaint; font.pixelSize: 12 }
+                                Text { text: qsTr("Transcripciones"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 8 }
+                                Text { visible: (gv.d.transcripciones || []).length === 0; text: qsTr("Ninguna"); color: Theme.textFaint; font.pixelSize: 12 }
                                 Repeater {
                                     model: gv.d.transcripciones || []
                                     delegate: RowLayout {
                                         required property var modelData
                                         Text { Layout.fillWidth: true; text: modelData.archivo; color: Theme.text; font.pixelSize: 12 }
                                         Text { text: page.bytes(modelData.bytes); color: Theme.textDim; font.pixelSize: 11 }
-                                        GlassButton { compact: true; text: "Abrir"; onClicked: page.h.abrirArchivo(modelData.ruta) }
+                                        GlassButton { compact: true; text: qsTr("Abrir"); onClicked: page.h.abrirArchivo(modelData.ruta) }
                                     }
                                 }
                             }
@@ -580,7 +582,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 4
                                 Repeater {
-                                    model: [{ id: "inicio", t: "Al empezar" }, { id: "cierre", t: "Al cerrar" }, { id: "ultima", t: "La última" }]
+                                    model: [{ id: "inicio", t: qsTr("Al empezar") }, { id: "cierre", t: qsTr("Al cerrar") }, { id: "ultima", t: qsTr("La última") }]
                                     delegate: GlassButton {
                                         required property var modelData
                                         compact: true
@@ -591,30 +593,31 @@ Rectangle {
                                 }
                                 Item { Layout.fillWidth: true }
                                 GlassButton {
-                                    compact: true; text: "Comparar con ahora"
+                                    compact: true; text: qsTr("Comparar con ahora")
                                     enabled: cfg.archivos.length > 0
                                     onClicked: cfg.cambios = page.h.comparar(page.sel, cfg.foto, "", "actual")
                                 }
                                 GlassButton {
-                                    compact: true; text: "Volver a esta configuración…"
+                                    compact: true; text: qsTr("Volver a esta configuración…")
                                     enabled: cfg.archivos.length > 0
                                     onClicked: ApplicationWindow.window.confirm({
-                                        title: "Volver a la configuración de este evento",
-                                        text: "Se prepara " + (cfg.archivo ? "«" + cfg.archivo + "»" : "toda la configuración (" + cfg.archivos.length + " archivos)")
-                                              + " como estaba " + (cfg.foto === "inicio" ? "al empezar" : cfg.foto === "cierre" ? "al cerrar" : "la última vez")
-                                              + " «" + page.sel + "», y se aplica la próxima vez que arranque la app. Lo de ahora queda respaldado. Las claves no cambian.",
-                                        accept: "Preparar",
-                                        reject: "Cancelar",
+                                        title: qsTr("Volver a la configuración de este evento"),
+                                        text: qsTr("Se prepara %1 como estaba %2 «%3», y se aplica la próxima vez que arranque la app. Lo de ahora queda respaldado. Las claves no cambian.")
+                                              .arg(cfg.archivo ? qsTr("«%1»").arg(cfg.archivo) : qsTr("toda la configuración (%n archivo)", "", cfg.archivos.length))
+                                              .arg(cfg.foto === "inicio" ? qsTr("al empezar") : cfg.foto === "cierre" ? qsTr("al cerrar") : qsTr("la última vez"))
+                                              .arg(page.sel),
+                                        accept: qsTr("Preparar"),
+                                        reject: qsTr("Cancelar"),
                                         action: () => {
                                             const e = page.h.prepararRestauracion(page.sel, cfg.foto, cfg.archivo ? [cfg.archivo] : [])
-                                            page.toast(e ? e : "Listo: se aplica al reiniciar la app", e ? "error" : "ok")
+                                            page.toast(e ? e : qsTr("Listo: se aplica al reiniciar la app"), e ? "error" : "ok")
                                         }
                                     })
                                 }
                             }
                             Text {
                                 visible: cfg.archivos.length === 0
-                                text: "Este evento no tiene esa foto (las fotos empezaron a sacarse con el histórico)."
+                                text: qsTr("Este evento no tiene esa foto (las fotos empezaron a sacarse con el histórico).")
                                 color: Theme.textFaint; font.pixelSize: 12
                             }
                             RowLayout {
@@ -653,11 +656,11 @@ Rectangle {
                                         background: Rectangle { color: Qt.rgba(0, 0, 0, 0.25); radius: 6 }
                                         text: {
                                             if (cfg.cambios !== null) {
-                                                if (cfg.cambios.length === 0) return "Igual que ahora: no cambió nada."
-                                                return cfg.cambios.map(c => c.archivo + " — " + c.que + (c.total ? " (" + c.total + " cambios)" : "")
+                                                if (cfg.cambios.length === 0) return qsTr("Igual que ahora: no cambió nada.")
+                                                return cfg.cambios.map(c => c.archivo + " — " + c.que + (c.total ? qsTr(" (%n cambio)", "", c.total) : "")
                                                     + (c.cambios ? "\n" + c.cambios.map(o => "   " + o.op + " " + o.path + (o.value !== undefined ? " = " + JSON.stringify(o.value) : "")).join("\n") : "")).join("\n\n")
                                             }
-                                            return cfg.archivo ? page.h.contenidoConfig(page.sel, cfg.foto, cfg.archivo) : "Elegí un archivo"
+                                            return cfg.archivo ? page.h.contenidoConfig(page.sel, cfg.foto, cfg.archivo) : qsTr("Elegí un archivo")
                                         }
                                     }
                                 }
@@ -676,7 +679,7 @@ Rectangle {
                                 Text { Layout.fillWidth: true; text: modelData.archivo; elide: Text.ElideMiddle; color: Theme.text; font.pixelSize: 12 }
                                 Text { text: page.bytes(modelData.bytes); color: Theme.textDim; font.pixelSize: 11 }
                                 GlassButton {
-                                    compact: true; text: "Abrir"
+                                    compact: true; text: qsTr("Abrir")
                                     onClicked: page.h.abrirArchivo(page.resumen.ruta + "/" + modelData.archivo)
                                 }
                             }
@@ -703,10 +706,10 @@ Rectangle {
             RowLayout {
                 Text {
                     Layout.fillWidth: true
-                    text: resultados.lista.length + " resultados para «" + resultados.texto + "»"
+                    text: qsTr("%n resultado para «%1»", "", resultados.lista.length).arg(resultados.texto)
                     color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
                 }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: resultados.close() }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: resultados.close() }
             }
             ListView {
                 Layout.fillWidth: true
@@ -726,7 +729,7 @@ Rectangle {
                         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 5 }
                         spacing: 2
                         Text {
-                            text: modelData.evento + " · " + modelData.archivo + (modelData.hora ? " · " + modelData.hora : " · línea " + modelData.linea)
+                            text: modelData.evento + " · " + modelData.archivo + (modelData.hora ? " · " + modelData.hora : qsTr(" · línea %1").arg(modelData.linea))
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         Text {
@@ -769,22 +772,22 @@ Rectangle {
         ColumnLayout {
             anchors { fill: parent; margins: 14 }
             spacing: 10
-            Text { text: "Exportar «" + page.sel + "»"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+            Text { text: qsTr("Exportar «%1»").arg(page.sel); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Se copia la carpeta del evento entera (bitácora, configuración, asamblea, registro, transcripciones) y lo que nombran sus fotos de configuración: se entiende sola en otra máquina."
+                text: qsTr("Se copia la carpeta del evento entera (bitácora, configuración, asamblea, registro, transcripciones) y lo que nombran sus fotos de configuración: se entiende sola en otra máquina.")
                 color: Theme.textDim; font.pixelSize: 12
             }
             TextField { id: destinoExp; Layout.fillWidth: true; color: Theme.text; font.pixelSize: 12 }
-            CheckBox { id: conGrab; checked: true; text: "Con las grabaciones" }
+            CheckBox { id: conGrab; checked: true; text: qsTr("Con las grabaciones") }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { text: "Cancelar"; onClicked: exportar.close() }
+                GlassButton { text: qsTr("Cancelar"); onClicked: exportar.close() }
                 GlassButton {
-                    text: "Exportar"
+                    text: qsTr("Exportar")
                     active: true
-                    onClicked: { page.h.exportar(page.sel, destinoExp.text, conGrab.checked); page.toast("Exportando…"); exportar.close() }
+                    onClicked: { page.h.exportar(page.sel, destinoExp.text, conGrab.checked); page.toast(qsTr("Exportando…")); exportar.close() }
                 }
             }
         }
@@ -811,16 +814,16 @@ Rectangle {
             id: ajustesCol
             width: ajustesScroll.availableWidth
             spacing: 8
-            Text { text: "Qué se registra en cada evento"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+            Text { text: qsTr("Qué se registra en cada evento"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
             Repeater {
                 model: [
-                    { k: "bus", t: "Lo que pasa en el estudio (escena al aire, grabación, transmisión, oradores, votaciones, alarmas)" },
-                    { k: "mcp", t: "Cada herramienta del asistente o del MCP que cambia algo" },
-                    { k: "botonera", t: "Cada botón de la botonera y los aparatos que se conectan" },
-                    { k: "guion", t: "Cada cue del guion (no el ensayo)" },
-                    { k: "aviso", t: "Avisos y errores de cualquier parte" },
-                    { k: "config", t: "Cada cambio de configuración (con lo que cambió)" },
-                    { k: "evento", t: "Cuándo arranca y se cierra la app, cuándo empieza y termina el evento" }
+                    { k: "bus", t: qsTr("Lo que pasa en el estudio (escena al aire, grabación, transmisión, oradores, votaciones, alarmas)") },
+                    { k: "mcp", t: qsTr("Cada herramienta del asistente o del MCP que cambia algo") },
+                    { k: "botonera", t: qsTr("Cada botón de la botonera y los aparatos que se conectan") },
+                    { k: "guion", t: qsTr("Cada cue del guion (no el ensayo)") },
+                    { k: "aviso", t: qsTr("Avisos y errores de cualquier parte") },
+                    { k: "config", t: qsTr("Cada cambio de configuración (con lo que cambió)") },
+                    { k: "evento", t: qsTr("Cuándo arranca y se cierra la app, cuándo empieza y termina el evento") }
                 ]
                 delegate: RowLayout {
                     required property var modelData
@@ -845,11 +848,11 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
-                    text: "Jornada automática: sin un evento elegido, todo va a «Jornada del día» (nada queda sin evento)"
+                    text: qsTr("Jornada automática: sin un evento elegido, todo va a «Jornada del día» (nada queda sin evento)")
                     color: Theme.text; font.pixelSize: 12
                 }
             }
-            Text { text: "Del bus no se anota (se repite muchas veces por segundo):"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
+            Text { text: qsTr("Del bus no se anota (se repite muchas veces por segundo):"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
             TextField {
                 Layout.fillWidth: true
                 color: Theme.text; font.pixelSize: 12
@@ -860,11 +863,11 @@ Rectangle {
                     if (e) page.toast(e, "error")
                 }
             }
-            Text { text: "Disco y retención"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
+            Text { text: qsTr("Disco y retención"); color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
             // Cada ajuste: el texto arriba (se corta en renglones) y el número abajo, así
             // nada se sale del marco por la derecha.
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
-                   text: "Borrar las grabaciones de eventos terminados hace más de" }
+                   text: qsTr("Borrar las grabaciones de eventos terminados hace más de") }
             RowLayout {
                 SpinBox {
                     from: 0; to: 3650
@@ -872,10 +875,10 @@ Rectangle {
                     value: ajustes.a.retencion ? ajustes.a.retencion.grabaciones_dias : 0
                     onValueModified: page.h.guardarAjustes({ retencion: { grabaciones_dias: value } })
                 }
-                Text { text: "días (0 = nunca)"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("días (0 = nunca)"); color: Theme.textDim; font.pixelSize: 12 }
             }
             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
-                   text: "Avisar cuando el disco pase del" }
+                   text: qsTr("Avisar cuando el disco pase del") }
             RowLayout {
                 Layout.fillWidth: true
                 SpinBox {
@@ -887,7 +890,7 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
                     readonly property var d: { page.version; return ajustes.visible ? page.h.discoUi() : ({}) }
-                    text: "% (ahora " + (d.usado_pct || 0) + " %, quedan " + (d.libre_gb || 0) + " GB)"
+                    text: qsTr("% (ahora %1 %, quedan %2 GB)").arg(d.usado_pct || 0).arg(d.libre_gb || 0)
                     color: Theme.textDim; font.pixelSize: 12
                 }
             }
@@ -895,14 +898,14 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: 4
                 GlassButton {
-                    compact: true; text: "¿Qué borraría?"
+                    compact: true; text: qsTr("¿Qué borraría?")
                     onClicked: {
                         const r = page.h.retencionUi(true)
-                        page.toast(r.nota ? r.nota : (r.eventos.length + " eventos, " + Math.round(r.bytes / 1e6) + " MB de grabaciones"), "info")
+                        page.toast(r.nota ? r.nota : qsTr("%n evento, %1 MB de grabaciones", "", r.eventos.length).arg(Math.round(r.bytes / 1e6)), "info")
                     }
                 }
                 Item { Layout.fillWidth: true }
-                GlassButton { text: "Listo"; onClicked: ajustes.close() }
+                GlassButton { text: qsTr("Listo"); onClicked: ajustes.close() }
             }
         }
         }

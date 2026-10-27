@@ -32,10 +32,10 @@ Rectangle {
                                    && principal.paginaAfuera("asistente")
 
     function stateText() {
-        if (ag.running) return "en linea"
-        if (ag.installing) return "instalando"
-        if (!ag.installed) return "sin instalar"
-        return "detenido"
+        if (ag.running) return qsTr("en linea")
+        if (ag.installing) return qsTr("instalando")
+        if (!ag.installed) return qsTr("sin instalar")
+        return qsTr("detenido")
     }
 
     RowLayout {
@@ -80,35 +80,35 @@ Rectangle {
                         Text { text: "✦"; color: Theme.accent; font.pixelSize: 16; Layout.leftMargin: 6 }
                         // Los dos asistentes: el del evento y el de automatización (las alertas).
                         GlassButton {
-                            compact: true; text: "Evento"; active: page.pestana === "evento"
+                            compact: true; text: qsTr("Evento"); active: page.pestana === "evento"
                             onClicked: page.pestana = "evento"
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "El asistente con el que se arma y se trabaja el evento"
+                            ToolTip.text: qsTr("El asistente con el que se arma y se trabaja el evento")
                         }
                         GlassButton {
-                            compact: true; text: "Automatización"; active: page.pestana === "automatizacion"
+                            compact: true; text: qsTr("Automatización"); active: page.pestana === "automatizacion"
                             icon: Studio.agenteAutomatizacion && Studio.agenteAutomatizacion.running ? "●" : ""
                             onClicked: page.pestana = "automatizacion"
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "El asistente que atiende las alertas del sistema (siempre levantado): no interrumpe la charla del evento"
+                            ToolTip.text: qsTr("El asistente que atiende las alertas del sistema (siempre levantado): no interrumpe la charla del evento")
                         }
                         Text {
                             Layout.fillWidth: true
                             Layout.leftMargin: 6
-                            text: (page.cur.agentName || "Asistente") + (ag.model !== "" ? "  ·  " + ag.model : "")
+                            text: (page.cur.agentName || qsTr("Asistente")) + (ag.model !== "" ? "  ·  " + ag.model : "")
                             color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
                             elide: Text.ElideRight
                         }
                         StatusPill { text: page.stateText(); dot: ag.running ? Theme.ok : (ag.installing ? Theme.warn : Theme.textFaint); pulse: ag.running }
                         GlassButton {
                             compact: true; icon: page.enVentana ? "⇲" : "⧉"
-                            text: page.enVentana ? "Volver" : "Sacar a una ventana"
+                            text: page.enVentana ? qsTr("Volver") : qsTr("Sacar a una ventana")
                             visible: !page.afuera
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: page.enVentana ? "Vuelve el asistente a la ventana principal"
-                                                         : "Abre el asistente en su propia ventana (para otro monitor)"
+                            ToolTip.text: page.enVentana ? qsTr("Vuelve el asistente a la ventana principal")
+                                                         : qsTr("Abre el asistente en su propia ventana (para otro monitor)")
                             onClicked: page.enVentana ? Window.window.close()
-                                                      : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), "Asistente")
+                                                      : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), qsTr("Asistente"))
                         }
                     }
                     // --- Nivel 2: la sesión y la terminal ---
@@ -122,27 +122,27 @@ Rectangle {
                             elide: Text.ElideRight
                         }
                         GlassButton { compact: true; text: "A−"; onClicked: ag.setFontSize(ag.fontSize - 1)
-                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Letra más chica" }
+                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Letra más chica") }
                         GlassButton { compact: true; text: "A+"; onClicked: ag.setFontSize(ag.fontSize + 1)
-                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Letra más grande" }
-                        GlassButton { compact: true; visible: term.hasSelection; text: "Copiar"; onClicked: term.copySelection() }
-                        GlassButton { compact: true; visible: ag.running; text: "Pegar"; onClicked: term.pasteClipboard() }
-                        GlassButton { compact: true; visible: ag.running; text: "Reiniciar"; onClicked: ag.restart() }
-                        GlassButton { compact: true; visible: ag.running; text: "Detener"; onClicked: ag.stop() }
+                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Letra más grande") }
+                        GlassButton { compact: true; visible: term.hasSelection; text: qsTr("Copiar"); onClicked: term.copySelection() }
+                        GlassButton { compact: true; visible: ag.running; text: qsTr("Pegar"); onClicked: term.pasteClipboard() }
+                        GlassButton { compact: true; visible: ag.running; text: qsTr("Reiniciar"); onClicked: ag.restart() }
+                        GlassButton { compact: true; visible: ag.running; text: qsTr("Detener"); onClicked: ag.stop() }
                         // Hay una version usable pero el sistema fija otra: se ofrece,
                         // no se obliga (la instalada sigue andando).
                         GlassButton { compact: true; visible: ag.updateAvailable && !ag.installing
-                                      text: "Actualizar a " + (page.cur.version || ""); icon: "⇩"
+                                      text: qsTr("Actualizar a %1").arg(page.cur.version || ""); icon: "⇩"
                                       onClicked: ag.install() }
                         // La ultima que publico el proveedor (con su hash), sin esperar
                         // una version nueva del sistema. Se instala en Agentes/ del bundle.
                         GlassButton { compact: true; visible: ag.installed && !ag.installing && !ag.newerAvailable && !ag.updateAvailable
-                                      text: ag.checkingUpdate ? "Buscando…" : "Buscar actualización"; icon: "↻"
+                                      text: ag.checkingUpdate ? qsTr("Buscando…") : qsTr("Buscar actualización"); icon: "↻"
                                       onClicked: if (!ag.checkingUpdate) ag.checkUpdate() }
                         GlassButton { compact: true; visible: ag.newerAvailable && !ag.installing
-                                      text: "Actualizar a " + ag.latestVersion; icon: "⇩"; active: true
+                                      text: qsTr("Actualizar a %1").arg(ag.latestVersion); icon: "⇩"; active: true
                                       onClicked: ag.installLatest() }
-                        GlassButton { compact: true; visible: !ag.running && ag.installed; text: "Iniciar"; icon: "▶"; active: true
+                        GlassButton { compact: true; visible: !ag.running && ag.installed; text: qsTr("Iniciar"); icon: "▶"; active: true
                                       onClicked: { ag.start(); term.forceActiveFocus() } }
                     }
                 }
@@ -154,9 +154,9 @@ Rectangle {
                 visible: page.afuera
                 z: 5
                 Text { Layout.alignment: Qt.AlignHCenter; text: "⧉"; color: Theme.accent; font.pixelSize: 40 }
-                Text { Layout.alignment: Qt.AlignHCenter; text: "El asistente está en su propia ventana"
+                Text { Layout.alignment: Qt.AlignHCenter; text: qsTr("El asistente está en su propia ventana")
                        color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
-                GlassButton { Layout.alignment: Qt.AlignHCenter; text: "Traer de vuelta"; icon: "⇲"; active: true
+                GlassButton { Layout.alignment: Qt.AlignHCenter; text: qsTr("Traer de vuelta"); icon: "⇲"; active: true
                               onClicked: page.principal.traerPagina("asistente") }
             }
 
@@ -175,17 +175,17 @@ Rectangle {
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
                 visible: !ag.installed && !page.afuera
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 44 }
-                Text { Layout.alignment: Qt.AlignHCenter; text: "Instalar " + (page.cur.agentName || "el agente")
+                Text { Layout.alignment: Qt.AlignHCenter; text: page.cur.agentName ? qsTr("Instalar %1").arg(page.cur.agentName) : qsTr("Instalar el agente")
                        color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                        color: Theme.textDim; font.pixelSize: 13
-                       text: "Se busca la última versión publicada y se descarga, verificada con SHA-256, dentro de la carpeta portable (Agentes/). Si no se puede saber cuál es, la " + (page.cur.version || "") + ". Una sola vez; después funciona igual desde el pendrive." }
+                       text: qsTr("Se busca la última versión publicada y se descarga, verificada con SHA-256, dentro de la carpeta portable (Agentes/). Si no se puede saber cuál es, la %1. Una sola vez; después funciona igual desde el pendrive.").arg(page.cur.version || "") }
                 ProgressBar { Layout.fillWidth: true; visible: ag.installing; from: 0; to: 1; value: ag.installProgress }
                 Text { Layout.alignment: Qt.AlignHCenter; visible: ag.installText !== ""; text: ag.installText; color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    GlassButton { visible: !ag.installing; text: "Instalar"; icon: "⇩"; active: true; onClicked: ag.installNewest() }
-                    GlassButton { visible: ag.installing; text: "Cancelar"; onClicked: ag.cancelInstall() }
+                    GlassButton { visible: !ag.installing; text: qsTr("Instalar"); icon: "⇩"; active: true; onClicked: ag.installNewest() }
+                    GlassButton { visible: ag.installing; text: qsTr("Cancelar"); onClicked: ag.cancelInstall() }
                 }
             }
 
@@ -196,7 +196,7 @@ Rectangle {
                 height: 44; radius: 12
                 color: Qt.rgba(0.96, 0.72, 0.24, 0.16); border.color: Theme.warn
                 Text { anchors.centerIn: parent; color: Theme.text; font.pixelSize: 13
-                       text: "El servidor MCP está apagado: activalo en Configuración → Asistente (MCP) y reiniciá la app." }
+                       text: qsTr("El servidor MCP está apagado: activalo en Configuración → Asistente (MCP) y reiniciá la app.") }
             }
             // Arrancar (instalado y detenido)
             CapaTerminal {
@@ -206,12 +206,12 @@ Rectangle {
                 Text { Layout.alignment: Qt.AlignHCenter; text: page.cur.agentName || ""; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                        color: Theme.textDim; font.pixelSize: 13; text: page.cur.help || "" }
-                GlassButton { Layout.alignment: Qt.AlignHCenter; text: "Iniciar el asistente"; icon: "▶"; active: true
+                GlassButton { Layout.alignment: Qt.AlignHCenter; text: qsTr("Iniciar el asistente"); icon: "▶"; active: true
                               enabled: !page.cur.needsKey || ag.hasKey
                               onClicked: { ag.start(); term.forceActiveFocus() } }
                 Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; visible: page.cur.needsKey && !ag.hasKey
                        color: Theme.warn; font.pixelSize: 12; wrapMode: Text.WordWrap
-                       text: "Falta la clave de API (panel de la derecha)." }
+                       text: qsTr("Falta la clave de API (panel de la derecha).") }
                 // El último error solo si dice algo NUEVO: cuando falta la clave, el
                 // motor devuelve lo mismo que ya está escrito arriba, y el cartel
                 // terminaba repitiendo la misma frase dos veces con otras palabras.
@@ -234,7 +234,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: cfgCol.implicitHeight + 64
-                    title: "Modelo"
+                    title: qsTr("Modelo")
                     ColumnLayout {
                         id: cfgCol
                         anchors.fill: parent
@@ -248,7 +248,7 @@ Rectangle {
                             onActivated: (i) => ag.setProvider(ag.providers[i].id)
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11; text: page.cur.help || "" }
-                        Text { text: "Modelo (vacío = el que elija el agente)"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Modelo (vacío = el que elija el agente)"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             id: modelBox
                             Layout.fillWidth: true
@@ -264,15 +264,15 @@ Rectangle {
                             visible: page.cur.needsKey === true
                             spacing: 6
                             RowLayout {
-                                Text { text: ag.hasKey ? "Clave de API guardada (cifrada)" : "Clave de API"; color: ag.hasKey ? Theme.ok : Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
-                                Text { text: "<a href='" + (page.cur.keyUrl || "") + "'>Conseguir ↗</a>"; textFormat: Text.RichText; linkColor: Theme.accentSoft
+                                Text { text: ag.hasKey ? qsTr("Clave de API guardada (cifrada)") : qsTr("Clave de API"); color: ag.hasKey ? Theme.ok : Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
+                                Text { text: "<a href='" + (page.cur.keyUrl || "") + "'>" + qsTr("Conseguir ↗") + "</a>"; textFormat: Text.RichText; linkColor: Theme.accentSoft
                                        font.pixelSize: 12; onLinkActivated: (l) => Qt.openUrlExternally(l) }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                TextField { id: keyField; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: ag.hasKey ? "•••••• (reemplazar)" : "pegá la clave" }
-                                GlassButton { compact: true; text: "Guardar"; onClicked: { page.keyError = ag.saveKey(keyField.text); if (page.keyError === "") keyField.text = "" } }
-                                GlassButton { compact: true; visible: ag.hasKey; text: "Borrar"; onClicked: ag.clearKey() }
+                                TextField { id: keyField; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: ag.hasKey ? qsTr("•••••• (reemplazar)") : qsTr("pegá la clave") }
+                                GlassButton { compact: true; text: qsTr("Guardar"); onClicked: { page.keyError = ag.saveKey(keyField.text); if (page.keyError === "") keyField.text = "" } }
+                                GlassButton { compact: true; visible: ag.hasKey; text: qsTr("Borrar"); onClicked: ag.clearKey() }
                             }
                             Text { visible: page.keyError !== ""; text: page.keyError; color: Theme.live; font.pixelSize: 11 }
                         }
@@ -299,23 +299,23 @@ Rectangle {
                             Component.onCompleted: recargar()
                             Connections { target: ag; function onConfigChanged() { propio.recargar() } }
 
-                            Text { text: "Tu servidor"; color: Theme.textDim
+                            Text { text: qsTr("Tu servidor"); color: Theme.textDim
                                    font { pixelSize: 12; weight: Font.DemiBold } }
                             TextField { id: urlF; Layout.fillWidth: true
                                         placeholderText: "https://tu-servidor/v1" }
                             RowLayout {
                                 Layout.fillWidth: true
                                 TextField { id: modF; Layout.fillWidth: true
-                                            placeholderText: "modelo (como lo pide tu servidor)" }
+                                            placeholderText: qsTr("modelo (como lo pide tu servidor)") }
                                 TextField { id: nomF; Layout.preferredWidth: 130
-                                            placeholderText: "cómo mostrarlo" }
+                                            placeholderText: qsTr("cómo mostrarlo") }
                             }
                             RowLayout {
                                 Toggle { id: piensaT; onToggled: (w) => checked = w }
-                                Text { text: "Razona antes de contestar"; color: Theme.textDim
+                                Text { text: qsTr("Razona antes de contestar"); color: Theme.textDim
                                        font.pixelSize: 12; Layout.fillWidth: true }
                             }
-                            Text { text: "Parámetros extra (JSON, tal cual al servidor)"
+                            Text { text: qsTr("Parámetros extra (JSON, tal cual al servidor)")
                                    color: Theme.textDim; font.pixelSize: 12 }
                             ScrollView {
                                 Layout.fillWidth: true
@@ -324,7 +324,7 @@ Rectangle {
                                 TextArea { id: extraF; wrapMode: TextEdit.NoWrap; selectByMouse: true
                                            font { family: Theme.mono; pixelSize: 11 } }
                             }
-                            Text { text: "Instrucciones para este modelo (se suman al prompt)"
+                            Text { text: qsTr("Instrucciones para este modelo (se suman al prompt)")
                                    color: Theme.textDim; font.pixelSize: 12 }
                             ScrollView {
                                 Layout.fillWidth: true
@@ -336,44 +336,44 @@ Rectangle {
                             RowLayout {
                                 Layout.fillWidth: true
                                 GlassButton {
-                                    compact: true; text: "Guardar"
+                                    compact: true; text: qsTr("Guardar")
                                     onClicked: {
                                         const e = ag.guardarModeloPropio(urlF.text, modF.text, nomF.text,
                                                                          extraF.text, instF.text,
                                                                          piensaT.checked)
                                         Studio.notify(
-                                            e === "" ? "Modelo propio guardado" : e,
+                                            e === "" ? qsTr("Modelo propio guardado") : e,
                                             e === "" ? "ok" : "error")
                                     }
                                 }
                                 GlassButton {
-                                    compact: true; text: "Probar"
+                                    compact: true; text: qsTr("Probar")
                                     // Pregunta a /models: dice si el servidor
                                     // está, si la clave sirve y si ese modelo
                                     // existe, sin gastar un token.
                                     onClicked: ag.probarModeloPropio()
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Le pregunta al servidor si está y si la clave sirve"
+                                    ToolTip.text: qsTr("Le pregunta al servidor si está y si la clave sirve")
                                 }
                                 Item { Layout.fillWidth: true }
-                                Text { text: "Los cambios se aplican al reiniciar el asistente."
+                                Text { text: qsTr("Los cambios se aplican al reiniciar el asistente.")
                                        color: Theme.textFaint; font.pixelSize: 10 }
                             }
                         }
                         RowLayout {
                             Toggle { checked: ag.autoStart; onToggled: (wanted) => ag.setAutoStart(wanted) }
-                            Text { text: "Arrancar solo al abrir la app"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
+                            Text { text: qsTr("Arrancar solo al abrir la app"); color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
                         }
                         RowLayout {
                             visible: page.pestana === "automatizacion" // la charla del evento no recibe avisos
                             Toggle { checked: ag.alertsToChat; onToggled: (wanted) => ag.setAlertsToChat(wanted) }
-                            Text { text: "Avisos de los disparadores al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Text { text: qsTr("Avisos de los disparadores al chat"); color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
-                        GlassButton { compact: true; text: "Carpeta de agentes"; icon: "▸"; onClicked: ag.openAgentsFolder() }
+                        GlassButton { compact: true; text: qsTr("Carpeta de agentes"); icon: "▸"; onClicked: ag.openAgentsFolder() }
                         // Se actualizo desde la pestaña: se puede volver a la que
                         // fija esta version del sistema (la probada con el aparato).
                         GlassButton { compact: true; visible: ag.usingChosenVersion && !ag.installing
-                                      text: "Volver a la versión fijada (" + ag.pinnedVersion + ")"; icon: "↺"
+                                      text: qsTr("Volver a la versión fijada (%1)").arg(ag.pinnedVersion); icon: "↺"
                                       onClicked: ag.revertToPinned() }
                     }
                 }
@@ -384,11 +384,11 @@ Rectangle {
                     id: limpiezaPanel
                     Layout.fillWidth: true
                     Layout.preferredHeight: limpiezaCol.implicitHeight + 64
-                    title: "Limpieza"
+                    title: qsTr("Limpieza")
                     function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB" }
                     function aviso(r, hecho) {
                         if (r.ok === false) ApplicationWindow.window.toast(r.error, "error")
-                        else ApplicationWindow.window.toast(hecho + ": se liberaron " + mb(r.bytes || 0), "ok")
+                        else ApplicationWindow.window.toast(qsTr("%1: se liberaron %2").arg(hecho).arg(mb(r.bytes || 0)), "ok")
                     }
                     Component.onCompleted: ag.revisarLimpieza()
                     onVisibleChanged: if (visible) ag.revisarLimpieza()
@@ -398,10 +398,7 @@ Rectangle {
                         spacing: 8
                         Text {
                             Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
-                            text: "Cada asistente guarda sus conversaciones en su perfil y se van acumulando. Borrarlas no toca " +
-                                  "el login ni los ajustes. Si el asistente no arranca o anda raro, «Reinstalar» vuelve a bajar " +
-                                  "el programa; «Desde cero» borra también el perfil y hay que volver a entrar. Nada de esto se " +
-                                  "puede con el asistente corriendo."
+                            text: qsTr("Cada asistente guarda sus conversaciones en su perfil y se van acumulando. Borrarlas no toca el login ni los ajustes. Si el asistente no arranca o anda raro, «Reinstalar» vuelve a bajar el programa; «Desde cero» borra también el perfil y hay que volver a entrar. Nada de esto se puede con el asistente corriendo.")
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         Repeater {
@@ -412,45 +409,50 @@ Rectangle {
                                 Layout.maximumWidth: limpiezaCol.width
                                 spacing: 4
                                 Text {
-                                    text: modelData.runtime + (modelData.enUso ? "  (el que usa el asistente)" : "")
+                                    text: modelData.enUso ? qsTr("%1  (el que usa el asistente)").arg(modelData.runtime) : modelData.runtime
                                     color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                                 }
                                 Text {
                                     Layout.fillWidth: true; wrapMode: Text.WordWrap
                                     color: Theme.textDim; font.pixelSize: 11
-                                    text: "Programa " + limpiezaPanel.mb(modelData.bytesPrograma) +
-                                          (modelData.versiones.length > 0
-                                           ? " (" + modelData.versiones.map(v => v.version + (v.enUso ? " en uso" : "")).join(", ") + ")" : "") +
-                                          " · chats " + limpiezaPanel.mb(modelData.bytesChats) +
-                                          " · perfil " + limpiezaPanel.mb(modelData.bytesPerfil)
+                                    text: modelData.versiones.length > 0
+                                          ? qsTr("Programa %1 (%2) · chats %3 · perfil %4")
+                                                .arg(limpiezaPanel.mb(modelData.bytesPrograma))
+                                                .arg(modelData.versiones.map(v => v.enUso ? qsTr("%1 en uso").arg(v.version) : v.version).join(", "))
+                                                .arg(limpiezaPanel.mb(modelData.bytesChats))
+                                                .arg(limpiezaPanel.mb(modelData.bytesPerfil))
+                                          : qsTr("Programa %1 · chats %2 · perfil %3")
+                                                .arg(limpiezaPanel.mb(modelData.bytesPrograma))
+                                                .arg(limpiezaPanel.mb(modelData.bytesChats))
+                                                .arg(limpiezaPanel.mb(modelData.bytesPerfil))
                                 }
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: 6
                                     GlassButton {
-                                        compact: true; text: "Borrar chats"
+                                        compact: true; text: qsTr("Borrar chats")
                                         enabled: !ag.running && modelData.bytesChats > 0
                                         onClicked: ApplicationWindow.window.confirm({
-                                            title: "¿Borrar los chats de " + modelData.runtime + "?",
-                                            text: limpiezaPanel.mb(modelData.bytesChats) + " de conversaciones guardadas. El login y los ajustes quedan.",
-                                            accept: "Borrar", reject: "Cancelar",
-                                            action: function() { limpiezaPanel.aviso(ag.borrarChats(modelData.runtime), "Chats borrados") }
+                                            title: qsTr("¿Borrar los chats de %1?").arg(modelData.runtime),
+                                            text: qsTr("%1 de conversaciones guardadas. El login y los ajustes quedan.").arg(limpiezaPanel.mb(modelData.bytesChats)),
+                                            accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
+                                            action: function() { limpiezaPanel.aviso(ag.borrarChats(modelData.runtime), qsTr("Chats borrados")) }
                                         })
                                     }
                                     GlassButton {
-                                        compact: true; text: "Versiones viejas"
+                                        compact: true; text: qsTr("Versiones viejas")
                                         visible: modelData.versiones.filter(v => !v.enUso).length > 0
                                         enabled: !ag.running
-                                        onClicked: limpiezaPanel.aviso(ag.borrarVersionesViejas(modelData.runtime), "Versiones viejas borradas")
+                                        onClicked: limpiezaPanel.aviso(ag.borrarVersionesViejas(modelData.runtime), qsTr("Versiones viejas borradas"))
                                     }
                                     GlassButton {
-                                        compact: true; text: "Reinstalar"
+                                        compact: true; text: qsTr("Reinstalar")
                                         enabled: !ag.running && !ag.installing
                                         onClicked: ApplicationWindow.window.confirm({
-                                            title: "¿Reinstalar " + modelData.runtime + "?",
-                                            text: "Se borra el programa y se vuelve a bajar" +
-                                                  (modelData.enUso ? "." : " cuando se lo elija.") + " El login y los chats quedan.",
-                                            accept: "Reinstalar", reject: "Cancelar",
+                                            title: qsTr("¿Reinstalar %1?").arg(modelData.runtime),
+                                            text: modelData.enUso ? qsTr("Se borra el programa y se vuelve a bajar. El login y los chats quedan.")
+                                                                  : qsTr("Se borra el programa y se vuelve a bajar cuando se lo elija. El login y los chats quedan."),
+                                            accept: qsTr("Reinstalar"), reject: qsTr("Cancelar"),
                                             action: function() {
                                                 const e = ag.reinstalar(modelData.runtime, false)
                                                 if (e !== "") ApplicationWindow.window.toast(e, "error")
@@ -458,13 +460,12 @@ Rectangle {
                                         })
                                     }
                                     GlassButton {
-                                        compact: true; text: "Desde cero"
+                                        compact: true; text: qsTr("Desde cero")
                                         enabled: !ag.running && !ag.installing
                                         onClicked: ApplicationWindow.window.confirm({
-                                            title: "¿Reinstalar " + modelData.runtime + " desde cero?",
-                                            text: "Se borra el programa y el perfil entero: chats, ajustes y el LOGIN (hay que volver a " +
-                                                  "entrar). Las claves de API pegadas quedan.",
-                                            accept: "Borrar todo", reject: "Cancelar",
+                                            title: qsTr("¿Reinstalar %1 desde cero?").arg(modelData.runtime),
+                                            text: qsTr("Se borra el programa y el perfil entero: chats, ajustes y el LOGIN (hay que volver a entrar). Las claves de API pegadas quedan."),
+                                            accept: qsTr("Borrar todo"), reject: qsTr("Cancelar"),
                                             action: function() {
                                                 const e = ag.reinstalar(modelData.runtime, true)
                                                 if (e !== "") ApplicationWindow.window.toast(e, "error")
@@ -477,24 +478,23 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
                             readonly property var esp: ag.limpieza.find(m => m.runtime === "espacios")
-                            text: "Espacios de trabajo de los agentes: " + limpiezaPanel.mb(esp ? esp.bytesChats : 0) +
-                                  " (se rehacen solos al arrancar)"
+                            text: qsTr("Espacios de trabajo de los agentes: %1 (se rehacen solos al arrancar)").arg(limpiezaPanel.mb(esp ? esp.bytesChats : 0))
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                         Flow {
                             Layout.fillWidth: true
                             spacing: 6
                             GlassButton {
-                                compact: true; text: "Borrar todos los chats"
+                                compact: true; text: qsTr("Borrar todos los chats")
                                 enabled: !ag.running
                                 onClicked: ApplicationWindow.window.confirm({
-                                    title: "¿Borrar los chats de todos los asistentes?",
-                                    text: "Las conversaciones guardadas de todos los motores y los espacios de trabajo. Los logins y los ajustes quedan.",
-                                    accept: "Borrar", reject: "Cancelar",
-                                    action: function() { limpiezaPanel.aviso(ag.borrarChats(""), "Chats borrados") }
+                                    title: qsTr("¿Borrar los chats de todos los asistentes?"),
+                                    text: qsTr("Las conversaciones guardadas de todos los motores y los espacios de trabajo. Los logins y los ajustes quedan."),
+                                    accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
+                                    action: function() { limpiezaPanel.aviso(ag.borrarChats(""), qsTr("Chats borrados")) }
                                 })
                             }
-                            GlassButton { compact: true; text: "Revisar"; onClicked: ag.revisarLimpieza() }
+                            GlassButton { compact: true; text: qsTr("Revisar"); onClicked: ag.revisarLimpieza() }
                         }
                     }
                 }
@@ -504,7 +504,7 @@ Rectangle {
                     id: segPanel
                     Layout.fillWidth: true
                     Layout.preferredHeight: segCol.implicitHeight + 64
-                    title: "Seguridad en vivo"
+                    title: qsTr("Seguridad en vivo")
                     property var info: ({})
                     Timer { interval: 2000; running: page.visible; repeat: true; triggeredOnStart: true; onTriggered: segPanel.info = ag.aireUi() }
                     ColumnLayout {
@@ -516,8 +516,8 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 text: segPanel.info.hay_aire
-                                      ? "Al aire: consola (Bash) apagada; las acciones de aire las confirma una persona (Enter / Esc)."
-                                      : "Fuera del aire. Al transmitir o grabar, la consola se apaga y estas acciones piden confirmación."
+                                      ? qsTr("Al aire: consola (Bash) apagada; las acciones de aire las confirma una persona (Enter / Esc).")
+                                      : qsTr("Fuera del aire. Al transmitir o grabar, la consola se apaga y estas acciones piden confirmación.")
                                 color: segPanel.info.hay_aire ? Theme.warn : Theme.textDim; font.pixelSize: 12
                             }
                         }
@@ -531,7 +531,8 @@ Rectangle {
                                     text: modelData.herramienta + (modelData.clase === "aire_si" ? " *" : "")
                                     dot: modelData.fija ? Theme.live : Theme.warn
                                     ToolTip.visible: segHov.hovered; ToolTip.delay: 400
-                                    ToolTip.text: (modelData.por_que || "agregada") + (modelData.clase === "aire_si" ? " (según los argumentos)" : "")
+                                    ToolTip.text: modelData.clase === "aire_si" ? qsTr("%1 (según los argumentos)").arg(modelData.por_que || qsTr("agregada"))
+                                                                  : (modelData.por_que || qsTr("agregada"))
                                     HoverHandler { id: segHov }
                                 }
                             }
@@ -542,19 +543,19 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: quickCol.implicitHeight + 64
-                    title: "Pedidos rápidos"
+                    title: qsTr("Pedidos rápidos")
                     ColumnLayout {
                         id: quickCol
                         anchors.fill: parent
                         spacing: 6
                         Repeater {
                             model: [
-                                { t: "¿Cómo está todo?", p: "Mirá el estado general, el programa y la conferencia y contame en pocas líneas cómo está todo." },
-                                { t: "Cuidá el audio", p: "Vigilá que ningún canal de audio sature (más de -1 dBFS) y que no haya silencio al aire; si satura, bajá 3 dB ese canal y avisame." },
-                                { t: "Revisá cómo se ve", p: "Capturá el programa y todas las escenas y decime si ves algo mal (encuadres, textos, fuentes fuera de lugar)." },
-                                { t: "Oradores", p: "Vigilá el tiempo de los oradores: avisame a los 30 segundos y cuando se cumple, y mandales un aviso por chat." },
-                                { t: "Lobby y manos", p: "Avisame cuando alguien entre al lobby o levante la mano." },
-                                { t: "Ordená las ventanas", p: "Mirá los monitores disponibles y armá ventanas de salida para aprovecharlos (programa en el principal, multiview en otro)." }
+                                { t: qsTr("¿Cómo está todo?"), p: "Mirá el estado general, el programa y la conferencia y contame en pocas líneas cómo está todo." },
+                                { t: qsTr("Cuidá el audio"), p: "Vigilá que ningún canal de audio sature (más de -1 dBFS) y que no haya silencio al aire; si satura, bajá 3 dB ese canal y avisame." },
+                                { t: qsTr("Revisá cómo se ve"), p: "Capturá el programa y todas las escenas y decime si ves algo mal (encuadres, textos, fuentes fuera de lugar)." },
+                                { t: qsTr("Oradores"), p: "Vigilá el tiempo de los oradores: avisame a los 30 segundos y cuando se cumple, y mandales un aviso por chat." },
+                                { t: qsTr("Lobby y manos"), p: "Avisame cuando alguien entre al lobby o levante la mano." },
+                                { t: qsTr("Ordená las ventanas"), p: "Mirá los monitores disponibles y armá ventanas de salida para aprovecharlos (programa en el principal, multiview en otro)." }
                             ]
                             delegate: GlassButton {
                                 required property var modelData
@@ -574,7 +575,7 @@ Rectangle {
                     id: panelDisparadores
                     // Los de los plugins que se declaran disparadores (cuando ninguno de los tipos alcanza).
                     readonly property var dePlugins: Studio.plugins ? Studio.plugins.lista.filter(p => p.disparador) : []
-                    title: "Disparadores (" + (ag.alerts.length + dePlugins.length) + ")"
+                    title: qsTr("Disparadores (%1)").arg(ag.alerts.length + dePlugins.length)
                     ColumnLayout {
                         id: alertCol
                         anchors.fill: parent
@@ -582,9 +583,9 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             Text { visible: ag.alerts.length === 0; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 12
-                                   text: "Pedile al asistente que vigile algo (audio, oradores, fin de un tema, lobby, chat, cortes, temporizadores) o armalo vos." }
+                                   text: qsTr("Pedile al asistente que vigile algo (audio, oradores, fin de un tema, lobby, chat, cortes, temporizadores) o armalo vos.") }
                             Item { visible: ag.alerts.length > 0; Layout.fillWidth: true }
-                            GlassButton { compact: true; text: "＋ Nuevo"; onClicked: editorDisparador.open() }
+                            GlassButton { compact: true; text: qsTr("＋ Nuevo"); onClicked: editorDisparador.open() }
                         }
                         EditorDisparador { id: editorDisparador }
                         Repeater {
@@ -597,7 +598,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 0
                                     Text { text: modelData.name; color: modelData.enabled ? Theme.text : Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
-                                    Text { text: modelData.type + (modelData.fired > 0 ? " · " + modelData.fired + " avisos" : ""); color: Theme.textFaint; font.pixelSize: 10 }
+                                    Text { text: modelData.fired > 0 ? qsTr("%1 · %n aviso", "", modelData.fired).arg(modelData.type) : modelData.type; color: Theme.textFaint; font.pixelSize: 10 }
                                 }
                                 GlassButton {
                                     compact: true
@@ -622,16 +623,16 @@ Rectangle {
                                     Text { text: modelData.nombre; color: filaPlugin.prendido ? Theme.text : Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                                     Text {
                                         Layout.fillWidth: true; elide: Text.ElideRight
-                                        text: "plugin · " + (modelData.dice ? modelData.dice.texto : modelData.estado) + (modelData.error ? " · " + modelData.error : "")
+                                        text: qsTr("plugin · %1").arg(modelData.dice ? modelData.dice.texto : modelData.estado) + (modelData.error ? " · " + modelData.error : "")
                                         color: modelData.error ? Theme.warn : Theme.textFaint; font.pixelSize: 10
                                     }
                                 }
-                                GlassButton { compact: true; text: "Plugins"; onClicked: ApplicationWindow.window.page = 23 }
+                                GlassButton { compact: true; text: qsTr("Plugins"); onClicked: ApplicationWindow.window.page = 23 }
                             }
                         }
                         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder; Layout.topMargin: 4 }
                         PanelNotificadores { Layout.fillWidth: true }
-                        Text { visible: ag.events.length > 0; text: "Últimos avisos"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } Layout.topMargin: 6 }
+                        Text { visible: ag.events.length > 0; text: qsTr("Últimos avisos"); color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } Layout.topMargin: 6 }
                         Repeater {
                             model: ag.events.slice(0, 8)
                             delegate: Text {

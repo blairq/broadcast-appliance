@@ -177,7 +177,7 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         visible: !page.au
-        text: "Esta versión no trae los módulos de audio (CLAP/LSP)."
+        text: qsTr("Esta versión no trae los módulos de audio (CLAP/LSP).")
         color: Theme.textDim; font.pixelSize: 15
     }
 
@@ -189,12 +189,12 @@ Rectangle {
         z: 10
         anchors { top: parent.top; right: parent.right; topMargin: 14; rightMargin: 22 }
         spacing: 4
-        GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vista = "racks" }
-        GlassButton { compact: true; text: "Estudio"; icon: "▦"; active: page.vista === "estudio"; onClicked: page.vista = "estudio"
+        GlassButton { compact: true; text: qsTr("Racks"); active: page.vista === "racks"; onClicked: page.vista = "racks" }
+        GlassButton { compact: true; text: qsTr("Estudio"); icon: "▦"; active: page.vista === "estudio"; onClicked: page.vista = "estudio"
                       ToolTip.visible: hovered; ToolTip.delay: 400
-                      ToolTip.text: "Todas las fuentes, cada una con su cadena entera (origen → rack → filtros → mezcla) y los cables entre ellas" }
-        GlassButton { compact: true; text: "Matriz"; icon: "▦"; visible: !!Studio.matriz; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
-        GlassButton { compact: true; text: "Mesa"; active: page.vista === "mesa"; onClicked: page.vista = "mesa" }
+                      ToolTip.text: qsTr("Todas las fuentes, cada una con su cadena entera (origen → rack → filtros → mezcla) y los cables entre ellas") }
+        GlassButton { compact: true; text: qsTr("Matriz"); icon: "▦"; visible: !!Studio.matriz; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+        GlassButton { compact: true; text: qsTr("Mesa"); active: page.vista === "mesa"; onClicked: page.vista = "mesa" }
     }
     EstudioAudio {
         visible: !!page.au && page.vista === "estudio" && page.visible
@@ -232,7 +232,7 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Fuentes con audio"
+            title: qsTr("Fuentes con audio")
             ListView {
                 id: srcList
                 anchors.fill: parent
@@ -297,9 +297,9 @@ Rectangle {
                                         id: motorHover; anchors.fill: parent; hoverEnabled: true
                                         ToolTip.visible: containsMouse; ToolTip.delay: 400
                                         ToolTip.text: parent.s.motor === "gstreamer"
-                                                      ? (parent.s.procesando ? "El rack corre en la cadena de GStreamer de la entrada"
-                                                                             : "El rack va en GStreamer: esperando que la entrada pase audio")
-                                                      : "El rack corre como filtro de libobs (esta fuente todavía no pasó a GStreamer)"
+                                                      ? (parent.s.procesando ? qsTr("El rack corre en la cadena de GStreamer de la entrada")
+                                                                             : qsTr("El rack va en GStreamer: esperando que la entrada pase audio"))
+                                                      : qsTr("El rack corre como filtro de libobs (esta fuente todavía no pasó a GStreamer)")
                                     }
                                 }
                             }
@@ -318,7 +318,7 @@ Rectangle {
                     visible: srcList.count === 0
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
-                    text: "No hay fuentes con audio.\nAgregá un micrófono o una entrada del sistema."
+                    text: qsTr("No hay fuentes con audio.\nAgregá un micrófono o una entrada del sistema.")
                     color: Theme.textFaint
                 }
             }
@@ -329,7 +329,7 @@ Rectangle {
         // una sola forma de crear una entrada de audio.
         GlassButton {
             Layout.fillWidth: true
-            text: "+ Entrada de audio"
+            text: qsTr("+ Entrada de audio")
             onClicked: { Studio.inputs.refresh(); micPopup.open() }
         }
         Popup {
@@ -364,52 +364,53 @@ Rectangle {
                 Layout.fillWidth: true
                 titulo: page.au ? page.au.source : ""
                 agregar: [
-                    { titulo: "Conectar", items: [
-                        { t: "Salida (auriculares, parlantes…)", color: "#a78bfa", f: () => outPopup.open(),
-                          tip: "Una tarjeta de salida de audio en este grafo: conectale lo que quieras oír, sin tocar lo que va al aire." }
+                    { titulo: qsTr("Conectar"), items: [
+                        { t: qsTr("Salida (auriculares, parlantes…)"), color: "#a78bfa", f: () => outPopup.open(),
+                          tip: qsTr("Una tarjeta de salida de audio en este grafo: conectale lo que quieras oír, sin tocar lo que va al aire.") }
                     ].concat((page.au ? page.au.sources.filter(x => x.nombre !== page.au.source) : []).map(x => ({
-                        t: "Entrada: " + x.nombre, color: "#38bdf8", f: () => page.msg = page.au.addEntrada(x.nombre),
-                        tip: "Trae el audio de «" + x.nombre + "»" + (x.grupo ? " (" + x.grupo + ")" : "") + " como una tarjeta de este grafo."
+                        t: qsTr("Entrada: %1").arg(x.nombre), color: "#38bdf8", f: () => page.msg = page.au.addEntrada(x.nombre),
+                        tip: x.grupo ? qsTr("Trae el audio de «%1» (%2) como una tarjeta de este grafo.").arg(x.nombre).arg(x.grupo)
+                                     : qsTr("Trae el audio de «%1» como una tarjeta de este grafo.").arg(x.nombre)
                     }))) },
-                    { titulo: "Procesar", items: (page.au ? page.au.catalog : []).map(c => ({
+                    { titulo: qsTr("Procesar"), items: (page.au ? page.au.catalog : []).map(c => ({
                         t: c.titulo, tip: c.ayuda, f: () => page.msg = page.au.addModule(c.clave, "")
-                    })).concat([{ t: "Filtros LSP…", tip: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno.", f: () => catalogoFiltros.open() }]) },
-                    { titulo: "Medir y generar", items: [
-                        { t: "Analizador", tip: "Espectro y niveles de lo que le llega", f: () => page.msg = page.au.addAnalyzer() },
-                        { t: "Generador", tip: "Tono, ruido o barrido para probar la cadena", f: () => page.msg = page.au.addGenerator() }
+                    })).concat([{ t: qsTr("Filtros LSP…"), tip: qsTr("Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno."), f: () => catalogoFiltros.open() }]) },
+                    { titulo: qsTr("Medir y generar"), items: [
+                        { t: qsTr("Analizador"), tip: qsTr("Espectro y niveles de lo que le llega"), f: () => page.msg = page.au.addAnalyzer() },
+                        { t: qsTr("Generador"), tip: qsTr("Tono, ruido o barrido para probar la cadena"), f: () => page.msg = page.au.addGenerator() }
                     ] },
-                    { titulo: "Voz", items: [].concat(
-                        Studio.voces ? [{ t: "Texto a voz", color: "#f472b6", f: () => page.msg = page.au.addHabla(),
-                                          tip: "Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto." }] : [],
-                        Studio.traductor ? [{ t: "Traducir", color: "#eab308", f: () => page.msg = page.au.addTraduccion(),
-                                              tip: "Traduce lo que publica una «Voz a texto» a otro idioma y lo publica en otra salida de texto (subtítulos, archivo, texto a voz)." }] : [],
+                    { titulo: qsTr("Voz"), items: [].concat(
+                        Studio.voces ? [{ t: qsTr("Texto a voz"), color: "#f472b6", f: () => page.msg = page.au.addHabla(),
+                                          tip: qsTr("Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto.") }] : [],
+                        Studio.traductor ? [{ t: qsTr("Traducir"), color: "#eab308", f: () => page.msg = page.au.addTraduccion(),
+                                              tip: qsTr("Traduce lo que publica una «Voz a texto» a otro idioma y lo publica en otra salida de texto (subtítulos, archivo, texto a voz).") }] : [],
                         Studio.voz.disponible ? [
-                            { t: "Voz a texto: dictado al asistente (F9)", color: "#22c55e", f: () => page.msg = page.au.addTexto("dictado"),
-                              tip: "Transcribe lo que le llega para dictarle al asistente." },
-                            { t: "Voz a texto: transcripción continua", color: "#22c55e", f: () => page.msg = page.au.addTexto("continuo"),
-                              tip: "Transcribe todo el tiempo: subtítulos y acta." }
+                            { t: qsTr("Voz a texto: dictado al asistente (F9)"), color: "#22c55e", f: () => page.msg = page.au.addTexto("dictado"),
+                              tip: qsTr("Transcribe lo que le llega para dictarle al asistente.") },
+                            { t: qsTr("Voz a texto: transcripción continua"), color: "#22c55e", f: () => page.msg = page.au.addTexto("continuo"),
+                              tip: qsTr("Transcribe todo el tiempo: subtítulos y acta.") }
                         ] : []) }
                 ]
                 acciones: [
                     // Un rack armado a mano es media hora de trabajo: guardarlo con
                     // nombre permite ponérselo a otra fuente en un clic.
-                    { t: "Plantillas", icon: "▤", f: () => plantillasPopup.open(),
-                      tip: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado" },
-                    { t: "Traducción…", icon: "文", f: () => traduccionPopup.open(),
-                      tip: "Traducir en vivo una salida de texto (lo que transcribe «Voz a texto») a otro idioma, y el glosario de términos" }
+                    { t: qsTr("Plantillas"), icon: "▤", f: () => plantillasPopup.open(),
+                      tip: qsTr("Guardar este rack con nombre, o ponerle a esta fuente uno guardado") },
+                    { t: qsTr("Traducción…"), icon: "文", f: () => traduccionPopup.open(),
+                      tip: qsTr("Traducir en vivo una salida de texto (lo que transcribe «Voz a texto») a otro idioma, y el glosario de términos") }
                 ]
                 // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
                 // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
-                mas: [{ t: "Restablecer interfaz LSP", f: () => page.msg = page.au.restablecerInterfazLsp(),
-                        tip: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece." },
+                mas: [{ t: qsTr("Restablecer interfaz LSP"), f: () => page.msg = page.au.restablecerInterfazLsp(),
+                        tip: qsTr("Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece.") },
                       // Cuando el rack quedó enredado (cables sacados, módulos que no se van),
                       // volver a cero en un clic: el audio pasa directo, como sin rack.
-                      { t: "Restablecer entrada…", tip: "Quita el rack entero de esta entrada: el audio vuelve a pasar directo, sin filtros",
+                      { t: qsTr("Restablecer entrada…"), tip: qsTr("Quita el rack entero de esta entrada: el audio vuelve a pasar directo, sin filtros"),
                         f: () => { const fuente = page.au.source
                                    ApplicationWindow.window.confirm({
-                                       title: "¿Restablecer «" + fuente + "»?",
-                                       text: "Se quitan todas las tarjetas y cables de su rack (filtros, medidores, voz a texto, traducción) y el audio vuelve a pasar directo. Si querés conservarlo, guardalo antes en Plantillas.",
-                                       accept: "Restablecer", reject: "Cancelar",
+                                       title: qsTr("¿Restablecer «%1»?").arg(fuente),
+                                       text: qsTr("Se quitan todas las tarjetas y cables de su rack (filtros, medidores, voz a texto, traducción) y el audio vuelve a pasar directo. Si querés conservarlo, guardalo antes en Plantillas."),
+                                       accept: qsTr("Restablecer"), reject: qsTr("Cancelar"),
                                        action: function() { if (page.au.source === fuente) page.au.removeRack() } }) } }]
                 lienzo: lienzoAudio
             }
@@ -417,7 +418,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: page.msg !== "" ? page.msg
                       : (page.au && page.au.error !== "" ? page.au.error
-                         : "Arrastrá desde una salida (●, derecha) a una entrada (●, izquierda) para conectar. La ✕ en el medio de un cable lo quita. Varios cables a una entrada se suman.")
+                         : qsTr("Arrastrá desde una salida (●, derecha) a una entrada (●, izquierda) para conectar. La ✕ en el medio de un cable lo quita. Varios cables a una entrada se suman."))
                 color: page.msg !== "" || (page.au && page.au.error !== "") ? Theme.live : Theme.textFaint
                 font.pixelSize: 12; wrapMode: Text.WordWrap
             }
@@ -544,7 +545,7 @@ Rectangle {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: page.au.disconnectPorts(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada, cab.modelData.canalSalida, cab.modelData.canalEntrada)
-                                        ToolTip.visible: containsMouse; ToolTip.text: "Quitar el cable"
+                                        ToolTip.visible: containsMouse; ToolTip.text: qsTr("Quitar el cable")
                                     }
                                 }
                             }
@@ -637,8 +638,8 @@ Rectangle {
                                             ToolTip.visible: containsMouse
                                             ToolTip.delay: 500
                                             ToolTip.text: page.isExpanded(nd.modelData.id)
-                                                          ? "Mostrar la tarjeta simple"
-                                                          : "Mostrar los nombres de los puertos y si son mono o estéreo"
+                                                          ? qsTr("Mostrar la tarjeta simple")
+                                                          : qsTr("Mostrar los nombres de los puertos y si son mono o estéreo")
                                         }
                                     }
                                     MouseArea {
@@ -752,13 +753,13 @@ Rectangle {
                                         Column {
                                             x: 18
                                             anchors.verticalCenter: parent.verticalCenter
-                                            Text { text: modelData === "sc" ? "sidechain" : "entrada"; color: Theme.textFaint; font.pixelSize: 10 }
+                                            Text { text: modelData === "sc" ? qsTr("sidechain") : qsTr("entrada"); color: Theme.textFaint; font.pixelSize: 10 }
                                             Text {
                                                 visible: page.isExpanded(nd.modelData.id)
                                                 width: page.nodeW / 2 - 24
                                                 elide: Text.ElideRight
                                                 text: (parent.parent.info.nombre ? parent.parent.info.nombre + " · " : "")
-                                                      + (parent.parent.info.canales === 1 ? "mono" : "estéreo")
+                                                      + (parent.parent.info.canales === 1 ? qsTr("mono") : qsTr("estéreo"))
                                                 color: Theme.textFaint; font.pixelSize: 9
                                             }
                                         }
@@ -778,7 +779,7 @@ Rectangle {
                                         width: 14; height: 14
                                         Column {
                                             anchors { right: parent.left; rightMargin: 4; verticalCenter: parent.verticalCenter }
-                                            Text { anchors.right: parent.right; text: "salida"; color: Theme.textFaint; font.pixelSize: 10 }
+                                            Text { anchors.right: parent.right; text: qsTr("salida"); color: Theme.textFaint; font.pixelSize: 10 }
                                             Text {
                                                 anchors.right: parent.right
                                                 visible: page.isExpanded(nd.modelData.id)
@@ -786,7 +787,7 @@ Rectangle {
                                                 horizontalAlignment: Text.AlignRight
                                                 elide: Text.ElideRight
                                                 text: (op.info.nombre ? op.info.nombre + " · " : "")
-                                                      + (op.info.canales === 1 ? "mono" : "estéreo")
+                                                      + (op.info.canales === 1 ? qsTr("mono") : qsTr("estéreo"))
                                                 color: Theme.textFaint; font.pixelSize: 9
                                             }
                                         }
@@ -843,7 +844,7 @@ Rectangle {
                                                         hoverEnabled: true
                                                         ToolTip.visible: containsMouse && !page.wire
                                                         ToolTip.delay: 600
-                                                        ToolTip.text: "Canal " + page.chName(chDot.modelData) + ": arrastralo a la entrada que quieras"
+                                                        ToolTip.text: qsTr("Canal %1: arrastralo a la entrada que quieras").arg(page.chName(chDot.modelData))
                                                         onPressed: (ev) => {
                                                             const p = page.portPos(nd.modelData.id, op.modelData, false, chDot.modelData)
                                                             page.wire = { from: nd.modelData.id, out: op.modelData, ch: chDot.modelData,
@@ -879,7 +880,7 @@ Rectangle {
                                             preventStealing: true
                                             ToolTip.visible: containsMouse && !page.wire
                                             ToolTip.delay: 600
-                                            ToolTip.text: "Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar"
+                                            ToolTip.text: qsTr("Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar")
                                             hoverEnabled: true
                                             onPressed: (ev) => {
                                                 const p = page.portPos(nd.modelData.id, op.modelData, false)
@@ -924,7 +925,7 @@ Rectangle {
                                         horizontalAlignment: Text.AlignRight
                                         color: nd.m.cambioDb !== undefined && nd.m.cambioDb < -0.5 ? Theme.amber : Theme.textFaint
                                         font.pixelSize: 10
-                                        text: nd.modelData.bypass ? "anulado"
+                                        text: nd.modelData.bypass ? qsTr("anulado")
                                               : nd.m.cambioDb !== undefined ? (nd.m.cambioDb > 0 ? "+" : "") + page.fmtDb(nd.m.cambioDb) + " dB"
                                               : page.fmtDb(nd.m.salidaDb !== undefined ? nd.m.salidaDb : nd.m.entradaDb) + " dBFS"
                                     }
@@ -942,7 +943,7 @@ Rectangle {
         Panel {
             Layout.preferredWidth: divisorPanel.ancho
             Layout.fillHeight: true
-            title: page.au && page.au.detail.nodo ? (page.au.detail.etiqueta || page.au.detail.nombre || page.au.detail.nodo) : "Detalle"
+            title: page.au && page.au.detail.nodo ? (page.au.detail.etiqueta || page.au.detail.nombre || page.au.detail.nodo) : qsTr("Detalle")
             ScrollView {
                 id: detScroll
                 anchors.fill: parent
@@ -958,7 +959,7 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         visible: !parent.d.nodo
-                        text: "Elegí un nodo del patchbay. La entrada y la salida muestran el análisis del audio (LUFS, espectro, piso de ruido); los módulos, sus parámetros."
+                        text: qsTr("Elegí un nodo del patchbay. La entrada y la salida muestran el análisis del audio (LUFS, espectro, piso de ruido); los módulos, sus parámetros.")
                         color: Theme.textDim; font.pixelSize: 13; wrapMode: Text.WordWrap
                     }
 
@@ -970,26 +971,26 @@ Rectangle {
                         // El vigía: lo que tarda por bloque, y si lo saltó por lento.
                         Text {
                             visible: parent.parent.d.ms_medio !== undefined
-                            text: Number(parent.parent.d.ms_medio || 0).toFixed(2) + " ms/bloque (máx " + Number(parent.parent.d.ms_max || 0).toFixed(1) +
-                                  " de " + Number(parent.parent.d.ms_bloque || 0).toFixed(1) + ")"
+                            text: qsTr("%1 ms/bloque (máx %2 de %3)").arg(Number(parent.parent.d.ms_medio || 0).toFixed(2))
+                                  .arg(Number(parent.parent.d.ms_max || 0).toFixed(1)).arg(Number(parent.parent.d.ms_bloque || 0).toFixed(1))
                             color: (parent.parent.d.ms_medio || 0) > (parent.parent.d.ms_bloque || 99) * 0.5 ? Theme.amber : Theme.textFaint
                             font.pixelSize: 11
                         }
-                        StatusPill { visible: !!parent.parent.d.bypass_auto; text: "Saltado por lento"; dot: Theme.live }
-                        GlassButton { compact: true; visible: !!parent.parent.d.bypass_auto; text: "Rearmar"; onClicked: page.au.rearmar(page.au.selected) }
-                        GlassButton { compact: true; text: parent.parent.d.bypass ? "Activar" : "Anular"; onClicked: page.au.setBypass(page.au.selected, !parent.parent.d.bypass) }
-                        GlassButton { compact: true; text: "Interfaz LSP"; enabled: !!parent.parent.d.tieneEditor; onClicked: page.msg = page.au.openEditor(page.au.selected) }
+                        StatusPill { visible: !!parent.parent.d.bypass_auto; text: qsTr("Saltado por lento"); dot: Theme.live }
+                        GlassButton { compact: true; visible: !!parent.parent.d.bypass_auto; text: qsTr("Rearmar"); onClicked: page.au.rearmar(page.au.selected) }
+                        GlassButton { compact: true; text: parent.parent.d.bypass ? qsTr("Activar") : qsTr("Anular"); onClicked: page.au.setBypass(page.au.selected, !parent.parent.d.bypass) }
+                        GlassButton { compact: true; text: qsTr("Interfaz LSP"); enabled: !!parent.parent.d.tieneEditor; onClicked: page.msg = page.au.openEditor(page.au.selected) }
                         Repeater {
                             model: parent.parent.d.presets || []
-                            delegate: GlassButton { required property string modelData; compact: true; text: "Preset: " + modelData; onClicked: page.msg = page.au.applyPreset(page.au.selected, modelData) }
+                            delegate: GlassButton { required property string modelData; compact: true; text: qsTr("Preset: %1").arg(modelData); onClicked: page.msg = page.au.applyPreset(page.au.selected, modelData) }
                         }
-                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                        GlassButton { compact: true; text: qsTr("Quitar"); onClicked: page.au.removeNode(page.au.selected) }
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "analyzer" || parent.d.tipo === "generator"
-                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                        GlassButton { compact: true; text: qsTr("Quitar"); onClicked: page.au.removeNode(page.au.selected) }
                     }
                     // Texto a voz: idioma, voz, qué salida lee, velocidad, probar
                     ColumnLayout {
@@ -1009,7 +1010,7 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Idioma"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            Text { text: qsTr("Idioma"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
                             ComboBox {
                                 Layout.fillWidth: true
                                 model: Studio.voces ? Studio.voces.idiomas : []
@@ -1020,12 +1021,12 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Voz"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            Text { text: qsTr("Voz"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
                             ComboBox {
                                 id: vozBox
                                 Layout.fillWidth: true
-                                readonly property var lista: [{repo: "", nombre: "La del sistema", instalada: true}].concat(hablaCol.voces.filter(v => v.idioma === hablaCol.idioma))
-                                model: lista.map(v => v.nombre + (v.instalada ? "" : "  (bajar)"))
+                                readonly property var lista: [{repo: "", nombre: qsTr("La del sistema"), instalada: true}].concat(hablaCol.voces.filter(v => v.idioma === hablaCol.idioma))
+                                model: lista.map(v => v.instalada ? v.nombre : qsTr("%1  (bajar)").arg(v.nombre))
                                 currentIndex: Math.max(0, lista.findIndex(v => v.repo === (hablaCol.h.voz || "")))
                                 onActivated: {
                                     const v = lista[currentIndex]
@@ -1036,32 +1037,32 @@ Rectangle {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Lee"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            Text { text: qsTr("Lee"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
                             ComboBox {
                                 Layout.fillWidth: true
-                                readonly property var lista: ["(nada: solo lo que le pidan)"].concat((Studio.flujos ? Studio.flujos.flujos : []).map(f => f.nombre))
+                                readonly property var lista: [qsTr("(nada: solo lo que le pidan)")].concat((Studio.flujos ? Studio.flujos.flujos : []).map(f => f.nombre))
                                 model: lista
                                 currentIndex: Math.max(0, lista.indexOf(hablaCol.h.flujo || ""))
                                 onActivated: page.msg = page.au.setHablaOpciones(page.au.selected, {flujo: currentIndex === 0 ? "" : currentText})
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "La salida de texto que dice en voz alta (por ejemplo, lo que transcribe una «Voz a texto»)."
+                                ToolTip.text: qsTr("La salida de texto que dice en voz alta (por ejemplo, lo que transcribe una «Voz a texto»).")
                             }
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Velocidad"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            Text { text: qsTr("Velocidad"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
                             Slider { Layout.fillWidth: true; from: 0.5; to: 2.0; stepSize: 0.05; value: hablaCol.h.velocidad || 1.0
                                      onMoved: page.au.setHablaOpciones(page.au.selected, {velocidad: value}) }
                             Text { text: (hablaCol.h.velocidad || 1.0).toFixed(2) + "×"; color: Theme.textFaint; font.pixelSize: 11 }
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { id: hablaPrueba; Layout.fillWidth: true; placeholderText: "Escribí algo para que lo diga" }
-                            GlassButton { compact: true; text: "Decir"; enabled: hablaPrueba.text.trim() !== ""
+                            TextField { id: hablaPrueba; Layout.fillWidth: true; placeholderText: qsTr("Escribí algo para que lo diga") }
+                            GlassButton { compact: true; text: qsTr("Decir"); enabled: hablaPrueba.text.trim() !== ""
                                           onClicked: page.msg = Studio.voces.decir(page.au.source, page.au.selected, hablaPrueba.text) }
                         }
                         Text { Layout.fillWidth: true; text: hablaCol.estado; color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap }
-                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                        GlassButton { compact: true; text: qsTr("Quitar"); onClicked: page.au.removeNode(page.au.selected) }
                     }
                     // Traducir: qué traduce, a qué idioma, dónde publica
                     TarjetaTraduccion {
@@ -1087,7 +1088,7 @@ Rectangle {
                             Layout.fillWidth: true
                             Toggle { checked: !!grabCol.g.grabar
                                      onToggled: (w) => { page.msg = page.au.setGrabar(w); grabCol.g = page.au.grabacion() } }
-                            Text { Layout.fillWidth: true; text: "Grabar todo lo que le llega en un archivo (.wav)"; color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                            Text { Layout.fillWidth: true; text: qsTr("Grabar todo lo que le llega en un archivo (.wav)"); color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
                             Rectangle { visible: !!grabCol.g.grabando; width: 10; height: 10; radius: 5; color: Theme.live }
                         }
                         Text {
@@ -1095,18 +1096,18 @@ Rectangle {
                             text: {
                                 const s = Math.floor(grabCol.g.segundos || 0)
                                 const t = Math.floor(s / 3600) + ":" + ("0" + Math.floor(s / 60) % 60).slice(-2) + ":" + ("0" + s % 60).slice(-2)
-                                return "Grabando " + t + " · " + ((grabCol.g.bytes || 0) / 1048576).toFixed(1) + " MB\n" + (grabCol.g.archivo || "")
+                                return qsTr("Grabando %1 · %2 MB").arg(t).arg(((grabCol.g.bytes || 0) / 1048576).toFixed(1)) + "\n" + (grabCol.g.archivo || "")
                             }
                         }
                         Text { Layout.fillWidth: true; visible: !!grabCol.g.grabar && !grabCol.g.conCable; color: Theme.warn; font.pixelSize: 11; wrapMode: Text.WordWrap
-                               text: "La tarjeta no tiene cable: conectale lo que quieras grabar." }
-                        GlassButton { compact: true; text: "Abrir la carpeta"; onClicked: Qt.openUrlExternally("file://" + grabCol.g.carpeta) }
+                               text: qsTr("La tarjeta no tiene cable: conectale lo que quieras grabar.") }
+                        GlassButton { compact: true; text: qsTr("Abrir la carpeta"); onClicked: Qt.openUrlExternally("file://" + grabCol.g.carpeta) }
                     }
                     // Entrada: de qué fuente trae el audio
                     RowLayout {
                         Layout.fillWidth: true
                         visible: parent.d.tipo === "entrada"
-                        Text { text: "Fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Fuente"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             id: entradaFuente
                             Layout.fillWidth: true
@@ -1115,31 +1116,31 @@ Rectangle {
                             currentIndex: lista.indexOf(parent.parent.d.fuente || "")
                             onActivated: page.msg = page.au.setEntradaFuente(page.au.selected, currentText)
                         }
-                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                        GlassButton { compact: true; text: qsTr("Quitar"); onClicked: page.au.removeNode(page.au.selected) }
                     }
                     // Voz a texto: el nombre de su salida, el modo, las salidas, y lo que va transcribiendo
                     RowLayout {
                         Layout.fillWidth: true
                         visible: parent.d.tipo === "texto"
-                        Text { text: "Salida"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Salida"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             id: flujoNombre
                             Layout.fillWidth: true
                             text: parent.parent.d.flujo || ""
-                            placeholderText: "Nombre de la salida de texto"
+                            placeholderText: qsTr("Nombre de la salida de texto")
                             onEditingFinished: if (text !== (parent.parent.d.flujo || ""))
                                                    page.msg = page.au.setTextoOpciones(page.au.selected, {flujo: text})
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Con este nombre se usa en otras partes: disparadores, texto a voz, MCP."
+                            ToolTip.text: qsTr("Con este nombre se usa en otras partes: disparadores, texto a voz, MCP.")
                         }
                     }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "texto"
-                        GlassButton { compact: true; text: "Dictado"; active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "dictado"}) }
-                        GlassButton { compact: true; text: "Continuo"; active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "continuo"}) }
-                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                        GlassButton { compact: true; text: qsTr("Dictado"); active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "dictado"}) }
+                        GlassButton { compact: true; text: qsTr("Continuo"); active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "continuo"}) }
+                        GlassButton { compact: true; text: qsTr("Quitar"); onClicked: page.au.removeNode(page.au.selected) }
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -1148,26 +1149,26 @@ Rectangle {
                             checked: !!(parent.parent.d.salidas && parent.parent.d.salidas.archivo)
                             onToggled: (w) => page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {archivo: w}})
                         }
-                        Text { Layout.fillWidth: true; text: "Guardar en archivo (.txt con hora y .srt)"; color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                        Text { Layout.fillWidth: true; text: qsTr("Guardar en archivo (.txt con hora y .srt)"); color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
                     }
                     RowLayout {
                         Layout.fillWidth: true
                         visible: parent.d.tipo === "texto"
-                        Text { text: "Subtítulos en"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Subtítulos en"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             Layout.fillWidth: true
-                            readonly property var lista: ["(ninguno)"].concat(page.au ? page.au.fuentesDeTexto() : [])
+                            readonly property var lista: [qsTr("(ninguno)")].concat(page.au ? page.au.fuentesDeTexto() : [])
                             model: lista
-                            currentIndex: Math.max(0, lista.indexOf((parent.parent.d.salidas && parent.parent.d.salidas.rotulo) || "(ninguno)"))
+                            currentIndex: Math.max(0, lista.indexOf((parent.parent.d.salidas && parent.parent.d.salidas.rotulo) || qsTr("(ninguno)")))
                             onActivated: page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {rotulo: currentIndex === 0 ? "" : currentText}})
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Una fuente de texto de la escena: su texto pasa a ser la última frase (subtítulo)."
+                            ToolTip.text: qsTr("Una fuente de texto de la escena: su texto pasa a ser la última frase (subtítulo).")
                         }
                     }
                     Text {
                         Layout.fillWidth: true
                         visible: parent.d.tipo === "texto" && parent.d.modo === "dictado"
-                        text: Studio.voz.ultimo !== "" ? "Último dictado: «" + Studio.voz.ultimo + "»" : Studio.voz.estado
+                        text: Studio.voz.ultimo !== "" ? qsTr("Último dictado: «%1»").arg(Studio.voz.ultimo) : Studio.voz.estado
                         color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
                     }
                     // Cuándo corta una frase (pausa, largo máximo, umbral): es de toda
@@ -1201,13 +1202,13 @@ Rectangle {
                         visible: !!parent.d.medidores && parent.d.tipo !== undefined
                         columns: 2
                         columnSpacing: 8
-                        Text { text: "Entrada"; color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.entradaDb !== undefined) }
+                        Text { text: qsTr("Entrada"); color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.entradaDb !== undefined) }
                         LevelMeter { Layout.fillWidth: true; Layout.preferredHeight: 8; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.entradaDb !== undefined)
                                      db: parent.parent.d.medidores && parent.parent.d.medidores.entradaDb !== undefined ? parent.parent.d.medidores.entradaDb : -100 }
-                        Text { text: "Salida"; color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.salidaDb !== undefined) }
+                        Text { text: qsTr("Salida"); color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.salidaDb !== undefined) }
                         LevelMeter { Layout.fillWidth: true; Layout.preferredHeight: 8; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.salidaDb !== undefined)
                                      db: parent.parent.d.medidores && parent.parent.d.medidores.salidaDb !== undefined ? parent.parent.d.medidores.salidaDb : -100 }
-                        Text { text: "Cambio"; color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.cambioDb !== undefined) }
+                        Text { text: qsTr("Cambio"); color: Theme.textDim; font.pixelSize: 12; visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.cambioDb !== undefined) }
                         Text { visible: !!(parent.parent.d.medidores && parent.parent.d.medidores.cambioDb !== undefined)
                                text: parent.parent.d.medidores ? page.fmtDb(parent.parent.d.medidores.cambioDb) + " dB" : ""
                                color: Theme.amber; font { pixelSize: 13; weight: Font.DemiBold } }
@@ -1239,7 +1240,7 @@ Rectangle {
                             TextField {
                                 Layout.fillWidth: true
                                 visible: !pr.p.opciones
-                                placeholderText: "nuevo valor (" + (pr.p.rango ? pr.p.rango.join(" … ") : "") + ")"
+                                placeholderText: qsTr("nuevo valor (%1)").arg(pr.p.rango ? pr.p.rango.join(" … ") : "")
                                 onAccepted: { page.msg = page.au.setParam(page.au.selected, pr.modelData, text); text = "" }
                             }
                         }
@@ -1260,7 +1261,7 @@ Rectangle {
                                 id: bandCol
                                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 7 }
                                 spacing: 3
-                                Text { text: "Banda " + bd.modelData.banda; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
+                                Text { text: qsTr("Banda %1").arg(bd.modelData.banda); color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                                 Repeater {
                                     model: Object.keys(bd.modelData).filter(k => k !== "banda")
                                     delegate: RowLayout {
@@ -1295,18 +1296,22 @@ Rectangle {
                         ComboBox {
                             id: genKind
                             Layout.fillWidth: true
-                            model: ["silencio", "seno", "rosa", "blanco", "barrido"]
-                            currentIndex: Math.max(0, model.indexOf(parent.s.tipo || "silencio"))
-                            onActivated: page.au.setGenerator(page.au.selected, currentText, Number(genFreq.text || 1000), Number(genLvl.text || -20))
+                            // La clave va al motor; la etiqueta se traduce.
+                            model: [{ clave: "silencio", t: qsTr("silencio") }, { clave: "seno", t: qsTr("seno") },
+                                    { clave: "rosa", t: qsTr("rosa") }, { clave: "blanco", t: qsTr("blanco") },
+                                    { clave: "barrido", t: qsTr("barrido") }]
+                            textRole: "t"; valueRole: "clave"
+                            currentIndex: Math.max(0, model.findIndex(x => x.clave === (parent.s.tipo || "silencio")))
+                            onActivated: page.au.setGenerator(page.au.selected, currentValue, Number(genFreq.text || 1000), Number(genLvl.text || -20))
                         }
                         RowLayout {
                             TextField { id: genFreq; Layout.fillWidth: true; placeholderText: "Hz (" + (parent.parent.s.frecuencia || 1000) + ")"
-                                        onAccepted: page.au.setGenerator(page.au.selected, genKind.currentText, Number(text), Number(genLvl.text || parent.parent.s.nivelDb || -20)) }
+                                        onAccepted: page.au.setGenerator(page.au.selected, genKind.currentValue, Number(text), Number(genLvl.text || parent.parent.s.nivelDb || -20)) }
                             TextField { id: genLvl; Layout.fillWidth: true; placeholderText: "dBFS (" + (parent.parent.s.nivelDb || -20) + ")"
-                                        onAccepted: page.au.setGenerator(page.au.selected, genKind.currentText, Number(genFreq.text || parent.parent.s.frecuencia || 1000), Number(text)) }
+                                        onAccepted: page.au.setGenerator(page.au.selected, genKind.currentValue, Number(genFreq.text || parent.parent.s.frecuencia || 1000), Number(text)) }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "El generador queda suelto: conectalo a un analizador para medir. Si lo conectás a la cadena, se escucha al aire." }
+                               text: qsTr("El generador queda suelto: conectalo a un analizador para medir. Si lo conectás a la cadena, se escucha al aire.") }
                     }
 
                     // Analisis (entrada, salida, analizador)
@@ -1321,11 +1326,11 @@ Rectangle {
                             Text { text: "LUFS M / S / I"; color: Theme.textDim; font.pixelSize: 12 }
                             Text { text: parent.parent.an.lufs ? page.fmtDb(parent.parent.an.lufs.momentaneo) + " / " + page.fmtDb(parent.parent.an.lufs.corto) + " / " + page.fmtDb(parent.parent.an.lufs.integrado) : "—"
                                    color: Theme.text; font.pixelSize: 12 }
-                            Text { text: "Pico (máx.)"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Pico (máx.)"); color: Theme.textDim; font.pixelSize: 12 }
                             Text { text: page.fmtDb(parent.parent.an.picoDbfs) + " (" + page.fmtDb(parent.parent.an.picoMaximoDbfs) + ") dBFS"; color: Theme.text; font.pixelSize: 12 }
-                            Text { text: "Piso de ruido"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Piso de ruido"); color: Theme.textDim; font.pixelSize: 12 }
                             Text { text: page.fmtDb(parent.parent.an.pisoDeRuidoDbfs) + " dBFS"; color: Theme.text; font.pixelSize: 12 }
-                            Text { text: "Nivel activo"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Nivel activo"); color: Theme.textDim; font.pixelSize: 12 }
                             Text { text: page.fmtDb(parent.parent.an.nivelActivoDbfs) + " dBFS"; color: Theme.text; font.pixelSize: 12 }
                         }
                         // Espectro en tercios de octava
@@ -1374,7 +1379,7 @@ Rectangle {
             anchors { fill: parent; margins: 16 }
             spacing: 10
             Text {
-                text: "Mandar el audio de esta fuente a una salida"
+                text: qsTr("Mandar el audio de esta fuente a una salida")
                 color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
             }
             Text {
@@ -1382,10 +1387,7 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
                 font.pixelSize: 12
-                text: "Se agrega una tarjeta con el nombre de la salida al grafo de «" +
-                      (page.au ? page.au.source : "") + "». Conectale lo que quieras oír. " +
-                      "No cambia lo que sale al aire. El motor reproduce por una salida a la vez: " +
-                      "si elegís otra, se usa esa."
+                text: qsTr("Se agrega una tarjeta con el nombre de la salida al grafo de «%1». Conectale lo que quieras oír. No cambia lo que sale al aire. El motor reproduce por una salida a la vez: si elegís otra, se usa esa.").arg(page.au ? page.au.source : "")
             }
             ListView {
                 id: outList
@@ -1443,11 +1445,11 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     visible: outList.count === 0
-                    text: "No se encontraron salidas de audio."
+                    text: qsTr("No se encontraron salidas de audio.")
                     color: Theme.textFaint
                 }
             }
-            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: "Cerrar"; onClicked: outPopup.close() }
+            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: qsTr("Cerrar"); onClicked: outPopup.close() }
         }
     }
 
@@ -1462,7 +1464,7 @@ Rectangle {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 12
-            TextField { id: lspQuery; Layout.fillWidth: true; placeholderText: "Buscar en los ~200 plugins LSP (p. ej. «delay», «filter», «loud»)" }
+            TextField { id: lspQuery; Layout.fillWidth: true; placeholderText: qsTr("Buscar en los ~200 plugins LSP (p. ej. «delay», «filter», «loud»)") }
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -1502,8 +1504,8 @@ Rectangle {
             spacing: 10
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Traducción en vivo"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: traduccionPopup.close() }
+                Text { text: qsTr("Traducción en vivo"); color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: traduccionPopup.close() }
             }
             ScrollView {
                 id: trScroll
@@ -1528,7 +1530,7 @@ Rectangle {
             spacing: 10
 
             Text {
-                text: "Plantillas de rack"
+                text: qsTr("Plantillas de rack")
                 color: Theme.text
                 font { family: Theme.font; pixelSize: 16; weight: Font.DemiBold }
             }
@@ -1537,10 +1539,7 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
                 font.pixelSize: 12
-                text: "Guardá el rack de esta fuente con un nombre y poneselo a otra en un clic. " +
-                      "Si la marcás como predeterminada de un tipo de fuente, las nuevas de ese tipo " +
-                      "la toman solas al crearse — es lo que hace que un invitado ya suene bien sin " +
-                      "que nadie le arme nada."
+                text: qsTr("Guardá el rack de esta fuente con un nombre y poneselo a otra en un clic. Si la marcás como predeterminada de un tipo de fuente, las nuevas de ese tipo la toman solas al crearse — es lo que hace que un invitado ya suene bien sin que nadie le arme nada.")
             }
 
             RowLayout {
@@ -1549,12 +1548,12 @@ Rectangle {
                 TextField {
                     id: nuevoNombre
                     Layout.fillWidth: true
-                    placeholderText: "Nombre para guardar este rack"
+                    placeholderText: qsTr("Nombre para guardar este rack")
                     color: Theme.text
                     font.pixelSize: 13
                 }
                 GlassButton {
-                    text: "Guardar"; compact: true
+                    text: qsTr("Guardar"); compact: true
                     onClicked: {
                         page.msg = page.au.guardarPlantilla(nuevoNombre.text)
                         if (page.msg === "") nuevoNombre.text = ""
@@ -1581,27 +1580,28 @@ Rectangle {
                             font { pixelSize: 13; weight: Font.Medium }
                         }
                         Text {
-                            text: modelData.modulos + " módulos" +
-                                  (modelData.paraTipo !== "" ? "  ·  predeterminada de " + modelData.paraTipo : "")
+                            text: modelData.paraTipo !== ""
+                                  ? qsTr("%n módulo  ·  predeterminada de %1", "", modelData.modulos).arg(modelData.paraTipo)
+                                  : qsTr("%n módulo", "", modelData.modulos)
                             color: modelData.paraTipo !== "" ? Theme.accent : Theme.textFaint
                             font.pixelSize: 11
                         }
                     }
                     GlassButton {
-                        text: "Aplicar"; compact: true
+                        text: qsTr("Aplicar"); compact: true
                         onClicked: { page.msg = page.au.aplicarPlantilla(modelData.nombre); plantillasPopup.close() }
                         ToolTip.visible: hovered
-                        ToolTip.text: "Reemplaza el rack de « " + (page.au ? page.au.source : "") + " » por este"
+                        ToolTip.text: qsTr("Reemplaza el rack de « %1 » por este").arg(page.au ? page.au.source : "")
                     }
                     GlassButton {
-                        text: modelData.paraTipo !== "" ? "Quitar defecto" : "Por defecto"
+                        text: modelData.paraTipo !== "" ? qsTr("Quitar defecto") : qsTr("Por defecto")
                         compact: true
                         onClicked: page.msg = page.au.plantillaPorDefecto(
                             modelData.nombre, modelData.paraTipo !== "" ? "" : page.au.tipoDeFuente())
                         ToolTip.visible: hovered
                         ToolTip.text: modelData.paraTipo !== ""
-                            ? "Las fuentes nuevas dejan de tomarla"
-                            : "Las fuentes nuevas del mismo tipo que « " + (page.au ? page.au.source : "") + " » la toman solas"
+                            ? qsTr("Las fuentes nuevas dejan de tomarla")
+                            : qsTr("Las fuentes nuevas del mismo tipo que « %1 » la toman solas").arg(page.au ? page.au.source : "")
                     }
                     GlassButton {
                         icon: "✕"; compact: true
@@ -1614,12 +1614,12 @@ Rectangle {
                 visible: page.au && page.au.plantillas().length === 0
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: "Todavía no guardaste ninguna."
+                text: qsTr("Todavía no guardaste ninguna.")
                 color: Theme.textFaint
                 font.pixelSize: 12
             }
 
-            GlassButton { text: "Cerrar"; compact: true; onClicked: plantillasPopup.close() }
+            GlassButton { text: qsTr("Cerrar"); compact: true; onClicked: plantillasPopup.close() }
         }
     }
 }

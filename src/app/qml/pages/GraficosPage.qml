@@ -47,8 +47,8 @@ Rectangle {
     // Un GIF, una imagen, una carpeta de PNG o un video con alfa para el gráfico abierto.
     FileDialog {
         id: medioDlg
-        title: "Medio para el gráfico (GIF, imagen o video con alfa)"
-        nameFilters: ["Imágenes y videos (*.gif *.png *.jpg *.jpeg *.webp *.webm *.mov *.mp4 *.mkv)", "Todos (*)"]
+        title: qsTr("Medio para el gráfico (GIF, imagen o video con alfa)")
+        nameFilters: [qsTr("Imágenes y videos (*.gif *.png *.jpg *.jpeg *.webp *.webm *.mov *.mp4 *.mkv)"), qsTr("Todos (*)")]
         onAccepted: page.g.agregarMedio(selectedFile)
     }
 
@@ -68,8 +68,7 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
                 font.pixelSize: 14
-                text: "Este bundle no trae el renderizador de gráficos (ba-grafico).\n" +
-                      "Sin él no se pueden ver ni usar gráficos animados."
+                text: qsTr("Este bundle no trae el renderizador de gráficos (ba-grafico).\nSin él no se pueden ver ni usar gráficos animados.")
             }
         }
 
@@ -83,7 +82,7 @@ Rectangle {
             Panel {
                 Layout.preferredWidth: 230
                 Layout.fillHeight: true
-                title: "Gráficos"
+                title: qsTr("Gráficos")
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 8
@@ -105,7 +104,7 @@ Rectangle {
                           Text {
                             visible: filaG.primeroDeSuCategoria
                             y: 6; x: 4
-                            text: (filaG.modelData.categoria || "General").toUpperCase()
+                            text: (filaG.modelData.categoria || qsTr("General")).toUpperCase()
                             color: Theme.textFaint
                             font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1.5 }
                           }
@@ -134,8 +133,8 @@ Rectangle {
                                     elide: Text.ElideRight
                                     text: modelData.descripcion
                                           ? modelData.descripcion
-                                          : (modelData.plugin ? "lo dibuja el plugin «" + modelData.plugin + "»"
-                                             : (modelData.declarativo ? "armado con capas, sin código" : "escrito en QML"))
+                                          : (modelData.plugin ? qsTr("lo dibuja el plugin «%1»").arg(modelData.plugin)
+                                             : (modelData.declarativo ? qsTr("armado con capas, sin código") : qsTr("escrito en QML")))
                                     color: Theme.textFaint
                                     font.pixelSize: 10
                                     ToolTip.visible: maDesc.containsMouse && truncated
@@ -157,17 +156,17 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 6
                         GlassButton {
-                            text: "+ Descripción"; compact: true
+                            text: qsTr("+ Descripción"); compact: true
                             Layout.fillWidth: true
                             onClicked: nuevoDlg.abrir(true)
                             ToolTip.visible: hovered
-                            ToolTip.text: "Un gráfico sin código: capas y animaciones de un repertorio"
+                            ToolTip.text: qsTr("Un gráfico sin código: capas y animaciones de un repertorio")
                         }
                         GlassButton {
                             text: "+ QML"; compact: true
                             onClicked: nuevoDlg.abrir(false)
                             ToolTip.visible: hovered
-                            ToolTip.text: "Para lo que el repertorio no alcance"
+                            ToolTip.text: qsTr("Para lo que el repertorio no alcance")
                         }
                     }
                 }
@@ -178,8 +177,8 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: 320
-                title: page.g.abierto === "" ? "Editor"
-                     : (page.g.abierto + (page.g.sucio ? " — sin guardar" : ""))
+                title: page.g.abierto === "" ? qsTr("Editor")
+                     : (page.g.sucio ? qsTr("%1 — sin guardar").arg(page.g.abierto) : page.g.abierto)
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -194,9 +193,7 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         color: Theme.textFaint
                         font.pixelSize: 13
-                        text: "Elegí un gráfico de la izquierda, o creá uno.\n\n" +
-                              "Los de «descripción» se arman con capas y animaciones de un " +
-                              "repertorio, sin escribir código."
+                        text: qsTr("Elegí un gráfico de la izquierda, o creá uno.\n\nLos de «descripción» se arman con capas y animaciones de un repertorio, sin escribir código.")
                     }
 
                     // Uno de un plugin no se edita acá: su código es el del plugin.
@@ -209,9 +206,7 @@ Rectangle {
                         wrapMode: Text.WordWrap
                         color: Theme.textFaint
                         font.pixelSize: 13
-                        text: "Este gráfico lo dibuja el plugin «" + page.g.plugin + "».\n\n" +
-                              "Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). " +
-                              "Acá se prueba con sus parámetros y se saca al aire."
+                        text: qsTr("Este gráfico lo dibuja el plugin «%1».\n\nSe cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá se prueba con sus parámetros y se saca al aire.").arg(page.g.plugin)
                     }
 
                     ScrollView {
@@ -248,7 +243,7 @@ Rectangle {
                         spacing: 6
                         GlassButton {
                             visible: page.g.plugin === ""
-                            text: "Guardar"; compact: true
+                            text: qsTr("Guardar"); compact: true
                             active: page.g.sucio
                             onClicked: page.g.guardar()
                         }
@@ -276,7 +271,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 320
-                    title: "Cómo se ve"
+                    title: qsTr("Cómo se ve")
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 8
@@ -340,7 +335,7 @@ Rectangle {
                                             width: parent.width - 8
                                             horizontalAlignment: Text.AlignHCenter
                                             elide: Text.ElideRight
-                                            text: "● " + (nombre !== "" ? nombre : "video en vivo")
+                                            text: "● " + (nombre !== "" ? nombre : qsTr("video en vivo"))
                                             color: "white"
                                             opacity: 0.4 + 0.6 * alfa
                                             font.pixelSize: 11
@@ -370,7 +365,7 @@ Rectangle {
                                 onMoved: page.g.momentoMs = value
                             }
                             Text {
-                                text: "de " + page.mmss(page.g.duracionMs)
+                                text: qsTr("de %1").arg(page.mmss(page.g.duracionMs))
                                 color: Theme.textFaint
                                 font.pixelSize: 11
                             }
@@ -383,12 +378,12 @@ Rectangle {
                                 onClicked: page.g.momentoMs = 0
                             }
                             GlassButton {
-                                text: page.g.reproduciendo ? "❚❚ Pausa" : "▶ Reproducir"; compact: true
+                                text: page.g.reproduciendo ? qsTr("❚❚ Pausa") : qsTr("▶ Reproducir"); compact: true
                                 Layout.fillWidth: true
                                 onClicked: page.g.reproduciendo = !page.g.reproduciendo
                                 active: page.g.reproduciendo
                             }
-                            Text { text: "Dura"; color: Theme.textDim; font.pixelSize: 11 }
+                            Text { text: qsTr("Dura"); color: Theme.textDim; font.pixelSize: 11 }
                             TextField {
                                 Layout.preferredWidth: 70
                                 text: String(page.g.duracionMs)
@@ -404,7 +399,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: "Parámetros"
+                    title: qsTr("Parámetros")
                     ScrollView {
                         anchors.fill: parent
                         clip: true
@@ -442,7 +437,7 @@ Rectangle {
                                         readonly property var valor: page.g.valores[modelData.clave]
                                         text: valor === undefined ? ""
                                               : (typeof valor === "object" ? JSON.stringify(valor) : String(valor))
-                                        placeholderText: modelData.tipo === "datos" ? "Sí: 34; No: 12; Abstenciones: 3" : ""
+                                        placeholderText: modelData.tipo === "datos" ? qsTr("Sí: 34; No: 12; Abstenciones: 3") : ""
                                         color: Theme.text
                                         font.pixelSize: 12
                                         onEditingFinished: page.g.setValor(modelData.clave, text)
@@ -468,7 +463,7 @@ Rectangle {
                             // con su tiempo atado al del gráfico (capa «medio»).
                             Text {
                                 visible: page.g.plugin === ""
-                                text: "Medios (GIF, imágenes, videos con alfa)"
+                                text: qsTr("Medios (GIF, imágenes, videos con alfa)")
                                 color: Theme.textDim
                                 font { pixelSize: 11; weight: Font.DemiBold }
                             }
@@ -476,8 +471,7 @@ Rectangle {
                                 visible: page.g.plugin === "" && page.g.medios.length === 0
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: "Ninguno. Un video (WebM con alfa, ProRes 4444) se pasa a cuadros con su " +
-                                      "transparencia; en el gráfico va como capa «medio» con «archivo»: «medios/…»."
+                                text: qsTr("Ninguno. Un video (WebM con alfa, ProRes 4444) se pasa a cuadros con su transparencia; en el gráfico va como capa «medio» con «archivo»: «medios/…».")
                                 color: Theme.textFaint
                                 font.pixelSize: 11
                             }
@@ -491,12 +485,12 @@ Rectangle {
                                         Layout.fillWidth: true
                                         elide: Text.ElideMiddle
                                         text: modelData.archivo + "  ·  " + modelData.tipo +
-                                              (modelData.cuadros ? " · " + modelData.cuadros + " cuadros" : "") +
-                                              (modelData.alfa === false ? " · sin alfa" : "")
+                                              (modelData.cuadros ? " · " + qsTr("%n cuadro", "", modelData.cuadros) : "") +
+                                              (modelData.alfa === false ? " · " + qsTr("sin alfa") : "")
                                         color: Theme.text
                                         font.pixelSize: 12
                                         ToolTip.visible: maMedio.containsMouse
-                                        ToolTip.text: "En el gráfico: \"archivo\": \"" + modelData.archivo + "\""
+                                        ToolTip.text: qsTr("En el gráfico: \"archivo\": \"%1\"").arg(modelData.archivo)
                                         MouseArea { id: maMedio; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                                     }
                                     GlassButton {
@@ -507,7 +501,7 @@ Rectangle {
                             }
                             GlassButton {
                                 visible: page.g.plugin === ""
-                                text: page.g.importando ? "Convirtiendo el video…" : "Agregar medio…"
+                                text: page.g.importando ? qsTr("Convirtiendo el video…") : qsTr("Agregar medio…")
                                 compact: true
                                 enabled: !page.g.importando && page.g.abierto !== ""
                                 onClicked: medioDlg.open()
@@ -525,7 +519,7 @@ Rectangle {
                             // ACÁ, mientras se diseña la animación, que es
                             // cuando se sabe para qué sirve cada parámetro.
                             Text {
-                                text: "Botones que ofrece"
+                                text: qsTr("Botones que ofrece")
                                 color: Theme.textDim
                                 font { pixelSize: 11; weight: Font.DemiBold }
                             }
@@ -533,9 +527,7 @@ Rectangle {
                                 visible: page.g.acciones.length === 0
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: "Todavía no ofrece ninguno. Un botón es un pedido ya escrito " +
-                                      "(«poné al orador que sigue») que el operador aprieta sin tener " +
-                                      "que explicarle nada al asistente."
+                                text: qsTr("Todavía no ofrece ninguno. Un botón es un pedido ya escrito («poné al orador que sigue») que el operador aprieta sin tener que explicarle nada al asistente.")
                                 color: Theme.textFaint
                                 font.pixelSize: 11
                             }
@@ -560,7 +552,7 @@ Rectangle {
                                 }
                             }
                             GlassButton {
-                                text: page.g.acciones.length === 0 ? "Proponer botones" : "Revisar los botones"
+                                text: page.g.acciones.length === 0 ? qsTr("Proponer botones") : qsTr("Revisar los botones")
                                 compact: true
                                 enabled: Studio.agent.running
                                 onClicked: ApplicationWindow.window.pedirAlAsistente(
@@ -578,7 +570,7 @@ Rectangle {
                                 color: Theme.glassBorder
                             }
                             Text {
-                                text: "Ponerlo en una escena"
+                                text: qsTr("Ponerlo en una escena")
                                 color: Theme.textDim
                                 font { pixelSize: 11; weight: Font.DemiBold }
                             }
@@ -586,8 +578,7 @@ Rectangle {
                                 visible: page.g.enEscena.length === 0
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: "No hay ninguna fuente «Gráfico animado» en las escenas. " +
-                                      "Agregá una desde Escenas y volvé."
+                                text: qsTr("No hay ninguna fuente «Gráfico animado» en las escenas. Agregá una desde Escenas y volvé.")
                                 color: Theme.textFaint
                                 font.pixelSize: 11
                             }
@@ -605,7 +596,7 @@ Rectangle {
                                         font.pixelSize: 12
                                     }
                                     GlassButton {
-                                        text: "Al aire"; compact: true
+                                        text: qsTr("Al aire"); compact: true
                                         onClicked: {
                                             const e = page.g.mostrarEnEscena(modelData.id, false)
                                             if (e !== "") page.g.notify(e, "error")

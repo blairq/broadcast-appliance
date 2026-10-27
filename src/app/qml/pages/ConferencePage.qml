@@ -16,7 +16,9 @@ Rectangle {
     Connections {
         target: page.conf
         function onPruebaLista(id, r) {
-            Studio.notify("Prueba técnica: " + r.recomendacion + (r.red && r.red.rtt_ms !== undefined ? " (rtt " + Math.round(r.red.rtt_ms) + " ms, pérdida " + (r.red.perdida_pct || 0) + " %)" : ""),
+            Studio.notify(r.red && r.red.rtt_ms !== undefined
+                              ? qsTr("Prueba técnica: %1 (rtt %2 ms, pérdida %3 %)").arg(r.recomendacion).arg(Math.round(r.red.rtt_ms)).arg(r.red.perdida_pct || 0)
+                              : qsTr("Prueba técnica: %1").arg(r.recomendacion),
                           r.eco || (r.red && r.red.semaforo === "rojo") || !r.ok ? "warn" : "ok")
         }
     }
@@ -77,7 +79,7 @@ Rectangle {
             Layout.fillWidth: true
             readonly property bool shown: conf.speakerMode || conf.speakers.count > 0
             Layout.preferredHeight: shown ? 400 : 64
-            title: shown ? "Oradores" : ""
+            title: shown ? qsTr("Oradores") : ""
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 10
@@ -85,27 +87,27 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 10
                     Toggle { checked: conf.speakerMode; onToggled: (wanted) => conf.setSpeakerConfig({ enabled: wanted }) }
-                    Text { text: "Modo oradores"; color: Theme.text; font.pixelSize: 13 }
+                    Text { text: qsTr("Modo oradores"); color: Theme.text; font.pixelSize: 13 }
                     Text { visible: !spkPanel.shown; Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 12
-                           text: "Los admitidos pasan a una fila (miran el programa) y los ponés al aire por turno, con un reloj que nunca los saca solo." }
+                           text: qsTr("Los admitidos pasan a una fila (miran el programa) y los ponés al aire por turno, con un reloj que nunca los saca solo.") }
                     RowLayout {
                         visible: conf.speakerMode
                         spacing: 8
-                        Text { text: "Tiempo"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Tiempo"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             id: spkDefault
                             Layout.preferredWidth: 64
                             text: page.fmt((conf.speakerCfg.defaultSec || 0) * 1000)
                             font.pixelSize: 12
-                            ToolTip.visible: hovered; ToolTip.text: "Tiempo general para cada orador (m:ss o minutos)"
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Tiempo general para cada orador (m:ss o minutos)")
                             onEditingFinished: { const s = conf.parseDuration(text); if (s > 0) conf.setSpeakerConfig({ defaultSec: s }) }
                         }
                         ComboBox {
-                            model: ["Uno a la vez", "Varios"]
+                            model: [qsTr("Uno a la vez"), qsTr("Varios")]
                             currentIndex: conf.speakerCfg.multi ? 1 : 0
                             onActivated: (i) => conf.setSpeakerConfig({ multi: i === 1 })
                         }
-                        Text { text: "Slot"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Slot"); color: Theme.textDim; font.pixelSize: 12 }
                         ComboBox {
                             Layout.preferredWidth: 64
                             model: Math.max(1, conf.maxGuests)
@@ -117,7 +119,7 @@ Rectangle {
                         ComboBox {
                             id: carouselBox
                             readonly property var modes: ["manual", "chain", "time"]
-                            model: ["Carrusel manual", "Al sacar, entra el siguiente", "Automático por tiempo"]
+                            model: [qsTr("Carrusel manual"), qsTr("Al sacar, entra el siguiente"), qsTr("Automático por tiempo")]
                             Layout.preferredWidth: 220
                             currentIndex: Math.max(0, modes.indexOf(conf.speakerCfg.carousel || "manual"))
                             onActivated: (i) => conf.setSpeakerConfig({ carousel: modes[i] })
@@ -131,21 +133,21 @@ Rectangle {
                             valueFromText: (t) => parseInt(t.replace(/[^0-9]/g, "")) || 0
                             // "+N s" no pasa el IntValidator por defecto (binding loop).
                             validator: RegularExpressionValidator { regularExpression: /\+?\s*\d{0,3}\s*s?/ }
-                            ToolTip.visible: hovered; ToolTip.text: "Margen después de cero antes de rotar"
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Margen después de cero antes de rotar")
                             onValueModified: conf.setSpeakerConfig({ graceSec: value })
                         }
                     }
                     Item { Layout.fillWidth: true; visible: spkPanel.shown }
-                    GlassButton { visible: conf.speakerMode; text: "Siguiente ▶"; compact: true; active: true; activeColor: Theme.ok; onClicked: conf.speakerNext() }
+                    GlassButton { visible: conf.speakerMode; text: qsTr("Siguiente ▶"); compact: true; active: true; activeColor: Theme.ok; onClicked: conf.speakerNext() }
                     GlassButton {
                         id: boardBtn
                         visible: conf.speakerMode
-                        text: "Tablero ▾"; compact: true
+                        text: qsTr("Tablero ▾"); compact: true
                         onClicked: boardMenu.popup(boardBtn, 0, boardBtn.height + 4)
                         Menu {
                             id: boardMenu
-                            MenuItem { text: "Tablero en la red local"; onTriggered: qrDlg.show("board-local") }
-                            MenuItem { text: "Tablero por internet"; onTriggered: qrDlg.show("board-remote") }
+                            MenuItem { text: qsTr("Tablero en la red local"); onTriggered: qrDlg.show("board-local") }
+                            MenuItem { text: qsTr("Tablero por internet"); onTriggered: qrDlg.show("board-remote") }
                         }
                     }
                 }
@@ -166,7 +168,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         visible: spkList.count === 0
-                        text: "Nadie en la fila. Admití gente del lobby, o usá «→ Oradores» en alguien que ya esté en la conferencia."
+                        text: qsTr("Nadie en la fila. Admití gente del lobby, o usá «→ Oradores» en alguien que ya esté en la conferencia.")
                         color: Theme.textFaint; font.pixelSize: 13
                     }
                 }
@@ -183,7 +185,7 @@ Rectangle {
                 Layout.preferredWidth: 310
                 Layout.maximumWidth: 310
                 Layout.fillHeight: true
-                title: "Lobby — solo te ven a vos"
+                title: qsTr("Lobby — solo te ven a vos")
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 10
@@ -218,7 +220,7 @@ Rectangle {
                             // lo que le quede y envuelve, que es lo que se le
                             // pidió al ponerle WordWrap.
                             Layout.preferredWidth: 0
-                            Text { text: "☻ Reconocer a los que llegan"
+                            Text { text: qsTr("☻ Reconocer a los que llegan")
                                    color: Theme.text; font.pixelSize: 13 }
                             Text {
                                 Layout.fillWidth: true
@@ -226,11 +228,10 @@ Rectangle {
                                 wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 11
                                 text: Studio.personas.lobbyPorAtencion
-                                      ? "Prendido por la atención: mientras el asistente atiende, el lobby se mira siempre."
+                                      ? qsTr("Prendido por la atención: mientras el asistente atiende, el lobby se mira siempre.")
                                       : Studio.personas.lobbyAuto
-                                      ? "Sobre cada cámara dice quién es. Al que no conoce lo anota sin " +
-                                        "nombre, con su foto, para que le pongas quién es."
-                                      : "Mira las cámaras de los que esperan y te dice a quién reconoce."
+                                      ? qsTr("Sobre cada cámara dice quién es. Al que no conoce lo anota sin nombre, con su foto, para que le pongas quién es.")
+                                      : qsTr("Mira las cámaras de los que esperan y te dice a quién reconoce.")
                             }
                             // NO va acá el contador de fichas sin nombre de
                             // toda la libreta: en el panel del lobby se lee
@@ -241,9 +242,9 @@ Rectangle {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: conf.waiting.count === 0 ? "Nadie esperando" : conf.waiting.count + " esperando"
+                        Text { text: conf.waiting.count === 0 ? qsTr("Nadie esperando") : qsTr("%n esperando", "", conf.waiting.count)
                                color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
-                        GlassButton { visible: conf.waiting.count > 1; text: "Admitir a todos"; compact: true; onClicked: conf.admitAll() }
+                        GlassButton { visible: conf.waiting.count > 1; text: qsTr("Admitir a todos"); compact: true; onClicked: conf.admitAll() }
                         // QR de ingreso: se despliega con las dos opciones.
                         GlassButton {
                             id: qrBtn
@@ -251,8 +252,8 @@ Rectangle {
                             onClicked: qrMenu.popup(qrBtn, 0, qrBtn.height + 4)
                             Menu {
                                 id: qrMenu
-                                MenuItem { text: "QR local (red local)"; onTriggered: qrDlg.show("local") }
-                                MenuItem { text: "QR remoto (por internet)"; onTriggered: qrDlg.show("remote") }
+                                MenuItem { text: qsTr("QR local (red local)"); onTriggered: qrDlg.show("local") }
+                                MenuItem { text: qsTr("QR remoto (por internet)"); onTriggered: qrDlg.show("remote") }
                             }
                         }
                     }
@@ -298,10 +299,10 @@ Rectangle {
                                         anchors.centerIn: parent
                                         visible: lobbySlot === 0
                                         horizontalAlignment: Text.AlignHCenter
-                                        text: "Sin lugar de preview\n(esperando que se libere)"
+                                        text: qsTr("Sin lugar de preview\n(esperando que se libere)")
                                         color: Theme.textFaint; font.pixelSize: 11
                                     }
-                                    StatusPill { anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 6; visible: talk; text: "hablando"; dot: Theme.ok; pulse: true }
+                                    StatusPill { anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 6; visible: talk; text: qsTr("hablando"); dot: Theme.ok; pulse: true }
 
                                     // --- Quién es, según el reconocimiento ---
                                     // Va ENCIMA de su cámara y no al lado del
@@ -338,8 +339,8 @@ Rectangle {
                                                            (q.cargo !== "" ? " · " + q.cargo : "") +
                                                            "  " + Math.round(q.parecido * 100) + "%"
                                                 if (q.id !== "")
-                                                    return "Anotado sin nombre · " + q.caras + " cara(s)"
-                                                return q.sirve ? "No lo tengo en la libreta"
+                                                    return qsTr("Anotado sin nombre · %n cara", "", q.caras)
+                                                return q.sirve ? qsTr("No lo tengo en la libreta")
                                                                : q.sugerencia
                                             }
                                         }
@@ -351,7 +352,7 @@ Rectangle {
                                         spacing: 0
                                         Layout.fillWidth: true
                                         Text { text: name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
-                                        Text { text: (connected ? "espera hace " : "desconectado · ") + page.since(joinedMs); color: Theme.textFaint; font.pixelSize: 11 }
+                                        Text { text: (connected ? qsTr("espera hace %1") : qsTr("desconectado · %1")).arg(page.since(joinedMs)); color: Theme.textFaint; font.pixelSize: 11 }
                                     }
                                 }
                                 // Flow y no RowLayout: con varios botones ya no
@@ -360,30 +361,30 @@ Rectangle {
                                 Flow {
                                     Layout.fillWidth: true
                                     spacing: 6
-                                    GlassButton { text: "Admitir"; compact: true; active: true; activeColor: Theme.ok; onClicked: conf.admit(uid) }
-                                    GlassButton { text: talk ? "Cortar" : "Hablar"; compact: true; enabled: lobbySlot > 0; active: talk; activeColor: Theme.ok
+                                    GlassButton { text: qsTr("Admitir"); compact: true; active: true; activeColor: Theme.ok; onClicked: conf.admit(uid) }
+                                    GlassButton { text: talk ? qsTr("Cortar") : qsTr("Hablar"); compact: true; enabled: lobbySlot > 0; active: talk; activeColor: Theme.ok
                                                   onClicked: conf.talk(uid, !talk) }
-                                    GlassButton { text: "Rechazar"; compact: true; onClicked: conf.reject(uid) }
+                                    GlassButton { text: qsTr("Rechazar"); compact: true; onClicked: conf.reject(uid) }
                                     GlassButton { text: "✉"; compact: true; onClicked: { chatTo.pick(uid); chatInput.forceActiveFocus() } }
                                     GlassButton {
                                         text: "✎"; compact: true
                                         onClicked: profDlg.editPerson(waitCard.uid, waitCard.name, waitCard.info, waitCard.contact)
                                         ToolTip.visible: hovered; ToolTip.delay: 400
-                                        ToolTip.text: "Editar nombre, cargo y contacto"
+                                        ToolTip.text: qsTr("Editar nombre, cargo y contacto")
                                     }
                                     // Que la atienda el asistente: le pide los datos por
                                     // chat y despues te muestra todo junto con su foto.
                                     GlassButton {
-                                        text: "✦ Que lo atienda"; compact: true
+                                        text: qsTr("✦ Que lo atienda"); compact: true
                                         visible: Studio.agent.running
                                         onClicked: {
                                             const e = Studio.assistantIntake(waitCard.uid, waitCard.name)
                                             Studio.notify(
-                                                e !== "" ? e : "El asistente está hablando con " + waitCard.name,
+                                                e !== "" ? e : qsTr("El asistente está hablando con %1").arg(waitCard.name),
                                                 e !== "" ? "error" : "ok")
                                         }
                                         ToolTip.visible: hovered; ToolTip.delay: 400
-                                        ToolTip.text: "El asistente le pide nombre, cargo, cómo presentarlo y contacto, y te muestra todo junto con su foto para que decidas si pasa."
+                                        ToolTip.text: qsTr("El asistente le pide nombre, cargo, cómo presentarlo y contacto, y te muestra todo junto con su foto para que decidas si pasa.")
                                     }
                                 }
                             }
@@ -407,25 +408,25 @@ Rectangle {
                     // de apretarse: las baldosas de la sala tienen de sobra con
                     // menos, y quedarse sin Chat visible es peor.
                     Layout.minimumHeight: 220
-                    title: "En la conferencia"
+                    title: qsTr("En la conferencia")
                     RowLayout {
                         anchors { right: parent.right; top: parent.top; topMargin: -34 }
                         spacing: 8
-                        StatusPill { text: conf.online ? "Conferencia " + conf.room : "Conferencia sin conexion"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
-                        StatusPill { visible: conf.online; text: (conf.maxGuests - conf.slotsFree) + "/" + conf.maxGuests + " lugares"; dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
+                        StatusPill { text: conf.online ? qsTr("Conferencia %1").arg(conf.room) : qsTr("Conferencia sin conexion"); dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
+                        StatusPill { visible: conf.online; text: qsTr("%1/%2 lugares").arg(conf.maxGuests - conf.slotsFree).arg(conf.maxGuests); dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
                         // Reinicia SOLO la sala (el gateway): relee su configuración (IP,
                         // puertos, túnel) sin cerrar el programa.
                         GlassButton {
-                            compact: true; text: "Reiniciar la conferencia"; icon: "↻"
+                            compact: true; text: qsTr("Reiniciar la conferencia"); icon: "↻"
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Reinicia solo el servidor de la conferencia (gateway) con su configuración actual, sin cerrar el programa. Los invitados se cortan y vuelven a entrar."
+                            ToolTip.text: qsTr("Reinicia solo el servidor de la conferencia (gateway) con su configuración actual, sin cerrar el programa. Los invitados se cortan y vuelven a entrar.")
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Reiniciar la conferencia?",
-                                text: "Se reinicia solo el servidor de la conferencia con su configuración actual. Los invitados conectados se cortan y vuelven a entrar solos.",
-                                accept: "Reiniciar", reject: "Cancelar",
+                                title: qsTr("¿Reiniciar la conferencia?"),
+                                text: qsTr("Se reinicia solo el servidor de la conferencia con su configuración actual. Los invitados conectados se cortan y vuelven a entrar solos."),
+                                accept: qsTr("Reiniciar"), reject: qsTr("Cancelar"),
                                 action: function() {
                                     const e = conf.reiniciarSala()
-                                    Studio.notify(e === "" ? "La conferencia se está reiniciando." : e, e === "" ? "ok" : "error")
+                                    Studio.notify(e === "" ? qsTr("La conferencia se está reiniciando.") : e, e === "" ? "ok" : "error")
                                 }
                             })
                         }
@@ -485,7 +486,7 @@ Rectangle {
                                 Text {
                                     anchors.centerIn: parent
                                     visible: slot <= 0
-                                    text: "sin lugar en el programa"
+                                    text: qsTr("sin lugar en el programa")
                                     color: Theme.textFaint; font.pixelSize: 12
                                 }
                                 Rectangle {
@@ -506,12 +507,12 @@ Rectangle {
                                         Text { text: name; color: "white"; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                                         Text { visible: hand; text: "✋"; font.pixelSize: 16 }
                                         // Achicada, solo lo que avisa algo: el nombre tiene que leerse.
-                                        StatusPill { visible: !barra.compacta || !mic; text: mic ? "mic" : "mic off"; dot: mic ? Theme.ok : Theme.live }
-                                        StatusPill { visible: !barra.compacta || !cam; text: cam ? "cámara" : "cámara off"; dot: cam ? Theme.ok : Theme.live }
-                                        StatusPill { visible: screen; text: "pantalla"; dot: Theme.accent }
-                                        StatusPill { visible: presenter; text: "PRESENTADOR"; dot: "#a78bfa" }
-                                        StatusPill { visible: speaker === "onair"; text: "ORADOR"; dot: Theme.live }
-                                        StatusPill { visible: !barra.compacta || !connected || !mediaUp; text: !connected ? "reconectando" : mediaUp ? "en vivo" : "sin medios"; dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
+                                        StatusPill { visible: !barra.compacta || !mic; text: mic ? qsTr("mic") : qsTr("mic off"); dot: mic ? Theme.ok : Theme.live }
+                                        StatusPill { visible: !barra.compacta || !cam; text: cam ? qsTr("cámara") : qsTr("cámara off"); dot: cam ? Theme.ok : Theme.live }
+                                        StatusPill { visible: screen; text: qsTr("pantalla"); dot: Theme.accent }
+                                        StatusPill { visible: presenter; text: qsTr("PRESENTADOR"); dot: "#a78bfa" }
+                                        StatusPill { visible: speaker === "onair"; text: qsTr("ORADOR"); dot: Theme.live }
+                                        StatusPill { visible: !barra.compacta || !connected || !mediaUp; text: !connected ? qsTr("reconectando") : mediaUp ? qsTr("en vivo") : qsTr("sin medios"); dot: !connected ? Theme.live : mediaUp ? Theme.ok : Theme.amber }
                                     }
                                     // Los controles, en una barra oscura propia (antes iban sueltos
                                     // sobre el video y no se veía que eran botones). Si no entran
@@ -536,66 +537,66 @@ Rectangle {
                                             enabled: !barra.compacta
                                             GlassButton {
                                                 compact: true
-                                                text: mic ? "Silenciar" : "Activar micrófono"
+                                                text: mic ? qsTr("Silenciar") : qsTr("Activar micrófono")
                                                 onClicked: conf.request(uid, mic ? "mute-mic" : "unmute-mic")
                                             }
                                             GlassButton {
                                                 compact: true
-                                                text: cam ? "Apagar cámara" : "Encender cámara"
+                                                text: cam ? qsTr("Apagar cámara") : qsTr("Encender cámara")
                                                 onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
                                             }
                                             // IFB: mientras lo mantenés apretado le llega tu voz (mezclada con el
                                             // retorno, el programa baja). No sale al aire.
                                             GlassButton {
-                                                compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
+                                                compact: true; text: talk ? qsTr("🎙 Hablando…") : qsTr("🎙 Hablarle")
                                                 active: talk; activeColor: Theme.ok
                                                 onPressed2: conf.talk(uid, true)
                                                 onReleased2: conf.talk(uid, false)
                                                 onCanceled2: conf.talk(uid, false)
                                                 ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
-                                                ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
+                                                ToolTip.text: qsTr("Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)")
                                             }
                                             GlassButton {
-                                                compact: true; text: "Prueba técnica"
-                                                onClicked: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") }
+                                                compact: true; text: qsTr("Prueba técnica")
+                                                onClicked: { conf.pruebaTecnica(uid); Studio.notify(qsTr("Probando a %1: un tono por su retorno durante 4 s…").arg(name), "info") }
                                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: "Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red"
+                                                ToolTip.text: qsTr("Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red")
                                             }
-                                            GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
-                                            GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
+                                            GlassButton { visible: screen; compact: true; text: qsTr("Cortar pantalla"); onClicked: conf.request(uid, "stop-screen") }
+                                            GlassButton { visible: hand; compact: true; text: qsTr("Bajar mano"); onClicked: conf.request(uid, "lower-hand") }
                                             // Pasarlo a la fila de oradores o dejarlo de presentador
                                             // fijo: la sala sigue siendo la misma para todos.
                                             GlassButton {
                                                 visible: !presenter && speaker !== "queued"
-                                                compact: true; text: "→ Oradores"
+                                                compact: true; text: qsTr("→ Oradores")
                                                 onClicked: conf.speakerRequeue(uid)
                                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: "Lo pone en la fila de oradores (sale del aire hasta que le toque)"
+                                                ToolTip.text: qsTr("Lo pone en la fila de oradores (sale del aire hasta que le toque)")
                                             }
                                             GlassButton {
                                                 compact: true
-                                                text: presenter ? "Quitar presentador" : "★ Presentador"
+                                                text: presenter ? qsTr("Quitar presentador") : qsTr("★ Presentador")
                                                 active: presenter
                                                 activeColor: "#a78bfa"
                                                 onClicked: conf.setPresenter(uid, !presenter)
                                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: presenter ? "Deja de ser presentador y sale del aire"
-                                                                        : "Se queda al aire con su lugar mientras rotan los oradores"
+                                                ToolTip.text: presenter ? qsTr("Deja de ser presentador y sale del aire")
+                                                                        : qsTr("Se queda al aire con su lugar mientras rotan los oradores")
                                             }
                                             GlassButton {
-                                                compact: true; text: "✉ Mensaje"
+                                                compact: true; text: qsTr("✉ Mensaje")
                                                 // Abre SU hilo. Si todavía no hay
                                                 // ninguno con esa persona, el tab
                                                 // aparece con el primer mensaje.
                                                 onClicked: { page.abrirHilo(uid); chatInput.forceActiveFocus() }
                                             }
                                             GlassButton {
-                                                compact: true; text: "✎ Datos"
+                                                compact: true; text: qsTr("✎ Datos")
                                                 onClicked: profDlg.editPerson(uid, name, info, contact)
                                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                                ToolTip.text: "Editar nombre, cargo y contacto"
+                                                ToolTip.text: qsTr("Editar nombre, cargo y contacto")
                                             }
-                                            GlassButton { compact: true; text: "Sacar"; onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
+                                            GlassButton { compact: true; text: qsTr("Sacar"); onClicked: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                         }
                                         RowLayout {
                                             id: filaCompacta
@@ -603,31 +604,31 @@ Rectangle {
                                             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
                                             spacing: 6
                                             GlassButton {
-                                                compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
+                                                compact: true; text: talk ? qsTr("🎙 Hablando…") : qsTr("🎙 Hablarle")
                                                 active: talk; activeColor: Theme.ok
                                                 onPressed2: conf.talk(uid, true)
                                                 onReleased2: conf.talk(uid, false)
                                                 onCanceled2: conf.talk(uid, false)
                                                 ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
-                                                ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
+                                                ToolTip.text: qsTr("Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)")
                                             }
                                             GlassButton {
                                                 id: controlesBtn
-                                                compact: true; text: "Controles ▾"
+                                                compact: true; text: qsTr("Controles ▾")
                                                 onClicked: controlesMenu.popup(controlesBtn, 0, controlesBtn.height + 4)
                                                 Menu {
                                                     id: controlesMenu
-                                                    MenuItem { text: mic ? "Silenciar" : "Activar micrófono"; onTriggered: conf.request(uid, mic ? "mute-mic" : "unmute-mic") }
-                                                    MenuItem { text: cam ? "Apagar cámara" : "Encender cámara"; onTriggered: conf.request(uid, cam ? "mute-cam" : "unmute-cam") }
-                                                    MenuItem { text: "Prueba técnica"; onTriggered: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") } }
-                                                    MenuItem { visible: screen; height: visible ? implicitHeight : 0; text: "Cortar pantalla"; onTriggered: conf.request(uid, "stop-screen") }
-                                                    MenuItem { visible: hand; height: visible ? implicitHeight : 0; text: "Bajar mano"; onTriggered: conf.request(uid, "lower-hand") }
-                                                    MenuItem { visible: !presenter && speaker !== "queued"; height: visible ? implicitHeight : 0; text: "→ Oradores"; onTriggered: conf.speakerRequeue(uid) }
-                                                    MenuItem { text: presenter ? "Quitar presentador" : "★ Presentador"; onTriggered: conf.setPresenter(uid, !presenter) }
-                                                    MenuItem { text: "✉ Mensaje"; onTriggered: { page.abrirHilo(uid); chatInput.forceActiveFocus() } }
-                                                    MenuItem { text: "✎ Datos"; onTriggered: profDlg.editPerson(uid, name, info, contact) }
+                                                    MenuItem { text: mic ? qsTr("Silenciar") : qsTr("Activar micrófono"); onTriggered: conf.request(uid, mic ? "mute-mic" : "unmute-mic") }
+                                                    MenuItem { text: cam ? qsTr("Apagar cámara") : qsTr("Encender cámara"); onTriggered: conf.request(uid, cam ? "mute-cam" : "unmute-cam") }
+                                                    MenuItem { text: qsTr("Prueba técnica"); onTriggered: { conf.pruebaTecnica(uid); Studio.notify(qsTr("Probando a %1: un tono por su retorno durante 4 s…").arg(name), "info") } }
+                                                    MenuItem { visible: screen; height: visible ? implicitHeight : 0; text: qsTr("Cortar pantalla"); onTriggered: conf.request(uid, "stop-screen") }
+                                                    MenuItem { visible: hand; height: visible ? implicitHeight : 0; text: qsTr("Bajar mano"); onTriggered: conf.request(uid, "lower-hand") }
+                                                    MenuItem { visible: !presenter && speaker !== "queued"; height: visible ? implicitHeight : 0; text: qsTr("→ Oradores"); onTriggered: conf.speakerRequeue(uid) }
+                                                    MenuItem { text: presenter ? qsTr("Quitar presentador") : qsTr("★ Presentador"); onTriggered: conf.setPresenter(uid, !presenter) }
+                                                    MenuItem { text: qsTr("✉ Mensaje"); onTriggered: { page.abrirHilo(uid); chatInput.forceActiveFocus() } }
+                                                    MenuItem { text: qsTr("✎ Datos"); onTriggered: profDlg.editPerson(uid, name, info, contact) }
                                                     MenuSeparator {}
-                                                    MenuItem { text: "Sacar"; onTriggered: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
+                                                    MenuItem { text: qsTr("Sacar"); onTriggered: { kickDlg.who = uid; kickDlg.whoName = name; kickDlg.open() } }
                                                 }
                                             }
                                             Item { Layout.fillWidth: true }
@@ -640,7 +641,7 @@ Rectangle {
                             anchors.centerIn: parent
                             visible: grid.count === 0
                             horizontalAlignment: Text.AlignHCenter
-                            text: conf.online ? "Todavía no entró nadie.\nCompartí el enlace y el PIN (panel Acceso)." : "Esperando al gateway…"
+                            text: conf.online ? qsTr("Todavía no entró nadie.\nCompartí el enlace y el PIN (panel Acceso).") : qsTr("Esperando al gateway…")
                             color: Theme.textFaint
                             font.pixelSize: 14
                         }
@@ -651,7 +652,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 250
                     Layout.minimumHeight: 150
-                    title: "Chat"
+                    title: qsTr("Chat")
                     // EL TAB ES EL DESTINATARIO, y eso es el punto. Antes había
                     // una sola lista con todo mezclado y un selector aparte:
                     // la charla privada en la que se le piden los datos a
@@ -670,12 +671,12 @@ Rectangle {
                             onCurrentIndexChanged: page.hiloChat =
                                 currentIndex === 0 || currentIndex > conf.chatHilos.length
                                     ? "" : conf.chatHilos[currentIndex - 1].uid
-                            TabButton { text: "Conferencia"; width: implicitWidth }
+                            TabButton { text: qsTr("Conferencia"); width: implicitWidth }
                             Repeater {
                                 model: conf.chatHilos
                                 delegate: TabButton {
                                     required property var modelData
-                                    text: "✉ " + (modelData.nombre !== "" ? modelData.nombre : "privado")
+                                    text: "✉ " + (modelData.nombre !== "" ? modelData.nombre : qsTr("privado"))
                                     width: implicitWidth
                                 }
                             }
@@ -713,7 +714,7 @@ Rectangle {
                                         anchors { left: parent.left; top: parent.top; margins: 7; leftMargin: 11 }
                                         width: Math.min(implicitWidth, chatList.width * 0.8 - 22)
                                         // 🎙: lo DIJO hablando (la atención hablada lo pasó a texto).
-                                        Text { text: (msg.modelData.voz === true ? "🎙 " : "") + (msg.mine ? "Vos" : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → operador" : " → " + conf.nameOf(msg.to))
+                                        Text { text: (msg.modelData.voz === true ? "🎙 " : "") + (msg.mine ? qsTr("Vos") : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → " + qsTr("operador") : " → " + conf.nameOf(msg.to))
                                                color: Theme.textFaint; font.pixelSize: 10 }
                                         Text { text: msg.text; color: Theme.text; font.pixelSize: 13; wrapMode: Text.Wrap
                                                width: Math.min(implicitWidth, chatList.width * 0.8 - 22) }
@@ -727,8 +728,8 @@ Rectangle {
                                 id: chatInput
                                 Layout.fillWidth: true
                                 placeholderText: page.hiloChat === ""
-                                                 ? "Escribí a toda la conferencia…"
-                                                 : "En privado a " + conf.nameOf(page.hiloChat) + "…"
+                                                 ? qsTr("Escribí a toda la conferencia…")
+                                                 : qsTr("En privado a %1…").arg(conf.nameOf(page.hiloChat))
                                 onAccepted: send()
                                 function send() {
                                     if (text.trim() === "") return
@@ -738,7 +739,7 @@ Rectangle {
                                     text = ""
                                 }
                             }
-                            GlassButton { text: "Enviar"; compact: true; onClicked: chatInput.send() }
+                            GlassButton { text: qsTr("Enviar"); compact: true; onClicked: chatInput.send() }
                         }
                     }
                 }
@@ -792,7 +793,7 @@ Rectangle {
                         }
                         onDoubleClicked: page.derAngosta ? page.expandirDer() : (page.anchoDer = page.anchoRiel)
                         ToolTip.visible: containsMouse && !pressed; ToolTip.delay: 600
-                        ToolTip.text: "Arrastrá para cambiar el ancho (doble clic: abrir o cerrar)"
+                        ToolTip.text: qsTr("Arrastrá para cambiar el ancho (doble clic: abrir o cerrar)")
                     }
                 }
 
@@ -806,19 +807,19 @@ Rectangle {
                         Layout.alignment: Qt.AlignHCenter
                         icon: "⟨"; compact: true
                         onClicked: page.expandirDer()
-                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir el panel (Acceso, uso de la conferencia…)"
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Abrir el panel (Acceso, uso de la conferencia…)")
                     }
                     GlassButton {
                         Layout.alignment: Qt.AlignHCenter
                         icon: "⊞"; compact: true; active: true
                         onClicked: qrDlg.show("local")
-                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Invitar con QR"
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Invitar con QR")
                     }
                     GlassButton {
                         Layout.alignment: Qt.AlignHCenter
                         text: "PIN"; compact: true
-                        onClicked: { Studio.copiar(conf.pin); Studio.notify("PIN copiado: " + conf.pin, "info") }
-                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Copiar el PIN de la conferencia"
+                        onClicked: { Studio.copiar(conf.pin); Studio.notify(qsTr("PIN copiado: %1").arg(conf.pin), "info") }
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Copiar el PIN de la conferencia")
                     }
                     GlassButton {
                         Layout.alignment: Qt.AlignHCenter
@@ -826,7 +827,7 @@ Rectangle {
                         active: conf.lobby
                         onClicked: conf.setLobby(!conf.lobby)
                         ToolTip.visible: hovered; ToolTip.delay: 300
-                        ToolTip.text: conf.lobby ? "Lobby de admisión: prendido (vos decidís quién entra)" : "Lobby de admisión: apagado (entran directo)"
+                        ToolTip.text: conf.lobby ? qsTr("Lobby de admisión: prendido (vos decidís quién entra)") : qsTr("Lobby de admisión: apagado (entran directo)")
                     }
                     GlassButton {
                         Layout.alignment: Qt.AlignHCenter
@@ -834,7 +835,7 @@ Rectangle {
                         active: conf.locked; activeColor: Theme.live
                         onClicked: conf.setLocked(!conf.locked)
                         ToolTip.visible: hovered; ToolTip.delay: 300
-                        ToolTip.text: conf.locked ? "Conferencia cerrada: nadie nuevo puede pedir entrar" : "Conferencia abierta a quien tenga el PIN"
+                        ToolTip.text: conf.locked ? qsTr("Conferencia cerrada: nadie nuevo puede pedir entrar") : qsTr("Conferencia abierta a quien tenga el PIN")
                     }
                 }
 
@@ -857,7 +858,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: usoCol.implicitHeight + 56
-                    title: "Uso de la conferencia"
+                    title: qsTr("Uso de la conferencia")
                     ColumnLayout {
                         id: usoCol
                         anchors.fill: parent
@@ -869,25 +870,25 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 6
                             StatusPill {
-                                text: (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0) + "/" +
-                                      (usoCol.u.lugares !== undefined ? usoCol.u.lugares : 0) + " en la conferencia"
+                                text: qsTr("%1/%2 en la conferencia").arg(usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)
+                                      .arg(usoCol.u.lugares !== undefined ? usoCol.u.lugares : 0)
                                 dot: Theme.accent
                             }
                             StatusPill {
-                                text: (usoCol.u.conVideo !== undefined ? usoCol.u.conVideo : 0) + " con video"
+                                text: qsTr("%n con video", "", usoCol.u.conVideo !== undefined ? usoCol.u.conVideo : 0)
                                 dot: Theme.ok
                             }
                             StatusPill {
                                 visible: (usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) >
                                          (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)
-                                text: ((usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) -
-                                       (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0)) + " esperando"
+                                text: qsTr("%n esperando", "", (usoCol.u.conectados !== undefined ? usoCol.u.conectados : 0) -
+                                       (usoCol.u.enSala !== undefined ? usoCol.u.enSala : 0))
                                 dot: Theme.amber
                             }
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Procesador del gateway"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
+                            Text { text: qsTr("Procesador del gateway"); color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
                             Text {
                                 text: Math.round(usoCol.cpu) + "%"
                                 color: usoCol.apretado ? Theme.live : Theme.text
@@ -913,7 +914,7 @@ Rectangle {
                             visible: usoCol.u.kbpsEntrada !== undefined
                             Text {
                                 Layout.fillWidth: true
-                                text: "Video por la red"
+                                text: qsTr("Video por la red")
                                 color: Theme.textDim; font.pixelSize: 11
                             }
                             Text {
@@ -930,11 +931,11 @@ Rectangle {
                             visible: usoCol.u.hiloTop !== undefined
                             Text {
                                 Layout.fillWidth: true
-                                text: "Hilo más cargado: " + (usoCol.u.hiloTop || "")
+                                text: qsTr("Hilo más cargado: %1").arg(usoCol.u.hiloTop || "")
                                 color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                             }
                             Text {
-                                text: Math.round(usoCol.u.hiloPct || 0) + "% de un núcleo"
+                                text: qsTr("%1% de un núcleo").arg(Math.round(usoCol.u.hiloPct || 0))
                                 color: (usoCol.u.hiloPct || 0) >= 85 ? Theme.live
                                      : (usoCol.u.hiloPct || 0) >= 65 ? Theme.amber : Theme.textFaint
                                 font { pixelSize: 11; weight: Font.DemiBold }
@@ -946,12 +947,12 @@ Rectangle {
                             color: usoCol.apretado ? Theme.amber : Theme.textFaint
                             font.pixelSize: 11
                             text: usoCol.u.cpuPct === undefined
-                                  ? "Esperando datos del gateway…"
+                                  ? qsTr("Esperando datos del gateway…")
                                   : usoCol.apretado
-                                    ? "Está apretado: no sumes más invitados con cámara. Pedí que apaguen la suya a quien no esté hablando."
-                                    : "Memoria " + (usoCol.u.memMb !== undefined ? usoCol.u.memMb : 0) + " MB · " +
-                                      (usoCol.u.nucleos !== undefined ? usoCol.u.nucleos : 0) + " núcleos. " +
-                                      "Cada invitado con cámara es un video que hay que decodificar."
+                                    ? qsTr("Está apretado: no sumes más invitados con cámara. Pedí que apaguen la suya a quien no esté hablando.")
+                                    : qsTr("Memoria %1 MB · %2 núcleos. Cada invitado con cámara es un video que hay que decodificar.")
+                                      .arg(usoCol.u.memMb !== undefined ? usoCol.u.memMb : 0)
+                                      .arg(usoCol.u.nucleos !== undefined ? usoCol.u.nucleos : 0)
                         }
                     }
                 }
@@ -962,7 +963,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: grillasSala.implicitHeight + 62 // título (46) y margen de abajo (16)
                     visible: grillasSala.hay
-                    title: "Grillas de personas"
+                    title: qsTr("Grillas de personas")
                     VistaGrillas {
                         id: grillasSala
                         anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -973,7 +974,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 352
-                    title: "Acceso"
+                    title: qsTr("Acceso")
                     ColumnLayout {
                         anchors.fill: parent
                         spacing: 10
@@ -983,10 +984,10 @@ Rectangle {
                             spacing: 6
                             GlassButton {
                                 Layout.fillWidth: true
-                                text: "Invitar con QR"; icon: "⊞"; active: true
+                                text: qsTr("Invitar con QR"); icon: "⊞"; active: true
                                 onClicked: qrDlg.show("local")
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Muestra el código para escanear. Adentro se elige red local o internet, y si el PIN va incluido."
+                                ToolTip.text: qsTr("Muestra el código para escanear. Adentro se elige red local o internet, y si el PIN va incluido.")
                             }
                         }
                         RowLayout {
@@ -1000,9 +1001,9 @@ Rectangle {
                                 font { pixelSize: 20; weight: Font.DemiBold; letterSpacing: 3 }
                                 Layout.fillWidth: true
                             }
-                            GlassButton { text: pinText.shown ? "Ocultar" : "Ver"; compact: true; onClicked: pinText.shown = !pinText.shown }
-                            GlassButton { text: "Nuevo"; compact: true; onClicked: pinDlg.open() }
-                            GlassButton { text: "Bloqueos"; compact: true; onClicked: bloqueosDlg.open() }
+                            GlassButton { text: pinText.shown ? qsTr("Ocultar") : qsTr("Ver"); compact: true; onClicked: pinText.shown = !pinText.shown }
+                            GlassButton { text: qsTr("Nuevo"); compact: true; onClicked: pinDlg.open() }
+                            GlassButton { text: qsTr("Bloqueos"); compact: true; onClicked: bloqueosDlg.open() }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -1010,8 +1011,8 @@ Rectangle {
                             ColumnLayout {
                                 spacing: 0
                                 Layout.fillWidth: true
-                                Text { text: "Lobby de admisión"; color: Theme.text; font.pixelSize: 13 }
-                                Text { text: conf.lobby ? "Vos decidís quién entra" : "Entran directo mientras haya lugar"; color: Theme.textFaint; font.pixelSize: 11 }
+                                Text { text: qsTr("Lobby de admisión"); color: Theme.text; font.pixelSize: 13 }
+                                Text { text: conf.lobby ? qsTr("Vos decidís quién entra") : qsTr("Entran directo mientras haya lugar"); color: Theme.textFaint; font.pixelSize: 11 }
                             }
                         }
                         RowLayout {
@@ -1020,17 +1021,17 @@ Rectangle {
                             ColumnLayout {
                                 spacing: 0
                                 Layout.fillWidth: true
-                                Text { text: "Conferencia cerrada"; color: Theme.text; font.pixelSize: 13 }
-                                Text { text: conf.locked ? "Nadie nuevo puede pedir entrar" : "Abierta a quien tenga el PIN"; color: Theme.textFaint; font.pixelSize: 11 }
+                                Text { text: qsTr("Conferencia cerrada"); color: Theme.text; font.pixelSize: 13 }
+                                Text { text: conf.locked ? qsTr("Nadie nuevo puede pedir entrar") : qsTr("Abierta a quien tenga el PIN"); color: Theme.textFaint; font.pixelSize: 11 }
                             }
                         }
                         // Lo que ve y oye quien espera en el lobby: solo vos.
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Te ven con"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 78 }
+                            Text { text: qsTr("Te ven con"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 78 }
                             ComboBox {
                                 Layout.fillWidth: true
-                                model: ["(placa de espera)"].concat(conf.videoSourceNames)
+                                model: [qsTr("(placa de espera)")].concat(conf.videoSourceNames)
                                 currentIndex: Math.max(0, model.indexOf(conf.operatorVideo))
                                 onActivated: (i) => conf.setOperatorFeed(i === 0 ? "" : model[i], conf.operatorAudio)
                                 onPressedChanged: if (pressed) conf.refreshSources()
@@ -1040,15 +1041,15 @@ Rectangle {
                         // es el mismo para el lobby y para dictarle al asistente.
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Te oyen con"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 78 }
+                            Text { text: qsTr("Te oyen con"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 78 }
                             Text {
                                 Layout.fillWidth: true
-                                text: conf.operatorAudio !== "" ? conf.operatorAudio : "(sin micrófono elegido)"
+                                text: conf.operatorAudio !== "" ? conf.operatorAudio : qsTr("(sin micrófono elegido)")
                                 color: conf.operatorAudio !== "" ? Theme.text : Theme.textFaint
                                 font.pixelSize: 13; elide: Text.ElideRight
                             }
                             GlassButton {
-                                compact: true; text: "Cambiar…"
+                                compact: true; text: qsTr("Cambiar…")
                                 onClicked: { Studio.seccionConfig = "Voz del sistema"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
                             }
                         }
@@ -1060,7 +1061,7 @@ Rectangle {
                     id: proxyPanel
                     Layout.fillWidth: true
                     Layout.preferredHeight: proxyCol.implicitHeight + 56
-                    title: "Proxy por nombre (un DNS por servicio)"
+                    title: qsTr("Proxy por nombre (un DNS por servicio)")
                     readonly property var px: conf.proxy || ({})
                     readonly property var cfgp: px.configuracion || ({})
                     readonly property var acme: px.acme || ({})
@@ -1072,41 +1073,41 @@ Rectangle {
                         spacing: 8
                         RowLayout {
                             spacing: 8
-                            StatusPill { text: proxyPanel.px.activo ? "andando en " + proxyPanel.px.puertoTls + (proxyPanel.px.puertoHttp ? "/" + proxyPanel.px.puertoHttp : "") : "apagado"
+                            StatusPill { text: proxyPanel.px.activo ? qsTr("andando en %1").arg(proxyPanel.px.puertoTls + (proxyPanel.px.puertoHttp ? "/" + proxyPanel.px.puertoHttp : "")) : qsTr("apagado")
                                          dot: proxyPanel.px.activo ? Theme.ok : Theme.textFaint }
                             StatusPill { visible: !!proxyPanel.acme.activo
-                                         text: proxyPanel.acme.andando ? "pidiendo certificados…" : (proxyPanel.acme.ultimo_error ? "ACME: error" : "ACME al día")
+                                         text: proxyPanel.acme.andando ? qsTr("pidiendo certificados…") : (proxyPanel.acme.ultimo_error ? qsTr("ACME: error") : qsTr("ACME al día"))
                                          dot: proxyPanel.acme.ultimo_error ? Theme.amber : Theme.ok; pulse: !!proxyPanel.acme.andando }
-                            Text { visible: !!proxyPanel.px.activo; text: (proxyPanel.px.conexiones || 0) + " conexiones"; color: Theme.textFaint; font.pixelSize: 11 }
+                            Text { visible: !!proxyPanel.px.activo; text: qsTr("%n conexión", "", proxyPanel.px.conexiones || 0); color: Theme.textFaint; font.pixelSize: 11 }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                               text: "Cada servicio en su nombre: sala.<dominio>, sesion.<dominio>, botonera.<dominio>… Apuntá esos nombres a esta máquina en el DNS. Con ACME, Let's Encrypt firma cada uno (hace falta que el 80 llegue desde internet); si no, el certificado de la casa." }
+                               text: qsTr("Cada servicio en su nombre: sala.<dominio>, sesion.<dominio>, botonera.<dominio>… Apuntá esos nombres a esta máquina en el DNS. Con ACME, Let's Encrypt firma cada uno (hace falta que el 80 llegue desde internet); si no, el certificado de la casa.") }
                         Text { visible: !!proxyPanel.acme.ultimo_error; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 11; text: proxyPanel.acme.ultimo_error || "" }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 6
-                            CheckBox { id: pxActivo; text: "Activo"; checked: !!proxyPanel.cfgp.activo }
-                            TextField { id: pxDominio; Layout.fillWidth: true; placeholderText: "dominio (p. ej. midominio.org)"; text: proxyPanel.cfgp.dominio || "" }
+                            CheckBox { id: pxActivo; text: qsTr("Activo"); checked: !!proxyPanel.cfgp.activo }
+                            TextField { id: pxDominio; Layout.fillWidth: true; placeholderText: qsTr("dominio (p. ej. midominio.org)"); text: proxyPanel.cfgp.dominio || "" }
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 6
-                            CheckBox { id: pxAcme; text: "Certificados de Let's Encrypt"; checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.activo) }
-                            TextField { id: pxEmail; Layout.fillWidth: true; placeholderText: "email para avisos de la CA"; text: proxyPanel.cfgp.acme ? (proxyPanel.cfgp.acme.email || "") : "" }
-                            CheckBox { id: pxPruebas; text: "de prueba"; checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.pruebas) }
+                            CheckBox { id: pxAcme; text: qsTr("Certificados de Let's Encrypt"); checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.activo) }
+                            TextField { id: pxEmail; Layout.fillWidth: true; placeholderText: qsTr("email para avisos de la CA"); text: proxyPanel.cfgp.acme ? (proxyPanel.cfgp.acme.email || "") : "" }
+                            CheckBox { id: pxPruebas; text: qsTr("de prueba"); checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.pruebas) }
                         }
                         RowLayout {
                             Item { Layout.fillWidth: true }
                             GlassButton {
-                                compact: true; text: "Guardar y reiniciar la conferencia"
+                                compact: true; text: qsTr("Guardar y reiniciar la conferencia")
                                 onClicked: ApplicationWindow.window.confirm({
-                                    title: "¿Reiniciar la conferencia con el proxy nuevo?",
-                                    text: "Los invitados conectados se cortan y vuelven a entrar.",
-                                    accept: "Reiniciar", reject: "Cancelar",
+                                    title: qsTr("¿Reiniciar la conferencia con el proxy nuevo?"),
+                                    text: qsTr("Los invitados conectados se cortan y vuelven a entrar."),
+                                    accept: qsTr("Reiniciar"), reject: qsTr("Cancelar"),
                                     action: function() {
                                         const e = conf.configurarProxy({ activo: pxActivo.checked, dominio: pxDominio.text.trim(),
                                                                          acme: { activo: pxAcme.checked, email: pxEmail.text.trim(), pruebas: pxPruebas.checked } })
-                                        Studio.notify(e === "" ? "Proxy guardado: la conferencia se reinicia." : e, e === "" ? "ok" : "error")
+                                        Studio.notify(e === "" ? qsTr("Proxy guardado: la conferencia se reinicia.") : e, e === "" ? "ok" : "error")
                                     }
                                 })
                             }
@@ -1118,10 +1119,10 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 8
                                 Text { text: modelData.host; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 240; elide: Text.ElideRight }
-                                Text { text: "→ :" + modelData.destino + modelData.ruta + (modelData.soloLan ? " · solo red local" : ""); color: Theme.textFaint; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
-                                StatusPill { text: (modelData.certificado.origen === "acme" ? "Let's Encrypt" : "de la casa") + " · vence " + proxyPanel.fecha(modelData.certificado.vence)
+                                Text { text: "→ :" + modelData.destino + modelData.ruta + (modelData.soloLan ? " · " + qsTr("solo red local") : ""); color: Theme.textFaint; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                                StatusPill { text: qsTr("%1 · vence %2").arg(modelData.certificado.origen === "acme" ? "Let's Encrypt" : qsTr("de la casa")).arg(proxyPanel.fecha(modelData.certificado.vence))
                                              dot: modelData.certificado.origen === "acme" ? Theme.ok : Theme.amber }
-                                GlassButton { compact: true; text: "Renovar"; visible: !!proxyPanel.acme.activo; onClicked: { conf.renovarProxy(modelData.host); Studio.notify("Pidiendo el certificado de " + modelData.host + "…", "info") } }
+                                GlassButton { compact: true; text: qsTr("Renovar"); visible: !!proxyPanel.acme.activo; onClicked: { conf.renovarProxy(modelData.host); Studio.notify(qsTr("Pidiendo el certificado de %1…").arg(modelData.host), "info") } }
                             }
                         }
                     }
@@ -1135,7 +1136,7 @@ Rectangle {
                     visible: false
                     Layout.fillWidth: true
                     Layout.preferredHeight: 196
-                    title: "Acceso directo"
+                    title: qsTr("Acceso directo")
                     readonly property var net: conf.network
                     readonly property var wg: net && net.wireguard ? net.wireguard : ({})
                     readonly property var tls: net && net.https ? net.https : ({})
@@ -1145,12 +1146,12 @@ Rectangle {
                         RowLayout {
                             spacing: 6
                             StatusPill {
-                                text: direct.tls.enabled ? (direct.tls.selfSigned ? "HTTPS (autofirmado)" : "HTTPS") : "Sin HTTPS"
+                                text: direct.tls.enabled ? (direct.tls.selfSigned ? qsTr("HTTPS (autofirmado)") : "HTTPS") : qsTr("Sin HTTPS")
                                 dot: direct.tls.enabled ? Theme.ok : Theme.amber
                             }
                             StatusPill {
                                 readonly property var w: direct.wg
-                                text: !w.enabled ? "Tunel apagado" : (w.up ? "Tunel conectado" : "Tunel sin conexion")
+                                text: !w.enabled ? qsTr("Tunel apagado") : (w.up ? qsTr("Tunel conectado") : qsTr("Tunel sin conexion"))
                                 dot: !w.enabled ? Theme.textFaint : (w.up ? Theme.ok : Theme.live)
                                 pulse: !!w.enabled && !w.up
                             }
@@ -1158,24 +1159,24 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true
                             readonly property var w: direct.wg
-                            text: w.enabled ? ("Publico: " + (w.publicAddress || "—") + "  ·  servidor " + (w.endpoint || "—"))
-                                            : "Los invitados entran por Cloudflare o por la red local."
+                            text: w.enabled ? qsTr("Publico: %1  ·  servidor %2").arg(w.publicAddress || "—").arg(w.endpoint || "—")
+                                            : qsTr("Los invitados entran por Cloudflare o por la red local.")
                             color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight
                         }
                         RowLayout {
                             Layout.fillWidth: true
                             TextField { Layout.fillWidth: true; readOnly: true; font.pixelSize: 11
                                         id: bestUrlField; text: direct.net && direct.net.bestUrl ? direct.net.bestUrl : "" }
-                            GlassButton { text: "Copiar"; compact: true; onClicked: Studio.copiar(bestUrlField.text) }
+                            GlassButton { text: qsTr("Copiar"); compact: true; onClicked: Studio.copiar(bestUrlField.text) }
                         }
-                        GlassButton { text: "Configurar servidor WireGuard…"; compact: true; enabled: conf.online; onClicked: wgDlg.open() }
+                        GlassButton { text: qsTr("Configurar servidor WireGuard…"); compact: true; enabled: conf.online; onClicked: wgDlg.open() }
                     }
                 }
 
                 Panel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: "Archivos compartidos"
+                    title: qsTr("Archivos compartidos")
                     ListView {
                         id: sharesList
                         anchors.fill: parent
@@ -1211,11 +1212,11 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     Text { text: name; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                                    Text { text: participantName + " · " + page.mb(bytes) + " · hace " + page.since(atMs); color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text { text: qsTr("%1 · %2 · hace %3").arg(participantName).arg(page.mb(bytes)).arg(page.since(atMs)); color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                                     RowLayout {
                                         spacing: 6
-                                        GlassButton { text: "Tomar"; compact: true; active: true; onClicked: conf.takeShare(uid) }
-                                        GlassButton { text: "Borrar"; compact: true; onClicked: conf.removeShare(uid) }
+                                        GlassButton { text: qsTr("Tomar"); compact: true; active: true; onClicked: conf.takeShare(uid) }
+                                        GlassButton { text: qsTr("Borrar"); compact: true; onClicked: conf.removeShare(uid) }
                                     }
                                 }
                             }
@@ -1226,7 +1227,7 @@ Rectangle {
                             visible: sharesList.count === 0
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.Wrap
-                            text: "Los invitados pueden compartir imágenes, videos o audio desde su pantalla.\n«Tomar» los agrega a la escena actual."
+                            text: qsTr("Los invitados pueden compartir imágenes, videos o audio desde su pantalla.\n«Tomar» los agrega a la escena actual.")
                             color: Theme.textFaint
                             font.pixelSize: 12
                         }
@@ -1243,7 +1244,7 @@ Rectangle {
         id: profDlg
         anchors.centerIn: parent
         modal: true
-        title: "Datos de " + (profDlg.whoName !== "" ? "«" + profDlg.whoName + "»" : "la persona")
+        title: profDlg.whoName !== "" ? qsTr("Datos de «%1»").arg(profDlg.whoName) : qsTr("Datos de la persona")
         standardButtons: Dialog.Save | Dialog.Cancel
         property string who: ""
         property string whoName: ""
@@ -1267,13 +1268,13 @@ Rectangle {
             columns: 2
             columnSpacing: 10
             rowSpacing: 8
-            Text { text: "Nombre"; color: Theme.textDim }
+            Text { text: qsTr("Nombre"); color: Theme.textDim }
             TextField { id: profName; Layout.preferredWidth: 300; maximumLength: 40 }
-            Text { text: "Información"; color: Theme.textDim }
+            Text { text: qsTr("Información"); color: Theme.textDim }
             TextField { id: profInfo; Layout.preferredWidth: 300; maximumLength: 200 }
-            Text { text: "Contacto"; color: Theme.textDim }
+            Text { text: qsTr("Contacto"); color: Theme.textDim }
             TextField { id: profContact; Layout.preferredWidth: 300; maximumLength: 120 }
-            Text { text: "Tiempo"; color: Theme.textDim; visible: profDlg.withTime }
+            Text { text: qsTr("Tiempo"); color: Theme.textDim; visible: profDlg.withTime }
             TextField { id: profTime; Layout.preferredWidth: 90; placeholderText: "m:ss"; visible: profDlg.withTime }
         }
     }
@@ -1284,7 +1285,7 @@ Rectangle {
         property string whoName: ""
         anchors.centerIn: parent
         modal: true
-        title: "¿Sacar a " + whoName + " de la conferencia?"
+        title: qsTr("¿Sacar a %1 de la conferencia?").arg(whoName)
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: conf.kick(who)
     }
@@ -1298,7 +1299,7 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(page.width - 80, 760)
         modal: true
-        title: "Acceso directo por un servidor propio (WireGuard)"
+        title: qsTr("Acceso directo por un servidor propio (WireGuard)")
         property string config: ""
         property string error: ""
         onOpened: { config = ""; error = "" }
@@ -1314,21 +1315,20 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: "Un servidor con IP publica (un VPS con Linux) le da a esta conferencia su propia direccion en internet: los invitados entran directo, sin Cloudflare. " +
-                      "Este equipo se conecta por WireGuard en espacio de usuario: no necesita permisos de administrador ni drivers."
+                text: qsTr("Un servidor con IP publica (un VPS con Linux) le da a esta conferencia su propia direccion en internet: los invitados entran directo, sin Cloudflare. Este equipo se conecta por WireGuard en espacio de usuario: no necesita permisos de administrador ni drivers.")
             }
             GridLayout {
                 columns: 2
                 columnSpacing: 10; rowSpacing: 6
                 Layout.fillWidth: true
-                Text { text: "Servidor (host:puerto)"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: qsTr("Servidor (host:puerto)"); color: Theme.text; font.pixelSize: 12 }
                 TextField { id: wgEndpoint; Layout.fillWidth: true; placeholderText: "vps.midominio.com:51820" }
-                Text { text: "IP o dominio publico"; color: Theme.text; font.pixelSize: 12 }
-                TextField { id: wgPublic; Layout.fillWidth: true; placeholderText: "(el mismo host si se deja vacio)" }
-                Text { text: "Interfaz publica del servidor"; color: Theme.text; font.pixelSize: 12 }
+                Text { text: qsTr("IP o dominio publico"); color: Theme.text; font.pixelSize: 12 }
+                TextField { id: wgPublic; Layout.fillWidth: true; placeholderText: qsTr("(el mismo host si se deja vacio)") }
+                Text { text: qsTr("Interfaz publica del servidor"); color: Theme.text; font.pixelSize: 12 }
                 TextField { id: wgIface; Layout.fillWidth: true; text: "eth0" }
             }
-            GlassButton { text: "Generar configuracion"; active: true; compact: true
+            GlassButton { text: qsTr("Generar configuracion"); active: true; compact: true
                           onClicked: conf.configureDirectAccess(wgEndpoint.text, wgPublic.text, wgIface.text) }
             Text { visible: wgDlg.error !== ""; text: wgDlg.error; color: Theme.live; font.pixelSize: 12 }
             Text {
@@ -1336,8 +1336,7 @@ Rectangle {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: "1) En el servidor, guarda esto como /etc/wireguard/wg0.conf y activalo (instrucciones en el encabezado). " +
-                      "2) Este equipo ya quedo configurado y el gateway se reinicia solo. Contiene la clave PRIVADA del servidor: no la compartas."
+                text: qsTr("1) En el servidor, guarda esto como /etc/wireguard/wg0.conf y activalo (instrucciones en el encabezado). 2) Este equipo ya quedo configurado y el gateway se reinicia solo. Contiene la clave PRIVADA del servidor: no la compartas.")
             }
             ScrollView {
                 visible: wgDlg.config !== ""
@@ -1345,7 +1344,7 @@ Rectangle {
                 Layout.preferredHeight: 260
                 TextArea { readOnly: true; text: wgDlg.config; font.family: Theme.mono; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
-            GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: Studio.copiar(wgDlg.config) }
+            GlassButton { visible: wgDlg.config !== ""; text: qsTr("Copiar configuracion"); compact: true; onClicked: Studio.copiar(wgDlg.config) }
         }
     }
 
@@ -1355,7 +1354,7 @@ Rectangle {
         id: bloqueosDlg
         anchors.centerIn: parent
         modal: true
-        title: "Bloqueos por PIN mal"
+        title: qsTr("Bloqueos por PIN mal")
         standardButtons: Dialog.Close
         readonly property var b: conf.bloqueosPin || ({})
         readonly property var g: b.global || ({})
@@ -1367,19 +1366,19 @@ Rectangle {
             width: 420
             Text {
                 Layout.fillWidth: true; wrapMode: Text.Wrap
-                text: "Tras " + (bloqueosDlg.b.intentosPorIp || 5) + " PIN mal desde la misma conexión, esa conexión espera "
-                      + (bloqueosDlg.b.bloqueoS || 60) + " s. Desbloquear no cambia el PIN."
+                text: qsTr("Tras %1 PIN mal desde la misma conexión, esa conexión espera %2 s. Desbloquear no cambia el PIN.")
+                      .arg(bloqueosDlg.b.intentosPorIp || 5).arg(bloqueosDlg.b.bloqueoS || 60)
                 color: Theme.textDim; font.pixelSize: 12
             }
             Text {
                 visible: bloqueosDlg.g.bloqueado === true
                 Layout.fillWidth: true; wrapMode: Text.Wrap
-                text: "Bloqueo general: nadie puede entrar por " + bloqueosDlg.g.quedanS + " s más (" + bloqueosDlg.g.fallos + " fallos entre todos)."
+                text: qsTr("Bloqueo general: nadie puede entrar por %1 s más (%2 fallos entre todos).").arg(bloqueosDlg.g.quedanS).arg(bloqueosDlg.g.fallos)
                 color: Theme.live; font.pixelSize: 13
             }
             Text {
                 visible: bloqueosDlg.ips.length === 0 && bloqueosDlg.g.bloqueado !== true
-                text: "No hay nadie bloqueado."
+                text: qsTr("No hay nadie bloqueado.")
                 color: Theme.text; font.pixelSize: 13
             }
             Repeater {
@@ -1389,11 +1388,11 @@ Rectangle {
                     Layout.fillWidth: true
                     Text { text: modelData.ip; color: Theme.text; font { pixelSize: 13; family: Theme.mono } Layout.fillWidth: true }
                     Text { text: modelData.quedanS + " s"; color: Theme.textDim; font.pixelSize: 12 }
-                    GlassButton { text: "Desbloquear"; compact: true; onClicked: conf.desbloquearPin(modelData.ip) }
+                    GlassButton { text: qsTr("Desbloquear"); compact: true; onClicked: conf.desbloquearPin(modelData.ip) }
                 }
             }
             GlassButton {
-                text: "Desbloquear todos"
+                text: qsTr("Desbloquear todos")
                 active: true; compact: true
                 enabled: bloqueosDlg.ips.length > 0 || bloqueosDlg.g.bloqueado === true
                 onClicked: conf.desbloquearPin("")
@@ -1405,14 +1404,14 @@ Rectangle {
         id: pinDlg
         anchors.centerIn: parent
         modal: true
-        title: "PIN nuevo"
+        title: qsTr("PIN nuevo")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onOpened: pinField.text = ""
         onAccepted: conf.newPin(pinField.text)
         ColumnLayout {
             spacing: 8
-            Text { text: "Dejalo vacío para generar uno al azar.\nEl PIN anterior deja de servir para entrar."; color: Theme.textDim; font.pixelSize: 12 }
-            TextField { id: pinField; Layout.preferredWidth: 260; placeholderText: "4 a 32 caracteres (opcional)"; maximumLength: 32 }
+            Text { text: qsTr("Dejalo vacío para generar uno al azar.\nEl PIN anterior deja de servir para entrar."); color: Theme.textDim; font.pixelSize: 12 }
+            TextField { id: pinField; Layout.preferredWidth: 260; placeholderText: qsTr("4 a 32 caracteres (opcional)"); maximumLength: 32 }
         }
     }
 }

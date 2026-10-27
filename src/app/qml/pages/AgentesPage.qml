@@ -32,6 +32,17 @@ Rectangle {
         default: return Theme.textFaint
         }
     }
+    // El estado es una clave ("corriendo", "ok"...): se compara; lo que se lee es esto.
+    function etiquetaDeEstado(e) {
+        switch (e) {
+        case "corriendo": return qsTr("corriendo")
+        case "ok": return qsTr("ok")
+        case "error": return qsTr("error")
+        case "detenida": return qsTr("detenida")
+        case "esperando": return qsTr("esperando")
+        default: return e
+        }
+    }
     function refrescarDetalle() {
         if (page.abierta !== "") page.detalle = page.d.corridaQml(page.abierta)
     }
@@ -47,15 +58,15 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Agentes"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("Agentes"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             StatusPill {
-                text: page.d.enCurso > 0 ? page.d.enCurso + " trabajando" : "en espera"
+                text: page.d.enCurso > 0 ? qsTr("%1 trabajando").arg(page.d.enCurso) : qsTr("en espera")
                 dot: page.d.enCurso > 0 ? Theme.accent : Theme.textFaint
                 pulse: page.d.enCurso > 0
             }
             Item { Layout.fillWidth: true }
             Text {
-                text: "Cada rol atiende solo lo suyo, con un agente de un tiro por encargo. El asistente ✦ no se entera."
+                text: qsTr("Cada rol atiende solo lo suyo, con un agente de un tiro por encargo. El asistente ✦ no se entera.")
                 color: Theme.textFaint; font.pixelSize: 11
                 elide: Text.ElideRight; Layout.maximumWidth: 520
             }
@@ -119,14 +130,14 @@ Rectangle {
                                         onToggled: (w) => page.d.setConsola(fila.modelData.id, w)
                                     }
                                     Text {
-                                        text: "Usa la máquina"
+                                        text: qsTr("Usa la máquina")
                                         color: fila.modelData.consola === true ? Theme.amber : Theme.textDim
                                         font.pixelSize: 12
                                     }
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: "terminal, archivos e internet"
+                                    text: qsTr("terminal, archivos e internet")
                                     color: fila.modelData.consola === true ? Theme.amber : Theme.textFaint
                                     font.pixelSize: 10
                                     wrapMode: Text.WordWrap
@@ -134,20 +145,20 @@ Rectangle {
                                 HoverHandler { id: consolaHov }
                                 ToolTip.visible: consolaHov.hovered
                                 ToolTip.delay: 400
-                                ToolTip.text: "Además de manejar la app, puede usar la terminal, leer y escribir archivos y " +
+                                ToolTip.text: qsTr("Además de manejar la app, puede usar la terminal, leer y escribir archivos y " +
                                               "salir a internet (por ejemplo, bajar una imagen y dejarla en Medios). Lo que " +
-                                              "hace así NO pasa por las aprobaciones del asistente: prendelo solo si el rol lo necesita."
+                                              "hace así NO pasa por las aprobaciones del asistente: prendelo solo si el rol lo necesita.")
                             }
                             ComboBox {
                                 id: provBox
                                 Layout.preferredWidth: 250
                                 model: page.d.proveedores
                                 textRole: "name"; valueRole: "id"
-                                displayText: fila.modelData.proveedor === "" ? "El del asistente" : currentText
+                                displayText: fila.modelData.proveedor === "" ? qsTr("El del asistente") : currentText
                                 currentIndex: { for (let i = 0; i < page.d.proveedores.length; ++i) if (page.d.proveedores[i].id === fila.modelData.proveedor) return i; return -1 }
                                 onActivated: (i) => page.d.setProveedor(fila.modelData.id, page.d.proveedores[i].id)
                                 ToolTip.visible: hovered
-                                ToolTip.text: (fila.modelData.proveedor !== "" ? currentText + "\n" : "") + "Motor de este rol. Vacío: el mismo que el asistente ✦."
+                                ToolTip.text: (fila.modelData.proveedor !== "" ? currentText + "\n" : "") + qsTr("Motor de este rol. Vacío: el mismo que el asistente ✦.")
                             }
                             ComboBox {
                                 id: modeloBox
@@ -163,32 +174,32 @@ Rectangle {
                                 // más ancha que el campo y el nombre entero va en el tooltip.
                                 popup.width: Math.max(modeloBox.width, 520)
                                 ToolTip.visible: hovered
-                                ToolTip.text: editText !== "" ? editText + "\n(vacío: el de fábrica del motor)"
-                                                              : "Modelo (vacío: el de fábrica del motor)"
+                                ToolTip.text: editText !== "" ? qsTr("%1\n(vacío: el de fábrica del motor)").arg(editText)
+                                                              : qsTr("Modelo (vacío: el de fábrica del motor)")
                             }
                             StatusPill {
-                                text: fila.modelData.corriendo ? "trabajando" : (fila.modelData.enCola > 0 ? fila.modelData.enCola + " en cola" : (fila.modelData.activo ? "escuchando" : "apagado"))
+                                text: fila.modelData.corriendo ? qsTr("trabajando") : (fila.modelData.enCola > 0 ? qsTr("%1 en cola").arg(fila.modelData.enCola) : (fila.modelData.activo ? qsTr("escuchando") : qsTr("apagado")))
                                 dot: fila.modelData.corriendo ? Theme.accent : (fila.modelData.activo ? Theme.ok : Theme.textFaint)
                                 pulse: fila.modelData.corriendo
-                                medidaDe: "escuchando"
+                                medidaDe: qsTr("escuchando")
                             }
                             GlassButton {
-                                compact: true; text: "Instrucciones"; icon: "☰"
+                                compact: true; text: qsTr("Instrucciones"); icon: "☰"
                                 active: instrucciones.visible
                                 onClicked: {
                                     if (!instrucciones.visible) promptTexto.text = fila.modelData.prompt || ""
                                     instrucciones.visible = !instrucciones.visible
                                 }
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Qué es y cómo trabaja este rol (su prompt)" + (fila.modelData.promptEditado ? " · editado" : "")
+                                ToolTip.text: fila.modelData.promptEditado ? qsTr("Qué es y cómo trabaja este rol (su prompt) · editado") : qsTr("Qué es y cómo trabaja este rol (su prompt)")
                             }
                             GlassButton {
-                                compact: true; text: "Hablar directo"; icon: "✎"
+                                compact: true; text: qsTr("Hablar directo"); icon: "✎"
                                 enabled: fila.modelData.activo
                                 visible: fila.modelData.enLaApp !== true // no se le encargan cosas: lo usa la app
                                 onClicked: encargo.visible = !encargo.visible
                                 ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Pedirle algo a este rol ahora, sin esperar un disparador"
+                                ToolTip.text: qsTr("Pedirle algo a este rol ahora, sin esperar un disparador")
                             }
                         }
                         RowLayout {
@@ -200,13 +211,13 @@ Rectangle {
                             TextField {
                                 id: encargoTexto
                                 Layout.fillWidth: true
-                                placeholderText: "Qué tiene que hacer " + fila.modelData.titulo.toLowerCase() + "…"
+                                placeholderText: qsTr("Qué tiene que hacer %1…").arg(fila.modelData.titulo.toLowerCase())
                                 color: Theme.text; font.pixelSize: 12
                                 onAccepted: mandar.clicked()
                             }
                             GlassButton {
                                 id: mandar
-                                compact: true; text: "Mandar"; active: true
+                                compact: true; text: qsTr("Mandar"); active: true
                                 onClicked: {
                                     const err = page.d.encargarDesdeUi(fila.modelData.id, encargoTexto.text)
                                     if (err !== "") Studio.notify(err, "error")
@@ -224,8 +235,10 @@ Rectangle {
                             spacing: 6
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                text: "Instrucciones de " + fila.modelData.titulo + (fila.modelData.promptEditado ? " (editadas)" : " (de fábrica)") +
-                                      ". Las reglas comunes de todos los roles se agregan siempre y no se editan acá."
+                                text: (fila.modelData.promptEditado
+                                       ? qsTr("Instrucciones de %1 (editadas). Las reglas comunes de todos los roles se agregan siempre y no se editan acá.")
+                                       : qsTr("Instrucciones de %1 (de fábrica). Las reglas comunes de todos los roles se agregan siempre y no se editan acá."))
+                                      .arg(fila.modelData.titulo)
                                 color: Theme.textDim; font.pixelSize: 11
                             }
                             ScrollView {
@@ -235,34 +248,34 @@ Rectangle {
                                     id: promptTexto
                                     wrapMode: TextEdit.Wrap
                                     color: Theme.text; font { pixelSize: 12; family: "Menlo" }
-                                    placeholderText: "Sin instrucciones propias: solo las reglas comunes."
+                                    placeholderText: qsTr("Sin instrucciones propias: solo las reglas comunes.")
                                     background: Rectangle { color: Theme.field; radius: 8 }
                                 }
                             }
                             RowLayout {
                                 spacing: 8
                                 GlassButton {
-                                    compact: true; text: "Guardar"; active: true
+                                    compact: true; text: qsTr("Guardar"); active: true
                                     enabled: promptTexto.text !== (fila.modelData.prompt || "")
                                     onClicked: { page.d.setPrompt(fila.modelData.id, promptTexto.text); instrucciones.visible = false }
                                 }
                                 GlassButton {
-                                    compact: true; text: "Volver a las de fábrica"
+                                    compact: true; text: qsTr("Volver a las de fábrica")
                                     visible: fila.modelData.promptEditado === true
                                     onClicked: ApplicationWindow.window.confirm({
-                                        title: "¿Volver a las instrucciones de fábrica?",
-                                        text: "Se pierde lo que escribiste para " + fila.modelData.titulo + ".",
-                                        accept: "Volver a las de fábrica", reject: "Cancelar",
+                                        title: qsTr("¿Volver a las instrucciones de fábrica?"),
+                                        text: qsTr("Se pierde lo que escribiste para %1.").arg(fila.modelData.titulo),
+                                        accept: qsTr("Volver a las de fábrica"), reject: qsTr("Cancelar"),
                                         action: function() { page.d.setPrompt(fila.modelData.id, ""); promptTexto.text = fila.modelData.promptFabrica || "" }
                                     })
                                 }
-                                GlassButton { compact: true; text: "Cancelar"; onClicked: instrucciones.visible = false }
+                                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: instrucciones.visible = false }
                             }
                         }
                         Text {
                             Layout.leftMargin: 56
                             visible: fila.modelData.enLaApp !== true
-                            text: "ve: " + fila.modelData.categorias.join(", ") + "   ·   atiende: " + fila.modelData.disparadores.join(", ")
+                            text: qsTr("ve: %1   ·   atiende: %2").arg(fila.modelData.categorias.join(", ")).arg(fila.modelData.disparadores.join(", "))
                             color: Theme.textFaint; font.pixelSize: 10
                         }
                         // El rol del tótem: corre en la app (sin consola) y entiende lo que dice la gente.
@@ -273,9 +286,9 @@ Rectangle {
                             visible: fila.modelData.enLaApp === true
                             wrapMode: Text.WordWrap
                             readonly property bool local: fila.modelData.proveedor === "" || fila.modelData.proveedor === "local"
-                            text: local ? "Corre en la app, con el modelo local: contesta en el acto y lo que dice la gente no sale de esta máquina."
-                                        : "Atención: con este motor, lo que dice la gente en el tótem (sus datos) sale de esta máquina hacia ese servicio. " +
-                                          "Sirven el modelo propio, OpenRouter y Gemini con clave; los de cuenta (Claude, OpenCode Go) no."
+                            text: local ? qsTr("Corre en la app, con el modelo local: contesta en el acto y lo que dice la gente no sale de esta máquina.")
+                                        : qsTr("Atención: con este motor, lo que dice la gente en el tótem (sus datos) sale de esta máquina hacia ese servicio. " +
+                                          "Sirven el modelo propio, OpenRouter y Gemini con clave; los de cuenta (Claude, OpenCode Go) no.")
                             color: local ? Theme.textFaint : Theme.amber
                             font.pixelSize: 10
                         }
@@ -287,8 +300,8 @@ Rectangle {
         // --- Corridas ------------------------------------------------------------
         RowLayout {
             Layout.fillWidth: true
-            Text { text: "Corridas"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
-            Text { text: page.d.corridas.length + " recientes"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Corridas"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text { text: qsTr("%n reciente", "", page.d.corridas.length); color: Theme.textDim; font.pixelSize: 11 }
             Item { Layout.fillWidth: true }
         }
         Panel {
@@ -336,11 +349,12 @@ Rectangle {
                                 font.pixelSize: 11; elide: Text.ElideRight
                             }
                             Text {
-                                text: item.modelData.estado + (item.modelData.inicio !== "" ? " · " + item.modelData.duracionS + " s · " + item.modelData.herramientas + " herr." : "")
+                                text: item.modelData.inicio !== "" ? qsTr("%1 · %2 s · %3 herr.").arg(page.etiquetaDeEstado(item.modelData.estado)).arg(item.modelData.duracionS).arg(item.modelData.herramientas)
+                                                                    : page.etiquetaDeEstado(item.modelData.estado)
                                 color: page.colorDeEstado(item.modelData.estado); font.pixelSize: 11
                             }
                             GlassButton {
-                                compact: true; text: "Detener"
+                                compact: true; text: qsTr("Detener")
                                 visible: item.modelData.estado === "corriendo" || item.modelData.estado === "esperando"
                                 onClicked: page.d.detener(item.modelData.id)
                             }
@@ -372,7 +386,7 @@ Rectangle {
                                         Layout.fillWidth: true
                                         text: modelData.tipo === "herramienta"
                                               ? modelData.herramienta + " " + JSON.stringify(modelData.args || {})
-                                              : (modelData.texto || (modelData.tipo === "fin" ? "fin: " + modelData.turnos + " turnos, " + Math.round((modelData.duracionMs || 0) / 1000) + " s" : ""))
+                                              : (modelData.texto || (modelData.tipo === "fin" ? qsTr("fin: %n turno, %1 s", "", modelData.turnos).arg(Math.round((modelData.duracionMs || 0) / 1000)) : ""))
                                         color: modelData.tipo === "texto" ? Theme.text : Theme.textDim
                                         font { pixelSize: 11; family: modelData.tipo === "herramienta" ? "JetBrains Mono" : Theme.font }
                                         wrapMode: Text.WrapAnywhere
@@ -385,7 +399,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     visible: lista.count === 0
-                    text: "Todavía no hubo corridas. Prendé un rol y esperá que llegue algo, o encargale algo a mano."
+                    text: qsTr("Todavía no hubo corridas. Prendé un rol y esperá que llegue algo, o encargale algo a mano.")
                     color: Theme.textFaint; font.pixelSize: 12
                 }
             }

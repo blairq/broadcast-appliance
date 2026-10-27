@@ -55,17 +55,17 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 8
             GlassButton {
-                text: "Archivos"
+                text: qsTr("Archivos")
                 active: page.solapa === 0
                 onClicked: page.solapa = 0
             }
             GlassButton {
-                text: "Carruseles"
+                text: qsTr("Carruseles")
                 active: page.solapa === 1
                 onClicked: page.solapa = 1
             }
             GlassButton {
-                text: "Playlist"
+                text: qsTr("Playlist")
                 active: page.solapa === 2
                 onClicked: page.solapa = 2
             }
@@ -93,7 +93,7 @@ Rectangle {
                 }
                 GlassButton {
                     compact: true
-                    text: "Cancelar"
+                    text: qsTr("Cancelar")
                     onClicked: page.cc.cancelar()
                 }
             }
@@ -138,20 +138,20 @@ Rectangle {
                 Layout.fillWidth: true
                 text: page.m.cuantosElegidos === 1
                       ? page.m.seleccion[0]
-                      : page.m.cuantosElegidos + " archivos · " + page.tamano(page.m.bytesElegidos)
+                      : qsTr("%n archivo · %1", "", page.m.cuantosElegidos).arg(page.tamano(page.m.bytesElegidos))
                 color: Theme.text
                 font.pixelSize: 13
                 elide: Text.ElideMiddle
             }
             Text {
                 visible: page.m.cuantosElegidos > 1
-                text: "Arrastralos a una carpeta para moverlos"
+                text: qsTr("Arrastralos a una carpeta para moverlos")
                 color: Theme.textFaint
                 font.pixelSize: 11
             }
             GlassButton {
                 visible: page.m.cuantosElegidos === 1
-                text: "Usar en una escena"
+                text: qsTr("Usar en una escena")
                 onClicked: ApplicationWindow.window.pedirAlAsistente(
                     "Poné este archivo en la escena que corresponda: " + page.m.seleccion[0])
             }
@@ -160,7 +160,7 @@ Rectangle {
                 // Lo hace el aparato, no el asistente: es una conversión con
                 // pasos fijos, no algo que haya que pensar.
                 enabled: !page.cc.convirtiendo
-                text: "Armar un carrusel"
+                text: qsTr("Armar un carrusel")
                 icon: "▦"
                 onClicked: {
                     page.solapa = 1
@@ -169,10 +169,10 @@ Rectangle {
                 }
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Convertir cada página en una lámina de un carrusel"
+                ToolTip.text: qsTr("Convertir cada página en una lámina de un carrusel")
             }
             GlassButton {
-                text: "Sumar a la playlist"
+                text: qsTr("Sumar a la playlist")
                 onClicked: {
                     const e = Studio.playlist.agregarVariosUi(page.m.seleccion.map((r) => page.m.rutaAbsoluta(r)))
                     if (e !== "") { Studio.notify(e, "error"); return }
@@ -182,7 +182,7 @@ Rectangle {
             }
             GlassButton {
                 visible: page.cc.actual !== ""
-                text: "Sumar a «" + page.cc.actual + "»"
+                text: qsTr("Sumar a «%1»").arg(page.cc.actual)
                 onClicked: {
                     const s = page.m.seleccion
                     for (let i = 0; i < s.length; i++) page.cc.agregar(page.m.rutaAbsoluta(s[i]))

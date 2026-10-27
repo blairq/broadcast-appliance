@@ -30,7 +30,7 @@ Rectangle {
             Layout.preferredWidth: 420
             Layout.alignment: Qt.AlignTop
             Layout.preferredHeight: agregarCol.implicitHeight + 64
-            title: "Agregar una entrada de audio"
+            title: qsTr("Agregar una entrada de audio")
             // El mismo componente que el botón «+ Entrada de audio» de la página Audio.
             AgregarEntradaAudio {
                 id: agregarCol
@@ -42,7 +42,7 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Entradas de audio (" + page.inp.audioInputs.length + ")"
+            title: qsTr("Entradas de audio (%1)").arg(page.inp.audioInputs.length)
             ListView {
                 id: lista
                 anchors.fill: parent
@@ -54,8 +54,8 @@ Rectangle {
                     width: Math.min(parent.width - 40, 520)
                     visible: lista.count === 0
                     icono: "🎙"
-                    titulo: "Todavía no hay entradas de audio"
-                    texto: "Elegí un micrófono o una entrada de la máquina a la izquierda y tocá «Agregar»."
+                    titulo: qsTr("Todavía no hay entradas de audio")
+                    texto: qsTr("Elegí un micrófono o una entrada de la máquina a la izquierda y tocá «Agregar».")
                 }
                 delegate: Rectangle {
                     id: fila
@@ -78,31 +78,31 @@ Rectangle {
                                    font { pixelSize: 13; weight: Font.DemiBold } }
                             Text {
                                 Layout.fillWidth: true
-                                text: fila.ausente ? "● «" + fila.modelData.where + "» no está conectado: se lo espera y vuelve solo"
-                                                   : "De: " + fila.modelData.where
+                                text: fila.ausente ? qsTr("● «%1» no está conectado: se lo espera y vuelve solo").arg(fila.modelData.where)
+                                                   : qsTr("De: %1").arg(fila.modelData.where)
                                 color: fila.ausente ? Theme.warn : Theme.textFaint
                                 font.pixelSize: 11; elide: Text.ElideRight
                                 ToolTip.visible: hDisp.hovered && !!fila.modelData.tecnico; ToolTip.text: fila.modelData.tecnico || ""
                                 HoverHandler { id: hDisp }
                             }
                         }
-                        StatusPill { text: fila.ausente ? "AUSENTE" : "AUDIO"; dot: fila.ausente ? Theme.live : Theme.ok }
+                        StatusPill { text: fila.ausente ? qsTr("AUSENTE") : qsTr("AUDIO"); dot: fila.ausente ? Theme.live : Theme.ok }
                         GlassButton {
-                            compact: true; text: "Procesamiento →"
+                            compact: true; text: qsTr("Procesamiento →")
                             onClicked: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("audio"))
-                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sus módulos (ecualizador, compresor…) en la página Audio"
+                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sus módulos (ecualizador, compresor…) en la página Audio")
                         }
                         GlassButton {
-                            compact: true; text: "Quitar"
+                            compact: true; text: qsTr("Quitar")
                             onClicked: {
                                 // La lista se rehace y este delegate puede morir con el diálogo abierto.
                                 const inp = page.inp
                                 const nombre = fila.modelData.name
                                 ApplicationWindow.window.confirm({
-                                    title: "¿Quitar la entrada de audio «" + nombre + "»?",
-                                    text: "Deja de sonar en todas las escenas. El dispositivo sigue en la máquina (y con su nombre).",
-                                    accept: "Quitar",
-                                    reject: "Cancelar",
+                                    title: qsTr("¿Quitar la entrada de audio «%1»?").arg(nombre),
+                                    text: qsTr("Deja de sonar en todas las escenas. El dispositivo sigue en la máquina (y con su nombre)."),
+                                    accept: qsTr("Quitar"),
+                                    reject: qsTr("Cancelar"),
                                     action: function() { inp.remove(nombre) }
                                 })
                             }
