@@ -107,7 +107,7 @@ QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int ce
             p.drawImage(cx + (cellW - s.width()) / 2, cy + (cellH - s.height()) / 2, s);
         } else {
             p.setPen(QColor(120, 120, 130));
-            p.drawText(QRect(cx, cy, cellW, cellH), Qt::AlignCenter, "(sin imagen)");
+            p.drawText(QRect(cx, cy, cellW, cellH), Qt::AlignCenter, QString::fromStdString(ba::i18n::traducir("mcp", "(sin imagen)")));
         }
         const bool live = items[i].first == highlight;
         if (live) {
@@ -116,7 +116,8 @@ QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int ce
         }
         p.setPen(live ? QColor(255, 90, 80) : QColor(235, 235, 240));
         p.drawText(QRect(cx + 6, cy + cellH, cellW - 12, labelH), Qt::AlignLeft | Qt::AlignVCenter,
-                   (live ? "● AL AIRE — " : "") + items[i].first);
+                   (live ? QString::fromStdString(ba::i18n::llenar(ba::i18n::traducir("mcp", "● AL AIRE — %1"), {items[i].first.toStdString()}))
+                        : items[i].first));
     }
     return sheet;
 }
@@ -139,9 +140,9 @@ QImage contactSheet(const std::vector<std::pair<QString, QImage>>& items, int ce
 std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std::string& que,
                                    std::string& error) {
     agent::PedidoMirada p;
-    p.sistema = "Mirás una imagen y contestás la pregunta, en dos o tres líneas. "
+    p.sistema = ba::i18n::traducir("mcp", "Mirás una imagen y contestás la pregunta, en dos o tres líneas. "
                 "Decís lo que VES: si no se ve, decís que no se ve. No inventás "
-                "lo que debería haber. No describís el resto.";
+                "lo que debería haber. No describís el resto.");
     p.pregunta = que;
     // 768 px: alcanza de sobra para decir si hay alguien, si el cuadro esta en
     // negro o que dice un rotulo, y mantiene el pedido chico. Una captura de
@@ -174,10 +175,11 @@ void McpService::registerImageTools() {
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             renderAparte(rt, "", a.value("maxWidth", 1280), [&rt, &vm, &core, a, done](QImage img, std::string err) {
                 if (img.isNull() && !feedImage(vm, "program", img))
-                    return done(ToolResult::error("No hay imagen del programa: " + err));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay imagen del programa: %1"), {err})));
                 ToolResult r;
-                r.text("Programa — escena '" + rt.engine().currentScene() + "' (" + std::to_string(img.width()) +
-                       "x" + std::to_string(img.height()) + ")");
+                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Programa — escena '%1' (%2x%3)"),
+                                       {rt.engine().currentScene(), std::to_string(img.width()),
+                                        std::to_string(img.height())}));
                 addImage(r, img, a, 1280, core, rt.dataRoot());
                 done(r);
             });
@@ -205,12 +207,12 @@ void McpService::registerImageTools() {
             const std::string fuente = a.value("fuente", std::string());
             renderAparte(rt, fuente, 960, [&rt, &vm, &core, a, done, fuente, tipo](QImage img, std::string err) {
             if (img.isNull() && (!fuente.empty() || !feedImage(vm, "program", img)))
-                return done(ToolResult::error("No hay imagen: " + err));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay imagen: %1"), {err})));
             const video::Legalidad l = video::medirLegalidad(img);
             const QImage s = video::dibujarScope(img, tipo, tipo == video::TipoScope::Vector ? 420 : 640,
                                                  tipo == video::TipoScope::Vector ? 420 : 360);
             ToolResult r;
-            r.text((fuente.empty() ? std::string("Programa") : "'" + fuente + "'") + " — " +
+            r.text((fuente.empty() ? ba::i18n::traducir("mcp", "Programa") : "'" + fuente + "'") + " — " +
                    a.value("tipo", std::string("onda")));
             r.data(json{{"legalidad",
                          {{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
@@ -285,7 +287,7 @@ void McpService::registerImageTools() {
                 ToolResult r;
                 r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" +
                        std::to_string(img.height()) + ")" +
-                       (negra ? " — sale NEGRA (sin señal todavía, o la imagen es negra de verdad)" : ""));
+                       (negra ? " — " + ba::i18n::traducir("mcp", "sale NEGRA (sin señal todavía, o la imagen es negra de verdad)") : ""));
                 addImage(r, img, a, 1280, core, rt.dataRoot());
                 done(r);
                 });
@@ -326,7 +328,8 @@ void McpService::registerImageTools() {
             const int cols =
                 std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(items.size())))));
             ToolResult r;
-            r.text(std::to_string(items.size()) + " escena(s); al aire: " + rt.engine().currentScene());
+            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "%n escena; al aire: %1", nullptr, static_cast<int>(items.size())),
+                                   {rt.engine().currentScene()}));
             addImage(r, contactSheet(items, cellW, cols, QString::fromStdString(rt.engine().currentScene())),
                      a, 0, core, rt.dataRoot());
             done(r);
@@ -351,8 +354,8 @@ void McpService::registerImageTools() {
             QImage img;
             if (!feedImage(vm, a["key"], img))
                 return done(
-                    ToolResult::error("Sin imagen en '" + a["key"].get<std::string>() +
-                                      "' (nadie publica ese video ahora). feeds_list muestra los validos."));
+                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Sin imagen en '%1' (nadie publica ese video ahora). feeds_list muestra los validos."),
+                                                       {a["key"].get<std::string>()})));
             ToolResult r;
             r.text(a["key"].get<std::string>() + " (" + std::to_string(img.width()) + "x" +
                    std::to_string(img.height()) + ")");
@@ -371,14 +374,14 @@ void McpService::registerImageTools() {
         (void)maxW;
         const std::string key = personFeedKey(p);
         QImage img;
-        if (!key.empty() && feedImage(vm, key, img)) return cb(img, "video en vivo (" + key + ")");
-        if (!p.value("hasAvatar", false)) return cb(QImage(), "sin imagen (camara apagada o sin medios)");
+        if (!key.empty() && feedImage(vm, key, img)) return cb(img, ba::i18n::llenar(ba::i18n::traducir("mcp", "video en vivo (%1)"), {key}));
+        if (!p.value("hasAvatar", false)) return cb(QImage(), ba::i18n::traducir("mcp", "sin imagen (camara apagada o sin medios)"));
         auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
         // La misma foto que muestran las tarjetas de la GUI (modelo: sala::ParticipantesSala).
         conf->participantes().foto(p.value("id", std::string()), [cb](bool ok, const QByteArray& jpeg) {
             QImage a;
             if (ok) a.loadFromData(jpeg, "JPEG");
-            cb(a, ok ? "foto de hace unos segundos (sin video en vivo en la app)" : "sin imagen");
+            cb(a, ok ? ba::i18n::traducir("mcp", "foto de hace unos segundos (sin video en vivo en la app)") : ba::i18n::traducir("mcp", "sin imagen"));
         });
     };
     {
@@ -403,7 +406,7 @@ void McpService::registerImageTools() {
                            [&vm, &rt, &core, a, p, done](QImage img, std::string how) {
                                ToolResult r;
                                r.text(p.value("name", "") + " — " + p.value("state", "") +
-                                      (p.value("slot", 0) > 0 ? " (al aire)" : "") + " — " + how);
+                                      (p.value("slot", 0) > 0 ? " " + ba::i18n::traducir("mcp", "(al aire)") : "") + " — " + how);
                                if (!img.isNull()) addImage(r, img, a, 960, core, rt.dataRoot());
                                if (a.value("includeScreen", false) && p.value("screen", false) &&
                                    p.value("slot", 0) > 0) {
@@ -452,8 +455,8 @@ void McpService::registerImageTools() {
                                    acc->got[i] = {p.value("name", "") + " (" + p.value("id", "") + ") — " +
                                                       p.value("state", "") +
                                                       (p.value("slot", 0) > 0
-                                                           ? ", al aire en el lugar " +
-                                                                 std::to_string(p.value("slot", 0))
+                                                           ? ", " + ba::i18n::llenar(ba::i18n::traducir("mcp", "al aire en el lugar %1"),
+                                                                                 {std::to_string(p.value("slot", 0))})
                                                            : "") +
                                                       " — " + how,
                                                   img};
@@ -494,9 +497,9 @@ void McpService::registerImageTools() {
                     return done(ToolResult::error(err));
                 target = personFeedKey(p);
                 if (target.empty())
-                    return done(ToolResult::error(p.value("name", "") +
-                                                  " no tiene video en vivo en la app ahora "
-                                                  "(foto_invitado da su foto)."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 no tiene video en vivo en la app ahora "
+                                                                       "(foto_invitado da su foto)."),
+                                                  {p.value("name", "")})));
             }
             const int maxW = a.value("maxWidth", 640);
             // Sin que espere la interfaz: la imagen llega a `listo` (ver renderAparte).
@@ -505,7 +508,7 @@ void McpService::registerImageTools() {
                 if (target.find(':') != std::string::npos) {
                     QImage img;
                     if (feedImage(vm, target, img)) return listo(img, std::string());
-                    return listo(QImage(), "sin imagen en " + target);
+                    return listo(QImage(), ba::i18n::llenar(ba::i18n::traducir("mcp", "sin imagen en %1"), {target}));
                 }
                 renderAparte(rt, target, maxW, std::move(listo));
             };
@@ -518,8 +521,8 @@ void McpService::registerImageTools() {
             auto seq = std::make_shared<Seq>();
             seq->left = a.value("frames", 4);
             const int interval = a.value("intervalMs", 500);
-            seq->r.text("Secuencia de " + std::to_string(seq->left) + " cuadros de '" + target + "' cada " +
-                        std::to_string(interval) + " ms:");
+            seq->r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Secuencia de %1 cuadros de '%2' cada %3 ms:"),
+                                        {std::to_string(seq->left), target, std::to_string(interval)}));
             auto step = std::make_shared<std::function<void()>>();
             QPointer<McpService> guard(self);
             *step = [seq, step, grab, a, done, interval, maxW, guard, &core, &rt]() {
@@ -608,7 +611,8 @@ void McpService::registerImageTools() {
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo guardar la captura para que la miren.")));
 
             const std::string donde =
-                fuente == "interfaz" ? "la pantalla de la aplicacion" : "el video de '" + fuente + "'";
+                fuente == "interfaz" ? ba::i18n::traducir("mcp", "la pantalla de la aplicacion")
+                                     : ba::i18n::llenar(ba::i18n::traducir("mcp", "el video de '%1'"), {fuente});
             const QImage copia = img;
             // Al servidor propio, en un hilo aparte (el cliente HTTPS bloquea y
             // esto corre en el hilo de la interfaz). Ver `mirarConElModeloPropio`.
@@ -618,8 +622,8 @@ void McpService::registerImageTools() {
                     const std::string texto = mirarConElModeloPropio(rt, copia, que, error);
                     ToolResult r;
                     if (texto.empty()) {
-                        r = ToolResult::error("No pude mirar la imagen (" + antes + error +
-                                              "). La captura quedo en " + archivo.toStdString() + ".");
+                        r = ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No pude mirar la imagen (%1%2). La captura quedo en %3."),
+                                                               {antes, error, archivo.toStdString()}));
                     } else {
                         r.text(texto);
                         r.structured = json{
@@ -636,12 +640,14 @@ void McpService::registerImageTools() {
             agent::ModelosLocales* ml = vm.modelosLocales();
             if (ml == nullptr || !ml->listo() || !ml->conVision()) return conElPropio("");
             const QString pregunta =
-                QString::fromStdString(que) +
-                "\nContesta en castellano, concreto, en una o dos oraciones. Si no se ve, decilo.";
+                QString::fromStdString(que) + "\n" +
+                //: «castellano» es el idioma de la traducción: poné el nombre de tu idioma
+                QString::fromStdString(ba::i18n::traducir("mcp", "Contesta en castellano, concreto, en una o dos oraciones. Si no se ve, decilo."));
             ml->ver(archivo, pregunta, 160, {}, [conElPropio, donde, archivo, done](const json& j) {
                 const std::string texto = j.value("texto", std::string());
                 if (j.contains("error") || texto.empty())
-                    return conElPropio("modelo local: " + j.value("error", std::string("sin respuesta")) +
+                    return conElPropio(ba::i18n::llenar(ba::i18n::traducir("mcp", "modelo local: %1"),
+                                                       {j.value("error", ba::i18n::traducir("mcp", "sin respuesta"))}) +
                                        "; ");
                 ToolResult r;
                 r.text(texto);
@@ -660,7 +666,7 @@ void McpService::registerImageTools() {
             if (fuente == "programa" || fuente == "program") {
                 return renderAparte(rt, "", 1280, [&vm, seguir, done](QImage img, std::string err) {
                     if (img.isNull() && !feedImage(vm, "program", img))
-                        return done(ToolResult::error("No hay imagen del programa: " + err));
+                        return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay imagen del programa: %1"), {err})));
                     seguir(img);
                 });
             }
@@ -670,10 +676,9 @@ void McpService::registerImageTools() {
             // el programa ni la armada).
             renderAparte(rt, fuente, 1280, [seguir, done, fuente](QImage img, std::string err) {
                 if (img.isNull())
-                    return done(ToolResult::error("Sin imagen en '" + fuente +
-                                                  "': no es una escena, una fuente ni una "
-                                                  "clave de feeds_list (" +
-                                                  err + ")."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Sin imagen en '%1': no es una escena, una fuente ni una "
+                                                                       "clave de feeds_list (%2)."),
+                                                  {fuente, err})));
                 seguir(img);
             });
         };
@@ -704,7 +709,7 @@ void McpService::registerImageTools() {
                     if (q == nullptr || q == main || !q->isVisible()) continue;
                     // El titulo dice cual es: no hace falta distinguir aca entre
                     // una salida de video y una pestaña suelta.
-                    r.text("Ventana " + std::to_string(n++) + ": " + q->title().toStdString());
+                    r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Ventana %1: %2"), {std::to_string(n++), q->title().toStdString()}));
                     addImage(r, q->grabWindow(), a, 1600, core, rt.dataRoot());
                 }
             }

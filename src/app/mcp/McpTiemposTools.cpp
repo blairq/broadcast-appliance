@@ -67,7 +67,7 @@ void McpService::registerTiemposTools() {
             for (const auto& x : a.value("entradas", json::array()))
                 if (x.is_string()) entradas.push_back(x.get<std::string>());
             const QString e = tm->analizar(a.value("segundos", 10), [done](const json& r) {
-                if (r.value("estado", std::string()) != "listo") return done(ToolResult::error(r.value("error", std::string("falló"))));
+                if (r.value("estado", std::string()) != "listo") return done(ToolResult::error(r.value("error", ba::i18n::traducir("mcp", "falló"))));
                 done(ToolResult().data(r));
             }, entradas);
             if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
