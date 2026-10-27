@@ -23,6 +23,8 @@ import "controls"
 
 Window {
     id: w
+    LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+    LayoutMirroring.childrenInherit: true
     required property int ventanaId
     required property var cosas
     required property string distribucion

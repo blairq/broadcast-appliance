@@ -10,6 +10,10 @@ import "pages"
 
 ApplicationWindow {
     id: win
+    // Un idioma de derecha a izquierda (su perfil: "direccion": "rtl") espeja la interfaz entera:
+    // filas, anclajes y alineaciones (arranque/TraductorQt pone la dirección de la aplicación).
+    LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+    LayoutMirroring.childrenInherit: true
     // Modo prueba (--test): el MCP no pide aprobaciones. Siempre a la vista.
     Rectangle {
         visible: Studio.modoTest
