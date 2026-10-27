@@ -42,24 +42,26 @@ Item {
             // El resultado OFICIAL (tablero del recinto o Secretaría): el que va al acta.
             GlassButton {
                 compact: true
-                text: "Cargar resultado oficial"
+                text: qsTr("Cargar resultado oficial")
                 onClicked: oficial.open()
             }
             Text {
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 readonly property var ult: Studio.quorum.oficiales.length > 0 ? Studio.quorum.oficiales[Studio.quorum.oficiales.length - 1] : null
-                text: !ult ? "Todavía no hay resultados oficiales (los del tablero o Secretaría, para el acta)." : "Último oficial: " + ult.asunto + " — " + (ult.aprobado ? "APROBADO" : "RECHAZADO") + " " + ult.afirmativos + "-" + ult.negativos + "-" + ult.abstenciones
+                text: !ult ? qsTr("Todavía no hay resultados oficiales (los del tablero o Secretaría, para el acta).")
+                      : (ult.aprobado ? qsTr("Último oficial: %1 — APROBADO %2-%3-%4") : qsTr("Último oficial: %1 — RECHAZADO %2-%3-%4"))
+                        .arg(ult.asunto).arg(ult.afirmativos).arg(ult.negativos).arg(ult.abstenciones)
                 color: ult && ult.aprobado ? Theme.ok : Theme.textDim
                 font.pixelSize: 11
             }
             GlassButton {
                 compact: true
                 text: "⧉"
-                onClicked: ApplicationWindow.window.sacarPanel("votacion", "Votación")
+                onClicked: ApplicationWindow.window.sacarPanel("votacion", qsTr("Votación"))
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Sacar a su propia ventana, para mandarla a otro monitor"
+                ToolTip.text: qsTr("Sacar a su propia ventana, para mandarla a otro monitor")
             }
         }
 
@@ -84,9 +86,9 @@ Item {
                         // Cuál fue, dicho siempre: una encuesta leída como
                         // decisión es el error que toda esta separación existe
                         // para evitar.
-                        text: (raiz.v.modo === "formal" ? "VOTACIÓN" : "ENCUESTA") +
-                              (raiz.abierta ? " · abierta" : " · cerrada") +
-                              (raiz.v.secreta ? " · secreta" : "")
+                        text: (raiz.v.modo === "formal" ? qsTr("VOTACIÓN") : qsTr("ENCUESTA")) +
+                              (raiz.abierta ? " · " + qsTr("abierta") : " · " + qsTr("cerrada")) +
+                              (raiz.v.secreta ? " · " + qsTr("secreta") : "")
                         color: raiz.abierta ? Theme.live : Theme.textDim
                         font { pixelSize: 11; weight: Font.DemiBold; letterSpacing: 0.6 }
                     }
@@ -96,8 +98,8 @@ Item {
                         // dos a favor y cero en contra parece unánime cuando en
                         // realidad no vino nadie.
                         text: raiz.v.podian > 0
-                              ? "votaron " + raiz.v.votaron + " de " + raiz.v.podian
-                              : "votaron " + raiz.v.votaron
+                              ? qsTr("votaron %1 de %2").arg(raiz.v.votaron).arg(raiz.v.podian)
+                              : qsTr("votaron %1").arg(raiz.v.votaron)
                         color: Theme.text
                         font { pixelSize: 13; weight: Font.DemiBold }
                     }
@@ -151,7 +153,7 @@ Item {
                     Layout.fillWidth: true
                     visible: (raiz.v.faltanVotar || []).length > 0
                     wrapMode: Text.WordWrap
-                    text: "Faltan votar: " + (raiz.v.faltanVotar || []).join(", ")
+                    text: qsTr("Faltan votar: %1").arg((raiz.v.faltanVotar || []).join(", "))
                     color: Theme.amber
                     font.pixelSize: 12
                 }
@@ -161,20 +163,20 @@ Item {
                     spacing: 8
                     GlassButton {
                         visible: raiz.hay
-                        text: "Proyectar"
+                        text: qsTr("Proyectar")
                         icon: "⧉"
                         onClicked: proyectarDlg.open()
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Mandarla a un televisor de la sala, con el QR para votar"
+                        ToolTip.text: qsTr("Mandarla a un televisor de la sala, con el QR para votar")
                     }
                     GlassButton {
                         visible: raiz.abierta
-                        text: "Cerrar la votación"
+                        text: qsTr("Cerrar la votación")
                         onClicked: raiz.pub.cerrarVotacion()
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Deja el resultado firme y se lo muestra a todos los teléfonos"
+                        ToolTip.text: qsTr("Deja el resultado firme y se lo muestra a todos los teléfonos")
                     }
                     Toggle {
                         visible: raiz.abierta
@@ -183,7 +185,7 @@ Item {
                     }
                     Text {
                         visible: raiz.abierta
-                        text: "Mostrar el resultado mientras está abierta"
+                        text: qsTr("Mostrar el resultado mientras está abierta")
                         color: Theme.textDim
                         font.pixelSize: 12
                     }
@@ -196,8 +198,8 @@ Item {
             Layout.fillWidth: true
             visible: raiz.abierta && raiz.v.modo === "formal" && raiz.v.enVivo === true
             wrapMode: Text.WordWrap
-            text: "Con el resultado a la vista, el que todavía no votó ve que va perdiendo y eso " +
-                  "cambia lo que vota. En una votación formal conviene tenerlo apagado."
+            text: qsTr("Con el resultado a la vista, el que todavía no votó ve que va perdiendo y eso " +
+                  "cambia lo que vota. En una votación formal conviene tenerlo apagado.")
             color: Theme.amber
             font.pixelSize: 11
         }
@@ -216,7 +218,7 @@ Item {
                 spacing: 8
 
                 Text {
-                    text: raiz.abierta ? "Abrir otra (reemplaza a la que está abierta)" : "Abrir una votación o una encuesta"
+                    text: raiz.abierta ? qsTr("Abrir otra (reemplaza a la que está abierta)") : qsTr("Abrir una votación o una encuesta")
                     color: Theme.text
                     font { pixelSize: 14; weight: Font.DemiBold }
                 }
@@ -224,8 +226,8 @@ Item {
                     Layout.fillWidth: true
                     visible: !raiz.abierta
                     wrapMode: Text.WordWrap
-                    text: "Se vota desde el teléfono con el QR. La votación formal es la del padrón (vale para decidir); "
-                          + "la encuesta es abierta a cualquiera y solo indica. Para votar con las bancas de la central, está Conferencia → Votación y asistencia."
+                    text: qsTr("Se vota desde el teléfono con el QR. La votación formal es la del padrón (vale para decidir); "
+                          + "la encuesta es abierta a cualquiera y solo indica. Para votar con las bancas de la central, está Conferencia → Votación y asistencia.")
                     color: Theme.textFaint
                     font.pixelSize: 11
                 }
@@ -233,8 +235,8 @@ Item {
                     Layout.fillWidth: true
                     visible: raiz.abierta
                     wrapMode: Text.WordWrap
-                    text: "La que está abierta queda registrada igual: para el acta importa que se " +
-                          "votó, no que alguien se haya acordado de cerrarla."
+                    text: qsTr("La que está abierta queda registrada igual: para el acta importa que se " +
+                          "votó, no que alguien se haya acordado de cerrarla.")
                     color: Theme.textFaint
                     font.pixelSize: 11
                 }
@@ -243,14 +245,14 @@ Item {
                     id: campoPregunta
                     Layout.fillWidth: true
                     color: Theme.text
-                    placeholderText: "¿Qué se vota? Ej.: ¿Aprobamos el balance?"
+                    placeholderText: qsTr("¿Qué se vota? Ej.: ¿Aprobamos el balance?")
                 }
                 TextField {
                     id: campoOpciones
                     Layout.fillWidth: true
                     color: Theme.text
-                    text: "A favor, En contra, Abstención"
-                    placeholderText: "Opciones separadas por coma"
+                    text: qsTr("A favor, En contra, Abstención")
+                    placeholderText: qsTr("Opciones separadas por coma")
                 }
 
                 RowLayout {
@@ -259,8 +261,8 @@ Item {
                     ComboBox {
                         id: modo
                         model: [
-                            { texto: "Votación formal (del padrón)", valor: "formal" },
-                            { texto: "Encuesta abierta (indicativa)", valor: "encuesta" }
+                            { texto: qsTr("Votación formal (del padrón)"), valor: "formal" },
+                            { texto: qsTr("Encuesta abierta (indicativa)"), valor: "encuesta" }
                         ]
                         textRole: "texto"
                         valueRole: "valor"
@@ -271,7 +273,7 @@ Item {
                         enabled: modo.currentValue === "formal"
                     }
                     Text {
-                        text: "Secreta"
+                        text: qsTr("Secreta")
                         color: modo.currentValue === "formal" ? Theme.text : Theme.textFaint
                         font.pixelSize: 12
                     }
@@ -288,19 +290,19 @@ Item {
                     font.pixelSize: 12
                     text: modo.currentValue === "formal"
                           ? (!(resumen.votoPresente > 0)
-                             ? "Nadie con derecho a voto llegó todavía. Una votación formal sin " +
-                               "votantes da un resultado que parece válido."
-                             : "Pueden votar " + resumen.votoPresente + " presentes, de " +
-                               resumen.conVoto + " con derecho en el padrón.")
-                          : "Vota cualquiera que tenga el enlace, una vez por teléfono. El resultado " +
-                            "es indicativo: no sirve para decidir."
+                             ? qsTr("Nadie con derecho a voto llegó todavía. Una votación formal sin " +
+                               "votantes da un resultado que parece válido.")
+                             : qsTr("Pueden votar %1 presentes, de %2 con derecho en el padrón.")
+                               .arg(resumen.votoPresente).arg(resumen.conVoto))
+                          : qsTr("Vota cualquiera que tenga el enlace, una vez por teléfono. El resultado " +
+                            "es indicativo: no sirve para decidir.")
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
-                        text: modo.currentValue === "formal" ? "Abrir la votación" : "Abrir la encuesta"
+                        text: modo.currentValue === "formal" ? qsTr("Abrir la votación") : qsTr("Abrir la encuesta")
                         active: true
                         enabled: campoPregunta.text.trim() !== "" &&
                                  (modo.currentValue === "encuesta" || (raiz.ev && raiz.ev.resumenPadron.votoPresente > 0))
@@ -327,15 +329,15 @@ Item {
         anchors.centerIn: Overlay.overlay
         width: 420
         modal: true
-        title: "Proyectar la votación"
+        title: qsTr("Proyectar la votación")
         standardButtons: Dialog.Close
         ColumnLayout {
             spacing: 8
             Text {
                 Layout.preferredWidth: 380
                 wrapMode: Text.WordWrap
-                text: "Se manda la que esté abierta, con el QR para votar desde el teléfono. El " +
-                      "resultado se ve solo si decidiste mostrarlo."
+                text: qsTr("Se manda la que esté abierta, con el QR para votar desde el teléfono. El " +
+                      "resultado se ve solo si decidiste mostrarlo.")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -356,7 +358,7 @@ Item {
                 Layout.preferredWidth: 380
                 visible: Studio.pantallas.pantallas.length === 0
                 wrapMode: Text.WordWrap
-                text: "No hay ninguna pantalla. Buscalas en la página de Pantallas."
+                text: qsTr("No hay ninguna pantalla. Buscalas en la página de Pantallas.")
                 color: Theme.textFaint
                 font.pixelSize: 12
             }
@@ -371,7 +373,7 @@ Item {
         wrapMode: Text.WordWrap
         color: Theme.textFaint
         font.pixelSize: 12
-        text: raiz.pub.enLinea ? "" : "No puedo ver la urna: el servidor no responde."
+        text: raiz.pub.enLinea ? "" : qsTr("No puedo ver la urna: el servidor no responde.")
     }
 
     Popup {
@@ -384,17 +386,17 @@ Item {
         contentItem: ColumnLayout {
             spacing: 8
             Text {
-                text: "Resultado oficial"
+                text: qsTr("Resultado oficial")
                 color: Theme.text
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
             }
-            TextField { id: ofAsunto; Layout.fillWidth: true; placeholderText: "Asunto (Expte. 123/24 – en general)"; color: Theme.text }
+            TextField { id: ofAsunto; Layout.fillWidth: true; placeholderText: qsTr("Asunto (Expte. 123/24 – en general)"); color: Theme.text }
             GridLayout {
                 columns: 3
-                Text { text: "Afirmativos"; color: Theme.textDim; font.pixelSize: 11 }
-                Text { text: "Negativos"; color: Theme.textDim; font.pixelSize: 11 }
-                Text { text: "Abstenciones"; color: Theme.textDim; font.pixelSize: 11 }
+                Text { text: qsTr("Afirmativos"); color: Theme.textDim; font.pixelSize: 11 }
+                Text { text: qsTr("Negativos"); color: Theme.textDim; font.pixelSize: 11 }
+                Text { text: qsTr("Abstenciones"); color: Theme.textDim; font.pixelSize: 11 }
                 SpinBox { id: ofAf; from: 0; to: 1000; editable: true }
                 SpinBox { id: ofNe; from: 0; to: 1000; editable: true }
                 SpinBox { id: ofAb; from: 0; to: 1000; editable: true }
@@ -402,12 +404,12 @@ Item {
             ComboBox {
                 id: ofMayoria
                 Layout.fillWidth: true
-                model: [ { t: "Mayoría de las reglas del cuerpo", v: "" }, { t: "Mayoría simple", v: "simple" },
-                         { t: "Mayoría absoluta", v: "absoluta" }, { t: "2/3 de presentes", v: "dos_tercios_presentes" },
-                         { t: "2/3 de miembros", v: "dos_tercios_miembros" } ]
+                model: [ { t: qsTr("Mayoría de las reglas del cuerpo"), v: "" }, { t: qsTr("Mayoría simple"), v: "simple" },
+                         { t: qsTr("Mayoría absoluta"), v: "absoluta" }, { t: qsTr("2/3 de presentes"), v: "dos_tercios_presentes" },
+                         { t: qsTr("2/3 de miembros"), v: "dos_tercios_miembros" } ]
                 textRole: "t"
             }
-            Text { text: "O la votación nominal (CSV «nombre;voto», un integrante por línea):"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("O la votación nominal (CSV «nombre;voto», un integrante por línea):"); color: Theme.textDim; font.pixelSize: 11 }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90
@@ -415,7 +417,7 @@ Item {
             }
             RowLayout {
                 GlassButton {
-                    compact: true; text: "Cargar"; active: true
+                    compact: true; text: qsTr("Cargar"); active: true
                     onClicked: {
                         const may = ofMayoria.model[ofMayoria.currentIndex].v
                         const e = ofCsv.text.trim() !== "" ? Studio.quorum.cargarCsvUi(ofAsunto.text, ofCsv.text, may)
@@ -424,7 +426,7 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: oficial.close() }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: oficial.close() }
             }
         }
     }

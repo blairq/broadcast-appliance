@@ -22,7 +22,7 @@ ColumnLayout {
     property var perfiles: []
     /// En "texto": la ayuda del campo.
     property string perfilAyuda: ""
-    property string textoAprobar: "Aprobar"
+    property string textoAprobar: qsTr("Aprobar")
     /// Cuántos se muestran; el resto, en una línea («y N más»).
     property int maximo: 6
     /// Una persona aprobó o rechazó (perfil: el elegido, "" si no hay).
@@ -34,9 +34,9 @@ ColumnLayout {
     function hace(ms, ahora) {
         if (!ms) return ""
         const s = Math.max(0, Math.round((ahora - ms) / 1000))
-        if (s < 60) return "recién"
+        if (s < 60) return qsTr("recién")
         const m = Math.round(s / 60)
-        return m < 60 ? "hace " + m + " min" : "hace " + Math.floor(m / 60) + " h " + (m % 60) + " min"
+        return m < 60 ? qsTr("hace %1 min").arg(m) : qsTr("hace %1 h %2 min").arg(Math.floor(m / 60)).arg(m % 60)
     }
 
     // Para que «hace N min» avance mientras se mira.
@@ -69,7 +69,7 @@ ColumnLayout {
                     spacing: 1
                     Text {
                         Layout.fillWidth: true
-                        text: "«" + (sol.modelData.nombre || "Sin nombre") + "»" +
+                        text: qsTr("«%1»").arg(sol.modelData.nombre || qsTr("Sin nombre")) +
                               (sol.modelData.detalle ? " " + sol.modelData.detalle : "")
                         color: Theme.amber
                         font.pixelSize: 13
@@ -86,7 +86,7 @@ ColumnLayout {
                 }
                 Text {
                     visible: raiz.perfilModo !== ""
-                    text: "Perfil"
+                    text: qsTr("Perfil")
                     color: Theme.textDim
                     font.pixelSize: 12
                 }
@@ -120,7 +120,7 @@ ColumnLayout {
                                              : raiz.perfilModo === "texto" ? perfilTexto.text : "")
                 }
                 GlassButton {
-                    compact: true; text: "Rechazar"
+                    compact: true; text: qsTr("Rechazar")
                     onClicked: raiz.resolver(sol.modelData.id, false, "")
                 }
             }
@@ -128,7 +128,7 @@ ColumnLayout {
     }
     Text {
         visible: raiz.solicitudes.length > raiz.maximo
-        text: "y " + (raiz.solicitudes.length - raiz.maximo) + " más esperando"
+        text: qsTr("y %n más esperando", "", raiz.solicitudes.length - raiz.maximo)
         color: Theme.textFaint
         font.pixelSize: 11
     }

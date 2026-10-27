@@ -22,14 +22,14 @@ ColumnLayout {
             Layout.fillWidth: true
             elide: Text.ElideRight
             opacity: od.o.puntos.length > 0 ? 1 : 0
-            text: od.o.actual && od.o.actual.n ? "En tratamiento: Punto " + od.o.actual.n + " — " + od.o.actual.titulo
-                                               : (od.o.puntos.length > 0 ? "Ningún punto en tratamiento" : "Sin orden del día")
+            text: od.o.actual && od.o.actual.n ? qsTr("En tratamiento: Punto %1 — %2").arg(od.o.actual.n).arg(od.o.actual.titulo)
+                                               : (od.o.puntos.length > 0 ? qsTr("Ningún punto en tratamiento") : qsTr("Sin orden del día"))
             color: od.o.actual && od.o.actual.n ? Theme.text : Theme.textDim
             font.pixelSize: 14
             font.weight: Font.DemiBold
         }
         GlassButton {
-            compact: true; text: "Siguiente punto ▶"; active: true
+            compact: true; text: qsTr("Siguiente punto ▶"); active: true
             visible: od.o.puntos.length > 0
             enabled: od.o.puntos.some(p => p.estado === "pendiente")
             onClicked: { const e = od.o.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
@@ -37,14 +37,14 @@ ColumnLayout {
         Text {
             visible: od.o.puntos.length > 0
             color: Theme.textFaint; font.pixelSize: 12
-            text: od.o.puntos.filter(p => p.estado !== "pendiente" && p.estado !== "en_tratamiento").length + " de " + od.o.puntos.length + " tratados"
+            text: qsTr("%1 de %2 tratados").arg(od.o.puntos.filter(p => p.estado !== "pendiente" && p.estado !== "en_tratamiento").length).arg(od.o.puntos.length)
         }
-        GlassButton { compact: true; text: "Cargar otro…"; visible: od.o.puntos.length > 0; onClicked: carga.open() }
+        GlassButton { compact: true; text: qsTr("Cargar otro…"); visible: od.o.puntos.length > 0; onClicked: carga.open() }
         GlassButton {
-            compact: true; text: "Capítulos"; visible: od.o.puntos.length > 0
+            compact: true; text: qsTr("Capítulos"); visible: od.o.puntos.length > 0
             onClicked: {
                 const t = Studio.capitulosPuntosUi()
-                Studio.notify(t !== "" ? "Capítulos por punto: " + t.replace(/\n/g, " · ") : "Hace falta estar grabando y haber tratado puntos.", "info")
+                Studio.notify(t !== "" ? qsTr("Capítulos por punto: %1").arg(t.replace(/\n/g, " · ")) : qsTr("Hace falta estar grabando y haber tratado puntos."), "info")
             }
         }
     }
@@ -60,10 +60,10 @@ ColumnLayout {
             width: parent.width
             visible: parent.count === 0
             icono: "☰"
-            titulo: "Todavía no hay orden del día"
-            texto: "Pegá los puntos de la sesión (uno por línea, o un CSV). El punto en tratamiento sale en los zócalos ({punto.texto}), "
-                   + "arma los capítulos de la grabación y queda en el acta junto con su resultado."
-            accion: "Cargar el orden del día…"
+            titulo: qsTr("Todavía no hay orden del día")
+            texto: qsTr("Pegá los puntos de la sesión (uno por línea, o un CSV). El punto en tratamiento sale en los zócalos ({punto.texto}), "
+                        + "arma los capítulos de la grabación y queda en el acta junto con su resultado.")
+            accion: qsTr("Cargar el orden del día…")
             onActivado: carga.open()
         }
         delegate: Rectangle {
@@ -84,9 +84,9 @@ ColumnLayout {
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.titulo; color: Theme.text; font.pixelSize: 13 }
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
-                        text: (modelData.expediente ? "Expte. " + modelData.expediente + " · " : "") +
-                              ({ pendiente: "pendiente", en_tratamiento: "en tratamiento", votado: "votado",
-                                 comision: "a comisión", retirado: "retirado" })[modelData.estado] +
+                        readonly property string estado: ({ pendiente: qsTr("pendiente"), en_tratamiento: qsTr("en tratamiento"), votado: qsTr("votado"),
+                                                           comision: qsTr("a comisión"), retirado: qsTr("retirado") })[modelData.estado]
+                        text: (modelData.expediente ? qsTr("Expte. %1 · %2").arg(modelData.expediente).arg(estado) : estado) +
                               (modelData.resultado ? " · " + modelData.resultado : "")
                         color: Theme.textFaint; font.pixelSize: 11
                     }
@@ -98,7 +98,7 @@ ColumnLayout {
                     visible: lista.length > 0
                     text: "📄 " + lista.length
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Documentos de este punto:\n" + lista.map(d => d.titulo).join("\n")
+                    ToolTip.text: qsTr("Documentos de este punto:\n%1").arg(lista.map(d => d.titulo).join("\n"))
                     onClicked: menuDocs.popup(btnDocs, 0, btnDocs.height)
                     Menu {
                         id: menuDocs
@@ -114,20 +114,20 @@ ColumnLayout {
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Tratar"
+                    compact: true; text: qsTr("Tratar")
                     visible: modelData.estado !== "en_tratamiento"
                     onClicked: od.o.puntoUi(modelData.n, "en_tratamiento", "")
                 }
                 ComboBox {
                     implicitWidth: 130
-                    model: [ { t: "Pendiente", v: "pendiente" }, { t: "Votado", v: "votado" }, { t: "A comisión", v: "comision" }, { t: "Retirado", v: "retirado" } ]
+                    model: [ { t: qsTr("Pendiente"), v: "pendiente" }, { t: qsTr("Votado"), v: "votado" }, { t: qsTr("A comisión"), v: "comision" }, { t: qsTr("Retirado"), v: "retirado" } ]
                     textRole: "t"
-                    displayText: "Estado…"
+                    displayText: qsTr("Estado…")
                     onActivated: (i) => od.o.puntoUi(modelData.n, model[i].v, "")
                 }
                 TextField {
                     Layout.preferredWidth: 170
-                    placeholderText: "Resultado"
+                    placeholderText: qsTr("Resultado")
                     text: modelData.resultado || ""
                     color: Theme.text
                     onEditingFinished: if (text !== (modelData.resultado || "")) od.o.puntoUi(modelData.n, modelData.estado, text)
@@ -147,38 +147,38 @@ ColumnLayout {
         contentItem: ColumnLayout {
             spacing: 8
             Text {
-                text: "Pegá el orden del día"
+                text: qsTr("Pegá el orden del día")
                 color: Theme.text
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: "Una línea por punto: «1. Expte. 123/24 – Título», «2) Título», o CSV «n;expediente;título». Reemplaza los puntos (el uso de la palabra sigue)."
+                text: qsTr("Una línea por punto: «1. Expte. 123/24 – Título», «2) Título», o CSV «n;expediente;título». Reemplaza los puntos (el uso de la palabra sigue).")
                 color: Theme.textDim; font.pixelSize: 11
             }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                TextArea { id: textoOd; color: Theme.text; wrapMode: TextEdit.NoWrap; placeholderText: "1. Expte. 456/26 – Ley de ..." }
+                TextArea { id: textoOd; color: Theme.text; wrapMode: TextEdit.NoWrap; placeholderText: qsTr("1. Expte. 456/26 – Ley de ...") }
             }
             RowLayout {
                 GlassButton {
-                    compact: true; text: "Cargar"; active: true
+                    compact: true; text: qsTr("Cargar"); active: true
                     onClicked: {
                         const e = od.o.cargarUi(textoOd.text)
                         if (e !== "") Studio.notify(e, "error"); else { carga.close(); textoOd.text = "" }
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Sesión nueva"
+                    compact: true; text: qsTr("Sesión nueva")
                     onClicked: ApplicationWindow.window.confirm({
-                        title: "¿Empezar una sesión nueva?", text: "Se borran los puntos y los tiempos de uso de la palabra.",
-                        accept: "Borrar", reject: "Cancelar", action: () => { od.o.limpiarUi(); carga.close() }
+                        title: qsTr("¿Empezar una sesión nueva?"), text: qsTr("Se borran los puntos y los tiempos de uso de la palabra."),
+                        accept: qsTr("Borrar"), reject: qsTr("Cancelar"), action: () => { od.o.limpiarUi(); carga.close() }
                     })
                 }
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: carga.close() }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: carga.close() }
             }
         }
     }

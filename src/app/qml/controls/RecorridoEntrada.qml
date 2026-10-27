@@ -50,13 +50,13 @@ Rectangle {
             Layout.fillWidth: true
             Text {
                 Layout.fillWidth: true
-                text: "Por dentro de «" + r.titulo + "»"
+                text: qsTr("Por dentro de «%1»").arg(r.titulo)
                 color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold }
                 elide: Text.ElideRight
             }
             GlassButton {
                 compact: true
-                text: r.midiendo ? "Midiendo…" : (r.elementos.length ? "Volver a analizar" : "Analizar 5 s")
+                text: r.midiendo ? qsTr("Midiendo…") : (r.elementos.length ? qsTr("Volver a analizar") : qsTr("Analizar 5 s"))
                 icon: "▶"
                 active: true
                 enabled: !r.midiendo
@@ -68,8 +68,8 @@ Rectangle {
             visible: r.elementos.length === 0
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: r.midiendo ? "Midiendo cada elemento…"
-                : "Analizar pone una sonda en cada elemento del pipeline de esta entrada unos segundos: cuánto agrega cada uno (lo que tarda y lo que retiene) y dónde el video baja de la GPU a la memoria o vuelve a subir. Fuera del análisis no cuesta nada."
+            text: r.midiendo ? qsTr("Midiendo cada elemento…")
+                : qsTr("Analizar pone una sonda en cada elemento del pipeline de esta entrada unos segundos: cuánto agrega cada uno (lo que tarda y lo que retiene) y dónde el video baja de la GPU a la memoria o vuelve a subir. Fuera del análisis no cuesta nada.")
             color: Theme.textFaint; font.pixelSize: 10
         }
         // La cuenta: la edad al salir = la captura (la fuente) + lo que agrega cada elemento.
@@ -79,7 +79,7 @@ Rectangle {
             wrapMode: Text.WordWrap
             readonly property real captura: { let c = 0; for (const e of r.elementos) if (e.fuente && !String(e.nombre).startsWith("salida/")) c = Math.max(c, e.agrega_ms || 0); return c }
             readonly property real resto: { let t = 0; for (const e of r.elementos) if (!e.fuente) t += (e.agrega_ms || 0); return t }
-            text: "Edad al salir ≈ " + r.ms(captura + resto) + "  =  captura " + r.ms(captura) + "  +  elementos " + r.ms(resto)
+            text: qsTr("Edad al salir ≈ %1  =  captura %2  +  elementos %3").arg(r.ms(captura + resto)).arg(r.ms(captura)).arg(r.ms(resto))
             color: Theme.text; font.pixelSize: 11
         }
         // El resumen y lo que se ve (del modelo: tiempos::diagnosticar).
@@ -90,10 +90,10 @@ Rectangle {
             textFormat: Text.RichText
             text: {
                 const s = r.diag.resumen || {}
-                const partes = [r.elementos.length + " elementos", r.ms(s.total_ms) + " en total"]
-                partes.push(!s.cruces ? "sin cruces de memoria" : s.cruces + (s.cruces === 1 ? " cruce" : " cruces") + " de memoria")
-                if (r.pl.rearmada) partes.push("<font color='" + Theme.amber + "'>la entrada se rearmó en medio del análisis</font>")
-                if (r.pl.t_ms) partes.push("hace " + Math.max(0, Math.round((Date.now() - r.pl.t_ms) / 1000)) + " s")
+                const partes = [qsTr("%n elemento", "", r.elementos.length), qsTr("%1 en total").arg(r.ms(s.total_ms))]
+                partes.push(!s.cruces ? qsTr("sin cruces de memoria") : qsTr("%n cruce de memoria", "", s.cruces))
+                if (r.pl.rearmada) partes.push("<font color='" + Theme.amber + "'>" + qsTr("la entrada se rearmó en medio del análisis") + "</font>")
+                if (r.pl.t_ms) partes.push(qsTr("hace %1 s").arg(Math.max(0, Math.round((Date.now() - r.pl.t_ms) / 1000))))
                 return partes.join(" · ")
             }
             color: Theme.textDim; font.pixelSize: 10
@@ -149,9 +149,9 @@ Rectangle {
                         Text {
                             width: parent.width
                             text: fila.modelData.fuente
-                                  ? (fila.modelData.fabrica || "") + "  ·  captura (la cámara, el driver, el sistema o la etapa anterior)"
+                                  ? (fila.modelData.fabrica || "") + "  ·  " + qsTr("captura (la cámara, el driver, el sistema o la etapa anterior)")
                                   : fila.modelData.traspaso
-                                  ? (fila.modelData.fabrica || "") + "  ·  traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)"
+                                  ? (fila.modelData.fabrica || "") + "  ·  " + qsTr("traspaso a la cadena de la placa «sin señal» (espera si el fallbackswitch frena)")
                                   : (fila.modelData.fabrica || "") + (fila.modelData.cruce
                                   ? "  ·  " + r.nombreMemoria(fila.modelData.memoria_entrada) + " → " + r.nombreMemoria(fila.modelData.memoria_salida) : "")
                             color: Theme.textFaint; font.pixelSize: 8
@@ -160,10 +160,10 @@ Rectangle {
                         // Lo que antes iba en un globo al pasar el mouse: escrito, a la vista.
                         Text {
                             width: parent.width
-                            text: "p95 " + r.ms(fila.modelData.agrega_p95_ms)
-                                  + (fila.modelData.declara_ms !== undefined ? " · declara " + r.ms(fila.modelData.declara_ms) : "")
-                                  + (fila.modelData.nivel_cola_ms !== undefined ? " · la cola guarda " + r.ms(fila.modelData.nivel_cola_ms) : "")
-                                  + ((fila.modelData.puede_entrada || []).length ? " · acepta " + fila.modelData.puede_entrada.map(r.nombreMemoria).join(", ") : "")
+                            text: qsTr("p95 %1").arg(r.ms(fila.modelData.agrega_p95_ms))
+                                  + (fila.modelData.declara_ms !== undefined ? " · " + qsTr("declara %1").arg(r.ms(fila.modelData.declara_ms)) : "")
+                                  + (fila.modelData.nivel_cola_ms !== undefined ? " · " + qsTr("la cola guarda %1").arg(r.ms(fila.modelData.nivel_cola_ms)) : "")
+                                  + ((fila.modelData.puede_entrada || []).length ? " · " + qsTr("acepta %1").arg(fila.modelData.puede_entrada.map(r.nombreMemoria).join(", ")) : "")
                             color: Theme.textFaint; font.pixelSize: 8
                             elide: Text.ElideRight
                         }

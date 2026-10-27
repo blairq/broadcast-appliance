@@ -22,7 +22,7 @@ ColumnLayout {
     readonly property var sr: Studio.sesionRemota
     readonly property var etiquetas: {
         if (pd.sr) pd.sr.participantes
-        return integrantes.map(i => "Banca " + i.banca + " · " + i.nombre + (pd.sr && pd.sr.presenteUi(i.id) ? "  (remoto)" : ""))
+        return integrantes.map(i => (pd.sr && pd.sr.presenteUi(i.id) ? qsTr("Banca %1 · %2  (remoto)") : qsTr("Banca %1 · %2")).arg(i.banca).arg(i.nombre))
     }
     function avisar(e) { if (e) Studio.notify(e, "error") }
     function mmss(s) { const a = Math.abs(s); return (s < 0 ? "-" : "") + Math.floor(a / 60) + ":" + String(a % 60).padStart(2, "0") }
@@ -51,30 +51,30 @@ ColumnLayout {
         Layout.bottomMargin: 10
         visible: !pd.activo && pd.integrantes.length < 2
         icono: "⚖"
-        titulo: "Para un debate hacen falta dos integrantes con banca"
-        texto: "El debate es entre dos (de la sala, remotos o uno y uno), moderado por la presidencia: cada uno tiene su turno y su reloj, "
-               + "y la escena se arma sola. Cargá los integrantes con su banca en el botón «Integrantes» de arriba."
+        titulo: qsTr("Para un debate hacen falta dos integrantes con banca")
+        texto: qsTr("El debate es entre dos (de la sala, remotos o uno y uno), moderado por la presidencia: cada uno tiene su turno y su reloj, "
+               + "y la escena se arma sola. Cargá los integrantes con su banca en el botón «Integrantes» de arriba.")
     }
     Seccion {
         visible: !pd.activo && pd.integrantes.length >= 2
-        titulo: "Empezar un debate"
-        subtitulo: "Elegí a los dos. Al empezar, la central queda con sus dos micrófonos, las cámaras van a sus bancas y se arma la escena de ese tipo de debate."
+        titulo: qsTr("Empezar un debate")
+        subtitulo: qsTr("Elegí a los dos. Al empezar, la central queda con sus dos micrófonos, las cámaras van a sus bancas y se arma la escena de ese tipo de debate.")
     RowLayout {
         Layout.fillWidth: true
         spacing: 10
         Text { text: "A"; color: Theme.textDim; font.pixelSize: 13 }
         ComboBox { id: elegirA; Layout.preferredWidth: 260; model: pd.etiquetas }
-        Text { text: "contra B"; color: Theme.textDim; font.pixelSize: 13 }
+        Text { text: qsTr("contra B"); color: Theme.textDim; font.pixelSize: 13 }
         ComboBox { id: elegirB; Layout.preferredWidth: 260; model: pd.etiquetas; currentIndex: Math.min(1, pd.etiquetas.length - 1) }
         GlassButton {
-            text: "Empezar el debate"; active: true
+            text: qsTr("Empezar el debate"); active: true
             enabled: pd.integrantes.length >= 2 && elegirA.currentIndex !== elegirB.currentIndex
             onClicked: pd.avisar(pd.deb.iniciarUi(pd.integrantes[elegirA.currentIndex].id, pd.integrantes[elegirB.currentIndex].id, "a"))
         }
         Item { Layout.fillWidth: true }
     }
     Text { visible: elegirA.currentIndex === elegirB.currentIndex; color: Theme.amber; font.pixelSize: 12
-           text: "A y B tienen que ser dos distintos." }
+           text: qsTr("A y B tienen que ser dos distintos.") }
     }
 
     // --- En curso ------------------------------------------------------------------------
@@ -94,10 +94,11 @@ ColumnLayout {
             ColumnLayout {
                 anchors { fill: parent; margins: 10 }
                 spacing: 2
-                Text { text: letra + (parent.parent.habla ? "  ● HABLA" : ""); color: parent.parent.habla ? Theme.ok : Theme.textDim
+                Text { text: parent.parent.habla ? qsTr("%1  ● HABLA").arg(letra) : letra; color: parent.parent.habla ? Theme.ok : Theme.textDim
                        font { pixelSize: 11; weight: Font.Bold; letterSpacing: 1 } }
                 Text { text: l ? l.nombre : "—"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
-                Text { text: !l ? "" : l.remoto ? "remoto · entra por «Remoto con la palabra" + (l.canal === 2 ? " 2" : "") + "»" : "banca " + l.banca + " (central)"
+                Text { text: !l ? "" : l.remoto ? (l.canal === 2 ? qsTr("remoto · entra por «Remoto con la palabra 2»") : qsTr("remoto · entra por «Remoto con la palabra»"))
+                                   : qsTr("banca %1 (central)").arg(l.banca)
                        color: Theme.textFaint; font.pixelSize: 11 }
             }
         }
@@ -107,22 +108,22 @@ ColumnLayout {
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.text; font { pixelSize: 26; family: Theme.mono }
                    text: (pd.e.turno === "a" || pd.e.turno === "b") && pd.e.turno_s > 0 ? pd.mmss(pd.e.restante_s || 0) : "—" }
             Text { Layout.alignment: Qt.AlignHCenter; color: Theme.textDim; font.pixelSize: 11
-                   text: pd.e.turno === "nadie" ? "nadie tiene el turno" : pd.e.turno === "ambos" ? "hablan los dos" : "turno de " + (pd.e.turno || "").toUpperCase() }
+                   text: pd.e.turno === "nadie" ? qsTr("nadie tiene el turno") : pd.e.turno === "ambos" ? qsTr("hablan los dos") : qsTr("turno de %1").arg((pd.e.turno || "").toUpperCase()) }
         }
         Lado { l: pd.e.b || null; letra: "B"; habla: pd.e.turno === "b" || pd.e.turno === "ambos" }
     }
     RowLayout {
         visible: pd.activo
         spacing: 8
-        GlassButton { text: "Turno de A"; active: pd.e.turno === "a"; onClicked: pd.avisar(pd.deb.turnoUi("a")) }
-        GlassButton { text: "Turno de B"; active: pd.e.turno === "b"; onClicked: pd.avisar(pd.deb.turnoUi("b")) }
-        GlassButton { text: "Ambos"; active: pd.e.turno === "ambos"; onClicked: pd.avisar(pd.deb.turnoUi("ambos")) }
-        GlassButton { text: "Nadie"; active: pd.e.turno === "nadie"; onClicked: pd.avisar(pd.deb.turnoUi("nadie")) }
+        GlassButton { text: qsTr("Turno de A"); active: pd.e.turno === "a"; onClicked: pd.avisar(pd.deb.turnoUi("a")) }
+        GlassButton { text: qsTr("Turno de B"); active: pd.e.turno === "b"; onClicked: pd.avisar(pd.deb.turnoUi("b")) }
+        GlassButton { text: qsTr("Ambos"); active: pd.e.turno === "ambos"; onClicked: pd.avisar(pd.deb.turnoUi("ambos")) }
+        GlassButton { text: qsTr("Nadie"); active: pd.e.turno === "nadie"; onClicked: pd.avisar(pd.deb.turnoUi("nadie")) }
         GlassButton { compact: true; text: "+30 s"; onClicked: pd.deb.sumarUi(30) }
         GlassButton { compact: true; text: "−30 s"; onClicked: pd.deb.sumarUi(-30) }
         Item { Layout.fillWidth: true }
-        GlassButton { text: "🔇 Silenciar a todos"; onClicked: Studio.silenciarTodos() }
-        GlassButton { text: "Terminar el debate"; activeColor: Theme.live; onClicked: pd.deb.terminarUi() }
+        GlassButton { text: qsTr("🔇 Silenciar a todos"); onClicked: Studio.silenciarTodos() }
+        GlassButton { text: qsTr("Terminar el debate"); activeColor: Theme.live; onClicked: pd.deb.terminarUi() }
     }
     Text {
         visible: pd.activo && !!pd.e.aviso
@@ -132,8 +133,8 @@ ColumnLayout {
 
     // --- Configuración -------------------------------------------------------------------
     Seccion {
-        titulo: "Cómo se arma"
-        subtitulo: "Lo que se usa en todos los debates: la escena de cada combinación, el tiempo de cada turno y si sale al aire solo."
+        titulo: qsTr("Cómo se arma")
+        subtitulo: qsTr("Lo que se usa en todos los debates: la escena de cada combinación, el tiempo de cada turno y si sale al aire solo.")
     GridLayout {
         columns: 2
         columnSpacing: 10
@@ -149,28 +150,28 @@ ColumnLayout {
                 pd.avisar(pd.deb.configurarUi({ escenas: esc }))
             }
         }
-        Text { text: "Dos de la sala"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Dos de la sala"); color: Theme.textDim; font.pixelSize: 12 }
         ElegirEscena { clave: "sala_sala" }
-        Text { text: "Uno de la sala y un remoto"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Uno de la sala y un remoto"); color: Theme.textDim; font.pixelSize: 12 }
         ElegirEscena { clave: "sala_remoto" }
-        Text { text: "Dos remotos"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Dos remotos"); color: Theme.textDim; font.pixelSize: 12 }
         ElegirEscena { clave: "remoto_remoto" }
-        Text { text: "Tiempo de cada turno"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Tiempo de cada turno"); color: Theme.textDim; font.pixelSize: 12 }
         RowLayout {
             SpinBox { from: 0; to: 1800; stepSize: 30; editable: true; value: pd.cfg.turno_s || 0
                       onValueModified: pd.avisar(pd.deb.configurarUi({ turno_s: value })) }
-            Text { text: "segundos (0 = sin reloj)"; color: Theme.textFaint; font.pixelSize: 11 }
+            Text { text: qsTr("segundos (0 = sin reloj)"); color: Theme.textFaint; font.pixelSize: 11 }
         }
-        Text { text: "Al empezar"; color: Theme.textDim; font.pixelSize: 12 }
-        CheckBox { text: "Cortar la escena al aire (si no, queda armada para el TAKE)"; checked: !!pd.cfg.directo
+        Text { text: qsTr("Al empezar"); color: Theme.textDim; font.pixelSize: 12 }
+        CheckBox { text: qsTr("Cortar la escena al aire (si no, queda armada para el TAKE)"); checked: !!pd.cfg.directo
                    onToggled: pd.avisar(pd.deb.configurarUi({ directo: checked })) }
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
         Layout.topMargin: 4
-        text: "Los remotos entran como «Remoto con la palabra» (A, o el único remoto) y «Remoto con la palabra 2» (B): la escena de dos remotos tiene que mostrar las dos entradas; " +
-              "la de sala y remoto, la cámara de la sala y «Remoto con la palabra». Con alguno de la sala, la central pasa a modo operador con dos micrófonos y al terminar vuelve como estaba. " +
-              "La presidencia hace lo mismo desde su consola web."
+        text: qsTr("Los remotos entran como «Remoto con la palabra» (A, o el único remoto) y «Remoto con la palabra 2» (B): la escena de dos remotos tiene que mostrar las dos entradas; " +
+                   "la de sala y remoto, la cámara de la sala y «Remoto con la palabra». Con alguno de la sala, la central pasa a modo operador con dos micrófonos y al terminar vuelve como estaba. " +
+                   "La presidencia hace lo mismo desde su consola web.")
     }
     }
     Item { Layout.fillHeight: true }

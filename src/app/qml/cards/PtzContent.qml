@@ -46,10 +46,10 @@ Item {
     readonly property var siguiendo: sg && sg.siguiendo[entrada] ? sg.siguiendo[entrada] : null
     property int elegida: -1
     property bool analizando: false
-    function nombreCara(c, i) { return c.nombre ? c.nombre : "Cara " + (i + 1) + " (sin nombre)" }
+    function nombreCara(c, i) { return c.nombre ? c.nombre : qsTr("Cara %1 (sin nombre)").arg(i + 1) }
     function seguirElegida() {
         const i = t.elegida >= 0 && t.elegida < t.caras.length ? t.elegida : (t.caras.length === 1 ? 0 : -1)
-        if (i < 0) { t.avisar(t.caras.length === 0 ? "Primero «Analizar rostros» (o no hay caras en cuadro)" : "Elegí a quién seguir: tocá su recuadro o elegilo en la lista"); return }
+        if (i < 0) { t.avisar(t.caras.length === 0 ? qsTr("Primero «Analizar rostros» (o no hay caras en cuadro)") : qsTr("Elegí a quién seguir: tocá su recuadro o elegilo en la lista")); return }
         const c = t.caras[i]
         t.avisar(t.sg.seguir(t.entrada, c.id ? { id: c.id, nombre: c.nombre } : { x: c.x + c.ancho / 2, y: c.y + c.alto / 2 }))
     }
@@ -59,7 +59,7 @@ Item {
             if (cual !== t.entrada) return
             t.analizando = false
             if (error !== "") t.avisar(error)
-            else if (t.caras.length === 0) t.avisar("No se ve ninguna cara")
+            else if (t.caras.length === 0) t.avisar(qsTr("No se ve ninguna cara"))
             else { t.avisar(""); if (t.elegida >= t.caras.length) t.elegida = -1 }
         }
     }
@@ -123,7 +123,7 @@ Item {
                 color: Qt.rgba(0, 0, 0, 0.35); border.color: Qt.rgba(1, 1, 1, 0.15)
                 Text {
                     anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }
-                    text: (t.entrada !== "" ? t.entrada : "Sin cámaras") + (t.enVentana ? "" : "  ▾")
+                    text: (t.entrada !== "" ? t.entrada : qsTr("Sin cámaras")) + (t.enVentana ? "" : "  ▾")
                     elide: Text.ElideRight
                     color: Theme.text; font.pixelSize: 12
                 }
@@ -148,7 +148,7 @@ Item {
             }
             StatusPill {
                 visible: t.cam !== null
-                text: t.mueveDigital ? "DIGITAL" : "ÓPTICO"
+                text: t.mueveDigital ? qsTr("DIGITAL") : qsTr("ÓPTICO")
                 dot: t.cam && t.cam.listo ? Theme.ok : Theme.warn
             }
             GlassButton {
@@ -159,7 +159,7 @@ Item {
                 onClicked: ApplicationWindow.window.sacarPanel("ptz:" + t.entrada, "PTZ — " + t.entrada)
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
-                ToolTip.text: "Sacar a una ventana con la imagen de la cámara, para apuntar con el mouse"
+                ToolTip.text: qsTr("Sacar a una ventana con la imagen de la cámara, para apuntar con el mouse")
             }
         }
 
@@ -167,7 +167,7 @@ Item {
             visible: t.cam === null
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: t.entrada === "" ? "No hay entradas de video con PTZ." : "«" + t.entrada + "» ya no es una entrada de video."
+            text: t.entrada === "" ? qsTr("No hay entradas de video con PTZ.") : qsTr("«%1» ya no es una entrada de video.").arg(t.entrada)
             color: Theme.textDim; font.pixelSize: 12
         }
 
@@ -181,7 +181,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 6
                 Repeater {
-                    model: t.caps.zoom === true ? [{t: "+ Acercar", v: 1}, {t: "− Alejar", v: -1}] : []
+                    model: t.caps.zoom === true ? [{t: qsTr("+ Acercar"), v: 1}, {t: qsTr("− Alejar"), v: -1}] : []
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
@@ -200,13 +200,13 @@ Item {
                 }
                 RowLayout {
                     spacing: 4
-                    Text { text: "Vel."; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Vel."); color: Theme.textDim; font.pixelSize: 11 }
                     Slider { Layout.fillWidth: true; from: 0.1; to: 1; value: t.velocidad; onMoved: t.velocidad = value }
                 }
                 GlassButton {
                     compact: true
                     visible: t.caps.home === true
-                    text: "Inicio"
+                    text: qsTr("Inicio")
                     onClicked: t.avisar(t.cc.home(t.entrada))
                 }
             }
@@ -215,7 +215,7 @@ Item {
         // --- Posiciones guardadas ------------------------------------------------------------
         Text {
             visible: t.cam !== null && t.posiciones.length > 0
-            text: "Posiciones"; color: Theme.textDim; font.pixelSize: 11
+            text: qsTr("Posiciones"); color: Theme.textDim; font.pixelSize: 11
         }
         Flow {
             visible: t.cam !== null && t.posiciones.length > 0
@@ -236,8 +236,8 @@ Item {
                         // La regla del interlock es del modelo: si pide confirmar, se pregunta.
                         const motivo = t.cc.chequearMovimiento(t.entrada, false, "")
                         if (motivo === "") { ir(); return }
-                        ApplicationWindow.window.confirm({ title: "La cámara está al aire", text: motivo + " ¿Mover igual?",
-                                                           accept: "Mover igual", reject: "Cancelar", action: ir })
+                        ApplicationWindow.window.confirm({ title: qsTr("La cámara está al aire"), text: qsTr("%1 ¿Mover igual?").arg(motivo),
+                                                           accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: ir })
                     }
                     ToolTip.visible: hovered && modelData.comentario !== ""
                     ToolTip.delay: 400

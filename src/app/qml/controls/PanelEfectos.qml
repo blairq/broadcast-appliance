@@ -61,27 +61,27 @@ ColumnLayout {
     }
 
     Text {
-        text: "EFECTOS"
+        text: qsTr("EFECTOS")
         color: Theme.accentSoft
         font { family: Theme.font; pixelSize: 11; weight: Font.Bold; letterSpacing: 1.2 }
     }
     Fila {
         Layout.fillWidth: true
-        titulo: "Opacidad"; ayuda: "Transparencia de todo el elemento (y de su sombra)"
+        titulo: qsTr("Opacidad"); ayuda: qsTr("Transparencia de todo el elemento (y de su sombra)")
         desde: 0; hasta: 1; paso: 0.01; escala: 100; unidad: " %"
         valor: p.ef.opacidad !== undefined ? p.ef.opacidad : 1
         onCambio: (v) => p.poner({ opacidad: v })
     }
     Fila {
         Layout.fillWidth: true
-        titulo: "Borde difuso"; ayuda: "Cuántos píxeles del borde del elemento se funden a transparente"
+        titulo: qsTr("Borde difuso"); ayuda: qsTr("Cuántos píxeles del borde del elemento se funden a transparente")
         desde: 0; hasta: 200
         valor: p.ef.borde || 0
         onCambio: (v) => p.poner({ borde: v })
     }
     Fila {
         Layout.fillWidth: true
-        titulo: "Esquinas"; ayuda: "Esquinas redondeadas: el radio (la sombra las sigue)"
+        titulo: qsTr("Esquinas"); ayuda: qsTr("Esquinas redondeadas: el radio (la sombra las sigue)")
         desde: 0; hasta: 300
         valor: p.ef.esquinas || 0
         onCambio: (v) => p.poner({ esquinas: v })
@@ -91,15 +91,15 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.topMargin: 4
         spacing: 8
-        Text { text: "Sombra"; color: Theme.text; font.pixelSize: 13; Layout.preferredWidth: 110 }
+        Text { text: qsTr("Sombra"); color: Theme.text; font.pixelSize: 13; Layout.preferredWidth: 110 }
         Toggle { checked: !!p.sombra.activa; onToggled: (w) => p.ponerSombra({ activa: w }) }
         Item { Layout.fillWidth: true }
         // Atajos: cambian todo de una (después se retoca).
         Repeater {
             model: [
-                { t: "Suave", s: { activa: true, color: "#000000", alfa: 0.6, difuminado: 24, distancia: 10, angulo: 45, tamano: 0 } },
-                { t: "Dura", s: { activa: true, color: "#000000", alfa: 0.85, difuminado: 2, distancia: 8, angulo: 45, tamano: 0 } },
-                { t: "Resplandor", s: { activa: true, color: "#FFFFFF", alfa: 0.8, difuminado: 30, distancia: 0, angulo: 0, tamano: 4 } }
+                { t: qsTr("Suave"), s: { activa: true, color: "#000000", alfa: 0.6, difuminado: 24, distancia: 10, angulo: 45, tamano: 0 } },
+                { t: qsTr("Dura"), s: { activa: true, color: "#000000", alfa: 0.85, difuminado: 2, distancia: 8, angulo: 45, tamano: 0 } },
+                { t: qsTr("Resplandor"), s: { activa: true, color: "#FFFFFF", alfa: 0.8, difuminado: 30, distancia: 0, angulo: 0, tamano: 4 } }
             ]
             delegate: GlassButton {
                 required property var modelData
@@ -116,7 +116,7 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            Text { text: "Color"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
+            Text { text: qsTr("Color"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
             Repeater {
                 model: ["#000000", "#FFFFFF", "#202A44", "#FF6B2C", "#2C8CFF", "#FFD400"]
                 delegate: Rectangle {
@@ -138,35 +138,35 @@ ColumnLayout {
         }
         Fila {
             Layout.fillWidth: true
-            titulo: "Opacidad"; ayuda: "Qué tan oscura (o fuerte) es la sombra"
+            titulo: qsTr("Opacidad"); ayuda: qsTr("Qué tan oscura (o fuerte) es la sombra")
             desde: 0; hasta: 1; paso: 0.01; escala: 100; unidad: " %"
             valor: p.sombra.alfa !== undefined ? p.sombra.alfa : 0.6
             onCambio: (v) => p.ponerSombra({ alfa: v })
         }
         Fila {
             Layout.fillWidth: true
-            titulo: "Difuminado"; ayuda: "Radio del difuminado: 0 = sombra recortada, más = más suave"
+            titulo: qsTr("Difuminado"); ayuda: qsTr("Radio del difuminado: 0 = sombra recortada, más = más suave")
             desde: 0; hasta: 120
             valor: p.sombra.difuminado !== undefined ? p.sombra.difuminado : 20
             onCambio: (v) => p.ponerSombra({ difuminado: v })
         }
         Fila {
             Layout.fillWidth: true
-            titulo: "Distancia"; ayuda: "Cuánto se separa la sombra del elemento (0 = alrededor, como un resplandor)"
+            titulo: qsTr("Distancia"); ayuda: qsTr("Cuánto se separa la sombra del elemento (0 = alrededor, como un resplandor)")
             desde: 0; hasta: 150
             valor: p.sombra.distancia !== undefined ? p.sombra.distancia : 10
             onCambio: (v) => p.ponerSombra({ distancia: v })
         }
         Fila {
             Layout.fillWidth: true
-            titulo: "Ángulo"; ayuda: "Hacia dónde cae: 0° derecha, 90° abajo, 180° izquierda, 270° arriba"
+            titulo: qsTr("Ángulo"); ayuda: qsTr("Hacia dónde cae: 0° derecha, 90° abajo, 180° izquierda, 270° arriba")
             desde: 0; hasta: 359; unidad: "°"
             valor: (((p.sombra.angulo !== undefined ? p.sombra.angulo : 45) % 360) + 360) % 360
             onCambio: (v) => p.ponerSombra({ angulo: v })
         }
         Fila {
             Layout.fillWidth: true
-            titulo: "Tamaño"; ayuda: "Cuánto más grande (o más chica) que el elemento es la sombra"
+            titulo: qsTr("Tamaño"); ayuda: qsTr("Cuánto más grande (o más chica) que el elemento es la sombra")
             desde: -50; hasta: 80
             valor: p.sombra.tamano || 0
             onCambio: (v) => p.ponerSombra({ tamano: v })

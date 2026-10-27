@@ -20,7 +20,7 @@ QtObject {
         return nivel === "mal" ? alarmaMal : nivel === "mal_armado" ? alarmaMalArmado : nivel === "mejorable" ? alarmaMejorable : "transparent"
     }
     function textoAlarma(nivel) {
-        return nivel === "mal" ? "anda mal" : nivel === "mal_armado" ? "mal armado" : nivel === "mejorable" ? "se puede mejorar" : ""
+        return nivel === "mal" ? qsTr("anda mal") : nivel === "mal_armado" ? qsTr("mal armado") : nivel === "mejorable" ? qsTr("se puede mejorar") : ""
     }
     readonly property color text: "#f4f4f6"
     readonly property color textDim: "#a2a2aa"
@@ -59,10 +59,11 @@ QtObject {
     /// Cuánto hace, legible: «12 s», «5 min», «3 h», «4 días» (antes salía «5826 min»).
     function hace(seg) {
         const s = Math.max(0, Math.round(seg))
-        if (s < 90) return s + " s"
-        if (s < 90 * 60) return Math.round(s / 60) + " min"
-        if (s < 36 * 3600) return Math.round(s / 3600) + " h"
+        // Frases enteras (no número + unidad pegados): otro idioma puede ordenarlas a su modo.
+        if (s < 90) return qsTr("%n s", "segundos, abreviado", s)
+        if (s < 90 * 60) return qsTr("%n min", "minutos, abreviado", Math.round(s / 60))
+        if (s < 36 * 3600) return qsTr("%n h", "horas, abreviado", Math.round(s / 3600))
         const d = Math.round(s / 86400)
-        return d + (d === 1 ? " día" : " días")
+        return qsTr("%n día", "", d)
     }
 }

@@ -71,7 +71,7 @@ Item {
                 ColumnLayout {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 8; topMargin: 4; bottomMargin: 4 }
                     spacing: 0
-                    Text { text: t.placa.ftb ? "AL AIRE · EN NEGRO" : t.placa.placa ? "AL AIRE · CON PLACA" : "AL AIRE"
+                    Text { text: t.placa.ftb ? qsTr("AL AIRE · EN NEGRO") : t.placa.placa ? qsTr("AL AIRE · CON PLACA") : qsTr("AL AIRE")
                            color: Qt.rgba(1, 1, 1, 0.8); font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
                     Text { Layout.fillWidth: true; text: Studio.currentScene || "—"; color: Theme.text; elide: Text.ElideRight
                            font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold } }
@@ -84,16 +84,16 @@ Item {
                 ColumnLayout {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 8; topMargin: 4; bottomMargin: 4 }
                     spacing: 0
-                    Text { text: "ARMADA"; color: Qt.rgba(1, 1, 1, 0.75); font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
-                    Text { Layout.fillWidth: true; text: Studio.escenaArmada || "nada"; elide: Text.ElideRight
+                    Text { text: qsTr("ARMADA"); color: Qt.rgba(1, 1, 1, 0.75); font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
+                    Text { Layout.fillWidth: true; text: Studio.escenaArmada || qsTr("nada"); elide: Text.ElideRight
                            color: Studio.escenaArmada !== "" ? Theme.text : Theme.textFaint
                            font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold } }
                 }
             }
-            GlassButton { text: "CUT"; enabled: Studio.escenaArmada !== ""; onClicked: Studio.takeCon("cut", 0)
-                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Corte seco a la armada" }
-            GlassButton { text: "AUTO"; active: true; enabled: Studio.escenaArmada !== ""; onClicked: Studio.take()
-                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "TAKE con la transición" }
+            GlassButton { text: qsTr("CUT"); enabled: Studio.escenaArmada !== ""; onClicked: Studio.takeCon("cut", 0)
+                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Corte seco a la armada") }
+            GlassButton { text: qsTr("AUTO"); active: true; enabled: Studio.escenaArmada !== ""; onClicked: Studio.take()
+                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("TAKE con la transición") }
         }
 
         // --- FTB y placa ------------------------------------------------------------
@@ -101,26 +101,27 @@ Item {
 
         // --- Transmisión y grabación -----------------------------------------------------
         Fila {
-            etiqueta: Studio.streaming ? "TRANSMITIENDO" : "TRANSMISIÓN"
+            etiqueta: Studio.streaming ? qsTr("TRANSMITIENDO") : qsTr("TRANSMISIÓN")
             reloj: Studio.streamTime
-            detalle: Studio.streaming ? Studio.streamKbps + " kbps" : (Studio.streamServer || "sin servidor configurado")
+            detalle: Studio.streaming ? Studio.streamKbps + " kbps" : (Studio.streamServer || qsTr("sin servidor configurado"))
             prendida: Studio.streaming
             tono: Theme.live
-            accion: Studio.streaming ? "Cortar" : "Salir al aire"
+            accion: Studio.streaming ? qsTr("Cortar") : qsTr("Salir al aire")
             onTocar: Studio.streaming ? ApplicationWindow.window.confirmStopStream() : ApplicationWindow.window.openStreamDialog()
         }
         Fila {
-            etiqueta: Studio.recording ? "GRABANDO" : "GRABACIÓN"
+            etiqueta: Studio.recording ? qsTr("GRABANDO") : qsTr("GRABACIÓN")
             reloj: Studio.recordTime
             prendida: Studio.recording
             tono: Theme.live
-            accion: Studio.recording ? "Detener" : "Grabar"
+            accion: Studio.recording ? qsTr("Detener") : qsTr("Grabar")
             onTocar: {
                 if (!Studio.recording) { Studio.toggleRecording(); return }
                 ApplicationWindow.window.confirm({
-                    title: "¿Detener la grabación?",
-                    text: "El archivo se cierra y lo que siga no queda grabado." + (Studio.streaming ? " La transmisión sigue al aire." : ""),
-                    accept: "Detener", reject: "Seguir grabando",
+                    title: qsTr("¿Detener la grabación?"),
+                    text: Studio.streaming ? qsTr("El archivo se cierra y lo que siga no queda grabado. La transmisión sigue al aire.")
+                                           : qsTr("El archivo se cierra y lo que siga no queda grabado."),
+                    accept: qsTr("Detener"), reject: qsTr("Seguir grabando"),
                     action: function() { if (Studio.recording) Studio.toggleRecording() }
                 })
             }

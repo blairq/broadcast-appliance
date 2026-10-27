@@ -87,7 +87,7 @@ Rectangle {
             }
             StatusPill {
                 anchors { right: parent.right; top: parent.top; margins: 6 }
-                text: !card.connected ? "desconectado" : card.onAir ? "al aire" : card.speaker === "done" ? "habló" : "en fila"
+                text: !card.connected ? qsTr("desconectado") : card.onAir ? qsTr("al aire") : card.speaker === "done" ? qsTr("habló") : qsTr("en fila")
                 dot: !card.connected ? Theme.live : card.onAir ? Theme.ok : Theme.textFaint
                 pulse: card.onAir
             }
@@ -99,12 +99,12 @@ Rectangle {
             Layout.fillWidth: true
             Text {
                 text: card.onAir ? (card.leftMs >= 0 ? card.fmt(Math.ceil(card.leftMs / 1000) * 1000) : card.fmt(card.leftMs))
-                      : card.speaker === "done" ? "usó " + card.fmt(card.usedMs) : card.fmt(card.allottedSec * 1000)
+                      : card.speaker === "done" ? qsTr("usó %1").arg(card.fmt(card.usedMs)) : card.fmt(card.allottedSec * 1000)
                 color: card.over ? Theme.live : card.warn ? Theme.accent : Theme.text
                 font { pixelSize: card.warn || card.over ? 26 : 20; weight: Font.Black; family: Theme.font }
                 Layout.fillWidth: true
             }
-            Text { visible: card.over; text: "se pasó"; color: Theme.live; font.pixelSize: 11 }
+            Text { visible: card.over; text: qsTr("se pasó"); color: Theme.live; font.pixelSize: 11 }
         }
         Flow {
             Layout.fillWidth: true
@@ -113,7 +113,7 @@ Rectangle {
             GlassButton { compact: true; text: "▶"; onClicked: card.conf.speakerMove(card.uid, card.index + 1) }
             GlassButton {
                 compact: true
-                text: card.onAir ? "Sacar" : "Al aire"
+                text: card.onAir ? qsTr("Sacar") : qsTr("Al aire")
                 active: !card.onAir; activeColor: Theme.ok
                 onClicked: card.conf.speakerOnAir(card.uid, !card.onAir)
             }
@@ -124,8 +124,8 @@ Rectangle {
                 active: card.presenter; activeColor: "#a78bfa"
                 onClicked: card.conf.setPresenter(card.uid, !card.presenter)
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: card.presenter ? "Dejar de ser presentador"
-                                             : "Hacerlo presentador: se queda al aire mientras rotan los oradores"
+                ToolTip.text: card.presenter ? qsTr("Dejar de ser presentador")
+                                             : qsTr("Hacerlo presentador: se queda al aire mientras rotan los oradores")
             }
             GlassButton { compact: true; text: "✎"; onClicked: card.edit() }
         }

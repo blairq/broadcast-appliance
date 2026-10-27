@@ -88,7 +88,7 @@ Item {
         wrapMode: Text.WordWrap
         horizontalAlignment: Text.AlignHCenter
         color: Theme.textFaint; font.pixelSize: 13
-        text: "Los tótems de registro son de un evento: abrí o creá uno en la página Evento y armalos acá."
+        text: qsTr("Los tótems de registro son de un evento: abrí o creá uno en la página Evento y armalos acá.")
     }
 
     RowLayout {
@@ -106,12 +106,12 @@ Item {
                 spacing: 8
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Tótems"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Tótems"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Item { Layout.fillWidth: true }
                     GlassButton {
-                        compact: true; text: "Nuevo"; icon: "＋"
+                        compact: true; text: qsTr("Nuevo"); icon: "＋"
                         onClicked: {
-                            const id = raiz.tv.crear("Registro " + (raiz.tv.totems.length + 1))
+                            const id = raiz.tv.crear(qsTr("Registro %1").arg(raiz.tv.totems.length + 1))
                             if (id !== "") raiz.elegido = id
                         }
                     }
@@ -121,7 +121,7 @@ Item {
                     visible: raiz.tv.totems.length === 0
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint; font.pixelSize: 11
-                    text: "Todavía no hay ninguno. «Nuevo» arma uno que pide nombre y correo."
+                    text: qsTr("Todavía no hay ninguno. «Nuevo» arma uno que pide nombre y correo.")
                 }
                 Repeater {
                     model: filasTotems
@@ -149,9 +149,9 @@ Item {
                                        elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text {
                                     color: Theme.textFaint; font.pixelSize: 10
-                                    text: !filaT.t.activo ? "apagado"
-                                          : (filaT.t.conectados || 0) === 0 ? "nadie conectado"
-                                          : filaT.t.conectados === 1 ? "1 conexión" : filaT.t.conectados + " conexiones"
+                                    text: !filaT.t.activo ? qsTr("apagado")
+                                          : (filaT.t.conectados || 0) === 0 ? qsTr("nadie conectado")
+                                          : qsTr("%n conexión", "", filaT.t.conectados)
                                 }
                             }
                         }
@@ -166,32 +166,32 @@ Item {
                     spacing: 4
                     Text {
                         Layout.fillWidth: true
-                        text: "Atención remota"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold }
+                        text: qsTr("Atención remota"); color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold }
                     }
                     GlassButton {
-                        compact: true; text: "Copiar link"
-                        onClicked: { Studio.copiar(raiz.tv.urlAtencion); Studio.notify("Link de atención copiado", "ok") }
+                        compact: true; text: qsTr("Copiar link")
+                        onClicked: { Studio.copiar(raiz.tv.urlAtencion); Studio.notify(qsTr("Link de atención copiado"), "ok") }
                         ToolTip.visible: hovered
-                        ToolTip.text: "Quien lo abre ve todas las conversaciones, las mira y escucha, las atiende y " +
-                                      "completa datos. Pasalo solo a gente del equipo."
+                        ToolTip.text: qsTr("Quien lo abre ve todas las conversaciones, las mira y escucha, las atiende y " +
+                                      "completa datos. Pasalo solo a gente del equipo.")
                     }
                     GlassButton {
                         compact: true; text: "QR"
-                        onClicked: Studio.mostrarQr(raiz.tv.urlAtencion, "Atención del registro",
-                                                    "Para el equipo: mirar y atender los tótems", "azul")
+                        onClicked: Studio.mostrarQr(raiz.tv.urlAtencion, qsTr("Atención del registro"),
+                                                    qsTr("Para el equipo: mirar y atender los tótems"), "azul")
                     }
                     GlassButton {
                         compact: true; text: "⟳"
                         onClicked: {
                             const hoja = raiz
                             ApplicationWindow.window.confirm({
-                                title: "¿Cambiar el link de atención?",
-                                text: "El link de ahora deja de andar y se corta a quien lo tenga abierto.",
-                                accept: "Cambiar",
+                                title: qsTr("¿Cambiar el link de atención?"),
+                                text: qsTr("El link de ahora deja de andar y se corta a quien lo tenga abierto."),
+                                accept: qsTr("Cambiar"),
                                 action: () => { hoja.tv.renovarAtencion() }
                             })
                         }
-                        ToolTip.visible: hovered; ToolTip.text: "Cambiar el link (el viejo deja de andar)"
+                        ToolTip.visible: hovered; ToolTip.text: qsTr("Cambiar el link (el viejo deja de andar)")
                     }
                 }
                 Text {
@@ -199,23 +199,23 @@ Item {
                     visible: raiz.tv.totems.length > 0
                     wrapMode: Text.WordWrap
                     color: raiz.tv.atienden.length > 0 ? Theme.ok : Theme.textFaint; font.pixelSize: 11
-                    text: raiz.tv.atienden.length === 0 ? "Nadie con la página de atención abierta."
-                          : "Atendiendo: " + raiz.tv.atienden.map(a => a.nombre + (a.atiende ? " (con una persona)" : "")).join(", ")
+                    text: raiz.tv.atienden.length === 0 ? qsTr("Nadie con la página de atención abierta.")
+                          : qsTr("Atendiendo: %1").arg(raiz.tv.atienden.map(a => a.atiende ? qsTr("%1 (con una persona)").arg(a.nombre) : a.nombre).join(", "))
                 }
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.08) }
-                Text { text: "Registrándose ahora"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } }
+                Text { text: qsTr("Registrándose ahora"); color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } }
                 Text {
                     Layout.fillWidth: true
                     visible: raiz.tv.hablarFalta !== ""
                     wrapMode: Text.WordWrap
                     color: Theme.warn; font.pixelSize: 11
-                    text: raiz.tv.hablarFalta + " Sin eso, la página muestra el texto y se puede tipear."
+                    text: qsTr("%1 Sin eso, la página muestra el texto y se puede tipear.").arg(raiz.tv.hablarFalta)
                 }
                 Text {
                     visible: filasConexiones.count === 0
                     color: Theme.textFaint; font.pixelSize: 11
-                    text: raiz.tv.enLinea ? "Nadie." : "El servidor no responde."
+                    text: raiz.tv.enLinea ? qsTr("Nadie.") : qsTr("El servidor no responde.")
                 }
                 ScrollView {
                     id: scConn
@@ -264,13 +264,13 @@ Item {
                                         }
                                         Text {
                                             color: filaC.c.canal > 0 ? Theme.ok : Theme.textFaint; font.pixelSize: 10
-                                            text: filaC.c.canal > 0 ? "canal " + filaC.c.canal + (filaC.c.audio ? " · audio" : "")
-                                                                    : "sin canal"
+                                            text: filaC.c.canal > 0 ? (filaC.c.audio ? qsTr("canal %1 · audio") : qsTr("canal %1")).arg(filaC.c.canal)
+                                                                    : qsTr("sin canal")
                                         }
                                         GlassButton {
                                             compact: true; text: "✕"
                                             onClicked: raiz.tv.cortar(filaC.conn)
-                                            ToolTip.visible: hovered; ToolTip.text: "Cortar esta conexión"
+                                            ToolTip.visible: hovered; ToolTip.text: qsTr("Cortar esta conexión")
                                         }
                                     }
                                     Text { color: filaC.c.atendida ? Theme.ok : Theme.accent; font.pixelSize: 11; text: filaC.c.paso || "" }
@@ -281,26 +281,26 @@ Item {
                                         spacing: 4
                                         visible: filaC.c.canal > 0
                                         GlassButton {
-                                            compact: true; visible: !filaC.c.atendida; text: "Atender"
+                                            compact: true; visible: !filaC.c.atendida; text: qsTr("Atender")
                                             onClicked: raiz.resultado(raiz.tv.atender(filaC.conn))
                                             ToolTip.visible: hovered
-                                            ToolTip.text: "El asistente se calla; en el tótem dice «Te atiende una persona del equipo»"
+                                            ToolTip.text: qsTr("El asistente se calla; en el tótem dice «Te atiende una persona del equipo»")
                                         }
                                         GlassButton {
-                                            compact: true; text: "Datos…"
+                                            compact: true; text: qsTr("Datos…")
                                             onClicked: datosDlg.abrir(filaC.conn)
                                         }
                                         GlassButton {
-                                            compact: true; visible: filaC.c.atendida === true; text: "Devolver"
+                                            compact: true; visible: filaC.c.atendida === true; text: qsTr("Devolver")
                                             onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "asistente"))
-                                            ToolTip.visible: hovered; ToolTip.text: "Que siga el asistente, desde el próximo dato que falta"
+                                            ToolTip.visible: hovered; ToolTip.text: qsTr("Que siga el asistente, desde el próximo dato que falta")
                                         }
                                         GlassButton {
-                                            compact: true; visible: filaC.c.atendida === true; text: "Guardar"
+                                            compact: true; visible: filaC.c.atendida === true; text: qsTr("Guardar")
                                             onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "guardar"))
                                         }
                                         GlassButton {
-                                            compact: true; visible: filaC.c.atendida === true; text: "Cancelar"
+                                            compact: true; visible: filaC.c.atendida === true; text: qsTr("Cancelar")
                                             onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "cancelar"))
                                         }
                                     }
@@ -308,13 +308,13 @@ Item {
                                         Layout.fillWidth: true; elide: Text.ElideRight
                                         visible: !!filaC.c.oido
                                         color: Theme.textDim; font.pixelSize: 11
-                                        text: "Se oyó: «" + (filaC.c.oido || "") + "»"
+                                        text: qsTr("Se oyó: «%1»").arg(filaC.c.oido || "")
                                     }
                                     Text {
                                         Layout.fillWidth: true; elide: Text.ElideRight
                                         visible: !!filaC.c.dice
                                         color: Theme.textFaint; font.pixelSize: 11
-                                        text: "Dijo: «" + (filaC.c.dice || "") + "»"
+                                        text: qsTr("Dijo: «%1»").arg(filaC.c.dice || "")
                                     }
                                 }
                             }
@@ -333,7 +333,7 @@ Item {
                 anchors.centerIn: parent
                 visible: !raiz.totem
                 color: Theme.textFaint; font.pixelSize: 12
-                text: "Elegí un tótem o creá uno."
+                text: qsTr("Elegí un tótem o creá uno.")
             }
             ScrollView {
                 id: scEditor
@@ -353,22 +353,22 @@ Item {
                             checked: !!raiz.totem && raiz.totem.activo
                             onToggled: (wanted) => raiz.cambiar("activo", wanted)
                         }
-                        Text { text: raiz.totem && raiz.totem.activo ? "Prendido" : "Apagado"; color: Theme.textDim
+                        Text { text: raiz.totem && raiz.totem.activo ? qsTr("Prendido") : qsTr("Apagado"); color: Theme.textDim
                                font.pixelSize: 12 }
                         Item { Layout.fillWidth: true }
                         GlassButton {
-                            compact: true; text: "Copiar url"
-                            onClicked: { Studio.copiar(raiz.tv.url(raiz.elegido)); Studio.notify("Url copiada", "ok") }
+                            compact: true; text: qsTr("Copiar url")
+                            onClicked: { Studio.copiar(raiz.tv.url(raiz.elegido)); Studio.notify(qsTr("Url copiada"), "ok") }
                             ToolTip.visible: hovered
-                            ToolTip.text: "La url lleva un secreto: pasala solo a quien vaya a abrir el tótem."
+                            ToolTip.text: qsTr("La url lleva un secreto: pasala solo a quien vaya a abrir el tótem.")
                         }
                         GlassButton {
                             compact: true; text: "QR"
-                            onClicked: Studio.mostrarQr(raiz.tv.url(raiz.elegido), "Registro — " + raiz.totem.nombre,
-                                                        "Escaneá para registrarte", "verde")
+                            onClicked: Studio.mostrarQr(raiz.tv.url(raiz.elegido), qsTr("Registro — %1").arg(raiz.totem.nombre),
+                                                        qsTr("Escaneá para registrarte"), "verde")
                         }
-                        GlassButton { compact: true; text: "Abrir"; onClicked: Qt.openUrlExternally(raiz.tv.url(raiz.elegido)) }
-                        GlassButton { compact: true; text: "Proyectar"; icon: "⧉"; onClicked: proyectarDlg.open() }
+                        GlassButton { compact: true; text: qsTr("Abrir"); onClicked: Qt.openUrlExternally(raiz.tv.url(raiz.elegido)) }
+                        GlassButton { compact: true; text: qsTr("Proyectar"); icon: "⧉"; onClicked: proyectarDlg.open() }
                         GlassButton {
                             compact: true; text: "✕"
                             onClicked: {
@@ -376,10 +376,10 @@ Item {
                                 const id = raiz.elegido
                                 const nombre = raiz.totem.nombre
                                 ApplicationWindow.window.confirm({
-                                    title: "¿Borrar el tótem «" + nombre + "»?",
-                                    text: "Su url deja de andar y se corta a los que estén conectados. Los que ya se " +
-                                          "registraron siguen en el padrón.",
-                                    accept: "Borrar",
+                                    title: qsTr("¿Borrar el tótem «%1»?").arg(nombre),
+                                    text: qsTr("Su url deja de andar y se corta a los que estén conectados. Los que ya se " +
+                                          "registraron siguen en el padrón."),
+                                    accept: qsTr("Borrar"),
                                     action: () => { hoja.tv.borrar(id) }
                                 })
                             }
@@ -391,39 +391,39 @@ Item {
                         columns: 2
                         columnSpacing: 10
                         rowSpacing: 6
-                        Text { text: "Nombre"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Nombre"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
                             text: raiz.totem ? raiz.totem.nombre : ""
-                            placeholderText: "Para vos: «Entrada principal»"
+                            placeholderText: qsTr("Para vos: «Entrada principal»")
                             onEditingFinished: if (raiz.totem && text !== raiz.totem.nombre) raiz.cambiar("nombre", text)
                         }
-                        Text { text: "Título"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Título"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
                             text: raiz.totem ? raiz.totem.titulo : ""
                             placeholderText: "{evento}"
                             onEditingFinished: if (raiz.totem && text !== raiz.totem.titulo) raiz.cambiar("titulo", text)
                         }
-                        Text { text: "Subtítulo"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Subtítulo"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
                             text: raiz.totem ? raiz.totem.subtitulo : ""
                             onEditingFinished: if (raiz.totem && text !== raiz.totem.subtitulo) raiz.cambiar("subtitulo", text)
                         }
-                        Text { text: "Saludo"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Saludo"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
                             text: raiz.totem ? raiz.totem.saludo : ""
                             onEditingFinished: if (raiz.totem && text !== raiz.totem.saludo) raiz.cambiar("saludo", text)
                         }
-                        Text { text: "Despedida"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Despedida"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
                             text: raiz.totem ? raiz.totem.despedida : ""
                             onEditingFinished: if (raiz.totem && text !== raiz.totem.despedida) raiz.cambiar("despedida", text)
                         }
-                        Text { text: "Ya registrado"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Ya registrado"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             Layout.fillWidth: true
                             text: raiz.totem ? raiz.totem.yaRegistrado : ""
@@ -434,27 +434,27 @@ Item {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.textFaint; font.pixelSize: 10
-                        text: "Se dicen en voz alta: frases cortas. {evento} es el nombre del evento; {hola} es «Hola» " +
-                              "o «Hola Ana» si la reconoce; {nombre}, el nombre completo."
+                        text: qsTr("Se dicen en voz alta: frases cortas. {evento} es el nombre del evento; {hola} es «Hola» " +
+                              "o «Hola Ana» si la reconoce; {nombre}, el nombre completo.")
                     }
                     RowLayout {
                         spacing: 8
                         Toggle { checked: !!raiz.totem && raiz.totem.confirmar
                                  onToggled: (wanted) => raiz.cambiar("confirmar", wanted) }
-                        Text { text: "Repetir cada dato y preguntar «¿está bien?»"; color: Theme.text; font.pixelSize: 12 }
+                        Text { text: qsTr("Repetir cada dato y preguntar «¿está bien?»"); color: Theme.text; font.pixelSize: 12 }
                     }
                     RowLayout {
                         spacing: 8
                         Toggle { checked: !!raiz.totem && raiz.totem.reconocer
                                  onToggled: (wanted) => raiz.cambiar("reconocer", wanted) }
-                        Text { text: "Saludar por el nombre a quien reconoce la cara (y no preguntárselo)"
+                        Text { text: qsTr("Saludar por el nombre a quien reconoce la cara (y no preguntárselo)")
                                color: Theme.text; font.pixelSize: 12 }
                     }
                     RowLayout {
                         spacing: 8
                         Toggle { checked: !!raiz.totem && raiz.totem.foto
                                  onToggled: (wanted) => raiz.cambiar("foto", wanted) }
-                        Text { text: "Al final, pedirle que mire a la cámara para una foto de frente"
+                        Text { text: qsTr("Al final, pedirle que mire a la cámara para una foto de frente")
                                color: Theme.text; font.pixelSize: 12 }
                     }
 
@@ -463,7 +463,7 @@ Item {
                         spacing: 8
                         Toggle { checked: !!raiz.totem && raiz.totem.conModelo
                                  onToggled: (wanted) => raiz.cambiar("conModelo", wanted) }
-                        Text { text: "Entender con el modelo: respuestas de corrido, correcciones y preguntas sobre el evento"
+                        Text { text: qsTr("Entender con el modelo: respuestas de corrido, correcciones y preguntas sobre el evento")
                                color: Theme.text; font.pixelSize: 12 }
                     }
                     Text {
@@ -471,11 +471,11 @@ Item {
                         visible: !!raiz.totem && raiz.totem.conModelo
                         wrapMode: Text.WordWrap
                         color: raiz.tv.agenteAfuera ? Theme.amber : Theme.textFaint; font.pixelSize: 10
-                        text: raiz.tv.agente + " El guion sigue haciendo las preguntas; si el modelo no contesta a tiempo, sigue el guion solo."
+                        text: qsTr("%1 El guion sigue haciendo las preguntas; si el modelo no contesta a tiempo, sigue el guion solo.").arg(raiz.tv.agente)
                     }
                     Text {
                         visible: !!raiz.totem && raiz.totem.conModelo
-                        text: "Ficha del evento"; color: Theme.textDim; font.pixelSize: 12
+                        text: qsTr("Ficha del evento"); color: Theme.textDim; font.pixelSize: 12
                     }
                     TextArea {
                         Layout.fillWidth: true
@@ -483,7 +483,7 @@ Item {
                         visible: !!raiz.totem && raiz.totem.conModelo
                         wrapMode: TextEdit.Wrap
                         text: raiz.totem ? raiz.totem.ficha : ""
-                        placeholderText: "Lo que puede contestar si le preguntan: horarios, lugar, salas, baños, wifi…"
+                        placeholderText: qsTr("Lo que puede contestar si le preguntan: horarios, lugar, salas, baños, wifi…")
                         color: Theme.text; font.pixelSize: 12
                         background: Rectangle { color: Theme.field; radius: 8 }
                         onEditingFinished: if (raiz.totem && text !== raiz.totem.ficha) raiz.cambiar("ficha", text)
@@ -493,7 +493,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.topMargin: 6
-                        Text { text: "Lo que se le pide"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text { text: qsTr("Lo que se le pide"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                         Item { Layout.fillWidth: true }
                         ComboBox {
                             id: tipoNuevo
@@ -503,14 +503,14 @@ Item {
                             valueRole: "id"
                         }
                         GlassButton {
-                            compact: true; text: "Agregar"; icon: "＋"
+                            compact: true; text: qsTr("Agregar"); icon: "＋"
                             onClicked: raiz.resultado(raiz.tv.agregarCampo(raiz.elegido, tipoNuevo.currentValue))
                         }
                     }
                     Text {
                         visible: !!raiz.totem && raiz.totem.campos.length === 0
                         color: Theme.textFaint; font.pixelSize: 11
-                        text: "Sin campos: saluda, la acredita y la despide."
+                        text: qsTr("Sin campos: saluda, la acredita y la despide.")
                     }
                     // El modelo es la CANTIDAD: las filas no se rearman al cambiar un texto.
                     Repeater {
@@ -542,15 +542,15 @@ Item {
                                 TextField {
                                     Layout.fillWidth: true
                                     text: filaCampo.c.etiqueta || ""
-                                    placeholderText: "Etiqueta en la pantalla"
+                                    placeholderText: qsTr("Etiqueta en la pantalla")
                                     onEditingFinished: if (text !== filaCampo.c.etiqueta) raiz.cambiarCampo(filaCampo.index, "etiqueta", text)
                                 }
                                 TextField {
                                     implicitWidth: 130
                                     text: filaCampo.c.clave || ""
-                                    placeholderText: "clave"
+                                    placeholderText: qsTr("clave")
                                     onEditingFinished: if (text !== filaCampo.c.clave) raiz.cambiarCampo(filaCampo.index, "clave", text)
-                                    ToolTip.visible: hovered; ToolTip.text: "La clave en los datos del padrón (minúsculas, sin espacios)"
+                                    ToolTip.visible: hovered; ToolTip.text: qsTr("La clave en los datos del padrón (minúsculas, sin espacios)")
                                 }
                                 RowLayout {
                                     spacing: 2
@@ -565,14 +565,14 @@ Item {
                                     Layout.columnSpan: 3
                                     Layout.fillWidth: true
                                     text: filaCampo.c.pregunta || ""
-                                    placeholderText: "La pregunta en voz alta (vacía = la de fábrica)"
+                                    placeholderText: qsTr("La pregunta en voz alta (vacía = la de fábrica)")
                                     onEditingFinished: if (text !== (filaCampo.c.pregunta || "")) raiz.cambiarCampo(filaCampo.index, "pregunta", text)
                                 }
                                 RowLayout {
                                     spacing: 4
                                     Toggle { checked: !!filaCampo.c.obligatorio
                                              onToggled: (wanted) => raiz.cambiarCampo(filaCampo.index, "obligatorio", wanted) }
-                                    Text { text: "Obligatorio"; color: Theme.textDim; font.pixelSize: 11 }
+                                    Text { text: qsTr("Obligatorio"); color: Theme.textDim; font.pixelSize: 11 }
                                 }
                                 // Documento: qué tipos se aceptan (los de fábrica y los de los plugins
                                 // que corren). Ninguno marcado = cualquiera.
@@ -582,7 +582,7 @@ Item {
                                     visible: filaCampo.c.tipo === "documento"
                                     spacing: 8
                                     Text {
-                                        text: raiz.tv.lectorDisponible ? "Acepta:" : "Esta compilación no trae el lector de códigos: solo se puede tipear el número."
+                                        text: raiz.tv.lectorDisponible ? qsTr("Acepta:") : qsTr("Esta compilación no trae el lector de códigos: solo se puede tipear el número.")
                                         color: raiz.tv.lectorDisponible ? Theme.textDim : Theme.warn
                                         font.pixelSize: 11
                                         height: 26; verticalAlignment: Text.AlignVCenter
@@ -592,7 +592,7 @@ Item {
                                         delegate: CheckBox {
                                             required property var modelData
                                             readonly property var aceptados: filaCampo.c.documentos || []
-                                            text: modelData.titulo + (modelData.origen === "plugin" ? " (plugin)" : "")
+                                            text: modelData.origen === "plugin" ? qsTr("%1 (plugin)").arg(modelData.titulo) : modelData.titulo
                                             checked: aceptados.indexOf(modelData.id) >= 0
                                             onToggled: {
                                                 const l = aceptados.filter(x => x !== modelData.id)
@@ -603,7 +603,7 @@ Item {
                                     }
                                     Text {
                                         visible: (filaCampo.c.documentos || []).length === 0
-                                        text: "(ninguno marcado: cualquiera)"
+                                        text: qsTr("(ninguno marcado: cualquiera)")
                                         color: Theme.textFaint; font.pixelSize: 11
                                         height: 26; verticalAlignment: Text.AlignVCenter
                                     }
@@ -627,7 +627,7 @@ Item {
                                     Layout.fillWidth: true
                                     visible: filaCampo.c.tipo === "opcion"
                                     text: (filaCampo.c.opciones || []).join(", ")
-                                    placeholderText: "Las opciones, separadas por comas"
+                                    placeholderText: qsTr("Las opciones, separadas por comas")
                                     onEditingFinished: raiz.cambiarCampo(filaCampo.index, "opciones",
                                                                          text.split(",").map(s => s.trim()).filter(s => s !== ""))
                                 }
@@ -647,7 +647,7 @@ Item {
                 anchors.fill: parent
                 spacing: 8
                 Text {
-                    text: "Registrados en este evento (" + filasRegistrados.count + ")"
+                    text: qsTr("Registrados en este evento (%1)").arg(filasRegistrados.count)
                     color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
                 }
                 Text {
@@ -655,7 +655,7 @@ Item {
                     visible: filasRegistrados.count === 0
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint; font.pixelSize: 11
-                    text: "Nadie todavía. Quedan en el padrón del evento, con lo que contestaron."
+                    text: qsTr("Nadie todavía. Quedan en el padrón del evento, con lo que contestaron.")
                 }
                 ScrollView {
                     id: scReg
@@ -702,8 +702,8 @@ Item {
                                             readonly property var v: filaR.r.datos[modelData]
                                             // Un documento (objeto) viene ya escrito por el modelo en datosTexto.
                                             readonly property var vt: (filaR.r.datosTexto || {})[modelData]
-                                            text: modelData + ": " + (vt !== undefined ? vt
-                                                                      : v === true ? "sí" : v === false ? "no" : String(v))
+                                            text: qsTr("%1: %2").arg(modelData).arg(vt !== undefined ? vt
+                                                                      : v === true ? qsTr("sí") : v === false ? qsTr("no") : String(v))
                                         }
                                     }
                                 }
@@ -722,15 +722,15 @@ Item {
         anchors.centerIn: Overlay.overlay
         width: 420
         modal: true
-        title: "Proyectar el registro"
+        title: qsTr("Proyectar el registro")
         standardButtons: Dialog.Close
         ColumnLayout {
             spacing: 8
             Text {
                 Layout.preferredWidth: 380
                 wrapMode: Text.WordWrap
-                text: "La TV muestra el QR grande con «Escaneá para registrarte»: cada celular que lo escanea se " +
-                      "registra hablando. Para que la TV misma registre (con cámara y micrófono), abrí la url en ella."
+                text: qsTr("La TV muestra el QR grande con «Escaneá para registrarte»: cada celular que lo escanea se " +
+                      "registra hablando. Para que la TV misma registre (con cámara y micrófono), abrí la url en ella.")
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -751,7 +751,7 @@ Item {
                 Layout.preferredWidth: 380
                 visible: Studio.pantallas.pantallas.length === 0
                 wrapMode: Text.WordWrap
-                text: "No hay ninguna pantalla. Buscalas en la página de Pantallas."
+                text: qsTr("No hay ninguna pantalla. Buscalas en la página de Pantallas.")
                 color: Theme.textFaint
                 font.pixelSize: 12
             }
@@ -767,7 +767,7 @@ Item {
         anchors.centerIn: Overlay.overlay
         width: 460
         modal: true
-        title: "Los datos de esta conversación"
+        title: qsTr("Los datos de esta conversación")
         standardButtons: Dialog.Close
         ListModel { id: camposDlg }
         function abrir(conn) {
@@ -784,13 +784,13 @@ Item {
                 Layout.preferredWidth: 420
                 wrapMode: Text.WordWrap
                 color: Theme.textDim; font.pixelSize: 12
-                text: "Lo que pongas se ve en la pantalla del tótem. Vacío borra el dato."
+                text: qsTr("Lo que pongas se ve en la pantalla del tótem. Vacío borra el dato.")
             }
             Text {
                 Layout.preferredWidth: 420
                 visible: camposDlg.count === 0
                 color: Theme.textFaint; font.pixelSize: 12
-                text: "Todavía no hay una conversación: «Atender» para empezarla."
+                text: qsTr("Todavía no hay una conversación: «Atender» para empezarla.")
             }
             Repeater {
                 model: camposDlg

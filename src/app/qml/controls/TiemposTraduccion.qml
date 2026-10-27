@@ -14,16 +14,16 @@ ColumnLayout {
 
     FilaTiempo {
         Layout.fillWidth: true
-        titulo: "Espera el punto"
-        ayuda: "Si una frase llega sin punto, cuánto espera la siguiente para juntarlas antes de traducir. Más = oraciones más enteras; menos = sale antes."
+        titulo: qsTr("Espera el punto")
+        ayuda: qsTr("Si una frase llega sin punto, cuánto espera la siguiente para juntarlas antes de traducir. Más = oraciones más enteras; menos = sale antes.")
         desde: 0.2; hasta: 3; paso: 0.1; decimales: 1
         valor: (tt.t.espera_ms || 600) / 1000
         onElegido: (v) => tt.cambiar({ espera_ms: Math.round(v * 1000) })
     }
     FilaTiempo {
         Layout.fillWidth: true
-        titulo: "Máximo sin punto"
-        ayuda: "Si el orador encadena frases sin terminar la oración, a este tiempo se traduce lo que hay (hasta la última coma). Menos = sale antes pero más cortado."
+        titulo: qsTr("Máximo sin punto")
+        ayuda: qsTr("Si el orador encadena frases sin terminar la oración, a este tiempo se traduce lo que hay (hasta la última coma). Menos = sale antes pero más cortado.")
         desde: 2; hasta: 20; paso: 0.5; decimales: 1
         valor: (tt.t.maximo_ms || 8000) / 1000
         onElegido: (v) => tt.cambiar({ maximo_ms: Math.round(v * 1000) })
@@ -31,8 +31,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textFaint; font.pixelSize: 11
-        text: "La transcripción manda frases de hasta " + Number(tt.cortes.maximo).toFixed(1).replace(".", ",") +
-              " s (su «Largo máximo de frase», en la tarjeta Voz a texto)." +
-              ((tt.t.maximo_ms || 8000) / 1000 < tt.cortes.maximo ? " Este máximo es menor: casi siempre va a traducir cada frase sola." : "")
+        text: qsTr("La transcripción manda frases de hasta %1 s (su «Largo máximo de frase», en la tarjeta Voz a texto).").arg(Number(tt.cortes.maximo).toFixed(1).replace(".", ",")) +
+              ((tt.t.maximo_ms || 8000) / 1000 < tt.cortes.maximo ? " " + qsTr("Este máximo es menor: casi siempre va a traducir cada frase sola.") : "")
     }
 }

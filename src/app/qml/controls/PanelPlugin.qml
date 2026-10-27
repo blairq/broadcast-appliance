@@ -30,7 +30,7 @@ ColumnLayout {
     function mostrar(v, c) {
         if (v === undefined || v === null) return "—"
         if (typeof v === "number") return (Number.isInteger(v) ? v : v.toFixed(Math.abs(v) < 10 ? 2 : 1)) + (c.unidad ? " " + c.unidad : "")
-        if (typeof v === "boolean") return v ? "sí" : "no"
+        if (typeof v === "boolean") return v ? qsTr("sí") : qsTr("no")
         if (typeof v === "object") return JSON.stringify(v)
         return String(v) + (c.unidad ? " " + c.unidad : "")
     }
@@ -45,7 +45,7 @@ ColumnLayout {
     Text {
         visible: !panel.corriendo
         Layout.fillWidth: true
-        text: "El plugin no está corriendo: prendelo para usar su panel."
+        text: qsTr("El plugin no está corriendo: prendelo para usar su panel.")
         color: Theme.textFaint; font.pixelSize: 12; wrapMode: Text.WordWrap
     }
 

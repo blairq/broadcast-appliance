@@ -84,8 +84,9 @@ Item {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: cartel.modelData.ancho + " × " + cartel.modelData.alto +
-                              (cartel.modelData.principal ? "   ·   principal" : "")
+                        text: cartel.modelData.principal
+                              ? qsTr("%1 × %2   ·   principal").arg(cartel.modelData.ancho).arg(cartel.modelData.alto)
+                              : cartel.modelData.ancho + " × " + cartel.modelData.alto
                         color: Qt.rgba(1, 1, 1, 0.8)
                         font { family: Theme.font; pixelSize: 15 }
                     }

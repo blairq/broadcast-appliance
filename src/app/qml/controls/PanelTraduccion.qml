@@ -33,10 +33,10 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 12
-        text: "Toma lo que transcribe una tarjeta «Voz a texto» (una salida de texto, p. ej. «Orador») y lo publica traducido " +
+        text: qsTr("Toma lo que transcribe una tarjeta «Voz a texto» (una salida de texto, p. ej. «Orador») y lo publica traducido " +
               "en otra salida, que se usa igual: subtítulos en un rótulo, archivo, o una tarjeta «Texto a voz» con una voz del " +
               "idioma. Sin red, en esta máquina. Cada traducción es una tarjeta «Traducir» en el rack de audio de la fuente " +
-              "(al lado de su voz a texto): se agrega acá o desde «+ Agregar» → Voz → Traducir."
+              "(al lado de su voz a texto): se agrega acá o desde «+ Agregar» → Voz → Traducir.")
     }
     RowLayout {
         spacing: 8
@@ -46,7 +46,7 @@ ColumnLayout {
                  : panel.tr.motor.indexOf("error") === 0 ? Theme.live : panel.tr.motor === "arrancando" ? Theme.amber : Theme.textFaint
         }
         Text {
-            text: !panel.tr ? "" : panel.tr.motor === "listo" ? "Motor listo" : panel.tr.motor === "apagado" ? "Motor apagado (arranca solo con la primera frase)" : panel.tr.motor
+            text: !panel.tr ? "" : panel.tr.motor === "listo" ? qsTr("Motor listo") : panel.tr.motor === "apagado" ? qsTr("Motor apagado (arranca solo con la primera frase)") : panel.tr.motor
             color: Theme.textDim; font.pixelSize: 12
         }
     }
@@ -61,14 +61,14 @@ ColumnLayout {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textFaint; font.pixelSize: 11
         readonly property var c: Studio.voz ? Studio.voz.cortes : ({ pausa: 0.35, maximo: 6 })
-        text: "Cuándo corta la transcripción (pausa " + Number(c.pausa).toFixed(2).replace(".", ",") + " s, largo máximo " +
-              Number(c.maximo).toFixed(1).replace(".", ",") + " s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Voz del sistema. " +
-              "Lo de abajo es de cada traducción."
+        text: qsTr("Cuándo corta la transcripción (pausa %1 s, largo máximo %2 s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Voz del sistema. " +
+              "Lo de abajo es de cada traducción.")
+              .arg(Number(c.pausa).toFixed(2).replace(".", ",")).arg(Number(c.maximo).toFixed(1).replace(".", ","))
     }
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
     // --- Probar ---------------------------------------------------------------------
-    Text { text: "Probar"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text { text: qsTr("Probar"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
@@ -87,18 +87,18 @@ ColumnLayout {
         }
         GlassButton {
             id: probar
-            compact: true; text: "Traducir"; active: true
+            compact: true; text: qsTr("Traducir"); active: true
             onClicked: {
-                panel.resultado = "Traduciendo…"; panel.resultadoOk = true
+                panel.resultado = qsTr("Traduciendo…"); panel.resultadoOk = true
                 panel.tr.probarUi(prueba.text !== "" ? prueba.text : prueba.placeholderText, panel.destinos[idiomaPrueba.currentIndex].codigo)
             }
         }
         GlassButton {
-            compact: true; text: "Bajar idioma"; icon: "⇩"
+            compact: true; text: qsTr("Bajar idioma"); icon: "⇩"
             enabled: !!panel.ml
             onClicked: panel.avisar(panel.tr.bajarUi("es", panel.destinos[idiomaPrueba.currentIndex].codigo), "")
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Baja los paquetes para traducir del castellano a este idioma (70 a 300 MB; los que no son inglés ni portugués pasan por el inglés)"
+            ToolTip.text: qsTr("Baja los paquetes para traducir del castellano a este idioma (70 a 300 MB; los que no son inglés ni portugués pasan por el inglés)")
         }
     }
     Text {
@@ -109,10 +109,10 @@ ColumnLayout {
     }
 
     // --- Traducciones ---------------------------------------------------------------
-    Text { text: "Traducciones en vivo"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text { text: qsTr("Traducciones en vivo"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
     Text {
         visible: panel.tr && panel.tr.traducciones.length === 0
-        text: "Todavía no hay ninguna."
+        text: qsTr("Todavía no hay ninguna.")
         color: Theme.textFaint; font.pixelSize: 12
     }
     Repeater {
@@ -138,7 +138,7 @@ ColumnLayout {
                     Text {
                         Layout.fillWidth: true; elide: Text.ElideRight
                         text: "«" + (fila.modelData.desde || "—") + "» → " + panel.nombreIdioma(fila.modelData.a) + " → «" + fila.modelData.nombre + "»" +
-                              (fila.modelData.fuente ? "   · tarjeta en «" + fila.modelData.fuente + "»" : "")
+                              (fila.modelData.fuente ? qsTr("   · tarjeta en «%1»").arg(fila.modelData.fuente) : "")
                         color: Theme.text; font.pixelSize: 13
                     }
                     Text {
@@ -149,24 +149,24 @@ ColumnLayout {
                         compact: true
                         visible: (fila.modelData.faltan || []).length > 0
                         enabled: !!panel.ml
-                        text: "Bajar"; icon: "⇩"
+                        text: qsTr("Bajar"); icon: "⇩"
                         onClicked: panel.avisar(panel.tr.bajarUi(fila.modelData.idioma_desde, fila.modelData.a), "")
                     }
-                    GlassButton { compact: true; text: "Quitar"; onClicked: panel.avisar(panel.tr.quitarUi(fila.modelData.id), "") }
+                    GlassButton { compact: true; text: qsTr("Quitar"); onClicked: panel.avisar(panel.tr.quitarUi(fila.modelData.id), "") }
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    Text { text: "Subtítulos en el rótulo"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Subtítulos en el rótulo"); color: Theme.textDim; font.pixelSize: 11 }
                     TextField {
                         Layout.preferredWidth: 200
                         text: fila.modelData.rotulo || ""
-                        placeholderText: "nombre de la fuente de texto"
+                        placeholderText: qsTr("nombre de la fuente de texto")
                         color: Theme.text; font.pixelSize: 11
                         background: Rectangle { color: Qt.rgba(1, 1, 1, 0.05); radius: 6 }
                         onEditingFinished: if (text !== (fila.modelData.rotulo || "")) panel.avisar(panel.tr.ajustarUi(fila.modelData.id, { rotulo: text }), "")
                     }
-                    Text { text: "Archivo (.txt y .srt)"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Archivo (.txt y .srt)"); color: Theme.textDim; font.pixelSize: 11 }
                     Toggle {
                         checked: fila.modelData.archivo === true
                         onToggled: (q) => panel.avisar(panel.tr.ajustarUi(fila.modelData.id, { archivo: q }), "")
@@ -191,15 +191,15 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
-        Text { text: "Traducir"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Traducir"); color: Theme.textDim; font.pixelSize: 12 }
         ComboBox {
             id: desde
             Layout.preferredWidth: 180
             // Las salidas de texto que hay (cambia con las tarjetas y las traducciones).
             model: (Studio.flujos ? Studio.flujos.flujos : []).map(f => f.nombre)
-            displayText: count === 0 ? "no hay salidas de texto" : currentText
+            displayText: count === 0 ? qsTr("no hay salidas de texto") : currentText
         }
-        Text { text: "al"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("al"); color: Theme.textDim; font.pixelSize: 12 }
         ComboBox {
             id: hacia
             Layout.preferredWidth: 170
@@ -208,16 +208,16 @@ ColumnLayout {
         TextField {
             id: nombreNueva
             Layout.fillWidth: true
-            placeholderText: desde.currentText !== "" ? "se publica en «" + desde.currentText + " · " + (panel.destinos[hacia.currentIndex] || {}).codigo + "»" : "nombre de la salida traducida"
+            placeholderText: desde.currentText !== "" ? qsTr("se publica en «%1 · %2»").arg(desde.currentText).arg((panel.destinos[hacia.currentIndex] || {}).codigo) : qsTr("nombre de la salida traducida")
             color: Theme.text; font.pixelSize: 12
             background: Rectangle { color: Theme.field; radius: 6 }
         }
         GlassButton {
-            compact: true; text: "Agregar"; active: true
+            compact: true; text: qsTr("Agregar"); active: true
             enabled: desde.currentText !== ""
             onClicked: {
                 const e = panel.tr.agregarUi(desde.currentText, panel.destinos[hacia.currentIndex].codigo, nombreNueva.text)
-                panel.avisar(e, "Traducción agregada")
+                panel.avisar(e, qsTr("Traducción agregada"))
                 if (e === "") nombreNueva.text = ""
             }
         }
@@ -225,7 +225,7 @@ ColumnLayout {
     Text {
         visible: desde.count === 0
         Layout.fillWidth: true; wrapMode: Text.WordWrap
-        text: "Para tener una salida de texto: en Audio, en el rack de una fuente, «+ Agregar» → «Voz a texto: transcripción continua»."
+        text: qsTr("Para tener una salida de texto: en Audio, en el rack de una fuente, «+ Agregar» → «Voz a texto: transcripción continua».")
         color: Theme.textFaint; font.pixelSize: 11
     }
 
@@ -245,40 +245,40 @@ ColumnLayout {
         Timer { interval: 1000; repeat: true; running: corr.activa && corr.pend.length > 0; onTriggered: corr.pend = Studio.flujos.pendientesUi() }
         RowLayout {
             Text {
-                text: "Corrección antes del aire"
+                text: qsTr("Corrección antes del aire")
                 color: Theme.text
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
                 Layout.fillWidth: true
             }
-            Text { text: "Demora (s)"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Demora (s)"); color: Theme.textDim; font.pixelSize: 11 }
             SpinBox {
                 id: demora; from: 1; to: 30; editable: true; Layout.preferredWidth: 96
                 value: corr.fl ? Math.max(1, Math.round(corr.fl.demoraMsUi() / 1000)) : 4
                 onValueModified: if (corr.activa) corr.fl.setCorreccionUi(true, value * 1000)
             }
             CheckBox {
-                text: "Prendida"
+                text: qsTr("Prendida")
                 checked: corr.activa
                 onToggled: corr.fl.setCorreccionUi(checked, demora.value * 1000)
             }
             // T44: el corrector puede estar en otra máquina (o en un celular): una página con su clave.
-            GlassButton { compact: true; text: "Puesto de corrección…"; onClicked: puestoQr.open()
+            GlassButton { compact: true; text: qsTr("Puesto de corrección…"); onClicked: puestoQr.open()
                           ToolTip.visible: hovered; ToolTip.delay: 400
-                          ToolTip.text: "Un enlace (y QR) para corregir desde otra computadora o un celular: ve las frases con su cuenta regresiva, Enter aprueba, Esc descarta" }
+                          ToolTip.text: qsTr("Un enlace (y QR) para corregir desde otra computadora o un celular: ve las frases con su cuenta regresiva, Enter aprueba, Esc descarta") }
         }
         QrDialog {
             id: puestoQr
             fuente: Studio.puestoCorreccion
-            title: "Puesto de corrección de subtítulos"
+            title: qsTr("Puesto de corrección de subtítulos")
             ofreceClave: false
-            avisoConClave: "El enlace lleva la clave del puesto (cambia en cada arranque del servidor): quien lo tenga puede corregir lo que sale al aire."
+            avisoConClave: qsTr("El enlace lleva la clave del puesto (cambia en cada arranque del servidor): quien lo tenga puede corregir lo que sale al aire.")
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             color: Theme.textDim; font.pixelSize: 11
-            text: "Cada frase de la transcripción espera antes de ir a los subtítulos, el CC, la traducción y los archivos. " +
-                  "Editala y Enter para mandarla corregida, ✓ para aprobarla como está, ✕ para tirarla; si nadie la toca, sale sola."
+            text: qsTr("Cada frase de la transcripción espera antes de ir a los subtítulos, el CC, la traducción y los archivos. " +
+                  "Editala y Enter para mandarla corregida, ✓ para aprobarla como está, ✕ para tirarla; si nadie la toca, sale sola.")
         }
         Repeater {
             model: corr.pend
@@ -298,7 +298,7 @@ ColumnLayout {
             }
         }
         CheckBox {
-            text: "Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)"
+            text: qsTr("Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)")
             checked: Studio.rotuloTraduccionActivo()
             onToggled: Studio.setRotuloTraduccion(checked)
         }
@@ -308,37 +308,37 @@ ColumnLayout {
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
     RowLayout {
         Layout.fillWidth: true
-        Text { text: "Glosario"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+        Text { text: qsTr("Glosario"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
         GlassButton {
-            compact: true; text: "Exportar para revisión"
+            compact: true; text: qsTr("Exportar para revisión")
             onClicked: {
                 const r = panel.tr.glosarioExportarUi()
-                if (r === "") Studio.notify("No pude escribir el CSV", "error")
-                else { Studio.notify("Glosario para revisar: " + r, "info"); Qt.openUrlExternally("file://" + r.substring(0, r.lastIndexOf("/"))) }
+                if (r === "") Studio.notify(qsTr("No pude escribir el CSV"), "error")
+                else { Studio.notify(qsTr("Glosario para revisar: %1").arg(r), "info"); Qt.openUrlExternally("file://" + r.substring(0, r.lastIndexOf("/"))) }
             }
         }
-        TextField { id: revisor; Layout.preferredWidth: 150; placeholderText: "Revisado por"; color: Theme.text }
+        TextField { id: revisor; Layout.preferredWidth: 150; placeholderText: qsTr("Revisado por"); color: Theme.text }
         GlassButton {
-            compact: true; text: "Importar revisado…"
+            compact: true; text: qsTr("Importar revisado…")
             enabled: revisor.text.trim() !== ""
             onClicked: dlgGlosario.open()
         }
     }
     FileDialog {
         id: dlgGlosario
-        title: "Glosario revisado (CSV)"
+        title: qsTr("Glosario revisado (CSV)")
         nameFilters: ["CSV (*.csv *.txt)"]
         onAccepted: {
             const e = panel.tr.glosarioImportarUi(selectedFile, revisor.text)
-            Studio.notify(e === "" ? "Glosario revisado importado" : e, e === "" ? "ok" : "error")
+            Studio.notify(e === "" ? qsTr("Glosario revisado importado") : e, e === "" ? "ok" : "error")
         }
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 11
-        text: "Cómo se traducen los términos del evento (sin esto, «cuarto intermedio» sale «middle room»). Antes de cada evento " +
+        text: qsTr("Cómo se traducen los términos del evento (sin esto, «cuarto intermedio» sale «middle room»). Antes de cada evento " +
               "sumá sus nombres propios, comisiones, cargos y programas. El asistente también lo puede editar (glosario_agregar) " +
-              "o tocar el archivo: " + (panel.tr ? panel.tr.archivoGlosario : "")
+              "o tocar el archivo: %1").arg(panel.tr ? panel.tr.archivoGlosario : "")
     }
     Flow {
         Layout.fillWidth: true
@@ -351,7 +351,7 @@ ColumnLayout {
                 text: modelData.nombre + " (" + modelData.cuantos + ")"
                 active: modelData.activo
                 onClicked: panel.avisar(panel.tr.glosarioGrupoUi(modelData.grupo, !modelData.activo), "")
-                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.activo ? "Activo: tocá para apagar el grupo" : "Apagado: tocá para usarlo"
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.activo ? qsTr("Activo: tocá para apagar el grupo") : qsTr("Apagado: tocá para usarlo")
             }
         }
     }
@@ -360,11 +360,11 @@ ColumnLayout {
         Layout.fillWidth: true
         columns: 4
         columnSpacing: 8; rowSpacing: 6
-        Text { text: "Castellano"; color: Theme.textDim; font.pixelSize: 11 }
+        Text { text: qsTr("Castellano"); color: Theme.textDim; font.pixelSize: 11 }
         TextField {
             id: tEs
             Layout.columnSpan: 3; Layout.fillWidth: true
-            placeholderText: "formas separadas por coma: comisión de turismo, comisiones de turismo"
+            placeholderText: qsTr("formas separadas por coma: comisión de turismo, comisiones de turismo")
             color: Theme.text; font.pixelSize: 12
             background: Rectangle { color: Theme.field; radius: 6 }
         }
@@ -391,7 +391,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Item { Layout.fillWidth: true }
         GlassButton {
-            compact: true; text: "Agregar al glosario"; active: true
+            compact: true; text: qsTr("Agregar al glosario"); active: true
             enabled: tEs.text.trim() !== ""
             onClicked: {
                 const e = { es: tEs.text.split(",").map(x => x.trim()).filter(x => x !== "") }
@@ -400,14 +400,14 @@ ColumnLayout {
                     if (it.texto.trim() !== "") e[panel.destinos[i].codigo] = it.texto.trim()
                 }
                 const err = panel.tr.glosarioAgregarUi(e)
-                panel.avisar(err, "Término agregado")
+                panel.avisar(err, qsTr("Término agregado"))
                 if (err === "") { tEs.text = ""; for (let i = 0; i < campos.count; ++i) campos.itemAt(i).texto = "" }
             }
         }
     }
     TextField {
         Layout.fillWidth: true
-        placeholderText: "Buscar en el glosario…"
+        placeholderText: qsTr("Buscar en el glosario…")
         color: Theme.text; font.pixelSize: 12
         background: Rectangle { color: Theme.field; radius: 6 }
         onTextChanged: panel.buscar = text.toLowerCase()
@@ -433,14 +433,14 @@ ColumnLayout {
                 color: Theme.textDim; font.pixelSize: 11
             }
             Text {
-                text: term.modelData.origen === "operador" ? "propio" : ""
+                text: term.modelData.origen === "operador" ? qsTr("propio") : ""
                 color: Theme.accent; font.pixelSize: 10
             }
             GlassButton {
                 compact: true; text: "✕"
                 onClicked: panel.avisar(panel.tr.glosarioQuitarUi(Array.isArray(term.modelData.es) ? term.modelData.es[0] : term.modelData.es), "")
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: term.modelData.origen === "operador" ? "Sacar este término" : "Apagar este término de fábrica"
+                ToolTip.text: term.modelData.origen === "operador" ? qsTr("Sacar este término") : qsTr("Apagar este término de fábrica")
             }
         }
     }
@@ -455,46 +455,46 @@ ColumnLayout {
         property var e: cc ? cc.estado() : ({})
         Connections { target: Studio.cc; function onCambio() { ccSec.e = Studio.cc.estado() } }
         RowLayout {
-            Text { text: "Subtítulos ocultos (CC)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
-            StatusPill { text: ccSec.e.activo ? "CC prendido · " + (ccSec.e.enviadas || 0) + " líneas" : "CC apagado"; dot: ccSec.e.activo ? Theme.ok : Theme.textFaint }
+            Text { text: qsTr("Subtítulos ocultos (CC)"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+            StatusPill { text: ccSec.e.activo ? qsTr("CC prendido · %n línea", "", ccSec.e.enviadas || 0) : qsTr("CC apagado"); dot: ccSec.e.activo ? Theme.ok : Theme.textFaint }
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             color: Theme.textDim; font.pixelSize: 11
-            text: "El espectador los prende o apaga en su reproductor. 608: dentro del video de la transmisión (y de cada destino). " +
-                  "YouTube: por la API de subtítulos del evento (la URL de «HTTP POST» de YouTube Studio)."
+            text: qsTr("El espectador los prende o apaga en su reproductor. 608: dentro del video de la transmisión (y de cada destino). " +
+                  "YouTube: por la API de subtítulos del evento (la URL de «HTTP POST» de YouTube Studio).")
         }
         RowLayout {
             spacing: 6
-            Text { text: "Salida de texto"; color: Theme.textDim; font.pixelSize: 12 }
-            TextField { id: ccFlujo; Layout.preferredWidth: 160; text: ccSec.e.flujo || ""; placeholderText: "p. ej. Sala" }
+            Text { text: qsTr("Salida de texto"); color: Theme.textDim; font.pixelSize: 12 }
+            TextField { id: ccFlujo; Layout.preferredWidth: 160; text: ccSec.e.flujo || ""; placeholderText: qsTr("p. ej. Sala") }
             ComboBox {
                 id: ccMetodo
                 implicitWidth: 150
-                model: [ { t: "608 en el video", v: "608" }, { t: "API de YouTube", v: "youtube_http" }, { t: "Los dos", v: "ambos" } ]
+                model: [ { t: qsTr("608 en el video"), v: "608" }, { t: qsTr("API de YouTube"), v: "youtube_http" }, { t: qsTr("Los dos"), v: "ambos" } ]
                 textRole: "t"
                 currentIndex: Math.max(0, model.findIndex(o => o.v === (ccSec.e.metodo || "608")))
             }
         }
         TextField { id: ccUrl; Layout.fillWidth: true; visible: ccMetodo.currentIndex > 0
-                    placeholderText: ccSec.e.url_youtube ? "(URL guardada)" : "URL de subtítulos de YouTube (http://upload.youtube.com/closedcaption?…)" }
+                    placeholderText: ccSec.e.url_youtube ? qsTr("(URL guardada)") : qsTr("URL de subtítulos de YouTube (http://upload.youtube.com/closedcaption?…)") }
         RowLayout {
             spacing: 6
             GlassButton {
-                compact: true; active: !ccSec.e.activo; text: ccSec.e.activo ? "Aplicar" : "Prender CC"
+                compact: true; active: !ccSec.e.activo; text: ccSec.e.activo ? qsTr("Aplicar") : qsTr("Prender CC")
                 onClicked: {
                     const cfg = { flujo: ccFlujo.text, metodo: ccMetodo.model[ccMetodo.currentIndex].v }
                     if (ccUrl.text !== "") cfg.url = ccUrl.text
                     const r = ccSec.cc.activar(cfg); if (r !== "") Studio.notify(r, "error")
                 }
             }
-            GlassButton { compact: true; visible: !!ccSec.e.activo; text: "Apagar"; onClicked: ccSec.cc.desactivar() }
-            GlassButton { compact: true; text: "Probar"; onClicked: { const r = ccSec.cc.probar("Prueba de subtítulos"); if (r !== "") Studio.notify(r, "error") } }
+            GlassButton { compact: true; visible: !!ccSec.e.activo; text: qsTr("Apagar"); onClicked: ccSec.cc.desactivar() }
+            GlassButton { compact: true; text: qsTr("Probar"); onClicked: { const r = ccSec.cc.probar(qsTr("Prueba de subtítulos")); if (r !== "") Studio.notify(r, "error") } }
         }
         Text {
             visible: (ccSec.e.ultimas || []).length > 0
             Layout.fillWidth: true; wrapMode: Text.WordWrap
-            text: "Últimas: " + (ccSec.e.ultimas || []).slice(-3).join(" · ")
+            text: qsTr("Últimas: %1").arg((ccSec.e.ultimas || []).slice(-3).join(" · "))
             color: Theme.textFaint; font.pixelSize: 11
         }
     }
@@ -511,22 +511,22 @@ ColumnLayout {
         readonly property var grupos: Object.keys((v && v.grupos) || {})
         RowLayout {
             Text {
-                text: "Vocabulario de la transcripción"
+                text: qsTr("Vocabulario de la transcripción")
                 color: Theme.text
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
                 Layout.fillWidth: true
             }
             GlassButton {
-                compact: true; text: "Importar del Cuerpo"
+                compact: true; text: qsTr("Importar del Cuerpo")
                 onClicked: { Studio.vocabularioDelCuerpoUi(); vocSec.refrescar() }
             }
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             color: Theme.textDim; font.pixelSize: 11
-            text: "Nombres, localidades y términos que la transcripción tiene que escribir bien. Se corrige por cómo suena " +
-                  "(b/v, s/z/c, ll/y…) y solo si es casi igual; cada reemplazo queda registrado."
+            text: qsTr("Nombres, localidades y términos que la transcripción tiene que escribir bien. Se corrige por cómo suena " +
+                  "(b/v, s/z/c, ll/y…) y solo si es casi igual; cada reemplazo queda registrado.")
         }
         Flow {
             Layout.fillWidth: true; spacing: 6
@@ -544,7 +544,7 @@ ColumnLayout {
             GlassButton {
                 readonly property bool on: !!(((vocSec.v.grupos || {})[vocSec.grupo] || {}).activo)
                 compact: true
-                text: on ? "Apagar «" + vocSec.grupo + "»" : "Prender «" + vocSec.grupo + "»"
+                text: (on ? qsTr("Apagar «%1»") : qsTr("Prender «%1»")).arg(vocSec.grupo)
                 onClicked: { Studio.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
             }
         }
@@ -557,16 +557,16 @@ ColumnLayout {
                     compact: true
                     text: modelData.termino + ((modelData.variantes || []).length ? " ←" + modelData.variantes.join(", ") : "") + "  ✕"
                     onClicked: { Studio.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
-                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sacar este término"
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sacar este término")
                 }
             }
         }
         RowLayout {
             spacing: 6
-            TextField { id: vocTerm; Layout.preferredWidth: 170; placeholderText: "Término bien escrito" }
-            TextField { id: vocVar; Layout.fillWidth: true; placeholderText: "Cómo lo escribe mal (opcional, con comas)" }
+            TextField { id: vocTerm; Layout.preferredWidth: 170; placeholderText: qsTr("Término bien escrito") }
+            TextField { id: vocVar; Layout.fillWidth: true; placeholderText: qsTr("Cómo lo escribe mal (opcional, con comas)") }
             GlassButton {
-                compact: true; text: "Agregar a " + vocSec.grupo
+                compact: true; text: qsTr("Agregar a %1").arg(vocSec.grupo)
                 onClicked: {
                     const r = Studio.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
                     if (r !== "") Studio.notify(r, "error"); else { vocTerm.text = ""; vocVar.text = ""; vocSec.refrescar() }
@@ -575,12 +575,12 @@ ColumnLayout {
         }
         RowLayout {
             spacing: 6
-            TextField { id: vocPrueba; Layout.fillWidth: true; placeholderText: "Probar: «llegamos a comodoro ribadabia»" }
+            TextField { id: vocPrueba; Layout.fillWidth: true; placeholderText: qsTr("Probar: «llegamos a comodoro ribadabia»") }
             GlassButton {
-                compact: true; text: "Probar"
+                compact: true; text: qsTr("Probar")
                 onClicked: {
                     const r = Studio.vocabularioProbarUi(vocPrueba.text)
-                    vocRes.text = r.texto + ((r.reemplazos || []).length ? "   (" + r.reemplazos.map(x => x.original + " → " + x.reemplazo).join(", ") + ")" : "   (sin cambios)")
+                    vocRes.text = r.texto + ((r.reemplazos || []).length ? "   (" + r.reemplazos.map(x => x.original + " → " + x.reemplazo).join(", ") + ")" : "   " + qsTr("(sin cambios)"))
                 }
             }
         }
@@ -588,7 +588,7 @@ ColumnLayout {
         Text {
             visible: (vocSec.v.reemplazos || []).length > 0
             Layout.fillWidth: true; wrapMode: Text.WordWrap
-            text: "Al aire: " + (vocSec.v.reemplazos || []).slice(-4).map(x => x.original + " → " + x.reemplazo).join(" · ")
+            text: qsTr("Al aire: %1").arg((vocSec.v.reemplazos || []).slice(-4).map(x => x.original + " → " + x.reemplazo).join(" · "))
             color: Theme.textFaint; font.pixelSize: 11
         }
     }

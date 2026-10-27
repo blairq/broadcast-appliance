@@ -14,7 +14,7 @@ Item {
     Text {
         visible: !video.hasFrame
         anchors.centerIn: parent
-        text: "Sin señal"
+        text: qsTr("Sin señal")
         color: Theme.textFaint
         font.pixelSize: 13
     }
@@ -28,7 +28,7 @@ Item {
         MouseArea { id: popMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: Studio.ventanas.abrirVideo([mon.source], "grid") }
         ToolTip.visible: popMa.containsMouse
-        ToolTip.text: "Sacar a una ventana (p. ej. otro monitor)"
+        ToolTip.text: qsTr("Sacar a una ventana (p. ej. otro monitor)")
     }
     // Selector de fuente
     Rectangle {

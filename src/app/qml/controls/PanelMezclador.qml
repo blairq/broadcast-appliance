@@ -111,7 +111,7 @@ Item {
     function abreviar(s) {
         if (!s) return "?"
         if (s.tipo === "pista") return s.id === "pista1" ? "PGM" : "P" + s.id.substring(5)
-        if (s.tipo === "escucha") return "ESC"
+        if (s.tipo === "escucha") return qsTr("ESC")
         const w = (s.nombre || "").split(/\s+/)
         return w.length > 1 ? (w[0][0] + w[1][0]).toUpperCase() : (s.nombre || "?").substring(0, 3).toUpperCase()
     }
@@ -138,11 +138,11 @@ Item {
         anchors.centerIn: parent
         modal: true
         width: 460   // ancho fijo: con el implícito del Label, el diálogo entraba en un ciclo
-        title: "El Profiler de LSP hace sonar un barrido"
+        title: qsTr("El Profiler de LSP hace sonar un barrido")
         Label {
             width: confirmarPerfil.availableWidth
             wrapMode: Text.WordWrap
-            text: "Abre el Profiler sobre «" + confirmarPerfil.entrada + "», escuchando al costado: lo que él emite no va al aire. Para medir, en el rack de la entrada conectá su salida a una tarjeta Salida (el parlante); el barrido de 20 Hz a 20 kHz puede sonar fuerte. Nada sale hasta que aprietes «Medir» en su interfaz."
+            text: qsTr("Abre el Profiler sobre «%1», escuchando al costado: lo que él emite no va al aire. Para medir, en el rack de la entrada conectá su salida a una tarjeta Salida (el parlante); el barrido de 20 Hz a 20 kHz puede sonar fuerte. Nada sale hasta que aprietes «Medir» en su interfaz.").arg(confirmarPerfil.entrada)
         }
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: { const e = m.mz.abrirAnalisisLsp(entrada, "perfil"); if (e !== "") Studio.notify(e, "error") }
@@ -231,20 +231,20 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 3
-                Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.canalMute; ayuda: "Mute"
+                Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.canalMute; ayuda: qsTr("Mute")
                         alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute); m.leerTiras() } }
-                Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: Theme.canalPfl; textoOn: "#1a1a1a"; ayuda: "Escucharla en los auriculares (se suma a lo que ya va ahí, como la voz del asistente)"
+                Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: Theme.canalPfl; textoOn: "#1a1a1a"; ayuda: qsTr("Escucharla en los auriculares (se suma a lo que ya va ahí, como la voz del asistente)")
                         alTocar: () => { const e = Studio.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
-                Boton { texto: "AFV"; on: Studio.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: "Sigue al video: sube cuando su escena sale al aire"
+                Boton { texto: "AFV"; on: Studio.afvFuentes.indexOf(t.nombre) >= 0; colorOn: Theme.canalAfv; ayuda: qsTr("Sigue al video: sube cuando su escena sale al aire")
                         alTocar: () => Studio.setAfv(t.nombre, Studio.afvFuentes.indexOf(t.nombre) < 0) }
             }
             // Sincronizar con el video (sincro labios): el retardo del canal.
             Boton {
                 Layout.fillWidth: true
                 readonly property int ms: t.st.retardoMs || 0
-                texto: ms !== 0 ? "SINC " + (ms > 0 ? "+" : "") + ms + " ms" : "SINC"
+                texto: ms !== 0 ? qsTr("SINC %1 ms").arg((ms > 0 ? "+" : "") + ms) : qsTr("SINC")
                 on: ms !== 0; colorOn: Theme.canalSinc
-                ayuda: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
+                ayuda: qsTr("Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)")
                 alTocar: () => retardoPop.abrir(t.nombre)
             }
             // Los analizadores de LSP sobre esta entrada (su interfaz, en una ventana aparte).
@@ -252,7 +252,7 @@ Item {
                 id: lspBtn
                 Layout.fillWidth: true
                 texto: "LSP ▾"
-                ayuda: "Mirarla con los analizadores de LSP: espectro, fase, osciloscopio, latencia, perfil"
+                ayuda: qsTr("Mirarla con los analizadores de LSP: espectro, fase, osciloscopio, latencia, perfil")
                 alTocar: () => lspMenu.popup(lspBtn, 0, lspBtn.height)
                 Menu {
                     id: lspMenu
@@ -285,11 +285,11 @@ Item {
                                font { family: Theme.font; pixelSize: 9; weight: Font.DemiBold } }
                         HoverHandler { id: chipHov }
                         ToolTip.visible: chipHov.hovered; ToolTip.delay: 300
-                        ToolTip.text: "Va a " + (s ? s.nombre : modelData) + " (clic: verlo en la matriz)"
+                        ToolTip.text: qsTr("Va a %1 (clic: verlo en la matriz)").arg(s ? s.nombre : modelData)
                         TapHandler { onTapped: m.mostrarEnMatriz(t.nombre, "") }
                     }
                 }
-                Text { visible: (t.st.envios || []).length === 0; text: "sin salida"; color: Theme.amber
+                Text { visible: (t.st.envios || []).length === 0; text: qsTr("sin salida"); color: Theme.amber
                        font { family: Theme.font; pixelSize: 9 } }
             }
         }
@@ -355,7 +355,7 @@ Item {
                 if (fd.alMover) fd.alMover(v)
             }
             ToolTip.visible: containsMouse || fd.arrastrando; ToolTip.delay: 300
-            ToolTip.text: (fd.mostrado <= fd.desde ? "−∞" : fd.mostrado.toFixed(1)) + " dB (doble clic: 0 dB)"
+            ToolTip.text: qsTr("%1 dB (doble clic: 0 dB)").arg(fd.mostrado <= fd.desde ? "−∞" : fd.mostrado.toFixed(1))
         }
     }
 
@@ -406,7 +406,7 @@ Item {
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
                 Boton { texto: "−"; Layout.fillWidth: false; Layout.preferredWidth: 20
-                        ayuda: "Compactar " + (v.g.nombre || "") + ": sin faders, una casilla por tira"
+                        ayuda: qsTr("Compactar %1: sin faders, una casilla por tira").arg(v.g.nombre || "")
                         alTocar: () => { Studio.mixer.setCompacto(v.clave, true); m.leerTiras() } }
             }
             Item {
@@ -457,7 +457,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 4
                 Boton { texto: "+"; Layout.fillWidth: false; Layout.preferredWidth: 20
-                        ayuda: "Mostrar los faders de " + (bq.g.nombre || "") + " (" + bq.miembros.length + " tiras)"
+                        ayuda: qsTr("Mostrar los faders de %1 (%n tira)", "", bq.miembros.length).arg(bq.g.nombre || "")
                         alTocar: () => { Studio.mixer.setCompacto(bq.clave, false); m.leerTiras() } }
                 Text {
                     Layout.fillWidth: true
@@ -467,7 +467,7 @@ Item {
             }
             Boton {
                 Layout.fillWidth: true
-                texto: "M todos"; ayuda: "Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)"
+                texto: qsTr("M todos"); ayuda: qsTr("Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)")
                 alTocar: () => {
                     const alguna = bq.miembros.some((n) => !(m.tiras[n] || {}).mute)
                     Studio.mixer.setMutedGrupo(bq.clave, alguna)
@@ -535,7 +535,7 @@ Item {
                             }
                             HoverHandler { id: casHov; cursorShape: Qt.PointingHandCursor }
                             ToolTip.visible: casHov.hovered; ToolTip.delay: 400
-                            ToolTip.text: cas.modelData + (cas.muda ? " · muda" : "") + " (un clic la silencia)"
+                            ToolTip.text: (cas.muda ? qsTr("%1 · muda (un clic la silencia)") : qsTr("%1 (un clic la silencia)")).arg(cas.modelData)
                             TapHandler { onTapped: { Studio.mixer.setMuted(cas.modelData, !cas.muda); m.leerTiras() } }
                         }
                     }
@@ -566,7 +566,7 @@ Item {
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
                 HoverHandler { id: soHov }
-                ToolTip.visible: soHov.hovered; ToolTip.delay: 500; ToolTip.text: so.modelData.nombre + " (clic: quién le manda, en la matriz)"
+                ToolTip.visible: soHov.hovered; ToolTip.delay: 500; ToolTip.text: qsTr("%1 (clic: quién le manda, en la matriz)").arg(so.modelData.nombre)
                 TapHandler { onTapped: m.mostrarEnMatriz("", so.modelData.id) }
             }
             Text {
@@ -595,16 +595,16 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            GlassButton { compact: true; text: "Consola"; active: m.pestana === "consola"; onClicked: m.mz.pestana = "consola" }
+            GlassButton { compact: true; text: qsTr("Consola"); active: m.pestana === "consola"; onClicked: m.mz.pestana = "consola" }
             GlassButton {
-                compact: true; text: "Calibración de sala"; active: m.pestana === "calibracion"; onClicked: m.mz.pestana = "calibracion"
+                compact: true; text: qsTr("Calibración de sala"); active: m.pestana === "calibracion"; onClicked: m.mz.pestana = "calibracion"
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "Medir la sala con barridos (varios puntos, micrófonos sin calibrar incluidos), ver modos y reverberación, y ecualizar."
+                ToolTip.text: qsTr("Medir la sala con barridos (varios puntos, micrófonos sin calibrar incluidos), ver modos y reverberación, y ecualizar.")
             }
             Rectangle { width: 1; height: 22; color: Qt.rgba(1, 1, 1, 0.12); visible: m.pestana === "consola" }
             Text {
                 visible: m.pestana === "consola"
-                text: m.entradas.length + " entradas · " + m.salidas.length + " salidas"
+                text: qsTr("%n entrada", "", m.entradas.length) + " · " + qsTr("%n salida", "", m.salidas.length)
                 color: Theme.textFaint
                 font { family: Theme.font; pixelSize: 12 }
             }
@@ -612,7 +612,7 @@ Item {
             // Los analizadores de LSP sobre la entrada elegida (clic en el nombre de una tira).
             Text {
                 visible: m.pestana === "consola"
-                text: m.elegida === "" ? "Análisis LSP: elegí una entrada" : "Analizar «" + m.elegida + "»:"
+                text: m.elegida === "" ? qsTr("Análisis LSP: elegí una entrada") : qsTr("Analizar «%1»:").arg(m.elegida)
                 color: Theme.textFaint
                 font { family: Theme.font; pixelSize: 11 }
                 elide: Text.ElideMiddle
@@ -632,11 +632,11 @@ Item {
             GlassButton {
                 visible: m.pestana === "consola"
                 compact: true
-                text: m.matrizAbierta ? "Matriz ▴" : "Matriz ▾"
+                text: m.matrizAbierta ? qsTr("Matriz ▴") : qsTr("Matriz ▾")
                 active: m.matrizAbierta
                 onClicked: { m.mz.matrizAbierta = !m.matrizAbierta; if (!m.mz.matrizAbierta) { matriz.hFila = ""; matriz.hBus = "" } }
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "La matriz de salida: qué entrada va a qué pista, bus o salida de la placa."
+                ToolTip.text: qsTr("La matriz de salida: qué entrada va a qué pista, bus o salida de la placa.")
             }
         }
 
@@ -744,7 +744,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     visible: m.entradas.length === 0
-                    text: m.mz ? "No hay entradas con audio." : "El audio no está disponible en esta compilación."
+                    text: m.mz ? qsTr("No hay entradas con audio.") : qsTr("El audio no está disponible en esta compilación.")
                     color: Theme.textFaint
                 }
             }
@@ -764,7 +764,7 @@ Item {
                 ColumnLayout {
                     anchors { fill: parent; margins: 8 }
                     spacing: 6
-                    Text { text: "PROGRAMA"; color: "#ef4444"; Layout.alignment: Qt.AlignHCenter
+                    Text { text: qsTr("PROGRAMA"); color: "#ef4444"; Layout.alignment: Qt.AlignHCenter
                            font { family: Theme.font; pixelSize: 12; weight: Font.Bold; letterSpacing: 1 } }
                     RowLayout {
                         Layout.fillWidth: true
@@ -790,15 +790,15 @@ Item {
                                 Text { text: parent.valor; color: parent.tinte; font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold } }
                             }
                             function lufs(v) { return v === undefined || v <= -70 ? "—" : v.toFixed(1) }
-                            Dato { etiqueta: "MOMENTÁNEO"; valor: parent.lufs(m.lu.momentaneo) }
-                            Dato { etiqueta: "CORTO (3 s)"; valor: parent.lufs(m.lu.corto)
+                            Dato { etiqueta: qsTr("MOMENTÁNEO"); valor: parent.lufs(m.lu.momentaneo) }
+                            Dato { etiqueta: qsTr("CORTO (3 s)"); valor: parent.lufs(m.lu.corto)
                                    tinte: m.lu.corto !== undefined && m.lu.corto > pgm.objetivo + 2 ? Theme.amber : Theme.text }
-                            Dato { etiqueta: "INTEGRADO"; valor: parent.lufs(m.lu.integrado)
+                            Dato { etiqueta: qsTr("INTEGRADO"); valor: parent.lufs(m.lu.integrado)
                                    tinte: m.lu.integrado !== undefined && Math.abs(m.lu.integrado - pgm.objetivo) <= 1 ? Theme.ok : Theme.text }
                             Dato { etiqueta: "LRA"; valor: m.lu.lra !== undefined ? m.lu.lra.toFixed(1) : "—" }
                             Dato { etiqueta: "TRUE PEAK"; valor: m.lu.true_peak_db !== undefined && m.lu.true_peak_db > -70 ? m.lu.true_peak_db.toFixed(1) : "—"
                                    tinte: m.lu.true_peak_db !== undefined && m.lu.true_peak_db > -1 ? Theme.live : Theme.text }
-                            Text { text: "Objetivo " + pgm.objetivo.toFixed(0) + " LUFS"; color: Theme.textFaint; font { family: Theme.font; pixelSize: 10 } }
+                            Text { text: qsTr("Objetivo %1 LUFS").arg(pgm.objetivo.toFixed(0)); color: Theme.textFaint; font { family: Theme.font; pixelSize: 10 } }
                         }
                     }
                 }

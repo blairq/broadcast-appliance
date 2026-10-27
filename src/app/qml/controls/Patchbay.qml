@@ -272,7 +272,7 @@ Rectangle {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: pb.desconectar(cab.modelData.desde, cab.modelData.salida, cab.modelData.hacia, cab.modelData.entrada)
-                            ToolTip.visible: containsMouse; ToolTip.text: "Quitar el cable"
+                            ToolTip.visible: containsMouse; ToolTip.text: qsTr("Quitar el cable")
                         }
                     }
                 }
@@ -420,7 +420,7 @@ Rectangle {
                                 visible: (nd.modelData.entradas || []).length > 1 && ip.modelData.id !== "in"
                                 x: 18
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: ip.modelData.pedido ? "nueva" : ip.modelData.id === "ctl" ? "control" : ip.modelData.id
+                                text: ip.modelData.pedido ? qsTr("nueva") : ip.modelData.id === "ctl" ? qsTr("control") : ip.modelData.id
                                 color: Theme.textFaint; font.pixelSize: 10
                             }
                         }
@@ -446,8 +446,8 @@ Rectangle {
                                 ToolTip.visible: containsMouse && !pb.wire
                                 ToolTip.delay: 600
                                 ToolTip.text: pb.tipoDe(op.modelData) === "control"
-                                              ? "Arrastrá hasta una tarjeta igual (de cualquier entrada): pasa a usar los ajustes de este controlador"
-                                              : "Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar: de una salida pueden salir varios cables"
+                                              ? qsTr("Arrastrá hasta una tarjeta igual (de cualquier entrada): pasa a usar los ajustes de este controlador")
+                                              : qsTr("Arrastrá hasta la tarjeta (o la entrada) que quieras alimentar: de una salida pueden salir varios cables")
                                 onPressed: {
                                     const p = pb.portPos(nd.modelData.id, op.modelData.id, false)
                                     pb.wire = { from: nd.modelData.id, out: op.modelData.id, tipo: pb.tipoDe(op.modelData), x0: p.x, y0: p.y, x1: p.x, y1: p.y }

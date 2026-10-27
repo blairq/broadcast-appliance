@@ -71,9 +71,15 @@ Item {
             readonly property var r: Studio.evento ? Studio.evento.reloj : ({})
             visible: !!(r && r.horaFinPrevista && r.restanteGuionSeg > 0)
             Layout.fillWidth: true; wrapMode: Text.WordWrap
-            text: "Bloque: faltan " + Math.floor((r.restanteBloqueSeg || 0) / 60) + " min · fin prevista " + (r.horaFinPrevista || "") +
-                  (r.horaFinPlaneada ? " (planeada " + r.horaFinPlaneada + ", " +
-                   (r.backTimingSeg >= 0 ? "sobran " : "hay que recortar ") + Math.abs(Math.round(r.backTimingSeg / 60)) + " min)" : "")
+            text: {
+                const faltan = Math.floor((r.restanteBloqueSeg || 0) / 60)
+                const fin = r.horaFinPrevista || ""
+                if (!r.horaFinPlaneada) return qsTr("Bloque: faltan %1 min · fin prevista %2").arg(faltan).arg(fin)
+                const dif = Math.abs(Math.round(r.backTimingSeg / 60))
+                return (r.backTimingSeg >= 0 ? qsTr("Bloque: faltan %1 min · fin prevista %2 (planeada %3, sobran %4 min)")
+                                             : qsTr("Bloque: faltan %1 min · fin prevista %2 (planeada %3, hay que recortar %4 min)"))
+                       .arg(faltan).arg(fin).arg(r.horaFinPlaneada).arg(dif)
+            }
             color: r && r.backTimingSeg < 0 ? Theme.amber : Theme.textDim
             font.pixelSize: 11
         }
@@ -84,12 +90,12 @@ Item {
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: Studio.ordenDelDia.actual && Studio.ordenDelDia.actual.n
-                      ? "Punto " + Studio.ordenDelDia.actual.n + ": " + Studio.ordenDelDia.actual.titulo
-                      : "Orden del día: ningún punto en tratamiento"
+                      ? qsTr("Punto %1: %2").arg(Studio.ordenDelDia.actual.n).arg(Studio.ordenDelDia.actual.titulo)
+                      : qsTr("Orden del día: ningún punto en tratamiento")
                 color: Theme.text; font.pixelSize: 12
             }
             GlassButton {
-                compact: true; text: "Siguiente punto ▶"
+                compact: true; text: qsTr("Siguiente punto ▶")
                 enabled: Studio.ordenDelDia.puntos.some(p => p.estado === "pendiente")
                 onClicked: { const e = Studio.ordenDelDia.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
             }
@@ -107,7 +113,7 @@ Item {
                 ColumnLayout {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 10; topMargin: 5; bottomMargin: 5 }
                     spacing: 0
-                    Text { text: "AL AIRE"; color: Qt.rgba(1, 1, 1, 0.75)
+                    Text { text: qsTr("AL AIRE"); color: Qt.rgba(1, 1, 1, 0.75)
                            font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
                     Text { Layout.fillWidth: true; text: Studio.currentScene || "—"; color: Theme.text
                            elide: Text.ElideRight
@@ -123,24 +129,24 @@ Item {
                 ColumnLayout {
                     anchors { fill: parent; leftMargin: 10; rightMargin: 10; topMargin: 5; bottomMargin: 5 }
                     spacing: 0
-                    Text { text: "ARMADA"; color: Theme.textFaint
+                    Text { text: qsTr("ARMADA"); color: Theme.textFaint
                            font { family: Theme.font; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
-                    Text { Layout.fillWidth: true; text: Studio.escenaArmada || "nada"; elide: Text.ElideRight
+                    Text { Layout.fillWidth: true; text: Studio.escenaArmada || qsTr("nada"); elide: Text.ElideRight
                            color: Studio.escenaArmada !== "" ? Theme.text : Theme.textFaint
                            font { family: Theme.font; pixelSize: 14; weight: Font.DemiBold } }
                 }
             }
             GlassButton {
-                text: "CUT"
+                text: qsTr("CUT")
                 enabled: Studio.escenaArmada !== ""
                 onClicked: Studio.takeCon("cut", 0)
-                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Corte seco a la armada (sin transición)"
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Corte seco a la armada (sin transición)")
             }
             GlassButton {
-                text: "AUTO"; active: true
+                text: qsTr("AUTO"); active: true
                 enabled: Studio.escenaArmada !== ""
                 onClicked: Studio.take()
-                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "TAKE con la transición (la de entrada de la escena o la global)"
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("TAKE con la transición (la de entrada de la escena o la global)")
             }
         }
         // --- T-bar: la transición a mano --------------------------------------------
@@ -148,7 +154,7 @@ Item {
             Layout.fillWidth: true
             spacing: 8
             enabled: Studio.escenaArmada !== ""
-            Text { text: "T-bar"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("T-bar"); color: Theme.textDim; font.pixelSize: 11 }
             Slider {
                 id: tbar
                 Layout.fillWidth: true
@@ -156,20 +162,20 @@ Item {
                 onMoved: Studio.tbar(value, false)
                 onPressedChanged: if (!pressed) { Studio.tbar(value, true); value = 0 }
             }
-            Text { text: "Entra con"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Entra con"); color: Theme.textDim; font.pixelSize: 11 }
             ComboBox {
                 id: entrada
                 implicitWidth: 120
                 readonly property var actual: Studio.escenaArmada !== "" ? Studio.transicionEntrada(Studio.escenaArmada) : ({})
-                model: [ { t: "la global", v: "" }, { t: "corte", v: "cut" }, { t: "fundido", v: "fade" },
-                         { t: "barrido", v: "swipe" }, { t: "deslizar", v: "slide" }, { t: "a color", v: "fade_to_color" } ]
+                model: [ { t: qsTr("la global"), v: "" }, { t: qsTr("corte"), v: "cut" }, { t: qsTr("fundido"), v: "fade" },
+                         { t: qsTr("barrido"), v: "swipe" }, { t: qsTr("deslizar"), v: "slide" }, { t: qsTr("a color"), v: "fade_to_color" } ]
                 textRole: "t"
                 currentIndex: Math.max(0, model.findIndex(o => o.v === (actual.tipo || "")))
                 onActivated: (i) => {
                     const e = Studio.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
                     if (e !== "") Studio.notify(e, "error")
                 }
-                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La transición con la que entra la escena armada"
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La transición con la que entra la escena armada")
             }
         }
 
@@ -178,26 +184,26 @@ Item {
             Layout.fillWidth: true
             spacing: 14
             StatusPill {
-                text: Studio.streaming ? "AL AIRE · " + Studio.streamTime : "fuera del aire"
+                text: Studio.streaming ? qsTr("AL AIRE · %1").arg(Studio.streamTime) : qsTr("fuera del aire")
                 dot: Studio.streaming ? Theme.live : Theme.textFaint
                 pulse: Studio.streaming
             }
             StatusPill {
                 visible: Studio.recording
-                text: "REC · " + Studio.recordTime
+                text: qsTr("REC · %1").arg(Studio.recordTime)
                 dot: Theme.live; pulse: true
             }
             Item { Layout.fillWidth: true }
             // Manejar las escenas desde una tablet o un celular (la Botonera «Director»).
             GlassButton {
-                compact: true; text: "QR de escenas"
+                compact: true; text: qsTr("QR de escenas")
                 onClicked: qrEscenas.open()
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "El QR para manejar las escenas desde una tablet o un celular"
+                ToolTip.text: qsTr("El QR para manejar las escenas desde una tablet o un celular")
             }
             Text {
                 visible: Studio.droppedFrames > 0
-                text: Studio.droppedFrames + " perdidos"
+                text: qsTr("%n perdido", "", Studio.droppedFrames)
                 color: Theme.amber; font.pixelSize: 11
             }
         }
@@ -221,18 +227,17 @@ Item {
                     compact: true; text: "◀"
                     enabled: parent.parent.enMarcha
                     onClicked: tarjeta.ev.retroceder()
-                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Volver al cue anterior"
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Volver al cue anterior")
                 }
                 GlassButton {
                     Layout.fillWidth: true
                     active: true
-                    text: parent.parent.enMarcha ? "Siguiente cue ▶" : (tarjeta.ev && tarjeta.ev.ensayo ? "Arrancar el ensayo" : "Arrancar el guion")
+                    text: parent.parent.enMarcha ? qsTr("Siguiente cue ▶") : (tarjeta.ev && tarjeta.ev.ensayo ? qsTr("Arrancar el ensayo") : qsTr("Arrancar el guion"))
                     onClicked: {
                         if (parent.parent.enMarcha) { tarjeta.ev.avanzar(); return }
                         // Con la revisión: si encontró algo grave no arranca y avisa.
                         const graves = tarjeta.ev.arrancarRevisando(false)
-                        if (graves > 0) Studio.notify("La revisión encontró " + graves + (graves === 1 ? " problema grave" : " problemas graves") +
-                                                      ": miralos en Guion del evento (ahí se puede arrancar igual).", "error")
+                        if (graves > 0) Studio.notify(qsTr("La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).", "", graves), "error")
                     }
                 }
                 GlassButton {
@@ -241,13 +246,13 @@ Item {
                     text: parent.parent.estado === "pausado" ? "⏵" : "⏸"
                     onClicked: parent.parent.estado === "pausado" ? tarjeta.ev.reanudar() : tarjeta.ev.pausar()
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: parent.parent.estado === "pausado" ? "Seguir (lo pausado no cuenta como atraso)" : "Pausar el guion"
+                    ToolTip.text: parent.parent.estado === "pausado" ? qsTr("Seguir (lo pausado no cuenta como atraso)") : qsTr("Pausar el guion")
                 }
                 GlassButton {
                     compact: true; text: "■"
                     enabled: parent.parent.enMarcha
                     onClicked: tarjeta.ev.parar()
-                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Terminar el guion (queda el informe de tiempos)"
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Terminar el guion (queda el informe de tiempos)")
                 }
             }
             // Los tiempos del guion entero.
@@ -257,25 +262,25 @@ Item {
                 columns: 3
                 columnSpacing: 10
                 rowSpacing: 0
-                Text { text: "LLEVA"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
-                Text { text: "VAS"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
-                Text { text: "TERMINA"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
+                Text { text: qsTr("LLEVA"); color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
+                Text { text: qsTr("VAS"); color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
+                Text { text: qsTr("TERMINA"); color: Theme.textFaint; font { pixelSize: 9; weight: Font.DemiBold; letterSpacing: 1 } }
                 Text {
                     text: tarjeta.mmss(tarjeta.reloj.transcurridoSeg || 0) + " / " + tarjeta.mmss(tarjeta.reloj.totalPrevistoSeg || 0)
                     color: Theme.text; font { family: "JetBrains Mono"; pixelSize: 14 }
-                    ToolTip.visible: llevaMa.containsMouse; ToolTip.text: "Lo que lleva el guion (sin las pausas) de lo previsto en total"
+                    ToolTip.visible: llevaMa.containsMouse; ToolTip.text: qsTr("Lo que lleva el guion (sin las pausas) de lo previsto en total")
                     MouseArea { id: llevaMa; anchors.fill: parent; hoverEnabled: true }
                 }
                 Text {
                     // El desvío: positivo = vas tarde, negativo = adelantado.
                     readonly property int d: tarjeta.reloj.desvioSeg || 0
-                    text: Math.abs(d) < 5 ? "en hora" : (d > 0 ? tarjeta.mmss(d) + " tarde" : tarjeta.mmss(-d) + " antes")
+                    text: Math.abs(d) < 5 ? qsTr("en hora") : (d > 0 ? qsTr("%1 tarde").arg(tarjeta.mmss(d)) : qsTr("%1 antes").arg(tarjeta.mmss(-d)))
                     color: d > 20 ? Theme.live : (d < -20 ? Theme.amber : Theme.ok)
                     font { family: "JetBrains Mono"; pixelSize: 14; weight: Font.DemiBold }
                 }
                 Text {
                     readonly property var r: tarjeta.reloj
-                    text: (r.horaFinPrevista || "—") + (r.horaFinPlaneada ? " (plan " + r.horaFinPlaneada + ")" : "")
+                    text: r.horaFinPlaneada ? qsTr("%1 (plan %2)").arg(r.horaFinPrevista || "—").arg(r.horaFinPlaneada) : (r.horaFinPrevista || "—")
                     color: r && r.backTimingSeg < 0 ? Theme.amber : Theme.text
                     font { family: "JetBrains Mono"; pixelSize: 14 }
                 }
@@ -301,14 +306,14 @@ Item {
                 readonly property string url: parent.enMarcha && tarjeta.ev.actual.tipo ? tarjeta.ev.enlaceDeCue(tarjeta.ev.actual.tipo) : ""
                 visible: url !== ""
                 compact: true
-                text: "Ver el teleprompter ↗"
+                text: qsTr("Ver el teleprompter ↗")
                 onClicked: Qt.openUrlExternally(url)
-                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La pantalla del orador en el navegador (" + url + ")"
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La pantalla del orador en el navegador (%1)").arg(url)
             }
             Text {
                 Layout.fillWidth: true
                 visible: parent.enMarcha
-                text: "sigue: " + (tarjeta.ev.siguiente.texto || "—") + "   ·   cue " + (tarjeta.reloj.cueNro || 0) + " de " + (tarjeta.reloj.cuesTotal || 0)
+                text: qsTr("sigue: %1   ·   cue %2 de %3").arg(tarjeta.ev.siguiente.texto || "—").arg(tarjeta.reloj.cueNro || 0).arg(tarjeta.reloj.cuesTotal || 0)
                 color: Theme.textDim; elide: Text.ElideRight; font.pixelSize: 12
             }
             RowLayout {
@@ -322,14 +327,14 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
-                    text: tarjeta.ev && tarjeta.ev.ensayo ? "Ensayo: recorre el guion sin sacar nada al aire"
-                                                          : "Ensayo apagado: los cues salen al aire de verdad"
+                    text: tarjeta.ev && tarjeta.ev.ensayo ? qsTr("Ensayo: recorre el guion sin sacar nada al aire")
+                                                          : qsTr("Ensayo apagado: los cues salen al aire de verdad")
                     color: tarjeta.ev && tarjeta.ev.ensayo ? Theme.amber : Theme.textFaint
                     font.pixelSize: 11
                 }
                 Text {
                     visible: parent.parent.estado === "pausado"
-                    text: "EN PAUSA"
+                    text: qsTr("EN PAUSA")
                     color: Theme.amber
                     font { pixelSize: 11; weight: Font.DemiBold }
                 }
@@ -340,7 +345,7 @@ Item {
         Text {
             Layout.fillWidth: true
             visible: !tarjeta.ev || tarjeta.ev.abierto === ""
-            text: "Sin guion abierto. Abrí uno en Guion del evento para manejarlo y ver los tiempos acá."
+            text: qsTr("Sin guion abierto. Abrí uno en Guion del evento para manejarlo y ver los tiempos acá.")
             color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
         }
     }

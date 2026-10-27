@@ -26,7 +26,7 @@ Window {
 
     // Para ventana_listar / ventana_captura (MCP).
     objectName: "ba:monitor:" + monitorId
-    title: "Broadcast Appliance — Monitor " + orden + ": " + titulo
+    title: qsTr("Broadcast Appliance — Monitor %1: %2").arg(orden).arg(titulo)
     color: "black"
     visibility: Window.Hidden
 
@@ -94,17 +94,17 @@ Window {
             spacing: 8
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Monitor " + w.orden + " · se cambia en Salidas → Pantallas"
+                text: qsTr("Monitor %1 · se cambia en Salidas → Pantallas").arg(w.orden)
                 color: Theme.textDim; font.pixelSize: 12
             }
             GlassButton {
                 compact: true
-                text: w.pantallaCompleta ? "Salir de pantalla completa" : "Pantalla completa"
+                text: w.pantallaCompleta ? qsTr("Salir de pantalla completa") : qsTr("Pantalla completa")
                 active: w.pantallaCompleta
                 onClicked: Studio.pantallasConectadas.setPantallaCompleta(w.monitorId, !w.pantallaCompleta)
             }
             GlassButton {
-                compact: true; text: "Quitar"; icon: "✕"
+                compact: true; text: qsTr("Quitar"); icon: "✕"
                 onClicked: Studio.pantallasConectadas.quitar(w.monitorId)
             }
         }

@@ -206,18 +206,18 @@ Window {
             if (monitorId === "") return
             const err = Studio.pantallasConectadas.asignar(monitorId, w.cosas, true)
             if (err !== "") { Studio.notify(err, "warn"); return }
-            Studio.notify("«" + w.titulo + "» quedó fijo en ese monitor (Salidas → Pantallas).", "ok")
+            Studio.notify(qsTr("«%1» quedó fijo en ese monitor (Salidas → Pantallas).").arg(w.titulo), "ok")
             w.close()
         }
         extras: [
             GlassButton {
-                compact: true; visible: vista.muro; text: "Distribución"
+                compact: true; visible: vista.muro; text: qsTr("Distribución")
                 onClicked: menuDistribucion.popup()
                 Menu {
                     id: menuDistribucion
                     ItemsDeMenu {
                         menu: menuDistribucion
-                        model: [ { id: "grid", t: "Cuadrícula" }, { id: "focus", t: "Foco" }, { id: "pip", t: "Imagen en imagen" }, { id: "row", t: "Fila" } ]
+                        model: [ { id: "grid", t: qsTr("Cuadrícula") }, { id: "focus", t: qsTr("Foco") }, { id: "pip", t: qsTr("Imagen en imagen") }, { id: "row", t: qsTr("Fila") } ]
                         delegate: MenuItem {
                             required property var modelData
                             text: modelData.t; checkable: true; checked: w.distribucion === modelData.id
@@ -229,7 +229,7 @@ Window {
             // Qué multivista muestra esta ventana (las de la página Multiview).
             GlassButton {
                 compact: true; visible: w.esMultiview; icon: "▥"
-                text: w.cosa ? w.cosa.titulo : "Multivista"
+                text: w.cosa ? w.cosa.titulo : qsTr("Multivista")
                 onClicked: menuVista.popup()
                 Menu {
                     id: menuVista

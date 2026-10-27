@@ -16,7 +16,7 @@ import BA
 
 Panel {
     id: sec
-    title: "Pantallas conectadas"
+    title: qsTr("Pantallas conectadas")
     readonly property var m: Studio.pantallasConectadas
     property string elegido: ""
 
@@ -24,8 +24,8 @@ Panel {
     Text {
         parent: sec
         anchors { right: parent.right; top: parent.top; rightMargin: 18; topMargin: 16 }
-        text: sec.m.conectados + (sec.m.conectados === 1 ? " monitor" : " monitores") +
-              (sec.m.esperando > 0 ? " · " + sec.m.esperando + " esperando que aparezca" + (sec.m.esperando === 1 ? "" : "n") : "")
+        text: qsTr("%n monitor", "", sec.m.conectados) +
+              (sec.m.esperando > 0 ? " · " + qsTr("%n esperando que aparezca", "", sec.m.esperando) : "")
         color: sec.m.esperando > 0 ? Theme.warn : Theme.textDim
         font.pixelSize: 11
     }
@@ -86,10 +86,10 @@ Panel {
             }
             GlassButton {
                 anchors { left: parent.left; bottom: parent.bottom }
-                compact: true; text: "Identificar"; icon: "⧉"
+                compact: true; text: qsTr("Identificar"); icon: "⧉"
                 onClicked: Studio.identificarPantallas()
                 ToolTip.visible: hovered
-                ToolTip.text: "Muestra en cada monitor su número y su nombre, unos segundos"
+                ToolTip.text: qsTr("Muestra en cada monitor su número y su nombre, unos segundos")
             }
         }
 
@@ -137,15 +137,15 @@ Panel {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: fila.conectado
-                                  ? fila.geometria.width + "×" + fila.geometria.height + (fila.principal ? " · principal" : "")
-                                  : "no está: se lo espera (su contenido no va a otro monitor)"
+                                  ? fila.geometria.width + "×" + fila.geometria.height + (fila.principal ? " · " + qsTr("principal") : "")
+                                  : qsTr("no está: se lo espera (su contenido no va a otro monitor)")
                             color: fila.conectado ? Theme.textFaint : Theme.warn
                             font.pixelSize: 11
                         }
                     }
                     Text {
                         width: parent.width
-                        text: fila.titulo !== "" ? "Muestra: " + fila.titulo : "No muestra nada"
+                        text: fila.titulo !== "" ? qsTr("Muestra: %1").arg(fila.titulo) : qsTr("No muestra nada")
                         color: fila.titulo !== "" ? Theme.accentSoft : Theme.textFaint
                         font.pixelSize: 11; elide: Text.ElideRight
                     }
@@ -161,18 +161,18 @@ Panel {
                             Component.onCompleted: if (fila.cosas.length > 0) currentIndex = Math.max(0, indexOfValue(fila.cosas[0]))
                         }
                         GlassButton {
-                            compact: true; text: "Poner"; active: true
+                            compact: true; text: qsTr("Poner"); active: true
                             enabled: que.currentValue !== undefined && que.currentValue !== ""
                             onClicked: sec.chequear(sec.m.asignar(fila.monitorId, [que.currentValue], fila.pantallaCompleta))
-                            ToolTip.visible: hovered; ToolTip.text: "Que este monitor muestre solo esto"
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Que este monitor muestre solo esto")
                         }
                         GlassButton {
-                            compact: true; text: "Sumar"; icon: "+"
+                            compact: true; text: qsTr("Sumar"); icon: "+"
                             enabled: fila.cosas.length > 0 && que.currentValue !== undefined && fila.cosas.indexOf(que.currentValue) < 0
                             onClicked: sec.chequear(sec.m.asignar(fila.monitorId, Array.from(fila.cosas).concat([que.currentValue]), fila.pantallaCompleta))
-                            ToolTip.visible: hovered; ToolTip.text: "Agregarlo a lo que ya muestra: van en grilla"
+                            ToolTip.visible: hovered; ToolTip.text: qsTr("Agregarlo a lo que ya muestra: van en grilla")
                         }
-                        Text { anchors.verticalCenter: parent.verticalCenter; text: "Pantalla completa"; color: Theme.textDim; font.pixelSize: 11 }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Pantalla completa"); color: Theme.textDim; font.pixelSize: 11 }
                         Toggle {
                             anchors.verticalCenter: parent.verticalCenter
                             checked: fila.pantallaCompleta
@@ -181,7 +181,7 @@ Panel {
                         GlassButton {
                             compact: true
                             visible: fila.cosas.length > 0
-                            text: fila.conectado ? "Quitar" : "Olvidar"
+                            text: fila.conectado ? qsTr("Quitar") : qsTr("Olvidar")
                             onClicked: sec.chequear(fila.conectado ? sec.m.quitar(fila.monitorId) : sec.m.olvidar(fila.monitorId))
                         }
                     }
@@ -190,7 +190,7 @@ Panel {
             Text {
                 anchors.centerIn: parent
                 visible: lista.count === 0
-                text: "El sistema no informó ningún monitor."
+                text: qsTr("El sistema no informó ningún monitor.")
                 color: Theme.textFaint; font.pixelSize: 12
             }
         }

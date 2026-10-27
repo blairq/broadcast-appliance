@@ -32,6 +32,12 @@ Dialog {
         "naranja": "#ea580c", "violeta": "#9333ea", "rosa": "#db2777", "celeste": "#0891b2",
         "gris": "#4b5563"
     })
+    /// Cómo se llama cada color en la pantalla (la clave de arriba es la del MCP y no se traduce).
+    readonly property var etiquetasColor: ({
+        "verde": qsTr("verde"), "azul": qsTr("azul"), "rojo": qsTr("rojo"), "amarillo": qsTr("amarillo"),
+        "naranja": qsTr("naranja"), "violeta": qsTr("violeta"), "rosa": qsTr("rosa"), "celeste": qsTr("celeste"),
+        "gris": qsTr("gris")
+    })
     readonly property color colorQr: dlg.colores[dlg.colorNombre] !== undefined ? dlg.colores[dlg.colorNombre]
                                      : (/^#[0-9a-fA-F]{6}$/.test(dlg.colorNombre) ? dlg.colorNombre : "#16a34a")
     readonly property string nombreColor: dlg.colores[dlg.colorNombre] !== undefined ? dlg.colorNombre : ""
@@ -59,7 +65,7 @@ Dialog {
                 spacing: 2
                 Text {
                     visible: dlg.nombreColor !== ""
-                    text: "QR " + dlg.nombreColor.toUpperCase()
+                    text: qsTr("QR %1").arg((dlg.etiquetasColor[dlg.nombreColor] || dlg.nombreColor).toUpperCase())
                     color: "white"
                     font { pixelSize: 12; weight: Font.DemiBold; letterSpacing: 1.2 }
                 }
@@ -67,7 +73,7 @@ Dialog {
                     id: descCampo
                     Layout.fillWidth: true
                     text: dlg.descripcion
-                    placeholderText: "Descripción: qué es este QR (p. ej. «Enlace para los invitados»)"
+                    placeholderText: qsTr("Descripción: qué es este QR (p. ej. «Enlace para los invitados»)")
                     placeholderTextColor: Qt.rgba(1, 1, 1, 0.7)
                     color: "white"
                     font { pixelSize: 20; weight: Font.DemiBold }
@@ -111,7 +117,7 @@ Dialog {
         }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Escanealo con el celular, o copialo."
+            text: qsTr("Escanealo con el celular, o copialo.")
             color: Theme.textFaint
             font.pixelSize: 11
         }
@@ -137,7 +143,7 @@ Dialog {
         RowLayout {
             Layout.leftMargin: 14; Layout.rightMargin: 14
             spacing: 6
-            Text { text: "Color:"; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("Color:"); color: Theme.textDim; font.pixelSize: 12 }
             Repeater {
                 model: Object.keys(dlg.colores)
                 delegate: Rectangle {
@@ -146,7 +152,7 @@ Dialog {
                     color: dlg.colores[modelData]
                     border.color: dlg.colorNombre === modelData ? "white" : "transparent"
                     border.width: 2
-                    ToolTip.visible: chipMa.containsMouse; ToolTip.text: modelData; ToolTip.delay: 300
+                    ToolTip.visible: chipMa.containsMouse; ToolTip.text: dlg.etiquetasColor[modelData] || modelData; ToolTip.delay: 300
                     MouseArea { id: chipMa; anchors.fill: parent; hoverEnabled: true; onClicked: dlg.colorNombre = modelData }
                 }
             }
@@ -157,17 +163,17 @@ Dialog {
             spacing: 10
             Item { Layout.fillWidth: true }
             GlassButton {
-                text: dlg.copiado ? "Copiado ✓" : "Copiar al portapapeles"
+                text: dlg.copiado ? qsTr("Copiado ✓") : qsTr("Copiar al portapapeles")
                 icon: "⧉"
                 active: true
                 onClicked: { Studio.copiar(dlg.texto); dlg.copiado = true }
             }
             GlassButton {
                 visible: /^https?:\/\//.test(dlg.texto)
-                text: "Abrir"
+                text: qsTr("Abrir")
                 onClicked: Qt.openUrlExternally(dlg.texto)
             }
-            GlassButton { text: "Cerrar"; onClicked: dlg.close() }
+            GlassButton { text: qsTr("Cerrar"); onClicked: dlg.close() }
         }
     }
 }

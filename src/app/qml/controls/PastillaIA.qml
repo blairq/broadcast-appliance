@@ -32,10 +32,10 @@ StatusPill {
     }
     ToolTip.visible: ma.containsMouse && !menuIA.visible
     ToolTip.delay: 400
-    ToolTip.text: p.total === 0 ? "La asistencia con IA está andando entera"
-                                : "Inteligencia artificial: " + (p.errores > 0 ? p.errores + " sin andar" : "")
-                                  + (p.errores > 0 && p.avisos > 0 ? ", " : "") + (p.avisos > 0 ? p.avisos + " para revisar" : "")
-                                  + " (clic: qué y dónde se arregla)"
+    ToolTip.text: p.total === 0 ? qsTr("La asistencia con IA está andando entera")
+                                : qsTr("Inteligencia artificial: %1 (clic: qué y dónde se arregla)")
+                                  .arg([p.errores > 0 ? qsTr("%n sin andar", "", p.errores) : "",
+                                        p.avisos > 0 ? qsTr("%n para revisar", "", p.avisos) : ""].filter(x => x !== "").join(", "))
 
     Menu {
         id: menuIA
@@ -44,7 +44,7 @@ StatusPill {
             id: tituloProblemas
             enabled: false
             contentItem: Text {
-                text: p.total === 0 ? "Inteligencia artificial: todo andando" : "Inteligencia artificial: qué falta"
+                text: p.total === 0 ? qsTr("Inteligencia artificial: todo andando") : qsTr("Inteligencia artificial: qué falta")
                 color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
             }
         }
@@ -81,7 +81,7 @@ StatusPill {
         MenuItem {
             visible: p.total > 0
             height: visible ? implicitHeight : 0
-            text: "Pedirle al asistente que me guíe"
+            text: qsTr("Pedirle al asistente que me guíe")
             enabled: !!Studio.agent && Studio.agent.running
             onTriggered: ApplicationWindow.window.pedirAlAsistente(
                 "Ayudame a poner en marcha lo que falta de la inteligencia artificial: mirá ia_estado y seguí la guía puesta-en-marcha, de a un paso.")

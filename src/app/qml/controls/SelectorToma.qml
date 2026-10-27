@@ -29,9 +29,9 @@ RowLayout {
         id: cam
         Layout.preferredWidth: sel.anchoCamara
         font.pixelSize: 11
-        model: ["— sin toma —"].concat(sel.camaras)
+        model: [qsTr("— sin toma —")].concat(sel.camaras)
         currentIndex: sel.camara === "" ? 0 : Math.max(0, sel.camaras.indexOf(sel.camara) + 1)
-        displayText: sel.camara !== "" && sel.camaras.indexOf(sel.camara) < 0 ? sel.camara + " (no está)" : currentText
+        displayText: sel.camara !== "" && sel.camaras.indexOf(sel.camara) < 0 ? qsTr("%1 (no está)").arg(sel.camara) : currentText
         onActivated: (i) => {
             if (i === 0) { sel.elegido("", ""); return }
             sel.camara = sel.camaras[i - 1]
@@ -48,7 +48,7 @@ RowLayout {
         model: sel.posiciones
         currentIndex: sel.posiciones.indexOf(sel.posicion)
         displayText: sel.posicion !== "" && sel.posiciones.indexOf(sel.posicion) < 0
-                     ? sel.posicion + " (no está)" : (currentIndex < 0 ? "elegí la posición" : currentText)
+                     ? qsTr("%1 (no está)").arg(sel.posicion) : (currentIndex < 0 ? qsTr("elegí la posición") : currentText)
         onActivated: (i) => sel.elegido(sel.camara, sel.posiciones[i])
     }
 }

@@ -59,8 +59,8 @@ ColumnLayout {
         visible: !vg.hay
         wrapMode: Text.WordWrap
         color: Theme.textFaint; font.pixelSize: 12
-        text: vg.ctl ? "No hay grillas de personas. Se agregan en Escenas → Agregar → Grilla de personas."
-                     : "La grilla de personas todavía no arrancó."
+        text: vg.ctl ? qsTr("No hay grillas de personas. Se agregan en Escenas → Agregar → Grilla de personas.")
+                     : qsTr("La grilla de personas todavía no arrancó.")
     }
 
     Repeater {
@@ -91,7 +91,7 @@ ColumnLayout {
                     implicitWidth: 8; implicitHeight: 8; radius: 4
                     color: fila.datos.al_aire ? Theme.live : Theme.textFaint
                     ToolTip.visible: puntoMa.containsMouse; ToolTip.delay: 300
-                    ToolTip.text: fila.datos.al_aire ? "Se ve en el programa" : "No está al aire"
+                    ToolTip.text: fila.datos.al_aire ? qsTr("Se ve en el programa") : qsTr("No está al aire")
                     MouseArea { id: puntoMa; anchors.fill: parent; hoverEnabled: true }
                 }
                 Text {
@@ -106,9 +106,9 @@ ColumnLayout {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                     color: Theme.textDim; font.pixelSize: 12
-                    text: (fila.datos.al_aire ? "al aire · " : "") + caras.count + (caras.count === 1 ? " persona" : " personas")
-                          + (fila.datos.mas > 0 ? " · +" + fila.datos.mas + " afuera" : "")
-                          + (fila.datos.grupo ? " · grupo «" + fila.datos.grupo + "»" : "")
+                    text: (fila.datos.al_aire ? qsTr("al aire") + " · " : "") + qsTr("%n persona", "", caras.count)
+                          + (fila.datos.mas > 0 ? " · " + qsTr("+%1 afuera").arg(fila.datos.mas) : "")
+                          + (fila.datos.grupo ? " · " + qsTr("grupo «%1»").arg(fila.datos.grupo) : "")
                 }
             }
             Text {
@@ -123,7 +123,7 @@ ColumnLayout {
                 visible: caras.count === 0
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 12
-                text: "Nadie por ahora: entran los admitidos de la Conferencia y los integrantes habilitados de la Asamblea, según los ajustes."
+                text: qsTr("Nadie por ahora: entran los admitidos de la Conferencia y los integrantes habilitados de la Asamblea, según los ajustes.")
             }
             Flow {
                 Layout.fillWidth: true
@@ -165,7 +165,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: !vg.compacta && sacados.count > 0
                 spacing: 6
-                Text { text: "Sacados:"; color: Theme.textFaint; font.pixelSize: 11; height: 24; verticalAlignment: Text.AlignVCenter }
+                Text { text: qsTr("Sacados:"); color: Theme.textFaint; font.pixelSize: 11; height: 24; verticalAlignment: Text.AlignVCenter }
                 Repeater {
                     model: sacados
                     delegate: GlassButton {
@@ -174,7 +174,7 @@ ColumnLayout {
                         compact: true
                         text: nombre + "  ↺"
                         ToolTip.visible: hovered; ToolTip.delay: 300
-                        ToolTip.text: "Devolver a «" + nombre + "» a esta grilla (vuelve a lo automático)"
+                        ToolTip.text: qsTr("Devolver a «%1» a esta grilla (vuelve a lo automático)").arg(nombre)
                         onClicked: vg.avisar(vg.ctl.devolverQml(fila.fuente, clave))
                     }
                 }
@@ -192,19 +192,19 @@ ColumnLayout {
                     property string elegido: ""
                     readonly property var opciones: vg.gente.filter(p => !fila.personas.some(x => x.clave === p.clave))
                                                     .map(p => ({ clave: p.clave, texto: (p.nombre || p.clave)
-                                                                 + (p.origen === "asamblea" ? " (asamblea)" : "")
-                                                                 + (p.al_aire ? " · al aire" : "") }))
+                                                                 + (p.origen === "asamblea" ? " " + qsTr("(asamblea)") : "")
+                                                                 + (p.al_aire ? " · " + qsTr("al aire") : "") }))
                     readonly property var opcionElegida: opciones.find(o => o.clave === elegido)
                     model: opciones
                     textRole: "texto"
                     currentIndex: -1
                     enabled: opciones.length > 0
                     onActivated: (i) => elegido = opciones[i] ? opciones[i].clave : ""
-                    displayText: opciones.length === 0 ? "Están todos los conectados"
-                                 : opcionElegida ? opcionElegida.texto : "Fijar a alguien acá…"
+                    displayText: opciones.length === 0 ? qsTr("Están todos los conectados")
+                                 : opcionElegida ? opcionElegida.texto : qsTr("Fijar a alguien acá…")
                 }
                 GlassButton {
-                    compact: true; text: "Fijar"; active: true
+                    compact: true; text: qsTr("Fijar"); active: true
                     enabled: !!sumar.opcionElegida
                     onClicked: {
                         vg.avisar(vg.ctl.fijarQml(fila.fuente, sumar.elegido))
@@ -228,17 +228,17 @@ ColumnLayout {
         MenuItem { enabled: false; text: menuCara.nombre }
         MenuSeparator {}
         MenuItem {
-            text: menuCara.fijo ? "Soltar (vuelve a lo automático)" : "Fijar en esta grilla"
+            text: menuCara.fijo ? qsTr("Soltar (vuelve a lo automático)") : qsTr("Fijar en esta grilla")
             onTriggered: vg.avisar(menuCara.fijo ? vg.ctl.devolverQml(menuCara.fuente, menuCara.clave)
                                                  : vg.ctl.fijarQml(menuCara.fuente, menuCara.clave))
         }
         MenuItem {
-            text: "Sacar de esta grilla"
+            text: qsTr("Sacar de esta grilla")
             onTriggered: vg.avisar(vg.ctl.sacarQml(menuCara.fuente, menuCara.clave))
         }
         Menu {
             id: menuMover
-            title: "Mover a"
+            title: qsTr("Mover a")
             enabled: menuCara.otras.length > 0
             ItemsDeMenu {
                 menu: menuMover

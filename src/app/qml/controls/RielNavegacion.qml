@@ -396,7 +396,7 @@ Item {
                                         ToolTip.visible: navMa.containsMouse
                                         ToolTip.text: riel.abierta
                                                       ? celda.modelData.tip
-                                                      : celda.modelData.tip + "\n(clic derecho: sacar a su propia ventana)"
+                                                      : qsTr("%1\n(clic derecho: sacar a su propia ventana)").arg(celda.modelData.tip)
                                         ToolTip.delay: riel.abierta ? 900 : 400
                                     }
                                 }
@@ -474,10 +474,10 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     // Clic derecho: a su propia ventana, como los botones de la tira.
-                    onClicked: (m) => m.button === Qt.RightButton ? riel.sacada(7, "Asistente") : riel.elegida(7)
+                    onClicked: (m) => m.button === Qt.RightButton ? riel.sacada(7, qsTr("Asistente")) : riel.elegida(7)
                 }
                 ToolTip.visible: aiMa.containsMouse && !riel.abierta
-                ToolTip.text: "Asistente (chat con la IA que maneja la app)\n(clic derecho: sacar a su propia ventana)"
+                ToolTip.text: qsTr("Asistente (chat con la IA que maneja la app)\n(clic derecho: sacar a su propia ventana)")
                 ToolTip.delay: 400
             }
             Text {
@@ -485,7 +485,7 @@ Item {
                           verticalCenter: parent.verticalCenter }
                 visible: riel.abierta && riel.vert
                 opacity: riel.abierta ? 1 : 0
-                text: Studio.agent.running ? "Asistente · corriendo" : "Asistente"
+                text: Studio.agent.running ? qsTr("Asistente · corriendo") : qsTr("Asistente")
                 color: Theme.text
                 elide: Text.ElideRight
                 font { family: Theme.font; pixelSize: 13; weight: Font.DemiBold }
@@ -512,9 +512,9 @@ Item {
 
                 Repeater {
                     model: [
-                        { on: Studio.streaming, c: Theme.live,   si: "Al aire",       no: "Fuera del aire" },
-                        { on: Studio.recording, c: Theme.accent, si: "Grabando",      no: "Sin grabar" },
-                        { on: Studio.gatewayAlive, c: Theme.ok,  si: "Conferencia en línea", no: "Conferencia sin conexión" }
+                        { on: Studio.streaming, c: Theme.live,   si: qsTr("Al aire"),       no: qsTr("Fuera del aire") },
+                        { on: Studio.recording, c: Theme.accent, si: qsTr("Grabando"),      no: qsTr("Sin grabar") },
+                        { on: Studio.gatewayAlive, c: Theme.ok,  si: qsTr("Conferencia en línea"), no: qsTr("Conferencia sin conexión") }
                     ]
                     delegate: Item {
                         id: luz

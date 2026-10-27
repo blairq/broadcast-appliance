@@ -35,7 +35,7 @@ Item {
 
     FileDialog {
         id: otro
-        title: "Un PDF para mostrar"
+        title: qsTr("Un PDF para mostrar")
         nameFilters: ["PDF (*.pdf)"]
         onAccepted: tarjeta.ok(tarjeta.pe.elegirArchivo(tarjeta.f ? tarjeta.f.nombre : "", selectedFile.toString()))
     }
@@ -50,12 +50,12 @@ Item {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
-            text: "No hay ninguna fuente PDF en las escenas. Armá una escena para mostrar PDF: se elige el documento acá y se pasan las páginas."
+            text: qsTr("No hay ninguna fuente PDF en las escenas. Armá una escena para mostrar PDF: se elige el documento acá y se pasan las páginas.")
             color: Theme.textFaint; font.pixelSize: 12
         }
         GlassButton {
             Layout.alignment: Qt.AlignHCenter
-            icon: "+"; text: "Armar la escena «PDF»"; active: true
+            icon: "+"; text: qsTr("Armar la escena «%1»").arg("PDF"); active: true
             onClicked: tarjeta.ok(tarjeta.pe.crearEscena("PDF"))
         }
     }
@@ -68,7 +68,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             visible: tarjeta.fuentes.length > 1
-            Text { text: "Fuente"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: qsTr("Fuente"); color: Theme.textDim; font.pixelSize: 11 }
             ComboBox {
                 Layout.fillWidth: true
                 model: tarjeta.fuentes.map(x => x.nombre)
@@ -98,7 +98,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
-                                text: tarjeta.f ? (tarjeta.f.titulo || "Elegí un PDF de la lista") : ""
+                                text: tarjeta.f ? (tarjeta.f.titulo || qsTr("Elegí un PDF de la lista")) : ""
                                 color: tarjeta.f && tarjeta.f.titulo ? Theme.text : Theme.textFaint
                                 font { pixelSize: 14; weight: Font.DemiBold }
                             }
@@ -117,7 +117,7 @@ Item {
                             Text {
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
-                                text: tarjeta.f && tarjeta.f.paginas > 0 ? "Página " + tarjeta.f.pagina + " de " + tarjeta.f.paginas : "—"
+                                text: tarjeta.f && tarjeta.f.paginas > 0 ? qsTr("Página %1 de %2").arg(tarjeta.f.pagina).arg(tarjeta.f.paginas) : "—"
                                 color: Theme.text
                                 font { family: Theme.mono; pixelSize: 16; weight: Font.DemiBold }
                             }
@@ -131,7 +131,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
                     enabled: !!tarjeta.f && tarjeta.f.paginas > 0
-                    Text { text: "Zoom"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Zoom"); color: Theme.textDim; font.pixelSize: 11 }
                     Slider {
                         id: zoom
                         Layout.fillWidth: true
@@ -146,9 +146,9 @@ Item {
                         Layout.preferredWidth: 36
                     }
                     GlassButton {
-                        compact: true; text: "Entera"
+                        compact: true; text: qsTr("Entera")
                         onClicked: tarjeta.ok(tarjeta.pe.encuadre(tarjeta.f.nombre, 1, 0.5, 0.5))
-                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La página entera, sin zoom"
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La página entera, sin zoom")
                     }
                 }
             }
@@ -173,7 +173,7 @@ Item {
                 }
                 Text {
                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: 2 }
-                    text: pad.activo ? "mover · rueda: zoom" : "rueda: zoom"
+                    text: pad.activo ? qsTr("mover · rueda: zoom") : qsTr("rueda: zoom")
                     color: Theme.textFaint; font.pixelSize: 9
                 }
                 Timer {
@@ -208,8 +208,8 @@ Item {
         // Los PDF del evento, para elegir.
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: "Documentación del evento"; color: Theme.textDim; font.pixelSize: 11 }
-            GlassButton { compact: true; text: "Otro PDF…"; enabled: !!tarjeta.f; onClicked: otro.open() }
+            Text { Layout.fillWidth: true; text: qsTr("Documentación del evento"); color: Theme.textDim; font.pixelSize: 11 }
+            GlassButton { compact: true; text: qsTr("Otro PDF…"); enabled: !!tarjeta.f; onClicked: otro.open() }
         }
         ListView {
             id: lista
@@ -227,7 +227,7 @@ Item {
                 width: parent.width - 20
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
-                text: "Sin PDF en la documentación del evento: agregalos en Guion del evento → Documentos, o usá «Otro PDF…»."
+                text: qsTr("Sin PDF en la documentación del evento: agregalos en Guion del evento → Documentos, o usá «Otro PDF…».")
                 color: Theme.textFaint; font.pixelSize: 11
             }
             delegate: Rectangle {
@@ -261,7 +261,7 @@ Item {
                         elide: Text.ElideRight
                     }
                     Text {
-                        text: modelData.paginas + " pág."
+                        text: qsTr("%1 pág.").arg(modelData.paginas)
                         color: Theme.textFaint; font.pixelSize: 9
                     }
                 }
@@ -271,7 +271,7 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: { tarjeta.forceActiveFocus(); tarjeta.ok(tarjeta.pe.elegir(tarjeta.f ? tarjeta.f.nombre : "", modelData.id)) }
-                    ToolTip.visible: containsMouse; ToolTip.delay: 500; ToolTip.text: "Mostrar «" + modelData.titulo + "» (desde la página 1)"
+                    ToolTip.visible: containsMouse; ToolTip.delay: 500; ToolTip.text: qsTr("Mostrar «%1» (desde la página 1)").arg(modelData.titulo)
                 }
             }
         }

@@ -18,7 +18,7 @@ ApplicationWindow {
         width: avisoTest.implicitWidth + 24; height: 20; radius: 4
         color: "#c62828"
         Text { id: avisoTest; anchors.centerIn: parent; color: "white"; font.pixelSize: 11; font.bold: true
-               text: "MODO PRUEBA (--test): el asistente actúa SIN pedir aprobación, ni siquiera en el aire" }
+               text: qsTr("MODO PRUEBA (--test): el asistente actúa SIN pedir aprobación, ni siquiera en el aire") }
     }
     // El disco en apuros (controls/AvisoDisco.qml): arriba y a la vista desde cualquier página.
     AvisoDisco {
@@ -83,27 +83,29 @@ ApplicationWindow {
         id: desbloqueo
         property int pagina: 0
         property string idPagina: ""
+        // La palabra que hay que escribir sale en el idioma del operador (se compara con ella misma).
+        readonly property string palabra: qsTr("CONFIRMAR", "palabra que se escribe para entrar a una página protegida")
         anchors.centerIn: parent
         width: 440
         modal: true
-        title: "Estamos en vivo"
+        title: qsTr("Estamos en vivo")
         onOpened: { confirmarF.text = ""; motivoF.text = ""; confirmarF.forceActiveFocus() }
         contentItem: ColumnLayout {
             spacing: 8
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: "«" + Studio.riel.tituloDePagina(desbloqueo.pagina) + "» tiene cosas que pueden cortar el aire. " +
-                      "Para entrar escribí CONFIRMAR y por qué (queda en el registro)."
+                text: qsTr("«%1» tiene cosas que pueden cortar el aire. Para entrar escribí %2 y por qué (queda en el registro).")
+                      .arg(Studio.riel.tituloDePagina(desbloqueo.pagina)).arg(desbloqueo.palabra)
                 color: Theme.text; font.pixelSize: 13
             }
-            TextField { id: confirmarF; Layout.fillWidth: true; placeholderText: "CONFIRMAR"; color: Theme.text }
-            TextField { id: motivoF; Layout.fillWidth: true; placeholderText: "Motivo (p. ej. cambiar la conferencia de los invitados)"; color: Theme.text }
+            TextField { id: confirmarF; Layout.fillWidth: true; placeholderText: desbloqueo.palabra; color: Theme.text }
+            TextField { id: motivoF; Layout.fillWidth: true; placeholderText: qsTr("Motivo (p. ej. cambiar la conferencia de los invitados)"); color: Theme.text }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: desbloqueo.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: desbloqueo.close() }
                 GlassButton {
-                    compact: true; text: "Entrar"; active: true
-                    enabled: confirmarF.text.trim().toUpperCase() === "CONFIRMAR" && motivoF.text.trim().length >= 3
+                    compact: true; text: qsTr("Entrar"); active: true
+                    enabled: confirmarF.text.trim().toUpperCase() === desbloqueo.palabra.toUpperCase() && motivoF.text.trim().length >= 3
                     onClicked: {
                         Studio.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
                         desbloqueo.close()
@@ -132,11 +134,11 @@ ApplicationWindow {
     function askClose() {
         if (quitting) return
         confirm({
-            title: "¿Cerrar Broadcast Appliance?",
+            title: qsTr("¿Cerrar Broadcast Appliance?"),
             text: Studio.impactoDeCerrar.hay ? Studio.avisoDeCerrar("")
-                  : "Se cierran la conferencia, las salidas y los asistentes.",
-            accept: "Cerrar",
-            reject: "Cancelar",
+                  : qsTr("Se cierran la conferencia, las salidas y los asistentes."),
+            accept: qsTr("Cerrar"),
+            reject: qsTr("Cancelar"),
             action: function() { win.quitting = true; Qt.quit() }
         })
     }
@@ -158,10 +160,10 @@ ApplicationWindow {
     function abrirDescargas() { descargasDlg.open() }
     function confirmStopStream() {
         confirm({
-            title: "¿Cortar la transmisión?",
-            text: "La emisión en vivo se va a detener.",
-            accept: "Cortar",
-            reject: "Cancelar",
+            title: qsTr("¿Cortar la transmisión?"),
+            text: qsTr("La emisión en vivo se va a detener."),
+            accept: qsTr("Cortar"),
+            reject: qsTr("Cancelar"),
             action: function() { Studio.stopStreaming() }
         })
     }
@@ -171,18 +173,18 @@ ApplicationWindow {
         function onNotify(message, level) { toasts.show(message, level) }
         function onPedirConfirmarGrabacion(horas) {
             confirm({
-                title: "Queda muy poco disco",
-                text: "Alcanza para ~" + Math.round(horas * 60) + " minutos de grabación a este bitrate. ¿Grabar igual?",
-                accept: "Grabar igual", reject: "Cancelar",
+                title: qsTr("Queda muy poco disco"),
+                text: qsTr("Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?", "", Math.round(horas * 60)),
+                accept: qsTr("Grabar igual"), reject: qsTr("Cancelar"),
                 action: function() { Studio.grabarIgual() }
             })
         }
         // Ya al aire y se pidió otro destino: nunca se cambia sin preguntar.
         function onPedirCambioDestino(actual, nuevoServer, nuevoKey) {
             confirm({
-                title: "Ya estás transmitiendo",
-                text: "Sale a " + actual + ". ¿Cambiar a " + nuevoServer + "? La transmisión se corta un instante.",
-                accept: "Cambiar de destino", reject: "Seguir como está",
+                title: qsTr("Ya estás transmitiendo"),
+                text: qsTr("Sale a %1. ¿Cambiar a %2? La transmisión se corta un instante.").arg(actual).arg(nuevoServer),
+                accept: qsTr("Cambiar de destino"), reject: qsTr("Seguir como está"),
                 action: function() { Studio.cambiarDestinoStream(nuevoServer, nuevoKey) }
             })
         }
@@ -323,9 +325,9 @@ ApplicationWindow {
     /// al frente en vez de abrir otra igual.
     function sacar(itemId) {
         const c = Studio.catalogo.porId[itemId]
-        if (!c || !c.local) { toasts.show("«" + Studio.catalogo.tituloDe(itemId) + "» no se puede abrir en una ventana", "warn"); return }
+        if (!c || !c.local) { toasts.show(qsTr("«%1» no se puede abrir en una ventana").arg(Studio.catalogo.tituloDe(itemId)), "warn"); return }
         if (afuera(itemId) && c.dibujo.modo !== "video" && c.dibujo.modo !== "multiview")
-            toasts.show("«" + c.titulo + "» ya está en su ventana", "info")
+            toasts.show(qsTr("«%1» ya está en su ventana").arg(c.titulo), "info")
         Studio.ventanas.abrir([itemId], "")
     }
     /// ¿La cosa `itemId` está en su propia ventana? (Enlazado: el modelo avisa.)
@@ -446,23 +448,23 @@ ApplicationWindow {
     // estando ahi. Son los que antes vivian adentro de cada pagina.
     function sugerenciasDePagina(i) {
         switch (i) {
-        case 0: return [ { t: "¿Como venimos?", p: "Deci en dos lineas como esta todo ahora: aire, grabacion, conferencia y alertas." },
-                         { t: "Revisar antes de salir", p: "Revisa todo lo que conviene mirar antes de salir al aire y deci que esta mal." } ]
-        case 1: return [ { t: "Escena nueva", p: "Arma una escena nueva parecida a la que esta al aire y deci como te quedo." },
-                         { t: "¿Que hay en esta escena?", p: "Deci que fuentes tiene la escena al aire y para que sirve cada una." } ]
-        case 2: return [ { t: "¿Quien esta?", p: "Deci quien esta conectado en la conferencia, quien espera y quien esta al aire." },
-                         { t: "Pasar al que sigue", p: "Pone al aire al siguiente de la cola de oradores." } ]
-        case 9: return [ { t: "Se escucha mal", p: "Mira los niveles de audio y deci que fuente esta mal y que le harias." } ]
-        case 10: return [ { t: "Revisar el guion", p: "Revisa el guion y deci que le falta a cada cue para poder correrlo." },
-                          { t: "¿Como vamos de tiempo?", p: "Deci como vamos de tiempo contra lo previsto." } ]
-        case 11: return [ { t: "Que entre mas rapido", p: "Hace que entre mas rapido, alrededor de 300 ms." },
-                          { t: "Mas chico", p: "Achicalo un 20 % sin que el texto quede apretado." },
-                          { t: "Probar un nombre largo", p: "Probalo con un nombre bien largo y fijate si se sale de la caja." },
-                          { t: "Proponer botones", p: "Propone los botones («acciones») de este grafico y escribilos en su grafico.json: cada uno con titulo corto, icono de un caracter y prompt redactado como se lo pediria el operador en vivo." } ]
-        case 12: return [ { t: "Poner al que habla", p: "Pone en el zocalo de esta escena el nombre y el cargo del que esta al aire, y sacalo al aire." },
-                          { t: "Que se mantenga solo", p: "Ata este rotulo al orador que este al aire, para que se actualice solo cuando cambie." } ]
-        case 13: return [ { t: "¿Que se rompio?", p: "Mira el registro y deci que fallo, cuando y por que. Empeza por los avisos y errores." },
-                          { t: "Mas detalle", p: "Baja el nivel de registro a depuracion asi queda mas detalle de lo que viene." } ]
+        case 0: return [ { t: qsTr("¿Como venimos?"), p: "Deci en dos lineas como esta todo ahora: aire, grabacion, conferencia y alertas." },
+                         { t: qsTr("Revisar antes de salir"), p: "Revisa todo lo que conviene mirar antes de salir al aire y deci que esta mal." } ]
+        case 1: return [ { t: qsTr("Escena nueva"), p: "Arma una escena nueva parecida a la que esta al aire y deci como te quedo." },
+                         { t: qsTr("¿Que hay en esta escena?"), p: "Deci que fuentes tiene la escena al aire y para que sirve cada una." } ]
+        case 2: return [ { t: qsTr("¿Quien esta?"), p: "Deci quien esta conectado en la conferencia, quien espera y quien esta al aire." },
+                         { t: qsTr("Pasar al que sigue"), p: "Pone al aire al siguiente de la cola de oradores." } ]
+        case 9: return [ { t: qsTr("Se escucha mal"), p: "Mira los niveles de audio y deci que fuente esta mal y que le harias." } ]
+        case 10: return [ { t: qsTr("Revisar el guion"), p: "Revisa el guion y deci que le falta a cada cue para poder correrlo." },
+                          { t: qsTr("¿Como vamos de tiempo?"), p: "Deci como vamos de tiempo contra lo previsto." } ]
+        case 11: return [ { t: qsTr("Que entre mas rapido"), p: "Hace que entre mas rapido, alrededor de 300 ms." },
+                          { t: qsTr("Mas chico"), p: "Achicalo un 20 % sin que el texto quede apretado." },
+                          { t: qsTr("Probar un nombre largo"), p: "Probalo con un nombre bien largo y fijate si se sale de la caja." },
+                          { t: qsTr("Proponer botones"), p: "Propone los botones («acciones») de este grafico y escribilos en su grafico.json: cada uno con titulo corto, icono de un caracter y prompt redactado como se lo pediria el operador en vivo." } ]
+        case 12: return [ { t: qsTr("Poner al que habla"), p: "Pone en el zocalo de esta escena el nombre y el cargo del que esta al aire, y sacalo al aire." },
+                          { t: qsTr("Que se mantenga solo"), p: "Ata este rotulo al orador que este al aire, para que se actualice solo cuando cambie." } ]
+        case 13: return [ { t: qsTr("¿Que se rompio?"), p: "Mira el registro y deci que fallo, cuando y por que. Empeza por los avisos y errores." },
+                          { t: qsTr("Mas detalle"), p: "Baja el nivel de registro a depuracion asi queda mas detalle de lo que viene." } ]
         }
         return []
     }
@@ -484,7 +486,7 @@ ApplicationWindow {
         }
         contexto: win.contextoDePagina(win.page)
         sugerencias: win.sugerenciasDePagina(win.page)
-        onMandado: (texto) => toasts.show("Pedido mandado. La respuesta aparece en el Asistente.", "info")
+        onMandado: (texto) => toasts.show(qsTr("Pedido mandado. La respuesta aparece en el Asistente."), "info")
     }
 
     // --- Estado de emision, visible en todas las paginas ------------------------------
@@ -509,20 +511,20 @@ ApplicationWindow {
             // y el operador tiene que saberlo.
             StatusPill {
                 height: 16
-                text: Studio.reconnecting ? "RECONECTANDO"
-                      : Studio.transmitiendo ? "AL AIRE" + (Studio.streaming ? "  " + Studio.streamTime : "")
-                      : Studio.alAire ? "AL AIRE · GRABANDO" + (Studio.recording ? "  " + Studio.recordTime : "")
-                      : "FUERA DEL AIRE"
+                text: Studio.reconnecting ? qsTr("RECONECTANDO")
+                      : Studio.transmitiendo ? (Studio.streaming ? qsTr("AL AIRE  %1").arg(Studio.streamTime) : qsTr("AL AIRE"))
+                      : Studio.alAire ? (Studio.recording ? qsTr("AL AIRE · GRABANDO  %1").arg(Studio.recordTime) : qsTr("AL AIRE · GRABANDO"))
+                      : qsTr("FUERA DEL AIRE")
                 dot: Studio.reconnecting ? Theme.amber : Theme.live
                 on: Studio.alAire || Studio.reconnecting
                 pulse: true
                 ToolTip.visible: pillMa.containsMouse
                 ToolTip.text: Studio.outputProblem !== "" ? Studio.outputProblem
-                              : Studio.alAire ? "Sale el programa: la PTZ de una cámara que se ve pide confirmar y las páginas protegidas, CONFIRMAR."
-                              : "No sale nada (ni transmisión ni grabación): se puede mover y tocar todo sin avisos de aire."
+                              : Studio.alAire ? qsTr("Sale el programa: la PTZ de una cámara que se ve pide confirmar y las páginas protegidas, %1.").arg(desbloqueo.palabra)
+                              : qsTr("No sale nada (ni transmisión ni grabación): se puede mover y tocar todo sin avisos de aire.")
                 MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
-            StatusPill { height: 16; visible: Studio.recording && Studio.transmitiendo; text: "REC  " + Studio.recordTime; dot: Theme.accent; pulse: true }
+            StatusPill { height: 16; visible: Studio.recording && Studio.transmitiendo; text: qsTr("REC  %1").arg(Studio.recordTime); dot: Theme.accent; pulse: true }
             // En las otras páginas, solo si algo de la IA no anda.
             PastillaIA { height: 16; visible: total > 0 }
         }
@@ -578,18 +580,21 @@ ApplicationWindow {
             spacing: 10
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
-                text: "⚠ ALARMA: " + (franjaAlarma.activas.length > 0 ? franjaAlarma.activas[franjaAlarma.activas.length - 1].text : "") +
-                      (franjaAlarma.activas.length > 1 ? "  (+" + (franjaAlarma.activas.length - 1) + ")" : "")
+                text: {
+                    const n = franjaAlarma.activas.length
+                    const ultima = n > 0 ? franjaAlarma.activas[n - 1].text : ""
+                    return n > 1 ? qsTr("⚠ ALARMA: %1  (+%2)").arg(ultima).arg(n - 1) : qsTr("⚠ ALARMA: %1").arg(ultima)
+                }
                 color: "white"; font { pixelSize: 14; weight: Font.Bold }
             }
             // Corta el sonido de estas alarmas (sus disparadores quedan silenciados: la
             // franja sigue hasta Reconocer). Apretado otra vez, les devuelve el sonido.
             GlassButton {
                 compact: true
-                text: franjaAlarma.todasSilenciadas ? "🔇 Silenciada" : "Silenciar"
+                text: franjaAlarma.todasSilenciadas ? qsTr("🔇 Silenciada") : qsTr("Silenciar")
                 onClicked: franjaAlarma.silenciar(!franjaAlarma.todasSilenciadas)
             }
-            GlassButton { compact: true; text: "Reconocer (R)"; onClicked: Studio.reconocerAlarmaUi(0) }
+            GlassButton { compact: true; text: qsTr("Reconocer (R)"); onClicked: Studio.reconocerAlarmaUi(0) }
         }
     }
     Shortcut {
@@ -631,19 +636,20 @@ ApplicationWindow {
             spacing: 4
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: (cartelCaida.c.componente === "gateway" ? "El servidor (gateway)" : "El programa") + " se reinició: " + (cartelCaida.c.causa || "")
+                text: (cartelCaida.c.componente === "gateway" ? qsTr("El servidor (gateway) se reinició: %1")
+                                                              : qsTr("El programa se reinició: %1")).arg(cartelCaida.c.causa || "")
                 color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: cartelCaida.c.aire_vuelta_s !== undefined
-                      ? "El aire volvió " + Number(cartelCaida.c.aire_vuelta_s).toFixed(1) + " s después de la caída."
-                      : cartelCaida.c.habia_aire ? "Retomando lo que estaba al aire…" : "No había nada al aire: no hubo que retomar."
+                      ? qsTr("El aire volvió %1 s después de la caída.").arg(Number(cartelCaida.c.aire_vuelta_s).toFixed(1))
+                      : cartelCaida.c.habia_aire ? qsTr("Retomando lo que estaba al aire…") : qsTr("No había nada al aire: no hubo que retomar.")
                 color: cartelCaida.c.aire_vuelta_s !== undefined || !cartelCaida.c.habia_aire ? Theme.ok : Theme.amber; font.pixelSize: 14
             }
             RowLayout {
-                Text { Layout.fillWidth: true; text: "El detalle queda en la página Registro."; color: Theme.textFaint; font.pixelSize: 11 }
-                GlassButton { compact: true; text: "Entendido"; onClicked: Studio.cerrarCartelCaida() }
+                Text { Layout.fillWidth: true; text: qsTr("El detalle queda en la página Registro."); color: Theme.textFaint; font.pixelSize: 11 }
+                GlassButton { compact: true; text: qsTr("Entendido"); onClicked: Studio.cerrarCartelCaida() }
             }
         }
     }
@@ -701,7 +707,7 @@ ApplicationWindow {
     // --- Dialogos globales -----------------------------------------------------------
     Dialog {
         id: streamDlg
-        title: "Salir al aire"
+        title: qsTr("Salir al aire")
         anchors.centerIn: parent
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -709,12 +715,12 @@ ApplicationWindow {
         onAccepted: Studio.startStreaming(srvField.text, keyField.text)
         ColumnLayout {
             spacing: 10
-            Label { text: "Servidor RTMP" }
+            Label { text: qsTr("Servidor RTMP") }
             TextField { id: srvField; Layout.preferredWidth: 420; placeholderText: "rtmp://a.rtmp.youtube.com/live2" }
-            Label { text: "Clave de transmisión (se guarda cifrada en Credenciales/)" }
+            Label { text: qsTr("Clave de transmisión (se guarda cifrada en %1)").arg("Credenciales/") }
             TextField {
                 id: keyField; Layout.preferredWidth: 420; echoMode: TextInput.Password
-                placeholderText: Studio.streamKeySaved ? "Vacío = la clave de la última vez" : ""
+                placeholderText: Studio.streamKeySaved ? qsTr("Vacío = la clave de la última vez") : ""
             }
         }
     }
@@ -744,7 +750,7 @@ ApplicationWindow {
             }
             Text {
                 width: parent.width; wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
-                text: "Vuelve a abrir sola en unos segundos."
+                text: qsTr("Vuelve a abrir sola en unos segundos.")
                 color: Theme.textDim; font.pixelSize: 12
             }
         }
@@ -785,7 +791,8 @@ ApplicationWindow {
         text: {
             const l = Studio.descargas.lista
             const b = l.length > 0 && l[0].estado === "bajando" ? l[0] : null
-            return "BAJANDO " + Studio.descargas.activas + (b ? "  " + Math.round(b.progreso * 100) + "%" : "")
+            return b ? qsTr("BAJANDO %1  %2%").arg(Studio.descargas.activas).arg(Math.round(b.progreso * 100))
+                     : qsTr("BAJANDO %1").arg(Studio.descargas.activas)
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.abrirDescargas() }
     }
