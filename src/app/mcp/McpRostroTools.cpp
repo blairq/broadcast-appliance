@@ -127,7 +127,7 @@ void McpService::registerRostroTools() {
 
     const auto preparar = [this]() -> std::string {
         PersonasViewModel* pv = libretaViva(vm_);
-        if (pv == nullptr) return "No hay libreta de personas en este proceso.";
+        if (pv == nullptr) return ba::i18n::traducir("mcp", "No hay libreta de personas en este proceso.");
         if (!pv->disponible()) return pv->aviso().toStdString();
         return {};
     };
@@ -227,10 +227,10 @@ void McpService::registerRostroTools() {
             // una camara: eso corre en otro hilo (ver Reconocedor.hpp).
             const auto contestar = [pv, id, done](const std::string& extra) {
                 if (!pv->persistir())
-                    return done(ToolResult::error("No se pudo guardar: " + pv->libreta().error()));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo guardar: %1"), {pv->libreta().error()})));
                 const auto* f = pv->libreta().porId(id);
                 ToolResult r;
-                r.text("Guardada «" + (f != nullptr ? f->nombre : std::string()) + "» (id " + id + ")." +
+                r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Guardada «%1» (id %2)."), {f != nullptr ? f->nombre : std::string(), id}) +
                        extra);
                 r.structured = f != nullptr ? fichaJson(*f) : json::object();
                 done(r);
@@ -244,13 +244,13 @@ void McpService::registerRostroTools() {
                 [pv, id, feed, nuevaFoto, contestar](std::vector<Reconocedor::Visto> caras, const QImage& img,
                                                      const QString& error) {
                     if (!error.isEmpty())
-                        return contestar(" (" + error.toStdString() + ": la ficha quedo sin cara)");
+                        return contestar(" " + ba::i18n::llenar(ba::i18n::traducir("mcp", "(%1: la ficha quedo sin cara)"), {error.toStdString()}));
                     if (caras.empty())
-                        return contestar(" (no se vio ninguna cara en '" + feed.toStdString() + "')");
+                        return contestar(" " + ba::i18n::llenar(ba::i18n::traducir("mcp", "(no se vio ninguna cara en '%1')"), {feed.toStdString()}));
                     if (caras.size() > 1)
-                        return contestar(" (hay " + std::to_string(caras.size()) +
-                                         " caras en el cuadro: no adivino cual es. Usa una camara "
-                                         "donde este sola)");
+                        return contestar(" " + ba::i18n::traducir("mcp", "(hay %n cara en el cuadro: no adivino cual es. Usa una camara "
+                                                                    "donde este sola)", nullptr,
+                                                                    static_cast<int>(caras.size())));
                     pv->libreta().sumarCara(id, caras[0].vector);
                     // La foto se saca la PRIMERA vez y después solo si la
                     // pidieron: cambiarla en cada captura haría que la ficha se
@@ -267,8 +267,10 @@ void McpService::registerRostroTools() {
                         }
                     }
                     const auto* f = pv->libreta().porId(id);
-                    contestar(" Con su cara (" + std::to_string(f != nullptr ? f->caras.size() : 0) +
-                              " guardada(s))" + (f != nullptr && !f->foto.empty() ? " y su foto." : "."));
+                    const int n = static_cast<int>(f != nullptr ? f->caras.size() : 0);
+                    contestar(" " + (f != nullptr && !f->foto.empty()
+                                         ? ba::i18n::traducir("mcp", "Con su cara (%n guardada) y su foto.", nullptr, n)
+                                         : ba::i18n::traducir("mcp", "Con su cara (%n guardada).", nullptr, n)));
                 });
         };
         core_.addTool(std::move(t));
@@ -313,14 +315,14 @@ void McpService::registerRostroTools() {
             const std::string nombre = f != nullptr ? f->nombre : std::string();
             const QString foto = f != nullptr ? QString::fromStdString(f->foto) : QString();
             if (!pv->libreta().borrar(id))
-                return done(ToolResult::error("No hay nadie con id '" + id + "' (rostro_listar los da)."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay nadie con id '%1' (rostro_listar los da)."), {id})));
             // LA FOTO SE VA CON LA FICHA. Esto no lo hacia, y dejaba la cara de
             // alguien a quien pidieron borrar tirada en el disco: la ficha
             // desaparecia de la lista y el archivo se quedaba para siempre. Es
             // la misma regla que ya cumplia la pagina; aca faltaba.
             if (!foto.isEmpty()) QFile::remove(pv->carpetaFotos() + "/" + foto);
             pv->persistir();
-            done(ToolResult::ok("Borrada «" + nombre + "» y sus caras."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrada «%1» y sus caras."), {nombre})));
         };
         core_.addTool(std::move(t));
     }
@@ -365,8 +367,8 @@ void McpService::registerRostroTools() {
                     if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
                     if (caras.empty()) {
                         ToolResult r;
-                        r.text("No se ve ninguna cara en '" + feed.toStdString() +
-                               "'. Pedile que se ponga de frente a la camara.");
+                        r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se ve ninguna cara en '%1'. Pedile que se ponga de frente a la camara."),
+                                                {feed.toStdString()}));
                         r.structured = json{{"feed", feed.toStdString()}, {"caras", json::array()}};
                         return done(r);
                     }
@@ -385,7 +387,7 @@ void McpService::registerRostroTools() {
                     ToolResult r;
                     r.text(caras.size() == 1
                                ? out[0]["sugerencia"].get<std::string>()
-                               : "Hay " + std::to_string(caras.size()) + " caras en el cuadro.");
+                               : ba::i18n::traducir("mcp", "Hay %n cara en el cuadro.", nullptr, static_cast<int>(caras.size())));
                     r.structured = json{{"feed", feed.toStdString()}, {"caras", out}};
                     done(r);
                 });
@@ -424,7 +426,7 @@ void McpService::registerRostroTools() {
             PersonasViewModel* pv = pvDe();
             const std::string id = a["id"].get<std::string>();
             if (pv->libreta().porId(id) == nullptr)
-                return done(ToolResult::error("No hay nadie con id '" + id + "'."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay nadie con id '%1'."), {id})));
             const QString feed = QString::fromStdString(a["feed"].get<std::string>());
             const bool nuevaFoto = a.value("nuevaFoto", false);
             const bool igual = a.value("igual", false);
@@ -435,16 +437,14 @@ void McpService::registerRostroTools() {
                     if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
                     if (caras.empty())
                         return done(
-                            ToolResult::error("No se ve ninguna cara en '" + feed.toStdString() + "'."));
+                            ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se ve ninguna cara en '%1'."), {feed.toStdString()})));
                     if (caras.size() > 1)
-                        return done(ToolResult::error(
-                            "Hay " + std::to_string(caras.size()) +
-                            " caras en el cuadro: no adivino cual es. Usa una camara donde este "
-                            "sola."));
+                        return done(ToolResult::error(ba::i18n::traducir("mcp", "Hay %n cara en el cuadro: no adivino cual es. Usa una camara donde este "
+                                                                         "sola.", nullptr, static_cast<int>(caras.size()))));
                     const Calidad q = calidadDe(img, caras[0].cara);
                     if (!q.sirve && !igual) {
                         ToolResult r;
-                        r.text("No la sume: " + q.sugerencia);
+                        r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "No la sume: %1"), {q.sugerencia}));
                         r.structured = calidadJson(q);
                         return done(r);
                     }
@@ -463,10 +463,10 @@ void McpService::registerRostroTools() {
                     const bool aporto = alta == ba::rostros::Personas::Alta::Sumada;
                     const auto* fin = pv->libreta().porId(id);
                     ToolResult r;
-                    r.text(aporto ? "Sumada. Ahora tiene " +
-                                        std::to_string(fin != nullptr ? fin->caras.size() : 0) + " cara(s)."
-                                  : "Esa pose ya la tenia. Pedile que gire un poco la cabeza o que "
-                                    "cambie de angulo, y proba de nuevo.");
+                    r.text(aporto ? ba::i18n::traducir("mcp", "Sumada. Ahora tiene %n cara.", nullptr,
+                                                       static_cast<int>(fin != nullptr ? fin->caras.size() : 0))
+                                  : ba::i18n::traducir("mcp", "Esa pose ya la tenia. Pedile que gire un poco la cabeza o que "
+                                    "cambie de angulo, y proba de nuevo."));
                     json j = calidadJson(q);
                     j["aporto"] = aporto;
                     j["caras"] = fin != nullptr ? fin->caras.size() : 0;
@@ -494,8 +494,8 @@ void McpService::registerRostroTools() {
             for (const auto& p : pv->libreta().todas())
                 if (p.nombre.empty()) out.push_back(fichaJson(p));
             ToolResult r;
-            r.text(out.empty() ? "No hay fichas sin nombre."
-                               : std::to_string(out.size()) + " ficha(s) sin nombre.");
+            r.text(out.empty() ? ba::i18n::traducir("mcp", "No hay fichas sin nombre.")
+                               : ba::i18n::traducir("mcp", "%n ficha sin nombre.", nullptr, static_cast<int>(out.size())));
             r.structured = json{{"personas", out}};
             done(r);
         };
@@ -539,8 +539,9 @@ void McpService::registerRostroTools() {
                 QFile::remove(pv->carpetaFotos() + "/" + fotoOtro);
             pv->persistir();
             ToolResult r;
-            r.text("Fusionadas. «" + (f != nullptr ? f->nombre : std::string()) + "» quedo con " +
-                   std::to_string(f != nullptr ? f->caras.size() : 0) + " cara(s).");
+            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Fusionadas. «%1» quedo con %n cara.", nullptr,
+                                                       static_cast<int>(f != nullptr ? f->caras.size() : 0)),
+                                    {f != nullptr ? f->nombre : std::string()}));
             r.structured = f != nullptr ? fichaJson(*f) : json::object();
             done(r);
         };
@@ -593,9 +594,9 @@ void McpService::registerRostroTools() {
                 pv->setPuertaAuto(a["activo"].get<bool>());
             }
             ToolResult r;
-            r.text(std::string(pv->puertaAuto() ? "Acreditacion en la puerta PRENDIDA mirando '"
-                                                : "Acreditacion en la puerta apagada (miraria '") +
-                   pv->feedPuerta().toStdString() + "'.");
+            r.text(ba::i18n::llenar(pv->puertaAuto() ? ba::i18n::traducir("mcp", "Acreditacion en la puerta PRENDIDA mirando '%1'.")
+                                                     : ba::i18n::traducir("mcp", "Acreditacion en la puerta apagada (miraria '%1'."),
+                                    {pv->feedPuerta().toStdString()}));
             r.structured = json{{"activo", pv->puertaAuto()}, {"feed", pv->feedPuerta().toStdString()}};
             done(r);
         };
@@ -646,11 +647,12 @@ void McpService::registerRostroTools() {
             if (a.contains("altaAutomatica") && a["altaAutomatica"].is_boolean())
                 pv->setAltaAutomatica(a["altaAutomatica"].get<bool>());
             ToolResult r;
-            const std::string donde = pv->lobbyAuto() ? "el lobby (todas las posiciones de espera)"
+            const std::string donde = pv->lobbyAuto() ? ba::i18n::traducir("mcp", "el lobby (todas las posiciones de espera)")
                                                       : "'" + pv->feedAuto().toStdString() + "'";
-            r.text(std::string(pv->autoalta() || pv->lobbyAuto() ? "Anotado automatico PRENDIDO mirando "
-                                                                 : "Anotado automatico apagado (miraria ") +
-                   donde + ". " + std::to_string(pv->sinNombre()) + " ficha(s) sin nombre.");
+            r.text(ba::i18n::llenar(pv->autoalta() || pv->lobbyAuto() ? ba::i18n::traducir("mcp", "Anotado automatico PRENDIDO mirando %1.")
+                                                                      : ba::i18n::traducir("mcp", "Anotado automatico apagado (miraria %1."),
+                                    {donde}) +
+                   " " + ba::i18n::traducir("mcp", "%n ficha sin nombre.", nullptr, pv->sinNombre()));
             r.structured =
                 json{{"activo", pv->autoalta() || pv->lobbyAuto()},
                      {"lobby", pv->lobbyAuto()},
@@ -717,8 +719,8 @@ void McpService::registerRostroTools() {
                 r.text(ba::i18n::traducir("mcp", "El reconocimiento del lobby esta APAGADO: nadie esta mirando esas camaras. "
                        "Prendelo con rostro_autoalta {activo: true, feed: \"lobby\"}."));
             else
-                r.text(out.empty() ? "No se ve a nadie en las camaras de espera."
-                                   : std::to_string(out.size()) + " en el lobby.");
+                r.text(out.empty() ? ba::i18n::traducir("mcp", "No se ve a nadie en las camaras de espera.")
+                                   : ba::i18n::traducir("mcp", "%n en el lobby.", nullptr, static_cast<int>(out.size())));
             r.structured = json{{"mirando", pv->lobbyAuto()}, {"lugares", out}};
             done(r);
         };
