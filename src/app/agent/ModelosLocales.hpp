@@ -82,6 +82,9 @@ std::string carpetaDeRepo(const std::string& repo);
 /// del repo («esquema_huella_metodo»): sha256 del inputSchema en JSON con las
 /// claves ordenadas, sin espacios, UTF-8; los primeros 16 hex.
 std::string huellaEsquema(const nlohmann::json& inputSchema);
+/// La misma huella sin los textos (description, title, examples): la estructura del esquema.
+/// No depende del idioma del programa (modelo.json: esquema_estructura).
+std::string huellaEstructura(const nlohmann::json& inputSchema);
 
 /// Compara lo que dice el modelo.json (con qué herramientas se entrenó el
 /// modelo) con las herramientas de la app de hoy ({nombre: inputSchema}).

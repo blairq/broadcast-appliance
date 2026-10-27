@@ -137,6 +137,25 @@ std::string huellaEsquema(const json& inputSchema) {
     return h.left(16).toStdString();
 }
 
+namespace {
+json sinTextos(const json& j) {
+    if (j.is_object()) {
+        json o = json::object();
+        for (auto it = j.begin(); it != j.end(); ++it)
+            if (it.key() != "description" && it.key() != "title" && it.key() != "examples") o[it.key()] = sinTextos(it.value());
+        return o;
+    }
+    if (j.is_array()) {
+        json a = json::array();
+        for (const auto& x : j) a.push_back(sinTextos(x));
+        return a;
+    }
+    return j;
+}
+} // namespace
+
+std::string huellaEstructura(const json& inputSchema) { return huellaEsquema(sinTextos(inputSchema)); }
+
 json compararFicha(const json& mj, const json& app) {
     json r = json::object();
     const json eps = mj.value("endpoints", json::array());
@@ -148,10 +167,20 @@ json compararFicha(const json& mj, const json& app) {
         porCat[cat] = porCat.value(cat, 0) + 1;
         if (!app.contains(n))
             noEstan.push_back(n);
-        else if (huellaEsquema(app[n]) == e.value("esquema_huella", std::string()))
+        else if (e.contains("esquema_estructura")) {
+            // La estructura (nombres, tipos, valores posibles), sin las descripciones: sirve en
+            // cualquier idioma del programa y un retoque de redacción no cuenta como cambio.
+            if (huellaEstructura(app[n]) == e.value("esquema_estructura", std::string())) iguales.push_back(n);
+            else cambiaron.push_back(n);
+        } else if (ba::i18n::actual().fuente) {
+            // Un modelo.json viejo (solo la huella con las descripciones, en el idioma original).
+            if (huellaEsquema(app[n]) == e.value("esquema_huella", std::string())) iguales.push_back(n);
+            else cambiaron.push_back(n);
+        } else {
+            // Viejo y con el programa en otro idioma: las descripciones no se pueden comparar.
             iguales.push_back(n);
-        else
-            cambiaron.push_back(n);
+            r["sin_verificar_por_idioma"] = true;
+        }
     }
     const int enApp = app.is_object() ? static_cast<int>(app.size()) : 0;
     const int usables = static_cast<int>(iguales.size() + cambiaron.size());

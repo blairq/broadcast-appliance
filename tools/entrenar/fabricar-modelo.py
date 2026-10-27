@@ -1189,7 +1189,12 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
         canon = lambda x: json.dumps(x, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         huella = lambda x: hashlib.sha256(canon(x).encode()).hexdigest()[:16]
         nombres = sorted(self.man["perfil"]["herramientas"])
+        def sin_textos(x):  # la estructura del esquema: igual en cualquier idioma del programa
+            if isinstance(x, dict):
+                return {k: sin_textos(v) for k, v in x.items() if k not in ("description", "title", "examples")}
+            return [sin_textos(v) for v in x] if isinstance(x, list) else x
         endpoints = [{"nombre": n, "esquema_huella": huella(por[n]["esquema"]),
+                      "esquema_estructura": huella(sin_textos(por[n]["esquema"])),
                       "parametros": sorted((por[n]["esquema"].get("properties") or {}).keys()),
                       "requeridos": sorted(por[n]["esquema"].get("required") or []),
                       "solo_lectura": bool(por[n].get("soloLectura")), "categoria": por[n].get("categoria")}
@@ -1214,7 +1219,9 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
             "endpoints": endpoints,
             "endpoints_huella": huella([[e["nombre"], e["esquema_huella"]] for e in endpoints]),
             "esquema_huella_metodo": {"algoritmo": "sha256", "largo": 16, "json": "sort_keys,separators=(',',':'),utf-8",
-                                      "de": "inputSchema del endpoint MCP"},
+                                      "de": "inputSchema del endpoint MCP",
+                                      "estructura": "esquema_estructura: lo mismo sin las claves description, title "
+                                                    "y examples (no depende del idioma del programa)"},
             "inventario_mcp": {"generado": inv.get("generado"), "cuantas": inv.get("cuantas")},
         }
         if m["perfil"].get("formato") == "tc":

@@ -165,6 +165,19 @@ int main(int argc, char** argv) {
     CHECK(f["herramientas_app"] == 4 && f["sin_entrenar"] == 2, "de las 4 de hoy, 2 no las vio nunca");
     CHECK(f["por_categoria"]["audio"] == 2 && f["build"] == "v3-4b", "por tema y versión");
 
+    // La estructura (sin descripciones): igual aunque el programa esté en otro idioma.
+    json enIngles = esquema;
+    enIngles["properties"]["nombre"]["description"] = "the camera (year, signal)";
+    CHECK(huellaEstructura(esquema) == huellaEstructura(enIngles) && huellaEsquema(esquema) != huellaEsquema(enIngles),
+          "la huella de la estructura no mira las descripciones");
+    json otro = esquema;
+    otro["properties"]["nivel"]["maximum"] = 20;
+    CHECK(huellaEstructura(otro) != huellaEstructura(esquema), "un cambio de estructura sí cuenta");
+    const json mj2{{"endpoints", json::array({{{"nombre", "a"}, {"esquema_estructura", huellaEstructura(esquema)}},
+                                              {{"nombre", "b"}, {"esquema_estructura", huellaEstructura(esquema)}}})}};
+    const json f2 = compararFicha(mj2, json{{"a", enIngles}, {"b", otro}});
+    CHECK(f2["iguales"] == 1 && f2["cambiaron"] == json::array({"b"}), "con esquema_estructura: el idioma no cambia nada");
+
     // Los mismos valores que `printf 'hola\n' | git hash-object --stdin`.
     CHECK(shaBlobGit(escribir("blob-hola.txt", "hola\n")) == "5c1b14949828006ed75a3e8858957f86a2f7e2eb",
           "sha1 de blob de git");
