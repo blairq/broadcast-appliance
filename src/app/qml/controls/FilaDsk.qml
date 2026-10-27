@@ -20,14 +20,14 @@ Flow {
         }
         if (!subir && c.fijo)
             ApplicationWindow.window.confirm({
-                title: "¿Bajar «" + c.nombre + "»?",
-                text: "Es una capa fija (por ejemplo, el intérprete de lengua de señas): sale de la transmisión.",
-                accept: "Bajarla", reject: "Cancelar", action: () => hacer(true)
+                title: qsTr("¿Bajar «%1»?").arg(c.nombre),
+                text: qsTr("Es una capa fija (por ejemplo, el intérprete de lengua de señas): sale de la transmisión."),
+                accept: qsTr("Bajarla"), reject: qsTr("Cancelar"), action: () => hacer(true)
             })
         else if (subir && Studio.alAire)
             ApplicationWindow.window.confirm({
-                title: "¿Subir «" + c.nombre + "»?", text: "Se ve en la transmisión y en la grabación.",
-                accept: "Subir", reject: "Cancelar", action: () => hacer(false)
+                title: qsTr("¿Subir «%1»?").arg(c.nombre), text: qsTr("Se ve en la transmisión y en la grabación."),
+                accept: qsTr("Subir"), reject: qsTr("Cancelar"), action: () => hacer(false)
             })
         else
             hacer(false)
@@ -47,8 +47,8 @@ Flow {
                 onClicked: fila.tocar(modelData)
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: (modelData.contenido || []).length > 0
-                              ? "Capa " + modelData.capa + ": " + modelData.contenido.join(", ") + (modelData.visible ? " (arriba)" : "")
-                              : "Capa " + modelData.capa + " vacía: tocá ✎ para armarla"
+                              ? (modelData.visible ? qsTr("Capa %1: %2 (arriba)") : qsTr("Capa %1: %2")).arg(modelData.capa).arg(modelData.contenido.join(", "))
+                              : qsTr("Capa %1 vacía: tocá ✎ para armarla").arg(modelData.capa)
             }
             GlassButton {
                 compact: true; text: "✎"
@@ -75,13 +75,13 @@ Flow {
         contentItem: ColumnLayout {
             spacing: 8
             Text {
-                text: "Capa " + editor.capa.capa
+                text: qsTr("Capa %1").arg(editor.capa.capa)
                 color: Theme.text
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
             }
-            TextField { id: nombreF; Layout.fillWidth: true; placeholderText: "Nombre (Logo, Intérprete LSA…)"; color: Theme.text }
-            Text { text: "Contenido (escenas o fuentes, separadas por coma)"; color: Theme.textDim; font.pixelSize: 11 }
+            TextField { id: nombreF; Layout.fillWidth: true; placeholderText: qsTr("Nombre (Logo, Intérprete LSA…)"); color: Theme.text }
+            Text { text: qsTr("Contenido (escenas o fuentes, separadas por coma)"); color: Theme.textDim; font.pixelSize: 11 }
             ComboBox {
                 id: contenidoF
                 Layout.fillWidth: true
@@ -93,17 +93,17 @@ Flow {
                 }
             }
             RowLayout {
-                Text { text: "Recuadro"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Recuadro"); color: Theme.textDim; font.pixelSize: 12 }
                 ComboBox {
                     id: posF
                     Layout.fillWidth: true
                     model: ["pantalla completa", "abajo_derecha", "abajo_izquierda", "arriba_derecha", "arriba_izquierda"]
                 }
             }
-            CheckBox { id: fijoF; text: "Fija (no se baja sin confirmar; para el intérprete de LSA)" }
+            CheckBox { id: fijoF; text: qsTr("Fija (no se baja sin confirmar; para el intérprete de LSA)") }
             RowLayout {
                 GlassButton {
-                    compact: true; text: "Guardar"; active: true
+                    compact: true; text: qsTr("Guardar"); active: true
                     onClicked: {
                         const def = { nombre: nombreF.text, fijo: fijoF.checked,
                                       contenido: contenidoF.editText.split(",").map(s => s.trim()).filter(s => s !== ""),
@@ -113,9 +113,9 @@ Flow {
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Plantilla «Intérprete LSA»"
+                    compact: true; text: qsTr("Plantilla «Intérprete LSA»")
                     ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "La primera fuente del contenido (la cámara del intérprete) en un recuadro abajo a la derecha, fija"
+                    ToolTip.text: qsTr("La primera fuente del contenido (la cámara del intérprete) en un recuadro abajo a la derecha, fija")
                     onClicked: {
                         const primera = contenidoF.editText.split(",").map(s => s.trim()).filter(s => s !== "")[0] || ""
                         const e = fila.dsk.plantillaLsaUi(editor.capa.capa, primera)
@@ -123,7 +123,7 @@ Flow {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: editor.close() }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: editor.close() }
             }
         }
     }

@@ -18,7 +18,7 @@ ColumnLayout {
 
     Text {
         visible: form.props.length === 0
-        text: "Este elemento no tiene propiedades para ajustar."
+        text: qsTr("Este elemento no tiene propiedades para ajustar.")
         color: Theme.textFaint; font.pixelSize: 11
     }
     Repeater {

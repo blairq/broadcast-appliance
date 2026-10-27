@@ -30,7 +30,7 @@ Item {
         return "#3b82f6"
     }
     function label(p) {
-        return p === "critical" ? "Urgente" : p === "warning" ? "Atención" : p === "success" ? "Listo" : "Asistente"
+        return p === "critical" ? qsTr("Urgente") : p === "warning" ? qsTr("Atención") : p === "success" ? qsTr("Listo") : qsTr("Asistente")
     }
 
     Rectangle {
@@ -60,7 +60,7 @@ Item {
             color: "#dc2626"
             Text {
                 anchors.centerIn: parent
-                text: "ACCIÓN DE AIRE · Enter confirma · Esc rechaza"
+                text: qsTr("ACCIÓN DE AIRE · Enter confirma · Esc rechaza")
                 color: "white"; font { pixelSize: 11; weight: Font.Bold; letterSpacing: 1 }
             }
         }
@@ -83,7 +83,7 @@ Item {
                 }
                 Text {
                     visible: bar.cur !== null && (bar.cur.kind === "question" || bar.cur.kind === "credential")
-                    text: bar.cur && bar.cur.kind === "credential" ? "· datos para conectar" : "· te pregunta"
+                    text: bar.cur && bar.cur.kind === "credential" ? qsTr("· datos para conectar") : qsTr("· te pregunta")
                     color: Theme.textDim; font.pixelSize: 12
                 }
                 Item { Layout.fillWidth: true }
@@ -95,7 +95,7 @@ Item {
                     GlassButton { compact: true; text: "›"; enabled: bar.index < bar.n - 1; onClicked: bar.index++ }
                 }
                 GlassButton { compact: true; text: "✕"; onClicked: bar.msgs.dismiss(bar.cur.id)
-                              ToolTip.visible: hovered; ToolTip.text: bar.cur && bar.cur.kind === "reply" ? "Ignorar" : "Cerrar" }
+                              ToolTip.visible: hovered; ToolTip.text: bar.cur && bar.cur.kind === "reply" ? qsTr("Ignorar") : qsTr("Cerrar") }
             }
 
             // Texto (o el mensaje del invitado)
@@ -144,12 +144,12 @@ Item {
                         // Texto plano: el nombre lo eligio el invitado.
                         Text { text: bar.cur ? bar.cur.participantName : ""; textFormat: Text.PlainText
                                color: Theme.text; font { pixelSize: 12; bold: true } }
-                        Text { text: bar.cur && bar.cur.to === "all" ? "escribió en el chat general:" : "te escribió en privado:"
+                        Text { text: bar.cur && bar.cur.to === "all" ? qsTr("escribió en el chat general:") : qsTr("te escribió en privado:")
                                color: Theme.textDim; font.pixelSize: 12 }
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: bar.cur ? "«" + bar.cur.guestText + "»" : ""
+                        text: bar.cur ? qsTr("«%1»").arg(bar.cur.guestText) : ""
                         textFormat: Text.PlainText
                         color: Theme.text; font { pixelSize: 15; italic: true } wrapMode: Text.WordWrap
                     }
@@ -193,7 +193,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 6
                 visible: bar.cur !== null && bar.cur.kind === "reply"
-                Text { text: "Respuestas sugeridas (un click y se manda):"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Respuestas sugeridas (un click y se manda):"); color: Theme.textDim; font.pixelSize: 12 }
                 Repeater {
                     model: bar.cur && bar.cur.kind === "reply" ? bar.cur.suggestions : []
                     delegate: RowLayout {
@@ -216,7 +216,7 @@ Item {
                             MouseArea { id: sugMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: replyErr.text = bar.msgs.sendReply(bar.cur.id, modelData) }
                         }
-                        GlassButton { compact: true; text: "Editar"; onClicked: { field.text = modelData; field.forceActiveFocus() } }
+                        GlassButton { compact: true; text: qsTr("Editar"); onClicked: { field.text = modelData; field.forceActiveFocus() } }
                     }
                 }
             }
@@ -228,12 +228,12 @@ Item {
                 TextField {
                     id: field
                     Layout.fillWidth: true
-                    placeholderText: bar.cur && bar.cur.kind === "reply" ? "o escribí tu respuesta…" : "Tu respuesta…"
+                    placeholderText: bar.cur && bar.cur.kind === "reply" ? qsTr("o escribí tu respuesta…") : qsTr("Tu respuesta…")
                     onAccepted: sendBtn.clicked()
                 }
                 GlassButton {
                     id: sendBtn
-                    text: bar.cur && bar.cur.kind === "reply" ? "Enviar al invitado" : "Responder"
+                    text: bar.cur && bar.cur.kind === "reply" ? qsTr("Enviar al invitado") : qsTr("Responder")
                     active: true
                     activeColor: bar.accent
                     enabled: field.text.trim() !== ""
@@ -277,14 +277,14 @@ Item {
                         }
                         GlassButton { visible: modelData.secret; compact: true; text: credRow.shown ? "🙈" : "👁"
                                       onClicked: credRow.shown = !credRow.shown
-                                      ToolTip.visible: hovered; ToolTip.text: "Mostrar / ocultar" }
+                                      ToolTip.visible: hovered; ToolTip.text: qsTr("Mostrar / ocultar") }
                     }
                 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
-                        text: "Guardar"
+                        text: qsTr("Guardar")
                         active: true
                         activeColor: bar.accent
                         onClicked: {
@@ -295,24 +295,24 @@ Item {
                     }
                     GlassButton {
                         visible: bar.cur !== null && bar.cur.importFile === true
-                        text: "Importar el JSON de Descargas"
+                        text: qsTr("Importar el JSON de Descargas")
                         onClicked: credForm.submit({ "fromDownloads": true })
-                        ToolTip.visible: hovered; ToolTip.text: "Busca el client_secret_….json más nuevo que bajaste de Google"
+                        ToolTip.visible: hovered; ToolTip.text: qsTr("Busca el client_secret_….json más nuevo que bajaste de Google")
                     }
                     GlassButton {
                         visible: bar.cur !== null && bar.cur.importFile === true
-                        text: "Elegir archivo…"
+                        text: qsTr("Elegir archivo…")
                         onClicked: credFile.open()
                     }
                     Item { Layout.fillWidth: true }
-                    Text { text: "🔒 Se guarda cifrado en este equipo; el asistente no lo ve."; color: Theme.textFaint; font.pixelSize: 11 }
+                    Text { text: qsTr("🔒 Se guarda cifrado en este equipo; el asistente no lo ve."); color: Theme.textFaint; font.pixelSize: 11 }
                 }
                 Text { visible: credForm.error !== ""; text: credForm.error; color: Theme.live; font.pixelSize: 12
                        Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 FileDialog {
                     id: credFile
-                    title: "JSON del cliente OAuth de Google"
-                    nameFilters: ["Cliente OAuth (client_secret*.json *.json)"]
+                    title: qsTr("JSON del cliente OAuth de Google")
+                    nameFilters: [qsTr("Cliente OAuth (client_secret*.json *.json)")]
                     onAccepted: credForm.submit({ "importFile": selectedFile.toString() })
                 }
             }

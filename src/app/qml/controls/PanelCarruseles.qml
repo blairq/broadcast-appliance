@@ -39,13 +39,13 @@ Item {
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true
-                    text: "Carruseles"
+                    text: qsTr("Carruseles")
                     color: Theme.textDim
                     font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
                 }
                 GlassButton {
                     compact: true
-                    text: "+ Nuevo"
+                    text: qsTr("+ Nuevo")
                     onClicked: dlgNuevo.open()
                 }
             }
@@ -105,7 +105,7 @@ Item {
                                 elide: Text.ElideRight
                             }
                             Text {
-                                text: fila.modelData.laminas + " láminas"
+                                text: qsTr("%n lámina", "", fila.modelData.laminas)
                                 color: Theme.textFaint
                                 font.pixelSize: 10
                             }
@@ -129,7 +129,7 @@ Item {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 12
-                    text: "Todavía no hay ninguno.\n\nArrastrá un PDF o un PowerPoint\na la pestaña Archivos, o creá\nuno vacío y agregale imágenes."
+                    text: qsTr("Todavía no hay ninguno.\n\nArrastrá un PDF o un PowerPoint\na la pestaña Archivos, o creá\nuno vacío y agregale imágenes.")
                 }
             }
         }
@@ -149,8 +149,8 @@ Item {
                     enabled: raiz.cc.actual !== ""
                     color: Theme.text
                     placeholderText: raiz.cc.actual === ""
-                                     ? "Elegí un carrusel de la izquierda"
-                                     : "Buscar en las láminas… (título y etiquetas)"
+                                     ? qsTr("Elegí un carrusel de la izquierda")
+                                     : qsTr("Buscar en las láminas… (título y etiquetas)")
                     onTextChanged: raiz.cc.consulta = text
                     Keys.onEscapePressed: text = ""
                 }
@@ -163,7 +163,7 @@ Item {
                     // se hace solo al importar.
                     compact: true
                     visible: !raiz.enVentana && raiz.cc.sinAnalizar > 0
-                    text: "Etiquetar con IA (" + raiz.cc.sinAnalizar + ")"
+                    text: qsTr("Etiquetar con IA (%1)").arg(raiz.cc.sinAnalizar)
                     onClicked: ApplicationWindow.window.pedirAlAsistente(
                         "Mirá una por una las láminas del carrusel «" + raiz.cc.actual +
                         "» que todavía no tengan etiquetas y guardá lo que ves. " +
@@ -173,12 +173,12 @@ Item {
                         "Seguí hasta que no quede ninguna.")
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Para poder buscarlas escribiendo. Tarda: mira una por una."
+                    ToolTip.text: qsTr("Para poder buscarlas escribiendo. Tarda: mira una por una.")
                 }
                 GlassButton {
                     compact: true
                     visible: raiz.cc.actual !== ""
-                    text: "Borrar carrusel"
+                    text: qsTr("Borrar carrusel")
                     onClicked: dlgBorrar.open()
                 }
             }
@@ -293,9 +293,9 @@ Item {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 13
-                    text: raiz.cc.actual === "" ? "Elegí un carrusel de la izquierda."
-                        : busca.text !== "" ? "Ninguna lámina coincide con lo que buscaste."
-                        : "Este carrusel está vacío.\nAgregale imágenes desde la pestaña Archivos."
+                    text: raiz.cc.actual === "" ? qsTr("Elegí un carrusel de la izquierda.")
+                        : busca.text !== "" ? qsTr("Ninguna lámina coincide con lo que buscaste.")
+                        : qsTr("Este carrusel está vacío.\nAgregale imágenes desde la pestaña Archivos.")
                 }
             }
         }
@@ -303,7 +303,7 @@ Item {
 
     Dialog {
         id: dlgNuevo
-        title: "Carrusel nuevo"
+        title: qsTr("Carrusel nuevo")
         modal: true
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok | Dialog.Cancel
@@ -316,7 +316,7 @@ Item {
                 id: nombre
                 Layout.preferredWidth: dlgNuevo.availableWidth
                 color: Theme.text
-                placeholderText: "Cómo llamarlo: «Apertura», «Sponsors»…"
+                placeholderText: qsTr("Cómo llamarlo: «Apertura», «Sponsors»…")
                 onAccepted: dlgNuevo.accept()
             }
         }
@@ -326,7 +326,7 @@ Item {
     // en su propia ventana, donde `ApplicationWindow.window.confirm` no existe.
     Dialog {
         id: dlgBorrar
-        title: "Borrar el carrusel"
+        title: qsTr("Borrar el carrusel")
         modal: true
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Yes | Dialog.No
@@ -339,8 +339,8 @@ Item {
             width: dlgBorrar.availableWidth
             wrapMode: Text.WordWrap
             // Se dice qué NO se borra: si no, nadie toca el botón por las dudas.
-            text: "Se va «" + raiz.cc.actual + "». Las imágenes quedan donde están: " +
-                  "pueden estar en una escena, o ser tuyas."
+            text: qsTr("Se va «%1». Las imágenes quedan donde están: "
+                       + "pueden estar en una escena, o ser tuyas.").arg(raiz.cc.actual)
         }
     }
 }

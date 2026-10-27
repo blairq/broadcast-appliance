@@ -36,36 +36,36 @@ ColumnLayout {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 12
         text: p360.camara
-              ? "Une " + p360.cuantas + (p360.cuantas === 1 ? " cámara" : " cámaras") + " (un cable de cada una; la de arriba es la lente 1) en una imagen, todo en la placa. La tira mide, de fábrica, la suma de las resoluciones; la vista es un PTZ: yaw, pitch y fov son el pan, el tilt y el zoom."
-              : "Una cámara 360 en un stream vista como una común, en la placa. Yaw, pitch y fov son el pan, el tilt y el zoom."
+              ? qsTr("Une %n cámara (un cable de cada una; la de arriba es la lente 1) en una imagen, todo en la placa. La tira mide, de fábrica, la suma de las resoluciones; la vista es un PTZ: yaw, pitch y fov son el pan, el tilt y el zoom.", "", p360.cuantas)
+              : qsTr("Una cámara 360 en un stream vista como una común, en la placa. Yaw, pitch y fov son el pan, el tilt y el zoom.")
     }
 
     // --- Qué entra, qué sale --------------------------------------------------------------
     GridLayout {
         Layout.fillWidth: true
         columns: 2; columnSpacing: 8; rowSpacing: 4
-        Text { visible: !p360.camara; text: "Entra"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { visible: !p360.camara; text: qsTr("Entra"); color: Theme.textDim; font.pixelSize: 12 }
         ComboBox {
             visible: !p360.camara
             Layout.fillWidth: true
             readonly property var vals: ["equirect", "ojo", "dos-ojos"]
-            model: ["Equirectangular", "Un ojo de pez", "Dos ojos de pez lado a lado"]
+            model: [qsTr("Equirectangular"), qsTr("Un ojo de pez"), qsTr("Dos ojos de pez lado a lado")]
             currentIndex: Math.max(0, vals.indexOf(p360.p.modo || "equirect"))
             onActivated: (i) => p360.ajustar("modo", vals[i])
         }
-        Text { text: "Sale"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Sale"); color: Theme.textDim; font.pixelSize: 12 }
         ComboBox {
             Layout.fillWidth: true
             readonly property var vals: ["vista", "tira", "panorama", "entrada"]
-            model: ["La vista (un PTZ)", "La tira (panorámica)", "La esfera entera (360)", "La entrada (calibrar)"]
+            model: [qsTr("La vista (un PTZ)"), qsTr("La tira (panorámica)"), qsTr("La esfera entera (360)"), qsTr("La entrada (calibrar)")]
             currentIndex: Math.max(0, vals.indexOf(p360.p.ver || "vista"))
             onActivated: (i) => p360.ajustar("ver", vals[i])
         }
-        Text { text: "Guía"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Guía"); color: Theme.textDim; font.pixelSize: 12 }
         ComboBox {
             Layout.fillWidth: true
             readonly property var vals: ["ninguna", "rectangulo", "circulo", "grilla", "cruz", "esfera"]
-            model: ["Ninguna", "Rectángulo", "Círculo", "Grilla", "Cruz", "Esfera (paralelos y meridianos)"]
+            model: [qsTr("Ninguna"), qsTr("Rectángulo"), qsTr("Círculo"), qsTr("Grilla"), qsTr("Cruz"), qsTr("Esfera (paralelos y meridianos)")]
             currentIndex: Math.max(0, vals.indexOf(p360.p.guia || "ninguna"))
             onActivated: (i) => p360.ajustar("guia", vals[i])
         }
@@ -76,20 +76,20 @@ ColumnLayout {
         visible: p360.camara
         Layout.fillWidth: true
         spacing: 6
-        Text { text: "Armar como"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Armar como"); color: Theme.textDim; font.pixelSize: 12 }
         GlassButton {
-            compact: true; text: "Fila de cámaras"
+            compact: true; text: qsTr("Fila de cámaras")
             onClicked: p360.atajo("fila", parseFloat(campoAtajo.text.replace(",", ".")) || 60)
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Comunes de ese campo, repartidas con un 10% que se pisa; sale la tira (la suma de las resoluciones)"
+            ToolTip.text: qsTr("Comunes de ese campo, repartidas con un 10% que se pisa; sale la tira (la suma de las resoluciones)")
         }
         TextField { id: campoAtajo; Layout.preferredWidth: 46; text: "60"; font.pixelSize: 11; horizontalAlignment: Text.AlignRight }
         Text { text: "°"; color: Theme.textDim; font.pixelSize: 12 }
         GlassButton {
-            compact: true; text: "360 de dos lentes"; enabled: p360.cuantas === 2
+            compact: true; text: qsTr("360 de dos lentes"); enabled: p360.cuantas === 2
             onClicked: p360.atajo("360", 190)
             ToolTip.visible: hovered; ToolTip.delay: 400
-            ToolTip.text: "Dos ojos de pez de 190° espalda con espalda; sale la vista (el PTZ)"
+            ToolTip.text: qsTr("Dos ojos de pez de 190° espalda con espalda; sale la vista (el PTZ)")
         }
     }
 
@@ -98,19 +98,19 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 6
         GlassButton {
-            visible: p360.conLentes; compact: true; text: "1 · Encajar círculos"
+            visible: p360.conLentes; compact: true; text: qsTr("1 · Encajar círculos")
             onClicked: { p360.ajustar("ver", "entrada"); p360.ajustar("guia", "ninguna") }
         }
         GlassButton {
-            compact: true; text: (p360.conLentes ? "2 · " : "") + (p360.camara ? "Tira + esfera" : "Panorama + esfera")
+            compact: true; text: (p360.conLentes ? "2 · " : "") + (p360.camara ? qsTr("Tira + esfera") : qsTr("Panorama + esfera"))
             onClicked: { p360.ajustar("ver", p360.camara ? "tira" : "panorama"); p360.ajustar("guia", "esfera") }
         }
         GlassButton {
-            compact: true; text: (p360.conLentes ? "3 · " : "") + "Vista + rectángulo"
+            compact: true; text: (p360.conLentes ? "3 · " : "") + qsTr("Vista + rectángulo")
             onClicked: { p360.ajustar("ver", "vista"); p360.ajustar("guia", "rectangulo") }
         }
         GlassButton {
-            compact: true; text: "Sin guía"
+            compact: true; text: qsTr("Sin guía")
             onClicked: { p360.ajustar("ver", "vista"); p360.ajustar("guia", "ninguna") }
         }
     }
@@ -164,22 +164,22 @@ ColumnLayout {
     }
 
     Seccion {
-        titulo: "Vista: pan, tilt y zoom"
+        titulo: qsTr("Vista: pan, tilt y zoom")
         abierta: true
         filas: [
-            { k: "yaw", t: "Pan: hacia dónde mira (°)", min: -180, max: 180, dec: 1 },
-            { k: "pitch", t: "Tilt: arriba o abajo (°)", min: -90, max: 90, dec: 1 },
-            { k: "fov", t: "Zoom: cuánto abre (°)", min: 10, max: 170, dec: 1, def: 90 },
-            { k: "tira_campo", t: "Tira: grados de costado", min: 10, max: 360, dec: 1, def: 180 },
-            { k: "ancho", t: "Ancho que sale (0 = como entra)", min: 0, max: 16384, entero: true },
-            { k: "alto", t: "Alto que sale (0 = como entra)", min: 0, max: 8192, entero: true }]
+            { k: "yaw", t: qsTr("Pan: hacia dónde mira (°)"), min: -180, max: 180, dec: 1 },
+            { k: "pitch", t: qsTr("Tilt: arriba o abajo (°)"), min: -90, max: 90, dec: 1 },
+            { k: "fov", t: qsTr("Zoom: cuánto abre (°)"), min: 10, max: 170, dec: 1, def: 90 },
+            { k: "tira_campo", t: qsTr("Tira: grados de costado"), min: 10, max: 360, dec: 1, def: 180 },
+            { k: "ancho", t: qsTr("Ancho que sale (0 = como entra)"), min: 0, max: 16384, entero: true },
+            { k: "alto", t: qsTr("Alto que sale (0 = como entra)"), min: 0, max: 8192, entero: true }]
     }
     Seccion {
         visible: p360.camara
-        titulo: "Streams de las cámaras"
+        titulo: qsTr("Streams de las cámaras")
         filas: [
-            { k: "lente_ancho", t: "Ancho de cada stream", min: 320, max: 3840, entero: true, def: 1920 },
-            { k: "lente_alto", t: "Alto de cada stream", min: 240, max: 2160, entero: true, def: 1080 }]
+            { k: "lente_ancho", t: qsTr("Ancho de cada stream"), min: 320, max: 3840, entero: true, def: 1920 },
+            { k: "lente_alto", t: qsTr("Alto de cada stream"), min: 240, max: 2160, entero: true, def: 1080 }]
     }
     Repeater {
         model: p360.conLentes ? p360.cuantas : 0
@@ -193,47 +193,48 @@ ColumnLayout {
             RowLayout {
                 visible: p360.camara || p360.p.modo === "lentes"
                 Layout.fillWidth: true
-                Text { text: "Lente " + (lenteCol.index + 1); color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true }
+                Text { text: qsTr("Lente %1").arg(lenteCol.index + 1); color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true }
                 ComboBox {
                     Layout.preferredWidth: 150
-                    model: ["Ojo de pez", "Común"]
+                    model: [qsTr("Ojo de pez"), qsTr("Común")]
                     currentIndex: lenteCol.ojo ? 0 : 1
                     onActivated: (i) => p360.ajustar(lenteCol.b + "_tipo", i === 0 ? "ojo" : "normal")
                 }
             }
             Seccion {
-                titulo: "Lente " + (lenteCol.index + 1) + (p360.p.modo === "dos-ojos" && lenteCol.index === 1 ? " (atrás)" : "") + ": deformación y cómo encaja"
+                titulo: (p360.p.modo === "dos-ojos" && lenteCol.index === 1 ? qsTr("Lente %1 (atrás): deformación y cómo encaja")
+                                                                       : qsTr("Lente %1: deformación y cómo encaja")).arg(lenteCol.index + 1)
                 filas: [
-                    { k: lenteCol.b + "_x", t: "Centro óptico, de costado", min: -0.5, max: 1.5, def: 0.5, dec: 4 },
-                    { k: lenteCol.b + "_y", t: "Centro óptico, de arriba abajo", min: -0.5, max: 1.5, def: 0.5, dec: 4 }]
-                    .concat(lenteCol.ojo ? [{ k: lenteCol.b + "_radio", t: "Radio del círculo", min: 0.05, max: 1.5, def: 0.5, dec: 4 }] : [])
+                    { k: lenteCol.b + "_x", t: qsTr("Centro óptico, de costado"), min: -0.5, max: 1.5, def: 0.5, dec: 4 },
+                    { k: lenteCol.b + "_y", t: qsTr("Centro óptico, de arriba abajo"), min: -0.5, max: 1.5, def: 0.5, dec: 4 }]
+                    .concat(lenteCol.ojo ? [{ k: lenteCol.b + "_radio", t: qsTr("Radio del círculo"), min: 0.05, max: 1.5, def: 0.5, dec: 4 }] : [])
                     .concat([
-                    { k: lenteCol.b + "_campo", t: lenteCol.ojo ? "Campo del círculo (°)" : "Campo de ancho (°)", min: 10, max: 270, def: lenteCol.ojo ? 190 : 60, dec: 2 },
-                    { k: lenteCol.b + "_yaw", t: "Encaje: de costado (°)", min: -180, max: 180, dec: 2 },
-                    { k: lenteCol.b + "_pitch", t: "Encaje: de arriba abajo (°)", min: -90, max: 90, dec: 2 },
-                    { k: lenteCol.b + "_roll", t: "Encaje: rotación (°)", min: -180, max: 180, dec: 2 },
-                    { k: lenteCol.b + "_k1", t: "Deformación k1 (barril < 0 < cojín)", min: -1, max: 1, dec: 4 },
-                    { k: lenteCol.b + "_k2", t: "Deformación k2", min: -1, max: 1, dec: 4 }])
+                    { k: lenteCol.b + "_campo", t: lenteCol.ojo ? qsTr("Campo del círculo (°)") : qsTr("Campo de ancho (°)"), min: 10, max: 270, def: lenteCol.ojo ? 190 : 60, dec: 2 },
+                    { k: lenteCol.b + "_yaw", t: qsTr("Encaje: de costado (°)"), min: -180, max: 180, dec: 2 },
+                    { k: lenteCol.b + "_pitch", t: qsTr("Encaje: de arriba abajo (°)"), min: -90, max: 90, dec: 2 },
+                    { k: lenteCol.b + "_roll", t: qsTr("Encaje: rotación (°)"), min: -180, max: 180, dec: 2 },
+                    { k: lenteCol.b + "_k1", t: qsTr("Deformación k1 (barril < 0 < cojín)"), min: -1, max: 1, dec: 4 },
+                    { k: lenteCol.b + "_k2", t: qsTr("Deformación k2"), min: -1, max: 1, dec: 4 }])
             }
         }
     }
     Seccion {
         visible: p360.variasLentes
-        titulo: "Costuras"
-        filas: [{ k: "mezcla", t: "Franja de mezcla entre lentes (°)", min: 0, max: 40, def: 5, dec: 1 }]
+        titulo: qsTr("Costuras")
+        filas: [{ k: "mezcla", t: qsTr("Franja de mezcla entre lentes (°)"), min: 0, max: 40, def: 5, dec: 1 }]
     }
     Seccion {
-        titulo: "Guía: dónde y cómo"
+        titulo: qsTr("Guía: dónde y cómo")
         filas: [
-            { k: "guia_x", t: "Centro, de costado", min: -0.5, max: 1.5, def: 0.5, dec: 4 },
-            { k: "guia_y", t: "Centro, de arriba abajo", min: -0.5, max: 1.5, def: 0.5, dec: 4 },
-            { k: "guia_ancho", t: "Ancho (en la grilla, el paso)", min: 0, max: 2, def: 0.5, dec: 4 },
-            { k: "guia_alto", t: "Alto (en la grilla, el paso)", min: 0, max: 2, def: 0.5, dec: 4 },
-            { k: "guia_grosor", t: "Grosor (px)", min: 0.5, max: 20, def: 3, dec: 1 }]
+            { k: "guia_x", t: qsTr("Centro, de costado"), min: -0.5, max: 1.5, def: 0.5, dec: 4 },
+            { k: "guia_y", t: qsTr("Centro, de arriba abajo"), min: -0.5, max: 1.5, def: 0.5, dec: 4 },
+            { k: "guia_ancho", t: qsTr("Ancho (en la grilla, el paso)"), min: 0, max: 2, def: 0.5, dec: 4 },
+            { k: "guia_alto", t: qsTr("Alto (en la grilla, el paso)"), min: 0, max: 2, def: 0.5, dec: 4 },
+            { k: "guia_grosor", t: qsTr("Grosor (px)"), min: 0.5, max: 20, def: 3, dec: 1 }]
     }
     RowLayout {
         spacing: 6
-        Text { text: "Color de la guía"; color: Theme.textDim; font.pixelSize: 12 }
+        Text { text: qsTr("Color de la guía"); color: Theme.textDim; font.pixelSize: 12 }
         Repeater {
             model: [{ c: 0xFF00FF00, t: "#00FF00" }, { c: 0xFFFF00FF, t: "#FF00FF" }, { c: 0xFFFFFF00, t: "#FFFF00" },
                     { c: 0xFF00FFFF, t: "#00FFFF" }, { c: 0xFFFF3030, t: "#FF3030" }, { c: 0xFFFFFFFF, t: "#FFFFFF" }]

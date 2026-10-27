@@ -43,13 +43,13 @@ Item {
             spacing: 14
             Text {
                 Layout.fillWidth: true
-                text: "Todo el audio: cada fuente con su cadena (origen → rack → filtros → mezcla). Verde: corre en GStreamer; celeste: en libobs. Un clic abre su rack."
+                text: qsTr("Todo el audio: cada fuente con su cadena (origen → rack → filtros → mezcla). Verde: corre en GStreamer; celeste: en libobs. Un clic abre su rack.")
                 color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
             }
             Text {
                 readonly property int gst: (est.datos.franjas || []).filter(f => f.motor === "gstreamer" && f.titulo !== "Automixer").length
                 readonly property int obs: (est.datos.franjas || []).filter(f => f.motor === "libobs").length
-                text: gst + " en GStreamer · " + obs + " en libobs"
+                text: qsTr("%1 en GStreamer · %2 en libobs").arg(gst).arg(obs)
                 color: Theme.textFaint; font.pixelSize: 11
             }
         }

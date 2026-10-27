@@ -108,7 +108,7 @@ Item {
         Text {
             id: textoEspera
             anchors.centerIn: parent
-            text: "espera " + Math.round(l.espera || 0) + " ms (colchón)"
+            text: qsTr("espera %1 ms (colchón)").arg(Math.round(l.espera || 0))
             color: l.color
             font.pixelSize: 9
         }

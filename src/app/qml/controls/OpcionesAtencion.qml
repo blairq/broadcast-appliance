@@ -38,19 +38,19 @@ ColumnLayout {
             spacing: 0
             Layout.fillWidth: true
             Layout.preferredWidth: 0
-            Text { text: "✦ Los atiende el asistente"; font.pixelSize: 13
+            Text { text: qsTr("✦ Los atiende el asistente"); font.pixelSize: 13
                    color: oa.at && oa.at.quienAtiende !== "" ? Theme.text : Theme.textFaint }
             Text {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 0
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
-                text: !oa.at ? "Esta compilación no trae la atención (falta el motor de voz)."
+                text: !oa.at ? qsTr("Esta compilación no trae la atención (falta el motor de voz).")
                       : oa.at.quienAtiende === "" ? oa.at.quienAtiendeTexto
-                      : !oa.atiende ? (oa.enSala ? "Cada uno que entra, lo atendés vos." : "Cada uno que espera, lo habilitás vos.")
+                      : !oa.atiende ? (oa.enSala ? qsTr("Cada uno que entra, lo atendés vos.") : qsTr("Cada uno que espera, lo habilitás vos."))
                       : oa.at.quienAtiendeTexto + " " +
-                        (oa.enSala ? "Les pide los datos y te los muestra juntos para que los hagas pasar; termina al admitirlos."
-                                   : "Le mira la cara al que espera: si es quien dice y tiene permiso de entrar solo, lo habilita; si no, te pregunta.")
+                        (oa.enSala ? qsTr("Les pide los datos y te los muestra juntos para que los hagas pasar; termina al admitirlos.")
+                                   : qsTr("Le mira la cara al que espera: si es quien dice y tiene permiso de entrar solo, lo habilita; si no, te pregunta."))
             }
         }
     }
@@ -71,7 +71,7 @@ ColumnLayout {
             spacing: 0
             Layout.fillWidth: true
             Layout.preferredWidth: 0
-            Text { text: "🎙 Hablando"; font.pixelSize: 13
+            Text { text: qsTr("🎙 Hablando"); font.pixelSize: 13
                    color: !!oa.at && oa.at.puedeHablar ? Theme.text : Theme.textFaint }
             Text {
                 Layout.fillWidth: true
@@ -82,15 +82,15 @@ ColumnLayout {
                       : !oa.at.puedeHablar ? oa.at.hablarFalta
                       : oa.enSala
                         ? (oa.hablando
-                           ? "Lo que dice pasa a texto y se le contesta con voz, solo a esa persona (nunca al aire). De a uno: " +
-                             "los demás, por chat. La voz se elige en Configuración → Voz del sistema → Voz del atendedor."
-                           : "Además del chat, se le habla: lo que dice pasa a texto y la respuesta le llega con voz.")
+                           ? qsTr("Lo que dice pasa a texto y se le contesta con voz, solo a esa persona (nunca al aire). De a uno: "
+                                  + "los demás, por chat. La voz se elige en Configuración → Voz del sistema → Voz del atendedor.")
+                           : qsTr("Además del chat, se le habla: lo que dice pasa a texto y la respuesta le llega con voz."))
                         : (oa.hablando
-                           ? "Mientras espera, su página le pide el micrófono y le avisa que lo atiende el asistente: lo que " +
-                             "dice pasa a texto y la respuesta le llega con voz, solo a él (nunca a la sesión ni al aire). " +
-                             "De a uno, con la misma voz que en la Conferencia; termina al habilitarlo."
-                           : "Además de mirarle la cara, se le habla mientras espera: su página abre el micrófono solo para " +
-                             "el asistente y la respuesta le llega con voz.")
+                           ? qsTr("Mientras espera, su página le pide el micrófono y le avisa que lo atiende el asistente: lo que "
+                                  + "dice pasa a texto y la respuesta le llega con voz, solo a él (nunca a la sesión ni al aire). "
+                                  + "De a uno, con la misma voz que en la Conferencia; termina al habilitarlo.")
+                           : qsTr("Además de mirarle la cara, se le habla mientras espera: su página abre el micrófono solo para "
+                                  + "el asistente y la respuesta le llega con voz."))
             }
         }
     }
@@ -108,15 +108,15 @@ ColumnLayout {
             spacing: 0
             Layout.fillWidth: true
             Layout.preferredWidth: 0
-            Text { text: "☻ Alta automática en Personas"; color: Theme.text; font.pixelSize: 13 }
+            Text { text: qsTr("☻ Alta automática en Personas"); color: Theme.text; font.pixelSize: 13 }
             Text {
                 Layout.fillWidth: true
                 Layout.preferredWidth: 0
                 wrapMode: Text.WordWrap
                 color: Theme.textFaint; font.pixelSize: 11
-                text: "Anota en Personas, con su nombre y su cargo, a todo el que dio su nombre y tiene una cara que " +
-                      "sirve para reconocerlo, sin esperar a que el asistente se acuerde." +
-                      (oa.enSala && oa.atiende ? " Con la atención prendida, el lobby se mira siempre." : "")
+                text: qsTr("Anota en Personas, con su nombre y su cargo, a todo el que dio su nombre y tiene una cara que "
+                           + "sirve para reconocerlo, sin esperar a que el asistente se acuerde.") +
+                      (oa.enSala && oa.atiende ? " " + qsTr("Con la atención prendida, el lobby se mira siempre.") : "")
             }
         }
     }
@@ -128,16 +128,16 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             color: Theme.textDim; font.pixelSize: 12
-            text: lista.hayEvento ? "Entran solos si se los reconoce: " + lista.solos : "Entran solos: sin evento abierto"
+            text: lista.hayEvento ? qsTr("Entran solos si se los reconoce: %1").arg(lista.solos) : qsTr("Entran solos: sin evento abierto")
         }
-        GlassButton { compact: true; text: "Elegir…"; onClicked: dlgSolos.open() }
+        GlassButton { compact: true; text: qsTr("Elegir…"); onClicked: dlgSolos.open() }
     }
     Dialog {
         id: dlgSolos
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        title: "Quién entra solo si se lo reconoce"
+        title: qsTr("Quién entra solo si se lo reconoce")
         standardButtons: Dialog.Close
         width: 460
         ListaEntranSolos { id: lista; width: parent.width }

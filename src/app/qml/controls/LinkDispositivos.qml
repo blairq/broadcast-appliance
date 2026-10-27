@@ -8,7 +8,7 @@ import BA
 
 Text {
     id: link
-    property string texto: "Ponerles nombre a los dispositivos o ver cuáles faltan → Dispositivos y equipos"
+    property string texto: qsTr("Ponerles nombre a los dispositivos o ver cuáles faltan → Dispositivos y equipos")
     text: texto
     color: hover.hovered ? Theme.accent : Theme.textFaint
     font { pixelSize: 11; underline: hover.hovered }

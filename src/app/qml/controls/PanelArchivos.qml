@@ -57,7 +57,7 @@ Item {
             color: Qt.rgba(1, 0.42, 0.17, 0.92)
             Text {
                 anchors.centerIn: parent
-                text: raiz.m.cuantosElegidos + (raiz.m.cuantosElegidos === 1 ? " archivo" : " archivos")
+                text: qsTr("%n archivo", "", raiz.m.cuantosElegidos)
                 color: "white"
                 font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
             }
@@ -78,7 +78,7 @@ Item {
                 Layout.fillWidth: true
                 Text {
                     Layout.fillWidth: true
-                    text: "Carpetas"
+                    text: qsTr("Carpetas")
                     color: Theme.textDim
                     font { family: Theme.font; pixelSize: 12; weight: Font.DemiBold }
                 }
@@ -87,7 +87,7 @@ Item {
                     text: "+"
                     onClicked: dlgCarpeta.open()
                     ToolTip.visible: hovered
-                    ToolTip.text: "Carpeta nueva adentro de la elegida"
+                    ToolTip.text: qsTr("Carpeta nueva adentro de la elegida")
                 }
             }
 
@@ -189,7 +189,7 @@ Item {
                 Layout.fillWidth: true
                 GlassButton {
                     compact: true
-                    text: "Ver todo"
+                    text: qsTr("Ver todo")
                     active: raiz.m.carpeta === ""
                     onClicked: raiz.m.carpeta = ""
                 }
@@ -199,7 +199,7 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: "con subcarpetas"
+                    text: qsTr("con subcarpetas")
                     color: Theme.textFaint
                     font.pixelSize: 10
                     elide: Text.ElideRight
@@ -220,7 +220,7 @@ Item {
                     id: busca
                     Layout.fillWidth: true
                     color: Theme.text
-                    placeholderText: "Buscar… (sin tildes: «logo camion» encuentra «Logo_Camión.png»)"
+                    placeholderText: qsTr("Buscar… (sin tildes: «logo camion» encuentra «Logo_Camión.png»)")
                     onTextChanged: raiz.m.consulta = text
                     Keys.onEscapePressed: text = ""
                 }
@@ -234,10 +234,10 @@ Item {
                     id: orden
                     Layout.preferredWidth: 130
                     model: [
-                        { id: "nombre", rotulo: "Nombre" },
-                        { id: "fecha", rotulo: "Fecha" },
-                        { id: "tamano", rotulo: "Tamaño" },
-                        { id: "tipo", rotulo: "Tipo" }
+                        { id: "nombre", rotulo: qsTr("Nombre") },
+                        { id: "fecha", rotulo: qsTr("Fecha") },
+                        { id: "tamano", rotulo: qsTr("Tamaño") },
+                        { id: "tipo", rotulo: qsTr("Tipo") }
                     ]
                     textRole: "rotulo"
                     onActivated: raiz.m.orden = model[currentIndex].id
@@ -247,15 +247,15 @@ Item {
                     text: raiz.m.ordenDescendente ? "↓" : "↑"
                     onClicked: raiz.m.ordenDescendente = !raiz.m.ordenDescendente
                     ToolTip.visible: hovered
-                    ToolTip.text: raiz.m.ordenDescendente ? "De mayor a menor" : "De menor a mayor"
+                    ToolTip.text: raiz.m.ordenDescendente ? qsTr("De mayor a menor") : qsTr("De menor a mayor")
                 }
                 GlassButton {
                     compact: true
-                    text: "Refrescar"
+                    text: qsTr("Refrescar")
                     onClicked: raiz.m.refrescar()
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: "Volver a mirar el disco: después de copiar archivos a mano"
+                    ToolTip.text: qsTr("Volver a mirar el disco: después de copiar archivos a mano")
                 }
             }
 
@@ -264,11 +264,11 @@ Item {
                 spacing: 6
                 Repeater {
                     model: [
-                        { id: "", rotulo: "Todo" },
-                        { id: "imagen", rotulo: "Imágenes" },
-                        { id: "video", rotulo: "Videos" },
-                        { id: "audio", rotulo: "Audio" },
-                        { id: "documento", rotulo: "Presentaciones" }
+                        { id: "", rotulo: qsTr("Todo") },
+                        { id: "imagen", rotulo: qsTr("Imágenes") },
+                        { id: "video", rotulo: qsTr("Videos") },
+                        { id: "audio", rotulo: qsTr("Audio") },
+                        { id: "documento", rotulo: qsTr("Presentaciones") }
                     ]
                     delegate: GlassButton {
                         required property var modelData
@@ -277,22 +277,21 @@ Item {
                         // El número al lado: es lo que deja decir «no hay
                         // ningún video» en vez de mostrar una grilla vacía sin
                         // explicación.
-                        text: modelData.rotulo +
-                              (modelData.id === "" ? ""
-                               : " (" + (raiz.m.cuenta[modelData.id] || 0) + ")")
+                        text: modelData.id === "" ? modelData.rotulo
+                              : qsTr("%1 (%2)").arg(modelData.rotulo).arg(raiz.m.cuenta[modelData.id] || 0)
                         onClicked: raiz.m.tipo = modelData.id
                     }
                 }
                 Item { Layout.fillWidth: true }
                 GlassButton {
                     compact: true
-                    text: "Elegir todo"
+                    text: qsTr("Elegir todo")
                     onClicked: raiz.m.elegirTodo()
                 }
                 Text {
                     text: raiz.m.mostrados === raiz.m.total
-                          ? raiz.m.total + " archivos"
-                          : raiz.m.mostrados + " de " + raiz.m.total
+                          ? qsTr("%n archivo", "", raiz.m.total)
+                          : qsTr("%1 de %2").arg(raiz.m.mostrados).arg(raiz.m.total)
                     color: Theme.textDim
                     font.pixelSize: 12
                 }
@@ -460,11 +459,10 @@ Item {
                     color: Theme.textFaint
                     font.pixelSize: 13
                     text: raiz.m.total === 0
-                          ? "No hay archivos de medios todavía.\n\nCopiá tus imágenes, videos y música a:\n" +
-                            raiz.m.carpetaDeMedios()
+                          ? qsTr("No hay archivos de medios todavía.\n\nCopiá tus imágenes, videos y música a:\n%1").arg(raiz.m.carpetaDeMedios())
                           : (busca.text !== "" && raiz.m.carpeta !== "")
-                            ? "Nada coincide en «" + raiz.m.carpeta + "».\nProbá mirando en todas las carpetas."
-                            : "Nada coincide con lo que buscaste."
+                            ? qsTr("Nada coincide en «%1».\nProbá mirando en todas las carpetas.").arg(raiz.m.carpeta)
+                            : qsTr("Nada coincide con lo que buscaste.")
                 }
 
                 // Volver a «todas» sin tener que encontrar el botón: el cartel
@@ -472,7 +470,7 @@ Item {
                 GlassButton {
                     anchors { horizontalCenter: parent.horizontalCenter; top: parent.verticalCenter; topMargin: 40 }
                     visible: grilla.count === 0 && busca.text !== "" && raiz.m.carpeta !== ""
-                    text: "Buscar en todas las carpetas"
+                    text: qsTr("Buscar en todas las carpetas")
                     onClicked: raiz.m.carpeta = ""
                 }
             }
@@ -487,20 +485,20 @@ Item {
     Menu {
         id: menuArchivo
         MenuItem {
-            text: "Abrir"
+            text: qsTr("Abrir")
             enabled: raiz.m.cuantosElegidos === 1
             onTriggered: visor.abrir(raiz.m.archivos.findIndex(
                 (a) => a.relativa === raiz.m.seleccion[0]))
         }
         MenuItem {
-            text: "Renombrar…"
+            text: qsTr("Renombrar…")
             enabled: raiz.m.cuantosElegidos === 1
             onTriggered: { dlgRenombrar.rel = raiz.m.seleccion[0]; dlgRenombrar.open() }
         }
-        MenuItem { text: "Elegir todo"; onTriggered: raiz.m.elegirTodo() }
-        MenuItem { text: "No elegir nada"; onTriggered: raiz.m.noElegirNada() }
+        MenuItem { text: qsTr("Elegir todo"); onTriggered: raiz.m.elegirTodo() }
+        MenuItem { text: qsTr("No elegir nada"); onTriggered: raiz.m.noElegirNada() }
         MenuSeparator {}
-        MenuItem { text: "Borrar (a la papelera)"; onTriggered: dlgBorrar.open() }
+        MenuItem { text: qsTr("Borrar (a la papelera)"); onTriggered: dlgBorrar.open() }
     }
 
     Menu {
@@ -508,18 +506,18 @@ Item {
         property string rel: ""
         property string nombre: ""
         MenuItem {
-            text: "Renombrar carpeta…"
+            text: qsTr("Renombrar carpeta…")
             onTriggered: { dlgRenombrar.rel = menuCarpeta.rel; dlgRenombrar.open() }
         }
         MenuItem {
-            text: "Borrar carpeta (a la papelera)"
+            text: qsTr("Borrar carpeta (a la papelera)")
             onTriggered: { raiz.m.elegir(menuCarpeta.rel, "solo"); dlgBorrar.open() }
         }
     }
 
     Dialog {
         id: dlgCarpeta
-        title: "Carpeta nueva"
+        title: qsTr("Carpeta nueva")
         modal: true
         width: 380
         anchors.centerIn: Overlay.overlay
@@ -533,14 +531,14 @@ Item {
             spacing: 6
             Label {
                 width: dlgCarpeta.availableWidth
-                text: "Adentro de «" + (raiz.m.carpeta === "" ? "Media" : raiz.m.carpeta) + "»"
+                text: qsTr("Adentro de «%1»").arg(raiz.m.carpeta === "" ? "Media" : raiz.m.carpeta)
                 color: Theme.textFaint
             }
             TextField {
                 id: nombreCarpeta
                 Layout.preferredWidth: dlgCarpeta.availableWidth
                 color: Theme.text
-                placeholderText: "Sponsors, Camara 2, Apertura…"
+                placeholderText: qsTr("Sponsors, Camara 2, Apertura…")
                 onAccepted: dlgCarpeta.accept()
             }
         }
@@ -549,7 +547,7 @@ Item {
     Dialog {
         id: dlgRenombrar
         property string rel: ""
-        title: "Renombrar"
+        title: qsTr("Renombrar")
         modal: true
         width: 420
         anchors.centerIn: Overlay.overlay
@@ -566,7 +564,7 @@ Item {
 
     Dialog {
         id: dlgBorrar
-        title: "Borrar"
+        title: qsTr("Borrar")
         modal: true
         width: 440
         anchors.centerIn: Overlay.overlay
@@ -576,9 +574,9 @@ Item {
             width: dlgBorrar.availableWidth
             wrapMode: Text.WordWrap
             // Se dice a dónde van: si no, nadie toca el botón por las dudas.
-            text: raiz.m.cuantosElegidos + (raiz.m.cuantosElegidos === 1 ? " archivo" : " archivos") +
-                  " (" + raiz.tamano(raiz.m.bytesElegidos) + ") van a Papelera/.\n\n" +
-                  "No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y listo."
+            text: qsTr("%n archivo (%1) van a Papelera/.\n\n"
+                       + "No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y listo.", "", raiz.m.cuantosElegidos)
+                      .arg(raiz.tamano(raiz.m.bytesElegidos))
         }
     }
 }

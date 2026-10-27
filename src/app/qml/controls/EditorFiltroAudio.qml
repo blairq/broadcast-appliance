@@ -71,11 +71,11 @@ Popup {
     function guardar() {
         let f
         if (tipo === "modulo") {
-            if (elemento === "") { Studio.notify("Elegí un módulo", "error"); return }
+            if (elemento === "") { Studio.notify(qsTr("Elegí un módulo"), "error"); return }
             f = { elemento: elemento, propiedades: valores }
         } else {
-            if (pluginId === "" || tarjeta === "") { Studio.notify("Elegí una tarjeta de un plugin", "error"); return }
-            try { JSON.parse(parametros) } catch (e) { Studio.notify("Los parámetros no son JSON válido", "error"); return }
+            if (pluginId === "" || tarjeta === "") { Studio.notify(qsTr("Elegí una tarjeta de un plugin"), "error"); return }
+            try { JSON.parse(parametros) } catch (e) { Studio.notify(qsTr("Los parámetros no son JSON válido"), "error"); return }
             f = { elemento: "baplugin", propiedades: { plugin: pluginId, tarjeta: tarjeta, medio: "audio",
                                                         parametros: parametros, "espera-ms": String(esperaMs) } }
         }
@@ -83,7 +83,7 @@ Popup {
         if (indice >= 0) { f.id = l[indice].id; l[indice] = f } else { f.id = "a" + Date.now() % 100000; l.push(f) }
         const e = vg.ponerFiltrosAudioUi(entrada, l)
         if (e !== "") { Studio.notify(e, "error"); return }
-        Studio.notify("Filtro de audio guardado (la demora se compensa sola)", "info")
+        Studio.notify(qsTr("Filtro de audio guardado (la demora se compensa sola)"), "info")
         guardado()
         close()
     }
@@ -94,16 +94,16 @@ Popup {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: (ed.indice >= 0 ? "Editar" : "Agregar") + " un filtro de audio · " + ed.entrada
+                text: ed.indice >= 0 ? qsTr("Editar un filtro de audio · %1").arg(ed.entrada) : qsTr("Agregar un filtro de audio · %1").arg(ed.entrada)
                 color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } Layout.fillWidth: true; elide: Text.ElideRight
             }
-            GlassButton { compact: true; text: "Cancelar"; onClicked: ed.close() }
-            GlassButton { compact: true; active: true; text: "Guardar"; onClicked: ed.guardar() }
+            GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: ed.close() }
+            GlassButton { compact: true; active: true; text: qsTr("Guardar"); onClicked: ed.guardar() }
         }
         RowLayout {
             spacing: 6
-            GlassButton { compact: true; active: ed.tipo === "modulo"; text: "Módulo de GStreamer"; onClicked: ed.tipo = "modulo" }
-            GlassButton { compact: true; active: ed.tipo === "plugin"; text: "Tarjeta de un plugin de Python"; onClicked: ed.tipo = "plugin" }
+            GlassButton { compact: true; active: ed.tipo === "modulo"; text: qsTr("Módulo de GStreamer"); onClicked: ed.tipo = "modulo" }
+            GlassButton { compact: true; active: ed.tipo === "plugin"; text: qsTr("Tarjeta de un plugin de Python"); onClicked: ed.tipo = "plugin" }
         }
 
         // --- Un módulo de GStreamer ---------------------------------------------
@@ -113,7 +113,7 @@ Popup {
             spacing: 8
             TextField {
                 Layout.preferredWidth: 200
-                placeholderText: "Buscar (compresor, eq, eco…)"
+                placeholderText: qsTr("Buscar (compresor, eq, eco…)")
                 text: ed.filtroTexto
                 onTextEdited: ed.filtroTexto = text
             }
@@ -121,7 +121,7 @@ Popup {
                 Layout.fillWidth: true
                 model: ed.modulosVisibles
                 textRole: "elemento"
-                displayText: ed.elemento !== "" ? ed.elemento : "— elegí un módulo —"
+                displayText: ed.elemento !== "" ? ed.elemento : qsTr("— elegí un módulo —")
                 delegate: ItemDelegate {
                     required property var modelData
                     width: ListView.view ? ListView.view.width : 300
@@ -158,7 +158,7 @@ Popup {
             Text {
                 visible: ed.tarjetasPlugins.length === 0
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: "Ningún plugin de Python instalado tiene tarjetas de audio (@plugin.tarjeta(nombre, medio=\"audio\")). Ver Plugins."
+                text: qsTr("Ningún plugin de Python instalado tiene tarjetas de audio (@plugin.tarjeta(nombre, medio=\"audio\")). Ver Plugins.")
                 color: Theme.textFaint; font.pixelSize: 12
             }
             ComboBox {
@@ -166,7 +166,7 @@ Popup {
                 Layout.fillWidth: true
                 model: ed.tarjetasPlugins
                 textRole: "texto"
-                displayText: ed.tarjeta !== "" ? ed.pluginId + " · " + ed.tarjeta : "— elegí una tarjeta —"
+                displayText: ed.tarjeta !== "" ? ed.pluginId + " · " + ed.tarjeta : qsTr("— elegí una tarjeta —")
                 onActivated: (i) => {
                     const t = ed.tarjetasPlugins[i]
                     ed.pluginId = t.plugin; ed.tarjeta = t.tarjeta
@@ -176,7 +176,7 @@ Popup {
                     ed.parametros = JSON.stringify(d)
                 }
             }
-            Text { text: "Parámetros de la tarjeta (JSON)"; color: Theme.textDim; font.pixelSize: 12 }
+            Text { text: qsTr("Parámetros de la tarjeta (JSON)"); color: Theme.textDim; font.pixelSize: 12 }
             TextArea {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 110
@@ -188,11 +188,11 @@ Popup {
             }
             RowLayout {
                 spacing: 8
-                Text { text: "Espera máxima por bloque (ms)"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Espera máxima por bloque (ms)"); color: Theme.textDim; font.pixelSize: 12 }
                 SpinBox { from: 0; to: 200; value: ed.esperaMs; editable: true; onValueModified: ed.esperaMs = value }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap
-                    text: "Si el plugin no devuelve el bloque a tiempo, sale el anterior: nunca traba la entrada. Esta espera se declara como demora y se compensa."
+                    text: qsTr("Si el plugin no devuelve el bloque a tiempo, sale el anterior: nunca traba la entrada. Esta espera se declara como demora y se compensa.")
                     color: Theme.textFaint; font.pixelSize: 11
                 }
             }

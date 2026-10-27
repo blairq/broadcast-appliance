@@ -65,7 +65,7 @@ Rectangle {
                         NumberAnimation { to: 1.0; duration: 450; easing.type: Easing.InOutQuad }
                     }
                 }
-                Text { visible: remaining < 0; text: "se pasó"; color: Theme.live; font.pixelSize: 12 }
+                Text { visible: remaining < 0; text: qsTr("se pasó"); color: Theme.live; font.pixelSize: 12 }
             }
         }
     }
