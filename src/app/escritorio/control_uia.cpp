@@ -39,18 +39,18 @@ namespace bactl {
 
 json herramientasUia() {
     json t = json::array();
-    const json ventana = {{"type", "integer"}, {"description", "id de la ventana (system_ventanas); sin esto, la que tiene el foco"}};
-    const json titulo = {{"type", "string"}, {"description", "o parte del título de la ventana"}};
+    const json ventana = {{"type", "integer"}, {"description", ba::i18n::traducir("mcp", "id de la ventana (system_ventanas); sin esto, la que tiene el foco")}};
+    const json titulo = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "o parte del título de la ventana")}};
     t.push_back(herramienta(
         "system_ui_leer",
-        "LEE lo que hay en una ventana, como un lector de pantalla (UI Automation): los elementos que se pueden "
+        ba::i18n::traducir("mcp", "LEE lo que hay en una ventana, como un lector de pantalla (UI Automation): los elementos que se pueden "
         "tocar —botones, campos, casillas, desplegables, menús, enlaces, pestañas, ítems— con número, rol, nombre, "
         "valor, estado (foco, marcado, desplegado, elegido), atajo y el centro de lo que se ve; las zonas que se "
         "desplazan; y en un navegador (Chrome, Edge) la página con su texto. Un diálogo modal: solo lo del diálogo. "
         "Mejor que adivinar en una captura: después system_ui_clic / system_ui_escribir con el número. Sin "
         "`ventana`, la del foco; `todas`: todas las visibles (la del foco primero). `todos`: también textos e "
         "imágenes con nombre; `texto` (true): el texto de la página; `filtro`: solo lo que tenga eso en el "
-        "nombre; `max` (500). Permiso: pantalla.",
+        "nombre; `max` (500). Permiso: pantalla."),
         esquema({{"ventana", ventana},
                  {"titulo", titulo},
                  {"todas", {{"type", "boolean"}}},
@@ -60,10 +60,10 @@ json herramientasUia() {
                  {"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 3000}}}})));
     t.push_back(herramienta(
         "system_ui_clic",
-        "Clic en un elemento: `n` (el número de la última system_ui_leer) o `nombre` (parte del nombre; `rol` para "
+        ba::i18n::traducir("mcp", "Clic en un elemento: `n` (el número de la última system_ui_leer) o `nombre` (parte del nombre; `rol` para "
         "desempatar: boton, enlace, casilla, item, pestaña…) en la ventana. Usa la acción del elemento (invocar, "
         "marcar, elegir, desplegar), que anda aunque la ventana esté tapada; si no tiene, un clic de mouse en su "
-        "centro. `con_mouse`: true fuerza el clic de mouse (`boton`: izq, der; `doble`). Permiso: mouse.",
+        "centro. `con_mouse`: true fuerza el clic de mouse (`boton`: izq, der; `doble`). Permiso: mouse."),
         esquema({{"n", {{"type", "integer"}}},
                  {"nombre", {{"type", "string"}}},
                  {"rol", {{"type", "string"}}},
@@ -74,9 +74,9 @@ json herramientasUia() {
                  {"doble", {{"type", "boolean"}}}})));
     t.push_back(herramienta(
         "system_ui_escribir",
-        "Le pone `texto` a un campo: `n` (de system_ui_leer) o `nombre`. Pone el valor directo si el campo lo deja; "
+        ba::i18n::traducir("mcp", "Le pone `texto` a un campo: `n` (de system_ui_leer) o `nombre`. Pone el valor directo si el campo lo deja; "
         "si no, le da el foco y lo escribe. `reemplazar` (true): borra lo que había; `enter`: aprieta Enter al final. "
-        "Permiso: teclado.",
+        "Permiso: teclado."),
         esquema({{"n", {{"type", "integer"}}},
                  {"nombre", {{"type", "string"}}},
                  {"rol", {{"type", "string"}}},
@@ -88,14 +88,14 @@ json herramientasUia() {
                 {"texto"})));
     t.push_back(herramienta(
         "system_ui_texto",
-        "El TEXTO de una ventana: lo que dice una página web (Chrome, Edge), un documento, un diálogo. `max` "
-        "caracteres (20000). Permiso: pantalla.",
+        ba::i18n::traducir("mcp", "El TEXTO de una ventana: lo que dice una página web (Chrome, Edge), un documento, un diálogo. `max` "
+        "caracteres (20000). Permiso: pantalla."),
         esquema({{"ventana", ventana}, {"titulo", titulo}, {"max", {{"type", "integer"}, {"minimum", 100}, {"maximum", 200000}}}})));
     t.push_back(herramienta(
         "system_ui_esperar",
-        "Espera hasta que en la ventana aparezca un elemento cuyo nombre contenga `nombre` (y `rol` si se da): un "
+        ba::i18n::traducir("mcp", "Espera hasta que en la ventana aparezca un elemento cuyo nombre contenga `nombre` (y `rol` si se da): un "
         "botón que se habilita, un mensaje, una página que terminó de cargar. `ms` lo más que espera (10000, hasta "
-        "30000). Permiso: pantalla.",
+        "30000). Permiso: pantalla."),
         esquema({{"nombre", {{"type", "string"}}},
                  {"rol", {{"type", "string"}}},
                  {"ventana", ventana},
@@ -277,12 +277,12 @@ HWND ventanaDe(const json& a) {
 bool elementos(HWND h, std::vector<Com<IUIAutomationElement>>& out, std::string& error) {
     IUIAutomation* u = uia();
     if (u == nullptr) {
-        error = "UI Automation no está disponible";
+        error = ba::i18n::traducir("mcp", "UI Automation no está disponible");
         return false;
     }
     Com<IUIAutomationElement> raiz;
     if (FAILED(u->ElementFromHandle(h, &raiz)) || !raiz) {
-        error = "no pude leer esa ventana";
+        error = ba::i18n::traducir("mcp", "no pude leer esa ventana");
         return false;
     }
     Com<IUIAutomationCacheRequest> cache;
@@ -300,7 +300,7 @@ bool elementos(HWND h, std::vector<Com<IUIAutomationElement>>& out, std::string&
     u->CreateAndCondition(vista.p, visible.p, &ambas);
     Com<IUIAutomationElementArray> arr;
     if (FAILED(raiz->FindAllBuildCache(TreeScope_Descendants, ambas.p, cache.p, &arr)) || !arr) {
-        error = "no pude recorrer los elementos de esa ventana";
+        error = ba::i18n::traducir("mcp", "no pude recorrer los elementos de esa ventana");
         return false;
     }
     int n = 0;
@@ -446,7 +446,7 @@ void anotar(Recorrido& r, IUIAutomationElement* e, CONTROLTYPEID tipo, const REC
         tipo == UIA_ImageControlTypeId) {
         std::string v = textoCache(e, UIA_LegacyIAccessibleValuePropertyId);
         if (v.empty()) v = textoCache(e, UIA_ValueValuePropertyId);
-        if (!clave && tipo != UIA_DocumentControlTypeId) j["valor"] = v.empty() ? std::string("(vacío)") : (v.size() > 300 ? v.substr(0, 297) + "…" : v);
+        if (!clave && tipo != UIA_DocumentControlTypeId) j["valor"] = v.empty() ? ba::i18n::traducir("mcp", "(vacío)") : (v.size() > 300 ? v.substr(0, 297) + "…" : v);
     }
     if (tipo == UIA_ButtonControlTypeId || tipo == UIA_CheckBoxControlTypeId) {
         const int t = intCache(e, UIA_ToggleToggleStatePropertyId);
@@ -590,7 +590,7 @@ bool leerVentana(HWND h, Recorrido& r, std::string& error) {
     IUIAutomation* u = uia();
     Com<IUIAutomationElement> raiz;
     if (u == nullptr || FAILED(u->ElementFromHandle(h, &raiz)) || !raiz) {
-        error = "no pude leer esa ventana";
+        error = ba::i18n::traducir("mcp", "no pude leer esa ventana");
         return false;
     }
     u->CreateCacheRequest(&r.cache);
@@ -635,7 +635,9 @@ bool elementoDe(const json& a, Com<IUIAutomationElement>& el, Info& info, std::s
         std::lock_guard<std::mutex> l(gMu);
         const int n = a.value("n", 0);
         if (n < 1 || n > static_cast<int>(gLeidos.size())) {
-            error = gLeidos.empty() ? "no hay una lectura: system_ui_leer primero" : "no hay un elemento " + std::to_string(n) + " en la última lectura";
+            error = gLeidos.empty() ? ba::i18n::traducir("mcp", "no hay una lectura: system_ui_leer primero")
+                                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un elemento %1 en la última lectura"),
+                                                       {std::to_string(n)});
             return false;
         }
         el = gLeidos[static_cast<size_t>(n - 1)];
@@ -644,13 +646,13 @@ bool elementoDe(const json& a, Com<IUIAutomationElement>& el, Info& info, std::s
     }
     const std::string buscado = minus(a.value("nombre", std::string()));
     if (buscado.empty()) {
-        error = "falta `n` o `nombre`";
+        error = ba::i18n::traducir("mcp", "falta `n` o `nombre`");
         return false;
     }
     const std::string rol = minus(a.value("rol", std::string()));
     HWND h = ventanaDe(a);
     if (h == nullptr) {
-        error = "no encontré esa ventana";
+        error = ba::i18n::traducir("mcp", "no encontré esa ventana");
         return false;
     }
     Recorrido r;
@@ -672,8 +674,13 @@ bool elementoDe(const json& a, Com<IUIAutomationElement>& el, Info& info, std::s
         }
     }
     if (mejor < 0) {
-        error = "no hay ningún elemento con «" + a.value("nombre", std::string()) + "»" + (rol.empty() ? "" : " (" + rol + ")") +
-                " en «" + tituloDe(h) + "» (system_ui_leer muestra lo que hay)";
+        error = rol.empty()
+                    ? ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay ningún elemento con «%1» en «%2» (system_ui_leer "
+                                                                 "muestra lo que hay)"),
+                                       {a.value("nombre", std::string()), tituloDe(h)})
+                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay ningún elemento con «%1» (%3) en «%2» "
+                                                                 "(system_ui_leer muestra lo que hay)"),
+                                       {a.value("nombre", std::string()), tituloDe(h), rol});
         return false;
     }
     el = r.elementos[static_cast<size_t>(mejor)].el;
@@ -711,35 +718,38 @@ json clic(const json& id, const json& a, const Permisos& p) {
     Info info;
     std::string error;
     if (!elementoDe(a, el, info, error)) return resultadoTexto(id, error, true);
-    if (!info.habilitado) return resultadoTexto(id, describir(info) + " está deshabilitado", true);
+    if (!info.habilitado) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 está deshabilitado"), {describir(info)}), true);
     const bool conMouse = a.value("con_mouse", false) || a.value("doble", false) || a.value("boton", std::string("izq")) == "der";
     std::string como;
     if (!conMouse) {
         // La acción del elemento: anda tapado, en otro monitor, sin mover el mouse.
         if (auto inv = patron<IUIAutomationInvokePattern>(el.p, UIA_InvokePatternId)) {
             const bool volvio = conTiempo([inv]() { inv->Invoke(); }, 3000);
-            como = volvio ? "invocado" : "invocado (sigue: seguramente abrió un diálogo)";
+            como = volvio ? ba::i18n::traducir("mcp", "invocado")
+                           : ba::i18n::traducir("mcp", "invocado (sigue: seguramente abrió un diálogo)");
         } else if (auto tg = patron<IUIAutomationTogglePattern>(el.p, UIA_TogglePatternId)) {
             tg->Toggle();
             ToggleState st = ToggleState_Off;
             tg->get_CurrentToggleState(&st);
-            como = st == ToggleState_On ? "marcado" : st == ToggleState_Off ? "desmarcado" : "a medias";
+            como = st == ToggleState_On    ? ba::i18n::traducir("mcp", "marcado")
+                   : st == ToggleState_Off ? ba::i18n::traducir("mcp", "desmarcado")
+                                           : ba::i18n::traducir("mcp", "a medias");
         } else if (auto sel = patron<IUIAutomationSelectionItemPattern>(el.p, UIA_SelectionItemPatternId)) {
             sel->Select();
-            como = "elegido";
+            como = ba::i18n::traducir("mcp", "elegido");
         } else if (auto ec = patron<IUIAutomationExpandCollapsePattern>(el.p, UIA_ExpandCollapsePatternId)) {
             ExpandCollapseState st = ExpandCollapseState_Collapsed;
             ec->get_CurrentExpandCollapseState(&st);
-            if (st == ExpandCollapseState_Expanded) ec->Collapse(), como = "plegado";
-            else ec->Expand(), como = "desplegado";
+            if (st == ExpandCollapseState_Expanded) ec->Collapse(), como = ba::i18n::traducir("mcp", "plegado");
+            else ec->Expand(), como = ba::i18n::traducir("mcp", "desplegado");
         } else if (auto acc = patron<IUIAutomationLegacyIAccessiblePattern>(el.p, UIA_LegacyIAccessiblePatternId)) {
-            if (SUCCEEDED(acc->DoDefaultAction())) como = "acción por defecto";
+            if (SUCCEEDED(acc->DoDefaultAction())) como = ba::i18n::traducir("mcp", "acción por defecto");
         }
     }
     if (como.empty()) {
         // Sin acción propia (o pedido): un clic de mouse en el centro.
         const int x = (info.r.left + info.r.right) / 2, y = (info.r.top + info.r.bottom) / 2;
-        if (info.r.right <= info.r.left) return resultadoTexto(id, describir(info) + " no tiene lugar en la pantalla", true);
+        if (info.r.right <= info.r.left) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 no tiene lugar en la pantalla"), {describir(info)}), true);
         HWND raiz = WindowFromPoint(POINT{x, y});
         if (raiz != nullptr) traerAlFrente(GetAncestor(raiz, GA_ROOT));
         mouseAbsoluto(x, y);
@@ -748,9 +758,9 @@ json clic(const json& id, const json& a, const Permisos& p) {
             mouseBoton(b, true);
             mouseBoton(b, false);
         }
-        como = "clic de mouse en " + std::to_string(x) + "," + std::to_string(y);
+        como = ba::i18n::llenar(ba::i18n::traducir("mcp", "clic de mouse en %1,%2"), {std::to_string(x), std::to_string(y)});
     }
-    return resultadoTexto(id, "Hecho: " + describir(info) + " — " + como + ".");
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho: %1 — %2."), {describir(info), como}));
 }
 
 json escribir(const json& id, const json& a, const Permisos& p) {
@@ -771,7 +781,7 @@ json escribir(const json& id, const json& a, const Permisos& p) {
             BSTR b = SysAllocStringLen(w.data(), static_cast<UINT>(w.size()));
             const HRESULT hr = v->SetValue(b);
             SysFreeString(b);
-            if (SUCCEEDED(hr)) como = "valor puesto";
+            if (SUCCEEDED(hr)) como = ba::i18n::traducir("mcp", "valor puesto");
         }
     }
     if (como.empty()) {
@@ -780,7 +790,7 @@ json escribir(const json& id, const json& a, const Permisos& p) {
         Sleep(60);
         if (reemplazar) mandarTeclas("ctrl+a");
         escribirTexto(aW(texto));
-        como = "escrito con el teclado";
+        como = ba::i18n::traducir("mcp", "escrito con el teclado");
     }
     if (a.value("enter", false)) {
         el->SetFocus();
@@ -789,14 +799,14 @@ json escribir(const json& id, const json& a, const Permisos& p) {
         como += " + Enter";
     }
     const Info despues = infoDe(el.p, false);
-    std::string res = "Hecho: " + describir(info) + " — " + como + ".";
-    if (!despues.valor.empty()) res += " Ahora dice: «" + despues.valor + "».";
+    std::string res = ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho: %1 — %2."), {describir(info), como});
+    if (!despues.valor.empty()) res += ba::i18n::llenar(ba::i18n::traducir("mcp", " Ahora dice: «%1»."), {despues.valor});
     return resultadoTexto(id, res);
 }
 
 json texto(const json& id, const json& a) {
     HWND h = ventanaDe(a);
-    if (h == nullptr) return resultadoTexto(id, "no encontré esa ventana", true);
+    if (h == nullptr) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true);
     const size_t max = static_cast<size_t>(std::clamp(a.value("max", 20000), 100, 200000));
     std::string out;
     std::vector<Com<IUIAutomationElement>> es;
@@ -835,7 +845,7 @@ json texto(const json& id, const json& a) {
 bool atenderUia(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
     if (nombre.rfind("system_ui_", 0) != 0) return false;
     if (uia() == nullptr) {
-        out = resultadoTexto(id, "UI Automation no está disponible en esta máquina", true);
+        out = resultadoTexto(id, ba::i18n::traducir("mcp", "UI Automation no está disponible en esta máquina"), true);
         return true;
     }
     if (nombre == "system_ui_leer") {
@@ -850,7 +860,7 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
         } else if (HWND h = ventanaDe(a)) {
             hs.push_back(h);
         }
-        if (hs.empty()) return out = resultadoTexto(id, "no encontré esa ventana", true), true;
+        if (hs.empty()) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true), true;
         const std::string filtro = minus(a.value("filtro", std::string()));
         int limite = std::clamp(a.value("max", 500), 1, 3000);
         std::vector<Com<IUIAutomationElement>> quedan;
@@ -895,7 +905,7 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
                 }
                 v["texto"] = t;
             }
-            if (lista.empty()) v["nota"] = "nada para tocar (una app que no habla UI Automation: system_pantalla)";
+            if (lista.empty()) v["nota"] = ba::i18n::traducir("mcp", "nada para tocar (una app que no habla UI Automation: system_pantalla)");
             vs.push_back(v);
         }
         {
@@ -903,7 +913,7 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
             gLeidos = std::move(quedan);
         }
         json d = vs.size() == 1 ? vs[0] : json{{"ventanas", vs}};
-        if (cortado) d["cortado"] = "se llegó al tope de elementos: `max`, `filtro` o una ventana sola";
+        if (cortado) d["cortado"] = ba::i18n::traducir("mcp", "se llegó al tope de elementos: `max`, `filtro` o una ventana sola");
         out = resultadoDatos(id, d);
         return true;
     }
@@ -929,7 +939,8 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
             }
             Sleep(300);
         } while (std::chrono::steady_clock::now() < fin);
-        out = resultadoTexto(id, "No apareció «" + a.value("nombre", std::string()) + "» en " + std::to_string(ms) + " ms.", true);
+        out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "No apareció «%1» en %2 ms."),
+                                                {a.value("nombre", std::string()), std::to_string(ms)}), true);
         return true;
     }
     return false;

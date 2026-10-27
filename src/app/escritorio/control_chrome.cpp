@@ -51,7 +51,7 @@ json herramientasChrome() {
     json t = json::array();
     t.push_back(herramienta(
         "system_chrome",
-        "Chrome o Edge por su protocolo de depuración: lo que UI Automation no da de una página. `accion`:\n"
+        ba::i18n::traducir("mcp", "Chrome o Edge por su protocolo de depuración: lo que UI Automation no da de una página. `accion`:\n"
         "- estado: las ventanas de navegador abiertas y si hay uno con depuración (y sus pestañas).\n"
         "- abrir: lanza Chrome (o `navegador`: edge) con depuración y un perfil propio del asistente (no el del "
         "usuario: Chrome no deja depurar su perfil de siempre), con `url` opcional.\n"
@@ -61,7 +61,7 @@ json herramientasChrome() {
         "- evaluar: corre `codigo` (JavaScript) en la pestaña y devuelve el resultado (espera promesas).\n"
         "- navegar (`url`), recargar, captura (la página como imagen, aunque esté tapada).\n"
         "La pestaña: `pestana` (su id, su número desde 1, o parte del título o la url); sin eso, la primera. "
-        "`puerto` (9222). Permiso: navegador.",
+        "`puerto` (9222). Permiso: navegador."),
         esquema({{"accion", {{"type", "string"}, {"enum", {"estado", "abrir", "pestanas", "consola", "evaluar", "navegar", "recargar", "captura"}}}},
                  {"pestana", {{"type", "string"}}},
                  {"codigo", {{"type", "string"}}},
@@ -164,7 +164,7 @@ class WebSocket {
     bool abrir(int puerto, const std::string& ruta, std::string& error) {
         s_ = conectar(puerto, 15000);
         if (s_ == INVALID_SOCKET) {
-            error = "no contesta el puerto " + std::to_string(puerto);
+            error = ba::i18n::llenar(ba::i18n::traducir("mcp", "no contesta el puerto %1"), {std::to_string(puerto)});
             return false;
         }
         unsigned char clave[16];
@@ -174,7 +174,7 @@ class WebSocket {
                                    "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: " + base64(clave, 16) +
                                    "\r\nSec-WebSocket-Version: 13\r\n\r\n";
         if (!mandarTodo(s_, pedido.data(), pedido.size())) {
-            error = "no pude mandar el saludo";
+            error = ba::i18n::traducir("mcp", "no pude mandar el saludo");
             return false;
         }
         std::string r;
@@ -184,7 +184,7 @@ class WebSocket {
             r.push_back(c);
         }
         if (r.find(" 101 ") == std::string::npos) {
-            error = "Chrome no aceptó la conexión: " + r.substr(0, r.find("\r\n"));
+            error = ba::i18n::llenar(ba::i18n::traducir("mcp", "Chrome no aceptó la conexión: %1"), {r.substr(0, r.find("\r\n"))});
             return false;
         }
         return true;
@@ -263,7 +263,7 @@ class Cdp {
         // ws://127.0.0.1:9222/devtools/page/ID → la ruta
         const auto p = wsUrl.find("/devtools/");
         if (p == std::string::npos) {
-            error = "la pestaña no tiene dirección de depuración";
+            error = ba::i18n::traducir("mcp", "la pestaña no tiene dirección de depuración");
             return false;
         }
         return ws_.abrir(puerto, wsUrl.substr(p), error);
@@ -271,7 +271,7 @@ class Cdp {
     /// Llama y espera la respuesta (hasta `ms`); {} si no llegó, {"error"} si Chrome dio error.
     json llamar(const std::string& metodo, const json& params = json::object(), int ms = 15000) {
         const int id = ++id_;
-        if (!ws_.mandar(json{{"id", id}, {"method", metodo}, {"params", params}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return {{"error", "no se pudo mandar"}};
+        if (!ws_.mandar(json{{"id", id}, {"method", metodo}, {"params", params}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return {{"error", ba::i18n::traducir("mcp", "no se pudo mandar")}};
         ws_.tiempo(ms);
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
         std::string m;
@@ -281,7 +281,7 @@ class Cdp {
             if (j.value("id", -1) == id) return j.contains("error") ? json{{"error", j["error"].value("message", std::string("error"))}} : j.value("result", json::object());
             if (j.contains("method")) eventos.push_back(std::move(j));
         }
-        return {{"error", "Chrome no contestó a " + metodo}};
+        return {{"error", ba::i18n::llenar(ba::i18n::traducir("mcp", "Chrome no contestó a %1"), {metodo})}};
     }
     /// Junta los eventos que lleguen durante `ms`.
     void escuchar(int ms) {
@@ -445,9 +445,11 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
     const json ps = pestanas(puerto);
     const auto sinDepuracion = [&]() {
         return resultadoTexto(id,
-                              "No hay un navegador con depuración en el puerto " + std::to_string(puerto) +
-                                  ". El Chrome que ya está abierto no deja conectarse (es el perfil del usuario): "
-                                  "system_chrome {accion: abrir, url} abre uno propio del asistente.",
+                              ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay un navegador con depuración en el puerto %1. El "
+                                                                         "Chrome que ya está abierto no deja conectarse (es el "
+                                                                         "perfil del usuario): system_chrome {accion: abrir, url} "
+                                                                         "abre uno propio del asistente."),
+                                               {std::to_string(puerto)}),
                               true);
     };
 
@@ -471,8 +473,9 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
                 l.push_back({{"n", i + 1}, {"id", ps[i].value("id", "")}, {"titulo", ps[i].value("title", "")}, {"url", ps[i].value("url", "")}});
             d["pestanas"] = l;
         } else {
-            d["nota"] = "para la consola o JavaScript: system_chrome {accion: abrir} (un Chrome con depuración y perfil "
-                        "propio). Para leer o tocar la página sin eso: system_ui_leer / system_ui_texto.";
+            d["nota"] = ba::i18n::traducir("mcp", "para la consola o JavaScript: system_chrome {accion: abrir} (un Chrome con "
+                                                  "depuración y perfil propio). Para leer o tocar la página sin eso: "
+                                                  "system_ui_leer / system_ui_texto.");
         }
         out = resultadoDatos(id, d);
         return true;
@@ -480,15 +483,17 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
 
     if (accion == "abrir") {
         if (!ps.empty()) {
-            out = resultadoTexto(id, "Ya hay un navegador con depuración en el puerto " + std::to_string(puerto) + " (" +
-                                         std::to_string(ps.size()) + " pestañas). Para otra página: navegar.");
+            out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Ya hay un navegador con depuración en el puerto "
+                                                                              "%1 (%n pestaña). Para otra página: navegar.",
+                                                                         nullptr, static_cast<int>(ps.size())),
+                                                      {std::to_string(puerto)}));
             return true;
         }
         const std::string cual = a.value("navegador", std::string("chrome"));
 #if defined(_WIN32)
         std::wstring exe = ejecutableNavegador(cual);
         if (exe.empty() && cual == "chrome") exe = ejecutableNavegador("edge"); // sin Chrome, Edge (siempre está)
-        if (exe.empty()) return out = resultadoTexto(id, "no encontré Chrome ni Edge instalados", true), true;
+        if (exe.empty()) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré Chrome ni Edge instalados"), true), true;
         // Un perfil propio del asistente: Chrome no deja depurar el perfil de siempre.
         std::wstring perfil;
         if (const std::string r = dataRoot(); !r.empty()) perfil = aW(r) + L"\\Navegador-asistente";
@@ -503,12 +508,12 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
         ei.lpFile = exe.c_str();
         ei.lpParameters = args.c_str();
         ei.nShow = SW_SHOWNORMAL;
-        if (!ShellExecuteExW(&ei)) return out = resultadoTexto(id, "no se pudo abrir el navegador (error " + std::to_string(GetLastError()) + ")", true), true;
+        if (!ShellExecuteExW(&ei)) return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo abrir el navegador (error %1)"), {std::to_string(GetLastError())}), true), true;
         const std::string nombreExe = aU(exe.substr(exe.find_last_of(L'\\') + 1));
 #else
         std::string exe = ejecutableNavegador(cual);
         if (exe.empty() && cual == "chrome") exe = ejecutableNavegador("edge");
-        if (exe.empty()) return out = resultadoTexto(id, "no encontré Chrome ni Edge instalados", true), true;
+        if (exe.empty()) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré Chrome ni Edge instalados"), true), true;
         // Un perfil propio del asistente: Chrome no deja depurar el perfil de siempre.
         const std::string r = dataRoot();
         const std::string perfil = (r.empty() ? std::string(std::getenv("HOME") ? std::getenv("HOME") : "/tmp") + "/.broadcastappliance"
@@ -529,7 +534,7 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
         pid_t pid = 0;
         const int rc = posix_spawn(&pid, exe.c_str(), nullptr, &at, const_cast<char* const*>(argv.data()), environ);
         posix_spawnattr_destroy(&at);
-        if (rc != 0) return out = resultadoTexto(id, "no se pudo abrir el navegador (error " + std::to_string(rc) + ")", true), true;
+        if (rc != 0) return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo abrir el navegador (error %1)"), {std::to_string(rc)}), true), true;
         const std::string nombreExe = exe.substr(exe.find_last_of('/') + 1);
 #endif
         // Que levante el puerto.
@@ -538,9 +543,11 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
             dormir(200);
             ya = pestanas(puerto);
         }
-        if (ya.empty()) return out = resultadoTexto(id, "El navegador se abrió pero no levantó la depuración en el puerto " + std::to_string(puerto) + ".", true), true;
-        out = resultadoTexto(id, "Abierto " + nombreExe + " con depuración (perfil del asistente), " +
-                                     std::to_string(ya.size()) + " pestaña(s). Ahora: consola, evaluar, navegar.");
+        if (ya.empty()) return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "El navegador se abrió pero no levantó la depuración en el puerto %1."), {std::to_string(puerto)}), true), true;
+        out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Abierto %1 con depuración (perfil del asistente), %n "
+                                                                          "pestaña. Ahora: consola, evaluar, navegar.",
+                                                                     nullptr, static_cast<int>(ya.size())),
+                                                  {nombreExe}));
         return true;
     }
 
@@ -554,11 +561,13 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
     }
     json t;
     if (!elegir(ps, a.value("pestana", std::string()), t))
-        return out = resultadoTexto(id, "no hay una pestaña «" + a.value("pestana", std::string()) + "» (pestanas las lista)", true), true;
+        return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una pestaña «%1» (pestanas las lista)"),
+                                                              {a.value("pestana", std::string())}), true), true;
     Cdp c;
     std::string error;
     if (!c.abrir(puerto, t.value("webSocketDebuggerUrl", std::string()), error))
-        return out = resultadoTexto(id, error + " (¿otra herramienta tiene abierta las DevTools de esa pestaña?)", true), true;
+        return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 (¿otra herramienta tiene abierta las DevTools de esa pestaña?)"),
+                                                              {error}), true), true;
     const std::string cual = "«" + t.value("title", std::string()) + "»";
 
     if (accion == "consola") {
@@ -576,7 +585,7 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
     }
     if (accion == "evaluar") {
         const std::string codigo = a.value("codigo", std::string());
-        if (codigo.empty()) return out = resultadoTexto(id, "falta `codigo`", true), true;
+        if (codigo.empty()) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "falta `codigo`"), true), true;
         const json r = c.llamar("Runtime.evaluate",
                                 {{"expression", codigo}, {"returnByValue", true}, {"awaitPromise", true}, {"userGesture", true}}, 30000);
         if (r.contains("error")) return out = resultadoTexto(id, r.value("error", std::string()), true), true;
@@ -584,7 +593,7 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
             const json x = r["exceptionDetails"];
             std::string t2 = x.value("text", std::string());
             if (x.contains("exception")) t2 += " " + x["exception"].value("description", std::string());
-            out = resultadoTexto(id, "Error de JavaScript en " + cual + ": " + t2, true);
+            out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Error de JavaScript en %1: %2"), {cual, t2}), true);
             return true;
         }
         const json v = r.value("result", json::object());
@@ -596,26 +605,27 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
     }
     if (accion == "navegar") {
         const std::string u = a.value("url", std::string());
-        if (u.empty()) return out = resultadoTexto(id, "falta `url`", true), true;
+        if (u.empty()) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "falta `url`"), true), true;
         const json r = c.llamar("Page.navigate", {{"url", u}});
         if (r.contains("error") || r.contains("errorText"))
-            return out = resultadoTexto(id, "no se pudo ir a " + u + ": " + r.value("error", r.value("errorText", std::string())), true), true;
-        out = resultadoTexto(id, "Navegando a " + u + " en " + cual + ".");
+            return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo ir a %1: %2"),
+                                                              {u, r.value("error", r.value("errorText", std::string()))}), true), true;
+        out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Navegando a %1 en %2."), {u, cual}));
         return true;
     }
     if (accion == "recargar") {
         const json r = c.llamar("Page.reload", {{"ignoreCache", true}});
         if (r.contains("error")) return out = resultadoTexto(id, r.value("error", std::string()), true), true;
-        out = resultadoTexto(id, "Recargando " + cual + ".");
+        out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Recargando %1."), {cual}));
         return true;
     }
     if (accion == "captura") {
         const json r = c.llamar("Page.captureScreenshot", {{"format", "png"}}, 30000);
-        if (r.contains("error") || !r.contains("data")) return out = resultadoTexto(id, "no se pudo capturar " + cual, true), true;
-        out = resultadoImagen(id, r.value("data", std::string()), "Página " + cual);
+        if (r.contains("error") || !r.contains("data")) return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo capturar %1"), {cual}), true), true;
+        out = resultadoImagen(id, r.value("data", std::string()), ba::i18n::llenar(ba::i18n::traducir("mcp", "Página %1"), {cual}));
         return true;
     }
-    out = resultadoTexto(id, "acción desconocida: " + accion, true);
+    out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "acción desconocida: %1"), {accion}), true);
     return true;
 }
 

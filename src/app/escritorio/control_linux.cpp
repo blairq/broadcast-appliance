@@ -100,7 +100,7 @@ Salida correr(const std::vector<std::string>& argv, int segundos, const std::str
     if (rc != 0) {
         close(sal[0]);
         close(ent[1]);
-        r.texto = "no se pudo correr " + argv[0];
+        r.texto = ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo correr %1"), {argv[0]});
         return r;
     }
     if (!entrada.empty()) {
@@ -262,13 +262,13 @@ struct X11 {
         if (d) return true;
         if (std::getenv("DISPLAY") == nullptr) {
             error = std::getenv("WAYLAND_DISPLAY")
-                        ? "Wayland sin X11: la pantalla, el mouse y el teclado necesitan XWayland (que esté definido DISPLAY)."
-                        : "no hay pantalla gráfica (DISPLAY sin definir)";
+                        ? ba::i18n::traducir("mcp", "Wayland sin X11: la pantalla, el mouse y el teclado necesitan XWayland (que esté definido DISPLAY).")
+                        : ba::i18n::traducir("mcp", "no hay pantalla gráfica (DISPLAY sin definir)");
             return false;
         }
         x = dlopen("libX11.so.6", RTLD_NOW | RTLD_GLOBAL);
         if (!x) {
-            error = "no está libX11 en este sistema (instalá libx11-6)";
+            error = ba::i18n::traducir("mcp", "no está libX11 en este sistema (instalá libx11-6)");
             return false;
         }
         xtst = dlopen("libXtst.so.6", RTLD_NOW);
@@ -285,7 +285,7 @@ struct X11 {
                   cargar(x, "XDisplayKeycodes", XDisplayKeycodes) && cargar(x, "XGetKeyboardMapping", XGetKeyboardMapping) &&
                   cargar(x, "XChangeKeyboardMapping", XChangeKeyboardMapping);
         if (!ok) {
-            error = "libX11 no tiene lo que hace falta";
+            error = ba::i18n::traducir("mcp", "libX11 no tiene lo que hace falta");
             return false;
         }
         cargar(xtst, "XTestFakeMotionEvent", XTestFakeMotionEvent);
@@ -297,14 +297,14 @@ struct X11 {
         cargar(xss, "XScreenSaverQueryInfo", XScreenSaverQueryInfo);
         d = XOpenDisplay(nullptr);
         if (!d) {
-            error = "no se pudo abrir la pantalla X11 (DISPLAY=" + std::string(std::getenv("DISPLAY")) + ")";
+            error = ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo abrir la pantalla X11 (DISPLAY=%1)"), {std::string(std::getenv("DISPLAY"))});
             return false;
         }
         raiz = XDefaultRootWindow(d);
         return true;
     }
     bool xtest() {
-        if (!XTestFakeKeyEvent) error = "falta XTest (instalá libxtst6) para el mouse y el teclado";
+        if (!XTestFakeKeyEvent) error = ba::i18n::traducir("mcp", "falta XTest (instalá libxtst6) para el mouse y el teclado");
         return XTestFakeKeyEvent != nullptr;
     }
     Atom atomo(const char* n) { return XInternAtom(d, n, 0); }
@@ -403,7 +403,7 @@ bool capturar(int x0, int y0, int w, int h, double escala, std::string& b64, int
     X11& x = x11();
     XImage* img = x.XGetImage(x.d, x.raiz, x0, y0, static_cast<unsigned>(w), static_cast<unsigned>(h), kAllPlanes, kZPixmap);
     if (!img) {
-        error = "X11 no dio la imagen (¿la región se sale de la pantalla?)";
+        error = ba::i18n::traducir("mcp", "X11 no dio la imagen (¿la región se sale de la pantalla?)");
         return false;
     }
     sw = std::max(1, static_cast<int>(w * escala));
@@ -816,20 +816,20 @@ json registroSistema(const json& id, const json& a, const Permisos& p) {
     const bool escribe = accion == "escribir" || accion == "borrar";
     if (escribe ? !p.registro : !p.sistema) return sinPermiso(id, escribe ? "registro" : "sistema");
     const std::string gs = programa({"gsettings"});
-    if (gs.empty()) return resultadoTexto(id, "En Linux no hay registro: system_registro usa las preferencias de GNOME (gsettings), y acá no está.", true);
+    if (gs.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "En Linux no hay registro: system_registro usa las preferencias de GNOME (gsettings), y acá no está."), true);
     const std::string esq = a.value("clave", std::string()), nombre = a.value("nombre", std::string());
     if (esq.empty() || esq.rfind("HK", 0) == 0)
-        return resultadoTexto(id, "En Linux `clave` es el esquema de las preferencias (org.gnome.desktop.interface…) y `nombre` la clave.", true);
+        return resultadoTexto(id, ba::i18n::traducir("mcp", "En Linux `clave` es el esquema de las preferencias (org.gnome.desktop.interface…) y `nombre` la clave."), true);
     Salida s;
     if (accion == "listar") s = correr({gs, "list-recursively", esq}, 10);
-    else if (nombre.empty()) return resultadoTexto(id, "falta `nombre`: la clave", true);
+    else if (nombre.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `nombre`: la clave"), true);
     else if (accion == "leer") s = correr({gs, "get", esq, nombre}, 10);
     else if (accion == "borrar") s = correr({gs, "reset", esq, nombre}, 10);
     else if (accion == "escribir") {
         const json v = a.contains("valor") ? a["valor"] : json();
         s = correr({gs, "set", esq, nombre, v.is_string() ? v.get<std::string>() : v.dump()}, 10);
     } else
-        return resultadoTexto(id, "acción desconocida: " + accion, true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "acción desconocida: %1"), {accion}), true);
     if (s.codigo != 0) return resultadoTexto(id, "gsettings: " + s.texto, true);
     return resultadoDatos(id, {{"esquema", esq}, {"nombre", nombre}, {"resultado", s.texto}});
 }
@@ -840,7 +840,7 @@ json avisoSistema(const json& id, const json& a, const Permisos& p) {
     const std::string tipo = a.value("tipo", std::string("info"));
     if (const std::string ns = programa({"notify-send"}); !ns.empty()) {
         const Salida s = correr({ns, "-u", tipo == "error" ? "critical" : "normal", titulo, texto}, 10);
-        if (s.codigo == 0) return resultadoTexto(id, "Aviso mostrado.");
+        if (s.codigo == 0) return resultadoTexto(id, ba::i18n::traducir("mcp", "Aviso mostrado."));
     }
     if (const std::string gd = programa({"gdbus"}); !gd.empty()) {
         const auto q = [](const std::string& x) {
@@ -852,9 +852,9 @@ json avisoSistema(const json& id, const json& a, const Permisos& p) {
                                  "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.Notify",
                                  "Broadcast Appliance", "0", "", q(titulo), q(texto), "[]", "{}", "8000"},
                                 10);
-        if (s.codigo == 0) return resultadoTexto(id, "Aviso mostrado.");
+        if (s.codigo == 0) return resultadoTexto(id, ba::i18n::traducir("mcp", "Aviso mostrado."));
     }
-    return resultadoTexto(id, "no hay cómo mostrar avisos acá (falta notify-send y el servicio de notificaciones)", true);
+    return resultadoTexto(id, ba::i18n::traducir("mcp", "no hay cómo mostrar avisos acá (falta notify-send y el servicio de notificaciones)"), true);
 }
 
 json ventanasDeNavegador() {
@@ -869,7 +869,7 @@ json ventanasDeNavegador() {
 
 bool atenderUia(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
     if (nombre.rfind("system_ui_", 0) != 0) return false;
-    out = resultadoTexto(id, nombre + " todavía no está hecha en Linux (AT-SPI, en camino): system_pantalla y system_mouse sí.", true);
+    out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 todavía no está hecha en Linux (AT-SPI, en camino): system_pantalla y system_mouse sí."), {nombre}), true);
     return true;
 }
 
@@ -878,12 +878,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     json out;
     if (atenderUia(id, nombre, a, p, out) || atenderChrome(id, nombre, a, p, out) || atenderArchivos(id, nombre, a, p, out))
         return out;
-    const auto noPermiso = [&](const char* que) {
-        return resultadoTexto(id,
-                              std::string("El control del sistema no tiene permiso para «") + que +
-                                  "» (Configuración → Control del sistema, o control_configurar).",
-                              true);
-    };
+    const auto noPermiso = [&](const std::string& que) { return sinPermiso(id, que.c_str()); };
     // Lo que no necesita la pantalla.
     if (nombre == "system_procesos") {
         if (!p.procesos) return noPermiso("procesos");
@@ -893,41 +888,43 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "system_proceso_cerrar") {
         if (!p.procesos) return noPermiso("procesos");
         const long pid = a.value("pid", 0L);
-        if (pid <= 1) return resultadoTexto(id, "ese proceso es del sistema: no se cierra", true);
-        if (pid == getpid() || pid == getppid()) return resultadoTexto(id, "ese soy yo (ba-control) o quien me lanzó", true);
+        if (pid <= 1) return resultadoTexto(id, ba::i18n::traducir("mcp", "ese proceso es del sistema: no se cierra"), true);
+        if (pid == getpid() || pid == getppid()) return resultadoTexto(id, ba::i18n::traducir("mcp", "ese soy yo (ba-control) o quien me lanzó"), true);
         const std::string nom = nombreProceso(pid);
-        if (nom.empty() || !vivo(pid)) return resultadoTexto(id, "no existe el proceso " + std::to_string(pid), true);
+        if (nom.empty() || !vivo(pid)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el proceso %1"), {std::to_string(pid)}), true);
         int cerradas = 0;
         if (x11().abrir())
             for (const auto& v : ventanas())
                 if (v.pid == pid) mensajeWm(v.id, "_NET_CLOSE_WINDOW", 0, 2), ++cerradas;
         if (!cerradas) kill(static_cast<pid_t>(pid), SIGTERM);
         for (int i = 0; i < 40 && vivo(pid); ++i) dormir(100);
-        std::string como = cerradas ? "cerró sus ventanas" : "SIGTERM";
+        std::string como = cerradas ? ba::i18n::traducir("mcp", "cerró sus ventanas") : std::string("SIGTERM");
         if (vivo(pid)) {
             if (!a.value("forzar", false))
-                return resultadoTexto(id, "«" + nom + "» (pid " + std::to_string(pid) +
-                                              ") sigue abierto (quizás pregunta si guardar). Con forzar: true se termina en seco.",
+                return resultadoTexto(id,
+                                      ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» (pid %2) sigue abierto (quizás pregunta "
+                                                                                 "si guardar). Con forzar: true se termina en seco."),
+                                                       {nom, std::to_string(pid)}),
                                       true);
             kill(static_cast<pid_t>(pid), SIGKILL);
             for (int i = 0; i < 30 && vivo(pid); ++i) dormir(100);
-            como = "terminado en seco";
+            como = ba::i18n::traducir("mcp", "terminado en seco");
         }
-        if (vivo(pid)) return resultadoTexto(id, "«" + nom + "» no terminó", true);
-        return resultadoTexto(id, "Cerrado «" + nom + "» (pid " + std::to_string(pid) + ", " + como + ").");
+        if (vivo(pid)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» no terminó"), {nom}), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Cerrado «%1» (pid %2, %3)."), {nom, std::to_string(pid), como}));
     }
     if (nombre == "system_comando") {
         if (!p.comandos) return noPermiso("comandos");
         const std::string cmd = a.value("comando", std::string());
-        if (cmd.empty()) return resultadoTexto(id, "falta el comando", true);
+        if (cmd.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el comando"), true);
         const std::string sh = a.value("shell", std::string("sistema"));
         std::string shell = sh == "bash" ? "bash" : "sh";
         if (sh == "powershell" && !enPath("pwsh").empty()) shell = "pwsh";
         const Salida s = correr({shell, shell == "pwsh" ? "-Command" : "-c", cmd}, std::clamp(a.value("segundos", 30), 1, 300),
                                 a.value("carpeta", std::string()));
         json d{{"codigo", s.codigo}, {"salida", s.texto}};
-        if (s.cortada) d["nota"] = "salida larga: quedan los últimos 200 KB";
-        if (s.vencido) d["vencido"] = "pasaron " + std::to_string(std::clamp(a.value("segundos", 30), 1, 300)) + " s y se terminó";
+        if (s.cortada) d["nota"] = ba::i18n::traducir("mcp", "salida larga: quedan los últimos 200 KB");
+        if (s.vencido) d["vencido"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "pasaron %1 s y se terminó"), {std::to_string(std::clamp(a.value("segundos", 30), 1, 300))});
         return resultadoDatos(id, d);
     }
     if (nombre == "system_sistema") {
@@ -938,7 +935,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "system_buscar") {
         if (!p.buscar) return noPermiso("buscar");
         std::string patron = a.value("patron", std::string());
-        if (patron.empty()) return resultadoTexto(id, "falta el patrón", true);
+        if (patron.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el patrón"), true);
         std::string dir = a.value("carpeta", std::string());
         if (dir.empty()) dir = std::getenv("HOME") ? std::getenv("HOME") : "/";
         if (patron.find('*') == std::string::npos && patron.find('?') == std::string::npos) patron = "*" + patron + "*";
@@ -949,9 +946,9 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "system_ejecutar") {
         if (!p.ejecutar) return noPermiso("ejecutar");
         const bool admin = a.value("admin", false);
-        if (admin && !p.ejecutar_admin) return noPermiso("ejecutar como administrador");
+        if (admin && !p.ejecutar_admin) return noPermiso(ba::i18n::traducir("mcp", "ejecutar como administrador"));
         const std::string prog = a.value("programa", std::string());
-        if (prog.empty()) return resultadoTexto(id, "falta el programa", true);
+        if (prog.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el programa"), true);
         std::vector<std::string> argv;
         const std::string ejec = enPath(prog);
         if (admin) argv = {"pkexec", ejec.empty() ? prog : ejec};
@@ -972,8 +969,10 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         const int rc = posix_spawnp(&pid, av[0], &fa, &at, av.data(), environ);
         posix_spawn_file_actions_destroy(&fa);
         posix_spawnattr_destroy(&at);
-        if (rc != 0) return resultadoTexto(id, "no se pudo ejecutar «" + prog + "» (error " + std::to_string(rc) + ")", true);
-        return resultadoTexto(id, "Ejecutado «" + prog + "»" + (admin ? " como administrador (pkexec)" : "") + " (pid " + std::to_string(pid) + ").");
+        if (rc != 0) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo ejecutar «%1» (error %2)"), {prog, std::to_string(rc)}), true);
+        return resultadoTexto(id, ba::i18n::llenar(admin ? ba::i18n::traducir("mcp", "Ejecutado «%1» como administrador (pkexec) (pid %2).")
+                                                   : ba::i18n::traducir("mcp", "Ejecutado «%1» (pid %2)."),
+                                             {prog, std::to_string(pid)}));
     }
     if (nombre == "system_portapapeles") {
         if (!p.portapapeles) return noPermiso("portapapeles");
@@ -984,22 +983,22 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             if (wl && !enPath("wl-copy").empty()) cmd = {"wl-copy"};
             else if (!enPath("xclip").empty()) cmd = {"xclip", "-selection", "clipboard"};
             else if (!enPath("xsel").empty()) cmd = {"xsel", "--clipboard", "--input"};
-            else return resultadoTexto(id, "falta xclip, xsel o wl-clipboard para el portapapeles", true);
+            else return resultadoTexto(id, ba::i18n::traducir("mcp", "falta xclip, xsel o wl-clipboard para el portapapeles"), true);
             const Salida s = correr(cmd, 5, {}, t, false);
-            if (s.codigo != 0 && !s.vencido) return resultadoTexto(id, "no se pudo escribir: " + s.texto, true);
-            return resultadoTexto(id, "Copiado al portapapeles.");
+            if (s.codigo != 0 && !s.vencido) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo escribir: %1"), {s.texto}), true);
+            return resultadoTexto(id, ba::i18n::traducir("mcp", "Copiado al portapapeles."));
         }
         std::vector<std::string> cmd;
         if (wl && !enPath("wl-paste").empty()) cmd = {"wl-paste", "--no-newline"};
         else if (!enPath("xclip").empty()) cmd = {"xclip", "-selection", "clipboard", "-o"};
         else if (!enPath("xsel").empty()) cmd = {"xsel", "--clipboard", "--output"};
-        else return resultadoTexto(id, "falta xclip, xsel o wl-clipboard para el portapapeles", true);
+        else return resultadoTexto(id, ba::i18n::traducir("mcp", "falta xclip, xsel o wl-clipboard para el portapapeles"), true);
         return resultadoDatos(id, {{"texto", correr(cmd, 5).texto}});
     }
     if (nombre == "system_esperar" && !a.contains("titulo")) {
         const int ms = std::clamp(a.value("ms", 1000), 0, 30000);
         dormir(ms);
-        return resultadoTexto(id, "Listo: pasaron " + std::to_string(ms) + " ms.");
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: pasaron %1 ms."), {std::to_string(ms)}));
     }
 
     // Lo que necesita la pantalla (X11).
@@ -1018,7 +1017,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         if (a.contains("monitor")) {
             const auto ms = monitores();
             const int i = a.value("monitor", 0);
-            if (i < 0 || i >= static_cast<int>(ms.size())) return resultadoTexto(id, "no existe ese monitor", true);
+            if (i < 0 || i >= static_cast<int>(ms.size())) return resultadoTexto(id, ba::i18n::traducir("mcp", "no existe ese monitor"), true);
             x0 = ms[i].x, y0 = ms[i].y, w = ms[i].w, h = ms[i].h;
         }
         std::string titulo;
@@ -1026,21 +1025,27 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             json b = a;
             if (a.contains("ventana")) b["id"] = a["ventana"];
             Ventana v;
-            if (!buscarVentana(b, v)) return resultadoTexto(id, "no encontré esa ventana (system_ventanas las lista)", true);
+            if (!buscarVentana(b, v)) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana (system_ventanas las lista)"), true);
             x0 = v.x, y0 = v.y, w = v.w, h = v.h;
             titulo = tituloDe(v);
         } else if (a.contains("ancho") && a.contains("alto"))
             x0 = a.value("x", 0), y0 = a.value("y", 0), w = a.value("ancho", w), h = a.value("alto", h);
-        if (w <= 0 || h <= 0) return resultadoTexto(id, "tamaño inválido", true);
+        if (w <= 0 || h <= 0) return resultadoTexto(id, ba::i18n::traducir("mcp", "tamaño inválido"), true);
         std::string b64, error;
         int sw = 0, sh = 0;
         if (!capturar(x0, y0, w, h, std::clamp(a.value("escala", 1.0), 0.1, 1.0), b64, sw, sh, error)) return resultadoTexto(id, error, true);
         if (!titulo.empty())
-            return resultadoImagen(id, b64, "Ventana «" + titulo + "»: " + std::to_string(sw) + "x" + std::to_string(sh) +
-                                                " (lo que se ve en su lugar: si está tapada, sale lo de arriba)");
-        return resultadoImagen(id, b64, "Captura de " + std::to_string(w) + "x" + std::to_string(h) + " en " + std::to_string(x0) +
-                                            "," + std::to_string(y0) +
-                                            (sw != w ? " (achicada a " + std::to_string(sw) + "x" + std::to_string(sh) + ")" : ""));
+            return resultadoImagen(id, b64,
+                                   ba::i18n::llenar(ba::i18n::traducir("mcp", "Ventana «%1»: %2x%3 (lo que se ve en su lugar: si "
+                                                                              "está tapada, sale lo de arriba)"),
+                                                    {titulo, std::to_string(sw), std::to_string(sh)}));
+        return resultadoImagen(
+            id, b64,
+            sw != w ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Captura de %1x%2 en %3,%4 (achicada a %5x%6)"),
+                                       {std::to_string(w), std::to_string(h), std::to_string(x0), std::to_string(y0),
+                                        std::to_string(sw), std::to_string(sh)})
+                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "Captura de %1x%2 en %3,%4"),
+                                       {std::to_string(w), std::to_string(h), std::to_string(x0), std::to_string(y0)}));
     }
     if (nombre == "system_mouse") {
         if (!p.mouse) return noPermiso("mouse");
@@ -1060,7 +1065,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             const int pasos = a.value("pasos", 1);
             for (int i = 0; i < std::abs(pasos); ++i) botonMouse(pasos > 0 ? 4 : 5, true), botonMouse(pasos > 0 ? 4 : 5, false);
         } else if (accion != "mover")
-            return resultadoTexto(id, "acción desconocida", true);
+            return resultadoTexto(id, ba::i18n::traducir("mcp", "acción desconocida"), true);
         Window r = 0, hijo = 0;
         int rx = 0, ry = 0, wx = 0, wy = 0;
         unsigned m = 0;
@@ -1071,16 +1076,17 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                 sobre = tituloDe(v);
                 break;
             }
-        return resultadoTexto(id, "Hecho. El mouse quedó en " + std::to_string(rx) + "," + std::to_string(ry) + (sobre.empty() ? "." : ", sobre «" + sobre + "»."));
+        return resultadoTexto(id, sobre.empty() ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. El mouse quedó en %1,%2."), {std::to_string(rx), std::to_string(ry)})
+                                          : ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. El mouse quedó en %1,%2, sobre «%3»."), {std::to_string(rx), std::to_string(ry), sobre}));
     }
     if (nombre == "system_teclado") {
         if (!p.teclado) return noPermiso("teclado");
         if (!x.xtest()) return resultadoTexto(id, x.error, true);
         if (a.contains("texto")) escribirTexto(a.value("texto", std::string()));
         if (a.contains("teclas") && !mandarTeclas(a.value("teclas", std::string())))
-            return resultadoTexto(id, "no entendí la combinación de teclas", true);
+            return resultadoTexto(id, ba::i18n::traducir("mcp", "no entendí la combinación de teclas"), true);
         const Ventana f = datosVentana(activa());
-        return resultadoTexto(id, "Hecho, en «" + tituloDe(f) + "».");
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho, en «%1»."), {tituloDe(f)}));
     }
     if (nombre == "system_cursor") {
         if (!p.pantalla) return noPermiso("pantalla");
@@ -1125,7 +1131,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "system_ventana") {
         if (!p.ventanas) return noPermiso("ventanas");
         Ventana v;
-        if (!buscarVentana(a, v)) return resultadoTexto(id, "no encontré esa ventana", true);
+        if (!buscarVentana(a, v)) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true);
         const std::string accion = a.value("accion", std::string());
         const long agregar = 1, quitar = 0;
         const auto estado = [&](long que, const char* p1, const char* p2 = nullptr) {
@@ -1142,17 +1148,18 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         else if (accion == "soltar_arriba") estado(quitar, "_NET_WM_STATE_ABOVE");
         else if (accion == "mover") {
             const int nx = a.value("x", v.x), ny = a.value("y", v.y), nw = a.value("ancho", v.w), nh = a.value("alto", v.h);
-            if (nw < 50 || nh < 30) return resultadoTexto(id, "tamaño muy chico", true);
+            if (nw < 50 || nh < 30) return resultadoTexto(id, ba::i18n::traducir("mcp", "tamaño muy chico"), true);
             estado(quitar, "_NET_WM_STATE_MAXIMIZED_VERT", "_NET_WM_STATE_MAXIMIZED_HORZ");
             x.XMoveResizeWindow(x.d, v.id, nx, ny, static_cast<unsigned>(nw), static_cast<unsigned>(nh));
             x.XSync(x.d, 0);
             dormir(80);
             const Ventana d = datosVentana(v.id);
-            return resultadoTexto(id, "Movida «" + tituloDe(d) + "»: " + std::to_string(d.x) + "," + std::to_string(d.y) + ", " +
-                                          std::to_string(d.w) + "x" + std::to_string(d.h) + ".");
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Movida «%1»: %2,%3, %4x%5."),
+                                                       {tituloDe(d), std::to_string(d.x), std::to_string(d.y), std::to_string(d.w),
+                                                        std::to_string(d.h)}));
         } else
-            return resultadoTexto(id, "acción desconocida", true);
-        return resultadoTexto(id, "Hecho «" + tituloDe(v) + "».");
+            return resultadoTexto(id, ba::i18n::traducir("mcp", "acción desconocida"), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho «%1»."), {tituloDe(v)}));
     }
     if (nombre == "system_esperar") {
         if (!p.ventanas) return noPermiso("ventanas");
@@ -1161,12 +1168,12 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
         do {
             Ventana v;
-            if (buscarVentana(json{{"titulo", t}}, v)) return resultadoTexto(id, "Apareció «" + tituloDe(v) + "».");
+            if (buscarVentana(json{{"titulo", t}}, v)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Apareció «%1»."), {tituloDe(v)}));
             dormir(150);
         } while (std::chrono::steady_clock::now() < fin);
-        return resultadoTexto(id, "No apareció ninguna ventana con «" + t + "» en " + std::to_string(ms) + " ms.", true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "No apareció ninguna ventana con «%1» en %2 ms."), {t, std::to_string(ms)}), true);
     }
-    return resultadoTexto(id, "herramienta desconocida: " + nombre, true);
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "herramienta desconocida: %1"), {nombre}), true);
 }
 
 } // namespace bactl
