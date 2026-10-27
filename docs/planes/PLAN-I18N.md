@@ -24,6 +24,43 @@ todo el texto está escrito en español, directo en el código.
 
 ## Decisiones de diseño
 
+### 0. N idiomas: sumar uno es sumar archivos, no código
+
+Ningún idioma está escrito en el código, ni siquiera el inglés. Un idioma es una carpeta
+de recursos, y la app descubre los idiomas por lo que encuentra:
+
+- `i18n/ba_<idioma>.ts`: interfaz, C++, núcleo, web y descripciones MCP;
+- `assets/prompts/<idioma>/`: prompts y ejemplos;
+- `assets/idiomas/<idioma>.json`: el perfil del idioma, con
+  - su nombre en ese idioma;
+  - la dirección (izquierda a derecha o derecha a izquierda);
+  - la tipografía;
+  - la voz de síntesis y el modelo de reconocimiento;
+  - el ritmo del prompter;
+  - las reglas del tótem (correo dictado, confirmación, números);
+- guías y plantillas en `datos/escenarios/<idioma>/` y en `assets/demo/<idioma>/`.
+
+`if (idioma == "en")` está prohibido. Lo que cambia entre idiomas va en el perfil, y
+`test_i18n.py` lo busca en el código.
+
+**Cobertura por partes.** Un idioma puede estar completo en la interfaz y no tener todavía
+voz o tótem, por ejemplo. El selector muestra solo lo que está completo para cada uso:
+
+- el idioma del operador necesita la interfaz y los prompts;
+- el idioma del evento necesita además la voz, el tótem y los gráficos.
+
+Cuando a un idioma le falta una pieza, se usa la de un respaldo declarado en el perfil (`pt_BR` → `es` → `en`),
+y el log lo avisa.
+
+**Escrituras.**
+- **Derecha a izquierda** (árabe, hebreo): `LayoutMirroring` en QML, `dir="rtl"` en la
+  web, y los gráficos al aire alineados según el perfil.
+- **Tipografías:** hoy el bundle trae Noto Sans y Serif latinas. Cada perfil declara la suya.
+  Las de CJK, árabe, devanagari… se bajan con el idioma (como los modelos), no van en el
+  bundle base.
+- **Plurales:** `%n`. Qt ya conoce las reglas de cada idioma (ruso, árabe, polaco…). En la
+  web se usa `Intl.PluralRules`.
+
 ### 1. Una sola fuente de traducciones: los `.ts` de Qt
 
 - Cada idioma tiene **un** archivo `i18n/ba_<idioma>.ts` con todas las cadenas: interfaz,
@@ -161,7 +198,7 @@ fases mecánicas se reparten entre agentes en paralelo por carpeta (contrato de
 | **I8. Documentación y empaquetado** | `docs/manual` en inglés, `LEEME.txt` y «Leeme primero» por idioma (va el del sistema, o los dos), notas del release en inglés y español, pantalla de arranque | agentes |
 | **I9. Traducción al inglés** | completar `ba_en.ts`, prompts y ejemplos en inglés; revisión con capturas de cada pantalla | yo y agentes; vos revisás lo dudoso |
 | **I10. Modelos locales** | corpus de entrenamiento multilingüe (ejemplos escritos para cada idioma, no traducidos a ciegas) y reentrenar; examen por idioma | al final, junto con el reentrenamiento pendiente |
-| **I11. Más idiomas** | cada idioma nuevo es un `.ts`, sus prompts, su voz y su perfil del tótem; `test_i18n.py` dice qué falta | por idioma |
+| **I11. Más idiomas** | cada idioma nuevo es una carpeta de recursos (sección 0), sin tocar código; `tools/i18n/idioma-nuevo.py <código>` arma el esqueleto y `test_i18n.py` dice qué falta para cada uso. Para probar la base con N idiomas de verdad, en I9 se suma uno de derecha a izquierda (árabe o hebreo) junto con el inglés | por idioma |
 
 Orden: I0 primero. I1 a I4 son independientes y van en paralelo. I5 a I8 necesitan la
 infraestructura, no las fases anteriores. I9 empieza cuando I1 e I2 estén cerradas, para no
