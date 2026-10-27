@@ -1,3 +1,6 @@
+## Novedades
+- **LibreOffice se reemplazó por ArtCraft** (sus apps WordCraft, DeckCraft y GridCraft): Word, PowerPoint y planillas se pasan a PDF en milisegundos, el programa pesa unos 500 MB menos en Mac y más de 1 GB menos en Windows, y el asistente ahora puede armar documentos, presentaciones y planillas con gráficos. El `.ppt` viejo y el `.odp` ya no se abren: exportalos a `.pptx` o a PDF.
+
 ## Qué bajar
 - **Windows 10 (1809 o posterior) / 11, 64 bits:** `BroadcastAppliance-*-windows-x64.zip`
 - **Linux 64 bits** (escritorio con OpenGL; compilado en Ubuntu 24.04, necesita una distribución igual o más nueva): `BroadcastAppliance-*-linux-x64.tar.gz`
