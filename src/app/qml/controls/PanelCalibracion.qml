@@ -683,7 +683,7 @@ Item {
                             wrapMode: Text.WordWrap
                             visible: c.cal && c.cal.mensaje !== ""
                             text: c.cal ? c.cal.mensaje : ""
-                            color: text.indexOf("No se pudo") === 0 || text.indexOf("baja") >= 0 ? Theme.amber : Theme.textDim
+                            color: c.cal && c.cal.mensajeAviso ? Theme.amber : Theme.textDim
                             font { family: Theme.font; pixelSize: 11 }
                         }
                     }
@@ -972,7 +972,7 @@ Item {
                                     const desvio = a >= 0 && d >= 0 ? qsTr("Desvío contra el objetivo: antes %1 dB, después %2 dB. ").arg(a).arg(d)
                                                  : a >= 0 ? qsTr("Desvío contra el objetivo: antes %1 dB. ").arg(a)
                                                  : d >= 0 ? qsTr(", después %1 dB. ").arg(d) : ". "
-                                    return desvio + (prop.v.veredicto || "")
+                                    return desvio + qsTranslate("calibracion", prop.v.veredicto || "")
                                 }
                             }
                         }

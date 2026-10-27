@@ -220,7 +220,9 @@ Rectangle {
     readonly property var arbol: {
         plegTick
         const info = page.vg ? page.vg.entradasInfo : []
-        const orden = ["Cámaras", "Conferencia", "Asamblea", "Red", "NDI", "Virtuales"]
+        // Los grupos vienen de C++ (VideoGrafos) en español: son la clave; se muestran con qsTr.
+        const orden = [QT_TR_NOOP("Cámaras"), QT_TR_NOOP("Conferencia"), QT_TR_NOOP("Asamblea"), QT_TR_NOOP("Red"),
+                       "NDI", QT_TR_NOOP("Virtuales")]
         const porGrupo = {}
         for (const e of info) { (porGrupo[e.grupo] = porGrupo[e.grupo] || []).push(e) }
         for (const k in porGrupo) if (orden.indexOf(k) < 0) orden.push(k)
@@ -296,7 +298,7 @@ Rectangle {
                         Text { text: page.plegados[modelData.grupo] ? "▸" : "▾"; color: Theme.textFaint; font.pixelSize: 11 }
                         Text {
                             Layout.fillWidth: true
-                            text: modelData.grupo || ""
+                            text: qsTr(modelData.grupo || "")
                             color: Theme.textDim
                             font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
                         }

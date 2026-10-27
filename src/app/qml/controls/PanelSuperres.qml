@@ -149,20 +149,21 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
     }
     /// El avance del trabajo del laboratorio, donde se lo pidió: cada sección
-    /// muestra el suyo (`de`: con qué empieza el nombre del trabajo; vacío = todos).
+    /// muestra el suyo (`de`: los tipos de trabajo, `trabajo.tipo`; vacío = todos).
     /// Antes se veía solo arriba, en «Entrenar»: al bajar un modelo desde abajo
     /// no se veía nada.
     component Avance: ColumnLayout {
         property var de: []
         readonly property string que: String(panel.tr.que || "")
-        readonly property bool mio: que !== "" && (de.length === 0 || de.some(p => que.indexOf(p) === 0))
+        readonly property string tipo: String(panel.tr.tipo || "")
+        readonly property bool mio: que !== "" && (de.length === 0 || de.some(p => tipo === p))
         visible: mio
         Layout.fillWidth: true
         spacing: 4
         Text { text: parent.que; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
         Text {
             // Bajar un modelo sin el laboratorio: primero las bibliotecas (una sola vez).
-            visible: parent.que.indexOf("Preparar el laboratorio") === 0 && !!panel.tr.corriendo
+            visible: parent.tipo === "laboratorio" && !!panel.tr.corriendo
             Layout.fillWidth: true; wrapMode: Text.WordWrap
             text: qsTr("Paso 1 de 2: las bibliotecas de Python del laboratorio (una sola vez, ~800 MB). Después se baja y se convierte el modelo.")
             color: Theme.textDim; font.pixelSize: 11
@@ -379,7 +380,7 @@ ColumnLayout {
                    "DirectML, que ya viene en el programa, y el laboratorio entrena en la placa con PyTorch para DirectML (se instala solo " +
                    "con él la primera vez que se baja un modelo o se entrena). FSR corre siempre en la placa, con cualquier marca.")
     }
-    Avance { de: ["Bajar el ONNX Runtime"] }
+    Avance { de: ["onnx"] }
 
     // --- Destilar ---------------------------------------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
@@ -498,7 +499,7 @@ ColumnLayout {
             }
         }
         Text {
-            visible: !!panel.tr.corriendo && String(panel.tr.que || "").indexOf("Variantes") === 0
+            visible: !!panel.tr.corriendo && String(panel.tr.tipo || "") === "variantes"
             Layout.fillWidth: true; elide: Text.ElideRight
             text: (panel.tr.que || "") + " · " + (panel.tr.texto || "")
             color: Theme.accent; font.pixelSize: 11
@@ -697,7 +698,7 @@ ColumnLayout {
             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Real-ESRGAN compacto x4 (BSD-3): limpia ruido y compresión; pesado (~290 ms en una Mac)")
         }
     }
-    Avance { de: ["Preparar el laboratorio", "Convertir"] }
+    Avance { de: ["laboratorio", "convertir"] }
     Text {
         visible: panel.sr && panel.sr.modelos.length === 0
         text: qsTr("Todavía no hay modelos: entrená uno con una cámara o bajá SPAN / Real-ESRGAN.")

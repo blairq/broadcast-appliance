@@ -258,7 +258,7 @@ Rectangle {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: modelData.grupo || ""
+                                text: qsTranslate("audio", modelData.grupo || "")
                                 color: Theme.textDim
                                 font { pixelSize: 11; weight: Font.DemiBold; capitalization: Font.AllUppercase; letterSpacing: 0.4 }
                                 elide: Text.ElideRight
@@ -369,7 +369,7 @@ Rectangle {
                           tip: qsTr("Una tarjeta de salida de audio en este grafo: conectale lo que quieras oír, sin tocar lo que va al aire.") }
                     ].concat((page.au ? page.au.sources.filter(x => x.nombre !== page.au.source) : []).map(x => ({
                         t: qsTr("Entrada: %1").arg(x.nombre), color: "#38bdf8", f: () => page.msg = page.au.addEntrada(x.nombre),
-                        tip: x.grupo ? qsTr("Trae el audio de «%1» (%2) como una tarjeta de este grafo.").arg(x.nombre).arg(x.grupo)
+                        tip: x.grupo ? qsTr("Trae el audio de «%1» (%2) como una tarjeta de este grafo.").arg(x.nombre).arg(qsTranslate("audio", x.grupo))
                                      : qsTr("Trae el audio de «%1» como una tarjeta de este grafo.").arg(x.nombre)
                     }))) },
                     { titulo: qsTr("Procesar"), items: (page.au ? page.au.catalog : []).map(c => ({
