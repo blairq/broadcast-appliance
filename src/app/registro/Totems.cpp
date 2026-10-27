@@ -178,8 +178,10 @@ json Totem::aJson() const {
 
 Totem Totem::deJson(const json& j) {
     // Lo que falta queda con el valor de fábrica de un tótem nuevo: un archivo
-    // escrito a mano con solo {id, campos} tiene que andar.
-    Totem t = totemNuevo(textoDe(j, "id"), textoDe(j, "nombre"));
+    // escrito a mano con solo {id, campos} tiene que andar. Lo que se completa lo ven y lo
+    // oyen las personas: en el idioma del evento abierto (sin uno, el del operador). Se
+    // completa al leer, así que sigue al idioma del evento hasta que se guarde escrito.
+    Totem t = totemNuevo(textoDe(j, "id"), textoDe(j, "nombre"), ba::i18n::idiomaDelEvento());
     t.activo = boolDe(j, "activo", t.activo);
     t.titulo = textoDe(j, "titulo", t.titulo);
     t.subtitulo = textoDe(j, "subtitulo", t.subtitulo);

@@ -114,7 +114,7 @@ json LectorDocumentos::tipos() const {
         const auto fs = t->formatos();
         out.push_back({{"id", t->id()},
                        {"titulo", ba::i18n::traducir("documentos", t->titulo().c_str())},
-                       {"comoSeDice", ba::i18n::traducir("documentos", t->comoSeDice().c_str())}, // va al público: idioma del evento cuando esté a mano
+                       {"comoSeDice", ba::i18n::traducirEvento("documentos", t->comoSeDice().c_str())}, // va al público: idioma del evento
                        {"formatos", fs},
                        {"origen", "fabrica"},
                        {"pais", t->id() == "dni-ar" ? "AR" : ""},

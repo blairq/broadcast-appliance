@@ -392,8 +392,11 @@ void Entrada::armarSalida() {
     revisarTareas_ = 150; // el appsrc de la placa manda un cuadro y termina
 }
 
+// La placa puede salir al aire: en el idioma del evento. Se dibuja al armar la salida
+// (armarSalida/rotularPlaca); una ya armada sigue como estaba y la próxima vez que se
+// arme (se rearma al volver a usarse tras el reposo, o con la entrada) sale en el nuevo.
 std::string Entrada::textoPlaca() const {
-    return llenar(traducir("motor", "%1 — sin señal"), {nombre_.empty() ? id_ : nombre_});
+    return llenar(ba::i18n::traducirEvento("motor", "%1 — sin señal"), {nombre_.empty() ? id_ : nombre_});
 }
 
 void Entrada::rotularPlaca() {

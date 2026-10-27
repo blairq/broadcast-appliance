@@ -590,7 +590,11 @@ std::string EventoStore::asegurarDelDia(const std::string& dia, std::int64_t aho
     const std::string carpeta = unir(grupo, dia + "-jornada");
     std::error_code ec;
     if (!fs::exists(raiz_ / carpeta / kGuion, ec)) {
-        const std::string nombre = "Jornada del " + dia.substr(8, 2) + "/" + dia.substr(5, 2) + "/" + dia.substr(0, 4);
+        // El nombre lo ven el público y los integrantes (la web, el acta): en el idioma del
+        // evento (si no hay uno abierto, el del operador). Se pone una vez, al crearlo; después
+        // es un nombre que el operador edita y no cambia con el idioma. %1 día, %2 mes, %3 año.
+        const std::string nombre = ba::i18n::llenar(ba::i18n::traducirEvento("evento", "Jornada del %1/%2/%3"),
+                                                    {dia.substr(8, 2), dia.substr(5, 2), dia.substr(0, 4)});
         const std::string hecha = crear(nombre, err, grupo, dia + "-jornada");
         if (hecha != carpeta) return {};
         Evento e = cargar(carpeta);

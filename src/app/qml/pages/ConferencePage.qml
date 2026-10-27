@@ -1066,7 +1066,8 @@ Rectangle {
                     readonly property var cfgp: px.configuracion || ({})
                     readonly property var acme: px.acme || ({})
                     Timer { interval: 5000; repeat: true; running: proxyPanel.visible && conf.online; triggeredOnStart: true; onTriggered: conf.refrescarProxy() }
-                    function fecha(s) { return s > 0 ? new Date(s * 1000).toLocaleDateString(Qt.locale("es_AR"), "d/M/yyyy") : "—" }
+                    // El vencimiento de los certificados TLS del proxy: lo lee el operador, en su idioma.
+                    function fecha(s) { return s > 0 ? new Date(s * 1000).toLocaleDateString(Qt.locale(), "d/M/yyyy") : "—" }
                     ColumnLayout {
                         id: proxyCol
                         anchors.fill: parent

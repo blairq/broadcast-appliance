@@ -1491,12 +1491,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 QString t = QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
                 if (sesionRemota_) {
                     const std::string sr = sesionRemota_->anexoActa();
-                    if (!sr.empty()) t += tr("## Banca virtual") + QString::fromStdString("\n\n```\n" + sr + "```\n\n");
+                    // El acta es del evento: sus títulos van en el idioma del evento (se
+                    // arma cada vez que se genera el acta).
+                    if (!sr.empty())
+                        t += QString::fromStdString(ba::i18n::traducirEvento("StudioViewModel", "## Banca virtual") +
+                                                    "\n\n```\n" + sr + "```\n\n");
                 }
                 // La transcripción de la sesión, con la huella de cada archivo (se puede verificar después).
                 const QStringList archivos = flujos_ ? flujos_->archivosDeSesion() : QStringList{};
                 if (!archivos.isEmpty()) {
-                    t += tr("## Transcripción") + "\n\n| " + tr("Archivo") + " | SHA-256 |\n|---|---|\n";
+                    t += QString::fromStdString(ba::i18n::traducirEvento("StudioViewModel", "## Transcripción") + "\n\n| " +
+                                                ba::i18n::traducirEvento("StudioViewModel", "Archivo") +
+                                                " | SHA-256 |\n|---|---|\n");
                     for (const QString& a : archivos) {
                         QFile f(a);
                         QString h = "—";
@@ -1507,7 +1513,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         }
                         t += "| " + a + " | " + h + " |\n";
                     }
-                    t += "\n_" + tr("La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.") +
+                    t += "\n_" +
+                         QString::fromStdString(ba::i18n::traducirEvento(
+                             "StudioViewModel",
+                             "La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.")) +
                          "_\n\n";
                 }
                 return t;
@@ -3012,7 +3021,11 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
             ctx["punto"] = QJsonObject{{"n", p.value("n", 0)},
                                        {"titulo", QString::fromStdString(p.value("titulo", std::string()))},
                                        {"expediente", QString::fromStdString(p.value("expediente", std::string()))},
-                                       {"texto", tr("Punto %1: %2").arg(p.value("n", 0)).arg(QString::fromStdString(p.value("titulo", std::string())))}};
+                                       // Sale al aire (rótulos): en el idioma del evento. El
+                                       // contexto se arma en cada vuelta de los vínculos.
+                                       {"texto", QString::fromStdString(ba::i18n::llenar(
+                                                     ba::i18n::traducirEvento("StudioViewModel", "Punto %1: %2"),
+                                                     {std::to_string(p.value("n", 0)), p.value("titulo", std::string())}))}};
     }
     // Un orador presencial (banca) al aire manda sobre el de la sala.
     if (bancas_) {
@@ -3047,8 +3060,12 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
                 {"necesarios", q.value("necesarios", 0)},
                 {"miembros", q.value("miembros", 0)},
                 {"hay", q.value("hay_quorum", false)},
-                {"estado", q.value("hay_quorum", false) ? tr("CON QUÓRUM") : tr("SIN QUÓRUM")},
-                {"texto", tr("%1 presentes de %2").arg(q.value("presentes", 0)).arg(q.value("miembros", 0))}};
+                {"estado", QString::fromStdString(q.value("hay_quorum", false)
+                                                      ? ba::i18n::traducirEvento("StudioViewModel", "CON QUÓRUM")
+                                                      : ba::i18n::traducirEvento("StudioViewModel", "SIN QUÓRUM"))},
+                {"texto", QString::fromStdString(ba::i18n::llenar(ba::i18n::traducirEvento("StudioViewModel", "%1 presentes de %2"),
+                                                                  {std::to_string(q.value("presentes", 0)),
+                                                                   std::to_string(q.value("miembros", 0))}))}};
         const nlohmann::json of = quorum_->oficiales();
         if (!of.empty()) {
             const nlohmann::json& v = of.back();
@@ -3059,7 +3076,9 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
                 {"abstenciones", v.value("abstenciones", 0)},
                 {"presentes", v.value("presentes", 0)},
                 {"necesarios", v.value("necesarios", 0)},
-                {"resultado", v.value("aprobado", false) ? "APROBADO" : "RECHAZADO"},
+                {"resultado", QString::fromStdString(v.value("aprobado", false)
+                                                         ? ba::i18n::traducirEvento("StudioViewModel", "APROBADO")
+                                                         : ba::i18n::traducirEvento("StudioViewModel", "RECHAZADO"))},
                 {"color", v.value("aprobado", false) ? "#2e7d32" : "#c62828"}};
         }
     }
@@ -3551,8 +3570,14 @@ QVariantMap StudioViewModel::estadoPlacaUi() const {
 }
 
 QStringList StudioViewModel::textosPlaca() const {
-    QStringList l{tr("Volvemos enseguida"), tr("Cuarto intermedio"), tr("Minuto de silencio"), tr("Sesión suspendida"),
-                  tr("Dificultades técnicas")};
+    // Salen al aire: en el idioma del evento (se arman cada vez que se piden, así que un
+    // cambio de idioma se ve en la lista siguiente; una placa ya al aire queda como salió).
+    const auto ev = [](const std::string& s) { return QString::fromStdString(s); };
+    QStringList l{ev(ba::i18n::traducirEvento("StudioViewModel", "Volvemos enseguida")),
+                  ev(ba::i18n::traducirEvento("StudioViewModel", "Cuarto intermedio")),
+                  ev(ba::i18n::traducirEvento("StudioViewModel", "Minuto de silencio")),
+                  ev(ba::i18n::traducirEvento("StudioViewModel", "Sesión suspendida")),
+                  ev(ba::i18n::traducirEvento("StudioViewModel", "Dificultades técnicas"))};
     const QString usado = QString::fromStdString(rt_.engine().estadoPlaca().value("placa_texto", std::string()));
     if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
     return l;
