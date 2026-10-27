@@ -33,7 +33,9 @@ def leer(ts: pathlib.Path) -> dict:
     mensajes: dict = {}
     total = traducidos = 0
     for ctx in raiz.iter("context"):
-        nombre = ctx.findtext("name") or ""
+        # El contexto sin namespace: lupdate a veces guarda «ba::app::Clase» y a veces «Clase»,
+        # y el adaptador de Qt (TraductorQt) busca siempre por el nombre corto.
+        nombre = (ctx.findtext("name") or "").split("::")[-1]
         for m in ctx.iter("message"):
             fuente = m.findtext("source")
             if fuente is None:

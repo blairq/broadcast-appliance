@@ -189,11 +189,16 @@ def test_ts_to_json(tmp_path: Path) -> None:
 <message><source>Vieja</source><translation type="vanished">Old</translation></message>
 <message numerus="yes"><source>%n invitado</source><translation>
 <numerusform>%n guest</numerusform><numerusform>%n guests</numerusform></translation></message>
+</context>
+<context><name>ba::app::Clase</name>
+<message><source>Hola</source><translation>Hello</translation></message>
 </context></TS>""", encoding="utf-8")
     subprocess.run([sys.executable, "-I", str(REPO / "tools" / "i18n" / "ts-a-json.py"), str(tmp_path / "out"), str(ts)],
                    check=True)
     cat = json.loads((tmp_path / "out" / "zz.json").read_text(encoding="utf-8"))
-    assert cat["idioma"] == "zz" and cat["total"] == 4 and cat["traducidos"] == 3
+    assert cat["idioma"] == "zz" and cat["total"] == 5 and cat["traducidos"] == 4
+    # tr() de una clase en un namespace: el contexto queda sin el namespace (TraductorQt busca así).
+    assert cat["mensajes"]["Clase"] == {"Hola": "Hello"}
     assert cat["mensajes"]["sala"] == {"Conferencia": "Conference", "Salida\u0004audio": "Output",
                                        "%n invitado": ["%n guest", "%n guests"]}
 

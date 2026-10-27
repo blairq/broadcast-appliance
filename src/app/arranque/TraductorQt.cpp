@@ -16,7 +16,12 @@ namespace ba::app {
 QString TraductorQt::translate(const char* context, const char* sourceText, const char* disambiguation,
                                int n) const {
     if (sourceText == nullptr) return {};
-    return QString::fromStdString(ba::i18n::traducir(context, sourceText, disambiguation, n));
+    // tr() de una clase dentro de un namespace llega con el nombre entero
+    // («ba::app::PantallasViewModel») y lupdate guarda solo el de la clase.
+    const char* corto = context;
+    for (const char* c = context; c != nullptr && *c != '\0'; ++c)
+        if (c[0] == ':' && c[1] == ':') corto = c + 2;
+    return QString::fromStdString(ba::i18n::traducir(corto, sourceText, disambiguation, n));
 }
 
 void instalarIdioma() {
