@@ -157,6 +157,27 @@ def test_translation_calls_lupdate_can_read() -> None:
     assert not malas, "\n".join(malas)
 
 
+def test_help_topics_have_their_files() -> None:
+    """Every MCP help topic (kTopics in McpHelp.cpp) has its assets/idiomas/es/ayuda/<id>.md, and every
+    file there is a topic (or the instructions). A lost topic once hid inside another one."""
+    codigo = (REPO / "src" / "app" / "mcp" / "McpHelp.cpp").read_text(encoding="utf-8")
+    temas = set(re.findall(r'^\s*\{"([a-z0-9_-]+)", QT_TRANSLATE_NOOP\("mcp"', codigo, re.M))
+    assert temas, "no help topics found in McpHelp.cpp"
+    archivos = {f.stem for f in (PERFILES / "es" / "ayuda").glob("*.md")} - {"instrucciones"}
+    assert temas == archivos, f"topics without file: {sorted(temas - archivos)}; files without topic: {sorted(archivos - temas)}"
+    for f in (PERFILES).glob("*/ayuda/*.md"):
+        assert 'R"md(' not in f.read_text(encoding="utf-8"), f"{f}: C++ left inside the help text"
+
+
+def test_language_folders_report() -> None:
+    """What a language folder is missing from the source one (falls back to Spanish): a warning."""
+    fuente = PERFILES / "es"
+    for carpeta in sorted(p for p in PERFILES.iterdir() if p.is_dir() and p.name != "es"):
+        faltan = [str(f.relative_to(fuente)) for f in fuente.rglob("*") if f.is_file() and not (carpeta / f.relative_to(fuente)).exists()]
+        if faltan:
+            warnings.warn(f"i18n: assets/idiomas/{carpeta.name}/ lacks {len(faltan)} files of es/ (e.g. {faltan[:3]})")
+
+
 def test_ts_to_json(tmp_path: Path) -> None:
     ts = tmp_path / "ba_zz.ts"
     ts.write_text("""<?xml version="1.0" encoding="utf-8"?>

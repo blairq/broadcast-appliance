@@ -1440,7 +1440,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpProcedimientoTools.cpp" line="+590"/>
+        <location filename="../src/app/mcp/McpProcedimientoTools.cpp" line="+600"/>
         <source>%n con derecho a voto.</source>
         <translation>
             <numerusform>%n con derecho a voto.</numerusform>

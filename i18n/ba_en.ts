@@ -41458,7 +41458,7 @@ Data (from %2): %3</translation>
         <translation>The person said: “%1”</translation>
     </message>
     <message>
-        <location filename="../src/app/registro/Conversacion.cpp" line="+1628"/>
+        <location filename="../src/app/registro/Conversacion.cpp" line="+1669"/>
         <source>Ahora no se anotan datos (la conversación no está en un paso de preguntas).</source>
         <translation>No data is recorded right now (the conversation isn&apos;t at a question step).</translation>
     </message>
@@ -52860,7 +52860,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     </message>
     <message>
         <location filename="../src/app/mcp/McpAlertTools.cpp" line="+24"/>
-        <location filename="../src/app/mcp/McpHelp.cpp" line="+120"/>
+        <location filename="../src/app/mcp/McpHelp.cpp" line="+122"/>
         <source>Disparadores (alertas)</source>
         <translation>Triggers (alerts)</translation>
     </message>
@@ -59157,7 +59157,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
         <translation>Done: “%1” is back to automatic in “%2”.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpHelp.cpp" line="-34"/>
+        <location filename="../src/app/mcp/McpHelp.cpp" line="-36"/>
         <source>Primeros pasos</source>
         <translation>Getting started</translation>
     </message>
@@ -59322,6 +59322,16 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
         <location line="+1"/>
         <source>Cómo se prepara una sesión: Cuerpo, recinto, cámaras, ESCENAS, central, remotos, debate.</source>
         <translation>How to prepare a session: Body, chamber, cameras, SCENES, conference system, remote members, debate.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Procedimiento: evento en salón</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Paso a paso para diseñar, controlar, ensayar y salir con un evento en salón (con público, oradores, invitados remotos y preguntas).</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -62962,7 +62972,7 @@ With `soloVer` set to true it returns it without writing the file.</translation>
         <translation>Starts at %1</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+38"/>
         <source>Preparar el principio y el final del evento</source>
         <translation>Prepare the start and end of the event</translation>
     </message>
@@ -81876,12 +81886,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>log level changed to %1 from the assistant</translation>
     </message>
     <message>
-        <location filename="../src/app/registro/Conversacion.cpp" line="-1511"/>
+        <location filename="../src/app/registro/Conversacion.cpp" line="-1552"/>
         <source>el tótem no tiene los datos del idioma «%1» (totem.json): no va a entender lo que se le diga</source>
         <translation>the kiosk doesn&apos;t have the data for language “%1” (totem.json): it won&apos;t understand what it&apos;s told</translation>
     </message>
     <message>
-        <location line="+1358"/>
+        <location line="+1399"/>
         <location line="+58"/>
         <source>Esa conversación no está en curso.</source>
         <translation>That conversation isn&apos;t in progress.</translation>

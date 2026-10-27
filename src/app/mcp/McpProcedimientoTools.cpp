@@ -174,10 +174,20 @@ std::string fechaCorta(const std::string& f) {
     return f.substr(8, 2) + "/" + f.substr(5, 2) + "/" + f.substr(0, 4);
 }
 
-int indiceDeBloque(const json& guion, const std::string& nombre) {
+/// El nombre de un bloque de fábrica («Previa», «Cierre») en el idioma del evento: el mismo que
+/// le ponen las plantillas (assets/idiomas/<c>/plantillas/textos.json, tools/generar/plantillas.py).
+std::string nombreDeBloque(const std::string& clave) {
+    const json t = json::parse(ba::i18n::En(ba::i18n::idiomaDelEvento()).leer("plantillas/textos.json"), nullptr, false);
+    return t.is_object() ? t.value(clave, clave) : clave;
+}
+
+/// El bloque de fábrica `clave`, se llame en español o en el idioma del evento. -1 si no está.
+int indiceDeBloque(const json& guion, const std::string& clave) {
+    const std::string traducido = nombreDeBloque(clave);
     int i = 0;
     for (const auto& b : guion.value("bloques", json::array())) {
-        if (b.value("nombre", std::string()) == nombre) return i;
+        const std::string n = b.value("nombre", std::string());
+        if (n == clave || n == traducido) return i;
         ++i;
     }
     return -1;
@@ -334,7 +344,7 @@ void McpService::registerProcedimientoTools() {
                                    dibujar(kFteFin, "fin-transmision", vFin);
                                    if (conGuion && !hayPrevia) {
                                        // al final y después al principio (guion_bloque agrega al final)
-                                       p2.push_back({ba::i18n::traducir("mcp", "agregar el bloque «Previa»"), "guion_bloque", {{"nombre", "Previa"}}});
+                                       p2.push_back({ba::i18n::traducir("mcp", "agregar el bloque «Previa»"), "guion_bloque", {{"nombre", nombreDeBloque("Previa")}}});
                                        p2.push_back({ba::i18n::traducir("mcp", "llevar «Previa» al principio"), "guion_bloque", {{"indice", nBloques}, {"mover", 0}}});
                                        const auto cue = [&](json c) {
                                            c["bloque"] = 0;
@@ -357,7 +367,7 @@ void McpService::registerProcedimientoTools() {
                                    }
                                    if (conGuion && !hayCierre) {
                                        const int idx = nBloques + ((conGuion && !hayPrevia) ? 1 : 0);
-                                       p2.push_back({ba::i18n::traducir("mcp", "agregar el bloque «Cierre»"), "guion_bloque", {{"nombre", "Cierre"}}});
+                                       p2.push_back({ba::i18n::traducir("mcp", "agregar el bloque «Cierre»"), "guion_bloque", {{"nombre", nombreDeBloque("Cierre")}}});
                                        const auto cue = [&](json c) {
                                            c["bloque"] = idx;
                                            p2.push_back({ba::i18n::traducir("mcp", "cue del cierre"), "guion_cue", c});

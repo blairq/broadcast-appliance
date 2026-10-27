@@ -65,6 +65,8 @@ const TopicDef kTopics[] = {
      QT_TRANSLATE_NOOP("mcp", "Una TV con cámara o el celular: la gente se registra hablando.")},
     {"asamblea", QT_TRANSLATE_NOOP("mcp", "Sesión de asamblea"),
      QT_TRANSLATE_NOOP("mcp", "Cómo se prepara una sesión: Cuerpo, recinto, cámaras, ESCENAS, central, remotos, debate.")},
+    {"procedimiento_salon", QT_TRANSLATE_NOOP("mcp", "Procedimiento: evento en salón"),
+     QT_TRANSLATE_NOOP("mcp", "Paso a paso para diseñar, controlar, ensayar y salir con un evento en salón (con público, oradores, invitados remotos y preguntas).")},
     {"procedimiento_asamblea", QT_TRANSLATE_NOOP("mcp", "Procedimiento: sesión de asamblea"),
      QT_TRANSLATE_NOOP("mcp", "Paso a paso para diseñar, controlar, ensayar y salir con una sesión de asamblea (cuerpo con bancas, quórum, orden del día, votaciones, remotos).")},
     {"graficos", QT_TRANSLATE_NOOP("mcp", "Gráficos animados"),
