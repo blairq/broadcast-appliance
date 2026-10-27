@@ -2,6 +2,7 @@
 // src/app/ui/LectorDocumentos.cpp — ver LectorDocumentos.hpp
 // ============================================================================
 #include "ui/LectorDocumentos.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QByteArray>
 #include <QThread>
@@ -112,8 +113,8 @@ json LectorDocumentos::tipos() const {
     for (const auto& t : catalogo_.tipos()) {
         const auto fs = t->formatos();
         out.push_back({{"id", t->id()},
-                       {"titulo", t->titulo()},
-                       {"comoSeDice", t->comoSeDice()},
+                       {"titulo", ba::i18n::traducir("documentos", t->titulo().c_str())},
+                       {"comoSeDice", ba::i18n::traducir("documentos", t->comoSeDice().c_str())}, // va al público: idioma del evento cuando esté a mano
                        {"formatos", fs},
                        {"origen", "fabrica"},
                        {"pais", t->id() == "dni-ar" ? "AR" : ""},
