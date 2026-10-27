@@ -215,12 +215,16 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
     std::size_t nSec = e.bloques.size();
     int totalSeg = 0;
     for (const Bloque& b : e.bloques) totalSeg += b.duracionSeg();
+    // La descripción del sitio (buscadores, redes): en el idioma del evento (idiomaDe, el
+    // mismo que da ba::i18n::idiomaDelEvento() con el evento abierto), en frases enteras. Queda
+    // escrita en el HTML: si cambia el idioma del evento, se rehace al volver a generar el sitio
+    // (en la página, vivo.js la vuelve a poner en el idioma de ese momento).
+    const std::string nSecciones = en.traducir("evento", "%n sección", nullptr, static_cast<int>(nSec));
     const std::string descripcion =
-        s.bajada.empty()
-            ? (nSec ? en.traducir("evento", "%n sección", nullptr, static_cast<int>(nSec)) : en.traducir("evento", "En vivo")) +
-                  (totalSeg ? " · " + duracionTexto(totalSeg) : std::string()) + " · " +
-                  en.traducir("evento", "en vivo por internet.")
-            : s.bajada;
+        !s.bajada.empty() ? s.bajada
+        : !nSec           ? en.traducir("evento", "En vivo por internet.")
+        : totalSeg ? ba::i18n::llenar(en.traducir("evento", "%1 · %2 · en vivo por internet."), {nSecciones, duracionTexto(totalSeg)})
+                   : ba::i18n::llenar(en.traducir("evento", "%1 · en vivo por internet."), {nSecciones});
     const auto llenar = [&](std::string t, const std::string& tituloPagina, const std::string& seccion) {
         reemplazar(t, "{{titulo}}", escapar(tituloPagina));
         reemplazar(t, "{{evento}}", escapar(titulo));
