@@ -85,7 +85,7 @@ int runEngineSelfTest(int argc, char** argv) {
         const std::string& err = eng.lastError();
         std::printf("  [ -- ] arranque del motor — %s\n", err.c_str());
         // Sin GStreamer en el bundle no hay nada que probar (build sin motor).
-        if (err.find("GStreamer no") != std::string::npos) {
+        if (eng.sinGStreamer()) {
             std::printf("\nSKIP: este programa no tiene GStreamer.\n");
             return 77;
         }

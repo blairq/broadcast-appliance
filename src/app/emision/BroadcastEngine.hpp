@@ -576,6 +576,9 @@ class BroadcastEngine {
     /// tardar van en cola y vuelven enseguida (la interfaz no espera), así que
     /// su error llega por acá, desde el hilo del motor.
     void alFallarMotor(std::function<void(const std::string&)> fn);
+    /// El texto que llega por alFallarMotor es el de «el disco anda bien de nuevo» (un
+    /// aviso bueno, no un fallo). Comparar con esto y no con el texto: sale traducido.
+    static bool esAvisoDeDiscoBien(const std::string& texto);
     /// Avisa cuando cambia el audio de una fuente: `que` es "escucha" (fija o PFL),
     /// "pistas", "retardo", "volumen", "mute" o "alta" (se creó, se rehízo o se renombró). Lo pida quien lo pida (la matriz, el
     /// Mezclador, el asistente, el AFV, una escena que se carga, volver como estaba):
@@ -704,6 +707,9 @@ class BroadcastEngine {
     EngineStatus status() const;
     const std::string& lastError() const { return lastError_; }
     bool ready() const { return started_; }
+    /// El arranque falló porque este programa no tiene GStreamer (build sin motor, bundle
+    /// incompleto). Una marca y no el texto de lastError(), que sale traducido.
+    bool sinGStreamer() const { return sinGStreamer_; }
 
     /// Lo que oye el invitado del slot: "mix_minus" (de fábrica) o "programa".
     void setRetornoInvitado(int slot, const std::string& modo);
@@ -778,6 +784,7 @@ class BroadcastEngine {
     const nlohmann::json& estadoMotor() const;
 
     bool started_ = false;
+    bool sinGStreamer_ = false;
     std::string lastError_;
     EnginePaths paths_;
     VideoConfig video_;

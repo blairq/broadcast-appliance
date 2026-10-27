@@ -38,6 +38,7 @@
 #include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include "Reloj.hpp" // motor: iniciarGStreamer
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -170,10 +171,15 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
 
 void printStatus(const BroadcastEngine& eng) {
     const EngineStatus s = eng.status();
-    std::printf("ba-app: fps=%.1f enc=%s grabando=%s transmitiendo=%s perdidos=%d/%d enviado=%lluKB\n", s.fps,
-                s.videoEncoder.empty() ? "-" : s.videoEncoder.c_str(), s.recording ? "si" : "no",
-                s.streaming ? "si" : "no", s.droppedFrames, s.totalFrames,
-                static_cast<unsigned long long>(s.bytesSent / 1024));
+    char fps[32];
+    std::snprintf(fps, sizeof fps, "%.1f", s.fps);
+    const std::string si = ba::i18n::traducir("arranque", "si"), no = ba::i18n::traducir("arranque", "no");
+    std::printf("ba-app: %s\n",
+                ba::i18n::llenar(ba::i18n::traducir("arranque", "fps=%1 enc=%2 grabando=%3 transmitiendo=%4 perdidos=%5/%6 enviado=%7KB"),
+                                 {fps, s.videoEncoder.empty() ? "-" : s.videoEncoder, s.recording ? si : no,
+                                  s.streaming ? si : no, std::to_string(s.droppedFrames), std::to_string(s.totalFrames),
+                                  std::to_string(static_cast<unsigned long long>(s.bytesSent / 1024))})
+                    .c_str());
     std::fflush(stdout);
 }
 
@@ -229,9 +235,10 @@ void AppRuntime::configure(int argc, char** argv) {
         const nlohmann::json r = ba::evento::FotosConfig::aplicarPendiente(root_ / "Config", ahora);
         if (!r.is_null())
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0,
-                                       "se volvió a la configuración de «" + r.value("desde", std::string()) + "»: " +
-                                           r.value("aplicados", nlohmann::json::array()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " (lo de antes en Config/.restaurar/" +
-                                           r.value("respaldo", std::string()) + ")");
+                                       ba::i18n::llenar(ba::i18n::traducir("historico", "se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)"),
+                                                        {r.value("desde", std::string()),
+                                                         r.value("aplicados", nlohmann::json::array()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                                                         r.value("respaldo", std::string())}));
     }
     const fs::path cfgPath = argValue(argc, argv, "--config", appConfigPath(root_).string());
     cfg_ = loadAppConfig(cfgPath, root_);
@@ -259,8 +266,9 @@ void AppRuntime::addAudioInputs() {
     // invitados (suenan en todas las escenas, no son items de escena).
     for (const auto& spec : cfg_.audioInputs) {
         if (!engine_.addGlobalAudio(spec))
-            std::printf("ba-app: entrada de audio '%s' omitida: %s\n", spec.name.c_str(),
-                        engine_.lastError().c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "entrada de audio '%1' omitida: %2"),
+                                                         {spec.name, engine_.lastError()})
+                                            .c_str());
     }
 }
 
@@ -297,7 +305,9 @@ void AppRuntime::ajustarInvitados(int n) {
     if (cfg_.guestAudio)
         for (int slot = antes + 1; slot <= n; ++slot)
             if (!engine_.addGuestAudio(slot))
-                std::printf("ba-app: invitado %d (audio) omitido: %s\n", slot, engine_.lastError().c_str());
+                std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "invitado %1 (audio) omitido: %2"),
+                                                             {std::to_string(slot), engine_.lastError()})
+                                                .c_str());
     // Y el video de los lugares nuevos (la cámara y la pantalla de cada uno): sin
     // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
     // primera escena, como las del arranque: el operador las pone donde quiera.
@@ -319,7 +329,9 @@ void AppRuntime::ajustarInvitados(int n) {
                 spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
                 spec.visible = false;
                 if (!addSource(cfg_.scenes.front().name, spec))
-                    std::printf("ba-app: «%s» omitido: %s\n", spec.name.c_str(), lastError_.c_str());
+                    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "«%1» omitido: %2"),
+                                                                 {spec.name, lastError_})
+                                                    .c_str());
             }
     }
     // Al bajar el cupo (la sala ya lo aceptó: no hay nadie en esos lugares), las
@@ -345,7 +357,9 @@ void AppRuntime::addGuests() {
     // Audio de invitados: global (canal propio), siempre en la mezcla.
     for (int slot = 1; slot <= cfg_.guests; ++slot) {
         if (cfg_.guestAudio && !engine_.addGuestAudio(slot)) {
-            std::printf("ba-app: invitado %d (audio) omitido: %s\n", slot, engine_.lastError().c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "invitado %1 (audio) omitido: %2"),
+                                                         {std::to_string(slot), engine_.lastError()})
+                                            .c_str());
         }
     }
     // Video: si ninguna escena tiene invitados (config nueva o vieja), se
@@ -384,7 +398,9 @@ void AppRuntime::addGuests() {
             a.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto\"}";
         }
         if (!engine_.addGlobalAudio(a))
-            std::printf("ba-app: el audio de «%s» no entró: %s\n", a.name.c_str(), engine_.lastError().c_str());
+            std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "el audio de «%1» no entró: %2"),
+                                                         {a.name, engine_.lastError()})
+                                            .c_str());
         bool hayVideo = false, hayContenido = false;
         const std::string deSlot = "\"slot\":" + slot;
         for (const auto& sc : cfg_.scenes)
@@ -485,7 +501,8 @@ int AppRuntime::start() {
         // Antes de revisar, GStreamer cuenta los plugins: el cartel dice cuántos son,
         // cuál está revisando y cuántos lleva («37 de 312»).
         const bool rehacer = ba::platform::registroPorRehacer();
-        arranque::avisar(rehacer ? "Contando los plugins de video…" : "Iniciando GStreamer…");
+        arranque::avisar(rehacer ? ba::i18n::traducir("arranque", "Contando los plugins de video…")
+                                 : ba::i18n::traducir("arranque", "Iniciando GStreamer…"));
         const auto desde = std::chrono::steady_clock::now();
         ba::motor::iniciarGStreamer(nullptr, [&]() {
             if (health_.valid()) {
@@ -495,20 +512,24 @@ int AppRuntime::start() {
             const long long s =
                 std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - desde).count();
             const std::string reloj = std::to_string(s) + " s";
-            const std::string primera = rehacer ? " · la primera vez en esta PC tarda más" : "";
+            const std::string primera =
+                rehacer ? " · " + ba::i18n::traducir("arranque", "la primera vez en esta PC tarda más") : "";
             const ba::motor::ProgresoGst pg = ba::motor::progresoGStreamer();
             arranque::Aviso a;
             if (pg.total > 0 && pg.revisados > 0) {
                 const int n = std::min(pg.revisados, pg.total);
-                a.que = "Revisando los plugins de video: " + std::to_string(n) + " de " + std::to_string(pg.total);
+                a.que = ba::i18n::llenar(ba::i18n::traducir("arranque", "Revisando los plugins de video: %1 de %2"),
+                                         {std::to_string(n), std::to_string(pg.total)});
                 a.detalle = pg.actual + " · " + reloj + primera;
                 a.parte = static_cast<double>(n) / pg.total;
             } else if (pg.total > 0) {
-                a.que = "Revisando los plugins de video: son " + std::to_string(pg.total);
+                a.que = ba::i18n::llenar(ba::i18n::traducir("arranque", "Revisando los plugins de video: son %1"),
+                                         {std::to_string(pg.total)});
                 a.detalle = reloj + primera;
                 a.parte = 0;
             } else {
-                a.que = rehacer ? "Contando los plugins de video…" : "Iniciando GStreamer…";
+                a.que = rehacer ? ba::i18n::traducir("arranque", "Contando los plugins de video…")
+                                : ba::i18n::traducir("arranque", "Iniciando GStreamer…");
                 if (s >= 2) a.detalle = reloj;
             }
             arranque::seguir(a);
@@ -546,20 +567,25 @@ int AppRuntime::start() {
     paths.obsDataDir = (bin_ / "data" / "libobs").string();
     paths.configDir = (root_ / "Config" / "plugin_config").string();
 
-    std::printf("ba-app: arrancando motor %dx%d@%d, codificador=%s%s\n", cfg_.video.baseWidth,
-                cfg_.video.baseHeight, cfg_.video.fpsNum, cfg_.encoder.videoEncoder.c_str(),
-                cfg_.safeMode ? " (modo seguro)" : "");
+    std::printf("ba-app: %s\n",
+                ba::i18n::llenar(cfg_.safeMode ? ba::i18n::traducir("arranque", "arrancando motor %1x%2@%3, codificador=%4 (modo seguro)")
+                                               : ba::i18n::traducir("arranque", "arrancando motor %1x%2@%3, codificador=%4"),
+                                 {std::to_string(cfg_.video.baseWidth), std::to_string(cfg_.video.baseHeight),
+                                  std::to_string(cfg_.video.fpsNum), cfg_.encoder.videoEncoder})
+                    .c_str());
     // El arranque del motor, medido como el de la interfaz (StudioViewModel):
     // cada etapa de más de 150 ms queda en el registro.
     const auto relojArranque = std::chrono::steady_clock::now();
     auto ultimaMarca = relojArranque;
-    const auto marca = [&ultimaMarca](const char* que) {
+    const auto marca = [&ultimaMarca](const std::string& que) {
         const auto ahora = std::chrono::steady_clock::now();
         const long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - ultimaMarca).count();
-        if (ms > 150) ba::diag::registro().info("arranque: " + std::string(que) + " tardó " + std::to_string(ms) + " ms");
+        if (ms > 150)
+            ba::diag::registro().info(
+                ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: %1 tardó %2 ms"), {que, std::to_string(ms)}));
         ultimaMarca = ahora;
     };
-    arranque::avisar("Arrancando el motor de video y audio…");
+    arranque::avisar(ba::i18n::traducir("arranque", "Arrancando el motor de video y audio…"));
     // El reloj del estudio (Video → Sincronía): con él arranca el motor.
     {
         std::ifstream f(root_ / "Config" / "video-reloj.json");
@@ -580,17 +606,19 @@ int AppRuntime::start() {
     grilla::registrarTipo();
     if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
         lastError_ = engine_.lastError();
-        std::printf("ba-app: el motor no arranco: %s\n", lastError_.c_str());
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no arranco: %1"), {lastError_}).c_str());
         if (health_.valid()) {
             health_.setState(kHealthSlot, ba::ipc::ProcessState::Terminated);
         }
-        if (lastError_.find("GStreamer no") != std::string::npos) {
-            std::printf("ba-app: sin GStreamer en el programa (bin/64bit): el bundle está incompleto.\n");
+        if (engine_.sinGStreamer()) {
+            std::printf("ba-app: %s\n",
+                        ba::i18n::traducir("arranque", "sin GStreamer en el programa (bin/64bit): el bundle está incompleto.").c_str());
             return ba::platform::exit_code::kEnvironment;
         }
         return 2;
     }
-    marca("el motor");
+    marca(ba::i18n::traducir("arranque", "el motor"));
     aplicarAjustesMotor(cfg_); // placa sin uso, entradas, transmisión, disco (Configuración)
     health_.beat(kHealthSlot);
     started_ = true;
@@ -610,21 +638,21 @@ int AppRuntime::start() {
             },
             [this]() -> std::uint64_t { return engine_.cuadrosPrograma(); });
 
-    marca("loudness y latido");
-    arranque::avisar("Preparando los lugares de los invitados…");
+    marca(ba::i18n::traducir("arranque", "loudness y latido"));
+    arranque::avisar(ba::i18n::traducir("arranque", "Preparando los lugares de los invitados…"));
     addGuests();
-    marca("los invitados");
-    arranque::avisar("Abriendo los micrófonos…");
+    marca(ba::i18n::traducir("arranque", "los invitados"));
+    arranque::avisar(ba::i18n::traducir("arranque", "Abriendo los micrófonos…"));
     addAudioInputs();
-    marca("las entradas de audio");
-    arranque::avisar("Armando las escenas…");
+    marca(ba::i18n::traducir("arranque", "las entradas de audio"));
+    arranque::avisar(ba::i18n::traducir("arranque", "Armando las escenas…"));
     // Lo que oye cada invitado (mix-minus de fábrica): lo guardado en Config/retornos.json.
     emision::RetornosInvitados(*this).cargar();
     // Los volúmenes generales de los grupos, antes que las fuentes: cada una ya entra con el suyo.
     for (const auto& [grupo, g] : cfg_.gruposAudio) engine_.setGananciaGrupo(grupo, g);
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
-        arranque::avisar("Armando la escena «" + sc.name + "»…");
+        arranque::avisar(ba::i18n::llenar(ba::i18n::traducir("arranque", "Armando la escena «%1»…"), {sc.name}));
         engine_.createScene(sc.name);
         // En modo seguro las escenas se crean VACIAS: si una fuente es la que
         // venia tumbando el arranque, asi no se la toca. La configuracion no
@@ -638,34 +666,37 @@ int AppRuntime::start() {
             const long long ms =
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
             if (ms > 50)
-                ba::diag::registro().info("arranque: «" + src.name + "» (" + sc.name + ", " + src.id +
-                                          ") tardó " + std::to_string(ms) + " ms");
+                ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: «%1» (%2, %3) tardó %4 ms"),
+                                                           {src.name, sc.name, src.id, std::to_string(ms)}));
             if (!ok) {
-                std::printf("ba-app: fuente '%s' omitida: %s\n", src.name.c_str(),
-                            engine_.lastError().c_str());
+                std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "fuente '%1' omitida: %2"),
+                                                             {src.name, engine_.lastError()})
+                                                .c_str());
             }
         }
     }
-    marca("las escenas");
+    marca(ba::i18n::traducir("arranque", "las escenas"));
     engine_.setCurrentScene(cfg_.currentScene);
     if (cfg_.returnFeeds && !engine_.publishReturnFeeds()) {
-        std::printf("ba-app: sin retorno hacia B: %s\n", engine_.lastError().c_str());
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "sin retorno hacia B: %1"), {engine_.lastError()}).c_str());
     }
-    marca("la escena al aire y el retorno");
+    marca(ba::i18n::traducir("arranque", "la escena al aire y el retorno"));
     // Lobby: la voz de quien espera (monitoreo) y lo que ve del operador.
     operator_.startLobbyMonitor(gateway_.lobbySlots);
     if (!operator_.configure(engine_, cfg_.operatorVideo, cfg_.operatorAudio)) {
-        std::printf("ba-app: feed del operador incompleto (fuente inexistente)\n");
+        std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "feed del operador incompleto (fuente inexistente)").c_str());
     }
 
-    marca("el lobby y el operador");
-    std::printf("ba-app: codificadores candidatos:");
-    for (const auto& id : engine_.videoEncoderCandidates(cfg_.encoder)) {
-        std::printf(" %s", id.c_str());
+    marca(ba::i18n::traducir("arranque", "el lobby y el operador"));
+    {
+        std::string candidatos;
+        for (const auto& id : engine_.videoEncoderCandidates(cfg_.encoder)) candidatos += " " + id;
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "codificadores candidatos:%1"), {candidatos}).c_str());
     }
-    std::printf("\n");
 
-    marca("los codificadores");
+    marca(ba::i18n::traducir("arranque", "los codificadores"));
     if (cfg_.replaySegundos > 0) aplicarReplay();
     if (cfg_.record) {
         startRecording();
@@ -688,15 +719,16 @@ int AppRuntime::start() {
         const std::string escena = j.is_object() ? j.value("escena", std::string()) : std::string();
         if (corteAnterior_ && !escena.empty() && escena != engine_.currentScene() && setScene(escena))
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                       "la corrida anterior no se cerró: vuelve la escena «" + escena + "»");
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la corrida anterior no se cerró: vuelve la escena «%1»"),
+                                                        {escena}));
     }
-    marca("las salidas");
-    arranque::avisar("Volviendo a como estaba…");
+    marca(ba::i18n::traducir("arranque", "las salidas"));
+    arranque::avisar(ba::i18n::traducir("arranque", "Volviendo a como estaba…"));
     restoreOutputs();
-    marca("volver como estaba");
+    marca(ba::i18n::traducir("arranque", "volver como estaba"));
     if (cfg_.modoPrueba) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   "modo prueba (--test): no se retoman las salidas (grabación, transmisión)");
+                                   ba::i18n::traducir("arranque", "modo prueba (--test): no se retoman las salidas (grabación, transmisión)"));
     }
     writeOnAirState();
     // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
@@ -706,22 +738,23 @@ int AppRuntime::start() {
         engine_.ponerTopeEstudio(cfg_.estudioTopeMs);
     }
     // Que no falte ningún elemento de GStreamer sin que se sepa (P0.3).
-    marca("estado y latencia");
+    marca(ba::i18n::traducir("arranque", "estado y latencia"));
     video::revisarElementosGstAlArrancar();
-    marca("revisar los elementos de GStreamer");
+    marca(ba::i18n::traducir("arranque", "revisar los elementos de GStreamer"));
 
     std::string err;
     if (!control_.start("control.app", &err)) {
-        std::printf("ba-app: sin canal de control (%s)\n", err.c_str());
+        std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("arranque", "sin canal de control (%1)"), {err}).c_str());
     }
-    std::printf("ba-app: en marcha (pid %u)\n", currentPid());
+    std::printf("ba-app: %s\n",
+                ba::i18n::llenar(ba::i18n::traducir("arranque", "en marcha (pid %1)"), {std::to_string(currentPid())}).c_str());
     return 0;
 }
 
 void AppRuntime::tick() {
     control_.poll([&](const ba::ipc::Message& m) {
         if (m.type == ba::ipc::Type::Shutdown) {
-            std::printf("ba-app: cierre pedido por el launcher\n");
+            std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cierre pedido por el launcher").c_str());
             requestStop();
         }
     });
@@ -744,7 +777,7 @@ bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::stri
     const bool ok = operator_.configure(engine_, videoSource, audioSource);
     cfg_.operatorVideo = videoSource;
     cfg_.operatorAudio = audioSource;
-    if (!ok) lastError_ = "no existe la fuente elegida para el operador";
+    if (!ok) lastError_ = ba::i18n::traducir("arranque", "no existe la fuente elegida para el operador");
     return ok;
 }
 
@@ -767,14 +800,14 @@ void AppRuntime::stop() {
     engine_.stopAllSourceRecordings();
     engine_.stopCleanFeed();
     latido_.detener(); // antes de apagar libobs (lee sus cuadros)
-    std::printf("ba-app: cerrando (salidas, escena, motor)\n");
+    std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cerrando (salidas, escena, motor)").c_str());
     control_.stop();
     operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes
     engine_.shutdown();
     if (health_.valid()) {
         health_.setState(kHealthSlot, ba::ipc::ProcessState::Terminated);
     }
-    std::printf("ba-app: cierre ordenado\n");
+    std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cierre ordenado").c_str());
 }
 
 std::string AppRuntime::carpetaGrabacion() const {
@@ -805,10 +838,11 @@ bool AppRuntime::startRecording() {
     const EngineStatus antes = engine_.status();
     if (!engine_.startRecording(rec, cfg_.encoder)) {
         lastError_ = engine_.lastError();
-        std::printf("ba-app: la grabacion no arranco: %s\n", lastError_.c_str());
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabacion no arranco: %1"), {lastError_}).c_str());
         return false;
     }
-    std::printf("ba-app: grabando en %s\n", rec.directory.c_str());
+    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("grabacion", "grabando en %1"), {rec.directory}).c_str());
     // El integrado del loudness arranca con la sesión (si no había nada saliendo).
     if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
     recordStopWanted_ = false;
@@ -829,7 +863,7 @@ bool AppRuntime::startSourceRecording(const std::string& source) {
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
-                               "grabando la entrada \"" + source + "\" aparte");
+                               ba::i18n::llenar(ba::i18n::traducir("grabacion", "grabando la entrada \"%1\" aparte"), {source}));
     avisar(Cambio::Salidas);
     return true;
 }
@@ -840,7 +874,7 @@ bool AppRuntime::stopSourceRecording(const std::string& source) {
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
-                               "para la grabacion aparte de \"" + source + "\"");
+                               ba::i18n::llenar(ba::i18n::traducir("grabacion", "para la grabacion aparte de \"%1\""), {source}));
     avisar(Cambio::Salidas);
     return true;
 }
@@ -913,15 +947,15 @@ void AppRuntime::restoreOutputs() {
     if (cfg_.modoPrueba) return; // la escena sí; las salidas, nunca con --test
     if (j.value("recording", false) && !engine_.status().recording) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación");
+                                   ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación"));
         startRecording();
     }
     if (j.value("streaming", false) && !engine_.status().streaming) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión");
+                                   ba::i18n::traducir("arranque", "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión"));
         if (!startStreaming())
             ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
-                                       "la transmisión no se pudo retomar: " + lastError_);
+                                       ba::i18n::llenar(ba::i18n::traducir("arranque", "la transmisión no se pudo retomar: %1"), {lastError_}));
     }
 }
 
@@ -929,9 +963,10 @@ std::string AppRuntime::grabarAparte(const std::string& fuente) {
     const nlohmann::json d = discoGrabacion();
     const double horas = d.value("horas", -1.0);
     if (horas >= 0 && horas < kDiscoMinimoAparteH)
-        return "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.";
+        return ba::i18n::traducir("grabacion", "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.");
     if (static_cast<int>(engine_.sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
-        return "Ya se graban " + std::to_string(BroadcastEngine::kMaxIndividuales) + " aparte (el tope): pará alguna.";
+        return ba::i18n::llenar(ba::i18n::traducir("grabacion", "Ya se graban %1 aparte (el tope): pará alguna."),
+                                {std::to_string(BroadcastEngine::kMaxIndividuales)});
     if (!startSourceRecording(fuente)) return lastError_;
     return {};
 }
@@ -964,16 +999,17 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         }
     }
     if (sc.server.empty()) {
-        lastError_ = "no hay servidor de transmision configurado";
+        lastError_ = ba::i18n::traducir("salidas", "no hay servidor de transmision configurado");
         return false;
     }
     const EngineStatus antes = engine_.status();
     if (!engine_.startStreaming(sc, cfg_.encoder, cambiarEnCaliente)) {
         lastError_ = engine_.lastError();
-        std::printf("ba-app: la transmision no arranco: %s\n", lastError_.c_str());
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmision no arranco: %1"), {lastError_}).c_str());
         return false;
     }
-    std::printf("ba-app: transmitiendo a %s\n", sc.server.c_str());
+    std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("salidas", "transmitiendo a %1"), {sc.server}).c_str());
     if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
     streamStopWanted_ = false;
     if (!sc.key.empty()) {
@@ -1034,7 +1070,7 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
     if (existente == nullptr) {
         if (url.rfind("rtmp://", 0) != 0 && url.rfind("rtmps://", 0) != 0 && url.rfind("srt://", 0) != 0 &&
             url.rfind("rist://", 0) != 0)
-            return "`url`: rtmp://, rtmps://, srt:// o rist://";
+            return ba::i18n::traducir("salidas", "`url`: rtmp://, rtmps://, srt:// o rist://");
         if (id.empty()) {
             int n = 1;
             const auto usado = [&](const std::string& c) {
@@ -1055,7 +1091,7 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
     // como los lee el muxer (ffmpeg: latency en microsegundos). La passphrase es la clave.
     if (d.contains("modo") || d.contains("latencia_ms")) {
         const std::string actual = (*existente).value("url", std::string());
-        if (actual.rfind("srt://", 0) != 0) return "`modo` y `latencia_ms` son solo para srt://";
+        if (actual.rfind("srt://", 0) != 0) return ba::i18n::traducir("salidas", "`modo` y `latencia_ms` son solo para srt://");
         const auto q = actual.find('?');
         std::string u = actual.substr(0, q);
         std::vector<std::pair<std::string, std::string>> params;
@@ -1074,12 +1110,12 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
         };
         if (d.contains("modo")) {
             const std::string m = d.value("modo", std::string());
-            if (m != "caller" && m != "listener" && m != "rendezvous") return "`modo`: caller, listener o rendezvous";
+            if (m != "caller" && m != "listener" && m != "rendezvous") return ba::i18n::traducir("salidas", "`modo`: caller, listener o rendezvous");
             poner("mode", m);
         }
         if (d.contains("latencia_ms")) {
             const int ms = d.value("latencia_ms", 0);
-            if (ms < 20 || ms > 8000) return "`latencia_ms`: entre 20 y 8000";
+            if (ms < 20 || ms > 8000) return ba::i18n::traducir("salidas", "`latencia_ms`: entre 20 y 8000");
             poner("latency", std::to_string(ms * 1000));
         }
         for (std::size_t i = 0; i < params.size(); ++i)
@@ -1097,8 +1133,9 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
 std::string AppRuntime::aplicarReplay() {
     const int s = cfg_.replaySegundos;
     if (!engine_.setReplay(s, cfg_.rec.directory + "/repeticiones", cfg_.encoder))
-        return "Repetición: " + engine_.lastError();
-    return s > 0 ? "Repetición: guarda los últimos " + std::to_string(s) + " s." : "Repetición apagada.";
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {engine_.lastError()});
+    return s > 0 ? ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: guarda los últimos %1 s."), {std::to_string(s)})
+                 : ba::i18n::traducir("salidas", "Repetición apagada.");
 }
 
 void AppRuntime::detenerSenalLimpia() {
@@ -1111,7 +1148,8 @@ std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
     if (!destino.empty()) {
         for (const auto& d : leerDestinos(root_))
             if (d.value("id", std::string()) == destino) url = d.value("url", std::string());
-        if (url.empty()) return "no hay un destino «" + destino + "» (stream_destinos los lista)";
+        if (url.empty())
+            return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {destino});
         ba::security::CredentialStore::bundle().read("stream-" + destino, clave);
     } else {
         std::error_code ec;
@@ -1120,7 +1158,8 @@ std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
     }
     if (!engine_.startCleanFeed(url, clave, dir, cfg_.encoder)) return engine_.lastError();
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
-                               "señal limpia " + (destino.empty() ? std::string("grabando en ") + dir : "a " + destino));
+                               destino.empty() ? ba::i18n::llenar(ba::i18n::traducir("salidas", "señal limpia grabando en %1"), {dir})
+                                               : ba::i18n::llenar(ba::i18n::traducir("salidas", "señal limpia a %1"), {destino}));
     avisar(Cambio::Salidas);
     return {};
 }
@@ -1129,7 +1168,7 @@ std::string AppRuntime::borrarDestino(const std::string& id) {
     nlohmann::json lista = leerDestinos(root_), nueva = nlohmann::json::array();
     for (const auto& x : lista)
         if (x.value("id", std::string()) != id) nueva.push_back(x);
-    if (nueva.size() == lista.size()) return "no hay un destino «" + id + "»";
+    if (nueva.size() == lista.size()) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1»"), {id});
     engine_.stopExtra(id);
     ba::security::CredentialStore::bundle().remove("stream-" + id);
     escribirDestinos(root_, nueva);
@@ -1149,7 +1188,7 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
         if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder))
             errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
     }
-    if (!alguno) return "no hay un destino «" + id + "» (stream_destinos los lista)";
+    if (!alguno) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {id});
     // Aunque alguno haya fallado, otros pudieron arrancar: la lista cambia igual.
     avisar(Cambio::Salidas);
     return errores;
@@ -1195,12 +1234,12 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
     for (const SceneConfig& s : cfg_.scenes)
         if (s.name == from) origen = &s;
     if (origen == nullptr) {
-        lastError_ = "no existe la escena \"" + from + "\"";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena \"%1\""), {from});
         return false;
     }
     for (const SceneConfig& s : cfg_.scenes)
         if (s.name == to) {
-            lastError_ = "ya hay una escena llamada \"" + to + "\"";
+            lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "ya hay una escena llamada \"%1\""), {to});
             return false;
         }
     if (!engine_.createScene(to)) {
@@ -1221,8 +1260,9 @@ bool AppRuntime::copyScene(const std::string& from, const std::string& to) {
             // Lo que no se pudo recrear se dice, pero no se deshace todo: una
             // escena copiada a medias se arregla a mano; una que desaparecio
             // sin explicacion, no.
-            lastError_ =
-                "la escena se copio, pero la fuente \"" + spec.name + "\" no se pudo recrear: " + lastError_;
+            lastError_ = ba::i18n::llenar(
+                ba::i18n::traducir("escenas", "la escena se copio, pero la fuente \"%1\" no se pudo recrear: %2"),
+                {spec.name, lastError_});
         }
     }
     avisar(Cambio::Escenas);
@@ -1236,7 +1276,7 @@ bool AppRuntime::setSceneProtected(const std::string& name, bool protegida) {
             avisar(Cambio::Escenas);
             return true;
         }
-    lastError_ = "no existe la escena \"" + name + "\"";
+    lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena \"%1\""), {name});
     return false;
 }
 
@@ -1248,7 +1288,7 @@ bool AppRuntime::sceneProtected(const std::string& name) const {
 
 bool AppRuntime::removeScene(const std::string& name) {
     if (sceneProtected(name)) {
-        lastError_ = "la escena \"" + name + "\" esta protegida: sacale la proteccion primero";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "la escena \"%1\" esta protegida: sacale la proteccion primero"), {name});
         return false;
     }
     if (!engine_.removeScene(name)) {
@@ -1265,7 +1305,7 @@ bool AppRuntime::removeScene(const std::string& name) {
 
 bool AppRuntime::renameScene(const std::string& from, const std::string& to) {
     if (sceneProtected(from)) {
-        lastError_ = "la escena \"" + from + "\" esta protegida: sacale la proteccion primero";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "la escena \"%1\" esta protegida: sacale la proteccion primero"), {from});
         return false;
     }
     if (!engine_.renameScene(from, to)) {
@@ -1288,7 +1328,7 @@ std::string AppRuntime::sceneFolder(const std::string& name) const {
 bool AppRuntime::setSceneFolder(const std::string& name, const std::string& folder) {
     SceneConfig* sc = findScene(cfg_, name);
     if (sc == nullptr) {
-        lastError_ = "no existe la escena '" + name + "'";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena '%1'"), {name});
         return false;
     }
     sc->folder = folder;
@@ -1319,7 +1359,7 @@ bool AppRuntime::moveScene(const std::string& name, const std::string& before) {
     const auto it = std::find_if(cfg_.scenes.begin(), cfg_.scenes.end(),
                                  [&](const SceneConfig& s) { return s.name == name; });
     if (it == cfg_.scenes.end()) {
-        lastError_ = "no existe la escena '" + name + "'";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la escena '%1'"), {name});
         return false;
     }
     SceneConfig moved = *it;
@@ -1398,7 +1438,7 @@ bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
 
 bool AppRuntime::removeSource(const std::string& scene, const std::string& name) {
     if (!engine_.removeSource(scene, name)) {
-        lastError_ = "no existe la fuente '" + name + "' en '" + scene + "'";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la fuente '%1' en '%2'"), {name, scene});
         return false;
     }
     if (SceneConfig* sc = findScene(cfg_, scene)) {
@@ -1413,7 +1453,8 @@ bool AppRuntime::removeSource(const std::string& scene, const std::string& name)
 bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba,
                                float derecha, float abajo) {
     if (!engine_.setSourceCrop(scene, name, izquierda, arriba, derecha, abajo)) {
-        lastError_ = "no se pudo recortar '" + name + "' en '" + scene + "' (¿recorte más grande que la imagen?)";
+        lastError_ = ba::i18n::llenar(
+            ba::i18n::traducir("escenas", "no se pudo recortar '%1' en '%2' (¿recorte más grande que la imagen?)"), {name, scene});
         return false;
     }
     if (SourceSpec* s = findSpec(scene, name)) {
@@ -1428,7 +1469,7 @@ bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name
 
 bool AppRuntime::setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos) {
     if (!engine_.setSourceEfectos(scene, name, efectos)) {
-        lastError_ = "no existe la fuente '" + name + "' en '" + scene + "'";
+        lastError_ = ba::i18n::llenar(ba::i18n::traducir("escenas", "no existe la fuente '%1' en '%2'"), {name, scene});
         return false;
     }
     if (SourceSpec* s = findSpec(scene, name)) s->efectos = efectos;
@@ -1599,13 +1640,15 @@ bool AppRuntime::save() {
             backup += ".antes-del-modo-seguro";
             if (std::filesystem::exists(cfg_.configPath, ec) && !std::filesystem::exists(backup, ec)) {
                 std::filesystem::copy_file(cfg_.configPath, backup, ec);
-                std::printf("ba-app: modo seguro: copia de la configuracion en %s\n",
-                            backup.string().c_str());
+                std::printf("ba-app: %s\n",
+                            ba::i18n::llenar(ba::i18n::traducir("config", "modo seguro: copia de la configuracion en %1"),
+                                             {backup.string()})
+                                .c_str());
             }
         }
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "config", 0,
-                                   "modo seguro: NO se guarda la configuracion. Lo que cambies "
-                                   "ahora vale solo hasta que se cierre.");
+                                   ba::i18n::traducir("config", "modo seguro: NO se guarda la configuracion. Lo que cambies "
+                                                                "ahora vale solo hasta que se cierre."));
         return true;
     }
     gateway_.guests = cfg_.guests; // B lee la cantidad de invitados de A
@@ -1627,7 +1670,7 @@ bool pedirReinicioGateway(std::string& error) {
     ba::platform::LocalStream s;
     std::string err;
     if (!ba::platform::LocalStream::connect("control.gateway", 1000, s, &err)) {
-        error = "sin canal con el gateway: " + err;
+        error = ba::i18n::llenar(ba::i18n::traducir("arranque", "sin canal con el gateway: %1"), {err});
         return false;
     }
     ba::ipc::ControlEndpoint ep(s, ba::ipc::ControlEndpoint::kLauncher);
@@ -1635,7 +1678,7 @@ bool pedirReinicioGateway(std::string& error) {
     m.type = ba::ipc::Type::Shutdown;
     m.payload = "{}";
     if (!ep.sendRequest(m)) {
-        error = "no se pudo mandar el pedido al gateway";
+        error = ba::i18n::traducir("arranque", "no se pudo mandar el pedido al gateway");
         return false;
     }
     // La conexión queda abierta hasta que el gateway la cierre al salir: B mira
@@ -1648,7 +1691,7 @@ bool pedirReinicioGateway(std::string& error) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     if (ep.connected()) {
-        error = "el gateway no contestó al pedido de reinicio";
+        error = ba::i18n::traducir("arranque", "el gateway no contestó al pedido de reinicio");
         return false;
     }
     return true;
@@ -1664,7 +1707,7 @@ bool AppRuntime::restartGateway() {
 
 void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo) {
     if (reiniciandoSala_.exchange(true)) {
-        if (listo) listo("ya se está reiniciando la conferencia");
+        if (listo) listo(ba::i18n::traducir("arranque", "ya se está reiniciando la conferencia"));
         return;
     }
     if (reinicioSala_.joinable()) reinicioSala_.join(); // el anterior ya terminó

@@ -2,6 +2,7 @@
 // src/app/emision/FuentesApp.cpp — ver FuentesApp.hpp
 // ============================================================================
 #include "emision/FuentesApp.hpp"
+#include "i18n/I18n.hpp"
 
 #include <atomic>
 #include <mutex>
@@ -158,7 +159,7 @@ std::string propiedadElemento(const std::string& entrada, const std::string& ele
         std::lock_guard<std::mutex> l(gMu);
         c = gConsultas;
     }
-    return c.propiedad ? c.propiedad(entrada, elemento, prop, valor) : std::string("no hay motor");
+    return c.propiedad ? c.propiedad(entrada, elemento, prop, valor) : ba::i18n::traducir("emision", "no hay motor");
 }
 
 json propiedadesElemento(const std::string& entrada, const std::string& elemento) {

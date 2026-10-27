@@ -4,6 +4,7 @@
 
 #include "arranque/InicioConElSistema.hpp"
 
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 #include <cstdlib>
@@ -110,23 +111,23 @@ std::string poner(bool on) {
 #if defined(_WIN32)
     if (!on) {
         const LSTATUS r = RegDeleteKeyValueW(HKEY_CURRENT_USER, kClave, kValor);
-        return r == ERROR_SUCCESS || r == ERROR_FILE_NOT_FOUND ? std::string() : "no se pudo sacar del inicio de Windows";
+        return r == ERROR_SUCCESS || r == ERROR_FILE_NOT_FOUND ? std::string() : ba::i18n::traducir("inicio", "no se pudo sacar del inicio de Windows");
     }
     const std::wstring v = valorEsperado();
     if (RegSetKeyValueW(HKEY_CURRENT_USER, kClave, kValor, REG_SZ, v.c_str(),
                         static_cast<DWORD>((v.size() + 1) * sizeof(wchar_t))) != ERROR_SUCCESS)
-        return "no se pudo poner en el inicio de Windows";
+        return ba::i18n::traducir("inicio", "no se pudo poner en el inicio de Windows");
     return {};
 #else
     std::error_code ec;
     if (!on) {
         fs::remove(archivo(), ec);
-        return ec ? "no se pudo borrar " + archivo().string() : std::string();
+        return ec ? ba::i18n::llenar(ba::i18n::traducir("inicio", "no se pudo borrar %1"), {archivo().string()}) : std::string();
     }
     fs::create_directories(archivo().parent_path(), ec);
     std::ofstream out(archivo(), std::ios::trunc);
     out << contenido(queAbrir());
-    return out ? std::string() : "no se pudo escribir " + archivo().string();
+    return out ? std::string() : ba::i18n::llenar(ba::i18n::traducir("inicio", "no se pudo escribir %1"), {archivo().string()});
 #endif
 }
 
@@ -137,18 +138,18 @@ void revisar() {
 nlohmann::json estado() {
     nlohmann::json notas = nlohmann::json::array();
 #if defined(__APPLE__)
-    notas.push_back("Que la Mac se encienda al volver la luz: Ajustes del Sistema → Energía → «Arrancar "
-                    "automáticamente después de un corte de luz» (o, como administrador, `sudo pmset autorestart 1`).");
-    notas.push_back("Que la sesión se inicie sola: Ajustes del Sistema → Usuarios y grupos → «Iniciar sesión "
-                    "automáticamente» (no anda con FileVault prendido).");
+    notas.push_back(ba::i18n::traducir("inicio", "Que la Mac se encienda al volver la luz: Ajustes del Sistema → Energía → «Arrancar "
+                                                 "automáticamente después de un corte de luz» (o, como administrador, `sudo pmset autorestart 1`)."));
+    notas.push_back(ba::i18n::traducir("inicio", "Que la sesión se inicie sola: Ajustes del Sistema → Usuarios y grupos → «Iniciar sesión "
+                                                 "automáticamente» (no anda con FileVault prendido)."));
 #elif defined(_WIN32)
-    notas.push_back("Que la PC se encienda al volver la luz: en la BIOS/UEFI, «Restore on AC power loss» = Power On.");
-    notas.push_back("Que la sesión se inicie sola: inicio de sesión automático de Windows (netplwiz o Autologon).");
+    notas.push_back(ba::i18n::traducir("inicio", "Que la PC se encienda al volver la luz: en la BIOS/UEFI, «Restore on AC power loss» = Power On."));
+    notas.push_back(ba::i18n::traducir("inicio", "Que la sesión se inicie sola: inicio de sesión automático de Windows (netplwiz o Autologon)."));
 #else
-    notas.push_back("Que la PC se encienda al volver la luz: en la BIOS/UEFI, «Restore on AC power loss» = Power On.");
-    notas.push_back("Que la sesión se inicie sola: inicio de sesión automático del escritorio (GDM/LightDM/SDDM).");
+    notas.push_back(ba::i18n::traducir("inicio", "Que la PC se encienda al volver la luz: en la BIOS/UEFI, «Restore on AC power loss» = Power On."));
+    notas.push_back(ba::i18n::traducir("inicio", "Que la sesión se inicie sola: inicio de sesión automático del escritorio (GDM/LightDM/SDDM)."));
 #endif
-    notas.push_back("Al volver, el programa retoma solo la transmisión y la grabación que estaban andando.");
+    notas.push_back(ba::i18n::traducir("inicio", "Al volver, el programa retoma solo la transmisión y la grabación que estaban andando."));
     return {{"activo", activo()}, {"abre", queAbrir().string()}, {"notas", notas}};
 }
 

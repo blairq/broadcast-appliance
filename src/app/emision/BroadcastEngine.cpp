@@ -20,6 +20,7 @@
 #include "camaras/SincroLabios.hpp"
 #include "diag/Registro.hpp"
 #include "diag/SalidaAsincrona.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
 
@@ -181,7 +182,8 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     audio_ = audio;
     std::string err;
     if (!motor::iniciarGStreamer(&err)) {
-        setError("GStreamer no arrancó: " + err);
+        sinGStreamer_ = true;
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "GStreamer no arrancó: %1"), {err}));
         return false;
     }
     // Los elementos propios de la app, antes de armar cualquier entrada que los use
@@ -212,7 +214,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
             std::lock_guard<std::mutex> l(falloMotorM_);
             fn = falloMotor_;
         }
-        if (fn) fn("el motor no pudo hacer «" + que + "»: " + error);
+        if (fn) fn(ba::i18n::llenar(ba::i18n::traducir("emision", "el motor no pudo hacer «%1»: %2"), {que, error}));
     });
     const std::string e = motor_->iniciar();
     if (!e.empty()) {
@@ -248,7 +250,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
                              },
                              [this](const std::string& n) { return json::parse(sourceSettingsJson(n), nullptr, false); },
                              [this](const std::string& e, const std::string& el, const std::string& p, const std::string& v) {
-                                 return motor_ ? motor_->propiedadEntrada(e, el, p, v) : std::string("no hay motor");
+                                 return motor_ ? motor_->propiedadEntrada(e, el, p, v) : ba::i18n::traducir("emision", "no hay motor");
                              },
                              [this](const std::string& e, const std::string& el) {
                                  return motor_ ? motor_->propiedadesEntrada(e, el) : json::object();
@@ -469,14 +471,14 @@ int BroadcastEngine::enviarCaption(const std::string&, double) { return 0; }
 
 bool BroadcastEngine::publishReturnFeeds() {
     if (!started_) {
-        setError("publishReturnFeeds sin startup");
+        setError(ba::i18n::traducir("emision", "publishReturnFeeds sin startup"));
         return false;
     }
     if (returnFeedsActive_) return true;
     // El audio (BA.Audio.ContentForReturn) lo escribe el motor desde que arranca.
     ba::ipc::SlotConfig vcfg{video_.outputWidth, video_.outputHeight};
     if (!programVideo_.publish(kProgramVideoName, vcfg)) {
-        setError("no se pudo publicar el canal de video de programa");
+        setError(ba::i18n::traducir("emision", "no se pudo publicar el canal de video de programa"));
         return false;
     }
     const std::string e = motor_->verPedir("programa@gateway", video_.outputWidth, video_.outputHeight);
@@ -528,7 +530,7 @@ void BroadcastEngine::alCambiarAudioFuente(std::function<void(const std::string&
 
 bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
     if (k < 0 || k >= ba::ipc::kCanalesEscena) {
-        setError("canal de escena fuera de rango");
+        setError(ba::i18n::traducir("emision", "canal de escena fuera de rango"));
         return false;
     }
     CanalEscena& c = canalesEscena_[static_cast<std::size_t>(k)];
@@ -544,11 +546,11 @@ bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
     }
     if (nombre.empty()) return true;
     if (!started_ || !motor_) {
-        setError("escena para pantallas: el motor no arranco");
+        setError(ba::i18n::traducir("emision", "escena para pantallas: el motor no arranco"));
         return false;
     }
     if (escena(nombre) == nullptr) {
-        setError("escena para pantallas: no existe '" + nombre + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "escena para pantallas: no existe '%1'"), {nombre}));
         return false;
     }
     // Lo que el gateway le manda a un televisor es a lo sumo 1280x720 (ver
@@ -560,7 +562,7 @@ bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
         // con otro lienzo se rehace, y el gateway se vuelve a suscribir solo.
         auto s = std::make_unique<ba::ipc::SpoutSender>();
         if (!s->publish(ba::ipc::nombreCanalEscena(k).c_str(), ba::ipc::SlotConfig{w, h})) {
-            setError("no se pudo publicar el canal de escena " + std::to_string(k));
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo publicar el canal de escena %1"), {std::to_string(k)}));
             return false;
         }
         std::lock_guard<std::mutex> l(canalesEscenaM_);
@@ -571,7 +573,7 @@ bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
     const std::string clave = "escena:" + nombre + "@pantallas" + std::to_string(k);
     const std::string e = motor_->verPedir(clave, w, h);
     if (!e.empty()) {
-        setError("escena para pantallas: " + e);
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "escena para pantallas: %1"), {e}));
         return false;
     }
     {
@@ -581,8 +583,7 @@ bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
     }
     motor_->verAvisar(clave, [this, k](const motor::Cuadro& q) { enviarEscena(k, q); });
     diag::registro().linea(diag::Nivel::Info, "pantallas", 0,
-                           "escena «" + nombre + "» en el canal " + std::to_string(k) + " (" + std::to_string(w) +
-                               "x" + std::to_string(h) + ")");
+                           ba::i18n::llenar(ba::i18n::traducir("pantallas", "escena «%1» en el canal %2 (%3x%4)"), {nombre, std::to_string(k), std::to_string(w), std::to_string(h)}));
     return true;
 }
 
@@ -650,7 +651,7 @@ void BroadcastEngine::stopReturnFeeds() {
 
 bool BroadcastEngine::enablePreview(int width, int height) {
     if (!started_ || width <= 0 || height <= 0) {
-        setError("enablePreview sin startup o con tamaño invalido");
+        setError(ba::i18n::traducir("emision", "enablePreview sin startup o con tamaño invalido"));
         return false;
     }
     if (previewActive_) return true;
@@ -697,7 +698,7 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         // preview parpadeaba en negro o sin capas, y además iba a 10-15 cuadros/s.
         const std::string e = motor_->armar(name);
         if (!e.empty()) {
-            setError("armar: " + e);
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "armar: %1"), {e}));
             return false;
         }
         if (name.empty()) {
@@ -716,7 +717,7 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         v.name = name;
         const std::string ev = motor_->verPedir(v.clave, w, h);
         if (!ev.empty()) {
-            setError("vista previa: " + ev);
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: %1"), {ev}));
             return false;
         }
         scenePreviews_[canal] = v;
@@ -728,7 +729,7 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
     disableScenePreview(canal);
     if (name.empty()) return true;
     if (!started_) {
-        setError("vista previa de escena: el motor no arranco");
+        setError(ba::i18n::traducir("emision", "vista previa de escena: el motor no arranco"));
         return false;
     }
     // «entera:X»: la entrada X antes del recorte del PTZ digital (la toma entera).
@@ -738,7 +739,7 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
                              : sources_.count(name) > 0 ? "entrada:" + name
                                                         : "";
     if (base.empty()) {
-        setError("vista previa de escena: no existe '" + name + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa de escena: no existe '%1'"), {name}));
         return false;
     }
     const int w = maxWidth > 0 ? std::min(maxWidth, video_.baseWidth) : video_.baseWidth;
@@ -748,7 +749,7 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
     v.name = name;
     const std::string e = motor_->verPedir(v.clave, w, h);
     if (!e.empty()) {
-        setError("vista previa: " + e);
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "vista previa: %1"), {e}));
         return false;
     }
     scenePreviews_[canal] = v;
@@ -774,8 +775,7 @@ void BroadcastEngine::medirVista(const std::string& clave) {
         const std::int64_t ahora = g_get_monotonic_time();
         const std::int64_t dt = *antes ? (ahora - *antes) / 1000 : 0;
         *antes = ahora;
-        ba::diag::registro().info("medir " + clave + ": brillo " + std::to_string(n ? suma / n : 0) + " dt " +
-                                  std::to_string(dt) + " ms serie " + std::to_string(c.serie));
+        ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("emision", "medir %1: brillo %2 dt %3 ms serie %4"), {clave, std::to_string(n ? suma / n : 0), std::to_string(dt), std::to_string(c.serie)}));
     });
 }
 
@@ -834,7 +834,7 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     std::string e = prepararCaptura(name, maxWidth, clave, w, h, esEscena);
     if (e.empty()) e = capturarVista(clave, w, h, esEscena, rgba, width, height);
     if (!e.empty()) {
-        setError("captura: " + e);
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "captura: %1"), {e}));
         return false;
     }
     return true;
@@ -842,12 +842,12 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
 
 std::string BroadcastEngine::prepararCaptura(const std::string& name, int maxWidth, std::string& clave, int& w, int& h,
                                              bool& esEscena) const {
-    if (!started_) return "el motor no arranco";
+    if (!started_) return ba::i18n::traducir("emision", "el motor no arranco");
     const std::string base = name.empty()                 ? std::string("programa")
                              : escena(name) != nullptr    ? "escena:" + name
                              : sources_.count(name) > 0   ? "entrada:" + name
                                                           : std::string();
-    if (base.empty()) return "no existe la fuente o escena '" + name + "'";
+    if (base.empty()) return ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente o escena '%1'"), {name});
     w = video_.baseWidth;
     h = video_.baseHeight;
     if (!name.empty() && base.rfind("entrada:", 0) == 0) {
@@ -887,7 +887,7 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
         if (viva != capturas_.end()) motor_->verSoltar(clave);
         if (!motor_->verPedir(clave, w, h).empty()) {
             capturas_.erase(clave);
-            return "'" + clave.substr(0, clave.rfind('@')) + "' no tiene imagen";
+            return ba::i18n::llenar(ba::i18n::traducir("emision", "'%1' no tiene imagen"), {clave.substr(0, clave.rfind('@'))});
         }
         capturas_[clave] = {w, h, ahora};
     }
@@ -909,7 +909,7 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
     if (!ok) {
         motor_->verSoltar(clave);
         capturas_.erase(clave);
-        return "'" + clave.substr(0, clave.rfind('@')) + "' no dio imagen (sin señal o apagada)";
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "'%1' no dio imagen (sin señal o apagada)"), {clave.substr(0, clave.rfind('@'))});
     }
     aRgba(c, rgba);
     width = c.ancho;
@@ -1103,7 +1103,7 @@ void BroadcastEngine::publicarFotoSalidas() {
 
 bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente) {
     if (!started_) {
-        setError("startStreaming sin startup");
+        setError(ba::i18n::traducir("emision", "startStreaming sin startup"));
         ultimoInicio_ = Inicio::Error;
         return false;
     }
@@ -1122,15 +1122,14 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     if (estaba) {
         if (!cambiarEnCaliente) {
             ultimoInicio_ = Inicio::YaOtroDestino;
-            setError("ya está transmitiendo a " + destinoActivo() + "; para cambiar a " + enmascarar(stream.server, stream.key) +
-                     " hay que pedirlo explícitamente (cambiar en caliente)");
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "ya está transmitiendo a %1; para cambiar a %2 hay que pedirlo explícitamente (cambiar en caliente)"), {destinoActivo(), enmascarar(stream.server, stream.key)}));
             return false;
         }
         stopStreaming();
     }
     ultimoInicio_ = Inicio::Error;
     if (stream.server.empty()) {
-        setError("startStreaming sin servidor");
+        setError(ba::i18n::traducir("emision", "startStreaming sin servidor"));
         return false;
     }
     {
@@ -1157,7 +1156,7 @@ std::string BroadcastEngine::startStreamingYa(const StreamConfig& stream, const 
     if (!e.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
         streamPedido_ = false;
-        return "no se pudo iniciar la transmisión: " + e;
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la transmisión: %1"), {e});
     }
     stream_ = std::move(tx);
     return {};
@@ -1177,11 +1176,11 @@ void BroadcastEngine::stopStreaming() {
 
 bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     if (server.empty()) {
-        setError("el destino no tiene servidor");
+        setError(ba::i18n::traducir("emision", "el destino no tiene servidor"));
         return false;
     }
     {
@@ -1215,7 +1214,7 @@ std::string BroadcastEngine::startExtraYa(const std::string& id, const std::stri
     if (!e.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
         extrasPedidos_.erase(id);
-        return "el destino «" + id + "» no arrancó: " + e;
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "el destino «%1» no arrancó: %2"), {id, e});
     }
     extras_[id] = std::move(x);
     return {};
@@ -1287,7 +1286,7 @@ struct BroadcastEngine::EstadoRemux {
 
 bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc) {
     if (!started_) {
-        setError("startRecording sin startup");
+        setError(ba::i18n::traducir("emision", "startRecording sin startup"));
         return false;
     }
     {
@@ -1337,7 +1336,7 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
     if (!e.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
         grabacionPedida_ = false;
-        return "no se pudo iniciar la grabación: " + e;
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "no se pudo iniciar la grabación: %1"), {e});
     }
     rec_ = std::move(g);
     recordPath_ = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
@@ -1351,7 +1350,7 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
             recCopia_ = std::move(copia);
             recordCopyPath_ = (std::filesystem::path(rec.copiaDir) / (cc.nombre + "-00000.mkv")).string();
         } else {
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "grabacion", 0, "la copia en " + rec.copiaDir + " no arrancó");
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "grabacion", 0, ba::i18n::llenar(ba::i18n::traducir("grabacion", "la copia en %1 no arrancó"), {rec.copiaDir}));
         }
     }
     return {};
@@ -1416,7 +1415,7 @@ bool BroadcastEngine::remuxVarios(const std::vector<std::string>& archivos, cons
     const std::string archivo = archivos.front();
     std::lock_guard<std::mutex> lr(remuxM_); // lo lanza también el hilo de salidas (al parar)
     if (remux_ && remux_->andando) {
-        setError("ya hay un remux andando");
+        setError(ba::i18n::traducir("emision", "ya hay un remux andando"));
         return false;
     }
     auto st = std::make_shared<EstadoRemux>();
@@ -1446,7 +1445,7 @@ bool BroadcastEngine::remuxVarios(const std::vector<std::string>& archivos, cons
             const bool verificado = e.empty() && !ec && tamD > 0 && tamD * 10 >= tamO * 9;
             if (!verificado) {
                 std::lock_guard<std::mutex> l(st->mu);
-                st->error = e.empty() ? "el archivo nuevo no se verificó (tamaño)" : e;
+                st->error = e.empty() ? ba::i18n::traducir("emision", "el archivo nuevo no se verificó (tamaño)") : e;
                 todos = false;
             }
             if (verificado && borrarOrigen) std::filesystem::remove(origen, ec);
@@ -1475,7 +1474,7 @@ nlohmann::json BroadcastEngine::remuxEstado() const {
 
 bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     enSalidas("setReplay", [this, segundos, dir, enc]() { return setReplayYa(segundos, dir, enc); });
@@ -1492,7 +1491,7 @@ std::string BroadcastEngine::setReplayYa(int segundos, const std::string& dir, c
     r->rep = std::make_unique<motor::Repeticion>(motor_->reloj(), (std::filesystem::path(dir) / ".tramos").string(), segundos,
                                                  enc.videoBitrateKbps);
     const std::string e = r->rep->iniciar(fuentesDelPrograma(*motor_, {}));
-    if (!e.empty()) return "no arrancó la repetición: " + e;
+    if (!e.empty()) return ba::i18n::llenar(ba::i18n::traducir("emision", "no arrancó la repetición: %1"), {e});
     if (prioridad_) r->rep->pausar(true);
     replay_ = std::move(r);
     return {};
@@ -1500,7 +1499,7 @@ std::string BroadcastEngine::setReplayYa(int segundos, const std::string& dir, c
 
 bool BroadcastEngine::guardarReplay() {
     if (!fotoSalidas().value("replay", json::object()).value("activa", false)) {
-        setError("la repetición está apagada (replay_ajustes con segundos)");
+        setError(ba::i18n::traducir("emision", "la repetición está apagada (replay_ajustes con segundos)"));
         return false;
     }
     enSalidas("guardarReplay", [this]() {
@@ -1514,7 +1513,7 @@ bool BroadcastEngine::guardarReplay() {
                 std::lock_guard<std::mutex> l(r->mu);
                 if (e.empty()) r->ultimo = destino;
             }
-            if (!e.empty()) ba::diag::registro().linea(ba::diag::Nivel::Aviso, "repeticion", 0, "no se guardó: " + e);
+            if (!e.empty()) ba::diag::registro().linea(ba::diag::Nivel::Aviso, "repeticion", 0, ba::i18n::llenar(ba::i18n::traducir("repeticion", "no se guardó: %1"), {e}));
             r->guardando = false;
         }).detach();
         return std::string();
@@ -1598,7 +1597,7 @@ std::string BroadcastEngine::modoDisco() const {
 }
 
 std::string BroadcastEngine::setModoDisco(const std::string& modo) {
-    if (modo != "preguntar" && modo != "auto" && modo != "nunca") return "modo: preguntar, auto o nunca";
+    if (modo != "preguntar" && modo != "auto" && modo != "nunca") return ba::i18n::traducir("emision", "modo: preguntar, auto o nunca");
     modoDisco_ = modo == "auto" ? 1 : modo == "nunca" ? 2 : 0;
     std::error_code ec;
     std::filesystem::create_directories(ba::platform::configRoot() / "Config", ec);
@@ -1641,23 +1640,35 @@ void BroadcastEngine::aplicarPrioridad(bool si, bool automatica) {
         g->pausar(si);
         if (si) pausadas_.push_back(nombre);
     };
-    for (auto& [n, r] : sourceRecs_) pausar(r.grab.get(), "ISO " + n);
+    for (auto& [n, r] : sourceRecs_) pausar(r.grab.get(), ba::i18n::llenar(ba::i18n::traducir("emision", "ISO %1"), {n}));
     if (replay_ && replay_->rep) {
         replay_->rep->pausar(si);
-        if (si && replay_->rep->andando()) pausadas_.push_back("repetición");
+        if (si && replay_->rep->andando()) pausadas_.push_back(ba::i18n::traducir("emision", "repetición"));
     }
     // La copia, solo si va al mismo disco (en otro no molesta, y es el respaldo).
     if (recCopia_ && (!si || dirProg.empty() || mismoDisco(dirProg, std::filesystem::path(recordCopyPath_).parent_path().string())))
-        pausar(recCopia_.get(), "copia de la grabación");
-    if (clean_ && clean_->grab) pausar(clean_->grab.get(), "señal limpia a disco");
+        pausar(recCopia_.get(), ba::i18n::traducir("emision", "copia de la grabación"));
+    if (clean_ && clean_->grab) pausar(clean_->grab.get(), ba::i18n::traducir("emision", "señal limpia a disco"));
     ba::diag::retenerSalidaEstandar(si);
-    if (si) pausadas_.push_back("registro (en memoria)");
+    if (si) pausadas_.push_back(ba::i18n::traducir("emision", "registro (en memoria)"));
     std::string lista;
     for (const auto& p : pausadas_) lista += (lista.empty() ? "" : ", ") + p;
     ba::diag::registro().linea(ba::diag::Nivel::Aviso, "disco", 0,
-                              si ? std::string("el disco, para la grabación del programa") + (automatica ? " (solo)" : "") +
-                                       ": en pausa " + lista
-                                 : "el disco vuelve a ser de todos: siguen las grabaciones pausadas y el registro");
+                              si ? ba::i18n::llenar(automatica ? ba::i18n::traducir("disco", "el disco, para la grabación del programa (solo): en pausa %1")
+                                                               : ba::i18n::traducir("disco", "el disco, para la grabación del programa: en pausa %1"),
+                                                    {lista})
+                                 : ba::i18n::traducir("disco", "el disco vuelve a ser de todos: siguen las grabaciones pausadas y el registro"));
+}
+
+namespace {
+std::string discoBien(bool habia) {
+    return habia ? ba::i18n::traducir("emision", "El disco anda bien de nuevo: siguen las ISO, la repetición y el registro.")
+                 : ba::i18n::traducir("emision", "El disco anda bien de nuevo.");
+}
+} // namespace
+
+bool BroadcastEngine::esAvisoDeDiscoBien(const std::string& texto) {
+    return texto == discoBien(true) || texto == discoBien(false);
 }
 
 void BroadcastEngine::vigilarDisco() {
@@ -1682,19 +1693,21 @@ void BroadcastEngine::vigilarDisco() {
         discoBienDesdeMs_ = 0;
         char t[64];
         std::snprintf(t, sizeof t, "%.0f s", atraso);
-        const std::string causa = atraso > kAtrasoApurosS ? std::string("lo grabado espera ") + t + " para entrar al disco"
-                                                          : "el registro no puede escribir";
+        const std::string causa = atraso > kAtrasoApurosS ? ba::i18n::llenar(ba::i18n::traducir("emision", "lo grabado espera %1 para entrar al disco"), {t})
+                                                          : ba::i18n::traducir("emision", "el registro no puede escribir");
         const bool grabaPrograma = rec_ && rec_->grabando();
         if (modoDisco_.load() == 1 && grabaPrograma) {
             aplicarPrioridad(true, true);
-            avisarFallo("El disco no da abasto (" + causa + "): se le dio el disco a la grabación del programa. "
-                        "Las ISO, la repetición y el registro siguen cuando el disco se recupere.");
+            avisarFallo(ba::i18n::llenar(ba::i18n::traducir("emision", "El disco no da abasto (%1): se le dio el disco a la grabación del programa. "
+                                                                   "Las ISO, la repetición y el registro siguen cuando el disco se recupere."),
+                                         {causa}));
         } else {
-            avisarFallo("El disco no da abasto (" + causa + ")." +
-                        (grabaPrograma && modoDisco_.load() == 0
-                             ? " Conviene darle el disco a la grabación del programa (pausar ISO, repetición y registro): "
-                               "el botón está en el aviso de arriba."
-                             : ""));
+            avisarFallo(ba::i18n::llenar(
+                grabaPrograma && modoDisco_.load() == 0
+                    ? ba::i18n::traducir("emision", "El disco no da abasto (%1). Conviene darle el disco a la grabación del programa (pausar ISO, repetición y registro): "
+                                                    "el botón está en el aviso de arriba.")
+                    : ba::i18n::traducir("emision", "El disco no da abasto (%1)."),
+                {causa}));
         }
     } else if (discoApuros_) {
         if (!bien) {
@@ -1705,8 +1718,7 @@ void BroadcastEngine::vigilarDisco() {
             discoApuros_ = false;
             const bool habia = prioridad_;
             aplicarPrioridad(false, false);
-            avisarFallo(habia ? "El disco anda bien de nuevo: siguen las ISO, la repetición y el registro."
-                              : "El disco anda bien de nuevo.");
+            avisarFallo(discoBien(habia));
         }
     }
 }
@@ -1717,7 +1729,7 @@ void BroadcastEngine::vigilarDisco() {
 
 bool BroadcastEngine::empezarMedicionSincro() {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     if (!medSincro_) medSincro_ = std::make_shared<MedicionSincro>();
@@ -1726,7 +1738,7 @@ bool BroadcastEngine::empezarMedicionSincro() {
 
 nlohmann::json BroadcastEngine::terminarMedicionSincro() {
     auto m = medSincro_;
-    if (!m) return {{"ok", false}, {"problema", "no se estaba midiendo"}};
+    if (!m) return {{"ok", false}, {"problema", ba::i18n::traducir("emision", "no se estaba midiendo")}};
     medSincro_.reset();
     std::vector<camaras::Muestra> a, v;
     {
@@ -1749,21 +1761,21 @@ nlohmann::json BroadcastEngine::terminarMedicionSincro() {
 
 bool BroadcastEngine::startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc) {
     if (!started_) {
-        setError("startSourceRecording sin startup");
+        setError(ba::i18n::traducir("emision", "startSourceRecording sin startup"));
         return false;
     }
     if (sources_.count(source) == 0) {
-        setError("no existe la fuente \"" + source + "\"");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente \"%1\""), {source}));
         return false;
     }
     {
         std::lock_guard<std::mutex> l(pedidosM_);
         if (individualesPedidas_.count(source) > 0) {
-            setError("ya se esta grabando \"" + source + "\" por separado");
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "ya se esta grabando \"%1\" por separado"), {source}));
             return false;
         }
         if (static_cast<int>(individualesPedidas_.size()) >= kMaxIndividuales) {
-            setError("ya hay " + std::to_string(kMaxIndividuales) + " entradas grabandose por separado, que es el tope");
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "ya hay %1 entradas grabandose por separado, que es el tope"), {std::to_string(kMaxIndividuales)}));
             return false;
         }
         individualesPedidas_.insert(source);
@@ -1811,7 +1823,7 @@ std::string BroadcastEngine::startSourceRecordingYa(const std::string& source, c
     if (!err.empty()) {
         std::lock_guard<std::mutex> l(pedidosM_);
         individualesPedidas_.erase(source);
-        return "no arrancó la grabación de \"" + source + "\": " + err;
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "no arrancó la grabación de \"%1\": %2"), {source, err});
     }
     r.path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
     if (prioridad_) r.grab->pausar(true); // el disco es del programa: arranca en pausa
@@ -1823,7 +1835,7 @@ bool BroadcastEngine::stopSourceRecording(const std::string& source) {
     {
         std::lock_guard<std::mutex> l(pedidosM_);
         if (individualesPedidas_.erase(source) == 0) {
-            setError("no se estaba grabando \"" + source + "\" por separado");
+            setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no se estaba grabando \"%1\" por separado"), {source}));
             return false;
         }
     }
@@ -1858,7 +1870,7 @@ std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordi
 bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::string& clave, const std::string& dir,
                                      const EncoderConfig& enc) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError(ba::i18n::traducir("emision", "el motor no está andando"));
         return false;
     }
     {
@@ -1876,7 +1888,7 @@ std::string BroadcastEngine::startCleanFeedYa(const std::string& destino, const 
     const auto fallo = [this](const std::string& e) {
         std::lock_guard<std::mutex> l(pedidosM_);
         limpioPedido_ = false;
-        return "no arrancó la señal limpia: " + e;
+        return ba::i18n::llenar(ba::i18n::traducir("emision", "no arrancó la señal limpia: %1"), {e});
     };
     auto r = std::make_unique<SourceRec>();
     const motor::Fuentes f = fuentesDelPrograma(*motor_, {}, true); // el programa SIN capas
@@ -1991,9 +2003,9 @@ EngineStatus BroadcastEngine::status() const {
         st.reconnecting = t.value("reconectando", false);
         if (st.reconnecting) {
             const std::string e = t.value("error", std::string());
-            st.outputProblem = e.find("refused") != std::string::npos   ? "No se pudo conectar con el servidor"
-                               : e.find("auth") != std::string::npos    ? "El servidor rechazó la transmisión (¿la clave es correcta?)"
-                                                                        : "Se cortó la conexión con el servidor";
+            st.outputProblem = e.find("refused") != std::string::npos   ? ba::i18n::traducir("emision", "No se pudo conectar con el servidor")
+                               : e.find("auth") != std::string::npos    ? ba::i18n::traducir("emision", "El servidor rechazó la transmisión (¿la clave es correcta?)")
+                                                                        : ba::i18n::traducir("emision", "Se cortó la conexión con el servidor");
         }
     }
     const json g = f.value("grabacion", json::object());

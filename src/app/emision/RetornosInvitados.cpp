@@ -4,6 +4,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/ArchivoConfig.hpp"
+#include "i18n/I18n.hpp"
 
 #include <cstdlib>
 
@@ -12,13 +13,13 @@ namespace ba::app::emision {
 RetornosInvitados::RetornosInvitados(AppRuntime& rt) : rt_(rt) {}
 
 std::string RetornosInvitados::poner(int slot, const std::string& modo) {
-    if (modo != "mix_minus" && modo != "programa") return "retorno: mix_minus o programa";
-    if (slot < 1 || slot > rt_.config().guests) return "no hay un invitado " + std::to_string(slot);
+    if (modo != "mix_minus" && modo != "programa") return ba::i18n::traducir("emision", "retorno: mix_minus o programa");
+    if (slot < 1 || slot > rt_.config().guests) return ba::i18n::llenar(ba::i18n::traducir("emision", "no hay un invitado %1"), {std::to_string(slot)});
     rt_.engine().setRetornoInvitado(slot, modo);
     const auto archivo = rt_.dataRoot() / "Config" / "retornos.json";
     nlohmann::json j = config::leerObjeto(archivo);
     j[std::to_string(slot)] = modo;
-    if (!config::guardar(archivo, j)) return "el retorno rige, pero no se pudo guardar retornos.json";
+    if (!config::guardar(archivo, j)) return ba::i18n::traducir("emision", "el retorno rige, pero no se pudo guardar retornos.json");
     return {};
 }
 

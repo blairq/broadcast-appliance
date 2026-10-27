@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "emision/ChatOverlaySource.hpp"
+#include "i18n/I18n.hpp"
 
 #include "emision/FuentesApp.hpp"
 
@@ -57,7 +58,7 @@ Instance leer(const fuentes::Instancia& f) {
 void registerSourceType() {
     fuentes::Tipo t;
     t.id = kSourceId;
-    t.nombre = "Chat en vivo (YouTube, Twitch, Facebook, conferencia)";
+    t.nombre = ba::i18n::traducir("fuentes", "Chat en vivo (YouTube, Twitch, Facebook, conferencia)");
     t.deApp = true;
     t.defectos = {{"width", 640},         {"height", 720},         {"font_size", 28},     {"max_messages", 8},
                   {"channel", "all"},     {"solo_destacados", true}, {"show_youtube", true}, {"show_twitch", true},
@@ -65,25 +66,25 @@ void registerSourceType() {
                   {"fade_sec", 0}};
     t.props = [](const json&) {
         using P = fuentes::Prop;
-        P canal{"channel", "Mensajes de", "list"};
-        canal.opciones = json::array({{{"value", "all"}, {"label", "Los elegidos abajo"}},
-                                      {{"value", "youtube"}, {"label", "Solo YouTube"}},
-                                      {{"value", "twitch"}, {"label", "Solo Twitch"}},
-                                      {{"value", "facebook"}, {"label", "Solo Facebook"}},
-                                      {{"value", "room"}, {"label", "Solo la conferencia (invitados)"}}});
+        P canal{"channel", ba::i18n::traducir("fuentes", "Mensajes de"), "list"};
+        canal.opciones = json::array({{{"value", "all"}, {"label", ba::i18n::traducir("fuentes", "Los elegidos abajo")}},
+                                      {{"value", "youtube"}, {"label", ba::i18n::traducir("fuentes", "Solo YouTube")}},
+                                      {{"value", "twitch"}, {"label", ba::i18n::traducir("fuentes", "Solo Twitch")}},
+                                      {{"value", "facebook"}, {"label", ba::i18n::traducir("fuentes", "Solo Facebook")}},
+                                      {{"value", "room"}, {"label", ba::i18n::traducir("fuentes", "Solo la conferencia (invitados)")}}});
         return std::vector<P>{canal,
-                              {"solo_destacados", "Solo los mensajes destacados por el operador", "bool"},
+                              {"solo_destacados", ba::i18n::traducir("fuentes", "Solo los mensajes destacados por el operador"), "bool"},
                               {"show_youtube", "YouTube", "bool"},
                               {"show_twitch", "Twitch", "bool"},
                               {"show_facebook", "Facebook", "bool"},
-                              {"show_room", "Conferencia (invitados)", "bool"},
-                              {"max_messages", "Mensajes a la vista", "int", 1, 50, 1},
-                              {"font_size", "Tamaño de letra", "int", 10, 120, 1},
-                              {"width", "Ancho", "int", 64, 3840, 8},
-                              {"height", "Alto", "int", 64, 2160, 8},
-                              {"bg_opacity", "Opacidad del fondo", "int", 0, 100, 5},
-                              {"show_names", "Mostrar nombres", "bool"},
-                              {"fade_sec", "Desaparecen a los (s, 0 = nunca)", "int", 0, 3600, 5}};
+                              {"show_room", ba::i18n::traducir("fuentes", "Conferencia (invitados)"), "bool"},
+                              {"max_messages", ba::i18n::traducir("fuentes", "Mensajes a la vista"), "int", 1, 50, 1},
+                              {"font_size", ba::i18n::traducir("fuentes", "Tamaño de letra"), "int", 10, 120, 1},
+                              {"width", ba::i18n::traducir("fuentes", "Ancho"), "int", 64, 3840, 8},
+                              {"height", ba::i18n::traducir("fuentes", "Alto"), "int", 64, 2160, 8},
+                              {"bg_opacity", ba::i18n::traducir("fuentes", "Opacidad del fondo"), "int", 0, 100, 5},
+                              {"show_names", ba::i18n::traducir("fuentes", "Mostrar nombres"), "bool"},
+                              {"fade_sec", ba::i18n::traducir("fuentes", "Desaparecen a los (s, 0 = nunca)"), "int", 0, 3600, 5}};
     };
     fuentes::registrar(std::move(t));
 }

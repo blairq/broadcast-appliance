@@ -14,6 +14,7 @@
 
 #include <cstdlib>
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 
 #if BA_APP_HAVE_GUI
 #include <QLoggingCategory>
@@ -56,9 +57,10 @@ bool juntarDisplayLink(const QString& msg) {
     std::lock_guard<std::mutex> l(mu);
     ++juntados;
     if (ultima.time_since_epoch().count() != 0 && ahora - ultima < std::chrono::minutes(1)) return true;
-    ba::diag::registro().linea(Nivel::Aviso, "qt", 0,
-                               "el hilo de la interfaz perdió " + std::to_string(juntados) +
-                                   " refresco(s) de pantalla (display link) desde el aviso anterior");
+    // Código 1: lo busca StudioViewModel para dejarlo fuera de lo del evento (el texto sale traducido).
+    ba::diag::registro().linea(Nivel::Aviso, "qt", 1,
+                               ba::i18n::traducir("qt", "el hilo de la interfaz perdió %n refresco de pantalla (display link) desde el aviso anterior",
+                                                  nullptr, juntados));
     ultima = ahora;
     juntados = 0;
     return true;
@@ -109,7 +111,7 @@ void registrarTodo(const std::filesystem::path& dataRoot, const char* componente
                                      "qml.debug=false\n"
                                      "*.warning=true\n");
 #endif
-    reg.info("registro abierto (" + std::string(componente) + ")");
+    reg.info(ba::i18n::llenar(ba::i18n::traducir("registro", "registro abierto (%1)"), {std::string(componente)}));
 }
 
 } // namespace ba::app

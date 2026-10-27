@@ -18,6 +18,7 @@
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 #include <filesystem>
@@ -111,13 +112,13 @@ bool esDeApp(const std::string& id) {
 
 bool EfectosCapa::aplicar(const json& j, std::string* error) {
     if (!j.is_object()) {
-        if (error) *error = "efectos: tiene que ser un objeto";
+        if (error) *error = ba::i18n::traducir("emision", "efectos: tiene que ser un objeto");
         return false;
     }
     const auto num = [&](const json& o, const char* k, float& v, float mn, float mx) {
         if (!o.contains(k)) return true;
         if (!o[k].is_number()) {
-            if (error) *error = std::string("efectos: «") + k + "» tiene que ser un número";
+            if (error) *error = ba::i18n::llenar(ba::i18n::traducir("emision", "efectos: «%1» tiene que ser un número"), {k});
             return false;
         }
         v = std::clamp(o[k].get<float>(), mn, mx);
@@ -131,7 +132,7 @@ bool EfectosCapa::aplicar(const json& j, std::string* error) {
             return true;
         }
         if (!s.is_object()) {
-            if (error) *error = "efectos.sombra: tiene que ser un objeto (o true/false)";
+            if (error) *error = ba::i18n::traducir("emision", "efectos.sombra: tiene que ser un objeto (o true/false)");
             return false;
         }
         if (s.contains("activa")) sombra = s.value("activa", sombra);
@@ -385,11 +386,11 @@ void BroadcastEngine::publicarEscena(const EscenaApp& e) {
 
 bool BroadcastEngine::createScene(const std::string& name) {
     if (!started_ || name.empty() || escena(name) != nullptr) {
-        setError("createScene: sin motor, nombre vacio o repetido: '" + name + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "createScene: sin motor, nombre vacio o repetido: '%1'"), {name}));
         return false;
     }
     if (name.rfind("__", 0) == 0) { // las internas (kPrefijoCompositor) viven en el mismo lugar del motor
-        setError("los nombres de escena que empiezan con «__» son internos");
+        setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
         return false;
     }
     scenes_.push_back(EscenaApp{name, {}});
@@ -400,7 +401,7 @@ bool BroadcastEngine::createScene(const std::string& name) {
 bool BroadcastEngine::removeScene(const std::string& name) {
     auto it = std::find_if(scenes_.begin(), scenes_.end(), [&](const EscenaApp& e) { return e.nombre == name; });
     if (it == scenes_.end() || scenes_.size() == 1) {
-        setError("removeScene: no existe o es la unica escena");
+        setError(ba::i18n::traducir("emision", "removeScene: no existe o es la unica escena"));
         return false;
     }
     if (currentScene_ == name) {
@@ -416,11 +417,11 @@ bool BroadcastEngine::removeScene(const std::string& name) {
 
 bool BroadcastEngine::renameScene(const std::string& from, const std::string& to) {
     if (to.empty() || escena(to) != nullptr) {
-        setError("renameScene: nombre vacio o repetido");
+        setError(ba::i18n::traducir("emision", "renameScene: nombre vacio o repetido"));
         return false;
     }
     if (to.rfind("__", 0) == 0) {
-        setError("los nombres de escena que empiezan con «__» son internos");
+        setError(ba::i18n::traducir("emision", "los nombres de escena que empiezan con «__» son internos"));
         return false;
     }
     EscenaApp* e = escena(from);
@@ -458,7 +459,7 @@ bool BroadcastEngine::setTransition(const std::string& type, int durationMs) {
 
 bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms) {
     if (escena(name) == nullptr) {
-        setError("no existe la escena '" + name + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
     const int dur = ms < 0 ? transitionMs_ : ms;
@@ -477,11 +478,11 @@ bool BroadcastEngine::setCurrentScene(const std::string& name) { return setCurre
 bool BroadcastEngine::transicionManual(const std::string& name, float t, bool soltar, bool* alAire) {
     if (alAire != nullptr) *alAire = false;
     if (escena(name) == nullptr) {
-        setError("no existe la escena '" + name + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la escena '%1'"), {name}));
         return false;
     }
     if (name == currentScene_) {
-        setError("esa escena ya está al aire");
+        setError(ba::i18n::traducir("emision", "esa escena ya está al aire"));
         return false;
     }
     std::string e;
@@ -626,7 +627,7 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     // El motor separa con «:» la entrada de lo que sale de ella («Cámara:video»): un nombre
     // con «:» no se puede crear allá. Se dice acá, y no queda una fuente «agregada» y muerta.
     if (pedida.name.find(':') != std::string::npos) {
-        setError("el nombre de una fuente no puede tener «:» («" + pedida.name + "»): usá «—» o «-»");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "el nombre de una fuente no puede tener «:» («%1»): usá «—» o «-»"), {pedida.name}));
         return false;
     }
     // Lo viejo de OBS que ya tiene versión GStreamer (InputSpecs).
@@ -666,13 +667,13 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     }
     json ajustes;
     if (!ajustesMotor(spec, ajustes)) {
-        setError("fuente '" + spec.name + "': el tipo '" + spec.id + "' todavía no lo arma el motor");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': el tipo '%2' todavía no lo arma el motor"), {spec.name, spec.id}));
         return false;
     }
     json opciones{{"global", global}, {"nivel", nivelAplicado(spec.name, spec.volume)}, {"mute", spec.muted}};
     const std::string e = motor_->agregarEntrada(spec.name, ajustes, opciones);
     if (!e.empty()) {
-        setError("fuente '" + spec.name + "': " + e);
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "fuente '%1': %2"), {spec.name, e}));
         return false;
     }
     Fuente f;
@@ -720,11 +721,11 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
 bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& spec) {
     EscenaApp* e = escena(sceneName);
     if (e == nullptr) {
-        setError("addSource: no existe la escena '" + sceneName + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "addSource: no existe la escena '%1'"), {sceneName}));
         return false;
     }
     if (spec.id.empty() || spec.name.empty()) {
-        setError("addSource: fuente sin id o sin nombre");
+        setError(ba::i18n::traducir("emision", "addSource: fuente sin id o sin nombre"));
         return false;
     }
     if (!crearFuente(spec, false)) return false;
@@ -865,7 +866,7 @@ void BroadcastEngine::aplicarRecortesPendientes() {
 
 bool BroadcastEngine::renameSource(const std::string& from, const std::string& to) {
     if (to.empty() || sources_.count(to) > 0) {
-        setError("renameSource: nombre vacio o repetido");
+        setError(ba::i18n::traducir("emision", "renameSource: nombre vacio o repetido"));
         return false;
     }
     auto it = sources_.find(from);
@@ -934,8 +935,8 @@ std::string BroadcastEngine::publicarReloj(int puerto) {
 }
 
 std::string BroadcastEngine::controlEntrada(const std::string& name, const json& campos) {
-    if (sources_.count(name) == 0) return "no existe «" + name + "»";
-    return motor_ ? motor_->controlEntrada(name, campos) : std::string("no hay motor");
+    if (sources_.count(name) == 0) return ba::i18n::llenar(ba::i18n::traducir("emision", "no existe «%1»"), {name});
+    return motor_ ? motor_->controlEntrada(name, campos) : ba::i18n::traducir("emision", "no hay motor");
 }
 
 std::string BroadcastEngine::sourceTypeId(const std::string& name) const {
@@ -966,7 +967,7 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
     if (it == sources_.end()) return false;
     const json nuevos = json::parse(settingsJson, nullptr, false);
     if (!nuevos.is_object()) {
-        setError("settings no son JSON valido");
+        setError(ba::i18n::traducir("emision", "settings no son JSON valido"));
         return false;
     }
     // Como OBS: lo nuevo se suma a lo que había.
@@ -1000,20 +1001,20 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
 }
 
 std::vector<SourceType> BroadcastEngine::inputTypes() const {
-    return {{inputs::kVideoType, "Cámara o capturadora (USB, HDMI)", true, true},
-            {inputs::kMicType, "Entrada por GStreamer (pipeline propio)", true, true},
-            {inputs::kMedioType, "Archivo de video o audio", true, true},
-            {"ffmpeg_source", "Video de red (URL)", true, true},
-            {"color_source_v3", "Color", true, false},
-            {"text_ft2_source_v2", "Texto", true, false},
-            {"image_source", "Imagen", true, false},
-            {"screen_capture", "Captura de pantalla", true, false},
-            {video::kTipoVentana, "Captura de una aplicación", true, false},
-            {"ba_qr", "Código QR (Público, Conferencia, uno guardado…)", true, false},
-            {kTipoBanca, "Banca con la palabra (asamblea: la cámara de quien habla)", true, false},
-            {"ba_pdf", "PDF (una página por vez)", true, false},
-            {"ba_grilla", "Grilla de personas (la gente de la Conferencia y la Asamblea)", true, false},
-            {"ba_app", "Lo que pinta la app", true, false}};
+    return {{inputs::kVideoType, ba::i18n::traducir("emision", "Cámara o capturadora (USB, HDMI)"), true, true},
+            {inputs::kMicType, ba::i18n::traducir("emision", "Entrada por GStreamer (pipeline propio)"), true, true},
+            {inputs::kMedioType, ba::i18n::traducir("emision", "Archivo de video o audio"), true, true},
+            {"ffmpeg_source", ba::i18n::traducir("emision", "Video de red (URL)"), true, true},
+            {"color_source_v3", ba::i18n::traducir("emision", "Color"), true, false},
+            {"text_ft2_source_v2", ba::i18n::traducir("emision", "Texto"), true, false},
+            {"image_source", ba::i18n::traducir("emision", "Imagen"), true, false},
+            {"screen_capture", ba::i18n::traducir("emision", "Captura de pantalla"), true, false},
+            {video::kTipoVentana, ba::i18n::traducir("emision", "Captura de una aplicación"), true, false},
+            {"ba_qr", ba::i18n::traducir("emision", "Código QR (Público, Conferencia, uno guardado…)"), true, false},
+            {kTipoBanca, ba::i18n::traducir("emision", "Banca con la palabra (asamblea: la cámara de quien habla)"), true, false},
+            {"ba_pdf", ba::i18n::traducir("emision", "PDF (una página por vez)"), true, false},
+            {"ba_grilla", ba::i18n::traducir("emision", "Grilla de personas (la gente de la Conferencia y la Asamblea)"), true, false},
+            {"ba_app", ba::i18n::traducir("emision", "Lo que pinta la app"), true, false}};
 }
 
 bool BroadcastEngine::sourceTypeExists(const std::string& typeId) const {
@@ -1241,7 +1242,7 @@ bool BroadcastEngine::setPfl(const std::string& name) {
 bool BroadcastEngine::setSourceSyncOffset(const std::string& name, int ms) {
     auto it = sources_.find(name);
     if (it == sources_.end()) {
-        setError("no existe la fuente '" + name + "'");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente '%1'"), {name}));
         return false;
     }
     const int v = std::clamp(ms, -5000, 5000);
@@ -1285,7 +1286,7 @@ std::vector<int> BroadcastEngine::sourcePistas(const std::string& name) const {
 
 bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop, float volume) {
     if (file.empty()) {
-        setError("no se dijo que archivo reproducir");
+        setError(ba::i18n::traducir("emision", "no se dijo que archivo reproducir"));
         return false;
     }
     const json s{{"local_file", file}, {"is_local_file", true}, {"looping", loop}, {"clear_on_media_end", true}};
@@ -1306,7 +1307,7 @@ bool BroadcastEngine::playMedia(const std::string& name, const std::string& file
 
 bool BroadcastEngine::restartMedia(const std::string& name) {
     if (sources_.count(name) == 0) {
-        setError("no existe la fuente de medios \"" + name + "\"");
+        setError(ba::i18n::llenar(ba::i18n::traducir("emision", "no existe la fuente de medios \"%1\""), {name}));
         return false;
     }
     const std::string e = motor_->controlMedio(name, "reiniciar");
@@ -1378,7 +1379,7 @@ bool BroadcastEngine::outputsActive() const {
 
 bool BroadcastEngine::resetEncoders() {
     if (outputsActive()) {
-        setError("no se puede cambiar la codificacion con salidas activas");
+        setError(ba::i18n::traducir("emision", "no se puede cambiar la codificacion con salidas activas"));
         return false;
     }
     return true;
@@ -1405,7 +1406,7 @@ std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderCo
 bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     if (!started_) return false;
     if (outputsActive()) {
-        setError("no se puede cambiar la resolucion con salidas activas");
+        setError(ba::i18n::traducir("emision", "no se puede cambiar la resolucion con salidas activas"));
         return false;
     }
     // El lienzo es de todo el motor: se arma uno nuevo con todo lo que había.
@@ -1457,15 +1458,15 @@ std::string BroadcastEngine::ponerVideoDeGrafico(const std::string& grafico, con
     for (const auto& c : capas) {
         const std::string f = c.value("fuente", std::string());
         const auto it = sources_.find(f);
-        if (it == sources_.end()) return "no hay ninguna fuente «" + f + "» (tiene que estar en alguna escena)";
-        if (f == grafico) return "el gráfico no puede llevarse a sí mismo adentro";
-        if (it->second.banca) return "«" + f + "» es una banca con la palabra: elegí la cámara";
-        if (it->second.global) return "«" + f + "» es una entrada de audio, no tiene video";
+        if (it == sources_.end()) return ba::i18n::llenar(ba::i18n::traducir("emision", "no hay ninguna fuente «%1» (tiene que estar en alguna escena)"), {f});
+        if (f == grafico) return ba::i18n::traducir("emision", "el gráfico no puede llevarse a sí mismo adentro");
+        if (it->second.banca) return ba::i18n::llenar(ba::i18n::traducir("emision", "«%1» es una banca con la palabra: elegí la cámara"), {f});
+        if (it->second.global) return ba::i18n::llenar(ba::i18n::traducir("emision", "«%1» es una entrada de audio, no tiene video"), {f});
     }
     bool enEscena = false;
     for (const EscenaApp& e : scenes_)
         for (const Item& i : e.items) enEscena = enEscena || i.fuente == grafico;
-    if (!enEscena) return "el gráfico «" + grafico + "» no está en ninguna escena";
+    if (!enEscena) return ba::i18n::llenar(ba::i18n::traducir("emision", "el gráfico «%1» no está en ninguna escena"), {grafico});
     videoDeGraficos_[grafico] = {{"capas", capas}, {"desde_ns", 0}};
     publicarEscenasCon(grafico);
     return {};
