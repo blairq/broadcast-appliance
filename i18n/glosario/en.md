@@ -84,6 +84,12 @@ formalidades. Ver docs/desarrollo/I18N.md.
 | colchón (de latencia) | buffer | |
 | de fábrica | default | |
 | supervisor | watchdog | |
+| público (la gente en la sala o remota; la página de preguntas) | audience | |
+| atención remota / atender (a la persona del tótem) | remote support / assist | no «attendance»: es la asistencia del quórum |
+| guion (de preguntas del tótem) | script | el del evento es «rundown» |
+| red (neuronal, de superresolución) | network → «model» | no confundir con la red de cámaras |
+| barata (modo de superresolución) | cheap mode | |
+| atril | lectern | |
 
 Lo que nunca se traduce: nombres de herramientas MCP y sus parámetros (`scene_switch`),
 claves y valores de JSON, las marcas fijas entre corchetes (`[OPERADOR]`,
