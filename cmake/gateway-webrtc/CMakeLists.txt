@@ -63,6 +63,10 @@ list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/tests/.*")
 # video de camaras, ve sesiones de WebRTC. Sacarlo de aca ademas evita que el
 # gateway arrastre ONNX Runtime por nada.
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/rostros/.*")
+# El lector de códigos de barras (el DNI del tótem) tampoco: es otra biblioteca en el
+# producto (`ba_codigos`, src/core/CMakeLists.txt) porque necesita zxing-cpp, y B no
+# lee documentos. Sin esto, esta copia del núcleo no compila (falta BitMatrix.h).
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/documentos/lector/.*")
 if(APPLE)
     list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/platform/.*_(win|linux)\\.cpp$")
     file(GLOB CORE_MM CONFIGURE_DEPENDS "${BA_SRC}/src/core/platform/*_mac.mm")
