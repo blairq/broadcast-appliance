@@ -17,12 +17,14 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QCoreApplication>
 #include <QMetaObject>
 #include <QNetworkInterface>
 #include <QUdpSocket>
 #include <QUrl>
 
 #include "arranque/AppRuntime.hpp"
+#include "i18n/I18n.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "ipc/CanalesEscena.hpp"
 #include "diag/Registro.hpp"
@@ -85,61 +87,61 @@ struct Contenido {
 const std::vector<Contenido>& catalogo() {
     static const std::vector<Contenido> c = {
         {"mensaje",
-         "Un mensaje",
-         "Texto grande, para que se lea desde el fondo de la sala.",
-         {{"texto", "Texto", "Empezamos en 5 minutos", true},
-          {"pie", "Abajo, más chico", "Sala principal", false}},
+         QT_TRANSLATE_NOOP("pantallas", "Un mensaje"),
+         QT_TRANSLATE_NOOP("pantallas", "Texto grande, para que se lea desde el fondo de la sala."),
+         {{"texto", QT_TRANSLATE_NOOP("pantallas", "Texto"), QT_TRANSLATE_NOOP("pantallas", "Empezamos en 5 minutos"), true},
+          {"pie", QT_TRANSLATE_NOOP("pantallas", "Abajo, más chico"), QT_TRANSLATE_NOOP("pantallas", "Sala principal"), false}},
          true,
          ""},
         {"qr",
-         "Un código QR",
-         "El QR ocupa la pantalla entera: se escanea desde lejos. Uno del aparato (el del Público, el de "
-         "la Conferencia…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba.",
-         {{"guardado", "Qué QR", "", false, "qrs"},
-          {"texto", "Qué codifica (si es a mano)", "https://…", false},
-          {"pie", "Abajo, más chico", "Escaneá para entrar a la sala", false}},
+         QT_TRANSLATE_NOOP("pantallas", "Un código QR"),
+         QT_TRANSLATE_NOOP("pantallas", "El QR ocupa la pantalla entera: se escanea desde lejos. Uno del aparato (el del Público, el de "
+         "la Conferencia…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba."),
+         {{"guardado", QT_TRANSLATE_NOOP("pantallas", "Qué QR"), "", false, "qrs"},
+          {"texto", QT_TRANSLATE_NOOP("pantallas", "Qué codifica (si es a mano)"), "https://…", false},
+          {"pie", QT_TRANSLATE_NOOP("pantallas", "Abajo, más chico"), QT_TRANSLATE_NOOP("pantallas", "Escaneá para entrar a la sala"), false}},
          true,
          ""},
         {"reloj",
-         "La hora",
-         "La hora, grande. Para el fondo del escenario.",
-         {{"pie", "Abajo, más chico", "", false}},
+         QT_TRANSLATE_NOOP("pantallas", "La hora"),
+         QT_TRANSLATE_NOOP("pantallas", "La hora, grande. Para el fondo del escenario."),
+         {{"pie", QT_TRANSLATE_NOOP("pantallas", "Abajo, más chico"), "", false}},
          true,
          ""},
         {"url",
-         "Una página web",
-         "Cualquier dirección. Tiene que ser alcanzable DESDE el televisor.",
-         {{"url", "Dirección", "http://…", false}},
+         QT_TRANSLATE_NOOP("pantallas", "Una página web"),
+         QT_TRANSLATE_NOOP("pantallas", "Cualquier dirección. Tiene que ser alcanzable DESDE el televisor."),
+         {{"url", QT_TRANSLATE_NOOP("pantallas", "Dirección"), "http://…", false}},
          true,
          ""},
-        {"prompter", "El teleprompter", "La vista del orador: el discurso que esté cargado.", {}, true, ""},
+        {"prompter", QT_TRANSLATE_NOOP("pantallas", "El teleprompter"), QT_TRANSLATE_NOOP("pantallas", "La vista del orador: el discurso que esté cargado."), {}, true, ""},
         // La votación que esté abierta, con su QR para escanear desde la
         // butaca. No lleva campos: lo que muestra es lo que haya en la urna en
         // ese momento, y no hay nada que elegir — una urna por vez.
         {"votacion",
-         "La votación",
-         "La que esté abierta, con las opciones y el QR para votar desde el teléfono. El resultado se "
+         QT_TRANSLATE_NOOP("pantallas", "La votación"),
+         QT_TRANSLATE_NOOP("pantallas", "La que esté abierta, con las opciones y el QR para votar desde el teléfono. El resultado se "
          "ve solo cuando corresponde: con la urna cerrada, o abierta si se decidió mostrarlo. Si no "
-         "hay ninguna, dice que no hay.",
+         "hay ninguna, dice que no hay."),
          {},
          true,
          ""},
         {"tally",
-         "Tally de cámara",
-         "Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo "
+         QT_TRANSLATE_NOOP("pantallas", "Tally de cámara"),
+         QT_TRANSLATE_NOOP("pantallas", "Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo "
          "desde atrás de la cámara, así que es la pantalla entera de color. `fuente` es el nombre de la "
-         "cámara o de la escena; vacío muestra el estado general, que sirve para la cabina.",
-         {{"fuente", "Cámara o escena", "Cam 1", false}},
+         "cámara o de la escena; vacío muestra el estado general, que sirve para la cabina."),
+         {{"fuente", QT_TRANSLATE_NOOP("pantallas", "Cámara o escena"), QT_TRANSLATE_NOOP("pantallas", "Cam 1"), false}},
          true,
          ""},
         // El programa entra por el mismo camino que un invitado, así que el
         // enlace lo tiene que acuñar el gateway (lleva un permiso de ingreso):
         // por eso es el único contenido cuya URL no se arma acá.
         {"programa",
-         "Lo que sale al aire",
-         "El programa en vivo por WebRTC: unas décimas de retardo, no los segundos del reproductor de "
+         QT_TRANSLATE_NOOP("pantallas", "Lo que sale al aire"),
+         QT_TRANSLATE_NOOP("pantallas", "El programa en vivo por WebRTC: unas décimas de retardo, no los segundos del reproductor de "
          "fábrica del televisor. La pantalla entra a la conferencia como una más: si el lobby está prendido, "
-         "hay que hacerla pasar, y ocupa un lugar mientras dure.",
+         "hay que hacerla pasar, y ocupa un lugar mientras dure."),
          {},
          true,
          ""},
@@ -149,16 +151,19 @@ const std::vector<Contenido>& catalogo() {
         // (BA.Escena.<k>): la escena se compone aparte y sigue aunque no esté al
         // aire. Varias pantallas pueden mostrar escenas distintas a la vez.
         {"escena",
-         "Una escena",
-         "Cualquiera de las escenas armadas, en vivo, esté o no al aire. Varias pantallas pueden mostrar "
+         QT_TRANSLATE_NOOP("pantallas", "Una escena"),
+         QT_TRANSLATE_NOOP("pantallas", "Cualquiera de las escenas armadas, en vivo, esté o no al aire. Varias pantallas pueden mostrar "
          "escenas distintas a la vez (hasta 4 escenas distintas; las pantallas con la misma escena "
-         "comparten). Cada escena que se muestra es una composición más para la máquina.",
-         {{"escena", "Escena", "", false, "escenas"}},
+         "comparten). Cada escena que se muestra es una composición más para la máquina."),
+         {{"escena", QT_TRANSLATE_NOOP("pantallas", "Escena"), "", false, "escenas"}},
          true,
          ""},
     };
     return c;
 }
+
+/// Un texto del catálogo (marcado con QT_TRANSLATE_NOOP) en el idioma del operador.
+QString tp(const char* s) { return *s ? QCoreApplication::translate("pantallas", s) : QString(); }
 
 const Contenido* contenidoPorId(const QString& id) {
     for (const Contenido& c : catalogo())
@@ -441,8 +446,8 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
     d_->archivo = rt.dataRoot() / "Config" / "pantallas.json";
     d_->leer();
     if (!pt::sePuedeBuscar())
-        d_->aviso = "Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su "
-                    "dirección IP.";
+        d_->aviso = tr("Este programa se compiló sin búsqueda en la red: agregá el televisor a mano con su "
+                       "dirección IP.");
     // Los carruseles viven en la MEMORIA del gateway: si se reinicia, se los
     // olvida y las pantallas que los estuvieran mostrando dirían «no encuentro
     // ese carrusel». Por eso se republican cada vez que vuelve.
@@ -516,16 +521,16 @@ QVariantList PantallasViewModel::contenidos() const {
         QVariantList campos;
         for (const Campo& f : c.campos)
             campos.append(QVariantMap{{"clave", QString::fromUtf8(f.clave)},
-                                      {"etiqueta", QString::fromUtf8(f.etiqueta)},
-                                      {"ejemplo", QString::fromUtf8(f.ejemplo)},
+                                      {"etiqueta", tp(f.etiqueta)},
+                                      {"ejemplo", tp(f.ejemplo)},
                                       {"largo", f.largo},
                                       {"opciones", QString::fromUtf8(f.opciones)}});
         out.append(QVariantMap{{"id", QString::fromUtf8(c.id)},
-                               {"titulo", QString::fromUtf8(c.titulo)},
-                               {"ayuda", QString::fromUtf8(c.ayuda)},
+                               {"titulo", tp(c.titulo)},
+                               {"ayuda", tp(c.ayuda)},
                                {"campos", campos},
                                {"disponible", c.disponible},
-                               {"porque", QString::fromUtf8(c.porque)}});
+                               {"porque", tp(c.porque)}});
     }
     return out;
 }
@@ -633,7 +638,7 @@ void PantallasViewModel::buscar() {
                 }
                 d_->guardar();
                 anotar(diag::Nivel::Info,
-                       "busqueda en la red: " + std::to_string(encontrados.size()) + " encontradas");
+                       ba::i18n::llenar(ba::i18n::traducir("pantallas", "busqueda en la red: %1 encontradas"), {std::to_string(encontrados.size())}));
                 // Se le pregunta a cada una cómo está, escalonado: una lista
                 // que dice «sin consultar» no sirve de nada, y abrir diez
                 // canales TLS a la vez tampoco.
@@ -648,9 +653,8 @@ void PantallasViewModel::buscar() {
                 for (Destino& d : d_->destinos)
                     d.proximoIntentoMs = 0;
                 QTimer::singleShot(300 * n + 1500, this, [this]() { restaurar(); });
-                emit notify(encontrados.empty() ? "No encontré ningún televisor en la red"
-                                                : "Encontré " + QString::number(encontrados.size()) +
-                                                      (encontrados.size() == 1 ? " pantalla" : " pantallas"),
+                emit notify(encontrados.empty() ? tr("No encontré ningún televisor en la red")
+                                                : tr("Encontré %n pantalla", "", static_cast<int>(encontrados.size())),
                             encontrados.empty() ? "warn" : "ok");
             }
             emit cambio();
@@ -711,8 +715,8 @@ QString PantallasViewModel::fijar(const QString& id, const QString& tipo, const 
         if (d_->carrusel(tipo.mid(9)) == nullptr) return tr("No encuentro ese carrusel.");
     } else {
         const Contenido* c = contenidoPorId(tipo);
-        if (c == nullptr) return "No sé mostrar «" + tipo + "».";
-        if (!c->disponible) return QString::fromUtf8(c->porque);
+        if (c == nullptr) return tr("No sé mostrar «%1».").arg(tipo);
+        if (!c->disponible) return tp(c->porque);
     }
     d->fijadoTipo = tipo;
     d->fijadoDatos = datos;
@@ -756,7 +760,7 @@ QVariantList PantallasViewModel::carruseles() const {
         for (const Paso& p : c.pasos) {
             const Contenido* con = contenidoPorId(p.tipo);
             // Un resumen legible: qué es y su primer dato con algo.
-            QString que = con == nullptr ? p.tipo : QString::fromUtf8(con->titulo);
+            QString que = con == nullptr ? p.tipo : tp(con->titulo);
             if (con != nullptr)
                 for (const Campo& f : con->campos) {
                     const QString v = p.datos.value(QString::fromUtf8(f.clave)).toString().trimmed();
@@ -828,13 +832,13 @@ QString PantallasViewModel::pasoAgregar(const QString& carrusel, const QString& 
     Carrusel* c = d_->carrusel(carrusel);
     if (c == nullptr) return tr("No encuentro ese carrusel.");
     const Contenido* con = contenidoPorId(tipo);
-    if (con == nullptr) return "No sé mostrar «" + tipo + "».";
+    if (con == nullptr) return tr("No sé mostrar «%1».").arg(tipo);
     // Lo que va en vivo entra con un permiso de UN SOLO USO que acuña el
     // gateway al mandarlo: un paso de carrusel es una URL fija y no lo tiene.
     if (tipo == "programa" || tipo == "escena")
-        return "Lo que va en vivo (el programa o una escena) no entra en un carrusel: mandalo directo a la "
-               "pantalla.";
-    if (!con->disponible) return QString::fromUtf8(con->porque);
+        return tr("Lo que va en vivo (el programa o una escena) no entra en un carrusel: mandalo directo a la "
+                  "pantalla.");
+    if (!con->disponible) return tp(con->porque);
     Paso p;
     p.tipo = tipo;
     p.datos = datos;
@@ -893,11 +897,10 @@ void PantallasViewModel::publicar(const QString& id, const QString& hostDestino)
         if (url.isEmpty()) continue;
         const Contenido* con = contenidoPorId(p.tipo);
         pasos.push_back({url.toStdString(), p.segundos,
-                         con == nullptr ? p.tipo.toStdString() : std::string(con->titulo)});
+                         con == nullptr ? p.tipo.toStdString() : tp(con->titulo).toStdString()});
     }
     if (pasos.empty()) return;
-    anotar(diag::Nivel::Info, "publico el carrusel «" + c->nombre.toStdString() + "» (" +
-                                  std::to_string(pasos.size()) + " pasos)");
+    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "publico el carrusel «%1» (%2 pasos)"), {c->nombre.toStdString(), std::to_string(pasos.size())}));
     d_->salaPantallas->publicarCarrusel(c->id.toStdString(), c->nombre.toStdString(), c->transicion.toStdString(),
                                         pasos);
 }
@@ -937,7 +940,7 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     if (c == nullptr) return tr("No encuentro ese carrusel.");
     if (c->pasos.empty()) return tr("Ese carrusel no tiene ningún paso todavía.");
     if (d->trabajando) return tr("Esperá: está ocupada con lo anterior.");
-    if (d->puedeMostrar == 0) return d->nombre + " no sabe mostrar páginas web.";
+    if (d->puedeMostrar == 0) return tr("%1 no sabe mostrar páginas web.").arg(d->nombre);
     // Primero la lista (con las URLs que ESTE televisor puede alcanzar), y
     // después se lo manda: si fuera al revés, abriría una lista que no está.
     publicar(carrusel, idPantalla);
@@ -946,12 +949,11 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
         return tr("Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos segundos.");
     const QString url = "http://" + ip + ":" + QString::number(d_->puertoWeb) +
                         "/pantalla/carrusel/?id=" + QString::fromUtf8(QUrl::toPercentEncoding(carrusel));
-    anotar(diag::Nivel::Info, "a «" + d->nombre.toStdString() + "»: carrusel «" + c->nombre.toStdString() +
-                                  "» -> " + url.toStdString());
+    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "a «%1»: carrusel «%2» -> %3"), {d->nombre.toStdString(), c->nombre.toStdString(), url.toStdString()}));
     d->ultimosDatos = QVariantMap{{"carrusel", carrusel}};
     d->canalEscena = -1;
     revisarCanales();
-    mandarUrl(idPantalla, url, "carrusel:" + carrusel, "Carrusel — " + c->nombre);
+    mandarUrl(idPantalla, url, "carrusel:" + carrusel, tr("Carrusel — %1").arg(c->nombre));
     return {};
 }
 
@@ -994,9 +996,9 @@ void PantallasViewModel::empujar(const QString& a, const QString& tipo, const QS
         if (luego) luego(false, 0);
         return;
     }
-    anotar(diag::Nivel::Info, "empujo a " +
-                                  (a.isEmpty() ? "todas(" + tipo.toStdString() + ")" : a.toStdString()) +
-                                  ": " + (recargar ? std::string("recargar") : url.toStdString()));
+    anotar(diag::Nivel::Info,
+           ba::i18n::llenar(ba::i18n::traducir("pantallas", "empujo a %1: %2"), {a.isEmpty() ? ba::i18n::llenar(ba::i18n::traducir("pantallas", "todas(%1)"), {tipo.toStdString()}) : a.toStdString(),
+                             recargar ? ba::i18n::traducir("pantallas", "recargar") : url.toStdString()}));
     d_->salaPantallas->mostrarEnSuperficies(
         a.toStdString(), tipo.toStdString(), url.toStdString(), recargar,
         [this, luego](const std::string& error, const nlohmann::json& r) {
@@ -1089,14 +1091,15 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     if (d == nullptr) return tr("No encuentro esa pantalla.");
     if (d->trabajando) return tr("Esperá: está ocupada con lo anterior.");
     const Contenido* c = contenidoPorId(tipo);
-    if (c == nullptr) return "No sé mostrar «" + tipo + "».";
-    if (!c->disponible) return QString::fromUtf8(c->porque);
+    if (c == nullptr) return tr("No sé mostrar «%1».").arg(tipo);
+    if (!c->disponible) return tp(c->porque);
     // Si ya se preguntó y el aparato no sabe abrir páginas, se dice ANTES de
     // abrirle un canal y pisarle lo que esté pasando. (Un parlante sin
     // pantalla contesta el protocolo igual, pero no tiene dónde mostrar.)
     if (d->puedeMostrar == 0)
-        return d->nombre + " no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde "
-                           "mostrarlas (¿es un parlante?).";
+        return tr("%1 no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde "
+                  "mostrarlas (¿es un parlante?).")
+            .arg(d->nombre);
     if (tipo != "escena") {
         d->canalEscena = -1;
         revisarCanales();
@@ -1115,8 +1118,8 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             d->trabajando = false;
             if (!e.ok) {
                 d->estado = "error";
-                d->error = "No pude sacar el enlace del público";
-                emit notify(d->nombre + ": " + d->error, "error");
+                d->error = tr("No pude sacar el enlace del público");
+                emit notify(tr("%1: %2").arg(d->nombre, d->error), "error");
                 emit cambio();
                 return;
             }
@@ -1138,24 +1141,24 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             if (!e.ok) {
                 d->estado = "error";
                 const QString m = QString::fromStdString(e.respuesta.value("message", std::string()));
-                d->error = m.isEmpty() ? "No pude sacar el enlace del programa" : m;
-                emit notify(d->nombre + ": " + d->error, "error");
+                d->error = m.isEmpty() ? tr("No pude sacar el enlace del programa") : m;
+                emit notify(tr("%1: %2").arg(d->nombre, d->error), "error");
                 emit cambio();
                 return;
             }
-            mandarUrl(id, QString::fromStdString(e.url), "programa", "Lo que sale al aire");
+            mandarUrl(id, QString::fromStdString(e.url), "programa", tr("Lo que sale al aire"));
         });
         return {};
     }
     if (tipo == "escena") return mostrarEscena(id, datos.value("escena").toString().trimmed());
     const QString url = urlDe(tipo, datos, id);
     if (url.isEmpty())
-        return tipo == "url" ? "Poné una dirección."
-                             : "Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos "
-                               "segundos, o fijate que el servidor esté corriendo.";
+        return tipo == "url" ? tr("Poné una dirección.")
+                             : tr("Todavía no sé con qué dirección me ve el televisor: probá de nuevo en unos "
+                                  "segundos, o fijate que el servidor esté corriendo.");
 
     // Lo legible, para la lista: qué le mandamos, no la URL entera.
-    QString que = QString::fromUtf8(c->titulo);
+    QString que = tp(c->titulo);
     for (const Campo& f : c->campos) {
         const QString v = datos.value(QString::fromUtf8(f.clave)).toString().trimmed();
         if (!v.isEmpty()) {
@@ -1165,8 +1168,7 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     }
 
     d->ultimosDatos = datos;
-    anotar(diag::Nivel::Info, "a «" + d->nombre.toStdString() + "» (" + d->host.toStdString() +
-                                  "): " + que.toStdString() + " -> " + url.toStdString());
+    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "a «%1» (%2): %3 -> %4"), {d->nombre.toStdString(), d->host.toStdString(), que.toStdString(), url.toStdString()}));
     mandarUrl(id, url, tipo, que);
     return {};
 }
@@ -1179,7 +1181,7 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
     BroadcastEngine& eng = d_->rt->engine();
     const auto nombres = eng.sceneNames();
     if (std::find(nombres.begin(), nombres.end(), escena.toStdString()) == nombres.end())
-        return "No hay ninguna escena que se llame «" + escena + "».";
+        return tr("No hay ninguna escena que se llame «%1».").arg(escena);
     // El canal: el que ya tiene esa escena (dos pantallas con la misma escena
     // la componen una sola vez) o uno que nadie esté usando.
     d->canalEscena = -1;
@@ -1190,18 +1192,17 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
     for (int k = 0; k < ipc::kCanalesEscena && canal < 0; ++k)
         if (eng.escenaDeCanal(k).empty()) canal = k;
     if (canal < 0)
-        return "Ya hay " + QString::number(ipc::kCanalesEscena) +
-               " escenas distintas en las pantallas: pasá alguna a una escena que ya se esté mostrando, o pará "
-               "una.";
+        return tr("Ya hay %1 escenas distintas en las pantallas: pasá alguna a una escena que ya se esté mostrando, "
+                  "o pará una.")
+            .arg(ipc::kCanalesEscena);
     if (!eng.escenaACanal(canal, escena.toStdString()))
-        return "No pude preparar la escena: " + QString::fromStdString(eng.lastError());
+        return tr("No pude preparar la escena: %1").arg(QString::fromStdString(eng.lastError()));
     d->canalEscena = canal;
     d->ultimosDatos = QVariantMap{{"escena", escena}};
     d->trabajando = true;
     emit cambio();
     const QString nombre = d->nombre;
-    anotar(diag::Nivel::Info, "a «" + nombre.toStdString() + "»: escena «" + escena.toStdString() + "» (canal " +
-                                  std::to_string(canal) + ")");
+    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "a «%1»: escena «%2» (canal %3)"), {nombre.toStdString(), escena.toStdString(), std::to_string(canal)}));
     d_->sala->enlaces().pantalla(
         nombre.toStdString(), canal, [this, id, escena](const sala::Enlace& e) {
             Destino* d = d_->porId(id);
@@ -1210,14 +1211,14 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
             if (!e.ok) {
                 d->estado = "error";
                 const QString m = QString::fromStdString(e.respuesta.value("message", std::string()));
-                d->error = m.isEmpty() ? "No pude sacar el enlace de la escena" : m;
+                d->error = m.isEmpty() ? tr("No pude sacar el enlace de la escena") : m;
                 d->canalEscena = -1;
                 revisarCanales();
-                emit notify(d->nombre + ": " + d->error, "error");
+                emit notify(tr("%1: %2").arg(d->nombre, d->error), "error");
                 emit cambio();
                 return;
             }
-            mandarUrl(id, QString::fromStdString(e.url), "escena", "Escena — " + escena);
+            mandarUrl(id, QString::fromStdString(e.url), "escena", tr("Escena — %1").arg(escena));
         });
     return {};
 }
@@ -1231,8 +1232,7 @@ void PantallasViewModel::revisarCanales() {
             if (d.canalEscena == k && (d.trabajando || (d.contenido == "escena" && d.estado == "mostrando")))
                 usado = true;
         if (!usado) {
-            anotar(diag::Nivel::Info, "canal de escena " + std::to_string(k) + " («" + eng.escenaDeCanal(k) +
-                                          "») sin pantallas: se suelta");
+            anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "canal de escena %1 («%2») sin pantallas: se suelta"), {std::to_string(k), eng.escenaDeCanal(k)}));
             eng.escenaACanal(k, "");
         }
     }
@@ -1277,17 +1277,16 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
                 d->que = que;
                 d->error.clear();
                 d->fallos = 0;
-                anotar(diag::Nivel::Info, "«" + d->nombre.toStdString() + "» acepto: " + que.toStdString());
+                anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("pantallas", "«%1» acepto: %2"), {d->nombre.toStdString(), que.toStdString()}));
             } else {
                 d->estado = "error";
                 d->error = QString::fromStdString(r.error);
                 ++d->fallos;
-                anotar(diag::Nivel::Aviso, "«" + d->nombre.toStdString() + "» no pudo: " + r.error +
-                                               " (intento " + std::to_string(d->fallos) + ")");
+                anotar(diag::Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("pantallas", "«%1» no pudo: %2 (intento %3)"), {d->nombre.toStdString(), r.error, std::to_string(d->fallos)}));
                 // Un aviso por cada reintento del restaurado seria una lluvia
                 // de avisos por un televisor apagado: solo el primero.
                 if (d->fijadoTipo.isEmpty() || d->fallos == 1)
-                    emit notify(d->nombre + ": " + d->error, "error");
+                    emit notify(tr("%1: %2").arg(d->nombre, d->error), "error");
             }
             emit cambio();
         });
