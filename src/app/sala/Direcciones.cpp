@@ -3,6 +3,8 @@
 // ============================================================================
 #include "sala/Direcciones.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <QJsonDocument>
 #include <QPointer>
 
@@ -69,7 +71,9 @@ std::string Direcciones::origen(const std::string& id, bool afuera) const {
 
 std::string Direcciones::motivo(const std::string& id, bool afuera) const {
     const json* s = servicio(id);
-    if (s == nullptr) return sala_.online() ? "La conferencia no informó ese servicio." : "La conferencia no responde.";
+    if (s == nullptr)
+        return sala_.online() ? ba::i18n::traducir("sala", "La conferencia no informó ese servicio.")
+                              : ba::i18n::traducir("sala", "La conferencia no responde.");
     return s->value(afuera ? "motivo_remoto" : "motivo_local", std::string());
 }
 

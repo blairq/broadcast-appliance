@@ -2,6 +2,8 @@
 
 #include "sala/ParticipantesSala.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "sala/ReglasSala.hpp"
 #include "ui/ConferenceClient.hpp"
 
@@ -102,7 +104,7 @@ std::string ParticipantesSala::pedirle(const std::string& id, const std::string&
                                                      "unmute-cam",  "stop-screen", "lower-hand",
                                                      "calidad-max", "calidad-720p", "calidad-360p"};
     if (std::none_of(kPedidos.begin(), kPedidos.end(), [&](const char* p) { return que == p; }))
-        return "pedido desconocido: " + que;
+        return ba::i18n::llenar(ba::i18n::traducir("sala", "pedido desconocido: %1"), {que});
     accion(id, "request", {{"what", que}}, std::move(listo));
     return {};
 }
@@ -128,7 +130,7 @@ void ParticipantesSala::prueba(const std::string& id, Listo listo) {
             if (!j.is_object()) j = nlohmann::json::object();
             j["recomendacion"] = recomendacionPrueba(j);
             std::string error;
-            if (!ok) error = j.value("error", std::string("la conferencia no pudo hacer la prueba"));
+            if (!ok) error = j.value("error", ba::i18n::traducir("sala", "la conferencia no pudo hacer la prueba"));
             if (listo) listo(error, j);
         },
         15000);

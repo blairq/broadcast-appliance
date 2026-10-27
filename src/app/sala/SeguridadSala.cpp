@@ -2,6 +2,8 @@
 
 #include "sala/SeguridadSala.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "arranque/ArchivoConfig.hpp"
 #include "sala/Pedido.hpp"
 
@@ -15,10 +17,11 @@ bool SeguridadSala::pinPorSesion() const { return config::leerObjeto(archivo_).v
 bool SeguridadSala::rotarTokenMcp() const { return config::leerObjeto(archivo_).value("rotar_token_mcp", true); }
 
 std::string SeguridadSala::poner(const char* clave, bool si) {
-    if (enVivo_ && enVivo_()) return "no se cambia en vivo";
+    if (enVivo_ && enVivo_()) return ba::i18n::traducir("sala", "no se cambia en vivo");
     nlohmann::json j = config::leerObjeto(archivo_);
     j[clave] = si;
-    if (!config::guardar(archivo_, j)) return "no se pudo guardar " + archivo_.filename().string();
+    if (!config::guardar(archivo_, j))
+        return ba::i18n::llenar(ba::i18n::traducir("sala", "no se pudo guardar %1"), {archivo_.filename().string()});
     return {};
 }
 

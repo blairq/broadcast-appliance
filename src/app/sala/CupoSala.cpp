@@ -2,6 +2,8 @@
 
 #include "sala/CupoSala.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "arranque/AppRuntime.hpp"
 #include "ui/ConferenceClient.hpp"
 
@@ -14,7 +16,7 @@ CupoSala::CupoSala(AppRuntime& rt, ConferenceClient& sala) : rt_(rt), sala_(sala
 std::string CupoSala::cambiar(int n, Listo listo) {
     // El tope que informa la sala; sin foto todavía, el del gateway.
     const int tope = sala_.snapshot().value("reserva").toInt(kMax);
-    if (n < 1 || n > tope) return "el cupo va de 1 a " + std::to_string(tope);
+    if (n < 1 || n > tope) return ba::i18n::llenar(ba::i18n::traducir("sala", "el cupo va de 1 a %1"), {std::to_string(tope)});
     const int antes = rt_.config().guests;
     // Aunque los eventos de la sala estén reconectando: es otro pedido HTTP.
     sala_.post("/api/v1/room", QJsonObject{{"cupo", n}}, [this, n, antes, listo](bool ok, const QJsonObject& r) {
@@ -30,11 +32,15 @@ std::string CupoSala::cambiar(int n, Listo listo) {
         if (listo) listo(error);
         if (avisar_) {
             if (!error.empty())
-                avisar_("Cupo: " + error, true);
+                avisar_(ba::i18n::llenar(ba::i18n::traducir("sala", "Cupo: %1"), {error}), true);
             else if (!ok)
-                avisar_("Cupo de invitados: " + std::to_string(n) + " (la conferencia no contesta: rige cuando arranque).", false);
+                avisar_(ba::i18n::llenar(ba::i18n::traducir("sala", "Cupo de invitados: %1 (la conferencia no contesta: "
+                                                                    "rige cuando arranque)."),
+                                         {std::to_string(n)}),
+                        false);
             else
-                avisar_("Cupo de invitados: " + std::to_string(antes) + " → " + std::to_string(n) + ", sin reiniciar la conferencia.",
+                avisar_(ba::i18n::llenar(ba::i18n::traducir("sala", "Cupo de invitados: %1 → %2, sin reiniciar la conferencia."),
+                                         {std::to_string(antes), std::to_string(n)}),
                         false);
         }
     });

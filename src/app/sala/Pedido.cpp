@@ -2,6 +2,8 @@
 
 #include "sala/Pedido.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "ui/ConferenceClient.hpp"
 
 #include <QJsonDocument>
@@ -16,9 +18,13 @@ void pedir(ConferenceClient& cliente, const std::string& metodo, const std::stri
             nlohmann::json::parse(QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
         std::string error;
         if (!ok)
-            error = r.value("error").toString("la conferencia no contesta").toStdString();
+            error = r.value("error")
+                        .toString(QString::fromStdString(ba::i18n::traducir("sala", "la conferencia no contesta")))
+                        .toStdString();
         else if (r.contains("ok") && !r.value("ok").toBool())
-            error = r.value("error").toString("la conferencia no lo aceptó").toStdString();
+            error = r.value("error")
+                        .toString(QString::fromStdString(ba::i18n::traducir("sala", "la conferencia no lo aceptó")))
+                        .toStdString();
         if (listo) listo(error, j.is_discarded() ? nlohmann::json::object() : j);
     };
     const QString q = QString::fromStdString(ruta);

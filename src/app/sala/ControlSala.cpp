@@ -1,6 +1,7 @@
 // src/app/sala/ControlSala.cpp — la sala en sí (ver el .hpp)
 
 #include "sala/ControlSala.hpp"
+#include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "arranque/AppSettings.hpp"
@@ -56,7 +57,7 @@ std::string ControlSala::entrada(std::optional<bool> lobby, std::optional<bool> 
     nlohmann::json b = nlohmann::json::object();
     if (lobby) b["lobby"] = *lobby;
     if (cerrada) b["locked"] = *cerrada;
-    if (b.empty()) return "no hay nada para cambiar";
+    if (b.empty()) return ba::i18n::traducir("sala", "no hay nada para cambiar");
     pedir(sala_, "POST", "/api/v1/room", b, std::move(listo));
     return {};
 }
@@ -86,7 +87,7 @@ void ControlSala::desbloquearPin(const std::string& ip, Listo listo) {
 }
 
 std::string ControlSala::chatear(const std::string& para, const std::string& texto, Listo listo) {
-    if (recortado(texto).empty()) return "el mensaje está vacío";
+    if (recortado(texto).empty()) return ba::i18n::traducir("sala", "el mensaje está vacío");
     pedir(sala_, "POST", "/api/v1/chat", {{"to", para.empty() ? std::string("all") : para}, {"text", texto}},
           std::move(listo));
     if (alChatear_) alChatear_(para.empty() ? std::string("all") : para, texto);
@@ -100,7 +101,7 @@ void ControlSala::borrarArchivo(const std::string& id, Listo listo) {
 void ControlSala::verArchivo(const std::string& id, Contenido listo) {
     const QJsonObject a = archivoCompartido(sala_, id);
     if (a.isEmpty()) {
-        if (listo) listo("Ese archivo ya no está.", nlohmann::json::object(), {});
+        if (listo) listo(ba::i18n::traducir("sala", "Ese archivo ya no está."), nlohmann::json::object(), {});
         return;
     }
     nlohmann::json datos =
@@ -113,7 +114,7 @@ void ControlSala::verArchivo(const std::string& id, Contenido listo) {
     sala_.getRaw(QString::fromStdString("/api/v1/shares/" + enRuta(id) + "/content"),
                  [listo, datos](bool ok, const QByteArray& bytes) {
                      if (!listo) return;
-                     if (!ok || bytes.isEmpty()) return listo("No se pudo leer el archivo.", datos, {});
+                     if (!ok || bytes.isEmpty()) return listo(ba::i18n::traducir("sala", "No se pudo leer el archivo."), datos, {});
                      listo({}, datos, bytes);
                  });
 }
@@ -123,7 +124,7 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
     Tomado t;
     const QJsonObject a = archivoCompartido(sala_, id);
     if (a.isEmpty()) {
-        t.error = "Ese archivo ya no está.";
+        t.error = ba::i18n::traducir("sala", "Ese archivo ya no está.");
         return t;
     }
     // Copia propia: la carpeta de la sala se limpia al reiniciarla, y la
@@ -142,7 +143,7 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
         dst = mediaDir / ((stem + QString(" (%1)").arg(n)).toStdU16String() + src.extension().u16string());
     fs::copy_file(src, dst, ec);
     if (ec) {
-        t.error = "No se pudo copiar el archivo: " + ec.message();
+        t.error = ba::i18n::llenar(ba::i18n::traducir("sala", "No se pudo copiar el archivo: %1"), {ec.message()});
         return t;
     }
 
@@ -168,7 +169,7 @@ ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
         name = base + QString(" (%1)").arg(n);
     spec.name = name.toStdString();
     if (!rt_.addSource(t.escena, spec)) {
-        t.error = "No se pudo agregar la fuente: " + rt_.lastError();
+        t.error = ba::i18n::llenar(ba::i18n::traducir("sala", "No se pudo agregar la fuente: %1"), {rt_.lastError()});
         return t;
     }
     rt_.save();
@@ -219,12 +220,12 @@ void ControlSala::setNivelLog(const std::string& nivel, Listo listo) {
 std::string ControlSala::accesoDirecto(const std::string& endpoint, const std::string& direccionPublica,
                                        const std::string& interfaz, Listo listo, Reiniciada reiniciada) {
     const std::string ep = recortado(endpoint);
-    if (ep.empty()) return "Falta la direccion del servidor (host:puerto)";
+    if (ep.empty()) return ba::i18n::traducir("sala", "Falta la direccion del servidor (host:puerto)");
     const std::string iface = recortado(interfaz);
     pedir(sala_, "POST", "/api/v1/network/server-config", {{"endpoint", ep}, {"interface", iface.empty() ? "eth0" : iface}},
           [this, ep, direccionPublica, listo, reiniciada](const std::string& err, const nlohmann::json& r) {
               if (!err.empty()) {
-                  if (listo) listo("El gateway no pudo generar la configuracion: " + err, r);
+                  if (listo) listo(ba::i18n::llenar(ba::i18n::traducir("sala", "El gateway no pudo generar la configuracion: %1"), {err}), r);
                   return;
               }
               // Este equipo queda apuntando a ese servidor, con el túnel prendido.
