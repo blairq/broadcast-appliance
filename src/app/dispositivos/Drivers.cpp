@@ -46,7 +46,7 @@ void Drivers::listarY(std::function<void(const std::vector<hw::DriverListado>&)>
         if (!ok) {
             // Sin lista no se prueba nada, pero tampoco se frena a nadie: lo que anduvo
             // sigue andando y lo de cuarentena sigue afuera.
-            qWarning().noquote() << "drivers: no se pudo listar:" << error;
+            qWarning().noquote() << "drivers:" << tr("no se pudo listar: %1").arg(error);
             yo->probarCola(); // lo que se haya pedido a mano (Probar de nuevo) igual se prueba
             return;
         }
@@ -81,7 +81,7 @@ void Drivers::revisarTodo() {
 }
 
 void Drivers::sospechar(const QString& porque) {
-    qWarning().noquote() << "drivers: se prueban aparte los proveedores de GStreamer:" << porque;
+    qWarning().noquote() << "drivers:" << tr("se prueban aparte los proveedores de GStreamer: %1").arg(porque);
     for (const auto& e : salud_.todos())
         if (esGst(e.id) && e.presente && e.estado != "cuarentena" && !cola_.contains(qs(e.id))) cola_ << qs(e.id);
     revisando_ = true;
@@ -132,13 +132,13 @@ void Drivers::alResultado(const ResultadoSonda& r) {
     } else if (r.ok) {
         salud_.exito(r.id, r.detalle, ahora().toStdString());
         if (estaba && esGst(r.id) && o_.ponerRango) o_.ponerRango(r.id.substr(4), antes->rango);
-        qInfo().noquote() << "drivers:" << nombre << "anda:" << qs(r.detalle);
+        qInfo().noquote() << "drivers:" << tr("%1 anda: %2").arg(nombre, qs(r.detalle));
     } else {
         const bool quedo = salud_.falla(r.id, r.falla, r.motivo, ahora().toStdString());
-        qWarning().noquote() << QString("drivers: %1 falló (%2): %3").arg(nombre, hw::nombreFalla(r.falla), qs(r.motivo));
+        qWarning().noquote() << "drivers:" << tr("%1 falló (%2): %3").arg(nombre, hw::nombreFalla(r.falla), qs(r.motivo));
         if (quedo) {
             if (esGst(r.id) && o_.ponerRango) o_.ponerRango(r.id.substr(4), 0);
-            qWarning().noquote() << "drivers:" << nombre << "queda en cuarentena: no se vuelve a cargar solo";
+            qWarning().noquote() << "drivers:" << tr("%1 queda en cuarentena: no se vuelve a cargar solo").arg(nombre);
             emit cuarentenaNueva(qs(r.id), nombre, qs(r.motivo));
         }
     }
@@ -165,13 +165,13 @@ QString Drivers::resumen() const {
     const int andan = salud_.cuantosAndan();
     const int q = salud_.cuantosEnCuarentena();
     if (revisando_) {
-        const QString k = total_ > 0 ? QString(" (%1 de %2)").arg(std::min(hechos_ + 1, total_)).arg(total_) : QString();
-        if (!conocidaAlArrancar_) return "Máquina nueva: revisando todo" + k + "…";
-        return QString("Máquina conocida: %1 drivers listos, revisando novedades%2…").arg(andan).arg(k);
+        const QString k = total_ > 0 ? " " + tr("(%1 de %2)").arg(std::min(hechos_ + 1, total_)).arg(total_) : QString();
+        if (!conocidaAlArrancar_) return tr("Máquina nueva: revisando todo%1…").arg(k);
+        return tr("Máquina conocida: %1 drivers listos, revisando novedades%2…").arg(andan).arg(k);
     }
-    if (!listo_) return "Todavía no se revisaron los drivers";
-    QString s = QString("%1 %2").arg(andan).arg(andan == 1 ? "driver anda" : "drivers andan");
-    if (q > 0) s += QString(", %1 en cuarentena").arg(q);
+    if (!listo_) return tr("Todavía no se revisaron los drivers");
+    QString s = tr("%n driver anda", "", andan);
+    if (q > 0) s += tr(", %1 en cuarentena").arg(q);
     return s;
 }
 
@@ -182,17 +182,17 @@ QVariantMap Drivers::fila(const hw::EstadoDriver& e) const {
     if (probando_.contains(id) || cola_.contains(id)) estado = "probando";
     QString texto;
     if (estado == "probando")
-        texto = "probando…";
+        texto = tr("probando…");
     else if (estado == "ausente")
-        texto = "no está instalado ahora";
+        texto = tr("no está instalado ahora");
     else if (estado == "anda")
-        texto = e.detalle.empty() ? QString("anda") : "anda · " + qs(e.detalle);
+        texto = e.detalle.empty() ? tr("anda") : tr("anda · %1").arg(qs(e.detalle));
     else if (estado == "falla")
-        texto = QString("falló %1 de %2: %3").arg(e.fallas).arg(salud_.umbral()).arg(qs(e.motivo));
+        texto = tr("falló %1 de %2: %3").arg(e.fallas).arg(salud_.umbral()).arg(qs(e.motivo));
     else if (estado == "cuarentena")
-        texto = QString("en cuarentena (%1 fallas): %2").arg(e.fallas).arg(qs(e.motivo));
+        texto = tr("en cuarentena (%1 fallas): %2").arg(e.fallas).arg(qs(e.motivo));
     else
-        texto = "sin probar";
+        texto = tr("sin probar");
     return {{"id", id},
             {"nombre", qs(e.nombre)},
             {"tipo", qs(e.tipo)},

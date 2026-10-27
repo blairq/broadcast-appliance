@@ -77,7 +77,7 @@ QVariantMap equipoDeRed(const json& e) {
                         e.value("marca", json::object()).value("tipo", std::string()) == "camara";
     std::string nombre = e.value("onvif", json::object()).value("nombre", std::string());
     if (nombre.empty()) nombre = e.value("marca", json::object()).value("nombre", std::string());
-    if (nombre.empty()) nombre = e.value("fabricante", std::string("Equipo"));
+    if (nombre.empty()) nombre = e.value("fabricante", QCoreApplication::translate("dispositivos", "Equipo").toStdString());
     QString detalle = QString::fromStdString(ip);
     if (!e.value("mac", std::string()).empty())
         detalle += " · " + QString::fromStdString(e.value("mac", std::string()));
@@ -109,7 +109,7 @@ QVariantList camarasYMicrofonos(AppRuntime& rt) {
                           {"tipo", "camara_local"},
                           {"nombre", qs(c.name)},
                           {"valor", qs(c.value)},
-                          {"detalle", "Cámara o capturadora · " + qs(c.value)},
+                          {"detalle", QCoreApplication::translate("dispositivos", "Cámara o capturadora · %1").arg(qs(c.value))},
                           {"datos", QVariantMap{{"id", qs(c.value)}}}};
     for (const auto& m : audio::entradasDeAudio(rt.engine())) {
         const bool pred = m.value == "default";
@@ -120,9 +120,11 @@ QVariantList camarasYMicrofonos(AppRuntime& rt) {
                           {"tipo", "microfono"},
                           {"nombre", qs(m.name)},
                           {"valor", qs(m.value)},
-                          {"detalle", pred       ? QStringLiteral("La que tenga elegida el sistema (la sigue si cambia)")
-                                      : loopback ? "Lo que se reproduce por esa salida (no es un micrófono) · " + qs(m.value)
-                                                 : "Micrófono o entrada de audio · " + qs(m.value)},
+                          {"detalle",
+                           pred       ? QCoreApplication::translate("dispositivos", "La que tenga elegida el sistema (la sigue si cambia)")
+                           : loopback ? QCoreApplication::translate("dispositivos", "Lo que se reproduce por esa salida (no es un micrófono) · %1")
+                                            .arg(qs(m.value))
+                                      : QCoreApplication::translate("dispositivos", "Micrófono o entrada de audio · %1").arg(qs(m.value))},
                           {"datos", QVariantMap{{"id", qs(m.value)},
                                                 {"pipeline", qs(audio::pipelineDeMicrofono(m.value))}}}};
     }
@@ -139,7 +141,8 @@ QVariantList salidasDeAudio() {
                           {"tipo", "salida_audio"},
                           {"nombre", s.description()},
                           {"valor", id},
-                          {"detalle", "Salida de audio (placa de sonido, auriculares, HDMI) · " + id},
+                          {"detalle",
+                           QCoreApplication::translate("dispositivos", "Salida de audio (placa de sonido, auriculares, HDMI) · %1").arg(id)},
                           {"datos", QVariantMap{{"id", id}, {"predeterminada", s.isDefault()}}}};
     }
     return eq;
@@ -190,12 +193,12 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
     // --- Detectores ---------------------------------------------------------------------------
     if (red) {
         d.registrar(Detector{
-            "red", "Red local",
-            "Cámaras IP, grabadores y equipos de video de la subred: ONVIF, puertos, MAC/fabricante, URLs "
+            "red", QCoreApplication::translate("dispositivos", "Red local"),
+            QCoreApplication::translate("dispositivos", "Cámaras IP, grabadores y equipos de video de la subred: ONVIF, puertos, MAC/fabricante, URLs "
             "RTSP "
-            "típicas probadas (unos 10 s).",
+            "típicas probadas (unos 10 s)."),
             [red](Listo listo) {
-                if (!red) return listo({{"error", "el escáner de red no está disponible"}});
+                if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner de red no está disponible")}});
                 red->escanear([listo](json r) {
                     if (r.contains("error"))
                         return listo({{"error", QString::fromStdString(r.value("error", std::string()))}});
@@ -237,22 +240,26 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                                  if (!mensajes) return;
                                  mensajes->post({{"kind", "message"},
                                                  {"priority", "info"},
-                                                 {"title", "Driver en cuarentena: " + nombre.toStdString()},
-                                                 {"text", motivo.toStdString() +
-                                                              ". No se vuelve a cargar solo; «Probar de nuevo» en "
-                                                              "Dispositivos y equipos → Drivers."}});
+                                                 {"title", QCoreApplication::translate("dispositivos", "Driver en cuarentena: %1")
+                                                               .arg(nombre)
+                                                               .toStdString()},
+                                                 {"text", QCoreApplication::translate("dispositivos", "%1. No se vuelve a cargar solo; "
+                                                                                                      "«Probar de nuevo» en Dispositivos "
+                                                                                                      "y equipos → Drivers.")
+                                                              .arg(motivo)
+                                                              .toStdString()}});
                              });
 
         auto est = std::make_shared<BusquedaLocal>();
         est->antibucle.setTiempos({800, 2000, ba::ajustes::entero("dispositivos.minimoEntreBusquedasMs", 10000)});
         d.registrar(Detector{
-            "local", "Cámaras, micrófonos y placas de sonido de esta máquina",
-            "Las cámaras y capturadoras, los micrófonos y entradas de audio y las salidas de las placas de "
-            "sonido, con su id estable. Se vuelve a buscar solo cuando se enchufa o se desenchufa algo.",
+            "local", QCoreApplication::translate("dispositivos", "Cámaras, micrófonos y placas de sonido de esta máquina"),
+            QCoreApplication::translate("dispositivos", "Las cámaras y capturadoras, los micrófonos y entradas de audio y las salidas de las placas de "
+            "sonido, con su id estable. Se vuelve a buscar solo cuando se enchufa o se desenchufa algo."),
             [rt, est, drv](Listo listo) {
                 if (est->trabada)
-                    return listo({{"error", "la búsqueda anterior sigue trabada adentro de un driver: se lo está "
-                                            "probando aparte (Dispositivos y equipos → Drivers)"}});
+                    return listo({{"error", QCoreApplication::translate("dispositivos", "la búsqueda anterior sigue trabada adentro de un driver: se lo está "
+                                            "probando aparte (Dispositivos y equipos → Drivers)")}});
                 est->esperan.push_back(std::move(listo));
                 if (est->enCurso) return; // contesta la que ya está andando
                 est->enCurso = true;
@@ -289,8 +296,8 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                     est->antibucle.termina(ahoraMs(), firmaDelSistema());
                     std::vector<Listo> esperan;
                     esperan.swap(est->esperan);
-                    const QString err = QString("la búsqueda de cámaras y micrófonos no terminó en %1 s: se prueban "
-                                                "los drivers aparte")
+                    const QString err = QString(QCoreApplication::translate("dispositivos", "la búsqueda de cámaras y micrófonos no terminó en %1 s: se prueban "
+                                                "los drivers aparte"))
                                             .arg(limite / 1000);
                     for (auto& l : esperan) l({{"error", err}});
                     if (drv) drv->sospechar(err);
@@ -347,7 +354,7 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
         });
     }
 #if defined(BA_HAVE_NDI)
-    d.registrar(Detector{"ndi", "NDI® en la red", "Los emisores NDI que se anuncian en la red (unos 4 s).",
+    d.registrar(Detector{"ndi", QCoreApplication::translate("dispositivos", "NDI® en la red"), QCoreApplication::translate("dispositivos", "Los emisores NDI que se anuncian en la red (unos 4 s)."),
                          [](Listo listo) {
                              std::thread([listo]() {
                                  const auto found = ndi::discover(4000);
@@ -366,12 +373,12 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
 #endif
     if (pl) {
         d.registrar(Detector{
-            "usb", "USB, HID y serie",
-            "Los equipos conectados por USB (vid:pid, marca, si son cámaras UVC), las interfaces HID y los "
+            "usb", QCoreApplication::translate("dispositivos", "USB, HID y serie"),
+            QCoreApplication::translate("dispositivos", "Los equipos conectados por USB (vid:pid, marca, si son cámaras UVC), las interfaces HID y los "
             "puertos "
-            "serie: por dónde se le habla a un equipo raro (la primera vez baja pyusb/hidapi/pyserial).",
+            "serie: por dónde se le habla a un equipo raro (la primera vez baja pyusb/hidapi/pyserial)."),
             [pl](Listo listo) {
-                if (!pl) return listo({{"error", "los plugins no están disponibles"}});
+                if (!pl) return listo({{"error", QCoreApplication::translate("dispositivos", "los plugins no están disponibles")}});
                 pl->dispositivosPython(json::array(), [listo](json r) {
                     QVariantList eq;
                     for (const auto& u : r.value("usb", json::array()))
@@ -385,7 +392,9 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                                  .trimmed()},
                             {"detalle",
                              QString::fromStdString("USB " + u.value("vid", "") + ":" + u.value("pid", "") +
-                                                    (u.value("uvc", false) ? " · cámara UVC" : ""))},
+                                                    (u.value("uvc", false)
+                                                         ? " · " + QCoreApplication::translate("dispositivos", "cámara UVC").toStdString()
+                                                         : ""))},
                             {"datos", aV(u)}};
                     for (const auto& h : r.value("hid", json::array()))
                         eq << QVariantMap{{"clave", QString::fromStdString(h.value("ruta", std::string()))},
@@ -416,108 +425,112 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
         d.registrar(
             "camara_red",
             Accion{"pedir_clave",
-                   "Pedir usuario y clave",
-                   "Muestra al operador el formulario seguro de la barra (se guarda cifrada; nadie la ve).",
+                   QCoreApplication::translate("dispositivos", "Pedir usuario y clave"),
+                   QCoreApplication::translate("dispositivos", "Muestra al operador el formulario seguro de la barra (se guarda cifrada; nadie la ve)."),
                    {},
                    true,
                    {},
                    [mensajes, red](const QVariantMap& e, const QVariantMap&, Listo listo) {
-                       if (!mensajes || !red) return listo({{"error", "no hay barra del operador"}});
+                       if (!mensajes || !red) return listo({{"error", QCoreApplication::translate("dispositivos", "no hay barra del operador")}});
                        const QString ip = ipDe(e);
                        const json eq = red->equipo(ip.toStdString());
                        const int n = mensajes->post(
                            {{"kind", "credential"},
                             {"platform", "camara:" + ip.toStdString()},
                             {"priority", "info"},
-                            {"title", "Usuario y clave de " + e.value("nombre").toString().toStdString()},
-                            {"text", "Se guarda cifrado en este equipo."},
+                            {"title", QCoreApplication::translate("dispositivos", "Usuario y clave de %1")
+                                          .arg(e.value("nombre").toString())
+                                          .toStdString()},
+                            {"text", QCoreApplication::translate("dispositivos", "Se guarda cifrado en este equipo.").toStdString()},
                             {"fields",
                              json::array(
                                  {{{"key", "usuario"},
-                                   {"label", "Usuario"},
+                                   {"label", QCoreApplication::translate("dispositivos", "Usuario").toStdString()},
                                    {"secret", false},
                                    {"placeholder", eq.value("usuario_de_fabrica", std::string("admin"))}},
-                                  {{"key", "clave"}, {"label", "Clave"}, {"secret", true}}})}});
-                       listo({{"texto", QString("Formulario %1 en la barra del operador.").arg(n)}});
+                                  {{"key", "clave"},
+                                   {"label", QCoreApplication::translate("dispositivos", "Clave").toStdString()},
+                                   {"secret", true}}})}});
+                       listo({{"texto", QString(QCoreApplication::translate("dispositivos", "Formulario %1 en la barra del operador.")).arg(n)}});
                    }});
         d.registrar(
             "camara_red",
             Accion{"clave",
-                   "Cargar usuario y clave",
-                   "Guarda el usuario y la clave de la cámara (cifrados). Solo desde la interfaz: el "
-                   "asistente usa «pedir_clave».",
-                   {Parametro{"usuario", "Usuario", "texto", {}, true},
-                    Parametro{"clave", "Clave", "clave", {}, true}},
+                   QCoreApplication::translate("dispositivos", "Cargar usuario y clave"),
+                   QCoreApplication::translate("dispositivos", "Guarda el usuario y la clave de la cámara (cifrados). Solo desde la interfaz: el "
+                   "asistente usa «pedir_clave»."),
+                   {Parametro{"usuario", QCoreApplication::translate("dispositivos", "Usuario"), "texto", {}, true},
+                    Parametro{"clave", QCoreApplication::translate("dispositivos", "Clave"), "clave", {}, true}},
                    true,
                    {},
                    [red](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                       if (!red) return listo({{"error", "el escáner no está disponible"}});
+                       if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                        const QString err = red->guardarCredenciales(ipDe(e), a.value("usuario").toString(),
                                                                     a.value("clave").toString());
                        listo(err.isEmpty()
                                  ? QVariantMap{{"texto",
-                                                "Guardada (cifrada). Ahora «Ficha» o «Funciones ONVIF»."}}
+                                                QCoreApplication::translate("dispositivos", "Guardada (cifrada). Ahora «Ficha» o «Funciones ONVIF».")}}
                                  : QVariantMap{{"error", err}});
                    }});
         d.registrar("camara_red",
                     Accion{"ficha",
-                           "Ficha y plan",
-                           "ONVIF completo (equipo, perfiles, PTZ, imagen) + análisis del stream con "
-                           "GStreamer + cómo conectarla.",
+                           QCoreApplication::translate("dispositivos", "Ficha y plan"),
+                           QCoreApplication::translate("dispositivos", "ONVIF completo (equipo, perfiles, PTZ, imagen) + análisis del stream con "
+                           "GStreamer + cómo conectarla."),
                            {},
                            false,
                            {},
                            [red](const QVariantMap& e, const QVariantMap&, Listo listo) {
-                               if (!red) return listo({{"error", "el escáner no está disponible"}});
+                               if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                                red->ficha(ipDe(e).toStdString(), [listo](json f) {
                                    if (f.contains("error") && !f.value("onvif", false) && !f.contains("plan"))
                                        return listo({{"error", QString::fromStdString(
                                                                    f.value("error", std::string()))},
                                                      {"datos", aV(f)}});
-                                   listo({{"texto", "Ficha lista"}, {"datos", aV(f)}});
+                                   listo({{"texto", QCoreApplication::translate("dispositivos", "Ficha lista")}, {"datos", aV(f)}});
                                });
                            }});
         d.registrar("camara_red", Accion{"funciones_onvif",
-                                         "Funciones ONVIF",
-                                         "Todo lo que la cámara dice que puede, por protocolo: ejes PTZ y "
+                                         QCoreApplication::translate("dispositivos", "Funciones ONVIF"),
+                                         QCoreApplication::translate("dispositivos", "Todo lo que la cámara dice que puede, por protocolo: ejes PTZ y "
                                          "cómo se mueven (continuo, absoluto, relativo), "
                                          "límites, foco, home, presets, comandos auxiliares, imagen; y su "
-                                         "posición actual. Con las respuestas crudas.",
+                                         "posición actual. Con las respuestas crudas."),
                                          {},
                                          false,
                                          {},
                                          [red, yo](const QVariantMap& e, const QVariantMap&, Listo listo) {
                                              if (!red)
-                                                 return listo({{"error", "el escáner no está disponible"}});
+                                                 return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                                              QString u, c;
                                              red->clave(ipDe(e).toStdString(), u, c);
                                              auto* cli = new ClienteOnvif(ipDe(e), u, c, yo);
                                              cli->funciones([cli, listo](QVariantMap r) {
                                                  cli->deleteLater();
                                                  if (r.contains("error")) return listo(r);
-                                                 listo({{"texto", "Funciones mapeadas"}, {"datos", r}});
+                                                 listo({{"texto", QCoreApplication::translate("dispositivos", "Funciones mapeadas")}, {"datos", r}});
                                              });
                                          }});
         d.registrar(
             "camara_red",
             Accion{"onvif",
-                   "Llamar una operación ONVIF",
-                   "Para explorar: manda `cuerpo` (el XML del Body, p. ej. "
+                   QCoreApplication::translate("dispositivos", "Llamar una operación ONVIF"),
+                   QCoreApplication::translate("dispositivos", "Para explorar: manda `cuerpo` (el XML del Body, p. ej. "
                    "<tptz:GetStatus><tptz:ProfileToken>{perfil}</tptz:ProfileToken></tptz:GetStatus>) "
                    "al `servicio`, con la clave guardada. {perfil}, {config_ptz} y {fuente} se reemplazan "
-                   "por los de la cámara. Devuelve la respuesta aplanada.",
+                   "por los de la cámara. Devuelve la respuesta aplanada."),
                    {Parametro{"servicio",
-                              "Servicio",
+                              QCoreApplication::translate("dispositivos", "Servicio"),
                               "opcion",
                               {"ptz", "media", "imaging", "device"},
                               true,
                               {},
                               "ptz"},
-                    Parametro{"cuerpo", "Cuerpo (XML del Body)", "texto", {}, true}},
+                    Parametro{"cuerpo", QCoreApplication::translate("dispositivos", "Cuerpo (XML del Body)"), "texto", {}, true}},
                    true,
                    {},
                    [red, yo](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                       if (!red) return listo({{"error", "el escáner no está disponible"}});
+                       if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                        QString u, c;
                        red->clave(ipDe(e).toStdString(), u, c);
                        auto* cli = new ClienteOnvif(ipDe(e), u, c, yo);
@@ -528,25 +541,26 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                                if (r.contains("error")) return listo(r);
                                listo({{"texto", r.value("ok").toBool()
                                                     ? "OK"
-                                                    : "La cámara contestó: " + r.value("falla").toString()},
+                                                    : QCoreApplication::translate("dispositivos", "La cámara contestó: %1")
+                                                          .arg(r.value("falla").toString())},
                                       {"datos", r}});
                            });
                    }});
         d.registrar(
             "camara_red",
             Accion{"http",
-                   "Pedido HTTP a la cámara",
-                   "Para la API propia de la marca (Axis VAPIX: /axis-cgi/com/ptz.cgi?query=limits; "
+                   QCoreApplication::translate("dispositivos", "Pedido HTTP a la cámara"),
+                   QCoreApplication::translate("dispositivos", "Para la API propia de la marca (Axis VAPIX: /axis-cgi/com/ptz.cgi?query=limits; "
                    "Hikvision ISAPI: "
                    "/ISAPI/PTZCtrl/channels/1/status…), con el usuario y la clave guardados (Basic o "
-                   "Digest). Devuelve el texto.",
-                   {Parametro{"ruta", "Ruta", "texto", {}, true, "/axis-cgi/com/ptz.cgi?query=position"},
-                    Parametro{"metodo", "Método", "opcion", {"GET", "POST", "PUT"}, false, {}, "GET"},
-                    Parametro{"cuerpo", "Cuerpo (POST/PUT)"}},
+                   "Digest). Devuelve el texto."),
+                   {Parametro{"ruta", QCoreApplication::translate("dispositivos", "Ruta"), "texto", {}, true, "/axis-cgi/com/ptz.cgi?query=position"},
+                    Parametro{"metodo", QCoreApplication::translate("dispositivos", "Método"), "opcion", {"GET", "POST", "PUT"}, false, {}, "GET"},
+                    Parametro{"cuerpo", QCoreApplication::translate("dispositivos", "Cuerpo (POST/PUT)")}},
                    true,
                    {},
                    [red, yo](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                       if (!red) return listo({{"error", "el escáner no está disponible"}});
+                       if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                        QString u, c;
                        red->clave(ipDe(e).toStdString(), u, c);
                        auto* nam = new QNetworkAccessManager(yo);
@@ -576,41 +590,41 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
                    }});
         d.registrar("camara_red",
                     Accion{"agregar",
-                           "Agregar como entrada",
-                           "La conecta al estudio sincronizada (colchón, reloj), normalizada si hace falta y "
-                           "con su PTZ ONVIF si tiene.",
+                           QCoreApplication::translate("dispositivos", "Agregar como entrada"),
+                           QCoreApplication::translate("dispositivos", "La conecta al estudio sincronizada (colchón, reloj), normalizada si hace falta y "
+                           "con su PTZ ONVIF si tiene."),
                            {Parametro{"escena",
-                                      "Escena",
+                                      QCoreApplication::translate("dispositivos", "Escena"),
                                       "texto",
                                       {},
                                       true,
-                                      "dónde ponerla (no la que está al aire sin querer)"},
-                            Parametro{"nombre", "Nombre"}},
+                                      QCoreApplication::translate("dispositivos", "dónde ponerla (no la que está al aire sin querer)")},
+                            Parametro{"nombre", QCoreApplication::translate("dispositivos", "Nombre")}},
                            true,
                            {},
                            [red](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                               if (!red) return listo({{"error", "el escáner no está disponible"}});
+                               if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                                json h;
                                json op{{"escena", a.value("escena").toString().toStdString()}};
                                if (!a.value("nombre").toString().isEmpty())
                                    op["nombre"] = a.value("nombre").toString().toStdString();
                                const std::string err = red->agregar(ipDe(e).toStdString(), op, &h);
-                               listo(err.empty() ? QVariantMap{{"texto", "Agregada"}, {"datos", aV(h)}}
+                               listo(err.empty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Agregada")}, {"datos", aV(h)}}
                                                  : QVariantMap{{"error", QString::fromStdString(err)}});
                            }});
         d.registrar(
             "camara_red",
             Accion{
                 "activar_ptz",
-                "Activar su PTZ real",
-                "Con la clave guardada: la consulta por ONVIF y configura el motor de la entrada que ya la "
-                "muestra.",
+                QCoreApplication::translate("dispositivos", "Activar su PTZ real"),
+                QCoreApplication::translate("dispositivos", "Con la clave guardada: la consulta por ONVIF y configura el motor de la entrada que ya la "
+                "muestra."),
                 {Parametro{
-                    "entrada", "Entrada", "texto", {}, false, "vacío: la que ya toma video de esta cámara"}},
+                    "entrada", QCoreApplication::translate("dispositivos", "Entrada"), "texto", {}, false, QCoreApplication::translate("dispositivos", "vacío: la que ya toma video de esta cámara")}},
                 true,
                 [red](const QVariantMap& e) { return red && !red->entradasDe(ipDe(e)).isEmpty(); },
                 [red](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                    if (!red) return listo({{"error", "el escáner no está disponible"}});
+                    if (!red) return listo({{"error", QCoreApplication::translate("dispositivos", "el escáner no está disponible")}});
                     QString entrada = a.value("entrada").toString();
                     if (entrada.isEmpty()) {
                         const QVariantList ya = red->entradasDe(ipDe(e));
@@ -628,51 +642,52 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
     if (entradas) {
         d.registrar("camara_local",
                     Accion{"agregar",
-                           "Agregar como entrada de video",
-                           "La suma al estudio como entrada (sincronizada y normalizada), con el nombre que le "
-                           "pusiste y su formato preferido si lo configuraste.",
-                           {Parametro{"escena", "Escena", "texto", {}, true}, Parametro{"nombre", "Nombre"}},
+                           QCoreApplication::translate("dispositivos", "Agregar como entrada de video"),
+                           QCoreApplication::translate("dispositivos", "La suma al estudio como entrada (sincronizada y normalizada), con el nombre que le "
+                           "pusiste y su formato preferido si lo configuraste."),
+                           {Parametro{"escena", QCoreApplication::translate("dispositivos", "Escena"), "texto", {}, true}, Parametro{"nombre", QCoreApplication::translate("dispositivos", "Nombre")}},
                            true,
                            {},
                            [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                               if (!entradas) return listo({{"error", "las entradas no están disponibles"}});
+                               if (!entradas) return listo({{"error", QCoreApplication::translate("dispositivos", "las entradas no están disponibles")}});
                                const QString nombre = a.value("nombre").toString().isEmpty()
                                                           ? e.value("nombre").toString()
                                                           : a.value("nombre").toString();
                                const QString err = entradas->addHardware(e.value("valor").toString(), nombre,
                                                                          a.value("escena").toString(), {});
-                               listo(err.isEmpty() ? QVariantMap{{"texto", "Entrada «" + nombre + "» agregada"}}
+                               listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada «%1» agregada")
+                                                                               .arg(nombre)}}
                                                    : QVariantMap{{"error", err}});
                            }});
         d.registrar("microfono",
                     Accion{"agregar",
-                           "Agregar como entrada de audio",
-                           "Lo suma como entrada de audio (suena en todas las escenas; su procesamiento, en Audio).",
-                           {Parametro{"nombre", "Nombre"}},
+                           QCoreApplication::translate("dispositivos", "Agregar como entrada de audio"),
+                           QCoreApplication::translate("dispositivos", "Lo suma como entrada de audio (suena en todas las escenas; su procesamiento, en Audio)."),
+                           {Parametro{"nombre", QCoreApplication::translate("dispositivos", "Nombre")}},
                            true,
                            {},
                            [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
-                               if (!entradas) return listo({{"error", "las entradas no están disponibles"}});
+                               if (!entradas) return listo({{"error", QCoreApplication::translate("dispositivos", "las entradas no están disponibles")}});
                                const QString err =
                                    entradas->addAudioInput(e.value("valor").toString(), a.value("nombre").toString());
-                               listo(err.isEmpty() ? QVariantMap{{"texto", "Entrada de audio agregada"}}
+                               listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada de audio agregada")}}
                                                    : QVariantMap{{"error", err}});
                            }});
         d.registrar("ndi", Accion{"agregar",
-                                  "Agregar como entrada de video",
-                                  "Recibe este emisor NDI como entrada.",
-                                  {Parametro{"escena", "Escena", "texto", {}, true}, Parametro{"nombre", "Nombre"}},
+                                  QCoreApplication::translate("dispositivos", "Agregar como entrada de video"),
+                                  QCoreApplication::translate("dispositivos", "Recibe este emisor NDI como entrada."),
+                                  {Parametro{"escena", QCoreApplication::translate("dispositivos", "Escena"), "texto", {}, true}, Parametro{"nombre", QCoreApplication::translate("dispositivos", "Nombre")}},
                                   true,
                                   {},
                                   [entradas](const QVariantMap& e, const QVariantMap& a, Listo listo) {
                                       if (!entradas)
-                                          return listo({{"error", "las entradas no están disponibles"}});
+                                          return listo({{"error", QCoreApplication::translate("dispositivos", "las entradas no están disponibles")}});
                                       const QString nombre = a.value("nombre").toString().isEmpty()
                                                                  ? e.value("nombre").toString()
                                                                  : a.value("nombre").toString();
                                       const QString err = entradas->addNdi(e.value("valor").toString(), nombre,
                                                                            a.value("escena").toString());
-                                      listo(err.isEmpty() ? QVariantMap{{"texto", "Entrada NDI agregada"}}
+                                      listo(err.isEmpty() ? QVariantMap{{"texto", QCoreApplication::translate("dispositivos", "Entrada NDI agregada")}}
                                                           : QVariantMap{{"error", err}});
                                   }});
     }
@@ -683,15 +698,15 @@ void registrarTodo(Dispositivos& d, const Dependencias& dep) {
         d.registrar(
             "usb",
             Accion{"explorar_uvc",
-                   "Explorar sus controles UVC",
-                   "Si es una cámara UVC: su terminal de cámara (PTZ estándar y rangos) y sus unidades de "
+                   QCoreApplication::translate("dispositivos", "Explorar sus controles UVC"),
+                   QCoreApplication::translate("dispositivos", "Si es una cámara UVC: su terminal de cámara (PTZ estándar y rangos) y sus unidades de "
                    "extensión con los selectores que "
-                   "contestan (lo propio de la marca). Es el primer paso para un plugin de PTZ.",
+                   "contestan (lo propio de la marca). Es el primer paso para un plugin de PTZ."),
                    {},
                    false,
                    [](const QVariantMap& e) { return e.value("datos").toMap().value("uvc").toBool(); },
                    [pl](const QVariantMap& e, const QVariantMap&, Listo listo) {
-                       if (!pl) return listo({{"error", "los plugins no están disponibles"}});
+                       if (!pl) return listo({{"error", QCoreApplication::translate("dispositivos", "los plugins no están disponibles")}});
                        const QVariantMap u = e.value("datos").toMap();
                        const QString codigo = R"PY(
 import json
@@ -709,7 +724,7 @@ except Exception as e:
                                if (r.contains("error"))
                                    return listo(
                                        {{"error", QString::fromStdString(r.value("error", std::string()))}});
-                               listo({{"texto", "Controles UVC"}, {"datos", aV(r)}});
+                               listo({{"texto", QCoreApplication::translate("dispositivos", "Controles UVC")}, {"datos", aV(r)}});
                            });
                    }});
     }

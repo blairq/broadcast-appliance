@@ -3,6 +3,8 @@
 
 #include "dispositivos/SondaReal.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "platform/GstEntorno.hpp"
 
 #include <QByteArray>
@@ -82,7 +84,7 @@ json probarProveedor(const std::string& nombre) {
     if (f == nullptr) return {{"ausente", true}};
     GstDeviceProvider* p = gst_device_provider_factory_get(f);
     gst_object_unref(f);
-    if (p == nullptr) return {{"ok", false}, {"motivo", "no se pudo cargar su plugin"}};
+    if (p == nullptr) return {{"ok", false}, {"motivo", ba::i18n::traducir("dispositivos", "no se pudo cargar su plugin")}};
     GstDeviceProviderClass* k = GST_DEVICE_PROVIDER_GET_CLASS(p);
     GList* devs = nullptr;
     bool arrancado = false;
@@ -92,7 +94,7 @@ json probarProveedor(const std::string& nombre) {
         // Los que solo vigilan (no tienen probe): arrancar, pedir la lista y parar.
         if (!gst_device_provider_start(p)) {
             gst_object_unref(p);
-            return {{"ok", false}, {"motivo", "no arrancó"}};
+            return {{"ok", false}, {"motivo", ba::i18n::traducir("dispositivos", "no arrancó")}};
         }
         arrancado = true;
         devs = gst_device_provider_get_devices(p);
@@ -115,8 +117,10 @@ json probarProveedor(const std::string& nombre) {
     g_list_free_full(devs, gst_object_unref);
     if (arrancado) gst_device_provider_stop(p);
     gst_object_unref(p);
-    std::string detalle = std::to_string(n) + (n == 1 ? " dispositivo" : " dispositivos");
-    if (audio > 0 && video > 0) detalle += " (" + std::to_string(audio) + " de audio, " + std::to_string(video) + " de video)";
+    std::string detalle = ba::i18n::traducir("dispositivos", "%n dispositivo", nullptr, n);
+    if (audio > 0 && video > 0)
+        detalle += " " + ba::i18n::llenar(ba::i18n::traducir("dispositivos", "(%1 de audio, %2 de video)"),
+                                          {std::to_string(audio), std::to_string(video)});
     return {{"ok", true}, {"detalle", detalle}, {"dispositivos", lista}};
 }
 
@@ -149,7 +153,7 @@ Fuente fuenteGStreamer() {
     };
     f.esMia = [](const std::string& id) { return id.rfind("gst:", 0) == 0; };
     f.probar = [](const std::string& id) -> json {
-        if (!g_gst) return {{"ok", false}, {"motivo", "GStreamer no arrancó en la sonda"}};
+        if (!g_gst) return {{"ok", false}, {"motivo", ba::i18n::traducir("dispositivos", "GStreamer no arrancó en la sonda")}};
         return probarProveedor(id.substr(4));
     };
 #endif
