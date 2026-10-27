@@ -254,8 +254,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     rt_.engine().alFallarMotor([vm = QPointer<StudioViewModel>(this)](const std::string& texto) {
         QMetaObject::invokeMethod(
             qApp,
-            [vm, t = QString::fromStdString(texto)]() {
-                if (vm) emit vm->notify(t, t.startsWith("El disco anda bien") ? "ok" : "error");
+            [vm, t = QString::fromStdString(texto), ok = BroadcastEngine::esAvisoDeDiscoBien(texto)]() {
+                if (vm) emit vm->notify(t, ok ? "ok" : "error");
             },
             Qt::QueuedConnection);
     });
@@ -2419,7 +2419,8 @@ void StudioViewModel::armarBitacora() {
         if (r.nivel < ba::diag::Nivel::Info) return;
         // Qt avisa que se perdió un refresco cada vez que la pantalla se
         // bloquea o se duerme: no es un hecho del evento.
-        if (r.componente == "qt" && r.texto.find("display link") != std::string::npos) return;
+        // El aviso agrupado de refrescos perdidos (arranque/Registrar.cpp, código 1 de «qt»).
+        if (r.componente == "qt" && r.codigo == 1) return;
         {
             std::lock_guard<std::mutex> g(rep->mu);
             const std::string clave = r.componente + "|" + r.texto;

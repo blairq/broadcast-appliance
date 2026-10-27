@@ -90,7 +90,7 @@ Rectangle {
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Actualizar ahora?"),
-            text: page.onAirWarning(qsTr("actualizar")),
+            text: page.onAirWarning("actualizar"),
             accept: qsTr("Actualizar igual"),
             reject: qsTr("Cancelar"),
             action: function() { page.updateError = sys.startUpdate(folder) }
@@ -101,7 +101,7 @@ Rectangle {
         ApplicationWindow.window.confirm({
             title: qsTr("¿Volver a la versión anterior?"),
             text: page.onAir ? qsTr("%1 Después se restaura el programa anterior y la aplicación vuelve a abrir sola. %2")
-                                   .arg(page.onAirWarning(qsTr("volver a la versión anterior"))).arg(data)
+                                   .arg(page.onAirWarning("volver")).arg(data)
                              : qsTr("La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola. %1").arg(data),
             accept: qsTr("Volver a la anterior"),
             reject: qsTr("Cancelar"),
@@ -1970,7 +1970,7 @@ Rectangle {
                 visible: page.onAir
                 color: Theme.live
                 font { pixelSize: 15; weight: Font.DemiBold }
-                text: page.onAirWarning(qsTr("actualizar"))
+                text: page.onAirWarning("actualizar")
             }
             Label {
                 width: parent.width
