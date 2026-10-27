@@ -563,7 +563,7 @@ Rectangle {
                         text: qsTr("Acta del evento")
                         icon: "❑"
                         onClicked: page.pedirAsistente(
-                            "Armá el acta de este evento con `evento_acta` y contame qué quedó.")
+                            qsTr("Armá el acta de este evento con `evento_acta` y contame qué quedó."))
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
                         ToolTip.text: qsTr("Quiénes asistieron, el quórum y qué se votó")
@@ -572,8 +572,8 @@ Rectangle {
                         text: qsTr("Capítulos")
                         icon: "▤"
                         onClicked: page.pedirAsistente(
-                            "Dame los capítulos de la grabación con `evento_capitulos`, listos para " +
-                            "pegar en la descripción del video.")
+                            qsTr("Dame los capítulos de la grabación con `evento_capitulos`, listos para " +
+                            "pegar en la descripción del video."))
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
                         ToolTip.text: qsTr("Las marcas de tiempo de cada bloque, para la descripción del video")
@@ -583,8 +583,8 @@ Rectangle {
                         icon: "✉"
                         enabled: page.ev.resumenPadron.total > 0
                         onClicked: page.pedirAsistente(
-                            "Armame las invitaciones de los del padrón con `invitacion`, una por " +
-                            "persona, con su enlace y su código.")
+                            qsTr("Armame las invitaciones de los del padrón con `invitacion`, una por " +
+                            "persona, con su enlace y su código."))
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
                         ToolTip.text: qsTr("El enlace personal de cada uno: lo acredita al llegar y le deja el código")

@@ -165,12 +165,11 @@ Item {
                     visible: !raiz.enVentana && raiz.cc.sinAnalizar > 0
                     text: qsTr("Etiquetar con IA (%1)").arg(raiz.cc.sinAnalizar)
                     onClicked: ApplicationWindow.window.pedirAlAsistente(
-                        "Mirá una por una las láminas del carrusel «" + raiz.cc.actual +
-                        "» que todavía no tengan etiquetas y guardá lo que ves. " +
+                        qsTr("Mirá una por una las láminas del carrusel «%1» que todavía no tengan etiquetas y guardá lo que ves. " +
                         "Usá laminas_sin_analizar para saber cuál sigue, imagen_preguntar para mirarla " +
                         "y laminas_etiquetar para guardar. Poné las palabras con las que alguien " +
                         "apurado la buscaría: qué se ve, qué dice, de qué trata. " +
-                        "Seguí hasta que no quede ninguna.")
+                        "Seguí hasta que no quede ninguna.").arg(raiz.cc.actual))
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
                     ToolTip.text: qsTr("Para poder buscarlas escribiendo. Tarda: mira una por una.")

@@ -153,7 +153,7 @@ Rectangle {
                 visible: page.m.cuantosElegidos === 1
                 text: qsTr("Usar en una escena")
                 onClicked: ApplicationWindow.window.pedirAlAsistente(
-                    "Poné este archivo en la escena que corresponda: " + page.m.seleccion[0])
+                    qsTr("Poné este archivo en la escena que corresponda: %1").arg(page.m.seleccion[0]))
             }
             GlassButton {
                 visible: page.primerDocumento() !== ""

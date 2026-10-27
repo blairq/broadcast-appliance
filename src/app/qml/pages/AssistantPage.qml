@@ -550,12 +550,12 @@ Rectangle {
                         spacing: 6
                         Repeater {
                             model: [
-                                { t: qsTr("¿Cómo está todo?"), p: "Mirá el estado general, el programa y la conferencia y contame en pocas líneas cómo está todo." },
-                                { t: qsTr("Cuidá el audio"), p: "Vigilá que ningún canal de audio sature (más de -1 dBFS) y que no haya silencio al aire; si satura, bajá 3 dB ese canal y avisame." },
-                                { t: qsTr("Revisá cómo se ve"), p: "Capturá el programa y todas las escenas y decime si ves algo mal (encuadres, textos, fuentes fuera de lugar)." },
-                                { t: qsTr("Oradores"), p: "Vigilá el tiempo de los oradores: avisame a los 30 segundos y cuando se cumple, y mandales un aviso por chat." },
-                                { t: qsTr("Lobby y manos"), p: "Avisame cuando alguien entre al lobby o levante la mano." },
-                                { t: qsTr("Ordená las ventanas"), p: "Mirá los monitores disponibles y armá ventanas de salida para aprovecharlos (programa en el principal, multiview en otro)." }
+                                { t: qsTr("¿Cómo está todo?"), p: qsTr("Mirá el estado general, el programa y la conferencia y contame en pocas líneas cómo está todo.") },
+                                { t: qsTr("Cuidá el audio"), p: qsTr("Vigilá que ningún canal de audio sature (más de -1 dBFS) y que no haya silencio al aire; si satura, bajá 3 dB ese canal y avisame.") },
+                                { t: qsTr("Revisá cómo se ve"), p: qsTr("Capturá el programa y todas las escenas y decime si ves algo mal (encuadres, textos, fuentes fuera de lugar).") },
+                                { t: qsTr("Oradores"), p: qsTr("Vigilá el tiempo de los oradores: avisame a los 30 segundos y cuando se cumple, y mandales un aviso por chat.") },
+                                { t: qsTr("Lobby y manos"), p: qsTr("Avisame cuando alguien entre al lobby o levante la mano.") },
+                                { t: qsTr("Ordená las ventanas"), p: qsTr("Mirá los monitores disponibles y armá ventanas de salida para aprovecharlos (programa en el principal, multiview en otro).") }
                             ]
                             delegate: GlassButton {
                                 required property var modelData

@@ -265,7 +265,7 @@ Popup {
                 text: qsTr("Usar en una escena")
                 onClicked: {
                     ApplicationWindow.window.pedirAlAsistente(
-                        "Poné este archivo en la escena que corresponda: " + visor.actual.relativa)
+                        qsTr("Poné este archivo en la escena que corresponda: %1").arg(visor.actual.relativa))
                     visor.close()
                 }
             }
