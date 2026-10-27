@@ -9,6 +9,10 @@
 #include <fstream>
 #include <set>
 
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(contexto, texto) texto
+#endif
+
 namespace fs = std::filesystem;
 
 namespace ba::registro {
@@ -30,22 +34,31 @@ bool boolDe(const json& j, const char* clave, bool siNo) {
 
 struct Tipo {
     TipoCampo tipo;
-    const char* nombre;
-    const char* etiqueta;
-    const char* pregunta;
+    const char* nombre;   ///< la clave (registro.json): no se traduce
+    const char* etiqueta; ///< se traduce al mostrarla (contexto «totem»)
+    const char* pregunta; ///< se traduce al decirla, en el idioma del evento
 };
 const Tipo kTipos[] = {
-    {TipoCampo::Nombre, "nombre", "Nombre y apellido", "¿Cómo te llamás? Decime tu nombre y apellido."},
-    {TipoCampo::Correo, "correo", "Correo electrónico", "¿Me decís tu correo electrónico?"},
-    {TipoCampo::Telefono, "telefono", "Teléfono", "¿Me pasás tu número de teléfono?"},
-    {TipoCampo::Numero, "numero", "Número", "¿Cuántos?"},
-    {TipoCampo::SiNo, "sino", "Sí o no", "¿Sí o no?"},
-    {TipoCampo::Opcion, "opcion", "Una de varias opciones", "¿Cuál elegís?"},
-    {TipoCampo::Texto, "texto", "Texto libre", "Contame."},
+    {TipoCampo::Nombre, "nombre", QT_TRANSLATE_NOOP("totem", "Nombre y apellido"),
+     QT_TRANSLATE_NOOP("totem", "¿Cómo te llamás? Decime tu nombre y apellido.")},
+    {TipoCampo::Correo, "correo", QT_TRANSLATE_NOOP("totem", "Correo electrónico"),
+     QT_TRANSLATE_NOOP("totem", "¿Me decís tu correo electrónico?")},
+    {TipoCampo::Telefono, "telefono", QT_TRANSLATE_NOOP("totem", "Teléfono"),
+     QT_TRANSLATE_NOOP("totem", "¿Me pasás tu número de teléfono?")},
+    {TipoCampo::Numero, "numero", QT_TRANSLATE_NOOP("totem", "Número"), QT_TRANSLATE_NOOP("totem", "¿Cuántos?")},
+    {TipoCampo::SiNo, "sino", QT_TRANSLATE_NOOP("totem", "Sí o no"), QT_TRANSLATE_NOOP("totem", "¿Sí o no?")},
+    {TipoCampo::Opcion, "opcion", QT_TRANSLATE_NOOP("totem", "Una de varias opciones"),
+     QT_TRANSLATE_NOOP("totem", "¿Cuál elegís?")},
+    {TipoCampo::Texto, "texto", QT_TRANSLATE_NOOP("totem", "Texto libre"), QT_TRANSLATE_NOOP("totem", "Contame.")},
     // Al final: `tipo()` cae en el de índice 6 (texto) con uno que no conoce.
-    {TipoCampo::Documento, "documento", "Documento (DNI por su código)",
-     "Mostrame tu DNI a la cámara, del lado del código de barras."},
+    {TipoCampo::Documento, "documento", QT_TRANSLATE_NOOP("totem", "Documento (DNI por su código)"),
+     QT_TRANSLATE_NOOP("totem", "Mostrame tu DNI a la cámara, del lado del código de barras.")},
 };
+
+/// "" = el idioma del operador.
+ba::i18n::En enIdioma(const std::string& idioma) {
+    return ba::i18n::En(idioma.empty() ? ba::i18n::actual().codigo : idioma);
+}
 
 const Tipo& tipo(TipoCampo t) {
     for (const Tipo& x : kTipos)
@@ -86,8 +99,10 @@ void reemplazar(std::string& s, const std::string& de, const std::string& a) {
 // --- Tipos -------------------------------------------------------------------
 
 const char* nombreDeTipo(TipoCampo t) { return tipo(t).nombre; }
-const char* etiquetaDeTipo(TipoCampo t) { return tipo(t).etiqueta; }
-std::string preguntaDeFabrica(TipoCampo t) { return tipo(t).pregunta; }
+std::string etiquetaDeTipo(TipoCampo t, const std::string& idioma) { return enIdioma(idioma).traducir("totem", tipo(t).etiqueta); }
+std::string preguntaDeFabrica(TipoCampo t, const std::string& idioma) {
+    return enIdioma(idioma).traducir("totem", tipo(t).pregunta);
+}
 
 bool tipoDeNombre(const std::string& s, TipoCampo& out) {
     for (const Tipo& x : kTipos)
@@ -211,27 +226,32 @@ std::string idDesdeNombre(const std::string& nombre, const std::vector<std::stri
         if (const std::string s = base + "-" + std::to_string(n); libre(s)) return s;
 }
 
-Totem totemNuevo(const std::string& id, const std::string& nombre) {
+Totem totemNuevo(const std::string& id, const std::string& nombre, const std::string& idioma) {
+    const ba::i18n::En e = enIdioma(idioma);
     Totem t;
     t.id = id;
-    t.nombre = nombre.empty() ? std::string("Registro") : nombre;
-    // Frases cortas y neutras: se dicen en voz alta, a gente que no se sabe
-    // si es él o ella, y el evento cambia de nombre sin tocar esto ({evento}).
+    // Para el operador: en su idioma.
+    t.nombre = nombre.empty() ? ba::i18n::traducir("registro", "Registro") : nombre;
+    // Lo demás lo ve y lo oye el público: en el idioma del evento. Frases cortas y neutras: se
+    // dicen en voz alta, a gente que no se sabe si es él o ella, y el evento cambia de nombre
+    // sin tocar esto ({evento}). {hola}, {nombre} y {evento} no se traducen.
     t.titulo = "{evento}";
-    t.subtitulo = "Registrate hablando: mirá a la cámara y contestá en voz alta.";
-    t.saludo = "{hola}. Te damos la bienvenida a {evento}. Te voy a pedir unos datos para registrarte.";
-    t.despedida = "Listo, ya quedó tu registro. ¡Que disfrutes {evento}!";
-    t.yaRegistrado = "{hola}. Ya tenés tu registro en {evento}, no hace falta hacerlo de nuevo. ¡Que lo disfrutes!";
+    t.subtitulo = e.traducir("totem", "Registrate hablando: mirá a la cámara y contestá en voz alta.");
+    t.saludo = e.traducir("totem", "{hola}. Te damos la bienvenida a {evento}. Te voy a pedir unos datos para registrarte.");
+    t.despedida = e.traducir("totem", "Listo, ya quedó tu registro. ¡Que disfrutes {evento}!");
+    t.yaRegistrado =
+        e.traducir("totem", "{hola}. Ya tenés tu registro en {evento}, no hace falta hacerlo de nuevo. ¡Que lo disfrutes!");
     Campo n;
     n.clave = "nombre";
-    n.etiqueta = "Nombre";
+    n.etiqueta = e.traducir("totem", "Nombre");
     n.tipo = TipoCampo::Nombre;
     n.obligatorio = true;
     Campo c;
     c.clave = "correo";
-    c.etiqueta = "Correo";
+    c.etiqueta = e.traducir("totem", "Correo");
     c.tipo = TipoCampo::Correo;
-    c.ejemplo = "juan punto perez arroba gmail punto com";
+    //: un correo dictado como se lo dice en el idioma («at», «dot»): lo tiene que entender totem.json
+    c.ejemplo = e.traducir("totem", "juan punto perez arroba gmail punto com");
     t.campos = {n, c};
     return t;
 }
@@ -261,14 +281,16 @@ std::string validar(const Totem& t) {
     return {};
 }
 
-std::string conDatos(const std::string& texto, const std::string& evento, const std::string& nombre) {
+std::string conDatos(const std::string& texto, const std::string& evento, const std::string& nombre,
+                     const std::string& idioma) {
+    const ba::i18n::En e = enIdioma(idioma);
     std::string s = texto;
     // {hola} con el nombre de pila: «Hola Ana» suena a persona; «Hola Ana María
     // Pérez Gutiérrez», a sistema.
     const std::string pila = nombre.substr(0, nombre.find(' '));
-    reemplazar(s, "{hola}", pila.empty() ? std::string("Hola") : "Hola " + pila);
+    reemplazar(s, "{hola}", pila.empty() ? e.traducir("totem", "Hola") : ba::i18n::llenar(e.traducir("totem", "Hola %1"), {pila}));
     reemplazar(s, "{nombre}", nombre);
-    reemplazar(s, "{evento}", evento.empty() ? std::string("el evento") : evento);
+    reemplazar(s, "{evento}", evento.empty() ? e.traducir("totem", "el evento") : evento);
     // Un {nombre} vacío deja espacios y comas sueltas: se emprolija.
     std::string out;
     for (char c : s) {

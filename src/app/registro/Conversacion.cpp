@@ -1,18 +1,248 @@
 // ============================================================================
 // src/app/registro/Conversacion.cpp — ver Conversacion.hpp
+//
+// Lo propio de cada idioma está en DATOS: cómo se entiende lo dicho (los números en
+// palabras, el sí y el no, el correo dictado, los nombres…) en
+// `assets/idiomas/<código>/totem.json` (ver `Lengua` abajo y docs/desarrollo/I18N.md,
+// «Tótem: datos del idioma»), y lo que dice el tótem en el catálogo, contexto «totem», en
+// el idioma del evento. Acá no hay ninguna palabra de ningún idioma.
 // ============================================================================
 #include "registro/Conversacion.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <memory>
+#include <mutex>
 
+#include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::registro {
 namespace {
 
 using nlohmann::json;
+
+// --- El idioma: lo que se entiende (totem.json) ------------------------------------
+
+/// Una lista de frases: lo dicho entero es una de `exactas`, o aparece una de `contiene`.
+struct Frases {
+    std::vector<std::string> exactas, contiene;
+};
+
+/// Los datos del idioma para entender lo que se dice (assets/idiomas/<código>/totem.json).
+/// Las palabras ya aplanadas (como llega lo dicho); lo que se DICE (digitos, correoDecir,
+/// decirMas), tal cual.
+struct Lengua {
+    std::string codigo;
+    std::map<std::string, std::string> aplanar; ///< letra en UTF-8 -> cómo queda
+    // Números.
+    std::string reglaNumeros = "es";
+    std::map<std::string, int> unidades, decenas, centenas;
+    std::vector<std::string> centenasSolas, conectores, conectoresCentena, mil, millon, ninguno;
+    std::vector<std::string> digitos; ///< del 0 al 9, para decir
+    // Sí, no y lo demás.
+    std::vector<std::string> si, no, noSabe, noFrases;
+    Frases cancelar, repetir, saltear;
+    // El correo.
+    std::vector<std::pair<std::string, std::string>> correoFrases, correoPalabras; ///< dicho -> signo
+    std::vector<std::string> correoNoDigitos, correoAntes, correoDespues, terminaciones;
+    std::map<std::string, std::string> dominios;
+    std::map<char, std::string> correoDecir;
+    // El teléfono.
+    std::vector<std::string> mas;
+    std::string decirMas;
+    std::map<std::string, int> repetidores;
+    std::size_t grupoTelefono = 4;
+    // El nombre.
+    std::vector<std::vector<std::string>> nombreAntes;
+    std::vector<std::string> nombreDespues, nombreNoEmpieza, particulas;
+    // Las opciones.
+    std::vector<std::vector<std::string>> orden;
+    std::vector<std::string> ultima;
+    bool etiquetaEnMinuscula = true;
+};
+
+/// Cuántos bytes ocupa la letra UTF-8 que empieza con `b` (1 si es ASCII o un byte suelto).
+std::size_t largoUtf8(unsigned char b) {
+    if (b >= 0xF0) return 4;
+    if (b >= 0xE0) return 3;
+    if (b >= 0xC0) return 2;
+    return 1;
+}
+
+std::string aplanarCon(const Lengua& L, const std::string& s) {
+    std::string out;
+    bool espacio = false;
+    const auto poner = [&](char c) {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            espacio = !out.empty();
+            return;
+        }
+        if (espacio) out.push_back(' ');
+        espacio = false;
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    };
+    for (std::size_t i = 0; i < s.size();) {
+        const auto b = static_cast<unsigned char>(s[i]);
+        if (b < 0x80) {
+            poner(s[i++]);
+            continue;
+        }
+        const std::size_t n = std::min(largoUtf8(b), s.size() - i);
+        // Una letra que el idioma no aplana (otra escritura, un emoji): no aporta.
+        if (const auto it = L.aplanar.find(s.substr(i, n)); it != L.aplanar.end())
+            for (char c : it->second) poner(c);
+        i += n;
+    }
+    return out;
+}
+
+std::vector<std::string> textosDe(const json& j, const char* clave) {
+    std::vector<std::string> out;
+    if (!j.is_object() || !j.contains(clave) || !j[clave].is_array()) return out;
+    for (const json& x : j[clave])
+        if (x.is_string()) out.push_back(x.get<std::string>());
+    return out;
+}
+
+std::vector<std::string> aplanadas(const Lengua& L, const json& j, const char* clave) {
+    std::vector<std::string> out = textosDe(j, clave);
+    for (std::string& x : out) x = aplanarCon(L, x);
+    return out;
+}
+
+std::map<std::string, int> numerosDe(const Lengua& L, const json& j, const char* clave) {
+    std::map<std::string, int> out;
+    if (!j.is_object() || !j.contains(clave) || !j[clave].is_object()) return out;
+    for (auto it = j[clave].begin(); it != j[clave].end(); ++it)
+        if (it.value().is_number_integer() && it.key().rfind('_', 0) != 0) out[aplanarCon(L, it.key())] = it.value().get<int>();
+    return out;
+}
+
+Frases frasesDe(const Lengua& L, const json& j, const char* clave) {
+    const json x = j.is_object() ? j.value(clave, json::object()) : json::object();
+    return Frases{aplanadas(L, x, "exactas"), aplanadas(L, x, "contiene")};
+}
+
+Lengua cargarLengua(const std::string& codigo) {
+    Lengua L;
+    L.codigo = codigo;
+    const std::string texto = ba::i18n::En(codigo).leer("totem.json");
+    const json j = json::parse(texto, nullptr, false, true);
+    if (!j.is_object()) {
+        // Sin los datos del idioma el tótem no entiende nada (vuelve a preguntar, y se puede
+        // tipear): es un bundle roto, no un idioma sin tótem (ese usa el de su respaldo).
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "el tótem no tiene los datos del idioma "
+                                                                                   "«%1» (totem.json): no va a entender lo "
+                                                                                   "que se le diga"),
+                                                    {codigo}));
+        return L;
+    }
+    // Primero cómo se aplana: con eso se aplanan las listas.
+    if (j.contains("aplanar") && j["aplanar"].is_object())
+        for (auto it = j["aplanar"].begin(); it != j["aplanar"].end(); ++it)
+            if (it.value().is_string() && it.key().rfind('_', 0) != 0) L.aplanar[it.key()] = it.value().get<std::string>();
+
+    const json n = j.value("numeros", json::object());
+    L.reglaNumeros = n.value("regla", std::string("es"));
+    L.unidades = numerosDe(L, n, "unidades");
+    L.decenas = numerosDe(L, n, "decenas");
+    L.centenas = numerosDe(L, n, "centenas");
+    L.centenasSolas = aplanadas(L, n, "centenasSolas");
+    L.conectores = aplanadas(L, n, "conectores");
+    L.conectoresCentena = aplanadas(L, n, "conectoresCentena");
+    L.mil = aplanadas(L, n, "mil");
+    L.millon = aplanadas(L, n, "millon");
+    L.ninguno = aplanadas(L, n, "ninguno");
+    L.digitos = textosDe(n, "digitos");
+    if (L.digitos.size() != 10) L.digitos.clear();
+
+    const json r = j.value("respuestas", json::object());
+    L.si = aplanadas(L, r, "si");
+    L.no = aplanadas(L, r, "no");
+    L.noSabe = aplanadas(L, r, "noSabe");
+    L.noFrases = aplanadas(L, r, "noFrases");
+    L.cancelar = frasesDe(L, j, "cancelar");
+    L.repetir = frasesDe(L, j, "repetir");
+    L.saltear = frasesDe(L, j, "saltear");
+
+    const json c = j.value("correo", json::object());
+    if (c.contains("signos") && c["signos"].is_array())
+        for (const json& p : c["signos"]) {
+            if (!p.is_array() || p.size() != 2 || !p[0].is_string() || !p[1].is_string()) continue;
+            const std::string dicho = aplanarCon(L, p[0].get<std::string>());
+            if (dicho.empty()) continue;
+            (dicho.find(' ') != std::string::npos ? L.correoFrases : L.correoPalabras).emplace_back(dicho, p[1].get<std::string>());
+        }
+    L.correoNoDigitos = aplanadas(L, c, "noSonDigitos");
+    L.correoAntes = aplanadas(L, c, "antes");
+    L.correoDespues = aplanadas(L, c, "despues");
+    L.terminaciones = aplanadas(L, c, "terminaciones");
+    if (c.contains("dominios") && c["dominios"].is_object())
+        for (auto it = c["dominios"].begin(); it != c["dominios"].end(); ++it)
+            if (it.value().is_string()) L.dominios[aplanarCon(L, it.key())] = it.value().get<std::string>();
+    if (c.contains("decir") && c["decir"].is_object())
+        for (auto it = c["decir"].begin(); it != c["decir"].end(); ++it)
+            if (it.key().size() == 1 && it.value().is_string()) L.correoDecir[it.key()[0]] = it.value().get<std::string>();
+
+    const json t = j.value("telefono", json::object());
+    L.mas = aplanadas(L, t, "mas");
+    L.decirMas = t.value("decirMas", std::string());
+    L.repetidores = numerosDe(L, t, "repetir");
+    if (t.contains("grupo") && t["grupo"].is_number_integer() && t["grupo"].get<int>() > 0)
+        L.grupoTelefono = static_cast<std::size_t>(t["grupo"].get<int>());
+
+    const json nm = j.value("nombre", json::object());
+    for (const std::string& f : aplanadas(L, nm, "antes")) {
+        std::vector<std::string> w;
+        std::string x;
+        for (char ch : f + " ") {
+            if (ch != ' ') {
+                x.push_back(ch);
+            } else if (!x.empty()) {
+                w.push_back(x);
+                x.clear();
+            }
+        }
+        if (!w.empty()) L.nombreAntes.push_back(std::move(w));
+    }
+    L.nombreDespues = aplanadas(L, nm, "despues");
+    L.nombreNoEmpieza = aplanadas(L, nm, "noEmpiezaCon");
+    L.particulas = aplanadas(L, nm, "particulas");
+
+    const json o = j.value("opciones", json::object());
+    if (o.contains("orden") && o["orden"].is_array())
+        for (const json& x : o["orden"]) {
+            std::vector<std::string> v;
+            if (x.is_array())
+                for (const json& y : x)
+                    if (y.is_string()) v.push_back(aplanarCon(L, y.get<std::string>()));
+            L.orden.push_back(std::move(v));
+        }
+    L.ultima = aplanadas(L, o, "ultima");
+    L.etiquetaEnMinuscula = j.value("etiquetaEnMinuscula", true);
+    return L;
+}
+
+/// "" = el idioma del operador.
+std::string codigoDe(const std::string& idioma) { return idioma.empty() ? ba::i18n::actual().codigo : idioma; }
+
+/// Los datos de ese idioma (o de su respaldo), leídos una vez.
+const Lengua& lengua(const std::string& idioma) {
+    static std::mutex mu;
+    static std::map<std::string, std::unique_ptr<const Lengua>> cache;
+    const std::string codigo = codigoDe(idioma);
+    std::lock_guard<std::mutex> l(mu);
+    auto& p = cache[codigo];
+    if (!p) p = std::make_unique<const Lengua>(cargarLengua(codigo));
+    return *p;
+}
+
+/// Lo que dice el tótem, en ese idioma.
+ba::i18n::En enIdioma(const std::string& idioma) { return ba::i18n::En(codigoDe(idioma)); }
 
 // --- Texto -------------------------------------------------------------------
 
@@ -44,18 +274,27 @@ std::string unir(const std::vector<std::string>& v, std::size_t desde = 0, std::
 
 /// Aplanado y con los signos de puntuación como espacios (salvo los que se
 /// pidan conservar: el correo necesita el punto, la arroba y los guiones).
-std::string sinSignos(const std::string& s, const std::string& conservar = {}) {
+std::string sinSignos(const Lengua& L, const std::string& s, const std::string& conservar = {}) {
     std::string out;
-    for (char c : aplanar(s)) {
+    for (char c : aplanarCon(L, s)) {
         const bool signo = std::ispunct(static_cast<unsigned char>(c)) != 0;
         out.push_back(signo && conservar.find(c) == std::string::npos ? ' ' : c);
     }
-    return aplanar(out);
+    return aplanarCon(L, out);
 }
 
 /// Si la frase (palabras separadas por un espacio) contiene `f` como palabras enteras.
 bool tiene(const std::string& frase, const std::string& f) {
     return (" " + frase + " ").find(" " + f + " ") != std::string::npos;
+}
+
+bool esUna(const std::vector<std::string>& v, const std::string& x) { return std::find(v.begin(), v.end(), x) != v.end(); }
+
+bool coincide(const Frases& fs, const std::string& f) {
+    if (esUna(fs.exactas, f)) return true;
+    for (const std::string& x : fs.contiene)
+        if (tiene(f, x)) return true;
+    return false;
 }
 
 bool todoDigitos(const std::string& s) {
@@ -64,123 +303,74 @@ bool todoDigitos(const std::string& s) {
 
 // --- Números dichos ----------------------------------------------------------
 
-const std::map<std::string, int>& kUnidades() {
-    static const std::map<std::string, int> m{
-        {"cero", 0},        {"uno", 1},         {"un", 1},           {"una", 1},          {"dos", 2},
-        {"tres", 3},        {"cuatro", 4},      {"cinco", 5},        {"seis", 6},         {"siete", 7},
-        {"ocho", 8},        {"nueve", 9},       {"diez", 10},        {"once", 11},        {"doce", 12},
-        {"trece", 13},      {"catorce", 14},    {"quince", 15},      {"dieciseis", 16},   {"diecisiete", 17},
-        {"dieciocho", 18},  {"diecinueve", 19}, {"veinte", 20},      {"veintiuno", 21},   {"veintiun", 21},
-        {"veintiuna", 21},  {"veintidos", 22},  {"veintitres", 23},  {"veinticuatro", 24}, {"veinticinco", 25},
-        {"veintiseis", 26}, {"veintisiete", 27}, {"veintiocho", 28}, {"veintinueve", 29}};
-    return m;
-}
-const std::map<std::string, int>& kDecenas() {
-    static const std::map<std::string, int> m{{"treinta", 30}, {"cuarenta", 40}, {"cincuenta", 50},
-                                              {"sesenta", 60}, {"setenta", 70},  {"ochenta", 80},
-                                              {"noventa", 90}};
-    return m;
-}
-const std::map<std::string, int>& kCentenas() {
-    static const std::map<std::string, int> m{
-        {"cien", 100},          {"ciento", 100},       {"doscientos", 200},  {"doscientas", 200},
-        {"trescientos", 300},   {"trescientas", 300},  {"cuatrocientos", 400}, {"cuatrocientas", 400},
-        {"quinientos", 500},    {"quinientas", 500},   {"seiscientos", 600}, {"seiscientas", 600},
-        {"setecientos", 700},   {"setecientas", 700},  {"ochocientos", 800}, {"ochocientas", 800},
-        {"novecientos", 900},   {"novecientas", 900}};
-    return m;
-}
-
-bool esPalabraNumero(const std::string& w) {
-    return kUnidades().count(w) != 0 || kDecenas().count(w) != 0 || kCentenas().count(w) != 0;
+bool esPalabraNumero(const Lengua& L, const std::string& w) {
+    return L.unidades.count(w) != 0 || L.decenas.count(w) != 0 || L.centenas.count(w) != 0;
 }
 
 /// Un grupo de 0 a 999 dicho en palabras a partir de `i` («cuatrocientos
 /// cuarenta y cinco», «once», «treinta»). Devuelve -1 si en `i` no empieza uno.
-int grupo(const std::vector<std::string>& w, std::size_t& i) {
+/// La regla «es» del perfil (la única por ahora; ver totem.json, «numeros»): otra forma de
+/// armar los números va acá, elegida por `L.reglaNumeros`.
+int grupo(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
     if (i >= w.size()) return -1;
     int v = -1;
-    if (auto c = kCentenas().find(w[i]); c != kCentenas().end()) {
+    if (auto c = L.centenas.find(w[i]); c != L.centenas.end()) {
         v = c->second;
         ++i;
-        // «cien» va solo; «ciento» y las demás pueden seguir («ciento veinte»).
-        if (w[i - 1] == "cien") return v;
+        // Una centena sola («cien») no lleva resto; las demás pueden seguir («ciento veinte»).
+        if (esUna(L.centenasSolas, w[i - 1])) return v;
         std::size_t j = i;
-        const int resto = grupo(w, j);
+        if (j < w.size() && esUna(L.conectoresCentena, w[j])) ++j;
+        const int resto = grupo(L, w, j);
         if (resto > 0 && resto < 100) {
             v += resto;
             i = j;
         }
         return v;
     }
-    if (auto d = kDecenas().find(w[i]); d != kDecenas().end()) {
+    if (auto d = L.decenas.find(w[i]); d != L.decenas.end()) {
         v = d->second;
         ++i;
-        if (i + 1 < w.size() && w[i] == "y") {
-            if (auto u = kUnidades().find(w[i + 1]); u != kUnidades().end() && u->second >= 1 && u->second <= 9) {
+        // Sin conectores, la unidad va pegada («thirty five»).
+        if (L.conectores.empty()) {
+            if (auto u = i < w.size() ? L.unidades.find(w[i]) : L.unidades.end();
+                u != L.unidades.end() && u->second >= 1 && u->second <= 9) {
+                v += u->second;
+                ++i;
+            }
+        } else if (i + 1 < w.size() && esUna(L.conectores, w[i])) {
+            if (auto u = L.unidades.find(w[i + 1]); u != L.unidades.end() && u->second >= 1 && u->second <= 9) {
                 v += u->second;
                 i += 2;
             }
         }
         return v;
     }
-    if (auto u = kUnidades().find(w[i]); u != kUnidades().end()) {
+    if (auto u = L.unidades.find(w[i]); u != L.unidades.end()) {
         ++i;
         return u->second;
     }
     return -1;
 }
 
-std::string digitoEnPalabra(char d) {
-    static const char* k[] = {"cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"};
-    return d >= '0' && d <= '9' ? k[d - '0'] : std::string(1, d);
+std::string digitoEnPalabra(const Lengua& L, char d) {
+    return d >= '0' && d <= '9' && !L.digitos.empty() ? L.digitos[static_cast<std::size_t>(d - '0')] : std::string(1, d);
+}
+
+/// Una de las unidades del 0 al 9 (para el correo y el teléfono), o -1.
+int digitoDicho(const Lengua& L, const std::string& w) {
+    const auto u = L.unidades.find(w);
+    return u != L.unidades.end() && u->second >= 0 && u->second <= 9 ? u->second : -1;
 }
 
 // --- Para no confundir respuestas con datos ----------------------------------
 
-const std::vector<std::string>& kSi() {
-    static const std::vector<std::string> v{
-        "si", "sip", "sisi", "si si", "dale", "claro", "obvio", "bueno", "correcto", "exacto", "afirmativo",
-        "por supuesto", "ok", "okey", "oka", "esta bien", "de una", "joya", "perfecto", "eso", "eso es",
-        "asi es", "seguro", "re si", "barbaro", "genial", "va", "listo", "tal cual", "ajam", "aja", "ya"};
-    return v;
-}
-const std::vector<std::string>& kNo() {
-    static const std::vector<std::string> v{"no", "nop", "nones", "negativo", "para nada", "nada que ver",
-                                            "ni ahi", "esta mal", "incorrecto", "equivocado", "tampoco",
-                                            "nunca", "jamas", "mal", "no es", "no era"};
-    return v;
-}
-
-// Cómo se pide la confirmación. Una frase larga y no un «sí» suelto: medio segundo de voz se
-// pierde entre el detector de voz y el reconocedor (probado en un tótem: el «sí» no entraba).
-const std::string kConfirmar = "¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».";
-
-bool esCancelar(const std::string& f) {
-    return f == "cancelar" || f == "cancela" || f == "cancelalo" || tiene(f, "cancelar el registro") ||
-           tiene(f, "cancela el registro") || f == "me voy" || f == "chau";
-}
-
-bool esRepetir(const std::string& f) {
-    static const char* k[] = {"como",          "que",     "que dijiste", "repeti",        "repetime", "repetir",
-                              "otra vez",      "de nuevo", "no entendi", "no te entendi", "perdon",   "como dijiste",
-                              "no escuche",    "no te escuche", "eh"};
-    for (const char* x : k)
-        if (f == x) return true;
-    return false;
-}
-
-bool esSaltear(const std::string& f) {
-    static const char* k[] = {"paso",       "saltear",    "saltealo",  "salteala",      "siguiente",
-                              "prefiero no", "no quiero", "no tengo",  "no lo tengo",   "no se",
-                              "no me acuerdo", "despues",  "otro dia", "prefiero no decirlo"};
-    for (const char* x : k)
-        if (f == x || (std::string(x).size() > 6 && tiene(f, x))) return true;
-    return false;
-}
+bool esCancelar(const Lengua& L, const std::string& f) { return coincide(L.cancelar, f); }
+bool esRepetir(const Lengua& L, const std::string& f) { return coincide(L.repetir, f); }
+bool esSaltear(const Lengua& L, const std::string& f) { return coincide(L.saltear, f); }
 
 /// Pasa a minúscula o mayúscula la primera letra de una palabra en UTF-8 (las
-/// acentuadas del castellano son dos bytes, 0xC3 + algo).
+/// acentuadas del latín-1 son dos bytes, 0xC3 + algo).
 std::string capital(const std::string& w) {
     std::string s;
     // Todo a minúscula primero.
@@ -222,19 +412,15 @@ std::string mayusculaInicial(std::string s) {
 }
 
 /// Si lo dicho es, entero, una de las respuestas de sí o de no.
-bool esRespuestaSuelta(const std::string& f) {
-    for (const std::string& x : kSi())
-        if (f == x) return true;
-    for (const std::string& x : kNo())
-        if (f == x) return true;
-    return false;
-}
+bool esRespuestaSuelta(const Lengua& L, const std::string& f) { return esUna(L.si, f) || esUna(L.no, f); }
 
-std::string listar(const std::vector<std::string>& v) {
+/// «a, b o c»: las opciones, como se dicen.
+std::string listar(const ba::i18n::En& en, const std::vector<std::string>& v) {
     std::string out;
     for (std::size_t i = 0; i < v.size(); ++i) {
-        if (i > 0) out += i + 1 == v.size() ? " o " : ", ";
-        out += v[i];
+        if (i == 0) out = v[i];
+        else if (i + 1 == v.size()) out = ba::i18n::llenar(en.traducir("totem", "%1 o %2"), {out, v[i]});
+        else out = ba::i18n::llenar(en.traducir("totem", "%1, %2"), {out, v[i]});
     }
     return out;
 }
@@ -246,84 +432,47 @@ std::string sinPuntoFinal(std::string s) {
     return s.substr(i);
 }
 
-} // namespace
+// --- Los normalizadores, con los datos del idioma -----------------------------------
 
-// --- Normalizadores ------------------------------------------------------------
-
-std::string aplanar(const std::string& s) {
-    static const struct {
-        const char* de;
-        char a;
-    } kAcentos[] = {{"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'}, {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'},
-                    {"Á", 'a'}, {"É", 'e'}, {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ü", 'u'}, {"Ñ", 'n'},
-                    {"¿", ' '}, {"¡", ' '}};
-    std::string out;
-    bool espacio = false;
-    for (std::size_t i = 0; i < s.size();) {
-        char c = 0;
-        if (static_cast<unsigned char>(s[i]) >= 0x80 && i + 1 < s.size()) {
-            for (const auto& a : kAcentos)
-                if (s.compare(i, 2, a.de) == 0) c = a.a;
-            i += 2;
-            if (c == 0) continue; // otro carácter de dos bytes: no aporta
-        } else {
-            c = s[i++];
-        }
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            espacio = !out.empty();
-            continue;
-        }
-        if (espacio) out.push_back(' ');
-        espacio = false;
-        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-    }
-    return out;
-}
-
-bool entenderCorreo(const std::string& dicho, std::string& out) {
+bool correoCon(const Lengua& L, const std::string& dicho, std::string& out) {
     // Se conservan los signos que pueden venir escritos: la voz a texto a
     // veces ya pone «jorge.ortega@gmail.com», y lo tipeado siempre.
-    std::string s = sinSignos(sinPuntoFinal(dicho), ".@_-+");
-    // Las palabras que se dicen en vez del signo. Primero las de dos palabras.
-    for (const auto& [de, a] : std::vector<std::pair<std::string, std::string>>{
-             {"guion bajo", "_"}, {"guion medio", "-"}, {"piso bajo", "_"}, {"punto com", ".com"}}) {
+    std::string s = sinSignos(L, sinPuntoFinal(dicho), ".@_-+");
+    // Las palabras que se dicen en vez del signo. Primero las de varias palabras.
+    for (const auto& [de, a] : L.correoFrases) {
         std::string f = " " + s + " ";
         for (std::size_t p = f.find(" " + de + " "); p != std::string::npos; p = f.find(" " + de + " ", p + 1))
             f.replace(p + 1, de.size(), a);
-        s = aplanar(f);
+        s = aplanarCon(L, f);
     }
     std::vector<std::string> w = palabras(s);
     for (std::string& x : w) {
-        if (x == "arroba" || x == "aroba") x = "@";
-        else if (x == "punto") x = ".";
-        else if (x == "guion" || x == "menos") x = "-";
-        else if (auto u = kUnidades().find(x); u != kUnidades().end() && u->second <= 9 && x != "un" && x != "una")
-            x = std::to_string(u->second);
+        bool signo = false;
+        for (const auto& [de, a] : L.correoPalabras)
+            if (x == de) {
+                x = a;
+                signo = true;
+                break;
+            }
+        if (signo) continue;
+        if (const int d = digitoDicho(L, x); d >= 0 && !esUna(L.correoNoDigitos, x)) x = std::to_string(d);
     }
     // Lo que se dice antes del correo («mi correo es…») y después («gracias»).
-    static const std::vector<std::string> kAntes{"mi",   "correo", "mail", "email", "imeil", "e-mail", "electronico",
-                                                 "es",   "el",     "la",   "direccion", "de", "seria", "este",
-                                                 "eh",   "em",     "bueno", "dale", "si",  "ok",   "tengo"};
-    static const std::vector<std::string> kDespues{"gracias", "nada", "mas", "eso", "es", "todo", "listo"};
-    while (!w.empty() && std::find(kAntes.begin(), kAntes.end(), w.front()) != kAntes.end()) w.erase(w.begin());
-    while (!w.empty() && std::find(kDespues.begin(), kDespues.end(), w.back()) != kDespues.end()) w.pop_back();
+    while (!w.empty() && esUna(L.correoAntes, w.front())) w.erase(w.begin());
+    while (!w.empty() && esUna(L.correoDespues, w.back())) w.pop_back();
     // «gmail com», «yahoo com ar»: el punto no se dijo (o la voz a texto lo perdió). Un
     // dominio no tiene espacios, así que las terminaciones conocidas sueltas van con punto.
     const auto conPunto = [](const std::string& x) { return x.find('.') != std::string::npos; };
     if (const auto at = std::find(w.begin(), w.end(), "@"); at != w.end() && std::none_of(at, w.end(), conPunto)) {
-        static const std::vector<std::string> kTerminaciones{"com", "ar", "net", "org", "edu", "gob", "gov", "uy", "cl", "es"};
-        for (auto it = w.end() - 1; it > at + 1 && std::find(kTerminaciones.begin(), kTerminaciones.end(), *it) != kTerminaciones.end(); --it)
-            *it = "." + *it;
+        for (auto it = w.end() - 1; it > at + 1 && esUna(L.terminaciones, *it); --it) *it = "." + *it;
     }
     std::string c = unir(w, 0, std::string::npos, "");
     const auto arroba = c.find('@');
     if (arroba == std::string::npos || arroba == 0 || c.find('@', arroba + 1) != std::string::npos) return false;
     std::string local = c.substr(0, arroba), dominio = c.substr(arroba + 1);
     // Un gmail sin «punto com» es un gmail.com: nadie tiene otro.
-    static const char* kConocidos[] = {"gmail", "hotmail", "yahoo", "outlook", "live", "icloud", "fibertel", "speedy"};
     if (dominio.find('.') == std::string::npos)
-        for (const char* k : kConocidos)
-            if (dominio == k) dominio += ".com";
+        if (const auto it = L.dominios.find(dominio); it != L.dominios.end()) dominio = it->second;
     // Puntos de más que deja «punto punto» o un punto al final.
     while (!dominio.empty() && dominio.back() == '.') dominio.pop_back();
     while (!local.empty() && local.front() == '.') local.erase(local.begin());
@@ -343,12 +492,13 @@ bool entenderCorreo(const std::string& dicho, std::string& out) {
     return true;
 }
 
-bool entenderTelefono(const std::string& dicho, std::string& out) {
-    const std::vector<std::string> w = palabras(sinSignos(dicho, "+"));
+bool telefonoCon(const Lengua& L, const std::string& dicho, std::string& out) {
+    const std::vector<std::string> w = palabras(sinSignos(L, dicho, "+"));
     std::string r;
     for (std::size_t i = 0; i < w.size();) {
         const std::string& x = w[i];
-        if ((x == "mas" || x == "+") && r.empty()) {
+        const auto rep = L.repetidores.find(x);
+        if ((esUna(L.mas, x) || x == "+") && r.empty()) {
             r = "+";
             ++i;
         } else if (x.size() > 1 && x[0] == '+' && todoDigitos(x.substr(1)) && r.empty()) {
@@ -357,20 +507,19 @@ bool entenderTelefono(const std::string& dicho, std::string& out) {
         } else if (todoDigitos(x)) {
             r += x;
             ++i;
-        } else if ((x == "doble" || x == "triple") && i + 1 < w.size()) {
-            const auto u = kUnidades().find(w[i + 1]);
-            const bool digito = u != kUnidades().end() && u->second <= 9;
+        } else if (rep != L.repetidores.end() && rep->second > 0 && i + 1 < w.size()) {
+            const int u = digitoDicho(L, w[i + 1]);
             const bool escrito = w[i + 1].size() == 1 && todoDigitos(w[i + 1]);
-            if (digito || escrito) {
-                const char d = digito ? static_cast<char>('0' + u->second) : w[i + 1][0];
-                r.append(x == "doble" ? 2 : 3, d);
+            if (u >= 0 || escrito) {
+                const char d = u >= 0 ? static_cast<char>('0' + u) : w[i + 1][0];
+                r.append(static_cast<std::size_t>(rep->second), d);
                 i += 2;
             } else {
                 ++i;
             }
-        } else if (esPalabraNumero(x)) {
+        } else if (esPalabraNumero(L, x)) {
             std::size_t j = i;
-            const int v = grupo(w, j);
+            const int v = grupo(L, w, j);
             r += std::to_string(v);
             i = j;
         } else {
@@ -383,8 +532,8 @@ bool entenderTelefono(const std::string& dicho, std::string& out) {
     return true;
 }
 
-bool entenderNumero(const std::string& dicho, long long& out) {
-    const std::vector<std::string> w = palabras(sinSignos(sinPuntoFinal(dicho), "."));
+bool numeroCon(const Lengua& L, const std::string& dicho, long long& out) {
+    const std::vector<std::string> w = palabras(sinSignos(L, sinPuntoFinal(dicho), "."));
     // Escrito con cifras: «35», «2.500». El primero que aparezca.
     for (const std::string& x0 : w) {
         std::string x;
@@ -399,23 +548,23 @@ bool entenderNumero(const std::string& dicho, long long& out) {
     bool hay = false;
     for (std::size_t i = 0; i < w.size();) {
         const std::string& x = w[i];
-        if (x == "ninguno" || x == "ninguna" || x == "ningun" || x == "nadie" || x == "nada") {
+        if (esUna(L.ninguno, x)) {
             hay = true;
             ++i;
-        } else if (x == "mil") {
+        } else if (esUna(L.mil, x)) {
             actual = (actual == 0 ? 1 : actual) * 1000;
             total += actual;
             actual = 0;
             hay = true;
             ++i;
-        } else if (x == "millon" || x == "millones") {
+        } else if (esUna(L.millon, x)) {
             total = (total + (actual == 0 ? 1 : actual)) * 1000000;
             actual = 0;
             hay = true;
             ++i;
-        } else if (esPalabraNumero(x)) {
+        } else if (esPalabraNumero(L, x)) {
             std::size_t j = i;
-            actual += grupo(w, j);
+            actual += grupo(L, w, j);
             i = j;
             hay = true;
         } else {
@@ -427,24 +576,24 @@ bool entenderNumero(const std::string& dicho, long long& out) {
     return true;
 }
 
-int entenderSiNo(const std::string& dicho) {
-    std::string f = sinSignos(dicho);
+int siNoCon(const Lengua& L, const std::string& dicho) {
+    std::string f = sinSignos(L, dicho);
     // «no sé» no es un no: es que no sabe. Se saca antes de buscar.
-    for (const char* x : {"no se", "no lo se", "no sabria"})
+    for (const std::string& x : L.noSabe)
         if (tiene(f, x)) return -1;
     // Los «no» que llevan un «bien» o un «es» adentro, antes de mirar palabra por palabra.
-    for (const char* x : {"no esta bien", "no es asi", "no no", "esta mal", "para nada", "nada que ver", "ni ahi", "no es", "no era"})
+    for (const std::string& x : L.noFrases)
         if (tiene(f, x)) return 0;
     bool si = false, no = false;
-    for (const std::string& x : kSi())
+    for (const std::string& x : L.si)
         if (tiene(f, x)) si = true;
-    for (const std::string& x : kNo())
+    for (const std::string& x : L.no)
         if (tiene(f, x)) no = true;
     if (si == no) return -1; // ni una ni otra, o las dos: se vuelve a preguntar
     return si ? 1 : 0;
 }
 
-bool entenderNombre(const std::string& dicho, std::string& out) {
+bool nombreCon(const Lengua& L, const std::string& dicho, std::string& out) {
     // Las palabras ORIGINALES (con sus acentos) y su versión aplanada al lado,
     // para reconocer «me llamo» sin perder la tilde de «Martínez».
     std::string limpio;
@@ -452,21 +601,19 @@ bool entenderNombre(const std::string& dicho, std::string& out) {
         const bool signo = std::string(",.;:?!\"()[]{}").find(c) != std::string::npos;
         limpio.push_back(signo ? ' ' : c);
     }
-    // ¿ y ¡ son de dos bytes.
-    for (const char* x : {"¿", "¡"})
-        for (std::size_t p = limpio.find(x); p != std::string::npos; p = limpio.find(x)) limpio.replace(p, 2, " ");
+    // Los signos de más de un byte que el idioma aplana a un espacio («¿», «¡»).
+    for (const auto& [letra, queda] : L.aplanar) {
+        if (queda != " ") continue;
+        for (std::size_t p = limpio.find(letra); p != std::string::npos; p = limpio.find(letra))
+            limpio.replace(p, letra.size(), " ");
+    }
     std::vector<std::string> orig = palabras(limpio);
     std::vector<std::string> plano;
-    for (const std::string& o : orig) plano.push_back(aplanar(o));
-    static const std::vector<std::vector<std::string>> kAntes{
-        {"hola"},  {"buenas"}, {"buen", "dia"}, {"buenos", "dias"}, {"buenas", "tardes"}, {"buenas", "noches"},
-        {"bueno"}, {"eh"},     {"este"},        {"si"},             {"dale"},
-        {"yo", "me", "llamo"}, {"me", "llamo"}, {"mi", "nombre", "es"}, {"mi", "nombre", "completo", "es"},
-        {"el", "nombre", "es"}, {"mi", "nombre"}, {"yo", "soy"}, {"soy"}, {"me", "dicen"}, {"es"}, {"seria"}};
+    for (const std::string& o : orig) plano.push_back(aplanarCon(L, o));
     bool saco = true;
     while (saco && !plano.empty()) {
         saco = false;
-        for (const auto& p : kAntes) {
+        for (const auto& p : L.nombreAntes) {
             if (p.size() > plano.size() || !std::equal(p.begin(), p.end(), plano.begin())) continue;
             plano.erase(plano.begin(), plano.begin() + static_cast<std::ptrdiff_t>(p.size()));
             orig.erase(orig.begin(), orig.begin() + static_cast<std::ptrdiff_t>(p.size()));
@@ -474,38 +621,37 @@ bool entenderNombre(const std::string& dicho, std::string& out) {
             break;
         }
     }
-    while (!plano.empty() && (plano.back() == "gracias" || plano.back() == "nomas")) {
+    while (!plano.empty() && esUna(L.nombreDespues, plano.back())) {
         plano.pop_back();
         orig.pop_back();
     }
     if (orig.empty() || orig.size() > 7) return false;
     // Una respuesta suelta («sí», «no», «dale»), una negativa («no quiero»)
     // o un número no son un nombre.
-    if (esRespuestaSuelta(unir(plano)) || plano.front() == "no") return false;
+    if (esRespuestaSuelta(L, unir(plano)) || esUna(L.nombreNoEmpieza, plano.front())) return false;
     for (const std::string& p : plano)
         if (std::any_of(p.begin(), p.end(), [](char c) { return c >= '0' && c <= '9'; })) return false;
-    if (std::all_of(plano.begin(), plano.end(), [](const std::string& q) { return esPalabraNumero(q); })) return false;
-    static const std::vector<std::string> kParticulas{"de", "del", "la", "las", "los", "y", "e", "da", "di", "van", "von", "el"};
+    if (std::all_of(plano.begin(), plano.end(), [&L](const std::string& q) { return esPalabraNumero(L, q); })) return false;
     std::string r;
     for (std::size_t i = 0; i < orig.size(); ++i) {
-        const bool part = i > 0 && std::find(kParticulas.begin(), kParticulas.end(), plano[i]) != kParticulas.end();
+        const bool part = i > 0 && esUna(L.particulas, plano[i]);
         if (!r.empty()) r += " ";
         r += part ? plano[i] : capital(orig[i]);
     }
-    if (aplanar(r).size() < 2) return false;
+    if (aplanarCon(L, r).size() < 2) return false;
     out = r;
     return true;
 }
 
-bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& opciones, std::string& out) {
-    const std::string f = sinSignos(dicho);
+bool opcionCon(const Lengua& L, const std::string& dicho, const std::vector<std::string>& opciones, std::string& out) {
+    const std::string f = sinSignos(L, dicho);
     if (f.empty() || opciones.empty()) return false;
     // Por su texto: la opción más larga que aparezca entera en lo dicho («sala
     // grande» gana sobre «sala» si dijo «la sala grande»).
     int mejor = -1;
     std::size_t largo = 0;
     for (std::size_t i = 0; i < opciones.size(); ++i) {
-        const std::string o = sinSignos(opciones[i]);
+        const std::string o = sinSignos(L, opciones[i]);
         if (!o.empty() && tiene(f, o) && o.size() > largo) {
             mejor = static_cast<int>(i);
             largo = o.size();
@@ -515,7 +661,7 @@ bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& op
     if (mejor < 0) {
         int cuantas = 0;
         for (std::size_t i = 0; i < opciones.size(); ++i) {
-            const std::string o = sinSignos(opciones[i]);
+            const std::string o = sinSignos(L, opciones[i]);
             for (const std::string& p : palabras(f))
                 if (p.size() >= 4 && tiene(o, p)) {
                     if (mejor != static_cast<int>(i)) ++cuantas;
@@ -527,74 +673,108 @@ bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& op
     }
     // O por el orden: «la primera», «la segunda», «la última».
     if (mejor < 0) {
-        static const std::vector<std::vector<std::string>> kOrden{
-            {"primera", "primero", "uno", "1"}, {"segunda", "segundo", "dos", "2"}, {"tercera", "tercero", "tres", "3"},
-            {"cuarta", "cuarto", "cuatro", "4"}, {"quinta", "quinto", "cinco", "5"}};
-        for (std::size_t i = 0; i < kOrden.size() && i < opciones.size() && mejor < 0; ++i)
-            for (const std::string& p : kOrden[i])
+        for (std::size_t i = 0; i < L.orden.size() && i < opciones.size() && mejor < 0; ++i)
+            for (const std::string& p : L.orden[i])
                 if (tiene(f, p)) mejor = static_cast<int>(i);
-        if (mejor < 0 && (tiene(f, "ultima") || tiene(f, "ultimo"))) mejor = static_cast<int>(opciones.size()) - 1;
+        if (mejor < 0)
+            for (const std::string& p : L.ultima)
+                if (tiene(f, p)) mejor = static_cast<int>(opciones.size()) - 1;
     }
     if (mejor < 0) return false;
     out = opciones[static_cast<std::size_t>(mejor)];
     return true;
 }
 
-bool entenderTexto(const std::string& dicho, std::string& out) {
+} // namespace
+
+// --- Normalizadores ------------------------------------------------------------
+
+std::string aplanar(const std::string& s, const std::string& idioma) { return aplanarCon(lengua(idioma), s); }
+
+bool entenderCorreo(const std::string& dicho, std::string& out, const std::string& idioma) {
+    return correoCon(lengua(idioma), dicho, out);
+}
+
+bool entenderTelefono(const std::string& dicho, std::string& out, const std::string& idioma) {
+    return telefonoCon(lengua(idioma), dicho, out);
+}
+
+bool entenderNumero(const std::string& dicho, long long& out, const std::string& idioma) {
+    return numeroCon(lengua(idioma), dicho, out);
+}
+
+int entenderSiNo(const std::string& dicho, const std::string& idioma) { return siNoCon(lengua(idioma), dicho); }
+
+std::string palabraSiNo(bool si, const std::string& idioma) {
+    const Lengua& L = lengua(idioma);
+    const std::vector<std::string>& v = si ? L.si : L.no;
+    return v.empty() ? std::string(si ? "1" : "0") : v.front();
+}
+
+bool entenderNombre(const std::string& dicho, std::string& out, const std::string& idioma) {
+    return nombreCon(lengua(idioma), dicho, out);
+}
+
+bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& opciones, std::string& out,
+                    const std::string& idioma) {
+    return opcionCon(lengua(idioma), dicho, opciones, out);
+}
+
+bool entenderTexto(const std::string& dicho, std::string& out, const std::string& idioma) {
     const std::string s = sinPuntoFinal(dicho);
-    if (aplanar(s).empty()) return false;
+    if (aplanar(s, idioma).empty()) return false;
     out = mayusculaInicial(s);
     return true;
 }
 
-bool entender(const Campo& c, const std::string& dicho, json& out) {
+bool entender(const Campo& c, const std::string& dicho, json& out, const std::string& idioma) {
     switch (c.tipo) {
         case TipoCampo::Correo: {
             std::string v;
-            if (!entenderCorreo(dicho, v)) return false;
+            if (!entenderCorreo(dicho, v, idioma)) return false;
             out = v;
             return true;
         }
         case TipoCampo::Telefono: {
             std::string v;
-            if (!entenderTelefono(dicho, v)) return false;
+            if (!entenderTelefono(dicho, v, idioma)) return false;
             out = v;
             return true;
         }
         case TipoCampo::Numero: {
             long long v = 0;
-            if (!entenderNumero(dicho, v)) return false;
+            if (!entenderNumero(dicho, v, idioma)) return false;
             out = v;
             return true;
         }
         case TipoCampo::SiNo: {
-            const int v = entenderSiNo(dicho);
+            const int v = entenderSiNo(dicho, idioma);
             if (v < 0) return false;
             out = v == 1;
             return true;
         }
         case TipoCampo::Nombre: {
             std::string v;
-            if (!entenderNombre(dicho, v)) return false;
+            if (!entenderNombre(dicho, v, idioma)) return false;
             out = v;
             return true;
         }
         case TipoCampo::Opcion: {
             std::string v;
-            if (!entenderOpcion(dicho, c.opciones, v)) return false;
+            if (!entenderOpcion(dicho, c.opciones, v, idioma)) return false;
             out = v;
             return true;
         }
         case TipoCampo::Texto: {
             std::string v;
-            if (!entenderTexto(dicho, v)) return false;
+            if (!entenderTexto(dicho, v, idioma)) return false;
             out = v;
             return true;
         }
         case TipoCampo::Documento: {
             // Lo que se dice (o tipea) es el número: el respaldo de la cámara.
             std::string v;
-            if (!entenderNumeroDocumento(dicho, v)) return false;
+            if (!entenderNumeroDocumento(dicho, v, idioma)) return false;
             out = json{{"numero", v}, {"origen", "dicho"}};
             return true;
         }
@@ -602,13 +782,13 @@ bool entender(const Campo& c, const std::string& dicho, json& out) {
     return false;
 }
 
-bool entenderNumeroDocumento(const std::string& dicho, std::string& out) {
+bool entenderNumeroDocumento(const std::string& dicho, std::string& out, const std::string& idioma) {
     // «11.222.333» tipeado o «once dos dos dos…» dicho: lo mismo que un teléfono
     // (dígitos o palabras, con lo que se dice antes), con el largo de un documento.
     std::string t;
-    if (!entenderTelefono(dicho, t) || t.empty() || t[0] == '+') {
+    if (!entenderTelefono(dicho, t, idioma) || t.empty() || t[0] == '+') {
         long long n = 0;
-        if (!entenderNumero(dicho, n) || n <= 0) return false;
+        if (!entenderNumero(dicho, n, idioma) || n <= 0) return false;
         t = std::to_string(n);
     }
     t.erase(0, std::min(t.find_first_not_of('0'), t.size()));
@@ -619,49 +799,46 @@ bool entenderNumeroDocumento(const std::string& dicho, std::string& out) {
 
 namespace {
 /// «Juana Andrea Prueba, DNI 11.222.333» (o lo que haya) de un documento ya en `datos`.
-std::string documentoParaDecir(const json& v, const char* separador) {
+std::string documentoParaDecir(const json& v, const char* separador, const std::string& idioma) {
     const ba::documentos::Datos d = ba::documentos::Datos::deJson(v);
     const bool dni = d.tipo.empty() || d.tipo == "dni-ar";
+    const ba::i18n::En e = enIdioma(idioma);
     const std::string n = d.numero.empty() ? std::string()
-                                           : std::string(dni ? "DNI " : "documento ") +
-                                                 ba::documentos::numeroConPuntos(d.numero);
+                                           : ba::i18n::llenar(dni ? e.traducir("totem", "DNI %1") : e.traducir("totem", "documento %1"),
+                                                              {ba::documentos::numeroConPuntos(d.numero)});
     const std::string quien = d.apellido.empty() ? std::string() : d.nombreCompleto();
     if (quien.empty()) return n;
     return n.empty() ? quien : quien + separador + n;
 }
-} // namespace
 
-namespace {
 /// Los dígitos de un teléfono en grupos («11 4567 8901»): el primero con lo
-/// que sobra, los demás de a cuatro. Así se dicen y se leen en Argentina.
-std::vector<std::string> gruposDeTelefono(const std::string& t) {
+/// que sobra, los demás de a `grupo` (4: así se dicen y se leen en Argentina; totem.json).
+std::vector<std::string> gruposDeTelefono(const std::string& t, std::size_t grupo) {
     std::string d;
     for (char c : t)
         if (c >= '0' && c <= '9') d.push_back(c);
     std::vector<std::string> g;
-    std::size_t primero = d.size() % 4;
-    if (primero == 0) primero = std::min<std::size_t>(4, d.size());
+    std::size_t primero = d.size() % grupo;
+    if (primero == 0) primero = std::min<std::size_t>(grupo, d.size());
     if (!d.empty()) g.push_back(d.substr(0, primero));
-    for (std::size_t i = primero; i < d.size(); i += 4) g.push_back(d.substr(i, 4));
+    for (std::size_t i = primero; i < d.size(); i += grupo) g.push_back(d.substr(i, grupo));
     return g;
 }
 } // namespace
 
-std::string paraDecir(const Campo& c, const json& v) {
-    if (c.tipo == TipoCampo::Documento && v.is_object()) return documentoParaDecir(v, ", ");
-    if (v.is_boolean()) return v.get<bool>() ? "que sí" : "que no";
+std::string paraDecir(const Campo& c, const json& v, const std::string& idioma) {
+    if (c.tipo == TipoCampo::Documento && v.is_object()) return documentoParaDecir(v, ", ", idioma);
+    if (v.is_boolean()) return v.get<bool>() ? enIdioma(idioma).traducir("totem", "que sí") : enIdioma(idioma).traducir("totem", "que no");
     if (v.is_number_integer()) return std::to_string(v.get<long long>());
     if (!v.is_string()) return {};
+    const Lengua& L = lengua(idioma);
     const std::string s = v.get<std::string>();
     if (c.tipo == TipoCampo::Correo) {
         std::string out;
         for (char ch : s) {
             std::string pal;
-            if (ch == '.') pal = "punto";
-            else if (ch == '@') pal = "arroba";
-            else if (ch == '_') pal = "guion bajo";
-            else if (ch == '-') pal = "guion";
-            else if (ch >= '0' && ch <= '9') pal = digitoEnPalabra(ch);
+            if (const auto it = L.correoDecir.find(ch); it != L.correoDecir.end()) pal = it->second;
+            else if (ch >= '0' && ch <= '9') pal = digitoEnPalabra(L, ch);
             if (pal.empty()) {
                 out.push_back(ch);
             } else {
@@ -674,28 +851,29 @@ std::string paraDecir(const Campo& c, const json& v) {
     if (c.tipo == TipoCampo::Telefono) {
         // De a un dígito y por grupos, separados por comas: la voz hace una
         // pausa en cada coma, que es como se dicta un número.
-        std::string out = s.rfind('+', 0) == 0 ? "más " : "";
+        std::string out = s.rfind('+', 0) == 0 ? (L.decirMas.empty() ? std::string("+") : L.decirMas) + " " : "";
         bool primero = true;
-        for (const std::string& g : gruposDeTelefono(s)) {
+        for (const std::string& g : gruposDeTelefono(s, L.grupoTelefono)) {
             if (!primero) out += ", ";
             primero = false;
-            for (std::size_t i = 0; i < g.size(); ++i) out += (i ? " " : "") + digitoEnPalabra(g[i]);
+            for (std::size_t i = 0; i < g.size(); ++i) out += (i ? " " : "") + digitoEnPalabra(L, g[i]);
         }
         return out;
     }
     return s;
 }
 
-std::string paraMostrar(const Campo& c, const json& v) {
+std::string paraMostrar(const Campo& c, const json& v, const std::string& idioma) {
     if (v.is_null()) return {};
-    if (c.tipo == TipoCampo::Documento && v.is_object()) return documentoParaDecir(v, " · ");
-    if (v.is_boolean()) return v.get<bool>() ? "Sí" : "No";
+    if (c.tipo == TipoCampo::Documento && v.is_object()) return documentoParaDecir(v, " · ", idioma);
+    if (v.is_boolean()) return v.get<bool>() ? enIdioma(idioma).traducir("totem", "Sí") : enIdioma(idioma).traducir("totem", "No");
     if (v.is_number_integer()) return std::to_string(v.get<long long>());
     if (!v.is_string()) return v.dump();
     if (c.tipo == TipoCampo::Telefono) {
         const std::string s = v.get<std::string>();
         std::string out = s.rfind('+', 0) == 0 ? "+" : "";
-        for (const std::string& g : gruposDeTelefono(s)) out += (out.empty() || out == "+" ? "" : " ") + g;
+        for (const std::string& g : gruposDeTelefono(s, lengua(idioma).grupoTelefono))
+            out += (out.empty() || out == "+" ? "" : " ") + g;
         return out;
     }
     return v.get<std::string>();
@@ -703,49 +881,74 @@ std::string paraMostrar(const Campo& c, const json& v) {
 
 // --- La conversación ------------------------------------------------------------
 
-Conversacion::Conversacion(Totem totem, std::string evento) : t_(std::move(totem)), evento_(std::move(evento)) {
+Conversacion::Conversacion(Totem totem, std::string evento, std::string idioma)
+    : t_(std::move(totem)), evento_(std::move(evento)), idioma_(codigoDe(idioma)) {
     valores_.assign(t_.campos.size(), json());
     salteado_.assign(t_.campos.size(), false);
     pendiente_.assign(t_.campos.size(), false);
     pendienteAntes_.assign(t_.campos.size(), false);
 }
 
-std::string Conversacion::titulo() const { return conDatos(t_.titulo, evento_, {}); }
-std::string Conversacion::subtitulo() const { return conDatos(t_.subtitulo, evento_, {}); }
+ba::i18n::En Conversacion::en() const { return ba::i18n::En(idioma_); }
+
+std::string Conversacion::titulo() const { return conDatos(t_.titulo, evento_, {}, idioma_); }
+std::string Conversacion::subtitulo() const { return conDatos(t_.subtitulo, evento_, {}, idioma_); }
+
+std::string Conversacion::confirmar() const {
+    // Cómo se pide la confirmación. Una frase larga y no un «sí» suelto: medio segundo de voz se
+    // pierde entre el detector de voz y el reconocedor (probado en un tótem: el «sí» no entraba).
+    //: Lo que se le pide que diga tiene que entenderse con las respuestas de assets/idiomas/<código>/totem.json.
+    return en().traducir("totem", "¿Es correcto? Decime «sí, es correcto» o «no, es incorrecto».");
+}
+
+std::string Conversacion::anoteYConfirmar(const std::string& dicho) const {
+    return ba::i18n::llenar(en().traducir("totem", "Anoté %1."), {dicho}) + " " + confirmar();
+}
+
+std::string Conversacion::pedirDorso() const {
+    // Cómo se pide la parte de atrás: corto, hablado, y diciendo QUÉ mostrar (los
+    // renglones de abajo), que es lo que tiene que quedar frente a la cámara.
+    return en().traducir("totem", "Dalo vuelta y mostrame la parte de atrás, la de los renglones de letras y números de abajo.");
+}
 
 std::string Conversacion::pregunta(std::size_t i) const {
     const Campo& c = t_.campos[i];
-    std::string p = c.pregunta.empty() ? preguntaDeFabrica(c.tipo) : c.pregunta;
+    std::string p = c.pregunta.empty() ? preguntaDeFabrica(c.tipo, idioma_) : c.pregunta;
     // Las opciones se dicen siempre: por voz no hay una lista que mirar.
-    if (c.tipo == TipoCampo::Opcion && !c.opciones.empty()) p += " Puede ser: " + listar(c.opciones) + ".";
+    if (c.tipo == TipoCampo::Opcion && !c.opciones.empty())
+        p += " " + ba::i18n::llenar(en().traducir("totem", "Puede ser: %1."), {listar(en(), c.opciones)});
     // Si no se acepta el DNI, no se pide «tu DNI».
     if (c.tipo == TipoCampo::Documento && c.pregunta.empty() && !c.documentos.empty() &&
         std::find(c.documentos.begin(), c.documentos.end(), "dni-ar") == c.documentos.end())
-        p = "Mostrame tu documento a la cámara, del lado del código de barras.";
+        p = en().traducir("totem", "Mostrame tu documento a la cámara, del lado del código de barras.");
     return p;
 }
 
 std::string Conversacion::reintento(const Campo& c, int intento) const {
+    const ba::i18n::En e = en();
     std::string r;
     switch (c.tipo) {
         case TipoCampo::Correo:
-            r = "No te entendí el correo. Decímelo despacio, por ejemplo: " +
-                (c.ejemplo.empty() ? std::string("juan punto perez arroba gmail punto com") : c.ejemplo) + ".";
+            r = ba::i18n::llenar(e.traducir("totem", "No te entendí el correo. Decímelo despacio, por ejemplo: %1."),
+                                 {c.ejemplo.empty() ? e.traducir("totem", "juan punto perez arroba gmail punto com") : c.ejemplo});
             break;
         case TipoCampo::Telefono:
-            r = "No me quedó claro el número. Decímelo de a un número, por ejemplo: " +
-                (c.ejemplo.empty() ? std::string("once, cuatro cinco seis siete, ocho nueve cero uno") : c.ejemplo) + ".";
+            r = ba::i18n::llenar(e.traducir("totem", "No me quedó claro el número. Decímelo de a un número, por ejemplo: %1."),
+                                 {c.ejemplo.empty() ? e.traducir("totem", "once, cuatro cinco seis siete, ocho nueve cero uno")
+                                                    : c.ejemplo});
             break;
-        case TipoCampo::Numero: r = "No entendí el número. ¿Me lo repetís?"; break;
-        case TipoCampo::SiNo: r = "Perdón, no te entendí. ¿Sí o no?"; break;
-        case TipoCampo::Opcion: r = "No te entendí. Puede ser: " + listar(c.opciones) + "."; break;
-        case TipoCampo::Nombre: r = "No te escuché bien. ¿Me repetís tu nombre?"; break;
-        case TipoCampo::Texto: r = "No te escuché bien. ¿Me lo repetís?"; break;
-        case TipoCampo::Documento: r = "No te entendí el número. Decímelo de a un número."; break;
+        case TipoCampo::Numero: r = e.traducir("totem", "No entendí el número. ¿Me lo repetís?"); break;
+        case TipoCampo::SiNo: r = e.traducir("totem", "Perdón, no te entendí. ¿Sí o no?"); break;
+        case TipoCampo::Opcion:
+            r = ba::i18n::llenar(e.traducir("totem", "No te entendí. Puede ser: %1."), {listar(e, c.opciones)});
+            break;
+        case TipoCampo::Nombre: r = e.traducir("totem", "No te escuché bien. ¿Me repetís tu nombre?"); break;
+        case TipoCampo::Texto: r = e.traducir("totem", "No te escuché bien. ¿Me lo repetís?"); break;
+        case TipoCampo::Documento: r = e.traducir("totem", "No te entendí el número. Decímelo de a un número."); break;
     }
     if (!c.ejemplo.empty() && (c.tipo == TipoCampo::Numero || c.tipo == TipoCampo::Texto || c.tipo == TipoCampo::Nombre))
-        r += " Por ejemplo: " + c.ejemplo + ".";
-    if (intento >= 2) r += " Si preferís, escribilo en la pantalla.";
+        r += " " + ba::i18n::llenar(e.traducir("totem", "Por ejemplo: %1."), {c.ejemplo});
+    if (intento >= 2) r += " " + e.traducir("totem", "Si preferís, escribilo en la pantalla.");
     return r;
 }
 
@@ -756,7 +959,7 @@ Conversacion::Respuesta Conversacion::empezar(const Cara& cara) {
     const std::string nombreSaludo = t_.reconocer ? cara.nombre : std::string();
     if (cara.yaRegistrado && !t_.yaRegistrado.empty()) {
         estado_ = Estado::Terminada;
-        r.decir = conDatos(t_.yaRegistrado, evento_, nombreSaludo);
+        r.decir = conDatos(t_.yaRegistrado, evento_, nombreSaludo, idioma_);
         r.terminar = true;
         return r;
     }
@@ -768,7 +971,7 @@ Conversacion::Respuesta Conversacion::empezar(const Cara& cara) {
                 valores_[i] = cara.nombre;
                 break;
             }
-    avanzar(r, conDatos(t_.saludo, evento_, nombreSaludo));
+    avanzar(r, conDatos(t_.saludo, evento_, nombreSaludo, idioma_));
     r.campos = true;
     return r;
 }
@@ -819,7 +1022,8 @@ void Conversacion::terminar(Respuesta& r, const std::string& antes) {
     if (t_.foto && !fotoHecha_) {
         estado_ = Estado::Foto;
         fotoIntentos_ = 0;
-        const std::string pedido = "Por último, mirá derecho a la cámara un momento, así te saco una foto de frente.";
+        const std::string pedido =
+            en().traducir("totem", "Por último, mirá derecho a la cámara un momento, así te saco una foto de frente.");
         r.decir = antes.empty() ? pedido : antes + " " + pedido;
         r.foto = true;
         r.campos = true;
@@ -830,7 +1034,7 @@ void Conversacion::terminar(Respuesta& r, const std::string& antes) {
     // El nombre que dijo, o el de su ficha si se lo puede llamar por la cara.
     std::string quien = nombre();
     if (quien == cara_.nombre && !t_.reconocer) quien.clear();
-    const std::string chau = conDatos(t_.despedida, evento_, quien);
+    const std::string chau = conDatos(t_.despedida, evento_, quien, idioma_);
     r.decir = antes.empty() ? chau : antes + " " + chau;
     r.guardar = true;
     r.terminar = true;
@@ -854,61 +1058,62 @@ void Conversacion::fallo(Respuesta& r) {
         r.decir = reintento(c, intentos_);
     } else if (!c.obligatorio) {
         salteado_[actual_] = true;
-        avanzar(r, "No pasa nada, lo dejamos en blanco.");
+        avanzar(r, en().traducir("totem", "No pasa nada, lo dejamos en blanco."));
     } else {
-        r.decir = "Escribilo en la pantalla, así no hay error.";
+        r.decir = en().traducir("totem", "Escribilo en la pantalla, así no hay error.");
     }
 }
 
 Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     Respuesta r;
     if (!enCurso() || atendida_) return r; // atendida: le contesta una persona, no el guion
-    const std::string f = sinSignos(texto);
+    const Lengua& L = lengua(idioma_);
+    const std::string f = sinSignos(L, texto);
     if (f.empty()) return r;
     silencios_ = 0;
-    if (esCancelar(f)) return cancelar();
+    if (esCancelar(L, f)) return cancelar();
     if (estado_ == Estado::Foto) return r; // mirando a la cámara: lo que diga no cambia nada
     if (estado_ == Estado::Documento) return oidoDocumento(texto, f);
     const Campo& c = t_.campos[actual_];
     r.pedir = c.clave;
     if (estado_ == Estado::Confirmando && confirmandoVarios_) return oidoConfirmandoVarios(texto);
     if (estado_ == Estado::Confirmando) {
-        const int sn = entenderSiNo(texto);
+        const int sn = entenderSiNo(texto, idioma_);
         if (sn == 1) {
             aceptar(propuesto_);
             r.campos = true;
-            avanzar(r, "Perfecto.");
+            avanzar(r, en().traducir("totem", "Perfecto."));
             return r;
         }
         if (sn == 0 && c.tipo == TipoCampo::Documento) {
             // Leyó mal (u otro documento): a mostrarlo de nuevo.
             estado_ = Estado::Documento;
             ++intentos_;
-            r.decir = dorsoPedido_ ? "Perdón. Mostrame de nuevo la parte de atrás, más cerca de la cámara."
-                                   : "Perdón. Mostrámelo de nuevo, más cerca de la cámara.";
-            if (intentos_ >= 2) r.decir += " Si preferís, escribí el número en la pantalla.";
+            r.decir = dorsoPedido_ ? en().traducir("totem", "Perdón. Mostrame de nuevo la parte de atrás, más cerca de la cámara.")
+                                   : en().traducir("totem", "Perdón. Mostrámelo de nuevo, más cerca de la cámara.");
+            if (intentos_ >= 2) r.decir += " " + en().traducir("totem", "Si preferís, escribí el número en la pantalla.");
             r.documento = true;
             return r;
         }
         if (sn == 0) {
             estado_ = Estado::Preguntando;
             ++intentos_;
-            r.decir = "Perdón. Decímelo de nuevo, despacio.";
-            if (intentos_ >= 2) r.decir += " Si preferís, escribilo en la pantalla.";
+            r.decir = en().traducir("totem", "Perdón. Decímelo de nuevo, despacio.");
+            if (intentos_ >= 2) r.decir += " " + en().traducir("totem", "Si preferís, escribilo en la pantalla.");
             return r;
         }
         // Ni sí ni no: puede que haya dicho el dato corregido directamente
         // («no, ortega con hache…» suele venir como el correo entero de nuevo).
         json v;
-        if (entender(c, texto, v) && v != propuesto_) {
+        if (entender(c, texto, v, idioma_) && v != propuesto_) {
             propuesto_ = v;
-            r.decir = "Anoté " + paraDecir(c, v) + ". " + kConfirmar;
+            r.decir = anoteYConfirmar(paraDecir(c, v, idioma_));
             return r;
         }
-        r.decir = "No te entendí. Anoté " + paraDecir(c, propuesto_) + ". " + kConfirmar;
+        r.decir = en().traducir("totem", "No te entendí.") + " " + anoteYConfirmar(paraDecir(c, propuesto_, idioma_));
         return r;
     }
-    if (esRepetir(f)) {
+    if (esRepetir(L, f)) {
         r.decir = pregunta(actual_);
         return r;
     }
@@ -919,19 +1124,19 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     const auto saltear = [&]() {
         if (!c.obligatorio) {
             salteado_[actual_] = true;
-            avanzar(r, "Dale, lo salteamos.");
+            avanzar(r, en().traducir("totem", "Dale, lo salteamos."));
         } else {
-            r.decir = "Este dato lo necesitamos. " + pregunta(actual_);
+            r.decir = en().traducir("totem", "Este dato lo necesitamos.") + " " + pregunta(actual_);
         }
     };
     const bool libre = c.tipo == TipoCampo::Texto || c.tipo == TipoCampo::Nombre;
-    if (libre && esSaltear(f)) {
+    if (libre && esSaltear(L, f)) {
         saltear();
         return r;
     }
     json v;
-    if (!entender(c, texto, v)) {
-        if (c.tipo != TipoCampo::SiNo && esSaltear(f)) saltear();
+    if (!entender(c, texto, v, idioma_)) {
+        if (c.tipo != TipoCampo::SiNo && esSaltear(L, f)) saltear();
         else fallo(r);
         return r;
     }
@@ -939,12 +1144,12 @@ Conversacion::Respuesta Conversacion::oido(const std::string& texto) {
     if (t_.confirmar && c.tipo != TipoCampo::SiNo) {
         estado_ = Estado::Confirmando;
         propuesto_ = v;
-        r.decir = "Anoté " + paraDecir(c, v) + ". " + kConfirmar;
+        r.decir = anoteYConfirmar(paraDecir(c, v, idioma_));
         return r;
     }
     aceptar(v);
     r.campos = true;
-    avanzar(r, "Perfecto.");
+    avanzar(r, en().traducir("totem", "Perfecto."));
     return r;
 }
 
@@ -960,20 +1165,20 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
     if (i == t_.campos.size()) return r;
     // Confirmando, los botones «Sí, es correcto» / «No, corregir» mandan «sí» o «no» para el
     // campo que se confirma: es la misma respuesta que la hablada.
-    if (estado_ == Estado::Confirmando && i == actual_ && entenderSiNo(valor) != -1) return oido(valor);
+    if (estado_ == Estado::Confirmando && i == actual_ && entenderSiNo(valor, idioma_) != -1) return oido(valor);
     const Campo& c = t_.campos[i];
     json v;
     r.pedir = t_.campos[actual_].clave;
     if (c.tipo == TipoCampo::Documento) {
-        if (!entender(c, valor, v)) {
-            r.decir = "Eso no parece un número de documento. Fijate si está bien escrito.";
+        if (!entender(c, valor, v, idioma_)) {
+            r.decir = en().traducir("totem", "Eso no parece un número de documento. Fijate si está bien escrito.");
             return r;
         }
         v["origen"] = "tipeado";
-    } else if (!entender(c, valor, v)) {
-        r.decir = c.tipo == TipoCampo::Correo     ? "Eso no parece un correo. Fijate si está bien escrito."
-                  : c.tipo == TipoCampo::Telefono ? "Eso no parece un teléfono. Fijate si está bien escrito."
-                                                  : "No entendí lo que escribiste. Fijate si está bien.";
+    } else if (!entender(c, valor, v, idioma_)) {
+        r.decir = c.tipo == TipoCampo::Correo     ? en().traducir("totem", "Eso no parece un correo. Fijate si está bien escrito.")
+                  : c.tipo == TipoCampo::Telefono ? en().traducir("totem", "Eso no parece un teléfono. Fijate si está bien escrito.")
+                                                  : en().traducir("totem", "No entendí lo que escribiste. Fijate si está bien.");
         return r;
     }
     // Lo tipeado no se confirma: lo está viendo escrito.
@@ -984,7 +1189,7 @@ Conversacion::Respuesta Conversacion::escrito(const std::string& clave, const st
     r.campos = true;
     // Confirmando lo que anotó el modelo, lo tipeado es una corrección: se vuelve a confirmar
     // lo que quede pendiente (avanzar), o se sigue.
-    if (i == actual_ || confirmandoVarios_) avanzar(r, "Gracias, ya lo anoté.");
+    if (i == actual_ || confirmandoVarios_) avanzar(r, en().traducir("totem", "Gracias, ya lo anoté."));
     return r;
 }
 
@@ -997,13 +1202,13 @@ Conversacion::Respuesta Conversacion::silencio() {
     r.pedir = t_.campos[actual_].clave;
     ++silencios_;
     if (silencios_ == 1) {
-        r.decir = "¿Seguís ahí? " + retomar();
+        r.decir = en().traducir("totem", "¿Seguís ahí?") + " " + retomar();
         return r;
     }
     // Se fue (o se distrajo con otra cosa): se corta sin guardar, para que el
     // siguiente no herede lo que contestó este a medias.
     estado_ = Estado::Terminada;
-    r.decir = "Bueno, lo dejamos acá. Cuando quieras, empezamos de nuevo.";
+    r.decir = en().traducir("totem", "Bueno, lo dejamos acá. Cuando quieras, empezamos de nuevo.");
     r.pedir.clear();
     r.terminar = true;
     return r;
@@ -1013,7 +1218,7 @@ Conversacion::Respuesta Conversacion::cancelar() {
     Respuesta r;
     if (!enCurso()) return r;
     estado_ = Estado::Terminada;
-    r.decir = "Listo, cancelé el registro. ¡Hasta luego!";
+    r.decir = en().traducir("totem", "Listo, cancelé el registro. ¡Hasta luego!");
     r.terminar = true;
     return r;
 }
@@ -1022,7 +1227,7 @@ Conversacion::Respuesta Conversacion::fotoLista() {
     Respuesta r;
     if (estado_ != Estado::Foto || atendida_) return r;
     fotoHecha_ = true;
-    terminar(r, "¡Salió muy bien!");
+    terminar(r, en().traducir("totem", "¡Salió muy bien!"));
     return r;
 }
 
@@ -1030,14 +1235,15 @@ Conversacion::Respuesta Conversacion::fotoFallo(const std::string& sugerencia) {
     Respuesta r;
     if (estado_ != Estado::Foto || atendida_) return r;
     if (++fotoIntentos_ == 1) {
-        r.decir = (sugerencia.empty() ? std::string("No te veo bien.") : sugerencia) + " Mirá derecho a la cámara.";
+        r.decir = (sugerencia.empty() ? en().traducir("totem", "No te veo bien.") : sugerencia) + " " +
+                  en().traducir("totem", "Mirá derecho a la cámara.");
         r.foto = true;
         return r;
     }
     // Una segunda vez no: la fila de la puerta importa más que la foto (la cara que
     // se vio durante la charla queda igual, si sirvió).
     fotoHecha_ = true;
-    terminar(r, "No pasa nada, seguimos sin la foto.");
+    terminar(r, en().traducir("totem", "No pasa nada, seguimos sin la foto."));
     return r;
 }
 
@@ -1054,7 +1260,7 @@ json Conversacion::camposParaMostrar() const {
         const Campo& c = t_.campos[i];
         out.push_back({{"clave", c.clave},
                        {"etiqueta", c.etiqueta.empty() ? c.clave : c.etiqueta},
-                       {"valor", paraMostrar(c, valores_[i])},
+                       {"valor", paraMostrar(c, valores_[i], idioma_)},
                        {"listo", !valores_[i].is_null() && !pendiente_[i]},
                        // anotado por el modelo, esperando el «sí» (la pantalla lo muestra a confirmar)
                        {"pendiente", pendiente_[i]}});
@@ -1080,18 +1286,26 @@ std::string Conversacion::nombre() const {
     return cara_.nombre;
 }
 
-std::string Conversacion::paso() const {
-    if (atendida_ && enCurso()) return "la atiende " + (atendidaPor_.empty() ? std::string("alguien del equipo") : atendidaPor_);
+std::string Conversacion::paso() const { return pasoEn(en()); }
+std::string Conversacion::pasoParaOperador() const { return pasoEn(enIdioma(std::string())); }
+
+std::string Conversacion::pasoEn(const ba::i18n::En& e) const {
+    if (atendida_ && enCurso())
+        return ba::i18n::llenar(e.traducir("totem", "la atiende %1"),
+                                {atendidaPor_.empty() ? e.traducir("totem", "alguien del equipo") : atendidaPor_});
     switch (estado_) {
-        case Estado::Esperando: return "esperando";
-        case Estado::Terminada: return "terminada";
-        case Estado::Foto: return "mirando a la cámara";
-        case Estado::Documento: return dorsoPedido_ ? "leyendo el dorso del documento" : "leyendo el documento";
+        case Estado::Esperando: return e.traducir("totem", "esperando");
+        case Estado::Terminada: return e.traducir("totem", "terminada");
+        case Estado::Foto: return e.traducir("totem", "mirando a la cámara");
+        case Estado::Documento:
+            return dorsoPedido_ ? e.traducir("totem", "leyendo el dorso del documento") : e.traducir("totem", "leyendo el documento");
         case Estado::Preguntando:
         case Estado::Confirmando: {
             const Campo& c = t_.campos[actual_];
-            return std::string(estado_ == Estado::Preguntando ? "preguntando " : "confirmando ") +
-                   (c.etiqueta.empty() ? c.clave : c.etiqueta);
+            const std::string etiqueta = c.etiqueta.empty() ? c.clave : c.etiqueta;
+            return ba::i18n::llenar(estado_ == Estado::Preguntando ? e.traducir("totem", "preguntando %1")
+                                                                   : e.traducir("totem", "confirmando %1"),
+                                    {etiqueta});
         }
     }
     return {};
@@ -1099,44 +1313,38 @@ std::string Conversacion::paso() const {
 
 // --- El documento ---------------------------------------------------------------
 
-namespace {
-/// Cómo se pide la parte de atrás: corto, hablado, y diciendo QUÉ mostrar (los
-/// renglones de abajo), que es lo que tiene que quedar frente a la cámara.
-constexpr const char* kPedirDorso =
-    "Dalo vuelta y mostrame la parte de atrás, la de los renglones de letras y números de abajo.";
-} // namespace
-
 Conversacion::Respuesta Conversacion::oidoDocumento(const std::string& texto, const std::string& f) {
     Respuesta r;
+    const Lengua& L = lengua(idioma_);
     const Campo& c = t_.campos[actual_];
     r.pedir = c.clave;
-    if (esSaltear(f)) {
+    if (esSaltear(L, f)) {
         if (!c.obligatorio) {
             salteado_[actual_] = true;
-            avanzar(r, "Dale, lo salteamos.");
+            avanzar(r, en().traducir("totem", "Dale, lo salteamos."));
         } else {
-            r.decir = "Este dato lo necesitamos. Si la cámara no lo lee, escribí el número en la pantalla.";
+            r.decir = en().traducir("totem", "Este dato lo necesitamos. Si la cámara no lo lee, escribí el número en la pantalla.");
             r.documento = true;
         }
         return r;
     }
-    if (esRepetir(f)) {
-        r.decir = dorsoPedido_ ? std::string(kPedirDorso) : pregunta(actual_);
+    if (esRepetir(L, f)) {
+        r.decir = dorsoPedido_ ? pedirDorso() : pregunta(actual_);
         r.documento = true;
         return r;
     }
     // Dictó el número: se toma como si lo hubiera tipeado, pero dicho se confirma.
     json v;
-    if (entender(c, texto, v)) {
+    if (entender(c, texto, v, idioma_)) {
         if (t_.confirmar) {
             estado_ = Estado::Confirmando;
             propuesto_ = v;
-            r.decir = "Anoté " + paraDecir(c, v) + ". " + kConfirmar;
+            r.decir = anoteYConfirmar(paraDecir(c, v, idioma_));
             return r;
         }
         aceptar(v);
         r.campos = true;
-        avanzar(r, "Perfecto.");
+        avanzar(r, en().traducir("totem", "Perfecto."));
     }
     // Lo demás («ahí va», «a ver») es charla mientras acomoda el documento: nada.
     return r;
@@ -1160,13 +1368,16 @@ Conversacion::Respuesta Conversacion::documentoLeido(const json& datos) {
     if (t_.confirmar) {
         estado_ = Estado::Confirmando;
         propuesto_ = v;
-        r.decir = (d.apellido.empty() ? "Leí " : "Sos ") + paraDecir(c, v) + ". " + kConfirmar;
+        r.decir = ba::i18n::llenar(d.apellido.empty() ? en().traducir("totem", "Leí %1.") : en().traducir("totem", "Sos %1."),
+                                   {paraDecir(c, v, idioma_)}) +
+                  " " + confirmar();
         return r;
     }
     aceptar(v);
     r.campos = true;
-    avanzar(r, d.nombres.empty() ? std::string("Listo, ya lo leí.")
-                                 : "Gracias, " + d.nombres.substr(0, d.nombres.find(' ')) + ". Ya lo leí.");
+    avanzar(r, d.nombres.empty() ? en().traducir("totem", "Listo, ya lo leí.")
+                                 : ba::i18n::llenar(en().traducir("totem", "Gracias, %1. Ya lo leí."),
+                                                    {d.nombres.substr(0, d.nombres.find(' '))}));
     return r;
 }
 
@@ -1182,25 +1393,25 @@ Conversacion::Respuesta Conversacion::documentoFallo(const std::string& sugerenc
         // con el frente; si lo vuelve a mostrar, también se lee. La sugerencia es del
         // frente («mostrame el lado del código»): acá no va.
         dorsoPedido_ = true;
-        r.decir = std::string("No pude leer el código. ") + kPedirDorso;
+        r.decir = en().traducir("totem", "No pude leer el código.") + " " + pedirDorso();
         r.documento = true;
         r.dorso = true;
         return r;
     }
     if (intentos_ == 1) {
-        r.decir = (sugerencia.empty() ? std::string("No lo pude leer.") : sugerencia) +
-                  " Tenelo quieto frente a la cámara, del lado del código de barras, sin que le dé el reflejo."
-                  " Si preferís, escribí el número en la pantalla.";
+        r.decir = (sugerencia.empty() ? en().traducir("totem", "No lo pude leer.") : sugerencia) + " " +
+                  en().traducir("totem", "Tenelo quieto frente a la cámara, del lado del código de barras, sin que le dé el "
+                                         "reflejo. Si preferís, escribí el número en la pantalla.");
         r.documento = true;
         return r;
     }
     // La segunda vez no se insiste: la fila de la puerta importa más que el documento.
     if (!c.obligatorio) {
         salteado_[actual_] = true;
-        avanzar(r, "No pasa nada, seguimos sin el documento.");
+        avanzar(r, en().traducir("totem", "No pasa nada, seguimos sin el documento."));
         return r;
     }
-    r.decir = "No lo puedo leer. Escribí el número en la pantalla, así seguimos.";
+    r.decir = en().traducir("totem", "No lo puedo leer. Escribí el número en la pantalla, así seguimos.");
     r.documento = true;
     return r;
 }
@@ -1219,7 +1430,8 @@ void Conversacion::completarDesdeDocumento(const json& doc) {
         if (c.tipo == TipoCampo::Nombre) {
             if (!d.apellido.empty() && !d.nombres.empty()) x = d.nombreCompleto();
         } else if (c.tipo == TipoCampo::Texto || c.tipo == TipoCampo::Numero) {
-            // Por la clave: es lo único que dice qué dato es un campo de texto libre.
+            // Por la clave: es lo único que dice qué dato es un campo de texto libre. Las claves
+            // son API (registro.json), no palabras del idioma del evento.
             std::string v;
             if (c.clave == "apellido" || c.clave == "apellidos") v = d.apellido;
             else if (c.clave == "nombres" || c.clave == "nombre_pila") v = d.nombres;
@@ -1271,22 +1483,23 @@ Conversacion::Respuesta Conversacion::devolver() {
     if (!enCurso()) return r;
     silencios_ = 0;
     if (estado_ == Estado::Confirmando) estado_ = Estado::Preguntando;
-    avanzar(r, "Sigo yo.");
+    avanzar(r, en().traducir("totem", "Sigo yo."));
     r.campos = true;
     return r;
 }
 
 Conversacion::Respuesta Conversacion::poner(const std::string& clave, const std::string& valor, std::string& error) {
+    // Los errores son para quien atiende (la web, la app, el MCP): en el idioma del operador.
     Respuesta r;
     error.clear();
     if (!enCurso()) {
-        error = "Esa conversación no está en curso.";
+        error = ba::i18n::traducir("registro", "Esa conversación no está en curso.");
         return r;
     }
     std::size_t i = 0;
     while (i < t_.campos.size() && t_.campos[i].clave != clave) ++i;
     if (i == t_.campos.size()) {
-        error = "Ese tótem no pide «" + clave + "».";
+        error = ba::i18n::llenar(ba::i18n::traducir("registro", "Ese tótem no pide «%1»."), {clave});
         return r;
     }
     if (estado_ != Estado::Foto) r.pedir = t_.campos[actual_].clave;
@@ -1304,13 +1517,15 @@ Conversacion::Respuesta Conversacion::poner(const std::string& clave, const std:
     }
     const Campo& c = t_.campos[i];
     json v;
-    if (!entender(c, limpio, v)) {
-        error = c.tipo == TipoCampo::Correo     ? "Eso no parece un correo."
-                : c.tipo == TipoCampo::Telefono ? "Eso no parece un teléfono."
-                : c.tipo == TipoCampo::Numero   ? "Eso no es un número."
-                : c.tipo == TipoCampo::SiNo     ? "Tiene que ser sí o no."
-                : c.tipo == TipoCampo::Opcion   ? "Tiene que ser una de las opciones: " + listar(c.opciones) + "."
-                                                : "No se entiende ese valor.";
+    if (!entender(c, limpio, v, idioma_)) {
+        error = c.tipo == TipoCampo::Correo     ? ba::i18n::traducir("registro", "Eso no parece un correo.")
+                : c.tipo == TipoCampo::Telefono ? ba::i18n::traducir("registro", "Eso no parece un teléfono.")
+                : c.tipo == TipoCampo::Numero   ? ba::i18n::traducir("registro", "Eso no es un número.")
+                : c.tipo == TipoCampo::SiNo     ? ba::i18n::traducir("registro", "Tiene que ser sí o no.")
+                : c.tipo == TipoCampo::Opcion
+                    ? ba::i18n::llenar(ba::i18n::traducir("registro", "Tiene que ser una de las opciones: %1."),
+                                       {listar(enIdioma(std::string()), c.opciones)})
+                    : ba::i18n::traducir("registro", "No se entiende ese valor.");
         return r;
     }
     // Sin atender y en medio de las preguntas: es lo mismo que tipearlo en la pantalla (si era el
@@ -1336,12 +1551,12 @@ Conversacion::Respuesta Conversacion::guardarYa(std::string& error) {
     Respuesta r;
     error.clear();
     if (!enCurso()) {
-        error = "Esa conversación no está en curso.";
+        error = ba::i18n::traducir("registro", "Esa conversación no está en curso.");
         return r;
     }
     const auto f = faltan();
     if (!f.empty()) {
-        error = "Falta " + listar(f) + " (es obligatorio).";
+        error = ba::i18n::llenar(ba::i18n::traducir("registro", "Falta %1 (es obligatorio)."), {listar(enIdioma(std::string()), f)});
         return r;
     }
     // Lo decidió una persona: sin el paso de la foto (queda la mejor que se vio en la charla).
@@ -1357,20 +1572,23 @@ Conversacion::Respuesta Conversacion::guardarYa(std::string& error) {
 
 namespace {
 /// «a, b y c»: lo anotado se dice como se enumera hablando (listar() es para opciones: «o»).
-std::string enumerar(const std::vector<std::string>& v) {
+std::string enumerar(const ba::i18n::En& en, const std::vector<std::string>& v) {
     std::string out;
     for (std::size_t i = 0; i < v.size(); ++i) {
-        if (i > 0) out += i + 1 == v.size() ? " y " : ", ";
-        out += v[i];
+        if (i == 0) out = v[i];
+        else if (i + 1 == v.size()) out = ba::i18n::llenar(en.traducir("totem", "%1 y %2"), {out, v[i]});
+        else out = ba::i18n::llenar(en.traducir("totem", "%1, %2"), {out, v[i]});
     }
     return out;
 }
 
-/// La etiqueta en minúscula para decirla en medio de una frase («correo», «teléfono»). Solo
-/// la primera letra: una sigla («DNI») queda como está.
-std::string etiquetaHablada(const Campo& c) {
+/// La etiqueta para decirla en medio de una frase: en minúscula si el idioma lo hace
+/// («correo», «teléfono»; totem.json, etiquetaEnMinuscula). Solo la primera letra: una sigla
+/// («DNI») queda como está.
+std::string etiquetaHablada(const Campo& c, bool minuscula) {
     std::string e = c.etiqueta.empty() ? c.clave : c.etiqueta;
-    if (e.size() > 1 && std::isupper(static_cast<unsigned char>(e[0])) && !std::isupper(static_cast<unsigned char>(e[1])))
+    if (minuscula && e.size() > 1 && std::isupper(static_cast<unsigned char>(e[0])) &&
+        !std::isupper(static_cast<unsigned char>(e[1])))
         e[0] = static_cast<char>(std::tolower(static_cast<unsigned char>(e[0])));
     return e;
 }
@@ -1381,15 +1599,16 @@ bool Conversacion::hayPendientes() const {
 }
 
 bool Conversacion::paraElGuion(const std::string& dicho) const {
-    const std::string f = sinSignos(dicho);
+    const Lengua& L = lengua(idioma_);
+    const std::string f = sinSignos(L, dicho);
     if (f.empty() || !enCurso() || atendida_) return true;
-    if (esCancelar(f) || esRepetir(f)) return true;
+    if (esCancelar(L, f) || esRepetir(L, f)) return true;
     // Mirando a la cámara o mostrando el documento, lo que diga lo maneja el guion (dictar el
     // número, «saltear»): el modelo no ve la cámara.
     if (estado_ == Estado::Foto || estado_ == Estado::Documento) return true;
     // Un «sí, es correcto» o un «no» suelto a una confirmación: al instante. Con más palabras
     // («no, el correo es con jota») puede traer la corrección: eso lo entiende el modelo.
-    if (estado_ == Estado::Confirmando && entenderSiNo(dicho) != -1 && palabras(f).size() <= 3) return true;
+    if (estado_ == Estado::Confirmando && entenderSiNo(dicho, idioma_) != -1 && palabras(f).size() <= 3) return true;
     return false;
 }
 
@@ -1402,29 +1621,32 @@ void Conversacion::empezarTurnoModelo() {
 
 bool Conversacion::proponer(const std::string& clave, const std::string& valor, std::string& error,
                             std::string* comoQuedo) {
+    // Los errores son para el modelo, que habla con la persona: en el idioma del evento.
+    const ba::i18n::En e = en();
     error.clear();
     if (!enCurso() || atendida_ || estado_ == Estado::Foto) {
-        error = "Ahora no se anotan datos (la conversación no está en un paso de preguntas).";
+        error = e.traducir("asistente", "Ahora no se anotan datos (la conversación no está en un paso de preguntas).");
         return false;
     }
     std::size_t i = 0;
     while (i < t_.campos.size() && t_.campos[i].clave != clave) ++i;
     if (i == t_.campos.size()) {
-        error = "No hay un campo «" + clave + "» en este registro.";
+        error = ba::i18n::llenar(e.traducir("asistente", "No hay un campo «%1» en este registro."), {clave});
         return false;
     }
     const Campo& c = t_.campos[i];
     json v;
-    if (!entender(c, valor, v)) {
-        error = c.tipo == TipoCampo::Correo      ? "No es un correo válido. Pedile que lo repita despacio."
-                : c.tipo == TipoCampo::Telefono  ? "No es un teléfono válido (de 6 a 15 dígitos). Pedile que lo repita."
-                : c.tipo == TipoCampo::Numero    ? "No es un número."
-                : c.tipo == TipoCampo::SiNo      ? "Tiene que ser sí o no."
-                : c.tipo == TipoCampo::Opcion    ? "Tiene que ser una de estas opciones: " + listar(c.opciones) + "."
-                : c.tipo == TipoCampo::Documento ? "No es un número de documento (de 6 a 9 dígitos)."
-                : c.tipo == TipoCampo::Nombre    ? "No es un nombre."
-                                                 : "No se entiende ese valor.";
-        if (!c.ejemplo.empty()) error += " Por ejemplo: " + c.ejemplo + ".";
+    if (!entender(c, valor, v, idioma_)) {
+        error = c.tipo == TipoCampo::Correo      ? e.traducir("asistente", "No es un correo válido. Pedile que lo repita despacio.")
+                : c.tipo == TipoCampo::Telefono  ? e.traducir("asistente", "No es un teléfono válido (de 6 a 15 dígitos). Pedile que lo repita.")
+                : c.tipo == TipoCampo::Numero    ? e.traducir("asistente", "No es un número.")
+                : c.tipo == TipoCampo::SiNo      ? e.traducir("asistente", "Tiene que ser sí o no.")
+                : c.tipo == TipoCampo::Opcion
+                    ? ba::i18n::llenar(e.traducir("asistente", "Tiene que ser una de estas opciones: %1."), {listar(e, c.opciones)})
+                : c.tipo == TipoCampo::Documento ? e.traducir("asistente", "No es un número de documento (de 6 a 9 dígitos).")
+                : c.tipo == TipoCampo::Nombre    ? e.traducir("asistente", "No es un nombre.")
+                                                 : e.traducir("asistente", "No se entiende ese valor.");
+        if (!c.ejemplo.empty()) error += " " + ba::i18n::llenar(e.traducir("asistente", "Por ejemplo: %1."), {c.ejemplo});
         return false;
     }
     // Lo que se estaba confirmando por el guion (un solo dato) pasa a ser un pendiente más:
@@ -1442,7 +1664,7 @@ bool Conversacion::proponer(const std::string& clave, const std::string& valor, 
     pendiente_[i] = t_.confirmar && c.tipo != TipoCampo::SiNo;
     if (!pendiente_[i]) ++anotadosTurno_;
     ++propuestosTurno_;
-    if (comoQuedo != nullptr) *comoQuedo = paraDecir(c, v);
+    if (comoQuedo != nullptr) *comoQuedo = paraDecir(c, v, idioma_);
     return true;
 }
 
@@ -1469,30 +1691,36 @@ void Conversacion::aceptarPendientes() {
 }
 
 std::string Conversacion::fraseConfirmarVarios() const {
+    const ba::i18n::En e = en();
+    const bool minuscula = lengua(idioma_).etiquetaEnMinuscula;
     std::vector<std::string> v;
     std::size_t solo = 0;
     for (std::size_t i = 0; i < pendiente_.size(); ++i)
         if (pendiente_[i]) {
             solo = i;
-            v.push_back(etiquetaHablada(t_.campos[i]) + " " + paraDecir(t_.campos[i], valores_[i]));
+            //: la etiqueta de un campo y el dato, al repasar lo anotado («correo jorge punto ortega…»)
+            v.push_back(ba::i18n::llenar(e.traducir("totem", "%1 %2"),
+                                         {etiquetaHablada(t_.campos[i], minuscula), paraDecir(t_.campos[i], valores_[i], idioma_)}));
         }
     if (v.empty()) return {};
     // Uno solo, con la misma frase del guion («Anoté jorge punto…»).
-    if (v.size() == 1) return "Anoté " + paraDecir(t_.campos[solo], valores_[solo]) + ". " + kConfirmar;
+    if (v.size() == 1) return anoteYConfirmar(paraDecir(t_.campos[solo], valores_[solo], idioma_));
     // Varios de una: se repasan todos y se pregunta por el conjunto. Con el modelo, la
     // persona puede decir directamente cuál está mal («el correo es con jota»).
-    return "Anoté " + enumerar(v) + ". ¿Está todo correcto? Decime «sí, está todo correcto»" +
-           (modelo_ ? std::string(" o cuál dato está mal.") : std::string(" o «no, hay algo mal»."));
+    return ba::i18n::llenar(
+        modelo_ ? e.traducir("totem", "Anoté %1. ¿Está todo correcto? Decime «sí, está todo correcto» o cuál dato está mal.")
+                : e.traducir("totem", "Anoté %1. ¿Está todo correcto? Decime «sí, está todo correcto» o «no, hay algo mal»."),
+        {enumerar(e, v)});
 }
 
 std::string Conversacion::retomar() const {
     switch (estado_) {
         case Estado::Preguntando: return pregunta(actual_);
         case Estado::Confirmando:
-            if (confirmandoVarios_) return corrigiendo_ ? "¿Qué dato está mal?" : fraseConfirmarVarios();
-            return "Anoté " + paraDecir(t_.campos[actual_], propuesto_) + ". " + kConfirmar;
-        case Estado::Documento: return dorsoPedido_ ? std::string(kPedirDorso) : pregunta(actual_);
-        case Estado::Foto: return "Mirá derecho a la cámara un momento.";
+            if (confirmandoVarios_) return corrigiendo_ ? en().traducir("totem", "¿Qué dato está mal?") : fraseConfirmarVarios();
+            return anoteYConfirmar(paraDecir(t_.campos[actual_], propuesto_, idioma_));
+        case Estado::Documento: return dorsoPedido_ ? pedirDorso() : pregunta(actual_);
+        case Estado::Foto: return en().traducir("totem", "Mirá derecho a la cámara un momento.");
         case Estado::Esperando:
         case Estado::Terminada: break;
     }
@@ -1502,12 +1730,12 @@ std::string Conversacion::retomar() const {
 Conversacion::Respuesta Conversacion::oidoConfirmandoVarios(const std::string& texto) {
     Respuesta r;
     r.pedir = t_.campos[actual_].clave;
-    const int sn = entenderSiNo(texto);
+    const int sn = entenderSiNo(texto, idioma_);
     if (sn == 1) {
         aceptarPendientes();
         estado_ = Estado::Preguntando;
         r.campos = true;
-        avanzar(r, "Perfecto.");
+        avanzar(r, en().traducir("totem", "Perfecto."));
         return r;
     }
     if (sn == 0) {
@@ -1524,15 +1752,15 @@ Conversacion::Respuesta Conversacion::oidoConfirmandoVarios(const std::string& t
             actual_ = pend[0];
             ++intentos_;
             r.pedir = t_.campos[actual_].clave;
-            r.decir = "Perdón. Decímelo de nuevo, despacio.";
-            if (intentos_ >= 2) r.decir += " Si preferís, escribilo en la pantalla.";
+            r.decir = en().traducir("totem", "Perdón. Decímelo de nuevo, despacio.");
+            if (intentos_ >= 2) r.decir += " " + en().traducir("totem", "Si preferís, escribilo en la pantalla.");
             r.campos = true;
             return r;
         }
         if (modelo_ && !corrigiendo_) {
             // Con el modelo, lo que diga ahora («el correo está mal, es con jota») lo corrige.
             corrigiendo_ = true;
-            r.decir = "Perdón. ¿Qué dato está mal?";
+            r.decir = en().traducir("totem", "Perdón. ¿Qué dato está mal?");
             return r;
         }
         // Sin modelo no hay cómo saber cuál: se pregunta de nuevo todo lo pendiente.
@@ -1544,10 +1772,10 @@ Conversacion::Respuesta Conversacion::oidoConfirmandoVarios(const std::string& t
         corrigiendo_ = false;
         estado_ = Estado::Preguntando;
         r.campos = true;
-        avanzar(r, "Perdón, vamos de nuevo.");
+        avanzar(r, en().traducir("totem", "Perdón, vamos de nuevo."));
         return r;
     }
-    r.decir = "No te entendí. " + retomar();
+    r.decir = en().traducir("totem", "No te entendí.") + " " + retomar();
     return r;
 }
 
@@ -1563,7 +1791,7 @@ Conversacion::Respuesta Conversacion::despuesDelModelo(bool dijoAlgo, bool recha
         corrigiendo_ = false;
         intentos_ = 0;
         r.campos = true;
-        avanzar(r, anoto ? std::string() : "Perfecto.");
+        avanzar(r, anoto ? std::string() : en().traducir("totem", "Perfecto."));
         return r;
     }
     r.pedir = t_.campos[actual_].clave;
@@ -1587,7 +1815,7 @@ json Conversacion::estadoParaModelo() const {
     json anotados = json::object(), pend = json::array(), faltanAun = json::array();
     for (std::size_t i = 0; i < t_.campos.size(); ++i) {
         const Campo& c = t_.campos[i];
-        if (!valores_[i].is_null()) anotados[c.clave] = paraMostrar(c, valores_[i]);
+        if (!valores_[i].is_null()) anotados[c.clave] = paraMostrar(c, valores_[i], idioma_);
         if (pendiente_[i]) pend.push_back(c.clave);
         if (valores_[i].is_null() && !salteado_[i]) faltanAun.push_back(c.clave);
     }
@@ -1598,7 +1826,7 @@ json Conversacion::estadoParaModelo() const {
     }
     j["confirmando"] = estado_ == Estado::Confirmando;
     if (estado_ == Estado::Confirmando && !confirmandoVarios_ && !propuesto_.is_null())
-        j["seConfirma"] = {{t_.campos[actual_].clave, paraMostrar(t_.campos[actual_], propuesto_)}};
+        j["seConfirma"] = {{t_.campos[actual_].clave, paraMostrar(t_.campos[actual_], propuesto_, idioma_)}};
     j["corrigiendo"] = corrigiendo_;
     return j;
 }

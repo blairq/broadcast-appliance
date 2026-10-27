@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "i18n/I18n.hpp"
 #include "registro/Conversacion.hpp"
 
 namespace ba::registro {
@@ -62,6 +63,11 @@ constexpr std::size_t kFraseLarga = 180;
 
 std::string texto(const json& j, const char* k) {
     return j.is_object() && j.contains(k) && j[k].is_string() ? j[k].get<std::string>() : std::string();
+}
+
+/// Lo que lee el modelo va en el idioma del evento (habla con el público). "" = el del operador.
+ba::i18n::En enIdioma(const std::string& idioma) {
+    return ba::i18n::En(idioma.empty() ? ba::i18n::actual().codigo : idioma);
 }
 
 } // namespace
@@ -225,80 +231,81 @@ TurnoModelo LectorSse::deRespuesta(const json& j) {
 
 // --- El pedido ------------------------------------------------------------------------------
 
-std::string sistemaRegistro(const std::string& prompt, const Totem& t, const std::string& evento) {
+std::string sistemaRegistro(const std::string& prompt, const Totem& t, const std::string& evento, const std::string& idioma) {
+    const ba::i18n::En e = enIdioma(idioma);
     std::string campos;
     for (const Campo& c : t.campos) {
+        // La clave y el tipo son API (lo que el modelo pone en registro_poner): no se traducen.
         campos += "- " + c.clave + " (" + (c.etiqueta.empty() ? c.clave : c.etiqueta) + ", " + nombreDeTipo(c.tipo);
-        if (c.obligatorio) campos += ", obligatorio";
+        if (c.obligatorio) campos += ", " + e.traducir("asistente", "obligatorio");
         if (c.tipo == TipoCampo::Opcion && !c.opciones.empty()) {
             campos += ": ";
             for (std::size_t i = 0; i < c.opciones.size(); ++i) campos += (i ? " / " : "") + c.opciones[i];
         }
-        if (c.tipo == TipoCampo::Documento) campos += ": se lee con la cámara; si lo dice, es el número";
+        if (c.tipo == TipoCampo::Documento)
+            campos += ": " + e.traducir("asistente", "se lee con la cámara; si lo dice, es el número");
         campos += ")\n";
     }
     if (!campos.empty()) campos.pop_back();
     std::string s = prompt;
-    reemplazar(s, "{evento}", evento.empty() ? std::string("el evento") : evento);
-    reemplazar(s, "{campos}", campos.empty() ? std::string("(ninguno)") : campos);
-    reemplazar(s, "{ficha}", recortar(t.ficha).empty() ? std::string("Solo su nombre: nada más (ni horarios, ni lugar).")
-                                                       : recortar(t.ficha));
+    reemplazar(s, "{evento}", evento.empty() ? e.traducir("asistente", "el evento") : evento);
+    reemplazar(s, "{campos}", campos.empty() ? e.traducir("asistente", "(ninguno)") : campos);
+    reemplazar(s, "{ficha}",
+               recortar(t.ficha).empty() ? e.traducir("asistente", "Solo su nombre: nada más (ni horarios, ni lugar).")
+                                         : recortar(t.ficha));
     return s;
 }
 
-json herramientasRegistro(const Totem& t) {
+json herramientasRegistro(const Totem& t, const std::string& idioma) {
+    const ba::i18n::En e = enIdioma(idioma);
     json claves = json::array();
     for (const Campo& c : t.campos) claves.push_back(c.clave);
     const json poner{
         {"type", "function"},
         {"function",
          {{"name", "registro_poner"},
-          {"description",
-           "Anota UN dato que dijo la persona (llamala una vez por cada dato, aunque sean varios en el mismo turno). "
-           "El valor ya armado, como se escribe: un correo como correo (jorge.ortega@gmail.com: «arroba» es @, "
-           "«punto» es .), un teléfono en dígitos (1145678901), un nombre con mayúsculas. Lo que dijo llega de un "
-           "reconocedor de voz que a veces escribe mal («P. Ortega» o «Portega» por «punto ortega», «ciclo» por "
-           "«cinco»): interpretalo con criterio. No inventes lo que no dijo; si no se entiende, no lo anotes y "
-           "pedíselo de nuevo. Se le va a confirmar en voz alta. Si no tiene el formato, devuelve el error."},
+          // Con ejemplos del correo dictado en el idioma: va en un archivo por idioma.
+          {"description", recortar(e.leer("prompts/totem/registro_poner.md"))},
           {"parameters",
            {{"type", "object"},
             {"properties",
-             {{"campo", {{"type", "string"}, {"enum", claves}, {"description", "la clave del campo"}}},
-              {"valor", {{"type", "string"}, {"description", "el dato ya armado, como se escribe"}}}}},
+             {{"campo", {{"type", "string"}, {"enum", claves}, {"description", e.traducir("asistente", "la clave del campo")}}},
+              {"valor", {{"type", "string"}, {"description", e.traducir("asistente", "el dato ya armado, como se escribe")}}}}},
             {"required", {"campo", "valor"}}}}}}};
     const json confirmar{
         {"type", "function"},
         {"function",
          {{"name", "registro_confirmar"},
-          {"description", "La persona dijo que sí, que está bien lo que se le estaba confirmando."},
+          {"description", e.traducir("asistente", "La persona dijo que sí, que está bien lo que se le estaba confirmando.")},
           {"parameters", {{"type", "object"}, {"properties", json::object()}}}}}};
     const json decir{
         {"type", "function"},
         {"function",
          {{"name", "registro_decir"},
           {"description",
-           "Lo que le decís a la persona en voz alta: la respuesta a su pregunta, o pedirle de nuevo un dato que no "
-           "se entendió. Si solo anotaste datos, no hace falta."},
+           e.traducir("asistente", "Lo que le decís a la persona en voz alta: la respuesta a su pregunta, o pedirle de nuevo "
+                                   "un dato que no se entendió. Si solo anotaste datos, no hace falta.")},
           {"parameters",
            {{"type", "object"},
-            {"properties", {{"texto", {{"type", "string"}, {"description", "una o dos frases cortas, en rioplatense"}}}}},
+            {"properties", {{"texto", {{"type", "string"}, {"description", e.traducir("asistente", "una o dos frases cortas, en rioplatense")}}}}},
             {"required", {"texto"}}}}}}};
     return json::array({poner, confirmar, decir});
 }
 
 json ejecutarHerramienta(Conversacion& conv, const LlamadaHerramienta& ll, bool& rechazo) {
+    const ba::i18n::En e(conv.idioma());
     rechazo = false;
     const json a = json::parse(ll.argumentos.empty() ? std::string("{}") : ll.argumentos, nullptr, false);
     if (ll.nombre == "registro_poner") {
         if (!a.is_object()) {
             rechazo = true;
-            return {{"error", "Los argumentos no son un JSON: {\"campo\": \"…\", \"valor\": \"…\"}."}};
+            return {{"error", e.traducir("asistente", "Los argumentos no son un JSON: {\"campo\": \"…\", \"valor\": \"…\"}.")}};
         }
         const std::string campo = texto(a, "campo");
         // Un número o un booleano también se acepta (el modelo a veces no lo pone entre comillas).
         std::string valor = texto(a, "valor");
         if (valor.empty() && a.contains("valor") && !a["valor"].is_null() && !a["valor"].is_string())
-            valor = a["valor"].is_boolean() ? (a["valor"].get<bool>() ? "sí" : "no") : a["valor"].dump();
+            valor = a["valor"].is_boolean() ? palabraSiNo(a["valor"].get<bool>(), conv.idioma()) : a["valor"].dump();
         std::string error, quedo;
         if (!conv.proponer(campo, valor, error, &quedo)) {
             rechazo = true;
@@ -309,7 +316,7 @@ json ejecutarHerramienta(Conversacion& conv, const LlamadaHerramienta& ll, bool&
     if (ll.nombre == "registro_confirmar") {
         if (!conv.confirmarPendientes()) {
             rechazo = true;
-            return {{"error", "No había nada esperando confirmación."}};
+            return {{"error", e.traducir("asistente", "No había nada esperando confirmación.")}};
         }
         return {{"ok", true}};
     }
@@ -317,12 +324,14 @@ json ejecutarHerramienta(Conversacion& conv, const LlamadaHerramienta& ll, bool&
         // Lo dice el tótem (AgenteRegistro::alTerminarVuelta lo junta en Vuelta::decir).
         if (!a.is_object() || recortar(texto(a, "texto")).empty()) {
             rechazo = true;
-            return {{"error", "Falta el texto: {\"texto\": \"…\"}."}};
+            return {{"error", e.traducir("asistente", "Falta el texto: {\"texto\": \"…\"}.")}};
         }
         return {{"ok", true}};
     }
     rechazo = true;
-    return {{"error", "No existe la herramienta «" + ll.nombre + "»: usá registro_poner, registro_confirmar o registro_decir."}};
+    return {{"error", ba::i18n::llenar(e.traducir("asistente", "No existe la herramienta «%1»: usá registro_poner, "
+                                                               "registro_confirmar o registro_decir."),
+                                       {ll.nombre})}};
 }
 
 // --- Los turnos -----------------------------------------------------------------------------
@@ -351,8 +360,8 @@ json AgenteRegistro::cuerpo(const json& mensajes) const {
     return b;
 }
 
-void AgenteRegistro::conHerramientas(json& cuerpo, const Totem& t) {
-    cuerpo["tools"] = herramientasRegistro(t);
+void AgenteRegistro::conHerramientas(json& cuerpo, const Totem& t, const std::string& idioma) {
+    cuerpo["tools"] = herramientasRegistro(t, idioma);
     // Siempre con herramientas, también para hablar (registro_decir): suelto, el modelo chico
     // contaba los datos en prosa («ya tengo tu correo…») sin anotarlos. Con «required» el
     // servidor lo obliga con una gramática a contestar con llamadas.
@@ -360,33 +369,39 @@ void AgenteRegistro::conHerramientas(json& cuerpo, const Totem& t) {
 }
 
 json AgenteRegistro::precalentar(const Conversacion& conv) {
-    if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento());
-    json b = cuerpo(json::array({{{"role", "user"}, {"content", "Hola"}}}));
-    conHerramientas(b, conv.totem());
+    idioma_ = conv.idioma();
+    if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento(), idioma_);
+    json b = cuerpo(json::array({{{"role", "user"}, {"content", ba::i18n::En(idioma_).traducir("asistente", "Hola")}}}));
+    conHerramientas(b, conv.totem(), idioma_);
     b["max_tokens"] = 1;
     return b;
 }
 
 json AgenteRegistro::empezarTurno(Conversacion& conv, const std::string& dicho) {
-    if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento());
+    idioma_ = conv.idioma();
+    const ba::i18n::En e(idioma_);
+    if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento(), idioma_);
     conv.empezarTurnoModelo();
     vueltas_ = 0;
     dijoAlgo_ = false;
     rechazos_ = false;
     herramientas_ = json::array();
-    const json e = conv.estadoParaModelo();
-    std::string ctx = "Paso del guion: " + e.value("paso", std::string()) + ".";
-    if (e.contains("pregunta"))
-        ctx += "\nEl guion le preguntó (y se lo vuelve a preguntar él, no vos): «" + e["pregunta"].get<std::string>() + "»";
-    if (e.contains("seConfirma")) ctx += "\nSe está confirmando: " + e["seConfirma"].dump();
-    if (!e["anotados"].empty()) ctx += "\nAnotado: " + e["anotados"].dump();
-    if (!e["pendientes"].empty()) ctx += "\nSin confirmar todavía: " + e["pendientes"].dump();
-    if (e.value("corrigiendo", false)) ctx += "\nDijo que algún dato está mal: anotá el bueno.";
-    if (!e["faltan"].empty()) ctx += "\nFalta: " + e["faltan"].dump();
-    ctx += "\n\nLa persona dijo: «" + dicho + "»";
+    const json est = conv.estadoParaModelo();
+    const auto con = [](const std::string& plantilla, const std::string& dato) { return ba::i18n::llenar(plantilla, {dato}); };
+    std::string ctx = con(e.traducir("asistente", "Paso del guion: %1."), est.value("paso", std::string()));
+    if (est.contains("pregunta"))
+        ctx += "\n" + con(e.traducir("asistente", "El guion le preguntó (y se lo vuelve a preguntar él, no vos): «%1»"),
+                          est["pregunta"].get<std::string>());
+    if (est.contains("seConfirma")) ctx += "\n" + con(e.traducir("asistente", "Se está confirmando: %1"), est["seConfirma"].dump());
+    if (!est["anotados"].empty()) ctx += "\n" + con(e.traducir("asistente", "Anotado: %1"), est["anotados"].dump());
+    if (!est["pendientes"].empty())
+        ctx += "\n" + con(e.traducir("asistente", "Sin confirmar todavía: %1"), est["pendientes"].dump());
+    if (est.value("corrigiendo", false)) ctx += "\n" + e.traducir("asistente", "Dijo que algún dato está mal: anotá el bueno.");
+    if (!est["faltan"].empty()) ctx += "\n" + con(e.traducir("asistente", "Falta: %1"), est["faltan"].dump());
+    ctx += "\n\n" + con(e.traducir("asistente", "La persona dijo: «%1»"), dicho);
     mensajes_ = json::array({{{"role", "user"}, {"content", ctx}}});
     json b = cuerpo(mensajes_);
-    conHerramientas(b, conv.totem());
+    conHerramientas(b, conv.totem(), idioma_);
     return b;
 }
 
@@ -425,14 +440,16 @@ AgenteRegistro::Vuelta AgenteRegistro::alTerminarVuelta(Conversacion& conv, cons
         mensajes_.push_back(asistente);
         for (const json& r : v.resultados) mensajes_.push_back(r);
         v.cuerpo = cuerpo(mensajes_);
-        conHerramientas(v.cuerpo, conv.totem());
+        conHerramientas(v.cuerpo, conv.totem(), conv.idioma());
         v.otraVuelta = true;
     }
     return v;
 }
 
 void AgenteRegistro::anotarIntercambio(const std::string& persona, const std::string& asistente) {
-    json intercambio = json::array({{{"role", "user"}, {"content", "La persona dijo: «" + persona + "»"}}});
+    json intercambio = json::array(
+        {{{"role", "user"},
+          {"content", ba::i18n::llenar(enIdioma(idioma_).traducir("asistente", "La persona dijo: «%1»"), {persona})}}});
     for (json& m : herramientas_) intercambio.push_back(std::move(m));
     herramientas_ = json::array();
     if (!asistente.empty()) intercambio.push_back({{"role", "assistant"}, {"content", asistente}});

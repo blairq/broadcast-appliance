@@ -1,0 +1,107 @@
+{
+  "_comentario": "Cómo se ENTIENDE lo que dice la gente frente a un tótem de registro, en este idioma (registro/Conversacion). Lo que el tótem DICE no va acá: va en el catálogo (contexto «totem», i18n/ba_<código>.ts). Las listas de palabras se comparan contra lo que devuelve la voz a texto ya aplanado (minúsculas, sin los acentos de «aplanar» y con los signos como espacios): se pueden escribir con tildes. Una frase es varias palabras separadas por un espacio. Lo que dice el tótem tiene que poder contestarse con estas listas: la confirmación del catálogo («Decime «sí, es correcto»…») con las de «respuestas». Un idioma que no tiene este archivo usa el de su respaldo (el perfil) y al final el del español. Ver docs/desarrollo/I18N.md, «Tótem: datos del idioma».",
+
+  "aplanar": {
+    "_comentario": "Letra (en UTF-8) → cómo queda al aplanar. Lo que no está acá y no es ASCII se descarta. Un espacio: se lo toma como separador.",
+    "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n",
+    "Á": "a", "É": "e", "Í": "i", "Ó": "o", "Ú": "u", "Ü": "u", "Ñ": "n",
+    "¿": " ", "¡": " "
+  },
+
+  "numeros": {
+    "_comentario": "Los números dichos en palabras. «regla» es cómo se arma un grupo de 0 a 999 (el código, en Conversacion.cpp, grupo()): «es» = una centena («doscientos», o una de «centenasSolas», que va sola: «cien»), seguida o no de 1..99; una decena («treinta») seguida o no de un conector («y»; sin conectores, la unidad va pegada: «thirty five») y una unidad del 1 al 9; o una unidad (del 0 al 29, con las compuestas: «veintiuno»). «conectoresCentena»: palabras que se saltean entre la centena y el resto (ninguna en español). Un idioma que arma los números de otra forma («two hundred and thirty») suma su regla en grupo(). «mil» multiplica lo que viene antes (o 1) y suma; «millon» multiplica todo lo de antes. «ninguno» cuenta como cero. «digitos»: cómo se dice cada dígito, del 0 al 9, para repetir un teléfono o un correo (no se aplanan).",
+    "regla": "es",
+    "unidades": {
+      "cero": 0, "uno": 1, "un": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7,
+      "ocho": 8, "nueve": 9, "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15,
+      "dieciséis": 16, "diecisiete": 17, "dieciocho": 18, "diecinueve": 19, "veinte": 20, "veintiuno": 21,
+      "veintiún": 21, "veintiuna": 21, "veintidós": 22, "veintitrés": 23, "veinticuatro": 24, "veinticinco": 25,
+      "veintiséis": 26, "veintisiete": 27, "veintiocho": 28, "veintinueve": 29
+    },
+    "decenas": {
+      "treinta": 30, "cuarenta": 40, "cincuenta": 50, "sesenta": 60, "setenta": 70, "ochenta": 80, "noventa": 90
+    },
+    "conectores": ["y"],
+    "centenas": {
+      "cien": 100, "ciento": 100, "doscientos": 200, "doscientas": 200, "trescientos": 300, "trescientas": 300,
+      "cuatrocientos": 400, "cuatrocientas": 400, "quinientos": 500, "quinientas": 500, "seiscientos": 600,
+      "seiscientas": 600, "setecientos": 700, "setecientas": 700, "ochocientos": 800, "ochocientas": 800,
+      "novecientos": 900, "novecientas": 900
+    },
+    "centenasSolas": ["cien"],
+    "conectoresCentena": [],
+    "mil": ["mil"],
+    "millon": ["millón", "millones"],
+    "ninguno": ["ninguno", "ninguna", "ningún", "nadie", "nada"],
+    "digitos": ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"]
+  },
+
+  "respuestas": {
+    "_comentario": "Sí o no. Primero «noSabe» (no es ni sí ni no: se vuelve a preguntar) y «noFrases» (un no aunque lleve un sí adentro: «no está bien»); después, si aparece alguna de «si» o de «no» (y no de las dos), esa. La primera de cada lista es la que se usa cuando el modelo contesta un booleano.",
+    "si": ["sí", "sip", "sisi", "sí sí", "dale", "claro", "obvio", "bueno", "correcto", "exacto", "afirmativo",
+           "por supuesto", "ok", "okey", "oka", "está bien", "de una", "joya", "perfecto", "eso", "eso es",
+           "así es", "seguro", "re sí", "bárbaro", "genial", "va", "listo", "tal cual", "ajam", "ajá", "ya"],
+    "no": ["no", "nop", "nones", "negativo", "para nada", "nada que ver", "ni ahí", "está mal", "incorrecto",
+           "equivocado", "tampoco", "nunca", "jamás", "mal", "no es", "no era"],
+    "noSabe": ["no sé", "no lo sé", "no sabría"],
+    "noFrases": ["no está bien", "no es así", "no no", "está mal", "para nada", "nada que ver", "ni ahí", "no es", "no era"]
+  },
+
+  "_comentarioListas": "cancelar, repetir y saltear: «exactas» = lo dicho entero es eso; «contiene» = eso aparece en lo dicho (como palabras enteras).",
+  "cancelar": {
+    "exactas": ["cancelar", "cancelá", "cancelalo", "me voy", "chau"],
+    "contiene": ["cancelar el registro", "cancelá el registro"]
+  },
+  "repetir": {
+    "exactas": ["cómo", "qué", "qué dijiste", "repetí", "repetime", "repetir", "otra vez", "de nuevo", "no entendí",
+                "no te entendí", "perdón", "cómo dijiste", "no escuché", "no te escuché", "eh"],
+    "contiene": []
+  },
+  "saltear": {
+    "exactas": ["paso", "no sé"],
+    "contiene": ["saltear", "saltealo", "salteala", "siguiente", "prefiero no", "no quiero", "no tengo", "no lo tengo",
+                 "no me acuerdo", "después", "otro día", "prefiero no decirlo"]
+  },
+
+  "correo": {
+    "_comentario": "El correo dictado. «signos»: lo que se dice en vez de un signo, en orden (primero se reemplazan las frases de varias palabras, después las palabras sueltas). «noSonDigitos»: unidades de «numeros» que no se pasan a dígito (un artículo, no un número). «antes» y «despues»: lo que se dice antes del correo («mi correo es») y después («gracias»), que se saca. «terminaciones»: las del dominio que, sueltas después de la arroba, van con punto («gmail com» → gmail.com). «dominios»: un dominio dicho sin terminación que se completa. «decir»: cómo se repite cada signo en voz alta.",
+    "signos": [["guion bajo", "_"], ["guion medio", "-"], ["piso bajo", "_"], ["punto com", ".com"],
+               ["arroba", "@"], ["aroba", "@"], ["punto", "."], ["guion", "-"], ["menos", "-"]],
+    "noSonDigitos": ["un", "una"],
+    "antes": ["mi", "correo", "mail", "email", "imeil", "e-mail", "electrónico", "es", "el", "la", "dirección", "de",
+              "sería", "este", "eh", "em", "bueno", "dale", "sí", "ok", "tengo"],
+    "despues": ["gracias", "nada", "más", "eso", "es", "todo", "listo"],
+    "terminaciones": ["com", "ar", "net", "org", "edu", "gob", "gov", "uy", "cl", "es"],
+    "dominios": {"gmail": "gmail.com", "hotmail": "hotmail.com", "yahoo": "yahoo.com", "outlook": "outlook.com",
+                 "live": "live.com", "icloud": "icloud.com", "fibertel": "fibertel.com", "speedy": "speedy.com"},
+    "decir": {".": "punto", "@": "arroba", "_": "guion bajo", "-": "guion"}
+  },
+
+  "telefono": {
+    "_comentario": "«mas»: lo que se dice por el + del código de país (solo al principio); «decirMas», cómo se lo repite. «repetir»: «doble cinco» = 55. «grupo»: de a cuántos dígitos se lee y se muestra un número (el primer grupo lleva lo que sobra: 11 4567 8901).",
+    "mas": ["más"],
+    "decirMas": "más",
+    "repetir": {"doble": 2, "triple": 3},
+    "grupo": 4
+  },
+
+  "nombre": {
+    "_comentario": "«antes»: lo que se dice antes del nombre, en orden (se saca la primera que coincida al principio, y de nuevo, hasta que no quede ninguna). «despues»: al final. «noEmpiezaCon»: si lo dicho empieza así, no es un nombre («no quiero»). «particulas»: van en minúscula en medio de un nombre («Ana María de la Fuente»).",
+    "antes": ["hola", "buenas", "buen día", "buenos días", "buenas tardes", "buenas noches", "bueno", "eh", "este", "sí",
+              "dale", "yo me llamo", "me llamo", "mi nombre es", "mi nombre completo es", "el nombre es", "mi nombre",
+              "yo soy", "soy", "me dicen", "es", "sería"],
+    "despues": ["gracias", "nomás"],
+    "noEmpiezaCon": ["no"],
+    "particulas": ["de", "del", "la", "las", "los", "y", "e", "da", "di", "van", "von", "el"]
+  },
+
+  "opciones": {
+    "_comentario": "Elegir una opción por el orden: «orden» tiene, para la primera, la segunda…, cómo se la nombra; «ultima», la última.",
+    "orden": [["primera", "primero", "uno", "1"], ["segunda", "segundo", "dos", "2"], ["tercera", "tercero", "tres", "3"],
+              ["cuarta", "cuarto", "cuatro", "4"], ["quinta", "quinto", "cinco", "5"]],
+    "ultima": ["última", "último"]
+  },
+
+  "etiquetaEnMinuscula": true,
+  "_comentarioEtiqueta": "etiquetaEnMinuscula: la etiqueta de un campo dicha en medio de una frase va con la inicial en minúscula («Anoté correo…»; una sigla como «DNI» queda). En alemán, por ejemplo, false."
+}

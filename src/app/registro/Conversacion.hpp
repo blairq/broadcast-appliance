@@ -20,7 +20,13 @@
 // LO DIFÍCIL ES ENTENDER, no preguntar. La voz a texto devuelve «jorge punto
 // ortega arroba gmail punto com», «once cuatro cinco seis…» o «dale»: de eso
 // se ocupan los normalizadores de abajo (públicos para probarlos uno por uno,
-// test_registro_conversacion). Castellano rioplatense.
+// test_registro_conversacion).
+//
+// EN EL IDIOMA DEL EVENTO. Cómo se entiende lo dicho (los números, el sí y el no, el correo
+// dictado, los nombres) son datos del idioma: assets/idiomas/<código>/totem.json (ver
+// docs/desarrollo/I18N.md, «Tótem: datos del idioma»); lo que dice el tótem, el catálogo
+// (contexto «totem»). Los normalizadores reciben el idioma (vacío = el del operador); la
+// conversación, el del evento.
 //
 // CON UN MODELO (2026-10-26): el guion sigue llevando la estructura, pero lo que se le oye lo
 // entiende además un modelo de lenguaje (registro/AgenteRegistro), que anota por acá
@@ -35,51 +41,58 @@
 
 #include <nlohmann/json.hpp>
 
+#include "i18n/I18n.hpp"
 #include "registro/Totems.hpp"
 
 namespace ba::registro {
 
 // --- Normalizadores: de lo dicho (o tipeado) al dato -----------------------------
 // Todos devuelven false si no se entiende, y nunca inventan: mejor volver a
-// preguntar que anotar un correo que no existe.
+// preguntar que anotar un correo que no existe. `idioma`: el de lo dicho ("" = el del
+// operador); los ejemplos son los del español.
 
-/// Minúsculas, sin acentos (la ñ queda como n) y sin espacios de más.
-std::string aplanar(const std::string& s);
+/// Minúsculas, sin acentos (la ñ queda como n; las letras de totem.json, «aplanar») y sin
+/// espacios de más.
+std::string aplanar(const std::string& s, const std::string& idioma = {});
 /// «jorge punto ortega arroba gmail punto com» -> "jorge.ortega@gmail.com".
 /// También lo ya escrito con @, y «guion bajo», «guion», dígitos en palabras y
 /// lo que se dice antes («mi correo es…»). Un gmail/hotmail sin «punto com» lo
 /// completa.
-bool entenderCorreo(const std::string& dicho, std::string& out);
+bool entenderCorreo(const std::string& dicho, std::string& out, const std::string& idioma = {});
 /// «once cuatro cinco seis siete ocho nueve cero uno dos» -> "1145678912".
 /// Dígitos, palabras («cuarenta y cinco», «doble cinco»), «más» al principio
 /// (-> "+"), guiones y espacios. Entre 6 y 15 dígitos.
-bool entenderTelefono(const std::string& dicho, std::string& out);
+bool entenderTelefono(const std::string& dicho, std::string& out, const std::string& idioma = {});
 /// «dos mil veinticinco», «35», «ninguno» -> el número (entero, >= 0).
-bool entenderNumero(const std::string& dicho, long long& out);
+bool entenderNumero(const std::string& dicho, long long& out, const std::string& idioma = {});
 /// 1 = sí, 0 = no, -1 = no se entiende (o se contradice: «no, sí»).
 /// Con las del Río de la Plata: «dale», «de una», «joya», «obvio», «ni ahí»…
-int entenderSiNo(const std::string& dicho);
+int entenderSiNo(const std::string& dicho, const std::string& idioma = {});
+/// Cómo se dice un sí o un no que se entiende (la primera de cada lista de totem.json):
+/// para pasarle a entender() un booleano que llegó como tal.
+std::string palabraSiNo(bool si, const std::string& idioma = {});
 /// «me llamo jorge ortega» -> "Jorge Ortega" (sin «me llamo», con mayúsculas,
 /// «de»/«del» en minúscula). false si no queda un nombre (vacío, números, un «sí»).
-bool entenderNombre(const std::string& dicho, std::string& out);
+bool entenderNombre(const std::string& dicho, std::string& out, const std::string& idioma = {});
 /// Cuál de `opciones` dijo (por su texto o «la primera», «la segunda»…).
-bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& opciones, std::string& out);
+bool entenderOpcion(const std::string& dicho, const std::vector<std::string>& opciones, std::string& out,
+                    const std::string& idioma = {});
 /// Texto libre: lo dicho, prolijo (sin el punto final, con mayúscula).
-bool entenderTexto(const std::string& dicho, std::string& out);
+bool entenderTexto(const std::string& dicho, std::string& out, const std::string& idioma = {});
 /// El número de un documento dicho o tipeado («once, dos dos dos, tres tres
 /// tres», «11.222.333») -> "11222333": de 6 a 9 dígitos, sin ceros adelante. Es
 /// el respaldo de cuando la cámara no lee el código.
-bool entenderNumeroDocumento(const std::string& dicho, std::string& out);
+bool entenderNumeroDocumento(const std::string& dicho, std::string& out, const std::string& idioma = {});
 
 /// Lo dicho como dato de un campo, ya en su forma de `datos` (texto, número o
 /// booleano). false si no se entiende.
-bool entender(const Campo& c, const std::string& dicho, nlohmann::json& out);
+bool entender(const Campo& c, const std::string& dicho, nlohmann::json& out, const std::string& idioma = {});
 /// Cómo se repite un dato EN VOZ ALTA para confirmarlo (el correo letra por
 /// palabra: «jorge punto ortega arroba gmail punto com»; el teléfono de a un
 /// dígito, en grupos).
-std::string paraDecir(const Campo& c, const nlohmann::json& valor);
+std::string paraDecir(const Campo& c, const nlohmann::json& valor, const std::string& idioma = {});
 /// Cómo se muestra en la pantalla ("11 4567 8901", "Sí").
-std::string paraMostrar(const Campo& c, const nlohmann::json& valor);
+std::string paraMostrar(const Campo& c, const nlohmann::json& valor, const std::string& idioma = {});
 
 // --- La conversación ------------------------------------------------------------
 
@@ -115,7 +128,10 @@ class Conversacion {
         bool dorso = false;
     };
 
-    Conversacion(Totem totem, std::string evento);
+    /// `idioma`: el del evento, en el que habla y entiende ("" = el del operador).
+    Conversacion(Totem totem, std::string evento, std::string idioma = {});
+    /// El idioma en que habla y entiende (ya resuelto: nunca vacío).
+    const std::string& idioma() const { return idioma_; }
 
     /// Empieza (una cara estable frente al tótem, o «Tocá para empezar»). Si ya
     /// había empezado, nada.
@@ -175,8 +191,10 @@ class Conversacion {
     nlohmann::json pedido() const;
     /// El nombre que dijo (el primer campo de tipo nombre) o, si no, el de la ficha.
     std::string nombre() const;
-    /// En qué paso va, para leer («preguntando Correo»).
+    /// En qué paso va, para leer («preguntando Correo»): en el idioma del evento (va al modelo).
     std::string paso() const;
+    /// Lo mismo en el idioma del operador (la lista de conversaciones de la app).
+    std::string pasoParaOperador() const;
     /// El encabezado de la pantalla, con los datos puestos.
     std::string titulo() const;
     std::string subtitulo() const;
@@ -250,6 +268,15 @@ class Conversacion {
     const std::string& evento() const { return evento_; }
 
    private:
+    /// Lo que dice el tótem, en el idioma del evento.
+    ba::i18n::En en() const;
+    std::string pasoEn(const ba::i18n::En& e) const;
+    /// «¿Es correcto? Decime «sí, es correcto»…»
+    std::string confirmar() const;
+    /// «Anoté <dicho>. ¿Es correcto?…»
+    std::string anoteYConfirmar(const std::string& dicho) const;
+    /// Cómo se pide la parte de atrás del documento.
+    std::string pedirDorso() const;
     std::string pregunta(std::size_t i) const;
     std::string reintento(const Campo& c, int intento) const;
     /// Pasa al próximo campo sin dato (o termina). `antes` va adelante de lo que se diga.
@@ -264,6 +291,7 @@ class Conversacion {
 
     Totem t_;
     std::string evento_;
+    std::string idioma_; ///< el del evento (ya resuelto)
     Cara cara_;
     Estado estado_ = Estado::Esperando;
     std::size_t actual_ = 0;

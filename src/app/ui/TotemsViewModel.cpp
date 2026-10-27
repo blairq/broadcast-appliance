@@ -317,14 +317,22 @@ TotemsViewModel::~TotemsViewModel() {
 
 // --- La configuración ----------------------------------------------------------------
 
+ba::i18n::En TotemsViewModel::idiomaDelEvento() const {
+    return ba::i18n::En(eventoIdioma_.empty() ? ba::i18n::actual().codigo : eventoIdioma_);
+}
+
 void TotemsViewModel::recargar() {
     EventoViewModel* ev = eventoDe(vm_);
     const std::filesystem::path carpeta = ev != nullptr ? ev->carpetaAbierta() : std::filesystem::path();
     const std::string nombre = ev != nullptr ? ev->guionAbierto().nombre : std::string();
+    // El idioma del evento: en el que hablan y entienden los tótems ("" = el del operador).
+    const std::string idioma = ev != nullptr ? ev->guionAbierto().idioma : std::string();
     if (carpeta == carpeta_) {
-        // El mismo evento: quizá cambió de nombre (va en el saludo y el título).
-        if (nombre != eventoNombre_) {
+        // El mismo evento: quizá cambió de nombre (va en el saludo y el título) o de idioma (lo
+        // que ya se conversa sigue en el suyo; lo nuevo, en el nuevo).
+        if (nombre != eventoNombre_ || idioma != eventoIdioma_) {
             eventoNombre_ = nombre;
+            eventoIdioma_ = idioma;
             for (auto& [k, c] : conns_) mandarPantalla(*c);
             emit cambio();
         }
@@ -339,6 +347,7 @@ void TotemsViewModel::recargar() {
     }
     carpeta_ = carpeta;
     eventoNombre_ = nombre;
+    eventoIdioma_ = idioma;
     secretos_.clear();
     bool ok = true;
     std::string err;
@@ -494,7 +503,7 @@ QVariantList TotemsViewModel::tipos() const {
     QVariantList out;
     for (registro::TipoCampo t : registro::todosLosTipos())
         out << QVariantMap{{"id", QString::fromLatin1(registro::nombreDeTipo(t))},
-                           {"etiqueta", QString::fromUtf8(registro::etiquetaDeTipo(t))}};
+                           {"etiqueta", QString::fromStdString(registro::etiquetaDeTipo(t))}};
     return out;
 }
 
@@ -538,10 +547,10 @@ std::string TotemsViewModel::crearJson(const json& j, std::string& id) {
     if (!hayEvento()) return tr("No hay un evento abierto: los tótems son de un evento (abrí o creá uno).").toStdString();
     std::vector<std::string> usados;
     for (const registro::Totem& t : totems_.lista()) usados.push_back(t.id);
-    const std::string nombre = texto(j, "nombre").empty() ? std::string("Registro") : texto(j, "nombre");
+    const std::string nombre = texto(j, "nombre").empty() ? tr("Registro").toStdString() : texto(j, "nombre");
     std::string nuevoId = texto(j, "id");
     if (nuevoId.empty()) nuevoId = registro::idDesdeNombre(nombre, usados);
-    if (std::string e = totems_.agregar(registro::totemNuevo(nuevoId, nombre)); !e.empty()) return e;
+    if (std::string e = totems_.agregar(registro::totemNuevo(nuevoId, nombre, eventoIdioma_)); !e.empty()) return e;
     json resto = j.is_object() ? j : json::object();
     resto.erase("id");
     if (!resto.empty())
@@ -593,14 +602,18 @@ QString TotemsViewModel::agregarCampo(const QString& id, const QString& tipo) {
     if (t == nullptr) return tr("No hay ese tótem.");
     registro::Campo c;
     registro::tipoDeNombre(tipo.toStdString(), c.tipo);
-    c.etiqueta = registro::etiquetaDeTipo(c.tipo);
+    // Lo ve el público en la pantalla del tótem: en el idioma del evento.
+    c.etiqueta = registro::etiquetaDeTipo(c.tipo, eventoIdioma_);
     // Una clave libre a partir del tipo («correo», «correo_2»…).
     std::vector<std::string> usadas;
     for (const registro::Campo& o : t->campos) usadas.push_back(o.clave);
     std::string base = registro::nombreDeTipo(c.tipo);
     c.clave = base;
     for (int n = 2; std::find(usadas.begin(), usadas.end(), c.clave) != usadas.end(); ++n) c.clave = base + "_" + std::to_string(n);
-    if (c.tipo == registro::TipoCampo::Opcion) c.opciones = {tr("Opción %1").arg(1).toStdString(), tr("Opción %1").arg(2).toStdString()};
+    if (c.tipo == registro::TipoCampo::Opcion) {
+        const ba::i18n::En e = idiomaDelEvento();
+        c.opciones = {ba::i18n::llenar(e.traducir("totem", "Opción %1"), {"1"}), ba::i18n::llenar(e.traducir("totem", "Opción %1"), {"2"})};
+    }
     // De fábrica, el DNI; los demás se marcan en el editor (o por MCP).
     if (c.tipo == registro::TipoCampo::Documento) {
         c.documentos = {"dni-ar"};
@@ -667,7 +680,7 @@ void TotemsViewModel::mandarPantalla(Conexion& c) {
     if (t == nullptr) return;
     // Una conversación de mentira solo para armar los textos y la lista de
     // campos vacía con la MISMA regla que la de verdad.
-    const registro::Conversacion vacia(*t, eventoNombre_);
+    const registro::Conversacion vacia(*t, eventoNombre_, eventoIdioma_);
     enviar(c.conn, {{"type", "pantalla"}, {"titulo", vacia.titulo()}, {"subtitulo", vacia.subtitulo()}});
     if (c.conv == nullptr || !c.conv->enCurso()) {
         enviar(c.conn, {{"type", "campos"}, {"lista", vacia.camposParaMostrar()}});
@@ -894,7 +907,7 @@ void TotemsViewModel::alCara(const QString& conn, const QByteArray& jpeg, const 
             const auto r = c.conv->fotoLista();
             aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
         } else {
-            c.fotoSugerencia = hayCara ? sugerencia : tr("No te veo la cara.");
+            c.fotoSugerencia = hayCara ? sugerencia : QString::fromStdString(idiomaDelEvento().traducir("totem", "No te veo la cara."));
         }
         return;
     }
@@ -945,7 +958,7 @@ void TotemsViewModel::empezar(Conexion& c, const QString& personaId, const QStri
     cara.nombre = nombre.toStdString();
     cara.yaRegistrado = !personaId.isEmpty() && ev != nullptr && ev->registradoPorTotem(personaId);
     c.agente.reset(); // el de la conversación anterior
-    c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_);
+    c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_, eventoIdioma_);
     // El dorso se ofrece solo si hay con qué leerlo (el modelo propio del operador).
     c.conv->ofrecerDorso(lector_ && lector_->dorsoDisponible());
     crearAgente(c); // el modelo que entiende, si hay (si no, el guion solo)
@@ -992,7 +1005,7 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
         c.turnoMs = c.ultimaVozMs;
         if (c.turno != c.oidoTexto) enviar(conn, {{"type", "oido"}, {"texto", c.turno.toStdString()}});
         const std::string dicho = c.turno.toStdString();
-        if (c.conv->pedido().value("confirmando", false) && registro::entenderSiNo(dicho) != -1 &&
+        if (c.conv->pedido().value("confirmando", false) && registro::entenderSiNo(dicho, c.conv->idioma()) != -1 &&
             c.turno.split(' ', Qt::SkipEmptyParts).size() <= 3)
             cerrarTurno(c);
     }
@@ -1376,7 +1389,8 @@ void TotemsViewModel::alLeerDocumento(const QString& conn, LectorDocumentos::Res
     }
     // Qué corregir, si pasa el tiempo: se vio un código pero no es de un documento aceptado.
     if (!r.codigos.empty())
-        k.docSugerencia = tr("Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.");
+        k.docSugerencia = QString::fromStdString(idiomaDelEvento().traducir(
+            "totem", "Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras."));
 }
 
 void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resultado r) {
@@ -1403,8 +1417,9 @@ void TotemsViewModel::alLeerDorso(const QString& conn, LectorDocumentos::Resulta
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "registro", 0,
                                    ba::i18n::llenar(ba::i18n::traducir("registro", "%1: dorso: %2"), {quien, r.error.toStdString()}));
     if (r.dudosa) return; // cerró casi todo: la próxima foto que coincida la confirma
-    if (r.noSeVe) k.docSugerencia = tr("No veo los renglones de abajo.");
-    else if (!r.detalle.empty()) k.docSugerencia = tr("No se leen bien los renglones de abajo.");
+    if (r.noSeVe) k.docSugerencia = QString::fromStdString(idiomaDelEvento().traducir("totem", "No veo los renglones de abajo."));
+    else if (!r.detalle.empty())
+        k.docSugerencia = QString::fromStdString(idiomaDelEvento().traducir("totem", "No se leen bien los renglones de abajo."));
 }
 
 void TotemsViewModel::cortar(const QString& conn) {
@@ -1424,7 +1439,7 @@ QVariantMap TotemsViewModel::filaDe(const Conexion& c) const {
                        {"lugar", c.lugar},
                        {"desdeMs", c.desdeMs},
                        {"estado", c.estado},
-                       {"paso", c.conv != nullptr ? QString::fromStdString(c.conv->paso()) : QString("esperando")},
+                       {"paso", c.conv != nullptr ? QString::fromStdString(c.conv->pasoParaOperador()) : tr("esperando")},
                        {"quien", c.conv != nullptr ? QString::fromStdString(c.conv->nombre()) : QString()},
                        {"oido", c.oidoTexto},
                        {"dice", c.diceTexto},
@@ -1616,7 +1631,7 @@ json TotemsViewModel::conversacionesJson() const {
         } else {
             const registro::Totem& tt = c.conv != nullptr ? c.conv->totem() : *t;
             json cs = c.conv != nullptr ? c.conv->camposParaMostrar()
-                                        : registro::Conversacion(tt, eventoNombre_).camposParaMostrar();
+                                        : registro::Conversacion(tt, eventoNombre_, eventoIdioma_).camposParaMostrar();
             for (std::size_t i = 0; i < cs.size() && i < tt.campos.size(); ++i) {
                 cs[i]["tipo"] = registro::nombreDeTipo(tt.campos[i].tipo);
                 cs[i]["obligatorio"] = tt.campos[i].obligatorio;
@@ -1707,7 +1722,7 @@ std::string TotemsViewModel::atenderConn(const QString& conn, const QString& qui
         const registro::Totem* t = totems_.porId(c.totem.toStdString());
         if (t == nullptr) return tr("Ese tótem ya no existe.").toStdString();
         c.agente.reset(); // usa la conversación anterior
-        c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_);
+        c.conv = std::make_unique<registro::Conversacion>(*t, eventoNombre_, eventoIdioma_);
         const bool conocida = !c.ultimaCara.isEmpty() && c.ultimaCara != "?";
         if (conocida) c.conv->conocerCara({c.ultimaCara.toStdString(), c.ultimoNombre.toStdString(), false});
         c.primeraDelCanal = false;
@@ -1936,7 +1951,14 @@ bool TotemsViewModel::fuenteAgente(agent::FuenteMirada& f, std::string& prompt, 
         falta = tr("el rol «registro» está apagado").toStdString();
         return false;
     }
-    prompt = r->promptPropio.empty() ? r->prompt : r->promptPropio;
+    // El del rol, en el idioma del EVENTO (el modelo habla con el público): r->prompt es el del
+    // operador. Uno propio (lo escribió el operador) va tal cual.
+    if (!r->promptPropio.empty()) {
+        prompt = r->promptPropio;
+    } else {
+        prompt = idiomaDelEvento().leer("prompts/roles/registro.md");
+        if (prompt.empty()) prompt = r->prompt;
+    }
     if (!esLocal(*r)) return agent::ChatEnVivo::fuenteDeProveedor(r->proveedor, r->modelo, rt_.dataRoot(), f, &falta);
     if (puertoLocal_ == 0) {
         falta = faltaLocal_.isEmpty() ? tr("el modelo local todavía está cargando").toStdString() : faltaLocal_.toStdString();

@@ -55,6 +55,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "i18n/I18n.hpp"
 #include "ipc/CanalesRegistro.hpp"
 #include "registro/Totems.hpp"
 #include "ui/LectorDocumentos.hpp"
@@ -304,6 +305,10 @@ class TotemsViewModel : public QObject {
 
     std::filesystem::path carpeta_;
     std::string eventoNombre_;
+    /// El idioma del evento abierto ("" = el del operador): en el que hablan y entienden los
+    /// tótems (registro/Conversacion, el modelo del rol «registro»).
+    std::string eventoIdioma_;
+    ba::i18n::En idiomaDelEvento() const;
     registro::Totems totems_;
     mutable std::map<std::string, Secreto> secretos_;
 

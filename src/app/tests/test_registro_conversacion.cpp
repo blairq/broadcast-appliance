@@ -15,12 +15,17 @@
 //   5. El dorso: si el código del frente no sale y se puede leer el dorso, pide
 //      la parte de atrás (una vez), lo leído del dorso se confirma igual, el «no»
 //      lo vuelve a pedir del dorso, el segundo fallo saltea; sin dorso, como antes.
+//   6. Otro idioma: con un totem.json y un catálogo de mentira («at», «dot», «yes»), entiende
+//      y habla en ese idioma sin tocar el código (ningún idioma está escrito en Conversacion).
 // ============================================================================
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include "documentos/Documento.hpp"
 #include "documentos/Mrz.hpp"
+#include "i18n/I18n.hpp"
 #include "registro/Conversacion.hpp"
 
 using namespace ba::registro;
@@ -682,6 +687,74 @@ void confirmarConBotones() {
           "las frases largas que pide");
 }
 
+void otroIdioma() {
+    namespace fs = std::filesystem;
+    const fs::path base = fs::temp_directory_path() / "ba-test-registro-idioma";
+    fs::remove_all(base);
+    const fs::path perfiles = base / "idiomas", catalogos = base / "i18n";
+    const auto escribir = [](const fs::path& p, const json& j) {
+        fs::create_directories(p.parent_path());
+        std::ofstream(p) << j.dump(2);
+    };
+    escribir(perfiles / "es.json", {{"codigo", "es"}, {"nombre", "Español"}, {"fuente", true}});
+    escribir(perfiles / "zz.json", {{"codigo", "zz"}, {"nombre", "Zeta"}});
+    escribir(perfiles / "zz" / "totem.json",
+             {{"numeros",
+               {{"unidades", {{"zero", 0}, {"one", 1}, {"two", 2}, {"three", 3}, {"four", 4}, {"five", 5}, {"six", 6},
+                              {"seven", 7}, {"eight", 8}, {"nine", 9}}},
+                {"decenas", {{"thirty", 30}}},
+                {"conectores", json::array()},
+                {"digitos", {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}}}},
+              {"respuestas", {{"si", {"yes", "yeah", "correct"}}, {"no", {"no", "nope", "incorrect"}}}},
+              {"correo", {{"signos", json::array({json::array({"at", "@"}), json::array({"dot", "."})})}, {"antes", {"my", "email", "is"}},
+                          {"decir", {{".", "dot"}, {"@", "at"}}}}},
+              {"telefono", {{"mas", json::array({"plus"})}, {"decirMas", "plus"}, {"grupo", 3}}}});
+    escribir(catalogos / "zz.json",
+             {{"total", 2}, {"traducidos", 2},
+              {"mensajes", {{"totem", {{"Anoté %1.", "Got %1."}, {"Perfecto.", "Great."}}}}}});
+    ba::i18n::carpetas(perfiles, catalogos);
+
+    std::string o;
+    CHECK(entenderCorreo("my email is john dot smith at gmail dot com", o, "zz") && o == "john.smith@gmail.com",
+          "otro idioma: el correo con «at» y «dot»");
+    CHECK(!entenderCorreo("john punto smith arroba gmail punto com", o, "zz"), "otro idioma: «arroba» no es nada");
+    CHECK(entenderSiNo("yeah", "zz") == 1 && entenderSiNo("nope", "zz") == 0 && entenderSiNo("sí", "zz") == -1,
+          "otro idioma: sí y no");
+    CHECK(entenderSiNo("sí") == 1, "el español sigue igual");
+    long long n = 0;
+    CHECK(entenderNumero("thirty five", n, "zz") && n == 35, "otro idioma: decena y unidad sin conector");
+    CHECK(entenderTelefono("plus five four one one two two three three", o, "zz") && o == "+54112233",
+          "otro idioma: el teléfono con «plus»");
+    Campo c;
+    c.tipo = TipoCampo::Correo;
+    CHECK(paraDecir(c, "a.b@x.com", "zz") == "a dot b at x dot com", "otro idioma: el correo dicho");
+    c.tipo = TipoCampo::Telefono;
+    CHECK(paraMostrar(c, "541122333", "zz") == "541 122 333", "otro idioma: de a tres");
+
+    // La conversación habla en el idioma del evento.
+    Totem t;
+    t.id = "t";
+    t.saludo = "Hi.";
+    t.despedida = "Bye.";
+    t.foto = false;
+    Campo m;
+    m.clave = "correo";
+    m.tipo = TipoCampo::Correo;
+    m.pregunta = "Your email?";
+    t.campos = {m};
+    Conversacion cv(t, "Expo", "zz");
+    CHECK(cv.idioma() == "zz", "el idioma de la conversación");
+    cv.empezar({});
+    auto r = cv.oido("john at gmail dot com");
+    CHECK(contiene(r.decir, "Got john at gmail dot com."),
+          "otro idioma: repite el dato con sus palabras");
+    r = cv.oido("yes");
+    CHECK(cv.datos().value("correo", "") == "john@gmail.com" && contiene(r.decir, "Great."), "otro idioma: confirma con «yes»");
+
+    ba::i18n::carpetas({}, {});
+    fs::remove_all(base);
+}
+
 } // namespace
 
 int main() {
@@ -703,6 +776,7 @@ int main() {
     documentoTipeadoYDictado();
     documentoSinConfirmarYCara();
     documentoDorso();
+    otroIdioma();
     if (g_fallos == 0) std::printf("test_registro_conversacion: todo bien\n");
     return g_fallos == 0 ? 0 : 1;
 }
