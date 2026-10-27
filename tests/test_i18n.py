@@ -33,6 +33,8 @@ PERFILES = REPO / "assets" / "idiomas"
 TS_DIR = REPO / "i18n"
 REGLAS = {"uno-otro": 2, "frances": 2, "sin-plural": 1, "eslavo": 3, "polaco": 3, "checo": 3, "arabe": 6}
 MARCADOR = re.compile(r"%L?(?:[1-9]|n)")
+# Marcas fijas que el programa pone sin traducir y el asistente reconoce: «[OPERADOR]».
+MARCA_FIJA = re.compile(r"\[[A-ZÁÉÍÓÚÑ ]{3,}\]")
 
 
 def perfiles() -> dict[str, dict]:
@@ -92,8 +94,10 @@ def test_translations_keep_placeholders_and_plural_forms(ts: Path) -> None:
         if numerus:
             assert len(formas) == formas_esperadas, f"{donde}: {len(formas)} plural forms, rule needs {formas_esperadas}"
         esperados = sorted(set(MARCADOR.findall(fuente)) - {"%n", "%Ln"})
+        marcas = sorted(MARCA_FIJA.findall(fuente))
         for f in formas:
             assert sorted(set(MARCADOR.findall(f)) - {"%n", "%Ln"}) == esperados, f"{donde}: placeholders differ in {f!r}"
+            assert sorted(MARCA_FIJA.findall(f)) == marcas, f"{donde}: fixed markers like [OPERADOR] must stay in {f!r}"
 
 
 def test_source_language_has_every_plural() -> None:
