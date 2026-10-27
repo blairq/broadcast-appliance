@@ -488,7 +488,7 @@ Item {
                 }
                 ColumnLayout {
                     spacing: 12
-                    Text { text: "Pan"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Pan"); color: Theme.textDim; font.pixelSize: 11 }
                     Slider {
                         id: pan
                         Layout.preferredWidth: 160
