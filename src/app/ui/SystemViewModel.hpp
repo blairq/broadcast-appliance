@@ -50,7 +50,7 @@ class SystemViewModel : public QObject {
     /// Lanza el launcher con `args` y cierra la app (actualizar, volver atrás, cambiar de configuración).
     /// :param aviso: lo que ve el operador mientras se cierra (por qué se cierra).
     QString launch(const QStringList& args,
-                   const QString& aviso = "Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.");
+                   const QString& aviso = tr("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos."));
 
    signals:
     void changed();

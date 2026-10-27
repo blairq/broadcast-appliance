@@ -21,6 +21,7 @@
 #include "emision/SeguridadAire.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
 #include <map>
@@ -215,14 +216,19 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     if (const nlohmann::json sep = Configuraciones::separarEventos(ba::platform::dataRoot()); !sep.empty()) {
         QStringList partes;
         for (const auto& x : sep)
-            partes << QString::fromStdString(x.value("evento", std::string()) +
-                                             (x.contains("error") ? " (no se pudo: " + x.value("error", std::string()) + ")"
-                                                                  : " → «" + x.value("a", std::string()) + "»"));
+            partes << (x.contains("error") ? tr("%1 (no se pudo: %2)")
+                                                  .arg(QString::fromStdString(x.value("evento", std::string())),
+                                                       QString::fromStdString(x.value("error", std::string())))
+                                            : tr("%1 → «%2»")
+                                                  .arg(QString::fromStdString(x.value("evento", std::string())),
+                                                       QString::fromStdString(x.value("a", std::string()))));
         ba::diag::registro().linea(ba::diag::Nivel::Info, "eventos", 0,
-                                   ("cada evento a su carpeta: " + partes.join("; ")).toStdString());
+                                   ba::i18n::llenar(ba::i18n::traducir("eventos", "cada evento a su carpeta: %1"),
+                                                    {partes.join("; ").toStdString()}));
         QTimer::singleShot(4000, this, [this, partes]() {
-            emit notify("Cada evento tiene ahora su carpeta con todo lo suyo. Se separaron: " + partes.join("; ") +
-                            " (abrilos con «Abrir otro…» en la página del evento)",
+            emit notify(tr("Cada evento tiene ahora su carpeta con todo lo suyo. Se separaron: %1 (abrilos con "
+                           "«Abrir otro…» en la página del evento)")
+                            .arg(partes.join("; ")),
                         "info");
         });
     }
@@ -239,8 +245,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     const auto marca = [&relojArranque, &ultimaMarca](const char* que) {
         const qint64 ahora = relojArranque.elapsed();
         if (ahora - ultimaMarca > 150)
-            ba::diag::registro().info("arranque: " + std::string(que) + " tardó " +
-                                      std::to_string(ahora - ultimaMarca) + " ms");
+            ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: %1 tardó %2 ms"),
+                                                       {que, std::to_string(ahora - ultimaMarca)}));
         ultimaMarca = ahora;
     };
     // Lo que el motor no pudo hacer: sus órdenes van en cola y la interfaz no
@@ -260,7 +266,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     if (rt.config().safeMode) {
         ba::diag::diario().setModoSeguro(true);
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   "modo seguro: no se carga nada del disco en esta corrida");
+                                   ba::i18n::traducir("arranque", "modo seguro: no se carga nada del disco en esta corrida"));
     }
     scenes_ = std::make_unique<ScenesModel>(rt);
     marca("scenes");
@@ -332,11 +338,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         SettingsModel m(rt_);
         m.revert();
         for (auto it = cambios.begin(); it != cambios.end(); ++it) {
-            if (!m.value(it.key()).isValid()) return "esta versión no tiene " + it.key();
+            if (!m.value(it.key()).isValid()) return tr("esta versión no tiene %1").arg(it.key());
             m.setValue(it.key(), it.value());
         }
         const QString resumen = m.apply();
-        if (resumen.contains("EN VIVO") || resumen.contains("ERROR")) return resumen;
+        if (m.fallo()) return resumen;
         return {}; // los formularios y las listas se enteran solos (avisos del runtime)
     });
     // Un solo renderizador de gráficos para todos los que disparan uno: el
@@ -365,11 +371,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         const QString actual = accesoRemoto_->estado().value("pinggy").toMap().value("urlPublica").toString();
         if (actual.contains("//" + sub + ".")) return; // ya es esa
         if (streaming_ || recording_) {
-            emit notify("El evento tiene su dirección (" + sub + ".a.pinggy.link) pero se está transmitiendo o grabando: "
-                        "no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.", "warning");
+            emit notify(tr("El evento tiene su dirección (%1.a.pinggy.link) pero se está transmitiendo o grabando: "
+                           "no se cambia ahora (reinicia la conferencia). Cambiala desde Guion → Página web cuando se pueda.")
+                            .arg(sub),
+                        "warning");
             return;
         }
-        emit notify("Pasando la dirección pública a " + sub + ".a.pinggy.link (la conferencia se reinicia)…", "info");
+        emit notify(tr("Pasando la dirección pública a %1.a.pinggy.link (la conferencia se reinicia)…").arg(sub), "info");
         accesoRemoto_->configurarConApiKey(sub);
     });
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
@@ -428,9 +436,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     if (rt.corteAnterior())
         QTimer::singleShot(ba::ajustes::entero("arranque.retomarPlaylistMs", 2000), this, [this]() {
             const std::string r = playlist_->retomar();
-            if (r.empty()) emit notify("La playlist sigue donde estaba antes del corte", "info");
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                       "playlist tras el corte: " + (r.empty() ? std::string("sigue donde estaba") : r));
+            if (r.empty()) emit notify(tr("La playlist sigue donde estaba antes del corte"), "info");
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Aviso, "arranque", 0,
+                ba::i18n::llenar(ba::i18n::traducir("arranque", "playlist tras el corte: %1"),
+                                 {r.empty() ? ba::i18n::traducir("arranque", "sigue donde estaba") : r}));
         });
     marca("medios");
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
@@ -484,7 +494,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(registro_.get(), &RegistroViewModel::notify, this, &StudioViewModel::notify);
     connect(vinculos_.get(), &graficos::Vinculos::actuo, this,
             [this](const QString&, const QString& texto, bool error) {
-                if (error) emit notify("Un rótulo automático no salió: " + texto, "error");
+                if (error) emit notify(tr("Un rótulo automático no salió: %1").arg(texto), "error");
             });
     connect(grafico_.get(), &GraficoViewModel::notify, this, &StudioViewModel::notify);
     // HTTPS propio (plataformas): raices de certificados del bundle primero.
@@ -699,8 +709,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Cambiar de configuración = anotarla y reiniciar por el launcher (como una actualización).
     configuraciones_ = std::make_unique<Configuraciones>([this]() {
         const QString evento = configuraciones_->activaUi();
-        const QString aviso = eventoNuevo_ ? "Evento «" + evento + "» creado: reiniciando para abrirlo"
-                                           : "Abriendo el evento «" + evento + "»: la app se reinicia";
+        const QString aviso = eventoNuevo_ ? tr("Evento «%1» creado: reiniciando para abrirlo").arg(evento)
+                                           : tr("Abriendo el evento «%1»: la app se reinicia").arg(evento);
         eventoNuevo_ = false;
         return reiniciarPrograma(aviso);
     });
@@ -708,12 +718,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(configuraciones_.get(), &Configuraciones::nuevoEventoListo, this,
             [this](const QString& nombre, const QString& error, bool abriendo) {
                 eventoNuevo_ = abriendo; // el reinicio sale enseguida (Configuraciones::nuevoEventoAparte)
-                if (!error.isEmpty()) emit notify("No se pudo crear «" + nombre + "»: " + error, "error");
-                else if (!abriendo) emit notify("Evento «" + nombre + "» listo: abrilo con «Abrir otro…»", "info");
+                if (!error.isEmpty()) emit notify(tr("No se pudo crear «%1»: %2").arg(nombre, error), "error");
+                else if (!abriendo) emit notify(tr("Evento «%1» listo: abrilo con «Abrir otro…»").arg(nombre), "info");
             });
     // Lo que lleva más de un mes en la papelera de eventos se va (con grabaciones, son GB).
     if (const int n = configuraciones_->vaciarViejos(Configuraciones::kDiasPapelera); n > 0)
-        qInfo("[eventos] papelera: %d con más de %d días, borrados", n, Configuraciones::kDiasPapelera);
+        qInfo("%s", ba::i18n::llenar(ba::i18n::traducir("eventos", "[eventos] papelera: %1 con más de %2 días, borrados"),
+                                     {std::to_string(n), std::to_string(Configuraciones::kDiasPapelera)})
+                        .c_str());
     marca("system");
     // Antes de cerrarse, el aviso con una cuenta regresiva (Main.qml lo muestra encima de todo):
     // que se cierre de golpe parecía una caída. El launcher ya está esperando que cierre.
@@ -906,17 +918,23 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         if (!configRecuperada().empty())
             QTimer::singleShot(3000, this, [this]() {
-                emit notify("La configuración «" + QString::fromStdString(configRecuperada()) +
-                                "» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).",
+                emit notify(tr("La configuración «%1» estaba dañada: se cargó la versión anterior (la dañada quedó "
+                               "como .corrupto).")
+                                .arg(QString::fromStdString(configRecuperada())),
                             "warn");
             });
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
             // Avisos fuera del programa (Telegram, mail, webhook) para los que miran desde lejos.
             for (const auto& n : ev.value("notificar", nlohmann::json::array()))
                 if (n.is_string())
-                    notificador_->enviar(n.get<std::string>(), "⚠ " + ev.value("ruleName", std::string("Disparador")),
+                    notificador_->enviar(n.get<std::string>(),
+                                         "⚠ " + ev.value("ruleName", ba::i18n::traducir("alertas", "Disparador")),
                                          ev.value("llmText", std::string()), [this, n](bool ok, const std::string& d) {
-                                             if (!ok) emit notify(QString::fromStdString("El aviso por «" + n.get<std::string>() + "» no salió: " + d), "warn");
+                                             if (!ok)
+                                                 emit notify(tr("El aviso por «%1» no salió: %2")
+                                                                 .arg(QString::fromStdString(n.get<std::string>()),
+                                                                      QString::fromStdString(d)),
+                                                             "warn");
                                          });
             {
                 const nlohmann::json& rid = ev["ruleId"];
@@ -1023,10 +1041,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             messages_->post(
                 {{"kind", "message"},
                  {"priority", "critical"},
-                 {"title", "Modo seguro"},
+                 {"title", tr("Modo seguro").toStdString()},
                  {"text",
-                  "La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no "
-                  "se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal."}});
+                  tr("La aplicación se cerró varias veces seguidas y arrancó en modo seguro: tus escenas no "
+                     "se cargaron (no se borraron). Cerrá y volvé a abrir para intentar el arranque normal.")
+                      .toStdString()}});
         }
         messages_->setChatSender([this](const QString& to, const QString& text) {
             conference_->sendChat(to, text);
@@ -1209,7 +1228,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (canal != "guest" && canal != "share") continue; // el remoto con la palabra: la sesión remota
                 const int slot = a.value("slot", 0);
                 if (slot > 0 && conference_->participanteEnSlot(slot).isEmpty())
-                    f.enEspera[n] = "el lugar " + std::to_string(slot) + " de la conferencia está vacío (llega la placa)";
+                    f.enEspera[n] =
+                        tr("el lugar %1 de la conferencia está vacío (llega la placa)").arg(slot).toStdString();
             }
         }
         return f;
@@ -1260,11 +1280,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El análisis por elemento (las sondas del motor): lo llama el modelo en su hilo.
     tiempos_->setSondas({[this](const std::string& e) -> std::string {
                              motor::Motor* m = rt_.engine().motor();
-                             return m != nullptr ? m->analizarEmpezar(e) : std::string("el motor no está andando");
+                             return m != nullptr ? m->analizarEmpezar(e) : tr("el motor no está andando").toStdString();
                          },
                          [this](const std::string& e) -> nlohmann::json {
                              motor::Motor* m = rt_.engine().motor();
-                             return m != nullptr ? m->analizarTerminar(e) : nlohmann::json{{"error", "el motor no está andando"}};
+                             return m != nullptr ? m->analizarTerminar(e)
+                                : nlohmann::json{{"error", tr("el motor no está andando").toStdString()}};
                          }});
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
@@ -1298,7 +1319,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             QPointer<StudioViewModel> yo(this);
             dcn_->control("microfono", {{"banca", banca}, {"abierto", abierto}, {"quitar", terminar}, {"quien", "fila de oradores"}},
                           [yo, banca](bool ok, const nlohmann::json&, const std::string& e) {
-                              if (!ok && yo) emit yo->notify(QString::fromStdString("Central DCN, banca " + banca + ": " + e), "error");
+                              if (!ok && yo)
+                    emit yo->notify(tr("Central DCN, banca %1: %2").arg(QString::fromStdString(banca), QString::fromStdString(e)),
+                                    "error");
                           });
             return true;
         };
@@ -1361,7 +1384,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     dcn_->control("ajustes", nlohmann::json::object(), [yo](bool ok, const nlohmann::json& r, const std::string& e) {
                         if (!yo) return;
                         if (!ok) {
-                            emit yo->notify(QString::fromStdString("Central (debate): " + e), "error");
+                            emit yo->notify(tr("Central (debate): %1").arg(QString::fromStdString(e)), "error");
                             return;
                         }
                         yo->centralAntesDelDebate_ = {{"modo", r.value("modo", std::string("operador"))},
@@ -1369,12 +1392,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         yo->dcn_->control("ajustes", {{"modo", "operador"}, {"max_abiertos", 2}},
                                           [yo](bool ok2, const nlohmann::json&, const std::string& e2) {
                                               if (yo && !ok2)
-                                                  emit yo->notify(QString::fromStdString("Central (debate): " + e2), "error");
+                                                  emit yo->notify(tr("Central (debate): %1").arg(QString::fromStdString(e2)), "error");
                                           });
                     });
                 } else if (centralAntesDelDebate_.is_object() && !centralAntesDelDebate_.empty()) {
                     dcn_->control("ajustes", centralAntesDelDebate_, [yo](bool ok, const nlohmann::json&, const std::string& e) {
-                        if (yo && !ok) emit yo->notify(QString::fromStdString("Central (fin del debate): " + e), "error");
+                        if (yo && !ok) emit yo->notify(tr("Central (fin del debate): %1").arg(QString::fromStdString(e)), "error");
                     });
                     centralAntesDelDebate_ = nlohmann::json();
                 }
@@ -1448,12 +1471,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 QString t = QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
                 if (sesionRemota_) {
                     const std::string sr = sesionRemota_->anexoActa();
-                    if (!sr.empty()) t += QString::fromStdString("## Banca virtual\n\n```\n" + sr + "```\n\n");
+                    if (!sr.empty()) t += tr("## Banca virtual") + QString::fromStdString("\n\n```\n" + sr + "```\n\n");
                 }
                 // La transcripción de la sesión, con la huella de cada archivo (se puede verificar después).
                 const QStringList archivos = flujos_ ? flujos_->archivosDeSesion() : QStringList{};
                 if (!archivos.isEmpty()) {
-                    t += "## Transcripción\n\n| Archivo | SHA-256 |\n|---|---|\n";
+                    t += tr("## Transcripción") + "\n\n| " + tr("Archivo") + " | SHA-256 |\n|---|---|\n";
                     for (const QString& a : archivos) {
                         QFile f(a);
                         QString h = "—";
@@ -1464,7 +1487,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         }
                         t += "| " + a + " | " + h + " |\n";
                     }
-                    t += "\n_La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial._\n\n";
+                    t += "\n_" + tr("La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial.") +
+                         "_\n\n";
                 }
                 return t;
             });
@@ -1486,9 +1510,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // La superresolución que no llega: aviso al operador y evento en el bus (T40).
     connect(video_.get(), &video::VideoGrafos::superresTarde, this,
             [this](const QString& e, double ms, double cuadroMs, bool bypass) {
-                emit notify(QString("La superresolución de «%1» no llega (%2 ms por cuadro de %3)%4")
-                                .arg(e).arg(ms, 0, 'f', 1).arg(cuadroMs, 0, 'f', 1)
-                                .arg(bypass ? ": pasada a barato" : ""),
+                emit notify((bypass ? tr("La superresolución de «%1» no llega (%2 ms por cuadro de %3): pasada a barato")
+                                    : tr("La superresolución de «%1» no llega (%2 ms por cuadro de %3)"))
+                                .arg(e).arg(ms, 0, 'f', 1).arg(cuadroMs, 0, 'f', 1),
                             "warn");
                 if (bus_) bus_->publicar("superres/tarde", {{"entrada", e.toStdString()}, {"ms", ms}, {"cuadro_ms", cuadroMs}, {"bypass", bypass}});
             });
@@ -1502,11 +1526,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         if (gb >= 0 && kbps > 0) {
             const double horas = gb / (kbps * 1.1 * 3600.0 / 8.0 / 1e6);
             if (horas < 1)
-                agregar(true, QString("Disco: quedan %1 GB, menos de una hora de grabación").arg(gb, 0, 'f', 1));
+                agregar(true, tr("Disco: quedan %1 GB, menos de una hora de grabación").arg(gb, 0, 'f', 1));
             else if (horas < 3)
-                agregar(false, QString("Disco: alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1));
+                agregar(false, tr("Disco: alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1));
         }
-        if (!streamKeyAvailable()) agregar(false, "No hay destino de transmisión configurado (servidor y clave)");
+        if (!streamKeyAvailable()) agregar(false, tr("No hay destino de transmisión configurado (servidor y clave)"));
         if (video_)
             for (const QString& e : video_->entradas()) {
                 const nlohmann::json st = video_->estadoEntrada(e.toStdString());
@@ -1518,7 +1542,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     aj.value("camara", std::string()).empty() && !aj.value("pipeline_audio", std::string()).empty())
                     continue;
                 if (st.value("ancho", 0) <= 0)
-                    agregar(false, "La entrada «" + e + "» no tiene señal ahora");
+                    agregar(false, tr("La entrada «%1» no tiene señal ahora").arg(e));
             }
         return out;
     });
@@ -1562,7 +1586,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             const auto a = nlohmann::json::parse(QJsonDocument(args).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
             // Dibujar todos los cuadros en Python puede llevar su rato: un minuto de tope.
             plugins_->pedir(id.toStdString(), "grafico", a, [listo](const nlohmann::json& r) {
-                if (!r.value("ok", false)) return listo({}, QString::fromStdString(r.value("error", std::string("no contestó"))));
+                if (!r.value("ok", false))
+                    return listo({}, QString::fromStdString(r.value("error", tr("no contestó").toStdString())));
                 const auto res = r.value("resultado", nlohmann::json::object());
                 listo(QJsonDocument::fromJson(QByteArray::fromStdString(res.dump())).object(), {});
             }, 60000);
@@ -1701,13 +1726,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
         connect(controlWeb_.get(), &control::ControlWeb::solicitudNueva, this,
                 [this](const QString&, const QString& nombre, const QString& ip) {
-                    emit notify("«" + nombre + "» (" + ip + ") pide entrar al control web: aprobalo en Servicios → Control web.",
+                    emit notify(tr("«%1» (%2) pide entrar al control web: aprobalo en Servicios → Control web.").arg(nombre, ip),
                                 "warn");
                 });
         connect(botonera_.get(), &control::Botonera::solicitudNueva, this,
                 [this](const QString&, const QString& nombre, const QString& perfil, const QString& ip) {
-                    emit notify("«" + nombre + "» (" + ip + ") pide emparejarse como botonera con el perfil «" + perfil +
-                                    "»: aprobalo en la página Botonera.",
+                    emit notify(tr("«%1» (%2) pide emparejarse como botonera con el perfil «%3»: aprobalo en la página "
+                                   "Botonera.")
+                                    .arg(nombre, ip, perfil),
                                 "warn");
                 });
         // Los aparatos de hardware de los plugins (Stream Deck, MIDI…) son botoneras más.
@@ -1841,7 +1867,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(this, &StudioViewModel::statusChanged, this, [this]() {
         const int mask = rt_.engine().pistasGrabacionMask();
         for (int i = 1; i < audio::Matriz::kPistas; ++i)
-            matriz_->setUsoPista(i, (mask & (1 << i)) ? "grabación del programa" : "");
+            matriz_->setUsoPista(i, (mask & (1 << i)) ? tr("grabación del programa").toStdString() : std::string());
     });
 #endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
@@ -1855,8 +1881,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
     connect(settings_.get(), &SettingsModel::salaReiniciada, this, [this](const QString& e) {
-        emit notify(e.isEmpty() ? QString("Conferencia reiniciada con la configuración nueva.")
-                                : "La conferencia no se reinició (" + e + "): apretá «Reiniciar la conferencia» en Configuración o en la página Conferencia.",
+        emit notify(e.isEmpty() ? tr("Conferencia reiniciada con la configuración nueva.")
+                                : tr("La conferencia no se reinició (%1): apretá «Reiniciar la conferencia» en Configuración "
+                                     "o en la página Conferencia.")
+                                      .arg(e),
                     e.isEmpty() ? "ok" : "error");
     });
     // El resumen de lo que aplicó el formulario de la GUI; lo que rige ya (lienzo,
@@ -1884,11 +1912,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         f.cerrarSala = [this](bool on) { conference_->setLocked(on); };
         f.tunel = [this]() { return accesoRemoto_ ? accesoRemoto_->conexion() : QVariantMap(); };
         f.activarTunel = [this](bool on) -> QString {
-            if (!accesoRemoto_) return "No disponible.";
+            if (!accesoRemoto_) return tr("No disponible.");
             if (!on) return accesoRemoto_->desconectar();
             const QVariantList formas = accesoRemoto_->formasDeConectar();
             if (formas.isEmpty())
-                return "No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.";
+                return tr("No hay ninguna forma de conectar guardada: configurala en Configuración → Acceso remoto.");
             return accesoRemoto_->conectar(formas.first().toMap().value("id").toString());
         };
         f.apiRemota = [this]() { return apiRemotaUi(); };
@@ -1898,7 +1926,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return {{"activo", satellite_->activo()}, {"puerto", satellite_->puerto()}, {"error", satellite_->error()}};
         };
         f.activarSatellite = [this](bool on) -> QString {
-            return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : QString("No disponible.");
+            return satellite_ ? satellite_->configurar(on, satellite_->puerto()) : tr("No disponible.");
         };
         f.direcciones = [this]() -> const sala::Direcciones* { return direcciones_.get(); };
         f.webEvento = [this]() -> QVariantMap {
@@ -1920,14 +1948,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 for (const QVariant& v : botonera_->solicitudesUi()) {
                     QVariantMap m = v.toMap();
                     m["perfil"] = m.value("perfilId");
-                    m["detalle"] = "pide emparejarse";
+                    m["detalle"] = tr("pide emparejarse");
                     out << m;
                 }
                 return out;
             };
             a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
                 const std::string e = botoneraGw_->resolver(sol.toStdString(), aprobar, perfil.toStdString());
-                if (e.empty()) emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
+                if (e.empty()) emit notify(aprobar ? tr("Tablet emparejada.") : tr("Emparejamiento rechazado."), aprobar ? "ok" : "info");
                 return qs(e);
             };
             a.perfilModo = "lista";
@@ -1947,18 +1975,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 QVariantList out;
                 for (const QVariant& v : controlWeb_->solicitudesUi()) {
                     QVariantMap m = v.toMap();
-                    m["detalle"] = "pide entrar al control web";
+                    m["detalle"] = tr("pide entrar al control web");
                     out << m;
                 }
                 return out;
             };
             a.resolver = [this](const QString& sol, bool aprobar, const QString& perfil) -> QString {
                 const QString e = controlWeb_->aprobarUi(sol, aprobar, perfil);
-                if (e.isEmpty()) emit notify(aprobar ? "Aparato emparejado." : "Pedido rechazado.", aprobar ? "ok" : "info");
+                if (e.isEmpty()) emit notify(aprobar ? tr("Aparato emparejado.") : tr("Pedido rechazado."), aprobar ? "ok" : "info");
                 return e;
             };
             a.perfilModo = "texto";
-            a.perfilAyuda = "todo, o: escenas, audio";
+            a.perfilAyuda = tr("todo, o: escenas, audio");
             f.aprobaciones["control"] = std::move(a);
         }
         if (satellite_) {
@@ -1967,22 +1995,22 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 QVariantList out;
                 for (const QVariant& v : satellite_->solicitudesUi()) {
                     QVariantMap m = v.toMap();
-                    m["detalle"] = "quiere conectar un Satellite";
+                    m["detalle"] = tr("quiere conectar un Satellite");
                     out << m;
                 }
                 return out;
             };
             a.resolver = [this](const QString& ip, bool aprobar, const QString&) -> QString {
-                if (!satellite_->pendientes().contains(ip)) return "Ese pedido ya no está.";
+                if (!satellite_->pendientes().contains(ip)) return tr("Ese pedido ya no está.");
                 if (aprobar)
                     satellite_->permitir(ip, true);
                 else
                     satellite_->rechazar(ip);
                 return {};
             };
-            a.textoAprobar = "Permitir";
-            a.unoEspera = "Una IP pide conectar: permitila acá abajo";
-            a.variosEsperan = "%1 IP piden conectar: permitilas acá abajo";
+            a.textoAprobar = tr("Permitir");
+            a.unoEspera = tr("Una IP pide conectar: permitila acá abajo");
+            a.variosEsperan = tr("%1 IP piden conectar: permitilas acá abajo");
             f.aprobaciones["satellite"] = std::move(a);
         }
         {
@@ -1998,8 +2026,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                        {"ip", QString()},
                                        {"ms", p.value("joinedMs").toDouble()},
                                        {"detalle", p.value("info").toString().isEmpty()
-                                                       ? QString("espera en el lobby")
-                                                       : "espera en el lobby · " + p.value("info").toString()}};
+                                                       ? tr("espera en el lobby")
+                                                       : tr("espera en el lobby · %1").arg(p.value("info").toString())}};
                 }
                 return out;
             };
@@ -2010,9 +2038,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     conference_->reject(uid);
                 return {};
             };
-            a.textoAprobar = "Admitir";
-            a.unoEspera = "Una persona espera en el lobby: admitila acá abajo";
-            a.variosEsperan = "%1 personas esperan en el lobby: admitilas acá abajo";
+            a.textoAprobar = tr("Admitir");
+            a.unoEspera = tr("Una persona espera en el lobby: admitila acá abajo");
+            a.variosEsperan = tr("%1 personas esperan en el lobby: admitilas acá abajo");
             f.aprobaciones["invitados"] = std::move(a);
         }
         enlaces_ = std::make_unique<EnlacesViewModel>(std::move(f));
@@ -2085,7 +2113,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 const QJsonObject v = QJsonDocument::fromJson(QByteArray::fromStdString(g.valores.dump())).object();
                 const QString e = emisor_->mostrar(QString::fromStdString(g.grafico), v, g.id, 0, g.bucle);
                 if (!e.isEmpty())
-                    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "graficos", 0, "«" + g.nombre + "» no arrancó al abrir: " + e.toStdString());
+                    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "graficos", 0,
+                                           ba::i18n::llenar(ba::i18n::traducir("graficos", "«%1» no arrancó al abrir: %2"),
+                                                            {g.nombre, e.toStdString()}));
             }
     });
 }
@@ -2107,7 +2137,7 @@ StudioViewModel::~StudioViewModel() {
     if (bitacoraBus_ != 0 && bus_) bus_->desuscribir(bitacoraBus_);
     if (bitacora_) {
         revisarConfig({}, "");
-        bitacora_->anotar("evento", "app", "la app se cierra");
+        bitacora_->anotar("evento", "app", ba::i18n::traducir("historico", "la app se cierra"));
         bitacora_->vaciar();
     }
 }
@@ -2139,8 +2169,11 @@ void StudioViewModel::revisarConfig(const std::string& carpeta, const std::strin
         // la bitácora ya puede estar apuntando al nuevo. Se escribe directo.
         const bool otro = !carpeta.empty();
         for (const auto& c : fotos_->comparar(antes, f)) {
-            const std::string texto = c.value("archivo", std::string()) + " " + c.value("que", std::string()) +
-                                      (antes.value("t", 0LL) != 0 && momento == "inicio" ? " (con la app cerrada)" : "");
+            const std::string texto =
+                antes.value("t", 0LL) != 0 && momento == "inicio"
+                    ? ba::i18n::llenar(ba::i18n::traducir("historico", "%1 %2 (con la app cerrada)"),
+                                       {c.value("archivo", std::string()), c.value("que", std::string())})
+                    : c.value("archivo", std::string()) + " " + c.value("que", std::string());
             if (otro) {
                 evento::Bitacora b;
                 b.setArchivo(dir / "bitacora.jsonl");
@@ -2265,8 +2298,9 @@ void StudioViewModel::cerrarEnHistorico(const std::string& carpeta) {
         listo->store(true);
         if (!s.is_null())
             ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
-                                       "sellado " + dir.filename().string() + " (" +
-                                           std::to_string(s.value("archivos", nlohmann::json::object()).size()) + " archivos)");
+                                       ba::i18n::llenar(ba::i18n::traducir("historico", "sellado %1 (%2 archivos)"),
+                                                        {dir.filename().string(),
+                                                         std::to_string(s.value("archivos", nlohmann::json::object()).size())}));
     }), listo});
 }
 
@@ -2303,7 +2337,7 @@ void StudioViewModel::armarBitacora() {
         *busExcluir_ = l; // solo lo toca el hilo de la interfaz, igual que el oyente del bus
     });
     bitacora_->setArchivo(evento_->archivoBitacora());
-    bitacora_->anotar("evento", "app", "la app arranca",
+    bitacora_->anotar("evento", "app", ba::i18n::traducir("historico", "la app arranca"),
                       {{"evento", evento_->enCurso().value("carpeta").toString().toStdString()}});
     // La configuración: lo que cambió con la app cerrada se ve al arrancar
     // (contra la última foto del evento), y después, cada 10 s.
@@ -2327,7 +2361,8 @@ void StudioViewModel::armarBitacora() {
                 continue;
             if (!std::filesystem::exists(dir / "config" / "cierre.json", ec))
                 std::filesystem::copy_file(dir / "config" / "ultima.json", dir / "config" / "cierre.json", ec);
-            ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0, "cierre pendiente de «" + c + "»");
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
+                                       ba::i18n::llenar(ba::i18n::traducir("historico", "cierre pendiente de «%1»"), {c}));
             cerrarEnHistorico(c);
         }
     }
@@ -2338,7 +2373,7 @@ void StudioViewModel::armarBitacora() {
             if (!historico_) return;
             const nlohmann::json d = historico_->disco();
             if (d.value("lleno", false)) {
-                const QString t = QString("El disco de los eventos está al %1 % (quedan %2 GB)")
+                const QString t = tr("El disco de los eventos está al %1 % (quedan %2 GB)")
                                       .arg(d.value("usado_pct", 0))
                                       .arg(d.value("libre_gb", 0.0));
                 ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0, t.toStdString());
@@ -2347,8 +2382,10 @@ void StudioViewModel::armarBitacora() {
             const nlohmann::json r = historico_->retencion(false);
             if (!r.value("eventos", nlohmann::json::array()).empty())
                 ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
-                                           "retención: grabaciones borradas de " + std::to_string(r["eventos"].size()) +
-                                               " eventos (" + std::to_string(r.value("bytes", 0ULL) / 1000000) + " MB)");
+                                           ba::i18n::llenar(ba::i18n::traducir("historico",
+                                                                               "retención: grabaciones borradas de %1 eventos (%2 MB)"),
+                                                            {std::to_string(r["eventos"].size()),
+                                                             std::to_string(r.value("bytes", 0ULL) / 1000000)}));
         };
         QTimer::singleShot(ba::ajustes::sAMs("historico.primeraRevisionS", 60), this, revisar);
         connect(tDisco, &QTimer::timeout, this, revisar);
@@ -2425,13 +2462,14 @@ void StudioViewModel::armarBitacora() {
         if (ahora == *anterior) return;
         if (!anterior->empty()) {
             revisarConfig(*anterior, "cierre");
-            bitacora_->anotar("evento", "historico", "deja de estar en curso", {{"siguiente", ahora}});
+            bitacora_->anotar("evento", "historico", ba::i18n::traducir("historico", "deja de estar en curso"),
+                              {{"siguiente", ahora}});
             bitacora_->vaciar();
             cerrarEnHistorico(*anterior);
         }
         bitacora_->setArchivo(evento_->archivoBitacora());
         if (!ahora.empty()) {
-            bitacora_->anotar("evento", "historico", "en curso", {{"anterior", *anterior}});
+            bitacora_->anotar("evento", "historico", ba::i18n::traducir("historico", "en curso"), {{"anterior", *anterior}});
             fotoUltima_ = nullptr; // el evento nuevo compara contra su propia última foto
             revisarConfig({}, "inicio");
         }
@@ -2486,17 +2524,18 @@ void StudioViewModel::tiemposCentral() {
         if (central) dcn_->control("tiempo", {{"limite_min", (asignado + 59) / 60}, {"reloj", true}}, ignorar);
     }
     const int restante = asignado - usado;
-    const QString quien = QString::fromStdString(nombre + (banca.empty() ? "" : " (banca " + banca + ")"));
+    const QString quien = banca.empty() ? QString::fromStdString(nombre)
+                                        : tr("%1 (banca %2)").arg(QString::fromStdString(nombre), QString::fromStdString(banca));
     if (restante <= 60 && restante > 0 && !(dcnAvisos_ & 1)) {
         dcnAvisos_ |= 1;
-        emit notify(quien + ": queda 1 minuto", "warn");
+        emit notify(tr("%1: queda 1 minuto").arg(quien), "warn");
         if (remoto) sesionRemota_->avisoTiempo(id, "ultimo_minuto");
         if (central) dcn_->control("tiempo", {{"banca", banca}, {"aviso", "ultimo_minuto"}}, ignorar);
         if (bus_) bus_->publicar("oradores/tiempo", {{"id", id}, {"banca", banca}, {"aviso", "ultimo_minuto"}});
     }
     if (restante <= 0 && !(dcnAvisos_ & 2)) {
         dcnAvisos_ |= 3;
-        emit notify(quien + ": se terminó su tiempo", "error");
+        emit notify(tr("%1: se terminó su tiempo").arg(quien), "error");
         if (remoto) sesionRemota_->avisoTiempo(id, "terminado");
         if (central) dcn_->control("tiempo", {{"banca", banca}, {"aviso", "terminado"}}, ignorar);
         if (bus_) bus_->publicar("oradores/tiempo", {{"id", id}, {"banca", banca}, {"aviso", "terminado"}});
@@ -2532,10 +2571,11 @@ void StudioViewModel::onTick() {
     // El vigía de los módulos de audio: lo que saltó por lento o colgado.
     if (++vigiaTicks_ % 10 == 0 && racks_ != nullptr)
         for (const auto& m : racks_->tomarSaltados())
-            emit notify("Audio: «" + qs(m) + "» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.", "warn");
+            emit notify(tr("Audio: «%1» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.").arg(qs(m)),
+                        "warn");
     // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
     if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
-        emit notify(QString("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
+        emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
     const EngineStatus st = rt_.engine().status();
     if (st.recording && !recording_) {
         recSince_ = std::chrono::steady_clock::now();
@@ -2548,32 +2588,34 @@ void StudioViewModel::onTick() {
     }
     // Un corte pedido es un aviso corto; uno que nadie pidio (red, servidor,
     // disco lleno) queda fijo en la barra del operador hasta que lo cierre.
-    const auto dropped = [this](const char* title, const std::string& text) {
+    const auto dropped = [this](const QString& title, const QString& text) {
         if (messages_) {
-            messages_->post(
-                {{"kind", "message"}, {"priority", "critical"}, {"title", title}, {"text", text}});
+            messages_->post({{"kind", "message"},
+                             {"priority", "critical"},
+                             {"title", title.toStdString()},
+                             {"text", text.toStdString()}});
         } else {
-            emit notify(QString::fromUtf8(title), "error");
+            emit notify(title, "error");
         }
     };
     if (recording_ && !st.recording) {
         if (rt_.recordStopWanted()) {
-            emit notify("Grabación detenida", "info");
+            emit notify(tr("Grabación detenida"), "info");
         } else {
             rt_.stopRecording(); // ya no hay nada que retomar tras una caida
-            dropped("Se cortó la grabación",
-                    "La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar.");
+            dropped(tr("Se cortó la grabación"),
+                    tr("La grabación se detuvo sola. Revisá el espacio libre en el disco y volvé a grabar."));
         }
     }
     if (streaming_ && !st.streaming) {
         if (rt_.streamStopWanted()) {
-            emit notify("Transmisión detenida", "warn");
+            emit notify(tr("Transmisión detenida"), "warn");
         } else {
             rt_.stopStreaming();
             dropped(
-                "Se cayó la transmisión",
-                "La emisión se cortó sola (internet o el servidor de destino). Revisá la conexión y volvé a "
-                "salir al aire.");
+                tr("Se cayó la transmisión"),
+                tr("La emisión se cortó sola (internet o el servidor de destino). Revisá la conexión y volvé a "
+                   "salir al aire."));
         }
     }
     // Si cambio el aire o la grabacion, el tally lo tiene que saber: una
@@ -2585,9 +2627,9 @@ void StudioViewModel::onTick() {
     if (cambioElAire) publicarTally();
     // Avisar UNA vez por problema, no en cada vuelta del reloj.
     if (st.reconnecting && !reconnecting_)
-        emit notify("Se cortó la transmisión: reconectando… (" + qs(st.outputProblem) + ")", "error");
+        emit notify(tr("Se cortó la transmisión: reconectando… (%1)").arg(qs(st.outputProblem)), "error");
     else if (!st.reconnecting && reconnecting_ && st.streaming)
-        emit notify("Transmisión recuperada", "ok");
+        emit notify(tr("Transmisión recuperada"), "ok");
     reconnecting_ = st.reconnecting;
     outputProblem_ = qs(st.outputProblem);
     fps_ = st.fps;
@@ -2720,14 +2762,14 @@ QVariantMap StudioViewModel::accountGuide(const QString& platform) const {
 QString StudioViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
     // Una cámara de la red (camara:<ip>): usuario y clave, cifrados.
     if (platform.startsWith("camara:")) {
-        if (!red_) return "El escáner de red no está disponible.";
+        if (!red_) return tr("El escáner de red no está disponible.");
         return red_->guardarCredenciales(platform.mid(7), v.value("usuario").toString(),
                                          v.value("clave").toString());
     }
     // Varias cámaras en un formulario: «usuario|<ip>» y «clave|<ip>». Las que
     // quedan sin clave se saltean (se pueden completar después).
     if (platform.startsWith("camaras:")) {
-        if (!red_) return "El escáner de red no está disponible.";
+        if (!red_) return tr("El escáner de red no está disponible.");
         int guardadas = 0;
         for (const QString& ip : platform.mid(8).split(',', Qt::SkipEmptyParts)) {
             const QString clave = v.value("clave|" + ip).toString();
@@ -2740,11 +2782,11 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
             if (!e.isEmpty()) return ip + ": " + e;
             ++guardadas;
         }
-        return guardadas == 0 ? "No escribiste ninguna clave." : QString();
+        return guardadas == 0 ? tr("No escribiste ninguna clave.") : QString();
     }
     // Las claves de un plugin (plugin:<id>): un campo por cada una que declara.
     if (platform.startsWith("plugin:")) {
-        if (!plugins_) return "Los plugins no están disponibles.";
+        if (!plugins_) return tr("Los plugins no están disponibles.");
         int guardadas = 0;
         for (auto it = v.begin(); it != v.end(); ++it) {
             const QString valor = it.value().toString();
@@ -2753,7 +2795,7 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
             if (!e.isEmpty()) return e;
             ++guardadas;
         }
-        return guardadas == 0 ? "No escribiste ninguna clave." : QString();
+        return guardadas == 0 ? tr("No escribiste ninguna clave.") : QString();
     }
     const std::string p = accounts::normalize(platform.toStdString());
     if (p == "youtube") {
@@ -2766,7 +2808,7 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
         if (!path.isEmpty()) {
             const QUrl u(path);
             QFile f(u.isLocalFile() ? u.toLocalFile() : path);
-            if (!f.open(QIODevice::ReadOnly)) return "No se pudo leer " + f.fileName() + ".";
+            if (!f.open(QIODevice::ReadOnly)) return tr("No se pudo leer %1.").arg(f.fileName());
             return youtube_->saveClient(QString::fromUtf8(f.readAll()));
         }
         return youtube_->saveClient(v.value("clientId").toString().trimmed(),
@@ -2778,7 +2820,7 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
     if (p == "facebook")
         return facebook_->saveClient(v.value("appId").toString().trimmed(),
                                      v.value("appSecret").toString().trimmed(), facebook_->client().port());
-    return "Plataforma desconocida: " + platform + ".";
+    return tr("Plataforma desconocida: %1.").arg(platform);
 }
 QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
@@ -2795,9 +2837,9 @@ QString StudioViewModel::identificarPantallas(const QString& cual) {
         return {};
     }
     const QString id = monitores_ ? monitores_->resolver(cual) : QString();
-    if (id.isEmpty()) return "No hay un monitor «" + cual + "»: decí su número, su nombre o su id.";
+    if (id.isEmpty()) return tr("No hay un monitor «%1»: decí su número, su nombre o su id.").arg(cual);
     const QVariantMap m = monitores_->monitor(id);
-    if (!m.value("conectado").toBool()) return "El monitor «" + cual + "» no está conectado.";
+    if (!m.value("conectado").toBool()) return tr("El monitor «%1» no está conectado.").arg(cual);
     emit identificarPedido({id});
     return {};
 }
@@ -2949,7 +2991,7 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
             ctx["punto"] = QJsonObject{{"n", p.value("n", 0)},
                                        {"titulo", QString::fromStdString(p.value("titulo", std::string()))},
                                        {"expediente", QString::fromStdString(p.value("expediente", std::string()))},
-                                       {"texto", QString("Punto %1: %2").arg(p.value("n", 0)).arg(QString::fromStdString(p.value("titulo", std::string())))}};
+                                       {"texto", tr("Punto %1: %2").arg(p.value("n", 0)).arg(QString::fromStdString(p.value("titulo", std::string())))}};
     }
     // Un orador presencial (banca) al aire manda sobre el de la sala.
     if (bancas_) {
@@ -2984,8 +3026,8 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
                 {"necesarios", q.value("necesarios", 0)},
                 {"miembros", q.value("miembros", 0)},
                 {"hay", q.value("hay_quorum", false)},
-                {"estado", q.value("hay_quorum", false) ? "CON QUÓRUM" : "SIN QUÓRUM"},
-                {"texto", QString("%1 presentes de %2").arg(q.value("presentes", 0)).arg(q.value("miembros", 0))}};
+                {"estado", q.value("hay_quorum", false) ? tr("CON QUÓRUM") : tr("SIN QUÓRUM")},
+                {"texto", tr("%1 presentes de %2").arg(q.value("presentes", 0)).arg(q.value("miembros", 0))}};
         const nlohmann::json of = quorum_->oficiales();
         if (!of.empty()) {
             const nlohmann::json& v = of.back();
@@ -3028,14 +3070,14 @@ void StudioViewModel::toggleRecording() {
             return;
         }
         if (horas >= 0 && horas < 2)
-            emit notify(QString("Ojo: el disco alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1), "warn");
+            emit notify(tr("Ojo: el disco alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1), "warn");
     }
     if (recording_) {
         rt_.stopRecording();
     } else if (rt_.startRecording()) {
-        emit notify("Grabando en " + qs(rt_.carpetaGrabacion()), "ok");
+        emit notify(tr("Grabando en %1").arg(qs(rt_.carpetaGrabacion())), "ok");
     } else {
-        emit notify("No se pudo grabar: " + qs(rt_.lastError()), "error");
+        emit notify(tr("No se pudo grabar: %1").arg(qs(rt_.lastError())), "error");
     }
     onTick();
 }
@@ -3043,9 +3085,9 @@ void StudioViewModel::toggleRecording() {
 void StudioViewModel::grabarIgual() {
     if (recording_) return;
     if (rt_.startRecording())
-        emit notify("Grabando (con poco disco)", "warn");
+        emit notify(tr("Grabando (con poco disco)"), "warn");
     else
-        emit notify("No se pudo grabar: " + qs(rt_.lastError()), "error");
+        emit notify(tr("No se pudo grabar: %1").arg(qs(rt_.lastError())), "error");
     onTick();
 }
 
@@ -3078,22 +3120,22 @@ void StudioViewModel::startStreaming(const QString& server, const QString& key) 
     if (rt_.salirAlAireManual(server.toStdString(), key.toStdString())) {
         // Nunca un "Al aire" verde si no cambió nada.
         if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
-            emit notify("Ya estabas transmitiendo a ese destino: no cambió nada", "info");
+            emit notify(tr("Ya estabas transmitiendo a ese destino: no cambió nada"), "info");
         else
-            emit notify("Al aire", "ok");
+            emit notify(tr("Al aire"), "ok");
     } else if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
         emit pedirCambioDestino(qs(rt_.engine().destinoActivo()), server, key);
     } else {
-        emit notify("No se pudo transmitir: " + qs(rt_.lastError()), "error");
+        emit notify(tr("No se pudo transmitir: %1").arg(qs(rt_.lastError())), "error");
     }
     onTick();
 }
 
 void StudioViewModel::cambiarDestinoStream(const QString& server, const QString& key) {
     if (rt_.salirAlAireManual(server.toStdString(), key.toStdString(), true))
-        emit notify("Transmitiendo al destino nuevo", "ok");
+        emit notify(tr("Transmitiendo al destino nuevo"), "ok");
     else
-        emit notify("No se pudo cambiar de destino: " + qs(rt_.lastError()), "error");
+        emit notify(tr("No se pudo cambiar de destino: %1").arg(qs(rt_.lastError())), "error");
     onTick();
 }
 
@@ -3233,9 +3275,9 @@ QString StudioViewModel::copyScene(const QString& from, const QString& to) {
                 if (qs(s) == n) return true;
             return false;
         };
-        destino = from + " (copia)";
+        destino = tr("%1 (copia)").arg(from);
         for (int i = 2; existe(destino); ++i)
-            destino = from + " (copia " + QString::number(i) + ")";
+            destino = tr("%1 (copia %2)").arg(from).arg(i);
     }
     if (!rt_.copyScene(from.toStdString(), destino.toStdString())) {
         emit notify(qs(rt_.lastError()), "error");
@@ -3246,7 +3288,7 @@ QString StudioViewModel::copyScene(const QString& from, const QString& to) {
     emit sceneChanged();
     rt_.save();
     const std::string aviso = rt_.lastError();
-    emit notify(aviso.empty() ? "Escena copiada: " + destino : "Escena copiada, pero " + qs(aviso),
+    emit notify(aviso.empty() ? tr("Escena copiada: %1").arg(destino) : tr("Escena copiada, pero %1").arg(qs(aviso)),
                 aviso.empty() ? "ok" : "warn");
     return destino;
 }
@@ -3259,8 +3301,8 @@ void StudioViewModel::setSceneProtected(const QString& name, bool protegida) {
     scenes_->reload();
     emit escenasCambiaron();
     rt_.save();
-    emit notify(protegida ? "«" + name + "» protegida: no se puede borrar ni renombrar"
-                          : "«" + name + "» ya no está protegida",
+    emit notify(protegida ? tr("«%1» protegida: no se puede borrar ni renombrar").arg(name)
+                          : tr("«%1» ya no está protegida").arg(name),
                 "ok");
 }
 
@@ -3308,7 +3350,7 @@ void StudioViewModel::copiar(const QString& texto) {
 }
 
 QString StudioViewModel::assistantIntake(const QString& id, const QString& name, bool yaAdentro) {
-    if (!intakeSink_) return "El servidor MCP no está disponible.";
+    if (!intakeSink_) return tr("El servidor MCP no está disponible.");
     return intakeSink_(id, name, yaAdentro);
 }
 
@@ -3339,9 +3381,9 @@ void StudioViewModel::renameScene(const QString& from, const QString& to) {
 
 void StudioViewModel::save() {
     if (rt_.save()) {
-        emit notify("Guardado", "ok");
+        emit notify(tr("Guardado"), "ok");
     } else {
-        emit notify("No se pudo guardar: " + qs(rt_.lastError()), "error");
+        emit notify(tr("No se pudo guardar: %1").arg(qs(rt_.lastError())), "error");
     }
 }
 
@@ -3488,8 +3530,8 @@ QVariantMap StudioViewModel::estadoPlacaUi() const {
 }
 
 QStringList StudioViewModel::textosPlaca() const {
-    QStringList l{"Volvemos enseguida", "Cuarto intermedio", "Minuto de silencio", "Sesión suspendida",
-                  "Dificultades técnicas"};
+    QStringList l{tr("Volvemos enseguida"), tr("Cuarto intermedio"), tr("Minuto de silencio"), tr("Sesión suspendida"),
+                  tr("Dificultades técnicas")};
     const QString usado = QString::fromStdString(rt_.engine().estadoPlaca().value("placa_texto", std::string()));
     if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
     return l;
@@ -3497,7 +3539,7 @@ QStringList StudioViewModel::textosPlaca() const {
 
 void StudioViewModel::restaurarPlaca() {
     if (seguridadAire_->restaurar())
-        emit notify("Se restauró lo que estaba al aire antes del corte (placa o negro)", "warn");
+        emit notify(tr("Se restauró lo que estaba al aire antes del corte (placa o negro)"), "warn");
 }
 
 QObject* StudioViewModel::cuerpoQml() const { return cuerpo_.get(); }
@@ -3511,7 +3553,7 @@ QString StudioViewModel::aprobarInfoInvitado(const QString& participante, const 
             return {};
         }
     }
-    return "no hay un invitado «" + participante + "» en la conferencia";
+    return tr("no hay un invitado «%1» en la conferencia").arg(participante);
 }
 
 QVariantList StudioViewModel::chatRecientesUi() const {
@@ -3534,8 +3576,8 @@ QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
     QPointer<StudioViewModel> yo(this);
     return qs(preguntas_->sumarDesdeChat(key.toStdString(), [yo](const std::string& err, const nlohmann::json&) {
         if (yo)
-            emit yo->notify(err.empty() ? QString("Sumada a la cola de preguntas")
-                                        : "No se pudo sumar la pregunta: " + QString::fromStdString(err),
+            emit yo->notify(err.empty() ? tr("Sumada a la cola de preguntas")
+                                        : tr("No se pudo sumar la pregunta: %1").arg(QString::fromStdString(err)),
                             err.empty() ? "ok" : "error");
     }));
 }
@@ -3606,7 +3648,7 @@ QVariantMap StudioViewModel::vocabularioProbarUi(const QString& texto) {
 
 int StudioViewModel::vocabularioDelCuerpoUi() {
     const int n = vocabulario_->cargarCuerpo(cuerpo_->cuerpo());
-    emit notify("Nombres del cuerpo: " + QString::number(n), "info");
+    emit notify(tr("Nombres del cuerpo: %1").arg(n), "info");
     return n;
 }
 
@@ -3635,7 +3677,7 @@ void StudioViewModel::publicarEventos() {
         const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
         if (ev && !eventoEnVivo_ && seguridad_)
             seguridad_->rotarPinSiCambioElDia([this](const std::string& error, bool cambio, const std::string& pin) {
-                if (error.empty() && cambio) emit notify("Día nuevo: la conferencia tiene PIN nuevo (" + qs(pin) + ")", "info");
+                if (error.empty() && cambio) emit notify(tr("Día nuevo: la conferencia tiene PIN nuevo (%1)").arg(qs(pin)), "info");
             });
         eventoEnVivo_ = ev;
     }
@@ -3788,14 +3830,14 @@ void StudioViewModel::emparejarControlWebUi() {
     controlWebGw_->emparejar(nullptr, "", [yo](const nlohmann::json& r) {
         if (!yo) return;
         if (!r.contains("url")) {
-            emit yo->notify(QString::fromStdString(r.value("error", std::string("No se pudo emparejar."))), "error");
+            emit yo->notify(QString::fromStdString(r.value("error", tr("No se pudo emparejar.").toStdString())), "error");
             return;
         }
         const std::string aviso = r.value("aviso", std::string());
-        emit yo->mostrarQr(QString::fromStdString(r.value("url", std::string())), "Control web (/control/)",
-                           QString::fromStdString("Abrilo en el navegador del aparato (de la red local; el código vale unos "
-                                                  "minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web." +
-                                                  (aviso.empty() ? std::string() : "\n" + aviso)),
+        emit yo->mostrarQr(QString::fromStdString(r.value("url", std::string())), tr("Control web (/control/)"),
+                           tr("Abrilo en el navegador del aparato (de la red local; el código vale unos "
+                              "minutos y sirve una vez). Después aprobalo acá, en Servicios → Control web.") +
+                               (aviso.empty() ? QString() : "\n" + QString::fromStdString(aviso)),
                            "verde");
     });
 }
@@ -3836,7 +3878,7 @@ QStringList StudioViewModel::nombresParaDsk() const {
 }
 
 QString StudioViewModel::hablarARemoto(const QString& integrante, bool activo) {
-    if (!presidencia_) return "La sesión remota no está andando.";
+    if (!presidencia_) return tr("La sesión remota no está andando.");
     return QString::fromStdString(presidencia_->hablarARemoto(integrante.toStdString(), activo));
 }
 
@@ -3874,7 +3916,7 @@ void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar, co
         emit notify(qs(e), "error");
         return;
     }
-    emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
+    emit notify(aprobar ? tr("Tablet emparejada.") : tr("Emparejamiento rechazado."), aprobar ? "ok" : "info");
 }
 
 } // namespace ba::app
@@ -3905,9 +3947,9 @@ QVariantList StudioViewModel::isosUi() const {
 
 void StudioViewModel::isoInvitadoUi(const QString& id) {
     const QString f = fuenteDeInvitado(id);
-    if (f.isEmpty()) return emit notify("Ese invitado no tiene una fuente en el programa todavía.", "warn");
+    if (f.isEmpty()) return emit notify(tr("Ese invitado no tiene una fuente en el programa todavía."), "warn");
     const QString e = isoUi(f, true);
-    emit notify(e.isEmpty() ? "Grabando «" + f + "» aparte" : e, e.isEmpty() ? "ok" : "error");
+    emit notify(e.isEmpty() ? tr("Grabando «%1» aparte").arg(f) : e, e.isEmpty() ? "ok" : "error");
 }
 
 QString StudioViewModel::isoUi(const QString& fuente, bool grabar) {
@@ -4004,7 +4046,7 @@ QString StudioViewModel::setRetardoUi(const QString& fuente, int ms) {
 }
 
 QString StudioViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo) {
-    if (rt_.engine().midiendoSincro()) return "ya se está midiendo";
+    if (rt_.engine().midiendoSincro()) return tr("ya se está midiendo");
     if (!rt_.engine().empezarMedicionSincro()) return qs(rt_.engine().lastError());
     QTimer::singleShot(std::clamp(segundos, 4, 30) * 1000, this, [this, listo = std::move(listo)]() {
         listo(rt_.engine().terminarMedicionSincro());
@@ -4031,7 +4073,7 @@ QVariantMap StudioViewModel::grabacionUi() const {
 
 QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const {
     video::TipoScope t = video::TipoScope::Onda;
-    if (!video::tipoScopeDeTexto(tipo, t)) return {{"error", "tipo desconocido"}};
+    if (!video::tipoScopeDeTexto(tipo, t)) return {{"error", tr("tipo desconocido")}};
     QImage img;
     std::uint64_t serie = 0;
     // El programa: el cuadro que ya se rinde para los monitores (no cuesta otro render).
@@ -4081,7 +4123,7 @@ QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo,
 
 QString StudioViewModel::legalizarUi(const QString& modo) {
     const std::string m = modo.toStdString();
-    if (m != "no" && m != "pal" && m != "ntsc" && m != "rango") return "modo desconocido";
+    if (m != "no" && m != "pal" && m != "ntsc" && m != "rango") return tr("modo desconocido");
     rt_.config().legalizar = m;
     rt_.save();
     video_->setLegalizar(m);
@@ -4101,9 +4143,9 @@ QString StudioViewModel::repetirUi() {
     const std::string antes = rt_.engine().ultimoReplay();
     if (!rt_.engine().guardarReplay()) return qs(rt_.engine().lastError());
     esperarReplay(antes, 8000, [this](const QString& f) {
-        if (f.isEmpty()) return emit notify("La repetición no llegó a escribirse.", "error");
+        if (f.isEmpty()) return emit notify(tr("La repetición no llegó a escribirse."), "error");
         const QString e = armarRepeticion(f);
-        emit notify(e.isEmpty() ? "Repetición armada: dale TAKE." : e, e.isEmpty() ? "ok" : "error");
+        emit notify(e.isEmpty() ? tr("Repetición armada: dale TAKE.") : e, e.isEmpty() ? "ok" : "error");
     });
     return {};
 }
@@ -4216,7 +4258,8 @@ bool StudioViewModel::paginaBloqueada(const QString& id) const {
 
 void StudioViewModel::desbloquearPagina(const QString& id, const QString& motivo) {
     desbloqueadas_.insert(id);
-    ba::diag::registro().info("modo en vivo: se desbloqueó «" + id.toStdString() + "» — motivo: " + motivo.toStdString());
+    ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("modo-vivo", "modo en vivo: se desbloqueó «%1» — motivo: %2"),
+                                               {id.toStdString(), motivo.toStdString()}));
     emit statusChanged();
 }
 
@@ -4231,7 +4274,7 @@ nlohmann::json StudioViewModel::modoVivoEstado() const {
 }
 
 std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {
-    if (modoVivo()) return "no se cambia en vivo";
+    if (modoVivo()) return tr("no se cambia en vivo").toStdString();
     const std::string e = modoVivoCfg_->cambiar(a);
     emit statusChanged();
     return e;
@@ -4254,7 +4297,9 @@ namespace {
 QString enumerar(QStringList l) {
     if (l.isEmpty()) return {};
     const QString ultimo = l.takeLast();
-    return l.isEmpty() ? ultimo : l.join(", ") + " y " + ultimo;
+    return l.isEmpty() ? ultimo
+                       : QCoreApplication::translate("estudio", "%1 y %2")
+                             .arg(l.join(QCoreApplication::translate("estudio", ", ")), ultimo);
 }
 } // namespace
 
@@ -4264,25 +4309,30 @@ QString StudioViewModel::avisoDeCerrar(const QString& accion) const {
     QStringList corta;
     if (accion.isEmpty()) {
         // Cerrar la ventana: «Estás AL AIRE y hay 2 personas conectadas. Si cerrás, …».
-        QString que = streaming_ && recording_ ? "Estás AL AIRE y grabando"
-                      : streaming_             ? "Estás AL AIRE"
-                      : recording_             ? "Estás grabando"
+        QString que = streaming_ && recording_ ? tr("Estás AL AIRE y grabando")
+                      : streaming_             ? tr("Estás AL AIRE")
+                      : recording_             ? tr("Estás grabando")
                                                : QString();
-        if (n > 0) {
-            const QString gente = n == 1 ? "1 persona conectada" : QString::number(n) + " personas conectadas";
-            que = que.isEmpty() ? "Hay " + gente : que + (streaming_ && recording_ ? ", y hay " : " y hay ") + gente;
-        }
-        if (streaming_) corta << "se corta la emisión";
-        if (recording_) corta << "se detiene la grabación";
-        if (n > 0) corta << (n == 1 ? "esa persona queda afuera" : "esas personas quedan afuera");
-        return que + ". Si cerrás, " + enumerar(corta) + ".";
+        if (n > 0)
+            que = que.isEmpty()                 ? tr("Hay %n persona conectada", "", n)
+                  : streaming_ && recording_ ? tr("%1, y hay %n persona conectada", "", n).arg(que)
+                                             : tr("%1 y hay %n persona conectada", "", n).arg(que);
+        if (streaming_) corta << tr("se corta la emisión");
+        if (recording_) corta << tr("se detiene la grabación");
+        if (n > 0) corta << (n == 1 ? tr("esa persona queda afuera") : tr("esas personas quedan afuera"));
+        return tr("%1. Si cerrás, %2.").arg(que, enumerar(corta));
     }
     // Actualizar, volver atrás…: «Estás AL AIRE: actualizar cierra la aplicación y …».
-    const QString que = streaming_ ? "Estás AL AIRE" : recording_ ? "Estás GRABANDO" : "Hay gente conectada";
-    if (streaming_) corta << "corta la emisión";
-    if (recording_) corta << "corta la grabación";
-    if (n > 0) corta << (corta.isEmpty() ? "la desconecta" : "desconecta a quienes están conectados");
-    return que + ": " + accion + " cierra la aplicación y " + enumerar(corta) + ".";
+    // `accion` es una clave ("actualizar", "volver"); por compatibilidad también el texto
+    // que mandaba la página («volver a la versión anterior»). Otra cosa va tal cual.
+    const QString que = streaming_ ? tr("Estás AL AIRE") : recording_ ? tr("Estás GRABANDO") : tr("Hay gente conectada");
+    if (streaming_) corta << tr("corta la emisión");
+    if (recording_) corta << tr("corta la grabación");
+    if (n > 0) corta << (corta.isEmpty() ? tr("la desconecta") : tr("desconecta a quienes están conectados"));
+    if (accion == "actualizar") return tr("%1: actualizar cierra la aplicación y %2.").arg(que, enumerar(corta));
+    if (accion == "volver" || accion == "volver a la versión anterior")
+        return tr("%1: volver a la versión anterior cierra la aplicación y %2.").arg(que, enumerar(corta));
+    return tr("%1: %2 cierra la aplicación y %3.").arg(que, accion, enumerar(corta));
 }
 
 } // namespace ba::app
@@ -4447,7 +4497,7 @@ void StudioViewModel::leerMultiviews() const {
         for (auto it = raiz.begin(); it != raiz.end(); ++it)
             if (it.key() != "vistas" && it.key() != "actual") v[it.key()] = it.value(); // formato viejo
         v["id"] = "1";
-        v["nombre"] = "Multiview 1";
+        v["nombre"] = tr("Multiview %1").arg(1);
         vistas << v;
     }
     // Lo que falte en una vista (de una versión vieja), de fábrica.
@@ -4522,7 +4572,7 @@ QString StudioViewModel::nuevaMultiview(const QString& nombre, bool copiarActual
     leerMultiviews();
     QVariantMap v = copiarActual ? multiview() : multiviewDeFabrica();
     v["id"] = idNuevo();
-    v["nombre"] = nombre.trimmed().isEmpty() ? QString("Multiview %1").arg(multiviews_.size() + 1) : nombre.trimmed();
+    v["nombre"] = nombre.trimmed().isEmpty() ? tr("Multiview %1").arg(multiviews_.size() + 1) : nombre.trimmed();
     multiviews_ << v;
     multiviewActual_ = v["id"].toString();
     guardarMultiviews();

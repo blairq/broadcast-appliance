@@ -65,6 +65,7 @@ constexpr const char* kSecciones[] = {
     QT_TRANSLATE_NOOP("ajustes", "Tótems de registro"),
     QT_TRANSLATE_NOOP("ajustes", "Traducción"),
     QT_TRANSLATE_NOOP("ajustes", "Voz del sistema"),
+    QT_TRANSLATE_NOOP("ajustes", "Control del sistema"), // propia de la página (SettingsPage.qml)
 };
 
 QVariantList choices(std::initializer_list<std::pair<const char*, QString>> items) {

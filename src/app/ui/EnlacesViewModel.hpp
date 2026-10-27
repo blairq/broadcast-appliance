@@ -32,6 +32,7 @@
 #include <map>
 #include <string>
 
+#include <QCoreApplication>
 #include <QObject>
 #include <QString>
 #include <QVariantList>
@@ -82,8 +83,8 @@ class EnlacesViewModel : public QObject {
         /// El texto del botón de aprobar («Aprobar», «Admitir», «Permitir»).
         QString textoAprobar = "Aprobar";
         /// El estado de la fila mientras esperan (%1 = cuántos, si son varios).
-        QString unoEspera = "Un pedido esperando: aprobalo acá abajo";
-        QString variosEsperan = "%1 pedidos esperando: aprobalos acá abajo";
+        QString unoEspera = QCoreApplication::translate("enlaces", "Un pedido esperando: aprobalo acá abajo");
+        QString variosEsperan = QCoreApplication::translate("enlaces", "%1 pedidos esperando: aprobalos acá abajo");
     };
 
     /// Lo que el modelo necesita saber y poder hacer, sin conocer a cada clase.
