@@ -4,7 +4,13 @@
 
 #include "ui/ListModels.hpp"
 
+#include <QRegularExpression>
+#include <QSortFilterProxyModel>
+#include <QSaveFile>
+#include <QFile>
+
 #include <algorithm>
+#include <filesystem>
 #include <cmath>
 
 #include <QJsonDocument>
@@ -315,7 +321,21 @@ QString SourcesModel::addGuest(int slot, bool share) {
 // MixerModel
 // ============================================================================
 
-MixerModel::MixerModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent), rt_(rt) { reload(); }
+namespace {
+/// Los grupos compactados se recuerdan entre arranques: con muchos invitados, cada vez.
+std::filesystem::path archivoVistaMezclador(AppRuntime& rt) { return rt.dataRoot() / "Config" / "mezclador-vista.json"; }
+} // namespace
+
+MixerModel::MixerModel(AppRuntime& rt, QObject* parent) : QAbstractListModel(parent), rt_(rt) {
+    QFile f(QString::fromStdString(archivoVistaMezclador(rt_).string()));
+    if (f.open(QIODevice::ReadOnly)) {
+        const nlohmann::json j = nlohmann::json::parse(f.readAll().toStdString(), nullptr, false);
+        if (j.is_object() && j.contains("compactos") && j["compactos"].is_array())
+            for (const auto& g : j["compactos"])
+                if (g.is_string()) compactos_.insert(g.get<std::string>());
+    }
+    reload();
+}
 
 int MixerModel::rowCount(const QModelIndex&) const { return static_cast<int>(names_.size()); }
 
@@ -330,6 +350,15 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
         case VolumeDbRole: return mulToDb(rt_.engine().sourceVolume(names_[i]));
         case MutedRole: return rt_.engine().sourceMuted(names_[i]);
         case RetardoMsRole: return rt_.engine().sourceSyncOffset(names_[i]);
+        case GrupoRole: return qs(grupos_[i]);
+        case PrimeroDeGrupoRole: return !grupos_[i].empty() && (i == 0 || grupos_[i - 1] != grupos_[i]);
+        case TamGrupoRole: {
+            if (grupos_[i].empty()) return 1;
+            int n = 0;
+            for (const std::string& g : grupos_) n += g == grupos_[i] ? 1 : 0;
+            return n;
+        }
+        case CompactoRole: return !grupos_[i].empty() && compactos_.count(grupos_[i]) > 0;
         default: return {};
     }
 }
@@ -339,14 +368,87 @@ QHash<int, QByteArray> MixerModel::roleNames() const {
             {PeakDbRole, "peakDb"},
             {VolumeDbRole, "volumeDb"},
             {MutedRole, "muted"},
-            {RetardoMsRole, "retardoMs"}};
+            {RetardoMsRole, "retardoMs"},
+            {GrupoRole, "grupo"},
+            {PrimeroDeGrupoRole, "primeroDeGrupo"},
+            {TamGrupoRole, "tamGrupo"},
+            {CompactoRole, "compacto"}};
+}
+
+std::string MixerModel::grupoDe(const std::string& nombre) {
+    std::string g;
+    for (char c : nombre) {
+        if (c >= '0' && c <= '9') continue;
+        if (c == ' ' && (g.empty() || g.back() == ' ')) continue;
+        g.push_back(c);
+    }
+    while (!g.empty() && g.back() == ' ') g.pop_back();
+    // «Invitado  (audio)» queda con un espacio solo antes del paréntesis.
+    for (std::size_t p = g.find(" )"); p != std::string::npos; p = g.find(" )")) g.erase(p, 1);
+    return g;
 }
 
 void MixerModel::reload() {
     beginResetModel();
     names_ = rt_.engine().audioSources();
     peaks_.assign(names_.size(), -100.0f);
+    // Los grupos: tiras seguidas con la misma clave (dos o más); las demás, sueltas.
+    grupos_.assign(names_.size(), std::string());
+    for (std::size_t i = 0; i < names_.size();) {
+        const std::string g = grupoDe(names_[i]);
+        std::size_t j = i + 1;
+        while (j < names_.size() && grupoDe(names_[j]) == g) ++j;
+        if (j - i >= 2)
+            for (std::size_t k = i; k < j; ++k) grupos_[k] = g;
+        i = j;
+    }
     endResetModel();
+}
+
+QAbstractItemModel* MixerModel::delGrupo(const QString& grupo) {
+    auto& m = delGrupo_[grupo];
+    if (m == nullptr) {
+        auto* f = new QSortFilterProxyModel(this);
+        f->setSourceModel(this);
+        f->setFilterRole(GrupoRole);
+        f->setFilterRegularExpression(
+            QRegularExpression("^" + QRegularExpression::escape(grupo) + "$"));
+        m = f;
+    }
+    return m;
+}
+
+QVariantList MixerModel::grupos() const {
+    QVariantList out;
+    for (std::size_t i = 0; i < grupos_.size(); ++i) {
+        if (grupos_[i].empty() || (i > 0 && grupos_[i - 1] == grupos_[i])) continue;
+        QStringList tiras;
+        for (std::size_t k = i; k < grupos_.size() && grupos_[k] == grupos_[i]; ++k) tiras << qs(names_[k]);
+        out.push_back(QVariantMap{{"grupo", qs(grupos_[i])}, {"tiras", tiras}, {"compacto", compactos_.count(grupos_[i]) > 0}});
+    }
+    return out;
+}
+
+void MixerModel::setMutedGrupo(const QString& grupo, bool muted) {
+    const std::string g = grupo.toStdString();
+    for (std::size_t i = 0; i < grupos_.size(); ++i)
+        if (!g.empty() && grupos_[i] == g) rt_.setMuted(names_[i], muted);
+}
+
+void MixerModel::setCompacto(const QString& grupo, bool compacto) {
+    const std::string g = grupo.toStdString();
+    if (g.empty() || (compactos_.count(g) > 0) == compacto) return;
+    if (compacto) compactos_.insert(g);
+    else compactos_.erase(g);
+    std::error_code ec;
+    std::filesystem::create_directories(archivoVistaMezclador(rt_).parent_path(), ec);
+    QSaveFile f(QString::fromStdString(archivoVistaMezclador(rt_).string()));
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QByteArray::fromStdString(nlohmann::json{{"compactos", compactos_}}.dump(1)));
+        f.commit();
+    }
+    for (std::size_t i = 0; i < grupos_.size(); ++i)
+        if (grupos_[i] == g) emit dataChanged(index(static_cast<int>(i)), index(static_cast<int>(i)), {CompactoRole});
 }
 
 void MixerModel::refreshLevels() {

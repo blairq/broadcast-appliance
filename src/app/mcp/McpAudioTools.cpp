@@ -22,6 +22,9 @@
 
 #include <QCoreApplication>
 #include <QTimer>
+#include "ui/ListModels.hpp"
+#include <QJsonDocument>
+#include <QJsonArray>
 
 #include <algorithm>
 
@@ -112,6 +115,35 @@ void McpService::registerAudioTools() {
                 if (a.substr(0, a.find('|')) != b.substr(0, b.find('|'))) conexiones.push_back({{"desde", a}, {"hacia", b}});
             }
             done(ToolResult().data({{"fuentes", fuentes}, {"entre_fuentes", conexiones}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_mezclador_grupos";
+        t.title = "Grupos del mezclador";
+        t.category = "audio_rack";
+        t.description = "Los grupos de tiras del mezclador (tiras seguidas del mismo tipo: «Invitado 1…N (audio)», los "
+                        "remotos) y cuáles están compactados. Con `grupo` y `compacto`, compacta uno (sin faders: un "
+                        "bloque con una casilla por tira) o lo despliega, como el botón de su primera tira; con `grupo` "
+                        "y `mudo`, silencia o abre todo el grupo.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"grupo", {{"type", "string"}, {"description", "la clave, como la lista esta herramienta"}}},
+                           {"compacto", {{"type", "boolean"}}},
+                           {"mudo", {{"type", "boolean"}}}}}};
+        t.run = [vm](const json& a, Done done) {
+            auto* m = qobject_cast<MixerModel*>(vm->mixer());
+            if (m == nullptr) return done(ToolResult::error("No hay mezclador en este proceso."));
+            const QString g = QString::fromStdString(a.value("grupo", std::string()));
+            const QVariantList antes = m->grupos();
+            if (!g.isEmpty() && std::none_of(antes.begin(), antes.end(), [&g](const QVariant& x) {
+                    return x.toMap().value("grupo").toString() == g;
+                }))
+                return done(ToolResult::error("No hay un grupo «" + g.toStdString() + "»: los grupos los lista esta herramienta sin argumentos."));
+            if (!g.isEmpty() && a.contains("compacto")) m->setCompacto(g, a["compacto"].get<bool>());
+            if (!g.isEmpty() && a.contains("mudo")) m->setMutedGrupo(g, a["mudo"].get<bool>());
+            done(ToolResult().data(json{{"grupos", json::parse(QJsonDocument(QJsonArray::fromVariantList(m->grupos())).toJson().toStdString())}}));
         };
         core_.addTool(std::move(t));
     }

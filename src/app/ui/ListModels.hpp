@@ -128,8 +128,23 @@ class SourcesModel : public QAbstractListModel {
 class MixerModel : public QAbstractListModel {
     Q_OBJECT
    public:
-    enum Roles { NameRole = Qt::UserRole + 1, PeakDbRole, VolumeDbRole, MutedRole, RetardoMsRole };
+    enum Roles {
+        NameRole = Qt::UserRole + 1,
+        PeakDbRole,
+        VolumeDbRole,
+        MutedRole,
+        RetardoMsRole,
+        GrupoRole,          ///< "" suelta; si no, la clave del grupo (ver grupoDe)
+        PrimeroDeGrupoRole, ///< la primera tira del grupo (lleva el botón de compactar)
+        TamGrupoRole,       ///< cuántas tiras tiene su grupo
+        CompactoRole        ///< su grupo está compactado: sin fader, solo los botones
+    };
     explicit MixerModel(AppRuntime& rt, QObject* parent = nullptr);
+    /// El grupo de una tira: el nombre sin los números y con los espacios en orden
+    /// («Invitado 3 (audio)» -> «Invitado (audio)»; «Remoto con la palabra 2 (audio)» y
+    /// «Remoto con la palabra (audio)», el mismo). Tiras SEGUIDAS con la misma clave, dos o
+    /// más, son un grupo.
+    static std::string grupoDe(const std::string& nombre);
     /// El motor cambió el audio de una fuente (volumen, mute, retardo…: BroadcastEngine::
     /// alCambiarAudioFuente), lo haya pedido quien sea. Desde cualquier hilo; los de una
     /// misma vuelta se juntan en un dataChanged por fila, en el hilo del modelo.
@@ -149,6 +164,16 @@ class MixerModel : public QAbstractListModel {
     /// los escribe a mano se rompe en silencio (pasa: se pidio el pico
     /// creyendo pedir el volumen).
     Q_INVOKABLE QVariantMap canal(int fila) const;
+    /// Compactar un grupo: sus tiras sin fader, solo con los botones (con muchos invitados
+    /// no entran). Lo ven todas las vistas del modelo (la tarjeta y la ventana del mezclador).
+    Q_INVOKABLE void setCompacto(const QString& grupo, bool compacto);
+    /// Las tiras de un grupo, como modelo propio (los mismos roles; se actualiza solo): la
+    /// grilla del grupo compactado. Es del MixerModel, uno por grupo.
+    Q_INVOKABLE QAbstractItemModel* delGrupo(const QString& grupo);
+    /// Silenciar (o no) todas las tiras de un grupo.
+    Q_INVOKABLE void setMutedGrupo(const QString& grupo, bool muted);
+    /// Los grupos de ahora: [{grupo, tiras: [nombres], compacto}] (MCP).
+    QVariantList grupos() const;
     /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
     double picoDe(const std::string& nombre) const;
 
@@ -156,6 +181,9 @@ class MixerModel : public QAbstractListModel {
     AppRuntime& rt_;
     std::vector<std::string> names_;
     std::vector<float> peaks_;
+    std::vector<std::string> grupos_; ///< por fila: "" suelta, o la clave de su grupo
+    std::set<std::string> compactos_; ///< los grupos compactados (Config/mezclador-vista.json)
+    std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)
     std::mutex cambiosM_;
     std::set<std::string> cambios_; ///< avisarCambio: las fuentes a refrescar en la próxima vuelta
 };
