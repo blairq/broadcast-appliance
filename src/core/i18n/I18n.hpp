@@ -33,6 +33,13 @@
 #include <utility>
 #include <vector>
 
+// Marca un texto de una tabla que se arma una vez sin traducirlo (lo encuentra lupdate) y se
+// traduce al mostrarlo con traducir(contexto, texto). La misma definición que Qt: el código
+// sin Qt la usa igual y no choca si después se incluye Qt.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
+
 namespace ba::i18n {
 
 /// El perfil de un idioma: lo que cambia entre idiomas, en datos.

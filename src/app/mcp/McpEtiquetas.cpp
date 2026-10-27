@@ -3,8 +3,6 @@
 // ============================================================================
 #include "mcp/McpEtiquetas.hpp"
 
-#include <QtGlobal> // QT_TRANSLATE_NOOP
-
 #include <algorithm>
 #include <map>
 
