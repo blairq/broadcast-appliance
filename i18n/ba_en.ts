@@ -2073,12 +2073,12 @@
     </message>
     <message>
         <location line="+4"/>
-        <location line="+562"/>
+        <location line="+561"/>
         <source>Esta compilación no trae el motor de voz.</source>
         <translation>This build doesn&apos;t include the voice engine.</translation>
     </message>
     <message>
-        <location line="-558"/>
+        <location line="-557"/>
         <source>Falta el reconocedor de voz (voz a texto) que usa la recepción: bajalo en Configuración → Modelos locales (o elegí otro en Agentes).</source>
         <translation>The speech recognizer (speech to text) used by reception is missing: download it in Settings → Local models (or choose another in Agents).</translation>
     </message>
@@ -2138,7 +2138,7 @@
         <translation>“%1” is waiting to be admitted to the remote session, and nobody is available to attend them: %2</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+65"/>
         <source>La voz del atendedor no cargó: %1</source>
         <translation>The attendant&apos;s voice didn&apos;t load: %1</translation>
     </message>
@@ -13738,7 +13738,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
 <context>
     <name>ModelosLocales</name>
     <message>
-        <location filename="../src/app/agent/ModelosLocales.cpp" line="+251"/>
+        <location filename="../src/app/agent/ModelosLocales.cpp" line="+252"/>
         <source>«%1» no es un modelo GGUF del catálogo.</source>
         <translation>“%1” isn&apos;t a GGUF model from the catalog.</translation>
     </message>
@@ -13768,7 +13768,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
         <translation>The active local model (%1) has no GGUF version for chat.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+103"/>
         <source>falta ba-modelo en bin/64bit (make modelo-mac)</source>
         <translation>ba-modelo missing in bin/64bit (make modelo-mac)</translation>
     </message>
@@ -21082,7 +21082,7 @@ Add images from the Files tab.</translation>
 <context>
     <name>PanelTraduccion</name>
     <message>
-        <location filename="../src/app/qml/controls/PanelTraduccion.qml" line="+36"/>
+        <location filename="../src/app/qml/controls/PanelTraduccion.qml" line="+42"/>
         <source>Toma lo que transcribe una tarjeta «Voz a texto» (una salida de texto, p. ej. «Orador») y lo publica traducido en otra salida, que se usa igual: subtítulos en un rótulo, archivo, o una tarjeta «Texto a voz» con una voz del idioma. Sin red, en esta máquina. Cada traducción es una tarjeta «Traducir» en el rack de audio de la fuente (al lado de su voz a texto): se agrega acá o desde «+ Agregar» → Voz → Traducir.</source>
         <translation>Takes what a “Speech to text” card transcribes (a text output, e.g. “Speaker”) and publishes it translated on another output, used the same way: captions in a lower third, a file, or a “Text to speech” card with a voice in that language. No network, on this machine. Each translation is a “Translate” card in the source&apos;s audio rack (next to its speech to text): add it here or from “+ Add” → Voice → Translate.</translation>
     </message>
@@ -21103,14 +21103,19 @@ Add images from the Files tab.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+421"/>
+        <location line="+428"/>
         <location line="+88"/>
         <source>Probar</source>
         <translation>Test</translation>
     </message>
     <message>
-        <location line="-490"/>
-        <location line="+104"/>
+        <location line="-512"/>
+        <source>Se traduce desde el idioma del evento: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <location line="+105"/>
         <source>Traducir</source>
         <translation>Translate</translation>
     </message>
@@ -21126,8 +21131,8 @@ Add images from the Files tab.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>Baja los paquetes para traducir del castellano a este idioma (70 a 300 MB; los que no son inglés ni portugués pasan por el inglés)</source>
-        <translation>Downloads the packages to translate from Spanish into this language (70 to 300 MB; languages other than English and Portuguese go through English)</translation>
+        <source>Baja los paquetes para traducir del idioma del evento a este (70 a 300 MB cada uno; si no hay uno directo, pasa por otro idioma, casi siempre el inglés)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+11"/>
@@ -22936,23 +22941,23 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+174"/>
         <location line="+23"/>
-        <location line="+33"/>
+        <location line="+34"/>
         <source>La foto no se pudo leer.</source>
         <translation>The photo couldn&apos;t be read.</translation>
     </message>
     <message>
-        <location line="-48"/>
-        <location line="+56"/>
+        <location line="-49"/>
+        <location line="+57"/>
         <source>No se ve ninguna cara en la foto.</source>
         <translation>No face visible in the photo.</translation>
     </message>
     <message>
-        <location line="-54"/>
+        <location line="-55"/>
         <source>No hay ficha con ese id.</source>
         <translation>There&apos;s no record with that id.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+58"/>
         <source>La cara de la foto no sirve para reconocerla.</source>
         <translation>The face in the photo isn&apos;t good enough to recognize them.</translation>
     </message>
@@ -31132,12 +31137,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>This build doesn&apos;t include the voice engine.</translation>
     </message>
     <message>
-        <location line="+127"/>
+        <location line="+129"/>
         <source>La voz de los tótems no cargó: %1</source>
         <translation>The kiosk voice didn&apos;t load: %1</translation>
     </message>
     <message>
-        <location line="+387"/>
+        <location line="+389"/>
         <source>Alguien se registró en un tótem pero no hay un evento abierto: no quedó anotado.</source>
         <translation>Someone checked in at a kiosk but no event is open: it wasn&apos;t recorded.</translation>
     </message>
@@ -31269,7 +31274,17 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>Traductor</name>
     <message>
-        <location filename="../src/app/agent/Traductor.cpp" line="+194"/>
+        <location filename="../src/app/agent/Traductor.cpp" line="+134"/>
+        <source>No hay paquetes para traducir desde el idioma del evento (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No hay paquetes para traducir del %1 a otro idioma.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+105"/>
         <source>elegí qué salida de texto traducir</source>
         <translation>choose which text output to translate</translation>
     </message>
@@ -31287,7 +31302,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>missing the text output to translate (`desde`)</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>idioma «%1» desconocido (hay: es, en, pt, fr, de, ru, zh)</source>
         <translation>unknown language “%1” (available: es, en, pt, fr, de, ru, zh)</translation>
     </message>
@@ -31324,12 +31339,17 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>%1 translation of “%2”</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+23"/>
+        <source>no hay paquetes para traducir desde el idioma del evento (%1); hay: es, en, pt, fr, de, ru, zh</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
         <source>el idioma de origen y el de destino son el mismo</source>
         <translation>the source and target languages are the same</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+23"/>
         <source>no hay cómo traducir de %1 a %2</source>
         <translation>no way to translate from %1 to %2</translation>
     </message>
@@ -34236,7 +34256,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>VocesRack</name>
     <message>
-        <location filename="../src/app/agent/VocesRack.cpp" line="+138"/>
+        <location filename="../src/app/agent/VocesRack.cpp" line="+145"/>
         <source>Sin voz: elegí una (o bajá una en Modelos locales)</source>
         <translation>No voice: choose one (or download one in Local models)</translation>
     </message>
@@ -34300,7 +34320,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>Voz</name>
     <message>
-        <location filename="../src/app/agent/Voz.cpp" line="+127"/>
+        <location filename="../src/app/agent/Voz.cpp" line="+136"/>
         <source>Esta compilación no trae el motor de voz (make deps-sherpa-onnx).</source>
         <translation>This build doesn&apos;t include the voice engine (make deps-sherpa-onnx).</translation>
     </message>
@@ -34325,13 +34345,13 @@ Choose something else in Outputs → Screens.</translation>
         <translation>the voice activity detector (Silero VAD) needs to be downloaded</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+122"/>
         <location line="+16"/>
         <source>Esta compilación no trae el motor de voz.</source>
         <translation>This build doesn&apos;t include the voice engine.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+71"/>
         <source>Lista: mantené %1 (o el micrófono) y hablá.</source>
         <translation>Ready: hold %1 (or the microphone) and speak.</translation>
     </message>
@@ -34346,7 +34366,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The recognizer didn&apos;t load: %1</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+78"/>
         <source>No hay micrófono del operador: elegilo en Configuración → Voz del sistema.</source>
         <translation>No operator microphone: choose it in Settings → System voice.</translation>
     </message>
@@ -34494,7 +34514,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Can&apos;t do it that way: %1</translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+89"/>
         <source>La pausa va de 0,1 a 3 s.</source>
         <translation>The pause goes from 0.1 to 3 s.</translation>
     </message>
@@ -34509,7 +34529,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>The threshold goes from 0.1 to 0.95.</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+68"/>
         <source>La voz no cargó: %1</source>
         <translation>The voice didn&apos;t load: %1</translation>
     </message>
@@ -34519,7 +34539,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>That voice needs to be downloaded first.</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>No hay una voz cargada: bajá una en Configuración → Modelos locales.</source>
         <translation>No voice loaded: download one in Settings → Local models.</translation>
     </message>
@@ -34532,7 +34552,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>VozPrompter</name>
     <message>
-        <location filename="../src/app/agent/VozPrompter.cpp" line="+80"/>
+        <location filename="../src/app/agent/VozPrompter.cpp" line="+90"/>
         <location line="+16"/>
         <source>Esperando el teleprompter</source>
         <translation>Waiting for the teleprompter</translation>
@@ -34544,7 +34564,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Off</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+68"/>
         <source>El teleprompter no contesta</source>
         <translation>The teleprompter isn&apos;t responding</translation>
     </message>
@@ -37597,6 +37617,11 @@ Choose something else in Outputs → Screens.</translation>
         <location line="+0"/>
         <source>El idioma que se le fija a Nemotron (su «prompt» de idioma). Detectarlo solo cuesta palabras al principio de cada frase.</source>
         <translation>The language set for Nemotron (its language “prompt”). Auto-detecting costs words at the start of each phrase.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>El del idioma del evento</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40965,7 +40990,7 @@ Operator request: “%6”</translation>
         <translation>Understands whoever checks in at a kiosk: details said all at once, corrections and questions about the event (with the kiosk&apos;s profile). The script still drives the questions.</translation>
     </message>
     <message>
-        <location filename="../src/app/agent/Voz.cpp" line="-293"/>
+        <location filename="../src/app/agent/Voz.cpp" line="-297"/>
         <source>Sos la voz del aparato de transmisión en vivo. Contestale al operador lo que preguntó en UNA oración corta en castellano rioplatense, para decir en voz alta: sin listas, sin símbolos, sin markdown. Usá solo los datos que te paso.</source>
         <translation>You are the voice of the live broadcast device. Answer the operator&apos;s question in ONE short sentence in English, to be spoken out loud: no lists, no symbols, no markdown. Use only the data I give you.</translation>
     </message>
@@ -41488,7 +41513,7 @@ Data (from %2): %3</translation>
         <translation>For example: %1.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/AtencionViewModel.cpp" line="-594"/>
+        <location filename="../src/app/ui/AtencionViewModel.cpp" line="-593"/>
         <source>ESTA PERSONA ESTÁ ATENDIDA HABLANDO: todo lo que le mandes con `chat_send` le llega también dicho en voz alta, y lo que ella dice te llega como mensajes suyos (con `voz: true`) por `chat_wait` o `invitados_chat_leer`. Escribí como se habla: frases cortas, de a una pregunta, sin listas, sin emojis ni símbolos, y los números como se dicen. Si algo de lo que te llega no se entiende (la voz a texto a veces se equivoca), pedile que lo repita. Los datos para la ficha (nombre, cargo) confirmáselos en voz alta antes de guardarlos.</source>
         <translation>THIS PERSON IS BEING ATTENDED BY VOICE: everything you send with `chat_send` also reaches them spoken out loud, and what they say reaches you as their messages (with `voz: true`) via `chat_wait` or `invitados_chat_leer`. Write the way people speak: short sentences, one question at a time, no lists, no emojis or symbols, and numbers as they&apos;re said. If something you receive isn&apos;t clear (speech to text sometimes gets it wrong), ask them to repeat it. Confirm the profile details (name, title) out loud before saving them.</translation>
     </message>
@@ -41548,7 +41573,7 @@ Data (from %2): %3</translation>
         <translation>Handle it on your own.</translation>
     </message>
     <message>
-        <location line="+216"/>
+        <location line="+215"/>
         <source>La lista de quién entra solo si se lo reconoce es la del padrón del evento: padron_ver {solos: true}; se cambia con padron_cambiar {id, dejarPasarSolo}.</source>
         <translation>The list of who gets in automatically when recognized is the event roll: padron_ver {solos: true}; change it with padron_cambiar {id, dejarPasarSolo}.</translation>
     </message>
@@ -42969,39 +42994,77 @@ Data (from %2): %3</translation>
         <translation>Recording… %1 s</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/CalidadCara.cpp" line="+63"/>
+        <location filename="../src/app/ui/CalidadCara.cpp" line="+66"/>
         <source>Pedile que se ponga entero en el cuadro: la cara sale cortada por el borde.</source>
         <translation>Ask them to get fully into the frame: the face is cut off at the edge.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Pedile que se acerque a la camara: la cara se ve demasiado chica.</source>
         <translation>Ask them to move closer to the camera: the face looks too small.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Hay poca luz sobre la cara. Pedile que se ponga de frente a una ventana o que prenda una luz.</source>
         <translation>There&apos;s little light on the face. Ask them to face a window or turn on a light.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>La cara esta quemada de luz (contraluz). Pedile que se corra de la ventana o que la deje a su espalda.</source>
         <translation>The face is overexposed (backlight). Ask them to move away from the window or keep it behind them.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Pedile que mire de frente a la camara: la cara esta girada.</source>
         <translation>Ask them to look straight at the camera: the face is turned.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>La imagen sale borrosa. Pedile que se quede quieto un momento o que revise el enfoque.</source>
         <translation>The image is blurry. Ask them to stay still for a moment or check the focus.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Asi sirve.</source>
         <translation>That works.</translation>
+    </message>
+</context>
+<context>
+    <name>caras-publico</name>
+    <message>
+        <location line="-21"/>
+        <source>Ponete entero en el cuadro: la cara sale cortada.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Acercate un poco a la cámara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Hay poca luz: ponete de frente a una ventana o a una luz.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Hay mucha luz atrás: corrite un poco de la ventana.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Mirá de frente a la cámara.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Quedate quieto un momento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Así está bien.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -46143,7 +46206,7 @@ Data (from %2): %3</translation>
         <translation>nothing was understood</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/EscuchaNemotron.cpp" line="+127"/>
+        <location filename="../src/app/audio/EscuchaNemotron.cpp" line="+135"/>
         <source>no se pudo cargar Nemotron (¿faltan archivos del modelo?)</source>
         <translation>couldn&apos;t load Nemotron (model files missing?)</translation>
     </message>
@@ -50637,7 +50700,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>idiomas</name>
     <message>
-        <location filename="../src/app/agent/Traductor.cpp" line="-693"/>
+        <location filename="../src/app/agent/Traductor.cpp" line="-759"/>
         <source>castellano</source>
         <translation>Spanish</translation>
     </message>
@@ -62512,7 +62575,7 @@ Don&apos;t use the main monitor (where the interface is) unless asked: it covers
     <message>
         <location line="+3"/>
         <location line="+210"/>
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+362"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+368"/>
         <source>Hecho.</source>
         <translation>Done.</translation>
     </message>
@@ -69383,7 +69446,7 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
         <translation>as it would be written (“ana@gmail.com”, “11 4567 8901”, “yes”)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="-361"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="-367"/>
         <source>Traducir lo que se dice (una salida de texto de «Voz a texto») a inglés, portugués, francés, alemán, ruso o chino, sin red, para subtítulos y para que una voz lo diga en otro idioma; y el glosario de términos del evento.</source>
         <translation>Translate what&apos;s said (a “Speech to text” text output) into English, Portuguese, French, German, Russian or Chinese, offline, for captions and for a voice to say it in another language; and the event&apos;s term glossary.</translation>
     </message>
@@ -69393,13 +69456,8 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
         <translation>Live translations: which ones exist and how they&apos;re doing</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida publican, la última frase y su demora), si falta bajar algún paquete, el estado del motor y los idiomas. Receta completa: help {&quot;topic&quot;: &quot;traduccion&quot;}.</source>
-        <translation>The configured translations (from which text output, into which language, which output they publish to, the last sentence and its delay), whether a package needs downloading, the engine status and the languages. Full recipe: help {&quot;topic&quot;: &quot;traduccion&quot;}.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <location line="+22"/>
+        <location line="+12"/>
+        <location line="+26"/>
         <location line="+43"/>
         <location line="+36"/>
         <location line="+21"/>
@@ -69417,12 +69475,7 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
         <translation>Translate a sentence now</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Traduce `texto` (en `de`, castellano si no se dice) a `a`, con el glosario. Para probar cómo sale un término antes del evento.</source>
-        <translation>Translates `texto` (in `de`, Spanish if not specified) into `a`, with the glossary. To test how a term comes out before the event.</translation>
-    </message>
-    <message>
-        <location line="+20"/>
+        <location line="+23"/>
         <source>Traducir en vivo una salida de texto</source>
         <translation>Live-translate a text output</translation>
     </message>
@@ -69452,9 +69505,19 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
         <translation>Download a language&apos;s packages</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Baja los paquetes que hacen falta para traducir de `de` (castellano si no se dice) a `a` (uno o dos: lo que no es castellano&lt;-&gt;inglés ni castellano&lt;-&gt;portugués pasa por el inglés). Entre 70 y 300 MB cada uno; se ve el avance en modelo_local_estado.</source>
-        <translation>Downloads the packages needed to translate from `de` (Spanish if not specified) into `a` (one or two: anything that isn&apos;t Spanish&lt;-&gt;English or Spanish&lt;-&gt;Portuguese goes through English). Between 70 and 300 MB each; progress shows in modelo_local_estado.</translation>
+        <location line="-125"/>
+        <source>Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida publican, la última frase y su demora), si falta bajar algún paquete, el estado del motor y los idiomas: `origen` (el del evento, de donde se traduce si no se dice otro) y `destinos` (a cuáles hay paquete desde ahí). Receta completa: help {&quot;topic&quot;: &quot;traduccion&quot;}.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Traduce `texto` (en `de`, el idioma del evento si no se dice) a `a`, con el glosario. Para probar cómo sale un término antes del evento.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+99"/>
+        <source>Baja los paquetes que hacen falta para traducir de `de` (el idioma del evento si no se dice) a `a` (uno o dos: sin paquete directo, pasa por otro idioma, casi siempre el inglés). Entre 70 y 300 MB cada uno; se ve el avance en modelo_local_estado.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+13"/>
@@ -80979,7 +81042,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
 <context>
     <name>reconocedores</name>
     <message>
-        <location filename="../src/app/agent/Reconocedores.cpp" line="+29"/>
+        <location filename="../src/app/agent/Reconocedores.cpp" line="+30"/>
         <source>Dictado del operador</source>
         <translation>Operator dictation</translation>
     </message>
@@ -81029,7 +81092,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>Parakeet TDT v3 (by phrase)</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+48"/>
         <location line="+26"/>
         <source>no hay un consumidor «%1»</source>
         <translation>there&apos;s no consumer “%1”</translation>
@@ -81048,6 +81111,16 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+138"/>
         <source>Están en uso los dos reconocedores de voz a la vez: Parakeet (%1) y Nemotron (%2). Son dos modelos en memoria, ~%3 MB entre los dos. Si todos usan el mismo, queda uno solo.</source>
         <translation>Both speech recognizers are in use at once: Parakeet (%1) and Nemotron (%2). That&apos;s two models in memory, ~%3 MB together. If everyone uses the same one, only one remains.</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>%1: %2 no entiende %3, y ningún otro reconocedor lo entiende.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>%1: %2 no entiende %3; %4 sí (elegilo en la pestaña Agentes).</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -81683,7 +81756,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>log exported to %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/TotemsViewModel.cpp" line="-1522"/>
+        <location filename="../src/app/ui/TotemsViewModel.cpp" line="-1526"/>
         <source>no se pudieron publicar los tótems: %1</source>
         <translation>couldn&apos;t publish the kiosks: %1</translation>
     </message>
@@ -81693,7 +81766,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>kiosk “%1”: failed attempt from %2</translation>
     </message>
     <message>
-        <location line="+251"/>
+        <location line="+253"/>
         <source>tótem «%1» (%2): empieza</source>
         <translation>kiosk “%1” (%2): starting</translation>
     </message>
@@ -81713,7 +81786,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>kiosk (%1): turn “%2”</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+163"/>
         <source>registrado por el tótem «%1»: «%2» (padrón %3)</source>
         <translation>checked in by kiosk “%1”: “%2” (roll %3)</translation>
     </message>
@@ -83630,17 +83703,17 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <translation>the event</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/TotemsViewModel.cpp" line="-1409"/>
+        <location filename="../src/app/ui/TotemsViewModel.cpp" line="-1413"/>
         <source>Opción %1</source>
         <translation>Option %1</translation>
     </message>
     <message>
-        <location line="+295"/>
+        <location line="+297"/>
         <source>No te veo la cara.</source>
         <translation>I can&apos;t see your face.</translation>
     </message>
     <message>
-        <location line="+482"/>
+        <location line="+484"/>
         <source>Ese código no es de un documento que pueda leer. Mostrame el lado del código de barras.</source>
         <translation>That code isn&apos;t from an ID I can read. Show me the barcode side.</translation>
     </message>
@@ -83658,7 +83731,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
 <context>
     <name>totems</name>
     <message>
-        <location line="-1141"/>
+        <location line="-1145"/>
         <source>el modelo local no tiene un proyector de visión en el catálogo</source>
         <translation>the local model has no vision projector in the catalog</translation>
     </message>
@@ -83674,9 +83747,17 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     </message>
 </context>
 <context>
+    <name>traduccion</name>
+    <message>
+        <location filename="../src/app/agent/Traductor.cpp" line="+37"/>
+        <source>Señor presidente, solicito pasar a cuarto intermedio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>traductor</name>
     <message>
-        <location filename="../src/app/agent/Traductor.cpp" line="+731"/>
+        <location line="+768"/>
         <source>Generales de cabina</source>
         <translation>General booth terms</translation>
     </message>

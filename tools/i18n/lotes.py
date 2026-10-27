@@ -59,26 +59,30 @@ def mensajes(raiz):
             i += 1
 
 
-def exportar(ts: pathlib.Path, carpeta: pathlib.Path, por: int) -> int:
+def exportar(ts: pathlib.Path, carpeta: pathlib.Path, por: int, todos: bool = False) -> int:
     codigo = ts.stem[3:]
     regla = perfil(codigo).get("plural", "uno-otro")
     raiz = ET.parse(ts).getroot()
     pendientes = []
     for i, ctx, m in mensajes(raiz):
         t = m.find("translation")
-        if t is None or t.get("type") in ("obsolete", "vanished") or t.get("type") != "unfinished":
+        if t is None or t.get("type") in ("obsolete", "vanished"):
+            continue
+        if t.get("type") != "unfinished" and not todos:
             continue
         e = {"id": i, "contexto": ctx, "fuente": m.findtext("source") or ""}
         if m.findtext("comment"):
             e["desambiguacion"] = m.findtext("comment")
         if m.findtext("extracomment"):
             e["comentario"] = m.findtext("extracomment")
+        terminada = t.get("type") != "unfinished"
         if m.get("numerus") == "yes":
             e["plural"] = True
-            e["traducciones"] = [""] * FORMAS.get(regla, 2)
+            formas = [f.text or "" for f in t.iter("numerusform")] if terminada else []
+            e["traducciones"] = formas if formas else [""] * FORMAS.get(regla, 2)
         else:
             e["plural"] = False
-            e["traduccion"] = ""
+            e["traduccion"] = (t.text or "") if terminada else ""
         pendientes.append(e)
     carpeta.mkdir(parents=True, exist_ok=True)
     lotes, actual = [], []
@@ -95,7 +99,7 @@ def exportar(ts: pathlib.Path, carpeta: pathlib.Path, por: int) -> int:
             {"idioma": codigo, "nombre": perfil(codigo).get("nombre", codigo), "plural": regla,
              "formas": FORMAS.get(regla, 2), "ts": h, "textos": lote}, ensure_ascii=False, indent=1) + "\n",
             encoding="utf-8")
-    print(f"[lotes] {len(pendientes)} textos sin traducir en {len(lotes)} lotes ({carpeta})")
+    print(f"[lotes] {len(pendientes)} textos {'(con lo ya traducido)' if todos else 'sin traducir'} en {len(lotes)} lotes ({carpeta})")
     return 0
 
 
@@ -162,8 +166,10 @@ def main() -> int:
     ap.add_argument("ts", type=pathlib.Path)
     ap.add_argument("carpeta", type=pathlib.Path)
     ap.add_argument("--por", type=int, default=400)
+    ap.add_argument("--todos", action="store_true",
+                    help="exportar también lo ya traducido (con su traducción): para revisar o unificar términos")
     a = ap.parse_args()
-    return exportar(a.ts, a.carpeta, a.por) if a.accion == "exportar" else importar(a.ts, a.carpeta)
+    return exportar(a.ts, a.carpeta, a.por, a.todos) if a.accion == "exportar" else importar(a.ts, a.carpeta)
 
 
 if __name__ == "__main__":

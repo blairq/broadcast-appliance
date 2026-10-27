@@ -780,7 +780,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelTraduccion</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelTraduccion.qml" line="+459"/>
+        <location filename="../src/app/qml/controls/PanelTraduccion.qml" line="+472"/>
         <source>CC prendido · %n línea</source>
         <translation>
             <numerusform>CC prendido · %n línea</numerusform>
@@ -1213,7 +1213,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>Traductor</name>
     <message numerus="yes">
-        <location filename="../src/app/agent/Traductor.cpp" line="+196"/>
+        <location filename="../src/app/agent/Traductor.cpp" line="+243"/>
         <source>falta bajar %n paquete</source>
         <translation>
             <numerusform>falta bajar %n paquete</numerusform>
@@ -1512,7 +1512,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+238"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+244"/>
         <source>Borrado %n cuadro de subtítulos.</source>
         <translation>
             <numerusform>Borrado %n cuadro de subtítulos.</numerusform>
