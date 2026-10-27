@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "mcp/McpAire.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <fstream>
 
 namespace ba::app::mcp {
@@ -9,46 +11,50 @@ using json = nlohmann::json;
 
 namespace {
 
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
+
 /// Las de siempre: cambian lo que ve o escucha el público, o cortan la salida.
 const std::map<std::string, std::string>& fijas() {
     static const std::map<std::string, std::string> m{
-        {"scene_switch", "cambia la escena al aire"},
-        {"preview_al_aire", "pasa el preview al aire"},
-        {"scene_cut", "corta la armada al aire"},
-        {"transicion_manual", "lleva la transición a mano (T-bar)"},
-        {"stream_stop", "corta la transmisión"},
-        {"stream_start", "arranca o cambia la transmisión"},
-        {"record_stop", "corta la grabación"},
-        {"participant_kick", "saca a un invitado de la conferencia"},
-        {"gateway_restart", "reinicia el gateway (corta a los invitados)"},
-        {"proxy_configurar", "reinicia la conferencia (corta a los invitados) con el proxy nuevo"},
-        {"app_quit", "cierra el programa"},
-        {"transition_set", "cambia la transición"},
-        {"speaker_on_air", "pone o saca oradores del aire"},
-        {"source_remove", "borra una fuente (puede estar al aire)"},
-        {"scene_delete", "borra una escena"},
-        {"settings_set", "cambia ajustes (los de gateway o reinicio cortan)"},
-        {"audio_set", "cambia el audio (mute del máster corta el sonido)"},
-        {"ptz_mover", "mueve una cámara (si está al aire, se ve)"},
-        {"ptz_preset", "lleva una cámara a un preset (si está al aire, se ve)"},
-        {"ptz_ir_posicion", "lleva una cámara a una posición (si está al aire, se ve)"},
-        {"enfocar", "lleva una cámara a una banca, persona o posición (si está al aire, se ve)"},
-        {"ptz_apuntar", "apunta una cámara (si está al aire, se ve)"},
-        {"ptz_encuadre", "reencuadra una cámara (si está al aire, se ve)"},
-        {"ptz_seguir", "una cámara sigue a alguien (si está al aire, se ve)"},
-        {"participant_talk", "abre o cierra el micrófono de un invitado"},
-        {"aire_ftb", "manda la salida a negro"},
-        {"banca_al_aire", "pone a un orador al aire (en directo corta la escena)"},
-        {"dcn_microfono", "abre o cierra el micrófono de una banca en la central de conferencia"},
-        {"dcn_siguiente", "le da la palabra (y el micrófono) al primero de la lista"},
-        {"dcn_cerrar_todos", "cierra los micrófonos de la sala"},
-        {"dcn_orador_quitar", "saca a un orador de la lista (su micrófono se cierra)"},
-        {"dcn_modo", "cambia cómo se abren los micrófonos de la sala"},
-        {"chat_overlay_add", "pone el chat del público en pantalla (en modo flujo, sin elegir)"},
-        {"chat_destacar", "pone al aire un mensaje del público"},
-        {"stream_destino_borrar", "borra un destino (si transmite, lo corta)"},
-        {"aire_placa", "tapa la salida con una placa"},
-        {"dsk_mostrar", "sube o baja una capa (DSK) encima del programa"},
+        {"scene_switch", QT_TRANSLATE_NOOP("mcp", "cambia la escena al aire")},
+        {"preview_al_aire", QT_TRANSLATE_NOOP("mcp", "pasa el preview al aire")},
+        {"scene_cut", QT_TRANSLATE_NOOP("mcp", "corta la armada al aire")},
+        {"transicion_manual", QT_TRANSLATE_NOOP("mcp", "lleva la transición a mano (T-bar)")},
+        {"stream_stop", QT_TRANSLATE_NOOP("mcp", "corta la transmisión")},
+        {"stream_start", QT_TRANSLATE_NOOP("mcp", "arranca o cambia la transmisión")},
+        {"record_stop", QT_TRANSLATE_NOOP("mcp", "corta la grabación")},
+        {"participant_kick", QT_TRANSLATE_NOOP("mcp", "saca a un invitado de la conferencia")},
+        {"gateway_restart", QT_TRANSLATE_NOOP("mcp", "reinicia el gateway (corta a los invitados)")},
+        {"proxy_configurar", QT_TRANSLATE_NOOP("mcp", "reinicia la conferencia (corta a los invitados) con el proxy nuevo")},
+        {"app_quit", QT_TRANSLATE_NOOP("mcp", "cierra el programa")},
+        {"transition_set", QT_TRANSLATE_NOOP("mcp", "cambia la transición")},
+        {"speaker_on_air", QT_TRANSLATE_NOOP("mcp", "pone o saca oradores del aire")},
+        {"source_remove", QT_TRANSLATE_NOOP("mcp", "borra una fuente (puede estar al aire)")},
+        {"scene_delete", QT_TRANSLATE_NOOP("mcp", "borra una escena")},
+        {"settings_set", QT_TRANSLATE_NOOP("mcp", "cambia ajustes (los de gateway o reinicio cortan)")},
+        {"audio_set", QT_TRANSLATE_NOOP("mcp", "cambia el audio (mute del máster corta el sonido)")},
+        {"ptz_mover", QT_TRANSLATE_NOOP("mcp", "mueve una cámara (si está al aire, se ve)")},
+        {"ptz_preset", QT_TRANSLATE_NOOP("mcp", "lleva una cámara a un preset (si está al aire, se ve)")},
+        {"ptz_ir_posicion", QT_TRANSLATE_NOOP("mcp", "lleva una cámara a una posición (si está al aire, se ve)")},
+        {"enfocar", QT_TRANSLATE_NOOP("mcp", "lleva una cámara a una banca, persona o posición (si está al aire, se ve)")},
+        {"ptz_apuntar", QT_TRANSLATE_NOOP("mcp", "apunta una cámara (si está al aire, se ve)")},
+        {"ptz_encuadre", QT_TRANSLATE_NOOP("mcp", "reencuadra una cámara (si está al aire, se ve)")},
+        {"ptz_seguir", QT_TRANSLATE_NOOP("mcp", "una cámara sigue a alguien (si está al aire, se ve)")},
+        {"participant_talk", QT_TRANSLATE_NOOP("mcp", "abre o cierra el micrófono de un invitado")},
+        {"aire_ftb", QT_TRANSLATE_NOOP("mcp", "manda la salida a negro")},
+        {"banca_al_aire", QT_TRANSLATE_NOOP("mcp", "pone a un orador al aire (en directo corta la escena)")},
+        {"dcn_microfono", QT_TRANSLATE_NOOP("mcp", "abre o cierra el micrófono de una banca en la central de conferencia")},
+        {"dcn_siguiente", QT_TRANSLATE_NOOP("mcp", "le da la palabra (y el micrófono) al primero de la lista")},
+        {"dcn_cerrar_todos", QT_TRANSLATE_NOOP("mcp", "cierra los micrófonos de la sala")},
+        {"dcn_orador_quitar", QT_TRANSLATE_NOOP("mcp", "saca a un orador de la lista (su micrófono se cierra)")},
+        {"dcn_modo", QT_TRANSLATE_NOOP("mcp", "cambia cómo se abren los micrófonos de la sala")},
+        {"chat_overlay_add", QT_TRANSLATE_NOOP("mcp", "pone el chat del público en pantalla (en modo flujo, sin elegir)")},
+        {"chat_destacar", QT_TRANSLATE_NOOP("mcp", "pone al aire un mensaje del público")},
+        {"stream_destino_borrar", QT_TRANSLATE_NOOP("mcp", "borra un destino (si transmite, lo corta)")},
+        {"aire_placa", QT_TRANSLATE_NOOP("mcp", "tapa la salida con una placa")},
+        {"dsk_mostrar", QT_TRANSLATE_NOOP("mcp", "sube o baja una capa (DSK) encima del programa")},
     };
     return m;
 }
@@ -127,7 +133,7 @@ json McpAire::lista() const {
         out.push_back({{"herramienta", h},
                        {"clase", esAireSi(h) ? "aire_si" : "aire"},
                        {"fija", true},
-                       {"por_que", por}});
+                       {"por_que", ba::i18n::traducir("mcp", por.c_str())}});
     std::lock_guard<std::mutex> l(mu_);
     for (const auto& h : agregadas_)
         if (!fijas().count(h)) out.push_back({{"herramienta", h}, {"clase", "aire"}, {"fija", false}});
@@ -135,9 +141,9 @@ json McpAire::lista() const {
 }
 
 std::string McpAire::ajustar(const std::string& h, const std::string& c) {
-    if (h.empty()) return "falta `herramienta`";
-    if (c != "aire" && c != "normal") return "`clase`: aire o normal";
-    if (fijas().count(h)) return c == "aire" ? "" : "«" + h + "» es de aire siempre: no se puede bajar";
+    if (h.empty()) return ba::i18n::traducir("mcp", "falta `herramienta`");
+    if (c != "aire" && c != "normal") return ba::i18n::traducir("mcp", "`clase`: aire o normal");
+    if (fijas().count(h)) return c == "aire" ? "" : ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» es de aire siempre: no se puede bajar"), {h});
     {
         std::lock_guard<std::mutex> l(mu_);
         if (c == "aire")
@@ -152,7 +158,7 @@ std::string McpAire::ajustar(const std::string& h, const std::string& c) {
     }
     std::ofstream o(archivo_);
     o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    return o ? "" : "no se pudo guardar " + archivo_.string();
+    return o ? "" : ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo guardar %1"), {archivo_.string()});
 }
 
 } // namespace ba::app::mcp

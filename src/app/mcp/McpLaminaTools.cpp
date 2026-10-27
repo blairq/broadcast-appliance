@@ -20,6 +20,7 @@
 #include <QFileInfo>
 
 #include "medios/Medios.hpp"
+#include "i18n/I18n.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/BroadcastEngine.hpp"
@@ -31,10 +32,10 @@
 namespace ba::app::mcp {
 
 void McpService::registerLaminaTools() {
-    core_.addCategory("laminas", "Carruseles de láminas",
-                      "Tiras de imágenes para una escena: la presentación de un orador, las placas "
+    core_.addCategory("laminas", ba::i18n::traducir("mcp", "Carruseles de láminas"),
+                      ba::i18n::traducir("mcp", "Tiras de imágenes para una escena: la presentación de un orador, las placas "
                       "institucionales. Se arman una vez y se aplican donde haga falta; saltar a una "
-                      "lámina cualquiera es instantaneo. Un PDF o un PowerPoint se desarma solo.");
+                      "lámina cualquiera es instantaneo. Un PDF o un PowerPoint se desarma solo."));
 
     auto* cc = qobject_cast<CarruselViewModel*>(vm_.carruseles());
     AppRuntime& rt = rt_;
@@ -43,11 +44,11 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "carruseles_listar";
-        t.title = "Que carruseles de laminas hay";
+        t.title = ba::i18n::traducir("mcp", "Que carruseles de laminas hay");
         t.category = "laminas";
         t.readOnly = true;
-        t.description = "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
-            "abierto. Es por donde se empieza: el resto pide el nombre.";
+        t.description = ba::i18n::traducir("mcp", "Los carruseles de la biblioteca (no sus láminas), con cuántas láminas tiene cada uno y cuál está "
+            "abierto. Es por donde se empieza: el resto pide el nombre.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [cc](const json&, Done done) {
             json out = json::array();
@@ -75,13 +76,13 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "carrusel_laminas_ver";
-        t.title = "Las laminas de un carrusel";
+        t.title = ba::i18n::traducir("mcp", "Las laminas de un carrusel");
         t.category = "laminas";
         t.readOnly = true;
-        t.description = "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
-            "que pide `laminas_ir`.";
+        t.description = ba::i18n::traducir("mcp", "Las láminas DE UN carrusel, en orden, con su número, su título y cuál está puesta. El numero es lo "
+            "que pide `laminas_ir`.");
         t.inputSchema = {{"type", "object"},
-                         {"properties", {{"carrusel", {{"type", "string"}, {"description", "su nombre"}}}}},
+                         {"properties", {{"carrusel", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "su nombre")}}}}},
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
@@ -105,8 +106,7 @@ void McpService::registerLaminaTools() {
             cc->setActual(antes);
             cc->setConsulta(consulta);
             if (!existe) {
-                done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
-                                       "». carruseles_listar los da."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1». carruseles_listar los da."), {n.toStdString()})));
                 return;
             }
             done(ToolResult().data(json{{"carrusel", n.toStdString()}, {"laminas", out}}));
@@ -117,31 +117,31 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_ir";
-        t.title = "Saltar a una lamina";
+        t.title = ba::i18n::traducir("mcp", "Saltar a una lamina");
         t.category = "laminas";
-        t.description = "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
+        t.description = ba::i18n::traducir("mcp", "Pone la lamina numero N del carrusel. Es la razon de que el carrusel exista: "
                         "«volve a la del grafico» no son veinte clics de siguiente. Sale al aire si "
                         "la escena que la muestra esta al aire.\n\n"
                         "OJO: si el carrusel todavia no esta en ninguna escena (`laminas_aplicar`), "
-                        "esto mueve el puntero pero no se ve NADA.";
+                        "esto mueve el puntero pero no se ve NADA.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"carrusel", {{"type", "string"}}},
                            {"numero",
                             {{"type", "integer"},
                              {"minimum", 1},
-                             {"description", "empezando en 1, como los da carrusel_laminas_ver"}}},
+                             {"description", ba::i18n::traducir("mcp", "empezando en 1, como los da carrusel_laminas_ver")}}},
                            {"hacia",
                             {{"type", "string"},
                              {"enum", {"siguiente", "anterior"}},
-                             {"description", "en vez de `numero`: la que sigue o la de antes. "
-                                             "Da la vuelta al llegar al final."}}}}},
+                             {"description", ba::i18n::traducir("mcp", "en vez de `numero`: la que sigue o la de antes. "
+                                             "Da la vuelta al llegar al final.")}}}}},
                          {"required", {"carrusel"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             cc->setActual(n);
             if (cc->actual() != n) {
-                done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() + "»."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1»."), {n.toStdString()})));
                 return;
             }
             // «La que sigue» es lo que mas se pide en vivo, y obligaba a
@@ -158,22 +158,21 @@ void McpService::registerLaminaTools() {
                 const int n = cc->laminas().size();
                 cc->setConsulta(filtro);
                 if (n == 0) {
-                    done(ToolResult::error("Ese carrusel esta vacio."));
+                    done(ToolResult::error(ba::i18n::traducir("mcp", "Ese carrusel esta vacio.")));
                     return;
                 }
                 const int ahora = cc->posicion();
                 numero = ((hacia == "anterior" ? ahora - 1 : ahora + 1) + n) % n + 1;
             } else if (numero <= 0) {
-                done(ToolResult::error("Deci `numero` o `hacia` (siguiente/anterior)."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "Deci `numero` o `hacia` (siguiente/anterior).")));
                 return;
             }
             if (!cc->ir(numero - 1)) {
-                done(ToolResult::error("Ese carrusel no tiene una lamina " + std::to_string(numero) +
-                                       ". carrusel_laminas_ver dice cuantas hay."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "Ese carrusel no tiene una lamina %1. carrusel_laminas_ver dice cuantas hay."),
+                                         {std::to_string(numero)})));
                 return;
             }
-            done(ToolResult().text("Puesta la lamina " + std::to_string(numero) + " de «" + n.toStdString() +
-                                   "»."));
+            done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Puesta la lamina %1 de «%2»."), {std::to_string(numero), n.toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -181,11 +180,11 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_buscar";
-        t.title = "Buscar una lamina por lo que dice";
+        t.title = ba::i18n::traducir("mcp", "Buscar una lamina por lo que dice");
         t.category = "laminas";
         t.readOnly = true;
         t.description =
-            "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las "
+            ba::i18n::traducir("mcp", "Las laminas de un carrusel que coinciden con un texto, por su titulo y por las "
             "etiquetas que se le sacaron mirandolas. Es lo que hace el cuadro de busqueda de la "
             "pestaña Medios, con el MISMO criterio: sin tildes y todas las palabras tienen que "
             "estar.\n\n"
@@ -193,19 +192,18 @@ void McpService::registerLaminaTools() {
             "cincuenta laminas. Sin esto habria que listarlas todas y leerlas; con esto vuelven "
             "tres y se salta con `laminas_ir`.\n\n"
             "Si no encuentra nada puede ser que a esas laminas todavia nadie las miro: "
-            "`laminas_sin_analizar` lo dice.";
+            "`laminas_sin_analizar` lo dice.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"carrusel", {{"type", "string"}}},
-              {"texto", {{"type", "string"}, {"description", "lo que dijo el operador: «grafico barras»"}}}}},
+              {"texto", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "lo que dijo el operador: «grafico barras»")}}}}},
             {"required", {"carrusel", "texto"}}};
         t.examples = {R"({"carrusel": "Apertura", "texto": "grafico de barras"})"};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             if (!cc->existe(n)) {
-                done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
-                                       "». carruseles_listar los da."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1». carruseles_listar los da."), {n.toStdString()})));
                 return;
             }
             const QString antes = cc->actual();
@@ -230,38 +228,38 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_desarmar";
-        t.title = "Desarmar un PDF o un PowerPoint";
+        t.title = ba::i18n::traducir("mcp", "Desarmar un PDF o un PowerPoint");
         t.category = "laminas";
-        t.description = "Convierte cada pagina de un PDF o de una presentacion en una lamina y arma "
+        t.description = ba::i18n::traducir("mcp", "Convierte cada pagina de un PDF o de una presentacion en una lamina y arma "
                         "un carrusel con ellas. Tarda (segundos por pagina) y avisa cuando termina; "
                         "el operador ve la barra de trabajo. Un .pptx pasa por DeckCraft (viaja en el "
-                        "programa); el .ppt viejo y el .odp no se leen: exportalos a .pptx o a PDF.";
+                        "programa); el .ppt viejo y el .odp no se leen: exportalos a .pptx o a PDF.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"archivo",
-               {{"type", "string"}, {"description", "ruta del PDF o .pptx, como la da media_list"}}},
+               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "ruta del PDF o .pptx, como la da media_list")}}},
               {"nombre",
                {{"type", "string"},
-                {"description", "como llamar al carrusel. Vacio = el nombre del archivo"}}}}},
+                {"description", ba::i18n::traducir("mcp", "como llamar al carrusel. Vacio = el nombre del archivo")}}}}},
             {"required", {"archivo"}}};
         t.run = [cc](const json& a, Done done) {
             const QString archivo = QString::fromStdString(a.value("archivo", std::string()));
             if (!QFileInfo::exists(archivo)) {
-                done(ToolResult::error("No existe ese archivo: " + archivo.toStdString()));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe ese archivo: %1"), {archivo.toStdString()})));
                 return;
             }
             if (!cc->sePuedeDesarmar(archivo)) {
-                done(ToolResult::error("No se puede desarmar " + archivo.toStdString() +
-                                       ". Se puede un PDF o un .pptx (este, con DeckCraft); el .ppt viejo "
-                                       "y el .odp, exportados a .pptx o a PDF."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se puede desarmar %1. Se puede un PDF o un .pptx (este, con DeckCraft); el .ppt viejo "
+                                           "y el .odp, exportados a .pptx o a PDF."),
+                                         {archivo.toStdString()})));
                 return;
             }
             cc->desarmar(archivo, QString::fromStdString(a.value("nombre", std::string())));
             // No se espera: convertir cincuenta laminas puede tardar mas que
             // cualquier limite razonable de una herramienta. Se avisa y el que
             // pregunte despues lo ve con carruseles_listar.
-            done(ToolResult().text("Empece a desarmarlo. Cuando termine aparece en carruseles_listar."));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Empece a desarmarlo. Cuando termine aparece en carruseles_listar.")));
         };
         core_.addTool(std::move(t));
     }
@@ -269,39 +267,39 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_armar";
-        t.title = "Armar un carrusel a mano";
+        t.title = ba::i18n::traducir("mcp", "Armar un carrusel a mano");
         t.category = "laminas";
         t.description =
-            "Crea un carrusel y le pone las imagenes que se le digan, en ese orden. Para armar uno "
+            ba::i18n::traducir("mcp", "Crea un carrusel y le pone las imagenes que se le digan, en ese orden. Para armar uno "
             "con placas sueltas —logos, fondos, placas institucionales— en vez de desarmar una "
             "presentacion (para eso esta `laminas_desarmar`).\n\n"
             "Si el carrusel ya existe, le AGREGA las imagenes al final en vez de pisarlo. Una imagen "
             "que ya estaba no entra dos veces. Las rutas son las que da `media_list`.\n\n"
             "Queda armado y nada mas: para que se vea hay que ponerlo en una escena con "
-            "`laminas_aplicar`.";
+            "`laminas_aplicar`.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre"}},
                          {"properties",
-                          {{"nombre", {{"type", "string"}, {"description", "como se llama el carrusel"}}},
+                          {{"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "como se llama el carrusel")}}},
                            {"imagenes",
                             {{"type", "array"},
                              {"items", {{"type", "string"}}},
-                             {"description", "rutas, como las da media_list"}}}}}};
+                             {"description", ba::i18n::traducir("mcp", "rutas, como las da media_list")}}}}}};
         t.examples = {R"({"nombre": "Sponsors", "imagenes": ["Media/logos/a.png", "Media/logos/b.png"]})"};
         t.run = [cc, root](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("nombre", std::string())).trimmed();
             if (n.isEmpty()) {
                 done(
-                    ToolResult::error("Hace falta un nombre: sin nombre no se lo puede volver a encontrar."));
+                    ToolResult::error(ba::i18n::traducir("mcp", "Hace falta un nombre: sin nombre no se lo puede volver a encontrar.")));
                 return;
             }
             // Las imágenes, revisadas antes de crear nada (una que no es texto dejaba el carrusel vacío creado).
             for (const auto& v : a.value("imagenes", json::array()))
-                if (!v.is_string()) return done(ToolResult::error("`imagenes` es una lista de rutas (texto)."));
+                if (!v.is_string()) return done(ToolResult::error(ba::i18n::traducir("mcp", "`imagenes` es una lista de rutas (texto).")));
             bool nuevo = false;
             if (cc->fuenteDe(n).isEmpty() && !cc->existe(n)) {
                 if (!cc->crear(n)) {
-                    done(ToolResult::error("No se pudo crear «" + n.toStdString() + "»."));
+                    done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo crear «%1»."), {n.toStdString()})));
                     return;
                 }
                 nuevo = true;
@@ -320,11 +318,12 @@ void McpService::registerLaminaTools() {
                 }
                 if (cc->agregar(abs)) ++puestas;
             }
-            std::string txt = (nuevo ? "Carrusel «" : "Ya existia «") + n.toStdString() +
-                              "»: " + std::to_string(puestas) + " laminas agregadas.";
+            std::string txt = ba::i18n::llenar(nuevo ? ba::i18n::traducir("mcp", "Carrusel «%1»: %2 laminas agregadas.")
+                                      : ba::i18n::traducir("mcp", "Ya existia «%1»: %2 laminas agregadas."),
+                                {n.toStdString(), std::to_string(puestas)});
             if (!rechazadas.empty())
-                txt += " No encontre (o se salian de la carpeta del sistema): " + rechazadas + ".";
-            txt += " Para que se vea: laminas_aplicar.";
+                txt += " " + ba::i18n::llenar(ba::i18n::traducir("mcp", "No encontre (o se salian de la carpeta del sistema): %1."), {rechazadas});
+            txt += " " + ba::i18n::traducir("mcp", "Para que se vea: laminas_aplicar.");
             done(ToolResult::ok(txt));
         };
         core_.addTool(std::move(t));
@@ -333,15 +332,15 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_editar";
-        t.title = "Cambiar un carrusel ya armado";
+        t.title = ba::i18n::traducir("mcp", "Cambiar un carrusel ya armado");
         t.category = "laminas";
         t.description =
-            "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
+            ba::i18n::traducir("mcp", "Quitar una lamina, moverla de lugar, renombrar el carrusel, borrarlo, o soltarlo de la "
             "escena.\n\n"
             "`borrar` se lleva el carrusel, NO las imagenes: pueden estar en una escena o ser del "
             "operador. `soltar` lo desvincula de la fuente y la imagen queda como estaba; la fuente "
             "se saca desde Escenas si ademas hay que quitarla.\n\n"
-            "Los numeros son los de `carrusel_laminas_ver`, empezando en 1.";
+            "Los numeros son los de `carrusel_laminas_ver`, empezando en 1.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"carrusel", "accion"}},
@@ -349,15 +348,14 @@ void McpService::registerLaminaTools() {
              {{"carrusel", {{"type", "string"}}},
               {"accion",
                {{"type", "string"}, {"enum", {"quitar", "mover", "renombrar", "borrar", "soltar"}}}},
-              {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", "con quitar y mover"}}},
-              {"hasta", {{"type", "integer"}, {"minimum", 1}, {"description", "con mover: a que puesto va"}}},
-              {"nombre", {{"type", "string"}, {"description", "con renombrar: el nombre nuevo"}}}}}};
+              {"numero", {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "con quitar y mover")}}},
+              {"hasta", {{"type", "integer"}, {"minimum", 1}, {"description", ba::i18n::traducir("mcp", "con mover: a que puesto va")}}},
+              {"nombre", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con renombrar: el nombre nuevo")}}}}}};
         t.examples = {R"({"carrusel": "Sponsors", "accion": "mover", "numero": 5, "hasta": 1})"};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             if (!cc->existe(n)) {
-                done(ToolResult::error("No hay ningun carrusel llamado «" + n.toStdString() +
-                                       "». carruseles_listar los da."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ningun carrusel llamado «%1». carruseles_listar los da."), {n.toStdString()})));
                 return;
             }
             const std::string accion = a.value("accion", std::string());
@@ -377,11 +375,11 @@ void McpService::registerLaminaTools() {
                     ok = cc->mover(numero - 1, a.value("hasta", 0) - 1);
             }
             if (!ok) {
-                done(ToolResult::error("No se pudo: revisa los numeros con carrusel_laminas_ver (empiezan en 1) "
-                                       "y que el nombre nuevo no este usado."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo: revisa los numeros con carrusel_laminas_ver (empiezan en 1) "
+                                       "y que el nombre nuevo no este usado.")));
                 return;
             }
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core_.addTool(std::move(t));
     }
@@ -389,39 +387,39 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_aplicar";
-        t.title = "Poner un carrusel en una escena";
+        t.title = ba::i18n::traducir("mcp", "Poner un carrusel en una escena");
         t.category = "laminas";
         t.description =
-            "Pone la tira en una ESCENA: crea ahi una fuente de imagen llamada «Carrusel · <nombre>» "
+            ba::i18n::traducir("mcp", "Pone la tira en una ESCENA: crea ahi una fuente de imagen llamada «Carrusel · <nombre>» "
             "y deja anotado que ese carrusel la maneja. Recien a partir de aca `laminas_ir` cambia "
             "algo que se VE: le cambia el archivo a esa fuente, y si la escena esta al aire, sale al "
             "aire.\n\n"
             "Nace a pantalla completa; se acomoda como cualquier otra fuente (source_rect). El mismo "
             "carrusel puede estar en varias escenas: es la misma fuente reusada.\n\n"
             "La tarjeta de control del operador sigue a la escena: cuando esta escena esta al aire, "
-            "maneja este carrusel.";
+            "maneja este carrusel.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"carrusel", {{"type", "string"}}},
-              {"escena", {{"type", "string"}, {"description", "por defecto, la que esta al aire"}}}}},
+              {"escena", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "por defecto, la que esta al aire")}}}}},
             {"required", {"carrusel"}}};
         t.examples = {R"({"carrusel": "Apertura"})"};
         t.run = [cc, &rt](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             const std::string escena = a.value("escena", rt.engine().currentScene());
             if (escena.empty()) {
-                done(ToolResult::error("No hay ninguna escena al aire; deci en cual."));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "No hay ninguna escena al aire; deci en cual.")));
                 return;
             }
             if (!cc->aplicarAEscena(n, QString::fromStdString(escena))) {
-                done(ToolResult::error("No se pudo poner «" + n.toStdString() + "» en «" + escena +
-                                       "». carruseles_listar dice cuales hay."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo poner «%1» en «%2». carruseles_listar dice cuales hay."),
+                                         {n.toStdString(), escena})));
                 return;
             }
-            done(ToolResult::ok("«" + n.toStdString() + "» quedo en «" + escena +
-                                "». Ahora laminas_ir cambia lo que se ve. Verifica con "
-                                "foto_fuente."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» quedo en «%2». Ahora laminas_ir cambia lo que se ve. Verifica con "
+                                  "foto_fuente."),
+                                {n.toStdString(), escena})));
         };
         core_.addTool(std::move(t));
     }
@@ -429,15 +427,15 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_sin_analizar";
-        t.title = "La proxima lamina sin etiquetas";
+        t.title = ba::i18n::traducir("mcp", "La proxima lamina sin etiquetas");
         t.category = "laminas";
         t.readOnly = true;
         t.description =
-            "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
+            ba::i18n::traducir("mcp", "Devuelve la ruta de la primera lamina a la que todavia no se le sacaron "
             "etiquetas. Es por donde entra el que mira imagenes: pedir esta, mirarla con "
             "imagen_preguntar —que es quien sabe mirar; este asistente NO recibe imagenes—, y guardar "
             "lo que vio con laminas_etiquetar. Vacio = no queda "
-            "ninguna.";
+            "ninguna.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"carrusel", {{"type", "string"}}}}},
                          {"required", {"carrusel"}}};
@@ -467,29 +465,28 @@ void McpService::registerLaminaTools() {
     {
         Tool t;
         t.name = "laminas_etiquetar";
-        t.title = "Guardar lo que se ve en una lamina";
+        t.title = ba::i18n::traducir("mcp", "Guardar lo que se ve en una lamina");
         t.category = "laminas";
-        t.description = "Guarda las palabras con las que despues se va a buscar esa lamina: lo que "
+        t.description = ba::i18n::traducir("mcp", "Guarda las palabras con las que despues se va a buscar esa lamina: lo que "
                         "se ve, lo que dice, de que trata. El operador escribe «barras» en el cuadro "
                         "y le queda esa. Se guarda UNA vez por lamina; si salio vacio igual queda "
-                        "marcada, para no volver a mirarla para siempre.";
+                        "marcada, para no volver a mirarla para siempre.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"carrusel", {{"type", "string"}}},
               {"numero", {{"type", "integer"}, {"minimum", 1}}},
               {"etiquetas",
-               {{"type", "string"}, {"description", "palabras sueltas separadas por espacios o comas"}}}}},
+               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "palabras sueltas separadas por espacios o comas")}}}}},
             {"required", {"carrusel", "numero", "etiquetas"}}};
         t.run = [cc](const json& a, Done done) {
             const QString n = QString::fromStdString(a.value("carrusel", std::string()));
             const int numero = a.value("numero", 0);
             if (!cc->etiquetar(n, numero - 1, QString::fromStdString(a.value("etiquetas", std::string())))) {
-                done(ToolResult::error("No encontre la lamina " + std::to_string(numero) + " de «" +
-                                       n.toStdString() + "»."));
+                done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No encontre la lamina %1 de «%2»."), {std::to_string(numero), n.toStdString()})));
                 return;
             }
-            done(ToolResult().text("Etiquetada."));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Etiquetada.")));
         };
         core_.addTool(std::move(t));
     }
