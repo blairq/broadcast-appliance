@@ -973,9 +973,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     if (b.startsWith("--asistente-evento=")) evento = b.mid(19);
                 const QString seguir =
                     evento.isEmpty() ? QString()
-                                     : "La app se reinició y ya está abierto el evento «" + evento +
-                                           "». Si estabas en medio de algo, seguí desde donde quedaste; si no, esperá "
-                                           "lo que te pida el operador.";
+                                     : QCoreApplication::translate(
+                                           "asistente",
+                                           "La app se reinició y ya está abierto el evento «%1». Si estabas en medio "
+                                           "de algo, seguí desde donde quedaste; si no, esperá lo que te pida el operador.")
+                                           .arg(evento);
                 agent_->reanudarAlArrancar(p.value(0), p.value(1), p.mid(2).join('|'), seguir);
             }
         // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
@@ -1060,32 +1062,50 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             const QString text = QString::fromStdString(item.value("text", ""));
             const QString answer = QString::fromStdString(item.value("answer", ""));
             // Sin el nombre (lo eligio el invitado): solo su id.
-            const QString who = "el invitado " + QString::fromStdString(item.value("participantId", "?"));
+            const QString who = QCoreApplication::translate("asistente", "el invitado %1")
+                                    .arg(QString::fromStdString(item.value("participantId", "?")));
+            // Las marcas «[OPERADOR]» y «[RESPUESTA DEL OPERADOR]» no se traducen: la ayuda
+            // del MCP y las descripciones de las herramientas le dicen al asistente que las busque.
+            const QString op = QStringLiteral("[OPERADOR] ");
             QString note;
             if (kind == "question")
-                note = st == "answered" ? "[RESPUESTA DEL OPERADOR] a tu pregunta \"" + text + "\": " + answer
-                                        : "[OPERADOR] descarto tu pregunta \"" + text + "\".";
+                note = st == "answered" ? QStringLiteral("[RESPUESTA DEL OPERADOR] ") +
+                                              QCoreApplication::translate("asistente", "a tu pregunta \"%1\": %2")
+                                                  .arg(text, answer)
+                                        : op + QCoreApplication::translate("asistente", "descarto tu pregunta \"%1\".")
+                                                   .arg(text);
             else if (kind == "reply")
-                note = st == "sent" ? "[OPERADOR] le mando a " + who + ": \"" + answer + "\""
-                                    : "[OPERADOR] ignoro el mensaje de " + who + ".";
+                note = st == "sent" ? op + QCoreApplication::translate("asistente", "le mando a %1: \"%2\"").arg(who, answer)
+                                    : op + QCoreApplication::translate("asistente", "ignoro el mensaje de %1.").arg(who);
             else if (kind == "credential") {
                 const QString p = QString::fromStdString(item.value("platform", ""));
                 if (p.startsWith("camaras:"))
-                    note =
-                        st == "saved"
-                            ? "[OPERADOR] guardo usuario y clave de las camaras " + p.mid(8) +
-                                  " (las que dejo sin clave, no). Siguiente paso: camara_ficha de cada una."
-                            : "[OPERADOR] cerro el formulario de las camaras " + p.mid(8) + " sin guardar.";
+                    note = op + (st == "saved"
+                                     ? QCoreApplication::translate(
+                                           "asistente",
+                                           "guardo usuario y clave de las camaras %1 (las que dejo sin clave, no). "
+                                           "Siguiente paso: camara_ficha de cada una.")
+                                           .arg(p.mid(8))
+                                     : QCoreApplication::translate(
+                                           "asistente", "cerro el formulario de las camaras %1 sin guardar.")
+                                           .arg(p.mid(8)));
                 else if (p.startsWith("camara:"))
-                    note = st == "saved"
-                               ? "[OPERADOR] guardo usuario y clave de la camara " + p.mid(7) +
-                                     ". Siguiente paso: camara_ficha {\"ip\": \"" + p.mid(7) + "\"}."
-                               : "[OPERADOR] cerro el formulario de la camara " + p.mid(7) + " sin guardar.";
+                    note = op + (st == "saved"
+                                     ? QCoreApplication::translate(
+                                           "asistente",
+                                           "guardo usuario y clave de la camara %1. Siguiente paso: camara_ficha {\"ip\": \"%1\"}.")
+                                           .arg(p.mid(7))
+                                     : QCoreApplication::translate(
+                                           "asistente", "cerro el formulario de la camara %1 sin guardar.")
+                                           .arg(p.mid(7)));
                 else
-                    note =
-                        st == "saved"
-                            ? "[OPERADOR] guardo la credencial de " + p + ". Siguiente paso: " + p + "_login."
-                            : "[OPERADOR] cerro el formulario de credenciales de " + p + " sin guardar.";
+                    note = op + (st == "saved"
+                                     ? QCoreApplication::translate(
+                                           "asistente", "guardo la credencial de %1. Siguiente paso: %1_login.")
+                                           .arg(p)
+                                     : QCoreApplication::translate(
+                                           "asistente", "cerro el formulario de credenciales de %1 sin guardar.")
+                                           .arg(p));
             }
             // Al asistente que lo pidió (el de automatización atiende el lobby y los avisos).
             if (!note.isEmpty())
@@ -4272,7 +4292,7 @@ nlohmann::json StudioViewModel::modoVivoEstado() const {
     for (const QString& x : desbloqueadas_) d.push_back(x.toStdString());
     return {{"en_vivo", modoVivo()}, {"activo", modoVivoCfg_->activo()}, {"incluir_grabando", modoVivoCfg_->incluirGrabando()},
             {"paginas_protegidas", p}, {"desbloqueadas", d},
-            {"que_protege", "las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican"}};
+            {"que_protege", ba::i18n::traducir("asistente", "las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican")}};
 }
 
 std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {

@@ -87,8 +87,8 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
         pasos.push_back(ba::i18n::llenar(ba::i18n::traducir("red", "Sin perfiles ONVIF: se usa la URL que contestó (%1)"),
                                          {ficha.value("url", std::string())}));
     } else {
-        plan["error"] =
-            "no hay ninguna URL de video: hacen falta usuario y clave (camara_credenciales) o la URL a mano";
+        plan["error"] = ba::i18n::traducir(
+            "asistente", "no hay ninguna URL de video: hacen falta usuario y clave (camara_credenciales) o la URL a mano");
         return plan;
     }
     // Normalizar: solo si hace falta (lo que libobs no sabe hacer).
@@ -135,9 +135,9 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
         // ONVIF no contestó (pide clave): NO se sabe si tiene PTZ.
         args["ptz"] = false;
         plan["ptz"] = "desconocido";
-        pasos.push_back(
-            "PTZ: no se sabe (ONVIF pide usuario y clave). Con la clave: camara_ficha y camara_agregar con "
-            "`solo_ptz`. Mientras, el PTZ digital (recorte y zoom en la GPU)");
+        pasos.push_back(ba::i18n::traducir(
+            "asistente", "PTZ: no se sabe (ONVIF pide usuario y clave). Con la clave: camara_ficha y camara_agregar con "
+                         "`solo_ptz`. Mientras, el PTZ digital (recorte y zoom en la GPU)"));
     } else if (!ptz.empty() && ptz.value("tiene", false)) {
         args["ptz"] = true;
         std::string perfilPtz = ptz.value("perfil", std::string());

@@ -2,6 +2,7 @@
 // src/app/ui/AtencionViewModel.cpp — ver AtencionViewModel.hpp
 // ============================================================================
 #include "ui/AtencionViewModel.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -261,12 +262,15 @@ QString AtencionViewModel::empezarSala(const QString& id, const QString& nombre,
 
 QString AtencionViewModel::instruccion(const QString& modo) {
     if (modo != "voz") return {};
-    return " ESTA PERSONA ESTÁ ATENDIDA HABLANDO: todo lo que le mandes con `chat_send` le llega también "
-           "dicho en voz alta, y lo que ella dice te llega como mensajes suyos (con `voz: true`) por "
-           "`chat_wait` o `invitados_chat_leer`. Escribí como se habla: frases cortas, de a una pregunta, sin "
-           "listas, sin emojis ni símbolos, y los números como se dicen. Si algo de lo que te llega no se "
-           "entiende (la voz a texto a veces se equivoca), pedile que lo repita. Los datos para la ficha "
-           "(nombre, cargo) confirmáselos en voz alta antes de guardarlos.";
+    return QStringLiteral(" ") +
+           QCoreApplication::translate(
+               "asistente",
+               "ESTA PERSONA ESTÁ ATENDIDA HABLANDO: todo lo que le mandes con `chat_send` le llega también "
+               "dicho en voz alta, y lo que ella dice te llega como mensajes suyos (con `voz: true`) por "
+               "`chat_wait` o `invitados_chat_leer`. Escribí como se habla: frases cortas, de a una pregunta, sin "
+               "listas, sin emojis ni símbolos, y los números como se dicen. Si algo de lo que te llega no se "
+               "entiende (la voz a texto a veces se equivoca), pedile que lo repita. Los datos para la ficha "
+               "(nombre, cargo) confirmáselos en voz alta antes de guardarlos.");
 }
 
 std::function<bool(const std::string&)> AtencionViewModel::puedeTomarLaVoz() const {
@@ -506,7 +510,7 @@ void AtencionViewModel::alAsamblea() {
             s->pedirFoto(qid);
             // Sin foto en un rato (cámara tapada, celular viejo), igual se lo atiende.
             QTimer::singleShot(8000, this, [this, qid]() {
-                if (esperandoFoto_.remove(qid)) encargarAsamblea(qid, "No llegó la foto de su cámara.");
+                if (esperandoFoto_.remove(qid)) encargarAsamblea(qid, QCoreApplication::translate("asistente", "No llegó la foto de su cámara."));
             });
         }
     }
@@ -524,7 +528,7 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
     asamblea::SesionRemota* s = vm_.sesionRemota();
     PersonasViewModel* pv = personas(vm_);
     if (s == nullptr) return;
-    if (pv == nullptr || !pv->disponible()) return encargarAsamblea(id, "Este equipo no reconoce caras.");
+    if (pv == nullptr || !pv->disponible()) return encargarAsamblea(id, QCoreApplication::translate("asistente", "Este equipo no reconoce caras."));
     const QByteArray jpeg = s->fotoJpeg(id);
     const QVariantMap integrante = vm_.cuerpo().buscar(id);
     const QString personaId = integrante.value("persona_id").toString();
@@ -548,11 +552,11 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
                                                         .arg(nombre),
                                                     "info");
                             });
-        return encargarAsamblea(id, "No tiene ficha de rostro: no hay con qué compararlo.");
+        return encargarAsamblea(id, QCoreApplication::translate("asistente", "No tiene ficha de rostro: no hay con qué compararlo."));
     }
     pv->compararFoto(jpeg, personaId, [yo, id, personaId, nombre](float parecido, bool sirve, const QString& error) {
         if (!yo) return;
-        if (!error.isEmpty()) return yo->encargarAsamblea(id, "No se le pudo mirar la cara: " + error);
+        if (!error.isEmpty()) return yo->encargarAsamblea(id, QCoreApplication::translate("asistente", "No se le pudo mirar la cara: %1").arg(error));
         PersonasViewModel* p = personas(yo->vm_);
         const float umbral = p != nullptr ? p->umbralEntrarSolo() : 1.0f;
         const bool esEl = sirve && parecido >= umbral;
@@ -571,11 +575,15 @@ void AtencionViewModel::alFotoIntegrante(const QString& id) {
             }
         }
         const QString pct = QString::number(static_cast<int>(std::lround(parecido * 100))) + " %";
+        const QString hace = QString::number(static_cast<int>(std::lround(umbral * 100))) + " %";
         yo->encargarAsamblea(
-            id, esEl ? "La cámara lo reconoce (parecido " + pct + "), pero el padrón del evento no lo deja entrar solo."
-                : sirve ? "La cara NO coincide con su ficha (parecido " + pct + "; para dejarlo entrar solo hace falta " +
-                              QString::number(static_cast<int>(std::lround(umbral * 100))) + " %)."
-                        : "No se le ve bien la cara (parecido " + pct + ").");
+            id, esEl ? QCoreApplication::translate(
+                           "asistente", "La cámara lo reconoce (parecido %1), pero el padrón del evento no lo deja entrar solo.")
+                           .arg(pct)
+                : sirve ? QCoreApplication::translate("asistente", "La cara NO coincide con su ficha (parecido %1; para "
+                                                                   "dejarlo entrar solo hace falta %2).")
+                              .arg(pct, hace)
+                        : QCoreApplication::translate("asistente", "No se le ve bien la cara (parecido %1).").arg(pct));
     });
 }
 
@@ -584,18 +592,24 @@ void AtencionViewModel::encargarAsamblea(const QString& id, const QString& queSe
     const QString nombre = integrante.value("nombre").toString();
     const QString banca = integrante.value("banca").toString();
     const QString texto =
-        "«" + nombre + "» (banca " + banca + ", id " + id +
-        ") se conectó a la sesión remota de la asamblea y espera que lo habiliten. Lo que vio la cámara: " + queSeVio +
-        " Contáselo al operador en una línea con `operator_ask` (opciones «Habilitar» y «Todavía no») y, si "
-        "contesta «Habilitar», llamá `sesion_habilitar {banca: \"" + id + "\"}`. " +
+        QCoreApplication::translate(
+            "asistente",
+            "«%1» (banca %2, id %3) se conectó a la sesión remota de la asamblea y espera que lo habiliten. Lo que vio "
+            "la cámara: %4 Contáselo al operador en una línea con `operator_ask` (opciones «Habilitar» y «Todavía no») "
+            "y, si contesta «Habilitar», llamá `sesion_habilitar {banca: \"%3\"}`. ")
+            .arg(nombre, banca, id, queSeVio) +
         // Hablando, se le habla (y se lo oye) con las mismas herramientas del chat de la sala.
         (atiendeHablandoEnAsamblea(id)
-             ? "Lo estás atendiendo HABLANDO: lo que le mandes con `chat_send {to: \"" + id +
-                   "\"}` le llega dicho en voz alta (y escrito en su pantalla), y lo que él dice te llega con "
-                   "`chat_wait {participant: \"" + id + "\"}`. Saludalo, decile que en un momento lo habilitan y, "
-                   "si hace falta, preguntale lo que el operador quiera saber." + instruccion("voz")
-             : QString("No le escribas: en la sesión remota el que espera no tiene chat.")) +
-        " Manejate sola.";
+             ? QCoreApplication::translate(
+                   "asistente",
+                   "Lo estás atendiendo HABLANDO: lo que le mandes con `chat_send {to: \"%1\"}` le llega dicho en voz "
+                   "alta (y escrito en su pantalla), y lo que él dice te llega con `chat_wait {participant: \"%1\"}`. "
+                   "Saludalo, decile que en un momento lo habilitan y, si hace falta, preguntale lo que el operador "
+                   "quiera saber.")
+                       .arg(id) +
+                   instruccion("voz")
+             : QCoreApplication::translate("asistente", "No le escribas: en la sesión remota el que espera no tiene chat.")) +
+        QStringLiteral(" ") + QCoreApplication::translate("asistente", "Manejate sola.");
     switch (atendedor()) {
         case sala::Atendedor::Recepcion: {
             std::string err;
@@ -811,8 +825,8 @@ nlohmann::json AtencionViewModel::estado() const {
             {"turnos", turnos},
             {"voz", {{"repo", vozElegida().toStdString()}, {"lista", vozLista_}, {"hablante", aj_.vozHablante},
                      {"hablantes", hablantes_}, {"velocidad", aj_.vozVelocidad}, {"voces", lasVoces}}},
-            {"entranSolos", "La lista de quién entra solo si se lo reconoce es la del padrón del evento: "
-                            "padron_ver {solos: true}; se cambia con padron_cambiar {id, dejarPasarSolo}."}};
+            {"entranSolos", ba::i18n::traducir("asistente", "La lista de quién entra solo si se lo reconoce es la del padrón del evento: "
+                                                           "padron_ver {solos: true}; se cambia con padron_cambiar {id, dejarPasarSolo}.")}};
 }
 
 QString AtencionViewModel::configurar(const nlohmann::json& c) {

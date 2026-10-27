@@ -517,32 +517,51 @@ json Red::siguientePaso(const json& e) const {
     }
     const bool conClave = e.value("credenciales_guardadas", false);
     const bool onvif = e.contains("onvif");
+    using ba::i18n::llenar;
+    using ba::i18n::traducir;
     if (e.contains("ya_conectada") && !e["ya_conectada"].empty()) {
         const std::string n = e["ya_conectada"][0].value("entrada", std::string());
-        return "YA ESTÁ CONECTADA como la entrada «" + n +
-               "»: para tenerla en otra escena, camara_agregar {\"ip\": \"" + ip +
-               "\", \"escena\": …, \"reusar\": true} (la misma entrada, no otro stream)" +
-               (onvif && !conClave ? ". Para su PTZ ONVIF falta la clave: camara_credenciales {\"ips\": [\"" +
-                                         ip + "\"], \"pedir\": true}"
-                                   : "");
+        return onvif && !conClave
+                   ? llenar(traducir("asistente",
+                                     "YA ESTÁ CONECTADA como la entrada «%1»: para tenerla en otra escena, camara_agregar "
+                                     "{\"ip\": \"%2\", \"escena\": …, \"reusar\": true} (la misma entrada, no otro "
+                                     "stream). Para su PTZ ONVIF falta la clave: camara_credenciales {\"ips\": [\"%2\"], "
+                                     "\"pedir\": true}"),
+                            {n, ip})
+                   : llenar(traducir("asistente",
+                                     "YA ESTÁ CONECTADA como la entrada «%1»: para tenerla en otra escena, camara_agregar "
+                                     "{\"ip\": \"%2\", \"escena\": …, \"reusar\": true} (la misma entrada, no otro "
+                                     "stream)"),
+                            {n, ip});
     }
-    if (onvif && !conClave)
-        return "pedir usuario y clave (camara_credenciales {\"ip\": \"" + ip +
-               "\", \"pedir\": true}; usuario de fábrica: " +
-               e.value("usuario_de_fabrica", std::string("admin")) +
-               ") y después camara_ficha: ONVIF da la URL exacta, "
-               "el PTZ y la imagen" +
-               (seVe ? " (ya hay una URL que se ve sin clave)" : "");
+    if (onvif && !conClave) {
+        const std::string usuario = e.value("usuario_de_fabrica", std::string("admin"));
+        return seVe ? llenar(traducir("asistente",
+                                      "pedir usuario y clave (camara_credenciales {\"ip\": \"%1\", \"pedir\": true}; "
+                                      "usuario de fábrica: %2) y después camara_ficha: ONVIF da la URL exacta, el PTZ y la "
+                                      "imagen (ya hay una URL que se ve sin clave)"),
+                             {ip, usuario})
+                    : llenar(traducir("asistente",
+                                      "pedir usuario y clave (camara_credenciales {\"ip\": \"%1\", \"pedir\": true}; "
+                                      "usuario de fábrica: %2) y después camara_ficha: ONVIF da la URL exacta, el PTZ y la "
+                                      "imagen"),
+                             {ip, usuario});
+    }
     if (onvif && conClave)
-        return "camara_ficha {\"ip\": \"" + ip + "\"} (ONVIF completo + análisis + plan) y camara_agregar";
-    if (seVe) return "camara_ficha {\"ip\": \"" + ip + "\"} (analiza la URL que se ve) y camara_agregar";
+        return llenar(traducir("asistente",
+                               "camara_ficha {\"ip\": \"%1\"} (ONVIF completo + análisis + plan) y camara_agregar"),
+                      {ip});
+    if (seVe)
+        return llenar(traducir("asistente", "camara_ficha {\"ip\": \"%1\"} (analiza la URL que se ve) y camara_agregar"),
+                      {ip});
     if (pideClave)
-        return "pedir usuario y clave (camara_credenciales {\"ip\": \"" + ip +
-               "\", \"pedir\": true}): la URL existe pero pide clave";
+        return llenar(traducir("asistente", "pedir usuario y clave (camara_credenciales {\"ip\": \"%1\", \"pedir\": "
+                                            "true}): la URL existe pero pide clave"),
+                      {ip});
     if (e.value("tipo", std::string()) == "cámara")
-        return "ninguna URL típica contestó: revisar las notas de la marca (habilitar RTSP) o pedir la URL "
-               "al operador";
-    return "no parece una cámara (no tiene RTSP ni ONVIF)";
+        return traducir("asistente", "ninguna URL típica contestó: revisar las notas de la marca (habilitar RTSP) o pedir "
+                                     "la URL al operador");
+    return traducir("asistente", "no parece una cámara (no tiene RTSP ni ONVIF)");
 }
 
 // --- RTSP: probar URLs ------------------------------------------------------------------------
@@ -797,8 +816,10 @@ void Red::ficha(const std::string& ip, Listo listo) {
                                                 : ba::i18n::llenar(ba::i18n::traducir("red", "ONVIF rechazó el usuario y la "
                                                                                              "clave guardados: %1"),
                                                                    {falla.toStdString()}))
-                                         : "ONVIF pide usuario y clave: camara_credenciales {\"ip\": \"" +
-                                               ip + "\", \"pedir\": true}";
+                                         : ba::i18n::llenar(ba::i18n::traducir("asistente",
+                                                                               "ONVIF pide usuario y clave: camara_credenciales "
+                                                                               "{\"ip\": \"%1\", \"pedir\": true}"),
+                                                            {ip});
                 (*f)["onvif"] = false;
                 // Sin ONVIF: lo que se sabe del escaneo (una URL que se ve), analizada.
                 for (const auto& r : equipo(ip).value("rtsp", json::array()))
@@ -940,9 +961,9 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
     // Solo el PTZ de una entrada que ya existe (cuando llega la clave después).
     if (op.value("solo_ptz", false)) {
         const std::string entrada = op.value("entrada", std::string());
-        if (entrada.empty()) return "con `solo_ptz` hace falta `entrada` (la que ya muestra esta cámara)";
+        if (entrada.empty()) return ba::i18n::traducir("asistente", "con `solo_ptz` hace falta `entrada` (la que ya muestra esta cámara)");
         QString u, c;
-        if (!clave(ip, u, c)) return "falta la clave ONVIF: camara_credenciales primero";
+        if (!clave(ip, u, c)) return ba::i18n::traducir("asistente", "falta la clave ONVIF: camara_credenciales primero");
         if (!camaras_) return ba::i18n::traducir("red", "el PTZ no está disponible");
         const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
         QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", u}, {"clave", c}};
@@ -955,7 +976,7 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
     }
     const std::string escena = op.value("escena", std::string());
     if (escena.empty() && !op.value("solo_ptz", false))
-        return "falta `escena` (preguntale al operador en cuál va)";
+        return ba::i18n::traducir("asistente", "falta `escena` (preguntale al operador en cuál va)");
     QString usuario, pass;
     const bool conClave = clave(ip, usuario, pass);
     const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
@@ -976,7 +997,7 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
                 break;
             }
     if (url.empty())
-        return "no hay una URL que ande: camara_credenciales y camara_ficha primero (o `url` a mano)";
+        return ba::i18n::traducir("asistente", "no hay una URL que ande: camara_credenciales y camara_ficha primero (o `url` a mano)");
     // ¿Ya hay una entrada con esta misma URL? Otra copia abriría otro stream
     // (doble ancho de banda, doble decodificación).
     for (const auto& ya : video_->entradasDeHost(ip))
@@ -984,9 +1005,11 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
             !op.value("duplicar", false)) {
             const std::string n = ya.value("entrada", std::string());
             if (!op.value("reusar", false))
-                return "ya existe la entrada «" + n + "» con esta misma URL: `reusar: true` la suma a «" +
-                       escena +
-                       "» (la misma, sin abrir otro stream) o `duplicar: true` si de verdad hace falta otra";
+                return ba::i18n::llenar(ba::i18n::traducir("asistente",
+                                                           "ya existe la entrada «%1» con esta misma URL: `reusar: true` la "
+                                                           "suma a «%2» (la misma, sin abrir otro stream) o `duplicar: true` "
+                                                           "si de verdad hace falta otra"),
+                                        {n, escena});
             const std::string e2 = video_->sumarAEscena(n, escena);
             if (!e2.empty()) return e2;
             if (hecho != nullptr) *hecho = {{"entrada", n}, {"reusada", true}, {"escena", escena}};
@@ -1025,11 +1048,12 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
         h["ptz"] = ba::i18n::traducir("red", "no (se pidió sin PTZ)");
     } else if (e.contains("onvif") && (!conClave || fi.empty() || fi.contains("error"))) {
         // No se sabe: ONVIF no se pudo consultar (falta la clave), no que no tenga.
-        h["ptz"] =
-            "PENDIENTE: la cámara anuncia ONVIF («" + e["onvif"].value("nombre", std::string()) +
-            "») pero no se pudo consultar (falta su usuario y clave ONVIF). Con la clave: camara_ficha y "
-            "camara_agregar {\"ip\": \"" +
-            ip + "\", \"solo_ptz\": true, \"entrada\": \"" + nombre + "\"}. Mientras, PTZ digital.";
+        h["ptz"] = ba::i18n::llenar(
+            ba::i18n::traducir("asistente",
+                               "PENDIENTE: la cámara anuncia ONVIF («%1») pero no se pudo consultar (falta su usuario y "
+                               "clave ONVIF). Con la clave: camara_ficha y camara_agregar {\"ip\": \"%2\", \"solo_ptz\": "
+                               "true, \"entrada\": \"%3\"}. Mientras, PTZ digital."),
+            {e["onvif"].value("nombre", std::string()), ip, nombre});
     } else {
         h["ptz"] = ba::i18n::traducir("red", "no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)");
     }

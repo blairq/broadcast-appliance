@@ -197,7 +197,7 @@ json DocumentosViewModel::texto(const std::string& id, int desde, int hasta) con
     const int a = std::clamp(desde < 1 ? 1 : desde, 1, std::max(1, n));
     const int b = std::clamp(hasta < 1 ? n : hasta, a, std::max(1, n));
     QString t;
-    for (int p = a - 1; p < b && t.size() < 200000; ++p) t += "--- página " + QString::number(p + 1) + " ---\n" + pdf.getAllText(p).text() + "\n";
+    for (int p = a - 1; p < b && t.size() < 200000; ++p) t += tr("--- página %1 ---").arg(p + 1) + "\n" + pdf.getAllText(p).text() + "\n";
     return {{"id", id}, {"paginas", n}, {"desde", a}, {"hasta", b}, {"texto", t.toStdString()}};
 }
 
