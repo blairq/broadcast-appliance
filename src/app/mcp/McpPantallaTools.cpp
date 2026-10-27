@@ -317,7 +317,7 @@ void McpService::registerPantallaTools() {
         t.inputSchema = {{"type", "object"},
                          {"required", {"host"}},
                          {"properties",
-                          {{"host", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "192.168.1.50")}}},
+                          {{"host", {{"type", "string"}, {"description", "192.168.1.50"}}},
                            {"nombre", {{"type", "string"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString err = p->agregar(QString::fromStdString(a.value("nombre", "")),
