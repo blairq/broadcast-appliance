@@ -3,6 +3,8 @@
 // ============================================================================
 #include "registro/AgenteTotem.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <QPointer>
 
 #include "ajustes/Ajustes.hpp"
@@ -25,10 +27,14 @@ AgenteTotem::AgenteTotem(ba::app::agent::FuenteMirada fuente, std::string prompt
     primera_.setSingleShot(true);
     tope_.setSingleShot(true);
     connect(&primera_, &QTimer::timeout, this, [this]() {
-        falla("no empezó a contestar en " + std::to_string(tiempos_.primeraMs / 1000) + " s");
+        falla(ba::i18n::llenar(ba::i18n::traducir("registro", "no empezó a contestar en %1 s"),
+                               {std::to_string(tiempos_.primeraMs / 1000)}));
     });
     connect(&tope_, &QTimer::timeout, this,
-            [this]() { falla("tardó más de " + std::to_string(tiempos_.turnoMs / 1000) + " s en contestar"); });
+            [this]() {
+                falla(ba::i18n::llenar(ba::i18n::traducir("registro", "tardó más de %1 s en contestar"),
+                                       {std::to_string(tiempos_.turnoMs / 1000)}));
+            });
     conv_.usarModelo(true);
 }
 
@@ -118,9 +124,10 @@ void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& erro
     // En depuración (son datos de la persona): qué anotó el modelo en cada vuelta.
     for (const LlamadaHerramienta& ll : t.llamadas)
         ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
-                                   "modelo: " + ll.nombre + " " + ll.argumentos);
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "modelo: %1 %2"), {ll.nombre, ll.argumentos}));
     if (!t.texto.empty())
-        ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0, "modelo (texto): «" + t.texto + "»");
+        ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("registro", "modelo (texto): «%1»"), {t.texto}));
     const AgenteRegistro::Vuelta v = agente_.alTerminarVuelta(conv_, t);
     dijoAlgo_ = v.dijoAlgo;
     rechazos_ = v.rechazos;
@@ -146,7 +153,9 @@ void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& erro
 void AgenteTotem::falla(const std::string& motivo) {
     if (!ocupado_) return;
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               "el modelo no contestó a tiempo, sigue el guion en este turno: " + motivo);
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "el modelo no contestó a tiempo, sigue el "
+                                                                               "guion en este turno: %1"),
+                                                {motivo}));
     if (pedido_) pedido_->cancelar();
     pedido_.reset();
     primera_.stop();
