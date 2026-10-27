@@ -245,8 +245,15 @@ def main():
         with tempfile.TemporaryDirectory() as tmp:
             binario = Path(tmp) / "arnes"
             inc = ["-I", args.nlohmann] if args.nlohmann else []
-            subprocess.run(["g++", "-std=c++20", "-O2", "-w", "-I", str(RAIZ / "src/app"), *inc, str(fuente),
-                            str(RAIZ / "src/app/mcp/McpIndice.cpp"), "-o", str(binario)], check=True)
+            # El buscador lee las reglas del idioma del perfil (ba::i18n, en ba_core): se enlaza
+            # la biblioteca del build y lee assets/idiomas de la fuente (BA_I18N_DEV_PERFILES).
+            nucleo = RAIZ / "build" / "src" / "core" / "libba_core.a"
+            if not nucleo.exists():
+                sys.exit(f"--arnes necesita {nucleo} (cmake --build build --target ba_core)")
+            sistema = ["-framework", "Foundation", "-framework", "IOKit"] if sys.platform == "darwin" else ["-ldl", "-lpthread"]
+            subprocess.run(["g++", "-std=c++20", "-O2", "-w", "-I", str(RAIZ / "src/app"), "-I", str(RAIZ / "src/core"),
+                            *inc, str(fuente), str(RAIZ / "src/app/mcp/McpIndice.cpp"), str(nucleo), *sistema,
+                            "-o", str(binario)], check=True)
             for nombre, casos in sets.items():
                 arch = Path(tmp) / f"{nombre}.jsonl"
                 arch.write_text("".join(json.dumps(x, ensure_ascii=False) + "\n" for x in casos))
