@@ -4,6 +4,7 @@
 
 #include "term/Pty.hpp"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QMetaObject>
 #include <QProcessEnvironment>
@@ -70,7 +71,7 @@ bool Pty::start(const Options& opt, QString* error) {
     }
     COORD size{static_cast<SHORT>(opt.cols), static_cast<SHORT>(opt.rows)};
     if (FAILED(CreatePseudoConsole(size, inRead, outWrite, 0, &d_->pc))) {
-        if (error != nullptr) *error = "CreatePseudoConsole (hace falta Windows 10 1809 o posterior)";
+        if (error != nullptr) *error = QCoreApplication::translate("term", "CreatePseudoConsole (hace falta Windows 10 1809 o posterior)");
         CloseHandle(inRead);
         CloseHandle(outWrite);
         return false;

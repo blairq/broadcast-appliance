@@ -62,14 +62,14 @@ namespace {
 /// metido en un JSON). Así el launcher la relanza enseguida y el registro dice
 /// qué pasó.
 void alTerminar() {
-    std::string que = "terminate sin excepción";
+    std::string que = ba::i18n::traducir("app", "terminate sin excepción");
     if (const std::exception_ptr ep = std::current_exception()) {
         try {
             std::rethrow_exception(ep);
         } catch (const std::exception& e) {
-            que = std::string("excepción sin atajar (") + typeid(e).name() + "): " + e.what();
+            que = ba::i18n::llenar(ba::i18n::traducir("app", "excepción sin atajar (%1): %2"), {typeid(e).name(), e.what()});
         } catch (...) {
-            que = "excepción sin atajar (de un tipo que no es std::exception)";
+            que = ba::i18n::traducir("app", "excepción sin atajar (de un tipo que no es std::exception)");
         }
     }
     std::fprintf(stderr, "ba-app: %s\n", que.c_str());

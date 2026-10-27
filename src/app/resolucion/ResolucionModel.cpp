@@ -3,6 +3,8 @@
 // ============================================================================
 #include "resolucion/ResolucionModel.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <QJsonDocument>
 #include <QJsonObject>
 
@@ -151,7 +153,8 @@ json ResolucionModel::recalcular() {
         }
     } catch (const std::exception& ex) {
         // Una foto con algo inesperado no tumba la vista: queda lo último bueno.
-        qWarning("[resolucion] no se pudo armar el plan: %s", ex.what());
+        qWarning("[resolucion] %s",
+                 ba::i18n::llenar(ba::i18n::traducir("resolucion", "no se pudo armar el plan: %1"), {ex.what()}).c_str());
         return ultimo_;
     }
     ultimo_ = {{"entradas", planes}, {"niveles", niveles}};
