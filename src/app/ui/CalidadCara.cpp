@@ -2,6 +2,7 @@
 // src/app/ui/CalidadCara.cpp — ver CalidadCara.hpp
 // ============================================================================
 #include "ui/CalidadCara.hpp"
+#include "i18n/I18n.hpp"
 
 #if BA_HAVE_ROSTROS
 
@@ -58,23 +59,23 @@ Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c) {
     // El orden importa: se pide UNA cosa por vez, la más gruesa primero. Una
     // lista de cinco correcciones no la sigue nadie.
     if (q.cortada)
-        q.sugerencia = "Pedile que se ponga entero en el cuadro: la cara sale cortada por el borde.";
+        q.sugerencia = ba::i18n::traducir("caras", "Pedile que se ponga entero en el cuadro: la cara sale cortada por el borde.");
     else if (q.altoPx < kAltoMinimo())
-        q.sugerencia = "Pedile que se acerque a la camara: la cara se ve demasiado chica.";
+        q.sugerencia = ba::i18n::traducir("caras", "Pedile que se acerque a la camara: la cara se ve demasiado chica.");
     else if (q.luz < kLuzMinima())
-        q.sugerencia = "Hay poca luz sobre la cara. Pedile que se ponga de frente a una ventana o "
-                       "que prenda una luz.";
+        q.sugerencia = ba::i18n::traducir("caras", "Hay poca luz sobre la cara. Pedile que se ponga de frente a una "
+                                                   "ventana o que prenda una luz.");
     else if (q.luz > kLuzMaxima())
-        q.sugerencia = "La cara esta quemada de luz (contraluz). Pedile que se corra de la ventana "
-                       "o que la deje a su espalda.";
+        q.sugerencia = ba::i18n::traducir("caras", "La cara esta quemada de luz (contraluz). Pedile que se corra de "
+                                                   "la ventana o que la deje a su espalda.");
     else if (std::abs(q.giro) > kGiroMaximo())
-        q.sugerencia = "Pedile que mire de frente a la camara: la cara esta girada.";
+        q.sugerencia = ba::i18n::traducir("caras", "Pedile que mire de frente a la camara: la cara esta girada.");
     else if (q.nitidez < kNitidezMinima())
-        q.sugerencia = "La imagen sale borrosa. Pedile que se quede quieto un momento o que revise "
-                       "el enfoque.";
+        q.sugerencia = ba::i18n::traducir("caras", "La imagen sale borrosa. Pedile que se quede quieto un momento o "
+                                                   "que revise el enfoque.");
     else {
         q.sirve = true;
-        q.sugerencia = "Asi sirve.";
+        q.sugerencia = ba::i18n::traducir("caras", "Asi sirve.");
     }
     return q;
 }

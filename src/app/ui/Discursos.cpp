@@ -117,7 +117,7 @@ QString Discursos::escribir(const QString& rel, const QString& texto) {
     QDir().mkpath(QFileInfo(abs).absolutePath());
     QFile f(abs);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
-        return "No pude escribir " + abs;
+        return tr("No pude escribir %1").arg(abs);
     f.write(texto.toUtf8());
     return {};
 }
@@ -132,7 +132,7 @@ QString Discursos::crear(const QString& carpeta, const QString& nombre, QString*
     if (QFile::exists(abs)) return tr("Ya hay un discurso que se llama así.");
     QDir().mkpath(QFileInfo(abs).absolutePath());
     QFile f(abs);
-    if (!f.open(QIODevice::WriteOnly)) return "No pude crear " + abs;
+    if (!f.open(QIODevice::WriteOnly)) return tr("No pude crear %1").arg(abs);
     if (relOut != nullptr) *relOut = rel;
     return {};
 }

@@ -278,7 +278,7 @@ void RotuladorViewModel::atender(const QJsonObject& e) {
 
 void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {
     if (d_->sala == nullptr) {
-        emit qrListo({}, {}, "El servidor no está corriendo", {});
+        emit qrListo({}, {}, tr("El servidor no está corriendo"), {});
         return;
     }
     QPointer<RotuladorViewModel> yo(this);
@@ -286,7 +286,7 @@ void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {
         if (!yo) return;
         QStringList filas;
         for (const std::string& f : e.filas) filas << QString::fromStdString(f);
-        const QString msg = e.mensaje.empty() && !e.ok ? QString("El servidor no responde") : QString::fromStdString(e.mensaje);
+        const QString msg = e.mensaje.empty() && !e.ok ? tr("El servidor no responde") : QString::fromStdString(e.mensaje);
         emit yo->qrListo(e.ok ? QString::fromStdString(e.url) : QString(), filas, msg, QString::fromStdString(e.clave));
     });
 }

@@ -248,7 +248,7 @@ int MediosViewModel::moverElegidos(const QString& destino) {
     // Se avisa SIEMPRE, aunque haya salido bien: mover cuarenta archivos sin
     // que pase nada visible deja a cualquiera dudando de si hizo algo.
     if (n > 0) {
-        emit notify(QString("%1 %2 a «%3»").arg(n).arg(n == 1 ? "archivo" : "archivos", destino), "ok");
+        emit notify(tr("%n archivo a «%1»", "", n).arg(destino), "ok");
         abrirHasta(destino);
     }
     if (!ultimoError.isEmpty()) emit notify(tr("No se pudo mover todo: %1").arg(ultimoError), "error");
@@ -288,7 +288,7 @@ int MediosViewModel::borrarElegidos() {
         else
             ultimoError = e;
     }
-    if (n > 0) emit notify(QString("%1 a la papelera. Están en Papelera/, no se perdieron.").arg(n), "ok");
+    if (n > 0) emit notify(tr("%1 a la papelera. Están en Papelera/, no se perdieron.").arg(n), "ok");
     if (!ultimoError.isEmpty()) emit notify(tr("No se pudo borrar todo: %1").arg(ultimoError), "error");
     noElegirNada();
     refrescar();

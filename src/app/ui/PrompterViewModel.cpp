@@ -94,8 +94,8 @@ int PrompterViewModel::duracionSeg() const {
 QString PrompterViewModel::sinEvento() const {
     if (d_->evento == nullptr) return tr("El guion del evento no está disponible.");
     if (d_->evento->carpetaDeDiscursos().isEmpty())
-        return "Los discursos viven en la carpeta del evento. Abrí o creá un evento en la pestaña Guion "
-               "y volvé: son los mismos archivos que usa el cue «teleprompter».";
+        return tr("Los discursos viven en la carpeta del evento. Abrí o creá un evento en la pestaña Guion "
+                  "y volvé: son los mismos archivos que usa el cue «teleprompter».");
     return {};
 }
 
@@ -347,7 +347,7 @@ void PrompterViewModel::irAParrafo(int n) {
 
 void PrompterViewModel::pedirQr(const QString& target, const QString& vista, bool conClave) {
     if (d_->sala == nullptr) {
-        emit qrListo({}, {}, "El servidor no está corriendo", {});
+        emit qrListo({}, {}, tr("El servidor no está corriendo"), {});
         return;
     }
     QPointer<PrompterViewModel> yo(this);

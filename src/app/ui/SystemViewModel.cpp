@@ -64,7 +64,7 @@ QString SystemViewModel::version() const {
     const QString built = fi.exists() ? fi.lastModified().toString("yyyy-MM-dd HH:mm") : QString();
 #ifdef BA_APP_VERSION
     return built.isEmpty() ? QStringLiteral(BA_APP_VERSION)
-                           : QStringLiteral(BA_APP_VERSION " · programa del ") + built;
+                           : tr("%1 · programa del %2").arg(QStringLiteral(BA_APP_VERSION), built);
 #else
     return built;
 #endif
@@ -109,7 +109,7 @@ QString SystemViewModel::checkUpdate(const QString& folder) const {
     const QString src = QDir::cleanPath(localPath(folder));
     if (src.isEmpty()) return tr("Elegi la carpeta de la version nueva.");
     if (!QFileInfo::exists(src + "/" + kLauncher) || !QFileInfo::exists(src + "/" + kApp))
-        return QString("Esa carpeta no es una version de Broadcast Appliance (tiene que tener %1 y %2).")
+        return tr("Esa carpeta no es una version de Broadcast Appliance (tiene que tener %1 y %2).")
             .arg(kLauncher, kApp);
     const QString r = QDir::cleanPath(QFileInfo(programa()).canonicalFilePath());
     const QString s = QFileInfo(src).canonicalFilePath();
@@ -120,7 +120,7 @@ QString SystemViewModel::checkUpdate(const QString& folder) const {
 
 QString SystemViewModel::launch(const QStringList& args, const QString& aviso) {
     const QString exe = launcherPath();
-    if (!QFileInfo::exists(exe)) return "No encuentro el launcher (" + exe + ").";
+    if (!QFileInfo::exists(exe)) return tr("No encuentro el launcher (%1).").arg(exe);
     qint64 pid = 0;
     if (!QProcess::startDetached(exe, args, programa(), &pid)) return tr("No se pudo lanzar el actualizador.");
     emit quitForUpdate(aviso);

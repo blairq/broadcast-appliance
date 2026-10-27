@@ -63,11 +63,12 @@ QString FrameService::label(const QString& key) const {
     if (key == "program") return "Programa";
     if (key == "armada") return tr("Armada (preview)");
     if (key == "operator") return tr("Tu cámara");
-    if (key.startsWith("guest:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6));
-    if (key.startsWith("share:")) return nameOr(key.mid(6).toInt(), "Invitado " + key.mid(6)) + " — pantalla";
-    if (key.startsWith("lobby:")) return "Lobby " + key.mid(6);
-    if (key.startsWith("backstage:")) return "Fila " + key.mid(10);
-    if (key.startsWith("registro:")) return "Tótem de registro " + key.mid(9);
+    if (key.startsWith("guest:")) return nameOr(key.mid(6).toInt(), tr("Invitado %1").arg(key.mid(6)));
+    if (key.startsWith("share:"))
+        return tr("%1 — pantalla").arg(nameOr(key.mid(6).toInt(), tr("Invitado %1").arg(key.mid(6))));
+    if (key.startsWith("lobby:")) return tr("Lobby %1").arg(key.mid(6));
+    if (key.startsWith("backstage:")) return tr("Fila %1").arg(key.mid(10));
+    if (key.startsWith("registro:")) return tr("Tótem de registro %1").arg(key.mid(9));
     if (key.startsWith("entrada:")) return key.mid(8);
     if (key.startsWith("escena:")) return key.mid(7);
     return key;

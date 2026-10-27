@@ -79,7 +79,7 @@ QObject* TwitchViewModel::categories() const { return categories_.get(); }
 void TwitchViewModel::setError(const QString& e) {
     lastError_ = e;
     emit errorChanged();
-    if (!e.isEmpty()) emit notify(e.startsWith("Twitch") ? e : "Twitch: " + e, "error");
+    if (!e.isEmpty()) emit notify(e.startsWith("Twitch") ? e : tr("Twitch: %1").arg(e), "error");
 }
 
 void TwitchViewModel::track(bool start) {
@@ -100,7 +100,7 @@ void TwitchViewModel::login() {
     setError({});
     client_->login([this](bool ok, const QJsonObject& u, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Conectado a Twitch: " + u.value("display_name").toString(), "ok");
+        emit notify(tr("Conectado a Twitch: %1").arg(u.value("display_name").toString()), "ok");
         refresh();
     });
 }
@@ -199,8 +199,8 @@ void TwitchViewModel::goLive() {
 void TwitchViewModel::goLive(TwitchClient::Done done) {
     if (rt_.engine().status().streaming)
         return done(false, {},
-                    streamingHere_ ? "Ya se esta transmitiendo a Twitch."
-                                   : "La app ya esta transmitiendo: corta esa transmision primero.");
+                    streamingHere_ ? tr("Ya se esta transmitiendo a Twitch.")
+                                   : tr("La app ya esta transmitiendo: corta esa transmision primero."));
     track(true);
     QPointer<TwitchViewModel> self(this);
     client_->ingest([self, done](bool ok, const QJsonObject& ing, const QString& e) {
@@ -211,8 +211,7 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
         if (!self->rt_.startStreaming(ing.value("url").toString().toStdString(),
                                       ing.value("key").toString().toStdString()))
             return done(false, {},
-                        "La app no pudo empezar a transmitir: " +
-                            QString::fromStdString(self->rt_.lastError()));
+                        tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(self->rt_.lastError())));
         self->streamingHere_ = true;
         emit self->stateChanged();
         emit self->vivo(QVariantMap{{"plataforma", "twitch"},

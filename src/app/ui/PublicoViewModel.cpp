@@ -124,7 +124,7 @@ void PublicoViewModel::abrirVotacion(const QString& pregunta, const QStringList&
     QPointer<PublicoViewModel> yo(this);
     const std::string e = votacionSala_->abrir(pregunta.trimmed().toStdString(), ops, modo.toStdString(), secreta, enVivo,
                                                [yo](const std::string& err, const nlohmann::json& r) {
-                                                   if (yo) yo->alVolverVotacion(err, r, "No se pudo abrir la votación");
+                                                   if (yo) yo->alVolverVotacion(err, r, tr("No se pudo abrir la votación"));
                                                });
     if (!e.empty()) emit notify(QString::fromStdString(e), "error");
 }
@@ -133,7 +133,7 @@ void PublicoViewModel::cerrarVotacion() {
     if (votacionSala_ == nullptr) return;
     QPointer<PublicoViewModel> yo(this);
     votacionSala_->cerrar([yo](const std::string& err, const nlohmann::json& r) {
-        if (yo) yo->alVolverVotacion(err, r, "No pude cerrarla");
+        if (yo) yo->alVolverVotacion(err, r, tr("No pude cerrarla"));
     });
 }
 
@@ -141,7 +141,7 @@ void PublicoViewModel::mostrarEnVivo(bool si) {
     if (votacionSala_ == nullptr) return;
     QPointer<PublicoViewModel> yo(this);
     votacionSala_->setEnVivo(si, [yo](const std::string& err, const nlohmann::json& r) {
-        if (yo) yo->alVolverVotacion(err, r, "No pude cambiarlo");
+        if (yo) yo->alVolverVotacion(err, r, tr("No pude cambiarlo"));
     });
 }
 
