@@ -66,8 +66,13 @@ def main() -> int:
         opciones = ["-pluralonly"] if perfil.get("fuente") else []
         opciones += ["-target-language", codigo.replace("-", "_")]
         print(f"[i18n] {ts.relative_to(RAIZ)}")
-        r = subprocess.run([str(exe), f"@{lista}", *comunes, *opciones, "-ts", str(ts)],
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        try:
+            # Con todo el programa tarda segundos: más que esto es que se colgó (ver llamadas.py).
+            r = subprocess.run([str(exe), f"@{lista}", *comunes, *opciones, "-ts", str(ts)],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600)
+        except subprocess.TimeoutExpired:
+            print("[i18n] lupdate se colgó: corré tools/i18n/llamadas.py", file=sys.stderr)
+            return 1
         # El analizador de C++ de lupdate se queja de cada `struct X::Impl` (no lee los .hpp
         # de otros archivos); no dice nada de las traducciones.
         for linea in r.stdout.splitlines():

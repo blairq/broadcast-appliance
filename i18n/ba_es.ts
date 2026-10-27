@@ -321,7 +321,7 @@
 <context>
     <name>EventoViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1157"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1166"/>
         <source>, %n bloque vacío que no pasa</source>
         <translation>
             <numerusform>, %n bloque vacío que no pasa</numerusform>
@@ -902,7 +902,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PluginsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/PluginsPage.qml" line="+318"/>
+        <location filename="../src/app/qml/pages/PluginsPage.qml" line="+319"/>
         <source>%n reinicio</source>
         <translation>
             <numerusform>%n reinicio</numerusform>
@@ -1115,7 +1115,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>StudioViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4319"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4339"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>
@@ -1359,6 +1359,153 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>%n dispositivo</numerusform>
             <numerusform>%n dispositivos</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>mcp</name>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpAsambleaTools.cpp" line="+173"/>
+        <source>Ninguna escena muestra la cámara «%1» (la de %n banca): al darle la palabra no hay qué armar.</source>
+        <translation>
+            <numerusform>Ninguna escena muestra la cámara «%1» (la de %n banca): al darle la palabra no hay qué armar.</numerusform>
+            <numerusform>Ninguna escena muestra la cámara «%1» (la de %n bancas): al darles la palabra no hay qué armar.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+439"/>
+        <source>%n cuadro</source>
+        <translation>
+            <numerusform>%n cuadro</numerusform>
+            <numerusform>%n cuadros</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1402"/>
+        <source>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</source>
+        <translation>
+            <numerusform>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</numerusform>
+            <numerusform>La revisión encontró %n problemas graves: mirá evento_revisar (o evento_verificar) y corregilos, o repetí con `forzar`: true.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+235"/>
+        <source>%n bloque</source>
+        <translation>
+            <numerusform>%n bloque</numerusform>
+            <numerusform>%n bloques</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n cue</source>
+        <translation>
+            <numerusform>%n cue</numerusform>
+            <numerusform>%n cues</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n persona</source>
+        <translation>
+            <numerusform>%n persona</numerusform>
+            <numerusform>%n personas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+559"/>
+        <source>Mandado a %n superficie. Ya cambio: superficie_listar lo confirma.</source>
+        <translation>
+            <numerusform>Mandado a %n superficie. Ya cambió: superficie_listar lo confirma.</numerusform>
+            <numerusform>Mandado a %n superficies. Ya cambiaron: superficie_listar lo confirma.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpProcedimientoTools.cpp" line="+590"/>
+        <source>%n con derecho a voto.</source>
+        <translation>
+            <numerusform>%n con derecho a voto.</numerusform>
+            <numerusform>%n con derecho a voto.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+6"/>
+        <source>%n anotado.</source>
+        <translation>
+            <numerusform>%n anotado.</numerusform>
+            <numerusform>%n anotados.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+86"/>
+        <source>%n cosa FALTA (así no se puede salir)</source>
+        <translation>
+            <numerusform>%n cosa FALTA (así no se puede salir)</numerusform>
+            <numerusform>%n cosas FALTAN (así no se puede salir)</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n aviso</source>
+        <translation>
+            <numerusform>%n aviso</numerusform>
+            <numerusform>%n avisos</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n cosa para que confirme una persona.</source>
+        <translation>
+            <numerusform>%n cosa para que confirme una persona.</numerusform>
+            <numerusform>%n cosas para que confirme una persona.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpRoomTools.cpp" line="+203"/>
+        <source>Cupo: %n invitado, sin reiniciar la conferencia.</source>
+        <translation>
+            <numerusform>Cupo: %n invitado, sin reiniciar la conferencia.</numerusform>
+            <numerusform>Cupo: %n invitados, sin reiniciar la conferencia.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpRostroTools.cpp" line="+272"/>
+        <source>Con su cara (%n guardada) y su foto.</source>
+        <translation>
+            <numerusform>Con su cara (%n guardada) y su foto.</numerusform>
+            <numerusform>Con sus caras (%n guardadas) y su foto.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Con su cara (%n guardada).</source>
+        <translation>
+            <numerusform>Con su cara (%n guardada).</numerusform>
+            <numerusform>Con sus caras (%n guardadas).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+382"/>
+        <source>%n ficha sin nombre.</source>
+        <translation>
+            <numerusform>%n ficha sin nombre.</numerusform>
+            <numerusform>%n fichas sin nombre.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+238"/>
+        <source>Borrado %n cuadro de subtítulos.</source>
+        <translation>
+            <numerusform>Borrado %n cuadro de subtítulos.</numerusform>
+            <numerusform>Borrados %n cuadros de subtítulos.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+77"/>
+        <source>Importado %n término revisado.</source>
+        <translation>
+            <numerusform>Importado %n término revisado.</numerusform>
+            <numerusform>Importados %n términos revisados.</numerusform>
         </translation>
     </message>
 </context>

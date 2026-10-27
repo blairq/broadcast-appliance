@@ -435,8 +435,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                     std::string aviso;
                     const std::string e = bot.ponerCara(perfil, pagina, x, y, id.toStdString(), al, &aviso);
                     if (!e.empty()) return done(ToolResult::error(e));
-                    const std::string cuadros =
-                        ba::i18n::traducir("mcp", "%n cuadro", nullptr, caras.info(id).value("cuadros").toInt());
+                    const int nCuadros = caras.info(id).value("cuadros").toInt();
+                    const std::string cuadros = ba::i18n::traducir("mcp", "%n cuadro", nullptr, nCuadros);
                     done(ToolResult::ok(
                         aviso.empty()
                             ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: cara «medio:%1» (%2)."), {id.toStdString(), cuadros})

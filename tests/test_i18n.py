@@ -151,6 +151,15 @@ def test_no_code_branches_on_a_language() -> None:
     assert not resueltos, f"no longer language-specific, take them out of PENDIENTES: {sorted(resueltos)}"
 
 
+def test_translation_calls_lupdate_can_read() -> None:
+    """lupdate hangs on a plural whose count has a quoted string inside a call
+    (`traducir("mcp", "%n x", nullptr, r.value("n", 0))`): the count goes in a variable."""
+    sys.path.insert(0, str(REPO / "tools" / "i18n"))
+    import llamadas
+    malas = llamadas.problemas()
+    assert not malas, "\n".join(malas)
+
+
 def test_ts_to_json(tmp_path: Path) -> None:
     ts = tmp_path / "ba_zz.ts"
     ts.write_text("""<?xml version="1.0" encoding="utf-8"?>

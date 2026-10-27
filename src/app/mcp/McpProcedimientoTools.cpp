@@ -582,16 +582,18 @@ void McpService::registerProcedimientoTools() {
                     // --- el padrón ---
                     if (!no("pad")) {
                         const json res = (*r)["pad"].datos.value("resumen", json::object());
+                        // El número de un plural, en una variable (lupdate, tools/i18n/llamadas.py).
+                        const int conVoto = res.value("conVoto", 0), total = res.value("total", 0);
                         if (asamblea)
                             item("padron", ba::i18n::traducir("mcp", "votantes"), res.value("conVoto", 0) > 0 ? "ok" : "falta",
                                  res.value("conVoto", 0) > 0
-                                     ? ba::i18n::traducir("mcp", "%n con derecho a voto.", nullptr, res.value("conVoto", 0))
+                                     ? ba::i18n::traducir("mcp", "%n con derecho a voto.", nullptr, conVoto)
                                      : ba::i18n::traducir("mcp", "Nadie del padrón tiene derecho a voto: sin eso no hay quórum."),
                                  res.value("conVoto", 0) > 0 ? "" : ba::i18n::traducir("mcp", "padron_anotar {vota: true} o evento_armar {gente}"));
                         else
                             item("padron", ba::i18n::traducir("mcp", "asistentes"), res.value("total", 0) > 0 ? "ok" : "aviso",
                                  res.value("total", 0) > 0
-                                     ? ba::i18n::traducir("mcp", "%n anotado.", nullptr, res.value("total", 0))
+                                     ? ba::i18n::traducir("mcp", "%n anotado.", nullptr, total)
                                      : ba::i18n::traducir("mcp", "No hay asistentes anotados (si hay acreditación en la puerta, conviene cargarlos)."),
                                  res.value("total", 0) > 0 ? "" : "padron_anotar");
                     }
