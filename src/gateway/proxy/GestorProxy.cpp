@@ -7,6 +7,7 @@
 #include "proxy/Acme.hpp"
 #include "proxy/Certificados.hpp"
 #include "proxy/ProxyNombres.hpp"
+#include "i18n/I18n.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <chrono>
@@ -56,7 +57,7 @@ bool GestorProxy::start() {
     c.puertoHttp = static_cast<uint16_t>(cfg_.value("puertoHttp", 80));
     c.dominio = cfg_.value("dominio", std::string());
     if (c.dominio.empty()) {
-        if (log_) log_("proxy: falta el dominio (proxy.dominio): no arranca");
+        if (log_) log_(ba::i18n::traducir("gateway", "proxy: falta el dominio (proxy.dominio): no arranca"));
         return false;
     }
     const json servicios = cfg_.contains("servicios") && cfg_["servicios"].is_array() && !cfg_["servicios"].empty()
@@ -160,7 +161,7 @@ void GestorProxy::pedirSiHaceFalta(bool forzar, const std::string& soloHost) {
         const bool tiene = store.read(clave(h, "cert"), cert);
         const std::int64_t queda = tiene ? vence(cert) - ahoraS() : 0;
         if (!forzar && tiene && queda > 30LL * 86400) continue; // le queda más de un mes
-        if (log_) log_("acme: pidiendo el certificado de " + h);
+        if (log_) log_(ba::i18n::llenar(ba::i18n::traducir("gateway", "acme: pidiendo el certificado de %1"), {h}));
         const auto r = acme.pedir({h}, [this](const std::string& t, const std::string& resp, bool poner) {
             if (poner) px_->ponerDesafio(t, resp);
             else px_->quitarDesafio(t);

@@ -2,6 +2,7 @@
 // src/motor/Mapa.cpp — ver Mapa.hpp
 // ============================================================================
 #include "Mapa.hpp"
+#include "i18n/I18n.hpp"
 
 #include <gst/base/gstbasetransform.h>
 
@@ -196,13 +197,14 @@ json describirPipeline(GstElement* p) {
                                   clase.find("Mixer") != std::string::npos || clase.find("Effect") != std::string::npos ||
                                   clase.find("Compositor") != std::string::npos;
         if (!pasante && video && sisSale && !gpuSale && (sisEntra || entra.empty()) && trabajaVideo)
-            cpu.push_back({{"elemento", nombre}, {"fabrica", fabrica}, {"que", "procesa video en memoria de sistema"}});
+            cpu.push_back({{"elemento", nombre}, {"fabrica", fabrica}, {"que", ba::i18n::traducir("motor", "procesa video en memoria de sistema")}});
         if ((clase.find("Decoder") != std::string::npos || clase.find("Encoder") != std::string::npos) && !hw &&
             clase.find("Video") != std::string::npos)
             cpu.push_back({{"elemento", nombre},
                            {"fabrica", fabrica},
-                           {"que", clase.find("Decoder") != std::string::npos ? "decodifica video en CPU (no es de hardware)"
-                                                                               : "codifica video en CPU (no es de hardware)"}});
+                           {"que", clase.find("Decoder") != std::string::npos
+                                       ? ba::i18n::traducir("motor", "decodifica video en CPU (no es de hardware)")
+                                       : ba::i18n::traducir("motor", "codifica video en CPU (no es de hardware)")}});
         elementos.push_back(el);
     }
     for (GstElement* e : elems) gst_object_unref(e);

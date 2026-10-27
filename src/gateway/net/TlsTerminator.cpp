@@ -8,6 +8,7 @@
 
 #include "net/TlsTerminator.hpp"
 
+#include "i18n/I18n.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <array>
@@ -52,6 +53,8 @@ using SockT = int;
 namespace ba::gateway::net {
 
 namespace fs = std::filesystem;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -185,8 +188,8 @@ bool TlsTerminator::cargarCertificado() {
                                         crtPem.size()) == 0 &&
                  mbedtls_pk_parse_key(&d.key, reinterpret_cast<const unsigned char*>(keyPem.data()),
                                       keyPem.size(), nullptr, 0, &Impl::rng, &d) == 0;
-        if (loaded && log_) log_("https: certificado propio (Credenciales/tls-propio)");
-        if (!loaded && log_) log_("https: el certificado propio es invalido; se usa uno autofirmado");
+        if (loaded && log_) log_(traducir("gateway", "https: certificado propio (Credenciales/tls-propio)"));
+        if (!loaded && log_) log_(traducir("gateway", "https: el certificado propio es invalido; se usa uno autofirmado"));
         if (loaded) {
             d.crtPem = crtPem;
             d.keyPem = keyPem;
@@ -279,7 +282,7 @@ bool TlsTerminator::cargarCertificado() {
             ok = ok && mbedtls_x509_crt_parse(&d.crt, reinterpret_cast<const unsigned char*>(crtPem.c_str()),
                                               crtPem.size() + 1) == 0;
             if (!ok) {
-                if (log_) log_("https: no se pudo generar el certificado autofirmado");
+                if (log_) log_(traducir("gateway", "https: no se pudo generar el certificado autofirmado"));
                 return false;
             }
             const bool saved = store.write("tls-autofirmado-cert", crtPem) &&
@@ -290,9 +293,9 @@ bool TlsTerminator::cargarCertificado() {
             mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
             loaded = true;
             if (log_)
-                log_(saved ? "https: certificado autofirmado nuevo (Credenciales/tls-autofirmado)"
-                           : "https: certificado autofirmado nuevo (no se pudo guardar: cambiara en el "
-                             "proximo arranque)");
+                log_(saved ? traducir("gateway", "https: certificado autofirmado nuevo (Credenciales/tls-autofirmado)")
+                           : traducir("gateway", "https: certificado autofirmado nuevo (no se pudo guardar: cambiara "
+                                                 "en el proximo arranque)"));
         }
     }
     unsigned char h[32];
@@ -340,7 +343,7 @@ bool TlsTerminator::start() {
     if (!wsa_) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-            if (log_) log_("https: no arranco Winsock (WSAStartup)");
+            if (log_) log_(traducir("gateway", "https: no arranco Winsock (WSAStartup)"));
             return false;
         }
         wsa_ = true;
@@ -349,13 +352,14 @@ bool TlsTerminator::start() {
     const SockT s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #ifdef _WIN32
     if (s == INVALID_SOCKET) {
-        if (log_) log_("https: no se pudo crear el socket (error " + std::to_string(WSAGetLastError()) + ")");
+        if (log_)
+            log_(llenar(traducir("gateway", "https: no se pudo crear el socket (error %1)"), {std::to_string(WSAGetLastError())}));
         releaseWsa();
         return false;
     }
 #else
     if (s < 0) {
-        if (log_) log_("https: no se pudo crear el socket (" + std::string(std::strerror(errno)) + ")");
+        if (log_) log_(llenar(traducir("gateway", "https: no se pudo crear el socket (%1)"), {std::strerror(errno)}));
         return false;
     }
 #endif
@@ -374,15 +378,16 @@ bool TlsTerminator::start() {
 #ifdef _WIN32
         const int code = WSAGetLastError();
         const std::string why =
-            code == WSAEADDRINUSE ? "el puerto ya esta en uso" : "error " + std::to_string(code);
+            code == WSAEADDRINUSE ? traducir("gateway", "el puerto ya esta en uso")
+                                  : llenar(traducir("gateway", "error %1"), {std::to_string(code)});
 #else
         const int code = errno;
-        const std::string why = code == EADDRINUSE ? "el puerto ya esta en uso" : std::strerror(code);
+        const std::string why = code == EADDRINUSE ? traducir("gateway", "el puerto ya esta en uso") : std::strerror(code);
 #endif
         closeSock(static_cast<long long>(s));
         if (log_)
-            log_("https: no se pudo escuchar en " + cfg_.bindAddress + ":" + std::to_string(cfg_.port) +
-                 " (" + why + ")");
+            log_(llenar(traducir("gateway", "https: no se pudo escuchar en %1:%2 (%3)"),
+                        {cfg_.bindAddress, std::to_string(cfg_.port), why}));
         releaseWsa();
         return false;
     }
@@ -393,9 +398,9 @@ bool TlsTerminator::start() {
     stop_ = false;
     accept_ = std::thread(&TlsTerminator::acceptLoop, this);
     if (log_) {
-        log_("https: escuchando en " + cfg_.bindAddress + ":" + std::to_string(boundPort_) +
-             " -> 127.0.0.1:" + std::to_string(cfg_.backendPort) + " (huella " + fingerprint_.substr(0, 23) +
-             "...)");
+        log_(llenar(traducir("gateway", "https: escuchando en %1:%2 -> 127.0.0.1:%3 (huella %4...)"),
+                    {cfg_.bindAddress, std::to_string(boundPort_), std::to_string(cfg_.backendPort),
+                     fingerprint_.substr(0, 23)}));
     }
     return true;
 }

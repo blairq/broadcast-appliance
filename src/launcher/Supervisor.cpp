@@ -10,6 +10,7 @@
 
 #include "Integrity.hpp"
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 #include "RecoveryUi.hpp"
 #include "ShadowCopy.hpp"
 #include "Sha256.hpp"
@@ -31,9 +32,15 @@
 
 namespace ba::launcher {
 
+using ba::i18n::llenar;
+using ba::i18n::traducir;
+
 std::atomic<bool> Supervisor::stopRequested_{false};
 
 namespace {
+
+// UTF-8 (los textos traducidos) a ancho, el título de la ventana de recuperación.
+std::wstring ancho(const std::string& s) { return std::filesystem::path(std::u8string(s.begin(), s.end())).wstring(); }
 
 constexpr int kPollMs = 250;
 constexpr std::uint32_t kProcVersion = 1;
@@ -106,7 +113,7 @@ int Supervisor::run() {
     while (!ba::platform::SingleInstance::acquire("launcher", instance_, &err)) {
         if (std::chrono::steady_clock::now() >= hasta) {
             // Segunda ejecucion (spec 3.1.1): la primera sigue a cargo.
-            BA_LOG_INFO("instance", 0, "no se inicia: " + err);
+            BA_LOG_INFO("instance", 0, llenar(traducir("instance", "no se inicia: %1"), {err}));
             return 0;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
@@ -118,14 +125,14 @@ int Supervisor::run() {
     if (!integrityReport.ok && cfg_.recoveryUi) {
         // Spec 3.1.2: "mensaje claro en lugar de crashear". No es fatal.
         Incident inc;
-        inc.title = L"Broadcast Appliance — Integridad";
+        inc.title = ancho(traducir("recuperacion", "Broadcast Appliance — Integridad"));
         inc.showIntegrity = true;
         inc.integrity = integrityReport;
         if (RecoveryUi::present(inc) == RecoveryAction::Exit) {
-            BA_LOG_INFO("sup", 0, "operador eligio salir ante fallos de integridad");
+            BA_LOG_INFO("sup", 0, traducir("sup", "operador eligio salir ante fallos de integridad"));
             return 1;
         }
-        BA_LOG_INFO("sup", 0, "operador eligio continuar pese a fallos de integridad");
+        BA_LOG_INFO("sup", 0, traducir("sup", "operador eligio continuar pese a fallos de integridad"));
     }
 
     // Copia sombra (spec 3.1.5): se ejecuta desde una copia para poder
@@ -144,10 +151,10 @@ int Supervisor::run() {
         st = ba::ipc::HealthBlock::create(ba::ipc::HealthBlock::kName, slotCount, health_);
     }
     if (!st.ok) {
-        BA_LOG_ERROR("health", st.code, "no se pudo crear BA.Health");
+        BA_LOG_ERROR("health", st.code, traducir("health", "no se pudo crear BA.Health"));
         return 1;
     }
-    BA_LOG_INFO("health", 0, "BA.Health listo con " + std::to_string(slotCount) + " slots");
+    BA_LOG_INFO("health", 0, llenar(traducir("health", "BA.Health listo con %1 slots"), {std::to_string(slotCount)}));
 
     launchChildren();
     // Lo que la verificación rápida no leyó (archivos nuevos o cambiados, o todo la
@@ -161,7 +168,7 @@ int Supervisor::run() {
 
 void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
     if (execRoot.empty() || execRoot == cfg_.root) {
-        BA_LOG_INFO("shadow", 0, "ejecutando desde la raiz original");
+        BA_LOG_INFO("shadow", 0, traducir("shadow", "ejecutando desde la raiz original"));
         return;
     }
     // Reapunta A y B a la copia conservando su ruta relativa (bin/64bit/..).
@@ -173,7 +180,7 @@ void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
     };
     cfg_.appExe = rebase(cfg_.appExe);
     cfg_.gatewayExe = rebase(cfg_.gatewayExe);
-    BA_LOG_INFO("shadow", 0, "ejecutando desde la copia sombra: " + execRoot.string());
+    BA_LOG_INFO("shadow", 0, llenar(traducir("shadow", "ejecutando desde la copia sombra: %1"), {execRoot.string()}));
 }
 
 std::filesystem::path Supervisor::cacheIntegridad() const {
@@ -197,13 +204,14 @@ IntegrityReport Supervisor::verifyIntegrity() {
     if (huboFallo && report.ok) std::filesystem::remove(marcaFallo(), ec);
     if (report.ok) {
         BA_LOG_INFO("integrity", 0,
-                    "integridad OK antes de arrancar (" + std::to_string(report.checked) + " archivos, " +
-                        std::to_string(report.hashed) + " leídos, " + std::to_string(report.pendientes) +
-                        " para leer en el fondo)");
+                    llenar(traducir("integrity",
+                                    "integridad OK antes de arrancar (%1 archivos, %2 leídos, %3 para leer en el fondo)"),
+                           {std::to_string(report.checked), std::to_string(report.hashed),
+                            std::to_string(report.pendientes)}));
     } else {
         BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
-                     "integridad: " + std::to_string(report.missing) + " ausentes, " +
-                         std::to_string(report.mismatch) + " con hash distinto");
+                     llenar(traducir("integrity", "integridad: %1 ausentes, %2 con hash distinto"),
+                            {std::to_string(report.missing), std::to_string(report.mismatch)}));
     }
     return report;
 }
@@ -218,12 +226,14 @@ void Supervisor::verificarEnElFondo() {
         // El caché, YA: no depende de un cierre ordenado.
         Integrity::guardarCache(cacheIntegridad());
         BA_LOG_INFO("integrity", 0,
-                    "integridad en el fondo OK (" + std::to_string(r.hashed) + " leídos en " + std::to_string(ms) + " ms)");
+                    llenar(traducir("integrity", "integridad en el fondo OK (%1 leídos en %2 ms)"),
+                           {std::to_string(r.hashed), std::to_string(ms)}));
         return;
     }
     BA_LOG_ERROR("integrity", static_cast<int>(r.failures.size()),
-                 "integridad en el fondo: " + std::to_string(r.missing) + " ausentes, " + std::to_string(r.mismatch) +
-                     " con hash distinto (el próximo arranque lo muestra)");
+                 llenar(traducir("integrity",
+                                 "integridad en el fondo: %1 ausentes, %2 con hash distinto (el próximo arranque lo muestra)"),
+                        {std::to_string(r.missing), std::to_string(r.mismatch)}));
     std::error_code ec;
     std::filesystem::create_directories(marcaFallo().parent_path(), ec);
     std::ofstream m(marcaFallo());
@@ -246,7 +256,7 @@ void Supervisor::launchOne(bool isA) {
     // abierto: no se rota ni se encabeza hasta que haya que relanzarlo.
     const ba::ipc::Snapshot snap = health_.read(slot);
     if (snap.pid != 0 && !health_.isStale(slot) && child(isA).attach(snap.pid, name)) {
-        BA_LOG_INFO("sup", 0, "readopt: adoptado " + name + " pid=" + std::to_string(snap.pid));
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "readopt: adoptado %1 pid=%2"), {name, std::to_string(snap.pid)}));
         return;
     }
     startChild(isA);
@@ -297,7 +307,7 @@ void Supervisor::restartChild(bool isA) {
                              appCrashTimes_.end());
         if (static_cast<int>(appCrashTimes_.size()) > cfg_.maxCaidas && !safeMode_) {
             safeMode_ = true; // circuit breaker (spec 3.1.8)
-            BA_LOG_WARN("sup", 0, "circuit breaker: A entra en modo seguro");
+            BA_LOG_WARN("sup", 0, traducir("sup", "circuit breaker: A entra en modo seguro"));
         }
         appNeedsRestore_ = true;
     }
@@ -305,7 +315,7 @@ void Supervisor::restartChild(bool isA) {
     const int delay = backoffSeconds(consecutive);
     ++consecutive;
     if (delay > 0) {
-        BA_LOG_INFO("sup", 0, std::string(isA ? "A" : "B") + ": reinicio en " + std::to_string(delay) + " s");
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1: reinicio en %2 s"), {isA ? "A" : "B", std::to_string(delay)}));
         sleepInterruptible(delay * 1000, stopRequested_);
         if (stopRequested_.load()) {
             return;
@@ -319,19 +329,20 @@ void Supervisor::restartChild(bool isA) {
 namespace {
 /// Qué quiere decir el código con que terminó un proceso (para el cartel de la app).
 std::string causaDe(std::optional<int> code) {
-    if (!code) return "terminó sin código";
+    // La causa la muestra la app en el cartel al volver: en el idioma del operador.
+    if (!code) return traducir("caidas", "terminó sin código");
     switch (*code) {
-        case 139: return "error de memoria (SIGSEGV)";
-        case 134: return "se abortó (SIGABRT)";
-        case 138: return "error de bus (SIGBUS)";
-        case 137: return "lo mató el sistema (SIGKILL: ¿falta de memoria?)";
-        case 136: return "error aritmético (SIGFPE)";
-        case 132: return "instrucción inválida (SIGILL)";
+        case 139: return traducir("caidas", "error de memoria (SIGSEGV)");
+        case 134: return traducir("caidas", "se abortó (SIGABRT)");
+        case 138: return traducir("caidas", "error de bus (SIGBUS)");
+        case 137: return traducir("caidas", "lo mató el sistema (SIGKILL: ¿falta de memoria?)");
+        case 136: return traducir("caidas", "error aritmético (SIGFPE)");
+        case 132: return traducir("caidas", "instrucción inválida (SIGILL)");
         default: break;
     }
-    if (static_cast<unsigned>(*code) == 0xC0000005u) return "violación de acceso (0xC0000005)";
-    if (static_cast<unsigned>(*code) == 0xC00000FDu) return "desbordamiento de pila (0xC00000FD)";
-    return "terminó con el código " + std::to_string(*code);
+    if (static_cast<unsigned>(*code) == 0xC0000005u) return traducir("caidas", "violación de acceso (0xC0000005)");
+    if (static_cast<unsigned>(*code) == 0xC00000FDu) return traducir("caidas", "desbordamiento de pila (0xC00000FD)");
+    return llenar(traducir("caidas", "terminó con el código %1"), {std::to_string(*code)});
 }
 } // namespace
 
@@ -367,10 +378,9 @@ void Supervisor::handleCrash(bool isA) {
         // log: se espera bastante y se reintenta por si el entorno cambia
         // (alguien inicia la sesion grafica).
         BA_LOG_ERROR("sup", *code,
-                     name +
-                         " no puede funcionar en este entorno (ver su log: p. ej. sin sesion grafica); "
-                         "reintento en " +
-                         std::to_string(kEnvironmentRetryMs() / 1000) + " s");
+                     llenar(traducir("sup", "%1 no puede funcionar en este entorno (ver su log: p. ej. sin sesion "
+                                            "grafica); reintento en %2 s"),
+                            {name, std::to_string(kEnvironmentRetryMs() / 1000)}));
         sleepInterruptible(static_cast<int>(kEnvironmentRetryMs()), stopRequested_);
         if (!stopRequested_.load()) {
             startChild(isA);
@@ -383,11 +393,11 @@ void Supervisor::handleCrash(bool isA) {
     // Dos seguidas en menos de 10 s ya no es un reinicio pedido: camino normal.
     if (!isA && esCierreOrdenadoB(code)) {
         ultimoCierreOrdenadoB_ = nowMs();
-        BA_LOG_INFO("sup", 0, "B se cerró en orden (reinicio de la sala); se relanza");
+        BA_LOG_INFO("sup", 0, traducir("sup", "B se cerró en orden (reinicio de la sala); se relanza"));
         startChild(false);
         return;
     }
-    BA_LOG_WARN("sup", code.value_or(-1), name + " termino inesperadamente; reiniciando con backoff");
+    BA_LOG_WARN("sup", code.value_or(-1), llenar(traducir("sup", "%1 termino inesperadamente; reiniciando con backoff"), {name}));
     // Si avisó la caída, la causa sale del volcado (qué excepción y en qué módulo).
     const std::optional<Volcado> v = volcados_->tomarCaida(name);
     anotarCaida(isA, v ? v->causa : causaDe(code), code, v ? v->dmp : std::filesystem::path());
@@ -406,13 +416,14 @@ void Supervisor::handleHang(bool isA) {
         // No es un cuelgue: se cayó (ya avisó y está volcado) y Windows lo
         // retiene mientras arma su informe. Se lo trata como la caída que es.
         const std::optional<Volcado> v = volcados_->tomarCaida(name);
-        BA_LOG_WARN("sup", 0, name + " se cayó (" + (v ? v->causa : std::string("?")) + "); terminar y relanzar");
-        anotarCaida(isA, v ? v->causa : "se cayó", std::nullopt, v ? v->dmp : std::filesystem::path());
+        BA_LOG_WARN("sup", 0,
+                    llenar(traducir("sup", "%1 se cayó (%2); terminar y relanzar"), {name, v ? v->causa : std::string("?")}));
+        anotarCaida(isA, v ? v->causa : traducir("caidas", "se cayó"), std::nullopt, v ? v->dmp : std::filesystem::path());
     } else {
-        BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
+        BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 colgado (heartbeat estancado); volcado + terminar"), {name}));
         // Uno por cuelgue, con la hora y un .json que dice qué pasó (Volcados.hpp).
         const Volcado v = volcados_->porCuelgue(name, child(isA).pid(), cfg_.logsDir / (isA ? "app.log" : "gateway.log"));
-        anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt, v.dmp);
+        anotarCaida(isA, traducir("caidas", "se colgó (dejó de latir)"), std::nullopt, v.dmp);
     }
     child(isA).kill();
     child(isA).waitExit(kTerminateMs());
@@ -424,7 +435,7 @@ void Supervisor::handleHang(bool isA) {
 void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
     if (preguntando_->load()) return; // ya hay un cartel abierto
     Incident inc;
-    inc.title = L"Broadcast Appliance — Recuperación";
+    inc.title = ancho(traducir("recuperacion", "Broadcast Appliance — Recuperación"));
     inc.childADown = appDown || appHung;
     inc.childBDown = gwDown || gwHung;
     if (appDown) {
@@ -452,7 +463,7 @@ void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool g
 }
 
 void Supervisor::forceRestart() {
-    BA_LOG_WARN("sup", 0, "forzar reinicio: terminando hijos y relanzando desde 0");
+    BA_LOG_WARN("sup", 0, traducir("sup", "forzar reinicio: terminando hijos y relanzando desde 0"));
     for (bool isA : {true, false}) {
         child(isA).kill();
         child(isA).waitExit(kTerminateMs());
@@ -472,7 +483,7 @@ void Supervisor::forceRestart() {
 void Supervisor::watchdogLoop() {
     while (!shuttingDown_) {
         if (stopRequested_.load()) {
-            BA_LOG_INFO("sup", 0, "cierre pedido (señal/sesion)");
+            BA_LOG_INFO("sup", 0, traducir("sup", "cierre pedido (señal/sesion)"));
             orderedShutdown();
             break;
         }
@@ -483,7 +494,7 @@ void Supervisor::watchdogLoop() {
 
         // A salio con codigo 0: cierre ordenado del operador, no es un fallo.
         if (appDown && app_.exitCode() == 0) {
-            BA_LOG_INFO("sup", 0, "A salio limpiamente (codigo 0); cierre ordenado");
+            BA_LOG_INFO("sup", 0, traducir("sup", "A salio limpiamente (codigo 0); cierre ordenado"));
             orderedShutdown();
             break;
         }
@@ -502,7 +513,7 @@ void Supervisor::watchdogLoop() {
         // Lo que contestaron en el cartel (si contestaron): se toma acá, sin haber frenado nada.
         const int decision = decisionRecuperacion_->exchange(-1);
         if (decision == static_cast<int>(RecoveryAction::Exit)) {
-            BA_LOG_INFO("sup", 0, "recuperación: el operador eligió salir");
+            BA_LOG_INFO("sup", 0, traducir("sup", "recuperación: el operador eligió salir"));
             orderedShutdown();
             break;
         }
@@ -557,14 +568,14 @@ void Supervisor::stopChild(bool isA) {
     // 1) Pedido por el canal de control. 2) SIGTERM (POSIX). 3) Matar.
     if (control_.requestShutdown(isA ? ControlChannel::kAppChannel : ControlChannel::kGatewayChannel) &&
         c.waitExit(kGracefulMs())) {
-        BA_LOG_INFO("sup", 0, name + " cerro por el canal de control");
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro por el canal de control"), {name}));
         return;
     }
     if (c.terminate() && c.waitExit(kTerminateMs())) {
-        BA_LOG_INFO("sup", 0, name + " cerro tras la señal de terminacion");
+        BA_LOG_INFO("sup", 0, llenar(traducir("sup", "%1 cerro tras la señal de terminacion"), {name}));
         return;
     }
-    BA_LOG_WARN("sup", 0, name + " no cerro a tiempo; se fuerza");
+    BA_LOG_WARN("sup", 0, llenar(traducir("sup", "%1 no cerro a tiempo; se fuerza"), {name}));
     c.kill();
     c.waitExit(kTerminateMs());
 }
@@ -574,7 +585,7 @@ void Supervisor::orderedShutdown() {
         return;
     }
     shuttingDown_ = true;
-    BA_LOG_INFO("sup", 0, "cierre ordenado: A primero (corta la emision), despues B");
+    BA_LOG_INFO("sup", 0, traducir("sup", "cierre ordenado: A primero (corta la emision), despues B"));
     stopChild(true);
     stopChild(false);
     health_.setState(cfg_.slotA, ba::ipc::ProcessState::Terminated);
@@ -583,7 +594,7 @@ void Supervisor::orderedShutdown() {
     health_.setIdentity(cfg_.slotA, 0, kProcVersion);
     health_.setIdentity(cfg_.slotB, 0, kProcVersion);
     Integrity::guardarCache(cacheIntegridad());
-    BA_LOG_INFO("sup", 0, "clean_shutdown marcado");
+    BA_LOG_INFO("sup", 0, traducir("sup", "clean_shutdown marcado"));
 }
 
 } // namespace ba::launcher

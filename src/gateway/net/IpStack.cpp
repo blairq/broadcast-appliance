@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "net/IpStack.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -622,9 +623,9 @@ bool IpStack::start() {
     d.stop = false;
     d.thread = std::thread([&d] { d.loop(); });
     if (d.log) {
-        d.log("pila IP: " + ipToString(d.cfg.tunnelIp) + "/" + std::to_string(d.cfg.prefix) +
-              " sobre WireGuard (" + std::to_string(d.tcpFwds.size()) + " reenvios TCP, UDP " +
-              std::to_string(d.udpFirst) + "-" + std::to_string(d.udpLast) + ")");
+        d.log(ba::i18n::llenar(ba::i18n::traducir("gateway", "pila IP: %1/%2 sobre WireGuard (%3 reenvios TCP, UDP %4-%5)"),
+                               {ipToString(d.cfg.tunnelIp), std::to_string(d.cfg.prefix), std::to_string(d.tcpFwds.size()),
+                                std::to_string(d.udpFirst), std::to_string(d.udpLast)}));
     }
     return true;
 }

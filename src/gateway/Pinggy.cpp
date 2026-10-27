@@ -26,8 +26,12 @@
 
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::gateway {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -96,9 +100,9 @@ std::vector<std::string> PinggySupervisor::argumentos(const Cfg& cfg, std::strin
     const auto prohibido = [&](uint16_t p) { return p == 0 || cfg.prohibidos.count(p) > 0; };
     if (prohibido(cfg.puertoTunel) || (cfg.turn && prohibido(cfg.turnLocal))) {
         if (error != nullptr)
-            *error = "forwarding a un puerto prohibido (" +
-                     std::to_string(prohibido(cfg.puertoTunel) ? cfg.puertoTunel : cfg.turnLocal) +
-                     "): la API de control, el MCP y la señalización común nunca van por el túnel";
+            *error = llenar(traducir("gateway", "forwarding a un puerto prohibido (%1): la API de control, el MCP y "
+                                                "la señalización común nunca van por el túnel"),
+                            {std::to_string(prohibido(cfg.puertoTunel) ? cfg.puertoTunel : cfg.turnLocal)});
         return {};
     }
     const std::string local = "127.0.0.1:";
@@ -174,7 +178,7 @@ bool PinggySupervisor::aplicarLinea(const std::string& linea, Estado& e, uint16_
     if (ev == "error") {
         e.estado = "error";
         e.error = texto(j, "error");
-        if (e.error.empty()) e.error = "error sin detalle";
+        if (e.error.empty()) e.error = traducir("gateway", "error sin detalle");
         const auto r = j.find("recuperable");
         e.fatal = r != j.end() && r->is_boolean() && !r->get<bool>();
         return true;
@@ -247,26 +251,29 @@ bool PinggySupervisor::start() {
     if (started_.load()) return alive_.load();
     std::string error;
     if (argumentos(cfg_, &error).empty()) {
-        log_.error("pinggy: " + error + "; túnel desactivado", -1);
+        log_.error(llenar(traducir("gateway", "pinggy: %1; túnel desactivado"), {error}), -1);
         setEstado("error", error);
         return false;
     }
     std::error_code ec;
     if (!std::filesystem::exists(cfg_.exe, ec)) {
-        log_.warn("pinggy: no está el binario (" + cfg_.exe + "); sin túnel", -1);
-        setEstado("error", "falta ba-pinggy en bin/64bit");
+        log_.warn(llenar(traducir("gateway", "pinggy: no está el binario (%1); sin túnel"), {cfg_.exe}), -1);
+        setEstado("error", traducir("gateway", "falta ba-pinggy en bin/64bit"));
         return false;
     }
     if (cfg_.token.empty())
-        log_.warn("pinggy: sin token (BA_PINGGY_TOKEN o Credenciales/pinggy-token): túnel anónimo, "
-                  "60 minutos y URL al azar",
+        log_.warn(traducir("gateway", "pinggy: sin token (BA_PINGGY_TOKEN o Credenciales/pinggy-token): túnel anónimo, "
+                                      "60 minutos y URL al azar"),
                   -1);
     stop_.store(false);
     started_.store(true);
-    if (!spawn()) log_.warn("pinggy: no se pudo lanzar (se reintentará con backoff)", -1);
+    if (!spawn()) log_.warn(traducir("gateway", "pinggy: no se pudo lanzar (se reintentará con backoff)"), -1);
     thread_ = std::thread(&PinggySupervisor::runLoop, this);
-    log_.info("pinggy: supervisor arrancado (http -> 127.0.0.1:" + std::to_string(cfg_.puertoTunel) +
-              (cfg_.turn ? ", TURN -> 127.0.0.1:" + std::to_string(cfg_.turnLocal) : std::string()) + ")");
+    log_.info(cfg_.turn ? llenar(traducir("gateway", "pinggy: supervisor arrancado (http -> 127.0.0.1:%1, TURN -> "
+                                                     "127.0.0.1:%2)"),
+                                 {std::to_string(cfg_.puertoTunel), std::to_string(cfg_.turnLocal)})
+                        : llenar(traducir("gateway", "pinggy: supervisor arrancado (http -> 127.0.0.1:%1)"),
+                                 {std::to_string(cfg_.puertoTunel)}));
     return alive_.load();
 }
 
@@ -277,7 +284,8 @@ void PinggySupervisor::stop() {
     kill();
     started_.store(false);
     setEstado("apagado");
-    log_.info("pinggy: supervisor detenido (reinicios=" + std::to_string(restartCount_.load()) + ")");
+    log_.info(llenar(traducir("gateway", "pinggy: supervisor detenido (reinicios=%1)"),
+                     {std::to_string(restartCount_.load())}));
 }
 
 bool PinggySupervisor::spawn() {
@@ -305,12 +313,12 @@ bool PinggySupervisor::spawn() {
     }
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {
-        log_.warn("pinggy: no se pudo lanzar: " + err, -1);
-        setEstado("error", "no se pudo lanzar ba-pinggy: " + err);
+        log_.warn(llenar(traducir("gateway", "pinggy: no se pudo lanzar: %1"), {err}), -1);
+        setEstado("error", llenar(traducir("gateway", "no se pudo lanzar ba-pinggy: %1"), {err}));
         return false;
     }
     alive_.store(true);
-    log_.info("pinggy: lanzado (pid=" + std::to_string(proc_.pid()) + ")");
+    log_.info(llenar(traducir("gateway", "pinggy: lanzado (pid=%1)"), {std::to_string(proc_.pid())}));
     return true;
 }
 
@@ -372,14 +380,17 @@ void PinggySupervisor::leerLog() {
         if (despues.estado == "listo" && (antes.estado != "listo" || antes.urls != despues.urls)) {
             std::string u;
             for (const auto& x : despues.urls) u += (u.empty() ? "" : " ") + x;
-            log_.info("pinggy: túnel listo: " + u +
-                      (despues.turnPublico.empty() ? std::string()
-                                                   : " (TURN " + despues.turnTipo + " " + despues.turnPublico + ")"));
+            log_.info(despues.turnPublico.empty()
+                          ? llenar(traducir("gateway", "pinggy: túnel listo: %1"), {u})
+                          : llenar(traducir("gateway", "pinggy: túnel listo: %1 (TURN %2 %3)"),
+                                   {u, despues.turnTipo, despues.turnPublico}));
             backoffMs_ = 1000;
         } else if (despues.estado == "reconectando" && antes.estado != "reconectando") {
-            log_.warn("pinggy: reconectando", -1);
+            log_.warn(traducir("gateway", "pinggy: reconectando"), -1);
         } else if (despues.estado == "error" && despues.error != antes.error) {
-            log_.warn("pinggy: " + despues.error + (despues.fatal ? " (no se reintenta)" : ""), -1);
+            log_.warn(despues.fatal ? llenar(traducir("gateway", "pinggy: %1 (no se reintenta)"), {despues.error})
+                                    : "pinggy: " + despues.error,
+                      -1);
         } else if (despues.aviso != antes.aviso) {
             log_.info("pinggy: " + despues.aviso);
         }
@@ -401,7 +412,8 @@ void PinggySupervisor::runLoop() {
         const bool fatal = estado().fatal;
         if (fatal) {
             // Token inválido o parecido: reintentar no lo arregla.
-            log_.error("pinggy: error no recuperable; túnel desactivado hasta corregirlo y reiniciar el gateway",
+            log_.error(traducir("gateway",
+                                "pinggy: error no recuperable; túnel desactivado hasta corregirlo y reiniciar el gateway"),
                        -1);
             kill();
             break;
@@ -410,14 +422,16 @@ void PinggySupervisor::runLoop() {
 
         leerLog(); // lo último que dijo antes de morir
         if (estado().fatal) {
-            log_.error("pinggy: error no recuperable; túnel desactivado hasta corregirlo y reiniciar el gateway",
+            log_.error(traducir("gateway",
+                                "pinggy: error no recuperable; túnel desactivado hasta corregirlo y reiniciar el gateway"),
                        -1);
             kill();
             break;
         }
         kill();
-        setEstado("reconectando", "ba-pinggy se cerró; reintento en " + std::to_string(backoffMs_ / 1000) + " s");
-        log_.warn("pinggy: ba-pinggy se cerró; reiniciando con backoff", -1);
+        setEstado("reconectando",
+                  llenar(traducir("gateway", "ba-pinggy se cerró; reintento en %1 s"), {std::to_string(backoffMs_ / 1000)}));
+        log_.warn(traducir("gateway", "pinggy: ba-pinggy se cerró; reiniciando con backoff"), -1);
         sleepBackoff();
         if (stop_.load(std::memory_order_relaxed)) break;
         if (spawn()) ++restartCount_;

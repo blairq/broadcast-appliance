@@ -12,6 +12,7 @@
 
 #include "HttpIo.hpp"
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "ipc/SpoutTransport.hpp"
 
@@ -23,6 +24,8 @@
 
 namespace ba::gateway {
 
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 using json = nlohmann::json;
 
 namespace {
@@ -201,7 +204,7 @@ Grillas::Rect Grillas::animado(const Anim& a, int durMs, std::int64_t ahora) {
 
 std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
     if (!pedido.is_object() || !pedido.contains("grillas") || !pedido["grillas"].is_array())
-        return "falta «grillas» (una lista)";
+        return traducir("gateway", "falta «grillas» (una lista)");
     struct Nueva {
         int canal = 0, ancho = 0, alto = 0, transicion = 400;
         std::uint32_t fondo = 0, resaltar = 0xFF07C1FF;
@@ -211,30 +214,33 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
     };
     std::map<int, Nueva> nuevas;
     for (const json& g : pedido["grillas"]) {
-        if (!g.is_object()) return "cada grilla es un objeto";
+        if (!g.is_object()) return traducir("gateway", "cada grilla es un objeto");
         Nueva n;
         n.canal = g.value("canal", 0);
-        if (n.canal < 1 || n.canal > kMaxGrillas) return "«canal» va de 1 a " + std::to_string(kMaxGrillas);
-        if (nuevas.count(n.canal)) return "el canal " + std::to_string(n.canal) + " está dos veces";
+        if (n.canal < 1 || n.canal > kMaxGrillas)
+            return llenar(traducir("gateway", "«canal» va de 1 a %1"), {std::to_string(kMaxGrillas)});
+        if (nuevas.count(n.canal)) return llenar(traducir("gateway", "el canal %1 está dos veces"), {std::to_string(n.canal)});
         n.ancho = g.value("ancho", 1280);
         n.alto = g.value("alto", 720);
-        if (n.ancho < 16 || n.ancho > 3840 || n.alto < 16 || n.alto > 2160) return "tamaño fuera de 16x16..3840x2160";
+        if (n.ancho < 16 || n.ancho > 3840 || n.alto < 16 || n.alto > 2160)
+            return traducir("gateway", "tamaño fuera de 16x16..3840x2160");
         n.transicion = std::clamp(g.value("transicion_ms", 400), 0, 3000);
         n.fondo = leerColor(g, "fondo", 0);
         n.resaltar = leerColor(g, "resaltar_color", 0xFF07C1FF);
         const json celdas = g.value("celdas", json::array());
-        if (!celdas.is_array()) return "«celdas» es una lista";
+        if (!celdas.is_array()) return traducir("gateway", "«celdas» es una lista");
         if (celdas.size() > static_cast<std::size_t>(kMaxCeldasGrilla))
-            return "más de " + std::to_string(kMaxCeldasGrilla) + " celdas";
+            return llenar(traducir("gateway", "más de %1 celdas"), {std::to_string(kMaxCeldasGrilla)});
         std::set<std::string> vistas;
         for (const json& c : celdas) {
-            if (!c.is_object()) return "cada celda es un objeto";
+            if (!c.is_object()) return traducir("gateway", "cada celda es un objeto");
             Celda x;
             x.persona = c.value("persona", std::string());
-            if (x.persona.empty() || x.persona.size() > 200) return "celda sin «persona»";
-            if (!vistas.insert(x.persona).second) return "«" + x.persona + "» está dos veces en la misma grilla";
+            if (x.persona.empty() || x.persona.size() > 200) return traducir("gateway", "celda sin «persona»");
+            if (!vistas.insert(x.persona).second)
+                return llenar(traducir("gateway", "«%1» está dos veces en la misma grilla"), {x.persona});
             x.r = {c.value("x", 0.0f), c.value("y", 0.0f), c.value("w", 0.0f), c.value("h", 0.0f)};
-            if (x.r.w <= 0 || x.r.h <= 0) return "celda de «" + x.persona + "» sin tamaño";
+            if (x.r.w <= 0 || x.r.h <= 0) return llenar(traducir("gateway", "celda de «%1» sin tamaño"), {x.persona});
             x.resaltar = c.value("resaltar", false);
             n.celdas.push_back(std::move(x));
         }
@@ -621,13 +627,13 @@ void Grillas::bucle() {
                     auto s = std::make_unique<ba::ipc::SpoutSender>();
                     const std::wstring nombre = L"BA.Grilla." + std::to_wstring(k);
                     if (s->publish(nombre.c_str(), ba::ipc::SlotConfig{g.ancho, g.alto})) {
-                        log_.info("grillas: BA.Grilla." + std::to_string(k) + " listo (" + std::to_string(g.ancho) + "x" +
-                                  std::to_string(g.alto) + ")");
+                        log_.info(llenar(traducir("gateway", "grillas: BA.Grilla.%1 listo (%2x%3)"),
+                                         {std::to_string(k), std::to_string(g.ancho), std::to_string(g.alto)}));
                         g.sender = std::move(s);
                         g.senderW = g.ancho;
                         g.senderH = g.alto;
                     } else {
-                        log_.warn("grillas: no se pudo publicar BA.Grilla." + std::to_string(k), -1);
+                        log_.warn(llenar(traducir("gateway", "grillas: no se pudo publicar BA.Grilla.%1"), {std::to_string(k)}), -1);
                     }
                 }
                 if (g.sender) {
@@ -639,9 +645,13 @@ void Grillas::bucle() {
             limpiarRetratosLocked();
             if (ahora - informeMs >= 30000 && !grillas_.empty()) {
                 informeMs = ahora;
-                for (const auto& [k, g] : grillas_)
-                    log_.fmt("info", 0, "grillas: BA.Grilla.%d %dx%d, %d personas (+%d), %.1f ms por cuadro", k, g.ancho,
-                             g.alto, static_cast<int>(g.celdas.size()), g.mas, g.msPintar);
+                for (const auto& [k, g] : grillas_) {
+                    char ms[32];
+                    std::snprintf(ms, sizeof ms, "%.1f", static_cast<double>(g.msPintar));
+                    log_.info(llenar(traducir("gateway", "grillas: BA.Grilla.%1 %2x%3, %4 personas (+%5), %6 ms por cuadro"),
+                                     {std::to_string(k), std::to_string(g.ancho), std::to_string(g.alto),
+                                      std::to_string(g.celdas.size()), std::to_string(g.mas), ms}));
+                }
             }
         }
         proximo += periodo;

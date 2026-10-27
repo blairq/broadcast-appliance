@@ -17,8 +17,20 @@
 #include "Log.hpp"
 #include "security/SecretsStore.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
+
+// Lo que se le manda a la página de la botonera (el error del emparejamiento y
+// de la conexión) no se traduce acá: se marca para el catálogo de la web y la
+// página lo traduce (el valor que viaja es el original). Lo de la API remota
+// (Companion, integraciones) sale en el idioma del operador.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
 
 namespace ba::gateway {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 using json = nlohmann::json;
 
@@ -108,14 +120,14 @@ bool BotoneraBorde::origenValido(const std::string& headers) {
 bool BotoneraBorde::servir(long long fd, const std::string& rel) {
     std::error_code ec;
     const auto raiz = std::filesystem::weakly_canonical(webroot_, ec);
-    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot_) / http::urlDecode(rel), ec);
     const std::string r = raiz.generic_string(), d = destino.generic_string();
     if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", "ruta invalida\n"), true;
+        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
     std::ifstream f(destino, std::ios::binary);
     if (!f || std::filesystem::is_directory(destino, ec))
-        return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     std::ostringstream ss;
     ss << f.rdbuf();
     // CSP estricta: solo lo nuestro, nada en línea, sin marcos ajenos.
@@ -142,9 +154,9 @@ bool BotoneraBorde::servirCara(long long fd, const std::string& rel) {
         });
     };
     if (caras_.empty() || !valido(id, false) || !valido(f, true))
-        return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     std::ifstream in(std::filesystem::path(caras_) / id / f, std::ios::binary);
-    if (!in) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    if (!in) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     std::ostringstream ss;
     ss << in.rdbuf();
     http::sendResponse(fd, 200, "image/jpeg", ss.str(),
@@ -187,12 +199,12 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
     }
     if (partes.size() != 7 || partes[1] != "pagina" || partes[3] != "celda") return false;
     if (method != "POST" && method != "PUT") {
-        http::sendResponse(fd, 405, "application/json", json{{"error", "usá POST"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), "Allow: POST\r\n");
+        http::sendResponse(fd, 405, "application/json", json{{"error", traducir("gateway", "usá POST")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), "Allow: POST\r\n");
         return true;
     }
     const std::string accion = partes[6];
     if (accion != "presionar" && accion != "soltar" && accion != "tocar") {
-        http::sendResponse(fd, 400, "application/json", json{{"error", "acción: presionar, soltar o tocar"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        http::sendResponse(fd, 400, "application/json", json{{"error", traducir("gateway", "acción: presionar, soltar o tocar")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     int x = -1, y = -1;
@@ -202,7 +214,7 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
     } catch (...) {
     }
     if (x < 0 || y < 0 || x > 63 || y > 63) {
-        http::sendResponse(fd, 400, "application/json", json{{"error", "celda inválida"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+        http::sendResponse(fd, 400, "application/json", json{{"error", traducir("gateway", "celda inválida")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     std::string auth = http::getHeader(headers, "Authorization");
@@ -212,11 +224,11 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
     if (dispositivo.empty()) {
         // Un token mal puesto cuenta como intento (5 cada 10 min por IP).
         if (!emparejarPermitido(clientIp)) {
-            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            http::sendResponse(fd, 429, "application/json", json{{"error", traducir("gateway", "demasiados intentos; esperá 10 minutos")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
-        log_.warn("botonera: API remota sin token válido desde " + ipTexto(clientIp), -1);
-        http::sendResponse(fd, 401, "application/json", json{{"error", "token inválido o API remota apagada"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+        log_.warn(llenar(traducir("gateway", "botonera: API remota sin token válido desde %1"), {ipTexto(clientIp)}), -1);
+        http::sendResponse(fd, 401, "application/json", json{{"error", traducir("gateway", "token inválido o API remota apagada")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                            "WWW-Authenticate: Bearer\r\n");
         return true;
     }
@@ -243,13 +255,15 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     // Por el túnel de pinggy llega desde 127.0.0.1 (o con la IP real en PROXY v1,
     // que podría ser cualquiera): la marca de la escucha manda, no la IP.
     if (externo || !ipLocal(clientIp) || !origenValido(headers)) {
-        log_.warn("botonera: rechazado " + ipTexto(clientIp) + " " + path + " (fuera de la red local u origen ajeno)", -1);
-        http::sendResponse(fd, 403, "text/plain", "solo desde la red local\n");
+        log_.warn(llenar(traducir("gateway", "botonera: rechazado %1 %2 (fuera de la red local u origen ajeno)"),
+                         {ipTexto(clientIp), path}),
+                  -1);
+        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "solo desde la red local") + "\n");
         return true;
     }
     if (remota) {
         if (!apiRemota(fd, method, path, headers, clientIp))
-            http::sendResponse(fd, 404, "application/json", json{{"error", "ruta desconocida"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            http::sendResponse(fd, 404, "application/json", json{{"error", traducir("gateway", "ruta desconocida")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (pagina) {
@@ -262,13 +276,13 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     }
     if (api && method == "POST") {
         if (!emparejarPermitido(clientIp)) {
-            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            http::sendResponse(fd, 429, "application/json", json{{"error", QT_TRANSLATE_NOOP("web/comun", "demasiados intentos; esperá 10 minutos")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
         const json r = json::parse(body, nullptr, false);
         const std::string codigo = r.is_object() ? r.value("codigo", std::string()) : std::string();
         if (codigo.size() != 32) {
-            http::sendResponse(fd, 400, "application/json", json{{"error", "código inválido"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            http::sendResponse(fd, 400, "application/json", json{{"error", QT_TRANSLATE_NOOP("web/comun", "código inválido")}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
         std::string sol;
@@ -328,13 +342,13 @@ void BotoneraBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
 void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp) {
     const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
     if (key.empty()) {
-        http::sendResponse(fd, 400, "text/plain", "falta Sec-WebSocket-Key\n");
+        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n");
         return;
     }
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones()) {
-            http::sendResponse(fd, 503, "text/plain", "demasiadas botoneras\n");
+            http::sendResponse(fd, 503, "text/plain", traducir("gateway", "demasiadas botoneras") + "\n");
             return;
         }
     }
@@ -357,8 +371,10 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
                                     ? autenticar(m.value("token", std::string()))
                                     : std::string();
         if (dev.empty()) {
-            log_.warn("botonera: token inválido desde " + c->ip, -1);
-            enviar(c, {{"type", "auth"}, {"ok", false}, {"error", "Este aparato no está emparejado (o fue revocado)."}});
+            log_.warn(llenar(traducir("gateway", "botonera: token inválido desde %1"), {c->ip}), -1);
+            enviar(c, {{"type", "auth"},
+                       {"ok", false},
+                       {"error", QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado (o fue revocado).")}});
             http::writeWsFrame(fd, 0x8, "");
             return;
         }
@@ -369,7 +385,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
         conns_.push_back(c);
     }
     enviar(c, {{"type", "auth"}, {"ok", true}, {"dispositivo", c->dispositivo}});
-    log_.info("botonera: " + c->dispositivo + " conectada desde " + c->ip);
+    log_.info(llenar(traducir("gateway", "botonera: %1 conectada desde %2"), {c->dispositivo, c->ip}));
     alApp_({{"tipo", "conexion"}, {"dispositivo", c->dispositivo}, {"conectado", true}, {"ip", c->ip}});
     alApp_({{"tipo", "entrada"}, {"dispositivo", c->dispositivo}, {"msg", {{"type", "hola"}}}});
     // 2. El lazo.
@@ -391,7 +407,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
         if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn("botonera: " + c->dispositivo + " manda demasiado; se corta", -1);
+            log_.warn(llenar(traducir("gateway", "botonera: %1 manda demasiado; se corta"), {c->dispositivo}), -1);
             break;
         }
         ventana.push_back(ahora);
@@ -419,7 +435,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
         c->fd = -1;
     }
     alApp_({{"tipo", "conexion"}, {"dispositivo", c->dispositivo}, {"conectado", false}, {"ip", c->ip}});
-    log_.info("botonera: " + c->dispositivo + " desconectada");
+    log_.info(llenar(traducir("gateway", "botonera: %1 desconectada"), {c->dispositivo}));
 }
 
 bool BotoneraBorde::admin(long long fd, const std::string& method, const std::string& path, const std::string& body) {
@@ -452,7 +468,7 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
                 if (!credenciales_.count(c->dispositivo)) cortar.push_back(c);
         }
         for (const auto& c : cortar) {
-            enviar(c, {{"type", "auth"}, {"ok", false}, {"error", "Este aparato fue revocado."}});
+            enviar(c, {{"type", "auth"}, {"ok", false}, {"error", QT_TRANSLATE_NOOP("web/comun", "Este aparato fue revocado.")}});
             std::lock_guard<std::mutex> l(c->sendLock);
             if (c->fd >= 0) http::shutdownFd(c->fd);
         }

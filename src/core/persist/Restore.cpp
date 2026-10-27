@@ -28,6 +28,7 @@
 // llama en el hilo de control / en el arranque, nunca en la callback de audio.
 
 #include "Restore.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -184,12 +185,12 @@ std::vector<std::string> listCandidates(const std::string& dir) {
 RestoreResult validateFile(const std::string& path, StateDoc& out) {
     std::string content;
     if (!readFileAll(path, content)) {
-        return RestoreResult{RestoreResult::Status::Missing, "no se pudo leer: " + path};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::llenar(ba::i18n::traducir("persist", "no se pudo leer: %1"), {path})};
     }
 
     HeaderInfo hdr;
     if (!parseHeader(content, hdr)) {
-        return RestoreResult{RestoreResult::Status::Corrupt, "header malformado: " + path};
+        return RestoreResult{RestoreResult::Status::Corrupt, ba::i18n::llenar(ba::i18n::traducir("persist", "header malformado: %1"), {path})};
     }
 
     // El body es todo lo despues del primer '\n' (sin el '\n' final).
@@ -210,13 +211,13 @@ RestoreResult validateFile(const std::string& path, StateDoc& out) {
     const std::string fileName = p.filename().string();
     const Status st = store.init(dir, fileName, fileName + ".other");
     if (!st.ok) {
-        return RestoreResult{RestoreResult::Status::Missing, "no se pudo inicializar el store: " + path};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::llenar(ba::i18n::traducir("persist", "no se pudo inicializar el store: %1"), {path})};
     }
     StateDoc doc;
     const Status r = store.readLatest(doc);
     if (r.ok) {
         out = std::move(doc);
-        return RestoreResult{RestoreResult::Status::Ok, "ok: " + path};
+        return RestoreResult{RestoreResult::Status::Ok, ba::i18n::llenar(ba::i18n::traducir("persist", "ok: %1"), {path})};
     }
 
     // Oracle fallo con header valido: es checksum o cuerpo. Si el cuerpo SI es
@@ -225,9 +226,9 @@ RestoreResult validateFile(const std::string& path, StateDoc& out) {
     StateDoc probe;
     if (StateDoc::deserialize(body, probe)) {
         return RestoreResult{RestoreResult::Status::ChecksumMismatch,
-                             "checksum no coincide en " + path + " (esperado " + hdr.shaHex + ")"};
+                             ba::i18n::llenar(ba::i18n::traducir("persist", "checksum no coincide en %1 (esperado %2)"), {path, hdr.shaHex})};
     }
-    return RestoreResult{RestoreResult::Status::Corrupt, "cuerpo no es un StateDoc JSON valido: " + path};
+    return RestoreResult{RestoreResult::Status::Corrupt, ba::i18n::llenar(ba::i18n::traducir("persist", "cuerpo no es un StateDoc JSON valido: %1"), {path})};
 }
 
 } // namespace
@@ -236,7 +237,7 @@ RestoreResult validateFile(const std::string& path, StateDoc& out) {
 
 RestoreResult Restore::restore(const std::string& snapshotPath, StateDoc& out) {
     if (snapshotPath.empty()) {
-        return RestoreResult{RestoreResult::Status::Missing, "ruta vacia"};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::traducir("persist", "ruta vacia")};
     }
     return validateFile(snapshotPath, out);
 }
@@ -245,12 +246,12 @@ RestoreResult Restore::restore(const std::string& snapshotPath, StateDoc& out) {
 
 RestoreResult Restore::recover(const std::string& dir, StateDoc& out) {
     if (dir.empty()) {
-        return RestoreResult{RestoreResult::Status::Missing, "dir vacio"};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::traducir("persist", "dir vacio")};
     }
 
     const std::vector<std::string> candidates = listCandidates(dir);
     if (candidates.empty()) {
-        return RestoreResult{RestoreResult::Status::Missing, "sin snapshots en " + dir};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::llenar(ba::i18n::traducir("persist", "sin snapshots en %1"), {dir})};
     }
 
     bool found = false;
@@ -272,10 +273,10 @@ RestoreResult Restore::recover(const std::string& dir, StateDoc& out) {
     }
 
     if (!found) {
-        return RestoreResult{RestoreResult::Status::Missing, "ningun snapshot bueno en " + dir};
+        return RestoreResult{RestoreResult::Status::Missing, ba::i18n::llenar(ba::i18n::traducir("persist", "ningun snapshot bueno en %1"), {dir})};
     }
     return RestoreResult{RestoreResult::Status::Ok,
-                         "recuperado seq=" + std::to_string(bestSeq) + " en " + dir};
+                         ba::i18n::llenar(ba::i18n::traducir("persist", "recuperado seq=%1 en %2"), {std::to_string(bestSeq), dir})};
 }
 
 } // namespace ba::persist

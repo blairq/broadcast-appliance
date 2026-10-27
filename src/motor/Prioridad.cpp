@@ -4,6 +4,7 @@
 #include "Prioridad.hpp"
 
 #include "Reloj.hpp" // registrar
+#include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Energia.hpp"
 
@@ -35,6 +36,8 @@
 namespace ba::motor {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -177,7 +180,7 @@ std::string armarGrupoMedios() {
     GetSystemCpuSetInformation(nullptr, 0, &largo, GetCurrentProcess(), 0);
     std::vector<char> buf(largo);
     if (largo == 0 || !GetSystemCpuSetInformation(reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buf.data()), largo, &largo, GetCurrentProcess(), 0))
-        return "GetSystemCpuSetInformation falló (" + std::to_string(GetLastError()) + ")";
+        return llenar(traducir("motor", "GetSystemCpuSetInformation falló (%1)"), {std::to_string(GetLastError())});
     struct Uno { ULONG id; int clase; int l3; };
     std::vector<Uno> todos;
     for (ULONG off = 0; off < largo;) {
@@ -185,7 +188,7 @@ std::string armarGrupoMedios() {
         if (i->Type == CpuSetInformation) todos.push_back({i->CpuSet.Id, i->CpuSet.EfficiencyClass, i->CpuSet.LastLevelCacheIndex});
         off += i->Size;
     }
-    if (todos.empty()) return "sin CPU Sets";
+    if (todos.empty()) return traducir("motor", "sin CPU Sets");
     int maxClase = 0;
     for (const auto& u : todos) maxClase = std::max(maxClase, u.clase);
     const bool hibrido = std::any_of(todos.begin(), todos.end(), [&](const Uno& u) { return u.clase != maxClase; });
@@ -195,23 +198,25 @@ std::string armarGrupoMedios() {
     const std::vector<ULONG>* elegido = nullptr;
     for (const auto& [l3, ids] : porL3)
         if (elegido == nullptr || ids.size() > elegido->size()) elegido = &ids;
-    if (elegido->size() == todos.size()) return "un solo grupo de núcleos: no hace falta";
+    if (elegido->size() == todos.size()) return traducir("motor", "un solo grupo de núcleos: no hace falta");
     g_idsMedios = *elegido;
     std::vector<ULONG> resto;
     for (const auto& u : todos)
         if (std::find(elegido->begin(), elegido->end(), u.id) == elegido->end()) resto.push_back(u.id);
-    std::string lo = std::to_string(elegido->size()) + " procesadores lógicos (" + (hibrido ? "los de rendimiento" : "un CCD") + ")";
+    std::string lo = llenar(hibrido ? traducir("motor", "%1 procesadores lógicos (los de rendimiento)")
+                                    : traducir("motor", "%1 procesadores lógicos (un CCD)"),
+                            {std::to_string(elegido->size())});
     // Lo demás, al otro CCD (solo si el corte es por L3: en un híbrido serían los de eficiencia).
     if (!hibrido && !resto.empty()) {
         if (SetProcessDefaultCpuSets(GetCurrentProcess(), resto.data(), static_cast<ULONG>(resto.size())))
-            lo += "; lo demás, en los otros " + std::to_string(resto.size());
+            lo += "; " + llenar(traducir("motor", "lo demás, en los otros %1"), {std::to_string(resto.size())});
         else
-            lo += "; SetProcessDefaultCpuSets falló (" + std::to_string(GetLastError()) + ")";
+            lo += "; " + llenar(traducir("motor", "SetProcessDefaultCpuSets falló (%1)"), {std::to_string(GetLastError())});
     }
     g_grupoMedios = true;
     return lo;
 #elif defined(__APPLE__)
-    return "macOS no deja elegir núcleos";
+    return traducir("motor", "macOS no deja elegir núcleos");
 #else
     std::set<int> base;
     const std::string core = leerLinea("/sys/devices/cpu_core/cpus");
@@ -226,22 +231,25 @@ std::string armarGrupoMedios() {
             if (!hibrido || base.count(c)) enBase.insert(c);
         if (enBase.size() > elegido.size()) elegido = enBase;
     }
-    if (elegido.empty() || elegido.size() == todas.size()) return "un solo grupo de núcleos: no hace falta";
+    if (elegido.empty() || elegido.size() == todas.size()) return traducir("motor", "un solo grupo de núcleos: no hace falta");
     CPU_ZERO(&g_cpusMedios);
     for (int c : elegido) CPU_SET(c, &g_cpusMedios);
     g_grupoMedios = true;
     // En Linux la afinidad es dura: solo los hilos de medios (lo demás queda libre).
-    return std::to_string(elegido.size()) + " procesadores lógicos (" + (hibrido ? "los de rendimiento" : "un L3") + ": " +
-           textoCpus(elegido) + ")";
+    return llenar(hibrido ? traducir("motor", "%1 procesadores lógicos (los de rendimiento: %2)")
+                          : traducir("motor", "%1 procesadores lógicos (un L3: %2)"),
+                  {std::to_string(elegido.size()), textoCpus(elegido)});
 #endif
 }
 
 std::string resumen(const json& topo) {
     std::string s;
     for (const auto& c : topo["clases"])
-        s += (s.empty() ? "" : " + ") + std::to_string(c.value("nucleos", c.value("logicos", 0))) + " de " + c.value("clase", std::string("?"));
-    if (topo["grupos_l3"].size() > 1) s += (s.empty() ? "" : "; ") + std::to_string(topo["grupos_l3"].size()) + " grupos de L3 (CCD)";
-    return s.empty() ? "sin datos de la topología" : s;
+        s += (s.empty() ? "" : " + ") + llenar(traducir("motor", "%1 de %2"), {std::to_string(c.value("nucleos", c.value("logicos", 0))),
+                                                                              c.value("clase", std::string("?"))});
+    if (topo["grupos_l3"].size() > 1)
+        s += (s.empty() ? "" : "; ") + llenar(traducir("motor", "%1 grupos de L3 (CCD)"), {std::to_string(topo["grupos_l3"].size())});
+    return s.empty() ? traducir("motor", "sin datos de la topología") : s;
 }
 
 GstBusSyncReply alMensaje(GstBus*, GstMessage* m, gpointer) {
@@ -294,7 +302,8 @@ void prioridadDelHilo(ClaseHilo c) {
         setpriority(PRIO_PROCESS, static_cast<id_t>(syscall(SYS_gettid)), c == ClaseHilo::Critico ? -10 : -5) != 0) {
         static std::atomic<bool> avisado{false};
         if (!avisado.exchange(true))
-            registrar(Nivel::Info, "procesador: los hilos del video y el audio no pueden subir de prioridad (hace falta CAP_SYS_NICE o RLIMIT_NICE)");
+            registrar(Nivel::Info, traducir("motor", "procesador: los hilos del video y el audio no pueden subir de prioridad "
+                                                     "(hace falta CAP_SYS_NICE o RLIMIT_NICE)"));
     }
 #endif
 }
@@ -322,8 +331,11 @@ void prioridadDelProceso() {
         }
         topo["prioridad"] = activa;
         topo["grupo_medios"] = ajustes::siNo("procesador.mediosJuntos", true) ? armarGrupoMedios() : std::string("apagado");
-        registrar(Nivel::Info, "procesador: " + resumen(topo) + "; prioridad del video y el audio: " + (activa ? "sí" : "no") +
-                                   "; video y audio juntos: " + topo["grupo_medios"].get<std::string>());
+        registrar(Nivel::Info, llenar(activa ? traducir("motor", "procesador: %1; prioridad del video y el audio: sí; video y "
+                                                                 "audio juntos: %2")
+                                             : traducir("motor", "procesador: %1; prioridad del video y el audio: no; video y "
+                                                                 "audio juntos: %2"),
+                                      {resumen(topo), topo["grupo_medios"].get<std::string>()}));
         std::lock_guard<std::mutex> l(g_topoMu);
         g_topo = std::move(topo);
     });

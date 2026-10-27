@@ -4,6 +4,7 @@
 #include "Composicion.hpp"
 #include "Claves.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Mezcla.hpp" // margenMezclaNs
 #include "Reloj.hpp"
@@ -21,6 +22,8 @@
 namespace ba::motor {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 std::int64_t ahoraNs() { return g_get_monotonic_time() * 1000; }
@@ -264,7 +267,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                                             : "videoconvert ! videoscale ! " + capsColorDelLienzo(lienzo_) + "," + tamLibre);
         firmaFiltros_ = firmaDe(filtros, {}, false);
         const std::string cadena = cadenaDe(filtros, "videoconvert", "ba_c_", avisosFiltros_, enPlaca);
-        for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, "composición " + nombre_ + ": " + a);
+        for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, llenar(traducir("motor", "composición %1: %2"), {nombre_, a}));
         // Un agregador saca cuadros a su ritmo: sin cadencia pedida, en vivo salía a las
         // apuradas (horas cada vez más atrás). La del lienzo, en la memoria que sea.
         const std::string ritmo = agregador_ ? "capsfilter caps=" + entreComillas("video/x-raw(ANY),framerate=" + std::to_string(lienzo_.fpsN) +
@@ -272,7 +275,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                                              : std::string();
         completo = el + " name=mx" + props + " ! " + ritmo + vuelta + " ! " + cadena + "intersink name=sale producer-name=" +
                    entreComillas(productor()) + " sync=false";
-        registrar(Nivel::Info, "composición " + nombre_ + ": con el módulo «" + el + "»: " + completo);
+        registrar(Nivel::Info, llenar(traducir("motor", "composición %1: con el módulo «%2»: %3"), {nombre_, el, completo}));
     } else if (op.dsk) {
         // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro mezclador.
         completo = desc + " ! tee name=t t. ! queue ! intersink name=limpio producer-name=" + entreComillas(productorLimpio()) +
@@ -284,7 +287,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
         // GPU, su par (ba360gl, ba360d3d12) sobre lo que sale del mezclador, sin bajarlo.
         firmaFiltros_ = firmaDe(filtros, {}, false);
         const std::string cadena = cadenaDe(filtros, "videoconvert", "ba_c_", avisosFiltros_, gpu_);
-        for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, "composición " + nombre_ + ": " + a);
+        for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, llenar(traducir("motor", "composición %1: %2"), {nombre_, a}));
         completo = desc + " ! " + cadena + "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
     }
     GError* e = nullptr;
@@ -294,7 +297,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
         g_error_free(e);
         if (pipeline_ != nullptr) gst_object_unref(pipeline_);
         pipeline_ = nullptr;
-        registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
+        registrar(Nivel::Error, llenar(traducir("motor", "composición %1: %2"), {nombre_, error_}));
         return;
     }
     // Las propiedades de los filtros de después del mezclador (la cadena solo los nombra).
@@ -339,10 +342,10 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                     }
                     ++md->n;
                     if (ahora - md->desde >= 2'000'000) {
-                        registrar(Nivel::Info, "mezcla " + md->nombre + ": " +
-                                                   std::to_string(static_cast<int>(md->n * 1e6 / (ahora - md->desde) + 0.5)) +
-                                                   " cuadros/s, hueco " + std::to_string(md->hueco / 1000) + " ms (pts " +
-                                                   std::to_string(md->huecoPts / 1000000) + " ms)");
+                        registrar(Nivel::Info,
+                                  llenar(traducir("motor", "mezcla %1: %2 cuadros/s, hueco %3 ms (pts %4 ms)"),
+                                         {md->nombre, std::to_string(static_cast<int>(md->n * 1e6 / (ahora - md->desde) + 0.5)),
+                                          std::to_string(md->hueco / 1000), std::to_string(md->huecoPts / 1000000)}));
                         md->desde = ahora;
                         md->n = 0;
                         md->hueco = md->huecoPts = 0;
@@ -360,8 +363,8 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
         gst_object_unref(sale);
     }
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-        error_ = "el compositor no arrancó";
-        registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
+        error_ = traducir("motor", "el compositor no arrancó");
+        registrar(Nivel::Error, llenar(traducir("motor", "composición %1: %2"), {nombre_, error_}));
     }
 }
 
@@ -450,15 +453,17 @@ Composicion::Rama* Composicion::crearRamaLibre(const Capa& c, int gen) {
     }
     const auto fallar = [&](const std::string& e) -> Rama* {
         error_ = e;
-        registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
+        registrar(Nivel::Error, llenar(traducir("motor", "composición %1: %2"), {nombre_, error_}));
         if (pad != nullptr) {
             if (pedido) gst_element_release_request_pad(mezclador_, pad);
             gst_object_unref(pad);
         }
         return nullptr;
     };
-    if (pad == nullptr) return fallar("el mezclador no tiene el puerto «" + (c.pad.empty() ? std::string("sink_%u") : c.pad) + "»");
-    if (gst_pad_is_linked(pad)) return fallar("el puerto «" + c.pad + "» ya tiene una entrada");
+    if (pad == nullptr)
+        return fallar(llenar(traducir("motor", "el mezclador no tiene el puerto «%1»"),
+                             {c.pad.empty() ? std::string("sink_%u") : c.pad}));
+    if (gst_pad_is_linked(pad)) return fallar(llenar(traducir("motor", "el puerto «%1» ya tiene una entrada"), {c.pad}));
     // Un pad que no ubica la imagen (smpte, shapewipe: las dos del mismo tamaño): al del lienzo.
     const bool ubica = g_object_class_find_property(G_OBJECT_GET_CLASS(pad), "width") != nullptr;
     GstElementFactory* fab = gst_element_get_factory(mezclador_);
@@ -491,13 +496,13 @@ Composicion::Rama* Composicion::crearRamaLibre(const Capa& c, int gen) {
         const std::string m = ba::diag::utf8Valido(e->message);
         g_error_free(e);
         if (puente != nullptr) gst_object_unref(puente);
-        return fallar("no se pudo armar «" + desc + "»: " + m);
+        return fallar(llenar(traducir("motor", "no se pudo armar «%1»: %2"), {desc, m}));
     }
     GstElement* src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     if (src == nullptr || puente == nullptr) {
         if (src != nullptr) gst_object_unref(src);
         if (puente != nullptr) gst_object_unref(puente);
-        return fallar("falta intersrc");
+        return fallar(llenar(traducir("motor", "falta %1"), {"intersrc"}));
     }
     gst_object_set_name(GST_OBJECT(puente), ("puente_" + n).c_str());
     auto* r = new Rama();
@@ -565,10 +570,10 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         for (GstElement* e : {r->src, r->recorte, r->subir, r->conv, r->fijar})
             if (e != nullptr) gst_object_unref(e);
         delete r;
-        error_ = gl_    ? "falta intersrc, queue, glupload, glcolorconvert o gltransformation"
-                 : gpu_ ? "falta intersrc, queue, d3d12upload o d3d12convert"
-                        : "falta intersrc, queue o videocrop";
-        registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
+        error_ = gl_    ? traducir("motor", "falta intersrc, queue, glupload, glcolorconvert o gltransformation")
+                 : gpu_ ? traducir("motor", "falta intersrc, queue, d3d12upload o d3d12convert")
+                        : traducir("motor", "falta intersrc, queue o videocrop");
+        registrar(Nivel::Error, llenar(traducir("motor", "composición %1: %2"), {nombre_, error_}));
         return nullptr;
     }
     if (c.sombra.hace()) {
@@ -578,7 +583,8 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         r->sombra = gst_element_factory_make(fab, ("som_" + n).c_str());
         if (r->sombra != nullptr && !gpu_) r->aRgba = gst_element_factory_make("videoconvert", ("rgba_" + n).c_str());
         if (r->sombra == nullptr || (!gpu_ && r->aRgba == nullptr)) {
-            registrar(Nivel::Aviso, "composición " + nombre_ + ": falta " + fab + " (la capa " + c.entrada + " va sin sombra)");
+            registrar(Nivel::Aviso,
+                      llenar(traducir("motor", "composición %1: falta %2 (la capa %3 va sin sombra)"), {nombre_, fab, c.entrada}));
             for (GstElement** e : {&r->sombra, &r->aRgba})
                 if (*e != nullptr) gst_object_unref(*e), *e = nullptr;
         } else if (r->fijar != nullptr) {
@@ -647,11 +653,12 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     // dice si fue crear y enganchar los elementos o ponerlos en marcha (en D3D12, la primera
     // de cada clase compila sus shaders).
     if (t2 - t0 > 20'000)
-        registrar(Nivel::Info, "composición " + nombre_ + ": la capa «" + c.entrada + "» se armó en " + std::to_string((t2 - t0) / 1000) +
-                                   " ms (crear " + std::to_string((tCreados - t0) / 1000) + ", propiedades (el productor) " +
-                                   std::to_string((tPropiedades - tCreados) / 1000) + ", agregar y enlazar " +
-                                   std::to_string((tEnlazados - tPropiedades) / 1000) + ", el pad del mezclador " +
-                                   std::to_string((t1 - tEnlazados) / 1000) + ", arrancar " + std::to_string((t2 - t1) / 1000) + ")");
+        registrar(Nivel::Info,
+                  llenar(traducir("motor", "composición %1: la capa «%2» se armó en %3 ms (crear %4, propiedades (el "
+                                           "productor) %5, agregar y enlazar %6, el pad del mezclador %7, arrancar %8)"),
+                         {nombre_, c.entrada, std::to_string((t2 - t0) / 1000), std::to_string((tCreados - t0) / 1000),
+                          std::to_string((tPropiedades - tCreados) / 1000), std::to_string((tEnlazados - tPropiedades) / 1000),
+                          std::to_string((t1 - tEnlazados) / 1000), std::to_string((t2 - t1) / 1000)}));
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.claveCapa()] = r;
     return r;
 }
@@ -1126,8 +1133,9 @@ void Composicion::tic() {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
-            registrar(Nivel::Error, "composición " + nombre_ + " (" + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + error_);
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");
+            registrar(Nivel::Error, llenar(traducir("motor", "composición %1 (%2): %3"),
+                                           {nombre_, GST_OBJECT_NAME(GST_MESSAGE_SRC(m)), error_}));
             if (e != nullptr) g_error_free(e);
         } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_LATENCY) {
             recalcularLatenciaAparte(pipeline_);

@@ -1,6 +1,7 @@
 // src/core/hw/SaludDrivers.cpp — ver SaludDrivers.hpp
 
 #include "hw/SaludDrivers.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -215,8 +216,9 @@ void SaludDrivers::ausente(const std::string& id) {
 
 std::string SaludDrivers::reintentar(const std::string& id) {
     auto it = drivers_.find(id);
-    if (it == drivers_.end()) return "no hay un driver «" + id + "» en esta máquina";
-    if (!it->second.presente) return "«" + it->second.nombre + "» no está instalado ahora";
+    if (it == drivers_.end()) return ba::i18n::llenar(ba::i18n::traducir("drivers", "no hay un driver «%1» en esta máquina"), {id});
+    if (!it->second.presente)
+        return ba::i18n::llenar(ba::i18n::traducir("drivers", "«%1» no está instalado ahora"), {it->second.nombre});
     it->second.unaVez = true;
     return {};
 }
@@ -299,19 +301,24 @@ std::string motivoLegible(Falla tipo, const std::string& nombre, const std::stri
     // JackRouter que se colgó por otra cosa se cuenta como colgado.
     (void)nombre;
     if (minusculas(mensaje + "\n" + salida).find("jack") != std::string::npos)
-        return "no contesta: ¿está corriendo el servidor de JACK?";
+        return ba::i18n::traducir("drivers", "no contesta: ¿está corriendo el servidor de JACK?");
     switch (tipo) {
         case Falla::Tiempo:
-            return "no contestó en " + std::to_string((limiteMs + 500) / 1000) + " s: se colgó al cargarlo";
+            return ba::i18n::llenar(ba::i18n::traducir("drivers", "no contestó en %1 s: se colgó al cargarlo"),
+                                    {std::to_string((limiteMs + 500) / 1000)});
         case Falla::Caida: {
             const std::string l = ultimaLinea(salida);
-            return "se cayó el proceso que lo probaba (el driver lo tumbó)" + (l.empty() ? std::string() : ": " + l);
+            return l.empty() ? ba::i18n::traducir("drivers", "se cayó el proceso que lo probaba (el driver lo tumbó)")
+                             : ba::i18n::llenar(ba::i18n::traducir("drivers", "se cayó el proceso que lo probaba (el "
+                                                                              "driver lo tumbó): %1"),
+                                                {l});
         }
         case Falla::Error: break;
     }
-    if (!mensaje.empty()) return "no arrancó: " + mensaje;
+    if (!mensaje.empty()) return ba::i18n::llenar(ba::i18n::traducir("drivers", "no arrancó: %1"), {mensaje});
     const std::string l = ultimaLinea(salida);
-    return l.empty() ? std::string("no arrancó (no dijo por qué)") : "no arrancó: " + l;
+    return l.empty() ? ba::i18n::traducir("drivers", "no arrancó (no dijo por qué)")
+                     : ba::i18n::llenar(ba::i18n::traducir("drivers", "no arrancó: %1"), {l});
 }
 
 } // namespace ba::hw

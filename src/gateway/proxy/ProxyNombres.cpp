@@ -4,6 +4,7 @@
 
 #include "proxy/ProxyNombres.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 #include "proxy/Certificados.hpp"
 
@@ -43,6 +44,9 @@ using pollfd_t = struct pollfd;
 #endif
 
 namespace ba::gateway::proxy {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -99,9 +103,10 @@ long long escuchar(const std::string& bind, uint16_t puerto, std::string& error)
     if (inet_pton(AF_INET, bind.c_str(), &a.sin_addr) != 1) a.sin_addr.s_addr = htonl(INADDR_ANY);
     if (::bind(s, reinterpret_cast<sockaddr*>(&a), sizeof(a)) != 0 || ::listen(s, 512) != 0) {
 #ifdef _WIN32
-        error = "no se pudo abrir el puerto " + std::to_string(puerto) + " (error " + std::to_string(WSAGetLastError()) + ")";
+        error = llenar(traducir("gateway", "no se pudo abrir el puerto %1 (error %2)"),
+                       {std::to_string(puerto), std::to_string(WSAGetLastError())});
 #else
-        error = "no se pudo abrir el puerto " + std::to_string(puerto) + " (" + std::strerror(errno) + ")";
+        error = llenar(traducir("gateway", "no se pudo abrir el puerto %1 (%2)"), {std::to_string(puerto), std::strerror(errno)});
 #endif
         cerrar(static_cast<long long>(s));
         return -1;
@@ -302,7 +307,7 @@ bool ProxyNombres::start(const std::string& autofirmadoPem, const std::string& c
                               sizeof(kPers) - 1) != 0)
         return false;
     if (!ponerCertificado("", autofirmadoPem, clavePem, "casa")) {
-        if (log_) log_("proxy: el certificado de la casa es inválido");
+        if (log_) log_(traducir("gateway", "proxy: el certificado de la casa es inválido"));
         return false;
     }
     if (mbedtls_ssl_config_defaults(&d.conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM,
@@ -338,19 +343,27 @@ bool ProxyNombres::start(const std::string& autofirmadoPem, const std::string& c
     std::string e;
     d.tls = escuchar(cfg_.bind, cfg_.puertoTls, e);
     if (d.tls < 0) {
-        if (log_) log_("proxy: " + e + " (en Linux, los puertos de menos de 1024 piden permiso: usá otro, p. ej. 8443)");
+        if (log_)
+            log_(llenar(traducir("gateway", "proxy: %1 (en Linux, los puertos de menos de 1024 piden permiso: usá otro, p. "
+                                            "ej. 8443)"),
+                        {e}));
         return false;
     }
     if (cfg_.puertoHttp != 0) {
         d.http = escuchar(cfg_.bind, cfg_.puertoHttp, e);
-        if (d.http < 0 && log_) log_("proxy: " + e + " — sin el 80 no hay desafío HTTP-01 de ACME ni redirección a https");
+        if (d.http < 0 && log_)
+            log_(llenar(traducir("gateway", "proxy: %1 — sin el 80 no hay desafío HTTP-01 de ACME ni redirección a https"),
+                        {e}));
     }
     stop_ = false;
     hilo_ = std::thread([this]() { bucle(); });
     if (log_)
-        log_("proxy: atendiendo " + std::to_string(cfg_.puertoTls) +
-             (d.http >= 0 ? " y " + std::to_string(cfg_.puertoHttp) : std::string()) + " para *." + cfg_.dominio + " (" +
-             std::to_string(cfg_.servicios.size()) + " servicios)");
+        log_(d.http >= 0
+                 ? llenar(traducir("gateway", "proxy: atendiendo %1 y %2 para *.%3 (%4 servicios)"),
+                          {std::to_string(cfg_.puertoTls), std::to_string(cfg_.puertoHttp), cfg_.dominio,
+                           std::to_string(cfg_.servicios.size())})
+                 : llenar(traducir("gateway", "proxy: atendiendo %1 para *.%2 (%3 servicios)"),
+                          {std::to_string(cfg_.puertoTls), cfg_.dominio, std::to_string(cfg_.servicios.size())}));
     return true;
 }
 
@@ -413,8 +426,10 @@ void ProxyNombres::bucle() {
         if (c.servicio == nullptr) return false;
         if (c.servicio->soloLan && !ipLocal(c.ip)) {
             ++rechazadas_;
+            const std::string cuerpo = traducir("gateway", "solo desde la red local") + "\r\n";
             c.haciaAfuera = "HTTP/1.1 403 Forbidden\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n"
-                            "Content-Length: 25\r\n\r\nsolo desde la red local\r\n";
+                            "Content-Length: " +
+                            std::to_string(cuerpo.size()) + "\r\n\r\n" + cuerpo;
             c.finServicio = true;
             c.estado = Conn::Estado::Cerrando;
             return true;
@@ -611,8 +626,9 @@ void ProxyNombres::bucle() {
                     socklen_t l = sizeof(err);
                     getsockopt(static_cast<SockT>(c.back), SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &l);
                     if (err != 0 || (re & POLLERR)) {
-                        c.haciaAfuera = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 28\r\nConnection: close\r\n\r\n"
-                                        "el servicio no esta andando\n";
+                        const std::string cuerpo = traducir("gateway", "el servicio no esta andando") + "\n";
+                        c.haciaAfuera = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: " + std::to_string(cuerpo.size()) +
+                                        "\r\nConnection: close\r\n\r\n" + cuerpo;
                         c.estado = Conn::Estado::Cerrando;
                         c.finServicio = true;
                     } else {

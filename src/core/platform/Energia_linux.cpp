@@ -8,6 +8,7 @@
 // hacen falta son pocos y estables: el ABI de libdbus no cambia desde 2006).
 // ============================================================================
 #include "platform/Energia.hpp"
+#include "i18n/I18n.hpp"
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -49,7 +50,7 @@ Despierta::Despierta(const std::string& motivo, bool /*pantalla*/) : d_(std::mak
     // inactividad; apagar el monitor queda en manos del escritorio de la máquina.
     void* lib = dlopen("libdbus-1.so.3", RTLD_NOW | RTLD_LOCAL);
     if (lib == nullptr) {
-        d_->detalle = "no está libdbus-1 (sin D-Bus no se puede pedir que no suspenda)";
+        d_->detalle = ba::i18n::traducir("energia", "no está libdbus-1 (sin D-Bus no se puede pedir que no suspenda)");
         return;
     }
     auto errorInit = reinterpret_cast<FnErrorInit>(dlsym(lib, "dbus_error_init"));
@@ -62,14 +63,15 @@ Despierta::Despierta(const std::string& motivo, bool /*pantalla*/) : d_(std::mak
     auto unref = reinterpret_cast<FnUnref>(dlsym(lib, "dbus_message_unref"));
     if (errorInit == nullptr || errorFree == nullptr || busGet == nullptr || nuevo == nullptr || args == nullptr ||
         enviar == nullptr || getArgs == nullptr || unref == nullptr) {
-        d_->detalle = "libdbus-1 sin las funciones esperadas";
+        d_->detalle = ba::i18n::traducir("energia", "libdbus-1 sin las funciones esperadas");
         return;
     }
     ErrorDbus err{};
     errorInit(&err);
     void* bus = busGet(kBusSistema, &err); // compartida: no se cierra (es de libdbus)
     if (bus == nullptr) {
-        d_->detalle = std::string("no hay bus de sistema: ") + (err.message != nullptr ? err.message : "");
+        d_->detalle = ba::i18n::llenar(ba::i18n::traducir("energia", "no hay bus de sistema: %1"),
+                                       {err.message != nullptr ? err.message : ""});
         errorFree(&err);
         return;
     }
@@ -82,7 +84,8 @@ Despierta::Despierta(const std::string& motivo, bool /*pantalla*/) : d_(std::mak
     void* r = enviar(bus, m, 5000, &err);
     unref(m);
     if (r == nullptr) {
-        d_->detalle = std::string("logind no aceptó el pedido: ") + (err.message != nullptr ? err.message : "");
+        d_->detalle = ba::i18n::llenar(ba::i18n::traducir("energia", "logind no aceptó el pedido: %1"),
+                                       {err.message != nullptr ? err.message : ""});
         errorFree(&err);
         return;
     }
@@ -91,8 +94,8 @@ Despierta::Despierta(const std::string& motivo, bool /*pantalla*/) : d_(std::mak
     unref(r);
     errorFree(&err);
     d_->fd = fd;
-    d_->detalle = fd >= 0 ? "sin suspender ni reposo por inactividad (systemd-inhibit --list)"
-                          : "logind no devolvió el bloqueo";
+    d_->detalle = fd >= 0 ? ba::i18n::traducir("energia", "sin suspender ni reposo por inactividad (systemd-inhibit --list)")
+                          : ba::i18n::traducir("energia", "logind no devolvió el bloqueo");
 }
 
 Despierta::~Despierta() {

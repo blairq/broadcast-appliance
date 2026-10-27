@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Salidas.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -14,6 +15,9 @@
 #include <filesystem>
 
 namespace ba::motor {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 std::atomic<int> g_reintentoTransmisionMaxS{10};
@@ -161,7 +165,7 @@ std::string remuxar(const std::string& origen, const std::string& destino, const
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* er = nullptr;
             gst_message_parse_error(m, &er, nullptr);
-            error = er != nullptr ? ba::diag::utf8Valido(er->message) : "error";
+            error = er != nullptr ? ba::diag::utf8Valido(er->message) : traducir("motor", "error");
             if (er != nullptr) g_error_free(er);
         }
         gst_message_unref(m);
@@ -225,12 +229,12 @@ std::string correrHastaElFinal(GstElement* p) {
     std::string error;
     GstMessage* m = gst_bus_timed_pop_filtered(bus, static_cast<GstClockTime>(ajustes::sANs("record.replayJuntarS", 120)), static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
     if (m == nullptr) {
-        error = "no terminó en 2 minutos";
+        error = traducir("motor", "no terminó en 2 minutos");
     } else {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* er = nullptr;
             gst_message_parse_error(m, &er, nullptr);
-            error = er != nullptr ? ba::diag::utf8Valido(er->message) : "error";
+            error = er != nullptr ? ba::diag::utf8Valido(er->message) : traducir("motor", "error");
             if (er != nullptr) g_error_free(er);
         }
         gst_message_unref(m);
@@ -242,7 +246,7 @@ std::string correrHastaElFinal(GstElement* p) {
 } // namespace
 
 std::string juntar(const std::vector<std::string>& tramos, const std::string& destino) {
-    if (tramos.empty()) return "no hay tramos";
+    if (tramos.empty()) return traducir("motor", "no hay tramos");
     GstElement* p = gst_pipeline_new("juntar");
     GstElement* src = gst_element_factory_make("splitmuxsrc", nullptr);
     GstElement* mux = gst_element_factory_make("matroskamux", nullptr);
@@ -251,7 +255,7 @@ std::string juntar(const std::vector<std::string>& tramos, const std::string& de
         for (GstElement* e : {src, mux, sink})
             if (e != nullptr) gst_object_unref(e);
         gst_object_unref(p);
-        return "falta splitmuxsrc o matroskamux";
+        return traducir("motor", "falta splitmuxsrc o matroskamux");
     }
     g_object_set(sink, "location", destino.c_str(), nullptr);
     // La lista de archivos, en orden (en vez de un patrón).
@@ -307,7 +311,7 @@ std::string Repeticion::guardar(const std::string& destino) {
         std::error_code ec;
         if (std::filesystem::exists(a, ec)) hay.push_back(a);
     }
-    if (hay.size() < 2) return "todavía no hay nada guardado (esperá unos segundos)";
+    if (hay.size() < 2) return traducir("motor", "todavía no hay nada guardado (esperá unos segundos)");
     hay.pop_back();
     const std::size_t n = static_cast<std::size_t>(segundos_ / 2);
     if (hay.size() > n) hay.erase(hay.begin(), hay.end() - static_cast<std::ptrdiff_t>(n));
@@ -328,7 +332,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
         std::lock_guard<std::mutex> la(arMu_);
         archivos_.clear();
     }
-    if (f.video.empty() && f.audios.empty()) return error_ = "no hay qué grabar";
+    if (f.video.empty() && f.audios.empty()) return error_ = traducir("motor", "no hay qué grabar");
     std::error_code ec;
     std::filesystem::create_directories(cfg_.carpeta, ec);
     const std::string patron = (std::filesystem::path(cfg_.carpeta) / (cfg_.nombre + "-%05d.mkv")).string();
@@ -370,7 +374,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
             g_object_set(colV, "max-size-time", static_cast<guint64>(std::max(1, cfg_.colchonSeg)) * GST_SECOND, "max-size-buffers", 0u,
                          "max-size-bytes", static_cast<guint>(std::min<guint64>(static_cast<guint64>(ajustes::entero("record.colchonMB", 512)) << 20, G_MAXUINT)), nullptr);
         if (cod == nullptr || parse == nullptr || antes == nullptr || colV == nullptr) {
-            error_ = "no hay codificador de video (" + codificador_ + ")";
+            error_ = llenar(traducir("motor", "no hay codificador de video (%1)"), {codificador_});
             for (GstElement* x : {cod, parse, antes, colV})
                 if (x != nullptr) gst_object_unref(x);
             gst_object_unref(mux);
@@ -385,7 +389,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
         gst_object_unref(vpad);
         gst_object_unref(antes);
         if (!ok) {
-            error_ = "no se pudo enganchar el codificador " + codificador_;
+            error_ = llenar(traducir("motor", "no se pudo enganchar el codificador %1"), {codificador_});
             gst_object_unref(mux);
             gst_object_unref(p);
             return error_;
@@ -450,14 +454,15 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(lat));
     latenciaNs_ = lat;
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-        error_ = "la grabación no arrancó";
+        error_ = traducir("motor", "la grabación no arrancó");
         gst_element_set_state(p, GST_STATE_NULL);
         gst_object_unref(p);
         return error_;
     }
     pipeline_ = p;
     desdeNs_ = ahoraNs();
-    registrar(Nivel::Info, "grabación: " + patron + " (" + (codificador_.empty() ? "solo audio" : codificador_) + ")");
+    registrar(Nivel::Info, llenar(traducir("motor", "grabación: %1 (%2)"),
+                                  {patron, codificador_.empty() ? traducir("motor", "solo audio") : codificador_}));
     return {};
 }
 
@@ -474,7 +479,7 @@ bool Grabacion::parar(int esperaMs) {
     const bool ok = m != nullptr && GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS;
     if (m != nullptr) gst_message_unref(m);
     gst_object_unref(bus);
-    if (!ok) registrar(Nivel::Aviso, "grabación: no cerró a tiempo (el último tramo puede quedar sin índice)");
+    if (!ok) registrar(Nivel::Aviso, traducir("motor", "grabación: no cerró a tiempo (el último tramo puede quedar sin índice)"));
     edadSalida_.sacar();
     gst_element_set_state(pipeline_, GST_STATE_NULL);
     for (GstElement* e : valvulas_) gst_object_unref(e);
@@ -509,7 +514,9 @@ void Grabacion::pausar(bool si) {
     if (pipeline_ == nullptr || pausada_.load() == si) return;
     for (GstElement* v : valvulas_) g_object_set(v, "drop", si ? TRUE : FALSE, nullptr);
     pausada_ = si;
-    registrar(Nivel::Info, std::string("grabación ") + cfg_.nombre + (si ? ": en pausa (el disco, para otra)" : ": sigue"));
+    registrar(Nivel::Info, llenar(si ? traducir("motor", "grabación %1: en pausa (el disco, para otra)")
+                                     : traducir("motor", "grabación %1: sigue"),
+                                  {cfg_.nombre}));
 }
 
 bool Grabacion::grabando() const {
@@ -525,8 +532,8 @@ void Grabacion::tic() {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
-            registrar(Nivel::Error, "grabación (" + std::string(GST_OBJECT_NAME(GST_MESSAGE_SRC(m))) + "): " + error_);
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");
+            registrar(Nivel::Error, llenar(traducir("motor", "grabación (%1): %2"), {GST_OBJECT_NAME(GST_MESSAGE_SRC(m)), error_}));
             if (e != nullptr) g_error_free(e);
         }
         gst_message_unref(m);
@@ -600,7 +607,7 @@ std::string Transmision::armar() {
     desarmar();
     const bool srt = cfg_.url.rfind("srt://", 0) == 0;
     const bool rtmp = cfg_.url.rfind("rtmp://", 0) == 0 || cfg_.url.rfind("rtmps://", 0) == 0;
-    if (!srt && !rtmp) return "la dirección tiene que empezar con rtmp://, rtmps:// o srt://";
+    if (!srt && !rtmp) return traducir("motor", "la dirección tiene que empezar con rtmp://, rtmps:// o srt://");
     std::string d = srt ? "mpegtsmux name=mux alignment=7 ! identity name=sale ! srtsink name=red wait-for-connection=false uri=" +
                               entreComillas(cfg_.url) + " "
                         : "flvmux name=mux streamable=true ! identity name=sale ! rtmp2sink name=red async-connect=true location=" +
@@ -645,7 +652,7 @@ std::string Transmision::armar() {
         if (mux != nullptr) gst_object_unref(mux);
         if (!ok) {
             gst_object_unref(p);
-            return "no hay codificador de video (" + codificador_ + ")";
+            return llenar(traducir("motor", "no hay codificador de video (%1)"), {codificador_});
         }
         // Lo que tira la cola de antes del codificador (la máquina no da abasto): cuadros perdidos.
         if (GstElement* cv = gst_bin_get_by_name(GST_BIN(p), "cv")) {
@@ -669,7 +676,7 @@ std::string Transmision::armar() {
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         gst_element_set_state(p, GST_STATE_NULL);
         gst_object_unref(p);
-        return "no se pudo conectar con " + sinClave(cfg_.url);
+        return llenar(traducir("motor", "no se pudo conectar con %1"), {sinClave(cfg_.url)});
     }
     pipeline_ = p;
     medidoNs_ = ahoraNs();
@@ -694,15 +701,18 @@ std::string Transmision::iniciar(const Fuentes& f) {
     bytes_ = cuadros_ = perdidos_ = 0;
     error_ = armar();
     if (!error_.empty()) {
-        if (error_.find("tiene que empezar") != std::string::npos) {
+        // La dirección mal escrita (armar la dice así): no se reintenta. Se compara con la
+        // misma frase traducida, no con un pedazo del original.
+        if (error_ == traducir("motor", "la dirección tiene que empezar con rtmp://, rtmps:// o srt://")) {
             pedida_ = false;
             return error_;
         }
         ++intentos_;
         reintentoNs_ = ahoraNs() + static_cast<std::int64_t>(GST_SECOND);
-        registrar(Nivel::Aviso, "transmisión: " + error_ + " (se reintenta)");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "transmisión: %1 (se reintenta)"), {error_}));
     } else {
-        registrar(Nivel::Info, "transmisión a " + sinClave(cfg_.url) + " (" + (codificador_.empty() ? "solo audio" : codificador_) + ")");
+        registrar(Nivel::Info, llenar(traducir("motor", "transmisión a %1 (%2)"),
+                                      {sinClave(cfg_.url), codificador_.empty() ? traducir("motor", "solo audio") : codificador_}));
     }
     return {};
 }
@@ -751,7 +761,7 @@ void Transmision::tic() {
         if (b != bytesAntes_) {
             ultimoDatoNs_ = ahora;
             if (intentos_ > 0) {
-                registrar(Nivel::Info, "transmisión: volvió (después de " + std::to_string(intentos_) + " intentos)");
+                registrar(Nivel::Info, llenar(traducir("motor", "transmisión: volvió (después de %1 intentos)"), {std::to_string(intentos_)}));
                 intentos_ = 0;
             }
         }
@@ -764,7 +774,7 @@ void Transmision::tic() {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR || GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS) {
             GError* e = nullptr;
             if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "se cortó";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "se cortó");
             if (e != nullptr) g_error_free(e);
             caida = true;
         }
@@ -772,7 +782,7 @@ void Transmision::tic() {
     }
     gst_object_unref(bus);
     if (caida) {
-        registrar(Nivel::Aviso, "transmisión: " + error_ + " (se reconecta)");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "transmisión: %1 (se reconecta)"), {error_}));
         desarmar();
         ++intentos_;
         reintentoNs_ = ahora + esperaReconexionNs(intentos_);

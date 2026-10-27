@@ -10,6 +10,7 @@
 #include "Capturas.hpp"
 
 #include "Piezas.hpp" // hayFabrica
+#include "i18n/I18n.hpp"
 
 #import <AVFoundation/AVFoundation.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -68,7 +69,7 @@ std::vector<VentanaCapturable> ventanasCapturables() {
 
 bool hayCapturaDeVentana(std::string* porque) {
     if (hayFabrica("bacapturaventana")) return true;
-    if (porque) *porque = "falta bacapturaventana (ScreenCaptureKit, macOS 12.3 o más nuevo)";
+    if (porque) *porque = ba::i18n::traducir("motor", "falta bacapturaventana (ScreenCaptureKit, macOS 12.3 o más nuevo)");
     return false;
 }
 

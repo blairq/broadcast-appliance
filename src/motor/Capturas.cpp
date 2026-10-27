@@ -4,6 +4,7 @@
 #include "Capturas.hpp"
 
 #include "Piezas.hpp" // hayFabrica
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -144,7 +145,7 @@ std::vector<VentanaCapturable> ventanasCapturables() {
 
 bool hayCapturaDeVentana(std::string* porque) {
     if (hayFabrica("d3d12screencapturesrc") || hayFabrica("d3d11screencapturesrc")) return true;
-    if (porque) *porque = "falta d3d12screencapturesrc";
+    if (porque) *porque = ba::i18n::llenar(ba::i18n::traducir("motor", "falta %1"), {"d3d12screencapturesrc"});
     return false;
 }
 
@@ -305,8 +306,9 @@ bool hayCapturaDeVentana(std::string* porque) {
     if (std::getenv("DISPLAY") != nullptr && hayFabrica("ximagesrc") && Xcb::la().ok) return true;
 #endif
     if (porque) *porque = std::getenv("WAYLAND_DISPLAY") != nullptr && std::getenv("DISPLAY") == nullptr
-                              ? "en Wayland la ventana se elige al capturar la pantalla (el portal del sistema)"
-                              : "hace falta X11 (ximagesrc)";
+                              ? ba::i18n::traducir("motor", "en Wayland la ventana se elige al capturar la pantalla (el "
+                                                            "portal del sistema)")
+                              : ba::i18n::traducir("motor", "hace falta X11 (ximagesrc)");
     return false;
 }
 

@@ -4,6 +4,7 @@
 #include "diag/Perfil.hpp"
 
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -464,8 +465,10 @@ void medir(std::string proceso, std::filesystem::path logs) {
             out.open(archivo, std::ios::trunc);
         }
         if (++vuelta % 10 == 0) {
-            std::string resumen = "perfil " + proceso + ": " + m["cpu_nucleos"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " núcleos, " +
-                                  m["memoria_mb"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " MB";
+            std::string resumen =
+                i18n::llenar(i18n::traducir("perfil", "perfil %1: %2 núcleos, %3 MB"),
+                             {proceso, m["cpu_nucleos"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                              m["memoria_mb"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)});
             for (size_t i = 0; i < lista.size() && i < 5; ++i)
                 resumen += " | " + lista[i]["nombre"].get<std::string>() + " " + lista[i]["cpu"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             if (!m["gpu"].empty()) resumen += " | gpu " + m["gpu"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -497,8 +500,9 @@ void Perfil::arrancar(const std::string& proceso, const std::filesystem::path& l
 #endif
     }
     registro().linea(Nivel::Aviso, "perfil", 0,
-                     "build con BA_PERFILAR: se mide la CPU por hilo y la GPU cada segundo (Logs/perfil-" + proceso +
-                         ".jsonl)");
+                     i18n::llenar(i18n::traducir("perfil", "build con BA_PERFILAR: se mide la CPU por hilo y la GPU cada "
+                                                           "segundo (%1)"),
+                                  {"Logs/perfil-" + proceso + ".jsonl"}));
     // El hilo que llama (el principal del proceso: arrancar se llama desde main) con
     // nombre: Qt no se lo pone y salía «(sin nombre)», que es justo el que importa.
 #if defined(_WIN32)

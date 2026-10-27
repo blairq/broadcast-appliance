@@ -8,6 +8,7 @@
 
 #include "ChildOutput.hpp"
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -90,10 +91,13 @@ std::string cxxRuntimeDir(const std::filesystem::path& ownBinDir) {
     static bool logged = false;
     if (!logged) {
         logged = true;
+        using ba::i18n::traducir;
         BA_LOG_INFO("child", 0,
-                    "runtime C++: bundle GLIBCXX_3.4." + std::to_string(mine) + ", sistema " +
-                        (system < 0 ? std::string("ausente") : "GLIBCXX_3.4." + std::to_string(system)) +
-                        " -> " + (useBundled ? "se usa el del bundle" : "se usa el del sistema"));
+                    ba::i18n::llenar(traducir("child", "runtime C++: bundle %1, sistema %2 -> %3"),
+                                     {"GLIBCXX_3.4." + std::to_string(mine),
+                                      system < 0 ? traducir("child", "ausente") : "GLIBCXX_3.4." + std::to_string(system),
+                                      useBundled ? traducir("child", "se usa el del bundle")
+                                                 : traducir("child", "se usa el del sistema")}));
     }
     return useBundled ? (ownBinDir / "cxx").string() : std::string();
 }
@@ -249,17 +253,19 @@ bool ChildProcess::start(const Config& cfg) {
         } else {
             const std::u8string out = cfg.outputFile.u8string();
             BA_LOG_WARN("child", 0,
-                        "no se pudo preparar " + std::string(out.begin(), out.end()) + "; '" + name_ +
-                            "' se lanza sin capturar su salida");
+                        ba::i18n::llenar(ba::i18n::traducir("child", "no se pudo preparar %1; '%2' se lanza sin capturar su salida"),
+                                         {std::string(out.begin(), out.end()), name_}));
         }
     }
 
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {
-        BA_LOG_ERROR("child", 0, "no se pudo lanzar '" + name_ + "' (" + cfg.exePath.string() + "): " + err);
+        BA_LOG_ERROR("child", 0, ba::i18n::llenar(ba::i18n::traducir("child", "no se pudo lanzar '%1' (%2): %3"),
+                                                  {name_, cfg.exePath.string(), err}));
         return false;
     }
-    BA_LOG_INFO("child", 0, "lanzado '" + name_ + "' pid=" + std::to_string(proc_.pid()));
+    BA_LOG_INFO("child", 0,
+                ba::i18n::llenar(ba::i18n::traducir("child", "lanzado '%1' pid=%2"), {name_, std::to_string(proc_.pid())}));
     return true;
 }
 

@@ -35,8 +35,8 @@ namespace ba::documentos {
 class DniArgentino : public TipoDocumento {
    public:
     std::string id() const override { return "dni-ar"; }
-    std::string titulo() const override { return "DNI argentino"; }
-    std::string comoSeDice() const override { return "tu DNI"; }
+    std::string titulo() const override { return QT_TRANSLATE_NOOP("documentos", "DNI argentino"); }
+    std::string comoSeDice() const override { return QT_TRANSLATE_NOOP("documentos", "tu DNI"); }
     std::vector<std::string> formatos() const override { return {"PDF417", "MRZ"}; }
     bool leer(const Codigo& c, Datos& out) const override;
 };

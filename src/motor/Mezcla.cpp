@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Mezcla.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -15,6 +16,8 @@
 namespace ba::motor {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -72,7 +75,8 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
         if (hayFabrica("balimitador"))
             salida += "balimitador name=lim ! ";
         else
-            registrar(Nivel::Aviso, "mezcla " + nombre_ + ": no está balimitador (plugin baaudio): sale sin limitador");
+            registrar(Nivel::Aviso,
+                      llenar(traducir("motor", "mezcla %1: no está balimitador (plugin baaudio): sale sin limitador"), {nombre_}));
     }
     if (op.loudness && hayFabrica("ebur128level"))
         salida += "ebur128level name=loud interval=100000000 post-messages=true ! ";
@@ -89,7 +93,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
         g_error_free(e);
         if (pipeline_ != nullptr) gst_object_unref(pipeline_);
         pipeline_ = nullptr;
-        registrar(Nivel::Error, "mezcla " + nombre_ + ": " + error_);
+        registrar(Nivel::Error, llenar(traducir("motor", "mezcla %1: %2"), {nombre_, error_}));
         return;
     }
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
@@ -103,8 +107,8 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
         gst_object_unref(sale);
     }
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-        error_ = "el mezclador no arrancó";
-        registrar(Nivel::Error, "mezcla " + nombre_ + ": " + error_);
+        error_ = traducir("motor", "el mezclador no arrancó");
+        registrar(Nivel::Error, llenar(traducir("motor", "mezcla %1: %2"), {nombre_, error_}));
     }
 }
 
@@ -153,8 +157,8 @@ void Mezcla::agregar(const std::string& id) {
     if (r.src == nullptr || r.vol == nullptr || r.nivel == nullptr) {
         for (GstElement* e : {r.src, r.vol, r.nivel})
             if (e != nullptr) gst_object_unref(e);
-        error_ = "falta intersrc, queue, volume o level";
-        registrar(Nivel::Error, "mezcla " + nombre_ + ": " + error_);
+        error_ = traducir("motor", "falta intersrc, queue, volume o level");
+        registrar(Nivel::Error, llenar(traducir("motor", "mezcla %1: %2"), {nombre_, error_}));
         return;
     }
     g_object_set(r.src, "producer-name", (id + ":audio").c_str(), nullptr);
@@ -315,8 +319,9 @@ void Mezcla::tic() {
             case GST_MESSAGE_ERROR: {
                 GError* e = nullptr;
                 gst_message_parse_error(m, &e, nullptr);
-                error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
-                registrar(Nivel::Error, "mezcla " + nombre_ + " (" + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + error_);
+                error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");
+                registrar(Nivel::Error, llenar(traducir("motor", "mezcla %1 (%2): %3"),
+                                               {nombre_, GST_OBJECT_NAME(GST_MESSAGE_SRC(m)), error_}));
                 if (e != nullptr) g_error_free(e);
                 break;
             }
@@ -324,7 +329,8 @@ void Mezcla::tic() {
                 GError* e = nullptr;
                 gst_message_parse_warning(m, &e, nullptr);
                 if (e != nullptr) {
-                    registrar(Nivel::Info, "mezcla " + nombre_ + " (aviso de " + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + ba::diag::utf8Valido(e->message));
+                    registrar(Nivel::Info, llenar(traducir("motor", "mezcla %1 (aviso de %2): %3"),
+                                                  {nombre_, GST_OBJECT_NAME(GST_MESSAGE_SRC(m)), ba::diag::utf8Valido(e->message)}));
                     g_error_free(e);
                 }
                 break;

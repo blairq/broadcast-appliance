@@ -8,6 +8,12 @@
 #include <thread>
 
 #include "Reloj.hpp" // registrar
+#include "i18n/I18n.hpp"
+
+// Marca para lupdate un texto que se traduce después (sin Qt en el motor).
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
 
 namespace ba::motor {
 namespace {
@@ -44,7 +50,8 @@ void avisarDemora(const char* donde, std::int64_t ms, std::int64_t umbralMs, con
         if (ult != 0 && ahora - ult < 10'000'000) return;
         ult = ahora;
     }
-    registrar(Nivel::Aviso, std::string(que) + " " + std::to_string(ms) + " ms en " + donde);
+    registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "%1 %2 ms en %3"),
+                                             {ba::i18n::traducir("motor", que), std::to_string(ms), donde}));
 }
 
 Candado::Candado(std::recursive_mutex& m, const char* donde)
@@ -61,8 +68,11 @@ Candado::Candado(std::recursive_mutex& m, const char* donde)
                 if (avisar) ult = ahora;
             }
             if (avisar)
-                registrar(Nivel::Error, std::string("la interfaz tomó el candado del motor en ") + donde_ +
-                                            " (no tiene que tomarlo nunca: ver docs/planes/PLAN-MOTOR-SIN-ESPERAS.md)");
+                registrar(Nivel::Error,
+                          ba::i18n::llenar(ba::i18n::traducir("motor", "la interfaz tomó el candado del motor en %1 (no "
+                                                                       "tiene que tomarlo nunca: ver "
+                                                                       "docs/planes/PLAN-MOTOR-SIN-ESPERAS.md)"),
+                                           {donde_}));
         }
     }
     m_.lock();
@@ -75,17 +85,17 @@ Candado::~Candado() {
     const std::int64_t esperaMs = (tomadoUs_ - pedidoUs_) / 1000;
     const std::int64_t adentroMs = (ahora - tomadoUs_) / 1000;
     if (interfaz_) {
-        avisarDemora(donde_, esperaMs, 50, "la interfaz esperó el candado del motor");
-        avisarDemora(donde_, adentroMs, 50, "la interfaz tuvo el candado del motor");
+        avisarDemora(donde_, esperaMs, 50, QT_TRANSLATE_NOOP("motor", "la interfaz esperó el candado del motor"));
+        avisarDemora(donde_, adentroMs, 50, QT_TRANSLATE_NOOP("motor", "la interfaz tuvo el candado del motor"));
     } else {
-        avisarDemora(donde_, adentroMs, 200, "el candado del motor estuvo tomado");
+        avisarDemora(donde_, adentroMs, 200, QT_TRANSLATE_NOOP("motor", "el candado del motor estuvo tomado"));
     }
 }
 
 Tramo::Tramo(const char* nombre) : nombre_(nombre), desdeUs_(g_get_monotonic_time()) {}
 
 Tramo::~Tramo() {
-    avisarDemora(nombre_, (g_get_monotonic_time() - desdeUs_) / 1000, 100, "la vuelta del motor se demoró");
+    avisarDemora(nombre_, (g_get_monotonic_time() - desdeUs_) / 1000, 100, QT_TRANSLATE_NOOP("motor", "la vuelta del motor se demoró"));
 }
 
 } // namespace ba::motor

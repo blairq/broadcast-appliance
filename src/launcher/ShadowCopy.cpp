@@ -23,6 +23,7 @@
 // original; solo se copian bin/, obs-plugins/ y data/.
 
 #include "ShadowCopy.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Log.hpp"
 
@@ -232,8 +233,8 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     std::wstring tempBaseStr;
     if (!tempBase(tempBaseStr)) {
         BA_LOG_ERROR("shadow", 1,
-                     "no se pudo obtener la carpeta temporal; ejecutar desde "
-                     "la raiz (fail-safe)");
+                     ba::i18n::traducir("shadow", "no se pudo obtener la carpeta temporal; ejecutar desde "
+                                                  "la raiz (fail-safe)"));
         return root;
     }
 
@@ -242,7 +243,8 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     // Reuso: si ya existe y tiene el marker, la copia es completa y valida.
     std::error_code ec;
     if (fs::exists(shadowRoot, ec) && !ec && fs::exists(shadowRoot / kMarkerName, ec) && !ec) {
-        BA_LOG_INFO("shadow", 0, "copia sombra reutilizada (reused): " + shadowRoot.string());
+        BA_LOG_INFO("shadow", 0, ba::i18n::llenar(ba::i18n::traducir("shadow", "copia sombra reutilizada (reused): %1"),
+                                                  {shadowRoot.string()}));
         return toString(shadowRoot);
     }
 
@@ -252,8 +254,9 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
         fs::remove_all(shadowRoot, ec);
         if (ec) {
             BA_LOG_ERROR("shadow", 2,
-                         "no se pudo limpiar la copia sombra a medias: " + shadowRoot.string() +
-                             "; ejecutar desde la raiz");
+                         ba::i18n::llenar(ba::i18n::traducir("shadow", "no se pudo limpiar la copia sombra a medias: %1; "
+                                                                       "ejecutar desde la raiz"),
+                                          {shadowRoot.string()}));
             return root;
         }
     }
@@ -264,8 +267,8 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     for (const char* sub : subdirs) {
         if (!copyTree(rootPath / sub, shadowRoot / sub)) {
             BA_LOG_ERROR("shadow", 3,
-                         "fallo al copiar " + std::string(sub) + " hacia " + shadowRoot.string() +
-                             "; ejecutar desde la raiz");
+                         ba::i18n::llenar(ba::i18n::traducir("shadow", "fallo al copiar %1 hacia %2; ejecutar desde la raiz"),
+                                          {std::string(sub), shadowRoot.string()}));
             return root;
         }
     }
@@ -273,12 +276,13 @@ std::wstring ShadowCopy::prepare(const std::wstring& root, const std::wstring& v
     // El marker va al FINAL: marca la copia como completa y valida.
     if (!writeMarker(shadowRoot, versionHash)) {
         BA_LOG_ERROR("shadow", 4,
-                     "no se pudo escribir el marker .shadow_ok en " + shadowRoot.string() +
-                         "; ejecutar desde la raiz");
+                     ba::i18n::llenar(ba::i18n::traducir("shadow", "no se pudo escribir el marker .shadow_ok en %1; "
+                                                                   "ejecutar desde la raiz"),
+                                      {shadowRoot.string()}));
         return root;
     }
 
-    BA_LOG_INFO("shadow", 0, "copia sombra creada: " + shadowRoot.string());
+    BA_LOG_INFO("shadow", 0, ba::i18n::llenar(ba::i18n::traducir("shadow", "copia sombra creada: %1"), {shadowRoot.string()}));
     return toString(shadowRoot);
 }
 
@@ -293,10 +297,10 @@ void ShadowCopy::cleanup(const std::wstring& shadowRoot) {
     }
     fs::remove_all(p, ec);
     if (ec) {
-        BA_LOG_ERROR("shadow", 5, "no se pudo borrar la copia sombra: " + p.string());
+        BA_LOG_ERROR("shadow", 5, ba::i18n::llenar(ba::i18n::traducir("shadow", "no se pudo borrar la copia sombra: %1"), {p.string()}));
         return;
     }
-    BA_LOG_INFO("shadow", 0, "copia sombra eliminada: " + p.string());
+    BA_LOG_INFO("shadow", 0, ba::i18n::llenar(ba::i18n::traducir("shadow", "copia sombra eliminada: %1"), {p.string()}));
 }
 
 std::wstring ShadowCopy::versionKey(const std::wstring& root) {

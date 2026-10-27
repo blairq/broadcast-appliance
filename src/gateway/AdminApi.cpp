@@ -84,8 +84,12 @@
 
 #include "diag/Registro.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::gateway {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 using json = nlohmann::json;
 
@@ -171,7 +175,7 @@ std::string SignalingServer::changePin(const std::string& pin) {
     const json snap = room_.snapshot();
     room_.setHostInfo(p, snap.value("guestUrl", ""));
     guardarPinDeHoy(p); // los reinicios de la sala de hoy siguen con este
-    log_.info("control: PIN de la conferencia cambiado");
+    log_.info(traducir("gateway", "control: PIN de la conferencia cambiado"));
     return p;
 }
 
@@ -198,7 +202,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     if (path == "/" && method == "GET") {
-        http::sendResponse(fd, 200, "text/plain", "API de control de la sala (solo para la app).\n");
+        http::sendResponse(fd, 200, "text/plain", traducir("gateway", "API de control de la sala (solo para la app).") + "\n");
         return;
     }
 
@@ -233,7 +237,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     if (path == "/api/v1/sesion/cast" && method == "GET") {
         const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
         if (token.empty()) {
-            sendJson(fd, 200, json{{"ok", false}, {"error", "sin token"}});
+            sendJson(fd, 200, json{{"ok", false}, {"error", traducir("gateway", "sin token")}});
             return;
         }
         sendJson(fd, 200, json{{"ok", true}, {"url", "/cast/?token=" + token + "&nombre=Presidencia"}});
@@ -271,8 +275,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 const int r = room_.setCupo(n);
                 if (r != Room::kOk) {
                     sendJson(fd, 409, json{{"ok", false},
-                                           {"error", r == Room::kFull ? "hay invitados en lugares que se irían"
-                                                                      : "el cupo va de 1 a " + std::to_string(kMaxInvitados)}});
+                                           {"error", r == Room::kFull ? traducir("gateway", "hay invitados en lugares que se irían")
+                                                                      : llenar(traducir("gateway", "el cupo va de 1 a %1"),
+                                                                               {std::to_string(kMaxInvitados)})}});
                     return;
                 }
             }
@@ -281,12 +286,12 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
     }
     if (path == "/api/v1/proxy") {
-        sendJson(fd, 200, proxy_ != nullptr ? proxy_->estado() : json{{"activo", false}, {"motivo", "apagado en la configuración"}});
+        sendJson(fd, 200, proxy_ != nullptr ? proxy_->estado() : json{{"activo", false}, {"motivo", traducir("gateway", "apagado en la configuración")}});
         return;
     }
     if (path == "/api/v1/proxy/renovar" && method == "POST") {
         if (proxy_ == nullptr) {
-            sendJson(fd, 409, json{{"ok", false}, {"error", "el proxy está apagado"}});
+            sendJson(fd, 409, json{{"ok", false}, {"error", traducir("gateway", "el proxy está apagado")}});
             return;
         }
         proxy_->renovar(req.value("host", std::string()));
@@ -618,7 +623,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                                             req.value("secreta", false), habilitados, req.value("podian", 0),
                                             nowMsAdmin());
             if (!ok) {
-                sendErr(fd, 400, "hace falta una pregunta y al menos dos opciones");
+                sendErr(fd, 400, traducir("gateway", "hace falta una pregunta y al menos dos opciones").c_str());
                 return;
             }
             votacion_.setMostrarEnVivo(req.value("enVivo", false));
@@ -748,7 +753,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             canal = http::urlDecode(q.at("canal"));
             if (canal.empty() || canal.size() > 2 ||
                 !std::all_of(canal.begin(), canal.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
-                sendJson(fd, 200, json{{"ok", false}, {"message", "canal de escena invalido"}});
+                sendJson(fd, 200, json{{"ok", false}, {"message", traducir("gateway", "canal de escena invalido")}});
                 return;
             }
         }
@@ -756,14 +761,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200,
                      json{{"ok", false},
                           {"message",
-                           "La conferencia esta cerrada: abrila para poder mandarle el programa a una pantalla."}});
+                           traducir("gateway", "La conferencia esta cerrada: abrila para poder mandarle el programa a una "
+                                               "pantalla.")}});
             return;
         }
         const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
         if (token.empty()) {
             sendJson(
                 fd, 200,
-                json{{"ok", false}, {"message", "No pude sacar un permiso de ingreso para la pantalla."}});
+                json{{"ok", false}, {"message", traducir("gateway", "No pude sacar un permiso de ingreso para la pantalla.")}});
             return;
         }
         json out = origenDe("pantalla", target);
@@ -873,15 +879,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             ba::diag::Nivel n{};
             if (!req.contains("nivel") || !req["nivel"].is_string() ||
                 !ba::diag::nivelDeNombre(req["nivel"].get<std::string>(), n)) {
-                sendJson(fd, 400, json{{"ok", false}, {"error", "nivel desconocido"}});
+                sendJson(fd, 400, json{{"ok", false}, {"error", traducir("gateway", "nivel desconocido")}});
                 return;
             }
             reg.setNivel(n);
             // Queda anotado en el propio registro: si manana aparece un log
             // lleno de trazas, tiene que decir quien lo puso asi.
             reg.linea(ba::diag::Nivel::Info, "registro", 0,
-                      std::string("nivel cambiado a ") + ba::diag::nombreDeNivel(n) +
-                          " desde la API de control");
+                      llenar(traducir("registro", "nivel cambiado a %1 desde la API de control"), {ba::diag::nombreDeNivel(n)}));
             sendJson(fd, 200, json{{"ok", true}, {"nivel", ba::diag::nombreDeNivel(n)}});
             return;
         }
@@ -988,7 +993,7 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 if (it != sessionOf_.end()) sesion = it->second;
             }
             if (pump_ == nullptr || sesion == 0) {
-                sendJson(fd, 409, json{{"ok", false}, {"error", "ese participante no está mandando medios"}});
+                sendJson(fd, 409, json{{"ok", false}, {"error", traducir("gateway", "ese participante no está mandando medios")}});
             } else {
                 const json r = json::parse(pump_->pruebaTecnica(sesion, req.value("ms", 4000)), nullptr, false);
                 sendJson(fd, r.is_object() && !r.contains("error") ? 200 : 409, r);

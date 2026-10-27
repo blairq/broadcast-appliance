@@ -125,6 +125,8 @@ namespace {
 
 using namespace ba::gateway;
 using namespace ba::ipc;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 /// Version del proceso B (se publica en BA.Health).
 constexpr uint32_t kProcessVersion = 2;
@@ -253,7 +255,7 @@ bool loadOrCreateWgKey(ba::gateway::net::Key32& priv, std::string& origin) {
     }
     net::Key32 pub{};
     if (!net::x25519Generate(priv, pub)) return false;
-    origin = "Credenciales/wireguard-key (nueva)";
+    origin = llenar(traducir("gateway", "%1 (nueva)"), {"Credenciales/wireguard-key"});
     return store.write("wireguard-key", net::toBase64(priv));
 }
 
@@ -446,9 +448,9 @@ int main(int argc, char** argv) {
         ba::diag::Perfil::arrancar("gateway", cfg.logsDir); // solo en un build con BA_PERFILAR
     }
 
-    log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +
-             " room=" + cfg.room + " webroot=" + cfg.webroot +
-             " webrtc=" + (BA_GATEWAY_HAVE_WEBRTC ? "libwebrtc" : "NULL"));
+    log.info(llenar(traducir("gateway", "arranque: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5"),
+                    {std::to_string(cfg.guests), std::to_string(cfg.port), cfg.room, cfg.webroot,
+                     BA_GATEWAY_HAVE_WEBRTC ? "libwebrtc" : "NULL"}));
 
     // Handler de senal para parada ordenada (SIGINT / Ctrl+C).
 #ifdef _WIN32
@@ -468,7 +470,7 @@ int main(int argc, char** argv) {
         if (!s.ok) {
             s = HealthBlock::create(HealthBlock::kName, kHealthSlotCount, health);
             if (!s.ok) {
-                log.error("no se pudo crear BA.Health", s.code);
+                log.error(traducir("gateway", "no se pudo crear BA.Health"), s.code);
                 return 1;
             }
         }
@@ -482,7 +484,7 @@ int main(int argc, char** argv) {
     );
     health.setIdentity(kHealthSlot, pid, kProcessVersion);
     health.setState(kHealthSlot, ProcessState::Running);
-    log.info("BA.Health slot 0 = Running (pid=" + std::to_string(pid) + ")");
+    log.info(llenar(traducir("gateway", "BA.Health slot 0 = Running (pid=%1)"), {std::to_string(pid)}));
 
     // --- Auth de invitado (TokenService) ------------------------------------
     //
@@ -498,11 +500,11 @@ int main(int argc, char** argv) {
     // arrancar.
     std::string hmacSecret = envOrEmpty(kEnvHmacSecret);
     if (!hmacSecret.empty()) {
-        log.info("auth: clave HMAC inyectada por el entorno (" + std::string(kEnvHmacSecret) + ")");
+        log.info(llenar(traducir("gateway", "auth: clave HMAC inyectada por el entorno (%1)"), {kEnvHmacSecret}));
     } else if (ba::security::randomSecretHex(32, hmacSecret)) {
-        log.info("auth: clave HMAC generada para este arranque (256 bits)");
+        log.info(traducir("gateway", "auth: clave HMAC generada para este arranque (256 bits)"));
     } else {
-        log.error("auth: sin fuente de entropia para la clave HMAC; no se arranca", -1);
+        log.error(traducir("gateway", "auth: sin fuente de entropia para la clave HMAC; no se arranca"), -1);
         health.setState(kHealthSlot, ProcessState::Terminated);
         return 1;
     }
@@ -513,9 +515,9 @@ int main(int argc, char** argv) {
     // segura, pero un PIN aleatorio deja el gateway usable sin volverlo
     // adivinable.
     if (cfg.pinFromCli) {
-        log.warn("auth: --pin llega por linea de comandos y es visible en la lista de procesos; "
-                 "preferir " +
-                     std::string(kEnvRoomPin),
+        log.warn(llenar(traducir("gateway", "auth: --pin llega por linea de comandos y es visible en la lista de "
+                                            "procesos; preferir %1"),
+                        {kEnvRoomPin}),
                  -1);
     }
     std::string roomPin = !cfg.pin.empty() ? cfg.pin : envOrEmpty(kEnvRoomPin);
@@ -524,13 +526,14 @@ int main(int argc, char** argv) {
     const bool pinFijo = !roomPin.empty();
     if (roomPin.empty()) roomPin = ba::gateway::SignalingServer::pinDeHoy();
     if (!roomPin.empty()) {
-        if (!pinFijo) log.info("auth: PIN de la conferencia: el de hoy");
+        if (!pinFijo) log.info(traducir("gateway", "auth: PIN de la conferencia: el de hoy"));
     } else {
         if (randomPin(6, roomPin)) {
             ba::gateway::SignalingServer::guardarPinDeHoy(roomPin);
-            log.info("auth: PIN de la conferencia nuevo del día: " + roomPin);
+            log.info(llenar(traducir("gateway", "auth: PIN de la conferencia nuevo del día: %1"), {roomPin}));
         } else {
-            log.error("auth: no se pudo generar un PIN; la conferencia queda cerrada hasta un ChangePin", -1);
+            log.error(traducir("gateway", "auth: no se pudo generar un PIN; la conferencia queda cerrada hasta un ChangePin"),
+                      -1);
         }
     }
     // Umbral del lockout GLOBAL del TokenService. El freno real contra la
@@ -639,7 +642,7 @@ int main(int argc, char** argv) {
     // Token de la API de control: del launcher o aleatorio por arranque.
     std::string adminToken = envOrEmpty(kEnvAdminToken);
     if (adminToken.empty() && !ba::security::randomSecretHex(32, adminToken)) {
-        log.error("control: sin entropia para el token de la API; la sala queda sin control", -1);
+        log.error(traducir("gateway", "control: sin entropia para el token de la API; la sala queda sin control"), -1);
         adminToken.clear();
     }
 
@@ -732,7 +735,7 @@ int main(int argc, char** argv) {
             publicIp = buf;
             freeaddrinfo(res);
         } else {
-            log.warn("tunel: no se pudo resolver la direccion publica " + publicHost, -1);
+            log.warn(llenar(traducir("gateway", "tunel: no se pudo resolver la direccion publica %1"), {publicHost}), -1);
         }
         server.setPublicAddress(publicIp);
     }
@@ -744,11 +747,13 @@ int main(int argc, char** argv) {
                                   : (cfg.bindAddress != "0.0.0.0" && cfg.bindAddress != "127.0.0.1") ? cfg.bindAddress
                                   : !lanIps.empty()                                             ? lanIps.front()
                                                                                                 : std::string();
-    log.info("red: IP de la máquina " + [&] {
-        std::string l;
-        for (const auto& x : lanIps) l += (l.empty() ? "" : ", ") + x;
-        return l.empty() ? std::string("(ninguna)") : l;
-    }() + "; en el QR: " + (hostLocal.empty() ? std::string("(ninguna)") : hostLocal));
+    log.info(llenar(traducir("gateway", "red: IP de la máquina %1; en el QR: %2"),
+                    {[&] {
+                         std::string l;
+                         for (const auto& x : lanIps) l += (l.empty() ? "" : ", ") + x;
+                         return l.empty() ? traducir("gateway", "(ninguna)") : l;
+                     }(),
+                     hostLocal.empty() ? traducir("gateway", "(ninguna)") : hostLocal}));
 
     std::unique_ptr<net::TlsTerminator> tls;
     std::unique_ptr<net::TlsTerminator> tlsAparatos; // la puerta de la botonera y el control web
@@ -777,7 +782,8 @@ int main(int argc, char** argv) {
             tls->atendidoAfuera(cfg.httpsPort);
             httpsPorBaWeb = true;
         } else if (!tls->start()) {
-            log.warn("https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)", -1);
+            log.warn(traducir("gateway", "https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)"),
+                     -1);
             tls.reset();
         }
     }
@@ -788,7 +794,7 @@ int main(int argc, char** argv) {
         gestorProxy = std::make_unique<proxy::GestorProxy>(cfg.proxy, cfg.port, ba::platform::credentialsDir().string(),
                                                            lanIps, logLine);
         if (!gestorProxy->start()) {
-            log.warn("proxy: no arrancó (ver el motivo arriba)", -1);
+            log.warn(traducir("gateway", "proxy: no arrancó (ver el motivo arriba)"), -1);
             gestorProxy.reset();
         }
     }
@@ -819,11 +825,11 @@ int main(int argc, char** argv) {
         uint32_t tunnelIp = 0;
         int prefix = 24;
         if (!loadOrCreateWgKey(wc.privateKey, keyOrigin)) {
-            log.error("tunel: sin clave privada WireGuard; tunel deshabilitado", -1);
+            log.error(traducir("gateway", "tunel: sin clave privada WireGuard; tunel deshabilitado"), -1);
         } else if (!net::fromBase64(wc.peerPublicKey, cfg.wgServerPublicKey)) {
-            log.error("tunel: falta la clave publica del servidor (wireguard.serverPublicKey)", -1);
+            log.error(traducir("gateway", "tunel: falta la clave publica del servidor (wireguard.serverPublicKey)"), -1);
         } else if (!net::parseCidr(cfg.wgAddress, tunnelIp, prefix)) {
-            log.error("tunel: direccion invalida (wireguard.address = " + cfg.wgAddress + ")", -1);
+            log.error(llenar(traducir("gateway", "tunel: direccion invalida (wireguard.address = %1)"), {cfg.wgAddress}), -1);
         } else {
             if (const char* psk = std::getenv("BA_WG_PSK"); psk != nullptr && *psk != '\0') {
                 net::fromBase64(wc.presharedKey, psk);
@@ -840,16 +846,16 @@ int main(int argc, char** argv) {
             if (tls) ipstack->forwardTcp(cfg.wgHttpsPort, tls->port(), true);
             ipstack->forwardUdpRange(cfg.rtcPortMin, cfg.rtcPortMax);
             if (wg->start() && ipstack->start()) {
-                log.info("tunel: WireGuard hacia " + cfg.wgEndpoint + " como " + cfg.wgAddress + " (clave " +
-                         keyOrigin + "; publica " + wgPublicKey + ")");
+                log.info(llenar(traducir("gateway", "tunel: WireGuard hacia %1 como %2 (clave %3; publica %4)"),
+                                {cfg.wgEndpoint, cfg.wgAddress, keyOrigin, wgPublicKey}));
             } else {
-                log.error("tunel: no arranco WireGuard/pila IP", -1);
+                log.error(traducir("gateway", "tunel: no arranco WireGuard/pila IP"), -1);
                 ipstack.reset();
                 wg.reset();
             }
         }
 #else
-        log.error("tunel: este build no trae lwIP (make deps-lwip); tunel deshabilitado", -1);
+        log.error(traducir("gateway", "tunel: este build no trae lwIP (make deps-lwip); tunel deshabilitado"), -1);
 #endif
     }
 
@@ -861,13 +867,13 @@ int main(int argc, char** argv) {
         uint32_t ourIp = 0;
         int prefix = 24;
         if (wgPublicKey.empty() || !net::parseCidr(cfg.wgAddress, ourIp, prefix)) {
-            out["error"] = "sin clave o direccion del tunel";
+            out["error"] = traducir("gateway", "sin clave o direccion del tunel");
             return out;
         }
         net::Key32 sPriv{};
         net::Key32 sPub{};
         if (!net::x25519Generate(sPriv, sPub)) {
-            out["error"] = "entropia";
+            out["error"] = traducir("gateway", "entropia");
             return out;
         }
         const uint32_t serverIp = (ourIp & (prefix == 0 ? 0u : 0xFFFFFFFFu << (32 - prefix))) | 1u;
@@ -894,18 +900,25 @@ int main(int argc, char** argv) {
             return r;
         };
         std::string conf;
-        conf += "# /etc/wireguard/wg0.conf -- servidor con IP publica para Broadcast Appliance\n";
-        conf += "# Instalar: apt install wireguard iptables   Activar: systemctl enable --now wg-quick@wg0\n";
-        conf += "# '" + iface + "' es la interfaz publica del servidor: cambiala si se llama distinto.\n";
-        conf += "# Abrir en el firewall del proveedor: UDP " + std::to_string(listenPort) + ", TCP " + ports +
-                ", UDP " + udp + ".\n\n";
+        // Los comentarios del archivo los lee quien instala el servidor: en el idioma del operador.
+        conf += "# " + traducir("gateway", "/etc/wireguard/wg0.conf -- servidor con IP publica para Broadcast Appliance") +
+                "\n";
+        conf += "# " + traducir("gateway", "Instalar: apt install wireguard iptables   Activar: systemctl enable --now "
+                                           "wg-quick@wg0") +
+                "\n";
+        conf += "# " + llenar(traducir("gateway", "'%1' es la interfaz publica del servidor: cambiala si se llama distinto."),
+                              {iface}) +
+                "\n";
+        conf += "# " + llenar(traducir("gateway", "Abrir en el firewall del proveedor: UDP %1, TCP %2, UDP %3."),
+                              {std::to_string(listenPort), ports, udp}) +
+                "\n\n";
         conf += "[Interface]\n";
         conf += "Address = " + ip(serverIp) + "/" + std::to_string(prefix) + "\n";
         conf += "ListenPort = " + std::to_string(listenPort) + "\n";
         conf += "PrivateKey = " + net::toBase64(sPriv) + "\n";
         conf += "PostUp = sysctl -w net.ipv4.ip_forward=1; " + rules("-A") + "\n";
         conf += "PostDown = " + rules("-D") + "\n\n";
-        conf += "[Peer]\n# Broadcast Appliance (este equipo)\n";
+        conf += "[Peer]\n# " + traducir("gateway", "Broadcast Appliance (este equipo)") + "\n";
         conf += "PublicKey = " + wgPublicKey + "\n";
         conf += "AllowedIPs = " + ours + "/32\n";
         net::wipe(sPriv.data(), sPriv.size());
@@ -952,10 +965,12 @@ int main(int argc, char** argv) {
         std::string e;
         if (turnSrv->start(&e)) {
             turnActivo = true;
-            log.info("turn: escuchando en el puerto " + std::to_string(turnPuertoLocal) +
-                     (turnCfg.puertoUdp ? " (TCP y UDP)" : " (TCP)"));
+            log.info(llenar(turnCfg.puertoUdp ? traducir("gateway", "turn: escuchando en el puerto %1 (TCP y UDP)")
+                                              : traducir("gateway", "turn: escuchando en el puerto %1 (TCP)"),
+                            {std::to_string(turnPuertoLocal)}));
         } else {
-            log.warn("turn: no arrancó (" + e + "): los invitados de afuera no van a tener video", -1);
+            log.warn(llenar(traducir("gateway", "turn: no arrancó (%1): los invitados de afuera no van a tener video"), {e}),
+                     -1);
             turnSrv.reset();
         }
     }
@@ -1008,9 +1023,10 @@ int main(int argc, char** argv) {
     // Si ba-web no arrancó (o no le llegó el certificado), el HTTPS de la red local lo atiende
     // el terminador de siempre, en el mismo puerto.
     if (httpsPorBaWeb && tls && !(baWeb && baWeb->atiendeLan())) {
-        log.warn("https: ba-web no lo atiende; arranca el terminador propio", -1);
+        log.warn(traducir("gateway", "https: ba-web no lo atiende; arranca el terminador propio"), -1);
         if (!tls->start()) {
-            log.warn("https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)", -1);
+            log.warn(traducir("gateway", "https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)"),
+                     -1);
             tls.reset();
         }
     }
@@ -1168,8 +1184,8 @@ int main(int argc, char** argv) {
     // Token del tunel: por entorno (BA_TUNNEL_TOKEN). Por linea de comandos
     // queda visible en la lista de procesos, igual que el PIN.
     if (!cfg.tunnelToken.empty()) {
-        log.warn("tunel: --tunnel-token es visible en la lista de procesos; preferir " +
-                     std::string(kEnvTunnelToken),
+        log.warn(llenar(traducir("gateway", "tunel: --tunnel-token es visible en la lista de procesos; preferir %1"),
+                        {kEnvTunnelToken}),
                  -1);
     } else {
         cfg.tunnelToken = envOrEmpty(kEnvTunnelToken);
@@ -1187,7 +1203,7 @@ int main(int argc, char** argv) {
 
     // --- Arranque de los componentes (degradacion elegante).
     if (!server.start()) {
-        log.error("senalizacion no arranco; el gateway sigue sin tunel web", -1);
+        log.error(traducir("gateway", "senalizacion no arranco; el gateway sigue sin tunel web"), -1);
     }
     // La puerta de la sala, HTTPS (ver SignalingServer.hpp, 1c): en la red → la escucha
     // de 127.0.0.1 que atiende todo menos la entrada de invitados.
@@ -1200,10 +1216,12 @@ int main(int argc, char** argv) {
         ac.names = nombresTls;
         tlsAparatos = std::make_unique<net::TlsTerminator>(ac, logLine);
         if (tlsAparatos->start()) {
-            log.info("puerta de la sala: https en " + puertaBind + ":" + std::to_string(tlsAparatos->port()));
+            log.info(llenar(traducir("gateway", "puerta de la sala: https en %1:%2"),
+                            {puertaBind, std::to_string(tlsAparatos->port())}));
         } else {
-            log.warn("puerta de la sala: no arrancó el HTTPS en el puerto " + std::to_string(cfg.controlLanPort) +
-                         " (los servicios de la sala no llegan por HTTPS desde la red)",
+            log.warn(llenar(traducir("gateway", "puerta de la sala: no arrancó el HTTPS en el puerto %1 (los servicios de la "
+                                                "sala no llegan por HTTPS desde la red)"),
+                            {std::to_string(cfg.controlLanPort)}),
                      -1);
             tlsAparatos.reset();
         }
@@ -1249,7 +1267,8 @@ int main(int argc, char** argv) {
                 e.remoto = (tls ? "https://" : "http://") + publicHost;
                 e.via = "wireguard";
             } else if (pinggy) {
-                e.motivoRemoto = "El túnel todavía no está listo (" + pinggy->estado().estado + ").";
+                e.motivoRemoto =
+                    llenar(traducir("gateway", "El túnel todavía no está listo (%1)."), {pinggy->estado().estado});
             }
             e.controlRemoto = server.controlWebDesdeAfuera();
             e.eventoWeb = server.eventoWebPublicado();
@@ -1267,7 +1286,7 @@ int main(int argc, char** argv) {
                                       {"pid", static_cast<long long>(pid)},
                                       {"guestPort", cfg.port}};
             if (!writeAdminFile(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) {
-                log.warn("control: no se pudo publicar " + adminFile.string(), -1);
+                log.warn(llenar(traducir("gateway", "control: no se pudo publicar %1"), {adminFile.string()}), -1);
                 adminFile.clear();
             }
         }
@@ -1276,8 +1295,8 @@ int main(int argc, char** argv) {
     grillas.start(ba::ajustes::entero("grilla.cps", 25));
     if (pinggy) {
         if (server.tunnelPort() == 0)
-            log.error("pinggy: sin la escucha del tunel (127.0.0.1:" + std::to_string(cfg.pinggyPuertoTunel) +
-                          "); no se lanza",
+            log.error(llenar(traducir("gateway", "pinggy: sin la escucha del tunel (127.0.0.1:%1); no se lanza"),
+                             {std::to_string(cfg.pinggyPuertoTunel)}),
                       -1);
         else
             pinggy->start();
@@ -1285,7 +1304,7 @@ int main(int argc, char** argv) {
     if (cfg.tunnel) {
         cloudflared.start();
     } else {
-        log.info("tunel: desactivado por configuracion (solo acceso local)");
+        log.info(traducir("gateway", "tunel: desactivado por configuracion (solo acceso local)"));
     }
 
     // --- Bucle de vida: beat(0) cada 250 ms hasta duracion o senal.
@@ -1299,16 +1318,16 @@ int main(int argc, char** argv) {
     {
         std::string err;
         if (control.start("control.gateway", &err)) {
-            log.info("control: escuchando en 'control.gateway'");
+            log.info(traducir("gateway", "control: escuchando en 'control.gateway'"));
         } else {
-            log.warn("control: sin canal de control (" + err + ")", -1);
+            log.warn(llenar(traducir("gateway", "control: sin canal de control (%1)"), {err}), -1);
         }
     }
 
     while (!g_stop.load(std::memory_order_relaxed)) {
         control.poll([&](const ba::ipc::Message& m) {
             if (m.type == ba::ipc::Type::Shutdown) {
-                log.info("control: shutdown pedido por el launcher");
+                log.info(traducir("gateway", "control: shutdown pedido por el launcher"));
                 g_stop.store(true);
             }
         });
@@ -1330,7 +1349,7 @@ int main(int argc, char** argv) {
         room.setUsage(processUsage(&hub));
     }
 
-    log.info("parando: deteniendo componentes...");
+    log.info(traducir("gateway", "parando: deteniendo componentes..."));
 
     // --- Shutdown ordenado: senalizacion → pump → cloudflared → Terminated.
 #if BA_HAVE_LWIP
@@ -1352,6 +1371,6 @@ int main(int argc, char** argv) {
     hub.closeAll();
     cloudflared.stop();
     health.setState(kHealthSlot, ProcessState::Terminated);
-    log.info("cierre ordenado: BA.Health slot 0 = Terminated; exito");
+    log.info(traducir("gateway", "cierre ordenado: BA.Health slot 0 = Terminated; exito"));
     return 0;
 }

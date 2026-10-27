@@ -7,6 +7,7 @@
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
+#include "i18n/I18n.hpp"
 
 #include <gst/app/gstappsink.h>
 #include <gst/video/video.h>
@@ -73,8 +74,10 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
                     ++u.medidos;
                     if (ahora - u.medirDesde >= 2'000'000) {
                         const double cps = u.medidos * 1e6 / static_cast<double>(ahora - u.medirDesde);
-                        registrar(Nivel::Info, "vista " + ll->clave + ": " + std::to_string(static_cast<int>(cps + 0.5)) +
-                                                   " cuadros/s, hueco máx " + std::to_string(u.huecoMaxUs / 1000) + " ms");
+                        registrar(Nivel::Info,
+                                  ba::i18n::llenar(ba::i18n::traducir("motor", "vista %1: %2 cuadros/s, hueco máx %3 ms"),
+                                                   {ll->clave, std::to_string(static_cast<int>(cps + 0.5)),
+                                                    std::to_string(u.huecoMaxUs / 1000)}));
                         u.medirDesde = ahora;
                         u.medidos = 0;
                         u.huecoMaxUs = 0;
@@ -154,8 +157,9 @@ void Vistas::armar(const std::string& clave, Una& u) {
                     if (c->desde == 0) c->desde = ahora;
                     ++c->n;
                     if (ahora - c->desde >= 2'000'000) {
-                        registrar(Nivel::Info, "entra a vista " + c->clave + ": " +
-                                                   std::to_string(static_cast<int>(c->n * 1e6 / (ahora - c->desde) + 0.5)) + " cuadros/s");
+                        registrar(Nivel::Info,
+                                  ba::i18n::llenar(ba::i18n::traducir("motor", "entra a vista %1: %2 cuadros/s"),
+                                                   {c->clave, std::to_string(static_cast<int>(c->n * 1e6 / (ahora - c->desde) + 0.5))}));
                         c->desde = ahora;
                         c->n = 0;
                     }
@@ -211,7 +215,8 @@ std::string Vistas::pedir(const std::string& clave, int ancho, int alto) {
         u->alto = alto;
         armar(clave, *u);
     }
-    return u->pipeline != nullptr ? std::string() : "no hay nada para ver en «" + clave + "»";
+    return u->pipeline != nullptr ? std::string()
+                                  : ba::i18n::llenar(ba::i18n::traducir("motor", "no hay nada para ver en «%1»"), {clave});
 }
 
 void Vistas::soltar(const std::string& clave) {

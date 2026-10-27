@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include "platform/LocalSocket.hpp"
+#include "i18n/I18n.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -162,7 +163,7 @@ bool LocalStream::connect(const std::string& name, int timeoutMs, LocalStream& o
         const DWORD e = GetLastError();
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline || (e != ERROR_FILE_NOT_FOUND && e != ERROR_PIPE_BUSY)) {
-            setErr(err, "no se pudo conectar a '" + name + "'");
+            setErr(err, ba::i18n::llenar(ba::i18n::traducir("ipc", "no se pudo conectar a '%1'"), {name}));
             return false;
         }
         const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
@@ -287,8 +288,8 @@ bool LocalServer::createInstance(bool first, std::string* err) {
     HANDLE h = CreateNamedPipeW(pipePath(name_).c_str(), openMode, pipeMode, PIPE_UNLIMITED_INSTANCES,
                                 kPipeBuffer, kPipeBuffer, 0, &sa);
     if (h == INVALID_HANDLE_VALUE) {
-        setErr(err, first ? "el canal '" + name_ + "' ya tiene un servidor activo o no se pudo crear"
-                          : "CreateNamedPipeW");
+        setErr(err, first ? ba::i18n::llenar(ba::i18n::traducir("ipc", "el canal '%1' ya tiene un servidor activo o no se pudo crear"), {name_})
+                          : std::string("CreateNamedPipeW"));
         return false;
     }
     pending_ = h;
@@ -306,7 +307,7 @@ bool LocalServer::listen(const std::string& name, LocalServer& out, std::string*
     out.name_ = name;
     out.security_ = makeUserOnlySecurity();
     if (out.security_ == nullptr) {
-        setErr(err, "no se pudo armar el descriptor de seguridad del pipe");
+        setErr(err, ba::i18n::traducir("ipc", "no se pudo armar el descriptor de seguridad del pipe"));
         out.close();
         return false;
     }

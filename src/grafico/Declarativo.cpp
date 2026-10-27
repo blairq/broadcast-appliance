@@ -4,6 +4,7 @@
 #include "Declarativo.hpp"
 
 #include <algorithm>
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonValue>
@@ -382,7 +383,7 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros, const M
     Traduccion t;
     const QJsonArray capas = d.value("capas").toArray();
     if (capas.isEmpty()) {
-        t.error = "el gráfico no tiene ninguna capa";
+        t.error = QCoreApplication::translate("graficos", "el gráfico no tiene ninguna capa");
         return t;
     }
 
@@ -413,8 +414,8 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros, const M
             animaciones += desplazamiento(c, id);
             continue; // su `aparece` es cuándo crecen, no un fundido
         } else {
-            t.error = QString("no sé qué es una capa de tipo «%1». Las que hay: barra, panel, texto, medio, "
-                              "torta, barras.")
+            t.error = QCoreApplication::translate("graficos", "no sé qué es una capa de tipo «%1». Las que hay: barra, "
+                                                              "panel, texto, medio, torta, barras.")
                           .arg(tipo);
             return t;
         }

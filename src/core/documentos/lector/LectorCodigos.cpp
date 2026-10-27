@@ -2,6 +2,7 @@
 // src/core/documentos/lector/LectorCodigos.cpp — ver LectorCodigos.hpp
 // ============================================================================
 #include "documentos/lector/LectorCodigos.hpp"
+#include "i18n/I18n.hpp"
 
 #include <exception>
 
@@ -86,7 +87,7 @@ bool generarCodigo(const std::string& formato, const std::string& texto, int anc
     try {
         const ZXing::BarcodeFormat f = ZXing::BarcodeFormatFromString(formato);
         if (f == ZXing::BarcodeFormat::None) {
-            if (error != nullptr) *error = "formato desconocido: " + formato;
+            if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("documentos", "formato desconocido: %1"), {formato});
             return false;
         }
         ZXing::MultiFormatWriter w(f);

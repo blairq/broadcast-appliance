@@ -32,6 +32,7 @@
 #include <fstream>
 
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -46,6 +47,9 @@
 
 namespace ba::gateway {
 
+using ba::i18n::llenar;
+using ba::i18n::traducir;
+
 CloudflaredSupervisor::CloudflaredSupervisor(std::string cloudflaredPath, std::string tunnelToken,
                                              uint16_t metricsPort, std::string logPath, Log& log)
     : cloudflaredPath_(std::move(cloudflaredPath)), tunnelToken_(std::move(tunnelToken)),
@@ -57,23 +61,25 @@ bool CloudflaredSupervisor::start() {
     // Sin token no hay tunel posible: lanzarlo igual solo generaba un bucle de
     // reinicios. El gateway queda accesible en la red local.
     if (tunnelToken_.empty()) {
-        log_.info("cloudflared: sin token de tunel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); sin tunel, solo acceso local");
+        log_.info(traducir("gateway", "cloudflared: sin token de tunel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); "
+                                      "sin tunel, solo acceso local"));
         return false;
     }
     std::error_code ec;
     if (!std::filesystem::exists(cloudflaredPath_, ec)) {
-        log_.warn("cloudflared: no esta el binario (" + cloudflaredPath_ +
-                      "); sin tunel. `make deps-cloudflared`",
+        log_.warn(llenar(traducir("gateway", "cloudflared: no esta el binario (%1); sin tunel. `make deps-cloudflared`"),
+                         {cloudflaredPath_}),
                   -1);
         return false;
     }
     stop_.store(false);
     if (!spawn()) {
-        log_.warn("cloudflared: no se pudo lanzar (se reintentara con backoff)", -1);
+        log_.warn(traducir("gateway", "cloudflared: no se pudo lanzar (se reintentara con backoff)"), -1);
     }
     thread_ = std::thread(&CloudflaredSupervisor::runLoop, this);
     started_ = true;
-    log_.info("cloudflared: supervisor arrancado (metrics=127.0.0.1:" + std::to_string(metricsPort_) + ")");
+    log_.info(llenar(traducir("gateway", "cloudflared: supervisor arrancado (metrics=127.0.0.1:%1)"),
+                     {std::to_string(metricsPort_)}));
     return alive_.load();
 }
 
@@ -85,7 +91,8 @@ void CloudflaredSupervisor::stop() {
     stop_.store(true);
     if (thread_.joinable()) thread_.join();
     kill();
-    log_.info("cloudflared: supervisor detenido (reinicios=" + std::to_string(restartCount_.load()) + ")");
+    log_.info(llenar(traducir("gateway", "cloudflared: supervisor detenido (reinicios=%1)"),
+                     {std::to_string(restartCount_.load())}));
 }
 
 bool CloudflaredSupervisor::running() const { return alive_.load(); }
@@ -113,14 +120,14 @@ bool CloudflaredSupervisor::spawn() {
     logOffset_ = ec ? 0 : size;
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {
-        log_.warn("cloudflared: no se pudo lanzar: " + err, -1);
+        log_.warn(llenar(traducir("gateway", "cloudflared: no se pudo lanzar: %1"), {err}), -1);
         return false;
     }
     alive_.store(true);
     // El backoff NO se resetea aca: un proceso que arranca y muere enseguida
     // (token invalido) lo relanzaria cada 2 s para siempre. Se resetea cuando
     // el tunel queda confirmado arriba (runLoop).
-    log_.info("cloudflared: lanzado (pid=" + std::to_string(proc_.pid()) + ")");
+    log_.info(llenar(traducir("gateway", "cloudflared: lanzado (pid=%1)"), {std::to_string(proc_.pid())}));
     return true;
 }
 
@@ -208,7 +215,7 @@ void CloudflaredSupervisor::runLoop() {
             if (probeFailures == 0 && !loggedUp_) {
                 loggedUp_ = true;
                 backoffMs_ = 1000;
-                log_.info("cloudflared: tunel arriba (metrics ok)");
+                log_.info(traducir("gateway", "cloudflared: tunel arriba (metrics ok)"));
             }
             continue;
         }
@@ -216,14 +223,14 @@ void CloudflaredSupervisor::runLoop() {
         // Token invalido: reintentar no lo arregla (el log se llenaba de
         // reinicios para siempre). Se avisa una vez y se deja de supervisar.
         if (!alive && outputSinceSpawn().find("token is not valid") != std::string::npos) {
-            log_.error("cloudflared: el token del tunel (BA_TUNNEL_TOKEN) no es valido; tunel desactivado "
-                       "hasta corregirlo y reiniciar el gateway",
+            log_.error(traducir("gateway", "cloudflared: el token del tunel (BA_TUNNEL_TOKEN) no es valido; tunel "
+                                           "desactivado hasta corregirlo y reiniciar el gateway"),
                        -1);
             kill();
             break;
         }
-        log_.warn(alive ? "cloudflared: sin metricas; reiniciando con backoff"
-                        : "cloudflared: caido; reiniciando con backoff",
+        log_.warn(alive ? traducir("gateway", "cloudflared: sin metricas; reiniciando con backoff")
+                        : traducir("gateway", "cloudflared: caido; reiniciando con backoff"),
                   -1);
         loggedUp_ = false;
         probeFailures = 0;
@@ -233,8 +240,8 @@ void CloudflaredSupervisor::runLoop() {
         if (spawn()) {
             ++restartCount_;
         }
-        log_.info("cloudflared: proximo reintento en hasta " + std::to_string(backoffMs_ / 1000) +
-                  " s si vuelve a caer");
+        log_.info(llenar(traducir("gateway", "cloudflared: proximo reintento en hasta %1 s si vuelve a caer"),
+                         {std::to_string(backoffMs_ / 1000)}));
     }
 }
 

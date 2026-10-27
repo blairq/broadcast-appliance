@@ -4,6 +4,7 @@
 // Solo std (filesystem + fstream): compila igual en Windows, Linux y macOS.
 
 #include "ChildOutput.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -126,9 +127,10 @@ bool prepareChildOutput(const fs::path& file, const std::string& name, const fs:
     }
     const std::u8string exeName = exe.filename().u8string();
     const std::string shownArgs = redactedArgs(args);
-    out << "==== " << timestamp() << " | el launcher lanza " << name << " ("
-        << std::string(exeName.begin(), exeName.end())
-        << ") | args: " << (shownArgs.empty() ? "(ninguno)" : shownArgs) << " ====\n";
+    out << ba::i18n::llenar(ba::i18n::traducir("child", "==== %1 | el launcher lanza %2 (%3) | args: %4 ===="),
+                            {timestamp(), name, std::string(exeName.begin(), exeName.end()),
+                             shownArgs.empty() ? ba::i18n::traducir("child", "(ninguno)") : shownArgs})
+        << "\n";
     out.flush();
     return out.good();
 }

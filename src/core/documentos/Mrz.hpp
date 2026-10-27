@@ -92,8 +92,8 @@ Datos datosDeTd1(const Td1& t);
 class MrzTd1 : public TipoDocumento {
    public:
     std::string id() const override { return "mrz-td1"; }
-    std::string titulo() const override { return "Documento de identidad con zona MRZ (OACI TD1)"; }
-    std::string comoSeDice() const override { return "tu documento"; }
+    std::string titulo() const override { return QT_TRANSLATE_NOOP("documentos", "Documento de identidad con zona MRZ (OACI TD1)"); }
+    std::string comoSeDice() const override { return QT_TRANSLATE_NOOP("documentos", "tu documento"); }
     std::vector<std::string> formatos() const override { return {"MRZ"}; }
     bool leer(const Codigo& c, Datos& out) const override;
 };

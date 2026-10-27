@@ -1,5 +1,6 @@
 // src/core/diag/SalidaAsincrona.cpp — ver SalidaAsincrona.hpp
 #include "diag/SalidaAsincrona.hpp"
+#include "i18n/I18n.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -84,8 +85,11 @@ void escritor(Escribir escribir) {
             c.desde = std::chrono::steady_clock::now();
         }
         if (perdidos > 0) {
-            const std::string aviso = "\n[registro: el disco no daba abasto; se perdieron " + std::to_string(perdidos) +
-                                      " bytes de salida]\n";
+            const std::string aviso =
+                "\n[" +
+                i18n::llenar(i18n::traducir("registro", "registro: el disco no daba abasto; se perdieron %1 bytes de salida"),
+                             {std::to_string(perdidos)}) +
+                "]\n";
             escribir(aviso.data(), aviso.size());
         }
         if (!t.empty()) escribir(t.data(), t.size());

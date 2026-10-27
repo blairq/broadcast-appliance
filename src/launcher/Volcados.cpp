@@ -5,6 +5,7 @@
 
 #include "Log.hpp"
 #include "diag/CaidaCompartida.hpp"
+#include "i18n/I18n.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -153,21 +154,24 @@ Volcado escribir(const std::filesystem::path& dir, const std::string& nombre, st
                      {"volcado", v.dmp.filename().string()}};
     HANDLE proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | PROCESS_DUP_HANDLE, FALSE, pid);
     if (proc == nullptr) {
-        j["error"] = "no se pudo abrir el proceso (" + std::to_string(GetLastError()) + ")";
+        j["error"] = ba::i18n::llenar(ba::i18n::traducir("dump", "no se pudo abrir el proceso (%1)"),
+                                      {std::to_string(GetLastError())});
     } else {
         if (pedido != nullptr) {
             const auto [mod, desp] = moduloDe(proc, pedido->direccion);
             char tipo[sizeof pedido->tipo + 1] = {};
             std::memcpy(tipo, pedido->tipo, sizeof pedido->tipo);
             j["codigo"] = hex(pedido->codigo);
-            j["descripcion"] = std::string(caida::nombreCodigo(pedido->codigo)) + " (" + tipo + ")";
+            // La descripción y la causa las lee el operador (el cartel al volver): traducidas.
+            const std::string queFue = ba::i18n::traducir("caidas", caida::nombreCodigo(pedido->codigo));
+            j["descripcion"] = queFue + " (" + tipo + ")";
             j["direccion"] = hex(pedido->direccion);
             j["modulo"] = mod;
             j["desplazamiento"] = hex(desp);
             j["hilo"] = pedido->hilo;
-            v.causa = std::string(caida::nombreCodigo(pedido->codigo)) + " en " + mod;
+            v.causa = ba::i18n::llenar(ba::i18n::traducir("caidas", "%1 en %2"), {queFue, mod});
         } else {
-            v.causa = "se colgó (dejó de latir)";
+            v.causa = ba::i18n::traducir("caidas", "se colgó (dejó de latir)");
         }
         const auto t0 = std::chrono::steady_clock::now();
         HANDLE f = CreateFileW(v.dmp.wstring().c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -181,7 +185,9 @@ Volcado escribir(const std::filesystem::path& dir, const std::string& nombre, st
             }
             ok = miniDump()(proc, pid, f, static_cast<MINIDUMP_TYPE>(caida::kTipoVolcado), pedido != nullptr ? &mei : nullptr,
                             nullptr, nullptr) != FALSE;
-            if (!ok) j["error"] = "MiniDumpWriteDump falló (" + std::to_string(GetLastError()) + ")";
+            if (!ok)
+                j["error"] = ba::i18n::llenar(ba::i18n::traducir("dump", "MiniDumpWriteDump falló (%1)"),
+                                              {std::to_string(GetLastError())});
         }
         if (f != INVALID_HANDLE_VALUE) CloseHandle(f);
         CloseHandle(proc);
@@ -219,7 +225,8 @@ std::map<std::string, std::string> Volcados::canalPara(const std::string& nombre
         c->pide = CreateEventW(nullptr, FALSE, FALSE, caida::nombrePide(c->base).c_str());
         c->hecho = CreateEventW(nullptr, TRUE, FALSE, caida::nombreHecho(c->base).c_str());
         if (c->pedido == nullptr || c->pide == nullptr || c->hecho == nullptr) {
-            BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "no se pudo crear el canal de caídas de " + nombre);
+            BA_LOG_WARN("dump", static_cast<int>(GetLastError()),
+                        ba::i18n::llenar(ba::i18n::traducir("dump", "no se pudo crear el canal de caídas de %1"), {nombre}));
             canales_.erase(nombre);
             return {};
         }
