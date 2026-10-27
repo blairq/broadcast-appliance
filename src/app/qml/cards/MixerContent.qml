@@ -208,6 +208,7 @@ Item {
                 required property bool primeroDeGrupo
                 required property int tamGrupo
                 required property bool compacto
+                required property string nombreGrupo
                 // Del grupo compactado, la primera tira es el bloque entero y las demás no ocupan lugar.
                 readonly property bool oculta: compacto && !primeroDeGrupo
                 readonly property bool bloque: compacto && primeroDeGrupo
@@ -242,8 +243,7 @@ Item {
                                 onClicked: Studio.mixer.setCompacto(tira.grupo, !tira.compacto)
                             }
                             ToolTip.visible: grMa.containsMouse; ToolTip.delay: 400
-                            ToolTip.text: (tira.compacto ? "Mostrar los faders de este grupo (" : "Compactar este grupo: sin faders, solo los botones (")
-                                          + tira.tamGrupo + " tiras)"
+                            ToolTip.text: "Compactar " + tira.nombreGrupo + ": sin faders, una casilla por tira (" + tira.tamGrupo + " tiras)"
                         }
                     }
                     RowLayout {
@@ -336,9 +336,11 @@ Item {
                     id: bloqueCol
                     visible: tira.bloque
                     anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                    width: Math.max(70, grilla.ancho)
+                    // Lo que ocupe más: la grilla o el nombre del grupo entero.
+                    width: Math.max(70, grilla.ancho, cabecera.implicitWidth)
                     spacing: 6
                     RowLayout {
+                        id: cabecera
                         Layout.fillWidth: true
                         Layout.preferredHeight: 16
                         spacing: 4
@@ -350,12 +352,12 @@ Item {
                             MouseArea { id: abrMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: Studio.mixer.setCompacto(tira.grupo, false) }
                             ToolTip.visible: abrMa.containsMouse; ToolTip.delay: 400
-                            ToolTip.text: "Mostrar los faders de este grupo (" + tira.tamGrupo + " tiras)"
+                            ToolTip.text: "Mostrar los faders de " + tira.nombreGrupo + " (" + tira.tamGrupo + " tiras)"
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: tira.grupo + " · " + tira.tamGrupo
-                            color: Theme.textDim; elide: Text.ElideRight; font.pixelSize: 10
+                            text: tira.nombreGrupo
+                            color: Theme.textDim; font.pixelSize: 10
                         }
                     }
                     Rectangle {
@@ -391,6 +393,7 @@ Item {
                         model: tira.bloque ? Studio.mixer.delGrupo(tira.grupo) : null
                         delegate: Rectangle {
                             id: casilla
+                            required property int index
                             required property string name
                             required property real peakDb
                             required property bool muted
@@ -399,7 +402,8 @@ Item {
                                          : Qt.rgba(0.24, 0.86, 0.59, Math.max(0.08, Math.min(0.85, (peakDb + 50) / 50)))
                             Text {
                                 anchors.centerIn: parent
-                                text: (casilla.name.match(/\d+/) || [casilla.name])[0]
+                                // Su número; si el nombre no lo tiene («Remoto con la palabra»), su lugar en el grupo.
+                                text: (casilla.name.match(/\d+/) || [String(casilla.index + 1)])[0]
                                 color: Theme.text; font { pixelSize: 10; weight: Font.DemiBold }
                             }
                             MouseArea {

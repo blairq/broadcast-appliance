@@ -218,7 +218,7 @@ Rectangle {
     readonly property var arbol: {
         plegTick
         const info = page.vg ? page.vg.entradasInfo : []
-        const orden = ["Cámaras", "Invitados", "Asamblea", "Red", "NDI", "Virtuales"]
+        const orden = ["Cámaras", "Conferencia", "Asamblea", "Red", "NDI", "Virtuales"]
         const porGrupo = {}
         for (const e of info) { (porGrupo[e.grupo] = porGrupo[e.grupo] || []).push(e) }
         for (const k in porGrupo) if (orden.indexOf(k) < 0) orden.push(k)

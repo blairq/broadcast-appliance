@@ -137,7 +137,8 @@ class MixerModel : public QAbstractListModel {
         GrupoRole,          ///< "" suelta; si no, la clave del grupo (ver grupoDe)
         PrimeroDeGrupoRole, ///< la primera tira del grupo (lleva el botón de compactar)
         TamGrupoRole,       ///< cuántas tiras tiene su grupo
-        CompactoRole        ///< su grupo está compactado: sin fader, solo los botones
+        CompactoRole,       ///< su grupo está compactado: sin fader, solo los botones
+        NombreGrupoRole     ///< el nombre que se muestra: «Conferencia», «Asamblea» o la clave
     };
     explicit MixerModel(AppRuntime& rt, QObject* parent = nullptr);
     /// El grupo de una tira: el nombre sin los números y con los espacios en orden
@@ -182,6 +183,7 @@ class MixerModel : public QAbstractListModel {
     std::vector<std::string> names_;
     std::vector<float> peaks_;
     std::vector<std::string> grupos_; ///< por fila: "" suelta, o la clave de su grupo
+    std::map<std::string, std::string> nombresGrupo_; ///< clave -> lo que se muestra
     std::set<std::string> compactos_; ///< los grupos compactados (Config/mezclador-vista.json)
     std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)
     std::mutex cambiosM_;

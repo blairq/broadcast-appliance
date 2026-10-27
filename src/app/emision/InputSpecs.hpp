@@ -36,6 +36,23 @@ constexpr const char* kAudioInLibobs = "pulse_input_capture";
 constexpr const char* kAudioInProp = "device_id";
 #endif
 
+/// Los grupos de la gente conectada, con el mismo nombre en Audio, Video y el mezclador: los
+/// invitados que se suman por video (la conferencia) y los remotos de la asamblea.
+constexpr const char* kGrupoConferencia = "Conferencia";
+constexpr const char* kGrupoAsamblea = "Asamblea";
+/// El grupo de una fuente de gente conectada (audio o video de un invitado o de un remoto);
+/// nullptr si no es de esas.
+inline const char* grupoDeGente(const std::string& tipo, const nlohmann::json& ajustes) {
+    if (tipo == "ba_guest_audio")
+        return ajustes.is_object() && ajustes.value("anillo", std::string()) == "remoto" ? kGrupoAsamblea
+                                                                                        : kGrupoConferencia;
+    if (tipo == "ba_guest_video")
+        return ajustes.is_object() && ajustes.value("channel", std::string()).rfind("remoto", 0) == 0
+                   ? kGrupoAsamblea
+                   : kGrupoConferencia;
+    return nullptr;
+}
+
 // kAudioInLibobs: el micrófono de libobs de antes (solo para listar mientras
 // GStreamer arranca y para pasar los viejos a GStreamer al cargar).
 

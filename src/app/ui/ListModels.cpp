@@ -359,6 +359,10 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
             return n;
         }
         case CompactoRole: return !grupos_[i].empty() && compactos_.count(grupos_[i]) > 0;
+        case NombreGrupoRole: {
+            const auto it = nombresGrupo_.find(grupos_[i]);
+            return qs(it != nombresGrupo_.end() ? it->second : grupos_[i]);
+        }
         default: return {};
     }
 }
@@ -372,7 +376,8 @@ QHash<int, QByteArray> MixerModel::roleNames() const {
             {GrupoRole, "grupo"},
             {PrimeroDeGrupoRole, "primeroDeGrupo"},
             {TamGrupoRole, "tamGrupo"},
-            {CompactoRole, "compacto"}};
+            {CompactoRole, "compacto"},
+            {NombreGrupoRole, "nombreGrupo"}};
 }
 
 std::string MixerModel::grupoDe(const std::string& nombre) {
@@ -398,8 +403,14 @@ void MixerModel::reload() {
         const std::string g = grupoDe(names_[i]);
         std::size_t j = i + 1;
         while (j < names_.size() && grupoDe(names_[j]) == g) ++j;
-        if (j - i >= 2)
+        if (j - i >= 2) {
             for (std::size_t k = i; k < j; ++k) grupos_[k] = g;
+            // La gente conectada se llama como en Audio y Video: Conferencia o Asamblea.
+            const std::string& n = names_[i];
+            const nlohmann::json ajustes = nlohmann::json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
+            const char* gente = inputs::grupoDeGente(inputs::tipoLogico(rt_.engine().sourceTypeId(n), ajustes), ajustes);
+            nombresGrupo_[g] = gente != nullptr ? gente : g;
+        }
         i = j;
     }
     endResetModel();
@@ -424,7 +435,11 @@ QVariantList MixerModel::grupos() const {
         if (grupos_[i].empty() || (i > 0 && grupos_[i - 1] == grupos_[i])) continue;
         QStringList tiras;
         for (std::size_t k = i; k < grupos_.size() && grupos_[k] == grupos_[i]; ++k) tiras << qs(names_[k]);
-        out.push_back(QVariantMap{{"grupo", qs(grupos_[i])}, {"tiras", tiras}, {"compacto", compactos_.count(grupos_[i]) > 0}});
+        const auto nom = nombresGrupo_.find(grupos_[i]);
+        out.push_back(QVariantMap{{"grupo", qs(grupos_[i])},
+                                  {"nombre", qs(nom != nombresGrupo_.end() ? nom->second : grupos_[i])},
+                                  {"tiras", tiras},
+                                  {"compacto", compactos_.count(grupos_[i]) > 0}});
     }
     return out;
 }

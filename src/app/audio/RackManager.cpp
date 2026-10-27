@@ -490,9 +490,8 @@ json RackManager::audioSources() const {
         } else if (type == "ba_entrada_virtual") {
             group = "Entradas virtuales (matriz)";
         } else if (type == "ba_guest_audio") {
-            // Los remotos de la asamblea, aparte de los invitados de la sala.
-            const json s = json::parse(e->sourceSettingsJson(name), nullptr, false);
-            group = s.is_object() && s.value("anillo", std::string()) == "remoto" ? "Asamblea" : "Invitados";
+            // Los remotos de la asamblea, aparte de los invitados de la conferencia.
+            group = inputs::grupoDeGente(type, json::parse(e->sourceSettingsJson(name), nullptr, false));
         } else if (type.find("_input_capture") != std::string::npos) {
             group = "Micrófonos y líneas del equipo";
         } else if (type.find("_output_capture") != std::string::npos) {
