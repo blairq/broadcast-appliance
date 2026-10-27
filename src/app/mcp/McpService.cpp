@@ -3223,7 +3223,7 @@ void McpService::registerTools() {
             const QString e = vm.bancas().enfocar(QString::fromStdString(que), a.value("forzar", false));
             if (!e.isEmpty()) {
                 ToolResult err = ToolResult::error(e.toStdString());
-                err.structured = json{{"camara_al_aire", e.contains("al aire")}, {"entendido", r}};
+                err.structured = json{{"camara_al_aire", vm.bancas().enfocarFrenoPorAire()}, {"entendido", r}};
                 return done(err);
             }
             done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Enfocando: %1 (%2)."),

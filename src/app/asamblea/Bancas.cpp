@@ -242,6 +242,7 @@ json Bancas::resolver(const std::string& que) const {
 }
 
 QString Bancas::enfocar(const QString& que, bool forzar) {
+    frenoPorAire_ = false;
     const json r = resolver(que.toStdString());
     if (r.contains("error")) {
         std::string e = r.value("error", std::string());
@@ -252,8 +253,10 @@ QString Bancas::enfocar(const QString& que, bool forzar) {
         return QString::fromStdString(e);
     }
     const std::string camara = r.value("camara", std::string()), posicion = r.value("posicion", std::string());
-    if (!forzar && g_.camaraAlAire && g_.camaraAlAire(camara))
+    if (!forzar && g_.camaraAlAire && g_.camaraAlAire(camara)) {
+        frenoPorAire_ = true;
         return tr("la cámara «%1» está al aire: moverla se ve (pedilo con forzar)").arg(QString::fromStdString(camara));
+    }
     if (!g_.irAPosicion) return tr("el PTZ no está disponible");
     return QString::fromStdString(g_.irAPosicion(camara, posicion));
 }

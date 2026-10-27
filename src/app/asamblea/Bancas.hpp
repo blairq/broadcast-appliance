@@ -89,6 +89,9 @@ class Bancas : public QObject {
     /// cualquier cámara («Presidencia»). Solo apunta (no da la palabra). Con la
     /// cámara al aire no se mueve salvo `forzar`. "" o el error.
     Q_INVOKABLE QString enfocar(const QString& que, bool forzar = false);
+    /// Si el último `enfocar` no movió la cámara porque estaba al aire (para no
+    /// reconocerlo por el texto del error, que va traducido).
+    bool enfocarFrenoPorAire() const { return frenoPorAire_; }
     /// Lo que entendería `enfocar`, sin mover nada: {tipo: banca|persona|posicion,
     /// banca?, integrante?: {id, nombre}, camara, posicion} o {error, candidatos?}.
     nlohmann::json resolver(const std::string& que) const;
@@ -112,6 +115,7 @@ class Bancas : public QObject {
     void cambio();
 
    private:
+    bool frenoPorAire_ = false; ///< enfocarFrenoPorAire
     Cuerpo& cuerpo_;
     Ganchos g_;
     std::vector<std::string> cola_; ///< ids de integrantes
