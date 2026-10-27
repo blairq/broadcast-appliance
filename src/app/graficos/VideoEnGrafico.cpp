@@ -2,6 +2,7 @@
 // src/app/graficos/VideoEnGrafico.cpp — ver VideoEnGrafico.hpp
 // ============================================================================
 #include "graficos/VideoEnGrafico.hpp"
+#include <QCoreApplication>
 
 #include "Claves.hpp"
 
@@ -94,7 +95,7 @@ std::vector<Capa> leer(const QJsonObject& ficha, const QJsonObject& pedido, QStr
     }
     for (const QJsonValue& v : decl) {
         if (!v.isObject()) {
-            if (error != nullptr) *error = "cada capa de «escena» tiene que ser un objeto";
+            if (error != nullptr) *error = QCoreApplication::translate("graficos", "cada capa de «escena» tiene que ser un objeto");
             continue;
         }
         const QJsonObject o = v.toObject();

@@ -2,6 +2,7 @@
 // src/app/graficos/Catalogo.cpp — ver Catalogo.hpp
 // ============================================================================
 #include "graficos/Catalogo.hpp"
+#include <QCoreApplication>
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -43,12 +44,12 @@ QString Catalogo::raiz() const { return raiz_; }
 
 QString Catalogo::carpeta(const QString& nombre, QString* error) const {
     if (nombre.isEmpty() || nombre.contains("..") || nombre.contains('/') || nombre.contains('\\')) {
-        if (error != nullptr) *error = "nombre de gráfico inválido";
+        if (error != nullptr) *error = QCoreApplication::translate("graficos", "nombre de gráfico inválido");
         return {};
     }
     const QString c = QDir(raiz_).filePath(nombre);
     if (!QFileInfo(c).isDir()) {
-        if (error != nullptr) *error = "no existe el gráfico «" + nombre + "»";
+        if (error != nullptr) *error = QCoreApplication::translate("graficos", "no existe el gráfico «%1»").arg(nombre);
         return {};
     }
     return c;
@@ -139,12 +140,13 @@ QJsonObject Catalogo::pedido(const QString& nombre, const QJsonObject& valores, 
     }
     const QJsonObject f = ficha(nombre);
     if (f.isEmpty()) {
-        if (error != nullptr) *error = "el gráfico «" + nombre + "» no tiene grafico.json";
+        if (error != nullptr) *error = QCoreApplication::translate("graficos", "el gráfico «%1» no tiene grafico.json").arg(nombre);
         return {};
     }
     if (!pluginDe(f).isEmpty()) {
         if (error != nullptr)
-            *error = "«" + nombre + "» lo dibuja el plugin «" + pluginDe(f) + "»: se pide con Emisor::resolver";
+            *error = QCoreApplication::translate("graficos", "«%1» lo dibuja el plugin «%2»: se pide con Emisor::resolver")
+                         .arg(nombre, pluginDe(f));
         return {};
     }
     return pedidoCon(f, texto(nombre), valores, error, carpeta(nombre));
@@ -165,12 +167,12 @@ QJsonObject Catalogo::pedidoCon(const QJsonObject& ficha, const QString& texto, 
     if (ficha.contains("declarativo")) {
         QJsonParseError pe{};
         const QJsonDocument d = QJsonDocument::fromJson(texto.toUtf8(), &pe);
-        if (!d.isObject()) return falla("la descripción no es JSON válido: " + pe.errorString());
+        if (!d.isObject()) return falla(QCoreApplication::translate("graficos", "la descripción no es JSON válido: %1").arg(pe.errorString()));
         // La descripción trae su propio tamaño: no se lo pisa.
         p["declarativo"] = d.object();
     } else {
         if (texto.trimmed().isEmpty())
-            return falla("el gráfico no tiene ni «declarativo» en su grafico.json ni un grafico.qml");
+            return falla(QCoreApplication::translate("graficos", "el gráfico no tiene ni «declarativo» en su grafico.json ni un grafico.qml"));
         // Como texto, igual que sale al aire: lo que se prueba es lo que se ve.
         p["fuente"] = texto;
         p["ancho"] = ficha.value("ancho").toInt(900);
@@ -182,20 +184,20 @@ QJsonObject Catalogo::pedidoCon(const QJsonObject& ficha, const QString& texto, 
 
 QString Catalogo::crear(const QString& nombre, bool declarativo, QString* creado) {
     const QString limpio = QString(nombre).remove(QRegularExpression("[^A-Za-z0-9 _-]")).trimmed();
-    if (limpio.isEmpty()) return "ese nombre no sirve";
+    if (limpio.isEmpty()) return QCoreApplication::translate("graficos", "ese nombre no sirve");
     const QString c = QDir(raiz_).filePath(limpio);
-    if (QFileInfo::exists(c)) return "ya hay un gráfico con ese nombre";
-    if (!QDir().mkpath(c)) return "no se pudo crear la carpeta";
+    if (QFileInfo::exists(c)) return QCoreApplication::translate("graficos", "ya hay un gráfico con ese nombre");
+    if (!QDir().mkpath(c)) return QCoreApplication::translate("graficos", "no se pudo crear la carpeta");
 
     QJsonObject f{{"nombre", limpio},
                   {"descripcion", ""},
                   {"ancho", 900},
                   {"alto", 220},
                   {"parametros", QJsonArray{QJsonObject{{"clave", "texto"},
-                                                        {"titulo", "Texto"},
+                                                        {"titulo", QCoreApplication::translate("graficos", "Texto")},
                                                         {"tipo", "texto"},
                                                         {"porDefecto", "Hola"},
-                                                        {"ayuda", "Lo que dice el gráfico."}}}}};
+                                                        {"ayuda", QCoreApplication::translate("graficos", "Lo que dice el gráfico.")}}}}};
     if (declarativo) {
         f["declarativo"] =
             QJsonObject{{"ancho", 900},
@@ -222,10 +224,10 @@ QString Catalogo::crear(const QString& nombre, bool declarativo, QString* creado
                          "        y: raiz.height - 90\n        opacity: 0\n"
                          "        NumberAnimation on opacity { to: 1; duration: 400; running: true }\n"
                          "    }\n}\n")) {
-        return "no se pudo escribir el grafico.qml";
+        return QCoreApplication::translate("graficos", "no se pudo escribir el grafico.qml");
     }
     if (!escribir(QDir(c).filePath("grafico.json"), QJsonDocument(f).toJson()))
-        return "no se pudo escribir el grafico.json";
+        return QCoreApplication::translate("graficos", "no se pudo escribir el grafico.json");
     if (creado != nullptr) *creado = limpio;
     return {};
 }
@@ -238,12 +240,12 @@ QString Catalogo::guardar(const QString& nombre, const QString& texto) {
     if (f.contains("declarativo")) {
         QJsonParseError pe{};
         const QJsonDocument doc = QJsonDocument::fromJson(texto.toUtf8(), &pe);
-        if (!doc.isObject()) return "la descripción no es JSON válido (" + pe.errorString() + ")";
+        if (!doc.isObject()) return QCoreApplication::translate("graficos", "la descripción no es JSON válido (%1)").arg(pe.errorString());
         f["declarativo"] = doc.object();
         if (!escribir(QDir(c).filePath("grafico.json"), QJsonDocument(f).toJson()))
-            return "no se pudo escribir el grafico.json";
+            return QCoreApplication::translate("graficos", "no se pudo escribir el grafico.json");
     } else if (!escribir(QDir(c).filePath("grafico.qml"), texto.toUtf8())) {
-        return "no se pudo escribir el grafico.qml";
+        return QCoreApplication::translate("graficos", "no se pudo escribir el grafico.qml");
     }
     return {};
 }
@@ -267,9 +269,9 @@ int Catalogo::duracionCambio(const QJsonObject& ficha) {
 QString Catalogo::guardarDePlugin(const QString& plugin, const QJsonObject& d, QString* nombre) {
     const QString n = d.value("nombre").toString();
     const QString limpio = QString("plugin-%1-%2").arg(plugin, n).remove(QRegularExpression("[^A-Za-z0-9 _-]")).trimmed();
-    if (plugin.isEmpty() || n.isEmpty()) return "el gráfico del plugin no tiene nombre";
+    if (plugin.isEmpty() || n.isEmpty()) return QCoreApplication::translate("graficos", "el gráfico del plugin no tiene nombre");
     const QString c = QDir(raiz_).filePath(limpio);
-    if (!QDir().mkpath(c)) return "no se pudo crear la carpeta del gráfico";
+    if (!QDir().mkpath(c)) return QCoreApplication::translate("graficos", "no se pudo crear la carpeta del gráfico");
     // La ficha sale de la declaración: lo que el resto de la app necesita para
     // listarlo, llenarle los campos y saber a quién pedírselo.
     QJsonObject f{{"nombre", d.value("titulo").toString(n)},
@@ -287,7 +289,8 @@ QString Catalogo::guardarDePlugin(const QString& plugin, const QJsonObject& d, Q
     if (d.contains("acciones")) f["acciones"] = d.value("acciones");
     if (d.contains("seVa")) f["seVa"] = d.value("seVa");
     const QString ruta = QDir(c).filePath("grafico.json");
-    if (leerJson(ruta) != f && !escribir(ruta, QJsonDocument(f).toJson())) return "no se pudo escribir el grafico.json";
+    if (leerJson(ruta) != f && !escribir(ruta, QJsonDocument(f).toJson()))
+        return QCoreApplication::translate("graficos", "no se pudo escribir el grafico.json");
     if (nombre != nullptr) *nombre = limpio;
     return {};
 }

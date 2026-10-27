@@ -2,6 +2,7 @@
 // src/app/graficos/GraficoSource.cpp — ver GraficoSource.hpp
 // ============================================================================
 #include "graficos/GraficoSource.hpp"
+#include "i18n/I18n.hpp"
 
 #include "emision/FuentesApp.hpp"
 
@@ -92,13 +93,13 @@ void limpiar() {
 void registerSourceType() {
     fuentes::Tipo t;
     t.id = kSourceId;
-    t.nombre = "Gráfico animado";
+    t.nombre = ba::i18n::traducir("graficos", "Gráfico animado");
     t.deApp = true;
     t.defectos = {{"grafico", "zocalo"}, {"ancho", 900}, {"alto", 220}};
     t.props = [](const nlohmann::json&) {
-        return std::vector<fuentes::Prop>{{"grafico", "Gráfico", "text"},
-                                          {"ancho", "Ancho", "int", 64, 3840, 8},
-                                          {"alto", "Alto", "int", 64, 2160, 8}};
+        return std::vector<fuentes::Prop>{{"grafico", ba::i18n::traducir("graficos", "Gráfico"), "text"},
+                                          {"ancho", ba::i18n::traducir("graficos", "Ancho"), "int", 64, 3840, 8},
+                                          {"alto", ba::i18n::traducir("graficos", "Alto"), "int", 64, 2160, 8}};
     };
     fuentes::registrar(std::move(t));
 }

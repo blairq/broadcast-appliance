@@ -115,13 +115,13 @@ QString Medios::quitar(const QString& grafico, const QString& archivo) {
     if (c.isEmpty()) return err;
     // Solo lo que está adentro de medios/: «../grafico.json» no se borra.
     const QString nombre = QFileInfo(archivo).fileName();
-    if (nombre.isEmpty() || nombre.startsWith('.') || archivo.contains("..")) return "ese medio no sirve";
+    if (nombre.isEmpty() || nombre.startsWith('.') || archivo.contains("..")) return tr("ese medio no sirve");
     const QString origen = QDir(QDir(c).filePath("medios")).filePath(nombre);
-    if (!QFileInfo::exists(origen)) return "el gráfico no tiene «" + nombre + "»";
+    if (!QFileInfo::exists(origen)) return tr("el gráfico no tiene «%1»").arg(nombre);
     const QString papelera = QDir(c).filePath("medios/.papelera");
     QDir().mkpath(papelera);
     const QString destino = QDir(papelera).filePath(QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-") + nombre);
-    if (!QDir().rename(origen, destino)) return "no se pudo sacar «" + nombre + "»";
+    if (!QDir().rename(origen, destino)) return tr("no se pudo sacar «%1»").arg(nombre);
     emit cambio(grafico);
     return {};
 }
@@ -135,17 +135,17 @@ void Medios::importar(const QString& grafico, const QString& archivoPedido, cons
     QString archivo = archivoPedido;
     if (archivo.startsWith("file:")) archivo = QUrl(archivo).toLocalFile();
     const QFileInfo fi(archivo);
-    if (!fi.exists()) return listo({}, "no existe «" + archivo + "»");
+    if (!fi.exists()) return listo({}, tr("no existe «%1»").arg(archivo));
     const QString medios = QDir(c).filePath("medios");
     QDir().mkpath(medios);
     const QString base = limpio(opciones.value("nombre").toString(fi.isDir() ? fi.fileName() : fi.completeBaseName()));
-    if (base.isEmpty()) return listo({}, "ese nombre no sirve");
+    if (base.isEmpty()) return listo({}, tr("ese nombre no sirve"));
 
     if (fi.isDir()) {
         int cuadros = 0;
         const QString destino = QDir(medios).filePath(base);
-        if (!copiarCarpeta(fi.filePath(), destino, &cuadros)) return listo({}, "no se pudo copiar la secuencia");
-        if (cuadros == 0) return listo({}, "la carpeta no tiene cuadros PNG");
+        if (!copiarCarpeta(fi.filePath(), destino, &cuadros)) return listo({}, tr("no se pudo copiar la secuencia"));
+        if (cuadros == 0) return listo({}, tr("la carpeta no tiene cuadros PNG"));
         emit cambio(grafico);
         return listo(QJsonObject{{"archivo", "medios/" + base}, {"tipo", "secuencia"}, {"cuadros", cuadros}}, {});
     }
@@ -153,12 +153,12 @@ void Medios::importar(const QString& grafico, const QString& archivoPedido, cons
     if (extensionesDeImagen().contains(ext)) {
         const QString destino = QDir(medios).filePath(base + "." + ext);
         QFile::remove(destino);
-        if (!QFile::copy(fi.filePath(), destino)) return listo({}, "no se pudo copiar «" + fi.fileName() + "»");
+        if (!QFile::copy(fi.filePath(), destino)) return listo({}, tr("no se pudo copiar «%1»").arg(fi.fileName()));
         QImageReader r(destino);
         const QImage primero = r.read();
         if (primero.isNull()) {
             QFile::remove(destino);
-            return listo({}, "«" + fi.fileName() + "» no es una imagen que se pueda leer");
+            return listo({}, tr("«%1» no es una imagen que se pueda leer").arg(fi.fileName()));
         }
         emit cambio(grafico);
         return listo(QJsonObject{{"archivo", "medios/" + base + "." + ext},
@@ -168,7 +168,8 @@ void Medios::importar(const QString& grafico, const QString& archivoPedido, cons
                                  {"alfa", primero.hasAlphaChannel()}},
                      {});
     }
-    if (!esVideo(archivo)) return listo({}, "no sé usar «" + fi.fileName() + "» en un gráfico (GIF, PNG, JPG, WebP, una carpeta de PNG o un video)");
+    if (!esVideo(archivo))
+        return listo({}, tr("no sé usar «%1» en un gráfico (GIF, PNG, JPG, WebP, una carpeta de PNG o un video)").arg(fi.fileName()));
 
     // Un video: a cuadros, en otro hilo (un clip de 10 s a 1080p son varios segundos de PNG).
     const QString destino = QDir(medios).filePath(base);
@@ -204,7 +205,7 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
     };
     if (!gst_is_initialized()) gst_init(nullptr, nullptr);
     gchar* uri = gst_filename_to_uri(video.toUtf8().constData(), nullptr);
-    if (uri == nullptr) return fallar("no entiendo la ruta " + video);
+    if (uri == nullptr) return fallar(QCoreApplication::translate("graficos", "no entiendo la ruta %1").arg(video));
     // RGBA con su alfa. decodebin elige solo el decodificador con alfa cuando el
     // archivo lo trae: vp9alphadecodebin para un WebM VP9 con alfa (codecalpha),
     // avdec_prores para un ProRes 4444.
@@ -214,7 +215,7 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
     GError* gerr = nullptr;
     GstElement* p = gst_parse_launch(desc.c_str(), &gerr);
     if (p == nullptr || gerr != nullptr) {
-        const QString m = QString("no se puede leer el video: %1").arg(gerr ? gerr->message : "?");
+        const QString m = QCoreApplication::translate("graficos", "no se puede leer el video: %1").arg(gerr ? gerr->message : "?");
         if (gerr) g_error_free(gerr);
         if (p) gst_object_unref(p);
         return fallar(m);
@@ -261,7 +262,7 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
                 }
             if (ancho > 0 && ancho < w) img = img.scaledToWidth(ancho, Qt::SmoothTransformation);
             if (!img.save(QDir(destino).filePath(QString("%1.png").arg(n, 5, 10, QChar('0'))), "PNG")) {
-                errEscritura = "no se pudo escribir el cuadro " + QString::number(n);
+                errEscritura = QCoreApplication::translate("graficos", "no se pudo escribir el cuadro %1").arg(n);
                 gst_sample_unref(m);
                 break;
             }
@@ -276,7 +277,7 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
         if (GstMessage* msg = gst_bus_pop_filtered(bus, GST_MESSAGE_ERROR)) {
             GError* e = nullptr;
             gst_message_parse_error(msg, &e, nullptr);
-            errBus = QString("no se puede leer el video: %1").arg(e ? e->message : "?");
+            errBus = QCoreApplication::translate("graficos", "no se puede leer el video: %1").arg(e ? e->message : "?");
             if (e) g_error_free(e);
             gst_message_unref(msg);
         }
@@ -288,7 +289,7 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
     if (!errEscritura.isEmpty()) return fallar(errEscritura);
     if (n == 0) {
         QDir(destino).removeRecursively();
-        return fallar(errBus.isEmpty() ? QString("el archivo no tiene video que se pueda leer") : errBus);
+        return fallar(errBus.isEmpty() ? QCoreApplication::translate("graficos", "el archivo no tiene video que se pueda leer") : errBus);
     }
     const double fps = static_cast<double>(fpsN) / fpsD;
     const int anchoFinal = ancho > 0 && ancho < w ? ancho : w;
@@ -298,7 +299,7 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
                            {"cortado", n >= tope}};
     QSaveFile f(QDir(destino).filePath("secuencia.json"));
     if (!f.open(QIODevice::WriteOnly) || f.write(QJsonDocument(meta).toJson()) < 0 || !f.commit())
-        return fallar("no se pudo escribir secuencia.json");
+        return fallar(QCoreApplication::translate("graficos", "no se pudo escribir secuencia.json"));
     if (error != nullptr) error->clear();
     QJsonObject r = meta;
     r["tipo"] = "secuencia";
