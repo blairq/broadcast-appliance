@@ -72,6 +72,9 @@ int runLauncher(const std::vector<std::string>& args) {
 #endif
     }
     ba::platform::redirectUserDirs();
+    // El idioma del operador (de la máquina): el diálogo de recuperación, la
+    // actualización y el registro. Antes del registro, para que todo salga en él.
+    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(datos));
     const std::filesystem::path bin = root / "bin" / "64bit";
     ba::launcher::Log::init((datos / "Logs" / "launcher.log").string());
     for (const std::string& m : mudados)
@@ -116,7 +119,8 @@ int runLauncher(const std::vector<std::string>& args) {
     for (const std::string& name :
          ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot())) {
         ba::launcher::Log::write(ba::launcher::Log::Level::Info, "credenciales", 0,
-                                 "importada " + name + " (cifrada en Credenciales/)");
+                                 ba::i18n::llenar(ba::i18n::traducir("credenciales", "importada %1 (cifrada en Credenciales/)"),
+                                                  {name}));
     }
 
     ba::launcher::Supervisor::Config cfg;
@@ -132,8 +136,6 @@ int runLauncher(const std::vector<std::string>& args) {
     // launcher.json (lo escribe la interfaz de A): copia sombra,
     // dialogo de recuperacion y argumentos extra de A y B. La linea de
     // comandos, mas abajo, lo pisa.
-    // El idioma del operador (de la máquina): el diálogo de recuperación y el registro.
-    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(datos));
     {
         std::ifstream in(ba::platform::launcherJsonFor(datos)); // es de la máquina
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
@@ -176,13 +178,13 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.gatewayArgs.push_back(a.substr(9));
         }
     }
-    BA_LOG_INFO("launcher", 0, "raiz del bundle: " + root.string());
+    BA_LOG_INFO("launcher", 0, ba::i18n::llenar(ba::i18n::traducir("launcher", "raiz del bundle: %1"), {root.string()}));
 
     // Mientras el programa esté abierto, la máquina no se duerme (ni la pantalla del
     // multiview se apaga): el lanzador vive lo mismo que el programa (platform/Energia).
     std::unique_ptr<ba::platform::Despierta> despierta;
     if (ba::ajustes::siNo("energia.mantenerDespierta", true)) {
-        despierta = std::make_unique<ba::platform::Despierta>("Broadcast Appliance: estudio abierto",
+        despierta = std::make_unique<ba::platform::Despierta>(ba::i18n::traducir("energia", "Broadcast Appliance: estudio abierto"),
                                                               ba::ajustes::siNo("energia.mantenerPantalla", true));
         BA_LOG_INFO("energia", 0, despierta->detalle());
     }

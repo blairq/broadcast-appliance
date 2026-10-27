@@ -39,6 +39,7 @@
 
 #include "RelojAnimaciones.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::grafico {
 namespace {
@@ -52,12 +53,13 @@ struct Reemplazo {
 };
 constexpr Reemplazo kModulosQueNoEstan[] = {
     {"QtGraphicalEffects",
-     "ese módulo es de Qt 5 y acá no está. Usá «import QtQuick.Effects» con MultiEffect "
-     "(desenfoque, sombra, máscara)."},
-    {"Qt5Compat.GraphicalEffects", "no viaja en este bundle. Usá «import QtQuick.Effects» con MultiEffect."},
+     QT_TRANSLATE_NOOP("graficos", "ese módulo es de Qt 5 y acá no está. Usá «import QtQuick.Effects» con MultiEffect "
+                                   "(desenfoque, sombra, máscara).")},
+    {"Qt5Compat.GraphicalEffects",
+     QT_TRANSLATE_NOOP("graficos", "no viaja en este bundle. Usá «import QtQuick.Effects» con MultiEffect.")},
     {"QtQuick.VectorImage",
-     "es de Qt 6.8 y acá hay 6.6. Para vector animable usá Shape con PathSvg, que acepta el "
-     "atributo «d» de un SVG tal cual."},
+     QT_TRANSLATE_NOOP("graficos", "es de Qt 6.8 y acá hay 6.6. Para vector animable usá Shape con PathSvg, que acepta el "
+                                   "atributo «d» de un SVG tal cual.")},
 };
 
 QVariant aVariant(const QJsonValue& v) {
@@ -76,7 +78,8 @@ QVariant aVariant(const QJsonValue& v) {
 /// nadie se enteraba y el gráfico salía con un pedazo de menos.
 void avisosAlRegistro(QQmlEngine& motor) {
     QObject::connect(&motor, &QQmlEngine::warnings, [](const QList<QQmlError>& avisos) {
-        for (const QQmlError& e : avisos) ba::diag::registro().aviso("qml: " + e.toString().toStdString());
+        for (const QQmlError& e : avisos)
+            ba::diag::registro().aviso(ba::i18n::llenar(ba::i18n::traducir("graficos", "qml: %1"), {e.toString().toStdString()}));
     });
 }
 
@@ -96,12 +99,12 @@ QString textoDeErrores(const QList<QQmlError>& errores) {
     QStringList l;
     for (const QQmlError& e : errores) {
         QString linea = e.description();
-        if (e.line() > 0) linea = QString("línea %1: %2").arg(e.line()).arg(linea);
+        if (e.line() > 0) linea = QCoreApplication::translate("graficos", "línea %1: %2").arg(e.line()).arg(linea);
         // El consejo va PEGADO al error: quien lo lee no tiene por qué ir a
         // buscar la documentación para entender qué hacer.
         for (const Reemplazo& r : kModulosQueNoEstan)
             if (e.description().contains(QLatin1String(r.viejo)))
-                linea += QString(" — %1").arg(QString::fromUtf8(r.consejo));
+                linea += QString(" — %1").arg(QCoreApplication::translate("graficos", r.consejo));
         l << linea;
     }
     return l.join("\n");
@@ -155,18 +158,18 @@ struct Renderizador::Impl {
         gl = new QOpenGLContext();
         gl->setFormat(fmt);
         if (!gl->create()) {
-            error = "no se pudo crear el contexto de OpenGL";
+            error = QCoreApplication::translate("graficos", "no se pudo crear el contexto de OpenGL");
             return false;
         }
         superficie = new QOffscreenSurface();
         superficie->setFormat(gl->format());
         superficie->create();
         if (!superficie->isValid()) {
-            error = "no se pudo crear la superficie fuera de pantalla";
+            error = QCoreApplication::translate("graficos", "no se pudo crear la superficie fuera de pantalla");
             return false;
         }
         if (!gl->makeCurrent(superficie)) {
-            error = "no se pudo activar el contexto de OpenGL";
+            error = QCoreApplication::translate("graficos", "no se pudo activar el contexto de OpenGL");
             return false;
         }
 
@@ -176,7 +179,7 @@ struct Renderizador::Impl {
         // Que Qt dibuje en NUESTRO contexto (ver el encabezado, punto 2).
         ventana->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(gl));
         if (!control->initialize()) {
-            error = "no se pudo inicializar el renderizador de QML";
+            error = QCoreApplication::translate("graficos", "no se pudo inicializar el renderizador de QML");
             return false;
         }
 
@@ -196,7 +199,7 @@ struct Renderizador::Impl {
         fbo = std::make_unique<QOpenGLFramebufferObject>(tam, f);
         if (!fbo->isValid()) {
             error =
-                QString("no se pudo crear el destino de dibujo de %1x%2").arg(tam.width()).arg(tam.height());
+                QCoreApplication::translate("graficos", "no se pudo crear el destino de dibujo de %1x%2").arg(tam.width()).arg(tam.height());
             fbo.reset();
             return false;
         }
@@ -271,12 +274,12 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
     std::unique_ptr<QObject> obj(componente.create());
     if (obj == nullptr) {
         r.error = componente.isError() ? textoDeErrores(componente.errors())
-                                       : QString("el gráfico no devolvió ningún objeto");
+                                       : QCoreApplication::translate("graficos", "el gráfico no devolvió ningún objeto");
         return r;
     }
     auto* raiz = qobject_cast<QQuickItem*>(obj.get());
     if (raiz == nullptr) {
-        r.error = "la raíz del gráfico tiene que ser un Item (algo que se pueda dibujar)";
+        r.error = QCoreApplication::translate("graficos", "la raíz del gráfico tiene que ser un Item (algo que se pueda dibujar)");
         return r;
     }
 
@@ -286,9 +289,9 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
     for (auto it = parametros.begin(); it != parametros.end(); ++it) {
         const QByteArray nombre = it.key().toUtf8();
         if (raiz->metaObject()->indexOfProperty(nombre.constData()) < 0) {
-            r.error = QString("el gráfico no declara el parámetro «%1». Los parámetros van "
-                              "declarados como propiedades del Item raíz y listados en "
-                              "grafico.json.")
+            r.error = QCoreApplication::translate("graficos", "el gráfico no declara el parámetro «%1». Los parámetros van "
+                                                              "declarados como propiedades del Item raíz y listados en "
+                                                              "grafico.json.")
                           .arg(it.key());
             return r;
         }
@@ -322,7 +325,7 @@ Renderizador::Resultado Renderizador::dibujarComun(const QUrl& url, const QStrin
 
     r.imagen = d_->fbo->toImage();
     if (r.imagen.isNull()) {
-        r.error = "el renderizador no devolvió ninguna imagen";
+        r.error = QCoreApplication::translate("graficos", "el renderizador no devolvió ninguna imagen");
         return r;
     }
     // Premultiplicado: es como libobs espera el alfa. Sin esto, el texto
@@ -386,9 +389,10 @@ std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const Q
         d_->sesionObj.reset(componente.create());
         auto* raiz = qobject_cast<QQuickItem*>(d_->sesionObj.get());
         if (raiz == nullptr) {
-            base.error = d_->sesionObj ? QString("la raíz del gráfico tiene que ser un Item (algo que se pueda dibujar)")
-                                       : (componente.isError() ? textoDeErrores(componente.errors())
-                                                               : QString("el gráfico no devolvió ningún objeto"));
+            base.error = d_->sesionObj
+                             ? QCoreApplication::translate("graficos", "la raíz del gráfico tiene que ser un Item (algo que se pueda dibujar)")
+                             : (componente.isError() ? textoDeErrores(componente.errors())
+                                                     : QCoreApplication::translate("graficos", "el gráfico no devolvió ningún objeto"));
             d_->cerrarSesion();
             out.push_back(base);
             return out;
@@ -396,7 +400,7 @@ std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const Q
         for (auto it = parametros.begin(); it != parametros.end(); ++it) {
             const QByteArray nombre = it.key().toUtf8();
             if (raiz->metaObject()->indexOfProperty(nombre.constData()) < 0) {
-                base.error = QString("el gráfico no declara el parámetro «%1»").arg(it.key());
+                base.error = QCoreApplication::translate("graficos", "el gráfico no declara el parámetro «%1»").arg(it.key());
                 d_->cerrarSesion();
                 out.push_back(base);
                 return out;
@@ -421,7 +425,7 @@ std::vector<Renderizador::Resultado> Renderizador::tira(const QUrl& url, const Q
         dibujarCuadro();
         Resultado r;
         r.imagen = d_->fbo->toImage();
-        if (r.imagen.isNull()) r.error = "el renderizador no devolvió ninguna imagen";
+        if (r.imagen.isNull()) r.error = QCoreApplication::translate("graficos", "el renderizador no devolvió ninguna imagen");
         else if (r.imagen.format() != QImage::Format_ARGB32_Premultiplied)
             r.imagen = r.imagen.convertToFormat(QImage::Format_ARGB32_Premultiplied);
         out.push_back(std::move(r));

@@ -2,12 +2,20 @@
 // src/gateway/Direcciones.cpp — ver Direcciones.hpp
 // ============================================================================
 #include "Direcciones.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
+
+// Los nombres de la tabla de servicios se marcan acá y se traducen al armar el catálogo.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
 
 namespace ba::gateway::direcciones {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -30,22 +38,23 @@ struct Servicio {
 // cada endpoint sobre el origen: acá solo el camino.
 const std::vector<Servicio>& servicios() {
     static const std::vector<Servicio> s{
-        {"invitados", "Invitados (conferencia)", "/invitados/", Puerta::Invitados, true, ""},
-        {"sesion", "Integrantes (sesión remota)", "/sesion/", Puerta::Sala, true, ""},
-        {"presidencia", "Consola de la presidencia", "/presidencia/", Puerta::Sala, true, ""},
-        {"registro", "Registro de personas (tótems)", "/registro/", Puerta::Sala, true, ""},
-        {"botonera", "Botonera (tablet)", "/botonera/", Puerta::Sala, false,
-         "La botonera anda solo en la red local (nunca por el túnel)."},
-        {"control", "Control web (dashboard)", "/control/", Puerta::Sala, true, ""},
-        {"prompter", "Teleprompter", "/prompter/", Puerta::Sala, true, ""},
-        {"rotulos", "Rótulos", "/rotulos/", Puerta::Sala, true, ""},
-        {"correccion", "Corrección de subtítulos", "/correccion/", Puerta::Sala, true, ""},
-        {"tablero", "Tablero de oradores", "/board/", Puerta::Sala, true, ""},
-        {"publico", "Página del público", "/publico/", Puerta::Sala, true, ""},
-        {"pantalla", "Televisores de la sala", "/pantalla/", Puerta::SalaHttp, false,
-         "Los televisores van por la red local."},
-        {"companion", "API de Companion", "/", Puerta::SalaHttp, false, "Companion va por la red local."},
-        {"evento", "Página del evento", "/", Puerta::Evento, true, ""},
+        {"invitados", QT_TRANSLATE_NOOP("gateway", "Invitados (conferencia)"), "/invitados/", Puerta::Invitados, true, ""},
+        {"sesion", QT_TRANSLATE_NOOP("gateway", "Integrantes (sesión remota)"), "/sesion/", Puerta::Sala, true, ""},
+        {"presidencia", QT_TRANSLATE_NOOP("gateway", "Consola de la presidencia"), "/presidencia/", Puerta::Sala, true, ""},
+        {"registro", QT_TRANSLATE_NOOP("gateway", "Registro de personas (tótems)"), "/registro/", Puerta::Sala, true, ""},
+        {"botonera", QT_TRANSLATE_NOOP("gateway", "Botonera (tablet)"), "/botonera/", Puerta::Sala, false,
+         QT_TRANSLATE_NOOP("gateway", "La botonera anda solo en la red local (nunca por el túnel).")},
+        {"control", QT_TRANSLATE_NOOP("gateway", "Control web (dashboard)"), "/control/", Puerta::Sala, true, ""},
+        {"prompter", QT_TRANSLATE_NOOP("gateway", "Teleprompter"), "/prompter/", Puerta::Sala, true, ""},
+        {"rotulos", QT_TRANSLATE_NOOP("gateway", "Rótulos"), "/rotulos/", Puerta::Sala, true, ""},
+        {"correccion", QT_TRANSLATE_NOOP("gateway", "Corrección de subtítulos"), "/correccion/", Puerta::Sala, true, ""},
+        {"tablero", QT_TRANSLATE_NOOP("gateway", "Tablero de oradores"), "/board/", Puerta::Sala, true, ""},
+        {"publico", QT_TRANSLATE_NOOP("gateway", "Página del público"), "/publico/", Puerta::Sala, true, ""},
+        {"pantalla", QT_TRANSLATE_NOOP("gateway", "Televisores de la sala"), "/pantalla/", Puerta::SalaHttp, false,
+         QT_TRANSLATE_NOOP("gateway", "Los televisores van por la red local.")},
+        {"companion", QT_TRANSLATE_NOOP("gateway", "API de Companion"), "/", Puerta::SalaHttp, false,
+         QT_TRANSLATE_NOOP("gateway", "Companion va por la red local.")},
+        {"evento", QT_TRANSLATE_NOOP("gateway", "Página del evento"), "/", Puerta::Evento, true, ""},
     };
     return s;
 }
@@ -67,13 +76,14 @@ json armar(const Entradas& e) {
     // --- La red local --------------------------------------------------------
     std::string httpsSala, httpSala, motivoSala;
     if (host.empty()) {
-        motivoSala = "No encontré ninguna dirección de red en esta máquina (¿está conectada la red?). Se puede "
-                     "escribir en Configuración → Red de la conferencia → «Dirección para el QR».";
+        motivoSala = traducir("gateway", "No encontré ninguna dirección de red en esta máquina (¿está conectada la "
+                                         "red?). Se puede escribir en Configuración → Red de la conferencia → "
+                                         "«Dirección para el QR».");
     } else {
         if (e.puertaHttps > 0) httpsSala = "https://" + host + ":" + std::to_string(e.puertaHttps);
         if (e.puertaHttp > 0) httpSala = "http://" + host + ":" + std::to_string(e.puertaHttp);
         if (httpsSala.empty() && httpSala.empty())
-            motivoSala = "La puerta de la sala no está abierta (ver el registro del gateway).";
+            motivoSala = traducir("gateway", "La puerta de la sala no está abierta (ver el registro del gateway).");
     }
     if (!host.empty()) {
         // Con una IP elegida en «Acceso», la puerta escucha solo en esa: es la única que sirve.
@@ -97,15 +107,16 @@ json armar(const Entradas& e) {
     else
         out["remoto"] = nullptr;
     const std::string motivoRemoto =
-        remoto.empty() ? (e.motivoRemoto.empty() ? std::string("No hay salida a internet (Configuración → Acceso remoto).")
-                                                 : e.motivoRemoto)
+        remoto.empty() ? (e.motivoRemoto.empty()
+                              ? traducir("gateway", "No hay salida a internet (Configuración → Acceso remoto).")
+                              : e.motivoRemoto)
                        : std::string();
     out["motivo_remoto"] = motivoRemoto;
 
     // --- Cada servicio ----------------------------------------------------------
     json lista = json::array();
     for (const Servicio& s : servicios()) {
-        json f{{"id", s.id}, {"nombre", s.nombre}, {"local", nullptr}, {"remoto", nullptr},
+        json f{{"id", s.id}, {"nombre", traducir("gateway", s.nombre)}, {"local", nullptr}, {"remoto", nullptr},
                {"motivo_local", ""}, {"motivo_remoto", ""}};
         // Local
         if (s.puerta == Puerta::Invitados) {
@@ -115,19 +126,21 @@ json armar(const Entradas& e) {
                 f["local"] = "https://" + host + ":" + std::to_string(e.invitadosHttps) + s.ruta;
             } else if (e.invitadosHttp > 0) {
                 f["local"] = "http://" + host + ":" + std::to_string(e.invitadosHttp) + s.ruta;
-                f["motivo_local"] = "Sin HTTPS el navegador no da cámara ni micrófono por la red local.";
+                f["motivo_local"] = traducir("gateway", "Sin HTTPS el navegador no da cámara ni micrófono por la red local.");
             } else {
-                f["motivo_local"] = "La conferencia escucha solo en esta máquina (Configuración → Red de la "
-                                    "sala → Acceso): por la red local no entran; desde afuera, por el túnel.";
+                f["motivo_local"] = traducir("gateway", "La conferencia escucha solo en esta máquina (Configuración → Red "
+                                                        "de la sala → Acceso): por la red local no entran; desde afuera, "
+                                                        "por el túnel.");
             }
         } else if (s.puerta == Puerta::Evento && !e.eventoWeb) {
-            f["motivo_local"] = "No hay una página del evento publicada (Evento → Web del evento).";
+            f["motivo_local"] = traducir("gateway", "No hay una página del evento publicada (Evento → Web del evento).");
         } else {
             const std::string& base = s.puerta == Puerta::SalaHttp ? httpSala : httpsSala;
             if (!base.empty())
                 f["local"] = base + s.ruta;
             else
-                f["motivo_local"] = motivoSala.empty() ? std::string("La puerta de la sala no está abierta.") : motivoSala;
+                f["motivo_local"] =
+                    motivoSala.empty() ? traducir("gateway", "La puerta de la sala no está abierta.") : motivoSala;
         }
         // Afuera
         const bool afuera = s.afuera && (std::string(s.id) != "control" || e.controlRemoto);
@@ -135,8 +148,8 @@ json armar(const Entradas& e) {
             f["motivo_remoto"] = f["motivo_local"];
         } else if (!afuera) {
             f["motivo_remoto"] = std::string(s.id) == "control"
-                                     ? "El control web desde afuera está apagado (se habilita con PIN)."
-                                     : std::string(s.sinAfuera);
+                                     ? traducir("gateway", "El control web desde afuera está apagado (se habilita con PIN).")
+                                     : (*s.sinAfuera != '\0' ? traducir("gateway", s.sinAfuera) : std::string());
         } else if (!remoto.empty()) {
             f["remoto"] = remoto + s.ruta;
         } else {
@@ -167,7 +180,7 @@ json origenDe(const json& catalogo, const std::string& servicio, const std::stri
             r["warning"] = s.value(remoto ? "motivo_remoto" : "motivo_local", std::string());
         return r;
     }
-    return {{"error", donde}, {"message", "No conozco el servicio «" + servicio + "»."}};
+    return {{"error", donde}, {"message", llenar(traducir("gateway", "No conozco el servicio «%1»."), {servicio})}};
 }
 
 } // namespace ba::gateway::direcciones

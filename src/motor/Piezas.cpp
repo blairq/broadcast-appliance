@@ -5,6 +5,7 @@
 #include "ModosVideo.hpp"
 #include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include <set>
 #include <thread>
@@ -26,6 +27,8 @@
 namespace ba::motor {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 std::string colorimetriaDelLienzo(const Lienzo& l) {
     GstVideoColorimetry c = {};
@@ -150,7 +153,7 @@ void ponerPropiedades(GstElement* e, const Filtro& f, std::vector<std::string>* 
     for (const auto& [k, v] : f.props) {
         GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(e), k.c_str());
         if (ps == nullptr || (ps->flags & G_PARAM_WRITABLE) == 0) {
-            if (avisos != nullptr) avisos->push_back(f.elemento + ": no tiene la propiedad «" + k + "»");
+            if (avisos != nullptr) avisos->push_back(llenar(traducir("motor", "%1: no tiene la propiedad «%2»"), {f.elemento, k}));
             continue;
         }
         gst_util_set_object_arg(G_OBJECT(e), k.c_str(), v.c_str());
@@ -245,7 +248,7 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
     bool enGpu = desdeGpu;
     for (const auto& f0 : v) {
         if (!hayFabrica(f0.elemento)) {
-            avisos.push_back("no está el elemento «" + f0.elemento + "» (filtro " + f0.id + "): pasa sin él");
+            avisos.push_back(llenar(traducir("motor", "no está el elemento «%1» (filtro %2): pasa sin él"), {f0.elemento, f0.id}));
             continue;
         }
         // En la GPU, el par del elemento para esa memoria si lo tiene (baptz → baptzgl,
@@ -280,8 +283,8 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
             const std::string primero = sube.substr(0, sube.find(' '));
             hayPuente = hayFabrica(primero) && hayFabrica(m->second.second);
             if (!hayPuente)
-                avisos.push_back("no hay " + primero + " para darle " + f.memoria + " a «" + f.elemento +
-                                 "»: va en memoria de sistema");
+                avisos.push_back(llenar(traducir("motor", "no hay %1 para darle %2 a «%3»: va en memoria de sistema"),
+                                        {primero, f.memoria, f.elemento}));
         }
         const std::string elem = f.elemento + " name=" + prefijo + f.nombre + " ! ";
         // La toma tal como llega a este filtro, para otro productor (ver Derivacion).
@@ -452,7 +455,8 @@ std::string origenDeCamara(const std::string& id, const std::string& modo, const
                     if (caps != nullptr) gst_caps_unref(caps);
                     if (!modo.empty()) {
                         m = modoGuardado(modos, modo);
-                        porque = m.ancho > 0 ? "el elegido a mano" : "el elegido a mano (" + modo + ") ya no está: el que conviene";
+                        porque = m.ancho > 0 ? traducir("motor", "el elegido a mano")
+                                             : llenar(traducir("motor", "el elegido a mano (%1) ya no está: el que conviene"), {modo});
                     }
                     if (m.ancho <= 0) {
                         std::string p;
@@ -473,7 +477,7 @@ std::string origenDeCamara(const std::string& id, const std::string& modo, const
     o += cadenaDeModo(m); // sin modo (la cámara no dijo nada): que negocie GStreamer
     if (elegido != nullptr) {
         *elegido = m.ancho > 0 ? m.json() : nlohmann::json::object();
-        (*elegido)["porque"] = m.ancho > 0 ? porque : "la cámara no anuncia sus modos: negocia GStreamer";
+        (*elegido)["porque"] = m.ancho > 0 ? porque : traducir("motor", "la cámara no anuncia sus modos: negocia GStreamer");
         (*elegido)["automatico"] = modo.empty();
     }
     return o;
@@ -641,7 +645,7 @@ bool queTieneElArchivo(const std::string& uri, bool& video, bool& audio, std::st
     GError* e = nullptr;
     GstDiscoverer* d = gst_discoverer_new(5 * GST_SECOND, &e);
     if (d == nullptr) {
-        error = e != nullptr ? ba::diag::utf8Valido(e->message) : "no se pudo mirar el archivo";
+        error = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "no se pudo mirar el archivo");
         if (e != nullptr) g_error_free(e);
         return false;
     }
@@ -655,9 +659,9 @@ bool queTieneElArchivo(const std::string& uri, bool& video, bool& audio, std::st
         gst_discoverer_stream_info_list_free(v);
         gst_discoverer_stream_info_list_free(a);
         ok = video || audio;
-        if (!ok) error = "el archivo no tiene video ni audio";
+        if (!ok) error = traducir("motor", "el archivo no tiene video ni audio");
     } else {
-        error = e != nullptr ? ba::diag::utf8Valido(e->message) : "no se pudo leer el archivo";
+        error = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "no se pudo leer el archivo");
     }
     if (e != nullptr) g_error_free(e);
     if (info != nullptr) gst_discoverer_info_unref(info);
@@ -924,8 +928,8 @@ bool glListo() {
     if (gDisplay == nullptr) return false;
     GError* e = nullptr;
     if (!gst_gl_display_create_context(gDisplay, nullptr, &gContexto, &e)) {
-        registrar(Nivel::Aviso, std::string("sin contexto GL para el video: ") + (e != nullptr ? ba::diag::utf8Valido(e->message) : "?") +
-                                    " (se compone en la CPU)");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "sin contexto GL para el video: %1 (se compone en la CPU)"),
+                                       {e != nullptr ? ba::diag::utf8Valido(e->message) : "?"}));
         if (e != nullptr) g_error_free(e);
         return false;
     }
@@ -945,7 +949,7 @@ bool d3d12Listo() {
         "d3d12compositor name=mx ! video/x-raw(memory:D3D12Memory),format=RGBA ! d3d12download ! appsink name=s sync=false",
         &e);
     if (e != nullptr) {
-        registrar(Nivel::Aviso, std::string("D3D12: la autoprueba no se arma: ") + ba::diag::utf8Valido(e->message));
+        registrar(Nivel::Aviso, llenar(traducir("motor", "D3D12: la autoprueba no se arma: %1"), {ba::diag::utf8Valido(e->message)}));
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return false;
@@ -982,15 +986,19 @@ bool d3d12Listo() {
     gst_object_unref(bus);
     gst_object_unref(p);
     if (cuadros < 4) {
-        registrar(Nivel::Aviso, "D3D12: la autoprueba no entregó cuadros (" + std::to_string(cuadros) + ")" +
-                                    (error.empty() ? std::string() : ": " + error) + " (se compone en la CPU)");
+        registrar(Nivel::Aviso,
+                  error.empty()
+                      ? llenar(traducir("motor", "D3D12: la autoprueba no entregó cuadros (%1) (se compone en la CPU)"),
+                               {std::to_string(cuadros)})
+                      : llenar(traducir("motor", "D3D12: la autoprueba no entregó cuadros (%1): %2 (se compone en la CPU)"),
+                               {std::to_string(cuadros), error}));
         for (GstContext* c : contextos) gst_context_unref(c);
         return false;
     }
     std::string tipos;
     for (GstContext* c : contextos) tipos += std::string(tipos.empty() ? "" : ", ") + gst_context_get_context_type(c);
-    registrar(Nivel::Info, "D3D12: la autoprueba entregó " + std::to_string(cuadros) + " cuadros; contextos: " +
-                               (tipos.empty() ? std::string("ninguno") : tipos));
+    registrar(Nivel::Info, llenar(traducir("motor", "D3D12: la autoprueba entregó %1 cuadros; contextos: %2"),
+                                  {std::to_string(cuadros), tipos.empty() ? traducir("motor", "ninguno") : tipos}));
     std::lock_guard<std::mutex> l(gGlMu);
     for (GstContext* c : gContextos) gst_context_unref(c);
     gContextos = std::move(contextos);
@@ -1021,7 +1029,7 @@ void ponerGpuVideo(bool quiere) {
         g = Gpu::Ninguna;
     if (g == Gpu::D3D12 && !d3d12Listo()) g = Gpu::Ninguna;
     gGpu = static_cast<int>(g);
-    registrar(Nivel::Info, std::string("video del motor: ") + nombreGpu());
+    registrar(Nivel::Info, llenar(traducir("motor", "video del motor: %1"), {nombreGpu()}));
 }
 
 Gpu gpu() {

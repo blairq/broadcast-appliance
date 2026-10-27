@@ -2,6 +2,7 @@
 // src/core/platform/Energia_win.cpp — ver Energia.hpp
 // ============================================================================
 #include "platform/Energia.hpp"
+#include "i18n/I18n.hpp"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -38,13 +39,18 @@ Despierta::Despierta(const std::string& motivo, bool pantalla) : d_(std::make_un
     rc.Reason.SimpleReasonString = d_->motivo.data();
     d_->pedido = PowerCreateRequest(&rc);
     if (d_->pedido == INVALID_HANDLE_VALUE) {
-        d_->detalle = "Windows no aceptó el pedido de energía (error " + std::to_string(GetLastError()) + ")";
+        d_->detalle = ba::i18n::llenar(ba::i18n::traducir("energia", "Windows no aceptó el pedido de energía (error %1)"),
+                                       {std::to_string(GetLastError())});
         return;
     }
     d_->sistema = PowerSetRequest(d_->pedido, PowerRequestSystemRequired) != FALSE;
     if (pantalla) d_->pantalla = PowerSetRequest(d_->pedido, PowerRequestDisplayRequired) != FALSE;
-    d_->detalle = std::string("sin suspender el sistema") + (d_->sistema ? "" : " (rechazado)") +
-                  (pantalla ? std::string(", sin apagar la pantalla") + (d_->pantalla ? "" : " (rechazado)") : "") +
+    using ba::i18n::traducir;
+    const std::string rechazado = " " + traducir("energia", "(rechazado)");
+    d_->detalle = traducir("energia", "sin suspender el sistema") + (d_->sistema ? std::string() : rechazado) +
+                  (pantalla ? ", " + traducir("energia", "sin apagar la pantalla") +
+                                  (d_->pantalla ? std::string() : rechazado)
+                            : std::string()) +
                   " (powercfg /requests)";
 }
 
@@ -71,8 +77,9 @@ std::string sinAhorroDeEnergia() {
 #endif
     e.StateMask = 0;
     if (SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &e, sizeof(e)) == FALSE)
-        return "no se pudo sacar del modo eficiencia (error " + std::to_string(GetLastError()) + ")";
-    return "fuera del modo eficiencia (EcoQoS)";
+        return ba::i18n::llenar(ba::i18n::traducir("energia", "no se pudo sacar del modo eficiencia (error %1)"),
+                                {std::to_string(GetLastError())});
+    return ba::i18n::traducir("energia", "fuera del modo eficiencia (EcoQoS)");
 }
 
 } // namespace ba::platform

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <cmath>
 #include <thread>
@@ -23,6 +24,7 @@
 #endif
 #include "ColaVoz.hpp"
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -33,9 +35,19 @@
 
 namespace ba::gateway {
 
+using ba::i18n::llenar;
+using ba::i18n::traducir;
+
 namespace {
 
 using namespace ba::ipc;
+
+/// Un número con un decimal, para los textos del registro («12.5 fps»).
+std::string unDecimal(double v) {
+    char b[32];
+    std::snprintf(b, sizeof b, "%.1f", v);
+    return b;
+}
 
 /// PID del proceso actual (para el writerPid de los rings de salida).
 uint32_t currentPid() {
@@ -249,14 +261,14 @@ void MediaPump::start() {
     for (size_t k = 0; k < cfg_.escenaVideoNames.size(); ++k) {
         const int canal = static_cast<int>(k);
         threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.escenaVideoNames[k],
-                              "escena " + std::to_string(canal), [canal](const MediaRoute& r) {
+                              llenar(traducir("gateway", "escena %1"), {std::to_string(canal)}), [canal](const MediaRoute& r) {
                                   return r.kind == MediaRoute::Kind::Escena && r.index == canal;
                               });
     }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
     if (!cfg_.atendedorAudioName.empty())
         threads_.emplace_back(&MediaPump::vozAudioThread, this, cfg_.atendedorAudioName,
-                              "atencion: voz del que atiende (BA.Audio.Atendedor)",
+                              traducir("gateway", "atencion: voz del que atiende (BA.Audio.Atendedor)"),
                               [](const MediaRoute& r) { return r.oyeAlAtendedor(); });
     for (size_t k = 1; k < cfg_.registroVozAudioNames.size() && k <= static_cast<size_t>(kMaxTotems); ++k) {
         if (cfg_.registroVozAudioNames[k].empty()) continue;
@@ -265,8 +277,9 @@ void MediaPump::start() {
     }
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
-    log_.info("MediaPump: en marcha (slots=" + std::to_string(guests) + ", lobby=" + std::to_string(lobby) +
-              ", fila=" + std::to_string(backstage) + ", sesiones=" + std::to_string(hub_.sessions()) + ")");
+    log_.info(llenar(traducir("gateway", "MediaPump: en marcha (slots=%1, lobby=%2, fila=%3, sesiones=%4)"),
+                     {std::to_string(guests), std::to_string(lobby), std::to_string(backstage),
+                      std::to_string(hub_.sessions())}));
 }
 
 void MediaPump::stop() {
@@ -276,7 +289,7 @@ void MediaPump::stop() {
         if (t.joinable()) t.join();
     }
     threads_.clear();
-    log_.info("MediaPump: detenido");
+    log_.info(traducir("gateway", "MediaPump: detenido"));
 }
 
 std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n, int w, int h) {
@@ -288,9 +301,10 @@ std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n
     out->scratch.resize(static_cast<size_t>(w) * h * 4u);
     if (!n.empty()) {
         if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
-            log_.info("video out: " + narrow(n) + " listo (" + std::to_string(w) + "x" + std::to_string(h) + ")");
+            log_.info(llenar(traducir("gateway", "video out: %1 listo (%2x%3)"),
+                             {narrow(n), std::to_string(w), std::to_string(h)}));
         } else {
-            log_.warn("video out: no se pudo publicar " + narrow(n) + " (se salta)", -1);
+            log_.warn(llenar(traducir("gateway", "video out: no se pudo publicar %1 (se salta)"), {narrow(n)}), -1);
         }
     }
     return out;
@@ -303,9 +317,9 @@ std::unique_ptr<MediaPump::AudioOut> MediaPump::crearAudio(const std::wstring& n
         if (SharedAudioRing::init(n.c_str(), static_cast<uint32_t>(cfg_.audioChannels),
                                   audio_ring::kDefaultCapacityBlocks, currentPid(), kGeneration, out->ring)
                 .ok) {
-            log_.info("audio out: " + narrow(n) + " listo");
+            log_.info(llenar(traducir("gateway", "audio out: %1 listo"), {narrow(n)}));
         } else {
-            log_.warn("audio out: no se pudo crear " + narrow(n) + " (se salta)", -1);
+            log_.warn(llenar(traducir("gateway", "audio out: no se pudo crear %1 (se salta)"), {narrow(n)}), -1);
         }
     }
     return out;
@@ -327,7 +341,8 @@ void MediaPump::ampliar(int slots) {
         lugares_ = s;
     }
     if (lugares_ > antes && antes > 0)
-        log_.info("MediaPump: lugares " + std::to_string(antes) + " -> " + std::to_string(lugares_) + " (sin reiniciar)");
+        log_.info(llenar(traducir("gateway", "MediaPump: lugares %1 -> %2 (sin reiniciar)"),
+                         {std::to_string(antes), std::to_string(lugares_)}));
 }
 
 int MediaPump::lugares() const {
@@ -384,7 +399,7 @@ void MediaPump::returnAudioThread() {
                     if (!slotOpen[s] && !cfg_.returnSlotNames[s].empty() &&
                         SharedAudioRing::openReader(cfg_.returnSlotNames[s].c_str(), slotReaders[s]).ok) {
                         slotOpen[s] = true;
-                        log_.info("retorno mix-minus del slot " + std::to_string(s) + " abierto");
+                        log_.info(llenar(traducir("gateway", "retorno mix-minus del slot %1 abierto"), {std::to_string(s)}));
                     }
                 }
             }
@@ -395,7 +410,7 @@ void MediaPump::returnAudioThread() {
                 lastRetry = now;
                 if (SharedAudioRing::openReader(cfg_.returnAudioName.c_str(), reader).ok) {
                     open = true;
-                    log_.info("retorno audio: BA.Audio.ContentForReturn abierto");
+                    log_.info(traducir("gateway", "retorno audio: BA.Audio.ContentForReturn abierto"));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -404,7 +419,7 @@ void MediaPump::returnAudioThread() {
         if (reader.stale()) {
             reader = SharedAudioRing{};
             open = false;
-            log_.info("retorno audio: A cambio o se cerro; reabriendo");
+            log_.info(traducir("gateway", "retorno audio: A cambio o se cerro; reabriendo"));
             continue;
         }
         const size_t n = reader.blockFloats();
@@ -495,7 +510,7 @@ int MediaPump::miranPrograma() const {
 }
 
 void MediaPump::returnVideoThread() {
-    videoBajadaThread(cfg_.programVideoName, "retorno video", [](const MediaRoute& r) {
+    videoBajadaThread(cfg_.programVideoName, traducir("gateway", "retorno video"), [](const MediaRoute& r) {
         return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
     });
 }
@@ -535,9 +550,9 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                         outH = srcH;
                     }
                     scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
-                    log_.info(etiqueta + ": suscrito (" + std::to_string(srcW) + "x" +
-                              std::to_string(srcH) + ") -> " + std::to_string(outW) + "x" +
-                              std::to_string(outH));
+                    log_.info(llenar(traducir("gateway", "%1: suscrito (%2x%3) -> %4x%5"),
+                                     {etiqueta, std::to_string(srcW), std::to_string(srcH), std::to_string(outW),
+                                      std::to_string(outH)}));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -548,7 +563,7 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
             sub = false;
             outW = 0;
             outH = 0;
-            log_.info(etiqueta + ": A cambio o se cerro; resuscribiendo");
+            log_.info(llenar(traducir("gateway", "%1: A cambio o se cerro; resuscribiendo"), {etiqueta}));
             continue;
         }
         if (receiver.hasData()) {
@@ -589,9 +604,14 @@ void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
                 const double medioMs = static_cast<double>(trabajoUs) / cuadros / 1000.0;
                 const double fps = cuadros / seg;
                 const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
-                log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
-                         "%s: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", etiqueta.c_str(), fps, medioMs,
-                         edadMs, medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
+                if (medioMs > 25.0)
+                    log_.warn(llenar(traducir("gateway", "%1: %2 fps, %3 ms por cuadro, %4 ms de A a B (no llega: la "
+                                                         "pantalla se va a atrasar)"),
+                                     {etiqueta, unDecimal(fps), unDecimal(medioMs), unDecimal(edadMs)}),
+                              0);
+                else
+                    log_.info(llenar(traducir("gateway", "%1: %2 fps, %3 ms por cuadro, %4 ms de A a B"),
+                                     {etiqueta, unDecimal(fps), unDecimal(medioMs), unDecimal(edadMs)}));
             }
             trabajoUs = 0;
             edadUs = 0;
@@ -616,7 +636,7 @@ void MediaPump::operatorAudioThread() {
                 lastRetry = now;
                 if (SharedAudioRing::openReader(cfg_.operatorAudioName.c_str(), reader).ok) {
                     open = true;
-                    log_.info("operador: microfono (BA.Audio.Operator) abierto");
+                    log_.info(traducir("gateway", "operador: microfono (BA.Audio.Operator) abierto"));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -669,7 +689,7 @@ void MediaPump::vozAudioThread(std::wstring nombre, std::string etiqueta, std::f
                 lastRetry = now;
                 if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
-                    log_.info(etiqueta + " abierta");
+                    log_.info(llenar(traducir("gateway", "%1 abierta"), {etiqueta}));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -701,7 +721,7 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block, alTotem, alQueAtiende;
-    const std::string etiqueta = "registro: voz del asistente del canal " + std::to_string(canal);
+    const std::string etiqueta = llenar(traducir("gateway", "registro: voz del asistente del canal %1"), {std::to_string(canal)});
     MonitorRegistro& m = monitorRegistro_[static_cast<size_t>(canal)];
     while (!stop_.load(std::memory_order_relaxed)) {
         if (!open) {
@@ -710,7 +730,7 @@ void MediaPump::vozRegistroThread(std::wstring nombre, int canal) {
                 lastRetry = now;
                 if (SharedAudioRing::openReader(nombre.c_str(), reader).ok) {
                     open = true;
-                    log_.info(etiqueta + " abierta");
+                    log_.info(llenar(traducir("gateway", "%1 abierta"), {etiqueta}));
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -768,8 +788,8 @@ void MediaPump::operatorVideoThread() {
                 srcW = receiver.width();
                 srcH = receiver.height();
                 src.assign(receiver.frameBytes(), 0);
-                log_.info("operador: camara (BA.Operator) suscrita (" + std::to_string(srcW) + "x" +
-                          std::to_string(srcH) + ")");
+                log_.info(llenar(traducir("gateway", "operador: camara (BA.Operator) suscrita (%1x%2)"),
+                                 {std::to_string(srcW), std::to_string(srcH)}));
             }
         }
         if (sub && receiver.stale()) {
@@ -916,9 +936,12 @@ nlohmann::json MediaPump::analizarEco(const std::vector<double>& bins, int dur) 
 std::string MediaPump::pruebaTecnica(int session, int ms) {
     const MediaRoute r = route(session);
     if (r.kind != MediaRoute::Kind::Program && r.kind != MediaRoute::Kind::Backstage)
-        return R"({"error":"la prueba es para los de adentro (programa o fila): en el lobby no recibe el retorno"})";
+        return nlohmann::json{{"error", traducir("gateway", "la prueba es para los de adentro (programa o fila): en el "
+                                                            "lobby no recibe el retorno")}}
+            .dump();
     int libre = 0;
-    if (!pruebaSesion_.compare_exchange_strong(libre, session)) return R"({"error":"ya hay una prueba andando"})";
+    if (!pruebaSesion_.compare_exchange_strong(libre, session))
+        return nlohmann::json{{"error", traducir("gateway", "ya hay una prueba andando")}}.dump();
     {
         std::lock_guard<std::mutex> l(pruebaLock_);
         pruebaBins_.clear();
@@ -937,7 +960,8 @@ std::string MediaPump::pruebaTecnica(int session, int ms) {
         const nlohmann::json red = nlohmann::json::parse(sess->estadisticas(), nullptr, false);
         if (red.is_object()) out["red"] = red;
     }
-    if (bins.empty()) out["aviso"] = "no llegó audio de su micrófono durante la prueba (¿lo tiene silenciado?)";
+    if (bins.empty())
+        out["aviso"] = traducir("gateway", "no llegó audio de su micrófono durante la prueba (¿lo tiene silenciado?)");
     return out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
@@ -1049,8 +1073,9 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
             out.informeNs = t;
         } else if (t - out.informeNs >= 10'000'000'000ull) {
             const double seg = static_cast<double>(t - out.informeNs) / 1e9;
-            log_.fmt("info", 0, "sube %s: %.1f fps (%dx%d)", out.nombre.c_str(),
-                     static_cast<double>(out.cuadros) / seg, w, h);
+            log_.info(llenar(traducir("gateway", "sube %1: %2 fps (%3x%4)"),
+                             {out.nombre, unDecimal(static_cast<double>(out.cuadros) / seg), std::to_string(w),
+                              std::to_string(h)}));
             out.cuadros = 0;
             out.informeNs = t;
         }

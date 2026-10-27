@@ -10,6 +10,7 @@
 // ============================================================================
 
 #include "platform/SingleInstance.hpp"
+#include "i18n/I18n.hpp"
 
 #include <fcntl.h>
 #include <sys/file.h>
@@ -44,7 +45,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
     out.release();
 #if defined(__linux__)
     if (name.empty() || name.size() > 64 || name.find('/') != std::string::npos) {
-        if (err != nullptr) *err = "nombre de lock invalido: '" + name + "'";
+        if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("ipc", "nombre de lock invalido: '%1'"), {name});
         return false;
     }
     const std::string abs =
@@ -62,7 +63,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
         const int e = errno;
         ::close(sfd);
         if (err != nullptr) {
-            *err = e == EADDRINUSE ? "ya hay otra instancia en ejecucion"
+            *err = e == EADDRINUSE ? ba::i18n::traducir("ipc", "ya hay otra instancia en ejecucion")
                                    : std::string("bind: ") + std::strerror(e);
         }
         return false;
@@ -73,7 +74,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
     const std::filesystem::path dir = runtimeDir();
     if (dir.empty() || name.empty() || name.find('/') != std::string::npos) {
         if (err != nullptr) {
-            *err = "no se pudo resolver el lockfile para '" + name + "'";
+            *err = ba::i18n::llenar(ba::i18n::traducir("ipc", "no se pudo resolver el lockfile para '%1'"), {name});
         }
         return false;
     }
@@ -89,7 +90,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
         const int e = errno;
         ::close(fd);
         if (err != nullptr) {
-            *err = e == EWOULDBLOCK ? "ya hay otra instancia en ejecucion"
+            *err = e == EWOULDBLOCK ? ba::i18n::traducir("ipc", "ya hay otra instancia en ejecucion")
                                     : std::string("flock: ") + std::strerror(e);
         }
         return false;

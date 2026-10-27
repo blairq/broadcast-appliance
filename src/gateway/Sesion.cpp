@@ -15,8 +15,19 @@
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
+
+// Lo que se le manda a la página del integrante (error, motivo) no se traduce
+// acá: se marca para el catálogo de la web y la página lo traduce en el idioma
+// de su navegador (el valor que viaja es el original).
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
 
 namespace ba::gateway {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 using json = nlohmann::json;
 
@@ -95,14 +106,14 @@ bool SesionBorde::origenValido(const std::string& headers) {
 bool SesionBorde::servir(long long fd, const std::string& rel, const std::string& webroot) {
     std::error_code ec;
     const auto raiz = std::filesystem::weakly_canonical(webroot, ec);
-    if (ec || webroot.empty()) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    if (ec || webroot.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot) / http::urlDecode(rel), ec);
     const std::string r = raiz.generic_string(), d = destino.generic_string();
     if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", "ruta invalida\n"), true;
+        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
     std::ifstream f(destino, std::ios::binary);
     if (!f || std::filesystem::is_directory(destino, ec))
-        return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     std::ostringstream ss;
     ss << f.rdbuf();
     // CSP estricta; la cámara y el micrófono solo para esta página.
@@ -181,7 +192,7 @@ void SesionBorde::anotarPinMal(const std::string& id) {
         }
     }
     if (seBloqueo) {
-        log_.warn("sesion: " + id + " bloqueado 15 min por PIN errado", -1);
+        log_.warn(llenar(traducir("gateway", "sesion: %1 bloqueado 15 min por PIN errado"), {id}), -1);
         alApp_({{"tipo", "bloqueo"}, {"id", id}, {"minutos", kBloqueoMs() / 60000}});
     }
 }
@@ -239,8 +250,8 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
     if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
     const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!origenValido(headers)) {
-        log_.warn("sesion: origen ajeno desde " + ip, -1);
-        http::sendResponse(fd, 403, "text/plain", "origen invalido\n");
+        log_.warn(llenar(traducir("gateway", "sesion: origen ajeno desde %1"), {ip}), -1);
+        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");
         return true;
     }
     if (pagina || paginaConsola) {
@@ -254,11 +265,11 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
                                              : webroot_);
     }
     const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", "falta Sec-WebSocket-Key\n"), true;
+    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n"), true;
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones())
-            return http::sendResponse(fd, 503, "text/plain", "sesion llena\n"), true;
+            return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "sesion llena") + "\n"), true;
     }
     const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
     const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
@@ -290,38 +301,43 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             enviar(c, {{"type", "auth"}, {"ok", false}, {"error", error}});
             http::writeWsFrame(fd, 0x8, "");
         };
-        if (!m.is_object() || m.value("type", std::string()) != "auth") return rechazar("Mensaje inválido.");
+        if (!m.is_object() || m.value("type", std::string()) != "auth")
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
         // La consola de la presidencia tiene su propia credencial (id "consola:<x>"); un
         // integrante nunca entra por la consola ni la consola por la página del integrante.
         const bool conUsuario = !consola && m.contains("u");
         std::string id = consola ? "consola:" + m.value("c", std::string()) : m.value("i", std::string());
-        if (!consola && id.rfind("consola:", 0) == 0) return rechazar("Mensaje inválido.");
+        if (!consola && id.rfind("consola:", 0) == 0) return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
         if (!intentoPermitido(ip)) {
-            log_.warn("sesion: demasiados intentos desde " + ip, -1);
-            return rechazar("Demasiados intentos desde esta conexión. Esperá 10 minutos.");
+            log_.warn(llenar(traducir("gateway", "sesion: demasiados intentos desde %1"), {ip}), -1);
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
         }
         bool pinMal = false;
         std::string quien;
         if (conUsuario) {
             quien = autenticarUsuario(m.value("u", std::string()), m.value("clave", std::string()), id, pinMal);
             if (!id.empty() && bloqueado(id))
-                return rechazar("Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos.");
+                return rechazar(
+                    QT_TRANSLATE_NOOP("web/comun", "Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos."));
             if (quien.empty() && !pinMal) {
                 alApp_({{"tipo", "intento"}, {"id", ""}, {"ip", ip}, {"motivo", "usuario"}});
-                return rechazar("Usuario o contraseña incorrectos.");
+                return rechazar(QT_TRANSLATE_NOOP("web/comun", "Usuario o contraseña incorrectos."));
             }
         } else {
-            if (bloqueado(id)) return rechazar("Por PIN errado varias veces, tu acceso está bloqueado 15 minutos.");
+            if (bloqueado(id))
+                return rechazar(QT_TRANSLATE_NOOP("web/comun", "Por PIN errado varias veces, tu acceso está bloqueado 15 minutos."));
             quien = autenticar(id, m.value("t", std::string()), m.value("pin", std::string()), pinMal);
         }
         if (quien.empty()) {
             if (pinMal) {
                 anotarPinMal(id);
                 alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "pin"}});
-                return rechazar(conUsuario ? "Usuario o contraseña incorrectos." : "El PIN no es correcto.");
+                return rechazar(conUsuario ? QT_TRANSLATE_NOOP("web/comun", "Usuario o contraseña incorrectos.")
+                                           : QT_TRANSLATE_NOOP("web/comun", "El PIN no es correcto."));
             }
             alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "link"}});
-            return rechazar("Este link no es válido (o fue revocado). Pedile uno nuevo a la secretaría.");
+            return rechazar(
+                QT_TRANSLATE_NOOP("web/comun", "Este link no es válido (o fue revocado). Pedile uno nuevo a la secretaría."));
         }
         c->id = quien;
     }
@@ -339,7 +355,8 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
     }
     if (vieja) { // un integrante, una conexión: la nueva corta la vieja
-        enviar(vieja, {{"type", "cortado"}, {"motivo", "Entraste desde otro lado: esta ventana se cerró."}});
+        enviar(vieja, {{"type", "cortado"},
+                       {"motivo", QT_TRANSLATE_NOOP("web/comun", "Entraste desde otro lado: esta ventana se cerró.")}});
         std::lock_guard<std::mutex> l(vieja->sendLock);
         if (vieja->fd >= 0) http::shutdownFd(vieja->fd);
     }
@@ -355,7 +372,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     if (tieneMedios && vieja && medios_.cerrar) medios_.cerrar(c->id, canalMedios);
     enviar(c, {{"type", "auth"}, {"ok", true}, {"id", c->id}, {"nombre", datos.value("nombre", std::string())},
                {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}});
-    log_.info("sesion: " + c->id + " conectado desde " + c->ip);
+    log_.info(llenar(traducir("gateway", "sesion: %1 conectado desde %2"), {c->id, c->ip}));
     alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", true}, {"ip", c->ip}, {"lugar", c->lugar}});
     // Volvió el que tiene la palabra (se le cortó la red, recargó la página): se le
     // vuelve a pedir el micrófono y la cámara.
@@ -401,7 +418,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                       ventana.end());
         // La consola junta candidatos ICE de varias conexiones a la vez: más margen.
         if (static_cast<int>(ventana.size()) >= (consola ? kMensajesPorSegundo() * 4 : kMensajesPorSegundo())) {
-            log_.warn("sesion: " + c->id + " manda demasiado; se corta", -1);
+            log_.warn(llenar(traducir("gateway", "sesion: %1 manda demasiado; se corta"), {c->id}), -1);
             break;
         }
         ventana.push_back(ahora);
@@ -425,7 +442,10 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                 const bool ok = medios_.oferta(c->id, canal, m.value("sdp", std::string()), [this, w](const json& r) {
                     if (auto cc = w.lock()) enviar(cc, r);
                 });
-                if (!ok) enviar(c, {{"type", "medios"}, {"activo", false}, {"error", "no hay lugar para el audio en la sala"}});
+                if (!ok)
+                    enviar(c, {{"type", "medios"},
+                               {"activo", false},
+                               {"error", QT_TRANSLATE_NOOP("web/comun", "no hay lugar para el audio en la sala")}});
             } else if (medios_.ice) {
                 const json& cand = m.contains("candidate") ? m["candidate"] : json();
                 medios_.ice(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -456,7 +476,9 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                 const bool ok = medios_.vistaOferta(c->id, m.value("sdp", std::string()), canal, habla, [this, w](const json& r) {
                     if (auto cc = w.lock()) enviar(cc, r);
                 });
-                if (!ok) enviar(c, {{"type", "vista-error"}, {"error", "La sala no tiene lugar para mandarte la imagen ahora."}});
+                if (!ok)
+                    enviar(c, {{"type", "vista-error"},
+                               {"error", QT_TRANSLATE_NOOP("web/comun", "La sala no tiene lugar para mandarte la imagen ahora.")}});
             }
             continue;
         }
@@ -487,8 +509,10 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             } else {
                 const std::string sdp = m.value("sdp", std::string());
                 if (!subeSoloAudio(sdp)) {
-                    log_.warn("sesion: la atención de " + c->id + " quiso mandar algo más que audio; se ignora", -1);
-                    noSePudo("La página ofreció algo más que el micrófono.");
+                    log_.warn(llenar(traducir("gateway", "sesion: la atención de %1 quiso mandar algo más que audio; se ignora"),
+                                     {c->id}),
+                              -1);
+                    noSePudo(QT_TRANSLATE_NOOP("web/comun", "La página ofreció algo más que el micrófono."));
                     continue;
                 }
                 std::weak_ptr<Conn> w = c;
@@ -496,7 +520,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                     !medios_.atiendeOferta(c->id, sdp, [this, w](const json& r) {
                         if (auto cc = w.lock()) enviar(cc, r);
                     }))
-                    noSePudo("La sala no tiene lugar para escucharte ahora.");
+                    noSePudo(QT_TRANSLATE_NOOP("web/comun", "La sala no tiene lugar para escucharte ahora."));
             }
             continue;
         }
@@ -593,7 +617,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     }
     if (eraLaActual) {
         alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", false}, {"ip", c->ip}});
-        log_.info("sesion: " + c->id + " desconectado");
+        log_.info(llenar(traducir("gateway", "sesion: %1 desconectado"), {c->id}));
     }
 }
 
@@ -618,7 +642,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             auto it = fotos_.find(id);
             if (it != fotos_.end()) jpeg = it->second;
         }
-        if (jpeg.empty()) return http::sendResponse(fd, 404, "text/plain", "sin foto\n"), true;
+        if (jpeg.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "sin foto") + "\n"), true;
         http::sendResponse(fd, 200, "image/jpeg", jpeg, "Cache-Control: no-store\r\n");
         return true;
     }
@@ -637,7 +661,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
                 if (!credenciales_.count(id)) cortar.push_back(c);
         }
         for (const auto& c : cortar) {
-            enviar(c, {{"type", "cortado"}, {"motivo", "Tu acceso fue revocado."}});
+            enviar(c, {{"type", "cortado"}, {"motivo", QT_TRANSLATE_NOOP("web/comun", "Tu acceso fue revocado.")}});
             std::lock_guard<std::mutex> l(c->sendLock);
             if (c->fd >= 0) http::shutdownFd(c->fd);
         }
@@ -730,7 +754,8 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             if (que == "enviar") {
                 enviar(c, r.value("msg", json::object()));
             } else {
-                enviar(c, {{"type", "cortado"}, {"motivo", r.value("motivo", std::string("La presidencia te desconectó."))}});
+                enviar(c, {{"type", "cortado"},
+                           {"motivo", r.value("motivo", std::string(QT_TRANSLATE_NOOP("web/comun", "La presidencia te desconectó.")))}});
                 std::lock_guard<std::mutex> l(c->sendLock);
                 if (c->fd >= 0) http::shutdownFd(c->fd);
             }
@@ -760,7 +785,7 @@ std::string SesionBorde::ponerAtiende(const std::string& id, bool on) {
         std::lock_guard<std::mutex> l(mu_);
         if (on) {
             if (id.empty() || id.rfind("consola:", 0) == 0 || conns_.count(id) == 0)
-                return "no está conectado a la sesión remota";
+                return traducir("gateway", "no está conectado a la sesión remota");
             if (atiende_ == id) return {};
             anterior = atiende_; // de a uno: hay una sola voz del que atiende
             atiende_ = id;
@@ -771,7 +796,8 @@ std::string SesionBorde::ponerAtiende(const std::string& id, bool on) {
     }
     if (!anterior.empty()) avisarAtiende(anterior, false);
     avisarAtiende(id, on);
-    log_.info("sesion: atención hablada " + std::string(on ? "para " : "apagada para ") + id);
+    log_.info(on ? llenar(traducir("gateway", "sesion: atención hablada para %1"), {id})
+                 : llenar(traducir("gateway", "sesion: atención hablada apagada para %1"), {id}));
     return {};
 }
 
@@ -864,8 +890,10 @@ void SesionBorde::ponerMedios(const std::vector<std::string>& ids) {
     for (const auto& c : avisarSale) enviar(c, {{"type", "medios"}, {"activo", false}});
     for (const auto& c : avisarEntra) enviar(c, {{"type", "medios"}, {"activo", true}});
     std::string quienes;
-    for (const auto& [id, canal] : nuevo) quienes += (quienes.empty() ? "" : ", ") + id + " (canal " + std::to_string(canal) + ")";
-    log_.info("sesion: medios a la sala: " + (quienes.empty() ? std::string("nadie") : quienes));
+    for (const auto& [id, canal] : nuevo)
+        quienes += (quienes.empty() ? "" : ", ") + llenar(traducir("gateway", "%1 (canal %2)"), {id, std::to_string(canal)});
+    log_.info(llenar(traducir("gateway", "sesion: medios a la sala: %1"),
+                     {quienes.empty() ? traducir("gateway", "nadie") : quienes}));
 }
 
 } // namespace ba::gateway

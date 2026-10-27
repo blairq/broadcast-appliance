@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Reloj.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 #include "Mapa.hpp"
 #include "Piezas.hpp"
 #include "Prioridad.hpp"
@@ -29,6 +30,9 @@
 #include <vector>
 
 namespace ba::motor {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 std::mutex g_regMu;
@@ -143,9 +147,11 @@ void terminarRevision() {
         return std::chrono::duration_cast<std::chrono::milliseconds>(d).count() / 1000.0;
     };
     char b[160];
-    std::snprintf(b, sizeof b, "GStreamer rehízo su lista de plugins en %.1f s: revisó %zu de %d", seg(ahora - r.desde),
-                  r.revisados.size(), r.total);
-    registrar(Nivel::Info, std::string(b) + " (el detalle, en Logs/gst-plugins-*.log)");
+    std::snprintf(b, sizeof b, "%.1f", seg(ahora - r.desde));
+    registrar(Nivel::Info,
+              llenar(traducir("motor", "GStreamer rehízo su lista de plugins en %1 s: revisó %2 de %3 (el detalle, en "
+                                       "Logs/gst-plugins-*.log)"),
+                     {b, std::to_string(r.revisados.size()), std::to_string(r.total)}));
     // Lo que tardó cada uno: hasta que empezó el siguiente (se mira cada ~100 ms).
     std::vector<std::pair<double, std::string>> lentos;
     for (std::size_t i = 0; i < r.revisados.size(); ++i) {
@@ -155,12 +161,13 @@ void terminarRevision() {
     }
     std::sort(lentos.rbegin(), lentos.rend());
     for (const auto& [s, archivo] : lentos) {
-        std::snprintf(b, sizeof b, "%.1f s", s);
-        registrar(Nivel::Aviso, "el plugin " + archivo + " tardó " + b + " en revisarse");
+        std::snprintf(b, sizeof b, "%.1f", s);
+        registrar(Nivel::Aviso, llenar(traducir("motor", "el plugin %1 tardó %2 s en revisarse"), {archivo, b}));
     }
     for (const std::string& archivo : r.fallados)
-        registrar(Nivel::Aviso, "el plugin " + archivo +
-                                    " no contestó al revisarlo: queda afuera (GStreamer lo anota y no lo vuelve a cargar)");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "el plugin %1 no contestó al revisarlo: queda afuera (GStreamer "
+                                                         "lo anota y no lo vuelve a cargar)"),
+                                       {archivo}));
     r.total = 0;
 }
 } // namespace
@@ -199,7 +206,7 @@ bool iniciarGStreamer(std::string* error) {
         if (rehacer) empezarRevision(ba::platform::contarPlugins());
         GError* e = nullptr;
         ok = gst_init_check(nullptr, nullptr, &e);
-        if (!ok) err = e != nullptr ? ba::diag::utf8Valido(e->message) : "gst_init falló";
+        if (!ok) err = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "gst_init falló");
         if (e != nullptr) g_error_free(e);
         if (rehacer) {
             if (!delUsuario) {
@@ -322,23 +329,23 @@ Reloj::Reloj(const std::string& tipo, const std::string& servidor, int puerto, i
         clock_ = gst_system_clock_obtain(); // monotónico
     } else if (tipo == "ntp") {
         if (servidor.empty())
-            error_ = "falta el servidor NTP";
+            error_ = traducir("motor", "falta el servidor NTP");
         else
             clock_ = gst_ntp_clock_new("ba-ntp", servidor.c_str(), puerto > 0 ? puerto : 123, 0);
     } else if (tipo == "red") {
         if (servidor.empty())
-            error_ = "falta el aparato que publica el reloj";
+            error_ = traducir("motor", "falta el aparato que publica el reloj");
         else
             clock_ = gst_net_client_clock_new("ba-red", servidor.c_str(), puerto > 0 ? puerto : 8554, 0);
     } else if (tipo == "ptp") {
         static bool ptpIniciado = false;
         if (!ptpIniciado) ptpIniciado = gst_ptp_init(GST_PTP_CLOCK_ID_NONE, nullptr);
         if (!ptpIniciado)
-            error_ = "PTP no arrancó: necesita gst-ptp-helper con permisos para los puertos 319/320";
+            error_ = traducir("motor", "PTP no arrancó: necesita gst-ptp-helper con permisos para los puertos 319/320");
         else
             clock_ = gst_ptp_clock_new("ba-ptp", static_cast<guint>(std::max(0, dominio)));
     } else {
-        error_ = "reloj desconocido «" + tipo + "» (sistema, ntp, ptp o red)";
+        error_ = llenar(traducir("motor", "reloj desconocido «%1» (sistema, ntp, ptp o red)"), {tipo});
     }
     // NTP, PTP y el de otro aparato arrancan SIN sincronizar (con la hora de la máquina) y
     // al sincronizar SALTAN a la suya (NTP cuenta desde 1900): con la base tomada antes, todo
@@ -348,13 +355,14 @@ Reloj::Reloj(const std::string& tipo, const std::string& servidor, int puerto, i
     if (clock_ != nullptr && tipo != "sistema" && !tipo.empty() &&
         GST_OBJECT_FLAG_IS_SET(clock_, GST_CLOCK_FLAG_NEEDS_STARTUP_SYNC) && !gst_clock_is_synced(clock_) &&
         !gst_clock_wait_for_sync(clock_, kEsperaSyncNs)) {
-        error_ = "el reloj " + tipo + " no se sincronizó en " + std::to_string(kEsperaSyncNs / GST_SECOND) + " s";
+        error_ = llenar(traducir("motor", "el reloj %1 no se sincronizó en %2 s"),
+                        {tipo, std::to_string(kEsperaSyncNs / GST_SECOND)});
         gst_object_unref(clock_);
         clock_ = nullptr;
     }
     if (clock_ == nullptr) {
-        if (error_.empty()) error_ = "no se pudo crear el reloj " + tipo;
-        registrar(Nivel::Error, error_ + ": se usa el del sistema");
+        if (error_.empty()) error_ = llenar(traducir("motor", "no se pudo crear el reloj %1"), {tipo});
+        registrar(Nivel::Error, llenar(traducir("motor", "%1: se usa el del sistema"), {error_}));
         clock_ = gst_system_clock_obtain();
     }
     base_ = gst_clock_get_time(clock_);

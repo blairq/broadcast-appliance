@@ -3,6 +3,7 @@
 // ============================================================================
 #include "OrigenRed.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -16,6 +17,9 @@
 #include <thread>
 
 namespace ba::motor::origen_red {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -101,7 +105,7 @@ void armar(Origen& o) {
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        registrar(Nivel::Aviso, "origen " + o.uri + ": " + ba::diag::utf8Valido(e->message));
+        registrar(Nivel::Aviso, llenar(traducir("motor", "origen %1: %2"), {o.uri, ba::diag::utf8Valido(e->message)}));
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         o.reintentoEn = g_get_monotonic_time() + o.esperaMs * 1000;
@@ -129,7 +133,7 @@ void armar(Origen& o) {
     o.pipeline = p;
     o.reintentoEn = 0;
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-        registrar(Nivel::Aviso, "origen " + o.uri + ": no arrancó; se reintenta");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "origen %1: no arrancó; se reintenta"), {o.uri}));
         desarmar(o);
         o.reintentoEn = g_get_monotonic_time() + o.esperaMs * 1000;
         o.esperaMs = std::min<gint64>(o.esperaMs * 2, 10000);
@@ -190,8 +194,10 @@ void tic() {
                 if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
                     GError* e = nullptr;
                     gst_message_parse_error(m, &e, nullptr);
-                    registrar(Nivel::Aviso, "origen " + o.uri + ": " + (e != nullptr ? ba::diag::utf8Valido(e->message) : "error") +
-                                                " (se reconecta en " + std::to_string(o.esperaMs / 1000) + " s)");
+                    registrar(Nivel::Aviso,
+                              llenar(traducir("motor", "origen %1: %2 (se reconecta en %3 s)"),
+                                     {o.uri, e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error"),
+                                      std::to_string(o.esperaMs / 1000)}));
                     if (e != nullptr) g_error_free(e);
                     caido = true;
                 } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS) {

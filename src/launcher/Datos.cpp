@@ -7,11 +7,14 @@
 #include <fstream>
 #include <system_error>
 
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::launcher {
 
 namespace fs = std::filesystem;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 /// Datos del usuario que versiones anteriores dejaban adentro del bundle.
@@ -36,8 +39,9 @@ fs::path prepararDatos(const fs::path& bundle, const fs::path& datos, std::vecto
     std::error_code ec;
     fs::create_directories(datos, ec);
     if (ec || !fs::is_directory(datos, ec)) {
-        avisos.push_back("no se pudo crear la carpeta de datos " + u8(datos) + " (" + ec.message() +
-                         "): se usan los datos de adentro del programa");
+        avisos.push_back(llenar(traducir("datos", "no se pudo crear la carpeta de datos %1 (%2): se usan los datos de "
+                                                  "adentro del programa"),
+                                {u8(datos), ec.message()}));
         return bundle;
     }
     // La mudanza: lo de adentro del bundle va a la carpeta nueva si allá no hay nada.
@@ -52,8 +56,8 @@ fs::path prepararDatos(const fs::path& bundle, const fs::path& datos, std::vecto
             fs::copy(de, a, fs::copy_options::recursive | fs::copy_options::skip_existing, e2);
             if (!e2) fs::remove_all(de, e2);
         }
-        avisos.push_back(e2 ? "no se pudo mudar " + std::string(d) + ": " + e2.message()
-                            : "datos mudados: " + std::string(d) + " -> " + u8(a));
+        avisos.push_back(e2 ? llenar(traducir("datos", "no se pudo mudar %1: %2"), {d, e2.message()})
+                            : llenar(traducir("datos", "datos mudados: %1 -> %2"), {d, u8(a)}));
     }
     // Las semillas van en la configuración activa (prepararConfiguraciones).
     return datos;
@@ -111,13 +115,14 @@ fs::path prepararConfiguraciones(const fs::path& bundle, const fs::path& datos, 
         const fs::path principal = confs / "Principal";
         fs::create_directories(principal, ec);
         if (ec) {
-            avisos.push_back("no se pudo crear " + u8(principal) + ": " + ec.message() + " (sigue sin configuraciones)");
+            avisos.push_back(llenar(traducir("datos", "no se pudo crear %1: %2 (sigue sin configuraciones)"),
+                                    {u8(principal), ec.message()}));
             return datos;
         }
         // launcher.json es de la máquina (el que arranca todo): sale de Config/ antes de mudarla.
         if (fs::exists(datos / "Config" / "launcher.json", ec) && !fs::exists(datos / "launcher.json", ec)) {
             fs::rename(datos / "Config" / "launcher.json", datos / "launcher.json", ec);
-            if (ec) avisos.push_back("no se pudo mover launcher.json: " + ec.message());
+            if (ec) avisos.push_back(llenar(traducir("datos", "no se pudo mover launcher.json: %1"), {ec.message()}));
         }
         for (const char* d : ba::platform::kCarpetasDeConfiguracion) {
             std::error_code e2;
@@ -130,20 +135,22 @@ fs::path prepararConfiguraciones(const fs::path& bundle, const fs::path& datos, 
                     if (esDelPrograma(h.path())) continue;
                     fs::create_directories(principal / d, e2);
                     fs::rename(h.path(), principal / d / h.path().filename(), e2);
-                    if (e2) avisos.push_back("no se pudo mudar " + u8(h.path()) + ": " + e2.message());
+                    if (e2) avisos.push_back(llenar(traducir("datos", "no se pudo mudar %1: %2"), {u8(h.path()), e2.message()}));
                 }
                 continue;
             }
             if (juntos && esSemilla(d)) {
                 // Es también la semilla de fábrica: se copia (lo del usuario incluido) y queda.
                 fs::copy(de, principal / d, fs::copy_options::recursive | fs::copy_options::skip_existing, e2);
-                avisos.push_back(e2 ? "no se pudo copiar " + std::string(d) + " a la configuración Principal: " + e2.message()
-                                    : std::string(d) + " (copia) -> Configuraciones/Principal");
+                avisos.push_back(e2 ? llenar(traducir("datos", "no se pudo copiar %1 a la configuración Principal: %2"),
+                                             {d, e2.message()})
+                                    : llenar(traducir("datos", "%1 (copia) -> Configuraciones/Principal"), {d}));
                 continue;
             }
             fs::rename(de, principal / d, e2);
-            avisos.push_back(e2 ? "no se pudo mudar " + std::string(d) + " a la configuración Principal: " + e2.message()
-                                : std::string(d) + " -> Configuraciones/Principal");
+            avisos.push_back(e2 ? llenar(traducir("datos", "no se pudo mudar %1 a la configuración Principal: %2"),
+                                         {d, e2.message()})
+                                : llenar(traducir("datos", "%1 -> Configuraciones/Principal"), {d}));
         }
         std::ofstream(datos / "configuraciones.json") << "{\n \"activa\": \"Principal\"\n}\n";
     }

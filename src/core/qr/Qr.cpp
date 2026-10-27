@@ -2,6 +2,7 @@
 // src/core/qr/Qr.cpp — ver Qr.hpp
 // ============================================================================
 #include "qr/Qr.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -154,7 +155,7 @@ int lado(const std::string& texto, Correccion c) {
 
 std::string svg(const std::string& texto, const Estilo& e, std::string* error) {
     if (texto.empty()) {
-        if (error != nullptr) *error = "No hay nada que codificar.";
+        if (error != nullptr) *error = ba::i18n::traducir("qr", "No hay nada que codificar.");
         return {};
     }
     // Con logo se tapan módulos: la corrección sube sola a la máxima. No es
@@ -167,8 +168,8 @@ std::string svg(const std::string& texto, const Estilo& e, std::string* error) {
         qr = QrCode::encodeText(texto.c_str(), nivel(corr));
     } catch (const std::exception&) {
         if (error != nullptr)
-            *error = "El texto es demasiado largo para un código QR (probá con menos corrección de "
-                     "errores, o acortá el enlace).";
+            *error = ba::i18n::traducir("qr", "El texto es demasiado largo para un código QR (probá con menos "
+                                              "corrección de errores, o acortá el enlace).");
         return {};
     }
 

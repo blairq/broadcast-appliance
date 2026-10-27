@@ -2,6 +2,7 @@
 // src/core/platform/Energia_mac.mm — ver Energia.hpp
 // ============================================================================
 #include "platform/Energia.hpp"
+#include "i18n/I18n.hpp"
 
 #import <Foundation/Foundation.h>
 #include <IOKit/pwr_mgt/IOPMLib.h>
@@ -26,8 +27,11 @@ Despierta::Despierta(const std::string& motivo, bool pantalla) : d_(std::make_un
                                           &d_->pantalla) == kIOReturnSuccess;
     if (razon != nullptr) CFRelease(razon);
     if (r != kIOReturnSuccess) d_->sistema = kIOPMNullAssertionID;
-    d_->detalle = std::string("sin reposo del sistema") + (r == kIOReturnSuccess ? "" : " (rechazado)") +
-                  (pantalla ? std::string(", sin apagar la pantalla") + (pOk ? "" : " (rechazado)") : "") +
+    using ba::i18n::traducir;
+    const std::string rechazado = " " + traducir("energia", "(rechazado)");
+    d_->detalle = traducir("energia", "sin reposo del sistema") + (r == kIOReturnSuccess ? std::string() : rechazado) +
+                  (pantalla ? ", " + traducir("energia", "sin apagar la pantalla") + (pOk ? std::string() : rechazado)
+                            : std::string()) +
                   " (pmset -g assertions)";
 }
 
@@ -46,18 +50,21 @@ std::string sinAhorroDeEnergia() {
     // se estiran): el video y el audio en vivo no pueden. La actividad vive lo que el
     // proceso (se guarda en una estática a propósito).
     static id actividad = nil;
-    if (actividad != nil) return "sin App Nap";
+    if (actividad != nil) return ba::i18n::traducir("energia", "sin App Nap");
     @autoreleasepool {
         actividad = [[NSProcessInfo processInfo]
             // «AllowingIdleSystemSleep»: esto es SOLO App Nap; no dormir lo decide el lanzador
             // (Despierta), que respeta el ajuste energia.mantenerDespierta.
             beginActivityWithOptions:(NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical)
-                              reason:@"Broadcast Appliance: estudio en vivo"];
+                              reason:[NSString stringWithUTF8String:ba::i18n::traducir(
+                                                                        "energia", "Broadcast Appliance: estudio en vivo")
+                                                                        .c_str()]];
 #if !__has_feature(objc_arc)
         [actividad retain];
 #endif
     }
-    return actividad != nil ? "sin App Nap" : "no se pudo pedir que no lo frene App Nap";
+    return actividad != nil ? ba::i18n::traducir("energia", "sin App Nap")
+                            : ba::i18n::traducir("energia", "no se pudo pedir que no lo frene App Nap");
 }
 
 } // namespace ba::platform

@@ -16,9 +16,19 @@
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "security/SecretsStore.hpp"
+#include "i18n/I18n.hpp"
+
+// Lo que se le manda a la página del control (error, motivo) no se traduce acá:
+// se marca para el catálogo de la web y la página lo traduce (el valor que viaja
+// es el original).
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
 
 namespace ba::gateway {
 
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 using json = nlohmann::json;
 
 namespace {
@@ -109,14 +119,14 @@ int ControlWebBorde::conectados() const {
 bool ControlWebBorde::servir(long long fd, const std::string& rel) {
     std::error_code ec;
     const auto raiz = std::filesystem::weakly_canonical(webroot_, ec);
-    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot_) / http::urlDecode(rel), ec);
     const std::string r = raiz.generic_string(), d = destino.generic_string();
     if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
-        return http::sendResponse(fd, 400, "text/plain", "ruta invalida\n"), true;
+        return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "ruta invalida") + "\n"), true;
     std::ifstream f(destino, std::ios::binary);
     if (!f || std::filesystem::is_directory(destino, ec))
-        return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+        return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "no encontrado") + "\n"), true;
     std::ostringstream ss;
     ss << f.rdbuf();
     // CSP estricta: solo lo nuestro (más /comun/, que es el mismo origen), nada en
@@ -179,7 +189,8 @@ void ControlWebBorde::ponerCredenciales(const json& r) {
         for (const auto& c : conns_)
             if (!credenciales_.count(c->aparato) || (c->remoto && !tunel_)) afuera.push_back(c);
     }
-    for (const auto& c : afuera) cortar(c, "Este aparato fue revocado (o se apagó el acceso desde afuera).");
+    for (const auto& c : afuera)
+        cortar(c, QT_TRANSLATE_NOOP("web/comun", "Este aparato fue revocado (o se apagó el acceso desde afuera)."));
 }
 
 bool ControlWebBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
@@ -192,10 +203,12 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
     const bool remoto = deAfuera(clientIp, headers, externo);
     // De afuera: solo si la app habilitó el túnel (con PIN); emparejar, nunca.
     if (!mismoOrigen(headers) || (remoto && (api || !tunelHabilitado()))) {
-        log_.warn("control web: rechazado " + ipTexto(clientIp) + " " + path +
-                      (remoto ? " (de afuera, sin el acceso por el túnel habilitado)" : " (origen ajeno)"),
+        log_.warn(remoto ? llenar(traducir("gateway", "control web: rechazado %1 %2 (de afuera, sin el acceso por el túnel "
+                                                      "habilitado)"),
+                                  {ipTexto(clientIp), path})
+                         : llenar(traducir("gateway", "control web: rechazado %1 %2 (origen ajeno)"), {ipTexto(clientIp), path}),
                   -1);
-        http::sendResponse(fd, 403, "text/plain", "solo desde la red local\n");
+        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "solo desde la red local") + "\n");
         return true;
     }
     if (pagina) {
@@ -207,13 +220,14 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
     }
     if (api && method == "POST") {
         if (!intentoPermitido(clientIp)) {
-            http::sendResponse(fd, 429, "application/json", volcar({{"error", "demasiados intentos; esperá 10 minutos"}}));
+            http::sendResponse(fd, 429, "application/json",
+                               volcar({{"error", QT_TRANSLATE_NOOP("web/comun", "demasiados intentos; esperá 10 minutos")}}));
             return true;
         }
         const json r = json::parse(body, nullptr, false);
         const std::string codigo = r.is_object() ? r.value("codigo", std::string()) : std::string();
         if (codigo.size() != 32) {
-            http::sendResponse(fd, 400, "application/json", volcar({{"error", "código inválido"}}));
+            http::sendResponse(fd, 400, "application/json", volcar({{"error", QT_TRANSLATE_NOOP("web/comun", "código inválido")}}));
             return true;
         }
         std::string sol;
@@ -279,13 +293,13 @@ void ControlWebBorde::cortar(const std::shared_ptr<Conn>& c, const std::string& 
 void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp, bool remoto) {
     const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
     if (key.empty()) {
-        http::sendResponse(fd, 400, "text/plain", "falta Sec-WebSocket-Key\n");
+        http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n");
         return;
     }
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones()) {
-            http::sendResponse(fd, 503, "text/plain", "demasiados aparatos conectados\n");
+            http::sendResponse(fd, 503, "text/plain", traducir("gateway", "demasiados aparatos conectados") + "\n");
             return;
         }
     }
@@ -313,12 +327,15 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
         if (ap.empty()) {
             // Un token (o un PIN) errado cuenta como intento: 5 cada 10 min por IP.
             const bool otra = intentoPermitido(clientIp);
-            log_.warn("control web: token" + std::string(remoto ? " o PIN" : "") + " inválido desde " + c->ip, -1);
+            log_.warn(remoto ? llenar(traducir("gateway", "control web: token o PIN inválido desde %1"), {c->ip})
+                             : llenar(traducir("gateway", "control web: token inválido desde %1"), {c->ip}),
+                      -1);
             enviar(c, {{"type", "auth"},
                        {"ok", false},
-                       {"error", !otra    ? "Demasiados intentos: esperá 10 minutos."
-                                 : remoto ? "Este aparato no está emparejado, o falta el PIN para entrar desde afuera."
-                                          : "Este aparato no está emparejado (o fue quitado)."}});
+                       {"error", !otra    ? QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos: esperá 10 minutos.")
+                                 : remoto ? QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado, o falta el PIN "
+                                                                           "para entrar desde afuera.")
+                                          : QT_TRANSLATE_NOOP("web/comun", "Este aparato no está emparejado (o fue quitado).")}});
             http::writeWsFrame(fd, 0x8, "");
             return;
         }
@@ -331,7 +348,8 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
         std::lock_guard<std::mutex> l(mu_);
         conns_.push_back(c);
     }
-    log_.info("control web: " + c->aparato + " conectado desde " + c->ip + (remoto ? " (afuera)" : "") + " [" + c->id + "]");
+    log_.info(remoto ? llenar(traducir("gateway", "control web: %1 conectado desde %2 (afuera) [%3]"), {c->aparato, c->ip, c->id})
+                     : llenar(traducir("gateway", "control web: %1 conectado desde %2 [%3]"), {c->aparato, c->ip, c->id}));
     // La app contesta el auth (con el perfil y las herramientas) cuando se entera.
     alApp_({{"tipo", "conexion"},
             {"conexion", c->id},
@@ -358,7 +376,7 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
         if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn("control web: " + c->aparato + " manda demasiado; se corta", -1);
+            log_.warn(llenar(traducir("gateway", "control web: %1 manda demasiado; se corta"), {c->aparato}), -1);
             break;
         }
         ventana.push_back(ahora);
@@ -399,7 +417,7 @@ void ControlWebBorde::wsLoop(long long fd, const std::string& headers, std::uint
         c->fd = -1;
     }
     alApp_({{"tipo", "conexion"}, {"conexion", c->id}, {"aparato", c->aparato}, {"conectado", false}, {"ip", c->ip}});
-    log_.info("control web: " + c->aparato + " desconectado [" + c->id + "]");
+    log_.info(llenar(traducir("gateway", "control web: %1 desconectado [%2]"), {c->aparato, c->id}));
 }
 
 bool ControlWebBorde::admin(long long fd, const std::string& method, const std::string& path, const std::string& body) {

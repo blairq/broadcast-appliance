@@ -56,6 +56,7 @@
 
 #include "diag/Caidas.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Segmento.hpp"
 #include "platform/Energia.hpp"
@@ -83,14 +84,17 @@ QJsonObject enMemoria(const std::vector<Renderizador::Resultado>& res, const std
     const size_t porCuadro = static_cast<size_t>(primero.sizeInBytes());
     for (const auto& c : res)
         if (c.imagen.size() != primero.size() || static_cast<size_t>(c.imagen.sizeInBytes()) != porCuadro)
-            return QJsonObject{{"ok", false}, {"error", "los cuadros de la tira no tienen el mismo tamaño"}};
+            return QJsonObject{{"ok", false},
+                               {"error", QCoreApplication::translate("graficos", "los cuadros de la tira no tienen el mismo tamaño")}};
     g_segmento.cerrar();
     // Una clave corta: en macOS el nombre de un segmento no pasa de 31 letras.
     const std::string clave =
         "bag" + std::to_string(QCoreApplication::applicationPid()) + "n" + std::to_string(++g_segmentos);
     std::string err;
     if (!g_segmento.crear(clave, porCuadro * res.size(), &err))
-        return QJsonObject{{"ok", false}, {"error", "no se pudo crear la memoria compartida: " + QString::fromStdString(err)}};
+        return QJsonObject{{"ok", false},
+                           {"error", QCoreApplication::translate("graficos", "no se pudo crear la memoria compartida: %1")
+                                         .arg(QString::fromStdString(err))}};
     auto* destino = static_cast<uchar*>(g_segmento.datos());
     QJsonArray cuadros;
     for (size_t i = 0; i < res.size(); ++i) {
@@ -186,7 +190,7 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
     if (op == "tira") {
         const QJsonArray momentos = pedido.value("momentos").toArray();
         if (momentos.isEmpty())
-            return QJsonObject{{"ok", false}, {"error", "la tira necesita al menos un momento"}};
+            return QJsonObject{{"ok", false}, {"error", QCoreApplication::translate("graficos", "la tira necesita al menos un momento")}};
         // Un tope: una tira de doscientos cuadros no la mira nadie y llenaria
         // la respuesta de megabytes.
         if (momentos.size() > 12) return QJsonObject{{"ok", false}, {"error", "hasta 12 momentos por tira"}};
@@ -194,19 +198,21 @@ QJsonObject atender(Renderizador& r, const QJsonObject& pedido) {
         std::vector<int> ms;
         for (const QJsonValue& m : momentos) ms.push_back(m.toInt());
         for (size_t i = 1; i < ms.size(); ++i)
-            if (ms[i] < ms[i - 1]) return QJsonObject{{"ok", false}, {"error", "los momentos van en orden"}};
+            if (ms[i] < ms[i - 1])
+                return QJsonObject{{"ok", false}, {"error", QCoreApplication::translate("graficos", "los momentos van en orden")}};
         const QUrl url = fuente.isEmpty() ? QUrl::fromLocalFile(qml) : base;
         const std::vector<Renderizador::Resultado> res = r.tira(url, fuente, parReales, tam, ms, opcionales);
         for (const auto& c : res)
             if (!c.error.isEmpty()) return QJsonObject{{"ok", false}, {"error", c.error}};
-        if (res.size() != ms.size()) return QJsonObject{{"ok", false}, {"error", "la tira salió incompleta"}};
+        if (res.size() != ms.size())
+            return QJsonObject{{"ok", false}, {"error", QCoreApplication::translate("graficos", "la tira salió incompleta")}};
         if (pedido.value("shm").toBool()) return enMemoria(res, ms);
         QJsonArray cuadros;
         for (size_t i = 0; i < res.size(); ++i)
             cuadros.append(QJsonObject{{"ms", ms[i]}, {"png", aBase64Png(res[i].imagen)}});
         return QJsonObject{{"ok", true}, {"cuadros", cuadros}};
     }
-    return QJsonObject{{"ok", false}, {"error", "no sé qué es la operación «" + op + "»"}};
+    return QJsonObject{{"ok", false}, {"error", QCoreApplication::translate("graficos", "no sé qué es la operación «%1»").arg(op)}};
 }
 
 } // namespace
@@ -248,7 +254,9 @@ int main(int argc, char** argv) {
     auto& reg = ba::diag::registro();
     reg.setComponentePorDefecto("graficos");
     reg.abrir(ba::platform::dataRoot() / "Logs", "graficos.log");
-    reg.info("renderizador de graficos listo");
+    // El idioma del operador (el de la máquina): los errores y el registro.
+    ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot()));
+    reg.info(ba::i18n::traducir("graficos", "renderizador de graficos listo"));
     // Los qWarning (un medio que no se pudo leer, avisos de Qt Quick) también al
     // registro: el stderr de este proceso no lo lee nadie.
     qInstallMessageHandler([](QtMsgType tipo, const QMessageLogContext&, const QString& m) {
@@ -266,7 +274,7 @@ int main(int argc, char** argv) {
         QJsonParseError err{};
         const QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(linea), &err);
         if (!doc.isObject()) {
-            responderError("no entendí el pedido: " + err.errorString());
+            responderError(QCoreApplication::translate("graficos", "no entendí el pedido: %1").arg(err.errorString()));
             continue;
         }
         const QJsonObject pedido = doc.object();

@@ -64,7 +64,7 @@ class Animada : public FuenteDeCuadros {
     static std::unique_ptr<Animada> abrir(const QString& ruta, QString& error) {
         QImageReader r(ruta);
         if (!r.canRead()) {
-            error = QString("no se puede leer «%1»: %2").arg(QFileInfo(ruta).fileName(), r.errorString());
+            error = QCoreApplication::translate("graficos", "no se puede leer «%1»: %2").arg(QFileInfo(ruta).fileName(), r.errorString());
             return nullptr;
         }
         auto a = std::make_unique<Animada>();
@@ -78,8 +78,8 @@ class Animada : public FuenteDeCuadros {
             if (dur <= 10) dur = 100;
             bytes += img.sizeInBytes();
             if (bytes > kTopeAnimadaBytes) {
-                error = QString("«%1» es demasiado grande para un gráfico (más de %2 MB decodificado): "
-                                "importalo como secuencia de cuadros")
+                error = QCoreApplication::translate("graficos", "«%1» es demasiado grande para un gráfico (más de %2 MB "
+                                                                "decodificado): importalo como secuencia de cuadros")
                             .arg(QFileInfo(ruta).fileName())
                             .arg(kTopeAnimadaBytes / (1024 * 1024));
                 return nullptr;
@@ -90,7 +90,7 @@ class Animada : public FuenteDeCuadros {
             if (!r.supportsAnimation()) break;
         }
         if (a->cuadros_.empty()) {
-            error = QString("«%1» no tiene ninguna imagen que se pueda leer").arg(QFileInfo(ruta).fileName());
+            error = QCoreApplication::translate("graficos", "«%1» no tiene ninguna imagen que se pueda leer").arg(QFileInfo(ruta).fileName());
             return nullptr;
         }
         if (a->cuadros_.size() == 1) a->total_ = 0; // una imagen quieta no dura
@@ -133,12 +133,12 @@ class Secuencia : public FuenteDeCuadros {
             const qint64 porCuadro = static_cast<qint64>(s->ancho_) * s->alto_ * 4;
             if (s->ancho_ <= 0 || s->alto_ <= 0 || s->n_ <= 0 || !s->crudo_->open(QIODevice::ReadOnly) ||
                 s->crudo_->size() < porCuadro * s->n_) {
-                error = "la secuencia de cuadros crudos está incompleta (" + dir + ")";
+                error = QCoreApplication::translate("graficos", "la secuencia de cuadros crudos está incompleta (%1)").arg(dir);
                 return nullptr;
             }
             s->mapa_ = s->crudo_->map(0, porCuadro * s->n_);
             if (s->mapa_ == nullptr) {
-                error = "no se pudo leer la secuencia de cuadros crudos (" + dir + ")";
+                error = QCoreApplication::translate("graficos", "no se pudo leer la secuencia de cuadros crudos (%1)").arg(dir);
                 return nullptr;
             }
             return s;
@@ -151,7 +151,7 @@ class Secuencia : public FuenteDeCuadros {
         for (const QString& a : archivos) s->archivos_ << QDir(dir).filePath(a);
         s->n_ = static_cast<int>(s->archivos_.size());
         if (s->n_ == 0) {
-            error = "la carpeta «" + QFileInfo(dir).fileName() + "» no tiene cuadros (PNG)";
+            error = QCoreApplication::translate("graficos", "la carpeta «%1» no tiene cuadros (PNG)").arg(QFileInfo(dir).fileName());
             return nullptr;
         }
         return s;
@@ -283,18 +283,22 @@ void Medio::cargar() {
         const QString ruta = url.isLocalFile() ? url.toLocalFile() : url.toString();
         const QFileInfo fi(ruta);
         if (!fi.exists()) {
-            error_ = "no está «" + source_.toString() + "» (se busca en la carpeta del gráfico: medios/…)";
+            error_ = QCoreApplication::translate("graficos", "no está «%1» (se busca en la carpeta del gráfico: medios/…)")
+                         .arg(source_.toString());
         } else if (fi.isDir()) {
             fuente_ = Secuencia::abrir(ruta, fps_, error_);
         } else if (extensionesDeVideo().contains(fi.suffix().toLower())) {
-            error_ = "«" + fi.fileName() + "» es un video: se importa primero (grafico_medio_agregar, o «Agregar medio» "
-                     "en Gráficos) y queda como secuencia de cuadros con su alfa";
+            error_ = QCoreApplication::translate("graficos", "«%1» es un video: se importa primero (grafico_medio_agregar, o "
+                                                             "«Agregar medio» en Gráficos) y queda como secuencia de cuadros "
+                                                             "con su alfa")
+                         .arg(fi.fileName());
         } else {
             fuente_ = Animada::abrir(ruta, error_);
         }
     }
     // Un error de un medio se ve en el registro del renderizador (no rompe el gráfico entero).
-    if (!error_.isEmpty()) qWarning("Medio: %s", qUtf8Printable(error_));
+    if (!error_.isEmpty())
+        qWarning("%s", qUtf8Printable(QCoreApplication::translate("graficos", "Medio: %1").arg(error_)));
     if (fuente_) {
         const QImage primero = fuente_->cuadro(0);
         setImplicitSize(primero.width(), primero.height());

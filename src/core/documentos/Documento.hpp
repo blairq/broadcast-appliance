@@ -36,6 +36,12 @@
 
 #include <nlohmann/json.hpp>
 
+// Sin Qt: el título y «cómo se dice» se marcan para lupdate (contexto "documentos") y
+// los traduce quien los muestra o los dice; acá quedan en el original.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
+
 namespace ba::documentos {
 
 /// Un código leído de una imagen (o tipeado): el formato como lo nombra zxing
@@ -84,7 +90,7 @@ class TipoDocumento {
     /// Para leer y para decir: «DNI argentino».
     virtual std::string titulo() const = 0;
     /// Cómo se lo nombra en voz alta al pedirlo («tu DNI»).
-    virtual std::string comoSeDice() const { return "tu documento"; }
+    virtual std::string comoSeDice() const { return QT_TRANSLATE_NOOP("documentos", "tu documento"); }
     /// Los formatos de código que puede traer ("PDF417"). Vacío = cualquiera.
     virtual std::vector<std::string> formatos() const = 0;
     /// Si el código es de este tipo, lo traduce y devuelve true. Nunca a medias:

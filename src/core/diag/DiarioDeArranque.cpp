@@ -12,6 +12,7 @@
 #include <sstream>
 
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 
 #if defined(_WIN32)
 #include <io.h>
@@ -175,9 +176,12 @@ DiarioDeArranque::DiarioDeArranque(fs::path archivo) : d_(std::make_unique<Impl>
             const int n = ++d_->roturas[d_->culpable];
             if (n >= kRoturasParaApagar) d_->apagados.insert(d_->culpable);
             registro().linea(Nivel::Aviso, "arranque", 0,
-                             "«" + d_->culpable + "» se llevó puesto el arranque anterior (van " +
-                                 std::to_string(n) + ")" +
-                                 (n >= kRoturasParaApagar ? "; queda apagado" : ""));
+                             n >= kRoturasParaApagar
+                                 ? i18n::llenar(i18n::traducir("arranque", "«%1» se llevó puesto el arranque anterior "
+                                                                           "(van %2); queda apagado"),
+                                                {d_->culpable, std::to_string(n)})
+                                 : i18n::llenar(i18n::traducir("arranque", "«%1» se llevó puesto el arranque anterior (van %2)"),
+                                                {d_->culpable, std::to_string(n)}));
         }
     }
     d_->cargando.clear();
@@ -272,9 +276,9 @@ Cargando::Cargando(std::string id) : id_(std::move(id)) {
     saltear_ = diario().apagado(id_);
     if (saltear_) {
         registro().linea(Nivel::Aviso, "arranque", 0,
-                         "no se carga «" + id_ + "»: rompió el arranque " +
-                             std::to_string(diario().roturas(id_)) +
-                             " veces. Se prende de nuevo desde el visor del registro.");
+                         i18n::llenar(i18n::traducir("arranque", "no se carga «%1»: rompió el arranque %2 veces. Se "
+                                                                 "prende de nuevo desde el visor del registro."),
+                                      {id_, std::to_string(diario().roturas(id_))}));
         return;
     }
     diario().empieza(id_);

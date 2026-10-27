@@ -5,6 +5,12 @@
 
 #include <algorithm>
 
+// Lo que devuelve votar() lo muestra la página pública del que vota: no se traduce
+// acá, se marca para el catálogo de la web (el valor que viaja es el original).
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
+
 namespace ba::gateway {
 namespace {
 
@@ -136,20 +142,21 @@ void Votacion::setMostrarEnVivo(bool si) {
 
 std::string Votacion::votar(const std::string& quien, const std::string& codigo, int opcion) {
     std::lock_guard<std::mutex> g(m_);
-    if (!abierta_) return "la votacion no esta abierta";
-    if (opcion < 0 || static_cast<std::size_t>(opcion) >= opciones_.size()) return "esa opcion no existe";
+    if (!abierta_) return QT_TRANSLATE_NOOP("web/comun", "la votacion no esta abierta");
+    if (opcion < 0 || static_cast<std::size_t>(opcion) >= opciones_.size())
+        return QT_TRANSLATE_NOOP("web/comun", "esa opcion no existe");
 
     std::string clave;
     if (modo_ == Modo::Formal) {
         // El navegador NO alcanza: se borra el sitio y se vota de nuevo. Lo que
         // identifica es el codigo, y solo valen los que mando A desde el
         // padron.
-        if (codigo.empty()) return "falta el codigo: en una votacion formal hay que identificarse";
+        if (codigo.empty()) return QT_TRANSLATE_NOOP("web/comun", "falta el codigo: en una votacion formal hay que identificarse");
         if (habilitados_.find(codigo) == habilitados_.end())
-            return "ese codigo no figura entre los que pueden votar";
+            return QT_TRANSLATE_NOOP("web/comun", "ese codigo no figura entre los que pueden votar");
         clave = codigo;
     } else {
-        if (quien.empty()) return "no se de que telefono viene";
+        if (quien.empty()) return QT_TRANSLATE_NOOP("web/comun", "no se de que telefono viene");
         clave = quien;
     }
     // Volver a votar CAMBIA el voto: alguien que se equivoco de boton tiene que

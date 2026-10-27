@@ -15,6 +15,7 @@
 #include <set>
 
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 #include "net/WgCrypto.hpp" // randomBytes
 #include "turn/Ice.hpp"     // claveDeUsuario
 #include "turn/Stun.hpp"
@@ -50,6 +51,8 @@ typedef struct pollfd PollFd;
 namespace ba::gateway::turn {
 
 namespace st = stun;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 using json = nlohmann::json;
 
 namespace {
@@ -863,7 +866,7 @@ bool Servidor::start(std::string* err) {
         impl_.reset();
         return false;
     };
-    if (cfg_.secreto.size() < 16) return falla("turn: falta el secreto (16 bytes o más)");
+    if (cfg_.secreto.size() < 16) return falla(traducir("gateway", "turn: falta el secreto (16 bytes o más)"));
 #ifdef _WIN32
     WSADATA wsa{};
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -878,18 +881,20 @@ bool Servidor::start(std::string* err) {
     s.nonceS = cfg_.nonceS > 0 ? cfg_.nonceS : ba::ajustes::entero("turn.nonceS", 600);
     s.colaMax = size_t(std::max(64, ba::ajustes::entero("turn.colaTcpKB", 1024))) * 1024;
 
-    if (!ipDeTexto(cfg_.direccion, s.ipEscucha)) return falla("turn: dirección inválida: " + cfg_.direccion);
+    if (!ipDeTexto(cfg_.direccion, s.ipEscucha))
+        return falla(llenar(traducir("gateway", "turn: dirección inválida: %1"), {cfg_.direccion}));
     std::string relay = cfg_.direccionRelay;
     if (relay.empty()) relay = s.ipEscucha == 0 ? "127.0.0.1" : cfg_.direccion;
-    if (!ipDeTexto(relay, s.ipRelay) || s.ipRelay == 0) return falla("turn: dirección de relay inválida: " + relay);
+    if (!ipDeTexto(relay, s.ipRelay) || s.ipRelay == 0)
+        return falla(llenar(traducir("gateway", "turn: dirección de relay inválida: %1"), {relay}));
     const std::string dirBind = cfg_.bindRelay.empty() ? relay : cfg_.bindRelay;
-    if (!ipDeTexto(dirBind, s.ipBindRelay)) return falla("turn: bindRelay inválido: " + dirBind);
+    if (!ipDeTexto(dirBind, s.ipBindRelay)) return falla(llenar(traducir("gateway", "turn: bindRelay inválido: %1"), {dirBind}));
     for (const auto& p : cfg_.peersPermitidos) {
         uint32_t ip = 0;
         if (ipDeTexto(p, ip) && ip != 0) s.permitidas.insert(ip);
     }
-    if (s.permitidas.empty()) return falla("turn: sin peers permitidos");
-    if (cfg_.rtcMin == 0 || cfg_.rtcMax < cfg_.rtcMin) return falla("turn: rango de puertos RTC inválido");
+    if (s.permitidas.empty()) return falla(traducir("gateway", "turn: sin peers permitidos"));
+    if (cfg_.rtcMin == 0 || cfg_.rtcMax < cfg_.rtcMin) return falla(traducir("gateway", "turn: rango de puertos RTC inválido"));
     std::array<uint8_t, 32> sn{};
     net::randomBytes(sn.data(), sn.size());
     s.secretoNonce.assign(reinterpret_cast<const char*>(sn.data()), sn.size());
@@ -903,16 +908,16 @@ bool Servidor::start(std::string* err) {
         sockaddr_in sa = sockDe(s.ipEscucha, cfg_.puertoTcp);
         if (bind(s.tcp, reinterpret_cast<sockaddr*>(&sa), sizeof(sa)) != 0 || listen(s.tcp, 64) != 0 ||
             !noBloqueante(s.tcp))
-            return falla("turn: no se pudo escuchar en " + cfg_.direccion + ":" + std::to_string(cfg_.puertoTcp) +
-                         " (TCP)");
+            return falla(llenar(traducir("gateway", "turn: no se pudo escuchar en %1:%2 (TCP)"),
+                                {cfg_.direccion, std::to_string(cfg_.puertoTcp)}));
     }
     puertoTcpReal_ = puertoLocal(s.tcp);
     // UDP (opcional)
     if (cfg_.puertoUdp != 0 || cfg_.conUdp) {
         s.udp = udpEnlazado(s.ipEscucha, cfg_.puertoUdp);
         if (s.udp == FD_INVALIDO)
-            return falla("turn: no se pudo escuchar en " + cfg_.direccion + ":" + std::to_string(cfg_.puertoUdp) +
-                         " (UDP)");
+            return falla(llenar(traducir("gateway", "turn: no se pudo escuchar en %1:%2 (UDP)"),
+                                {cfg_.direccion, std::to_string(cfg_.puertoUdp)}));
         puertoUdpReal_ = puertoLocal(s.udp);
     } else {
         puertoUdpReal_ = 0;

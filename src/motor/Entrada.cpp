@@ -4,6 +4,7 @@
 #include "Entrada.hpp"
 #include "Candado.hpp" // Tramo
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Capturas.hpp"
 #include "OrigenRed.hpp"
@@ -30,6 +31,8 @@ std::atomic<std::uint64_t> g_reintentoMaxNs{2'000'000'000ULL};
 } // namespace
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -317,7 +320,8 @@ void Entrada::armarSalida() {
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        registrar(Nivel::Aviso, id_ + ": la placa no se pudo armar (" + ba::diag::utf8Valido(e->message) + "): sin placa");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "%1: la placa no se pudo armar (%2): sin placa"),
+                                       {id_, ba::diag::utf8Valido(e->message)}));
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return;
@@ -388,7 +392,9 @@ void Entrada::armarSalida() {
     revisarTareas_ = 150; // el appsrc de la placa manda un cuadro y termina
 }
 
-std::string Entrada::textoPlaca() const { return (nombre_.empty() ? id_ : nombre_) + " — sin señal"; }
+std::string Entrada::textoPlaca() const {
+    return llenar(traducir("motor", "%1 — sin señal"), {nombre_.empty() ? id_ : nombre_});
+}
 
 void Entrada::rotularPlaca() {
     // La primera placa del proceso arranca el dibujante de texto (textoverlay, Pango, las
@@ -432,7 +438,8 @@ void Entrada::ponerEnUsoYa() {
                 if (salidaV_ != nullptr || !enUso_) return;
                 armarSalida();
                 if (salidaV_ != nullptr)
-                    registrar(Nivel::Info, id_ + ": placa rearmada en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+                    registrar(Nivel::Info, llenar(traducir("motor", "%1: placa rearmada en %2 ms"),
+                                                  {id_, std::to_string((g_get_monotonic_time() - t0) / 1000)}));
             },
             [this]() { rotularPlaca(); });
     }
@@ -694,7 +701,7 @@ nlohmann::json Entrada::analizarTerminar() {
         analisisCortado_ = nullptr;
         return r;
     }
-    return {{"error", "no hay un análisis en curso en esta entrada"}};
+    return {{"error", traducir("motor", "no hay un análisis en curso en esta entrada")}};
 }
 
 void Entrada::desarmar() {
@@ -761,35 +768,42 @@ void Entrada::armar() {
         ventanaTitulo_.empty())
         return;
     // Un dispositivo del equipo que no está: a esperar que aparezca (el vigía avisa).
-    const auto esperar = [this](const std::string& que, const char* verbo = "se conecte") {
-        if (!esperaDispositivo_) registrar(Nivel::Aviso, id_ + ": " + que + ": se espera a que " + verbo);
-        error_ = que + ": esperando que " + verbo;
+    // aviso: «el micrófono X: se espera a que se conecte» (al registro); error: «… esperando que …».
+    const auto esperar = [this](const std::string& aviso, const std::string& error) {
+        if (!esperaDispositivo_) registrar(Nivel::Aviso, llenar(traducir("motor", "%1: %2"), {id_, aviso}));
+        error_ = error;
         esperaDispositivo_ = true;
         genVista_ = Vigia::el().generacion();
         esperaDesdeNs_ = ahoraNs();
     };
     if (!microfono_.empty() && microfono_ != "default" && !Vigia::el().hay(false, microfono_)) {
-        esperar("el micrófono " + microfono_);
+        esperar(llenar(traducir("motor", "el micrófono %1: se espera a que se conecte"), {microfono_}),
+                llenar(traducir("motor", "el micrófono %1: esperando que se conecte"), {microfono_}));
         return;
     }
     std::string origenV = descripcion_;
     if (!camara_.empty()) {
         origenV = origenDeCamara(camara_, camaraModo_, lienzo_, &modoCamara_);
         if (origenV.empty()) {
-            esperar("la cámara " + camara_);
+            esperar(llenar(traducir("motor", "la cámara %1: se espera a que se conecte"), {camara_}),
+                    llenar(traducir("motor", "la cámara %1: esperando que se conecte"), {camara_}));
             return;
         }
     }
     if (!ventanaApp_.empty() || !ventanaTitulo_.empty()) {
         origenV = origenVentana(ventanaApp_, ventanaTitulo_, ventanaCursor_);
         if (origenV.empty()) {
-            esperar("la ventana de «" + (ventanaApp_.empty() ? ventanaTitulo_ : ventanaApp_) + "»", "se abra");
+            const std::string cual = ventanaApp_.empty() ? ventanaTitulo_ : ventanaApp_;
+            esperar(llenar(traducir("motor", "la ventana de «%1»: se espera a que se abra"), {cual}),
+                    llenar(traducir("motor", "la ventana de «%1»: esperando que se abra"), {cual}));
             return;
         }
     }
     if (esperaDispositivo_)
-        registrar(Nivel::Info, id_ + (ventanaApp_.empty() && ventanaTitulo_.empty() ? ": apareció el dispositivo, se conecta"
-                                                                                   : ": se abrió la ventana, se captura"));
+        registrar(Nivel::Info, llenar(ventanaApp_.empty() && ventanaTitulo_.empty()
+                                          ? traducir("motor", "%1: apareció el dispositivo, se conecta")
+                                          : traducir("motor", "%1: se abrió la ventana, se captura"),
+                                      {id_}));
     esperaDispositivo_ = false;
 
     // NORMALIZAR (de fábrica): desentrelaza si hace falta, lleva a los cuadros
@@ -896,7 +910,7 @@ void Entrada::armar() {
             cadenaA = std::string("audioconvert ! audioresample ! ") + kAudio + " ! barack name=ba_rack fuente=" +
                       entreComillas(rack_) + " ! " + cadenaA;
         } else {
-            avisos_.push_back("el rack de audio todavía no está (la app no registró barack): se agrega cuando esté");
+            avisos_.push_back(traducir("motor", "el rack de audio todavía no está (la app no registró barack): se agrega cuando esté"));
             rackFaltaDesde_ = ahoraNs();
         }
     }
@@ -930,7 +944,7 @@ void Entrada::armar() {
         if (medio_) {
             if (!queTieneElArchivo(uri_, hayV, hayA, error_)) {
                 estadoMedio_ = "error";
-                registrar(Nivel::Aviso, id_ + ": " + error_);
+                registrar(Nivel::Aviso, llenar(traducir("motor", "%1: %2"), {id_, error_}));
                 return;
             }
             hayA = hayA && conAudio_;
@@ -958,7 +972,7 @@ void Entrada::armar() {
     // es lo primero que hace falta cuando una entrada no anda.
     if (completo != cadenaRegistrada_) {
         cadenaRegistrada_ = completo;
-        registrar(Nivel::Info, id_ + ": cadena: " + completo);
+        registrar(Nivel::Info, llenar(traducir("motor", "%1: cadena: %2"), {id_, completo}));
     }
     GError* err = nullptr;
     GstElement* p = gst_parse_launch(completo.c_str(), &err);
@@ -966,7 +980,7 @@ void Entrada::armar() {
         error_ = ba::diag::utf8Valido(err->message);
         g_error_free(err);
         if (p != nullptr) gst_object_unref(p);
-        registrar(Nivel::Aviso, id_ + ": " + error_);
+        registrar(Nivel::Aviso, llenar(traducir("motor", "%1: %2"), {id_, error_}));
         programarReintento();
         return;
     }
@@ -1069,7 +1083,7 @@ void Entrada::armar() {
                 gst_object_unref(e);
             }
         }
-    for (const auto& a : avisos_) registrar(Nivel::Aviso, id_ + ": " + a);
+    for (const auto& a : avisos_) registrar(Nivel::Aviso, llenar(traducir("motor", "%1: %2"), {id_, a}));
     // Lo que sale: cuán viejo (la latencia de la cadena), si llegan datos y cómo.
     for (const char* n : {"ba_iv", "ba_ia"})
         if (GstElement* e = gst_bin_get_by_name(GST_BIN(p), n)) {
@@ -1107,7 +1121,7 @@ void Entrada::armar() {
     latencia_.olvidar(); // lo que respondía la cadena anterior ya no vale
     corregirOffset();
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-        error_ = "el pipeline no arrancó";
+        error_ = traducir("motor", "el pipeline no arrancó");
         desarmar();
         if (medio_) estadoMedio_ = "error";
         programarReintento();
@@ -1308,9 +1322,11 @@ void Entrada::medirLatencia() {
             if (ahoraUs < r.quietoHastaUs || ahoraUs - r.ultimoUs < entre) return false;
             if (r.ultimoUs != 0 && ahoraUs - r.ultimoUs < 2 * entre && (med > 0) != (r.ultimo > 0)) {
                 r.quietoHastaUs = ahoraUs + ajustes::entero64("entradas.realineoQuietoS", 60) * 1'000'000;
-                registrar(Nivel::Aviso, id_ + ": las horas de su " + que + " van y vienen (" +
-                                            std::to_string(static_cast<int>(r.ultimo)) + " ms, " +
-                                            std::to_string(static_cast<int>(med)) + " ms): no se realinea por un minuto");
+                registrar(Nivel::Aviso,
+                          llenar(std::string(que) == "video"
+                                     ? traducir("motor", "%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto")
+                                     : traducir("motor", "%1: las horas de su audio van y vienen (%2 ms, %3 ms): no se realinea por un minuto"),
+                                 {id_, std::to_string(static_cast<int>(r.ultimo)), std::to_string(static_cast<int>(med))}));
                 return false;
             }
             r.ultimoUs = ahoraUs;
@@ -1319,14 +1335,14 @@ void Entrada::medirLatencia() {
         };
         if (estableV && std::fabs(medV) > 1000.0 && puede(realineoV_, medV, "video")) {
             realineadoV_ += static_cast<std::int64_t>((medV - 10.0) * 1e6);
-            registrar(Nivel::Info, id_ + ": su video trae sus propias horas (corridas " + std::to_string(static_cast<int>(medV)) +
-                                       " ms del estudio): se realinea");
+            registrar(Nivel::Info, llenar(traducir("motor", "%1: su video trae sus propias horas (corridas %2 ms del estudio): se realinea"),
+                                          {id_, std::to_string(static_cast<int>(medV))}));
             corrigio = true;
         }
         if (estableA && std::fabs(medA) > 1000.0 && puede(realineoA_, medA, "audio")) {
             realineadoA_ += static_cast<std::int64_t>((medA - 10.0) * 1e6);
-            registrar(Nivel::Info, id_ + ": su audio trae sus propias horas (corridas " + std::to_string(static_cast<int>(medA)) +
-                                       " ms del estudio): se realinea");
+            registrar(Nivel::Info, llenar(traducir("motor", "%1: su audio trae sus propias horas (corridas %2 ms del estudio): se realinea"),
+                                          {id_, std::to_string(static_cast<int>(medA))}));
             corrigio = true;
         }
         if (corrigio) {
@@ -1355,8 +1371,9 @@ void Entrada::medirLatencia() {
     pide_ = pide;
     const bool tarde = estudio_ && reloj_.llegaTarde(pide);
     if (tarde && !llegaTarde_)
-        registrar(Nivel::Aviso, id_ + " llega tarde (" + std::to_string(pide / 1000000) + " ms, el tope del estudio es " +
-                                    std::to_string(reloj_.topeMs()) + " ms): va con su propia demora");
+        registrar(Nivel::Aviso,
+                  llenar(traducir("motor", "%1 llega tarde (%2 ms, el tope del estudio es %3 ms): va con su propia demora"),
+                         {id_, std::to_string(pide / 1000000), std::to_string(reloj_.topeMs())}));
     llegaTarde_ = tarde;
     if (estudio_)
         reloj_.anotar(id_, pide);
@@ -1382,8 +1399,8 @@ void Entrada::medirLatencia() {
                 propioCandidatoNs_ = deseado;
                 propioDesdeNs_ = ahoraN;
             } else if (ahoraN - propioDesdeNs_ > 3 * static_cast<std::int64_t>(GST_SECOND)) {
-                registrar(Nivel::Info, id_ + ": va con su propia demora: " + std::to_string(deseado / 1000000) + " ms (antes " +
-                                           std::to_string(retrasoPropioNs_ / 1000000) + ")");
+                registrar(Nivel::Info, llenar(traducir("motor", "%1: va con su propia demora: %2 ms (antes %3)"),
+                                              {id_, std::to_string(deseado / 1000000), std::to_string(retrasoPropioNs_ / 1000000)}));
                 retrasoPropioNs_ = deseado;
                 propioCandidatoNs_ = -1;
                 corregirOffset();
@@ -1402,8 +1419,8 @@ void Entrada::medirLatencia() {
     // RTSP: la hora de la cámara (RTCP) muy corrida hace que los cuadros salgan «del
     // futuro» (edad negativa). Sostenido: se deja de usar su hora y se rearma.
     if (ntpSync_ && !ntpApagadoSolo_ && uri_.rfind("rtsp", 0) == 0 && datos > 60 && edadP50_ < -ajustes::entero("entradas.avisoHoraMs", 400)) {
-        registrar(Nivel::Aviso, id_ + ": la hora de la cámara está corrida " + std::to_string(static_cast<int>(-edadP50_)) +
-                                    " ms; se deja de usar (ntp-sync)");
+        registrar(Nivel::Aviso, llenar(traducir("motor", "%1: la hora de la cámara está corrida %2 ms; se deja de usar (ntp-sync)"),
+                                       {id_, std::to_string(static_cast<int>(-edadP50_))}));
         ntpApagadoSolo_ = true;
         desarmar();
         reintentoNs_ = ahora;
@@ -1425,9 +1442,9 @@ bool Entrada::vigilarDatos() {
         return false;
     }
     if (vistosDatos_ == 0 || ahora - datosDesdeNs_ < g_rearmarSinDatosNs.load()) return false;
-    registrar(Nivel::Aviso, id_ + ": no llegan datos hace " + std::to_string(g_rearmarSinDatosNs.load() / 1'000'000'000ULL) +
-                                " s sin error: se rearma");
-    error_ = "no llegaban datos (se rearma)";
+    registrar(Nivel::Aviso, llenar(traducir("motor", "%1: no llegan datos hace %2 s sin error: se rearma"),
+                                   {id_, std::to_string(g_rearmarSinDatosNs.load() / 1'000'000'000ULL)}));
+    error_ = traducir("motor", "no llegaban datos (se rearma)");
     vistosDatos_ = 0;
     // Desarmar una cámara de red que no contesta puede tardar decenas de segundos:
     // al trabajador, no en el bucle del motor.
@@ -1481,7 +1498,8 @@ void Entrada::tic() {
         trabajar([this]() {
             const std::int64_t t0 = g_get_monotonic_time();
             desarmarSalida();
-            registrar(Nivel::Info, id_ + ": placa en reposo (nadie la usa) en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+            registrar(Nivel::Info, llenar(traducir("motor", "%1: placa en reposo (nadie la usa) en %2 ms"),
+                                          {id_, std::to_string((g_get_monotonic_time() - t0) / 1000)}));
         });
         return;
     }
@@ -1491,7 +1509,8 @@ void Entrada::tic() {
             if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
                 GError* e = nullptr;
                 gst_message_parse_error(m, &e, nullptr);
-                registrar(Nivel::Aviso, id_ + " (placa): " + (e != nullptr ? ba::diag::utf8Valido(e->message) : "error"));
+                registrar(Nivel::Aviso, llenar(traducir("motor", "%1 (placa): %2"),
+                                               {id_, e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error")}));
                 if (e != nullptr) g_error_free(e);
             }
             gst_message_unref(m);
@@ -1561,7 +1580,7 @@ void Entrada::tic() {
     }
     if (pipeline_ == nullptr) return;
     if (rearmarEntrelazada_.exchange(false)) {
-        registrar(Nivel::Info, id_ + ": la señal llega entrelazada: se desentrelaza en la GPU");
+        registrar(Nivel::Info, llenar(traducir("motor", "%1: la señal llega entrelazada: se desentrelaza en la GPU"), {id_}));
         trabajar([this]() { armar(); });
         return;
     }
@@ -1660,7 +1679,8 @@ void Entrada::procesarMensaje(GstMessage* m) {
             GError* e = nullptr;
             gst_message_parse_warning(m, &e, nullptr);
             if (e != nullptr) {
-                registrar(Nivel::Info, id_ + " (aviso de " + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + ba::diag::utf8Valido(e->message));
+                registrar(Nivel::Info, llenar(traducir("motor", "%1 (aviso de %2): %3"),
+                                              {id_, GST_OBJECT_NAME(GST_MESSAGE_SRC(m)), ba::diag::utf8Valido(e->message)}));
                 g_error_free(e);
             }
             return;
@@ -1684,7 +1704,7 @@ void Entrada::procesarMensaje(GstMessage* m) {
                 });
                 return;
             }
-            error_ = "terminó (EOS)";
+            error_ = traducir("motor", "terminó (EOS)");
             trabajar([this]() {
                 desarmar();
                 programarReintento();
@@ -1694,7 +1714,7 @@ void Entrada::procesarMensaje(GstMessage* m) {
             GError* e = nullptr;
             gchar* dbg = nullptr;
             gst_message_parse_error(m, &e, &dbg);
-            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");
             // Quién y por qué («Internal data stream error» solo no dice nada):
             // el elemento y el motivo del detalle («reason not-negotiated (-4)»).
             {
@@ -1709,8 +1729,9 @@ void Entrada::procesarMensaje(GstMessage* m) {
             // Al registro: el error nuevo enseguida; el mismo, a lo sumo una vez por minuto.
             const std::uint64_t ahora = ahoraNs();
             if (error_ != errorAnotado_ || ahora - errorAnotadoNs_ > 60'000'000'000ULL) {
-                registrar(Nivel::Aviso, id_ + ": " + error_ + " (se reintenta" +
-                                            (error_ == errorAnotado_ ? "; sigue igual)" : ")"));
+                registrar(Nivel::Aviso, llenar(error_ == errorAnotado_ ? traducir("motor", "%1: %2 (se reintenta; sigue igual)")
+                                                                       : traducir("motor", "%1: %2 (se reintenta)"),
+                                               {id_, error_}));
                 errorAnotado_ = error_;
                 errorAnotadoNs_ = ahora;
             }
@@ -1765,9 +1786,9 @@ void Entrada::irANs(std::int64_t ns) {
 }
 
 std::string Entrada::controlMedio(const std::string& accion) {
-    if (!medio_) return "no es un medio";
+    if (!medio_) return traducir("motor", "no es un medio");
     if (accion != "play" && accion != "pausa" && accion != "reiniciar" && accion != "parar")
-        return "acción: play, pausa, reiniciar o parar";
+        return traducir("motor", "acción: play, pausa, reiniciar o parar");
     // Pausar, seguir y saltar son cambios de estado: al trabajador.
     trabajar([this, accion]() { controlMedioYa(accion); });
     return {};
@@ -1804,7 +1825,7 @@ std::string Entrada::controlMedioYa(const std::string& accion) {
         estadoMedio_ = "stopped";
         return {};
     }
-    return "acción: play, pausa, reiniciar o parar";
+    return traducir("motor", "acción: play, pausa, reiniciar o parar");
 }
 
 void Entrada::irA(std::int64_t ms) {
@@ -2092,18 +2113,18 @@ std::string Entrada::propiedad(const std::string& elemento, const std::string& p
     // Al trabajador (con la entrada ocupada no se espera); si falla, queda en el registro.
     trabajar([this, elemento, prop, valor]() {
         const std::string e = propiedadYa(elemento, prop, valor);
-        if (!e.empty()) registrar(Nivel::Aviso, id_ + ": " + e);
+        if (!e.empty()) registrar(Nivel::Aviso, llenar(traducir("motor", "%1: %2"), {id_, e}));
     });
     return {};
 }
 
 std::string Entrada::propiedadYa(const std::string& elemento, const std::string& prop, const std::string& valor) {
-    if (pipeline_ == nullptr) return "la entrada no está andando";
+    if (pipeline_ == nullptr) return traducir("motor", "la entrada no está andando");
     GstElement* el = gst_bin_get_by_name(GST_BIN(pipeline_), elemento.c_str());
-    if (el == nullptr) return "no hay un elemento «" + elemento + "» en la entrada";
+    if (el == nullptr) return llenar(traducir("motor", "no hay un elemento «%1» en la entrada"), {elemento});
     std::string err;
     if (g_object_class_find_property(G_OBJECT_GET_CLASS(el), prop.c_str()) == nullptr)
-        err = "«" + elemento + "» no tiene la propiedad «" + prop + "»";
+        err = llenar(traducir("motor", "«%1» no tiene la propiedad «%2»"), {elemento, prop});
     else
         gst_util_set_object_arg(G_OBJECT(el), prop.c_str(), valor.c_str());
     gst_object_unref(el);

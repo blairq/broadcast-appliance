@@ -5,6 +5,7 @@
 #include "proxy/Acme.hpp"
 
 #include "proxy/Certificados.hpp"
+#include "i18n/I18n.hpp"
 
 #include "../../app/net/HttpsClient.hpp"
 
@@ -17,6 +18,8 @@ namespace ba::gateway::proxy {
 
 using json = nlohmann::json;
 namespace hn = ba::app::net;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 std::string cabecera(const hn::HttpResponse& r, const char* n) { return r.header(n); }
@@ -48,7 +51,8 @@ bool ClienteAcme::directorio(std::string& err) {
     const hn::HttpResponse r = hn::HttpsClient::request(q);
     const json d = json::parse(r.body, nullptr, false);
     if (r.status != 200 || !d.is_object()) {
-        err = "no se pudo leer el directorio ACME (" + (r.error.empty() ? std::to_string(r.status) : r.error) + ")";
+        err = llenar(traducir("gateway", "no se pudo leer el directorio ACME (%1)"),
+                     {r.error.empty() ? std::to_string(r.status) : r.error});
         return false;
     }
     nuevoNonce_ = d.value("newNonce", std::string());
@@ -59,7 +63,7 @@ bool ClienteAcme::directorio(std::string& err) {
     h.url = nuevoNonce_;
     nonce_ = cabecera(hn::HttpsClient::request(h), "Replay-Nonce");
     if (nonce_.empty()) {
-        err = "la CA no dio un nonce";
+        err = traducir("gateway", "la CA no dio un nonce");
         return false;
     }
     return true;
@@ -75,7 +79,7 @@ ClienteAcme::Http ClienteAcme::firmado(const std::string& url, const std::string
         const std::string c64 = payload.empty() && !conJwk ? std::string() : base64url(payload); // POST-as-GET: ""
         std::string firma;
         if (!firmarEs256(cuenta_, p64 + "." + c64, firma)) {
-            out.error = "no se pudo firmar";
+            out.error = traducir("gateway", "no se pudo firmar");
             return out;
         }
         const json jws{{"protected", p64}, {"payload", c64}, {"signature", base64url(firma)}};
@@ -103,11 +107,11 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     Resultado res;
     const auto fallar = [&](const std::string& e) {
         res.error = e;
-        if (log_) log_("acme: " + e);
+        if (log_) log_(llenar(traducir("gateway", "acme: %1"), {e}));
         return res;
     };
-    if (nombres.empty()) return fallar("sin nombres");
-    if (jwk().empty()) return fallar("la clave de la cuenta no sirve");
+    if (nombres.empty()) return fallar(traducir("gateway", "sin nombres"));
+    if (jwk().empty()) return fallar(traducir("gateway", "la clave de la cuenta no sirve"));
     std::string err;
     if (!directorio(err)) return fallar(err);
 
@@ -116,7 +120,8 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     if (!email_.empty()) cuenta["contact"] = json::array({"mailto:" + email_});
     Http r = firmado(nuevaCuenta_, cuenta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), true);
     if ((r.status != 200 && r.status != 201) || r.location.empty())
-        return fallar("la CA no aceptó la cuenta (" + std::to_string(r.status) + ": " + trim(r.cuerpo.substr(0, 300)) + ")");
+        return fallar(llenar(traducir("gateway", "la CA no aceptó la cuenta (%1: %2)"),
+                             {std::to_string(r.status), trim(r.cuerpo.substr(0, 300))}));
     kid_ = r.location;
 
     // 2) La orden.
@@ -125,7 +130,8 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     r = firmado(nuevaOrden_, json{{"identifiers", ids}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), false);
     const json orden = json::parse(r.cuerpo, nullptr, false);
     if (r.status != 201 || !orden.is_object() || r.location.empty())
-        return fallar("la CA no aceptó la orden (" + std::to_string(r.status) + ": " + trim(r.cuerpo.substr(0, 300)) + ")");
+        return fallar(llenar(traducir("gateway", "la CA no aceptó la orden (%1: %2)"),
+                             {std::to_string(r.status), trim(r.cuerpo.substr(0, 300))}));
     const std::string urlOrden = r.location;
     const std::string finalizar = orden.value("finalize", std::string());
 
@@ -137,7 +143,7 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     for (const auto& urlAuth : orden.value("authorizations", json::array())) {
         Http a = firmado(urlAuth.get<std::string>(), "", false);
         const json auth = json::parse(a.cuerpo, nullptr, false);
-        if (!auth.is_object()) return limpiar(), fallar("autorización ilegible");
+        if (!auth.is_object()) return limpiar(), fallar(traducir("gateway", "autorización ilegible"));
         if (auth.value("status", std::string()) == "valid") continue;
         std::string token, urlDesafio;
         for (const auto& c : auth.value("challenges", json::array()))
@@ -145,7 +151,9 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
                 token = c.value("token", std::string());
                 urlDesafio = c.value("url", std::string());
             }
-        if (token.empty()) return limpiar(), fallar("la CA no ofrece HTTP-01 para " + auth["identifier"].value("value", std::string()));
+        if (token.empty())
+            return limpiar(), fallar(llenar(traducir("gateway", "la CA no ofrece HTTP-01 para %1"),
+                                            {auth["identifier"].value("value", std::string())}));
         desafio(token, autorizacion(token), true);
         tokens.push_back(token);
         firmado(urlDesafio, "{}", false); // «listo, vení a mirar»
@@ -159,33 +167,41 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
                 std::string det;
                 for (const auto& c : s.value("challenges", json::array()))
                     if (c.contains("error")) det = c["error"].value("detail", std::string());
-                return limpiar(), fallar("la CA no pudo validar " + s["identifier"].value("value", std::string()) + ": " + det +
-                                         " (¿el nombre apunta a esta máquina y el puerto 80 llega desde internet?)");
+                return limpiar(), fallar(llenar(traducir("gateway", "la CA no pudo validar %1: %2 (¿el nombre apunta a esta "
+                                                                    "máquina y el puerto 80 llega desde internet?)"),
+                                                {s["identifier"].value("value", std::string()), det}));
             }
         }
-        if (!valido) return limpiar(), fallar("la validación no terminó en 60 s");
+        if (!valido) return limpiar(), fallar(traducir("gateway", "la validación no terminó en 60 s"));
     }
     limpiar();
 
     // 4) Finalizar con el CSR (clave nueva para el certificado) y bajarlo.
     res.clave = claveNueva();
     const std::vector<unsigned char> csr = csrDer(res.clave, nombres);
-    if (csr.empty()) return fallar("no se pudo armar el CSR");
+    if (csr.empty()) return fallar(traducir("gateway", "no se pudo armar el CSR"));
     r = firmado(finalizar, json{{"csr", base64url(csr.data(), csr.size())}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), false);
-    if (r.status != 200) return fallar("la CA no aceptó el CSR (" + std::to_string(r.status) + ": " + trim(r.cuerpo.substr(0, 300)) + ")");
+    if (r.status != 200)
+        return fallar(llenar(traducir("gateway", "la CA no aceptó el CSR (%1: %2)"),
+                             {std::to_string(r.status), trim(r.cuerpo.substr(0, 300))}));
     std::string urlCert;
     for (int i = 0; i < 30 && urlCert.empty(); ++i) {
         const json o = json::parse(firmado(urlOrden, "", false).cuerpo, nullptr, false);
         if (o.is_object() && o.value("status", std::string()) == "valid") urlCert = o.value("certificate", std::string());
-        else if (o.is_object() && o.value("status", std::string()) == "invalid") return fallar("la orden quedó inválida");
+        else if (o.is_object() && o.value("status", std::string()) == "invalid")
+            return fallar(traducir("gateway", "la orden quedó inválida"));
         else std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-    if (urlCert.empty()) return fallar("el certificado no salió en 60 s");
+    if (urlCert.empty()) return fallar(traducir("gateway", "el certificado no salió en 60 s"));
     r = firmado(urlCert, "", false);
-    if (r.status != 200 || r.cuerpo.find("BEGIN CERTIFICATE") == std::string::npos) return fallar("no se pudo bajar el certificado");
+    if (r.status != 200 || r.cuerpo.find("BEGIN CERTIFICATE") == std::string::npos)
+        return fallar(traducir("gateway", "no se pudo bajar el certificado"));
     res.cert = r.cuerpo;
     res.ok = true;
-    if (log_) log_("acme: certificado nuevo para " + nombres.front() + (nombres.size() > 1 ? " y otros" : ""));
+    if (log_)
+        log_(llenar(nombres.size() > 1 ? traducir("gateway", "acme: certificado nuevo para %1 y otros")
+                                       : traducir("gateway", "acme: certificado nuevo para %1"),
+                    {nombres.front()}));
     return res;
 }
 

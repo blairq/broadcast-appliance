@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "net/WgDevice.hpp"
+#include "i18n/I18n.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -194,11 +195,13 @@ bool WgDevice::start() {
     fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
 #endif
     if (!cfg_.endpointHost.empty() && !resolveEndpoint() && log_) {
-        log_("wireguard: no se pudo resolver " + cfg_.endpointHost + " (se reintenta)");
+        log_(ba::i18n::llenar(ba::i18n::traducir("gateway", "wireguard: no se pudo resolver %1 (se reintenta)"),
+                              {cfg_.endpointHost}));
     }
     stop_ = false;
     thread_ = std::thread(&WgDevice::loop, this);
-    if (log_) log_("wireguard: escuchando UDP " + std::to_string(localPort_));
+    if (log_)
+        log_(ba::i18n::llenar(ba::i18n::traducir("gateway", "wireguard: escuchando UDP %1"), {std::to_string(localPort_)}));
     return true;
 }
 
@@ -278,7 +281,7 @@ void WgDevice::tick(int64_t now) {
         if (now - hs_.startedMs >= kRekeyAttemptMs) {
             hs_.active = false;
             queue_.clear();
-            if (log_) log_("wireguard: el peer no responde; se reintenta con el proximo trafico");
+            if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el peer no responde; se reintenta con el proximo trafico"));
         } else {
             sendInitiationLocked(now);
         }
@@ -568,7 +571,7 @@ void WgDevice::handleResponse(const uint8_t* d, size_t n, uint32_t ip, uint16_t 
     epPort_ = port;
     stats_.handshakes++;
     stats_.lastHandshakeMs = wallMs();
-    if (log_) log_("wireguard: sesion establecida");
+    if (log_) log_(ba::i18n::traducir("gateway", "wireguard: sesion establecida"));
     // El respondedor confirma la sesion con el primer dato: si no hay nada
     // encolado, un keepalive.
     if (queue_.empty()) {
@@ -584,7 +587,7 @@ void WgDevice::handleCookie(const uint8_t* d, size_t n) {
     if (!xaeadDecrypt(ck, cookieKeyPeer_, d + 8, d + 32, 32, lastMac1_.data(), 16)) return;
     std::memcpy(cookie_.data(), ck, 16);
     cookieMs_ = monoMs();
-    if (log_) log_("wireguard: el servidor pidio cookie (bajo carga); se reintenta con MAC2");
+    if (log_) log_(ba::i18n::traducir("gateway", "wireguard: el servidor pidio cookie (bajo carga); se reintenta con MAC2"));
 }
 
 void WgDevice::handleData(const uint8_t* d, size_t n, uint32_t ip, uint16_t port, int64_t now) {

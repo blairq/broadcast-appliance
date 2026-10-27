@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "platform/SingleInstance.hpp"
+#include "i18n/I18n.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -40,7 +41,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         CloseHandle(h);
         if (err != nullptr) {
-            *err = "ya hay otra instancia en ejecucion";
+            *err = ba::i18n::traducir("ipc", "ya hay otra instancia en ejecucion");
         }
         return false;
     }

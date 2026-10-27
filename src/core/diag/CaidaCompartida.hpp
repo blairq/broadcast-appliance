@@ -21,6 +21,12 @@
 #include <cstdint>
 #include <string>
 
+// Sin Qt: la marca es para lupdate; el texto queda igual (el manejador de caídas no
+// puede traducir) y lo traduce quien lo muestra (el launcher, en Volcados).
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
+
 namespace ba::diag::caida {
 
 inline constexpr std::uint32_t kMagic = 0x41434142; // "BACA"
@@ -58,16 +64,16 @@ inline constexpr std::uint32_t kTipoVolcado = 0x4 | 0x20 | 0x40 | 0x100 | 0x800 
 /// Una descripción para el registro y el cartel.
 inline const char* nombreCodigo(std::uint32_t c) {
     switch (c) {
-        case 0xC0000005: return "violación de acceso";
-        case 0xC0000374: return "corrupción del heap";
-        case 0xC0000409: return "desborde de búfer en la pila (o fail-fast)";
-        case 0xC00000FD: return "desbordamiento de pila";
-        case 0xC000001D: return "instrucción inválida";
-        case 0xC0000094: return "división por cero";
-        case 0x80000003: return "punto de interrupción";
-        case 0xE06D7363: return "excepción de C++ sin atrapar";
-        case kCodigoAbort: return "abort (o terminate)";
-        default: return "excepción";
+        case 0xC0000005: return QT_TRANSLATE_NOOP("caidas", "violación de acceso");
+        case 0xC0000374: return QT_TRANSLATE_NOOP("caidas", "corrupción del heap");
+        case 0xC0000409: return QT_TRANSLATE_NOOP("caidas", "desborde de búfer en la pila (o fail-fast)");
+        case 0xC00000FD: return QT_TRANSLATE_NOOP("caidas", "desbordamiento de pila");
+        case 0xC000001D: return QT_TRANSLATE_NOOP("caidas", "instrucción inválida");
+        case 0xC0000094: return QT_TRANSLATE_NOOP("caidas", "división por cero");
+        case 0x80000003: return QT_TRANSLATE_NOOP("caidas", "punto de interrupción");
+        case 0xE06D7363: return QT_TRANSLATE_NOOP("caidas", "excepción de C++ sin atrapar");
+        case kCodigoAbort: return QT_TRANSLATE_NOOP("caidas", "abort (o terminate)");
+        default: return QT_TRANSLATE_NOOP("caidas", "excepción");
     }
 }
 

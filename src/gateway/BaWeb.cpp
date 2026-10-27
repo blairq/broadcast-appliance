@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -18,6 +19,9 @@
 #endif
 
 namespace ba::gateway {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -106,25 +110,26 @@ bool WebSupervisor::start() {
     if (started_.load()) return alive_.load();
     std::error_code ec;
     if (!std::filesystem::exists(cfg_.exe, ec)) {
-        log_.warn("ba-web: no está el binario (" + cfg_.exe + "); el túnel va directo al gateway", -1);
+        log_.warn(llenar(traducir("gateway", "ba-web: no está el binario (%1); el túnel va directo al gateway"), {cfg_.exe}), -1);
         return false;
     }
     std::filesystem::create_directories(cfg_.dir, ec);
     setEventoDir("");
     // ba-web escribe (y rota: 5 MiB, tres archivos) su propio log; lo de stderr va aparte.
     if (!escribirAtomico(confPath_, armarConf(cfg_, aliasPath_, cfg_.logPath))) {
-        log_.warn("ba-web: no se pudo escribir " + confPath_ + "; el túnel va directo al gateway", -1);
+        log_.warn(llenar(traducir("gateway", "ba-web: no se pudo escribir %1; el túnel va directo al gateway"), {confPath_}), -1);
         return false;
     }
     stop_.store(false);
     if (!spawn()) return false;
     started_.store(true);
     thread_ = std::thread(&WebSupervisor::runLoop, this);
-    log_.info(std::string("ba-web: lanzado") +
-              (cfg_.tunel ? " (túnel 127.0.0.1:" + std::to_string(cfg_.puerto) + " -> " + std::to_string(cfg_.upstream) + ")"
+    log_.info(traducir("gateway", "ba-web: lanzado") +
+              (cfg_.tunel ? " " + llenar(traducir("gateway", "(túnel 127.0.0.1:%1 -> %2)"),
+                                         {std::to_string(cfg_.puerto), std::to_string(cfg_.upstream)})
                           : std::string()) +
-              (atiendeLan() ? " (HTTPS de la red local :" + std::to_string(cfg_.lanPuerto) + " -> " +
-                                  std::to_string(cfg_.lanUpstream) + ")"
+              (atiendeLan() ? " " + llenar(traducir("gateway", "(HTTPS de la red local :%1 -> %2)"),
+                                           {std::to_string(cfg_.lanPuerto), std::to_string(cfg_.lanUpstream)})
                             : std::string()));
     return true;
 }
@@ -135,7 +140,7 @@ void WebSupervisor::stop() {
     if (thread_.joinable()) thread_.join();
     kill();
     started_.store(false);
-    log_.info("ba-web: detenido (reinicios=" + std::to_string(restarts_.load()) + ")");
+    log_.info(llenar(traducir("gateway", "ba-web: detenido (reinicios=%1)"), {std::to_string(restarts_.load())}));
 }
 
 bool WebSupervisor::spawn() {
@@ -161,7 +166,7 @@ bool WebSupervisor::spawn() {
     std::lock_guard<std::mutex> l(procLock_);
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {
-        log_.warn("ba-web: no se pudo lanzar: " + err, -1);
+        log_.warn(llenar(traducir("gateway", "ba-web: no se pudo lanzar: %1"), {err}), -1);
         alive_.store(false);
         return false;
     }
@@ -196,7 +201,7 @@ void WebSupervisor::runLoop() {
             continue;
         }
         alive_.store(false);
-        log_.warn("ba-web: se cerró; se relanza en " + std::to_string(backoffMs) + " ms", -1);
+        log_.warn(llenar(traducir("gateway", "ba-web: se cerró; se relanza en %1 ms"), {std::to_string(backoffMs)}), -1);
         for (int w = 0; w < backoffMs && !stop_.load(); w += 100) std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if (stop_.load()) break;
         {

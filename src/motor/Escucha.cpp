@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Escucha.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -91,17 +92,18 @@ void Escucha::armar() {
         reloj_.adoptar(p);
         gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(latenciaNs_ + kMargenNs));
         if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-            error_ = disp.empty() ? "la salida de audio no arrancó" : "el dispositivo «" + disp + "» no arrancó";
+            error_ = disp.empty() ? ba::i18n::traducir("motor", "la salida de audio no arrancó")
+                                  : ba::i18n::llenar(ba::i18n::traducir("motor", "el dispositivo «%1» no arrancó"), {disp});
             gst_element_set_state(p, GST_STATE_NULL);
             gst_object_unref(p);
             continue;
         }
         if (!disp.empty() || dispositivo_.empty()) error_.clear();
-        else error_ = "no está «" + dispositivo_ + "»: va por la salida del sistema";
+        else error_ = ba::i18n::llenar(ba::i18n::traducir("motor", "no está «%1»: va por la salida del sistema"), {dispositivo_});
         pipeline_ = p;
         break;
     }
-    if (!error_.empty()) registrar(Nivel::Aviso, "escucha: " + error_);
+    if (!error_.empty()) registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "escucha: %1"), {error_}));
 }
 
 void Escucha::escuchar(const std::string& productor, std::int64_t latenciaNs) {
@@ -169,7 +171,7 @@ void Escucha::tic(std::int64_t latenciaNs) {
             gst_message_parse_error(m, &e, nullptr);
             error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             if (e != nullptr) g_error_free(e);
-            registrar(Nivel::Aviso, "escucha: " + error_);
+            registrar(Nivel::Aviso, ba::i18n::llenar(ba::i18n::traducir("motor", "escucha: %1"), {error_}));
         }
         gst_message_unref(m);
     }

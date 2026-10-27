@@ -27,6 +27,7 @@
 #include <cstdio>
 
 #include "Log.hpp"
+#include "i18n/I18n.hpp"
 
 #include <string>
 
@@ -57,14 +58,22 @@ std::string toUtf8(const std::wstring& p) {
     return out;
 }
 
+// UTF-8 a wstring (los textos traducidos vienen en UTF-8; Win32 los pide anchos).
+std::wstring aWide(const std::string& s) {
+    if (s.empty()) return std::wstring();
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
+    std::wstring out;
+    if (n > 0) {
+        out.resize(static_cast<std::size_t>(n));
+        MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), out.data(), n);
+    }
+    return out;
+}
+
 // Nombre de la clase de ventana (local al proceso).
 constexpr const wchar_t kClassName[] = L"BroadcastAppliance.Recovery";
-// Titulo por defecto (se usa si Incident::title esta vacio).
-constexpr const wchar_t kDefaultTitle[] = L"Broadcast Appliance — Recuperación";
-// Etiquetas de los botones de accion.
-constexpr const wchar_t kRetryLabel[] = L"Reintentar";
-constexpr const wchar_t kForceRestartLabel[] = L"Forzar reinicio";
-constexpr const wchar_t kExitLabel[] = L"Salir";
+// El titulo por defecto (si Incident::title esta vacio) y las etiquetas de los
+// botones se traducen al mostrarlos (present).
 // Ids de los botones (WM_COMMAND -> LOWORD(wParam)).
 constexpr int kIdRetry = 1;
 constexpr int kIdForceRestart = 2;
@@ -83,42 +92,48 @@ constexpr int kButtonHeight = 32;
 
 // Construye el texto de estado a partir del incidente (solo presentacion).
 std::wstring buildStatus(const Incident& inc) {
-    std::wstring s;
+    using ba::i18n::llenar;
+    using ba::i18n::traducir;
+    std::string s;
     if (inc.childADown || inc.childBDown) {
-        s += L"El supervisor detecto un problema en los procesos hijos:";
-        s += L"\n\n";
+        s += traducir("recuperacion", "El supervisor detecto un problema en los procesos hijos:");
+        s += "\n\n";
         if (inc.childADown) {
-            s += L"• Proceso A (aplicacion): CAIDO";
-            if (inc.appCodeValid) {
-                s += L" (codigo de salida " + std::to_wstring(inc.appExitCode) + L")";
-            }
-            s += L".\n";
+            s += inc.appCodeValid
+                     ? llenar(traducir("recuperacion", "• Proceso A (aplicacion): CAIDO (codigo de salida %1)."),
+                              {std::to_string(inc.appExitCode)})
+                     : traducir("recuperacion", "• Proceso A (aplicacion): CAIDO.");
+            s += "\n";
         }
         if (inc.childBDown) {
-            s += L"• Proceso B (gateway): CAIDO";
-            if (inc.gwCodeValid) {
-                s += L" (codigo de salida " + std::to_wstring(inc.gatewayExitCode) + L")";
-            }
-            s += L".\n";
+            s += inc.gwCodeValid
+                     ? llenar(traducir("recuperacion", "• Proceso B (gateway): CAIDO (codigo de salida %1)."),
+                              {std::to_string(inc.gatewayExitCode)})
+                     : traducir("recuperacion", "• Proceso B (gateway): CAIDO.");
+            s += "\n";
         }
     } else if (inc.showIntegrity) {
-        s += L"Se detectaron problemas de integridad en el disco.";
+        s += traducir("recuperacion", "Se detectaron problemas de integridad en el disco.");
     } else {
-        s += L"El supervisor requiere una accion del operador.";
+        s += traducir("recuperacion", "El supervisor requiere una accion del operador.");
     }
-    s += L"\n\nElija una accion:";
-    return s;
+    s += "\n\n";
+    s += traducir("recuperacion", "Elija una accion:");
+    return aWide(s);
 }
 
 // Linea de estado de integridad del disco (solo si procede mostrarla).
 std::wstring buildIntegrityLine(const Incident& inc) {
+    using ba::i18n::llenar;
+    using ba::i18n::traducir;
     if (inc.integrity.ok) {
-        return L"Integridad del disco: OK (" + std::to_wstring(inc.integrity.checked) +
-               L" archivos verificados).";
+        return aWide(llenar(traducir("recuperacion", "Integridad del disco: OK (%1 archivos verificados)."),
+                            {std::to_string(inc.integrity.checked)}));
     }
-    return L"Integridad del disco: " + std::to_wstring(inc.integrity.checked) + L" verificados, " +
-           std::to_wstring(inc.integrity.missing) + L" ausentes, " + std::to_wstring(inc.integrity.mismatch) +
-           L" con hash distinto.";
+    return aWide(
+        llenar(traducir("recuperacion", "Integridad del disco: %1 verificados, %2 ausentes, %3 con hash distinto."),
+               {std::to_string(inc.integrity.checked), std::to_string(inc.integrity.missing),
+                std::to_string(inc.integrity.mismatch)}));
 }
 
 // WndProc de la ventana de recuperacion.
@@ -184,7 +199,8 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     if (atom == 0) {
         const DWORD err = GetLastError();
         if (err != ERROR_CLASS_ALREADY_EXISTS) {
-            BA_LOG_ERROR("recovery", static_cast<int>(err), "RegisterClassW fallo; sin UI de recuperacion");
+            BA_LOG_ERROR("recovery", static_cast<int>(err),
+                         ba::i18n::traducir("recovery", "RegisterClassW fallo; sin UI de recuperacion"));
             return RecoveryAction::Dismissed;
         }
         // ERROR_CLASS_ALREADY_EXISTS: present() se volvio a invocar en el mismo
@@ -224,12 +240,13 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     AdjustWindowRectEx(&marco, style, FALSE, 0);
     const int winW = marco.right - marco.left, winH = marco.bottom - marco.top;
     const int x = (GetSystemMetrics(SM_CXSCREEN) - winW) / 2, y = (GetSystemMetrics(SM_CYSCREEN) - winH) / 3;
-    const std::wstring title = inc.title.empty() ? std::wstring(kDefaultTitle) : inc.title;
+    const std::wstring title = inc.title.empty() ? aWide(ba::i18n::traducir("recuperacion", "Broadcast Appliance — Recuperación")) : inc.title;
     HWND hwnd = CreateWindowExW(0, kClassName, title.c_str(), style, x, y, winW, winH, nullptr, nullptr,
                                 wc.hInstance, nullptr);
     if (hwnd == nullptr) {
         const DWORD err = GetLastError();
-        BA_LOG_ERROR("recovery", static_cast<int>(err), "CreateWindowExW fallo; sin UI de recuperacion");
+        BA_LOG_ERROR("recovery", static_cast<int>(err),
+                     ba::i18n::traducir("recovery", "CreateWindowExW fallo; sin UI de recuperacion"));
         return RecoveryAction::Dismissed;
     }
 
@@ -247,7 +264,8 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
                                             wc.hInstance, nullptr));
     if (hStatus == nullptr) {
         const DWORD err = GetLastError();
-        BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear el static de estado");
+        BA_LOG_ERROR("recovery", static_cast<int>(err),
+                     ba::i18n::traducir("recovery", "no se pudo crear el static de estado"));
         DestroyWindow(hwnd);
         return RecoveryAction::Dismissed;
     }
@@ -259,28 +277,33 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
                                                    contentWidth, integrityHeight, hwnd, nullptr, wc.hInstance, nullptr));
         if (hIntegrity == nullptr) {
             const DWORD err = GetLastError();
-            BA_LOG_WARN("recovery", static_cast<int>(err), "no se pudo crear el static de integridad");
+            BA_LOG_WARN("recovery", static_cast<int>(err),
+                        ba::i18n::traducir("recovery", "no se pudo crear el static de integridad"));
         }
     }
 
     // Botones de accion (Reintentar / Forzar reinicio / Salir), centrados abajo.
-    HWND hRetry = conLetra(CreateWindowExW(0, L"BUTTON", kRetryLabel,
+    const std::wstring retryLabel = aWide(ba::i18n::traducir("recuperacion", "Reintentar"));
+    const std::wstring forceLabel = aWide(ba::i18n::traducir("recuperacion", "Forzar reinicio"));
+    const std::wstring exitLabel = aWide(ba::i18n::traducir("recuperacion", "Salir"));
+    HWND hRetry = conLetra(CreateWindowExW(0, L"BUTTON", retryLabel.c_str(),
                                            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_TEXT, buttonsLeft,
                                            buttonTop, kButtonWidth, kButtonHeight, hwnd,
                                            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRetry)), wc.hInstance, nullptr));
-    HWND hForce = conLetra(CreateWindowExW(0, L"BUTTON", kForceRestartLabel,
+    HWND hForce = conLetra(CreateWindowExW(0, L"BUTTON", forceLabel.c_str(),
                                            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | BS_TEXT,
                                            buttonsLeft + kButtonWidth + kButtonGap, buttonTop, kButtonWidth, kButtonHeight,
                                            hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdForceRestart)),
                                            wc.hInstance, nullptr));
-    HWND hExit = conLetra(CreateWindowExW(0, L"BUTTON", kExitLabel,
+    HWND hExit = conLetra(CreateWindowExW(0, L"BUTTON", exitLabel.c_str(),
                                           WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | BS_TEXT,
                                           buttonsLeft + 2 * (kButtonWidth + kButtonGap), buttonTop, kButtonWidth,
                                           kButtonHeight, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdExit)),
                                           wc.hInstance, nullptr));
     if (hRetry == nullptr || hForce == nullptr || hExit == nullptr) {
         const DWORD err = GetLastError();
-        BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear un boton de accion");
+        BA_LOG_ERROR("recovery", static_cast<int>(err),
+                     ba::i18n::traducir("recovery", "no se pudo crear un boton de accion"));
         DestroyWindow(hwnd);
         return RecoveryAction::Dismissed;
     }
@@ -289,7 +312,8 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     // --- 5. Mostrar y correr el bucle de mensajes ----------------------------
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
-    BA_LOG_INFO("recovery", 0, std::string("UI de recuperacion mostrada: ") + toUtf8(status));
+    BA_LOG_INFO("recovery", 0,
+                ba::i18n::llenar(ba::i18n::traducir("recovery", "UI de recuperacion mostrada: %1"), {toUtf8(status)}));
 
     MSG msg{};
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
@@ -308,34 +332,44 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
 RecoveryAction RecoveryUi::present(const Incident& inc) {
     // Sin GUI fuera de Windows: se loguea el incidente y se devuelve Retry
     // (continuar), de modo que el Supervisor siga su flujo normal.
-    std::string ctx = "UI de recuperacion (sin GUI en esta plataforma)";
+    using ba::i18n::traducir;
+    std::string ctx = traducir("recovery", "UI de recuperacion (sin GUI en esta plataforma)");
     if (inc.childADown) {
-        ctx += "; A caido";
+        ctx += "; " + traducir("recovery", "A caido");
     }
     if (inc.childBDown) {
-        ctx += "; B caido";
+        ctx += "; " + traducir("recovery", "B caido");
     }
     if (inc.showIntegrity && !inc.integrity.ok) {
-        ctx += "; integridad con fallos";
+        ctx += "; " + traducir("recovery", "integridad con fallos");
     }
     BA_LOG_WARN("recovery", 0, ctx);
 #if defined(__APPLE__)
     // macOS: dialogo nativo con osascript (decision D4). Si nadie contesta en
     // 5 minutos se reintenta solo: el launcher nunca queda colgado de la UI.
-    std::string msg = "Broadcast Appliance tuvo un problema.";
-    if (inc.childADown) msg += "\\nLa interfaz/motor (A) se cerro.";
-    if (inc.childBDown) msg += "\\nLa sala de invitados (B) se cerro.";
+    // Los botones van traducidos, y la respuesta de osascript («button returned:<etiqueta>»)
+    // se compara con la etiqueta traducida.
+    const auto sinComillas = [](const std::string& t) {
+        std::string safe;
+        for (char ch : t) {
+            if (ch == '"' || ch == '\'') continue; // sin comillas: va dentro de un literal de AppleScript
+            safe += ch;
+        }
+        return safe;
+    };
+    std::string msg = traducir("recuperacion", "Broadcast Appliance tuvo un problema.");
+    if (inc.childADown) msg += "\\n" + traducir("recuperacion", "La interfaz/motor (A) se cerro.");
+    if (inc.childBDown) msg += "\\n" + traducir("recuperacion", "La sala de invitados (B) se cerro.");
     if (inc.showIntegrity && !inc.integrity.ok)
-        msg += "\\nHay archivos del programa con fallas de integridad.";
-    std::string safe;
-    for (char ch : msg) {
-        if (ch == '"' || ch == '\'') continue; // sin comillas: va dentro de un literal de AppleScript
-        safe += ch;
-    }
-    const std::string cmd =
-        "osascript -e 'display dialog \"" + safe +
-        "\" with title \"Broadcast Appliance\" buttons {\"Salir\", \"Reiniciar todo\", \"Reintentar\"} "
-        "default button \"Reintentar\" with icon caution giving up after 300' 2>/dev/null";
+        msg += "\\n" + traducir("recuperacion", "Hay archivos del programa con fallas de integridad.");
+    const std::string safe = sinComillas(msg);
+    const std::string bSalir = sinComillas(traducir("recuperacion", "Salir"));
+    const std::string bReiniciar = sinComillas(traducir("recuperacion", "Reiniciar todo"));
+    const std::string bReintentar = sinComillas(traducir("recuperacion", "Reintentar"));
+    const std::string cmd = "osascript -e 'display dialog \"" + safe +
+                            "\" with title \"Broadcast Appliance\" buttons {\"" + bSalir + "\", \"" + bReiniciar +
+                            "\", \"" + bReintentar + "\"} default button \"" + bReintentar +
+                            "\" with icon caution giving up after 300' 2>/dev/null";
     std::string out;
     if (FILE* f = ::popen(cmd.c_str(), "r")) {
         char buf[256];
@@ -343,21 +377,27 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
             out += buf;
         ::pclose(f);
     }
-    if (out.find("button returned:Salir") != std::string::npos) {
+    if (out.find("button returned:" + bSalir) != std::string::npos) {
         // Salir corta la transmisión y la grabación: se confirma (por defecto, no).
+        const std::string bCerrar = sinComillas(traducir("recuperacion", "Cerrar todo"));
+        const std::string bSeguir = sinComillas(traducir("recuperacion", "Seguir"));
+        const std::string pregunta =
+            sinComillas(traducir("recuperacion", "¿Cerrar todo el programa? Se corta la transmisión y la grabación."));
+        const std::string cmdConf = "osascript -e 'display dialog \"" + pregunta +
+                                    "\" with title \"Broadcast Appliance\" buttons {\"" + bCerrar + "\", \"" +
+                                    bSeguir + "\"} default button \"" + bSeguir +
+                                    "\" with icon stop giving up after 60' 2>/dev/null";
         std::string conf;
-        if (FILE* f = ::popen("osascript -e 'display dialog \"¿Cerrar todo el programa? Se corta la transmisión y la "
-                              "grabación.\" with title \"Broadcast Appliance\" buttons {\"Cerrar todo\", \"Seguir\"} "
-                              "default button \"Seguir\" with icon stop giving up after 60' 2>/dev/null", "r")) {
+        if (FILE* f = ::popen(cmdConf.c_str(), "r")) {
             char buf[256];
             while (std::fgets(buf, sizeof(buf), f) != nullptr)
                 conf += buf;
             ::pclose(f);
         }
-        if (conf.find("button returned:Cerrar todo") != std::string::npos) return RecoveryAction::Exit;
+        if (conf.find("button returned:" + bCerrar) != std::string::npos) return RecoveryAction::Exit;
         return RecoveryAction::Retry;
     }
-    if (out.find("button returned:Reiniciar todo") != std::string::npos) return RecoveryAction::ForceRestart;
+    if (out.find("button returned:" + bReiniciar) != std::string::npos) return RecoveryAction::ForceRestart;
 #endif
     return RecoveryAction::Retry;
 }

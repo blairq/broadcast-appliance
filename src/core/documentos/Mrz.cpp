@@ -2,7 +2,7 @@
 // src/core/documentos/Mrz.cpp — ver Mrz.hpp
 // ============================================================================
 #include "documentos/Mrz.hpp"
-
+#include "i18n/I18n.hpp"
 #include <algorithm>
 #include <cctype>
 #include <ctime>
@@ -59,7 +59,7 @@ const char* const kForma[3] = {
 };
 
 bool fallar(std::string* motivo, const char* m) {
-    if (motivo != nullptr) *motivo = m;
+    if (motivo != nullptr) *motivo = i18n::traducir("documentos", m); // el motivo lo lee el operador
     return false;
 }
 
@@ -277,7 +277,7 @@ bool renglonesTd1(const std::string& texto, std::array<std::string, 3>& out) {
 bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioActual, bool exigirCompuesto) {
     if (anioActual <= 0) anioActual = anioDeHoy();
     std::array<std::string, 3> r;
-    if (!renglonesTd1(texto, r)) return fallar(motivo, "no hay tres renglones de 30 caracteres");
+    if (!renglonesTd1(texto, r)) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "no hay tres renglones de 30 caracteres"));
     int cambios = 0;
 
     // 1) Lo que la posición obliga: dígitos donde van dígitos, letras donde van letras.
@@ -288,12 +288,12 @@ bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioAc
             char& c = l[i];
             if ((f == 'N' || (f == 'C' && c != '<')) && !esDigito(c)) {
                 const char d = aDigito(c);
-                if (d == 0) return fallar(motivo, "una letra donde va un número");
+                if (d == 0) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "una letra donde va un número"));
                 c = d;
                 ++cambios;
             } else if (f == 'A' && esDigito(c)) {
                 const char a = aLetra(c);
-                if (a == 0) return fallar(motivo, "un número donde va una letra");
+                if (a == 0) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "un número donde va una letra"));
                 c = a;
                 ++cambios;
             }
@@ -302,8 +302,8 @@ bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioAc
     std::string& l1 = r[0];
     std::string& l2 = r[1];
     const std::string& l3 = r[2];
-    if (l1[0] != 'I' && l1[0] != 'A' && l1[0] != 'C') return fallar(motivo, "no es una cédula (TD1)");
-    if (sinRelleno(l1.substr(2, 3)).empty()) return fallar(motivo, "sin emisor");
+    if (l1[0] != 'I' && l1[0] != 'A' && l1[0] != 'C') return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "no es una cédula (TD1)"));
+    if (sinRelleno(l1.substr(2, 3)).empty()) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "sin emisor"));
 
     // 2) El número y su verificador. Si el lugar del verificador es «<», el número
     //    es largo y sigue en los opcionales hasta el próximo «<»; el último de esa
@@ -311,11 +311,11 @@ bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioAc
     std::size_t finNumero = 14; // donde está el verificador
     if (l1[14] == '<') {
         const std::size_t corte = l1.find('<', 15);
-        if (corte == std::string::npos || corte <= 16 || corte > 29) return fallar(motivo, "número largo mal cortado");
+        if (corte == std::string::npos || corte <= 16 || corte > 29) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "número largo mal cortado"));
         finNumero = corte - 1;
         if (!esDigito(l1[finNumero])) {
             const char d = aDigito(l1[finNumero]);
-            if (d == 0) return fallar(motivo, "una letra donde va un número");
+            if (d == 0) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "una letra donde va un número"));
             l1[finNumero] = d;
             ++cambios;
         }
@@ -326,18 +326,18 @@ bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioAc
         dudosas(campo, 0, campo.size(), 0, amb);
         const char dv = l1[finNumero];
         const int res = corregir(campo, amb, [dv](const std::string& t) { return verifica(t, dv); }, 3, cambios);
-        if (res == 0) return fallar(motivo, "no cierra el verificador del número");
-        if (res < 0) return fallar(motivo, "el número se puede corregir de más de una forma");
+        if (res == 0) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "no cierra el verificador del número"));
+        if (res < 0) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "el número se puede corregir de más de una forma"));
         l1.replace(5, 9, campo.substr(0, 9));
         if (finNumero > 14) l1.replace(15, finNumero - 15, campo.substr(9));
     }
 
     // 3) Las fechas (ya son todos dígitos: no hay nada que probar).
-    if (!verifica(l2.substr(0, 6), l2[6])) return fallar(motivo, "no cierra el verificador del nacimiento");
-    if (!verifica(l2.substr(8, 6), l2[14])) return fallar(motivo, "no cierra el verificador del vencimiento");
+    if (!verifica(l2.substr(0, 6), l2[6])) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "no cierra el verificador del nacimiento"));
+    if (!verifica(l2.substr(8, 6), l2[14])) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "no cierra el verificador del vencimiento"));
     const std::string nac = fechaMrz(l2.substr(0, 6), true, anioActual);
     const std::string venc = fechaMrz(l2.substr(8, 6), false, anioActual);
-    if (nac.empty() || venc.empty()) return fallar(motivo, "una fecha imposible");
+    if (nac.empty() || venc.empty()) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "una fecha imposible"));
 
     // 4) El compuesto: renglón 1 desde el número, las fechas con sus verificadores y
     //    los opcionales del 2. Acá NO se prueban correcciones: en los opcionales (letras
@@ -347,15 +347,15 @@ bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioAc
     const std::string paraCompuesto = l1.substr(5, 25) + l2.substr(0, 7) + l2.substr(8, 7) + l2.substr(18, 11);
     const bool compuestoOk = verifica(paraCompuesto, l2[29]);
     if (!compuestoOk) {
-        if (exigirCompuesto) return fallar(motivo, "no cierra el verificador compuesto");
-        if (motivo != nullptr) *motivo = "no cierra el verificador compuesto";
+        if (exigirCompuesto) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "no cierra el verificador compuesto"));
+        if (motivo != nullptr) *motivo = i18n::traducir("documentos", "no cierra el verificador compuesto");
     }
 
     // 5) El nombre: APELLIDO<<NOMBRES (los «<» sueltos son espacios).
     const std::size_t corte = l3.find("<<");
     const std::string ap = conEspacios(corte == std::string::npos ? l3 : l3.substr(0, corte));
     const std::string no = corte == std::string::npos ? std::string() : conEspacios(l3.substr(corte + 2));
-    if (ap.empty()) return fallar(motivo, "sin apellido");
+    if (ap.empty()) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "sin apellido"));
 
     Td1 t;
     t.codigo = l1.substr(0, 2);
@@ -372,7 +372,7 @@ bool leerTd1(const std::string& texto, Td1& out, std::string* motivo, int anioAc
     t.renglones = r;
     t.correcciones = cambios;
     t.compuesto = compuestoOk;
-    if (t.numero.empty()) return fallar(motivo, "sin número de documento");
+    if (t.numero.empty()) return fallar(motivo, QT_TRANSLATE_NOOP("documentos", "sin número de documento"));
     out = std::move(t);
     return true;
 }
@@ -446,7 +446,7 @@ LecturaMrz interpretarRespuestaMrz(const std::string& respuesta, int anioActual)
             m.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
     if (m.find("NOSEVE") != std::string::npos) {
         l.estado = LecturaMrz::Estado::NoSeVe;
-        l.motivo = "no se ven los renglones";
+        l.motivo = i18n::traducir("documentos", "no se ven los renglones");
         return l;
     }
     l.estado = LecturaMrz::Estado::NoCierra;

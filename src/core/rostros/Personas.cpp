@@ -2,6 +2,7 @@
 // src/core/rostros/Personas.cpp — ver Personas.hpp
 // ============================================================================
 #include "rostros/Personas.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -135,7 +136,7 @@ bool Personas::leer(const std::string& archivo) {
     std::ifstream f(archivo, std::ios::binary);
     const json j = json::parse(f, nullptr, false);
     if (!j.is_array()) {
-        error_ = "el archivo de personas no es una lista";
+        error_ = ba::i18n::traducir("rostros", "el archivo de personas no es una lista");
         return false;
     }
     for (const json& e : j) {
@@ -175,18 +176,18 @@ bool Personas::guardar(const std::string& archivo) const {
     {
         std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
         if (!f) {
-            error_ = "no se pudo escribir " + tmp;
+            error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "no se pudo escribir %1"), {tmp});
             return false;
         }
         f << j.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
         if (!f) {
-            error_ = "error al escribir " + tmp;
+            error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "error al escribir %1"), {tmp});
             return false;
         }
     }
     std::filesystem::rename(tmp, archivo, ec);
     if (ec) {
-        error_ = "no se pudo reemplazar " + archivo + ": " + ec.message();
+        error_ = ba::i18n::llenar(ba::i18n::traducir("rostros", "no se pudo reemplazar %1: %2"), {archivo, ec.message()});
         std::filesystem::remove(tmp, ec);
         return false;
     }

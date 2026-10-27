@@ -3,6 +3,7 @@
 // ============================================================================
 #include "BancoSr.hpp"
 #include "diag/Utf8.hpp"
+#include "i18n/I18n.hpp"
 
 #include <gst/gst.h>
 
@@ -13,6 +14,9 @@
 #include <thread>
 
 namespace ba::motor {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -97,7 +101,7 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
     MedidaSr m;
     GstElementFactory* f = gst_element_factory_find(c.elemento.c_str());
     if (f == nullptr) {
-        m.error = "GStreamer no tiene el elemento «" + c.elemento + "»";
+        m.error = llenar(traducir("motor", "GStreamer no tiene el elemento «%1»"), {c.elemento});
         return m;
     }
     gst_object_unref(f);
@@ -127,7 +131,7 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
         while (GstMessage* msg = gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR))) {
             GError* e = nullptr;
             gst_message_parse_error(msg, &e, nullptr);
-            m.error = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
+            m.error = e != nullptr ? ba::diag::utf8Valido(e->message) : traducir("motor", "error");
             if (e != nullptr) g_error_free(e);
             gst_message_unref(msg);
             return true;
@@ -135,7 +139,7 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
         return false;
     };
     const gint64 t0 = g_get_monotonic_time();
-    if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) m.error = "el pipeline no arrancó";
+    if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) m.error = traducir("motor", "el pipeline no arrancó");
     // Hasta que la red procese su primer cuadro (abrir o compilar la red), o, en
     // uno sincrónico, hasta que salga el primero.
     const bool porRed = !c.sincronico && leerTotales(sr).first >= 0;
@@ -154,8 +158,9 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
     if (m.error.empty() && !cancelado() && !listo()) {
         const std::string e = leerTexto(sr, "error");
         m.error = !e.empty() ? e
-                             : (porRed ? "la red no procesó ningún cuadro en " : "no salió ningún cuadro en ") +
-                                   std::to_string(static_cast<int>(esperaMax)) + " s";
+                             : llenar(porRed ? traducir("motor", "la red no procesó ningún cuadro en %1 s")
+                                             : traducir("motor", "no salió ningún cuadro en %1 s"),
+                                      {std::to_string(static_cast<int>(esperaMax))});
     }
     if (m.error.empty()) m.abrirSeg = static_cast<double>(g_get_monotonic_time() - t0) / 1e6;
     // Un segundo para que se asiente (el segundo cuadro de una red recién abierta
@@ -184,8 +189,10 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
                 m.como = "red";
             } else {
                 const std::string e = leerTexto(sr, "error");
-                m.error = "la red no terminó ningún cuadro en " + std::to_string(static_cast<int>(segundos)) + " s" +
-                          (e.empty() ? "" : ": " + e);
+                m.error = e.empty() ? llenar(traducir("motor", "la red no terminó ningún cuadro en %1 s"),
+                                             {std::to_string(static_cast<int>(segundos))})
+                                    : llenar(traducir("motor", "la red no terminó ningún cuadro en %1 s: %2"),
+                                             {std::to_string(static_cast<int>(segundos)), e});
             }
         } else if (!c.sincronico && leerMs(sr) > 0) {
             m.ms = leerMs(sr); // un elemento propio que solo da el promedio

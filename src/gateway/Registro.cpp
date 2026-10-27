@@ -14,8 +14,19 @@
 #include "MediaRoute.hpp"
 #include "Sesion.hpp" // servir, origenValido: las mismas defensas
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
+
+// Lo que se le manda a la página del tótem (error, motivo) no se traduce acá: se
+// marca para el catálogo de la web y la página lo traduce (el valor que viaja es
+// el original).
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(scope, x) x
+#endif
 
 namespace ba::gateway {
+
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 using json = nlohmann::json;
 
@@ -142,7 +153,7 @@ std::string RegistroBorde::alta(const std::string& id, const std::string& ip, co
         c->conn = "c" + std::to_string(++siguiente_);
         conns_[c->conn] = c;
     }
-    log_.info("registro: " + c->conn + " (tótem " + id + ") conectado desde " + ip);
+    log_.info(llenar(traducir("gateway", "registro: %1 (tótem %2) conectado desde %3"), {c->conn, id, ip}));
     alApp_({{"tipo", "conexion"}, {"conn", c->conn}, {"id", id}, {"conectado", true}, {"ip", ip}, {"lugar", lugar}});
     return c->conn;
 }
@@ -162,7 +173,7 @@ void RegistroBorde::baja(const std::string& conn) {
         std::lock_guard<std::mutex> l(c->sendLock);
         c->fd = -1;
     }
-    log_.info("registro: " + conn + " (tótem " + c->id + ") desconectado");
+    log_.info(llenar(traducir("gateway", "registro: %1 (tótem %2) desconectado"), {conn, c->id}));
     alApp_({{"tipo", "conexion"}, {"conn", conn}, {"id", c->id}, {"conectado", false}});
     reubicarAtienden(conn); // quienes la miraban por web se quedan sin imagen
 }
@@ -183,7 +194,7 @@ int RegistroBorde::tomarCanal(const std::string& conn) {
         it->second->audio = false;
         id = it->second->id;
     }
-    log_.info("registro: " + conn + " toma el canal " + std::to_string(canal));
+    log_.info(llenar(traducir("gateway", "registro: %1 toma el canal %2"), {conn, std::to_string(canal)}));
     alApp_({{"tipo", "canal"}, {"conn", conn}, {"id", id}, {"canal", canal}});
     reubicarAtienden(conn); // quien ya la miraba por web la ve desde ahora
     return canal;
@@ -207,7 +218,7 @@ void RegistroBorde::soltarCanal(const std::string& conn) {
     }
     // Su WebRTC no sigue sin canal: la ruta Registro(k) queda para el próximo.
     if (medios_.cerrar) medios_.cerrar(conn, canal);
-    log_.info("registro: " + conn + " suelta el canal " + std::to_string(canal));
+    log_.info(llenar(traducir("gateway", "registro: %1 suelta el canal %2"), {conn, std::to_string(canal)}));
     if (conAudio) alApp_({{"tipo", "audio"}, {"conn", conn}, {"id", id}, {"listo", false}});
     alApp_({{"tipo", "canal"}, {"conn", conn}, {"id", id}, {"canal", 0}});
     reubicarAtienden(conn);
@@ -323,8 +334,8 @@ bool RegistroBorde::atender(long long fd, const std::string& method, const std::
     if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
     const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
-        log_.warn("registro: origen ajeno desde " + ip, -1);
-        http::sendResponse(fd, 403, "text/plain", "origen invalido\n");
+        log_.warn(llenar(traducir("gateway", "registro: origen ajeno desde %1"), {ip}), -1);
+        http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen invalido") + "\n");
         return true;
     }
     if (pagina) {
@@ -335,11 +346,11 @@ bool RegistroBorde::atender(long long fd, const std::string& method, const std::
         return SesionBorde::servir(fd, rel, webroot_);
     }
     const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
-    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", "falta Sec-WebSocket-Key\n"), true;
+    if (key.empty()) return http::sendResponse(fd, 400, "text/plain", traducir("gateway", "falta Sec-WebSocket-Key") + "\n"), true;
     {
         std::lock_guard<std::mutex> l(mu_);
         if (static_cast<int>(conns_.size()) >= kMaxConexiones())
-            return http::sendResponse(fd, 503, "text/plain", "registro lleno\n"), true;
+            return http::sendResponse(fd, 503, "text/plain", traducir("gateway", "registro lleno") + "\n"), true;
     }
     const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
     const std::string ok = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
@@ -380,20 +391,21 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
             http::writeWsFrame(fd, 0x1, volcar({{"type", "error"}, {"error", error}}));
             http::writeWsFrame(fd, 0x8, "");
         };
-        if (!m.is_object() || m.value("type", std::string()) != "auth") return rechazar("Mensaje inválido.");
+        if (!m.is_object() || m.value("type", std::string()) != "auth")
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Mensaje inválido."));
         if (!intentoPermitido(ip)) {
-            log_.warn("registro: demasiados intentos fallidos desde " + ip, -1);
-            return rechazar("Demasiados intentos desde esta conexión. Esperá 10 minutos.");
+            log_.warn(llenar(traducir("gateway", "registro: demasiados intentos fallidos desde %1"), {ip}), -1);
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
         }
         id = m.value("r", std::string());
         std::string nombre;
         if (!autenticar(id, m.value("t", std::string()), nombre)) {
             anotarIntentoFallido(ip);
             alApp_({{"tipo", "intento"}, {"id", idValido(id) ? id : std::string()}, {"ip", ip}});
-            return rechazar("Este enlace de registro no es válido (o lo cambiaron). Pedí el nuevo.");
+            return rechazar(QT_TRANSLATE_NOOP("web/comun", "Este enlace de registro no es válido (o lo cambiaron). Pedí el nuevo."));
         }
         conn = alta(id, ip, lugar, fd);
-        if (conn.empty()) return rechazar("Hay demasiadas conexiones ahora. Probá en un rato.");
+        if (conn.empty()) return rechazar(QT_TRANSLATE_NOOP("web/comun", "Hay demasiadas conexiones ahora. Probá en un rato."));
         enviarA(conn, {{"type", "hola"}, {"nombre", nombre}, {"conn", conn}});
     }
     const auto c = buscar(conn);
@@ -417,7 +429,7 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
         if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
-            log_.warn("registro: " + conn + " manda demasiado; se corta", -1);
+            log_.warn(llenar(traducir("gateway", "registro: %1 manda demasiado; se corta"), {conn}), -1);
             break;
         }
         ventana.push_back(ahora);
@@ -440,16 +452,19 @@ void RegistroBorde::wsLoop(long long fd, const std::string& ip, const std::strin
             const int k = canalDe(conn);
             const std::string sdp = m.value("sdp", std::string());
             if (k == 0) {
-                enviar(c, {{"type", "audio-error"}, {"error", "Todavía no hay un canal de audio para vos."}});
+                enviar(c, {{"type", "audio-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "Todavía no hay un canal de audio para vos.")}});
             } else if (!ofertaValida(sdp)) {
-                log_.warn("registro: " + conn + " quiso mandar algo más que el micrófono y la cámara; se ignora", -1);
-                enviar(c, {{"type", "audio-error"}, {"error", "La página ofreció algo más que el micrófono y la cámara."}});
+                log_.warn(llenar(traducir("gateway", "registro: %1 quiso mandar algo más que el micrófono y la cámara; se ignora"),
+                                 {conn}),
+                          -1);
+                enviar(c, {{"type", "audio-error"},
+                           {"error", QT_TRANSLATE_NOOP("web/comun", "La página ofreció algo más que el micrófono y la cámara.")}});
             } else {
                 std::weak_ptr<Conn> w = c;
                 if (!medios_.oferta || !medios_.oferta(conn, k, sdp, [this, w](const json& resp) {
                         if (auto cc = w.lock()) enviar(cc, resp);
                     }))
-                    enviar(c, {{"type", "audio-error"}, {"error", "No hay lugar para escucharte ahora."}});
+                    enviar(c, {{"type", "audio-error"}, {"error", QT_TRANSLATE_NOOP("web/comun", "No hay lugar para escucharte ahora.")}});
             }
         } else if (t == "codigo") {
             // Lo que leyó el navegador mismo (BarcodeDetector) mientras se le pide el documento.
@@ -484,7 +499,7 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     if (method == "GET" && que == "cuadro") {
         const auto q = http::parseQuery(query);
         const std::string jpeg = cuadro(q.count("conn") ? http::urlDecode(q.at("conn")) : std::string());
-        if (jpeg.empty()) return http::sendResponse(fd, 404, "text/plain", "sin cuadro\n"), true;
+        if (jpeg.empty()) return http::sendResponse(fd, 404, "text/plain", traducir("gateway", "sin cuadro") + "\n"), true;
         http::sendResponse(fd, 200, "image/jpeg", jpeg, "Cache-Control: no-store\r\n");
         return true;
     }
@@ -499,7 +514,8 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     }
     if (que == "totems") {
         const auto cortar = ponerTotems(r.value("totems", json::array()));
-        for (const auto& conn : cortar) cortarConn(conn, "Este tótem se dio de baja o le cambiaron el enlace.");
+        for (const auto& conn : cortar)
+            cortarConn(conn, QT_TRANSLATE_NOOP("web/comun", "Este tótem se dio de baja o le cambiaron el enlace."));
         std::size_t n = 0;
         {
             std::lock_guard<std::mutex> l(mu_);
@@ -510,7 +526,7 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     }
     if (que == "enviar") {
         if (!r.contains("msg") || !r["msg"].is_object()) {
-            http::sendResponse(fd, 400, "application/json", volcar({{"ok", false}, {"error", "falta msg"}}));
+            http::sendResponse(fd, 400, "application/json", volcar({{"ok", false}, {"error", traducir("gateway", "falta msg")}}));
             return true;
         }
         std::vector<std::string> a;
@@ -530,7 +546,7 @@ bool RegistroBorde::admin(long long fd, const std::string& method, const std::st
     if (que == "cortar") {
         const std::string conn = r.value("conn", std::string());
         const bool habia = buscar(conn) != nullptr;
-        cortarConn(conn, r.value("motivo", std::string("Se cerró esta pantalla de registro.")));
+        cortarConn(conn, r.value("motivo", std::string(QT_TRANSLATE_NOOP("web/comun", "Se cerró esta pantalla de registro."))));
         http::sendResponse(fd, habia ? 200 : 404, "application/json", volcar({{"ok", habia}}));
         return true;
     }
