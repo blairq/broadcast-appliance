@@ -1296,13 +1296,17 @@ json mcpOficina(const QString& carpeta, const QString& datosMaquina) {
 
 /// Lo que el asistente tiene que saber de esos MCP (va al final de su prompt).
 const char* kOficinaPrompt =
-    "\n\n# Documentos, presentaciones y planillas\n"
-    "Además del aparato tenés tres MCP de oficina: `wordcraft` (documentos de Word: programa, orden del día, acta, "
-    "cartas), `deckcraft` (presentaciones: láminas para la apertura, los oradores, los puntos del orden del día) y "
-    "`gridcraft` (planillas con fórmulas y gráficos: votaciones, asistencia). Si te piden un Word, una presentación o "
-    "una planilla, usá ESOS MCP: no armes el archivo con la consola ni con otra biblioteca. Guardá lo que hagas en la carpeta del "
-    "evento: los documentos para la web, en su documentación (después `documento_agregar`); una presentación, como "
-    ".pptx en Medios/ y `laminas_desarmar` para el carrusel; un gráfico, como imagen en Medios/ para una escena.";
+    "\n\n# Documentos, presentaciones y planillas: siempre con su MCP\n"
+    "Además del aparato tenés tres MCP de oficina. Para TODO lo de estos archivos —crear, abrir, leer, modificar, "
+    "convertir— usá el MCP que corresponde, nunca la consola, un script ni otra biblioteca (python-docx, "
+    "openpyxl, pandoc…):\n"
+    "- Un documento de texto (Word, .docx, .doc, .odt, .rtf: programa, orden del día, acta, carta, informe) → `wordcraft`.\n"
+    "- Una presentación (PowerPoint, .pptx, láminas: la apertura, los oradores, los puntos del orden del día) → `deckcraft`.\n"
+    "- Una planilla o un gráfico de datos (Excel, .xlsx, .xls, .ods, .csv: votaciones, asistencia, presupuesto) → `gridcraft`.\n"
+    "Si no ves sus herramientas, buscalas por nombre (con tool_search, si tu motor lo tiene). Guardá lo que hagas en la "
+    "carpeta del evento: los documentos para la web, en su documentación (después `documento_agregar`); una "
+    "presentación, como .pptx en Medios/ y `laminas_desarmar` para el carrusel; un gráfico, como imagen en Medios/ "
+    "para una escena.";
 } // namespace
 
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
