@@ -29,18 +29,18 @@ Rectangle {
     /// El orden de la lista de la izquierda. Las secciones del esquema
     /// (SettingsModel) y las de vista propia, juntas por tema.
     readonly property var grupos: [
-        { titulo: "Imagen y sonido", secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
-        { titulo: "Salida", secciones: ["Transmisión", "Grabación", "Codificación"] },
-        { titulo: "Conferencia", secciones: ["Invitados", "Conferencia", "Red de la conferencia"] },
-        { titulo: "Asamblea", secciones: ["Sesión remota"] },
-        { titulo: "Personas", secciones: ["Caras", "Tótems de registro"] },
-        { titulo: "Control y pantallas", secciones: ["Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"] },
+        { titulo: qsTr("Imagen y sonido"), secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
+        { titulo: qsTr("Salida"), secciones: ["Transmisión", "Grabación", "Codificación"] },
+        { titulo: qsTr("Conferencia"), secciones: ["Invitados", "Conferencia", "Red de la conferencia"] },
+        { titulo: qsTr("Asamblea"), secciones: ["Sesión remota"] },
+        { titulo: qsTr("Personas"), secciones: ["Caras", "Tótems de registro"] },
+        { titulo: qsTr("Control y pantallas"), secciones: ["Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"] },
         // Las tres formas de sacar la conferencia a internet, cada una con su página.
         // Cloudflare y el túnel propio (WireGuard) están escondidos hasta probarlos: el código y sus
         // ajustes siguen, para volver a mostrarlos sumalos acá ("Cloudflare", "Túnel propio (WireGuard)").
-        { titulo: "Acceso desde internet", secciones: [page.pinggySection] },
-        { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
-        { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", "Dispositivos y drivers", page.systemSection] }
+        { titulo: qsTr("Acceso desde internet"), secciones: [page.pinggySection] },
+        { titulo: qsTr("Asistente"), secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
+        { titulo: qsTr("Sistema"), secciones: [page.aparienciaSection, "Plugins y descargas", "Dispositivos y drivers", page.systemSection] }
     ]
     /// Los ajustes avanzados (antes fijos en el código): escondidos salvo que se pidan;
     /// una sección que solo tiene avanzados (Audio, Plugins y descargas) los muestra siempre.
@@ -54,21 +54,21 @@ Rectangle {
                                      "Sesión remota", "Botonera y superficies", "Teleprompter", "Pantallas", "Página del evento"]
     /// Lo que va arriba de las páginas de túnel: qué es y cuándo conviene.
     readonly property var introducciones: ({
-        "Cloudflare": "Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.",
-        "Túnel propio (WireGuard)": "El túnel común a un servidor propio con IP pública (un VPS): este equipo se conecta por WireGuard y los invitados entran directo por la IP o el dominio del servidor, sin intermediarios. Es el mejor camino para el video, pero necesita el servidor configurado. Sin permisos de administrador ni drivers. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio."
+        "Cloudflare": qsTr("Saca la conferencia a internet por un túnel de Cloudflare, con tu dominio (p. ej. sala.miorganismo.gob.ar). Hace falta una cuenta de Cloudflare con el dominio cargado y el token del túnel (Zero Trust → Networks → Tunnels → el túnel → token). El video de los de afuera va por la conexión directa o el TURN. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio."),
+        "Túnel propio (WireGuard)": qsTr("El túnel común a un servidor propio con IP pública (un VPS): este equipo se conecta por WireGuard y los invitados entran directo por la IP o el dominio del servidor, sin intermediarios. Es el mejor camino para el video, pero necesita el servidor configurado. Sin permisos de administrador ni drivers. Se usa uno solo de los tres caminos: Pinggy, Cloudflare o túnel propio.")
     })
     /// Subtítulos dentro de una sección: van arriba del campo con esa clave.
     readonly property var subtitulos: ({
-        "video.width": "Lienzo y salida", "video.formato": "Color", "transition.type": "Transiciones",
-        "mejora.activa": "Mejorar imagen", "video.legalizar": "Entradas", "entradas.sinSenal": "Cortes de señal",
-        "record.dir": "Archivo", "record.calidad": "Calidad y pistas", "record.copiaDir": "Copia y repetición", "record.colchon": "Si el disco se traba",
-        "encoder.video": "Video", "encoder.audioBitrate": "Audio",
-        "guests.count": "Lugares", "guests.video": "Qué mandan", "gateway.videoW": "Calidad del video",
-        "gateway.room": "Entrada", "room.maxBackstage": "Modo oradores", "room.vistasRemotas": "Pantallas y celulares",
-        "room.pinIntentos": "Seguridad", "room.maxUploadMB": "Archivos",
-        "gateway.port": "Dónde escucha", "direct.https": "Conexión directa (HTTPS y WebRTC)", "room.adminPort": "Control",
-        "gateway.tunnelHost": "Dirección", "wg.endpoint": "El servidor", "wg.httpPort": "Puertos", "turn.maxAsignaciones": "Avanzado",
-        "mcp.approval": "Aprobaciones", "video.esperaCorteMs": "Avanzado", "entradas.congelarMs": "Avanzado", "audio.margenMezclaMs": "Avanzado", "stream.sinDatosS": "Avanzado", "record.colchonIsoS": "Avanzado", "room.oradorSeg": "Avanzado", "room.maxConexiones": "Avanzado", "gateway.tunelReintentoMaxS": "Avanzado", "asistente.demoraArranqueMs": "Avanzado", "modelo.maxTokens": "Avanzado", "traductor.maxCaidas": "Avanzado", "vozPrompter.consultaMs": "Avanzado", "descargas.simultaneas": "Avanzado", "launcher.primerLatidoS": "Avanzado", "modelo.contexto": "El chat sin internet (pestaña Asistente)", "launcher.cuelgue": "Si se cuelga o se cae",
+        "video.width": qsTr("Lienzo y salida"), "video.formato": qsTr("Color"), "transition.type": qsTr("Transiciones"),
+        "mejora.activa": qsTr("Mejorar imagen"), "video.legalizar": qsTr("Entradas"), "entradas.sinSenal": qsTr("Cortes de señal"),
+        "record.dir": qsTr("Archivo"), "record.calidad": qsTr("Calidad y pistas"), "record.copiaDir": qsTr("Copia y repetición"), "record.colchon": qsTr("Si el disco se traba"),
+        "encoder.video": qsTr("Video"), "encoder.audioBitrate": qsTr("Audio"),
+        "guests.count": qsTr("Lugares"), "guests.video": qsTr("Qué mandan"), "gateway.videoW": qsTr("Calidad del video"),
+        "gateway.room": qsTr("Entrada"), "room.maxBackstage": qsTr("Modo oradores"), "room.vistasRemotas": qsTr("Pantallas y celulares"),
+        "room.pinIntentos": qsTr("Seguridad"), "room.maxUploadMB": qsTr("Archivos"),
+        "gateway.port": qsTr("Dónde escucha"), "direct.https": qsTr("Conexión directa (HTTPS y WebRTC)"), "room.adminPort": qsTr("Control"),
+        "gateway.tunnelHost": qsTr("Dirección"), "wg.endpoint": qsTr("El servidor"), "wg.httpPort": qsTr("Puertos"), "turn.maxAsignaciones": qsTr("Avanzado"),
+        "mcp.approval": qsTr("Aprobaciones"), "video.esperaCorteMs": qsTr("Avanzado"), "entradas.congelarMs": qsTr("Avanzado"), "audio.margenMezclaMs": qsTr("Avanzado"), "stream.sinDatosS": qsTr("Avanzado"), "record.colchonIsoS": qsTr("Avanzado"), "room.oradorSeg": qsTr("Avanzado"), "room.maxConexiones": qsTr("Avanzado"), "gateway.tunelReintentoMaxS": qsTr("Avanzado"), "asistente.demoraArranqueMs": qsTr("Avanzado"), "modelo.maxTokens": qsTr("Avanzado"), "traductor.maxCaidas": qsTr("Avanzado"), "vozPrompter.consultaMs": qsTr("Avanzado"), "descargas.simultaneas": qsTr("Avanzado"), "launcher.primerLatidoS": qsTr("Avanzado"), "modelo.contexto": qsTr("El chat sin internet (pestaña Asistente)"), "launcher.cuelgue": qsTr("Si se cuelga o se cae"),
     })
     /// Campos que dependen de otro (se ocultan si no aplican).
     function campoVisible(k) {
@@ -89,21 +89,22 @@ Rectangle {
     function onAirWarning(what) { return Studio.avisoDeCerrar(what) }
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
-            title: "¿Actualizar ahora?",
-            text: page.onAirWarning("actualizar"),
-            accept: "Actualizar igual",
-            reject: "Cancelar",
+            title: qsTr("¿Actualizar ahora?"),
+            text: page.onAirWarning(qsTr("actualizar")),
+            accept: qsTr("Actualizar igual"),
+            reject: qsTr("Cancelar"),
             action: function() { page.updateError = sys.startUpdate(folder) }
         })
     }
     function confirmRollback() {
-        const data = " Configuración, credenciales, grabaciones y archivos no se tocan."
+        const data = qsTr("Configuración, credenciales, grabaciones y archivos no se tocan.")
         ApplicationWindow.window.confirm({
-            title: "¿Volver a la versión anterior?",
-            text: page.onAir ? page.onAirWarning("volver a la versión anterior") + " Después se restaura el programa anterior y la aplicación vuelve a abrir sola." + data
-                             : "La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola." + data,
-            accept: "Volver a la anterior",
-            reject: "Cancelar",
+            title: qsTr("¿Volver a la versión anterior?"),
+            text: page.onAir ? qsTr("%1 Después se restaura el programa anterior y la aplicación vuelve a abrir sola. %2")
+                                   .arg(page.onAirWarning(qsTr("volver a la versión anterior"))).arg(data)
+                             : qsTr("La aplicación se cierra, se restaura el programa anterior y vuelve a abrir sola. %1").arg(data),
+            accept: qsTr("Volver a la anterior"),
+            reject: qsTr("Cancelar"),
             action: function() { page.updateError = sys.startRollback() }
         })
     }
@@ -116,7 +117,7 @@ Rectangle {
         Panel {
             Layout.preferredWidth: 240
             Layout.fillHeight: true
-            title: "Configuración"
+            title: qsTr("Configuración")
             ColumnLayout {
             anchors.fill: parent
             spacing: 6
@@ -153,7 +154,7 @@ Rectangle {
                         radius: 10
                         color: modelData.seccion === page.section ? Qt.rgba(1, 0.42, 0.17, 0.25) : (sectMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
                         Text { anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                               text: modelData.seccion || ""; color: Theme.text; font.pixelSize: 13 }
+                               text: Studio.settings.seccionVisible(modelData.seccion || ""); color: Theme.text; font.pixelSize: 13 }
                         MouseArea { id: sectMa; anchors.fill: parent; hoverEnabled: true; onClicked: Studio.seccionConfig = modelData.seccion }
                     }
                 }
@@ -164,14 +165,14 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: page.section
+            title: Studio.settings.seccionVisible(page.section)
             // Arriba a la derecha, al lado del título: los avanzados (antes fijos en el código).
             RowLayout {
                 z: 10
                 anchors { top: parent.top; right: parent.right; topMargin: -34; rightMargin: 4 }
                 spacing: 6
                 visible: Studio.settings.tieneBasicos(page.section) && Studio.settings.tieneAvanzados(page.section)
-                Text { text: "Mostrar ajustes avanzados"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("Mostrar ajustes avanzados"); color: Theme.textDim; font.pixelSize: 12 }
                 Switch { checked: page.verAvanzados; onToggled: page.verAvanzados = checked }
             }
             ScrollView {
@@ -191,10 +192,10 @@ Rectangle {
                     // Cloudflare: su token, cifrado en Credenciales/ (antes solo por variable de entorno).
                     Seccion {
                         visible: page.section === "Cloudflare"
-                        titulo: "Token del túnel de Cloudflare"
-                        subtitulo: "Sin token el túnel no arranca aunque esté prendido. Se guarda cifrado en este equipo y no se vuelve a mostrar. Rige cuando la conferencia arranca."
+                        titulo: qsTr("Token del túnel de Cloudflare")
+                        subtitulo: qsTr("Sin token el túnel no arranca aunque esté prendido. Se guarda cifrado en este equipo y no se vuelve a mostrar. Rige cuando la conferencia arranca.")
                         Text {
-                            text: Studio.accesoRemoto && Studio.accesoRemoto.tokenCloudflareGuardado ? "● Guardado" : "● Sin token"
+                            text: Studio.accesoRemoto && Studio.accesoRemoto.tokenCloudflareGuardado ? qsTr("● Guardado") : qsTr("● Sin token")
                             color: Studio.accesoRemoto && Studio.accesoRemoto.tokenCloudflareGuardado ? Theme.ok : Theme.warn; font.pixelSize: 12
                         }
                         RowLayout {
@@ -204,27 +205,27 @@ Rectangle {
                                 id: cfCampo
                                 Layout.fillWidth: true
                                 echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
-                                placeholderText: "Pegá acá el token del túnel (empieza con eyJ…)"
+                                placeholderText: qsTr("Pegá acá el token del túnel (empieza con eyJ…)")
                             }
                             GlassButton {
-                                compact: true; text: "Guardar"; active: cfCampo.text !== ""; enabled: cfCampo.text !== ""
+                                compact: true; text: qsTr("Guardar"); active: cfCampo.text !== ""; enabled: cfCampo.text !== ""
                                 onClicked: {
                                     const e = Studio.accesoRemoto.guardarTokenCloudflare(cfCampo.text)
                                     if (e === "") cfCampo.text = ""
-                                    Studio.notify(e === "" ? "Token de Cloudflare guardado (cifrado). Prendé el túnel y aplicá." : e, e === "" ? "ok" : "error")
+                                    Studio.notify(e === "" ? qsTr("Token de Cloudflare guardado (cifrado). Prendé el túnel y aplicá.") : e, e === "" ? "ok" : "error")
                                 }
                             }
                             GlassButton {
-                                compact: true; text: "Borrar"
+                                compact: true; text: qsTr("Borrar")
                                 enabled: !!Studio.accesoRemoto && Studio.accesoRemoto.tokenCloudflareGuardado
-                                onClicked: { const e = Studio.accesoRemoto.borrarTokenCloudflare(); Studio.notify(e === "" ? "Token de Cloudflare borrado." : e, e === "" ? "ok" : "error") }
+                                onClicked: { const e = Studio.accesoRemoto.borrarTokenCloudflare(); Studio.notify(e === "" ? qsTr("Token de Cloudflare borrado.") : e, e === "" ? "ok" : "error") }
                             }
                         }
                     }
                     CamposDeSeccion { Layout.fillWidth: true; seccion: page.section }
                     GlassButton {
                         Layout.topMargin: 10
-                        text: "Valores por defecto de esta sección"; compact: true
+                        text: qsTr("Valores por defecto de esta sección"); compact: true
                         onClicked: Studio.settings.resetSection(page.section)
                     }
                     // Las secciones de la conferencia: al aplicar se reinicia sola, y acá
@@ -235,20 +236,20 @@ Rectangle {
                         Layout.topMargin: 4
                         spacing: 10
                         GlassButton {
-                            compact: true; text: "Reiniciar el servidor ahora"; icon: "↻"
+                            compact: true; text: qsTr("Reiniciar el servidor ahora"); icon: "↻"
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Reiniciar el servidor?",
-                                text: "Se reinicia solo el servidor (gateway: la conferencia y las páginas web) con la configuración guardada. Los invitados y lo que esté conectado se cortan y vuelven a entrar.",
-                                accept: "Reiniciar", reject: "Cancelar",
+                                title: qsTr("¿Reiniciar el servidor?"),
+                                text: qsTr("Se reinicia solo el servidor (gateway: la conferencia y las páginas web) con la configuración guardada. Los invitados y lo que esté conectado se cortan y vuelven a entrar."),
+                                accept: qsTr("Reiniciar"), reject: qsTr("Cancelar"),
                                 action: function() {
                                     const e = Studio.conference.reiniciarSala()
-                                    Studio.notify(e === "" ? "El servidor se está reiniciando." : e, e === "" ? "ok" : "error")
+                                    Studio.notify(e === "" ? qsTr("El servidor se está reiniciando.") : e, e === "" ? "ok" : "error")
                                 }
                             })
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Los cambios marcados «reinicia el servidor» lo reinician solos al aplicarlos; el resto del programa sigue andando."
+                            text: qsTr("Los cambios marcados «reinicia el servidor» lo reinician solos al aplicarlos; el resto del programa sigue andando.")
                         }
                     }
                 }
@@ -378,19 +379,19 @@ Rectangle {
                          : e === "error" ? Theme.live : Theme.textFaint
                 }
                 function textoEstado(e) {
-                    return e === "listo" ? "Túnel listo: se entra desde internet"
-                         : e === "conectando" ? "Conectando con pinggy…"
-                         : e === "reconectando" ? "Se cortó: reconectando…"
-                         : e === "error" ? "El túnel no anda"
-                         : e === "apagado" ? "Túnel apagado"
-                         : "Estado desconocido"
+                    return e === "listo" ? qsTr("Túnel listo: se entra desde internet")
+                         : e === "conectando" ? qsTr("Conectando con pinggy…")
+                         : e === "reconectando" ? qsTr("Se cortó: reconectando…")
+                         : e === "error" ? qsTr("El túnel no anda")
+                         : e === "apagado" ? qsTr("Túnel apagado")
+                         : qsTr("Estado desconocido")
                 }
                 function guardarSecreto(campo, esToken) {
                     if (!esToken) {
                         const e = pg.ar.guardarApiKey(campo.text)
                         if (e !== "") { Studio.notify(e, "error"); return }
                         campo.text = ""
-                        Studio.notify("API key guardada (cifrada).", "ok")
+                        Studio.notify(qsTr("API key guardada (cifrada)."), "ok")
                         return
                     }
                     // Si hay que reiniciar la conferencia para que rija lo decide el modelo.
@@ -399,23 +400,23 @@ Rectangle {
                     campo.text = ""
                     if (r.reiniciarAhora) {
                         ApplicationWindow.window.confirm({
-                            title: "Token guardado",
-                            text: "La conferencia lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
-                            accept: "Reiniciar la conferencia", reject: "Después",
+                            title: qsTr("Token guardado"),
+                            text: qsTr("La conferencia lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar."),
+                            accept: qsTr("Reiniciar la conferencia"), reject: qsTr("Después"),
                             action: function() {
                                 const e = Studio.conference.reiniciarSala()
-                                Studio.notify(e === "" ? "La conferencia se está reiniciando con el token nuevo." : e, e === "" ? "ok" : "error")
+                                Studio.notify(e === "" ? qsTr("La conferencia se está reiniciando con el token nuevo.") : e, e === "" ? "ok" : "error")
                             }
                         })
                     } else {
-                        Studio.notify("Token guardado (cifrado). Rige cuando la conferencia arranca: prendé «Túnel de pinggy» y aplicá, o reiniciá la conferencia.", "ok")
+                        Studio.notify(qsTr("Token guardado (cifrado). Rige cuando la conferencia arranca: prendé «Túnel de pinggy» y aplicá, o reiniciá la conferencia."), "ok")
                     }
                 }
 
 
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "Saca las páginas de la conferencia a internet por pinggy.io (una dirección para todo: invitados, sesión remota, público) y el video de los de afuera por un TURN propio. Lo de la red local sigue igual."
+                    text: qsTr("Saca las páginas de la conferencia a internet por pinggy.io (una dirección para todo: invitados, sesión remota, público) y el video de los de afuera por un TURN propio. Lo de la red local sigue igual.")
                 }
                 // Gratis o Pro: qué se puede y qué no (lo de Pro, según pinggy: probado solo el gratis).
                 RowLayout {
@@ -423,21 +424,21 @@ Rectangle {
                     spacing: 12
                     Repeater {
                         model: [
-                            { titulo: "Sin token (gratis)", color: Theme.warn, items: [
-                                "Para probar: anda sin cargar nada.",
-                                "La dirección es al azar, lleva la IP pública del equipo y cambia cada vez que se prende (el enlace y el QR también).",
-                                "El túnel dura 60 minutos: después hay que volver a prenderlo y la dirección cambia.",
-                                "A cada navegador pinggy le muestra antes un aviso («Caution – you are about to visit…») que hay que aceptar con un botón: los invitados se confunden.",
-                                "Sin subdominio fijo, sin dominio propio y sin puertos fijos.",
-                                "El video de los de afuera anda (por el TURN por TCP)."
+                            { titulo: qsTr("Sin token (gratis)"), color: Theme.warn, items: [
+                                qsTr("Para probar: anda sin cargar nada."),
+                                qsTr("La dirección es al azar, lleva la IP pública del equipo y cambia cada vez que se prende (el enlace y el QR también)."),
+                                qsTr("El túnel dura 60 minutos: después hay que volver a prenderlo y la dirección cambia."),
+                                qsTr("A cada navegador pinggy le muestra antes un aviso («Caution – you are about to visit…») que hay que aceptar con un botón: los invitados se confunden."),
+                                qsTr("Sin subdominio fijo, sin dominio propio y sin puertos fijos."),
+                                qsTr("El video de los de afuera anda (por el TURN por TCP).")
                             ] },
-                            { titulo: "Con token (plan Pro)", color: Theme.ok, items: [
-                                "Sin límite de tiempo y sin el aviso intermedio: se entra directo.",
-                                "Dirección fija: un subdominio de pinggy o el dominio de la organización (con un CNAME; el certificado lo pone pinggy).",
-                                "Puertos fijos para el TURN, si se reservan.",
-                                "La API key permite ver desde acá los túneles activos de la cuenta.",
-                                "Un túnel por token: cada equipo necesita su propio token.",
-                                "Se configura en dashboard.pinggy.io: el token del plan y la API key van abajo, cada uno en su lugar."
+                            { titulo: qsTr("Con token (plan Pro)"), color: Theme.ok, items: [
+                                qsTr("Sin límite de tiempo y sin el aviso intermedio: se entra directo."),
+                                qsTr("Dirección fija: un subdominio de pinggy o el dominio de la organización (con un CNAME; el certificado lo pone pinggy)."),
+                                qsTr("Puertos fijos para el TURN, si se reservan."),
+                                qsTr("La API key permite ver desde acá los túneles activos de la cuenta."),
+                                qsTr("Un túnel por token: cada equipo necesita su propio token."),
+                                qsTr("Se configura en dashboard.pinggy.io: el token del plan y la API key van abajo, cada uno en su lugar.")
                             ] }
                         ]
                         delegate: Rectangle {
@@ -468,11 +469,11 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                    text: "En los dos: el tráfico no tiene tope y todo pasa por los servidores de pinggy (desde Argentina, la región automática da São Paulo, unos 200 ms de ida y vuelta). La red local no cambia. Si hay un servidor propio con WireGuard, para el video sigue siendo mejor camino. Probado en este programa: el plan gratis; lo de Pro es lo que publica pinggy."
+                    text: qsTr("En los dos: el tráfico no tiene tope y todo pasa por los servidores de pinggy (desde Argentina, la región automática da São Paulo, unos 200 ms de ida y vuelta). La red local no cambia. Si hay un servidor propio con WireGuard, para el video sigue siendo mejor camino. Probado en este programa: el plan gratis; lo de Pro es lo que publica pinggy.")
                 }
                 Text {
                     Layout.topMargin: 14
-                    text: "Estado"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                    text: qsTr("Estado"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -490,10 +491,10 @@ Rectangle {
                         Text {
                             visible: (pg.pk.error || "") !== ""
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
-                            text: "Último error: " + (pg.pk.error || ""); color: Theme.live; font.pixelSize: 11
+                            text: qsTr("Último error: %1").arg(pg.pk.error || ""); color: Theme.live; font.pixelSize: 11
                         }
                     }
-                    GlassButton { compact: true; text: "Actualizar"; icon: "↻"; onClicked: pg.ar.refrescar() }
+                    GlassButton { compact: true; text: qsTr("Actualizar"); icon: "↻"; onClicked: pg.ar.refrescar() }
                 }
                 // La dirección pública y la de cada página, copiables.
                 Repeater {
@@ -507,43 +508,43 @@ Rectangle {
                             Layout.fillWidth: true; readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
                             text: modelData.url; color: Theme.text; font { pixelSize: 12; family: Theme.mono }
                         }
-                        GlassButton { compact: true; text: "Copiar"; onClicked: Studio.copiar(modelData.url) }
+                        GlassButton { compact: true; text: qsTr("Copiar"); onClicked: Studio.copiar(modelData.url) }
                     }
                 }
                 Text {
                     visible: (pg.pk.urls || []).length > 1
                     Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                    text: "Direcciones del túnel: " + (pg.pk.urls || []).join("  ·  ")
+                    text: qsTr("Direcciones del túnel: %1").arg((pg.pk.urls || []).join("  ·  "))
                     color: Theme.textFaint; font.pixelSize: 11
                 }
                 Text {
                     visible: pg.pk.turn !== undefined && (pg.pk.turn.publico || "") !== ""
                     Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                    text: pg.pk.turn ? "TURN (video de los de afuera): " + pg.pk.turn.publico + (pg.pk.turn.tipo ? " · " + pg.pk.turn.tipo : "")
-                                       + (typeof pg.pk.turn.udp === "string" && pg.pk.turn.udp !== "" ? " · UDP: " + pg.pk.turn.udp
-                                          : pg.pk.turn.udp === true ? " · también UDP" : " · solo TCP") : ""
+                    text: pg.pk.turn ? qsTr("TURN (video de los de afuera): %1").arg(pg.pk.turn.publico + (pg.pk.turn.tipo ? " · " + pg.pk.turn.tipo : "")
+                                       + (typeof pg.pk.turn.udp === "string" && pg.pk.turn.udp !== "" ? " · " + qsTr("UDP: %1").arg(pg.pk.turn.udp)
+                                          : pg.pk.turn.udp === true ? " · " + qsTr("también UDP") : " · " + qsTr("solo TCP"))) : ""
                     color: Theme.textDim; font.pixelSize: 11
                 }
 
                 Text {
                     Layout.topMargin: 14
-                    text: "Conexión"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                    text: qsTr("Conexión"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.activo", "pinggy.region"] }
                 // Las dos claves de pinggy, juntas y bien separadas: no son lo mismo y
                 // pegar una en el lugar de la otra era el error de siempre.
                 Text {
                     Layout.topMargin: 14
-                    text: "Las dos claves de pinggy"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                    text: qsTr("Las dos claves de pinggy"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                     textFormat: Text.StyledText; linkColor: Theme.accent
                     onLinkActivated: (l) => Qt.openUrlExternally(l)
-                    text: "<b>Lo más fácil: pegá solo la API key y tocá «Armar todo».</b> La app le pide a tu cuenta el token del túnel, "
+                    text: qsTr("<b>Lo más fácil: pegá solo la API key y tocá «Armar todo».</b> La app le pide a tu cuenta el token del túnel, "
                           + "tu subdominio fijo y tu puerto, y prende el túnel; si querés otro nombre, escribilo y lo cambia en la cuenta. "
                           + "No hace falta entrar a <a href=\"https://dashboard.pinggy.io\">dashboard.pinggy.io</a>. "
-                          + "Las claves se guardan cifradas en este equipo y no se vuelven a mostrar."
+                          + "Las claves se guardan cifradas en este equipo y no se vuelven a mostrar.")
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -554,7 +555,7 @@ Rectangle {
                         id: igualesTxt
                         anchors { fill: parent; margins: 8 }
                         wrapMode: Text.WordWrap; color: Theme.live; font.pixelSize: 12
-                        text: "El token y la API key guardados son la MISMA clave: casi seguro pegaste la API key en el lugar del token. Así el túnel no abre (pinggy contesta «no autenticado»). Pegá en «Token del plan» el token del comando del túnel."
+                        text: qsTr("El token y la API key guardados son la MISMA clave: casi seguro pegaste la API key en el lugar del token. Así el túnel no abre (pinggy contesta «no autenticado»). Pegá en «Token del plan» el token del comando del túnel.")
                     }
                 }
                 GridLayout {
@@ -564,11 +565,11 @@ Rectangle {
                     // --- 1. El token del plan ---
                     Seccion {
                         Layout.alignment: Qt.AlignTop
-                        titulo: "Token del plan — abre el túnel (lo trae «Armar todo»)"
-                        subtitulo: "Con él, el túnel usa tu plan Pro: dirección fija (tu subdominio o tu dominio), sin el cartel de aviso y sin el límite de 60 minutos."
+                        titulo: qsTr("Token del plan — abre el túnel (lo trae «Armar todo»)")
+                        subtitulo: qsTr("Con él, el túnel usa tu plan Pro: dirección fija (tu subdominio o tu dominio), sin el cartel de aviso y sin el límite de 60 minutos.")
                         resaltado: pg.ar.clavesIguales ? Theme.live : "transparent"
                         Text {
-                            text: pg.ar.tokenGuardado ? "● Guardado" : "● Sin token: modo gratis (60 minutos, dirección al azar, con el aviso de pinggy)"
+                            text: pg.ar.tokenGuardado ? qsTr("● Guardado") : qsTr("● Sin token: modo gratis (60 minutos, dirección al azar, con el aviso de pinggy)")
                             color: pg.ar.tokenGuardado ? (pg.ar.clavesIguales ? Theme.live : Theme.ok) : Theme.warn; font.pixelSize: 12
                         }
                         RowLayout {
@@ -578,32 +579,32 @@ Rectangle {
                                 id: tokenCampo
                                 Layout.fillWidth: true
                                 echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
-                                placeholderText: pg.ar.tokenGuardado ? "Pegá uno nuevo para reemplazarlo" : "Pegá acá el token del plan"
+                                placeholderText: pg.ar.tokenGuardado ? qsTr("Pegá uno nuevo para reemplazarlo") : qsTr("Pegá acá el token del plan")
                                 onAccepted: if (text !== "") pg.guardarSecreto(tokenCampo, true)
                             }
-                            GlassButton { compact: true; text: "Guardar"; active: tokenCampo.text !== ""; enabled: tokenCampo.text !== ""; onClicked: pg.guardarSecreto(tokenCampo, true) }
+                            GlassButton { compact: true; text: qsTr("Guardar"); active: tokenCampo.text !== ""; enabled: tokenCampo.text !== ""; onClicked: pg.guardarSecreto(tokenCampo, true) }
                             GlassButton {
-                                compact: true; text: "Borrar"; enabled: pg.ar.tokenGuardado
+                                compact: true; text: qsTr("Borrar"); enabled: pg.ar.tokenGuardado
                                 onClicked: ApplicationWindow.window.confirm({
-                                    title: "¿Borrar el token de pinggy?",
-                                    text: "Cuando la conferencia vuelva a arrancar, el túnel queda en modo gratis hasta que guardes otro.",
-                                    accept: "Borrar", reject: "Cancelar",
-                                    action: function() { const e = pg.ar.borrarToken(); Studio.notify(e === "" ? "Token borrado." : e, e === "" ? "ok" : "error") }
+                                    title: qsTr("¿Borrar el token de pinggy?"),
+                                    text: qsTr("Cuando la conferencia vuelva a arrancar, el túnel queda en modo gratis hasta que guardes otro."),
+                                    accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
+                                    action: function() { const e = pg.ar.borrarToken(); Studio.notify(e === "" ? qsTr("Token borrado.") : e, e === "" ? "ok" : "error") }
                                 })
                             }
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Dónde está: en el panel de pinggy, el token de acceso que aparece en el comando para abrir un túnel (ssh … <token>@pro.pinggy.io). Uno por equipo. Rige cuando la conferencia arranca."
+                            text: qsTr("Dónde está: en el panel de pinggy, el token de acceso que aparece en el comando para abrir un túnel (ssh … <token>@pro.pinggy.io). Uno por equipo. Rige cuando la conferencia arranca.")
                         }
                     }
                     // --- 2. La API key ---
                     Seccion {
                         Layout.alignment: Qt.AlignTop
-                        titulo: "API key — maneja tu cuenta de pinggy"
-                        subtitulo: "Con ella la app arma todo sola (token, subdominio, puerto), cambia el subdominio y corta túneles de la cuenta. Es lo único que hace falta pegar."
+                        titulo: qsTr("API key — maneja tu cuenta de pinggy")
+                        subtitulo: qsTr("Con ella la app arma todo sola (token, subdominio, puerto), cambia el subdominio y corta túneles de la cuenta. Es lo único que hace falta pegar.")
                         Text {
-                            text: pg.ar.apiKeyGuardada ? "● Guardada" : "● Sin API key (opcional)"
+                            text: pg.ar.apiKeyGuardada ? qsTr("● Guardada") : qsTr("● Sin API key (opcional)")
                             color: pg.ar.apiKeyGuardada ? (pg.ar.clavesIguales ? Theme.live : Theme.ok) : Theme.textFaint; font.pixelSize: 12
                         }
                         RowLayout {
@@ -613,22 +614,22 @@ Rectangle {
                                 id: apiCampo
                                 Layout.fillWidth: true
                                 echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
-                                placeholderText: pg.ar.apiKeyGuardada ? "Pegá una nueva para reemplazarla" : "Pegá acá la API key"
+                                placeholderText: pg.ar.apiKeyGuardada ? qsTr("Pegá una nueva para reemplazarla") : qsTr("Pegá acá la API key")
                                 onAccepted: if (text !== "") pg.guardarSecreto(apiCampo, false)
                             }
-                            GlassButton { compact: true; text: "Guardar"; active: apiCampo.text !== ""; enabled: apiCampo.text !== ""; onClicked: pg.guardarSecreto(apiCampo, false) }
+                            GlassButton { compact: true; text: qsTr("Guardar"); active: apiCampo.text !== ""; enabled: apiCampo.text !== ""; onClicked: pg.guardarSecreto(apiCampo, false) }
                             GlassButton {
-                                compact: true; text: "Borrar"; enabled: pg.ar.apiKeyGuardada
-                                onClicked: { const e = pg.ar.borrarApiKey(); Studio.notify(e === "" ? "API key borrada." : e, e === "" ? "ok" : "error") }
+                                compact: true; text: qsTr("Borrar"); enabled: pg.ar.apiKeyGuardada
+                                onClicked: { const e = pg.ar.borrarApiKey(); Studio.notify(e === "" ? qsTr("API key borrada.") : e, e === "" ? "ok" : "error") }
                             }
                             GlassButton {
-                                compact: true; text: "Ver en pinggy"; enabled: pg.ar.apiKeyGuardada && pg.ar.panel.estado !== "consultando"
+                                compact: true; text: qsTr("Ver en pinggy"); enabled: pg.ar.apiKeyGuardada && pg.ar.panel.estado !== "consultando"
                                 onClicked: pg.ar.verEnPinggy()
                             }
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Dónde está: en el panel de pinggy, en la parte de API keys (se crea ahí). «Ver en pinggy» muestra lo que la cuenta tiene activo, visto desde pinggy."
+                            text: qsTr("Dónde está: en el panel de pinggy, en la parte de API keys (se crea ahí). «Ver en pinggy» muestra lo que la cuenta tiene activo, visto desde pinggy.")
                         }
                         Text {
                             visible: (pg.ar.panel.texto || "") !== ""
@@ -641,34 +642,34 @@ Rectangle {
                 }
                 // Armar todo con la API key: token, subdominio (y cambiarlo), puerto, y prender.
                 Seccion {
-                    titulo: "Armar todo con la API key"
-                    subtitulo: pg.ar.apiKeyGuardada ? "Trae el token del túnel, tu subdominio y tu puerto TCP fijo desde la cuenta, y prende el túnel (la conferencia se reinicia)."
-                                                    : "Primero guardá la API key (arriba)."
+                    titulo: qsTr("Armar todo con la API key")
+                    subtitulo: pg.ar.apiKeyGuardada ? qsTr("Trae el token del túnel, tu subdominio y tu puerto TCP fijo desde la cuenta, y prende el túnel (la conferencia se reinicia).")
+                                                    : qsTr("Primero guardá la API key (arriba).")
                     resaltado: pg.ar.cuenta.estado === "error" ? Theme.live : pg.ar.cuenta.estado === "ok" ? Theme.ok : "transparent"
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Text { text: "Subdominio (opcional)"; color: Theme.textDim; font.pixelSize: 12 }
+                        Text { text: qsTr("Subdominio (opcional)"); color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
                             id: subPedido
                             Layout.preferredWidth: 220
-                            placeholderText: "dejalo vacío o p. ej. sala-concejo"
+                            placeholderText: qsTr("dejalo vacío o p. ej. sala-concejo")
                             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
                         }
                         Text { text: ".a.pinggy.link"; color: Theme.textFaint; font.pixelSize: 12 }
                         Item { Layout.fillWidth: true }
                         GlassButton {
-                            text: pg.ar.cuenta.estado === "trabajando" ? "Armando…" : "Armar todo"; active: true
+                            text: pg.ar.cuenta.estado === "trabajando" ? qsTr("Armando…") : qsTr("Armar todo"); active: true
                             enabled: pg.ar.apiKeyGuardada && pg.ar.cuenta.estado !== "trabajando"
                             onClicked: pg.ar.configurarConApiKey(subPedido.text)
                         }
                         GlassButton {
-                            compact: true; text: "Cortar túneles de la cuenta"
+                            compact: true; text: qsTr("Cortar túneles de la cuenta")
                             enabled: pg.ar.apiKeyGuardada && pg.ar.cuenta.estado !== "trabajando"
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Cortar los túneles de la cuenta?",
-                                text: "Corta todos los túneles activos de tu cuenta de pinggy (p. ej. otro equipo con el mismo token). El de este equipo vuelve a conectarse solo si está prendido.",
-                                accept: "Cortar", reject: "Cancelar", action: function() { pg.ar.cortarTunelesDeLaCuenta() } })
+                                title: qsTr("¿Cortar los túneles de la cuenta?"),
+                                text: qsTr("Corta todos los túneles activos de tu cuenta de pinggy (p. ej. otro equipo con el mismo token). El de este equipo vuelve a conectarse solo si está prendido."),
+                                accept: qsTr("Cortar"), reject: qsTr("Cancelar"), action: function() { pg.ar.cortarTunelesDeLaCuenta() } })
                         }
                     }
                     Text {
@@ -681,29 +682,29 @@ Rectangle {
 
                 Text {
                     Layout.topMargin: 14
-                    text: "Dirección pública"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                    text: qsTr("Dirección pública"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.dominioTipo", "pinggy.host", "pinggy.cnameDestino"] }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
                     text: pg.borrador["pinggy.dominioTipo"] === "azar"
-                          ? "Al azar cambia cada vez que arranca el túnel (y el QR con él). Para una dirección fija: subdominio fijo de pinggy o dominio propio (plan Pro)."
+                          ? qsTr("Al azar cambia cada vez que arranca el túnel (y el QR con él). Para una dirección fija: subdominio fijo de pinggy o dominio propio (plan Pro).")
                           : pg.borrador["pinggy.dominioTipo"] === "pinggy"
-                          ? "El subdominio se crea en dashboard.pinggy.io → Domains y se asigna al token (queda del estilo nombre.a.pinggy.link). Escribilo tal cual y probalo."
-                          : "Tu dominio (p. ej. sala.miorganismo.gob.ar): se carga en dashboard.pinggy.io → Domains, se asigna al token y se apunta con un CNAME (abajo, las instrucciones)."
+                          ? qsTr("El subdominio se crea en dashboard.pinggy.io → Domains y se asigna al token (queda del estilo nombre.a.pinggy.link). Escribilo tal cual y probalo.")
+                          : qsTr("Tu dominio (p. ej. sala.miorganismo.gob.ar): se carga en dashboard.pinggy.io → Domains, se asigna al token y se apunta con un CNAME (abajo, las instrucciones).")
                 }
                 // Probar la dirección: si pinggy la da con este token (asignada y libre).
                 RowLayout {
                     visible: pg.borrador["pinggy.dominioTipo"] !== "azar"
                     spacing: 8
                     GlassButton {
-                        compact: true; text: "Probar dirección"; icon: "✓"
+                        compact: true; text: qsTr("Probar dirección"); icon: "✓"
                         enabled: pg.ar.prueba.estado !== "probando"
                         onClicked: pg.ar.probarDireccion(pg.borrador["pinggy.dominioTipo"] || "", pg.borrador["pinggy.host"] || "")
                     }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                        text: "Abre un túnel de prueba de unos segundos con tu token y se fija si pinggy te da esa dirección (no la tiene otro túnel y está asignada a tu token). Con el túnel de este equipo apagado."
+                        text: qsTr("Abre un túnel de prueba de unos segundos con tu token y se fija si pinggy te da esa dirección (no la tiene otro túnel y está asignada a tu token). Con el túnel de este equipo apagado.")
                     }
                 }
                 Text {
@@ -719,11 +720,11 @@ Rectangle {
                     spacing: 8
                     Text {
                         Layout.topMargin: 6
-                        text: "DNS del dominio propio"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
+                        text: qsTr("DNS del dominio propio"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
                     }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                        text: "Esto es lo que tiene que hacer quien administra el dominio. Se arma con lo que cargaste arriba: copialo y mandáselo."
+                        text: qsTr("Esto es lo que tiene que hacer quien administra el dominio. Se arma con lo que cargaste arriba: copialo y mandáselo.")
                     }
                     TextArea {
                         id: instrucciones
@@ -736,9 +737,9 @@ Rectangle {
                     }
                     RowLayout {
                         spacing: 8
-                        GlassButton { compact: true; text: "Copiar instrucciones"; onClicked: Studio.copiar(instrucciones.text) }
+                        GlassButton { compact: true; text: qsTr("Copiar instrucciones"); onClicked: Studio.copiar(instrucciones.text) }
                         GlassButton {
-                            compact: true; text: "Verificar DNS"
+                            compact: true; text: qsTr("Verificar DNS")
                             enabled: pg.ar.dns.estado !== "verificando"
                             onClicked: pg.ar.verificarDns(pg.borrador["pinggy.host"] || "", pg.borrador["pinggy.cnameDestino"] || "")
                         }
@@ -753,36 +754,36 @@ Rectangle {
                 }
                 Text {
                     Layout.topMargin: 14
-                    text: "Video de los invitados de afuera"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                    text: qsTr("Video de los invitados de afuera"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "Por el túnel solo pasa TCP o UDP hacia un TURN dentro de esta caja: el video de los de afuera entra por ahí (cifrado de punta a punta). Sin esto ven la página pero no se conectan con video."
+                    text: qsTr("Por el túnel solo pasa TCP o UDP hacia un TURN dentro de esta caja: el video de los de afuera entra por ahí (cifrado de punta a punta). Sin esto ven la página pero no se conectan con video.")
                 }
                 CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.turn", "pinggy.turnTcpPuerto", "pinggy.turnUdp", "pinggy.turnUdpPuerto"] }
                 Text {
                     Layout.topMargin: 14
-                    text: "Seguridad"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                    text: qsTr("Seguridad"); color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.listaBlanca", "pinggy.puertoTunel"] }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "Lo que entra por el túnel cuenta siempre como «de afuera»: la botonera no se abre desde internet y la API de control y el asistente nunca pasan por el túnel."
+                    text: qsTr("Lo que entra por el túnel cuenta siempre como «de afuera»: la botonera no se abre desde internet y la API de control y el asistente nunca pasan por el túnel.")
                 }
                 CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: page.clavesAvanzadasPinggy }
                 RowLayout {
                     Layout.topMargin: 10
                     spacing: 10
-                    GlassButton { compact: true; text: "Valores por defecto de esta sección"; onClicked: Studio.settings.resetSection("Pinggy") }
+                    GlassButton { compact: true; text: qsTr("Valores por defecto de esta sección"); onClicked: Studio.settings.resetSection("Pinggy") }
                     GlassButton {
-                        compact: true; text: "Reiniciar la conferencia ahora"; icon: "↻"
+                        compact: true; text: qsTr("Reiniciar la conferencia ahora"); icon: "↻"
                         onClicked: ApplicationWindow.window.confirm({
-                            title: "¿Reiniciar la conferencia?",
-                            text: "Se reinicia solo el servidor de la conferencia (y el túnel) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
-                            accept: "Reiniciar", reject: "Cancelar",
+                            title: qsTr("¿Reiniciar la conferencia?"),
+                            text: qsTr("Se reinicia solo el servidor de la conferencia (y el túnel) con la configuración guardada. Los invitados se cortan y vuelven a entrar."),
+                            accept: qsTr("Reiniciar"), reject: qsTr("Cancelar"),
                             action: function() {
                                 const e = Studio.conference.reiniciarSala()
-                                Studio.notify(e === "" ? "La conferencia se está reiniciando." : e, e === "" ? "ok" : "error")
+                                Studio.notify(e === "" ? qsTr("La conferencia se está reiniciando.") : e, e === "" ? "ok" : "error")
                             }
                         })
                     }
@@ -813,25 +814,25 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "Le permite al asistente (Claude, Gemini, opencode) manejar el escritorio de esta máquina: ver la pantalla, "
-                          + "mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado."
+                    text: qsTr("Le permite al asistente (Claude, Gemini, opencode) manejar el escritorio de esta máquina: ver la pantalla, "
+                          + "mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado.")
                 }
                 Text {
                     visible: ctl.estado.sistema === "macOS"
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "En macOS el control pide dos permisos del sistema, la primera vez que se usan: «Accesibilidad» (mouse, "
+                    text: qsTr("En macOS el control pide dos permisos del sistema, la primera vez que se usan: «Accesibilidad» (mouse, "
                           + "teclado y ventanas) y «Grabación de pantalla» (capturas y títulos de las ventanas), en Ajustes del "
-                          + "Sistema › Privacidad y seguridad."
+                          + "Sistema › Privacidad y seguridad.")
                 }
                 Text {
                     visible: ctl.estado.soportado === false
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: 12
-                    text: "En " + (ctl.estado.sistema || "este sistema") + " el control todavía está en camino: los permisos se guardan, "
-                          + "pero las herramientas contestan que aún no están hechas acá (las mismas que en Windows)."
+                    text: qsTr("En %1 el control todavía está en camino: los permisos se guardan, "
+                          + "pero las herramientas contestan que aún no están hechas acá (las mismas que en Windows).").arg(ctl.estado.sistema || qsTr("este sistema"))
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: "Permitir el control del sistema"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { Layout.fillWidth: true; text: qsTr("Permitir el control del sistema"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Toggle { checked: ctl.estado.habilitado === true; onToggled: (quiero) => ctl.cambiar({ habilitado: quiero }) }
                 }
                 RowLayout {
@@ -841,18 +842,18 @@ Rectangle {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: "Preguntar antes de cada acción"; color: Theme.text; font.pixelSize: 13 }
+                        Text { text: qsTr("Preguntar antes de cada acción"); color: Theme.text; font.pixelSize: 13 }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "El asistente le pide permiso al operador en su consola antes de cada clic, tecla o programa. "
-                                  + "Apagado, actúa solo (opencode solo recibe el control si esto está apagado: no sabe preguntar)."
+                            text: qsTr("El asistente le pide permiso al operador en su consola antes de cada clic, tecla o programa. "
+                                  + "Apagado, actúa solo (opencode solo recibe el control si esto está apagado: no sabe preguntar).")
                         }
                     }
                     Toggle { checked: ctl.estado.preguntar === true; onToggled: (quiero) => ctl.cambiar({ preguntar: quiero }) }
                 }
                 Text {
                     Layout.topMargin: 6
-                    text: "Qué puede hacer"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                    text: qsTr("Qué puede hacer"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                 }
                 Repeater {
                     model: ctl.estado.capacidades || []
@@ -871,10 +872,10 @@ Rectangle {
                 Text {
                     Layout.topMargin: 6
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                    text: "Los permisos valen enseguida. Prender o apagar el control, o «preguntar», vale al relanzar el asistente."
+                    text: qsTr("Los permisos valen enseguida. Prender o apagar el control, o «preguntar», vale al relanzar el asistente.")
                 }
                 GlassButton {
-                    compact: true; text: "Relanzar el asistente"
+                    compact: true; text: qsTr("Relanzar el asistente")
                     onClicked: Studio.agent.restart()
                 }
             }
@@ -908,17 +909,17 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 1
                         Text {
-                            text: ml.estado === "listo" ? "Modelo listo"
-                                : ml.estado === "cargando" ? "Cargando…"
-                                : ml.estado === "error" ? "El modelo no anda"
-                                : "Apagado"
+                            text: ml.estado === "listo" ? qsTr("Modelo listo")
+                                : ml.estado === "cargando" ? qsTr("Cargando…")
+                                : ml.estado === "error" ? qsTr("El modelo no anda")
+                                : qsTr("Apagado")
                             color: Theme.text
                             font { pixelSize: 15; weight: Font.DemiBold }
                         }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: (ml.detalle !== "" ? ml.detalle + " · " : "") + "Motor: " + ml.motor
+                            text: (ml.detalle !== "" ? ml.detalle + " · " : "") + qsTr("Motor: %1").arg(ml.motor)
                             color: ml.estado === "error" ? Theme.live : Theme.textDim
                             font.pixelSize: 11
                         }
@@ -926,27 +927,27 @@ Rectangle {
                     GlassButton {
                         compact: true
                         visible: ml.estado === "listo" || ml.estado === "cargando"
-                        text: "Apagar"
+                        text: qsTr("Apagar")
                         onClicked: ml.apagar()
                     }
-                    GlassButton { compact: true; text: "Carpeta"; icon: "📁"; onClicked: ml.abrirCarpeta() }
+                    GlassButton { compact: true; text: qsTr("Carpeta"); icon: "📁"; onClicked: ml.abrirCarpeta() }
                 }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "Elige la herramienta para una frase corta de cabina en una fracción de segundo, sin salir " +
-                          "de la máquina. Lo que no es suyo lo deriva al asistente grande, con la frase tal cual."
+                    text: qsTr("Elige la herramienta para una frase corta de cabina en una fracción de segundo, sin salir " +
+                          "de la máquina. Lo que no es suyo lo deriva al asistente grande, con la frase tal cual.")
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
                 // Catálogo
-                Text { text: "Modelos para esta máquina"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Modelos para esta máquina"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text {
                     visible: ml.catalogo.length === 0
-                    text: "No hay modelos publicados para esta plataforma."
+                    text: qsTr("No hay modelos publicados para esta plataforma.")
                     color: Theme.textDim; font.pixelSize: 12
                 }
                 Repeater {
@@ -982,24 +983,24 @@ Rectangle {
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
                                     text: modelData.tipo === "voz"
-                                          ? "Voz a texto · " + modelData.idiomas + " · " + modelData.tamano_gb + " GB · " +
-                                            "error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
+                                          ? qsTr("Voz a texto · %1 · %2 GB · error en castellano %3% (FLEURS) · %4")
+                                            .arg(modelData.idiomas).arg(modelData.tamano_gb).arg(modelData.wer_es_fleurs).arg(modelData.licencia)
                                         : modelData.tipo === "voz_streaming"
-                                          ? "Voz a texto en streaming (muchas voces a la vez; se elige en Agentes) · " + modelData.idiomas + " · " +
-                                            modelData.tamano_gb + " GB · error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
+                                          ? qsTr("Voz a texto en streaming (muchas voces a la vez; se elige en Agentes) · %1 · %2 GB · error en castellano %3% (FLEURS) · %4")
+                                            .arg(modelData.idiomas).arg(modelData.tamano_gb).arg(modelData.wer_es_fleurs).arg(modelData.licencia)
                                         : modelData.tipo === "vad"
-                                          ? "Detector de voz (recorta los silencios) · " + modelData.licencia
+                                          ? qsTr("Detector de voz (recorta los silencios) · %1").arg(modelData.licencia)
                                         : modelData.tipo === "vision"
-                                          ? "Visión para el modelo local (" + modelData.base + "): leer el dorso de un documento en el tótem, " +
-                                            "sin que la foto salga de la máquina · " + modelData.tamano_gb + " GB · " + modelData.licencia
+                                          ? qsTr("Visión para el modelo local (%1): leer el dorso de un documento en el tótem, " +
+                                                 "sin que la foto salga de la máquina · %2 GB · %3").arg(modelData.base).arg(modelData.tamano_gb).arg(modelData.licencia)
                                         : modelData.tipo === "chat"
-                                          ? "Para el chat sin internet (Asistente → Modelo local) · " + modelData.formato.toUpperCase() +
-                                            " · " + modelData.tamano_gb + " GB · " + modelData.base + " · " + modelData.licencia
+                                          ? qsTr("Para el chat sin internet (Asistente → Modelo local) · %1 · %2 GB · %3 · %4")
+                                            .arg(modelData.formato.toUpperCase()).arg(modelData.tamano_gb).arg(modelData.base).arg(modelData.licencia)
                                         : modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
-                                          (modeloFila.ficha && modeloFila.ficha.estado === "ok" ? "" : modelData.herramientas + " herramientas (según el catálogo) · ") +
+                                          (modeloFila.ficha && modeloFila.ficha.estado === "ok" ? "" : qsTr("%1 herramientas (según el catálogo)").arg(modelData.herramientas) + " · ") +
                                           (modelData.precision !== undefined
-                                           ? "precisión " + modelData.precision + "% · examen " + modelData.examen + "% · "
-                                           : "llamada nativa (v2) · ") + modelData.fecha
+                                           ? qsTr("precisión %1% · examen %2%").arg(modelData.precision).arg(modelData.examen)
+                                           : qsTr("llamada nativa (v2)")) + " · " + modelData.fecha
                                     color: Theme.textDim; font.pixelSize: 11
                                 }
                                 // --- Herramientas con las que se entrenó ---
@@ -1016,24 +1017,25 @@ Rectangle {
                                         color: f.estado === "ok" ? (problemas > 0 ? Theme.amber : Theme.ok)
                                              : f.estado === "error" ? Theme.live : Theme.textFaint
                                         text: {
-                                            if (f.estado === "buscando") return "Revisando con qué herramientas se entrenó…"
-                                            if (f.estado === "sin_ficha") return "Sin modelo.json: no se sabe con qué herramientas se entrenó" + (f.nota ? " — " + f.nota : ".")
-                                            if (f.estado === "error") return "No se pudo revisar: " + (f.nota || "")
+                                            if (f.estado === "buscando") return qsTr("Revisando con qué herramientas se entrenó…")
+                                            if (f.estado === "sin_ficha") return f.nota ? qsTr("Sin modelo.json: no se sabe con qué herramientas se entrenó — %1").arg(f.nota)
+                                                                                        : qsTr("Sin modelo.json: no se sabe con qué herramientas se entrenó.")
+                                            if (f.estado === "error") return qsTr("No se pudo revisar: %1").arg(f.nota || "")
                                             if (f.estado !== "ok") return ""
-                                            let t = "Entrenado con " + f.entrenadas + " herramientas"
+                                            let t = qsTr("Entrenado con %n herramienta", "", f.entrenadas)
                                             if (f.catalogo_dice !== undefined && String(f.catalogo_dice) !== String(f.entrenadas))
-                                                t += " (el catálogo decía " + f.catalogo_dice + ")"
-                                            t += " · " + f.iguales + " iguales a las de hoy"
-                                            if (f.cambiaron.length) t += " · " + f.cambiaron.length + " cambiaron"
-                                            if (f.no_estan.length) t += " · " + f.no_estan.length + " ya no existen"
-                                            t += " · conoce " + f.iguales + " de las " + f.herramientas_app + " del sistema (" + Math.round(f.cobertura * 100) + " %)"
+                                                t += " " + qsTr("(el catálogo decía %1)").arg(f.catalogo_dice)
+                                            t += " · " + qsTr("%n igual a las de hoy", "", f.iguales)
+                                            if (f.cambiaron.length) t += " · " + qsTr("%n cambió", "", f.cambiaron.length)
+                                            if (f.no_estan.length) t += " · " + qsTr("%n ya no existe", "", f.no_estan.length)
+                                            t += " · " + qsTr("conoce %1 de las %2 del sistema (%3 %)").arg(f.iguales).arg(f.herramientas_app).arg(Math.round(f.cobertura * 100))
                                             return t
                                         }
                                     }
                                     GlassButton {
                                         compact: true
                                         visible: !!modeloFila.ficha && modeloFila.ficha.estado === "ok"
-                                        text: modeloFila.verFicha ? "Ocultar" : "Ver cuáles"
+                                        text: modeloFila.verFicha ? qsTr("Ocultar") : qsTr("Ver cuáles")
                                         onClicked: modeloFila.verFicha = !modeloFila.verFicha
                                     }
                                     GlassButton {
@@ -1041,7 +1043,7 @@ Rectangle {
                                         visible: !!modeloFila.ficha && modeloFila.ficha.estado !== "buscando"
                                         text: "↻"
                                         onClicked: ml.revisarHerramientas(modeloFila.modelData.repo, true)
-                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Volver a buscar el modelo.json en Hugging Face"
+                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Volver a buscar el modelo.json en Hugging Face")
                                     }
                                 }
                                 ColumnLayout {
@@ -1052,41 +1054,41 @@ Rectangle {
                                     Text {
                                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                                         visible: !!parent.f
-                                        text: !parent.f ? "" : "Por tema: " + Object.keys(parent.f.por_categoria).sort((a, b) => parent.f.por_categoria[b] - parent.f.por_categoria[a])
-                                              .map(k => k + " " + parent.f.por_categoria[k]).join(" · ")
+                                        text: !parent.f ? "" : qsTr("Por tema: %1").arg(Object.keys(parent.f.por_categoria).sort((a, b) => parent.f.por_categoria[b] - parent.f.por_categoria[a])
+                                              .map(k => k + " " + parent.f.por_categoria[k]).join(" · "))
                                         color: Theme.textDim; font.pixelSize: 11
                                     }
                                     Text {
                                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                                         visible: !!parent.f && parent.f.cambiaron.length > 0
-                                        text: !parent.f ? "" : "Cambiaron desde el entrenamiento (las puede llamar mal): " + parent.f.cambiaron.join(", ")
+                                        text: !parent.f ? "" : qsTr("Cambiaron desde el entrenamiento (las puede llamar mal): %1").arg(parent.f.cambiaron.join(", "))
                                         color: Theme.amber; font.pixelSize: 11
                                     }
                                     Text {
                                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                                         visible: !!parent.f && parent.f.no_estan.length > 0
-                                        text: !parent.f ? "" : "Ya no existen en el sistema: " + parent.f.no_estan.join(", ")
+                                        text: !parent.f ? "" : qsTr("Ya no existen en el sistema: %1").arg(parent.f.no_estan.join(", "))
                                         color: Theme.amber; font.pixelSize: 11
                                     }
                                     Text {
                                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                                         visible: !!parent.f
-                                        text: !parent.f ? "" : "Las que conoce tal cual: " + parent.f.lista.join(", ")
+                                        text: !parent.f ? "" : qsTr("Las que conoce tal cual: %1").arg(parent.f.lista.join(", "))
                                         color: Theme.textFaint; font { pixelSize: 10; family: Theme.mono }
                                     }
                                     Text {
                                         Layout.fillWidth: true; wrapMode: Text.WordWrap
                                         visible: !!parent.f
-                                        text: !parent.f ? "" : "Versión " + (parent.f.build || "?") + " · " + (parent.f.fecha || "") +
-                                              (parent.f.inventario_entrenamiento ? " · el sistema tenía " + parent.f.inventario_entrenamiento.cuantas + " herramientas al entrenarlo" : "") +
-                                              " · de " + parent.f.de + (parent.f.nota ? ". " + parent.f.nota : "")
+                                        text: !parent.f ? "" : qsTr("Versión %1").arg(parent.f.build || "?") + " · " + (parent.f.fecha || "") +
+                                              (parent.f.inventario_entrenamiento ? " · " + qsTr("el sistema tenía %n herramienta al entrenarlo", "", parent.f.inventario_entrenamiento.cuantas) : "") +
+                                              " · " + qsTr("de %1").arg(parent.f.de) + (parent.f.nota ? ". " + parent.f.nota : "")
                                         color: Theme.textFaint; font.pixelSize: 10
                                     }
                                 }
                             }
                             Text {
                                 visible: modelData.instalado
-                                text: modelData.activo ? "activo" : modelData.tipo !== "reactivo" ? "listo" : "bajado"
+                                text: modelData.activo ? qsTr("activo") : modelData.tipo !== "reactivo" ? qsTr("listo") : qsTr("bajado")
                                 color: modelData.activo ? Theme.accent : Theme.ok
                                 font.pixelSize: 11
                             }
@@ -1094,31 +1096,31 @@ Rectangle {
                                 compact: true
                                 visible: !modelData.instalado
                                 enabled: ml.enCola.indexOf(modelData.repo) < 0
-                                text: enabled ? "Bajar" : "En la cola"; icon: "⇩"
+                                text: enabled ? qsTr("Bajar") : qsTr("En la cola"); icon: "⇩"
                                 onClicked: Studio.notify(modelData.repo + ": " + ml.descargar(modelData.repo), "info")
                             }
                             GlassButton {
                                 compact: true
                                 visible: modelData.tipo === "reactivo" && modelData.instalado && ml.hayMotor
                                          && !(modelData.activo && (ml.estado === "listo" || ml.estado === "cargando"))
-                                text: "Activar"; active: true
+                                text: qsTr("Activar"); active: true
                                 onClicked: ml.activar(modelData.repo)
                             }
                             GlassButton {
                                 compact: true
                                 visible: modelData.instalado
                                 enabled: ml.enCola.indexOf(modelData.repo) < 0
-                                text: "Actualizar"
+                                text: qsTr("Actualizar")
                                 onClicked: Studio.notify(modelData.repo + ": " + ml.descargar(modelData.repo), "info")
                             }
                             GlassButton {
                                 compact: true
                                 visible: modelData.instalado
-                                text: "Borrar"
+                                text: qsTr("Borrar")
                                 onClicked: ApplicationWindow.window.confirm({
-                                    title: "¿Borrar el modelo?",
-                                    text: modelData.repo + " (" + modelData.tamano_gb + " GB). Se puede volver a bajar.",
-                                    accept: "Borrar", reject: "Cancelar",
+                                    title: qsTr("¿Borrar el modelo?"),
+                                    text: qsTr("%1 (%2 GB). Se puede volver a bajar.").arg(modelData.repo).arg(modelData.tamano_gb),
+                                    accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                     action: function() { ml.borrar(modelData.repo) }
                                 })
                             }
@@ -1138,8 +1140,8 @@ Rectangle {
                             text: ml.textoDescarga
                             color: Theme.textDim; font.pixelSize: 12
                         }
-                        GlassButton { compact: true; visible: ml.descargando; text: "Cancelar"; onClicked: ml.cancelarDescarga() }
-                        GlassButton { compact: true; text: "Descargas…"; onClicked: ApplicationWindow.window.abrirDescargas() }
+                        GlassButton { compact: true; visible: ml.descargando; text: qsTr("Cancelar"); onClicked: ml.cancelarDescarga() }
+                        GlassButton { compact: true; text: qsTr("Descargas…"); onClicked: ApplicationWindow.window.abrirDescargas() }
                     }
                 }
 
@@ -1159,32 +1161,32 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 10
                         Text {
-                            text: "En el disco"
+                            text: qsTr("En el disco")
                             color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: ml.instalados.length + " modelos · " + disco.gb(disco.suma(ml.instalados))
+                            text: qsTr("%n modelo · %1", "", ml.instalados.length).arg(disco.gb(disco.suma(ml.instalados)))
                             color: Theme.textDim; font.pixelSize: 12
                         }
-                        GlassButton { compact: true; text: "Revisar"; onClicked: ml.revisarDisco() }
+                        GlassButton { compact: true; text: qsTr("Revisar"); onClicked: ml.revisarDisco() }
                         GlassButton {
                             compact: true
                             visible: disco.viejos.length > 0
-                            text: "Borrar los viejos (" + disco.viejos.length + " · " + disco.gb(disco.suma(disco.viejos)) + ")"
+                            text: qsTr("Borrar los viejos (%1 · %2)").arg(disco.viejos.length).arg(disco.gb(disco.suma(disco.viejos)))
                             active: true
                             onClicked: ApplicationWindow.window.confirm({
-                                title: "¿Borrar los modelos viejos?",
+                                title: qsTr("¿Borrar los modelos viejos?"),
                                 text: disco.viejos.map(m => m.repo + " — " + m.motivo).join("\n") +
-                                      "\n\nSi siguen en el catálogo se pueden volver a bajar.",
-                                accept: "Borrar", reject: "Cancelar",
+                                      "\n\n" + qsTr("Si siguen en el catálogo se pueden volver a bajar."),
+                                accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                 action: function() { ml.limpiarViejos() }
                             })
                         }
                         GlassButton {
                             compact: true
                             visible: (ml.restos.cuantas || 0) > 0
-                            text: "Borrar descargas cortadas (" + disco.gb(ml.restos.bytes || 0) + ")"
+                            text: qsTr("Borrar descargas cortadas (%1)").arg(disco.gb(ml.restos.bytes || 0))
                             onClicked: ml.limpiarRestos()
                         }
                     }
@@ -1208,21 +1210,21 @@ Rectangle {
                                 font.pixelSize: 12
                             }
                             Text {
-                                text: modelData.activo ? "en uso"
-                                    : modelData.viejo ? "viejo: " + modelData.motivo
-                                    : !modelData.enCatalogo ? "fuera del catálogo"
+                                text: modelData.activo ? qsTr("en uso")
+                                    : modelData.viejo ? qsTr("viejo: %1").arg(modelData.motivo)
+                                    : !modelData.enCatalogo ? qsTr("fuera del catálogo")
                                     : modelData.tipo
                                 color: modelData.activo ? Theme.ok : modelData.viejo ? Theme.amber : Theme.textFaint
                                 font.pixelSize: 11
                             }
                             GlassButton {
                                 compact: true
-                                text: "Borrar"
+                                text: qsTr("Borrar")
                                 onClicked: ApplicationWindow.window.confirm({
-                                    title: "¿Borrar «" + modelData.repo + "»?",
-                                    text: disco.gb(modelData.bytes) + (modelData.activo ? ". Es el que está en uso: se apaga." : ".") +
-                                          (modelData.enCatalogo ? " Se puede volver a bajar." : " Ya no está en el catálogo: no se puede volver a bajar desde acá."),
-                                    accept: "Borrar", reject: "Cancelar",
+                                    title: qsTr("¿Borrar «%1»?").arg(modelData.repo),
+                                    text: (modelData.activo ? qsTr("%1. Es el que está en uso: se apaga.").arg(disco.gb(modelData.bytes)) : disco.gb(modelData.bytes) + ".") + " " +
+                                          (modelData.enCatalogo ? qsTr("Se puede volver a bajar.") : qsTr("Ya no está en el catálogo: no se puede volver a bajar desde acá.")),
+                                    accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                     action: function() { ml.borrarCarpeta(modelData.carpeta) }
                                 })
                             }
@@ -1236,18 +1238,18 @@ Rectangle {
                 // Los del esquema (el chat sin internet: contexto y capas en la GPU), con Aplicar.
                 CamposDeSeccion { Layout.fillWidth: true; seccion: page.modelosSection }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                Text { text: "Cuánto deriva"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Cuánto deriva"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Text { text: "atiende más"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("atiende más"); color: Theme.textDim; font.pixelSize: 11 }
                     Slider {
                         Layout.fillWidth: true
                         from: -4; to: 4; stepSize: 0.5
                         value: ml.sesgo
                         onMoved: ml.sesgo = value
                     }
-                    Text { text: "deriva más"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("deriva más"); color: Theme.textDim; font.pixelSize: 11 }
                     Text { text: (ml.sesgo > 0 ? "+" : "") + ml.sesgo.toFixed(1); color: Theme.text; font.pixelSize: 12 }
                 }
                 Text {
@@ -1255,16 +1257,16 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "Derivar de más cuesta segundos; elegir mal cuesta al aire. Con +2 pasa al asistente grande " +
-                          "más de 9 de cada 10 pedidos que no son suyos, y atiende un poco menos de lo propio."
+                    text: qsTr("Derivar de más cuesta segundos; elegir mal cuesta al aire. Con +2 pasa al asistente grande " +
+                          "más de 9 de cada 10 pedidos que no son suyos, y atiende un poco menos de lo propio.")
                 }
 
-                Text { text: "Cabeza MTP (texto rápido)"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Cabeza MTP (texto rápido)"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     spacing: 6
                     Repeater {
-                        model: [ { v: "auto", t: "Automática" }, { v: "q8", t: "8 bits" },
-                                 { v: "fp16", t: "fp16" }, { v: "no", t: "Sin MTP" } ]
+                        model: [ { v: "auto", t: qsTr("Automática") }, { v: "q8", t: qsTr("8 bits") },
+                                 { v: "fp16", t: "fp16" }, { v: "no", t: qsTr("Sin MTP") } ]
                         delegate: GlassButton {
                             required property var modelData
                             compact: true
@@ -1279,30 +1281,30 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "La decodificación especulativa con la cabeza del propio modelo. Si acepta poco, el motor deja " +
-                          "de usarla solo. Se aplica la próxima vez que se activa el modelo."
+                    text: qsTr("La decodificación especulativa con la cabeza del propio modelo. Si acepta poco, el motor deja " +
+                          "de usarla solo. Se aplica la próxima vez que se activa el modelo.")
                 }
                 RowLayout {
                     spacing: 10
                     Toggle { checked: ml.alArrancar; onToggled: (w) => ml.alArrancar = w }
-                    Text { text: "Cargar el modelo activo al abrir la aplicación"; color: Theme.text; font.pixelSize: 13 }
+                    Text { text: qsTr("Cargar el modelo activo al abrir la aplicación"); color: Theme.text; font.pixelSize: 13 }
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
                 // Probar
-                Text { text: "Probar"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Probar"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true
                     TextField {
                         id: fraseF
                         Layout.fillWidth: true
                         enabled: ml.estado === "listo"
-                        placeholderText: ml.estado === "listo" ? "una frase de cabina: «bajale al mic 2»" : "activá un modelo para probar"
+                        placeholderText: ml.estado === "listo" ? qsTr("una frase de cabina: «bajale al mic 2»") : qsTr("activá un modelo para probar")
                         onAccepted: { ml.probar(text); text = "" }
                     }
                     GlassButton {
-                        compact: true; text: "Elegir"; active: true
+                        compact: true; text: qsTr("Elegir"); active: true
                         enabled: ml.estado === "listo" && fraseF.text.trim() !== ""
                         onClicked: { ml.probar(fraseF.text); fraseF.text = "" }
                     }
@@ -1313,16 +1315,16 @@ Rectangle {
                     TextField {
                         id: preguntaF
                         Layout.fillWidth: true
-                        placeholderText: "pregunta sobre una imagen: «¿cuántas personas hay?»"
+                        placeholderText: qsTr("pregunta sobre una imagen: «¿cuántas personas hay?»")
                     }
                     GlassButton {
-                        compact: true; text: "Elegir imagen…"; icon: "🖼"
+                        compact: true; text: qsTr("Elegir imagen…"); icon: "🖼"
                         onClicked: imagenDlg.open()
                     }
                     FileDialog {
                         id: imagenDlg
-                        title: "Imagen para el modelo local"
-                        nameFilters: ["Imágenes (*.png *.jpg *.jpeg *.webp *.bmp)"]
+                        title: qsTr("Imagen para el modelo local")
+                        nameFilters: [qsTr("Imágenes (*.png *.jpg *.jpeg *.webp *.bmp)")]
                         onAccepted: ml.probarVision(selectedFile, preguntaF.text)
                     }
                 }
@@ -1357,7 +1359,7 @@ Rectangle {
                             wrapMode: modelData.vision || modelData.resumen !== undefined ? Text.WordWrap : Text.NoWrap
                             text: modelData.error !== undefined ? modelData.error
                                 : modelData.vision ? modelData.texto
-                                : modelData.derivar ? "→ derivar al grande"
+                                : modelData.derivar ? qsTr("→ derivar al grande")
                                 : modelData.resumen !== undefined ? "→ " + modelData.resumen
                                 : "→ " + modelData.herramienta
                             color: modelData.error !== undefined ? Theme.live
@@ -1404,8 +1406,8 @@ Rectangle {
         TabBar {
             id: vozTabs
             Layout.fillWidth: true
-            TabButton { text: "Voz del operador" }
-            TabButton { text: "Voz del atendedor" }
+            TabButton { text: qsTr("Voz del operador") }
+            TabButton { text: qsTr("Voz del atendedor") }
         }
         StackLayout {
         Layout.fillWidth: true
@@ -1419,13 +1421,13 @@ Rectangle {
                 spacing: 14
                 readonly property var vz: Studio.voz
 
-                Text { text: "Micrófono del operador"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Micrófono del operador"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true
                     ComboBox {
                         id: micCombo
                         Layout.fillWidth: true
-                        readonly property var nombres: ["— ninguno —"].concat(
+                        readonly property var nombres: [qsTr("— ninguno —")].concat(
                             (Studio.audio ? Studio.audio.sources : []).map(x => x.nombre))
                         model: nombres
                         currentIndex: Math.max(0, nombres.indexOf(Studio.voz.microfono))
@@ -1440,26 +1442,26 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "Se elige entre las entradas con audio (se agregan en Entradas). Es lo que te oye quien " +
+                    text: qsTr("Se elige entre las entradas con audio (se agregan en Entradas). Es lo que te oye quien " +
                           "espera en el lobby y, si no hay otra fuente con «Voz a texto» en dictado, de donde se " +
-                          "le dicta al asistente. Mientras apretás " + Studio.voz.tecla + ", el lobby no te oye."
+                          "le dicta al asistente. Mientras apretás %1, el lobby no te oye.").arg(Studio.voz.tecla)
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
-                Text { text: "Salida de auriculares del operador"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Salida de auriculares del operador"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textDim; font.pixelSize: 12
-                    text: "Por acá suenan la voz del asistente y la escucha de los racks (nunca al aire). Es una sola " +
-                          "para toda la app: cambiarla acá la cambia también en Audio."
+                    text: qsTr("Por acá suenan la voz del asistente y la escucha de los racks (nunca al aire). Es una sola " +
+                          "para toda la app: cambiarla acá la cambia también en Audio.")
                 }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
                     GlassButton {
-                        compact: true; text: "La del sistema"
+                        compact: true; text: qsTr("La del sistema")
                         active: Studio.voz.auriculares === ""
                         onClicked: Studio.voz.setAuriculares("")
                     }
@@ -1480,7 +1482,7 @@ Rectangle {
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
-                Text { text: "Hablarle al asistente"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Hablarle al asistente"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true
                     visible: Studio.voz.disponible
@@ -1489,8 +1491,8 @@ Rectangle {
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
-                        text: "Hablarle al asistente: " + Studio.voz.estado +
-                              (Studio.voz.ultimo !== "" ? "  ·  último: «" + Studio.voz.ultimo + "»" : "")
+                        text: qsTr("Hablarle al asistente: %1").arg(Studio.voz.estado) +
+                              (Studio.voz.ultimo !== "" ? "  ·  " + qsTr("último: «%1»").arg(Studio.voz.ultimo) : "")
                         color: Studio.voz.lista ? Theme.text : Theme.textDim
                         font.pixelSize: 12
                     }
@@ -1504,10 +1506,10 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textDim; font.pixelSize: 12
                     text: Studio.voz.fuentesTexto.length === 0
-                          ? "Ninguna fuente tiene «Voz a texto» todavía: al apretar " + Studio.voz.tecla +
+                          ? qsTr("Ninguna fuente tiene «Voz a texto» todavía: al apretar %1" +
                             " se le pone sola al micrófono del operador. En Audio se agrega a cualquier fuente " +
-                            "(dictado o transcripción continua), como una salida."
-                          : "Fuentes con voz a texto (se cambian en Audio):"
+                            "(dictado o transcripción continua), como una salida.").arg(Studio.voz.tecla)
+                          : qsTr("Fuentes con voz a texto (se cambian en Audio):")
                 }
                 Repeater {
                     model: Studio.voz.fuentesTexto
@@ -1518,17 +1520,17 @@ Rectangle {
                         Text { text: "●"; color: "#22c55e"; font.pixelSize: 12 }
                         Text { Layout.fillWidth: true; text: modelData.fuente; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight }
                         Text {
-                            text: modelData.modo === "continuo" ? "transcripción continua" : "dictado (" + Studio.voz.tecla + ")"
+                            text: modelData.modo === "continuo" ? qsTr("transcripción continua") : qsTr("dictado (%1)").arg(Studio.voz.tecla)
                             color: Theme.textDim; font.pixelSize: 12
                         }
-                        GlassButton { compact: true; text: "Quitar"; onClicked: Studio.voz.setTexto(modelData.fuente, "") }
+                        GlassButton { compact: true; text: qsTr("Quitar"); onClicked: Studio.voz.setTexto(modelData.fuente, "") }
                     }
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
 
-                Text { text: "Lo dictado y el modelo local"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Lo dictado y el modelo local"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -1537,9 +1539,9 @@ Rectangle {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.text; font.pixelSize: 13
-                        text: "Pasar lo dictado por el modelo local: elige la acción al instante y la propone en la " +
+                        text: qsTr("Pasar lo dictado por el modelo local: elige la acción al instante y la propone en la " +
                               "barra del asistente para que la confirmes. Lo que no es suyo, o sin modelo listo, va " +
-                              "al asistente como siempre."
+                              "al asistente como siempre.")
                     }
                 }
                 RowLayout {
@@ -1550,8 +1552,8 @@ Rectangle {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.text; font.pixelSize: 13
-                        text: "Contestar con voz (solo en tus auriculares): «listo», lo que no se pudo y por qué, y " +
-                              "la respuesta cuando preguntás algo («¿qué escena está al aire?»)."
+                        text: qsTr("Contestar con voz (solo en tus auriculares): «listo», lo que no se pudo y por qué, y " +
+                              "la respuesta cuando preguntás algo («¿qué escena está al aire?»).")
                     }
                 }
                 Text {
@@ -1559,9 +1561,9 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textDim; font.pixelSize: 12
                     text: Studio.voz.automaticas.length === 0
-                          ? "Todavía no hay acciones que se hagan sin preguntar. Se agregan con «Hacer y no volver a " +
-                            "preguntar» al confirmar una."
-                          : "Se hacen sin preguntar (las que piden datos los completa el asistente):"
+                          ? qsTr("Todavía no hay acciones que se hagan sin preguntar. Se agregan con «Hacer y no volver a " +
+                            "preguntar» al confirmar una.")
+                          : qsTr("Se hacen sin preguntar (las que piden datos los completa el asistente):")
                 }
                 Repeater {
                     model: Studio.voz.automaticas
@@ -1572,7 +1574,7 @@ Rectangle {
                         Text { text: "⚡"; color: Theme.accent; font.pixelSize: 12 }
                         Text { Layout.fillWidth: true; text: modelData.titulo; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight }
                         Text { text: modelData.herramienta; color: Theme.textFaint; font.pixelSize: 11 }
-                        GlassButton { compact: true; text: "Volver a preguntar"; onClicked: Studio.voz.setAutomatica(modelData.herramienta, false) }
+                        GlassButton { compact: true; text: qsTr("Volver a preguntar"); onClicked: Studio.voz.setAutomatica(modelData.herramienta, false) }
                     }
                 }
 
@@ -1581,7 +1583,7 @@ Rectangle {
                 // La voz que contesta (solo por los auriculares del operador)
                 Text {
                     visible: Studio.voz.disponible
-                    text: "Voz que contesta"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
+                    text: qsTr("Voz que contesta"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
                 }
                 Text {
                     visible: Studio.voz.disponible
@@ -1589,8 +1591,8 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "Suena SOLO por el monitoreo (los auriculares del operador), nunca al aire. Frase por " +
-                          "frase, así empieza enseguida. Si apretás la tecla para hablar, se calla."
+                    text: qsTr("Suena SOLO por el monitoreo (los auriculares del operador), nunca al aire. Frase por " +
+                          "frase, así empieza enseguida. Si apretás la tecla para hablar, se calla.")
                 }
                 Repeater {
                     model: Studio.voz.disponible ? Studio.voz.voces : []
@@ -1610,7 +1612,7 @@ Rectangle {
                                 spacing: 1
                                 Text { text: modelData.nombre; color: Theme.text; font.pixelSize: 13 }
                                 Text {
-                                    text: "calidad " + modelData.calidad + " · " + Math.round(modelData.tamano_gb * 1024) + " MB"
+                                    text: qsTr("calidad %1").arg(modelData.calidad) + " · " + Math.round(modelData.tamano_gb * 1024) + " MB"
                                     color: Theme.textDim; font.pixelSize: 11
                                 }
                             }
@@ -1618,20 +1620,20 @@ Rectangle {
                                 compact: true
                                 visible: !modelData.instalado
                                 enabled: ml.enCola.indexOf(modelData.repo) < 0
-                                text: enabled ? "Bajar" : "En la cola"; icon: "⇩"
+                                text: enabled ? qsTr("Bajar") : qsTr("En la cola"); icon: "⇩"
                                 onClicked: Studio.notify(modelData.repo + ": " + ml.descargar(modelData.repo), "info")
                             }
                             GlassButton {
                                 compact: true
                                 visible: modelData.instalado
-                                text: modelData.elegida ? "Elegida" : "Elegir"
+                                text: modelData.elegida ? qsTr("Elegida") : qsTr("Elegir")
                                 active: modelData.elegida
                                 onClicked: Studio.voz.elegirVoz(modelData.repo)
                             }
                             GlassButton {
                                 compact: true
                                 visible: modelData.instalado
-                                text: "Borrar"
+                                text: qsTr("Borrar")
                                 onClicked: ml.borrar(modelData.repo)
                             }
                         }
@@ -1646,19 +1648,19 @@ Rectangle {
                         delegate: GlassButton {
                             required property int index
                             compact: true
-                            text: "Voz " + (index + 1)
+                            text: qsTr("Voz %1").arg(index + 1)
                             active: Studio.voz.hablante === index
                             onClicked: Studio.voz.hablante = index
                         }
                     }
-                    Text { text: "más lento"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("más lento"); color: Theme.textDim; font.pixelSize: 11 }
                     Slider {
                         Layout.fillWidth: true
                         from: 0.7; to: 1.5; stepSize: 0.05
                         value: Studio.voz.velocidad
                         onMoved: Studio.voz.velocidad = value
                     }
-                    Text { text: "más rápido"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("más rápido"); color: Theme.textDim; font.pixelSize: 11 }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -1666,18 +1668,18 @@ Rectangle {
                     TextField {
                         id: decirF
                         Layout.fillWidth: true
-                        placeholderText: "escribí algo para que lo diga (por los auriculares)"
+                        placeholderText: qsTr("escribí algo para que lo diga (por los auriculares)")
                         onAccepted: { Studio.voz.decir(text); text = "" }
                     }
                     GlassButton {
-                        compact: true; text: decirF.text.trim() !== "" ? "Decir" : "Probar"; icon: "🔊"; active: true
+                        compact: true; text: decirF.text.trim() !== "" ? qsTr("Decir") : qsTr("Probar"); icon: "🔊"; active: true
                         onClicked: {
                             if (decirF.text.trim() !== "") { Studio.voz.decir(decirF.text); decirF.text = "" }
                             else Studio.voz.probarVoz()
                         }
                     }
                     GlassButton {
-                        compact: true; text: "Callar"
+                        compact: true; text: qsTr("Callar")
                         visible: Studio.voz.hablando
                         onClicked: Studio.voz.callar()
                     }
@@ -1693,7 +1695,7 @@ Rectangle {
 
                 Text {
                     visible: Studio.voz.transcripcion.length > 0
-                    text: "Transcripción"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
+                    text: qsTr("Transcripción"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
                 }
                 Repeater {
                     model: Studio.voz.transcripcion.slice(-15)
@@ -1708,7 +1710,7 @@ Rectangle {
                 }
                 GlassButton {
                     visible: Studio.voz.transcripcion.length > 0
-                    compact: true; text: "Borrar la transcripción"
+                    compact: true; text: qsTr("Borrar la transcripción")
                     onClicked: Studio.voz.borrarTranscripcion()
                 }
                 // Los del esquema (la voz del prompter): avanzados.
@@ -1738,12 +1740,12 @@ Rectangle {
                 CamposDeSeccion { Layout.fillWidth: true; seccion: page.aparienciaSection }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
                 Text {
-                    text: "Barra de navegación"
+                    text: qsTr("Barra de navegación")
                     color: Theme.text
                     font { pixelSize: 17; weight: Font.DemiBold }
                 }
                 Text {
-                    text: "Dónde va"
+                    text: qsTr("Dónde va")
                     color: Theme.text
                     font { pixelSize: 15; weight: Font.DemiBold }
                 }
@@ -1751,10 +1753,10 @@ Rectangle {
                     spacing: 6
                     Repeater {
                         model: [
-                            { v: "izquierda", t: "Izquierda", i: "◧" },
-                            { v: "derecha",   t: "Derecha",   i: "◨" },
-                            { v: "arriba",    t: "Arriba",    i: "⬒" },
-                            { v: "abajo",     t: "Abajo",     i: "⬓" }
+                            { v: "izquierda", t: qsTr("Izquierda"), i: "◧" },
+                            { v: "derecha",   t: qsTr("Derecha"),   i: "◨" },
+                            { v: "arriba",    t: qsTr("Arriba"),    i: "⬒" },
+                            { v: "abajo",     t: qsTr("Abajo"),     i: "⬓" }
                         ]
                         delegate: GlassButton {
                             required property var modelData
@@ -1770,14 +1772,14 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "Arriba o abajo conviene en pantallas anchas y bajas: la barra se lleva " +
-                          "menos altura, que es la que falta cuando hay una previsualización grande."
+                    text: qsTr("Arriba o abajo conviene en pantallas anchas y bajas: la barra se lleva " +
+                          "menos altura, que es la que falta cuando hay una previsualización grande.")
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
                 Text {
-                    text: "Tamaño"
+                    text: qsTr("Tamaño")
                     color: Theme.text
                     font { pixelSize: 15; weight: Font.DemiBold }
                 }
@@ -1785,7 +1787,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 10
                     Repeater {
-                        model: [ { v: 34, t: "Chico" }, { v: 42, t: "Normal" }, { v: 54, t: "Grande" } ]
+                        model: [ { v: 34, t: qsTr("Chico") }, { v: 42, t: qsTr("Normal") }, { v: 54, t: qsTr("Grande") } ]
                         delegate: GlassButton {
                             required property var modelData
                             compact: true
@@ -1813,7 +1815,7 @@ Rectangle {
                         onToggled: (w) => Studio.riel.separadores = w
                     }
                     Text {
-                        text: "Separar los grupos con una línea"
+                        text: qsTr("Separar los grupos con una línea")
                         color: Theme.text
                         font.pixelSize: 13
                     }
@@ -1830,14 +1832,14 @@ Rectangle {
                     ColumnLayout {
                         spacing: 1
                         Text {
-                            text: "Abrir en árbol al pasarle el puntero"
+                            text: qsTr("Abrir en árbol al pasarle el puntero")
                             color: Studio.riel.vertical ? Theme.text : Theme.textFaint
                             font.pixelSize: 13
                         }
                         Text {
                             text: Studio.riel.vertical
-                                  ? "Se eleva y muestra el nombre de cada página. Flota: no corre la página."
-                                  : "Solo con la barra a la izquierda o a la derecha."
+                                  ? qsTr("Se eleva y muestra el nombre de cada página. Flota: no corre la página.")
+                                  : qsTr("Solo con la barra a la izquierda o a la derecha.")
                             color: Theme.textDim
                             font.pixelSize: 11
                         }
@@ -1848,7 +1850,7 @@ Rectangle {
                     spacing: 10
                     visible: Studio.riel.vertical && Studio.riel.expandir
                     Text {
-                        text: "Ancho abierta"
+                        text: qsTr("Ancho abierta")
                         color: Theme.textDim
                         font.pixelSize: 12
                     }
@@ -1870,19 +1872,19 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
-                        text: "Qué mostrar"
+                        text: qsTr("Qué mostrar")
                         color: Theme.text
                         font { pixelSize: 15; weight: Font.DemiBold }
                     }
                     Text {
                         visible: Studio.riel.escondidas > 0
-                        text: Studio.riel.escondidas + " escondida" + (Studio.riel.escondidas === 1 ? "" : "s")
+                        text: qsTr("%n escondida", "", Studio.riel.escondidas)
                         color: Theme.textDim
                         font.pixelSize: 12
                     }
                     Item { Layout.fillWidth: true }
                     GlassButton {
-                        compact: true; text: "Mostrar todas"; icon: "↺"
+                        compact: true; text: qsTr("Mostrar todas"); icon: "↺"
                         enabled: Studio.riel.escondidas > 0
                         onClicked: Studio.riel.restaurar()
                     }
@@ -1892,8 +1894,8 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
                     font.pixelSize: 11
-                    text: "Una página escondida sigue existiendo: el asistente la sigue usando y se " +
-                          "puede abrir en su propia ventana. Lo único que se esconde es su botón."
+                    text: qsTr("Una página escondida sigue existiendo: el asistente la sigue usando y se " +
+                          "puede abrir en su propia ventana. Lo único que se esconde es su botón.")
                 }
 
                 Repeater {
@@ -1945,7 +1947,7 @@ Rectangle {
     Component.onCompleted: sys.refresh()
     FolderDialog {
         id: updateDlg
-        title: "Carpeta de la version nueva"
+        title: qsTr("Carpeta de la version nueva")
         onAccepted: {
             const err = sys.checkUpdate(selectedFolder)
             page.updateError = err
@@ -1957,7 +1959,7 @@ Rectangle {
         property url folder
         anchors.centerIn: parent
         modal: true
-        title: "Actualizar el sistema"
+        title: qsTr("Actualizar el sistema")
         standardButtons: Dialog.Ok | Dialog.Cancel
         Column {
             width: 460
@@ -1968,13 +1970,14 @@ Rectangle {
                 visible: page.onAir
                 color: Theme.live
                 font { pixelSize: 15; weight: Font.DemiBold }
-                text: page.onAirWarning("actualizar")
+                text: page.onAirWarning(qsTr("actualizar"))
             }
             Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "La app se cierra, se reemplaza el programa por el de\n" + updConfirm.folder.toString().replace("file://", "") +
-                      "\ny vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO se tocan (antes se respaldan). Si algo sale mal, podés volver a esta versión."
+                text: qsTr("La app se cierra, se reemplaza el programa por el de\n%1" +
+                           "\ny vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO se tocan (antes se respaldan). Si algo sale mal, podés volver a esta versión.")
+                      .arg(updConfirm.folder.toString().replace("file://", ""))
             }
         }
         // Al aire no alcanza con este OK. Se mira recien aca (y no al abrir) porque la
@@ -1993,14 +1996,14 @@ Rectangle {
                 width: parent.width
                 spacing: 16
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 13
-                       text: "Todo el sistema vive en una sola carpeta (sirve desde un pendrive): " + sys.dataRoot }
+                       text: qsTr("Todo el sistema vive en una sola carpeta (sirve desde un pendrive): %1").arg(sys.dataRoot) }
                 Text { Layout.fillWidth: true; color: Theme.textDim; font.pixelSize: 13; visible: sys.version !== ""
-                       text: "Versión instalada: " + sys.version }
+                       text: qsTr("Versión instalada: %1").arg(sys.version) }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
                 // Configuraciones con nombre (cada una con lo suyo).
                 PanelConfiguraciones { Layout.fillWidth: true }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                Text { text: "Arranque y recuperación"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Arranque y recuperación"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 // Volver solo después de un corte de luz.
                 ColumnLayout {
                     id: inicioBox
@@ -2013,10 +2016,10 @@ Rectangle {
                             checked: inicioBox.est.activo === true
                             onToggled: { inicioBox.error = sys.inicioPoner(checked); inicioBox.est = sys.inicioEstado() }
                         }
-                        Text { text: "Arrancar solo al encender el equipo"; color: Theme.text; font.pixelSize: 14 }
+                        Text { text: qsTr("Arrancar solo al encender el equipo"); color: Theme.text; font.pixelSize: 14 }
                     }
                     Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                           text: "Si se corta la luz con la transmisión o la grabación andando, al volver el programa las retoma solo. Para que vuelva sin que nadie toque nada, además:" }
+                           text: qsTr("Si se corta la luz con la transmisión o la grabación andando, al volver el programa las retoma solo. Para que vuelva sin que nadie toque nada, además:") }
                     Repeater {
                         model: inicioBox.est.notas || []
                         delegate: Text { required property var modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap
@@ -2027,7 +2030,7 @@ Rectangle {
                 // Los del esquema (copia sombra, diálogo de recuperación): van con Aplicar.
                 CamposDeSeccion { Layout.fillWidth: true; seccion: page.systemSection }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                Text { text: "Carpetas"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Carpetas"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2
@@ -2035,12 +2038,12 @@ Rectangle {
                     rowSpacing: 8
                     Repeater {
                         model: [
-                            { n: "Config", d: "Configuración (escenas, ajustes, tablero)" },
-                            { n: "Credenciales", d: "Tokens y claves, cifrados (AES-256-GCM). Una actualización nunca los toca." },
-                            { n: "Recordings", d: "Grabaciones" },
-                            { n: "Shares", d: "Archivos que comparten los invitados" },
-                            { n: "Respaldos", d: "Copias de Config/ y Credenciales/ antes de cada actualización (quedan 5)" },
-                            { n: "Logs", d: "Registros para diagnóstico" }
+                            { n: "Config", d: qsTr("Configuración (escenas, ajustes, tablero)") },
+                            { n: "Credenciales", d: qsTr("Tokens y claves, cifrados (AES-256-GCM). Una actualización nunca los toca.") },
+                            { n: "Recordings", d: qsTr("Grabaciones") },
+                            { n: "Shares", d: qsTr("Archivos que comparten los invitados") },
+                            { n: "Respaldos", d: qsTr("Copias de Config/ y Credenciales/ antes de cada actualización (quedan 5)") },
+                            { n: "Logs", d: qsTr("Registros para diagnóstico") }
                         ]
                         delegate: RowLayout {
                             required property var modelData
@@ -2052,7 +2055,7 @@ Rectangle {
                     }
                 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                Text { text: "Credenciales guardadas (" + sys.credentials.length + ")"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Credenciales guardadas (%1)").arg(sys.credentials.length); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
@@ -2062,34 +2065,34 @@ Rectangle {
                     }
                 }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                       text: "Sin contraseña: el cifrado evita que se lean por accidente (un pendrive FAT/exFAT no tiene permisos), pero quien se lleve el pendrive entero tiene la clave del equipo (Credenciales/clave-equipo). Para mudar el equipo a otro pendrive, copia la carpeta Credenciales/ completa." }
+                       text: qsTr("Sin contraseña: el cifrado evita que se lean por accidente (un pendrive FAT/exFAT no tiene permisos), pero quien se lleve el pendrive entero tiene la clave del equipo (Credenciales/clave-equipo). Para mudar el equipo a otro pendrive, copia la carpeta Credenciales/ completa.") }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                Text { text: "Actualizar"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Actualizar"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                       text: "Descomprimí la versión nueva en cualquier carpeta (fuera de esta) y elegila. Se reemplaza solo el programa; Config/, Credenciales/, Recordings/, Shares/ y Logs/ quedan como están." }
+                       text: qsTr("Descomprimí la versión nueva en cualquier carpeta (fuera de esta) y elegila. Se reemplaza solo el programa; Config/, Credenciales/, Recordings/, Shares/ y Logs/ quedan como están.") }
                 RowLayout {
-                    GlassButton { text: "Actualizar desde una carpeta…"; icon: "⇪"; active: true; onClicked: updateDlg.open() }
-                    GlassButton { text: "Volver a la versión anterior"; visible: sys.canRollback; onClicked: page.confirmRollback() }
+                    GlassButton { text: qsTr("Actualizar desde una carpeta…"); icon: "⇪"; active: true; onClicked: updateDlg.open() }
+                    GlassButton { text: qsTr("Volver a la versión anterior"); visible: sys.canRollback; onClicked: page.confirmRollback() }
                 }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.live; font.pixelSize: 12; text: page.updateError; visible: text !== "" }
-                Text { visible: sys.backups.length > 0; text: "Respaldos"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { visible: sys.backups.length > 0; text: qsTr("Respaldos"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Repeater {
                     model: sys.backups
                     delegate: RowLayout {
                         required property var modelData
                         Text { text: modelData.name; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
-                        GlassButton { compact: true; text: "Abrir"; onClicked: sys.openFolder("Respaldos/" + modelData.name) }
+                        GlassButton { compact: true; text: qsTr("Abrir"); onClicked: sys.openFolder("Respaldos/" + modelData.name) }
                     }
                 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                Text { text: "Diagnóstico"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text { text: qsTr("Diagnóstico"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 // Los elementos de GStreamer que faltan (P0.3): que no sean silencio o negro sin explicación.
                 Text {
                     readonly property var faltan: sys.elementosQueFaltan()
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
                     color: faltan.filter(e => e.imprescindible).length > 0 ? Theme.live : Theme.textDim
-                    text: faltan.length === 0 ? "GStreamer: están todos los elementos que usa el aparato."
-                          : "GStreamer: faltan " + faltan.map(e => e.elemento + " (" + e.para + ")").join(", ")
+                    text: faltan.length === 0 ? qsTr("GStreamer: están todos los elementos que usa el aparato.")
+                          : qsTr("GStreamer: faltan %1").arg(faltan.map(e => e.elemento + " (" + e.para + ")").join(", "))
                 }
             }
         }
@@ -2133,9 +2136,9 @@ Rectangle {
         border.color: Qt.rgba(1, 0.6, 0.35, 0.6)
         RowLayout {
             anchors { fill: parent; leftMargin: 18; rightMargin: 12 }
-            Text { text: "Hay cambios sin aplicar"; color: Theme.text; font.pixelSize: 13; Layout.fillWidth: true }
-            GlassButton { text: "Revertir"; onClicked: Studio.settings.revert() }
-            GlassButton { text: "Aplicar"; active: true; onClicked: Studio.settings.apply() }
+            Text { text: qsTr("Hay cambios sin aplicar"); color: Theme.text; font.pixelSize: 13; Layout.fillWidth: true }
+            GlassButton { text: qsTr("Revertir"); onClicked: Studio.settings.revert() }
+            GlassButton { text: qsTr("Aplicar"); active: true; onClicked: Studio.settings.apply() }
         }
     }
 }

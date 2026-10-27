@@ -87,38 +87,40 @@ Rectangle {
     function resumen(n) {
         const p = n.params || {}
         if (n.error) return "⚠ " + n.error
-        if (n.tipo === "entrada") return "La cámara (ya encuadrada por el PTZ)"
-        if (n.tipo === "escena") return "Lo que ve la escena"
-        if (n.tipo === "obs") return "Filtro de OBS · " + (p.filtro || "")
-        if (n.tipo === "control") return "Controlador · " + (p.tarjeta === "gst" ? (p.params || {}).elemento : p.tarjeta === "obs" ? (p.params || {}).filtro : p.tarjeta)
-        if (n.controlador) return "↳ del controlador" + (Object.keys(p.local || {}).length ? " · con ajuste propio" : "")
+        const enEscena = n.publicada ? qsTr(" · en escena") : ""
+        if (n.tipo === "entrada") return qsTr("La cámara (ya encuadrada por el PTZ)")
+        if (n.tipo === "escena") return qsTr("Lo que ve la escena")
+        if (n.tipo === "obs") return qsTr("Filtro de OBS · %1").arg(p.filtro || "")
+        if (n.tipo === "control") return qsTr("Controlador · %1").arg(p.tarjeta === "gst" ? (p.params || {}).elemento : p.tarjeta === "obs" ? (p.params || {}).filtro : p.tarjeta)
+        if (n.controlador) return Object.keys(p.local || {}).length ? qsTr("↳ del controlador · con ajuste propio") : qsTr("↳ del controlador")
         if (n.tipo === "gst") {
             const pr = p.propiedades || {}
             const ks = Object.keys(pr)
             return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
         }
-        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho > 0 ? p.ancho + "×" + p.alto : "lienzo del estudio") + (n.publicada ? " · en escena" : "")
-        if (n.tipo === "mezcla") return "GStreamer · " + (p.elemento || "") + " · " + ((page.vista === "estudio" ? page.est.cables : page.g.cables) || []).filter(c => c.hacia === n.id).length + " conectadas" + (n.publicada ? " · en escena" : "")
-        if (n.tipo === "color") return "brillo " + f2(p.brillo) + " · contraste " + f2(p.contraste) + " · saturación " + f2(p.saturacion)
-        if (n.tipo === "croma") return "fondo " + hex(p.clave) + " · similitud " + f2(p.similitud)
+        if (n.tipo === "compositor") return qsTr("%n entrada · %1", "", (n.entradas || []).length - 1).arg(p.ancho > 0 ? p.ancho + "×" + p.alto : qsTr("lienzo del estudio")) + enEscena
+        if (n.tipo === "mezcla") return qsTr("GStreamer · %1 · %n conectada", "", ((page.vista === "estudio" ? page.est.cables : page.g.cables) || []).filter(c => c.hacia === n.id).length).arg(p.elemento || "") + enEscena
+        if (n.tipo === "color") return qsTr("brillo %1 · contraste %2 · saturación %3").arg(f2(p.brillo)).arg(f2(p.contraste)).arg(f2(p.saturacion))
+        if (n.tipo === "croma") return qsTr("fondo %1 · similitud %2").arg(hex(p.clave)).arg(f2(p.similitud))
         if (n.tipo === "recorte") {
             const partes = []
-            if (p.izquierda > 0 || p.arriba > 0 || p.derecha > 0 || p.abajo > 0) partes.push("bordes recortados")
-            if (p.espejoH) partes.push("espejo ↔")
-            if (p.espejoV) partes.push("espejo ↕")
-            return partes.length ? partes.join(" · ") : "sin cambios"
+            if (p.izquierda > 0 || p.arriba > 0 || p.derecha > 0 || p.abajo > 0) partes.push(qsTr("bordes recortados"))
+            if (p.espejoH) partes.push(qsTr("espejo ↔"))
+            if (p.espejoV) partes.push(qsTr("espejo ↕"))
+            return partes.length ? partes.join(" · ") : qsTr("sin cambios")
         }
         if (n.tipo === "vista360" || n.tipo === "panoramica") {
-            if (p.ver === "entrada") return "calibrando: la entrada con los círculos"
-            if (p.ver === "tira") return "la tira" + (p.ancho > 0 ? " " + p.ancho + "×" + p.alto : " (la suma de las cámaras)") + (n.publicada ? " · en escena" : "")
-            if (p.ver === "panorama") return "el panorama 360" + (p.guia && p.guia !== "ninguna" ? " · guía " + p.guia : "")
-            return (n.tipo === "panoramica" ? (((n.entradas || []).filter(e => !e.pedido).length) + " cámaras · ") : "") + "mira " + Math.round(p.yaw || 0) + "° · " + Math.round(p.pitch || 0) + "° · abre " + Math.round(p.fov || 90) + "°" + (n.publicada ? " · en escena" : "")
+            if (p.ver === "entrada") return qsTr("calibrando: la entrada con los círculos")
+            if (p.ver === "tira") return (p.ancho > 0 ? qsTr("la tira %1×%2").arg(p.ancho).arg(p.alto) : qsTr("la tira (la suma de las cámaras)")) + enEscena
+            if (p.ver === "panorama") return p.guia && p.guia !== "ninguna" ? qsTr("el panorama 360 · guía %1").arg(p.guia) : qsTr("el panorama 360")
+            const mira = qsTr("mira %1° · %2° · abre %3°").arg(Math.round(p.yaw || 0)).arg(Math.round(p.pitch || 0)).arg(Math.round(p.fov || 90))
+            return (n.tipo === "panoramica" ? qsTr("%n cámara · %1", "", (n.entradas || []).filter(e => !e.pedido).length).arg(mira) : mira) + enEscena
         }
-        if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
-        if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
-        if (n.tipo === "ptz") return p.activo === false ? "Apagado" : "Pan, tilt y zoom digital (Cámaras PTZ)"
-        if (n.tipo === "seguir") return p.activo === false ? "Apagado" : (p.objetivo ? "Sigue: " + p.objetivo : "Sin nadie elegido")
-        if (n.tipo === "rostros") return (({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita", seguir: "Sigue a una cara" })[p.uso] || "Caras") +
+        if (n.tipo === "salida") return qsTr("«%1»").arg(p.nombre || "") + enEscena
+        if (n.tipo === "retardo") return qsTr("%n cuadro de atraso", "", p.cuadros || 0)
+        if (n.tipo === "ptz") return p.activo === false ? qsTr("Apagado") : qsTr("Pan, tilt y zoom digital (Cámaras PTZ)")
+        if (n.tipo === "seguir") return p.activo === false ? qsTr("Apagado") : (p.objetivo ? qsTr("Sigue: %1").arg(p.objetivo) : qsTr("Sin nadie elegido"))
+        if (n.tipo === "rostros") return (({ mirar: qsTr("Personas mira"), autoalta: qsTr("Personas anota sola"), puerta: qsTr("Puerta: acredita"), seguir: qsTr("Sigue a una cara") })[p.uso] || qsTr("Caras")) +
                                           (p.marcar ? " · " + (p.estilo || "recuadro") : "") + (p.texto ? " · «" + p.texto + "»" : "")
         return ""
     }
@@ -267,15 +269,15 @@ Rectangle {
         Panel {
             Layout.preferredWidth: 230
             Layout.fillHeight: true
-            title: "Entradas de video"
+            title: qsTr("Entradas de video")
             GlassButton {
                 id: botonVirtual
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                 compact: true
-                text: "+ Entrada virtual…"
+                text: qsTr("+ Entrada virtual…")
                 onClicked: virtualPop.open()
                 ToolTip.visible: hovered; ToolTip.delay: 400
-                ToolTip.text: "Señal de ajuste (barras), negro, color, o cualquier origen de GStreamer"
+                ToolTip.text: qsTr("Señal de ajuste (barras), negro, color, o cualquier origen de GStreamer")
             }
             ListView {
                 anchors { left: parent.left; right: parent.right; top: parent.top; bottom: botonVirtual.top; bottomMargin: 8 }
@@ -328,7 +330,7 @@ Rectangle {
                     width: parent.width - 20
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
-                    text: "No hay entradas de video. Se agregan en «Entradas»."
+                    text: qsTr("No hay entradas de video. Se agregan en «Entradas».")
                     color: Theme.textFaint; font.pixelSize: 12
                 }
             }
@@ -342,17 +344,17 @@ Rectangle {
             // Misma barra que el audio: qué veo · qué agrego · cómo lo miro · ⋯
             BarraGrafo {
                 Layout.fillWidth: true
-                titulo: page.vista === "estudio" ? "Estudio" : (page.vg ? page.vg.entrada : "")
+                titulo: page.vista === "estudio" ? qsTr("Estudio") : (page.vg ? page.vg.entrada : "")
                 vistas: [
-                    { id: "racks", t: "Racks", tip: "El pipeline de la entrada elegida" },
-                    { id: "estudio", t: "Estudio", icon: "▦", tip: "Todas las entradas, cada una en su franja, y los cables entre ellas" }
+                    { id: "racks", t: qsTr("Racks"), tip: qsTr("El pipeline de la entrada elegida") },
+                    { id: "estudio", t: qsTr("Estudio"), icon: "▦", tip: qsTr("Todas las entradas, cada una en su franja, y los cables entre ellas") }
                 ]
                 vista: page.vista
                 onElegirVista: (id) => page.vg.vista = id
                 puedeAgregar: !!page.vg && page.vg.entrada !== ""
-                porQueNoAgregar: "Elegí una entrada a la izquierda"
+                porQueNoAgregar: qsTr("Elegí una entrada a la izquierda")
                 agregar: [
-                    { titulo: "Tarjetas" + (page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? " (van después de «" + (page.nodo.etiqueta || page.sel) + "»)" : ""),
+                    { titulo: page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? qsTr("Tarjetas (van después de «%1»)").arg(page.nodo.etiqueta || page.sel) : qsTr("Tarjetas"),
                       items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control" && c.tipo !== "ptz") : []).map(c => ({
                           t: c.titulo + (c.tipo === "mezcla" ? "…" : ""), tip: c.descripcion,
                           // La mezcla necesita su módulo: se elige en el catálogo (los de varias entradas).
@@ -360,30 +362,30 @@ Rectangle {
                                                  : () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
                     // Las tarjetas de video de los plugins que corren (Plugins.tarjetasVideo).
-                    ...(Studio.plugins && Studio.plugins.tarjetasVideo.length > 0 ? [{ titulo: "De los plugins",
+                    ...(Studio.plugins && Studio.plugins.tarjetasVideo.length > 0 ? [{ titulo: qsTr("De los plugins"),
                       items: Studio.plugins.tarjetasVideo.map(t => ({
                           t: t.nombre, tip: t.descripcion,
                           f: () => page.avisar(Studio.plugins.tarjetaUi(t.plugin, t.tarjeta, page.vg.entrada, false))
                       })) }] : []),
-                    { titulo: "Todos los módulos",
-                      items: [{ t: "Buscar módulo…", tip: "Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…", f: () => catalogo.open() }] }
+                    { titulo: qsTr("Todos los módulos"),
+                      items: [{ t: qsTr("Buscar módulo…"), tip: qsTr("Cualquier módulo de video de GStreamer o filtro de OBS como tarjeta, con su ayuda: color, llaves, desentrelazado, textos y reloj, nitidez, efectos, OpenGL…"), f: () => catalogo.open() }] }
                 ]
                 acciones: [
-                    { t: "Sincronía y red…", icon: "⏱", f: () => page.irASincronia(),
-                      tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" },
-                    { t: "Superresolución…", icon: "✦", f: () => superresPop.open(),
-                      tip: "Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara" },
-                    { t: "Scopes…", icon: "◫", f: () => scopesPop.open(),
-                      tip: "Forma de onda, RGB parade, vectorscopio e histograma del programa o de la entrada, y el legalizador para TV" },
-                    { t: "Programador de superresolución…", icon: "⚙", f: () => programadorPop.open(),
-                      tip: "Qué cámaras usan la red según el programa y el preview, cuánto aguanta cada acelerador y cómo entra la mejora" }
+                    { t: qsTr("Sincronía y red…"), icon: "⏱", f: () => page.irASincronia(),
+                      tip: qsTr("Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas") },
+                    { t: qsTr("Superresolución…"), icon: "✦", f: () => superresPop.open(),
+                      tip: qsTr("Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara") },
+                    { t: qsTr("Scopes…"), icon: "◫", f: () => scopesPop.open(),
+                      tip: qsTr("Forma de onda, RGB parade, vectorscopio e histograma del programa o de la entrada, y el legalizador para TV") },
+                    { t: qsTr("Programador de superresolución…"), icon: "⚙", f: () => programadorPop.open(),
+                      tip: qsTr("Qué cámaras usan la red según el programa y el preview, cuánto aguanta cada acelerador y cómo entra la mejora") }
                 ]
                 mas: page.g.trivial === false ? [{
-                    t: "Volver a como vino", peligro: true, tip: "Saca todas las tarjetas de esta entrada",
+                    t: qsTr("Volver a como vino"), peligro: true, tip: qsTr("Saca todas las tarjetas de esta entrada"),
                     f: () => ApplicationWindow.window.confirm({
-                        title: "¿Sacar todas las tarjetas de «" + page.vg.entrada + "»?",
-                        text: "La entrada vuelve a ir directo a la escena. Las salidas que estén en escenas quedan en negro.",
-                        accept: "Sacar todo", reject: "Cancelar",
+                        title: qsTr("¿Sacar todas las tarjetas de «%1»?").arg(page.vg.entrada),
+                        text: qsTr("La entrada vuelve a ir directo a la escena. Las salidas que estén en escenas quedan en negro."),
+                        accept: qsTr("Sacar todo"), reject: qsTr("Cancelar"),
                         action: function() { page.avisar(page.vg.limpiar()); page.sel = "" }
                     })
                 }] : []
@@ -419,7 +421,7 @@ Rectangle {
         Panel {
             Layout.preferredWidth: divisorPanel.ancho
             Layout.fillHeight: true
-            title: page.nodo ? page.nodo.etiqueta : "Vista previa"
+            title: page.nodo ? page.nodo.etiqueta : qsTr("Vista previa")
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 10
@@ -458,19 +460,19 @@ Rectangle {
                             const iw = Math.min(width, height * asp), ih = iw / asp
                             const u = Math.max(0, Math.min(1, (m.x - (width - iw) / 2) / iw))
                             const v = Math.max(0, Math.min(1, (m.y - (height - ih) / 2) / ih))
-                            page.avisar(Studio.seguidor ? Studio.seguidor.seguirPunto(page.vg.entrada, u, v) : "El seguimiento no está disponible")
+                            page.avisar(Studio.seguidor ? Studio.seguidor.seguirPunto(page.vg.entrada, u, v) : qsTr("El seguimiento no está disponible"))
                         }
                     }
                     Text {
                         visible: !vistaPrevia.hasFrame
                         anchors.centerIn: parent
-                        text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 12
+                        text: qsTr("Sin señal"); color: Theme.textFaint; font.pixelSize: 12
                     }
                 }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: "Lo que ve la escena, con las tarjetas."
+                    text: qsTr("Lo que ve la escena, con las tarjetas.")
                     color: Theme.textFaint; font.pixelSize: 11
                 }
                 // Si se cae la señal estando al aire: avisar, armar o cortar a una escena de respaldo.
@@ -480,11 +482,11 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 4
                     property var r: page.vg && page.vg.entrada !== "" ? Studio.respaldoEntrada(page.vg.entrada) : ({})
-                    Text { text: "Si se cae"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Si se cae"); color: Theme.textDim; font.pixelSize: 11 }
                     ComboBox {
                         id: modoResp
                         implicitWidth: 90
-                        model: [ { t: "Avisar", v: "avisar" }, { t: "Armar", v: "armar" }, { t: "Cortar", v: "cortar" } ]
+                        model: [ { t: qsTr("Avisar"), v: "avisar" }, { t: qsTr("Armar"), v: "armar" }, { t: qsTr("Cortar"), v: "cortar" } ]
                         textRole: "t"
                         currentIndex: Math.max(0, model.findIndex(o => o.v === (respaldo.r.al_perder_aire || "avisar")))
                         onActivated: (i) => { const e = Studio.setRespaldoEntrada(page.vg.entrada, { escena: escResp.currentText, al_perder_aire: model[i].v, ms: 1000 })
@@ -496,7 +498,7 @@ Rectangle {
                         model: page.vg ? page.vg.escenasUi() : []
                         currentIndex: Math.max(0, model.indexOf(respaldo.r.escena || ""))
                         onActivated: (i) => Studio.setRespaldoEntrada(page.vg.entrada, { escena: model[i], al_perder_aire: modoResp.model[modoResp.currentIndex].v, ms: 1000 })
-                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La escena de respaldo si esta entrada se queda sin señal al aire"
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("La escena de respaldo si esta entrada se queda sin señal al aire")
                     }
                 }
 
@@ -514,7 +516,7 @@ Rectangle {
                             visible: !page.nodo
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: "Elegí una tarjeta para ajustarla. Las tarjetas nuevas van después de la elegida; un cable se tira desde el punto verde de la derecha."
+                            text: qsTr("Elegí una tarjeta para ajustarla. Las tarjetas nuevas van después de la elegida; un cable se tira desde el punto verde de la derecha.")
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         Text {
@@ -522,10 +524,10 @@ Rectangle {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             text: !page.nodo ? ""
-                                  : page.nodo.tipo === "entrada" ? "La cámara tal como sale del PTZ (Mejorar imagen y el encuadre digital, en «Cámaras PTZ»). De su salida pueden salir varios cables, también hacia otras entradas o un compositor."
-                                  : page.nodo.tipo === "escena" ? "Lo que llega acá es lo que ven las escenas que usan esta entrada. Puede venir de otra parte del estudio (un compositor). Sin nada conectado, no se ve."
-                                  : page.nodo.tipo === "mezcla" ? "Del estudio: el módulo de GStreamer «" + (page.nodo.params.elemento || "") + "» junta sus entradas (los puertos son los del módulo; a los «+» se les tira un cable desde cualquier entrada). Abajo, sus propiedades y las de cada entrada. Se pone en las escenas como una fuente."
-                                  : "Del estudio: junta varias entradas en un lienzo. Cada cable a su entrada «+» crea una capa nueva; sin posiciones, van en mosaico. Se pone en las escenas como una fuente, o se cablea a la escena de una entrada."
+                                  : page.nodo.tipo === "entrada" ? qsTr("La cámara tal como sale del PTZ (Mejorar imagen y el encuadre digital, en «Cámaras PTZ»). De su salida pueden salir varios cables, también hacia otras entradas o un compositor.")
+                                  : page.nodo.tipo === "escena" ? qsTr("Lo que llega acá es lo que ven las escenas que usan esta entrada. Puede venir de otra parte del estudio (un compositor). Sin nada conectado, no se ve.")
+                                  : page.nodo.tipo === "mezcla" ? qsTr("Del estudio: el módulo de GStreamer «%1» junta sus entradas (los puertos son los del módulo; a los «+» se les tira un cable desde cualquier entrada). Abajo, sus propiedades y las de cada entrada. Se pone en las escenas como una fuente.").arg(page.nodo.params.elemento || "")
+                                  : qsTr("Del estudio: junta varias entradas en un lienzo. Cada cable a su entrada «+» crea una capa nueva; sin posiciones, van en mosaico. Se pone en las escenas como una fuente, o se cablea a la escena de una entrada.")
                             color: Theme.textDim; font.pixelSize: 12
                         }
 
@@ -576,8 +578,8 @@ Rectangle {
                                     color: Theme.text; font.pixelSize: 12
                                     text: !page.nodo ? ""
                                           : page.nodo.tipo === "control"
-                                            ? "Maneja " + page.manejadas.length + (page.manejadas.length === 1 ? " tarjeta" : " tarjetas") + ": lo que ajustes acá cambia en todas."
-                                            : "La maneja un controlador: lo que ajustes acá cambia en todas las entradas que maneja."
+                                            ? qsTr("Maneja %n tarjeta: lo que ajustes acá cambia en todas.", "", page.manejadas.length)
+                                            : qsTr("La maneja un controlador: lo que ajustes acá cambia en todas las entradas que maneja.")
                                 }
                                 Flow {
                                     visible: !!page.nodo && page.nodo.tipo === "control"
@@ -594,7 +596,7 @@ Rectangle {
                                 }
                                 Text {
                                     visible: !!page.nodo && page.nodo.tipo === "control"
-                                    text: "Agregarla también a:"; color: Theme.textDim; font.pixelSize: 11
+                                    text: qsTr("Agregarla también a:"); color: Theme.textDim; font.pixelSize: 11
                                 }
                                 Flow {
                                     visible: !!page.nodo && page.nodo.tipo === "control"
@@ -612,24 +614,24 @@ Rectangle {
                                 GlassButton {
                                     visible: !!page.nodo && !!page.nodo.controlador
                                     compact: true
-                                    text: "Soltar del controlador"
+                                    text: qsTr("Soltar del controlador")
                                     onClicked: page.avisar(page.vg.soltarControl(page.sel))
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Esta tarjeta deja de seguir al controlador y se queda con los valores de ahora"
+                                    ToolTip.text: qsTr("Esta tarjeta deja de seguir al controlador y se queda con los valores de ahora")
                                 }
                             }
                         }
                         GlassButton {
                             visible: !!page.nodo && !page.nodo.controlador && ["color", "croma", "recorte", "obs", "gst"].indexOf(page.nodo.tipo) >= 0 && !page.nodo.externo
                             compact: true
-                            text: "Usar en varias entradas…"
+                            text: qsTr("Usar en varias entradas…")
                             icon: "⇶"
                             onClicked: {
                                 const e = page.vg.controlar(page.sel)
                                 page.avisar(e)
                             }
                             ToolTip.visible: hovered; ToolTip.delay: 400
-                            ToolTip.text: "Hace un controlador con esta tarjeta: después se la agrega a otras entradas (otras cámaras) y un solo ajuste las maneja a todas"
+                            ToolTip.text: qsTr("Hace un controlador con esta tarjeta: después se la agrega a otras entradas (otras cámaras) y un solo ajuste las maneja a todas")
                         }
 
                         // Un módulo de GStreamer: qué es, y su ayuda completa.
@@ -643,7 +645,7 @@ Rectangle {
                                 color: Theme.textFaint; font { pixelSize: 11; family: "Menlo" }
                             }
                             GlassButton {
-                                compact: true; text: "Ayuda"; icon: "?"
+                                compact: true; text: qsTr("Ayuda"); icon: "?"
                                 onClicked: catalogo.abrirEn(page.paramsEf.elemento)
                             }
                         }
@@ -654,33 +656,33 @@ Rectangle {
                                 if (!page.nodo) return []
                                 const t = page.tipoEf
                                 if (t === "color") return [
-                                    { k: "brillo", t: "Brillo", min: -1, max: 1 },
-                                    { k: "contraste", t: "Contraste", min: 0, max: 2 },
-                                    { k: "saturacion", t: "Saturación", min: 0, max: 2 },
+                                    { k: "brillo", t: qsTr("Brillo"), min: -1, max: 1 },
+                                    { k: "contraste", t: qsTr("Contraste"), min: 0, max: 2 },
+                                    { k: "saturacion", t: qsTr("Saturación"), min: 0, max: 2 },
                                     { k: "gamma", t: "Gamma", min: 0.2, max: 3 }]
                                 if (t === "croma") return [
-                                    { k: "similitud", t: "Similitud (cuánto se va)", min: 0, max: 1 },
-                                    { k: "suavidad", t: "Suavidad del borde", min: 0, max: 1 },
-                                    { k: "derrame", t: "Quitar el reflejo de color", min: 0, max: 1 }]
+                                    { k: "similitud", t: qsTr("Similitud (cuánto se va)"), min: 0, max: 1 },
+                                    { k: "suavidad", t: qsTr("Suavidad del borde"), min: 0, max: 1 },
+                                    { k: "derrame", t: qsTr("Quitar el reflejo de color"), min: 0, max: 1 }]
                                 if (t === "rostros") return [
-                                    { k: "fps", t: "Análisis por segundo", min: 1, max: 15, entero: true },
-                                    { k: "confianza", t: "Confianza mínima", min: 0.3, max: 0.95 },
-                                    { k: "grosor", t: "Grosor del borde", min: 1, max: 20, entero: true },
-                                    { k: "texto_tamano", t: "Tamaño del texto", min: 0.015, max: 0.1 }]
+                                    { k: "fps", t: qsTr("Análisis por segundo"), min: 1, max: 15, entero: true },
+                                    { k: "confianza", t: qsTr("Confianza mínima"), min: 0.3, max: 0.95 },
+                                    { k: "grosor", t: qsTr("Grosor del borde"), min: 1, max: 20, entero: true },
+                                    { k: "texto_tamano", t: qsTr("Tamaño del texto"), min: 0.015, max: 0.1 }]
                                 if (t === "seguir") return [
-                                    { k: "zoom", t: "Zoom que busca (0 = no tocarlo)", min: 0, max: 4 },
-                                    { k: "tamano_cara", t: "Tamaño de la cara (0 = no ajustar el zoom)", min: 0, max: 0.6 },
-                                    { k: "aire", t: "Aire arriba de la cabeza", min: -0.2, max: 0.35 },
-                                    { k: "suavidad", t: "Suavidad del movimiento (s)", min: 0.1, max: 3 },
-                                    { k: "zona_muerta", t: "Zona muerta (no tiembla)", min: 0, max: 0.2 },
-                                    { k: "perdida_s", t: "Espera si la pierde (s)", min: 0, max: 15 }]
+                                    { k: "zoom", t: qsTr("Zoom que busca (0 = no tocarlo)"), min: 0, max: 4 },
+                                    { k: "tamano_cara", t: qsTr("Tamaño de la cara (0 = no ajustar el zoom)"), min: 0, max: 0.6 },
+                                    { k: "aire", t: qsTr("Aire arriba de la cabeza"), min: -0.2, max: 0.35 },
+                                    { k: "suavidad", t: qsTr("Suavidad del movimiento (s)"), min: 0.1, max: 3 },
+                                    { k: "zona_muerta", t: qsTr("Zona muerta (no tiembla)"), min: 0, max: 0.2 },
+                                    { k: "perdida_s", t: qsTr("Espera si la pierde (s)"), min: 0, max: 15 }]
                                 if (t === "retardo") return [
-                                    { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
+                                    { k: "cuadros", t: qsTr("Cuadros de atraso (para sincronizar)"), min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
-                                    { k: "izquierda", t: "Izquierda", min: 0, max: 0.5 },
-                                    { k: "derecha", t: "Derecha", min: 0, max: 0.5 },
-                                    { k: "arriba", t: "Arriba", min: 0, max: 0.5 },
-                                    { k: "abajo", t: "Abajo", min: 0, max: 0.5 }]
+                                    { k: "izquierda", t: qsTr("Izquierda"), min: 0, max: 0.5 },
+                                    { k: "derecha", t: qsTr("Derecha"), min: 0, max: 0.5 },
+                                    { k: "arriba", t: qsTr("Arriba"), min: 0, max: 0.5 },
+                                    { k: "abajo", t: qsTr("Abajo"), min: 0, max: 0.5 }]
                                 return []
                             }
                             delegate: ColumnLayout {
@@ -752,7 +754,7 @@ Rectangle {
                                     visible: prop.modelData.kind === "text" || prop.modelData.kind === "path" || prop.modelData.kind === "color"
                                     Layout.fillWidth: true
                                     text: prop.modelData.value !== undefined ? String(prop.modelData.value) : ""
-                                    placeholderText: prop.modelData.kind === "path" ? "Ruta del archivo" : prop.modelData.kind === "color" ? "#RRGGBB" : ""
+                                    placeholderText: prop.modelData.kind === "path" ? qsTr("Ruta del archivo") : prop.modelData.kind === "color" ? "#RRGGBB" : ""
                                     onEditingFinished: if (text !== String(prop.modelData.value)) page.avisar(page.vg.ajustarFiltro(page.sel, prop.modelData.name, text))
                                 }
                             }
@@ -775,11 +777,12 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 11
-                                text: (page.nodo && page.nodo.publicada ? "Es la fuente «" : "Sale como la fuente «") +
-                                      (page.nodo ? page.nodo.params.nombre || "" : "") + "». Cada puerto es una cámara, en orden (el de arriba es la lente 1); se agregan tirando un cable al libre."
+                                text: (page.nodo && page.nodo.publicada ? qsTr("Es la fuente «%1». Cada puerto es una cámara, en orden (el de arriba es la lente 1); se agregan tirando un cable al libre.")
+                                                                          : qsTr("Sale como la fuente «%1». Cada puerto es una cámara, en orden (el de arriba es la lente 1); se agregan tirando un cable al libre."))
+                                      .arg(page.nodo ? page.nodo.params.nombre || "" : "")
                             }
                             GlassButton {
-                                text: "Poner en la escena al aire"
+                                text: qsTr("Poner en la escena al aire")
                                 onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
                             }
                         }
@@ -788,13 +791,13 @@ Rectangle {
                         RowLayout {
                             visible: page.tipoEf === "croma"
                             spacing: 6
-                            Text { text: "Fondo"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Fondo"); color: Theme.textDim; font.pixelSize: 12 }
                             Rectangle { width: 22; height: 22; radius: 4; color: page.paramsEf && page.paramsEf.clave !== undefined ? page.hex(page.paramsEf.clave) : "transparent"; border.color: Qt.rgba(1, 1, 1, 0.3) }
-                            GlassButton { compact: true; text: "Verde"; onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x00B140 })) }
-                            GlassButton { compact: true; text: "Azul"; onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x0047BB })) }
+                            GlassButton { compact: true; text: qsTr("Verde"); onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x00B140 })) }
+                            GlassButton { compact: true; text: qsTr("Azul"); onClicked: page.avisar(page.vg.ajustar(page.sel, { clave: 0x0047BB })) }
                             TextField {
                                 Layout.preferredWidth: 80
-                                placeholderText: "#RRGGBB"
+                                placeholderText: qsTr("#RRGGBB")
                                 onAccepted: {
                                     const v = parseInt(text.replace("#", ""), 16)
                                     if (!isNaN(v)) page.avisar(page.vg.ajustar(page.sel, { clave: v }))
@@ -811,21 +814,21 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
-                                text: "No toca la imagen: lee las caras de una tarjeta Rostros (antes o después) y le manda el encuadre al PTZ (antes o después) con eventos de GStreamer. Clic en la vista previa: seguir a esa cara."
+                                text: qsTr("No toca la imagen: lee las caras de una tarjeta Rostros (antes o después) y le manda el encuadre al PTZ (antes o después) con eventos de GStreamer. Clic en la vista previa: seguir a esa cara.")
                             }
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.text; font.pixelSize: 12
-                                text: "Sigue: " + (parent.p.objetivo ? parent.p.objetivo : "nadie") +
+                                text: qsTr("Sigue: %1").arg(parent.p.objetivo ? parent.p.objetivo : qsTr("nadie")) +
                                       (Studio.seguidor && Studio.seguidor.siguiendo[page.vg.entrada]
                                        ? " · " + Studio.seguidor.siguiendo[page.vg.entrada].estado : "")
                             }
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 6
-                                GlassButton { compact: true; text: "La más grande"; onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "mayor" })) }
-                                GlassButton { compact: true; text: "La del centro"; onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "centro" })) }
-                                GlassButton { compact: true; text: "Soltar"; onClicked: Studio.seguidor.dejar(page.vg.entrada) }
+                                GlassButton { compact: true; text: qsTr("La más grande"); onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "mayor" })) }
+                                GlassButton { compact: true; text: qsTr("La del centro"); onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "centro" })) }
+                                GlassButton { compact: true; text: qsTr("Soltar"); onClicked: Studio.seguidor.dejar(page.vg.entrada) }
                             }
                         }
 
@@ -837,32 +840,32 @@ Rectangle {
                             spacing: 6
                             readonly property var p: page.paramsEf || ({})
                             readonly property var plantillas: [
-                                { t: "Sin texto", v: "" },
-                                { t: "Nombre", v: "{nombre}" },
-                                { t: "Nombre y cargo", v: "{nombre} — {cargo}" },
-                                { t: "Número", v: "Cara {id}" },
-                                { t: "Confianza", v: "{confianza}" },
-                                { t: "Nombre o número", v: "{nombre} #{id}" }]
+                                { t: qsTr("Sin texto"), v: "" },
+                                { t: qsTr("Nombre"), v: "{nombre}" },
+                                { t: qsTr("Nombre y cargo"), v: "{nombre} — {cargo}" },
+                                { t: qsTr("Número"), v: "Cara {id}" },
+                                { t: qsTr("Confianza"), v: "{confianza}" },
+                                { t: qsTr("Nombre o número"), v: "{nombre} #{id}" }]
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
                                 text: rostrosPanel.p.auto
-                                      ? "La puso Personas (" + (({ mirar: "la página la está mirando", autoalta: "anotado automático", puerta: "cámara de la puerta", seguir: "seguimiento del PTZ" })[rostrosPanel.p.uso] || "") + "): se va sola cuando deja de usarla."
-                                      : "Mira la toma entera de la cámara (antes del PTZ digital) sin demorar la imagen. Las caras van en cada cuadro y en eventos «ba/rostros» para el resto de la cadena."
+                                      ? qsTr("La puso Personas (%1): se va sola cuando deja de usarla.").arg(({ mirar: qsTr("la página la está mirando"), autoalta: qsTr("anotado automático"), puerta: qsTr("cámara de la puerta"), seguir: qsTr("seguimiento del PTZ") })[rostrosPanel.p.uso] || "")
+                                      : qsTr("Mira la toma entera de la cámara (antes del PTZ digital) sin demorar la imagen. Las caras van en cada cuadro y en eventos «ba/rostros» para el resto de la cadena.")
                             }
                             RowLayout {
                                 Layout.fillWidth: true
                                 CheckBox {
-                                    text: "Reconocer (para Personas)"
+                                    text: qsTr("Reconocer (para Personas)")
                                     checked: !!rostrosPanel.p.reconocer
                                     onToggled: page.avisar(page.vg.ajustar(page.sel, { reconocer: checked }))
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Saca el vector de cada cara (lo que compara la libreta). Personas lo prende sola cuando usa la cámara."
+                                    ToolTip.text: qsTr("Saca el vector de cada cara (lo que compara la libreta). Personas lo prende sola cuando usa la cámara.")
                                 }
                                 Item { Layout.fillWidth: true }
-                                Text { text: "Detector"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Detector"); color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
-                                    model: [{ t: "Automático", v: "auto" }, { t: "Apple (Vision)", v: "vision" }, { t: "YuNet", v: "yunet" }]
+                                    model: [{ t: qsTr("Automático"), v: "auto" }, { t: "Apple (Vision)", v: "vision" }, { t: "YuNet", v: "yunet" }]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.detector || "auto")))
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { detector: model[i].v }))
@@ -872,26 +875,26 @@ Rectangle {
                             RowLayout {
                                 Layout.fillWidth: true
                                 CheckBox {
-                                    text: "Overlay sobre las caras"
+                                    text: qsTr("Overlay sobre las caras")
                                     checked: !!rostrosPanel.p.marcar
                                     onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
                                 }
                                 Item { Layout.fillWidth: true }
                                 ComboBox {
                                     enabled: !!rostrosPanel.p.marcar
-                                    model: [{ t: "Recuadro", v: "recuadro" }, { t: "Esquinas", v: "esquinas" }, { t: "Relleno", v: "relleno" },
-                                            { t: "Tapar", v: "tapar" }, { t: "Pixelar", v: "pixelar" }]
+                                    model: [{ t: qsTr("Recuadro"), v: "recuadro" }, { t: qsTr("Esquinas"), v: "esquinas" }, { t: qsTr("Relleno"), v: "relleno" },
+                                            { t: qsTr("Tapar"), v: "tapar" }, { t: qsTr("Pixelar"), v: "pixelar" }]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.estilo || "recuadro")))
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { estilo: model[i].v }))
                                     ToolTip.visible: hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Tapar y pixelar sirven para no mostrar una cara (privacidad)"
+                                    ToolTip.text: qsTr("Tapar y pixelar sirven para no mostrar una cara (privacidad)")
                                 }
                             }
                             RowLayout {
                                 enabled: !!rostrosPanel.p.marcar
                                 spacing: 6
-                                Text { text: "Color"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Color"); color: Theme.textDim; font.pixelSize: 12 }
                                 Repeater {
                                     model: [0xFFFFC83C, 0xFF35C46B, 0xFF38BDF8, 0xFFFF3B30, 0xFFFFFFFF, 0xFF000000]
                                     delegate: Rectangle {
@@ -907,17 +910,17 @@ Rectangle {
                             RowLayout {
                                 Layout.fillWidth: true
                                 enabled: !!rostrosPanel.p.marcar
-                                Text { text: "Texto"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Texto"); color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
                                     Layout.preferredWidth: 150
                                     model: rostrosPanel.plantillas
                                     textRole: "t"
                                     currentIndex: rostrosPanel.plantillas.findIndex(m => m.v === (rostrosPanel.p.texto || ""))
-                                    displayText: currentIndex < 0 ? "Personalizado" : currentText
+                                    displayText: currentIndex < 0 ? qsTr("Personalizado") : currentText
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto: rostrosPanel.plantillas[i].v }))
                                 }
                                 ComboBox {
-                                    model: [{ t: "Arriba", v: "arriba" }, { t: "Abajo", v: "abajo" }]
+                                    model: [{ t: qsTr("Arriba"), v: "arriba" }, { t: qsTr("Abajo"), v: "abajo" }]
                                     textRole: "t"
                                     currentIndex: rostrosPanel.p.texto_posicion === "abajo" ? 1 : 0
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto_posicion: model[i].v }))
@@ -927,14 +930,14 @@ Rectangle {
                                 Layout.fillWidth: true
                                 enabled: !!rostrosPanel.p.marcar
                                 text: rostrosPanel.p.texto || ""
-                                placeholderText: "Plantilla: {nombre} {cargo} {id} {confianza} {n}"
+                                placeholderText: qsTr("Plantilla: {nombre} {cargo} {id} {confianza} {n}")
                                 color: Theme.text
                                 onEditingFinished: if (text !== (rostrosPanel.p.texto || "")) page.avisar(page.vg.ajustar(page.sel, { texto: text }))
                             }
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textFaint; font.pixelSize: 11
-                                text: "El nombre y el cargo aparecen cuando Personas reconoce a alguien. Para un monitor o para probar, conviene el overlay en una rama con salida, no en lo que va al aire."
+                                text: qsTr("El nombre y el cargo aparecen cuando Personas reconoce a alguien. Para un monitor o para probar, conviene el overlay en una rama con salida, no en lo que va al aire.")
                             }
                         }
 
@@ -942,12 +945,12 @@ Rectangle {
                         RowLayout {
                             visible: page.tipoEf === "recorte"
                             CheckBox {
-                                text: "Espejo ↔"
+                                text: qsTr("Espejo ↔")
                                 checked: !!page.paramsEf && !!page.paramsEf.espejoH
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoH: checked }))
                             }
                             CheckBox {
-                                text: "Espejo ↕"
+                                text: qsTr("Espejo ↕")
                                 checked: !!page.paramsEf && !!page.paramsEf.espejoV
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { espejoV: checked }))
                             }
@@ -972,7 +975,7 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
-                                text: "Agranda x2: lo que sigue trabaja al doble y la escena la recibe grande. Elegí el método; la demora se mide y el audio de la entrada se atrasa lo mismo (solo)."
+                                text: qsTr("Agranda x2: lo que sigue trabaja al doble y la escena la recibe grande. Elegí el método; la demora se mide y el audio de la entrada se atrasa lo mismo (solo).")
                             }
                             // El error de la tarjeta (el mismo que se ve en el grafo) y lo que
                             // decidió el programador, con el motivo: antes no se veía nada acá y
@@ -998,9 +1001,9 @@ Rectangle {
                                     id: srEstadoTxt
                                     width: parent.width; wrapMode: Text.WordWrap
                                     readonly property string modo: srEstado.e.modo || ""
-                                    text: modo === "" ? "Ahora: todavía sin estado (la entrada está arrancando)"
-                                        : "Ahora: " + (modo === "activo" ? "trabajando" : modo === "barato" ? "barata (agrandado común)" : "en reposo (pasa sin tocar)") +
-                                          (srEstado.e.ms > 0 ? " · " + Number(srEstado.e.ms).toFixed(0) + " ms por cuadro" : "") +
+                                    text: modo === "" ? qsTr("Ahora: todavía sin estado (la entrada está arrancando)")
+                                        : qsTr("Ahora: %1").arg(modo === "activo" ? qsTr("trabajando") : modo === "barato" ? qsTr("barata (agrandado común)") : qsTr("en reposo (pasa sin tocar)")) +
+                                          (srEstado.e.ms > 0 ? qsTr(" · %1 ms por cuadro").arg(Number(srEstado.e.ms).toFixed(0)) : "") +
                                           (srEstado.e.motivo ? " — " + srEstado.e.motivo : "")
                                     color: modo === "activo" ? Theme.ok : modo === "" ? Theme.textFaint : Theme.amber
                                     font.pixelSize: 12
@@ -1010,14 +1013,14 @@ Rectangle {
                                 visible: srEstado.entrada !== ""
                                 Layout.fillWidth: true
                                 spacing: 6
-                                Text { text: "Cuándo trabaja"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Cuándo trabaja"); color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
                                     id: srCuando
                                     Layout.fillWidth: true
                                     readonly property var opciones: [
-                                        { t: "Automático: cuando se ve grande (al aire o en preview) y llega a tiempo", v: "auto" },
-                                        { t: "Siempre (para probar: aunque no se vea o no llegue)", v: "siempre" },
-                                        { t: "Nunca", v: "nunca" } ]
+                                        { t: qsTr("Automático: cuando se ve grande (al aire o en preview) y llega a tiempo"), v: "auto" },
+                                        { t: qsTr("Siempre (para probar: aunque no se vea o no llegue)"), v: "siempre" },
+                                        { t: qsTr("Nunca"), v: "nunca" } ]
                                     model: opciones.map(o => o.t)
                                     currentIndex: Math.max(0, opciones.findIndex(o => o.v === (srEstado.e.forzado || "auto")))
                                     onActivated: (i) => {
@@ -1031,12 +1034,12 @@ Rectangle {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 6
-                                Text { text: "Método"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Método"); color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
                                     id: srCombo
                                     Layout.fillWidth: true
-                                    readonly property var lista: [{ id: "", nombre: "— elegí un método —", instalado: true }].concat(srPanel.visibles)
-                                    model: lista.map(p => p.nombre + (!p.instalado ? "  (instalar)" : p.ms_coreml ? "  · " + Number(p.ms_coreml).toFixed(0) + " ms" : ""))
+                                    readonly property var lista: [{ id: "", nombre: qsTr("— elegí un método —"), instalado: true }].concat(srPanel.visibles)
+                                    model: lista.map(p => p.nombre + (!p.instalado ? qsTr("  (instalar)") : p.ms_coreml ? "  · " + Number(p.ms_coreml).toFixed(0) + " ms" : ""))
                                     currentIndex: Math.max(0, lista.findIndex(p => p.id === srPanel.elegido))
                                     onActivated: (i) => {
                                         const p = lista[i]
@@ -1044,7 +1047,7 @@ Rectangle {
                                         if (!p.instalado) {
                                             const e = srPanel.sr.instalarPluginUi(p.id)
                                             page.avisar(e === "" ? "" : e)
-                                            if (e === "") Studio.notify("Instalando «" + p.nombre + "»: tarda unos minutos", "info")
+                                            if (e === "") Studio.notify(qsTr("Instalando «%1»: tarda unos minutos").arg(p.nombre), "info")
                                             return
                                         }
                                         page.avisar(page.vg.ajustar(page.sel, { plugin: p.id, activo: true }))
@@ -1074,7 +1077,7 @@ Rectangle {
                                 visible: srPanel.elegido === "fsr" || (!!page.paramsEf && page.paramsEf.motor === "fsr" && srPanel.elegido === "")
                                 Layout.fillWidth: true
                                 spacing: 6
-                                Text { text: "Nitidez (FSR)"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Nitidez (FSR)"); color: Theme.textDim; font.pixelSize: 12 }
                                 Slider {
                                     id: nitidezSr
                                     Layout.fillWidth: true
@@ -1085,7 +1088,7 @@ Rectangle {
                                 }
                             }
                             CheckBox {
-                                text: "Activa (si no, pasa sin tocar)"
+                                text: qsTr("Activa (si no, pasa sin tocar)")
                                 checked: !page.paramsEf || page.paramsEf.activo !== false
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { activo: checked }))
                             }
@@ -1093,11 +1096,11 @@ Rectangle {
                             RowLayout {
                                 visible: srPanel.motores.indexOf("coreml") >= 0 && !!srPanel.actual && !!srPanel.actual.archivos && !!srPanel.actual.archivos.coreml
                                 spacing: 6
-                                Text { text: "Corre en"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Corre en"); color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
                                     Layout.fillWidth: true
-                                    model: [ { t: "Elegir solo (Neural Engine)", v: "auto" }, { t: "Neural Engine", v: "ane" },
-                                             { t: "GPU (compite con la composición)", v: "gpu" }, { t: "Procesador (lento)", v: "cpu" } ]
+                                    model: [ { t: qsTr("Elegir solo (Neural Engine)"), v: "auto" }, { t: "Neural Engine", v: "ane" },
+                                             { t: qsTr("GPU (compite con la composición)"), v: "gpu" }, { t: qsTr("Procesador (lento)"), v: "cpu" } ]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.unidades) || "auto")))
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { unidades: model[i].v }))
@@ -1109,13 +1112,13 @@ Rectangle {
                                 visible: srPanel.motores.indexOf("onnx") >= 0 && srPanel.motores.indexOf("coreml") < 0 &&
                                          !!srPanel.actual && !!srPanel.actual.archivos && (!!srPanel.actual.archivos.onnx || !!srPanel.actual.archivos.onnx_nv12)
                                 spacing: 6
-                                Text { text: "Corre con"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Corre con"); color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
                                     Layout.fillWidth: true
-                                    model: [ { t: "Elegir solo", v: "auto" }, { t: "DirectML (cualquier placa, Windows)", v: "dml" },
-                                             { t: "Vulkan (ncnn: AMD, Intel, NVIDIA)", v: "vulkan" }, { t: "TensorRT (NVIDIA, compila la red)", v: "tensorrt" },
+                                    model: [ { t: qsTr("Elegir solo"), v: "auto" }, { t: qsTr("DirectML (cualquier placa, Windows)"), v: "dml" },
+                                             { t: qsTr("Vulkan (ncnn: AMD, Intel, NVIDIA)"), v: "vulkan" }, { t: qsTr("TensorRT (NVIDIA, compila la red)"), v: "tensorrt" },
                                              { t: "CUDA (NVIDIA)", v: "cuda" }, { t: "OpenVINO (Intel)", v: "openvino" },
-                                             { t: "MIGraphX (AMD en Linux)", v: "migraphx" }, { t: "Procesador (lento)", v: "cpu" } ]
+                                             { t: qsTr("MIGraphX (AMD en Linux)"), v: "migraphx" }, { t: qsTr("Procesador (lento)"), v: "cpu" } ]
                                     textRole: "t"
                                     currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.proveedor) || "auto")))
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { proveedor: model[i].v }))
@@ -1123,13 +1126,13 @@ Rectangle {
                             }
                             RowLayout {
                                 spacing: 6
-                                GlassButton { compact: true; text: srPanel.avanzado ? "Ocultar avanzado" : "Avanzado…"; onClicked: srPanel.avanzado = !srPanel.avanzado }
-                                GlassButton { compact: true; text: "Red propia, placa y plugins…"; onClicked: { panelSr.maestroPedido = ""; superresPop.open() } }
+                                GlassButton { compact: true; text: srPanel.avanzado ? qsTr("Ocultar avanzado") : qsTr("Avanzado…"); onClicked: srPanel.avanzado = !srPanel.avanzado }
+                                GlassButton { compact: true; text: qsTr("Red propia, placa y plugins…"); onClicked: { panelSr.maestroPedido = ""; superresPop.open() } }
                                 // Destilar: una red chica que imita a la red elegida, a medida de esta cámara.
                                 GlassButton {
                                     compact: true
                                     visible: !!srPanel.actual && srPanel.actual.tipo === "red" && !srPanel.actual.propio
-                                    text: "Destilar una red chica de esta…"
+                                    text: qsTr("Destilar una red chica de esta…")
                                     onClicked: { panelSr.maestroPedido = srPanel.elegido; superresPop.open() }
                                 }
                             }
@@ -1140,7 +1143,7 @@ Rectangle {
                                 spacing: 4
                                 Repeater {
                                     model: [
-                                        { m: "apple", t: "Apple" }, { m: "fsr", t: "FSR 1" }, { m: "onnx", t: "Red ONNX" }, { m: "coreml", t: "Red CoreML" }
+                                        { m: "apple", t: "Apple" }, { m: "fsr", t: "FSR 1" }, { m: "onnx", t: qsTr("Red ONNX") }, { m: "coreml", t: qsTr("Red CoreML") }
                                     ].filter(o => srPanel.motores.indexOf(o.m) >= 0)
                                     delegate: GlassButton {
                                         required property var modelData
@@ -1154,11 +1157,11 @@ Rectangle {
                                 visible: srPanel.avanzado && srPanel.elegido === "" && !!page.paramsEf && (page.paramsEf.motor === "onnx" || page.paramsEf.motor === "coreml")
                                 Layout.fillWidth: true
                                 spacing: 6
-                                Text { text: "Modelo"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Modelo"); color: Theme.textDim; font.pixelSize: 12 }
                                 TextField {
                                     Layout.fillWidth: true
                                     text: page.paramsEf ? page.paramsEf.modelo || "" : ""
-                                    placeholderText: "ruta del .onnx o del .mlmodelc"
+                                    placeholderText: qsTr("ruta del .onnx o del .mlmodelc")
                                     onEditingFinished: page.avisar(page.vg.ajustar(page.sel, { modelo: text }))
                                 }
                             }
@@ -1185,7 +1188,7 @@ Rectangle {
                             }
                             // La disposición la arma el modelo (VideoGrafos::aplicarDisposicion), la misma que video_mosaico.
                             function armar(cual) { page.avisar(page.vg.aplicarDisposicionUi(page.sel, cual)) }
-                            Text { text: "Nombre de la fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Nombre de la fuente"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField {
                                 Layout.fillWidth: true
                                 text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
@@ -1194,9 +1197,9 @@ Rectangle {
                             }
                             RowLayout {
                                 spacing: 6
-                                Text { text: "Lienzo"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Lienzo"); color: Theme.textDim; font.pixelSize: 12 }
                                 Repeater {
-                                    model: [ { t: "Como el estudio", w: 0, h: 0 }, { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: "Vertical", w: 1080, h: 1920 } ]
+                                    model: [ { t: qsTr("Como el estudio"), w: 0, h: 0 }, { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: qsTr("Vertical"), w: 1080, h: 1920 } ]
                                     delegate: GlassButton {
                                         required property var modelData
                                         compact: true; text: modelData.t
@@ -1208,13 +1211,13 @@ Rectangle {
                             // Cualquier otro tamaño (0 = el del lienzo del estudio).
                             RowLayout {
                                 spacing: 6
-                                Text { text: "Ancho"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Ancho"); color: Theme.textDim; font.pixelSize: 12 }
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
                                     onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
                                 }
-                                Text { text: "Alto"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Alto"); color: Theme.textDim; font.pixelSize: 12 }
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
@@ -1223,10 +1226,10 @@ Rectangle {
                             }
                             RowLayout {
                                 spacing: 6
-                                Text { text: "Armado"; color: Theme.textDim; font.pixelSize: 12 }
-                                GlassButton { compact: true; text: "Mosaico"; onClicked: compPanel.armar("mosaico") }
-                                GlassButton { compact: true; text: "Imagen en imagen"; enabled: compPanel.puertos.length >= 2; onClicked: compPanel.armar("pip") }
-                                GlassButton { compact: true; text: "Lado a lado"; enabled: compPanel.puertos.length >= 2; onClicked: compPanel.armar("lado") }
+                                Text { text: qsTr("Armado"); color: Theme.textDim; font.pixelSize: 12 }
+                                GlassButton { compact: true; text: qsTr("Mosaico"); onClicked: compPanel.armar("mosaico") }
+                                GlassButton { compact: true; text: qsTr("Imagen en imagen"); enabled: compPanel.puertos.length >= 2; onClicked: compPanel.armar("pip") }
+                                GlassButton { compact: true; text: qsTr("Lado a lado"); enabled: compPanel.puertos.length >= 2; onClicked: compPanel.armar("lado") }
                             }
                             Repeater {
                                 model: compPanel.puertos
@@ -1239,10 +1242,10 @@ Rectangle {
                                     Text { text: compPanel.origen(modelData) + "  (" + modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                                     Text {
                                         visible: capaCol.k.x === undefined
-                                        text: "En el mosaico"; color: Theme.textFaint; font.pixelSize: 11
+                                        text: qsTr("En el mosaico"); color: Theme.textFaint; font.pixelSize: 11
                                     }
                                     Repeater {
-                                        model: [ { c: "x", t: "X" }, { c: "y", t: "Y" }, { c: "ancho", t: "Ancho" }, { c: "alto", t: "Alto" }, { c: "opacidad", t: "Opacidad" } ]
+                                        model: [ { c: "x", t: "X" }, { c: "y", t: "Y" }, { c: "ancho", t: qsTr("Ancho") }, { c: "alto", t: qsTr("Alto") }, { c: "opacidad", t: qsTr("Opacidad") } ]
                                         delegate: RowLayout {
                                             required property var modelData
                                             Layout.fillWidth: true
@@ -1270,12 +1273,12 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 text: page.nodo && page.nodo.publicada
-                                      ? "Ya es una fuente: se pone y se saca de las escenas como cualquier otra."
-                                      : "Se ve como una fuente con este nombre en cualquier escena."
+                                      ? qsTr("Ya es una fuente: se pone y se saca de las escenas como cualquier otra.")
+                                      : qsTr("Se ve como una fuente con este nombre en cualquier escena.")
                                 color: Theme.textFaint; font.pixelSize: 11
                             }
                             GlassButton {
-                                text: "Poner en la escena al aire"
+                                text: qsTr("Poner en la escena al aire")
                                 onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
                             }
                         }
@@ -1291,7 +1294,7 @@ Rectangle {
                             readonly property var puertos: page.nodo && page.nodo.tipo === "mezcla"
                                 ? (page.nodo.entradas || []).filter(e => !e.pedido).map(e => e.id) : []
                             function origen(puerto) { return compPanel.origen(puerto) }
-                            Text { text: "Nombre de la fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Nombre de la fuente"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField {
                                 Layout.fillWidth: true
                                 text: page.nodo && page.nodo.params && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
@@ -1301,13 +1304,13 @@ Rectangle {
                             // Lo que sale (0 = el lienzo del estudio).
                             RowLayout {
                                 spacing: 6
-                                Text { text: "Ancho"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Ancho"); color: Theme.textDim; font.pixelSize: 12 }
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
                                     onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
                                 }
-                                Text { text: "Alto"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: qsTr("Alto"); color: Theme.textDim; font.pixelSize: 12 }
                                 SpinBox {
                                     from: 0; to: 8192; stepSize: 2; editable: true
                                     value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
@@ -1326,7 +1329,7 @@ Rectangle {
                                     Text { text: mezclaPanel.origen(padCol.modelData) + "  (" + padCol.modelData + ")"; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
                                     Text {
                                         visible: padCol.props.length === 0
-                                        text: "Esta entrada no tiene propiedades propias."; color: Theme.textFaint; font.pixelSize: 11
+                                        text: qsTr("Esta entrada no tiene propiedades propias."); color: Theme.textFaint; font.pixelSize: 11
                                     }
                                     Repeater {
                                         model: padCol.props
@@ -1380,12 +1383,12 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 text: page.nodo && page.nodo.publicada
-                                      ? "Ya es una fuente: se pone y se saca de las escenas como cualquier otra."
-                                      : "Se ve como una fuente con este nombre en cualquier escena."
+                                      ? qsTr("Ya es una fuente: se pone y se saca de las escenas como cualquier otra.")
+                                      : qsTr("Se ve como una fuente con este nombre en cualquier escena.")
                                 color: Theme.textFaint; font.pixelSize: 11
                             }
                             GlassButton {
-                                text: "Poner en la escena al aire"
+                                text: qsTr("Poner en la escena al aire")
                                 onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
                             }
                         }
@@ -1395,7 +1398,7 @@ Rectangle {
                             visible: !!page.nodo && page.nodo.tipo === "salida"
                             Layout.fillWidth: true
                             spacing: 6
-                            Text { text: "Nombre de la fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Nombre de la fuente"); color: Theme.textDim; font.pixelSize: 12 }
                             TextField {
                                 Layout.fillWidth: true
                                 text: page.nodo && page.nodo.params.nombre !== undefined ? page.nodo.params.nombre : ""
@@ -1406,12 +1409,12 @@ Rectangle {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 text: page.nodo && page.nodo.publicada
-                                      ? "Ya es una fuente: se pone y se saca de las escenas como cualquier otra. (El nombre no se cambia mientras exista.)"
-                                      : "Publica la imagen de este punto del grafo como una fuente con este nombre."
+                                      ? qsTr("Ya es una fuente: se pone y se saca de las escenas como cualquier otra. (El nombre no se cambia mientras exista.)")
+                                      : qsTr("Publica la imagen de este punto del grafo como una fuente con este nombre.")
                                 color: Theme.textFaint; font.pixelSize: 11
                             }
                             GlassButton {
-                                text: "Poner en la escena al aire"
+                                text: qsTr("Poner en la escena al aire")
                                 onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
                             }
                         }
@@ -1427,7 +1430,7 @@ Rectangle {
                             spacing: 4
                             GlassButton {
                                 compact: true
-                                text: (ayudaPanel.abierto ? "▾ " : "▸ ") + "Parámetros y eventos"
+                                text: (ayudaPanel.abierto ? "▾ " : "▸ ") + qsTr("Parámetros y eventos")
                                 onClicked: ayudaPanel.abierto = !ayudaPanel.abierto
                             }
                             Repeater {
@@ -1455,7 +1458,7 @@ Rectangle {
                                 text: {
                                     const e = ayudaPanel.info && ayudaPanel.info.eventos ? ayudaPanel.info.eventos : null
                                     if (!e || !e.manda) return ""
-                                    return "Manda:\n• " + e.manda.join("\n• ") + "\nEscucha:\n• " + (e.escucha || []).join("\n• ")
+                                    return qsTr("Manda:\n• %1\nEscucha:\n• %2").arg(e.manda.join("\n• ")).arg((e.escucha || []).join("\n• "))
                                 }
                             }
                         }
@@ -1466,20 +1469,20 @@ Rectangle {
                                      page.nodo.tipo !== "salida" && page.nodo.tipo !== "compositor" && page.nodo.tipo !== "mezcla" && page.nodo.tipo !== "control"
                             spacing: 6
                             GlassButton {
-                                compact: true; text: "◀ Antes"
+                                compact: true; text: qsTr("◀ Antes")
                                 onClicked: page.avisar(page.vg.correr(page.sel, -1))
-                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un lugar antes en la cadena"
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Un lugar antes en la cadena")
                             }
                             GlassButton {
-                                compact: true; text: "Después ▶"
+                                compact: true; text: qsTr("Después ▶")
                                 onClicked: page.avisar(page.vg.correr(page.sel, 1))
-                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un lugar después en la cadena"
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Un lugar después en la cadena")
                             }
                         }
                         GlassButton {
                             visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" && page.nodo.tipo !== "ptz"
                             compact: true
-                            text: "Quitar la tarjeta"
+                            text: qsTr("Quitar la tarjeta")
                             onClicked: { page.avisar(page.vg.quitar(page.sel)); page.sel = "" }
                         }
                     }
@@ -1509,8 +1512,8 @@ Rectangle {
             spacing: 10
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Superresolución"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cerrar"; onClicked: superresPop.close() }
+                Text { text: qsTr("Superresolución"); color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
+                GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: superresPop.close() }
             }
             ScrollView {
                 id: srScroll
@@ -1558,13 +1561,13 @@ Rectangle {
         ColumnLayout {
             anchors.fill: parent
             spacing: 10
-            Text { text: "Entrada virtual"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
+            Text { text: qsTr("Entrada virtual"); color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                text: "Una entrada más (con su grafo de tarjetas) que genera GStreamer: una señal de ajuste para calibrar, un negro, o cualquier origen (RTSP, SRT…)."
+                text: qsTr("Una entrada más (con su grafo de tarjetas) que genera GStreamer: una señal de ajuste para calibrar, un negro, o cualquier origen (RTSP, SRT…).")
                 color: Theme.textDim; font.pixelSize: 12
             }
-            TextField { id: nombreVirtual; Layout.fillWidth: true; placeholderText: "Nombre (p. ej. «Barras»)" }
+            TextField { id: nombreVirtual; Layout.fillWidth: true; placeholderText: qsTr("Nombre (p. ej. «Barras»)") }
             Flow {
                 Layout.fillWidth: true
                 spacing: 5
@@ -1580,7 +1583,7 @@ Rectangle {
                     }
                 }
                 GlassButton {
-                    compact: true; text: "Pipeline propio…"
+                    compact: true; text: qsTr("Pipeline propio…")
                     active: virtualPop.preset === "pipeline"
                     onClicked: virtualPop.preset = "pipeline"
                 }
@@ -1590,20 +1593,20 @@ Rectangle {
                 visible: virtualPop.preset === "pipeline"
                 Layout.fillWidth: true
                 font.family: "Menlo"
-                placeholderText: "rtspsrc location=rtsp://… latency=200 ! decodebin"
+                placeholderText: qsTr("rtspsrc location=rtsp://… latency=200 ! decodebin")
             }
             // En qué escena (de la lista, no escrita a mano): de fábrica, la que está al aire.
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "En la escena"; color: Theme.textDim; font.pixelSize: 12 }
+                Text { text: qsTr("En la escena"); color: Theme.textDim; font.pixelSize: 12 }
                 ComboBox { id: escenaVirtual; Layout.fillWidth: true }
             }
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: virtualPop.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: virtualPop.close() }
                 GlassButton {
-                    compact: true; text: "Crear"; active: true
+                    compact: true; text: qsTr("Crear"); active: true
                     enabled: nombreVirtual.text.trim() !== "" && (virtualPop.preset !== "pipeline" || pipelineVirtual.text.trim() !== "")
                     onClicked: {
                         const e = page.vg.crearVirtual(nombreVirtual.text.trim(),
