@@ -1259,13 +1259,7 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     if (instancia_ == "automatizacion")
         return prepareWorkspaceEn(
             root + "/Runtime/agente-automatizacion", provider_, model_, {"--rol", "asistente"},
-            prompt + "\n\n# Sos el asistente de AUTOMATIZACIÓN del evento\n"
-                     "No charlás con el operador sobre cómo armar el evento (eso es la otra pestaña). Te llegan "
-                     "los AVISOS AUTOMÁTICOS del sistema (disparadores: audio, sala, salidas, disco, oradores…). "
-                     "Por cada aviso: revisá con las herramientas qué pasó, resolvé lo que esté acordado y sea "
-                     "seguro, y dejá un resumen corto de qué viste y qué hiciste. Si algo puede afectar el aire, "
-                     "proponelo y no lo hagas solo. Si llegan varios a la vez y tu motor lo permite, atendelos "
-                     "en paralelo con subagentes.",
+            prompt + "\n\n" + QString::fromStdString(ba::i18n::leer("prompts/automatizacion.md")),
             error, true, true);
     return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"}, prompt,
                               error, true, true);
@@ -1297,19 +1291,9 @@ json mcpOficina(const QString& carpeta, const QString& datosMaquina) {
     return out;
 }
 
-/// Lo que el asistente tiene que saber de esos MCP (va al final de su prompt).
-const char* kOficinaPrompt =
-    "\n\n# Documentos, presentaciones y planillas: siempre con su MCP\n"
-    "Además del aparato tenés tres MCP de oficina. Para TODO lo de estos archivos —crear, abrir, leer, modificar, "
-    "convertir— usá el MCP que corresponde, nunca la consola, un script ni otra biblioteca (python-docx, "
-    "openpyxl, pandoc…):\n"
-    "- Un documento de texto (Word, .docx, .doc, .odt, .rtf: programa, orden del día, acta, carta, informe) → `wordcraft`.\n"
-    "- Una presentación (PowerPoint, .pptx, láminas: la apertura, los oradores, los puntos del orden del día) → `deckcraft`.\n"
-    "- Una planilla o un gráfico de datos (Excel, .xlsx, .xls, .ods, .csv: votaciones, asistencia, presupuesto) → `gridcraft`.\n"
-    "Si no ves sus herramientas, buscalas por nombre (con tool_search, si tu motor lo tiene). Guardá lo que hagas en la "
-    "carpeta del evento: los documentos para la web, en su documentación (después `documento_agregar`); una "
-    "presentación, como .pptx en Medios/ y `laminas_desarmar` para el carrusel; un gráfico, como imagen en Medios/ "
-    "para una escena.";
+/// Lo que el asistente tiene que saber de esos MCP (va al final de su prompt): un archivo
+/// del idioma del operador, prompts/oficina.md.
+QByteArray oficinaPrompt() { return QByteArray::fromStdString("\n\n" + ba::i18n::leer("prompts/oficina.md")); }
 } // namespace
 
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
@@ -1332,7 +1316,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
     // Los MCP de oficina, para el asistente del operador y el de automatización (los que
     // manejan el evento); un rol de un tiro no los necesita.
     const json oficina = conControl ? mcpOficina(QString::fromStdU16String(rt_.dataRoot().u16string()), root) : json::object();
-    if (!oficina.empty()) p += kOficinaPrompt;
+    if (!oficina.empty()) p += oficinaPrompt();
     for (const char* f : {"CLAUDE.md", "GEMINI.md", "AGENTS.md"})
         if (!writeText(ws + "/" + f, p)) {
             if (error != nullptr) *error = tr("No se pudo escribir %1").arg(ws);
@@ -1626,11 +1610,8 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         // extensión de MCP (sin ella pi no habla MCP), nada de consola ni archivos
         // (las suyas: read, bash, edit, write; un modelo chico con consola instaló
         // paquetes del sistema), y del MCP solo lo nuestro más tool_search.
-        QString prompt;
-        {
-            QFile f(":/agent/prompt-modelo-local.md");
-            if (f.open(QIODevice::ReadOnly)) prompt = QString::fromUtf8(f.readAll());
-        }
+        // El prompt es un archivo del idioma del operador (prompts/modelo-local.md).
+        const QString prompt = QString::fromStdString(ba::i18n::leer("prompts/modelo-local.md"));
         // La guarda (agent/pi-guarda.mjs): confirma cada cambio en la terminal, corta
         // las llamadas repetidas y los bucles. Se deja en el perfil en cada arranque.
         const QString guarda = profile + "/guarda.mjs";
@@ -2179,8 +2160,9 @@ void AgentViewModel::onAlert(const json& ev) {
     const QString t = QDateTime::fromMSecsSinceEpoch(ev.value("atMs", std::int64_t{0})).toString("HH:mm:ss");
     // Sin texto de invitados/publico (llmText): leerlo es decision del asistente
     // con una herramienta, y eso activa la salvaguarda de su sesion.
-    pendingAlerts_ << "[" + t + "] " + QString::fromStdString(ev.value("llmText", ev.value("text", ""))) +
-                          " (disparador " + QString::fromStdString(ev.value("ruleId", "")) + ")";
+    pendingAlerts_ << QString::fromStdString(
+        ba::i18n::llenar(ba::i18n::traducir("asistente", "[%1] %2 (disparador %3)"),
+                         {t.toStdString(), ev.value("llmText", ev.value("text", "")), ev.value("ruleId", "")}));
     if (!flushScheduled_) {
         flushScheduled_ = true;
         // Si llegan varias juntas, van en un solo mensaje.
@@ -2203,10 +2185,13 @@ void AgentViewModel::flushAlerts() {
         pendingAlerts_.clear();
         return;
     }
+    // La marca del principio es fija (no se traduce): el prompt del asistente la nombra.
     const QString msg =
-        "[AVISO AUTOMATICO de Broadcast Appliance] " + pendingAlerts_.join(" | ") +
-        " — Atendelo segun lo acordado (si no hay nada acordado, revisa con las herramientas, "
-        "contame que paso y propone que hacer).";
+        "[AVISO AUTOMATICO de Broadcast Appliance] " +
+        QString::fromStdString(ba::i18n::llenar(
+            ba::i18n::traducir("asistente", "%1 — Atendelo segun lo acordado (si no hay nada acordado, revisa con "
+                                            "las herramientas, contame que paso y propone que hacer)."),
+            {pendingAlerts_.join(" | ").toStdString()}));
     pendingAlerts_.clear();
     session_->submit(msg);
 }
@@ -2218,13 +2203,19 @@ void AgentViewModel::mandarNovedades() {
     }
     const QString lista = novedades_.join(" | ");
     novedades_.clear();
-    session_->submit(instancia_ == "automatizacion"
-                         ? "[NOVEDADES del evento] " + lista +
-                               " — Solo para que sepas qué está pasando. Hacé algo únicamente si está acordado "
-                               "para esto o si algo quedó mal; si no, contestá solo «ok»."
-                         : "[NOVEDADES del evento, solo para tu contexto] " + lista +
-                               " — No hagas nada ni lo comentes: contestá solo «ok». De esto se ocupa el "
-                               "asistente de automatización; tenelo en cuenta cuando el operador te hable.");
+    const std::string l = lista.toStdString();
+    session_->submit(QString::fromStdString(
+        instancia_ == "automatizacion"
+            ? ba::i18n::llenar(ba::i18n::traducir("asistente",
+                                                  "[NOVEDADES del evento] %1 — Solo para que sepas qué está pasando. "
+                                                  "Hacé algo únicamente si está acordado para esto o si algo quedó "
+                                                  "mal; si no, contestá solo «ok»."),
+                               {l})
+            : ba::i18n::llenar(ba::i18n::traducir("asistente",
+                                                  "[NOVEDADES del evento, solo para tu contexto] %1 — No hagas nada "
+                                                  "ni lo comentes: contestá solo «ok». De esto se ocupa el asistente "
+                                                  "de automatización; tenelo en cuenta cuando el operador te hable."),
+                               {l})));
 }
 
 void AgentViewModel::openAgentsFolder() const {

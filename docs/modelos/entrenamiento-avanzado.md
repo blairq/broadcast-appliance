@@ -24,7 +24,7 @@ Eran dos llamadas al modelo:
    de las 84 herramientas, `tools/entrenar/lib_prompt.py`) y una gramática que solo deja
    escribir un nombre válido o `derivar`. Unos 170 ms, **98 % de acierto**.
 2. **Completar los datos** (`generar`): el modelo **sin entrenar para esto**,
-   guiado por un prompt de reglas (`datos/voz-argumentos.txt`), con la
+   guiado por un prompt de reglas (`assets/idiomas/es/voz-argumentos.txt`), con la
    herramienta, su esquema, la parte del estado del aparato que usa y la frase.
    Unos 2,2 s. Lo que escribe lo valida `agent/ArgumentosLocales`: nombres que
    existen, rangos, enum, requeridos y los cambios relativos.

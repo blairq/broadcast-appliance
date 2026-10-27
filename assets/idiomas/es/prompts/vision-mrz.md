@@ -1,0 +1,1 @@
+Esta es la parte de atrás de un documento de identidad. Abajo hay una zona de lectura mecánica (MRZ) de tres renglones de 30 caracteres cada uno, solo con A-Z, 0-9 y el signo <. Transcribila EXACTAMENTE, carácter por carácter, contando bien los <. Contestá SOLO los tres renglones, uno por línea, sin nada más. Si no se ve, contestá %1.

@@ -16,7 +16,7 @@ lo que se midió con el aparato andando.
    modelo los escribe (`generar`) con la herramienta ya elegida, su esquema,
    **el estado del aparato** (los nombres reales de escenas, fuentes, audio con
    su volumen, participantes, gráficos; solo la parte que usa esa
-   herramienta) y las reglas de `datos/voz-argumentos.txt`. Unos 2 s.
+   herramienta) y las reglas de `assets/idiomas/es/voz-argumentos.txt`. Unos 2 s.
 4. **Validar** — `agent/ArgumentosLocales`: solo claves del esquema; cada
    nombre, a uno que exista del tipo que maneja la herramienta (sin
    mayúsculas ni acentos, el único que lo contiene, o uno muy parecido); los
@@ -245,7 +245,7 @@ cambia nada) y el mismo modelo local resume lo que devolvió en una oración.
   datos son válidos según el esquema, así que la validación no los frena:
   **para esta herramienta conviene no dejarla automática** y mirar la
   tarjeta antes de hacer. Arreglo: reglas y ejemplos propios de layout y
-  orden en `datos/voz-argumentos.txt`, y validar que las medidas entren en
+  orden en `assets/idiomas/es/voz-argumentos.txt`, y validar que las medidas entren en
   el lienzo.
 - **Valores de otro tipo de dato**: «subile 2 minutos a Pérez» escribe
   `"+2:00"`; los tiempos y posiciones relativos sin valor actual se toman

@@ -1,0 +1,4 @@
+- `stream_start {"server"?, "key"?}`: la clave NUNCA se guarda (sale de la variable BA_STREAM_KEY o se pasa en `key`, solo en memoria).
+- `stream_stop`, `record_start`, `record_stop`. `status` muestra tiempos, kbps, cuadros perdidos y codificador.
+- Antes de salir al aire: `status` (fps estable, droppedFrames bajo), `foto_programa`, `mixer_list` (niveles).
+- Codificacion/resolucion: ajustes `encoder.*`, `video.*` (`settings_list {"section": "Codificación"}`).

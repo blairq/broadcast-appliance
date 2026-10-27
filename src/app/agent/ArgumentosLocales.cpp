@@ -2,7 +2,6 @@
 
 #include "agent/ArgumentosLocales.hpp"
 
-#include <QFile>
 #include <QString>
 
 #include <algorithm>
@@ -139,9 +138,11 @@ std::string ajustar(const std::string& v, const std::vector<std::string>& cand, 
 } // namespace
 
 std::string sistemaPorDefecto() {
-    QFile f(":/voz/voz-argumentos.txt");
-    if (f.open(QIODevice::ReadOnly)) return f.readAll().toStdString();
-    return "Completás los argumentos de UNA herramienta. Respondé SOLO un objeto JSON en una línea.";
+    // Un archivo del idioma del operador (assets/idiomas/<código>/voz-argumentos.txt).
+    std::string s = ba::i18n::leer("voz-argumentos.txt");
+    if (!s.empty()) return s;
+    return ba::i18n::traducir("asistente",
+                              "Completás los argumentos de UNA herramienta. Respondé SOLO un objeto JSON en una línea.");
 }
 
 json estadoPara(const std::string& h, const json& estado) {
@@ -166,10 +167,12 @@ std::string prompt(const std::string& sistema, const std::string& herramienta, c
     const json estado = estadoPara(herramienta, estadoCompleto);
     std::string desc = ficha.value("description", std::string());
     if (desc.size() > 700) desc = desc.substr(0, 700);
-    const std::string usuario =
-        "Herramienta: " + herramienta + " — " + ficha.value("title", std::string()) + "\n" + desc +
-        "\nEsquema de argumentos: " + ficha.value("inputSchema", json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) +
-        "\n\nEstado del aparato: " + estado.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\nPedido del operador: «" + frase + "»";
+    const std::string usuario = ba::i18n::llenar(
+        ba::i18n::traducir("asistente", "Herramienta: %1 — %2\n%3\nEsquema de argumentos: %4\n\nEstado del aparato: "
+                                        "%5\n\nPedido del operador: «%6»"),
+        {herramienta, ficha.value("title", std::string()), desc,
+         ficha.value("inputSchema", json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+         estado.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), frase});
     return "<|im_start|>system\n" + sistema + "<|im_end|>\n<|im_start|>user\n" + usuario +
            "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n{";
 }

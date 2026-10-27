@@ -3,6 +3,8 @@
 // ============================================================================
 #include "Declarativo.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <QCoreApplication>
 #include <QJsonArray>
@@ -338,45 +340,47 @@ QJsonArray normalizarDatos(const QJsonValue& v) {
     return out;
 }
 
+// Lo lee el asistente (la ayuda de los gráficos declarativos): en el idioma del operador.
+// Las claves son las del formato y no se traducen.
 QJsonObject repertorio() {
     return QJsonObject{
         {"capas",
          QJsonObject{
-             {"barra", "Un rectángulo de color. Para la barrita de acento de un zócalo."},
-             {"panel", "La caja de fondo. Con «ajustaA» crece con el ancho de los textos que nombre."},
-             {"texto", "Un texto. «valor» acepta {parametros} entre llaves. Con «desplaza» (píxeles por "
-                       "segundo) cruza la pantalla sin parar, que es un ticker. Con «ancho» corta por "
-                       "palabras en vez de crecer en una sola línea."},
-             {"medio", "Un GIF animado, una imagen o una secuencia de cuadros (un video con alfa importado con "
-                       "grafico_medio_agregar). «archivo» relativo a la carpeta del gráfico (medios/...), «ancho» y "
-                       "«alto», «inicio» (ms del gráfico en que arranca: antes no se ve), «bucle» (true de fábrica; "
-                       "false = se queda en el último cuadro), «velocidad» (1 = normal) y «ajuste» (ajustar, llenar, "
-                       "estirar). Su tiempo es el del gráfico: la vista previa y el aire muestran el mismo cuadro."},
-             {"torta", "Un gráfico de torta (o de anillo, con «grosor» > 0) con datos. «datos»: «{parametro}» o una "
-                       "lista [{etiqueta, valor, color}]. Entra girando; con «aparece» (ms) arranca más tarde y "
-                       "«duracion» es lo que tarda. «mostrar»: porcentaje, valor, ambos o nada; «etiquetas»; "
-                       "«tamanoTexto», «colorTexto», «decimales», «sufijo». Al cambiarle los valores al aire, las "
-                       "porciones se mueven de los de antes a los nuevos («cambio»: ms, 700 de fábrica)."},
-             {"barras", "Barras con datos, con su etiqueta y su valor. «orientacion» vertical u horizontal, «maximo» "
-                        "(0 = el mayor de los datos), «escalonado» (ms entre una barra y la siguiente al entrar), "
-                        "«anchoEtiquetas» (horizontal: la parte del ancho para los nombres, 0.3), y lo mismo que la "
-                        "torta: datos, aparece, duracion, cambio, mostrar (valor, porcentaje, ambos, nada), "
-                        "tamanoTexto, colorTexto, decimales, sufijo."}}},
-        {"datos", "Un parámetro de tipo «datos» (en grafico.json: \"tipo\": \"datos\") lleva los datos de una torta o "
-                  "unas barras. Se escribe como lista [{\"etiqueta\": \"Sí\", \"valor\": 34, \"color\": \"#2e7d32\"}], "
-                  "como objeto {\"Sí\": 34, \"No\": 12}, o como texto en un campo: «Sí: 34; No: 12 #c62828; "
-                  "Abstenciones: 3»."},
-        {"cambio", "Cambiar los valores de un gráfico que ya está al aire (grafico_actualizar, o «Al aire» de nuevo "
-                   "en Rótulos con el mismo gráfico) NO lo hace entrar de nuevo: se dibuja sin la entrada y las "
-                   "tortas y barras se mueven de los valores de antes a los nuevos."},
-        {"posicion", "Cada capa se ubica con «izquierda» o «derecha» y «arriba» o «abajo», en píxeles desde "
-                     "ese borde del gráfico."},
-        {"aparece", "Milisegundos desde el principio en que esa capa se funde a la vista."},
-        {"entrada", QJsonObject{{"desliza-izquierda", "Entra desde afuera por la izquierda."},
-                                {"desliza-derecha", "Entra desde afuera por la derecha."},
-                                {"aparece", "Solo se funde, sin moverse."}}},
-        {"salida", QJsonObject{{"desenfoca", "Se va desenfocándose y desvaneciéndose."},
-                               {"desaparece", "Solo se funde."}}}};
+             {"barra", QString::fromStdString(ba::i18n::traducir("asistente", "Un rectángulo de color. Para la barrita de acento de un zócalo."))},
+             {"panel", QString::fromStdString(ba::i18n::traducir("asistente", "La caja de fondo. Con «ajustaA» crece con el ancho de los textos que nombre."))},
+             {"texto", QString::fromStdString(ba::i18n::traducir("asistente", "Un texto. «valor» acepta {parametros} entre llaves. Con «desplaza» (píxeles por "
+                                                                              "segundo) cruza la pantalla sin parar, que es un ticker. Con «ancho» corta por "
+                                                                              "palabras en vez de crecer en una sola línea."))},
+             {"medio", QString::fromStdString(ba::i18n::traducir("asistente", "Un GIF animado, una imagen o una secuencia de cuadros (un video con alfa importado con "
+                                                                              "grafico_medio_agregar). «archivo» relativo a la carpeta del gráfico (medios/...), «ancho» y "
+                                                                              "«alto», «inicio» (ms del gráfico en que arranca: antes no se ve), «bucle» (true de fábrica; "
+                                                                              "false = se queda en el último cuadro), «velocidad» (1 = normal) y «ajuste» (ajustar, llenar, "
+                                                                              "estirar). Su tiempo es el del gráfico: la vista previa y el aire muestran el mismo cuadro."))},
+             {"torta", QString::fromStdString(ba::i18n::traducir("asistente", "Un gráfico de torta (o de anillo, con «grosor» > 0) con datos. «datos»: «{parametro}» o una "
+                                                                              "lista [{etiqueta, valor, color}]. Entra girando; con «aparece» (ms) arranca más tarde y "
+                                                                              "«duracion» es lo que tarda. «mostrar»: porcentaje, valor, ambos o nada; «etiquetas»; "
+                                                                              "«tamanoTexto», «colorTexto», «decimales», «sufijo». Al cambiarle los valores al aire, las "
+                                                                              "porciones se mueven de los de antes a los nuevos («cambio»: ms, 700 de fábrica)."))},
+             {"barras", QString::fromStdString(ba::i18n::traducir("asistente", "Barras con datos, con su etiqueta y su valor. «orientacion» vertical u horizontal, «maximo» "
+                                                                               "(0 = el mayor de los datos), «escalonado» (ms entre una barra y la siguiente al entrar), "
+                                                                               "«anchoEtiquetas» (horizontal: la parte del ancho para los nombres, 0.3), y lo mismo que la "
+                                                                               "torta: datos, aparece, duracion, cambio, mostrar (valor, porcentaje, ambos, nada), "
+                                                                               "tamanoTexto, colorTexto, decimales, sufijo."))}}},
+        {"datos", QString::fromStdString(ba::i18n::traducir("asistente", "Un parámetro de tipo «datos» (en grafico.json: \"tipo\": \"datos\") lleva los datos de una torta o "
+                                                                         "unas barras. Se escribe como lista [{\"etiqueta\": \"Sí\", \"valor\": 34, \"color\": \"#2e7d32\"}], "
+                                                                         "como objeto {\"Sí\": 34, \"No\": 12}, o como texto en un campo: «Sí: 34; No: 12 #c62828; "
+                                                                         "Abstenciones: 3»."))},
+        {"cambio", QString::fromStdString(ba::i18n::traducir("asistente", "Cambiar los valores de un gráfico que ya está al aire (grafico_actualizar, o «Al aire» de nuevo "
+                                                                          "en Rótulos con el mismo gráfico) NO lo hace entrar de nuevo: se dibuja sin la entrada y las "
+                                                                          "tortas y barras se mueven de los valores de antes a los nuevos."))},
+        {"posicion", QString::fromStdString(ba::i18n::traducir("asistente", "Cada capa se ubica con «izquierda» o «derecha» y «arriba» o «abajo», en píxeles desde "
+                                                                            "ese borde del gráfico."))},
+        {"aparece", QString::fromStdString(ba::i18n::traducir("asistente", "Milisegundos desde el principio en que esa capa se funde a la vista."))},
+        {"entrada", QJsonObject{{"desliza-izquierda", QString::fromStdString(ba::i18n::traducir("asistente", "Entra desde afuera por la izquierda."))},
+                                {"desliza-derecha", QString::fromStdString(ba::i18n::traducir("asistente", "Entra desde afuera por la derecha."))},
+                                {"aparece", QString::fromStdString(ba::i18n::traducir("asistente", "Solo se funde, sin moverse."))}}},
+        {"salida", QJsonObject{{"desenfoca", QString::fromStdString(ba::i18n::traducir("asistente", "Se va desenfocándose y desvaneciéndose."))},
+                               {"desaparece", QString::fromStdString(ba::i18n::traducir("asistente", "Solo se funde."))}}}};
 }
 
 Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros, const Modo& modo) {

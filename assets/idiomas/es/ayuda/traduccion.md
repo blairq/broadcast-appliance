@@ -1,0 +1,17 @@
+La traducción toma una **salida de texto** (la de una tarjeta «Voz a texto»: «Orador») y publica otra con lo mismo en otro idioma («Orador · en»). Corre en la máquina, sin red, con modelos OPUS-MT (0,1 a 0,6 s por frase). Castellano <-> inglés y castellano <-> portugués son directos; francés, alemán, ruso y chino pasan por el inglés.
+
+## Receta: subtítulos en inglés y voz en inglés por la pista 2
+1. Voz a texto del orador (help {"topic": "audio_rack"}): una salida «Orador», modo continuo.
+2. `traduccion_agregar {"desde": "Orador", "a": "en"}`. Si dice `faltan`, `traduccion_bajar {"a": "en"}` y esperá (modelo_local_estado muestra el avance). Los pedazos de la transcripción se juntan hasta cerrar una oración (o 0,6 s sin más texto: `espera_ms` en traduccion_ajustar) antes de traducir; si el orador encadena sin punto, a los `maximo_ms` (8 s) se traduce lo que hay. Queda como una tarjeta «Traducir» en el rack de audio de la fuente (al lado de su voz a texto; no lleva cables); el operador la ve y la ajusta ahí.
+2b. Subtítulos: en la escena, un cuadro **«Subtítulos»** (`crear_fuente` type `ba_subtitulos`, settings `{"flujo": "Orador · en"}`; abajo y a lo ancho, p. ej. layout {x: 0.08, y: 0.78, w: 0.84, h: 0.16}). Parte en líneas (`caracteres`, 42), muestra `lineas` (2) a la vez, cada bloque el tiempo de leerlo (`cps`, 17 caracteres por segundo; `minimo` 1,5 s), con fondo detrás de cada línea, y se borra solo (`borrar`). Para original y traducción a la vez, dos cuadros. Probar sin hablar: `texto_publicar {"flujo": "Orador", "texto": "..."}`.
+3. `texto_a_voz {"fuente": "Traduccion", "voz": "csukuangfj/vits-piper-en_US-amy-medium", "lee": "Orador · en"}` y en la Matriz esa fuente a la pista 2.
+4. `traducciones` muestra la última frase traducida y cuánto tardó.
+5. Varios oradores a la vez, o el texto tarda: la transcripción puede usar Nemotron (streaming) en vez de Parakeet: `voz_reconocedores {"consumidor": "transcripcion", "motor": "nemotron"}` (help {"topic": "agentes"}).
+
+## El glosario (lo que no se puede traducir mal)
+Antes de traducir, cada término conocido se reemplaza por su traducción ya hecha. Sin esto «cuarto intermedio» sale «middle room» y «no es moco de pavo» «turkey mucus». Viene con tres grupos: «general» (cabina), «asamblea» (sesiones, mociones, sobre tablas, bloques, comisiones) y «localidades». **Antes de un evento, sumá sus términos**: nombres de comisiones, programas, leyes con nombre, cargos, instituciones.
+- `glosario_ver {"buscar"?}`: lo que hay, y `archivo`: el JSON del operador (Datos/Config/glosario-traduccion.json). Se puede editar directo: cada término `{"es": ["forma", "otra forma"], "en": "...", "pt": "...", "fr": "...", "de": "...", "ru": "...", "zh": "...", "grupo": "..."}`; pisa al de fábrica por la primera forma.
+- `glosario_agregar {"es": [...], "en": "...", ...}`, `glosario_quitar {"es"}` o `{"grupo", "activo": false}`.
+- Probá con `traducir {"texto", "a"}` antes de salir al aire.
+- Reglas: varias formas en `es` (singular, plural, femenino); la traducción debe encajar en la frase (si el término es «solicito pasar a cuarto intermedio», que la traducción sea la frase entera); en ruso y chino el término se aplica al pasar por el inglés, así que cuidá la forma en inglés (palabras comunes: «parliamentary group», no «caucus»).
+- Los modelos traducen palabra por palabra lo que no conocen: un modismo nuevo, un nombre propio que se puede leer como palabra común (Esquel, Gaiman…) va al glosario con su forma en cada idioma.

@@ -417,12 +417,14 @@ bool MrzTd1::leer(const Codigo& c, Datos& out) const {
 
 const std::string& pedidoMrz() {
     // El que anduvo en la prueba con un DNI real (dorso, cámara de 1920x1080, la
-    // franja de abajo, el modelo local Qwen3.5-4B con su proyector de visión).
-    static const std::string s =
-        "Esta es la parte de atrás de un documento de identidad. Abajo hay una zona de lectura mecánica (MRZ) "
-        "de tres renglones de 30 caracteres cada uno, solo con A-Z, 0-9 y el signo <. Transcribila "
-        "EXACTAMENTE, carácter por carácter, contando bien los <. Contestá SOLO los tres renglones, uno por "
-        "línea, sin nada más. Si no se ve, contestá NO SE VE.";
+    // franja de abajo, el modelo local Qwen3.5-4B con su proyector de visión). Es un archivo
+    // del idioma del operador (prompts/vision-mrz.md); «NO SE VE» va como %1 y no se traduce:
+    // es lo que busca interpretarRespuestaMrz.
+    static const std::string s = [] {
+        std::string t = i18n::llenar(i18n::leer("prompts/vision-mrz.md"), {"NO SE VE"});
+        while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+        return t;
+    }();
     return s;
 }
 

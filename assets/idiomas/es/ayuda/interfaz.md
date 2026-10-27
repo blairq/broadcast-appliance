@@ -1,0 +1,5 @@
+- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`, `ui_notify {"message"}`.
+- `dashboard_list`: tarjetas, fondo, ventanas de salida y monitores.
+- `dashboard_card {"add": "monitor", "source": "guest:1"}` / `{"remove": id}` / `{"reset": true}`.
+- `output_window {"cosas": ["programa"]}` o `{"open": ["program","guest:1"], "layout": "grid"|"focus"|"pip"|"row", "screen": "2", "fullscreen": true}`: una ventana suelta que se recuerda (`screen`: id, numero de orden o nombre del monitor).
+- `feeds_list`: claves de video validas.
