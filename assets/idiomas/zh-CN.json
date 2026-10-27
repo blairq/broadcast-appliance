@@ -1,0 +1,10 @@
+{
+  "codigo": "zh-CN",
+  "nombre": "简体中文",
+  "locale": "zh_CN",
+  "direccion": "ltr",
+  "plural": "sin-plural",
+  "respaldo": [
+    "en"
+  ]
+}

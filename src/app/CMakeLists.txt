@@ -526,7 +526,7 @@ endif()
     # gráficos y los rótulos: sin ellas todo dependería de las fuentes de la
     # máquina —lo que rompe la portabilidad: una escena diseñada acá se vería
     # distinta en el equipo de respaldo—.
-    file(GLOB _ba_fuentes_texto "${CMAKE_SOURCE_DIR}/extern/fuentes-texto/*.ttf")
+    file(GLOB _ba_fuentes_texto "${CMAKE_SOURCE_DIR}/extern/fuentes-texto/*.ttf" "${CMAKE_SOURCE_DIR}/extern/fuentes-texto/*.otf")
     if(_ba_fuentes_texto)
         install(FILES ${_ba_fuentes_texto} DESTINATION data/fonts COMPONENT bundle)
         install(DIRECTORY "${CMAKE_SOURCE_DIR}/extern/fuentes-texto/licencias/" DESTINATION data/fonts/licencias

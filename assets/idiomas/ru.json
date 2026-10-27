@@ -1,0 +1,10 @@
+{
+  "codigo": "ru",
+  "nombre": "Русский",
+  "locale": "ru_RU",
+  "direccion": "ltr",
+  "plural": "eslavo",
+  "respaldo": [
+    "en"
+  ]
+}

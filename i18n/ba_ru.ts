@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1" language="ar" sourcelanguage="es_AR">
+<TS version="2.1" language="ru" sourcelanguage="es_AR">
 <context>
     <name>APdf</name>
     <message>
@@ -525,9 +525,6 @@
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
 </context>
@@ -1048,9 +1045,6 @@
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -1067,9 +1061,6 @@
         <location line="+32"/>
         <source>fin: %n turno, %1 s</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -1372,18 +1363,12 @@
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="-1"/>
         <source>%n pidió la palabra</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -1412,18 +1397,12 @@
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="-35"/>
         <source>%n banca</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -1443,9 +1422,6 @@
         <location line="+1"/>
         <source>%n punto en el orden del día</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -1469,18 +1445,12 @@
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n conectado</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -1505,9 +1475,6 @@
         <location line="+1"/>
         <source>%n grilla</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -2087,9 +2054,6 @@
         <location line="+13"/>
         <source>%1 · %n aviso</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -2826,18 +2790,12 @@ Agregá un micrófono o una entrada del sistema.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n módulo</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -3372,18 +3330,12 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
         <source>%n espera aprobación</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -3429,9 +3381,6 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <location line="+10"/>
         <source>%1 · %n herr.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -3859,9 +3808,6 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -4114,9 +4060,6 @@ Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <location line="+0"/>
         <source>%n presets</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -4570,9 +4513,6 @@ Recorrer la tira no cambia lo que se ve.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -4634,9 +4574,6 @@ Recorrer la tira no cambia lo que se ve.</source>
         <location line="+11"/>
         <source>%n variante</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -4975,9 +4912,6 @@ Recorrer la tira no cambia lo que se ve.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -5010,9 +4944,6 @@ Recorrer la tira no cambia lo que se ve.</source>
         <location line="+37"/>
         <source>Anotado sin nombre · %n cara</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -5427,9 +5358,6 @@ Compartí el enlace y el PIN (panel Acceso).</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -5591,9 +5519,6 @@ Compartí el enlace y el PIN (panel Acceso).</source>
         <location line="+2"/>
         <source>%n conexión</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -6876,9 +6801,6 @@ Se prende desde el Registro.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -6905,9 +6827,6 @@ Se prende desde el Registro.</source>
         <location line="+5"/>
         <source>La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -7253,9 +7172,6 @@ Se prende desde el Registro.</source>
         <location line="+1"/>
         <source>%n driver anda</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -7813,9 +7729,6 @@ Se prende desde el Registro.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -8049,9 +7962,6 @@ Se prende desde el Registro.</source>
         <location line="+2"/>
         <source>%n encontrado (%1)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -8659,9 +8569,6 @@ Se prende desde el Registro.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -8676,18 +8583,12 @@ Se prende desde el Registro.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+3"/>
         <source>%n cosa para mirar.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -8958,9 +8859,6 @@ Se prende desde el Registro.</source>
         <location line="+1"/>
         <source>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -9527,9 +9425,6 @@ Se prende desde el Registro.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -9636,9 +9531,6 @@ Se prende desde el Registro.</source>
         <location line="+2"/>
         <source>La revisión encontró %n problema que impide correr el guion</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -9970,9 +9862,6 @@ Se prende desde el Registro.</source>
         <location line="+61"/>
         <source>%n persona llegó (escanearon su invitación).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -11016,9 +10905,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -11359,9 +11245,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -11391,9 +11274,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -11415,9 +11295,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+18"/>
         <source>Al próximo arranque se vuelve a la configuración de «%1» (%n archivo). Lo de ahora queda respaldado.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -11698,18 +11575,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n transcripción</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -11741,9 +11612,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+1"/>
         <source> · %n caída</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -11806,9 +11674,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -11859,9 +11724,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -11873,9 +11735,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+46"/>
         <source>%n resultado para «%1»</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -12000,9 +11859,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+3"/>
         <source>%n evento, %1 MB de grabaciones</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -12543,9 +12399,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -12557,9 +12410,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+8"/>
         <source>📎 %n archivo compartido</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -12651,9 +12501,6 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <location line="+1"/>
         <source>Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -13480,9 +13327,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -13620,9 +13464,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -13667,9 +13508,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location filename="../src/app/ui/MediosViewModel.cpp" line="+251"/>
         <source>%n archivo a «%1»</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -13752,9 +13590,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+13"/>
         <source>Mesa «%1» (%n micrófono)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -13873,9 +13708,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -13913,9 +13745,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+42"/>
         <source>Mostrar los faders de %1 (%n tira)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -14226,9 +14055,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+1"/>
         <source>%n multivista en ventanas.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -14800,9 +14626,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -14895,9 +14718,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location line="+1"/>
         <source>%n reconexión</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -15072,9 +14892,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <location filename="../src/app/qml/controls/Panel360.qml" line="+39"/>
         <source>Une %n cámara (un cable de cada una; la de arriba es la lente 1) en una imagen, todo en la placa. La tira mide, de fábrica, la suma de las resoluciones; la vista es un PTZ: yaw, pitch y fov son el pan, el tilt y el zoom.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -15396,9 +15213,6 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -15592,9 +15406,6 @@ Probá mirando en todas las carpetas.</source>
 
 No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y listo.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -16172,9 +15983,6 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -16264,9 +16072,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+2"/>
         <source>%n espera que lo habiliten → Recinto</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -17079,9 +16884,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -17309,18 +17111,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n sin votar</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -17590,9 +17386,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+1"/>
         <source>%n función</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -17958,18 +17751,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n sin validar</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -18308,9 +18095,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -18416,9 +18200,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+2"/>
         <source>%n documento</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -18916,9 +18697,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -19021,9 +18799,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -19073,18 +18848,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n salida</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -19283,9 +19052,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -19337,9 +19103,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+31"/>
         <source>%n escuchando</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -19905,9 +19668,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+1"/>
         <source>%n voto</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -20948,9 +20708,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -21647,9 +21404,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -22181,18 +21935,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n esperando que aparezca</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -22323,18 +22071,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n conocida</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -22459,9 +22201,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+10"/>
         <source>%n paso · la vuelta entera dura %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -22599,9 +22338,6 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <location line="+1"/>
         <source>Encontré %n pantalla</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -22814,18 +22550,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n para revisar</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -23038,18 +22768,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
         <source>%n sin nombre</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -23197,18 +22921,12 @@ Agregale imágenes desde la pestaña Archivos.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n cara · nunca vista</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -23621,9 +23339,6 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -23953,18 +23668,12 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n puerto serie</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -24030,9 +23739,6 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -24040,9 +23746,6 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+2"/>
         <source>%n con el control</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -24092,9 +23795,6 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+51"/>
         <source>%n palabra · %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -24154,9 +23854,6 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
         <location line="+8"/>
         <source>%n palabra · %1 leyendo</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -25628,9 +25325,6 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -26325,9 +26019,6 @@ APRETADO</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -26344,9 +26035,6 @@ APRETADO</source>
         <location line="+0"/>
         <source>%n cruce de memoria</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -26495,9 +26183,6 @@ APRETADO</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -26554,9 +26239,6 @@ APRETADO</source>
         <location line="+5"/>
         <source>Registro copiado (%n línea)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -26627,9 +26309,6 @@ Apagado: los archivos de Logs/, que traen también al gateway, al launcher y la 
         <location line="+1"/>
         <source>%n descartada</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -27363,9 +27042,6 @@ Para la escena base de la que salen las demás.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -27474,9 +27150,6 @@ Para la escena base de la que salen las demás.</source>
         <location line="+9"/>
         <source>%n herramienta</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -28602,9 +28275,6 @@ Para la escena base de la que salen las demás.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -28619,9 +28289,6 @@ Para la escena base de la que salen las demás.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -28631,18 +28298,12 @@ Para la escena base de la que salen las demás.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n ya no existe</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -28697,9 +28358,6 @@ Para la escena base de la que salen las demás.</source>
         <location line="+1"/>
         <source>el sistema tenía %n herramienta al entrenarlo</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -28766,9 +28424,6 @@ Para la escena base de la que salen las demás.</source>
         <location line="+5"/>
         <source>%n modelo · %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -29193,9 +28848,6 @@ Para la escena base de la que salen las demás.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -29417,9 +29069,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+8"/>
         <source>y %n más esperando</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -30312,9 +29961,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -30324,18 +29970,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%1 y hay %n persona conectada</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -31053,9 +30693,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -31128,9 +30765,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -31164,9 +30798,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -31174,9 +30805,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <source>%n min</source>
         <comment>minutos, abreviado</comment>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -31190,18 +30818,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n día</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -31475,9 +31097,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -31747,9 +31366,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -31975,9 +31591,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -32152,9 +31765,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+22"/>
         <source>%n vista</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -32863,9 +32473,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -32877,9 +32484,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1"/>
         <source>GStreamer · %1 · %n conectada</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -32952,9 +32556,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -32966,9 +32567,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+1"/>
         <source>%n cuadro de atraso</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -33267,9 +32865,6 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+51"/>
         <source>Maneja %n tarjeta: lo que ajustes acá cambia en todas.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -34119,9 +33714,6 @@ Elegí otra cosa en Salidas → Pantallas.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -34334,9 +33926,6 @@ Elegí otra cosa en Salidas → Pantallas.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -34378,9 +33967,6 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <location line="+6"/>
         <source>%n entrada más sin video ni señal ahora (audio, invitados sin conectar): no marcan la latencia</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -35546,9 +35132,6 @@ Elegí otra cosa en Salidas → Pantallas.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -35558,18 +35141,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n comentario</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -41061,18 +40638,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Votación %1 «%2»: se cerró (%n voto remoto)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -43322,9 +42893,6 @@ Datos (de %2): %3</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -45252,9 +44820,6 @@ Datos (de %2): %3</source>
         <location line="+23"/>
         <source>%n dispositivo</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -53681,9 +53246,6 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -54923,9 +54485,6 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <location line="+22"/>
         <source>%n cuadro</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -58036,9 +57595,6 @@ Mientras el guion corre sin ensayo, el sistema entra en MODO EVENTO: la app le a
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -58184,9 +57740,6 @@ UNA SESION DE ASAMBLEA (cuerpo con bancas, central, votacion nominal, remotos) n
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -58196,18 +57749,12 @@ UNA SESION DE ASAMBLEA (cuerpo con bancas, central, votacion nominal, remotos) n
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n persona</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -62361,9 +61908,6 @@ Si la superficie no esta viva no pasa nada y la cuenta vuelve en 0: eso quiere d
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -63607,9 +63151,6 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -63631,9 +63172,6 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
         <location line="+2"/>
         <source>%n anotado.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -63816,9 +63354,6 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -63833,18 +63368,12 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n cosa para que confirme una persona.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -65209,9 +64738,6 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -66122,18 +65648,12 @@ Si hay mas de una cara en el cuadro no adivina: pide que se aclare con `feed` de
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Con su cara (%n guardada).</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -66403,9 +65923,6 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <location line="+2"/>
         <source>%n ficha sin nombre.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -69638,9 +69155,6 @@ EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por 
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -69692,9 +69206,6 @@ EL DORSO: los tipos con `dorso: true` (el DNI y `mrz-td1`) se leen también por 
         <location line="+6"/>
         <source>Importado %n término revisado.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -80670,9 +80181,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
 </context>
@@ -84005,9 +83513,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -85923,9 +85428,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -86002,9 +85504,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <location line="+2"/>
         <source>%n sección</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -86117,9 +85616,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -86221,9 +85717,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <location line="+2"/>
         <source>%1 de %n integrante presente</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -86511,9 +86004,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <location line="+2"/>
         <source>Hay %n persona antes que vos.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -88070,9 +87560,6 @@ Cambiarla rearma la entrada (un instante sin imagen: mejor fuera del aire). estu
         <location line="+2"/>
         <source>%n voto</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>
             <numerusform></numerusform>

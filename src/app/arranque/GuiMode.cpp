@@ -319,7 +319,7 @@ int runGui(int argc, char** argv) {
         for (const QString& dir :
              {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),
               QCoreApplication::applicationDirPath() + "/../../data/fonts"}) {
-            const QStringList fonts = QDir(dir).entryList({"*.ttf"}, QDir::Files);
+            const QStringList fonts = QDir(dir).entryList({"*.ttf", "*.otf"}, QDir::Files);
             for (const QString& f : fonts)
                 QFontDatabase::addApplicationFont(dir + "/" + f);
             if (!fonts.isEmpty()) break;

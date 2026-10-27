@@ -5,9 +5,8 @@
 # Para los gráficos y los rótulos: que una escena diseñada acá se vea igual en el
 # equipo de respaldo, sin depender de las fuentes de la máquina. Liberation,
 # Carlito, Caladea, DejaVu, Noto Sans y Serif, Alef, Rubik, Gentium Basic y Linux
-# Libertine/Biolinum (licencias OFL, GPL con excepción de fuentes y similares).
-# Más Noto Sans Arabic: la interfaz en árabe (y los rótulos en árabe) sin depender de
-# las fuentes del sistema (Alef y Rubik ya traen el hebreo).
+# Libertine/Biolinum (licencias OFL, GPL con excepción de fuentes y similares), más
+# Noto Sans SC para el chino (el cirílico ya lo traen Noto, DejaVu y Liberation).
 #
 # Antes venían de la descarga de LibreOffice; LibreOffice ya no viaja (lo reemplazó
 # WordCraft/DeckCraft/GridCraft, tools/deps/craft.sh). Se bajan los MISMOS paquetes
@@ -35,9 +34,11 @@ PAQUETES=(
   "e7a384790b13c29113e22e596ade9687-LinLibertineG-20120116.zip 54adcb2bc8cac0927a647fbd9362f45eff48130ce6e2379dc3867643019e08c5"
   "NotoSans-v2.015.zip 0c34df072a3fa7efbb7cbf34950e1f971a4447cffe365d3a359e2d4089b958f5"
   "NotoSerif-v2.015.zip 0e9a43c8a4b94ac76f55069ed1d7385bbcaf6b99527a94deb5619e032b7e76c1"
-  "NotoSansArabic-v2.010.zip a5a34ac1ea01d0d71c083f99440ebfb1f64224474a0d88bb7ef0e2f8d9a996d2"
   "libre-hebrew-1.0.tar.gz f596257c1db706ce35795b18d7f66a4db99d427725f20e9384914b534142579a"
   "1725634df4bb3dcb1b2c91a6175f8789-GentiumBasic_1102.zip 2f1a2c5491d7305dffd3520c6375d2f3e14931ee35c6d8ae1e8f098bf1a7b3cc"
+  # El chino (la interfaz y los rótulos en chino): Noto Sans SC, del proyecto Noto (no está en
+  # el espejo de LibreOffice). Con URL entera: se baja de ahí.
+  "https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/18_NotoSansSC.zip 4d107c09ada479d3e48b6e78c83835773cbd9214bf6e12cdb7b60f8e068292ec"
 )
 
 # Las que viajan (las mismas que traía LibreOffice: los gráficos y las plantillas las nombran).
@@ -60,8 +61,8 @@ FUENTES=(
   LinLibertine_RZ_G.ttf LinLibertine_RZI_G.ttf
   NotoSans-Bold.ttf NotoSans-BoldItalic.ttf NotoSans-Italic.ttf NotoSans-Regular.ttf
   NotoSerif-Bold.ttf NotoSerif-BoldItalic.ttf NotoSerif-Italic.ttf NotoSerif-Regular.ttf
-  NotoSansArabic-Bold.ttf NotoSansArabic-Regular.ttf
   Rubik-Bold.ttf Rubik-BoldItalic.ttf Rubik-Italic.ttf Rubik-Regular.ttf
+  NotoSansSC-Regular.otf NotoSansSC-Bold.otf
 )
 
 log() { echo "[fuentes] $*"; }
@@ -75,10 +76,12 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 for linea in "${PAQUETES[@]}"; do
     read -r p esperado <<<"$linea"
+    url="$BASE/$p"
+    case "$p" in *://*) url="$p"; p="$(basename "$p")" ;; esac
     f="$DL/$p"
     if [ ! -f "$f" ] || [ "$(sha "$f")" != "$esperado" ]; then
         log "bajando $p"
-        curl -fsSL --retry 3 -o "$f.tmp" "$BASE/$p"
+        curl -fsSL --retry 3 -o "$f.tmp" "$url"
         mv "$f.tmp" "$f"
     fi
     h="$(sha "$f")"
@@ -113,4 +116,4 @@ for d in "$OUT"/licencias/*crosextrafonts-2013*; do
         "Origen: https://github.com/huertatipografica/Caladea" > "$d/LICENCIA.txt"
 done
 touch "$marca"
-log "$(ls "$OUT"/*.ttf | wc -l | tr -d ' ') tipografías en extern/fuentes-texto"
+log "$(ls "$OUT"/*.ttf "$OUT"/*.otf 2>/dev/null | wc -l | tr -d ' ') tipografías en extern/fuentes-texto"

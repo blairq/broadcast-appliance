@@ -1,0 +1,10 @@
+{
+  "codigo": "fr",
+  "nombre": "Français",
+  "locale": "fr_FR",
+  "direccion": "ltr",
+  "plural": "frances",
+  "respaldo": [
+    "en"
+  ]
+}
