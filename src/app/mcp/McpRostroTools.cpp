@@ -119,11 +119,11 @@ json calidadJson(const Calidad& q) {
 } // namespace
 
 void McpService::registerRostroTools() {
-    core_.addCategory("rostros", "Personas y rostros",
-                      "Reconocer a alguien que ya estuvo: la libreta de personas (nombre, cargo, "
+    core_.addCategory("rostros", ba::i18n::traducir("mcp", "Personas y rostros"),
+                      ba::i18n::traducir("mcp", "Reconocer a alguien que ya estuvo: la libreta de personas (nombre, cargo, "
                       "notas) y quién aparece en cada cámara. También el alta guiada de un invitado "
                       "por WebRTC (`rostro_calidad` dice que pedirle) y el anotado automático de "
-                      "toda cara nueva (`rostro_autoalta`). Corre en el aparato, sin red.");
+                      "toda cara nueva (`rostro_autoalta`). Corre en el aparato, sin red."));
 
     const auto preparar = [this]() -> std::string {
         PersonasViewModel* pv = libretaViva(vm_);

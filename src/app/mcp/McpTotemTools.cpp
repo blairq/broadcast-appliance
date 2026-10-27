@@ -65,10 +65,10 @@ json propiedadesDeTotem() {
 } // namespace
 
 void McpService::registerTotemTools() {
-    core_.addCategory("totems", "Registro de personas (tótems)",
-                      "Páginas de registro para una TV con cámara y micrófono o el celular de quien escanea un QR: "
+    core_.addCategory("totems", ba::i18n::traducir("mcp", "Registro de personas (tótems)"),
+                      ba::i18n::traducir("mcp", "Páginas de registro para una TV con cámara y micrófono o el celular de quien escanea un QR: "
                       "la persona se registra hablando y el asistente le contesta con voz. Lo que contesta va al "
-                      "padrón del evento abierto (`datos`) y queda acreditada.");
+                      "padrón del evento abierto (`datos`) y queda acreditada."));
     StudioViewModel& vm = vm_;
     const auto tv = [&vm]() { return vm.totemsVm(); };
 
@@ -269,10 +269,10 @@ void McpService::registerTotemTools() {
     // El mismo lector que el paso «documento» del tótem (ui/LectorDocumentos). Lo que
     // devuelven NO trae los datos completos: el asistente puede ser un modelo en la
     // nube, y un DNI no sale de la máquina (queda en el padrón del evento).
-    core_.addCategory("identidad", "Documentos de identidad",
-                      "Leer un DNI (u otro documento con código de barras: PDF417, QR…, o por el dorso: los renglones "
+    core_.addCategory("identidad", ba::i18n::traducir("mcp", "Documentos de identidad"),
+                      ba::i18n::traducir("mcp", "Leer un DNI (u otro documento con código de barras: PDF417, QR…, o por el dorso: los renglones "
                       "de la zona de lectura mecánica) de una cámara o una imagen, y qué tipos de documento se "
-                      "entienden (de fábrica y de plugins). No son los PDF del evento.");
+                      "entienden (de fábrica y de plugins). No son los PDF del evento."));
     {
         Tool t;
         t.name = "documento_tipos";

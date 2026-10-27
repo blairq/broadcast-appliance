@@ -93,9 +93,9 @@ json conParametros(const json& v, const json& par) {
 } // namespace
 
 void McpService::registerRecetaTools() {
-    core_.addCategory("recetas", "Recetas",
-                      "Series de pasos guardadas con un nombre, para repetir de una lo que son "
-                      "diez llamadas.");
+    core_.addCategory("recetas", ba::i18n::traducir("mcp", "Recetas"),
+                      ba::i18n::traducir("mcp", "Series de pasos guardadas con un nombre, para repetir de una lo que son "
+                      "diez llamadas."));
 
     AppRuntime& rt = rt_;
     McpCore& core = core_;
@@ -162,7 +162,7 @@ void McpService::registerRecetaTools() {
                         ba::i18n::traducir("mcp", "Una receta no puede llamar a otra receta: asi no hay forma de armar un "
                         "ciclo infinito sin darse cuenta.")));
                 if (core.findTool(n) == nullptr)
-                    return done(ToolResult::error("No existe la herramienta \"" + n + "\"."));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la herramienta \"%1\"."), {n})));
             }
 
             json recetas = leer(rt);
@@ -178,8 +178,10 @@ void McpService::registerRecetaTools() {
                 }
             if (!reemplazo) recetas.push_back(nueva);
             if (!escribir(rt, recetas)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo guardar.")));
-            done(ToolResult::ok((reemplazo ? "Receta reemplazada: " : "Receta guardada: ") + id + " (" +
-                                std::to_string(a["pasos"].size()) + " pasos)."));
+            done(ToolResult::ok(ba::i18n::llenar(
+                reemplazo ? ba::i18n::traducir("mcp", "Receta reemplazada: %1 (%n paso).", nullptr, static_cast<int>(a["pasos"].size()))
+                          : ba::i18n::traducir("mcp", "Receta guardada: %1 (%n paso).", nullptr, static_cast<int>(a["pasos"].size())),
+                {id})));
         };
         core_.addTool(std::move(t));
     }
@@ -200,9 +202,9 @@ void McpService::registerRecetaTools() {
             for (const json& r : recetas)
                 if (r.value("id", std::string()) != id) quedan.push_back(r);
             if (quedan.size() == recetas.size())
-                return done(ToolResult::error("No existe la receta \"" + id + "\"."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la receta \"%1\"."), {id})));
             if (!escribir(rt, quedan)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo guardar.")));
-            done(ToolResult::ok("Receta borrada: " + id + "."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Receta borrada: %1."), {id})));
         };
         core_.addTool(std::move(t));
     }
@@ -227,7 +229,7 @@ void McpService::registerRecetaTools() {
             json receta;
             for (const json& r : leer(rt))
                 if (r.value("id", std::string()) == id) receta = r;
-            if (receta.is_null()) return done(ToolResult::error("No existe la receta \"" + id + "\"."));
+            if (receta.is_null()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la receta \"%1\"."), {id})));
 
             const json par =
                 a.contains("parametros") && a["parametros"].is_object() ? a["parametros"] : json::object();
@@ -260,9 +262,9 @@ void McpService::registerRecetaTools() {
                         hechos->push_back(
                             json{{"paso", nro}, {"tool", tool}, {"ok", !malo}, {"dijo", texto}});
                         if (malo) {
-                            done(ToolResult::error("La receta \"" + id + "\" se freno en el paso " +
-                                                   std::to_string(nro) + " (" + tool + "): " + texto +
-                                                   ". Lo anterior YA se hizo."));
+                            done(ToolResult::error(ba::i18n::llenar(
+                                ba::i18n::traducir("mcp", "La receta \"%1\" se freno en el paso %2 (%3): %4. Lo anterior YA se hizo."),
+                                {id, std::to_string(nro), tool, texto})));
                             return;
                         }
                         (*siguiente)();

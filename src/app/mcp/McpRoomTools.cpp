@@ -123,10 +123,10 @@ std::string qrPng(const json& modules) {
 
 void McpService::registerRoomTools() {
     core_.addCategory(
-        "sala", "Conferencia (videollamada con invitados)",
-        "Invitados por WebRTC: lobby, admitir, hablar, pedir cosas, chat, archivos, enlaces y QR, red.");
-    core_.addCategory("oradores", "Modo oradores",
-                      "Fila de oradores con reloj: al aire por turno, orden, tiempos, carrusel.");
+        "sala", ba::i18n::traducir("mcp", "Conferencia (videollamada con invitados)"),
+        ba::i18n::traducir("mcp", "Invitados por WebRTC: lobby, admitir, hablar, pedir cosas, chat, archivos, enlaces y QR, red."));
+    core_.addCategory("oradores", ba::i18n::traducir("mcp", "Modo oradores"),
+                      ba::i18n::traducir("mcp", "Fila de oradores con reloj: al aire por turno, orden, tiempos, carrusel."));
 
     StudioViewModel& vm = vm_;
     AppRuntime& rt = rt_;

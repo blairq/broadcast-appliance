@@ -26,12 +26,12 @@ void McpService::registerTraduccionTools() {
     agent::Traductor* tr = vm_.traductorAgent();
     if (tr == nullptr) return;
     const QPointer<agent::Traductor> t = tr;
-    core_.addCategory("traduccion", "Traducción en vivo",
-                      "Traducir lo que se dice (una salida de texto de «Voz a texto») a inglés, portugués, "
+    core_.addCategory("traduccion", ba::i18n::traducir("mcp", "Traducción en vivo"),
+                      ba::i18n::traducir("mcp", "Traducir lo que se dice (una salida de texto de «Voz a texto») a inglés, portugués, "
                       "francés, alemán, ruso "
                       "o chino, sin red, para subtítulos y para que una voz lo diga en otro idioma; y el "
                       "glosario de términos "
-                      "del evento.");
+                      "del evento."));
     const json idioma = {{"type", "string"}, {"enum", {"es", "en", "pt", "fr", "de", "ru", "zh"}}};
     {
         Tool x;
@@ -49,7 +49,7 @@ void McpService::registerTraduccionTools() {
             if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
             json idiomas = json::object();
             for (const auto& [k, v] : agent::Traductor::nombresIdiomas())
-                idiomas[k] = v;
+                idiomas[k] = ba::i18n::traducir("idiomas", v.c_str()); // vienen con QT_TRANSLATE_NOOP
             done(ToolResult().data(
                 {{"traducciones", t->lista()}, {"motor", t->motor().toStdString()}, {"idiomas", idiomas}}));
         };
@@ -173,7 +173,7 @@ void McpService::registerTraduccionTools() {
             const json faltaban = t->faltan(de, para);
             if (const std::string e = t->bajar(de, para); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data({{"bajando", faltaban},
-                                    {"nota", faltaban.empty() ? "ya estaba todo" : "se bajan de a uno"}}));
+                                    {"nota", faltaban.empty() ? ba::i18n::traducir("mcp", "ya estaba todo") : ba::i18n::traducir("mcp", "se bajan de a uno")}}));
         };
         core_.addTool(std::move(x));
     }
@@ -235,7 +235,7 @@ void McpService::registerTraduccionTools() {
             const int cuantos =
                 sub != nullptr ? sub->limpiar(a.value("nombre", std::string()), a.value("flujo", std::string())) : 0;
             if (cuantos == 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay cuadros «Subtítulos» que coincidan")));
-            done(ToolResult().text("Borrados " + std::to_string(cuantos) + " cuadro(s) de subtítulos."));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Borrado %n cuadro de subtítulos.", nullptr, cuantos)));
         };
         core_.addTool(std::move(x));
     }
@@ -282,9 +282,9 @@ void McpService::registerTraduccionTools() {
             const std::string ruta = a.value("archivo", std::string());
             if (!ruta.empty()) {
                 std::ofstream o(ruta);
-                if (!o) return done(ToolResult::error("no pude escribir " + ruta));
+                if (!o) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no pude escribir %1"), {ruta})));
                 o << csv;
-                return done(ToolResult::ok("Escrito en " + ruta));
+                return done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Escrito en %1"), {ruta})));
             }
             done(ToolResult().text(csv));
         };
@@ -312,7 +312,7 @@ void McpService::registerTraduccionTools() {
             int n = 0;
             const std::string e = t->glosarioImportarCsv(csv, a.value("revisado_por", std::string()), &n);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Importados " + std::to_string(n) + " términos revisados."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Importado %n término revisado.", nullptr, n)));
         };
         core_.addTool(std::move(x));
     }
@@ -359,7 +359,7 @@ void McpService::registerTraduccionTools() {
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error(ba::i18n::traducir("mcp", "el traductor no está")));
             if (const std::string e = t->glosarioAgregar(a); !e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().text("Agregado al glosario (" + t->archivoGlosario().string() + ")."));
+            done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Agregado al glosario (%1)."), {t->archivoGlosario().string()})));
         };
         core_.addTool(std::move(x));
     }
@@ -386,7 +386,7 @@ void McpService::registerTraduccionTools() {
             else if (a.contains("es"))
                 e = t->glosarioQuitar(a.value("es", std::string()));
             else
-                e = "falta `es` (un término) o `grupo`";
+                e = ba::i18n::traducir("mcp", "falta `es` (un término) o `grupo`");
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult().text(ba::i18n::traducir("mcp", "Hecho.")));
         };

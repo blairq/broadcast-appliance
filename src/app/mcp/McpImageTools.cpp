@@ -153,8 +153,8 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
 
 void McpService::registerImageTools() {
     core_.addCategory(
-        "imagenes", "Imágenes y video (visión)",
-        "Ver el programa, cualquier fuente o escena, cada persona, la app, y secuencias en el tiempo.");
+        "imagenes", ba::i18n::traducir("mcp", "Imágenes y video (visión)"),
+        ba::i18n::traducir("mcp", "Ver el programa, cualquier fuente o escena, cada persona, la app, y secuencias en el tiempo."));
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
     auto* self = this;

@@ -73,12 +73,12 @@ json moduleView(AudioRack& rack, const std::string& id) {
 } // namespace
 
 void McpService::registerAudioTools() {
-    core_.addCategory("audio_rack", "Rack de audio (LSP)",
-                      "Procesamiento por fuente tipo JACK: modulos LSP (gate, compresor, de-esser, EQ, "
+    core_.addCategory("audio_rack", ba::i18n::traducir("mcp", "Rack de audio (LSP)"),
+                      ba::i18n::traducir("mcp", "Procesamiento por fuente tipo JACK: modulos LSP (gate, compresor, de-esser, EQ, "
                       "multibanda, limitador...) "
                       "conectados con cables, con medidores por modulo, analizador (LUFS, espectro, piso de "
                       "ruido) y medicion "
-                      "fuera de linea. Guia: help {\"topic\": \"audio_rack\"}.");
+                      "fuera de linea. Guia: help {\"topic\": \"audio_rack\"}."));
     StudioViewModel* vm = &vm_;
     auto mgr = [vm]() { return vm->racks(); };
 
@@ -144,7 +144,7 @@ void McpService::registerAudioTools() {
             if (!g.isEmpty() && std::none_of(antes.begin(), antes.end(), [&g](const QVariant& x) {
                     return x.toMap().value("grupo").toString() == g;
                 }))
-                return done(ToolResult::error("No hay un grupo «" + g.toStdString() + "»: los grupos los lista esta herramienta sin argumentos."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay un grupo «%1»: los grupos los lista esta herramienta sin argumentos."), {g.toStdString()})));
             if (!g.isEmpty() && a.contains("compacto")) m->setCompacto(g, a["compacto"].get<bool>());
             if (!g.isEmpty() && a.contains("mudo")) m->setMutedGrupo(g, a["mudo"].get<bool>());
             if (!g.isEmpty() && a.contains("volumenDb") && a["volumenDb"].is_number())
@@ -260,17 +260,17 @@ void McpService::registerAudioTools() {
             for (const auto& m : audio::moduleCatalog()) {
                 json params = json::array();
                 for (const auto& p : m.params)
-                    params.push_back({{"clave", p.key}, {"ayuda", p.help}});
+                    params.push_back({{"clave", p.key}, {"ayuda", ba::i18n::traducir("modulos", p.help.c_str())}});
                 json bands = json::array();
                 for (const auto& p : m.bandParams)
-                    bands.push_back({{"clave", p.key}, {"ayuda", p.help}});
+                    bands.push_back({{"clave", p.key}, {"ayuda", ba::i18n::traducir("modulos", p.help.c_str())}});
                 json presets = json::array();
                 for (auto it = m.presets.begin(); it != m.presets.end(); ++it)
                     presets.push_back(it.key());
                 cat.push_back(
                     {{"clave", m.key},
-                     {"titulo", m.title},
-                     {"ayuda", m.help},
+                     {"titulo", ba::i18n::traducir("modulos", m.title.c_str())},
+                     {"ayuda", ba::i18n::traducir("modulos", m.help.c_str())},
                      {"modulo", m.pluginId},
                      {"parametros", params},
                      {"parametrosPorBanda", bands},
@@ -314,7 +314,7 @@ void McpService::registerAudioTools() {
         t.run = [mgr](const json& a, Done done) {
             std::string e;
             auto lib = mgr()->library(&e);
-            if (!lib) return done(ToolResult::error("No se pudo abrir la biblioteca de plugins: " + e));
+            if (!lib) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo abrir la biblioteca de plugins: %1"), {e})));
 
             // El MISMO motor que busca herramientas (McpIndice): pesos por
             // campo, IDF y prefijos. No hay razon para tener dos buscadores.
@@ -398,12 +398,12 @@ void McpService::registerAudioTools() {
             if (out.empty())
                 res.text(ba::i18n::traducir("mcp", "No hay ningun plugin instalado para eso."));
             else if (flojo)
-                res.text("NO hay ninguno para eso. Lo unico que se le parece de nombre es " +
-                         out[0]["id"].get<std::string>() +
-                         ", que hace otra cosa: no lo pongas sin leer `paraQue`.");
+                res.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "NO hay ninguno para eso. Lo unico que se le parece de nombre es %1, "
+                                                            "que hace otra cosa: no lo pongas sin leer `paraQue`."),
+                                          {out[0]["id"].get<std::string>()}));
             else
-                res.text(std::to_string(out.size()) +
-                         " plugin(s). El `id` va tal cual en `audio_module_add`.");
+                res.text(ba::i18n::traducir("mcp", "%n plugin. El `id` va tal cual en `audio_module_add`.", nullptr,
+                                            static_cast<int>(out.size())));
             res.structured = json{{"plugins", out}, {"hayAlguno", !flojo}};
             done(res);
         };
@@ -454,14 +454,14 @@ void McpService::registerAudioTools() {
                 if (id.empty()) return done(ToolResult::error(e));
                 return done(
                     ToolResult().data(json{{"id", id},
-                                           {"aviso", "ajustala con traduccion_ajustar {id}; traducciones "
-                                                     "muestra si falta bajar el idioma"}}));
+                                           {"aviso", ba::i18n::traducir("mcp", "ajustala con traduccion_ajustar {id}; traducciones "
+                                                     "muestra si falta bajar el idioma")}}));
             }
             AudioRack* r = mgr()->rack(a.value("source", ""), true, &e);
             if (r == nullptr) return done(ToolResult::error(e));
             if (mod == "analizador" || mod == "analyzer") {
                 const std::string id = r->addAnalyzer(a.value("label", ""), a.value("after", ""));
-                if (id.empty()) return done(ToolResult::error("no existe el nodo " + a.value("after", "")));
+                if (id.empty()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el nodo %1"), {a.value("after", "")})));
                 mgr()->markDirty();
                 return done(ToolResult().data(json{{"nodo", id}, {"rack", r->describe()}}));
             }
@@ -476,7 +476,7 @@ void McpService::registerAudioTools() {
             const std::string preset = a.value("preset", "");
             if (!preset.empty()) {
                 if (type == nullptr || !type->presets.contains(preset))
-                    res["aviso"] = "no hay preset '" + preset + "' para ese modulo";
+                    res["aviso"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay preset '%1' para ese modulo"), {preset});
                 else
                     res["preset"] = audio::applyModule(*r->plugin(id), type, type->presets[preset]);
             }
@@ -526,7 +526,7 @@ void McpService::registerAudioTools() {
         t.run = [mgr](const json& a, Done done) {
             const std::string e = mgr()->setEntradaFuente(a.value("source", ""), a.value("node", ""), a.value("fuente", ""));
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("La tarjeta trae ahora el audio de «" + a.value("fuente", "") + "»."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "La tarjeta trae ahora el audio de «%1»."), {a.value("fuente", "")})));
         };
         core_.addTool(std::move(t));
     }
@@ -574,8 +574,8 @@ void McpService::registerAudioTools() {
             for (const auto& c : a.value("desconectar", json::array()))
                 if (!r->disconnect(c.value("desde", ""), c.value("salida", ""), c.value("hacia", ""),
                                    c.value("entrada", ""), canal(c, "canalSalida"), canal(c, "canalEntrada")))
-                    errors.push_back("no habia cable " + c.value("desde", "") + " -> " +
-                                     c.value("hacia", ""));
+                    errors.push_back(ba::i18n::llenar(ba::i18n::traducir("mcp", "no habia cable %1 -> %2"),
+                                                     {c.value("desde", ""), c.value("hacia", "")}));
             for (const auto& c : a.value("conectar", json::array())) {
                 std::string ce;
                 if (!r->connect(c.value("desde", ""), c.value("salida", "out"), c.value("hacia", ""),
@@ -602,7 +602,7 @@ void McpService::registerAudioTools() {
         t.run = [mgr](const json& a, Done done) {
             std::string e;
             AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
-            if (r == nullptr) return done(ToolResult::error(e.empty() ? "esa fuente no tiene rack" : e));
+            if (r == nullptr) return done(ToolResult::error(e.empty() ? ba::i18n::traducir("mcp", "esa fuente no tiene rack") : e));
             r->layoutGrid();
             mgr()->markDirty();
             done(ToolResult().data(r->describe()));
@@ -666,7 +666,7 @@ void McpService::registerAudioTools() {
             if (!r->setBypass(a.value("node", ""), a.value("bypass", false)))
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "no es un modulo del rack")));
             mgr()->markDirty();
-            done(ToolResult::ok(a.value("bypass", false) ? "Modulo anulado." : "Modulo activo."));
+            done(ToolResult::ok(a.value("bypass", false) ? ba::i18n::traducir("mcp", "Modulo anulado.") : ba::i18n::traducir("mcp", "Modulo activo.")));
         };
         core_.addTool(std::move(t));
     }
@@ -743,16 +743,16 @@ void McpService::registerAudioTools() {
         const char* title;
     };
     for (const Friendly& f :
-         {Friendly{"audio_gate", "gate", "Compuerta (gate)"},
-          Friendly{"audio_compressor", "compresor", "Compresor"},
-          Friendly{"audio_deesser", "deesser", "De-esser"}, Friendly{"audio_eq", "eq", "Ecualizador"},
-          Friendly{"audio_multiband", "multibanda", "Compresor multibanda"},
-          Friendly{"audio_limiter", "limitador", "Limitador"}}) {
+         {Friendly{"audio_gate", "gate", QT_TRANSLATE_NOOP("mcp", "Compuerta (gate)")},
+          Friendly{"audio_compressor", "compresor", QT_TRANSLATE_NOOP("mcp", "Compresor")},
+          Friendly{"audio_deesser", "deesser", QT_TRANSLATE_NOOP("mcp", "De-esser")}, Friendly{"audio_eq", "eq", QT_TRANSLATE_NOOP("mcp", "Ecualizador")},
+          Friendly{"audio_multiband", "multibanda", QT_TRANSLATE_NOOP("mcp", "Compresor multibanda")},
+          Friendly{"audio_limiter", "limitador", QT_TRANSLATE_NOOP("mcp", "Limitador")}}) {
         const audio::ModuleType* type = audio::findModule(f.module);
         if (type == nullptr) continue;
         Tool t;
         t.name = f.tool;
-        t.title = f.title;
+        t.title = ba::i18n::traducir("mcp", f.title);
         t.category = "audio_rack";
         json props{{"source", kSource},
                    {"node", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nodo (vacio = el primero de este tipo)")}}},
@@ -760,11 +760,11 @@ void McpService::registerAudioTools() {
                    {"after", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Al crearlo: despues de que nodo")}}},
                    {"preset", {{"type", "string"}}}};
         for (const auto& p : type->params)
-            props[p.key] = {{"description", p.help}};
+            props[p.key] = {{"description", ba::i18n::traducir("modulos", p.help.c_str())}};
         if (type->bandCount > 0) {
             json bandProps{{"banda", {{"type", "integer"}}}};
             for (const auto& p : type->bandParams)
-                bandProps[p.key] = {{"description", p.help}};
+                bandProps[p.key] = {{"description", ba::i18n::traducir("modulos", p.help.c_str())}};
             props["bandas"] = {
                 {"type", "array"},
                 {"items", {{"type", "object"}, {"properties", bandProps}, {"required", {"banda"}}}}};
@@ -776,17 +776,17 @@ void McpService::registerAudioTools() {
         // describe el modulo; esto dice CUANDO se usa, que es lo que el modelo
         // tiene que emparejar con «los graves suenan mal».
         const std::string cuando =
-            std::string(f.module) == "eq"          ? "Ecualiza: cuando los graves o los agudos suenan mal, "
-                                                     "retumba, suena metalico o apagado. "
-            : std::string(f.module) == "gate"      ? "Compuerta: cierra el microfono cuando nadie habla, "
-                                                     "para que no se escuche todo lo de alrededor. "
-            : std::string(f.module) == "limitador" ? "Limitador: para que no sature ni pase de cierto nivel. "
-            : std::string(f.module) == "compresor" ? "Compresor: empareja lo muy fuerte con lo muy bajo. "
+            std::string(f.module) == "eq"          ? ba::i18n::traducir("mcp", "Ecualiza: cuando los graves o los agudos suenan mal, "
+                                                     "retumba, suena metalico o apagado.") + " "
+            : std::string(f.module) == "gate"      ? ba::i18n::traducir("mcp", "Compuerta: cierra el microfono cuando nadie habla, "
+                                                     "para que no se escuche todo lo de alrededor.") + " "
+            : std::string(f.module) == "limitador" ? ba::i18n::traducir("mcp", "Limitador: para que no sature ni pase de cierto nivel.") + " "
+            : std::string(f.module) == "compresor" ? ba::i18n::traducir("mcp", "Compresor: empareja lo muy fuerte con lo muy bajo.") + " "
                                                    : std::string();
-        t.description = cuando + type->help +
-                        " Sin parametros solo lee. Devuelve valores y medidores (cambioDb = lo que "
-                        "el modulo baja/sube ahora)." +
-                        (presets.empty() ? std::string() : " Presets: " + presets + ".");
+        t.description = cuando + ba::i18n::traducir("modulos", type->help.c_str()) + " " +
+                        ba::i18n::traducir("mcp", "Sin parametros solo lee. Devuelve valores y medidores (cambioDb = lo que "
+                        "el modulo baja/sube ahora).") +
+                        (presets.empty() ? std::string() : " " + ba::i18n::llenar(ba::i18n::traducir("mcp", "Presets: %1."), {presets}));
         t.inputSchema = {{"type", "object"}, {"properties", props}, {"required", {"source"}}};
         t.run = [mgr, type](const json& a, Done done) {
             std::string e;
@@ -797,7 +797,7 @@ void McpService::registerAudioTools() {
             json res;
             if (id.empty()) {
                 if (!a.value("node", "").empty() || !a.value("crear", true))
-                    return done(ToolResult::error("no hay " + type->title + " en el rack de esa fuente"));
+                    return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay %1 en el rack de esa fuente"), {ba::i18n::traducir("modulos", type->title.c_str())})));
                 id = r->addPlugin(type->pluginId, type->title, a.value("after", ""), &e, type->key);
                 if (id.empty()) return done(ToolResult::error(e));
                 res["creado"] = id;
@@ -851,7 +851,7 @@ void McpService::registerAudioTools() {
             const std::string point = a.value("punto", "in");
             audio::Analyzer* an = r->analyzer(point);
             if (an == nullptr)
-                return done(ToolResult::error("'" + point + "' no es in, out ni un analizador"));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "'%1' no es in, out ni un analizador"), {point})));
             const double secs = std::clamp(a.value("segundos", 5.0), 0.0, 30.0);
             if (secs > 0 && a.value("reiniciar", true)) an->requestReset();
             QTimer::singleShot(static_cast<int>(secs * 1000), QCoreApplication::instance(),
@@ -956,8 +956,8 @@ void McpService::registerAudioTools() {
                 const bool live = to == "out" || r->kindOf(to) == "plugin";
                 if (live && !a.value("al_aire", false))
                     return done(
-                        ToolResult::error("conectarlo a '" + to +
-                                          "' lo manda al aire: repetir con al_aire=true si es a proposito"));
+                        ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "conectarlo a '%1' lo manda al aire: repetir con al_aire=true si es a proposito"),
+                                                           {to})));
                 if (!r->connect(id, "out", to, "in", &e)) return done(ToolResult::error(e));
             }
             mgr()->markDirty();
@@ -1041,7 +1041,7 @@ void McpService::registerAudioTools() {
             const int pagina = riel == nullptr ? -1 : riel->paginaDeId("audio");
             if (pagina < 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "No está la página Audio.")));
             w->setProperty("page", pagina);
-            done(ToolResult::ok("Pestaña Audio: " + a.value("source", "")));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pestaña Audio: %1"), {a.value("source", "")})));
         };
         core_.addTool(std::move(t));
     }

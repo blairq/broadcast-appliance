@@ -51,7 +51,7 @@ void compactar(json& j) {
             if ((k == "curva" || k == "promedio" || k == "objetivo" || k == "previsto" || k == "despues") && v.is_array())
                 v = aTercios(v);
             else if (k == "etc" || k == "ir_vista")
-                v = "(" + std::to_string(v.size()) + " puntos: se ven en la ventana)";
+                v = ba::i18n::traducir("mcp", "(%n punto: se ven en la ventana)", nullptr, static_cast<int>(v.size()));
             else
                 compactar(v);
         }
@@ -99,7 +99,7 @@ void McpService::registerCalibracionTools() {
             mz->setPestana(QString::fromStdString(a.value("pestana", "consola")));
             if (a.contains("matriz")) mz->setMatrizAbierta(a.value("matriz", false));
             if (a.contains("vista")) mz->calibracion()->setVista(QString::fromStdString(a.value("vista", "respuesta")));
-            done(ToolResult::ok("Pestaña: " + mz->pestana().toStdString() + " (la ventana: ui_panel_window {panel: mezclador})."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pestaña: %1 (la ventana: ui_panel_window {panel: mezclador})."), {mz->pestana().toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -257,7 +257,7 @@ void McpService::registerCalibracionTools() {
             else if (que == "punto")
                 e = c->agregarPunto(qs(a, "nombre"), qs(a, "tipo", "escucha"), a.value("x", 1.0), a.value("y", 1.0));
             else
-                e = "que: parlante, microfono o punto";
+                e = QString::fromStdString(ba::i18n::traducir("mcp", "que: parlante, microfono o punto"));
             done(resultado(e, c, "agregado"));
         };
         core_.addTool(std::move(t));
@@ -288,7 +288,7 @@ void McpService::registerCalibracionTools() {
             else if (a.value("quitar", false)) e = c->quitar(id);
             else if (a.contains("calibracion")) e = c->setCalibracionMicrofono(id, qs(a, "calibracion"), qs(a, "modelo"), qs(a, "archivo"));
             else if (a.contains("x") && a.contains("y")) e = c->mover(id, a["x"].get<double>(), a["y"].get<double>());
-            else e = "falta qué cambiar (x/y, quitar, calibracion o borrar_medicion)";
+            else e = QString::fromStdString(ba::i18n::traducir("mcp", "falta qué cambiar (x/y, quitar, calibracion o borrar_medicion)"));
             done(resultado(e, c, "listo"));
         };
         core_.addTool(std::move(t));

@@ -22,10 +22,10 @@ namespace ba::app::mcp {
 void McpService::registerTiemposTools() {
     tiempos::TiemposModel* tm = vm_.tiemposModel();
     if (tm == nullptr) return;
-    core_.addCategory("tiempos", "Tiempos del pipeline",
-                      "Cuánto tarda cada cosa, de cada entrada a cada salida, en video y en audio: la captura y "
+    core_.addCategory("tiempos", ba::i18n::traducir("mcp", "Tiempos del pipeline"),
+                      ba::i18n::traducir("mcp", "Cuánto tarda cada cosa, de cada entrada a cada salida, en video y en audio: la captura y "
                       "la decodificación, cada tarjeta y cada módulo de audio, la escena y la mezcla, y cada salida. "
-                      "Cada número dice si es medido o declarado (la latencia que se le fijó).");
+                      "Cada número dice si es medido o declarado (la latencia que se le fijó)."));
     {
         Tool t;
         t.name = "tiempos_mapa";
@@ -175,7 +175,7 @@ void McpService::registerTiemposTools() {
         t.run = [tm](const json& a, Done done) {
             tm->ahora();
             const json n = tm->nodo(a.value("id", std::string()), a.value("segundos", 60));
-            if (n.is_null()) return done(ToolResult::error("no hay un nodo «" + a.value("id", std::string()) + "» (tiempos_mapa da los que hay)"));
+            if (n.is_null()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un nodo «%1» (tiempos_mapa da los que hay)"), {a.value("id", std::string())})));
             done(ToolResult().data(n));
         };
         core_.addTool(std::move(t));
@@ -211,10 +211,10 @@ void McpService::registerTiemposTools() {
         t.examples = {R"({"entrada": "Cámara 1"})", R"({"entrada": "Cámara 1", "medir": false})"};
         t.run = [tm](const json& a, Done done) {
             const std::string e = a.value("entrada", std::string());
-            if (!tm->existeEntrada(e)) return done(ToolResult::error("no existe la entrada «" + e + "» (tiempos_mapa o video_estado dan las que hay)"));
+            if (!tm->existeEntrada(e)) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe la entrada «%1» (tiempos_mapa o video_estado dan las que hay)"), {e})));
             if (!a.value("medir", true)) {
                 const json r = tm->recorrido(e);
-                if (r.is_null()) return done(ToolResult::error("«" + e + "» todavía no se analizó: tiempos_pipeline con medir true"));
+                if (r.is_null()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» todavía no se analizó: tiempos_pipeline con medir true"), {e})));
                 return done(ToolResult().data(r));
             }
             QPointer<tiempos::TiemposModel> vivo = tm;
@@ -222,7 +222,7 @@ void McpService::registerTiemposTools() {
                 if (!vivo) return done(ToolResult::error(ba::i18n::traducir("mcp", "se cerró el análisis")));
                 const json r = vivo->recorrido(e);
                 if (r.is_null())
-                    return done(ToolResult::error(an.value("error", std::string("no se pudo medir «" + e + "»: ¿la entrada está andando?"))));
+                    return done(ToolResult::error(an.value("error", ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo medir «%1»: ¿la entrada está andando?"), {e}))));
                 done(ToolResult().data(r));
             }, {e});
             if (!err.isEmpty()) done(ToolResult::error(err.toStdString()));
@@ -249,7 +249,7 @@ void McpService::registerTiemposTools() {
             const std::string e = a.value("entrada", std::string());
             if (e.empty()) return done(ToolResult().data(rm->recalcular()));
             const json p = rm->plan(e);
-            if (p.is_null()) return done(ToolResult::error("no hay una entrada de video «" + e + "» (resolucion_plan sin nada da todas)"));
+            if (p.is_null()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una entrada de video «%1» (resolucion_plan sin nada da todas)"), {e})));
             done(ToolResult().data(p));
         };
         core_.addTool(std::move(t));
@@ -292,7 +292,7 @@ void McpService::registerTiemposTools() {
                     if (id.rfind(pre, 0) != 0) continue;
                     if (id == pre + tj || minus(x.value("titulo", std::string())) == minus(tj)) n = &x;
                 }
-                if (n == nullptr) return done(ToolResult::error("no hay una tarjeta «" + tj + "» en «" + e + "» (tiempos_mapa da las que hay)"));
+                if (n == nullptr) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una tarjeta «%1» en «%2» (tiempos_mapa da las que hay)"), {tj, e})));
                 const json& d = (*n)["detalle"];
                 if (el.empty()) el = d.value("elemento", std::string());
                 json uso = {{"id", (*n)["id"]}, {"titulo", (*n)["titulo"]}, {"ms", (*n)["ms"]}, {"fuente", (*n)["fuente"]},
@@ -301,7 +301,7 @@ void McpService::registerTiemposTools() {
                                       "motor-usado", "proveedor-usado", "error", "andando"})
                     if (d.contains(k)) uso[k] = d[k];
                 if (!d.value("medido_sondas", false))
-                    uso["nota"] = "sin análisis por elemento: tiempos_pipeline {\"entrada\": \"" + e + "\"} para medirla por dentro";
+                    uso["nota"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "sin análisis por elemento: tiempos_pipeline {\"entrada\": \"%1\"} para medirla por dentro"), {e});
                 json hall = json::array();
                 const json r = tm->recorrido(e);
                 if (!r.is_null())
@@ -315,10 +315,10 @@ void McpService::registerTiemposTools() {
             out["elemento"] = el;
             if (!v) return done(ToolResult::error(ba::i18n::traducir("mcp", "el video no está disponible")));
             const video::CatalogoGst& c = v->gst();
-            if (!c.disponible()) return done(ToolResult::error("GStreamer no está disponible: " + c.error()));
+            if (!c.disponible()) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "GStreamer no está disponible: %1"), {c.error()})));
             const json in = c.interior(el);
             if (!in.value("existe", false) && !out.contains("en_uso"))
-                return done(ToolResult::error("no existe el elemento «" + el + "» (video_modulos con buscar)"));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el elemento «%1» (video_modulos con buscar)"), {el})));
             out["interior"] = in;
             const json doc = c.modulo(el);
             if (!doc.empty()) out["documentacion"] = doc;
