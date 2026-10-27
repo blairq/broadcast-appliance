@@ -1,5 +1,6 @@
 // src/app/audio/LspDsp.cpp — ver el .hpp
 #include "audio/LspDsp.hpp"
+#include "i18n/I18n.hpp"
 
 #include "platform/Paths.hpp"
 
@@ -69,7 +70,7 @@ void cargar() {
         }
     }
     if (lib == nullptr) {
-        g_error = std::string("no está ") + kNombre + " (tools/deps/lspdsp.sh)";
+        g_error = ba::i18n::llenar(ba::i18n::traducir("lspdsp", "no está %1 (tools/deps/lspdsp.sh)"), {kNombre});
         return;
     }
     bool falta = false;
@@ -113,12 +114,12 @@ void cargar() {
     res(g_api.medicionRtBandas, "ba_medicion_rt_bandas");
     res(g_api.medicionLiberar, "ba_medicion_liberar");
     if (falta) {
-        g_error = g_ruta + " no tiene " + cual + " (¿de otra versión?)";
+        g_error = ba::i18n::llenar(ba::i18n::traducir("lspdsp", "%1 no tiene %2 (¿de otra versión?)"), {g_ruta, cual});
         return;
     }
     if (g_api.version() != BA_LSPDSP_VERSION) {
-        g_error = g_ruta + " es de la versión " + std::to_string(g_api.version()) + " de la API (se esperaba " +
-                  std::to_string(BA_LSPDSP_VERSION) + ")";
+        g_error = ba::i18n::llenar(ba::i18n::traducir("lspdsp", "%1 es de la versión %2 de la API (se esperaba %3)"),
+                                   {g_ruta, std::to_string(g_api.version()), std::to_string(BA_LSPDSP_VERSION)});
         return;
     }
     g_ok = true;

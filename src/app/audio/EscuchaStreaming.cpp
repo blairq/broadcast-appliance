@@ -5,6 +5,7 @@
 // las corrientes, los márgenes del VAD y el lote.
 // ============================================================================
 #include "audio/EscuchaStreaming.hpp"
+#include "i18n/I18n.hpp"
 #include "agent/Vocabulario.hpp"
 #include "diag/Registro.hpp"
 
@@ -178,7 +179,7 @@ void EscuchaStreaming::cargar(FabricaModelo modelo, FabricaDetector detector,
         std::string error;
         std::unique_ptr<Modelo> m = modelo ? modelo(error) : nullptr;
         if (!m) {
-            if (listo) listo(error.empty() ? "no se pudo cargar el reconocedor streaming" : error);
+            if (listo) listo(error.empty() ? ba::i18n::traducir("escucha", "no se pudo cargar el reconocedor streaming") : error);
             return;
         }
         modelo_ = std::move(m);
@@ -377,7 +378,8 @@ void EscuchaStreaming::atenderCorrientes() {
                 // Empieza una frase: el stream nuevo recibe el margen de antes y la ventana.
                 c.stream = modelo_->nuevoStream();
                 ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "escucha", 0,
-                                           clave + ": voz, frase nueva (" + std::to_string(c.antes.size() * 1000 / kFrecuencia) + " ms antes)");
+                                           ba::i18n::llenar(ba::i18n::traducir("escucha", "%1: voz, frase nueva (%2 ms antes)"),
+                                                          {clave, std::to_string(c.antes.size() * 1000 / kFrecuencia)}));
                 const std::vector<float> previo(c.antes.begin(), c.antes.end());
                 c.antes.clear();
                 if (!previo.empty()) modelo_->aceptar(c.stream, previo.data(), previo.size());
@@ -405,7 +407,8 @@ void EscuchaStreaming::atenderCorrientes() {
                 modelo_->terminarEntrada(c.stream);
                 c.cerrando = true;
                 ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "escucha", 0,
-                                           clave + ": sin voz, se cierra la frase (" + std::to_string(c.enFrase * 1000 / kFrecuencia) + " ms)");
+                                           ba::i18n::llenar(ba::i18n::traducir("escucha", "%1: sin voz, se cierra la frase (%2 ms)"),
+                                                          {clave, std::to_string(c.enFrase * 1000 / kFrecuencia)}));
             } else if (c.enFrase >= nTope) {
                 c.partir = true;
             }
@@ -469,12 +472,12 @@ void EscuchaStreaming::transcribir(std::vector<float> audio, std::uint32_t frecu
     encolar([this, audio = std::move(audio), frecuencia, listo = std::move(listo)]() {
         Resultado r;
         if (!cargado_ || !modelo_ || !fabricaDetector_) {
-            r.error = "el reconocedor de voz no está cargado";
+            r.error = ba::i18n::traducir("escucha", "el reconocedor de voz no está cargado");
             if (listo) listo(r);
             return;
         }
         if (audio.empty()) {
-            r.error = "no llegó audio del micrófono";
+            r.error = ba::i18n::traducir("escucha", "no llegó audio del micrófono");
             if (listo) listo(r);
             return;
         }
@@ -509,7 +512,7 @@ void EscuchaStreaming::transcribir(std::vector<float> audio, std::uint32_t frecu
                 if (usar[i]) habla.insert(habla.end(), a16.begin() + static_cast<std::ptrdiff_t>(i * w),
                                           a16.begin() + static_cast<std::ptrdiff_t>((i + 1) * w));
             if (habla.empty()) {
-                r.error = "no se escuchó a nadie hablar";
+                r.error = ba::i18n::traducir("escucha", "no se escuchó a nadie hablar");
                 if (listo) listo(r);
                 return;
             }
@@ -524,7 +527,7 @@ void EscuchaStreaming::transcribir(std::vector<float> audio, std::uint32_t frecu
         r.texto = corregido(modelo_->texto(s));
         modelo_->soltarStream(s);
         r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-        if (r.texto.empty()) r.error = "no se entendió nada";
+        if (r.texto.empty()) r.error = ba::i18n::traducir("escucha", "no se entendió nada");
         if (listo) listo(r);
     });
 }

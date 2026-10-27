@@ -6,6 +6,7 @@
 
 #include "audio/CalibracionAnalisis.hpp"
 #include "audio/LspDsp.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -27,8 +28,8 @@ json aRedondo(const std::vector<float>& v, double k) {
 
 json Calibracion::procesarCaptura(const lspdsp::Api* L, ba_medicion* m, int sr, const std::vector<float>& cap,
                                   std::vector<float>* irOut) {
-    if (L == nullptr || m == nullptr) return {{"error", "falta ba-lspdsp"}};
-    if (cap.empty()) return {{"error", "no se grabó nada"}};
+    if (L == nullptr || m == nullptr) return {{"error", ba::i18n::traducir("calibracion", "falta ba-lspdsp")}};
+    if (cap.empty()) return {{"error", ba::i18n::traducir("calibracion", "no se grabó nada")}};
     // La misma medición, ahora con lo grabado en la entrada (el estímulo es el mismo).
     L->medicionArrancar(m);
     std::vector<float> basura(1024), cero(1024, 0.0f);
@@ -44,9 +45,9 @@ json Calibracion::procesarCaptura(const lspdsp::Api* L, ba_medicion* m, int sr, 
         }
         L->medicionProcesar(m, basura.data(), in, n);
     }
-    if (!L->medicionTerminada(m)) return {{"error", "la captura no alcanzó para terminar la medición"}};
+    if (!L->medicionTerminada(m)) return {{"error", ba::i18n::traducir("calibracion", "la captura no alcanzó para terminar la medición")}};
     ba_medicion_resultado r{};
-    if (L->medicionAnalizar(m, BA_RT_T20, &r) != 0) return {{"error", "falló la deconvolución"}};
+    if (L->medicionAnalizar(m, BA_RT_T20, &r) != 0) return {{"error", ba::i18n::traducir("calibracion", "falló la deconvolución")}};
     json j;
     j["directo_ms"] = std::round(r.directo_ms * 100.0) / 100.0;
     j["pico_db"] = std::round(r.pico_db * 10.0) / 10.0;

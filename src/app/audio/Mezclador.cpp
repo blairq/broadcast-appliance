@@ -199,8 +199,8 @@ QVariantList Mezclador::analisisLsp() const {
 }
 
 QString Mezclador::abrirAnalisisLsp(const QString& entrada, const QString& cual) {
-    if (racks_ == nullptr) return "el audio de los racks no está disponible";
-    if (!entradas_.contains(entrada)) return "no hay una entrada con audio «" + entrada + "»";
+    if (racks_ == nullptr) return tr("el audio de los racks no está disponible");
+    if (!entradas_.contains(entrada)) return tr("no hay una entrada con audio «%1»").arg(entrada);
     return QString::fromStdString(racks_->abrirAnalisisLsp(entrada.toStdString(), cual.toStdString()));
 }
 

@@ -2,6 +2,7 @@
 // src/app/audio/EscuchaNemotron.cpp — ver EscuchaNemotron.hpp
 // ============================================================================
 #include "audio/EscuchaNemotron.hpp"
+#include "i18n/I18n.hpp"
 
 #include <map>
 #include <memory>
@@ -123,7 +124,7 @@ void cargarNemotron(EscuchaStreaming& e, const ModelosNemotron& m, std::function
         c.rule3_min_utterance_length = static_cast<float>(m.maximoTurno);
         so::OnlineRecognizer r = so::OnlineRecognizer::Create(c);
         if (!r.Get()) {
-            error = "no se pudo cargar Nemotron (¿faltan archivos del modelo?)";
+            error = ba::i18n::traducir("escucha", "no se pudo cargar Nemotron (¿faltan archivos del modelo?)");
             return nullptr;
         }
         return std::make_unique<ModeloSherpa>(std::move(r), m.idioma);

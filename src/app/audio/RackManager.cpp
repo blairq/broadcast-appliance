@@ -10,6 +10,8 @@
 #include "audio/GrabadorWav.hpp"
 #include "audio/GstRack.hpp"
 #include "emision/InputSpecs.hpp"
+#include "i18n/I18n.hpp"
+#include <QtGlobal>
 
 #include <mutex>
 
@@ -304,7 +306,7 @@ std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
             lib_ = ClapLibrary::open(p.string(), &libError_);
             if (lib_) break;
         }
-        if (!lib_ && libError_.empty()) libError_ = "no estan los plugins LSP (plugins/lsp/lsp-plugins.clap)";
+        if (!lib_ && libError_.empty()) libError_ = ba::i18n::traducir("rack", "no estan los plugins LSP (plugins/lsp/lsp-plugins.clap)");
         // Los racks que se crearon antes (sin biblioteca) no tienen modulos: da igual.
     }
     if (!lib_ && error != nullptr) *error = libError_;
@@ -373,7 +375,7 @@ json RackManager::outputDevices() const {
 
 std::string RackManager::setOutput(const std::string& source, const std::string& device) {
     auto it = filters_.find(source);
-    if (it == filters_.end()) return "esa fuente no tiene rack";
+    if (it == filters_.end()) return ba::i18n::traducir("rack", "esa fuente no tiene rack");
     std::string nombre;
     bool hay = false;
     for (const auto& [id, n] : salidasDeAudio())
@@ -381,7 +383,7 @@ std::string RackManager::setOutput(const std::string& source, const std::string&
             nombre = n;
             hay = true;
         }
-    if (!hay) return "esa salida de audio ya no esta";
+    if (!hay) return ba::i18n::traducir("rack", "esa salida de audio ya no esta");
     monitorId_ = device;
     monitorName_ = nombre;
     if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
@@ -402,7 +404,7 @@ std::string RackManager::setAuriculares(const std::string& device) {
                 nombre = n;
                 hay = true;
             }
-        if (!hay) return "esa salida de audio ya no esta";
+        if (!hay) return ba::i18n::traducir("rack", "esa salida de audio ya no esta");
     }
     monitorId_ = device;
     monitorName_ = nombre;
@@ -482,22 +484,22 @@ json RackManager::audioSources() const {
     for (const std::string& name : e->audioSources()) {
         const std::string type = tipoLogicoDe(name);
         // Grupo para el arbol de la interfaz: por donde entra el audio.
-        std::string group = "Otras fuentes";
+        std::string group = QT_TRANSLATE_NOOP("audio", "Otras fuentes");
         if (type == "ba_voz_asistente") {
-            group = "Voces (texto a audio)"; // la del sistema, la del teleprompter…
+            group = QT_TRANSLATE_NOOP("audio", "Voces (texto a audio)"); // la del sistema, la del teleprompter…
         } else if (type == "ba_entrada_fisica") {
-            group = "Entradas del equipo (placas)";
+            group = QT_TRANSLATE_NOOP("audio", "Entradas del equipo (placas)");
         } else if (type == "ba_entrada_virtual") {
-            group = "Entradas virtuales (matriz)";
+            group = QT_TRANSLATE_NOOP("audio", "Entradas virtuales (matriz)");
         } else if (type == "ba_guest_audio") {
             // Los remotos de la asamblea, aparte de los invitados de la conferencia.
             group = inputs::grupoDeGente(type, json::parse(e->sourceSettingsJson(name), nullptr, false));
         } else if (type.find("_input_capture") != std::string::npos) {
-            group = "Micrófonos y líneas del equipo";
+            group = QT_TRANSLATE_NOOP("audio", "Micrófonos y líneas del equipo");
         } else if (type.find("_output_capture") != std::string::npos) {
-            group = "Audio del equipo (lo que suena)";
+            group = QT_TRANSLATE_NOOP("audio", "Audio del equipo (lo que suena)");
         } else if (type == "ffmpeg_source" || type == "ba_gst_medio" || type == "vlc_source" || type == "ba_ndi_input") {
-            group = "Medios y red";
+            group = QT_TRANSLATE_NOOP("audio", "Medios y red");
         }
         json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
         auto it = filters_.find(name);
@@ -522,18 +524,19 @@ namespace {
 /// De dónde viene el audio, en palabras (para la tarjeta de origen).
 std::string describirOrigen(const std::string& tipo, const nlohmann::json& s) {
     if (tipo == "ba_gst_medio")
-        return "Archivo · " + std::filesystem::path(s.is_object() ? s.value("local_file", std::string()) : "").filename().string() +
-               (s.is_object() && s.value("looping", false) ? " · repite" : "");
+        return ba::i18n::llenar(s.is_object() && s.value("looping", false) ? ba::i18n::traducir("rack", "Archivo · %1 · repite") : ba::i18n::traducir("rack", "Archivo · %1"),
+                 {std::filesystem::path(s.is_object() ? s.value("local_file", std::string()) : "").filename().string()});
     if (tipo != "ba_gst_fuente") return tipo;
     if (!s.is_object()) return "GStreamer";
-    if (s.contains("microfono")) return "Micrófono · " + s.value("pipeline_audio", std::string());
+    if (s.contains("microfono")) return ba::i18n::llenar(ba::i18n::traducir("rack", "Micrófono · %1"), {s.value("pipeline_audio", std::string())});
     if (s.contains("anillo"))
-        return std::string(s.value("anillo", std::string()) == "remoto" ? "Remoto con la palabra" : "Invitado") + " · " +
-               s.value("pipeline_audio", std::string());
-    if (!s.value("uri", std::string()).empty()) return "Red · " + inputs::redactUrl(s.value("uri", std::string()));
-    if (s.contains("ba_plugin")) return "Plugin · " + s.value("ba_plugin", std::string());
-    if (!s.value("pipeline_audio", std::string()).empty()) return "Pipeline · " + s.value("pipeline_audio", std::string());
-    return "GStreamer · audio del pipeline";
+        return ba::i18n::llenar(s.value("anillo", std::string()) == "remoto" ? ba::i18n::traducir("rack", "Remoto con la palabra · %1")
+                                                                    : ba::i18n::traducir("rack", "Invitado · %1"),
+                 {s.value("pipeline_audio", std::string())});
+    if (!s.value("uri", std::string()).empty()) return ba::i18n::llenar(ba::i18n::traducir("rack", "Red · %1"), {inputs::redactUrl(s.value("uri", std::string()))});
+    if (s.contains("ba_plugin")) return ba::i18n::llenar(ba::i18n::traducir("rack", "Plugin · %1"), {s.value("ba_plugin", std::string())});
+    if (!s.value("pipeline_audio", std::string()).empty()) return ba::i18n::llenar(ba::i18n::traducir("rack", "Pipeline · %1"), {s.value("pipeline_audio", std::string())});
+    return ba::i18n::traducir("rack", "GStreamer · audio del pipeline");
 }
 
 nlohmann::json puertos(const nlohmann::json& nombres, const char* tipo = "audio") {
@@ -607,14 +610,14 @@ json RackManager::estudio() const {
                        {"salidas", puertos(n.value("salidas", json::array()))},
                        {"rack", id}};
                 std::string resumen = k == "plugin" ? n.value("nombre", std::string()) : "";
-                if (n.value("bypass", false)) resumen += " · anulado";
-                if (n.value("bypass_auto", false)) resumen += " · anulado por el vigía";
+                if (n.value("bypass", false)) resumen = ba::i18n::llenar(ba::i18n::traducir("rack", "%1 · anulado"), {resumen});
+                if (n.value("bypass_auto", false)) resumen = ba::i18n::llenar(ba::i18n::traducir("rack", "%1 · anulado por el vigía"), {resumen});
                 if (k == "entrada") {
-                    resumen = "de «" + n.value("fuente", std::string()) + "»";
+                    resumen = ba::i18n::llenar(ba::i18n::traducir("rack", "de «%1»"), {n.value("fuente", std::string())});
                     t["entradas"].push_back({{"id", "desde"}, {"tipo", "audio"}});
                     entradas.push_back({p + "r:" + id, n.value("fuente", std::string())});
                 }
-                if (k == "texto") resumen = "voz a texto · " + n.value("modo", std::string());
+                if (k == "texto") resumen = ba::i18n::llenar(ba::i18n::traducir("rack", "voz a texto · %1"), {n.value("modo", std::string())});
                 if (!resumen.empty()) t["resumen"] = resumen;
                 t["@x"] = n.value("x", 0.0) - inX;
                 t["@y"] = n.value("y", 0.0) - minY;
@@ -659,11 +662,11 @@ json RackManager::estudio() const {
                    {"salidas", puertos(json::array({"out"}))}};
             if (el == "baautomixer") {
                 const std::string g = pr.value("grupo", std::string("mesa"));
-                t["resumen"] = "mesa «" + g + "»";
+                t["resumen"] = ba::i18n::llenar(ba::i18n::traducir("rack", "mesa «%1»"), {g});
                 t["entradas"].push_back({{"id", "mesa"}, {"tipo", "control"}});
                 mesas[g].push_back(id);
             } else if (el == "baplugin") {
-                t["resumen"] = "Python · " + pr.value("plugin", std::string());
+                t["resumen"] = ba::i18n::llenar(ba::i18n::traducir("rack", "Python · %1"), {pr.value("plugin", std::string())});
             }
             etapas.push_back(id);
             poner(t, x, etapasY);
@@ -673,8 +676,8 @@ json RackManager::estudio() const {
         std::snprintf(vtxt, sizeof vtxt, "%.1f dB", vol > 0.0f ? 20.0 * std::log10(vol) : -100.0);
         poner({{"id", p + "mezcla"},
                {"tipo", "mezcla"},
-               {"etiqueta", "Mezcla"},
-               {"resumen", std::string(vtxt) + (mudo ? " · silenciada" : "")},
+               {"etiqueta", ba::i18n::traducir("rack", "Mezcla")},
+               {"resumen", mudo ? ba::i18n::llenar(ba::i18n::traducir("rack", "%1 · silenciada"), {vtxt}) : std::string(vtxt)},
                {"entradas", puertos(json::array({"in"}))},
                {"salidas", puertos(json::array({"out"}))}},
               x, etapasY);
@@ -707,8 +710,8 @@ json RackManager::estudio() const {
         for (const auto& [g, ids] : mesas) {
             json t{{"id", "mesa|" + g},
                    {"tipo", "mesa"},
-                   {"etiqueta", "Mesa «" + g + "»"},
-                   {"resumen", std::to_string(ids.size()) + " micrófonos"},
+                   {"etiqueta", ba::i18n::llenar(ba::i18n::traducir("rack", "Mesa «%1»"), {g})},
+                   {"resumen", ba::i18n::traducir("rack", "%n micrófono", nullptr, static_cast<int>(ids.size()))},
                    {"entradas", json::array()},
                    {"salidas", json::array({json{{"id", "ctl"}, {"tipo", "control"}}})},
                    {"x", x},
@@ -764,7 +767,7 @@ std::string RackManager::addTexto(const std::string& source, const std::string& 
         for (int i = 2; !flujoLibre(nombre, {}, {}); ++i)
             nombre = source + " " + std::to_string(i);
     } else if (!flujoLibre(nombre, {}, {})) {
-        if (error != nullptr) *error = "ya hay una salida de texto «" + nombre + "»";
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "ya hay una salida de texto «%1»"), {nombre});
         return {};
     }
     AudioRack* r = rack(source, true, error);
@@ -780,11 +783,11 @@ std::string RackManager::setTextoOpciones(const std::string& source, const std::
     std::string e;
     AudioRack* r = rack(source, false, &e);
     if (r == nullptr) return e;
-    if (r->kindOf(nodo) != "texto") return "'" + nodo + "' no es una voz a texto";
+    if (r->kindOf(nodo) != "texto") return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no es una voz a texto"), {nodo});
     if (cambios.contains("flujo")) {
         const std::string f = cambios.value("flujo", "");
-        if (f.empty()) return "la salida de texto necesita un nombre";
-        if (!flujoLibre(f, source, nodo)) return "ya hay una salida de texto «" + f + "»";
+        if (f.empty()) return ba::i18n::traducir("rack", "la salida de texto necesita un nombre");
+        if (!flujoLibre(f, source, nodo)) return ba::i18n::llenar(ba::i18n::traducir("rack", "ya hay una salida de texto «%1»"), {f});
         r->setTextoFlujo(nodo, f);
     }
     if (cambios.contains("modo")) r->setTextoModo(nodo, cambios.value("modo", "dictado"));
@@ -868,7 +871,7 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
     auto it = filters_.find(source);
     if (it != filters_.end()) return it->second->rack.get();
     if (!existe(source)) {
-        if (error != nullptr) *error = "no existe la fuente '" + source + "'";
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no existe la fuente '%1'"), {source});
         return nullptr;
     }
     // El rack guardado de la fuente o, si no tiene, la plantilla marcada para
@@ -884,11 +887,11 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
         }
     };
     if (!conAudio(source)) {
-        if (error != nullptr) *error = "'" + source + "' no tiene audio";
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no tiene audio"), {source});
         return nullptr;
     }
     if (!create) {
-        if (error != nullptr) *error = "'" + source + "' no tiene rack";
+        if (error != nullptr) *error = ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no tiene rack"), {source});
         return nullptr;
     }
     // El rack corre en la cadena de audio de la entrada (`barack`).
@@ -969,9 +972,9 @@ json RackManager::plantillas() const {
 }
 
 std::string RackManager::guardarPlantilla(const std::string& source, const std::string& nombre) {
-    if (nombre.empty()) return "la plantilla necesita un nombre";
+    if (nombre.empty()) return ba::i18n::traducir("rack", "la plantilla necesita un nombre");
     AudioRack* r = rack(source, false);
-    if (r == nullptr) return "'" + source + "' no tiene rack que guardar";
+    if (r == nullptr) return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no tiene rack que guardar"), {source});
     // Se conserva el tipo predeterminado si la plantilla ya existia: guardar
     // encima es actualizarla, no volverla a empezar.
     const std::string tipo =
@@ -983,19 +986,19 @@ std::string RackManager::guardarPlantilla(const std::string& source, const std::
 }
 
 std::string RackManager::aplicarPlantilla(const std::string& nombre, const std::string& source) {
-    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    if (!plantillas_.contains(nombre)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no existe la plantilla '%1'"), {nombre});
     std::string err;
     AudioRack* r = rack(source, true, &err);
-    if (r == nullptr) return err.empty() ? "no se pudo montar el rack" : err;
+    if (r == nullptr) return err.empty() ? ba::i18n::traducir("rack", "no se pudo montar el rack") : err;
     if (!r->load(plantillas_[nombre].value("rack", json::object()), &err))
-        return "la plantilla no se pudo aplicar: " + err;
+        return ba::i18n::llenar(ba::i18n::traducir("rack", "la plantilla no se pudo aplicar: %1"), {err});
     markDirty();
     emit changed();
     return {};
 }
 
 std::string RackManager::borrarPlantilla(const std::string& nombre) {
-    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    if (!plantillas_.contains(nombre)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no existe la plantilla '%1'"), {nombre});
     plantillas_.erase(nombre);
     guardarPlantillas();
     emit changed();
@@ -1003,7 +1006,7 @@ std::string RackManager::borrarPlantilla(const std::string& nombre) {
 }
 
 std::string RackManager::plantillaPorDefecto(const std::string& nombre, const std::string& tipo) {
-    if (!plantillas_.contains(nombre)) return "no existe la plantilla '" + nombre + "'";
+    if (!plantillas_.contains(nombre)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no existe la plantilla '%1'"), {nombre});
     // Una sola por tipo: si no, cual toma una fuente nueva seria una moneda.
     if (!tipo.empty()) {
         for (auto it = plantillas_.begin(); it != plantillas_.end(); ++it)
@@ -1069,10 +1072,10 @@ std::string RackManager::restablecerInterfazLsp(bool* ok) {
     if (!f.exists()) {
         if (ok != nullptr) *ok = true;
         return cerradas > 0
-                   ? "Ventanas LSP cerradas; LSP todavía no tenía configuración propia (ya está de fábrica)."
-                   : "LSP todavía no tenía configuración propia: ya está de fábrica.";
+                   ? ba::i18n::traducir("rack", "Ventanas LSP cerradas; LSP todavía no tenía configuración propia (ya está de fábrica).")
+                   : ba::i18n::traducir("rack", "LSP todavía no tenía configuración propia: ya está de fábrica.");
     }
-    if (!f.open(QIODevice::ReadOnly)) return "No se pudo leer " + ruta.toStdString();
+    if (!f.open(QIODevice::ReadOnly)) return ba::i18n::llenar(ba::i18n::traducir("rack", "No se pudo leer %1"), {ruta.toStdString()});
     const QString antes = QString::fromUtf8(f.readAll());
     f.close();
 
@@ -1093,22 +1096,24 @@ std::string RackManager::restablecerInterfazLsp(bool* ok) {
         despues.replace(re, valor);
     if (despues == antes) {
         if (ok != nullptr) *ok = true;
-        return std::string(cerradas > 0 ? "Ventanas LSP cerradas. " : "") +
-               "La configuración de LSP ya estaba de fábrica (zoom 100 %, escala del host).";
+        return cerradas > 0
+                   ? ba::i18n::traducir("rack", "Ventanas LSP cerradas. La configuración de LSP ya estaba de fábrica (zoom 100 %, escala del host).")
+                   : ba::i18n::traducir("rack", "La configuración de LSP ya estaba de fábrica (zoom 100 %, escala del host).");
     }
 
     // Una copia, por si había algo que valía la pena.
     const QString copia = ruta + ".respaldo-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
-    if (!QFile::copy(ruta, copia)) return "No se pudo hacer la copia de " + ruta.toStdString();
+    if (!QFile::copy(ruta, copia)) return ba::i18n::llenar(ba::i18n::traducir("rack", "No se pudo hacer la copia de %1"), {ruta.toStdString()});
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        return "No se pudo escribir " + ruta.toStdString();
+        return ba::i18n::llenar(ba::i18n::traducir("rack", "No se pudo escribir %1"), {ruta.toStdString()});
     f.write(despues.toUtf8());
     f.close();
     if (ok != nullptr) *ok = true;
-    return std::string(cerradas > 0 ? "Ventanas LSP cerradas. " : "") +
-           "Interfaz LSP restablecida: zoom 100 %, escala del host, letra 100 %. Copia del archivo "
-           "anterior: " +
-           copia.toStdString();
+    return ba::i18n::llenar(cerradas > 0 ? ba::i18n::traducir("rack", "Ventanas LSP cerradas. Interfaz LSP restablecida: zoom 100 %, escala "
+                                                         "del host, letra 100 %. Copia del archivo anterior: %1")
+                                  : ba::i18n::traducir("rack", "Interfaz LSP restablecida: zoom 100 %, escala del host, letra 100 %. "
+                                                         "Copia del archivo anterior: %1"),
+                  {copia.toStdString()});
 }
 
 void RackManager::restore() {
@@ -1136,10 +1141,10 @@ struct RackManager::Toma {
 };
 
 std::string RackManager::validarEntrada(const std::string& source, const std::string& fuente) const {
-    if (fuente.empty()) return "falta de qué fuente traer el audio";
-    if (fuente == source) return "una fuente no puede traer su propio audio (sería un lazo)";
-    if (!existe(fuente)) return "no existe la fuente '" + fuente + "'";
-    if (!conAudio(fuente)) return "'" + fuente + "' no tiene audio";
+    if (fuente.empty()) return ba::i18n::traducir("rack", "falta de qué fuente traer el audio");
+    if (fuente == source) return ba::i18n::traducir("rack", "una fuente no puede traer su propio audio (sería un lazo)");
+    if (!existe(fuente)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no existe la fuente '%1'"), {fuente});
+    if (!conAudio(fuente)) return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no tiene audio"), {fuente});
     // Lazo entre racks: si `fuente` (o lo que trae su rack, y así) ya trae el
     // audio de `source`, el sonido daría vueltas (con eco, por la demora).
     std::set<std::string> vistas;
@@ -1152,8 +1157,8 @@ std::string RackManager::validarEntrada(const std::string& source, const std::st
         if (it == filters_.end() || !it->second->rack) continue;
         for (const auto& [nodo, origen] : it->second->rack->entradas()) {
             if (origen == source)
-                return "'" + fuente + "' ya trae el audio de '" + source +
-                       "' (directa o indirectamente): sería un lazo";
+                return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' ya trae el audio de '%2' (directa o indirectamente): sería un lazo"),
+                                        {fuente, source});
             pendientes.push_back(origen);
         }
     }
@@ -1185,18 +1190,21 @@ struct AnalisisLsp {
 // Los plugins de medición de LSP (vienen en el bundle entero: tools/deps/lsp-*.sh).
 constexpr AnalisisLsp kAnalisisLsp[] = {
     {"espectro", "in.lsp-plug.spectrum_analyzer_x2", "Spectrum Analyzer",
-     "espectro en vivo (FFT) de L y R, con retención y espectrograma"},
-    {"fase", "in.lsp-plug.phase_detector", "Phase Detector", "fase y retardo entre L y R (dos micrófonos, polaridad)"},
-    {"osciloscopio", "in.lsp-plug.oscilloscope_x2", "Oscilloscope", "la forma de onda de L y R (recortes, DC, XY)"},
-    {"latencia", "in.lsp-plug.latency_meter", "Latency Meter", "la latencia de ida y vuelta de un camino de audio"},
+     QT_TRANSLATE_NOOP("rack", "espectro en vivo (FFT) de L y R, con retención y espectrograma")},
+    {"fase", "in.lsp-plug.phase_detector", "Phase Detector",
+     QT_TRANSLATE_NOOP("rack", "fase y retardo entre L y R (dos micrófonos, polaridad)")},
+    {"osciloscopio", "in.lsp-plug.oscilloscope_x2", "Oscilloscope",
+     QT_TRANSLATE_NOOP("rack", "la forma de onda de L y R (recortes, DC, XY)")},
+    {"latencia", "in.lsp-plug.latency_meter", "Latency Meter",
+     QT_TRANSLATE_NOOP("rack", "la latencia de ida y vuelta de un camino de audio")},
     {"perfil", "in.lsp-plug.profiler_stereo", "Profiler",
-     "respuesta impulsiva, respuesta en frecuencia y RT60 con un barrido (suena)"},
+     QT_TRANSLATE_NOOP("rack", "respuesta impulsiva, respuesta en frecuencia y RT60 con un barrido (suena)")},
 };
 } // namespace
 
 json RackManager::analisisLsp() {
     json out = json::array();
-    for (const auto& a : kAnalisisLsp) out.push_back({{"id", a.id}, {"nombre", a.nombre}, {"para", a.para}});
+    for (const auto& a : kAnalisisLsp) out.push_back({{"id", a.id}, {"nombre", a.nombre}, {"para", ba::i18n::traducir("rack", a.para)}});
     return out;
 }
 
@@ -1204,17 +1212,17 @@ std::string RackManager::abrirAnalisisLsp(const std::string& source, const std::
     const AnalisisLsp* a = nullptr;
     for (const auto& x : kAnalisisLsp)
         if (cual == x.id) a = &x;
-    if (a == nullptr) return "no conozco el análisis «" + cual + "» (espectro, fase, osciloscopio, latencia, perfil)";
+    if (a == nullptr) return ba::i18n::llenar(ba::i18n::traducir("rack", "no conozco el análisis «%1» (espectro, fase, osciloscopio, latencia, perfil)"), {cual});
     std::string e;
-    if (library(&e) == nullptr) return e.empty() ? "no están los plugins LSP" : e;
+    if (library(&e) == nullptr) return e.empty() ? ba::i18n::traducir("rack", "no están los plugins LSP") : e;
     AudioRack* r = rack(source, true, &e);
-    if (r == nullptr) return e.empty() ? "esa fuente no tiene audio" : e;
+    if (r == nullptr) return e.empty() ? ba::i18n::traducir("rack", "esa fuente no tiene audio") : e;
     std::string nodo;
     for (const std::string& id : r->nodeIds())
         if (ClapInstance* c = r->plugin(id); c != nullptr && c->desc().id == a->plugin) nodo = id;
     if (nodo.empty()) {
         nodo = r->addPlugin(a->plugin, a->nombre, "", &e, a->id);
-        if (nodo.empty()) return e.empty() ? std::string("no se pudo agregar ") + a->nombre : e;
+        if (nodo.empty()) return e.empty() ? ba::i18n::llenar(ba::i18n::traducir("rack", "no se pudo agregar %1"), {a->nombre}) : e;
         // Mide al costado: lo que sale de él (los pulsos del Latency Meter, el barrido
         // del Profiler) no va al aire.
         r->enParalelo(nodo);
@@ -1222,8 +1230,8 @@ std::string RackManager::abrirAnalisisLsp(const std::string& source, const std::
         emit changed();
     }
     ClapInstance* c = r->plugin(nodo);
-    if (c == nullptr) return "no quedó el módulo";
-    if (!c->openEditor(std::string(a->nombre) + " — " + source, &e)) return e.empty() ? "no abrió su interfaz" : e;
+    if (c == nullptr) return ba::i18n::traducir("rack", "no quedó el módulo");
+    if (!c->openEditor(std::string(a->nombre) + " — " + source, &e)) return e.empty() ? ba::i18n::traducir("rack", "no abrió su interfaz") : e;
     return {};
 }
 
@@ -1233,7 +1241,7 @@ std::string RackManager::setEntradaFuente(const std::string& source, const std::
     if (!e.empty()) return e;
     AudioRack* r = rack(source, false, &e);
     if (r == nullptr) return e;
-    if (!r->setEntradaFuente(nodo, fuente)) return "'" + nodo + "' no es una tarjeta de entrada";
+    if (!r->setEntradaFuente(nodo, fuente)) return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no es una tarjeta de entrada"), {nodo});
     markDirty();
     emit changed();
     return {};
@@ -1381,7 +1389,7 @@ std::string RackManager::setGrabar(const std::string& source, bool grabar) {
     AudioRack* r = rack(source, false, &e);
     if (r == nullptr) return e;
     if (!r->setGrabar(grabar))
-        return "'" + source + "' no tiene tarjeta de salida de audio (agregala con «+ Salida»)";
+        return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no tiene tarjeta de salida de audio (agregala con «+ Salida»)"), {source});
     markDirty();
     emit changed();
     return {};
@@ -1458,7 +1466,7 @@ std::string RackManager::setHablaOpciones(const std::string& source, const std::
     std::string e;
     AudioRack* r = rack(source, false, &e);
     if (r == nullptr) return e;
-    if (!r->setHablaOpciones(nodo, cambios)) return "'" + nodo + "' no es una tarjeta de texto a voz";
+    if (!r->setHablaOpciones(nodo, cambios)) return ba::i18n::llenar(ba::i18n::traducir("rack", "'%1' no es una tarjeta de texto a voz"), {nodo});
     markDirty();
     emit changed();
     return {};
@@ -1504,8 +1512,8 @@ std::string RackManager::addTraduccion(const json& t, std::string* error) {
     }
     if (fuente.empty()) {
         if (error)
-            *error = "no hay una voz a texto que publique «" + desde +
-                     "»: decí en qué fuente va la tarjeta (`fuente`)";
+            *error = ba::i18n::llenar(ba::i18n::traducir("rack", "no hay una voz a texto que publique «%1»: decí en qué fuente va la tarjeta (`fuente`)"),
+                            {desde});
         return {};
     }
     AudioRack* r = rack(fuente, true, error);
@@ -1521,10 +1529,10 @@ std::string RackManager::addTraduccion(const json& t, std::string* error) {
 
 std::string RackManager::setTraduccionOpciones(const std::string& id, const json& cambios) {
     std::string fuente, nodo, e;
-    if (!partirId(id, fuente, nodo)) return "no hay una traducción «" + id + "»";
+    if (!partirId(id, fuente, nodo)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no hay una traducción «%1»"), {id});
     AudioRack* r = rack(fuente, false, &e);
     if (r == nullptr) return e;
-    if (!r->setTraduccionOpciones(nodo, cambios)) return "no hay una traducción «" + id + "»";
+    if (!r->setTraduccionOpciones(nodo, cambios)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no hay una traducción «%1»"), {id});
     markDirty();
     emit changed();
     return {};
@@ -1532,10 +1540,10 @@ std::string RackManager::setTraduccionOpciones(const std::string& id, const json
 
 std::string RackManager::quitarTraduccion(const std::string& id) {
     std::string fuente, nodo, e;
-    if (!partirId(id, fuente, nodo)) return "no hay una traducción «" + id + "»";
+    if (!partirId(id, fuente, nodo)) return ba::i18n::llenar(ba::i18n::traducir("rack", "no hay una traducción «%1»"), {id});
     AudioRack* r = rack(fuente, false, &e);
     if (r == nullptr) return e;
-    if (r->kindOf(nodo) != "traducir") return "no hay una traducción «" + id + "»";
+    if (r->kindOf(nodo) != "traducir") return ba::i18n::llenar(ba::i18n::traducir("rack", "no hay una traducción «%1»"), {id});
     if (!r->remove(nodo, &e)) return e;
     markDirty();
     emit changed();

@@ -48,13 +48,13 @@ class LazoReal : public QObject, public LazoMedicion {
 
     QString arrancar(const std::vector<float>& estimulo, int frecuencia, Listo listo) override {
         const QAudioDevice ds = buscarDispositivo(true, salida_), de = buscarDispositivo(false, entrada_);
-        if (ds.isNull()) return "no está la salida «" + salida_ + "»";
-        if (de.isNull()) return "no está la entrada «" + entrada_ + "»";
+        if (ds.isNull()) return QCoreApplication::translate("calibracion", "no está la salida «%1»").arg(salida_);
+        if (de.isNull()) return QCoreApplication::translate("calibracion", "no está la entrada «%1»").arg(entrada_);
         const QAudioFormat fs = formatoPara(ds, frecuencia), fe = formatoPara(de, frecuencia);
-        if (!fs.isValid()) return "la salida no acepta " + QString::number(frecuencia) + " Hz";
-        if (!fe.isValid()) return "la entrada no acepta " + QString::number(frecuencia) + " Hz";
-        if (canalS_ >= fs.channelCount()) return "la salida tiene " + QString::number(fs.channelCount()) + " canales";
-        if (canalE_ >= fe.channelCount()) return "la entrada tiene " + QString::number(fe.channelCount()) + " canales";
+        if (!fs.isValid()) return QCoreApplication::translate("calibracion", "la salida no acepta %1 Hz").arg(frecuencia);
+        if (!fe.isValid()) return QCoreApplication::translate("calibracion", "la entrada no acepta %1 Hz").arg(frecuencia);
+        if (canalS_ >= fs.channelCount()) return QCoreApplication::translate("calibracion", "la salida tiene %1 canales").arg(fs.channelCount());
+        if (canalE_ >= fe.channelCount()) return QCoreApplication::translate("calibracion", "la entrada tiene %1 canales").arg(fe.channelCount());
         listo_ = std::move(listo);
         fe_ = fe;
         previo_ = static_cast<size_t>(frecuencia / 4);
@@ -85,7 +85,7 @@ class LazoReal : public QObject, public LazoMedicion {
         entradaIo_ = fuente_->start();
         if (entradaIo_ == nullptr) {
             parar();
-            return "no se pudo abrir la entrada";
+            return QCoreApplication::translate("calibracion", "no se pudo abrir la entrada");
         }
         QObject::connect(entradaIo_, &QIODevice::readyRead, this, [this] { leer(); });
         sumidero_ = std::make_unique<QAudioSink>(ds, fs);
@@ -104,7 +104,7 @@ class LazoReal : public QObject, public LazoMedicion {
         });
         const int tope = static_cast<int>(estimulo.size() * 1000 / static_cast<size_t>(frecuencia)) + 6000;
         QTimer::singleShot(tope, this, [this] {
-            if (listo_) terminar("la salida no terminó de sonar (¿dispositivo trabado?)");
+            if (listo_) terminar(QCoreApplication::translate("calibracion", "la salida no terminó de sonar (¿dispositivo trabado?)"));
         });
         return {};
     }
@@ -205,7 +205,7 @@ QVariantList dispositivosAudio(bool salidas, bool conSimulada) {
                              {"nombre", d.description()},
                              {"canales", std::clamp(d.preferredFormat().channelCount(), 1, 8)}});
     if (conSimulada)
-        r.append(QVariantMap{{"id", QString(kSalaSimulada)}, {"nombre", "Sala simulada (no suena)"}, {"canales", 2}});
+        r.append(QVariantMap{{"id", QString(kSalaSimulada)}, {"nombre", QCoreApplication::translate("calibracion", "Sala simulada (no suena)")}, {"canales", 2}});
     return r;
 }
 

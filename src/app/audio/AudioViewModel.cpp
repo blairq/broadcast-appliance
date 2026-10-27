@@ -4,6 +4,7 @@
 
 #include "audio/AudioViewModel.hpp"
 
+#include <QCoreApplication>
 #include <QFile>
 
 #include <regex>
@@ -17,6 +18,7 @@
 #include "audio/RackManager.hpp"
 
 #include "emision/FuentesApp.hpp"
+#include "i18n/I18n.hpp"
 
 namespace ba::app::audio {
 
@@ -61,8 +63,8 @@ QVariantList AudioViewModel::catalog() const {
         for (auto it = m.presets.begin(); it != m.presets.end(); ++it)
             presets << QString::fromStdString(it.key());
         out << QVariantMap{{"clave", QString::fromStdString(m.key)},
-                           {"titulo", QString::fromStdString(m.title)},
-                           {"ayuda", QString::fromStdString(m.help)},
+                           {"titulo", QCoreApplication::translate("modulos", m.title.c_str())},
+                           {"ayuda", QCoreApplication::translate("modulos", m.help.c_str())},
                            {"presets", presets}};
     }
     return out;
@@ -187,8 +189,11 @@ void AudioViewModel::rebuildDetail() {
             j["editorAbierto"] = c->editorOpen();
             if (const ModuleType* t = findModule(c->desc().id)) {
                 j["clave"] = t->key;
-                j["ayuda"] = t->help;
+                j["ayuda"] = ba::i18n::traducir("modulos", t->help.c_str());
                 j["parametros"] = readModule(*c, *t);
+                for (auto& p : j["parametros"])
+                    if (p.is_object() && p.contains("ayuda"))
+                        p["ayuda"] = ba::i18n::traducir("modulos", p["ayuda"].get<std::string>().c_str());
                 json presets = json::array();
                 for (auto it = t->presets.begin(); it != t->presets.end(); ++it)
                     presets.push_back(it.key());
@@ -205,6 +210,8 @@ void AudioViewModel::rebuildDetail() {
         if (Analyzer* a = r->analyzer(id)) {
             const Analyzer::Snapshot s = a->snapshot();
             json rep = Analyzer::report(s);
+            for (auto& pista : rep["pistas"])
+                if (pista.is_string()) pista = ba::i18n::traducir("audio", pista.get<std::string>().c_str());
             json bands = json::array();
             for (int b = 0; b < Analyzer::kBands; ++b)
                 bands.push_back(std::max(-90.f, s.bandsDb[b]));
@@ -216,26 +223,29 @@ void AudioViewModel::rebuildDetail() {
             for (const auto& n : descNodos["nodos"])
                 if (n["id"] == id) j["fuente"] = n.value("fuente", "");
             j["ayuda"] =
-                "Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
-                "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
-                "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
+                tr("Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
+                   "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
+                   "texto). Si la fuente es una entrada de placa, su captura se abre sola.")
+                    .toStdString();
         }
         if (r->kindOf(id) == "habla") {
             for (const auto& h : r->hablas())
                 if (h.value("id", "") == id) j["habla"] = h;
             j["ayuda"] =
-                "Dice con la voz elegida lo que llega por una salida de texto (o lo que escribas abajo). "
-                "Suena por su puerto: cableala a la mezcla, a la salida de audio o a otra voz a texto. "
-                "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
-                "rack procesa mientras su fuente suena.";
+                tr("Dice con la voz elegida lo que llega por una salida de texto (o lo que escribas abajo). "
+                   "Suena por su puerto: cableala a la mezcla, a la salida de audio o a otra voz a texto. "
+                   "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
+                   "rack procesa mientras su fuente suena.")
+                    .toStdString();
         }
         if (r->kindOf(id) == "traducir") {
             j["traduccion_id"] = source_.toStdString() + "#" + id;
-            j["ayuda"] = "Traduce lo que publica una salida de texto (la de una «Voz a texto») y lo publica "
-                         "en otra, en otro "
-                         "idioma: esa se usa como cualquiera (subtítulos, archivo, una tarjeta «Texto a voz» "
-                         "con una voz del "
-                         "idioma). No lleva cables: no toca el audio.";
+            j["ayuda"] = tr("Traduce lo que publica una salida de texto (la de una «Voz a texto») y lo publica "
+                            "en otra, en otro "
+                            "idioma: esa se usa como cualquiera (subtítulos, archivo, una tarjeta «Texto a voz» "
+                            "con una voz del "
+                            "idioma). No lleva cables: no toca el audio.")
+                             .toStdString();
         }
         if (r->kindOf(id) == "texto") {
             std::string modo = "dictado";
@@ -248,12 +258,14 @@ void AudioViewModel::rebuildDetail() {
             j["modo"] = modo;
             j["ayuda"] =
                 modo == "continuo"
-                    ? "Transcribe sin parar lo que le llega (subtítulos, acta): frase por frase, 1 a 3 s "
-                      "después. El texto se ve abajo y por MCP (voz_transcripcion). No toca lo que sale al "
-                      "aire."
-                    : "Dictado al asistente: mientras se aprieta F9 (o el micrófono de la barra), lo que le "
-                      "llega se transcribe y va a la barra del asistente. Si hay varias fuentes con dictado, "
-                      "se usa la que más habló.";
+                    ? tr("Transcribe sin parar lo que le llega (subtítulos, acta): frase por frase, 1 a 3 s "
+                         "después. El texto se ve abajo y por MCP (voz_transcripcion). No toca lo que sale al "
+                         "aire.")
+                          .toStdString()
+                    : tr("Dictado al asistente: mientras se aprieta F9 (o el micrófono de la barra), lo que le "
+                         "llega se transcribe y va a la barra del asistente. Si hay varias fuentes con dictado, "
+                         "se usa la que más habló.")
+                          .toStdString();
         }
         if (Generator* g = r->generator(id)) {
             const auto c = g->config();
@@ -290,7 +302,7 @@ QString AudioViewModel::addModule(const QString& moduleOrId, const QString& afte
     std::string e;
     if (mgr_.library(&e) == nullptr) return QString::fromStdString(e);
     AudioRack* r = rack(true);
-    if (r == nullptr) return "Elegí una fuente con audio.";
+    if (r == nullptr) return tr("Elegí una fuente con audio.");
     const ModuleType* t = findModule(moduleOrId.toStdString());
     const std::string id =
         r->addPlugin(t != nullptr ? t->pluginId : moduleOrId.toStdString(), t != nullptr ? t->title : "",
@@ -305,7 +317,7 @@ QString AudioViewModel::addModule(const QString& moduleOrId, const QString& afte
 }
 
 QString AudioViewModel::addTexto(const QString& modo) {
-    if (rack(true) == nullptr) return "Elegí una fuente con audio.";
+    if (rack(true) == nullptr) return tr("Elegí una fuente con audio.");
     std::string e;
     const std::string id = mgr_.addTexto(source_.toStdString(), modo.toStdString(), {}, &e);
     if (id.empty()) return QString::fromStdString(e);
@@ -334,7 +346,7 @@ QStringList AudioViewModel::fuentesDeTexto() const {
 
 QString AudioViewModel::addAnalyzer() {
     AudioRack* r = rack(true);
-    if (r == nullptr) return "Elegí una fuente con audio.";
+    if (r == nullptr) return tr("Elegí una fuente con audio.");
     const std::string id = r->addAnalyzer("", "");
     autoLayout();
     mgr_.markDirty();
@@ -344,7 +356,7 @@ QString AudioViewModel::addAnalyzer() {
 }
 
 QString AudioViewModel::addEntrada(const QString& fuente) {
-    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    if (source_.isEmpty()) return tr("Elegí una fuente con audio.");
     std::string e;
     const std::string id = mgr_.addEntrada(source_.toStdString(), fuente.toStdString(), &e);
     if (id.empty()) return QString::fromStdString(e);
@@ -364,7 +376,7 @@ QString AudioViewModel::setEntradaFuente(const QString& node, const QString& fue
 }
 
 QString AudioViewModel::addHabla() {
-    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    if (source_.isEmpty()) return tr("Elegí una fuente con audio.");
     std::string e;
     const std::string id = mgr_.addHabla(source_.toStdString(), json::object(), &e);
     if (id.empty()) return QString::fromStdString(e);
@@ -376,7 +388,7 @@ QString AudioViewModel::addHabla() {
 }
 
 QString AudioViewModel::addTraduccion() {
-    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    if (source_.isEmpty()) return tr("Elegí una fuente con audio.");
     // Si este rack tiene una voz a texto, traduce lo que ella publica.
     std::string desde;
     for (const auto& t : mgr_.textos())
@@ -417,7 +429,7 @@ QVariantMap AudioViewModel::grabacion() const {
 
 QString AudioViewModel::addGenerator() {
     AudioRack* r = rack(true);
-    if (r == nullptr) return "Elegí una fuente con audio.";
+    if (r == nullptr) return tr("Elegí una fuente con audio.");
     const std::string id = r->addGenerator("");
     autoLayout();
     mgr_.markDirty();
@@ -440,7 +452,7 @@ QVariantList AudioViewModel::outputDevices() const {
 }
 
 QString AudioViewModel::addOutput(const QString& device) {
-    if (rack(true) == nullptr) return "Elegí una fuente con audio.";
+    if (rack(true) == nullptr) return tr("Elegí una fuente con audio.");
     const std::string e = mgr_.setOutput(source_.toStdString(), device.toStdString());
     if (!e.empty()) return QString::fromStdString(e);
     select("salida-audio");
@@ -528,7 +540,7 @@ void AudioViewModel::removeRack() {
 QString AudioViewModel::connectPorts(const QString& from, const QString& out, const QString& to,
                                      const QString& in, int outCh, int inCh) {
     AudioRack* r = rack(true);
-    if (r == nullptr) return "sin rack";
+    if (r == nullptr) return tr("sin rack");
     std::string e;
     if (!r->connect(from.toStdString(), out.toStdString(), to.toStdString(), in.toStdString(), &e, outCh,
                     inCh))
@@ -572,7 +584,7 @@ void AudioViewModel::rearmar(const QString& node) {
 QString AudioViewModel::openEditor(const QString& node) {
     AudioRack* r = rack();
     ClapInstance* c = r != nullptr ? r->plugin(node.toStdString()) : nullptr;
-    if (c == nullptr) return "no es un modulo";
+    if (c == nullptr) return tr("no es un modulo");
     std::string e;
     if (!c->openEditor(c->desc().name + " — " + source_.toStdString(), &e)) return QString::fromStdString(e);
     rebuildDetail();
@@ -587,7 +599,7 @@ QString AudioViewModel::restablecerInterfazLsp() {
 QString AudioViewModel::setParam(const QString& node, const QString& key, const QVariant& value, int band) {
     AudioRack* r = rack();
     ClapInstance* c = r != nullptr ? r->plugin(node.toStdString()) : nullptr;
-    if (c == nullptr) return "no es un modulo";
+    if (c == nullptr) return tr("no es un modulo");
     const ModuleType* t = findModule(c->desc().id);
     json values;
     if (band >= 0)
@@ -606,7 +618,7 @@ QString AudioViewModel::applyPreset(const QString& node, const QString& preset) 
     AudioRack* r = rack();
     ClapInstance* c = r != nullptr ? r->plugin(node.toStdString()) : nullptr;
     const ModuleType* t = c != nullptr ? findModule(c->desc().id) : nullptr;
-    if (t == nullptr || !t->presets.contains(preset.toStdString())) return "sin ese preset";
+    if (t == nullptr || !t->presets.contains(preset.toStdString())) return tr("sin ese preset");
     applyModule(*c, t, t->presets[preset.toStdString()]);
     mgr_.markDirty();
     rebuildDetail();
@@ -650,12 +662,12 @@ QVariantList AudioViewModel::catalogoLsp() const {
             const std::string x = s;
             return b.size() >= x.size() && b.compare(b.size() - x.size(), x.size(), x) == 0;
         };
-        partes << (termina("_mono")     ? "Mono"
-                   : termina("_lr")     ? "Izq/Der"
-                   : termina("_ms")     ? "Medio/Lados"
-                   : termina("_stereo") ? "Estéreo"
-                                        : "");
-        if (b.rfind("sc_", 0) == 0) partes << "con sidechain";
+        partes << (termina("_mono")     ? QCoreApplication::translate("audio", "Mono")
+                   : termina("_lr")     ? QCoreApplication::translate("audio", "Izq/Der")
+                   : termina("_ms")     ? QCoreApplication::translate("audio", "Medio/Lados")
+                   : termina("_stereo") ? QCoreApplication::translate("audio", "Estéreo")
+                                        : QString());
+        if (b.rfind("sc_", 0) == 0) partes << QCoreApplication::translate("audio", "con sidechain");
         partes.removeAll(QString());
         return partes.join(" · ");
     };

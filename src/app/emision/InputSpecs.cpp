@@ -8,11 +8,19 @@
 #include "audio/EntradasAudio.hpp"
 #include "video/Camaras.hpp"
 
+#include <QtGlobal> // QT_TRANSLATE_NOOP
+
 #include <algorithm>
 
 namespace ba::app::inputs {
 
 using json = nlohmann::json;
+
+// Los nombres de grupo (kGrupoConferencia, kGrupoAsamblea) son claves: se guardan y se
+// comparan en español. Esto solo los pone en el catálogo, para que la interfaz los
+// traduzca al mostrarlos (qsTranslate("audio", grupo)).
+[[maybe_unused]] constexpr const char* kGruposParaTraducir[] = {QT_TRANSLATE_NOOP("audio", "Conferencia"),
+                                                                QT_TRANSLATE_NOOP("audio", "Asamblea")};
 
 std::string networkScheme(const std::string& url) {
     const auto p = url.find("://");

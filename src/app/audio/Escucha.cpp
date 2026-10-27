@@ -2,6 +2,7 @@
 // src/app/audio/Escucha.cpp — ver Escucha.hpp
 // ============================================================================
 #include "audio/Escucha.hpp"
+#include "i18n/I18n.hpp"
 #include "agent/Vocabulario.hpp"
 
 #include <algorithm>
@@ -93,7 +94,7 @@ void Escucha::cargar(const Modelos& m, std::function<void(const std::string&)> l
         auto motor = std::make_unique<Motor>();
         motor->reconocedor.emplace(so::OfflineRecognizer::Create(c));
         if (!motor->reconocedor->Get()) {
-            if (listo) listo("no se pudo cargar el reconocedor (¿faltan archivos del modelo?)");
+            if (listo) listo(ba::i18n::traducir("escucha", "no se pudo cargar el reconocedor (¿faltan archivos del modelo?)"));
             return;
         }
         if (!m.vad.empty()) {
@@ -116,7 +117,7 @@ void Escucha::cargar(const Modelos& m, std::function<void(const std::string&)> l
         cargado_ = true;
         if (listo)
             listo(m.vad.empty() || motor_->conVad ? std::string()
-                                                  : std::string("el VAD no cargó: sin recortar silencios"));
+                                                  : ba::i18n::traducir("escucha", "el VAD no cargó: sin recortar silencios"));
     });
 }
 
@@ -325,11 +326,11 @@ void Escucha::atenderCorrientes() {
 Escucha::Resultado Escucha::transcribir(std::vector<float> audio, std::uint32_t frecuencia) {
     Resultado r;
     if (!cargado_ || !motor_) {
-        r.error = "el reconocedor de voz no está cargado";
+        r.error = ba::i18n::traducir("escucha", "el reconocedor de voz no está cargado");
         return r;
     }
     if (audio.empty()) {
-        r.error = "no llegó audio del micrófono";
+        r.error = ba::i18n::traducir("escucha", "no llegó audio del micrófono");
         return r;
     }
     const auto t0 = std::chrono::steady_clock::now();
@@ -357,7 +358,7 @@ Escucha::Resultado Escucha::transcribir(std::vector<float> audio, std::uint32_t 
             vad.Pop();
         }
         if (habla.empty()) {
-            r.error = "no se escuchó a nadie hablar";
+            r.error = ba::i18n::traducir("escucha", "no se escuchó a nadie hablar");
             return r;
         }
     } else {
@@ -373,7 +374,7 @@ Escucha::Resultado Escucha::transcribir(std::vector<float> audio, std::uint32_t 
     r.texto = ini == std::string::npos ? std::string() : r.texto.substr(ini);
     if (auto* v = agent::Vocabulario::global(); v != nullptr && !r.texto.empty()) r.texto = v->corregir(r.texto);
     r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    if (r.texto.empty()) r.error = "no se entendió nada";
+    if (r.texto.empty()) r.error = ba::i18n::traducir("escucha", "no se entendió nada");
     return r;
 }
 

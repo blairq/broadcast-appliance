@@ -7,6 +7,13 @@
 #include <set>
 #include <sstream>
 
+#include "i18n/I18n.hpp"
+
+// Las tablas y los valores se marcan para lupdate y se traducen al mostrarlos.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(contexto, texto) texto
+#endif
+
 namespace ba::app::audio::calib {
 
 namespace {
@@ -30,34 +37,34 @@ struct Modelo {
 };
 const std::vector<Modelo>& modelos() {
     static const std::vector<Modelo> m = {
-        {"plano", "Micrófono de medición (sin archivo)",
-         "Omnidireccional de medición sin su archivo: se lo toma plano (±1 dB típico hasta 10 kHz).",
+        {"plano", QT_TRANSLATE_NOOP("calibracion", "Micrófono de medición (sin archivo)"),
+         QT_TRANSLATE_NOOP("calibracion", "Omnidireccional de medición sin su archivo: se lo toma plano (±1 dB típico hasta 10 kHz)."),
          {{20, 0}, {20000, 0}}, 10000, 16000, 20},
         {"sm58", "Shure SM58",
-         "Cardioide dinámico. Hoja de Shure: cae bajo 100 Hz, realce de presencia +4/+6 dB en 4-6 kHz. "
-         "Apuntarlo al parlante, a más de 1 m (sin efecto de proximidad).",
+         QT_TRANSLATE_NOOP("calibracion", "Cardioide dinámico. Hoja de Shure: cae bajo 100 Hz, realce de presencia +4/+6 dB en 4-6 kHz. "
+                           "Apuntarlo al parlante, a más de 1 m (sin efecto de proximidad)."),
          {{50, -10}, {80, -6}, {100, -4}, {150, -2}, {200, -1}, {500, 0}, {1000, 0}, {2000, 1}, {3000, 3},
           {4000, 5}, {5000, 5}, {6000, 4}, {8000, 1}, {10000, -2}, {12000, -6}, {15000, -10}},
          2000, 10000, 40},
         {"sm57", "Shure SM57",
-         "Cardioide dinámico. Hoja de Shure: cae bajo 100 Hz, presencia +5/+6 dB en 5-7 kHz. Apuntarlo al "
-         "parlante, a más de 1 m.",
+         QT_TRANSLATE_NOOP("calibracion", "Cardioide dinámico. Hoja de Shure: cae bajo 100 Hz, presencia +5/+6 dB en 5-7 kHz. Apuntarlo al "
+                           "parlante, a más de 1 m."),
          {{40, -10}, {80, -5}, {100, -4}, {150, -2}, {200, -1}, {500, 0}, {1000, 0}, {2000, 1}, {4000, 4},
           {6000, 6}, {7000, 5}, {8000, 3}, {10000, 0}, {12000, -4}, {15000, -8}},
          2000, 10000, 40},
         {"beta58", "Shure Beta 58A",
-         "Supercardioide dinámico. Presencia +4 dB en 4-6 kHz; cae bajo 100 Hz.",
+         QT_TRANSLATE_NOOP("calibracion", "Supercardioide dinámico. Presencia +4 dB en 4-6 kHz; cae bajo 100 Hz."),
          {{50, -9}, {100, -3}, {200, -1}, {1000, 0}, {3000, 2}, {5000, 4}, {8000, 2}, {10000, -1},
           {15000, -8}},
          2000, 10000, 40},
         {"e835", "Sennheiser e835",
-         "Cardioide dinámico. Presencia +3/+4 dB en 3-6 kHz; cae bajo 100 Hz.",
+         QT_TRANSLATE_NOOP("calibracion", "Cardioide dinámico. Presencia +3/+4 dB en 3-6 kHz; cae bajo 100 Hz."),
          {{50, -9}, {100, -3}, {200, -1}, {1000, 0}, {3000, 3}, {5000, 4}, {8000, 2}, {12000, -4},
           {16000, -10}},
          2000, 10000, 40},
-        {"desconocido", "Otro (sin curva)",
-         "Sin datos del micrófono: solo se corrigen los graves (modos: lo que importa es el pico contra sus "
-         "vecinas) y tendencias muy anchas.",
+        {"desconocido", QT_TRANSLATE_NOOP("calibracion", "Otro (sin curva)"),
+         QT_TRANSLATE_NOOP("calibracion", "Sin datos del micrófono: solo se corrigen los graves (modos: lo que importa es el pico contra sus "
+                           "vecinas) y tendencias muy anchas."),
          {{20, 0}, {20000, 0}}, 1000, 4000, 40},
     };
     return m;
@@ -179,7 +186,7 @@ std::vector<std::pair<double, double>> leerArchivoCalibracion(const std::string&
 
 json modelosMicrofono() {
     json a = json::array();
-    for (const auto& m : modelos()) a.push_back({{"id", m.id}, {"nombre", m.nombre}, {"nota", m.nota}});
+    for (const auto& m : modelos()) a.push_back({{"id", m.id}, {"nombre", ba::i18n::traducir("calibracion", m.nombre)}, {"nota", ba::i18n::traducir("calibracion", m.nota)}});
     return a;
 }
 
@@ -248,7 +255,7 @@ double frecuenciaSchroeder(double rt60, double volumen) {
 json modosTeoricos(double L, double W, double H, double fmax) {
     json a = json::array();
     if (L <= 0 || W <= 0 || H <= 0) return a;
-    const char* eje[3] = {"largo", "ancho", "alto"};
+    const std::string eje[3] = {ba::i18n::traducir("calibracion", "largo"), ba::i18n::traducir("calibracion", "ancho"), ba::i18n::traducir("calibracion", "alto")};
     const double dim[3] = {L, W, H};
     for (int x = 0; x < 12; ++x)
         for (int y = 0; y < 12; ++y)
@@ -258,10 +265,13 @@ json modosTeoricos(double L, double W, double H, double fmax) {
                 if (f > fmax) continue;
                 const int n[3] = {x, y, z};
                 const int ceros = (x == 0) + (y == 0) + (z == 0);
-                std::string tipo = ceros == 2 ? "axial" : ceros == 1 ? "tangencial" : "oblicuo";
+                // El tipo es un valor (se compara); se traduce al mostrarlo (el motivo de un filtro).
+                std::string tipo = ceros == 2   ? QT_TRANSLATE_NOOP("calibracion", "axial")
+                                   : ceros == 1 ? QT_TRANSLATE_NOOP("calibracion", "tangencial")
+                                                : QT_TRANSLATE_NOOP("calibracion", "oblicuo");
                 std::string de;
                 for (int k = 0; k < 3; ++k)
-                    if (n[k] > 0) de += (de.empty() ? "" : " + ") + std::string(eje[k]) + " (" + fmt(dim[k], 2) + " m)";
+                    if (n[k] > 0) de += (de.empty() ? "" : " + ") + eje[k] + " (" + fmt(dim[k], 2) + " m)";
                 a.push_back({{"f", std::round(f * 10) / 10}, {"n", {x, y, z}}, {"tipo", tipo}, {"de", de}});
             }
     std::sort(a.begin(), a.end(), [](const json& p, const json& q) { return p["f"].get<double>() < q["f"].get<double>(); });
@@ -357,8 +367,8 @@ json analizar(const json& sesion) {
     // Sin RT medido todavía, 0,5 s (una sala tratada a medias) solo para tener un fs.
     const double fs = frecuenciaSchroeder(rtMedio > 0 ? rtMedio : 0.5, V);
     res["schroeder_hz"] = std::round(fs);
-    res["schroeder_nota"] = rtMedio > 0 ? "con el RT60 medido (promedio de 500 Hz y 1 kHz)"
-                                        : "estimada con RT60 = 0,5 s (falta medir en la zona de escucha)";
+    res["schroeder_nota"] = rtMedio > 0 ? ba::i18n::traducir("calibracion", "con el RT60 medido (promedio de 500 Hz y 1 kHz)")
+                                        : ba::i18n::traducir("calibracion", "estimada con RT60 = 0,5 s (falta medir en la zona de escucha)");
     const double limiteModos = fs > 0 ? std::clamp(fs, 120.0, 400.0) : 250.0;
     const json teoricos = modosTeoricos(L, W, H, limiteModos * 1.1);
     res["modos_teoricos"] = teoricos;
@@ -370,7 +380,7 @@ json analizar(const json& sesion) {
         const auto meds = ultimas(sesion, pid, "antes", {"escucha"});
         r["puntos"] = static_cast<int>(meds.size());
         if (meds.empty()) {
-            r["falta"] = "medir este parlante en la zona de escucha (puntos de tipo escucha)";
+            r["falta"] = ba::i18n::traducir("calibracion", "medir este parlante en la zona de escucha (puntos de tipo escucha)");
             porParlante[pid] = r;
             continue;
         }
@@ -487,7 +497,7 @@ json proponer(const json& sesion, const json& analisis) {
     for (auto& [pid, a] : parlantes.items()) {
         json r;
         if (!a.contains("promedio")) {
-            r["falta"] = a.value("falta", "sin mediciones");
+            r["falta"] = a.value("falta", ba::i18n::traducir("calibracion", "sin mediciones"));
             porParlante[pid] = r;
             continue;
         }
@@ -508,7 +518,8 @@ json proponer(const json& sesion, const json& analisis) {
         const double ref = k > 0 ? s / k : 0;
         const Curva obj = curvaObjetivo(ref, pendiente);
         r["objetivo"] = aJson(obj);
-        r["objetivo_nota"] = "plana con " + fmt(pendiente, 1) + " dB/oct (Toole: régimen permanente en sala), al nivel del promedio entre 300 Hz y 3 kHz";
+        r["objetivo_nota"] = ba::i18n::llenar(ba::i18n::traducir("calibracion", "plana con %1 dB/oct (Toole: régimen permanente en sala), al nivel del promedio entre 300 Hz y 3 kHz"),
+                                              {fmt(pendiente, 1)});
 
         json filtros = json::array(), descartados = json::array();
         // Bajo fs: un corte por modo confirmado (lo que sobra), de mayor a menor exceso.
@@ -519,16 +530,19 @@ json proponer(const json& sesion, const json& analisis) {
         for (const auto& m : modos) {
             const double f = m["f"].get<double>();
             std::string de;
-            if (!m["teoricos"].empty()) de = ", " + m["teoricos"][0]["tipo"].get<std::string>() + " del " + m["teoricos"][0]["de"].get<std::string>();
-            const std::string donde = fmt(f, 0) + " Hz, +" + fmt(m["exceso_db"].get<double>(), 1) + " dB en " +
-                                      std::to_string(m["en_puntos"].get<int>()) + " de " +
-                                      std::to_string(m["de_puntos"].get<int>()) + " puntos";
+            if (!m["teoricos"].empty())
+                de = ba::i18n::llenar(ba::i18n::traducir("calibracion", "%1 del %2"), {ba::i18n::traducir("calibracion", m["teoricos"][0]["tipo"].get<std::string>().c_str()),
+                                                                    m["teoricos"][0]["de"].get<std::string>()});
+            const std::string donde = ba::i18n::llenar(ba::i18n::traducir("calibracion", "%1 Hz, +%2 dB en %3 de %4 puntos"),
+                                                       {fmt(f, 0), fmt(m["exceso_db"].get<double>(), 1),
+                                                        std::to_string(m["en_puntos"].get<int>()),
+                                                        std::to_string(m["de_puntos"].get<int>())});
             if (!m.value("confirmado", false)) {
-                descartados.push_back({{"f", f}, {"motivo", "pico en " + donde + ": no aparece en la mayoría de los puntos (es del lugar, no de la sala)"}});
+                descartados.push_back({{"f", f}, {"motivo", ba::i18n::llenar(ba::i18n::traducir("calibracion", "pico en %1: no aparece en la mayoría de los puntos (es del lugar, no de la sala)"), {donde})}});
                 continue;
             }
             if (filtros.size() >= 5) {
-                descartados.push_back({{"f", f}, {"motivo", "modo en " + donde + ": ya hay 5 cortes (los más grandes)"}});
+                descartados.push_back({{"f", f}, {"motivo", ba::i18n::llenar(ba::i18n::traducir("calibracion", "modo en %1: ya hay 5 cortes (los más grandes)"), {donde})}});
                 continue;
             }
             const double g = -std::min(12.0, m["exceso_db"].get<double>());
@@ -536,7 +550,8 @@ json proponer(const json& sesion, const json& analisis) {
                                {"f", f},
                                {"ganancia_db", std::round(g * 10) / 10},
                                {"q", m["q"]},
-                               {"motivo", "modo de la sala" + de + ": " + donde}});
+                               {"motivo", de.empty() ? ba::i18n::llenar(ba::i18n::traducir("calibracion", "modo de la sala: %1"), {donde})
+                                                     : ba::i18n::llenar(ba::i18n::traducir("calibracion", "modo de la sala, %1: %2"), {de, donde})}});
         }
         // Arriba de fs: hasta 3 filtros anchos hacia el objetivo, donde el micrófono
         // da para tendencias; +3/-6 dB como mucho.
@@ -564,19 +579,19 @@ json proponer(const json& sesion, const json& analisis) {
                       {"f", fPeor},
                       {"ganancia_db", std::round(g * 10) / 10},
                       {"q", 0.9},
-                      {"motivo", std::string(peor > 0 ? "sobra" : "falta") + " " + fmt(std::abs(peor), 1) +
-                                     " dB contra el objetivo alrededor de " + fmt(fPeor, 0) +
-                                     " Hz (promedio de la zona, 1 octava)" +
-                                     (fPeor > detalle ? "; el micrófono solo da para tendencias acá: filtro ancho" : "") +
-                                     (g != -peor ? "; limitado a +3/-6 dB" : "")}};
+                      {"motivo", ba::i18n::llenar(peor > 0 ? ba::i18n::traducir("calibracion", "sobra %1 dB contra el objetivo alrededor de %2 Hz (promedio de la zona, 1 octava)")
+                                                   : ba::i18n::traducir("calibracion", "falta %1 dB contra el objetivo alrededor de %2 Hz (promedio de la zona, 1 octava)"),
+                                         {fmt(std::abs(peor), 1), fmt(fPeor, 0)}) +
+                                     (fPeor > detalle ? ba::i18n::traducir("calibracion", "; el micrófono solo da para tendencias acá: filtro ancho") : "") +
+                                     (g != -peor ? ba::i18n::traducir("calibracion", "; limitado a +3/-6 dB") : "")}};
             const Curva rf = respuestaFiltro(f);
             for (size_t i = 0; i < kN; ++i) resto[i] += rf[i];
             filtros.push_back(f);
         }
         for (const auto& pz : a.value("pozos", json::array()))
             descartados.push_back({{"f", pz["f"]},
-                                   {"motivo", "pozo de " + fmt(pz["profundidad_db"].get<double>(), 1) + " dB en " + fmt(pz["f"].get<double>(), 0) +
-                                                  " Hz: es una cancelación; no se levanta con EQ (gasta potencia y empeora otros lugares). Probar moviendo el parlante o el punto de escucha"}});
+                                   {"motivo", ba::i18n::llenar(ba::i18n::traducir("calibracion", "pozo de %1 dB en %2 Hz: es una cancelación; no se levanta con EQ (gasta potencia y empeora otros lugares). Probar moviendo el parlante o el punto de escucha"),
+                                                              {fmt(pz["profundidad_db"].get<double>(), 1), fmt(pz["f"].get<double>(), 0)})}});
         r["filtros"] = filtros;
         r["no_se_corrige"] = descartados;
         // Lo que se espera después: el promedio con los filtros.
@@ -592,7 +607,7 @@ json proponer(const json& sesion, const json& analisis) {
         r["retardo_ms"] = std::round(ret * 100) / 100;
         r["ganancia_db"] = std::round(gan * 10) / 10;
         if (a.value("polaridad", 1) < 0)
-            r["polaridad"] = "invertida en la mayoría de los puntos: revisar el cableado o invertirla";
+            r["polaridad"] = ba::i18n::traducir("calibracion", "invertida en la mayoría de los puntos: revisar el cableado o invertirla");
         porParlante[pid] = r;
     }
     res["parlantes"] = porParlante;
@@ -646,9 +661,14 @@ json verificar(const json& sesion, const json& analisis) {
         json r = {{"desvio_antes_db", std::round(da * 10) / 10}, {"desvio_despues_db", std::round(dd * 10) / 10}};
         if (dd >= 0) {
             r["despues"] = aJson(despues);
-            r["veredicto"] = da < 0 ? "sin medición de antes" : dd < da - 0.5 ? "mejoró" : dd > da + 0.5 ? "empeoró: revisar" : "igual";
+            // El veredicto es un valor (lo comparan la interfaz y el test): se marca aquí y se
+            // traduce al mostrarlo (qsTranslate("calibracion", v.veredicto)).
+            r["veredicto"] = da < 0                ? QT_TRANSLATE_NOOP("calibracion", "sin medición de antes")
+                             : dd < da - 0.5       ? QT_TRANSLATE_NOOP("calibracion", "mejoró")
+                             : dd > da + 0.5       ? QT_TRANSLATE_NOOP("calibracion", "empeoró: revisar")
+                                                   : QT_TRANSLATE_NOOP("calibracion", "igual");
         } else {
-            r["veredicto"] = "falta medir la verificación (los mismos puntos, etapa verificacion)";
+            r["veredicto"] = QT_TRANSLATE_NOOP("calibracion", "falta medir la verificación (los mismos puntos, etapa verificacion)");
         }
         res[pid] = r;
     }

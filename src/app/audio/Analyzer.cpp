@@ -4,6 +4,12 @@
 
 #include "audio/Analyzer.hpp"
 
+// Las pistas se marcan para lupdate y se traducen al mostrarlas (AudioViewModel). Este
+// archivo se compila sin Qt ni ba_core en test_audio_dsp: la marca es el texto tal cual.
+#ifndef QT_TRANSLATE_NOOP
+#define QT_TRANSLATE_NOOP(contexto, texto) texto
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -361,29 +367,27 @@ nlohmann::json Analyzer::report(const Snapshot& s) {
     json hints = json::array();
     const float peak = std::max(s.maxPeakDb[0], s.maxPeakDb[1]);
     if (s.seconds <= 0)
-        hints.push_back(
-            "No llega audio de la fuente: ¿esta en la escena al aire, reproduciendose o conectada?");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "No llega audio de la fuente: ¿esta en la escena al aire, reproduciendose o conectada?"));
     else if (s.seconds < 3)
-        hints.push_back("Poco audio analizado: esperar unos segundos mas.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Poco audio analizado: esperar unos segundos mas."));
     if (s.clips > 0 || peak > -0.5f)
-        hints.push_back("Satura (picos en 0 dBFS): bajar la ganancia o poner un limitador.");
-    if (active > -140 && active < -35) hints.push_back("Nivel bajo: subir la ganancia de entrada.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Satura (picos en 0 dBFS): bajar la ganancia o poner un limitador."));
+    if (active > -140 && active < -35) hints.push_back(QT_TRANSLATE_NOOP("audio", "Nivel bajo: subir la ganancia de entrada."));
     if (noise > -50 && active - noise < 25)
-        hints.push_back(
-            "Ruido de fondo alto respecto de la señal: una compuerta (gate) o reducción de ruido ayudaría.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Ruido de fondo alto respecto de la señal: una compuerta (gate) o reducción de ruido ayudaría."));
     else if (noise > -140 && active - noise >= 25)
-        hints.push_back("Para una compuerta: umbral entre el piso de ruido y el nivel activo (unos 6-10 dB "
-                        "sobre el ruido).");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Para una compuerta: umbral entre el piso de ruido y el nivel activo (unos 6-10 dB "
+                        "sobre el ruido)."));
     if (mid > -140 && rumble - mid > -6)
-        hints.push_back("Mucho grave (<80 Hz): un filtro pasa-altos (80-100 Hz) limpia retumbe.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Mucho grave (<80 Hz): un filtro pasa-altos (80-100 Hz) limpia retumbe."));
     if (mid > -140 && sib - mid > -8)
-        hints.push_back("Sibilancia fuerte (6-10 kHz): un de-esser la controla.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Sibilancia fuerte (6-10 kHz): un de-esser la controla."));
     if (mid > -140 && body - mid > 6)
-        hints.push_back("Cuerpo/embarrado (100-315 Hz) alto: bajar 2-4 dB con un EQ en 200-300 Hz.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Cuerpo/embarrado (100-315 Hz) alto: bajar 2-4 dB con un EQ en 200-300 Hz."));
     if (s.correlation < 0)
-        hints.push_back("Correlación estéreo negativa: posible fase invertida en un canal.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Correlación estéreo negativa: posible fase invertida en un canal."));
     if (std::fabs(s.dc[0]) > 0.01f || std::fabs(s.dc[1]) > 0.01f)
-        hints.push_back("Hay DC: un pasa-altos lo quita.");
+        hints.push_back(QT_TRANSLATE_NOOP("audio", "Hay DC: un pasa-altos lo quita."));
     out["pistas"] = hints;
     return out;
 }

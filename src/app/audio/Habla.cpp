@@ -2,6 +2,7 @@
 // src/app/audio/Habla.cpp — ver Habla.hpp
 // ============================================================================
 #include "audio/Habla.hpp"
+#include "i18n/I18n.hpp"
 
 #include <optional>
 #include <utility>
@@ -84,7 +85,7 @@ void Habla::cargar(const Voz& v, std::function<void(const std::string&)> listo) 
         auto m = std::make_unique<Motor>();
         m->tts.emplace(so::OfflineTts::Create(c));
         if (!m->tts->Get()) {
-            if (listo) listo("no se pudo cargar la voz (¿faltan archivos?)");
+            if (listo) listo(ba::i18n::traducir("voz", "no se pudo cargar la voz (¿faltan archivos?)"));
             return;
         }
         hablantes_ = m->tts->NumSpeakers();
