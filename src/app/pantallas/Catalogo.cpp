@@ -5,6 +5,7 @@
 
 #include "pantallas/Tarjetas.hpp"
 
+#include <QCoreApplication>
 #include <QRegularExpression>
 
 #include <set>
@@ -22,12 +23,13 @@ struct Panel {
     const char* tarjeta;
     const char* redTipo; ///< el contenido de la TV que muestra lo mismo, o ""
 };
+// El título se traduce al armar la lista: QCoreApplication::translate("pantallas", titulo).
 const Panel kPaneles[] = {
-    {"padron", "Padrón", "☰", "", ""},
-    {"preguntas", "Preguntas del público", "?", "", ""},
-    {"votacion", "Votación", "☑", "", "votacion"},
-    {"carrusel", "Carrusel", "⟳", "carrusel", ""},
-    {"mezclador", "Mezclador", "🎚", "mixer", ""},
+    {"padron", QT_TRANSLATE_NOOP("pantallas", "Padrón"), "☰", "", ""},
+    {"preguntas", QT_TRANSLATE_NOOP("pantallas", "Preguntas del público"), "?", "", ""},
+    {"votacion", QT_TRANSLATE_NOOP("pantallas", "Votación"), "☑", "", "votacion"},
+    {"carrusel", QT_TRANSLATE_NOOP("pantallas", "Carrusel"), "⟳", "carrusel", ""},
+    {"mezclador", QT_TRANSLATE_NOOP("pantallas", "Mezclador"), "🎚", "mixer", ""},
 };
 
 /// Las tarjetas que tienen panel propio no se repiten como «tarjeta:<kind>».
@@ -44,16 +46,16 @@ QString redDePagina(const QString& idPagina) { return idPagina == "prompter" ? Q
 } // namespace
 
 QString CatalogoVisible::tituloDeGrupo(const QString& g) {
-    if (g == "programa") return QStringLiteral("Salida");
-    if (g == "escena") return QStringLiteral("Escena");
+    if (g == "programa") return QCoreApplication::translate("pantallas", "Salida");
+    if (g == "escena") return QCoreApplication::translate("pantallas", "Escena");
     if (g == "multiview") return QStringLiteral("Multiview");
     if (g == "video") return QStringLiteral("Video");
-    if (g == "tarjeta") return QStringLiteral("Tarjeta del tablero");
+    if (g == "tarjeta") return QCoreApplication::translate("pantallas", "Tarjeta del tablero");
     if (g == "panel") return QStringLiteral("Panel");
-    if (g == "pagina") return QStringLiteral("Página");
-    if (g == "fondo") return QStringLiteral("Tablero");
-    if (g == "web") return QStringLiteral("Para la TV");
-    if (g == "registro") return QStringLiteral("Registro de personas");
+    if (g == "pagina") return QCoreApplication::translate("pantallas", "Página");
+    if (g == "fondo") return QCoreApplication::translate("pantallas", "Tablero");
+    if (g == "web") return QCoreApplication::translate("pantallas", "Para la TV");
+    if (g == "registro") return QCoreApplication::translate("pantallas", "Registro de personas");
     return g;
 }
 
@@ -111,15 +113,17 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
     };
 
     // 1) Las salidas: lo que se mira todo el tiempo, arriba.
-    out.push_back({"programa", "programa", "Programa (lo que sale al aire)", "●", video({"program"}), "programa", {}, ""});
-    out.push_back({"preview", "programa", "Preview (la escena armada)", "◐", video({"armada"}), "", {}, ""});
+    out.push_back({"programa", "programa", QCoreApplication::translate("pantallas", "Programa (lo que sale al aire)"), "●",
+                   video({"program"}), "programa", {}, ""});
+    out.push_back({"preview", "programa", QCoreApplication::translate("pantallas", "Preview (la escena armada)"), "◐",
+                   video({"armada"}), "", {}, ""});
 
     // 2) Lo que va de fondo en el tablero: SIGUE al tablero (si el operador
     //    cambia el fondo, el monitor que lo muestra cambia con él).
     {
         const QStringList claves = fuentes_.fondo ? fuentes_.fondo() : QStringList{};
         const QString dist = fuentes_.fondoDistribucion ? fuentes_.fondoDistribucion() : QStringLiteral("grid");
-        Cosa c{"fondo", "fondo", "Lo de fondo en el tablero", "▣", {}, "", {}, ""};
+        Cosa c{"fondo", "fondo", QCoreApplication::translate("pantallas", "Lo de fondo en el tablero"), "▣", {}, "", {}, ""};
         // El fondo puede ser una multivista («multiview:<id>» en la distribución).
         if (dist.startsWith("multiview:"))
             c.dibujo = QVariantMap{{"modo", "multiview"}, {"id", dist.mid(10)}};
@@ -169,7 +173,7 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
     // 5) Los paneles (los que son más que su tarjeta, y los del evento).
     for (const Panel& p : kPaneles) {
         const QString id = QString::fromUtf8(p.id);
-        out.push_back({id, "panel", QString::fromUtf8(p.titulo), QString::fromUtf8(p.icono),
+        out.push_back({id, "panel", QCoreApplication::translate("pantallas", p.titulo), QString::fromUtf8(p.icono),
                        QVariantMap{{"modo", "panel"}, {"panel", id}}, QString::fromUtf8(p.redTipo), {},
                        QString::fromUtf8(p.tarjeta)});
     }
@@ -184,7 +188,7 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
     for (const auto& t : tarjetas::kTipos) {
         const QString kind = QString::fromUtf8(t.id);
         if (tienePanelPropio(kind)) continue;
-        out.push_back({"tarjeta:" + kind, "tarjeta", QString::fromUtf8(t.titulo), QString::fromUtf8(t.icono),
+        out.push_back({"tarjeta:" + kind, "tarjeta", QCoreApplication::translate("tarjetas", t.titulo), QString::fromUtf8(t.icono),
                        QVariantMap{{"modo", "panel"}, {"panel", "tarjeta:" + kind}}, "", {}, kind});
     }
 
@@ -265,7 +269,7 @@ QString CatalogoVisible::tituloDe(const QString& id) const {
     // Lo que se recordaba y ya no está (una escena borrada, una cámara que se
     // fue): se dice qué era, para que el operador entienda el hueco.
     const int dos = id.indexOf(':');
-    return (dos > 0 ? id.mid(dos + 1) : id) + " (ya no existe)";
+    return QCoreApplication::translate("pantallas", "%1 (ya no existe)").arg(dos > 0 ? id.mid(dos + 1) : id);
 }
 
 QString CatalogoVisible::ventanaDeTarjeta(const QString& kind) const {

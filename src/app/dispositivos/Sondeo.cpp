@@ -53,7 +53,7 @@ void Sondeo::lanzar(const QStringList& args) {
     connect(proceso_, &QProcess::finished, this, &Sondeo::alTerminarProceso);
     connect(proceso_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
         if (e != QProcess::FailedToStart || proceso_ == nullptr) return;
-        const QString err = "no se pudo lanzar la sonda de drivers: " + proceso_->errorString();
+        const QString err = tr("no se pudo lanzar la sonda de drivers: %1").arg(proceso_->errorString());
         cerrarProceso();
         if (listando_) {
             listando_ = false;
@@ -67,7 +67,7 @@ void Sondeo::lanzar(const QStringList& args) {
 }
 
 void Sondeo::listar(AlListar listo) {
-    if (ocupado()) return listo(false, {}, "la sonda ya está trabajando");
+    if (ocupado()) return listo(false, {}, tr("la sonda ya está trabajando"));
     listando_ = true;
     alListar_ = std::move(listo);
     lista_.clear();
@@ -75,7 +75,7 @@ void Sondeo::listar(AlListar listo) {
 }
 
 void Sondeo::probar(const QStringList& ids, AlProbar uno, AlTerminar fin) {
-    if (ocupado()) return fin("la sonda ya está trabajando");
+    if (ocupado()) return fin(tr("la sonda ya está trabajando"));
     if (ids.isEmpty()) return fin({});
     faltan_ = ids;
     total_ = static_cast<int>(ids.size());
@@ -156,7 +156,7 @@ void Sondeo::alTerminarProceso(int codigo, QProcess::ExitStatus estado) {
             if (fin_)
                 f(true, lista_, {});
             else
-                f(false, lista_, QString("la sonda terminó sin terminar de listar (código %1)").arg(codigo));
+                f(false, lista_, tr("la sonda terminó sin terminar de listar (código %1)").arg(codigo));
         }
         return;
     }
@@ -168,7 +168,7 @@ void Sondeo::alTerminarProceso(int codigo, QProcess::ExitStatus estado) {
         r.falla = hw::Falla::Caida;
         r.motivo = hw::motivoLegible(hw::Falla::Caida, r.id, {}, salida, o_.limiteMs);
         if (estado == QProcess::NormalExit && codigo != 0 && salida.empty())
-            r.motivo += " (código " + std::to_string(codigo) + ")";
+            r.motivo += " " + tr("(código %1)").arg(codigo).toStdString();
         faltan_.removeOne(actual);
         ++hechos_;
         if (alProbar_) alProbar_(r);
@@ -176,7 +176,7 @@ void Sondeo::alTerminarProceso(int codigo, QProcess::ExitStatus estado) {
         return seguir();
     }
     if (huboAvance_) return seguir();
-    terminar(QString("la sonda de drivers terminó antes de empezar (código %1)").arg(codigo));
+    terminar(tr("la sonda de drivers terminó antes de empezar (código %1)").arg(codigo));
 }
 
 void Sondeo::vencio() {
@@ -186,7 +186,7 @@ void Sondeo::vencio() {
     cerrarProceso();
     if (listando_) {
         listando_ = false;
-        if (auto f = std::move(alListar_)) f(false, lista_, "la sonda no terminó de listar a tiempo");
+        if (auto f = std::move(alListar_)) f(false, lista_, tr("la sonda no terminó de listar a tiempo"));
         return;
     }
     if (!actual.isEmpty()) {
@@ -201,7 +201,7 @@ void Sondeo::vencio() {
         return seguir();
     }
     if (huboAvance_) return seguir();
-    terminar(QString("la sonda de drivers no arrancó en %1 s").arg(o_.arranqueMs / 1000));
+    terminar(tr("la sonda de drivers no arrancó en %1 s").arg(o_.arranqueMs / 1000));
 }
 
 void Sondeo::seguir() {

@@ -3,6 +3,8 @@
 // ============================================================================
 #include "carrusel/CarruselStore.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -33,7 +35,7 @@ void Store::releer() {
     if (!fs::exists(archivo_, ec)) return;
     std::ifstream in(archivo_);
     if (!in) {
-        error_ = "no se pudo abrir " + archivo_.string();
+        error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "no se pudo abrir %1"), {archivo_.string()});
         return;
     }
     const json j = json::parse(in, nullptr, false);
@@ -41,7 +43,8 @@ void Store::releer() {
         // Se dice, no se hace pasar por una biblioteca vacia: si no, un archivo
         // roto se ve igual que «todavia no armaste ninguno» y el operador
         // rearma todo sin saber que lo suyo sigue ahi.
-        error_ = "la biblioteca de carruseles esta rota (JSON invalido): " + archivo_.string();
+        error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "la biblioteca de carruseles esta rota (JSON invalido): %1"),
+                                  {archivo_.string()});
         return;
     }
     if (!j.is_object() || !j.contains("carruseles") || !j["carruseles"].is_array()) return;
@@ -66,7 +69,7 @@ bool Store::guardar(const Carrusel& c) {
     // Sin nombre no se puede volver a encontrar, y la biblioteca se llenaria de
     // entradas anonimas indistinguibles.
     if (c.nombre().empty()) {
-        error_ = "un carrusel necesita un nombre";
+        error_ = ba::i18n::traducir("carrusel", "un carrusel necesita un nombre");
         return false;
     }
     if (Carrusel* ya = porNombre(c.nombre()); ya != nullptr)
@@ -99,18 +102,18 @@ bool Store::persistir() {
     {
         std::ofstream out(tmp, std::ios::trunc);
         if (!out) {
-            error_ = "no se pudo escribir " + tmp.string();
+            error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "no se pudo escribir %1"), {tmp.string()});
             return false;
         }
         out << json{{"carruseles", cs}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << '\n';
         if (!out) {
-            error_ = "no se pudo terminar de escribir " + tmp.string();
+            error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "no se pudo terminar de escribir %1"), {tmp.string()});
             return false;
         }
     }
     fs::rename(tmp, archivo_, ec);
     if (ec) {
-        error_ = "no se pudo reemplazar la biblioteca: " + ec.message();
+        error_ = ba::i18n::llenar(ba::i18n::traducir("carrusel", "no se pudo reemplazar la biblioteca: %1"), {ec.message()});
         return false;
     }
     return true;

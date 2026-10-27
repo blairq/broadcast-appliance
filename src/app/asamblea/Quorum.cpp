@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/Quorum.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -81,18 +82,19 @@ json Quorum::regla() const { return {{"miembros", miembros_}, {"minimo", minimo_
 std::string Quorum::setRegla(const json& r) {
     if (r.contains("miembros")) {
         const int m = r.value("miembros", 0);
-        if (m < 0 || m > 1000) return "miembros entre 0 y 1000";
+        if (m < 0 || m > 1000) return ba::i18n::traducir("asamblea", "miembros entre 0 y 1000");
         miembros_ = m;
     }
     if (r.contains("minimo")) {
         const json& m = r["minimo"];
         if (!(m.is_string() && m.get<std::string>() == "mitad_mas_uno") && !(m.is_number_integer() && m.get<int>() >= 1))
-            return "mínimo: \"mitad_mas_uno\" o un número";
+            return ba::i18n::traducir("asamblea", "mínimo: \"mitad_mas_uno\" o un número");
         minimo_ = m;
     }
     if (r.contains("mayoria")) {
         const std::string m = r.value("mayoria", std::string());
-        if (!kMayorias.count(m)) return "mayoría: simple, absoluta, dos_tercios_presentes o dos_tercios_miembros";
+        if (!kMayorias.count(m))
+            return ba::i18n::traducir("asamblea", "mayoría: simple, absoluta, dos_tercios_presentes o dos_tercios_miembros");
         mayoria_ = m;
     }
     guardar();
@@ -149,11 +151,12 @@ json Quorum::cargarOficial(const json& r) {
             if (v == "abstencion") ++ab;
             nominal.push_back({{"nombre", nombre}, {"voto", v}});
         }
-        if (nominal.empty()) return {{"error", "el CSV no tiene votos («nombre;afirmativo|negativo|abstención|ausente»)"}};
+        if (nominal.empty())
+            return {{"error", ba::i18n::traducir("asamblea", "el CSV no tiene votos («nombre;afirmativo|negativo|abstención|ausente»)")}};
     }
-    if (af < 0 || ne < 0 || ab < 0) return {{"error", "los votos no pueden ser negativos"}};
+    if (af < 0 || ne < 0 || ab < 0) return {{"error", ba::i18n::traducir("asamblea", "los votos no pueden ser negativos")}};
     const std::string may = r.value("mayoria", mayoria_);
-    if (!kMayorias.count(may)) return {{"error", "mayoría desconocida"}};
+    if (!kMayorias.count(may)) return {{"error", ba::i18n::traducir("asamblea", "mayoría desconocida")}};
     const int presentes = r.value("presentes", std::max(af + ne + ab, presentes_ ? presentes_() : 0));
     const int nec = necesarios(may, af + ne, presentes, miembros_);
     res.update({{"afirmativos", af},
@@ -166,7 +169,8 @@ json Quorum::cargarOficial(const json& r) {
                 {"nominal", nominal},
                 {"ms", QDateTime::currentMSecsSinceEpoch()}});
     if (may == "dos_tercios_miembros" && miembros_ <= 0)
-        res["aviso"] = "falta la cantidad de miembros del cuerpo (quorum_regla) para los dos tercios de los miembros";
+        res["aviso"] = ba::i18n::traducir("asamblea", "falta la cantidad de miembros del cuerpo (quorum_regla) para los dos "
+                                                      "tercios de los miembros");
     oficiales_.push_back(res);
     guardar();
     emit cambio();

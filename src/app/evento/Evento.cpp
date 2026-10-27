@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/Evento.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 
 namespace ba::evento {
@@ -105,56 +107,56 @@ bool tipoDeNombre(const std::string& s, Tipo& out) {
 std::string Cue::queLeFalta() const {
     switch (tipo) {
         case Tipo::Escena:
-            if (!tieneTexto(datos, "escena")) return "no dice que escena poner";
+            if (!tieneTexto(datos, "escena")) return ba::i18n::traducir("evento", "no dice que escena poner");
             return {};
         case Tipo::Musica:
         case Tipo::Video:
             // Parar la musica no necesita archivo; arrancarla si.
             if (datos.value("accion", std::string("arrancar")) == "parar") return {};
-            if (!tieneTexto(datos, "archivo")) return "no dice que archivo reproducir";
+            if (!tieneTexto(datos, "archivo")) return ba::i18n::traducir("evento", "no dice que archivo reproducir");
             return {};
         case Tipo::Teleprompter:
-            if (!tieneTexto(datos, "discurso")) return "no dice que texto cargar";
+            if (!tieneTexto(datos, "discurso")) return ba::i18n::traducir("evento", "no dice que texto cargar");
             return {};
         case Tipo::Orador:
-            if (!tieneTexto(datos, "participante")) return "no dice quien habla";
-            if (duracionSeg <= 0) return "no dice cuanto tiempo tiene para hablar";
+            if (!tieneTexto(datos, "participante")) return ba::i18n::traducir("evento", "no dice quien habla");
+            if (duracionSeg <= 0) return ba::i18n::traducir("evento", "no dice cuanto tiempo tiene para hablar");
             return {};
         case Tipo::Grafico: {
             const std::string accion = datos.value("accion", std::string("mostrar"));
             // Prender o apagar un rotulo automatico no necesita fuente: el
             // vinculo ya sabe en cual se ve.
             if (accion == "prender" || accion == "apagar") {
-                if (!tieneTexto(datos, "vinculo")) return "no dice que vinculo prender o apagar";
+                if (!tieneTexto(datos, "vinculo")) return ba::i18n::traducir("evento", "no dice que vinculo prender o apagar");
                 return {};
             }
             // La fuente hace falta siempre: es DONDE se ve. Un grafico sin
             // fuente no esta en ninguna escena y no lo ve nadie.
-            if (!tieneTexto(datos, "fuente")) return "no dice en que fuente de escena se ve";
+            if (!tieneTexto(datos, "fuente")) return ba::i18n::traducir("evento", "no dice en que fuente de escena se ve");
             if (accion == "ocultar") return {};
-            if (!tieneTexto(datos, "grafico")) return "no dice que grafico sacar al aire";
+            if (!tieneTexto(datos, "grafico")) return ba::i18n::traducir("evento", "no dice que grafico sacar al aire");
             return {};
         }
         case Tipo::Pantalla:
-            if (!tieneTexto(datos, "pantalla")) return "no dice a que pantalla va";
-            if (!tieneTexto(datos, "contenido")) return "no dice que mandarle";
+            if (!tieneTexto(datos, "pantalla")) return ba::i18n::traducir("evento", "no dice a que pantalla va");
+            if (!tieneTexto(datos, "contenido")) return ba::i18n::traducir("evento", "no dice que mandarle");
             return {};
         case Tipo::Audio: {
-            if (!tieneTexto(datos, "accion")) return "no dice que hacer con el audio";
-            if (!tieneTexto(datos, "fuente")) return "no dice sobre que fuente de audio actuar";
+            if (!tieneTexto(datos, "accion")) return ba::i18n::traducir("evento", "no dice que hacer con el audio");
+            if (!tieneTexto(datos, "fuente")) return ba::i18n::traducir("evento", "no dice sobre que fuente de audio actuar");
             const std::string a = datos.value("accion", std::string());
             if (a != "silenciar" && a != "activar" && a != "volumen")
-                return "la accion \"" + a + "\" no existe (silenciar, activar o volumen)";
+                return ba::i18n::llenar(ba::i18n::traducir("evento", "la accion \"%1\" no existe (silenciar, activar o volumen)"), {a});
             return {};
         }
         case Tipo::Pausa:
-            if (duracionSeg <= 0) return "una pausa sin duracion no espera nada";
+            if (duracionSeg <= 0) return ba::i18n::traducir("evento", "una pausa sin duracion no espera nada");
             return {};
         case Tipo::Espera:
         case Tipo::Nota:
             // Los dos existen para decirle algo al operador: sin texto, no
             // dicen nada y lo unico que hacen es frenar el guion.
-            if (texto.empty()) return "no dice nada: al operador le va a aparecer un cartel vacio";
+            if (texto.empty()) return ba::i18n::traducir("evento", "no dice nada: al operador le va a aparecer un cartel vacio");
             return {};
     }
     return {};
@@ -327,34 +329,36 @@ bool horaValida(const std::string& s) {
 std::vector<Reparo> revisar(const Evento& e) {
     std::vector<Reparo> rs;
     if (e.bloques.empty()) {
-        rs.push_back({-1, -1, true, "el evento no tiene ningun bloque"});
+        rs.push_back({-1, -1, true, ba::i18n::traducir("evento", "el evento no tiene ningun bloque")});
         return rs;
     }
     if (e.duracionSeg() == 0)
-        rs.push_back({-1, -1, false, "ningun cue tiene duracion prevista: no se puede calcular el desvio"});
+        rs.push_back({-1, -1, false, ba::i18n::traducir("evento", "ningun cue tiene duracion prevista: no se puede calcular el desvio")});
     // Un formato mal escrito es GRAVE y no un aviso: una fecha que no se
     // entiende no se ignora sola, se lee mal. "03/09" es el 3 de septiembre
     // para uno y el 9 de marzo para otro.
     if (!e.fecha.empty() && !fechaValida(e.fecha))
-        rs.push_back({-1, -1, true, "la fecha no es un dia valido en formato YYYY-MM-DD: " + e.fecha});
+        rs.push_back({-1, -1, true,
+                      ba::i18n::llenar(ba::i18n::traducir("evento", "la fecha no es un dia valido en formato YYYY-MM-DD: %1"), {e.fecha})});
     if (!e.inicio.empty() && !horaValida(e.inicio))
-        rs.push_back({-1, -1, true, "la hora de arranque no esta en formato HH:MM: " + e.inicio});
+        rs.push_back({-1, -1, true,
+                      ba::i18n::llenar(ba::i18n::traducir("evento", "la hora de arranque no esta en formato HH:MM: %1"), {e.inicio})});
     // Lo que sigue son avisos: el evento corre igual, pero no se puede convocar.
     if (e.fecha.empty())
-        rs.push_back({-1, -1, false, "el evento no tiene fecha: no se lo puede convocar ni archivar"});
+        rs.push_back({-1, -1, false, ba::i18n::traducir("evento", "el evento no tiene fecha: no se lo puede convocar ni archivar")});
     else if (e.inicio.empty())
         rs.push_back(
-            {-1, -1, false, "hay dia pero no hora de arranque: las horas previstas no se pueden calcular"});
+            {-1, -1, false, ba::i18n::traducir("evento", "hay dia pero no hora de arranque: las horas previstas no se pueden calcular")});
     if (!e.inicio.empty() && e.huso.empty())
         rs.push_back(
-            {-1, -1, false, "no hay huso horario: el que se conecta de otro huso no sabe a que hora es"});
+            {-1, -1, false, ba::i18n::traducir("evento", "no hay huso horario: el que se conecta de otro huso no sabe a que hora es")});
 
     for (std::size_t bi = 0; bi < e.bloques.size(); ++bi) {
         const Bloque& b = e.bloques[bi];
         const int ib = static_cast<int>(bi);
-        if (b.nombre.empty()) rs.push_back({ib, -1, false, "el bloque no tiene nombre"});
+        if (b.nombre.empty()) rs.push_back({ib, -1, false, ba::i18n::traducir("evento", "el bloque no tiene nombre")});
         if (b.cues.empty()) {
-            rs.push_back({ib, -1, false, "el bloque esta vacio"});
+            rs.push_back({ib, -1, false, ba::i18n::traducir("evento", "el bloque esta vacio")});
             continue;
         }
         for (std::size_t ci = 0; ci < b.cues.size(); ++ci) {
@@ -370,7 +374,7 @@ std::vector<Reparo> revisar(const Evento& e) {
             seguidos = b.cues[ci].automatico ? seguidos + 1 : 0;
             if (seguidos == 6) {
                 rs.push_back({ib, static_cast<int>(ci), false,
-                              "seis cues automaticos seguidos: si algo sale mal el guion sigue solo"});
+                              ba::i18n::traducir("evento", "seis cues automaticos seguidos: si algo sale mal el guion sigue solo")});
                 break;
             }
         }

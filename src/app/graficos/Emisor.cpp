@@ -209,7 +209,7 @@ void Emisor::prepararVideo(std::uint64_t fuente, const QString& grafico, const Q
     if (!d_->capasVideo.poner) return;
     QString err;
     const auto capas = video::leer(ficha(grafico), pedido, &err);
-    if (!err.isEmpty()) emit fallo("El video del gráfico: " + err);
+    if (!err.isEmpty()) emit fallo(tr("El video del gráfico: %1").arg(err));
     if (capas.empty()) return quitarVideo(fuente); // este gráfico no lleva (el de antes, quizás sí)
     const std::string nombre = nombreDe(fuente);
     // Se ponen YA, quietas en su primera clave (con alfa 0 casi siempre): la rama de la cámara
@@ -218,7 +218,7 @@ void Emisor::prepararVideo(std::uint64_t fuente, const QString& grafico, const Q
     const std::string e = d_->capasVideo.poner(nombre, video::aJson(capas, salidaEn, salidaDur, inicioMs));
     if (!e.empty()) {
         d_->video.erase(fuente);
-        emit fallo("El video del gráfico no salió: " + QString::fromStdString(e));
+        emit fallo(tr("El video del gráfico no salió: %1").arg(QString::fromStdString(e)));
         return;
     }
     d_->video[fuente] = {nombre, generacion, inicioMs, finMs};
@@ -264,7 +264,7 @@ void Emisor::resolver(const QString& grafico, const QJsonObject& valores, QSize 
         QJsonObject p = d_->catalogo.pedido(grafico, valores, &err);
         return listo(err.isEmpty() ? p : QJsonObject{}, err);
     }
-    if (!d_->proveedor) return listo({}, "los plugins no están disponibles");
+    if (!d_->proveedor) return listo({}, tr("los plugins no están disponibles"));
     if (!tam.isValid()) tam = QSize(f.value("ancho").toInt(900), f.value("alto").toInt(220));
     // Lo que no venga, del porDefecto de la ficha (igual que un gráfico normal).
     QJsonObject v = Catalogo::valoresPorDefecto(f);
@@ -285,7 +285,7 @@ void Emisor::resolver(const QString& grafico, const QJsonObject& valores, QSize 
                                     .arg(url, f.value("bucle").toBool() ? "true" : "false");
             return QJsonObject{{"fuente", qml}, {"parametros", QJsonObject{}}, {"ancho", tam.width()}, {"alto", tam.height()}};
         }
-        *err = "el plugin no devolvió ni «declarativo», ni «qml», ni «secuencia»";
+        *err = QCoreApplication::translate("graficos", "el plugin no devolvió ni «declarativo», ni «qml», ni «secuencia»");
         return {};
     };
     if (const auto it = d_->dePlugins.find(clave); it != d_->dePlugins.end()) {
@@ -301,7 +301,7 @@ void Emisor::resolver(const QString& grafico, const QJsonObject& valores, QSize 
                            {"duracion_ms", f.value("duracionMs").toInt(2000)}};
     QPointer<Emisor> yo(this);
     d_->proveedor(plugin, args, [yo, clave, armar, listo, plugin](QJsonObject r, QString e) {
-        if (!e.isEmpty()) return listo({}, "el plugin «" + plugin + "»: " + e);
+        if (!e.isEmpty()) return listo({}, tr("el plugin «%1»: %2").arg(plugin, e));
         QString err;
         const QJsonObject p = armar(r, &err);
         if (yo && err.isEmpty()) {
@@ -331,7 +331,7 @@ QString Emisor::conPedido(const QString& grafico, const QJsonObject& valores, QS
         }
         if (!yo) return;
         if (e.isEmpty()) e = usar(std::move(p));
-        if (!e.isEmpty()) emit yo->fallo("El gráfico no salió: " + e);
+        if (!e.isEmpty()) emit yo->fallo(tr("El gráfico no salió: %1").arg(e));
     });
     st->esperando = false;
     if (!st->listo) return {}; // lo va a contestar un plugin
@@ -350,7 +350,7 @@ QString Emisor::mostrar(const QString& grafico, const QJsonObject& valores, std:
                         int duracionMs, bool repetir) {
     if (duracionMs <= 0) duracionMs = ficha(grafico).value("duracionMs").toInt(2000);
     const QSize tam = tamanoDe(fuente);
-    if (!tam.isValid()) return "esa fuente de gráfico ya no está en ninguna escena";
+    if (!tam.isValid()) return tr("esa fuente de gráfico ya no está en ninguna escena");
     return conPedido(grafico, valores, tam, [this, grafico, valores, fuente, duracionMs, repetir](QJsonObject p) {
         return reproducir(std::move(p), grafico, valores, fuente, duracionMs, repetir);
     });
@@ -365,7 +365,7 @@ QString Emisor::mostrarOCambiar(const QString& grafico, const QJsonObject& valor
 
 QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObject& valores,
                            std::uint64_t fuente, int duracionMs, bool repetir) {
-    if (!d_->proc.disponible()) return "el renderizador de gráficos no está en este bundle";
+    if (!d_->proc.disponible()) return tr("el renderizador de gráficos no está en este bundle");
 
     // El tamaño lo manda la fuente de escena, no la ficha: es el tamaño al que
     // se va a ver.
@@ -376,7 +376,7 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
             p["alto"] = i.alto;
             existe = true;
         }
-    if (!existe) return "esa fuente de gráfico ya no está en ninguna escena";
+    if (!existe) return tr("esa fuente de gráfico ya no está en ninguna escena");
 
     // EL PLAN DE CUADROS. Con «cuándo se va» (salidaEn, un parámetro del gráfico): la
     // entrada cuadro a cuadro, el cuadro quieto repetido hasta salidaEn y la salida
@@ -422,7 +422,7 @@ void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QIma
     if (!error.isEmpty()) {
         if (d_->empezado[fuente]) graficos::agregar(fuente, {}, true); // queda lo que llegó
         quitarVideo(fuente);
-        emit fallo("El gráfico no se pudo dibujar: " + error);
+        emit fallo(tr("El gráfico no se pudo dibujar: %1").arg(error));
         return;
     }
     if (!d_->empezado[fuente]) {
@@ -452,7 +452,7 @@ void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QIma
             };
         }
         if (!graficos::reproducir(fuente, std::move(cuadros), kFps, d_->repetir[fuente], !fin, std::move(alEmpezar))) {
-            emit fallo("No se pudo reproducir el gráfico: esa fuente ya no está");
+            emit fallo(tr("No se pudo reproducir el gráfico: esa fuente ya no está"));
             return;
         }
         d_->empezado[fuente] = true;
@@ -463,9 +463,9 @@ void Emisor::recibirTanda(std::uint64_t fuente, int generacion, std::vector<QIma
 }
 
 QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente) {
-    if (!d_->proc.disponible()) return "el renderizador de gráficos no está en este bundle";
+    if (!d_->proc.disponible()) return tr("el renderizador de gráficos no está en este bundle");
     const QSize tam = tamanoDe(fuente);
-    if (!tam.isValid()) return "esa fuente de gráfico ya no está en ninguna escena";
+    if (!tam.isValid()) return tr("esa fuente de gráfico ya no está en ninguna escena");
     const QJsonObject f = ficha(grafico);
     // ¿Se anima el cambio? Solo si sabe y si lo que hay en pantalla es ESTE gráfico:
     // los valores de antes tienen que ser los suyos.
@@ -506,16 +506,16 @@ QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, s
         const int ms = std::clamp(f.value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
         const auto cuadro = d_->proc.tira(p, QVector<int>{ms}, &err);
         if (!err.isEmpty()) return err;
-        if (cuadro.empty()) return "el renderizador no devolvió el cuadro";
+        if (cuadro.empty()) return tr("el renderizador no devolvió el cuadro");
         std::vector<QImage> uno{cuadro.front().imagen};
-        if (!graficos::reproducir(fuente, std::move(uno), kFps, false)) return "no se pudo actualizar esa fuente";
+        if (!graficos::reproducir(fuente, std::move(uno), kFps, false)) return tr("no se pudo actualizar esa fuente");
         return {};
     });
 }
 
 QString Emisor::ocultar(std::uint64_t fuente) {
     quitarVideo(fuente); // el video del gráfico se va con él (aunque la fuente ya no esté)
-    if (!graficos::ocultar(fuente)) return "esa fuente de gráfico ya no está";
+    if (!graficos::ocultar(fuente)) return tr("esa fuente de gráfico ya no está");
     emit cambio();
     return {};
 }
@@ -549,7 +549,7 @@ QString Emisor::sacar(std::uint64_t fuente, int siSigue) {
             p["alto"] = i.alto;
             existe = true;
         }
-    if (!existe) return "esa fuente de gráfico ya no está en ninguna escena";
+    if (!existe) return tr("esa fuente de gráfico ya no está en ninguna escena");
     const int dur = std::clamp(p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800), 0, 3000) + 150;
     std::vector<int> plan;
     for (int ms = kDesde; ms <= kDesde + dur; ms += 1000 / kFps) plan.push_back(ms);

@@ -3,6 +3,8 @@
 // ============================================================================
 #include "sala/Atencion.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cctype>
 
@@ -25,17 +27,17 @@ const char* claveDe(Atendedor a) {
 
 std::string nombreDe(Atendedor a) {
     switch (a) {
-        case Atendedor::Recepcion: return "el rol de recepción";
-        case Atendedor::Automatizacion: return "el asistente de automatización";
+        case Atendedor::Recepcion: return ba::i18n::traducir("sala", "el rol de recepción");
+        case Atendedor::Automatizacion: return ba::i18n::traducir("sala", "el asistente de automatización");
         case Atendedor::Nadie: break;
     }
-    return "nadie";
+    return ba::i18n::traducir("sala", "nadie");
 }
 
 std::string porQueNadie(Atendedor a) {
     if (a != Atendedor::Nadie) return {};
-    return "No hay quién atienda: prendé el rol «recepción» (Agentes) o el asistente de automatización "
-           "(pestaña ✦). El del evento no atiende el lobby: es la charla con vos.";
+    return ba::i18n::traducir("sala", "No hay quién atienda: prendé el rol «recepción» (Agentes) o el asistente de "
+                                      "automatización (pestaña ✦). El del evento no atiende el lobby: es la charla con vos.");
 }
 
 const char* claveDe(Ambito a) { return a == Ambito::Asamblea ? "asamblea" : "sala"; }

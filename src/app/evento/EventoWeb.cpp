@@ -76,7 +76,12 @@ std::string duracionTexto(int seg) {
     return m >= 60 ? std::to_string(m / 60) + " h" + (m % 60 ? " " + std::to_string(m % 60) + " min" : std::string())
                    : std::to_string(m) + " min";
 }
-std::string nombreDe(const Bloque& b, std::size_t i) { return b.nombre.empty() ? "Sección " + std::to_string(i + 1) : b.nombre; }
+/// El idioma de la página: el del evento; si no tiene, el del programa (como «idioma» en el estado).
+ba::i18n::En idiomaDe(const Evento& e) { return ba::i18n::En(e.idioma.empty() ? ba::i18n::actual().codigo : e.idioma); }
+/// El nombre de una sección (lo ve el público: en el idioma del evento).
+std::string nombreDe(const Bloque& b, std::size_t i, const ba::i18n::En& en) {
+    return b.nombre.empty() ? ba::i18n::llenar(en.traducir("evento", "Sección %1"), {std::to_string(i + 1)}) : b.nombre;
+}
 
 fs::path& carpetaPlantillasRef() {
     static fs::path p;
@@ -165,7 +170,7 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
     std::error_code ec;
     fs::create_directories(dir, ec);
     if (ec) {
-        r.error = "no se pudo crear " + dir.string();
+        r.error = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo crear %1"), {dir.string()});
         return r;
     }
     SitioWeb s = SitioWeb::leer(dir, e);
@@ -173,7 +178,8 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
     // actualiza con la plantilla y el guion de ahora; si lo editaron, no se toca.
     json huellas = s.resto.value("plantillas", json::object());
     if (!huellas.is_object()) huellas = json::object();
-    const std::string titulo = s.titulo.empty() ? (e.nombre.empty() ? std::string("El evento") : e.nombre) : s.titulo;
+    const ba::i18n::En en = idiomaDe(e);
+    const std::string titulo = s.titulo.empty() ? (e.nombre.empty() ? en.traducir("evento", "El evento") : e.nombre) : s.titulo;
     const auto poner = [&](const std::string& rel, const std::string& texto) {
         if (fs::exists(dir / rel) && !sobrescribir) {
             const std::string actual = leerArchivo(dir / rel);
@@ -187,7 +193,7 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
             r.escritas.push_back(rel);
             huellas[rel] = huella(texto);
         } else {
-            r.error = "no se pudo escribir " + rel;
+            r.error = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {rel});
         }
     };
     // Las plantillas del sistema (assets/web/evento/plantilla): genéricas, sin datos del
@@ -203,16 +209,18 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
     const std::string tPortada = plantilla("portada.html"), tSeccion = plantilla("seccion.html"),
                       tCierre = plantilla("cierre.html"), tEstilo = plantilla("estilo.css");
     if (tPortada.empty() || tSeccion.empty() || tCierre.empty() || tEstilo.empty()) {
-        r.error = "no encontré las plantillas del sitio en " + pl.string();
+        r.error = ba::i18n::llenar(ba::i18n::traducir("evento", "no encontré las plantillas del sitio en %1"), {pl.string()});
         return r;
     }
     std::size_t nSec = e.bloques.size();
     int totalSeg = 0;
     for (const Bloque& b : e.bloques) totalSeg += b.duracionSeg();
     const std::string descripcion =
-        s.bajada.empty() ? (nSec ? std::to_string(nSec) + (nSec == 1 ? " sección" : " secciones") : std::string("En vivo")) +
-                               (totalSeg ? " · " + duracionTexto(totalSeg) : std::string()) + " · en vivo por internet."
-                         : s.bajada;
+        s.bajada.empty()
+            ? (nSec ? en.traducir("evento", "%n sección", nullptr, static_cast<int>(nSec)) : en.traducir("evento", "En vivo")) +
+                  (totalSeg ? " · " + duracionTexto(totalSeg) : std::string()) + " · " +
+                  en.traducir("evento", "en vivo por internet.")
+            : s.bajada;
     const auto llenar = [&](std::string t, const std::string& tituloPagina, const std::string& seccion) {
         reemplazar(t, "{{titulo}}", escapar(tituloPagina));
         reemplazar(t, "{{evento}}", escapar(titulo));
@@ -226,7 +234,7 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
     poner("portada.html", llenar(tPortada, titulo, ""));
     for (std::size_t i = 0; i < nSec; ++i) {
         const Bloque& b = e.bloques[i];
-        poner(paginaDeBloque(b, i), llenar(tSeccion, nombreDe(b, i) + " — " + titulo, b.id.empty() ? std::to_string(i) : b.id));
+        poner(paginaDeBloque(b, i), llenar(tSeccion, nombreDe(b, i, en) + " — " + titulo, b.id.empty() ? std::to_string(i) : b.id));
     }
     poner("cierre.html", llenar(tCierre, titulo, ""));
     s.resto["plantillas"] = huellas;
@@ -356,7 +364,7 @@ json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado
         if (estado == "terminado") est = "hecha";
         else if (bloque >= 0) est = bi < bloque ? "hecha" : bi == bloque ? "actual" : "pendiente";
         secciones.push_back({{"id", b.id.empty() ? std::to_string(i) : b.id},
-                             {"nombre", b.nombre.empty() ? "Sección " + std::to_string(i + 1) : b.nombre},
+                             {"nombre", nombreDe(b, i, idiomaDe(e))},
                              {"duracionSeg", b.duracionSeg()},
                              {"pagina", paginaDeBloque(b, i)},
                              {"inicioPrevistoMs", inicioMs > 0 ? previsto : 0},

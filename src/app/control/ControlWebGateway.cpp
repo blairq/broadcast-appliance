@@ -82,7 +82,7 @@ void ControlWebGateway::emparejar(const json& perfil, const std::string& nombre,
         return;
     }
     if (!gw_.online()) {
-        listo({{"error", "El gateway no está andando: el navegador no tendría a quién conectarse."}});
+        listo({{"error", tr("El gateway no está andando: el navegador no tendría a quién conectarse.").toStdString()}});
         return;
     }
     const std::string codigo = texto(c, "codigo");
@@ -113,7 +113,7 @@ void ControlWebGateway::estado(std::function<void(const json&)> listo) {
         return;
     }
     sala::pedir(gw_, "GET", "/api/v1/control/estado", {}, [listo](const std::string& error, const json& r) {
-        listo(error.empty() ? r : json("sin respuesta"));
+        listo(error.empty() ? r : json(tr("sin respuesta").toStdString()));
     });
 }
 

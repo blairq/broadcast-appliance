@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/Historico.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cctype>
@@ -326,11 +328,11 @@ nlohmann::json Historico::limpiarGrabaciones(const fs::path& evento, std::int64_
 std::string Historico::exportar(const fs::path& evento, const fs::path& objetos, const fs::path& destino,
                                 bool conGrabaciones, fs::path* copia) {
     std::error_code ec;
-    if (!fs::is_directory(evento, ec)) return "no está la carpeta del evento";
+    if (!fs::is_directory(evento, ec)) return ba::i18n::traducir("evento", "no está la carpeta del evento");
     fs::path dst = destino / evento.filename();
     for (int i = 2; fs::exists(dst, ec); ++i) dst = destino / (evento.filename().string() + "-" + std::to_string(i));
     fs::create_directories(dst, ec);
-    if (ec) return "no se pudo crear " + dst.string() + ": " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo crear %1: %2"), {dst.string(), ec.message()});
     for (fs::recursive_directory_iterator it(evento, ec), fin; !ec && it != fin; it.increment(ec)) {
         const fs::path rel = fs::relative(it->path(), evento, ec);
         const std::string r = rel.generic_string();
@@ -342,7 +344,7 @@ std::string Historico::exportar(const fs::path& evento, const fs::path& objetos,
         if (r.size() > 4 && r.compare(r.size() - 4, 4, ".tmp") == 0) continue;
         std::error_code e2;
         fs::copy_file(it->path(), dst / rel, fs::copy_options::overwrite_existing, e2);
-        if (e2) return "no se pudo copiar " + r + ": " + e2.message();
+        if (e2) return ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo copiar %1: %2"), {r, e2.message()});
     }
     // Lo que nombran las fotos de configuración, para que se lean sin Eventos/.objetos.
     std::set<std::string> shas;

@@ -3,6 +3,8 @@
 // ============================================================================
 #include "registro/Totems.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <fstream>
 #include <set>
@@ -235,19 +237,27 @@ Totem totemNuevo(const std::string& id, const std::string& nombre) {
 }
 
 std::string validar(const Totem& t) {
-    if (!idValido(t.id)) return "El id del tótem va de 1 a 32 letras minúsculas, números o guiones (sin espacios ni tildes).";
-    if (t.nombre.empty()) return "Ponele un nombre al tótem.";
+    if (!idValido(t.id))
+        return ba::i18n::traducir("registro", "El id del tótem va de 1 a 32 letras minúsculas, números o guiones (sin espacios "
+                                              "ni tildes).");
+    if (t.nombre.empty()) return ba::i18n::traducir("registro", "Ponele un nombre al tótem.");
     std::set<std::string> claves;
     for (const Campo& c : t.campos) {
         if (!claveValida(c.clave))
-            return "La clave «" + c.clave + "» no sirve: van letras minúsculas, números y guion bajo (sin espacios ni tildes).";
-        if (!claves.insert(c.clave).second) return "Hay dos campos con la clave «" + c.clave + "».";
+            return ba::i18n::llenar(ba::i18n::traducir("registro", "La clave «%1» no sirve: van letras minúsculas, números y "
+                                                                   "guion bajo (sin espacios ni tildes)."),
+                                    {c.clave});
+        if (!claves.insert(c.clave).second)
+            return ba::i18n::llenar(ba::i18n::traducir("registro", "Hay dos campos con la clave «%1»."), {c.clave});
         if (c.tipo == TipoCampo::Opcion && c.opciones.size() < 2)
-            return "El campo «" + (c.etiqueta.empty() ? c.clave : c.etiqueta) + "» es de opciones: hacen falta al menos dos.";
+            return ba::i18n::llenar(ba::i18n::traducir("registro", "El campo «%1» es de opciones: hacen falta al menos dos."),
+                                    {c.etiqueta.empty() ? c.clave : c.etiqueta});
     }
     // La ficha va entera en cada pedido al modelo: larga, el modelo local tarda más en cada
     // respuesta (y se dice en voz alta lo que haga falta, no un folleto).
-    if (t.ficha.size() > 4000) return "La ficha del evento es muy larga (hasta 4000 letras): dejá lo que se pregunta en la puerta.";
+    if (t.ficha.size() > 4000)
+        return ba::i18n::traducir("registro", "La ficha del evento es muy larga (hasta 4000 letras): dejá lo que se pregunta "
+                                              "en la puerta.");
     return {};
 }
 
@@ -283,7 +293,7 @@ std::string Totems::agregar(Totem t) {
     std::vector<std::string> usados;
     for (const Totem& o : lista_) usados.push_back(o.id);
     if (t.id.empty()) t.id = idDesdeNombre(t.nombre, usados);
-    if (porId(t.id) != nullptr) return "Ya hay un tótem con el id «" + t.id + "».";
+    if (porId(t.id) != nullptr) return ba::i18n::llenar(ba::i18n::traducir("registro", "Ya hay un tótem con el id «%1»."), {t.id});
     if (const std::string e = validar(t); !e.empty()) return e;
     lista_.push_back(std::move(t));
     return {};
@@ -291,14 +301,14 @@ std::string Totems::agregar(Totem t) {
 
 std::string Totems::cambiar(const std::string& id, const json& cambios) {
     auto it = std::find_if(lista_.begin(), lista_.end(), [&id](const Totem& t) { return t.id == id; });
-    if (it == lista_.end()) return "No hay ningún tótem «" + id + "».";
-    if (!cambios.is_object()) return "Los cambios tienen que ser un objeto.";
+    if (it == lista_.end()) return ba::i18n::llenar(ba::i18n::traducir("registro", "No hay ningún tótem «%1»."), {id});
+    if (!cambios.is_object()) return ba::i18n::traducir("registro", "Los cambios tienen que ser un objeto.");
     // Se arma el resultado entero y se valida ANTES de tocar nada: un cambio a
     // medias (el nombre sí, los campos no) deja un tótem que nadie pidió.
     json j = it->aJson();
     for (auto c = cambios.begin(); c != cambios.end(); ++c) {
         if (c.key() == "id") continue; // el id no cambia: es la url y el secreto
-        if (!j.contains(c.key())) return "No conozco «" + c.key() + "» en un tótem.";
+        if (!j.contains(c.key())) return ba::i18n::llenar(ba::i18n::traducir("registro", "No conozco «%1» en un tótem."), {c.key()});
         j[c.key()] = c.value();
     }
     Totem nuevo = Totem::deJson(j);
@@ -344,12 +354,14 @@ Totems cargarTotems(const fs::path& carpeta, bool* ok, std::string* err) {
     const json j = json::parse(in, nullptr, false);
     if (!in.good() && !in.eof()) {
         if (ok != nullptr) *ok = false;
-        if (err != nullptr) *err = "no se pudo leer " + archivo.string();
+        if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("registro", "no se pudo leer %1"), {archivo.string()});
         return {};
     }
     if (j.is_discarded()) {
         if (ok != nullptr) *ok = false;
-        if (err != nullptr) *err = "la configuración de registro está rota (JSON inválido): " + archivo.string();
+        if (err != nullptr)
+            *err = ba::i18n::llenar(ba::i18n::traducir("registro", "la configuración de registro está rota (JSON inválido): %1"),
+                                    {archivo.string()});
         return {};
     }
     return Totems::deJson(j);
@@ -357,7 +369,7 @@ Totems cargarTotems(const fs::path& carpeta, bool* ok, std::string* err) {
 
 bool guardarTotems(const fs::path& carpeta, const Totems& t, std::string* err) {
     if (carpeta.empty()) {
-        if (err != nullptr) *err = "no hay un evento abierto";
+        if (err != nullptr) *err = ba::i18n::traducir("registro", "no hay un evento abierto");
         return false;
     }
     std::error_code ec;
@@ -367,18 +379,21 @@ bool guardarTotems(const fs::path& carpeta, const Totems& t, std::string* err) {
     {
         std::ofstream out(temporal, std::ios::trunc);
         if (!out) {
-            if (err != nullptr) *err = "no se pudo escribir " + temporal.string();
+            if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("registro", "no se pudo escribir %1"), {temporal.string()});
             return false;
         }
         out << t.aJson().dump(2, ' ', false, json::error_handler_t::replace) << '\n';
         if (!out) {
-            if (err != nullptr) *err = "no se pudo terminar de escribir " + temporal.string();
+            if (err != nullptr)
+                *err = ba::i18n::llenar(ba::i18n::traducir("registro", "no se pudo terminar de escribir %1"), {temporal.string()});
             return false;
         }
     }
     fs::rename(temporal, archivo, ec);
     if (ec) {
-        if (err != nullptr) *err = "no se pudo reemplazar la configuración de registro: " + ec.message();
+        if (err != nullptr)
+            *err = ba::i18n::llenar(ba::i18n::traducir("registro", "no se pudo reemplazar la configuración de registro: %1"),
+                                    {ec.message()});
         return false;
     }
     return true;

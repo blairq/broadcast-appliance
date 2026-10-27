@@ -105,8 +105,8 @@ QVariantMap Dispositivos::ausente(const QString& id) const {
             {"config", aV(c.config)},
             {"conectado", false},
             {"estado", sabido ? "ausente" : "sin_buscar"},
-            {"detalle", sabido ? QStringLiteral("No está conectado: lo que lo usa lo espera y vuelve solo cuando aparece")
-                               : QStringLiteral("Todavía no se buscó en esta sesión")},
+            {"detalle", sabido ? tr("No está conectado: lo que lo usa lo espera y vuelve solo cuando aparece")
+                               : tr("Todavía no se buscó en esta sesión")},
             {"datos", QVariantMap{}},
             {"acciones", QVariantList{}}};
 }
@@ -190,8 +190,8 @@ QVariantMap Dispositivos::porValor(const QString& tipo, const QString& valor) co
 QString Dispositivos::renombrar(const QString& id, const QString& nombre) {
     const auto it = equipos_.find(id);
     if (it != equipos_.end() && !seRecuerda(it->second.value("tipo").toString().toStdString()))
-        return "solo se les pone nombre a los dispositivos de audio y video (cámaras, micrófonos, placas, NDI, "
-               "cámaras de red)";
+        return tr("solo se les pone nombre a los dispositivos de audio y video (cámaras, micrófonos, placas, NDI, "
+                  "cámaras de red)");
     const std::string err = conocidos_->renombrar(id.toStdString(), nombre.toStdString());
     if (!err.empty()) return qs(err);
     emit cambio();
@@ -208,7 +208,7 @@ QString Dispositivos::configurar(const QString& id, const QVariantMap& config) {
 QString Dispositivos::olvidar(const QString& id) {
     // Uno conectado se volvería a anotar en la próxima búsqueda: olvidarlo
     // solo borraría su nombre sin querer.
-    if (equipos_.count(id) > 0) return "está conectado: solo se olvida uno que ya no está";
+    if (equipos_.count(id) > 0) return tr("está conectado: solo se olvida uno que ya no está");
     const std::string err = conocidos_->olvidar(id.toStdString());
     if (!err.empty()) return qs(err);
     emit cambio();
@@ -238,7 +238,7 @@ void Dispositivos::escanear(const QString& detector, Listo listo) {
     std::vector<const Detector*> cuales;
     for (const auto& d : detectores_)
         if (detector.isEmpty() || d.id == detector) cuales.push_back(&d);
-    if (cuales.empty()) return listo({{"error", "no hay un detector «" + detector + "»"}});
+    if (cuales.empty()) return listo({{"error", tr("no hay un detector «%1»").arg(detector)}});
     auto faltan = std::make_shared<int>(static_cast<int>(cuales.size()));
     auto resumen = std::make_shared<QVariantMap>();
     QPointer<Dispositivos> yo(this);
@@ -275,8 +275,8 @@ void Dispositivos::correr(const QString& id, const QString& accion, const QVaria
     const auto it = equipos_.find(id);
     if (it == equipos_.end())
         return listo({{"error", conocidos_->hay(id.toStdString())
-                                    ? "«" + id + "» no está conectado ahora"
-                                    : "no hay un equipo «" + id + "» (equipos_escanear primero)"}});
+                                    ? tr("«%1» no está conectado ahora").arg(id)
+                                    : tr("no hay un equipo «%1» (equipos_escanear primero)").arg(id)}});
     // Con el nombre del operador: «Agregar como entrada» la llama así.
     const QVariantMap e = presentar(it->second);
     const auto at = acciones_.find(e.value("tipo").toString());
@@ -284,16 +284,16 @@ void Dispositivos::correr(const QString& id, const QString& accion, const QVaria
         for (const auto& a : at->second) {
             if (a.id != accion) continue;
             if (a.aplica && !a.aplica(e))
-                return listo({{"error", "«" + accion + "» no aplica a este equipo ahora"}});
+                return listo({{"error", tr("«%1» no aplica a este equipo ahora").arg(accion)}});
             for (const auto& p : a.parametros)
                 if (p.obligatorio && args.value(p.clave).toString().isEmpty())
-                    return listo({{"error", "falta «" + p.clave + "» (" + p.etiqueta + ")"}});
+                    return listo({{"error", tr("falta «%1» (%2)").arg(p.clave, p.etiqueta)}});
             return a.correr(e, args, std::move(listo));
         }
     QStringList hay;
     for (const QVariant& a : accionesDe(e))
         hay << a.toMap().value("id").toString();
-    listo({{"error", "«" + accion + "» no es una acción de este equipo (tiene: " + hay.join(", ") + ")"}});
+    listo({{"error", tr("«%1» no es una acción de este equipo (tiene: %2)").arg(accion, hay.join(", "))}});
 }
 
 QString Dispositivos::resumenAcciones() const {

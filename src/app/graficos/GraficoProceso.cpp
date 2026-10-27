@@ -52,7 +52,7 @@ struct GraficoProceso::Impl {
         proc->setProcessChannelMode(QProcess::SeparateChannels);
         proc->start();
         if (!proc->waitForStarted(5000)) {
-            const QString e = "no se pudo arrancar el renderizador de gráficos (" + binario + ")";
+            const QString e = QCoreApplication::translate("graficos", "no se pudo arrancar el renderizador de gráficos (%1)").arg(binario);
             proc.reset();
             return e;
         }
@@ -70,7 +70,7 @@ struct GraficoProceso::Impl {
         if (!arranque.isEmpty()) return fallar(arranque);
 
         proc->write(QJsonDocument(pedido).toJson(QJsonDocument::Compact) + "\n");
-        if (!proc->waitForBytesWritten(3000)) return fallar("el renderizador no aceptó el pedido");
+        if (!proc->waitForBytesWritten(3000)) return fallar(QCoreApplication::translate("graficos", "el renderizador no aceptó el pedido"));
 
         QByteArray linea;
         while (!linea.endsWith('\n')) {
@@ -81,17 +81,17 @@ struct GraficoProceso::Impl {
                 proc->kill();
                 proc->waitForFinished(2000);
                 proc.reset();
-                return fallar(vivo ? "el gráfico se colgó (¿un bucle infinito?): se cortó el dibujo"
-                                   : "el renderizador de gráficos se murió");
+                return fallar(vivo ? QCoreApplication::translate("graficos", "el gráfico se colgó (¿un bucle infinito?): se cortó el dibujo")
+                                   : QCoreApplication::translate("graficos", "el renderizador de gráficos se murió"));
             }
             linea += proc->readLine();
         }
 
         const QJsonDocument doc = QJsonDocument::fromJson(linea);
-        if (!doc.isObject()) return fallar("el renderizador contestó algo que no entiendo");
+        if (!doc.isObject()) return fallar(QCoreApplication::translate("graficos", "el renderizador contestó algo que no entiendo"));
         const QJsonObject r = doc.object();
         if (!r.value("ok").toBool())
-            return fallar(r.value("error").toString("el renderizador falló sin decir por qué"));
+            return fallar(r.value("error").toString(QCoreApplication::translate("graficos", "el renderizador falló sin decir por qué")));
         if (error != nullptr) error->clear();
         return r;
     }
@@ -153,7 +153,8 @@ QVector<Cuadro> GraficoProceso::tira(QJsonObject pedido, const QVector<int>& mom
         if (ancho <= 0 || alto <= 0 || bpl < ancho * 4 || !seg.abrir(r.value("shm").toString().toStdString(), &err) ||
             seg.tam() < static_cast<size_t>(porCuadro * cuadros.size())) {
             if (error != nullptr)
-                *error = "no se pudieron leer los cuadros del renderizador: " + QString::fromStdString(err);
+                *error = QCoreApplication::translate("graficos", "no se pudieron leer los cuadros del renderizador: %1")
+                             .arg(QString::fromStdString(err));
             return out;
         }
         const auto* base = static_cast<const uchar*>(seg.datos());

@@ -167,11 +167,11 @@ QString Vinculos::poner(const QJsonObject& v, QString* idOut) {
     QJsonObject o = v;
     const QString fuente = o.value("fuente").toString();
     const QString grafico = o.value("grafico").toString();
-    if (fuente.isEmpty()) return "el vínculo no dice en qué fuente de escena se ve";
-    if (grafico.isEmpty()) return "el vínculo no dice qué gráfico poner";
-    if (d_->em.ficha(grafico).isEmpty()) return "no existe el gráfico «" + grafico + "»";
+    if (fuente.isEmpty()) return tr("el vínculo no dice en qué fuente de escena se ve");
+    if (grafico.isEmpty()) return tr("el vínculo no dice qué gráfico poner");
+    if (d_->em.ficha(grafico).isEmpty()) return tr("no existe el gráfico «%1»").arg(grafico);
     if (!o.value("valores").isObject() || o.value("valores").toObject().isEmpty())
-        return "el vínculo no dice de dónde sale ningún campo";
+        return tr("el vínculo no dice de dónde sale ningún campo");
 
     // Se avisa ACÁ si un origen no existe, con el vínculo todavía sin guardar:
     // descubrirlo en vivo, cuando cambie el orador, es tarde.
@@ -254,15 +254,14 @@ void Vinculos::revisar() {
 
 QString Vinculos::disparar(const QString& id) {
     const int i = d_->indiceDe(id);
-    if (i < 0) return "no existe ese vínculo";
+    if (i < 0) return tr("no existe ese vínculo");
     const QJsonObject o = d_->vs[i].toObject();
     QString err;
     const QJsonObject valores = resolver(o, &err);
     if (!err.isEmpty()) return err;
     const quint64 fuente = d_->em.fuentePorNombre(o.value("fuente").toString());
     if (fuente == 0)
-        return "no hay ninguna fuente de gráfico llamada «" + o.value("fuente").toString() +
-               "» en las escenas";
+        return tr("no hay ninguna fuente de gráfico llamada «%1» en las escenas").arg(o.value("fuente").toString());
     const QString e =
         d_->em.mostrar(o.value("grafico").toString(), valores, fuente, 0, o.value("repetir").toBool(false));
     if (e.isEmpty())

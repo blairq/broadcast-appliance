@@ -2,6 +2,8 @@
 
 #include "dispositivos/Conocidos.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -117,38 +119,42 @@ bool Conocidos::visto(const std::string& id, const std::string& tipo, const std:
 
 std::string Conocidos::renombrar(const std::string& id, const std::string& nombre0) {
     const std::string nombre = recortar(nombre0);
-    if (nombre.size() > 80) return "el nombre es muy largo (hasta 80 letras)";
+    if (nombre.size() > 80) return ba::i18n::traducir("dispositivos", "el nombre es muy largo (hasta 80 letras)");
     std::lock_guard<std::mutex> l(mu_);
     auto it = todos_.find(id);
-    if (it == todos_.end()) return "no hay un dispositivo «" + id + "» (equipos_listar)";
+    if (it == todos_.end()) return ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no hay un dispositivo «%1» (equipos_listar)"), {id});
     if (!nombre.empty())
         for (const auto& [otro, c] : todos_)
             if (otro != id && minusculas(c.mostrar()) == minusculas(nombre))
-                return "ya hay un dispositivo que se llama «" + c.mostrar() + "»: elegí otro nombre";
+                return ba::i18n::llenar(ba::i18n::traducir("dispositivos", "ya hay un dispositivo que se llama «%1»: elegí otro nombre"),
+                                        {c.mostrar()});
     // Ponerle el mismo nombre que da el sistema es no ponerle nombre: así, si el
     // sistema lo cambia (otra versión del driver), lo sigue.
     it->second.nombre = nombre == it->second.tecnico ? std::string() : nombre;
-    return guardar() ? std::string() : "no se pudo guardar el nombre en " + archivo_.string();
+    return guardar() ? std::string()
+                     : ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no se pudo guardar el nombre en %1"), {archivo_.string()});
 }
 
 std::string Conocidos::configurar(const std::string& id, const json& config) {
-    if (!config.is_object()) return "la configuración tiene que ser un objeto";
+    if (!config.is_object()) return ba::i18n::traducir("dispositivos", "la configuración tiene que ser un objeto");
     std::lock_guard<std::mutex> l(mu_);
     auto it = todos_.find(id);
-    if (it == todos_.end()) return "no hay un dispositivo «" + id + "» (equipos_listar)";
+    if (it == todos_.end()) return ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no hay un dispositivo «%1» (equipos_listar)"), {id});
     for (auto c = config.begin(); c != config.end(); ++c) {
         if (c->is_null() || (c->is_string() && c->get<std::string>().empty()))
             it->second.config.erase(c.key());
         else
             it->second.config[c.key()] = *c;
     }
-    return guardar() ? std::string() : "no se pudo guardar en " + archivo_.string();
+    return guardar() ? std::string()
+                     : ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no se pudo guardar en %1"), {archivo_.string()});
 }
 
 std::string Conocidos::olvidar(const std::string& id) {
     std::lock_guard<std::mutex> l(mu_);
-    if (todos_.erase(id) == 0) return "no hay un dispositivo «" + id + "»";
-    return guardar() ? std::string() : "no se pudo guardar en " + archivo_.string();
+    if (todos_.erase(id) == 0) return ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no hay un dispositivo «%1»"), {id});
+    return guardar() ? std::string()
+                     : ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no se pudo guardar en %1"), {archivo_.string()});
 }
 
 bool Conocidos::hay(const std::string& id) const {

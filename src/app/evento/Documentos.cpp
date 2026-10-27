@@ -3,6 +3,8 @@
 
 #include "evento/Documentos.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <fstream>
 #include <random>
@@ -117,7 +119,7 @@ json Documentos::publicos() const {
 std::string Documentos::agregar(const fs::path& origen, const json& datos, std::int64_t ahoraMs, std::string* error) {
     std::error_code ec;
     if (!fs::is_regular_file(origen, ec)) {
-        if (error) *error = "no existe el archivo " + aU8(origen);
+        if (error) *error = ba::i18n::llenar(ba::i18n::traducir("evento", "no existe el archivo %1"), {aU8(origen)});
         return {};
     }
     fs::create_directories(archivos(), ec);
@@ -128,7 +130,7 @@ std::string Documentos::agregar(const fs::path& origen, const json& datos, std::
     for (int i = 2; fs::exists(archivos() / deU8(nombre), ec); ++i) nombre = base + " (" + std::to_string(i) + ")" + ext;
     fs::copy_file(origen, archivos() / deU8(nombre), ec);
     if (ec) {
-        if (error) *error = "no se pudo copiar: " + ec.message();
+        if (error) *error = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo copiar: %1"), {ec.message()});
         return {};
     }
     json l = leer();
@@ -149,7 +151,7 @@ std::string Documentos::agregar(const fs::path& origen, const json& datos, std::
     l.push_back(d);
     if (!guardar(l)) {
         fs::remove(archivos() / deU8(nombre), ec);
-        if (error) *error = "no se pudo guardar el índice de documentos";
+        if (error) *error = ba::i18n::traducir("evento", "no se pudo guardar el índice de documentos");
         return {};
     }
     return id;
@@ -160,9 +162,9 @@ std::string Documentos::editar(const std::string& id, const json& cambios) {
     for (auto& d : l)
         if (d.value("id", std::string()) == id) {
             aplicar(d, cambios);
-            return guardar(l) ? std::string() : "no se pudo guardar el índice de documentos";
+            return guardar(l) ? std::string() : ba::i18n::traducir("evento", "no se pudo guardar el índice de documentos");
         }
-    return "no hay un documento «" + id + "»";
+    return ba::i18n::llenar(ba::i18n::traducir("evento", "no hay un documento «%1»"), {id});
 }
 
 std::string Documentos::quitar(const std::string& id) {
@@ -180,9 +182,9 @@ std::string Documentos::quitar(const std::string& id) {
         }
         fs::remove(miniatura(id), ec);
         l.erase(it);
-        return guardar(l) ? std::string() : "no se pudo guardar el índice de documentos";
+        return guardar(l) ? std::string() : ba::i18n::traducir("evento", "no se pudo guardar el índice de documentos");
     }
-    return "no hay un documento «" + id + "»";
+    return ba::i18n::llenar(ba::i18n::traducir("evento", "no hay un documento «%1»"), {id});
 }
 
 } // namespace ba::evento

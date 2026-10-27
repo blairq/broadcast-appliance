@@ -6,6 +6,7 @@
 
 #include "control/BusEventos.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -25,6 +26,8 @@ namespace ba::app::control {
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -415,14 +418,14 @@ json Botonera::perfil(const std::string& id) const {
 
 std::string Botonera::crearPerfil(const json& p, const std::string& plantilla, std::string* idOut) {
     json nuevo = plantilla.empty() ? json::object() : armarPlantilla(plantilla);
-    if (nuevo.is_null()) return "no hay una plantilla «" + plantilla + "» (botonera_plantillas)";
+    if (nuevo.is_null()) return llenar(traducir("botonera", "no hay una plantilla «%1» (botonera_plantillas)"), {plantilla});
     if (p.contains("nombre")) nuevo["nombre"] = p["nombre"];
-    if (!nuevo.contains("nombre")) nuevo["nombre"] = "Perfil";
+    if (!nuevo.contains("nombre")) nuevo["nombre"] = traducir("botonera", "Perfil");
     if (p.contains("herramientas_permitidas")) nuevo["herramientas_permitidas"] = p["herramientas_permitidas"];
     if (!nuevo.contains("herramientas_permitidas")) nuevo["herramientas_permitidas"] = json::array();
     nuevo["puede_editar"] = p.value("puede_editar", false);
     if (!nuevo.contains("paginas") || nuevo["paginas"].empty())
-        nuevo["paginas"] = json::array({{{"id", "p1"}, {"nombre", "Página 1"}, {"columnas", 4}, {"filas", 3},
+        nuevo["paginas"] = json::array({{{"id", "p1"}, {"nombre", traducir("botonera", "Página 1")}, {"columnas", 4}, {"filas", 3},
                                          {"celdas", json::array()}}});
     nuevo["id"] = idNuevo("perfil");
     datos_["perfiles"].push_back(nuevo);
@@ -435,28 +438,31 @@ std::string Botonera::crearPerfil(const json& p, const std::string& plantilla, s
 
 std::string Botonera::editarPerfil(const std::string& id, const json& c, bool humano) {
     json* orig = buscarPerfil(id);
-    if (orig == nullptr) return "no hay un perfil «" + id + "»";
+    if (orig == nullptr) return llenar(traducir("botonera", "no hay un perfil «%1»"), {id});
     // Sobre una copia: con un error en el medio no queda nada a medias (se guardaba con el próximo cambio).
     json copia = *orig;
     json* p = &copia;
     if (c.contains("nombre") && c["nombre"].is_string()) (*p)["nombre"] = c["nombre"];
     if (c.contains("herramientas_permitidas")) {
-        if (!c["herramientas_permitidas"].is_array()) return "herramientas_permitidas es una lista";
+        if (!c["herramientas_permitidas"].is_array()) return traducir("botonera", "herramientas_permitidas es una lista");
         std::set<std::string> antes;
         for (const auto& h : p->value("herramientas_permitidas", json::array()))
             if (h.is_string()) antes.insert(h.get<std::string>());
         for (const auto& h : c["herramientas_permitidas"]) {
-            if (!h.is_string()) return "herramientas_permitidas: solo nombres";
+            if (!h.is_string()) return traducir("botonera", "herramientas_permitidas: solo nombres");
             const std::string n = h.get<std::string>();
             // Ampliar permisos es decisión de una persona, no del asistente.
             if (!humano && !antes.count(n) && !antes.count("*"))
-                return "solo una persona puede sumar herramientas a un perfil (hacelo en la página Botonera): «" + n + "»";
+                return llenar(traducir("botonera", "solo una persona puede sumar herramientas a un perfil (hacelo en la "
+                                                   "página Botonera): «%1»"),
+                              {n});
         }
         (*p)["herramientas_permitidas"] = c["herramientas_permitidas"];
     }
     if (c.contains("puede_editar")) {
         const bool v = c.value("puede_editar", false);
-        if (v && !humano && !p->value("puede_editar", false)) return "solo una persona puede habilitar la edición desde el aparato";
+        if (v && !humano && !p->value("puede_editar", false))
+            return traducir("botonera", "solo una persona puede habilitar la edición desde el aparato");
         (*p)["puede_editar"] = v;
     }
     *orig = std::move(copia);
@@ -483,11 +489,11 @@ bool Botonera::borrarPerfil(const std::string& id) {
 std::string Botonera::crearPagina(const std::string& perfil, const std::string& nombre, int columnas, int filas,
                                   std::string* idOut) {
     json* p = buscarPerfil(perfil);
-    if (p == nullptr) return "no hay un perfil «" + perfil + "»";
-    if (columnas < 1 || columnas > 16 || filas < 1 || filas > 16) return "columnas y filas van de 1 a 16";
+    if (p == nullptr) return llenar(traducir("botonera", "no hay un perfil «%1»"), {perfil});
+    if (columnas < 1 || columnas > 16 || filas < 1 || filas > 16) return traducir("botonera", "columnas y filas van de 1 a 16");
     const std::string id = idNuevo("pag");
     (*p)["paginas"].push_back(
-        {{"id", id}, {"nombre", nombre.empty() ? "Página" : nombre}, {"columnas", columnas}, {"filas", filas},
+        {{"id", id}, {"nombre", nombre.empty() ? traducir("botonera", "Página") : nombre}, {"columnas", columnas}, {"filas", filas},
          {"celdas", json::array()}});
     guardar();
     if (idOut != nullptr) *idOut = id;
@@ -498,11 +504,11 @@ std::string Botonera::crearPagina(const std::string& perfil, const std::string& 
 
 std::string Botonera::editarPagina(const std::string& perfil, const std::string& pagina, const json& c) {
     json* g = buscarPagina(perfil, pagina);
-    if (g == nullptr) return "no hay esa página";
+    if (g == nullptr) return traducir("botonera", "no hay esa página");
     // Todo revisado antes de cambiar nada.
     for (const char* k : {"columnas", "filas"})
         if (c.contains(k))
-            if (const int v = c.value(k, 0); v < 1 || v > 16) return std::string(k) + " va de 1 a 16";
+            if (const int v = c.value(k, 0); v < 1 || v > 16) return llenar(traducir("botonera", "%1 va de 1 a 16"), {k});
     if (c.contains("nombre") && c["nombre"].is_string()) (*g)["nombre"] = c["nombre"];
     for (const char* k : {"columnas", "filas"})
         if (c.contains(k)) (*g)[k] = c.value(k, 0);
@@ -529,47 +535,54 @@ bool Botonera::borrarPagina(const std::string& perfil, const std::string& pagina
 
 std::string Botonera::validarAccion(const json& a, int prof) const {
     if (a.is_null()) return {};
-    if (!a.is_object()) return "una acción es un objeto {tipo, …}";
-    if (prof > 3) return "secuencias demasiado anidadas";
+    if (!a.is_object()) return traducir("botonera", "una acción es un objeto {tipo, …}");
+    if (prof > 3) return traducir("botonera", "secuencias demasiado anidadas");
     const std::string t = a.value("tipo", std::string("herramienta"));
     if (t == "herramienta") {
         const std::string h = a.value("herramienta", std::string());
-        if (h.empty()) return "falta `herramienta`";
+        if (h.empty()) return traducir("botonera", "falta `herramienta`");
         if (g_.herramientas) {
             const auto hs = g_.herramientas();
-            if (!hs.empty() && !hs.count(h)) return "no existe la herramienta «" + h + "»";
+            if (!hs.empty() && !hs.count(h)) return llenar(traducir("botonera", "no existe la herramienta «%1»"), {h});
         }
-        if (a.contains("args") && !a["args"].is_object()) return "`args` es un objeto";
+        if (a.contains("args") && !a["args"].is_object()) return traducir("botonera", "`args` es un objeto");
         return {};
     }
-    if (t == "pagina") return a.value("ir_a", std::string()).empty() ? "falta `ir_a` (id de página)" : std::string();
-    if (t == "receta") return a.value("id", std::string()).empty() ? "falta el `id` de la receta" : std::string();
+    if (t == "pagina")
+        return a.value("ir_a", std::string()).empty() ? traducir("botonera", "falta `ir_a` (id de página)") : std::string();
+    if (t == "receta")
+        return a.value("id", std::string()).empty() ? traducir("botonera", "falta el `id` de la receta") : std::string();
     if (t == "secuencia") {
-        if (!a.contains("pasos") || !a["pasos"].is_array() || a["pasos"].empty()) return "una secuencia lleva `pasos`";
+        if (!a.contains("pasos") || !a["pasos"].is_array() || a["pasos"].empty())
+            return traducir("botonera", "una secuencia lleva `pasos`");
         for (const auto& p : a["pasos"])
-            if (const std::string e = validarAccion(p, prof + 1); !e.empty()) return "paso: " + e;
+            if (const std::string e = validarAccion(p, prof + 1); !e.empty())
+                return llenar(traducir("botonera", "paso: %1"), {e});
         return {};
     }
-    return "tipo de acción desconocido «" + t + "» (herramienta, pagina, receta, secuencia)";
+    return llenar(traducir("botonera", "tipo de acción desconocido «%1» (herramienta, pagina, receta, secuencia)"), {t});
 }
 
 std::string Botonera::validarCelda(const json& c) const {
-    if (!c.is_object()) return "la celda es un objeto";
+    if (!c.is_object()) return traducir("botonera", "la celda es un objeto");
     if (!c.contains("x") || !c.contains("y") || !c["x"].is_number_integer() || !c["y"].is_number_integer())
-        return "faltan x e y (enteros)";
+        return traducir("botonera", "faltan x e y (enteros)");
     const std::string tipo = c.value("tipo", std::string("boton"));
-    if (!kTipos.count(tipo)) return "tipo «" + tipo + "»: boton, fader, perilla, medidor, texto o reloj";
+    if (!kTipos.count(tipo))
+        return llenar(traducir("botonera", "tipo «%1»: boton, fader, perilla, medidor, texto o reloj"), {tipo});
     for (const char* k : {"accion", "accion_soltar", "accion_mantener"})
         if (c.contains(k))
             if (const std::string e = validarAccion(c[k], 0); !e.empty()) return std::string(k) + ": " + e;
     if (c.contains("estado")) {
-        if (!c["estado"].is_array()) return "`estado` es una lista de ligaduras";
+        if (!c["estado"].is_array()) return traducir("botonera", "`estado` es una lista de ligaduras");
         for (const auto& l : c["estado"]) {
-            if (!l.is_object() || l.value("tema", std::string()).empty()) return "cada ligadura lleva `tema`";
-            if (!kOps.count(l.value("op", std::string()))) return "op «" + l.value("op", std::string()) + "» desconocido";
+            if (!l.is_object() || l.value("tema", std::string()).empty())
+                return traducir("botonera", "cada ligadura lleva `tema`");
+            if (!kOps.count(l.value("op", std::string())))
+                return llenar(traducir("botonera", "op «%1» desconocido"), {l.value("op", std::string())});
             if (!kEfectos.count(l.value("efecto", std::string())))
-                return "efecto: fondo, color, texto, titilar, valor, icono, activo, nivel, imagen, borde, borde_titilar, "
-                       "insignia o atenuar";
+                return traducir("botonera", "efecto: fondo, color, texto, titilar, valor, icono, activo, nivel, imagen, "
+                                            "borde, borde_titilar, insignia o atenuar");
         }
     }
     return {};
@@ -577,14 +590,14 @@ std::string Botonera::validarCelda(const json& c) const {
 
 std::string Botonera::setCelda(const std::string& perfil, const std::string& pagina, const json& celda) {
     json* g = buscarPagina(perfil, pagina);
-    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    if (g == nullptr) return llenar(traducir("botonera", "no hay esa página (perfil «%1», página «%2»)"), {perfil, pagina});
     if (const std::string e = validarCelda(celda); !e.empty()) return e;
     json c = celda;
     if (!c.contains("tipo")) c["tipo"] = "boton";
     const int x = c["x"], y = c["y"], w = std::max(1, c.value("ancho", 1)), h = std::max(1, c.value("alto", 1));
     if (x < 0 || y < 0 || x + w > g->value("columnas", 4) || y + h > g->value("filas", 3))
-        return "la celda se sale de la grilla (" + std::to_string(g->value("columnas", 4)) + "×" +
-               std::to_string(g->value("filas", 3)) + ")";
+        return llenar(traducir("botonera", "la celda se sale de la grilla (%1×%2)"),
+                      {std::to_string(g->value("columnas", 4)), std::to_string(g->value("filas", 3))});
     // Reemplaza lo que pise.
     auto& cs = (*g)["celdas"];
     cs.erase(std::remove_if(cs.begin(), cs.end(),
@@ -621,10 +634,11 @@ bool Botonera::borrarCelda(const std::string& perfil, const std::string& pagina,
 
 std::string Botonera::validarLugar(const std::string& perfil, const std::string& pagina, int x, int y) const {
     const json* g = buscarPagina(perfil, pagina);
-    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    if (g == nullptr) return llenar(traducir("botonera", "no hay esa página (perfil «%1», página «%2»)"), {perfil, pagina});
     if (x < 0 || y < 0 || x >= g->value("columnas", 4) || y >= g->value("filas", 3))
-        return "(" + std::to_string(x) + ", " + std::to_string(y) + ") está fuera de la grilla (" +
-               std::to_string(g->value("columnas", 4)) + "×" + std::to_string(g->value("filas", 3)) + ")";
+        return llenar(traducir("botonera", "(%1, %2) está fuera de la grilla (%3×%4)"),
+                      {std::to_string(x), std::to_string(y), std::to_string(g->value("columnas", 4)),
+                       std::to_string(g->value("filas", 3))});
     return {};
 }
 
@@ -660,7 +674,7 @@ bool Botonera::alTocarCara(const json& celda) const {
 }
 
 std::string Botonera::setCeldaEn(const std::string& perfil, const std::string& pagina, int x, int y, const json& celda) {
-    if (!celda.is_object()) return "la celda es un objeto";
+    if (!celda.is_object()) return traducir("botonera", "la celda es un objeto");
     json c = celda;
     c["x"] = x;
     c["y"] = y;
@@ -669,7 +683,7 @@ std::string Botonera::setCeldaEn(const std::string& perfil, const std::string& p
 
 std::string Botonera::editarCelda(const std::string& perfil, const std::string& pagina, int x, int y,
                                   const json& campos) {
-    if (!campos.is_object()) return "los campos son un objeto";
+    if (!campos.is_object()) return traducir("botonera", "los campos son un objeto");
     std::string error;
     json c = celdaParaEditar(perfil, pagina, x, y, &error);
     if (c.is_null()) return error;
@@ -701,7 +715,7 @@ std::string Botonera::editarCelda(const std::string& perfil, const std::string& 
 
 std::string Botonera::ponerCara(const std::string& perfil, const std::string& pagina, int x, int y,
                                 const std::string& idCara, bool alTocar, std::string* aviso) {
-    if (idCara.empty()) return "falta la cara";
+    if (idCara.empty()) return traducir("botonera", "falta la cara");
     std::string error;
     json c = celdaParaEditar(perfil, pagina, x, y, &error);
     if (c.is_null()) return error;
@@ -711,7 +725,7 @@ std::string Botonera::ponerCara(const std::string& perfil, const std::string& pa
         bool video = false;
         const std::string medio = medioDeCelda(c, &video);
         if (medio.empty()) {
-            if (aviso) *aviso = "un video de cámara no se puede poner al aire, solo se ve en el botón";
+            if (aviso) *aviso = traducir("botonera", "un video de cámara no se puede poner al aire, solo se ve en el botón");
         } else {
             c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "medio_poner"}, {"args", {{"path", medio}, {"loop", video}}}};
         }
@@ -721,9 +735,9 @@ std::string Botonera::ponerCara(const std::string& perfil, const std::string& pa
 
 std::string Botonera::quitarCara(const std::string& perfil, const std::string& pagina, int x, int y) {
     const json* g = buscarPagina(perfil, pagina);
-    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    if (g == nullptr) return llenar(traducir("botonera", "no hay esa página (perfil «%1», página «%2»)"), {perfil, pagina});
     const json* hay = celdaEn(*g, x, y);
-    if (hay == nullptr) return "no hay celda en (" + std::to_string(x) + ", " + std::to_string(y) + ")";
+    if (hay == nullptr) return llenar(traducir("botonera", "no hay celda en (%1, %2)"), {std::to_string(x), std::to_string(y)});
     json c = *hay;
     if (c.contains("estilo") && c["estilo"].is_object()) c["estilo"].erase("imagen");
     return setCelda(perfil, pagina, c);
@@ -731,14 +745,15 @@ std::string Botonera::quitarCara(const std::string& perfil, const std::string& p
 
 std::string Botonera::setAlTocarCara(const std::string& perfil, const std::string& pagina, int x, int y, bool on) {
     const json* g = buscarPagina(perfil, pagina);
-    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    if (g == nullptr) return llenar(traducir("botonera", "no hay esa página (perfil «%1», página «%2»)"), {perfil, pagina});
     const json* hay = celdaEn(*g, x, y);
-    if (hay == nullptr) return "no hay celda en (" + std::to_string(x) + ", " + std::to_string(y) + ")";
+    if (hay == nullptr) return llenar(traducir("botonera", "no hay celda en (%1, %2)"), {std::to_string(x), std::to_string(y)});
     json c = *hay;
     bool video = false;
     const std::string medio = medioDeCelda(c, &video);
     if (on) {
-        if (medio.empty()) return "esta cara no se puede poner al aire (un video de cámara solo se ve en el botón)";
+        if (medio.empty())
+            return traducir("botonera", "esta cara no se puede poner al aire (un video de cámara solo se ve en el botón)");
         c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "medio_poner"}, {"args", {{"path", medio}, {"loop", video}}}};
     } else {
         if (!alTocarCara(c)) return {}; // ya no lo hacía
@@ -785,8 +800,9 @@ std::string Botonera::avisoPermisos(const std::string& perfil, const json& celda
     for (const char* k : {"accion", "accion_soltar", "accion_mantener"})
         if (celda.contains(k) && celda[k].is_object() && celda[k].contains("herramienta") &&
             !perm.count(celda[k].value("herramienta", std::string())))
-            aviso = "«" + celda[k].value("herramienta", std::string()) +
-                    "» no está en las herramientas del perfil; hasta que una persona la sume, el botón avisa y no hace nada.";
+            aviso = llenar(traducir("botonera", "«%1» no está en las herramientas del perfil; hasta que una persona la "
+                                                "sume, el botón avisa y no hace nada."),
+                           {celda[k].value("herramienta", std::string())});
     return aviso;
 }
 
@@ -803,10 +819,11 @@ json Botonera::celdas(const std::string& perfil, const std::string& pagina) cons
 }
 
 std::string Botonera::importar(const json& p, std::string* idOut) {
-    if (!p.is_object() || !p.contains("paginas") || !p["paginas"].is_array()) return "un perfil lleva `paginas`";
+    if (!p.is_object() || !p.contains("paginas") || !p["paginas"].is_array())
+        return traducir("botonera", "un perfil lleva `paginas`");
     for (const auto& g : p["paginas"])
         for (const auto& c : g.value("celdas", json::array()))
-            if (const std::string e = validarCelda(c); !e.empty()) return "celda inválida: " + e;
+            if (const std::string e = validarCelda(c); !e.empty()) return llenar(traducir("botonera", "celda inválida: %1"), {e});
     json nuevo = p;
     nuevo["id"] = idNuevo("perfil");
     // Lo importado no trae permisos: los da una persona después.
@@ -830,22 +847,25 @@ json Botonera::exportar(const std::string& perfil) const {
 // ============================================================================
 
 json Botonera::plantillas() const {
-    return json::array({{{"id", "director"}, {"nombre", "Director"},
-                         {"descripcion", "Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión"}},
-                        {{"id", "audio"}, {"nombre", "Audio"},
-                         {"descripcion", "Un fader por fuente con su medidor y mudo; loudness del programa"}},
-                        {{"id", "asamblea"}, {"nombre", "Asamblea"},
-                         {"descripcion", "Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE"}},
-                        {{"id", "recinto"}, {"nombre", "Recinto"},
-                         {"descripcion", "Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE"}},
-                        {{"id", "microfonos"}, {"nombre", "Micrófonos de bancas"},
-                         {"descripcion", "La central de conferencia: la cara de cada banca donde está en la sala; un toque le "
-                                         "da o le corta el audio, mantener la pone al aire; siguiente, cerrar todos"}},
-                        {{"id", "prompter"}, {"nombre", "Prompter"},
-                         {"descripcion", "Correr y parar, velocidad, avisos al orador"}},
-                        {{"id", "pdf"}, {"nombre", "PDF"},
-                         {"descripcion", "Pasar las páginas del PDF de la escena, elegir otro de la documentación del "
-                                         "evento y poner la escena «PDF» al aire"}}});
+    return json::array(
+        {{{"id", "director"}, {"nombre", traducir("botonera", "Director")},
+          {"descripcion", traducir("botonera", "Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión")}},
+         {{"id", "audio"}, {"nombre", traducir("botonera", "Audio")},
+          {"descripcion", traducir("botonera", "Un fader por fuente con su medidor y mudo; loudness del programa")}},
+         {{"id", "asamblea"}, {"nombre", traducir("botonera", "Asamblea")},
+          {"descripcion", traducir("botonera", "Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE")}},
+         {{"id", "recinto"}, {"nombre", traducir("botonera", "Recinto")},
+          {"descripcion", traducir("botonera", "Las bancas donde están en la sala (un toque: al aire armado), siguiente, "
+                                               "terminar, TAKE")}},
+         {{"id", "microfonos"}, {"nombre", traducir("botonera", "Micrófonos de bancas")},
+          {"descripcion", traducir("botonera", "La central de conferencia: la cara de cada banca donde está en la sala; un "
+                                               "toque le da o le corta el audio, mantener la pone al aire; siguiente, "
+                                               "cerrar todos")}},
+         {{"id", "prompter"}, {"nombre", "Prompter"},
+          {"descripcion", traducir("botonera", "Correr y parar, velocidad, avisos al orador")}},
+         {{"id", "pdf"}, {"nombre", "PDF"},
+          {"descripcion", traducir("botonera", "Pasar las páginas del PDF de la escena, elegir otro de la documentación del "
+                                               "evento y poner la escena «PDF» al aire")}}});
 }
 
 json Botonera::armarPlantilla(const std::string& id) const {
@@ -875,7 +895,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
     int columnas = 6, filas = 4;
     std::string nombre;
     if (id == "director") {
-        nombre = "Director";
+        nombre = traducir("botonera", "Director");
         const std::vector<std::string> esc = g_.escenas ? g_.escenas() : std::vector<std::string>{};
         int i = 0;
         for (const auto& e : esc) {
@@ -887,16 +907,16 @@ json Botonera::armarPlantilla(const std::string& id) const {
         }
         usar(boton(0, 3, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
         usar(boton(1, 3, "FTB", herr("aire_ftb", {{"activar", true}}), json::array(), "#000000"));
-        usar(boton(2, 3, "Volver de FTB", herr("aire_ftb", {{"activar", false}})));
+        usar(boton(2, 3, traducir("botonera", "Volver de FTB"), herr("aire_ftb", {{"activar", false}})));
         usar(boton(4, 3, "REC", herr("record_start"),
                    {lig("salida/grabacion", "activo", "==", true, "fondo", "#c62828"),
                     lig("salida/grabacion", "activo", "==", true, "titilar", true),
                     lig("salida/grabacion", "tiempo", "", nullptr, "texto", "REC\n{{v}}")}));
-        usar(boton(5, 3, "AIRE", herr("stream_start"),
+        usar(boton(5, 3, traducir("botonera", "AIRE"), herr("stream_start"),
                    {lig("salida/stream", "activo", "==", true, "fondo", "#c62828"),
-                    lig("salida/stream", "tiempo", "", nullptr, "texto", "AIRE\n{{v}}")}));
+                    lig("salida/stream", "tiempo", "", nullptr, "texto", traducir("botonera", "AIRE\n{{v}}"))}));
     } else if (id == "audio") {
-        nombre = "Audio";
+        nombre = traducir("botonera", "Audio");
         std::vector<std::string> fu = g_.fuentesAudio ? g_.fuentesAudio() : std::vector<std::string>{};
         if (fu.size() > 8) fu.resize(8);
         columnas = std::max<int>(2, static_cast<int>(fu.size()) + 1);
@@ -920,7 +940,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
                   {"estilo", {{"texto", "TP"}, {"fondo", "#111"}, {"color", "#9ad"}}},
                   {"estado", {lig("audio/loudness", "tp", "", nullptr, "texto", "TP {{v}}")}}});
     } else if (id == "asamblea") {
-        nombre = "Asamblea";
+        nombre = traducir("botonera", "Asamblea");
         const auto bs = g_.bancas ? g_.bancas() : std::vector<std::pair<std::string, std::string>>{};
         columnas = 6;
         filas = std::max(3, static_cast<int>((bs.size() + 5) / 6) + 1);
@@ -933,8 +953,8 @@ json Botonera::armarPlantilla(const std::string& id) const {
             ++i;
         }
         const int f = filas - 1;
-        usar(boton(0, f, "Siguiente", herr("banca_al_aire"), json::array(), "#1f5f8a"));
-        usar(boton(1, f, "Terminar", herr("recinto_orador_terminar")));
+        usar(boton(0, f, traducir("botonera", "Siguiente"), herr("banca_al_aire"), json::array(), "#1f5f8a"));
+        usar(boton(1, f, traducir("botonera", "Terminar"), herr("recinto_orador_terminar")));
         usar(json{{"x", 2}, {"y", f}, {"ancho", 2}, {"tipo", "texto"},
                   {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
@@ -942,7 +962,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
     } else if (id == "recinto") {
         // Como Asamblea, pero cada banca en su lugar de la grilla del recinto
         // (hasta 16 columnas y 15 filas; la última fila es la de los comandos).
-        nombre = "Recinto";
+        nombre = traducir("botonera", "Recinto");
         const json r = g_.recinto ? g_.recinto() : json::object();
         columnas = std::clamp(r.value("columnas", 0), 4, 16);
         filas = std::clamp(r.value("filas", 0) + 1, 2, 16);
@@ -956,8 +976,8 @@ json Botonera::armarPlantilla(const std::string& id) const {
                        {lig("oradores/al_aire", "banca", "==", banca, "fondo", "#c62828")}));
         }
         const int f = filas - 1;
-        usar(boton(0, f, "Siguiente", herr("banca_al_aire"), json::array(), "#1f5f8a"));
-        usar(boton(1, f, "Terminar", herr("recinto_orador_terminar")));
+        usar(boton(0, f, traducir("botonera", "Siguiente"), herr("banca_al_aire"), json::array(), "#1f5f8a"));
+        usar(boton(1, f, traducir("botonera", "Terminar"), herr("recinto_orador_terminar")));
         usar(json{{"x", 2}, {"y", f}, {"ancho", columnas - 3}, {"tipo", "texto"},
                   {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
@@ -965,7 +985,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
     } else if (id == "microfonos") {
         // Guía bosch-dcn §11. Cada banca en su lugar del recinto (o en orden si no
         // hay grilla), con su foto; el estado sale de plugin/bosch-dcn/dcn/estado.
-        nombre = "Micrófonos de bancas";
+        nombre = traducir("botonera", "Micrófonos de bancas");
         const std::string tema = "plugin/bosch-dcn/dcn/estado";
         const json r = g_.recinto ? g_.recinto() : json::object();
         const std::set<std::string> presis = g_.presidentes ? g_.presidentes() : std::set<std::string>{};
@@ -1009,34 +1029,38 @@ json Botonera::armarPlantilla(const std::string& id) const {
             usar(c);
         }
         const int f = filas - 1;
-        usar(boton(0, f, "Siguiente ▶", herr("dcn_siguiente"), json::array(), "#1f5f8a"));
-        usar(boton(1, f, "Cerrar todos", herr("dcn_cerrar_todos"), json::array(), "#8e1b1b"));
+        usar(boton(0, f, traducir("botonera", "Siguiente ▶"), herr("dcn_siguiente"), json::array(), "#1f5f8a"));
+        usar(boton(1, f, traducir("botonera", "Cerrar todos"), herr("dcn_cerrar_todos"), json::array(), "#8e1b1b"));
         // Con 4 columnas no entran los textos: Siguiente, Cerrar todos, Limpiar y TAKE.
         if (columnas >= 5)
             usar(json{{"x", 2}, {"y", f}, {"tipo", "texto"},
-                      {"estilo", {{"texto", "sin central"}, {"fondo", "#111"}, {"color", "#fff"}}},
-                      {"estado", {lig(tema, "abiertos.#", "existe", nullptr, "texto", "Abiertos {{v}}"),
-                                  lig(tema, "enlace", "!=", "ok", "texto", "sin central")}}});
+                      {"estilo", {{"texto", traducir("botonera", "sin central")}, {"fondo", "#111"}, {"color", "#fff"}}},
+                      {"estado", {lig(tema, "abiertos.#", "existe", nullptr, "texto", traducir("botonera", "Abiertos {{v}}")),
+                                  lig(tema, "enlace", "!=", "ok", "texto", traducir("botonera", "sin central"))}}});
         if (columnas >= 6)
             usar(json{{"x", 3}, {"y", f}, {"ancho", columnas - 5}, {"tipo", "texto"},
                       {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                       {"estado", {lig(tema, "hablando.0.nombre", "existe", nullptr, "texto", "{{v}}")}}});
-        usar(boton(columnas - 2, f, "Limpiar pedidos", herr("dcn_pedidos_limpiar")));
+        usar(boton(columnas - 2, f, traducir("botonera", "Limpiar pedidos"), herr("dcn_pedidos_limpiar")));
         usar(boton(columnas - 1, f, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
     } else if (id == "prompter") {
         nombre = "Prompter";
         columnas = 4;
         filas = 3;
-        usar(boton(0, 0, "▶ Correr", herr("prompter_control", {{"corriendo", true}}), json::array(), "#1f8a3c"));
-        usar(boton(1, 0, "■ Parar", herr("prompter_control", {{"corriendo", false}}), json::array(), "#8e1b1b"));
+        usar(boton(0, 0, traducir("botonera", "▶ Correr"), herr("prompter_control", {{"corriendo", true}}), json::array(),
+                   "#1f8a3c"));
+        usar(boton(1, 0, traducir("botonera", "■ Parar"), herr("prompter_control", {{"corriendo", false}}), json::array(),
+                   "#8e1b1b"));
         usar(json{{"x", 2}, {"y", 0}, {"alto", 3}, {"tipo", "fader"},
-                  {"estilo", {{"texto", "Velocidad"}, {"fondo", "#20242d"}, {"color", "#fff"}}},
+                  {"estilo", {{"texto", traducir("botonera", "Velocidad")}, {"fondo", "#20242d"}, {"color", "#fff"}}},
                   {"valor", {{"min", 60}, {"max", 250}, {"paso", 5}, {"inicial", 130}}},
                   {"accion", herr("prompter_control", {{"ppm", "{{valor}}"}})}});
-        usar(boton(0, 1, "Redondeá", herr("prompter_control", {{"aviso", "Redondeá"}})));
-        usar(boton(1, 1, "Un minuto", herr("prompter_control", {{"aviso", "Un minuto"}})));
-        usar(boton(0, 2, "Sacar aviso", herr("prompter_control", {{"aviso", ""}})));
-        usar(boton(3, 0, "PÁNICO", herr("prompter_control", {{"panico", true}}), json::array(), "#b71c1c"));
+        // El aviso que se manda lo lee el orador en el prompter: va en el idioma del evento (fase I6/I7).
+        usar(boton(0, 1, traducir("botonera", "Redondeá"), herr("prompter_control", {{"aviso", "Redondeá"}})));
+        usar(boton(1, 1, traducir("botonera", "Un minuto"), herr("prompter_control", {{"aviso", "Un minuto"}})));
+        usar(boton(0, 2, traducir("botonera", "Sacar aviso"), herr("prompter_control", {{"aviso", ""}})));
+        usar(boton(3, 0, traducir("botonera", "PÁNICO"), herr("prompter_control", {{"panico", true}}), json::array(),
+                   "#b71c1c"));
     } else if (id == "pdf") {
         // La fuente PDF de la escena (pdf_escena_*): páginas y, abajo, un botón por cada
         // PDF de la documentación del evento.
@@ -1044,11 +1068,13 @@ json Botonera::armarPlantilla(const std::string& id) const {
         const auto ds = g_.pdfs ? g_.pdfs() : std::vector<std::pair<std::string, std::string>>{};
         columnas = 4;
         filas = std::clamp(2 + static_cast<int>((std::min<std::size_t>(ds.size(), 16) + 3) / 4), 2, 6);
-        usar(boton(0, 0, "◀ Página", herr("pdf_escena_poner", {{"paso", -1}}), json::array(), "#1f5f8a"));
-        usar(boton(1, 0, "Página ▶", herr("pdf_escena_poner", {{"paso", 1}}), json::array(), "#1f8a3c"));
-        usar(boton(2, 0, "⏮ Primera", herr("pdf_escena_poner", {{"pagina", 1}})));
-        usar(boton(3, 0, "Última ⏭", herr("pdf_escena_poner", {{"pagina", 100000}})));
-        usar(boton(0, 1, "Escena PDF\n(armar)", herr("scene_preview", {{"name", "PDF"}}),
+        usar(boton(0, 0, traducir("botonera", "◀ Página"), herr("pdf_escena_poner", {{"paso", -1}}), json::array(),
+                   "#1f5f8a"));
+        usar(boton(1, 0, traducir("botonera", "Página ▶"), herr("pdf_escena_poner", {{"paso", 1}}), json::array(),
+                   "#1f8a3c"));
+        usar(boton(2, 0, traducir("botonera", "⏮ Primera"), herr("pdf_escena_poner", {{"pagina", 1}})));
+        usar(boton(3, 0, traducir("botonera", "Última ⏭"), herr("pdf_escena_poner", {{"pagina", 100000}})));
+        usar(boton(0, 1, traducir("botonera", "Escena PDF\n(armar)"), herr("scene_preview", {{"name", "PDF"}}),
                    {lig("aire/tally", "preview", "==", "PDF", "fondo", "#1f8a3c"),
                     lig("aire/tally", "programa", "==", "PDF", "fondo", "#c62828")}));
         usar(boton(1, 1, "TAKE", herr("preview_al_aire"), json::array(), "#8e1b1b"));
@@ -1207,9 +1233,10 @@ json Botonera::dispositivos() const {
 
 std::string Botonera::asignar(const std::string& dispositivo, const std::string& perfil, const std::string& pagina) {
     json* d = buscarDispositivo(dispositivo);
-    if (d == nullptr) return "no hay un aparato «" + dispositivo + "»";
-    if (buscarPerfil(perfil) == nullptr) return "no hay un perfil «" + perfil + "»";
-    if (!pagina.empty() && buscarPagina(perfil, pagina) == nullptr) return "ese perfil no tiene la página «" + pagina + "»";
+    if (d == nullptr) return llenar(traducir("botonera", "no hay un aparato «%1»"), {dispositivo});
+    if (buscarPerfil(perfil) == nullptr) return llenar(traducir("botonera", "no hay un perfil «%1»"), {perfil});
+    if (!pagina.empty() && buscarPagina(perfil, pagina) == nullptr)
+        return llenar(traducir("botonera", "ese perfil no tiene la página «%1»"), {pagina});
     (*d)["perfil"] = perfil;
     (*d)["pagina"] = pagina;
     paginaDe_.erase(dispositivo);
@@ -1298,8 +1325,9 @@ void Botonera::setApiRemotaActiva(bool on) {
 json Botonera::crearAccesoHttp(const std::string& perfil, const std::string& nombre) {
     std::string p = perfil;
     if (p.empty() && !datos_["perfiles"].empty()) p = datos_["perfiles"][0].value("id", std::string());
-    if (buscarPerfil(p) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
-    if (static_cast<int>(disp_.size()) >= kMaxDispositivos) return {{"error", "ya hay " + std::to_string(kMaxDispositivos) + " aparatos"}};
+    if (buscarPerfil(p) == nullptr) return {{"error", llenar(traducir("botonera", "no hay un perfil «%1»"), {perfil})}};
+    if (static_cast<int>(disp_.size()) >= kMaxDispositivos)
+        return {{"error", llenar(traducir("botonera", "ya hay %1 aparatos"), {std::to_string(kMaxDispositivos)})}};
     const std::string id = idNuevo("http");
     const std::string token = hexAleatorio(32); // 256 bits
     const std::string sal = hexAleatorio(16);
@@ -1343,10 +1371,12 @@ std::string Botonera::entradaRemota(const std::string& dev, const std::string& p
                                     int y, const std::string& accion, const std::string& ip) {
     const json* d = buscarDispositivo(dev);
     std::string motivo;
-    if (d == nullptr || d->value("via", std::string()) != "http") motivo = "no es un acceso HTTP";
-    else if (!apiRemotaActiva()) motivo = "la API remota está apagada";
-    else if (d->value("perfil", std::string()) != perfil) motivo = "ese acceso es del perfil «" + d->value("perfil", std::string()) + "»";
-    else if (buscarPagina(perfil, pagina) == nullptr) motivo = "no hay una página «" + pagina + "» en «" + perfil + "»";
+    if (d == nullptr || d->value("via", std::string()) != "http") motivo = traducir("botonera", "no es un acceso HTTP");
+    else if (!apiRemotaActiva()) motivo = traducir("botonera", "la API remota está apagada");
+    else if (d->value("perfil", std::string()) != perfil)
+        motivo = llenar(traducir("botonera", "ese acceso es del perfil «%1»"), {d->value("perfil", std::string())});
+    else if (buscarPagina(perfil, pagina) == nullptr)
+        motivo = llenar(traducir("botonera", "no hay una página «%1» en «%2»"), {pagina, perfil});
     if (!motivo.empty()) {
         auditar(dev, "api_remota_rechazada", motivo + " (" + ip + ")");
         return motivo;
@@ -1402,7 +1432,7 @@ json Botonera::nuevoCodigo(const std::string& perfil, const std::string& nombre,
     for (auto it = codigos_.begin(); it != codigos_.end();) it = it->second.venceMs < ahora ? codigos_.erase(it) : std::next(it);
     std::string p = perfil;
     if (p.empty() && !datos_["perfiles"].empty()) p = datos_["perfiles"][0].value("id", std::string());
-    if (buscarPerfil(p) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
+    if (buscarPerfil(p) == nullptr) return {{"error", llenar(traducir("botonera", "no hay un perfil «%1»"), {perfil})}};
     const std::string codigo = hexAleatorio(16); // 128 bits
     codigos_[codigo] = {p, nombre, venceDias, ahora + kCodigoMs()};
     auditar("escritorio", "codigo", "perfil " + p);
@@ -1432,8 +1462,9 @@ std::string Botonera::solicitud(const std::string& sol, const std::string& codig
 
 json Botonera::resolverSolicitud(const std::string& sol, bool aprobar, const std::string& perfil) {
     auto it = solicitudes_.find(sol);
-    if (it == solicitudes_.end()) return {{"error", "no hay esa solicitud"}};
-    if (aprobar && !perfil.empty() && buscarPerfil(perfil) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
+    if (it == solicitudes_.end()) return {{"error", traducir("botonera", "no hay esa solicitud")}};
+    if (aprobar && !perfil.empty() && buscarPerfil(perfil) == nullptr)
+        return {{"error", llenar(traducir("botonera", "no hay un perfil «%1»"), {perfil})}};
     Solicitud s = it->second;
     if (aprobar && !perfil.empty()) s.perfil = perfil;
     solicitudes_.erase(it);
@@ -1606,10 +1637,11 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
 }
 
 std::string Botonera::simular(const std::string& perfil, const std::string& pagina, const json& msg) {
-    if (buscarPagina(perfil, pagina) == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    if (buscarPagina(perfil, pagina) == nullptr)
+        return llenar(traducir("botonera", "no hay esa página (perfil «%1», página «%2»)"), {perfil, pagina});
     json* d = buscarDispositivo("asistente");
     if (d == nullptr) {
-        disp_.push_back({{"id", "asistente"}, {"nombre", "Asistente (prueba)"}, {"origen", "asistente"}});
+        disp_.push_back({{"id", "asistente"}, {"nombre", traducir("botonera", "Asistente (prueba)")}, {"origen", "asistente"}});
         d = &disp_.back();
     }
     (*d)["perfil"] = perfil;
@@ -1775,14 +1807,14 @@ QString Botonera::editarCeldaUi(const QString& perfil, const QString& pagina, in
     if (c.is_object() && c.contains("args") && c["args"].is_string()) {
         const QString t = QString::fromStdString(c["args"].get<std::string>()).trimmed();
         const json args = t.isEmpty() ? json::object() : json::parse(t.toStdString(), nullptr, false);
-        if (args.is_discarded() || !args.is_object()) return "Los argumentos no son JSON válido (un objeto {…})";
+        if (args.is_discarded() || !args.is_object()) return tr("Los argumentos no son JSON válido (un objeto {…})");
         c["args"] = args;
     }
     return QString::fromStdString(editarCelda(perfil.toStdString(), pagina.toStdString(), x, y, c));
 }
 QString Botonera::guardarCeldaJsonUi(const QString& perfil, const QString& pagina, int x, int y, const QString& texto) {
     const json c = json::parse(texto.toStdString(), nullptr, false);
-    if (c.is_discarded()) return "El JSON de la celda no se entiende";
+    if (c.is_discarded()) return tr("El JSON de la celda no se entiende");
     return QString::fromStdString(setCeldaEn(perfil.toStdString(), pagina.toStdString(), x, y, c));
 }
 QString Botonera::ponerCaraUi(const QString& perfil, const QString& pagina, int x, int y, const QString& idCara) {
@@ -1804,7 +1836,7 @@ QString Botonera::exportarUi(const QString& perfil) const {
 }
 QString Botonera::importarUi(const QString& texto) {
     const json p = json::parse(texto.toStdString(), nullptr, false);
-    if (p.is_discarded()) return "error: el JSON no se entiende";
+    if (p.is_discarded()) return "error: " + tr("el JSON no se entiende"); // «error: » lo busca la página
     std::string id;
     const std::string e = importar(p, &id);
     return QString::fromStdString(e.empty() ? id : "error: " + e);

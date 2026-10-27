@@ -1,6 +1,7 @@
 // src/app/red/Plan.cpp — ver Plan.hpp
 
 #include "red/Plan.hpp"
+#include "i18n/I18n.hpp"
 
 #include <cmath>
 #include <string>
@@ -54,7 +55,7 @@ json planDe(const json& ficha, const json& analisis, const json& lienzo) {
     try {
         return planDeSinCuidar(ficha, analisis, lienzo);
     } catch (const std::exception& e) {
-        return {{"error", std::string("no se pudo armar el plan: ") + e.what()},
+        return {{"error", ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo armar el plan: %1"), {e.what()})},
                 {"pasos", json::array()},
                 {"argumentos", json::object()}};
     }
@@ -73,16 +74,18 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
         plan["perfil"] = p;
         args["perfil"] = p.value("token", std::string());
         const std::string c = p.value("codec", std::string());
-        pasos.push_back("Perfil «" + p.value("nombre", std::string()) + "»: " + n0(p.value("ancho", 0)) +
-                        "x" + n0(p.value("alto", 0)) + " " + c + " a " + n0(p.value("fps", 0.0)) +
-                        " fps (el más chico que cubre el lienzo de " + n0(altoL) + " líneas" +
-                        (c == "JPEG" || c == "MJPEG" ? "; ojo: MJPEG se decodifica por CPU"
-                                                     : ", se decodifica por hardware") +
-                        ")");
+        pasos.push_back(ba::i18n::llenar(
+            c == "JPEG" || c == "MJPEG"
+                ? ba::i18n::traducir("red", "Perfil «%1»: %2x%3 %4 a %5 fps (el más chico que cubre el lienzo de %6 líneas; "
+                                            "ojo: MJPEG se decodifica por CPU)")
+                : ba::i18n::traducir("red", "Perfil «%1»: %2x%3 %4 a %5 fps (el más chico que cubre el lienzo de %6 líneas, "
+                                            "se decodifica por hardware)"),
+            {p.value("nombre", std::string()), n0(p.value("ancho", 0)), n0(p.value("alto", 0)), c,
+             n0(p.value("fps", 0.0)), n0(altoL)}));
     } else if (!ficha.value("url", std::string()).empty()) {
         args["url"] = ficha["url"];
-        pasos.push_back("Sin perfiles ONVIF: se usa la URL que contestó (" +
-                        ficha.value("url", std::string()) + ")");
+        pasos.push_back(ba::i18n::llenar(ba::i18n::traducir("red", "Sin perfiles ONVIF: se usa la URL que contestó (%1)"),
+                                         {ficha.value("url", std::string())}));
     } else {
         plan["error"] =
             "no hay ninguna URL de video: hacen falta usuario y clave (camara_credenciales) o la URL a mano";
@@ -91,38 +94,41 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
     // Normalizar: solo si hace falta (lo que libobs no sabe hacer).
     const json o = analisis.value("video", json::object());
     std::string por;
-    if (o.value("entrelazado", false)) por += "viene entrelazada; ";
+    if (o.value("entrelazado", false)) por += ba::i18n::traducir("red", "viene entrelazada") + "; ";
     if (o.value("pixel", std::string("cuadrado")) != "cuadrado")
-        por += "píxel no cuadrado (" + o.value("pixel", std::string()) + "); ";
+        por += ba::i18n::llenar(ba::i18n::traducir("red", "píxel no cuadrado (%1)"), {o.value("pixel", std::string())}) + "; ";
     const double fps = o.value("fps", 0.0);
     if (o.value("fps_variable", false) || fps == 0)
-        por += "cuadros por segundo variables; ";
+        por += ba::i18n::traducir("red", "cuadros por segundo variables") + "; ";
     else if (std::fabs(fps - fpsL) > 1.5)
-        por += "manda " + n0(fps) + " fps y el estudio va a " + n0(fpsL) + "; ";
+        por += ba::i18n::llenar(ba::i18n::traducir("red", "manda %1 fps y el estudio va a %2"), {n0(fps), n0(fpsL)}) + "; ";
     const bool normalizar = !por.empty() || analisis.empty();
     args["normalizar"] = normalizar;
     if (analisis.empty())
-        pasos.push_back("Normalizar por las dudas (no se pudo analizar el stream antes): GStreamer "
-                        "desentrelaza si hace falta, "
-                        "lleva a los cuadros del estudio y a píxel cuadrado");
+        pasos.push_back(ba::i18n::traducir("red", "Normalizar por las dudas (no se pudo analizar el stream antes): GStreamer "
+                                                  "desentrelaza si hace falta, lleva a los cuadros del estudio y a píxel "
+                                                  "cuadrado"));
     else if (normalizar)
-        pasos.push_back("Normalizar con GStreamer porque " + por.substr(0, por.size() - 2) +
-                        " (desentrelaza, lleva a los cuadros del estudio y a píxel cuadrado)");
+        pasos.push_back(ba::i18n::llenar(ba::i18n::traducir("red", "Normalizar con GStreamer porque %1 (desentrelaza, lleva "
+                                                                   "a los cuadros del estudio y a píxel cuadrado)"),
+                                         {por.substr(0, por.size() - 2)}));
     else
-        pasos.push_back("Sin normalizar: ya viene progresiva, con píxel cuadrado y a los cuadros del estudio "
-                        "(cero CPU extra)");
-    pasos.push_back("El color (" + o.value("matriz", std::string("lo que declare")) + ", rango " +
-                    o.value("rango", std::string("el que declare")) +
-                    ") lo convierte libobs en la GPU: no hace falta tarjeta");
+        pasos.push_back(ba::i18n::traducir("red", "Sin normalizar: ya viene progresiva, con píxel cuadrado y a los cuadros "
+                                                  "del estudio (cero CPU extra)"));
+    pasos.push_back(ba::i18n::llenar(ba::i18n::traducir("red", "El color (%1, rango %2) lo convierte libobs en la GPU: no "
+                                                               "hace falta tarjeta"),
+                                     {o.value("matriz", ba::i18n::traducir("red", "lo que declare")),
+                                      o.value("rango", ba::i18n::traducir("red", "el que declare"))}));
     if (o.value("hdr", false))
-        pasos.push_back("OJO: manda HDR y el estudio es SDR: pasar la cámara a SDR (Rec.709)");
+        pasos.push_back(ba::i18n::traducir("red", "OJO: manda HDR y el estudio es SDR: pasar la cámara a SDR (Rec.709)"));
     // Latencia: una PTZ se maneja mirando la imagen; cada ms de colchón es un
     // ms más entre mover el joystick y ver que se movió.
     const bool esPtz = ficha.value("ptz", json::object()).value("tiene", false);
     args["latencia_ms"] = esPtz ? 60 : 200;
     pasos.push_back(
-        esPtz ? "Colchón de 60 ms (es PTZ: se maneja mirando la imagen; con Wi-Fi o por internet, 300-600)"
-              : "Colchón de 200 ms (red local cableada; con Wi-Fi o por internet, 400-800)");
+        esPtz ? ba::i18n::traducir("red", "Colchón de 60 ms (es PTZ: se maneja mirando la imagen; con Wi-Fi o por internet, "
+                                          "300-600)")
+              : ba::i18n::traducir("red", "Colchón de 200 ms (red local cableada; con Wi-Fi o por internet, 400-800)"));
     // PTZ.
     const json ptz = ficha.value("ptz", json::object());
     if (ficha.contains("onvif") && !ficha.value("onvif", true)) {
@@ -135,13 +141,17 @@ json planDeSinCuidar(const json& ficha, const json& analisis, const json& lienzo
     } else if (!ptz.empty() && ptz.value("tiene", false)) {
         args["ptz"] = true;
         std::string perfilPtz = ptz.value("perfil", std::string());
-        pasos.push_back(
-            "PTZ por ONVIF" + (perfilPtz.empty() ? std::string() : " con el perfil «" + perfilPtz + "»") +
-            (ptz.contains("presets") ? " (" + n0(ptz["presets"].size()) + " presets)" : std::string()) +
-            (ptz.value("home", false) ? ", con posición de inicio" : std::string()));
+        // Las partes que se suman son detalles entre paréntesis o tras coma (cada una completa).
+        std::string t = perfilPtz.empty()
+                            ? ba::i18n::traducir("red", "PTZ por ONVIF")
+                            : ba::i18n::llenar(ba::i18n::traducir("red", "PTZ por ONVIF con el perfil «%1»"), {perfilPtz});
+        if (ptz.contains("presets"))
+            t += " " + ba::i18n::llenar(ba::i18n::traducir("red", "(%1 presets)"), {n0(ptz["presets"].size())});
+        if (ptz.value("home", false)) t += ba::i18n::traducir("red", ", con posición de inicio");
+        pasos.push_back(t);
     } else {
         args["ptz"] = false;
-        pasos.push_back("Sin PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)");
+        pasos.push_back(ba::i18n::traducir("red", "Sin PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)"));
     }
     plan["argumentos"] = args;
     return plan;

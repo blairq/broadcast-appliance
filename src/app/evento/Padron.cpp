@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/Padron.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -393,13 +395,14 @@ Padron cargarPadron(const fs::path& carpeta, bool* ok, std::string* err) {
     std::ifstream in(archivo);
     if (!in) {
         if (ok != nullptr) *ok = false;
-        if (err != nullptr) *err = "no se pudo abrir " + archivo.string();
+        if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo abrir %1"), {archivo.string()});
         return {};
     }
     const json j = json::parse(in, nullptr, false);
     if (j.is_discarded()) {
         if (ok != nullptr) *ok = false;
-        if (err != nullptr) *err = "el padron esta roto (JSON invalido): " + archivo.string();
+        if (err != nullptr)
+            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "el padron esta roto (JSON invalido): %1"), {archivo.string()});
         return {};
     }
     return Padron::deJson(j);
@@ -416,18 +419,20 @@ bool guardarPadron(const fs::path& carpeta, const Padron& p, std::string* err) {
     {
         std::ofstream out(temporal, std::ios::trunc);
         if (!out) {
-            if (err != nullptr) *err = "no se pudo escribir " + temporal.string();
+            if (err != nullptr) *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {temporal.string()});
             return false;
         }
         out << p.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << '\n';
         if (!out) {
-            if (err != nullptr) *err = "no se pudo terminar de escribir " + temporal.string();
+            if (err != nullptr)
+                *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo terminar de escribir %1"), {temporal.string()});
             return false;
         }
     }
     fs::rename(temporal, archivo, ec);
     if (ec) {
-        if (err != nullptr) *err = "no se pudo reemplazar el padron: " + ec.message();
+        if (err != nullptr)
+            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar el padron: %1"), {ec.message()});
         return false;
     }
     return true;

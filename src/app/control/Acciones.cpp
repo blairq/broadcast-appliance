@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Acciones.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeySequence>
@@ -13,6 +15,8 @@ namespace ba::app::control {
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 QVariant aQv(const json& j) {
@@ -44,33 +48,47 @@ Acciones::~Acciones() = default;
 bool Acciones::globalesDisponibles() const { return globales_ != nullptr; }
 
 json Acciones::catalogo() const {
+    // El nombre y el grupo se muestran (el grupo arma las secciones de la lista); la clave es el id.
+    const std::string aire = traducir("acciones", "Aire"), oradores = traducir("acciones", "Oradores");
+    const std::string prompter = traducir("acciones", "Prompter");
     json c = json::array({
-        herr("take", "TAKE (el preview al aire)", "Aire", "preview_al_aire"),
-        herr("ftb", "FTB: a negro", "Aire", "aire_ftb", {{"activar", true}}),
-        herr("ftb_sacar", "Sacar el negro", "Aire", "aire_ftb", {{"activar", false}}),
-        herr("placa", "Placa «Volvemos enseguida»", "Aire", "aire_placa", {{"activar", true}}),
-        herr("placa_sacar", "Sacar la placa", "Aire", "aire_placa", {{"activar", false}}),
-        herr("grabar", "Grabar", "Salidas", "record_start"),
-        herr("banca_siguiente", "Siguiente banca (armar)", "Oradores", "banca_al_aire"),
-        herr("recinto_orador_terminar", "Terminar al orador presencial", "Oradores", "recinto_orador_terminar"),
-        herr("seguir_aceptar", "Armar la banca que pidió la palabra", "Oradores", "seguir_microfono", {{"accion", "aceptar"}}),
-        herr("punto_siguiente", "Siguiente punto del orden del día", "Sesión", "orden_del_dia_punto", {{"siguiente", true}}),
-        herr("prompter_correr", "Prompter: correr", "Prompter", "prompter_control", {{"corriendo", true}}),
-        herr("prompter_parar", "Prompter: parar", "Prompter", "prompter_control", {{"corriendo", false}}),
-        herr("prompter_panico", "Prompter: pánico", "Prompter", "prompter_control", {{"panico", true}}),
-        herr("alarmas_reconocer", "Reconocer las alarmas", "Seguridad", "alert_reconocer", {{"todas", true}}),
+        herr("take", traducir("acciones", "TAKE (el preview al aire)"), aire, "preview_al_aire"),
+        herr("ftb", traducir("acciones", "FTB: a negro"), aire, "aire_ftb", {{"activar", true}}),
+        herr("ftb_sacar", traducir("acciones", "Sacar el negro"), aire, "aire_ftb", {{"activar", false}}),
+        herr("placa", traducir("acciones", "Placa «Volvemos enseguida»"), aire, "aire_placa", {{"activar", true}}),
+        herr("placa_sacar", traducir("acciones", "Sacar la placa"), aire, "aire_placa", {{"activar", false}}),
+        herr("grabar", traducir("acciones", "Grabar"), traducir("acciones", "Salidas"), "record_start"),
+        herr("banca_siguiente", traducir("acciones", "Siguiente banca (armar)"), oradores, "banca_al_aire"),
+        herr("recinto_orador_terminar", traducir("acciones", "Terminar al orador presencial"), oradores,
+             "recinto_orador_terminar"),
+        herr("seguir_aceptar", traducir("acciones", "Armar la banca que pidió la palabra"), oradores, "seguir_microfono",
+             {{"accion", "aceptar"}}),
+        herr("punto_siguiente", traducir("acciones", "Siguiente punto del orden del día"), traducir("acciones", "Sesión"),
+             "orden_del_dia_punto", {{"siguiente", true}}),
+        herr("prompter_correr", traducir("acciones", "Prompter: correr"), prompter, "prompter_control", {{"corriendo", true}}),
+        herr("prompter_parar", traducir("acciones", "Prompter: parar"), prompter, "prompter_control", {{"corriendo", false}}),
+        herr("prompter_panico", traducir("acciones", "Prompter: pánico"), prompter, "prompter_control", {{"panico", true}}),
+        herr("alarmas_reconocer", traducir("acciones", "Reconocer las alarmas"), traducir("acciones", "Seguridad"),
+             "alert_reconocer", {{"todas", true}}),
     });
     for (int capa = 1; capa <= 4; ++capa)
-        c.push_back({{"id", "dsk:" + std::to_string(capa)}, {"nombre", "Subir/bajar la capa DSK " + std::to_string(capa)},
-                     {"grupo", "Capas"}, {"interna", true}});
+        c.push_back({{"id", "dsk:" + std::to_string(capa)},
+                     {"nombre", llenar(traducir("acciones", "Subir/bajar la capa DSK %1"), {std::to_string(capa)})},
+                     {"grupo", traducir("acciones", "Capas")}, {"interna", true}});
     if (g_.escenas)
         for (const auto& e : g_.escenas()) {
-            c.push_back(herr("armar:" + e, "Armar «" + e + "»", "Escenas", "scene_preview", {{"name", e}}));
-            c.push_back(herr("cortar:" + e, "Cortar a «" + e + "»", "Escenas", "scene_switch", {{"name", e}}));
+            const std::string escenas = traducir("acciones", "Escenas");
+            c.push_back(herr("armar:" + e, llenar(traducir("acciones", "Armar «%1»"), {e}), escenas, "scene_preview",
+                             {{"name", e}}));
+            c.push_back(herr("cortar:" + e, llenar(traducir("acciones", "Cortar a «%1»"), {e}), escenas, "scene_switch",
+                             {{"name", e}}));
         }
     if (g_.fuentesAudio)
         for (const auto& f : g_.fuentesAudio())
-            c.push_back({{"id", "mudo:" + f}, {"nombre", "Mutear/desmutear «" + f + "»"}, {"grupo", "Audio"}, {"interna", true}});
+            c.push_back({{"id", "mudo:" + f},
+                         {"nombre", llenar(traducir("acciones", "Mutear/desmutear «%1»"), {f})},
+                         {"grupo", traducir("acciones", "Audio")},
+                         {"interna", true}});
     return c;
 }
 
@@ -78,7 +96,7 @@ json Acciones::resolver(const std::string& id) const {
     // Las internas: alternar algo que depende del estado.
     if (id.rfind("dsk:", 0) == 0) {
         const int capa = std::atoi(id.c_str() + 4);
-        if (capa < 1 || capa > 4) return {{"error", "capa inválida"}};
+        if (capa < 1 || capa > 4) return {{"error", traducir("acciones", "capa inválida")}};
         const bool arriba = g_.dskArriba && g_.dskArriba(capa);
         return {{"herramienta", "dsk_mostrar"}, {"args", {{"capa", capa}, {"visible", !arriba}}}};
     }
@@ -90,11 +108,11 @@ json Acciones::resolver(const std::string& id) const {
     for (const auto& a : catalogo())
         if (a.value("id", std::string()) == id && a.contains("herramienta"))
             return {{"herramienta", a.value("herramienta", std::string())}, {"args", a.value("args", json::object())}};
-    return {{"error", "no hay una acción «" + id + "» (acciones_listar)"}};
+    return {{"error", llenar(traducir("acciones", "no hay una acción «%1» (acciones_listar)"), {id})}};
 }
 
 std::string Acciones::ejecutar(const std::string& id, Listo listo) {
-    if (!g_.ejecutar) return "todavía no está listo";
+    if (!g_.ejecutar) return traducir("acciones", "todavía no está listo");
     if (!listo) listo = [](bool, const std::string&) {};
     const json r = resolver(id);
     if (r.contains("error")) return r.value("error", std::string());
@@ -121,15 +139,15 @@ void Acciones::registrarGlobales() {
 
 std::string Acciones::asignar(const std::string& tecla, const std::string& accion, bool global) {
     const std::string t = canonica(tecla);
-    if (t.empty()) return "la tecla «" + tecla + "» no se entiende (p. ej. «Ctrl+Shift+T» o «F5»)";
+    if (t.empty()) return llenar(traducir("acciones", "la tecla «%1» no se entiende (p. ej. «Ctrl+Shift+T» o «F5»)"), {tecla});
     bool existe = false;
     for (const auto& a : catalogo()) existe = existe || a.value("id", std::string()) == accion;
-    if (!existe) return "no hay una acción «" + accion + "»";
+    if (!existe) return llenar(traducir("acciones", "no hay una acción «%1»"), {accion});
     // Conflicto: la misma tecla en otra acción.
     for (const auto& a : atajos_)
         if (a.value("tecla", std::string()) == t && a.value("accion", std::string()) != accion)
-            return "«" + t + "» ya es de «" + a.value("accion", std::string()) + "»: sacala primero";
-    if (global && !globales_) return "este sistema todavía no tiene atajos globales (sirve como local)";
+            return llenar(traducir("acciones", "«%1» ya es de «%2»: sacala primero"), {t, a.value("accion", std::string())});
+    if (global && !globales_) return traducir("acciones", "este sistema todavía no tiene atajos globales (sirve como local)");
     atajos_.erase(std::remove_if(atajos_.begin(), atajos_.end(),
                                  [&](const json& a) { return a.value("accion", std::string()) == accion; }),
                   atajos_.end());

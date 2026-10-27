@@ -1,6 +1,7 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include "net/Descargas.hpp"
@@ -91,7 +92,7 @@ std::string leerTexto(const fs::path& p, size_t max = 200000) {
     std::ifstream f(p, std::ios::binary);
     if (!f) return {};
     std::string s((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    if (s.size() > max) s = s.substr(0, max) + "\n…(cortado)";
+    if (s.size() > max) s = ba::i18n::llenar(ba::i18n::traducir("plugins", "%1\n…(cortado)"), {s.substr(0, max)});
     return s;
 }
 
@@ -294,7 +295,7 @@ json Plugins::leerAprobados() const {
 }
 
 json Plugins::aprobar(const std::string& id, const std::string& quien) {
-    if (!idValido(id) || !fs::exists(carpetaDe(id) / "plugin.json")) return {{"error", "no existe el plugin «" + id + "»"}};
+    if (!idValido(id) || !fs::exists(carpetaDe(id) / "plugin.json")) return {{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el plugin «%1»"), {id})}};
     std::vector<std::string> archivos;
     const std::string h = hashCodigo(id, &archivos);
     json a = leerAprobados();
@@ -309,7 +310,7 @@ json Plugins::aprobar(const std::string& id, const std::string& quien) {
 
 std::string Plugins::desaprobar(const std::string& id) {
     json a = leerAprobados();
-    if (!a.contains(id)) return "«" + id + "» no estaba aprobado";
+    if (!a.contains(id)) return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no estaba aprobado"), {id});
     a.erase(id);
     std::ofstream(rt_.dataRoot() / "Config" / "plugins-aprobados.json") << a.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit cambio();
@@ -433,7 +434,7 @@ json Plugins::tiposDocumento() const {
                            {"plugin", id},
                            {"nombre", nombre},
                            {"titulo", d.value("titulo", nombre)},
-                           {"comoSeDice", d.value("como_se_dice", std::string("tu documento"))},
+                           {"comoSeDice", d.value("como_se_dice", std::string(ba::i18n::traducir("plugins", "tu documento")))},
                            {"formatos", d.value("formatos", json::array())},
                            {"pais", d.value("pais", std::string())},
                            {"descripcion", d.value("descripcion", std::string())}});
@@ -496,7 +497,7 @@ json Plugins::ejemplosDisponibles() const {
 json Plugins::ver(const std::string& id, const std::string& archivo) const {
     const fs::path dir = fs::exists(carpetaDe(id)) ? carpetaDe(id) : ejemplos() / id;
     if (!idValido(id) || !fs::exists(dir / "plugin.json"))
-        return {{"error", "no existe el plugin «" + id + "»"}};
+        return {{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el plugin «%1»"), {id})}};
     json archivos = json::array();
     std::error_code ec;
     for (auto it = fs::recursive_directory_iterator(dir, ec); it != fs::recursive_directory_iterator();
@@ -526,7 +527,7 @@ json Plugins::ver(const std::string& id, const std::string& archivo) const {
 
 std::string Plugins::escribir(const std::string& id, const json& archivos, const json& manifiesto,
                               json* hecho) {
-    if (!idValido(id)) return "id «" + id + "»: minúsculas, números y guiones (es el nombre de la carpeta)";
+    if (!idValido(id)) return ba::i18n::llenar(ba::i18n::traducir("plugins", "id «%1»: minúsculas, números y guiones (es el nombre de la carpeta)"), {id});
     const fs::path dir = carpetaDe(id);
     json man = leerJson(dir / "plugin.json");
     const bool nuevo = man.empty();
@@ -541,7 +542,7 @@ std::string Plugins::escribir(const std::string& id, const json& archivos, const
     if (archivos.is_object())
         for (const auto& [ruta, contenido] : archivos.items())
             if (rutaValida(ruta) && ruta != "plugin.json" && !contenido.is_string())
-                return "el contenido de «" + ruta + "» tiene que ser texto";
+                return ba::i18n::llenar(ba::i18n::traducir("plugins", "el contenido de «%1» tiene que ser texto"), {ruta});
     std::error_code ec;
     // Si falla el disco a mitad de uno nuevo, no queda nada.
     const auto fallo = [&](const std::string& e) {
@@ -552,12 +553,12 @@ std::string Plugins::escribir(const std::string& id, const json& archivos, const
     if (archivos.is_object()) {
         for (const auto& [ruta, contenido] : archivos.items()) {
             if (!rutaValida(ruta) || ruta == "plugin.json") continue;
-            if (!escribirTexto(dir / ruta, contenido.get<std::string>())) return fallo("no se pudo escribir «" + ruta + "»");
+            if (!escribirTexto(dir / ruta, contenido.get<std::string>())) return fallo(ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo escribir «%1»"), {ruta}));
             escritos.push_back(ruta);
         }
     }
     if (!escribirTexto(dir / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))
-        return fallo("no se pudo escribir plugin.json");
+        return fallo(ba::i18n::traducir("plugins", "no se pudo escribir plugin.json"));
     fs::create_directories(dir / "datos", ec);
     if (hecho != nullptr)
         *hecho = {{"id", id},
@@ -570,13 +571,13 @@ std::string Plugins::escribir(const std::string& id, const json& archivos, const
 }
 
 std::string Plugins::desdeEjemplo(const std::string& ejemplo, const std::string& id) {
-    if (!idValido(id)) return "id «" + id + "»: minúsculas, números y guiones";
+    if (!idValido(id)) return ba::i18n::llenar(ba::i18n::traducir("plugins", "id «%1»: minúsculas, números y guiones"), {id});
     const fs::path desde = ejemplos() / ejemplo;
-    if (!fs::exists(desde / "plugin.json")) return "no existe el ejemplo «" + ejemplo + "»";
-    if (fs::exists(carpetaDe(id))) return "ya hay un plugin «" + id + "»";
+    if (!fs::exists(desde / "plugin.json")) return ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el ejemplo «%1»"), {ejemplo});
+    if (fs::exists(carpetaDe(id))) return ba::i18n::llenar(ba::i18n::traducir("plugins", "ya hay un plugin «%1»"), {id});
     std::error_code ec;
     fs::copy(desde, carpetaDe(id), fs::copy_options::recursive, ec);
-    if (ec) return "no se pudo copiar: " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo copiar: %1"), {ec.message()});
     json man = leerJson(carpetaDe(id) / "plugin.json");
     man["id"] = id;
     // De dónde salió: así se actualiza con la app (actualizarEjemplos).
@@ -609,7 +610,7 @@ json Plugins::actualizarEjemplos() {
         if (!viejo && instalada != anotada) {
             // Lo tocó alguien: no se pisa; que lo decida una persona.
             hechos.push_back({{"id", id}, {"estado", "modificado"},
-                              {"texto", "«" + id + "» tiene una versión nueva en la app, pero su código se cambió a mano: no se actualizó"}});
+                              {"texto", ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» tiene una versión nueva en la app, pero su código se cambió a mano: no se actualizó"), {id})}});
             continue;
         }
         if (instalada != nueva) {
@@ -620,7 +621,7 @@ json Plugins::actualizarEjemplos() {
             fs::create_directories(copia.parent_path(), ec);
             fs::copy(d.path(), copia, fs::copy_options::recursive, ec);
             if (ec) {
-                hechos.push_back({{"id", id}, {"estado", "error"}, {"texto", "no se pudo copiar «" + id + "»: " + ec.message()}});
+                hechos.push_back({{"id", id}, {"estado", "error"}, {"texto", ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo copiar «%1»: %2"), {id, ec.message()})}});
                 continue;
             }
             for (auto it = fs::recursive_directory_iterator(desde, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
@@ -646,9 +647,9 @@ json Plugins::actualizarEjemplos() {
         escribirTexto(d.path() / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
         if (instalada != nueva) {
             // Si estaba aprobado para el aire, el código nuevo viene con la app: se re-aprueba y queda anotado.
-            if (aprobadosAntes.contains(id)) aprobar(id, "la app (ejemplo actualizado)");
+            if (aprobadosAntes.contains(id)) aprobar(id, ba::i18n::traducir("plugins", "la app (ejemplo actualizado)"));
             hechos.push_back({{"id", id}, {"estado", "actualizado"},
-                              {"texto", "«" + id + "» actualizado con la versión de la app (los ajustes quedaron)"}});
+                              {"texto", ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» actualizado con la versión de la app (los ajustes quedaron)"), {id})}});
         }
     }
     for (const auto& h : hechos)
@@ -659,7 +660,7 @@ json Plugins::actualizarEjemplos() {
 }
 
 std::string Plugins::borrar(const std::string& id) {
-    if (!idValido(id) || !fs::exists(carpetaDe(id))) return "no existe el plugin «" + id + "»";
+    if (!idValido(id) || !fs::exists(carpetaDe(id))) return ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el plugin «%1»"), {id});
     detener(id, true);
     procesos_.erase(id);
     guardarActivos();
@@ -679,7 +680,7 @@ std::string Plugins::borrar(const std::string& id) {
         carpeta_ / ".papelera" / (id + "-" + std::to_string(QDateTime::currentSecsSinceEpoch()));
     fs::create_directories(pap.parent_path(), ec);
     fs::rename(carpetaDe(id), pap, ec);
-    if (ec) return "no se pudo mover a la papelera: " + ec.message();
+    if (ec) return ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo mover a la papelera: %1"), {ec.message()});
     emit cambio();
     return {};
 }
@@ -689,7 +690,7 @@ std::string Plugins::borrar(const std::string& id) {
 void Plugins::dependencias(const std::string& id, std::function<void(std::string, std::string)> listo) {
     const fs::path dir = carpetaDe(id);
     const json man = leerJson(dir / "plugin.json");
-    if (man.empty()) return listo("no existe el plugin «" + id + "»", {});
+    if (man.empty()) return listo(ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el plugin «%1»"), {id}), {});
     json deps = man.value("dependencias", json::array());
     if (!deps.is_array() || deps.empty()) return listo({}, {});
         // Lo que ya trae el Python del programa (numpy) no se baja de nuevo.
@@ -722,14 +723,14 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
     std::vector<std::string> lista;
     for (const auto& d : deps)
         if (d.is_string() && !yaViene(d.get<std::string>())) lista.push_back(d.get<std::string>());
-    if (lista.empty()) return listo({}, "ya vienen con el programa");
+    if (lista.empty()) return listo({}, ba::i18n::traducir("plugins", "ya vienen con el programa"));
     std::sort(lista.begin(), lista.end());
     std::string firma;
     for (const auto& d : lista)
         firma += d + "\n";
     const fs::path sello = dir / "_libs" / ".dependencias";
-    if (leerTexto(sello) == firma) return listo({}, "ya estaban");
-    if (!fs::exists(python())) return listo("falta el Python del programa (" + python().string() + ")", {});
+    if (leerTexto(sello) == firma) return listo({}, ba::i18n::traducir("plugins", "ya estaban"));
+    if (!fs::exists(python())) return listo(ba::i18n::llenar(ba::i18n::traducir("plugins", "falta el Python del programa (%1)"), {python().string()}), {});
     QStringList args{"-I",
                      "-B",
                      "-m",
@@ -752,10 +753,10 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
     net::Descargas::Pedido p;
     p.id = "plugin:" + id;
     p.tipo = "plugin";
-    p.titulo = "Dependencias de «" + man.value("nombre", id) + "» (pip)";
+    p.titulo = ba::i18n::llenar(ba::i18n::traducir("plugins", "Dependencias de «%1» (pip)"), {man.value("nombre", id)});
     p.version = std::to_string(std::hash<std::string>{}(firma) % 1000000);
     p.trabajo = [yo, args, id, firma, salida](net::Descargas::Contexto& ctx) -> std::string {
-        ctx.avance(0, "pip: " + firma.substr(0, firma.find('\n')) + "…");
+        ctx.avance(0, ba::i18n::llenar(ba::i18n::traducir("plugins", "pip: %1…"), {firma.substr(0, firma.find('\n'))}));
         // El pip que corre, para cortarlo si se cancela la descarga.
         auto pip = std::make_shared<QPointer<Hijo>>();
         return ctx.enLaInterfaz([yo, args, id, firma, salida, pip](std::function<void(const std::string&)> listo) {
@@ -765,7 +766,7 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
                          [yo, id, salida, listo](int codigo, QByteArray out, QByteArray err) {
                              *salida = (out + err).toStdString();
                              if (yo) yo->escribirRegistro(id, QByteArray::fromStdString("[pip] " + *salida));
-                             listo(codigo == 0 ? std::string() : std::string("pip no pudo bajar las dependencias"));
+                             listo(codigo == 0 ? std::string() : std::string(ba::i18n::traducir("plugins", "pip no pudo bajar las dependencias")));
                          });
         }, [pip]() {
             // Cancelada: se corta pip (y lo que lance: va en su grupo). Lo que dejó a
@@ -788,7 +789,7 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
     if (r == net::Descargas::Resultado::Invalida) {
         auto esperan = std::move(esperandoDeps_[id]);
         esperandoDeps_.erase(id);
-        for (auto& l : esperan) l("no se pudo pedir la descarga", {});
+        for (auto& l : esperan) l(ba::i18n::traducir("plugins", "no se pudo pedir la descarga"), {});
     }
 }
 
@@ -821,8 +822,8 @@ void Plugins::probar(const std::string& id, double segundos, const json& control
                          json r = json::parse(out.toStdString(), nullptr, false);
                          if (r.is_discarded() || !r.is_object())
                              r = {{"ok", false},
-                                  {"error", codigo < 0 ? "el probador se cortó (¿tardó demasiado?)"
-                                                       : "el probador no devolvió un informe"},
+                                  {"error", codigo < 0 ? ba::i18n::traducir("plugins", "el probador se cortó (¿tardó demasiado?)")
+                                                       : ba::i18n::traducir("plugins", "el probador no devolvió un informe")},
                                   {"salida", out.right(2000).toStdString()},
                                   {"registro", err.right(3000).toStdString()}};
                          listo(r);
@@ -834,7 +835,7 @@ void Plugins::probar(const std::string& id, double segundos, const json& control
 
 void Plugins::activar(const std::string& id, bool activo, std::function<void(json)> listo) {
     if (!idValido(id) || !fs::exists(carpetaDe(id) / "plugin.json"))
-        return listo(json{{"error", "no existe el plugin «" + id + "»"}});
+        return listo(json{{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el plugin «%1»"), {id})}});
     auto& pr = procesos_[id];
     if (!pr) pr = std::make_unique<Proceso>();
     if (!activo) {
@@ -890,9 +891,9 @@ void Plugins::arrancar(const std::string& id) {
     if (enVivo_ && enVivo_() && !aprobadoVigente(id)) {
         p.estado = "bloqueado";
         p.error = leerAprobados().contains(id)
-                      ? "el código cambió desde que se aprobó para el aire: en vivo no arranca (revisalo y aprobalo de nuevo)"
-                      : "en vivo solo arrancan los plugins aprobados para el aire (Plugins → «Aprobar para el aire»)";
-        avisar("Plugin «" + id + "»: " + p.error, "aviso");
+                      ? ba::i18n::traducir("plugins", "el código cambió desde que se aprobó para el aire: en vivo no arranca (revisalo y aprobalo de nuevo)")
+                      : ba::i18n::traducir("plugins", "en vivo solo arrancan los plugins aprobados para el aire (Plugins → «Aprobar para el aire»)");
+        avisar(ba::i18n::llenar(ba::i18n::traducir("plugins", "Plugin «%1»: %2"), {id, p.error}), "aviso");
         auto cbs = std::move(p.alListo);
         for (auto& cb : cbs)
             cb(estado(id));
@@ -901,7 +902,7 @@ void Plugins::arrancar(const std::string& id) {
     }
     if (!fs::exists(python())) {
         p.estado = "caido";
-        p.error = "falta el Python del programa (" + python().string() + ")";
+        p.error = ba::i18n::llenar(ba::i18n::traducir("plugins", "falta el Python del programa (%1)"), {python().string()});
         auto cbs = std::move(p.alListo);
         for (auto& cb : cbs)
             cb(estado(id));
@@ -938,7 +939,7 @@ void Plugins::arrancar(const std::string& id) {
         auto it = procesos_.find(id);
         if (it == procesos_.end() || it->second->listo || !it->second->p) return;
         it->second->error =
-            "no terminó de arrancar en 20 s (¿se quedó esperando algo antes de plugin.correr()?)";
+            ba::i18n::traducir("plugins", "no terminó de arrancar en 20 s (¿se quedó esperando algo antes de plugin.correr()?)");
         it->second->p->matar();
     });
     p.plazo->start(20000);
@@ -988,7 +989,7 @@ void Plugins::detener(const std::string& id, bool porPedido) {
 void Plugins::alError(const std::string& id) {
     auto it = procesos_.find(id);
     if (it == procesos_.end()) return;
-    it->second->error = "no se pudo arrancar Python";
+    it->second->error = ba::i18n::traducir("plugins", "no se pudo arrancar Python");
     alSalir(id, -1, true);
 }
 
@@ -1017,7 +1018,7 @@ void Plugins::alSalir(const std::string& id, int codigo, bool caido) {
     p.caidas.erase(std::remove_if(p.caidas.begin(), p.caidas.end(),
                                   [&](qint64 t) { return ahora - t > kVentanaCaidasMs(); }),
                    p.caidas.end());
-    if (p.error.empty()) p.error = caido ? "se cayó" : "terminó (código " + std::to_string(codigo) + ")";
+    if (p.error.empty()) p.error = caido ? ba::i18n::traducir("plugins", "se cayó") : ba::i18n::llenar(ba::i18n::traducir("plugins", "terminó (código %1)"), {std::to_string(codigo)});
     {
         // La última línea del registro suele ser el motivo.
         for (auto r = p.registro.rbegin(); r != p.registro.rend(); ++r)
@@ -1032,8 +1033,7 @@ void Plugins::alSalir(const std::string& id, int codigo, bool caido) {
             cb(estado(id));
     if (static_cast<int>(p.caidas.size()) >= kMaxCaidas()) {
         p.estado = "caido";
-        avisar("El plugin «" + id + "» se cayó " + std::to_string(kMaxCaidas()) +
-                   " veces en un minuto y quedó apagado: " + p.error,
+        avisar(ba::i18n::llenar(ba::i18n::traducir("plugins", "El plugin «%1» se cayó %2 veces en un minuto y quedó apagado: %3"), {id, std::to_string(kMaxCaidas()), p.error}),
                "warning");
         emit cambio();
         return;
@@ -1083,8 +1083,8 @@ std::string Plugins::registro(const std::string& id, int lineas) const {
     // Sin proceso (o recién abierta la app): del archivo.
     const std::string s = leerTexto(logs_ / (id + ".log"), 10'000'000);
     if (s.empty())
-        return fs::exists(carpetaDe(id)) ? "(todavía no corrió: no hay registro)"
-                                         : "(no existe el plugin «" + id + "»)";
+        return fs::exists(carpetaDe(id)) ? ba::i18n::traducir("plugins", "(todavía no corrió: no hay registro)")
+                                         : ba::i18n::llenar(ba::i18n::traducir("plugins", "(no existe el plugin «%1»)"), {id});
     size_t pos = s.size();
     for (int k = 0; k <= lineas && pos > 0 && pos != std::string::npos; ++k)
         pos = s.rfind('\n', pos - 1);
@@ -1105,15 +1105,17 @@ void Plugins::alLeer(const std::string& id) {
         json m = json::parse(linea.toStdString(), nullptr, false);
         if (m.is_discarded() || !m.is_object()) {
             escribirRegistro(
-                id, "[app] línea que no es del protocolo (¿un print a stdout?): " + linea.left(200) + "\n");
+                id, QByteArray::fromStdString(ba::i18n::llenar(
+                        ba::i18n::traducir("plugins", "[app] línea que no es del protocolo (¿un print a stdout?): %1\n"),
+                        {linea.left(200).toStdString()})));
             continue;
         }
         try {
             recibir(id, m);
         } catch (const std::exception& e) {
-            escribirRegistro(id, QByteArray("[app] error con «") +
-                                     QByteArray::fromStdString(m.value("t", std::string())) +
-                                     "»: " + e.what() + "\n");
+            escribirRegistro(id, QByteArray::fromStdString(
+                                     ba::i18n::llenar(ba::i18n::traducir("plugins", "[app] error con «%1»: %2\n"),
+                                                      {m.value("t", std::string()), e.what()})));
         }
         // recibir() puede haber terminado con el proceso.
         it = procesos_.find(id);
@@ -1142,9 +1144,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
     Proceso& p = *procesos_.at(id);
     const std::string t = m.value("t", "");
     if (t == "hola") {
-        escribirRegistro(id, QByteArray::fromStdString("[app] hola (pid " +
-                                                       std::to_string(m.value("pid", 0)) + ", medios en " +
-                                                       std::to_string(m.value("medios", 0)) + ")\n"));
+        escribirRegistro(id, QByteArray::fromStdString(ba::i18n::llenar(ba::i18n::traducir("plugins", "[app] hola (pid %1, medios en %2)\n"), {std::to_string(m.value("pid", 0)), std::to_string(m.value("medios", 0))})));
         p.puerto = m.value("medios", 0);
         p.python = m.value("python", std::string());
         anotarPuerto(id, p.puerto);
@@ -1202,7 +1202,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
             emit valoresCambio(q(id));
         }
     } else if (t == "aviso") {
-        avisar("«" + id + "»: " + m.value("texto", std::string()), m.value("prioridad", std::string("info")));
+        avisar(ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1»: %2"), {id, m.value("texto", std::string())}), m.value("prioridad", std::string("info")));
     } else if (t == "evento") {
         publicarEvento(id, m);
     } else if (t == "superficie_registrar") {
@@ -1226,7 +1226,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
         if (!llamador_) {
             enviar(
                 id,
-                {{"t", "respuesta"}, {"n", n}, {"ok", false}, {"error", "el sistema todavía no está listo"}});
+                {{"t", "respuesta"}, {"n", n}, {"ok", false}, {"error", ba::i18n::traducir("plugins", "el sistema todavía no está listo")}});
             return;
         }
         const std::string herramienta = m.value("herramienta", std::string());
@@ -1239,7 +1239,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
                 enviar(id, {{"t", "respuesta"},
                             {"n", n},
                             {"ok", false},
-                            {"error", "«" + herramienta + "» no está en las herramientas del plugin (plugin.json → herramientas)"}});
+                            {"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no está en las herramientas del plugin (plugin.json → herramientas)"), {herramienta})}});
                 return;
             }
         }
@@ -1282,7 +1282,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
         QByteArray valor;
         if (!declarada) {
             r["ok"] = false;
-            r["error"] = "«" + nombre + "» no está en \"secretos\" de plugin.json";
+            r["error"] = ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no está en \"secretos\" de plugin.json"), {nombre});
         } else if (!cred::read(credenciales_, ("plugin-" + id + "-" + nombre).c_str(), valor)) {
             r["ok"] = true;
             r["resultado"] = nullptr; // todavía no la cargaron
@@ -1353,9 +1353,9 @@ void Plugins::declararEntrada(const std::string& id, const json& d) {
     const std::string e =
         video_->crearEntradaPipeline(nombre, pv, pa, escena, latencia, normalizar, extra);
     if (!e.empty()) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0, id + ": entrada «" + nombre + "»: " + e);
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0, ba::i18n::llenar(ba::i18n::traducir("plugins", "%1: entrada «%2»: %3"), {id, nombre, e}));
         auto it = procesos_.find(id);
-        if (it != procesos_.end()) it->second->error = "entrada «" + nombre + "»: " + e;
+        if (it != procesos_.end()) it->second->error = ba::i18n::llenar(ba::i18n::traducir("plugins", "entrada «%1»: %2"), {nombre, e});
     }
 }
 
@@ -1367,10 +1367,10 @@ void Plugins::declararPtz(const std::string& id, const json& d) {
         camaras_->configurar(entrada, "plugin", QVariantMap{{"plugin", q(id)}, {"entrada", entrada}});
     if (!e.isEmpty()) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0,
-                                   id + ": PTZ de «" + entrada.toStdString() + "»: " + e.toStdString());
+                                   ba::i18n::llenar(ba::i18n::traducir("plugins", "%1: PTZ de «%2»: %3"), {id, entrada.toStdString(), e.toStdString()}));
         auto it = procesos_.find(id);
         if (it != procesos_.end())
-            it->second->error = "PTZ de «" + entrada.toStdString() + "»: " + e.toStdString();
+            it->second->error = ba::i18n::llenar(ba::i18n::traducir("plugins", "PTZ de «%1»: %2"), {entrada.toStdString(), e.toStdString()});
     }
     camaras_->refrescarPlugins();
 }
@@ -1446,7 +1446,7 @@ void Plugins::pedir(const std::string& id, const std::string& accion, const json
     if (timeoutMs <= 0) timeoutMs = ba::ajustes::entero("plugins.pedidoMs", 10000); // Configuración → avanzado
     auto it = procesos_.find(id);
     if (it == procesos_.end() || !it->second->p || !it->second->listo)
-        return listo(json{{"ok", false}, {"error", "el plugin «" + id + "» no está corriendo"}});
+        return listo(json{{"ok", false}, {"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "el plugin «%1» no está corriendo"), {id})}});
     const int n = ++n_;
     auto* t = new QTimer(this);
     t->setSingleShot(true);
@@ -1457,7 +1457,7 @@ void Plugins::pedir(const std::string& id, const std::string& accion, const json
         pe->second.timer->deleteLater();
         pendientes_.erase(pe);
         cb(json{{"ok", false},
-                {"error", "«" + accion + "» no contestó en " + std::to_string(timeoutMs / 1000) + " s"}});
+                {"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no contestó en %2 s"), {accion, std::to_string(timeoutMs / 1000)})}});
     });
     pendientes_[n] = {std::move(listo), t};
     t->start(timeoutMs);
@@ -1473,7 +1473,7 @@ void Plugins::avisar(const std::string& texto, const std::string& prioridad) con
 
 std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarjeta,
                                   const std::string& entrada, const json& parametros, json* hecho) {
-    if (!video_) return "el video no está disponible";
+    if (!video_) return ba::i18n::traducir("plugins", "el video no está disponible");
     auto it = procesos_.find(id);
     bool existe = false;
     if (it != procesos_.end())
@@ -1481,12 +1481,10 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
             if (d.value("t", "") == "tarjeta" && d.value("nombre", "") == tarjeta) {
                 existe = true;
                 if (d.value("medio", "video") == "audio")
-                    return "«" + tarjeta +
-                           "» es de audio: va como filtro de una fuente (plugin_tarjeta con `fuente`)";
+                    return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» es de audio: va como filtro de una fuente (plugin_tarjeta con `fuente`)"), {tarjeta});
             }
     if (!existe)
-        return "el plugin «" + id + "» no declaró la tarjeta «" + tarjeta +
-               "» (¿está corriendo? plugin_activar; plugin_ver dice lo que declara)";
+        return ba::i18n::llenar(ba::i18n::traducir("plugins", "el plugin «%1» no declaró la tarjeta «%2» (¿está corriendo? plugin_activar; plugin_ver dice lo que declara)"), {id, tarjeta});
     // Con TODOS sus parámetros (los de fábrica que declara, con lo pedido encima):
     // así se ven y se ajustan desde el grafo.
     json todos = json::object();
@@ -1502,9 +1500,9 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
 
 std::string Plugins::ponerFiltroAudio(const std::string& id, const std::string& tarjeta,
                                       const std::string& fuente, const json& parametros, json* hecho) {
-    if (!rt_.engine().sourceExists(fuente)) return "no hay una fuente «" + fuente + "»";
+    if (!rt_.engine().sourceExists(fuente)) return ba::i18n::llenar(ba::i18n::traducir("plugins", "no hay una fuente «%1»"), {fuente});
     const auto conAudio = rt_.engine().audioSources();
-    if (std::find(conAudio.begin(), conAudio.end(), fuente) == conAudio.end()) return "«" + fuente + "» no tiene audio";
+    if (std::find(conAudio.begin(), conAudio.end(), fuente) == conAudio.end()) return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no tiene audio"), {fuente});
     // Una tarjeta `baplugin` en la cadena de audio de la entrada (la misma tarjeta se reemplaza).
     const std::string fid = "plugin_" + id + "_" + tarjeta;
     const json s = json::parse(rt_.engine().sourceSettingsJson(fuente), nullptr, false);
@@ -1694,8 +1692,7 @@ bool Plugins::hayPython() const { return fs::exists(python()); }
 void Plugins::prender(const QString& id, bool activo) {
     activar(id.toStdString(), activo, [this, id, activo](json e) {
         if (activo && e.value("estado", "") != "corriendo")
-            avisar("El plugin «" + id.toStdString() +
-                       "» no arrancó: " + e.value("error", std::string("mirá su registro")),
+            avisar(ba::i18n::llenar(ba::i18n::traducir("plugins", "El plugin «%1» no arrancó: %2"), {id.toStdString(), e.value("error", ba::i18n::traducir("plugins", "mirá su registro"))}),
                    "warning");
         emit cambio();
     });
@@ -1736,12 +1733,12 @@ QString Plugins::configTexto(const QString& id) const {
 
 QString Plugins::guardarConfig(const QString& id, const QString& texto) {
     const json c = json::parse(texto.toStdString(), nullptr, false);
-    if (c.is_discarded() || !c.is_object()) return "No es un JSON válido (tiene que ser un objeto: { … })";
+    if (c.is_discarded() || !c.is_object()) return tr("No es un JSON válido (tiene que ser un objeto: { … })");
     const fs::path arch = carpetaDe(id.toStdString()) / "plugin.json";
     json man = leerJson(arch);
-    if (man.empty()) return "No existe el plugin";
+    if (man.empty()) return tr("No existe el plugin");
     man["config"] = c;
-    if (!escribirTexto(arch, man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) return "No se pudo guardar";
+    if (!escribirTexto(arch, man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) return tr("No se pudo guardar");
     enviar(id.toStdString(), {{"t", "config"}, {"config", c}});
     emit cambio();
     return {};
@@ -1751,7 +1748,7 @@ void Plugins::controlUi(const QString& id, const QString& control, const QString
     json args = json::parse(argsJson.trimmed().isEmpty() ? std::string("{}") : argsJson.toStdString(),
                             nullptr, false);
     if (args.is_discarded() || !args.is_object()) {
-        emit respuesta(id, control, "Los argumentos no son un JSON válido", false);
+        emit respuesta(id, control, tr("Los argumentos no son un JSON válido"), false);
         return;
     }
     QPointer<Plugins> yo(this);
@@ -1792,9 +1789,9 @@ json Plugins::valores(const std::string& id) const { return valoresDe(id); }
 
 std::string Plugins::ponerValor(const std::string& id, const std::string& clave, const json& valor) {
     const json pn = panel(id);
-    if (pn.is_null()) return "«" + id + "» no tiene panel (o no está prendido)";
+    if (pn.is_null()) return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no tiene panel (o no está prendido)"), {id});
     auto it = procesos_.find(id);
-    if (it == procesos_.end() || it->second->estado != "corriendo") return "«" + id + "» no está corriendo";
+    if (it == procesos_.end() || it->second->estado != "corriendo") return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no está corriendo"), {id});
     std::string tipo;
     json c;
     for (const auto& x : pn["controles"])
@@ -1803,9 +1800,9 @@ std::string Plugins::ponerValor(const std::string& id, const std::string& clave,
             c = x;
         }
     if (tipo.empty() || tipo == "seccion")
-        return "el panel de «" + id + "» no tiene el control «" + clave + "»";
+        return ba::i18n::llenar(ba::i18n::traducir("plugins", "el panel de «%1» no tiene el control «%2»"), {id, clave});
     if (tipo == "indicador" || tipo == "medidor")
-        return "«" + clave + "» lo muestra el plugin: no se mueve desde afuera";
+        return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» lo muestra el plugin: no se mueve desde afuera"), {clave});
     json v = valor;
     // Que llegue del tipo que espera el plugin (la interfaz y el asistente mandan lo que tienen).
     if (tipo == "deslizador" || tipo == "numero") {
@@ -1826,7 +1823,7 @@ std::string Plugins::ponerValor(const std::string& id, const std::string& clave,
         bool hay = false;
         for (const auto& x : c.value("opciones", json::array()))
             hay = hay || x == o;
-        if (!hay) return "«" + o + "» no es una opción de «" + clave + "»";
+        if (!hay) return ba::i18n::llenar(ba::i18n::traducir("plugins", "«%1» no es una opción de «%2»"), {o, clave});
         v = o;
     } else if (tipo == "texto") {
         v = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -1928,12 +1925,12 @@ QString Plugins::guardarSecreto(const QString& id, const QString& nombre, const 
     bool declarada = false;
     for (const auto& x : secretosDe(i))
         declarada = declarada || x.value("clave", "") == n;
-    if (!declarada) return "El plugin no declara la clave «" + nombre + "»";
+    if (!declarada) return tr("El plugin no declara la clave «%1»").arg(nombre);
     const std::string nom = "plugin-" + i + "-" + n;
     if (valor.isEmpty())
         cred::remove(credenciales_, nom.c_str());
     else if (!cred::write(credenciales_, nom.c_str(), valor.toUtf8()))
-        return "No se pudo guardar";
+        return tr("No se pudo guardar");
     emit cambio();
     return {};
 }
@@ -1988,7 +1985,7 @@ else:
 
 void Plugins::exportar(const std::string& id, std::function<void(json)> listo) {
     if (!idValido(id) || !fs::exists(carpetaDe(id) / "plugin.json"))
-        return listo(json{{"error", "no existe el plugin «" + id + "»"}});
+        return listo(json{{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe el plugin «%1»"), {id})}});
     const json man = leerJson(carpetaDe(id) / "plugin.json");
     const fs::path dir = rt_.dataRoot() / "Exportado";
     std::error_code ec;
@@ -1998,20 +1995,20 @@ void Plugins::exportar(const std::string& id, std::function<void(json)> listo) {
                  entornoPython(), 120000, [listo](int, QByteArray out, QByteArray err) {
                      json r = json::parse(out.toStdString(), nullptr, false);
                      listo(r.is_discarded() || !r.is_object()
-                               ? json{{"error", "no se pudo armar el zip: " + err.right(800).toStdString()}}
+                               ? json{{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo armar el zip: %1"), {err.right(800).toStdString()})}}
                                : r);
                  });
 }
 
 void Plugins::importar(const std::string& archivo, bool reemplazar, std::function<void(json)> listo) {
-    if (!fs::exists(archivo)) return listo(json{{"error", "no existe «" + archivo + "»"}});
+    if (!fs::exists(archivo)) return listo(json{{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no existe «%1»"), {archivo})}});
     Hijo::correr(
         this, q(python()),
         {"-I", "-B", "-c", kZip, "importar", q(fs::path(archivo)), q(carpeta_), reemplazar ? "1" : "0"},
         entornoPython(), 120000, [this, listo](int, QByteArray out, QByteArray err) {
             json r = json::parse(out.toStdString(), nullptr, false);
             if (r.is_discarded() || !r.is_object())
-                r = {{"error", "no se pudo abrir el zip: " + err.right(800).toStdString()}};
+                r = {{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo abrir el zip: %1"), {err.right(800).toStdString()})}};
             if (!r.contains("error")) {
                 r["estado"] = estado(r.value("id", std::string()));
                 r["siguiente"] =
@@ -2039,7 +2036,7 @@ void Plugins::importarUi(const QUrl& archivo) {
         if (!yo) return;
         emit yo->aviso(r.contains("error")
                            ? q(r.value("error", std::string()))
-                           : "Instalado «" + q(r.value("id", std::string())) + "»: probalo y prendelo",
+                           : tr("Instalado «%1»: probalo y prendelo").arg(q(r.value("id", std::string()))),
                        !r.contains("error"));
     });
 }

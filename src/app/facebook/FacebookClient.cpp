@@ -88,16 +88,16 @@ bool FacebookClient::saveClient(const QString& appId, const QString& appSecret, 
     for (const QChar c : id)
         digits = digits && c.isDigit();
     if (!digits || id.size() < 10) {
-        error = "El ID de la app de Meta es un numero largo (Panel de la app -> Configuracion -> Basica).";
+        error = tr("El ID de la app de Meta es un numero largo (Panel de la app -> Configuracion -> Basica).");
         return false;
     }
     if (sec.size() < 16) {
-        error = "Falta la clave secreta de la app (Configuracion -> Basica -> Clave secreta, \"Mostrar\").";
+        error = tr("Falta la clave secreta de la app (Configuracion -> Basica -> Clave secreta, \"Mostrar\").");
         return false;
     }
     const QJsonObject o{{"app_id", id}, {"app_secret", sec}, {"port", std::clamp(port, 1024, 65535)}};
     if (!cred::write(configDir_, "facebook-client", QJsonDocument(o).toJson())) {
-        error = "No se pudo guardar en " + configDir_;
+        error = tr("No se pudo guardar en %1").arg(configDir_);
         return false;
     }
     if (id != appId_) {
@@ -165,20 +165,20 @@ QString FacebookClient::explain(int status, const QByteArray& body) {
     const QJsonObject e = QJsonDocument::fromJson(body).object().value("error").toObject();
     const int code = e.value("code").toInt();
     const QString msg = e.value("message").toString();
-    if (code == 190) return "La sesion de Facebook vencio o fue revocada: conecta la cuenta de nuevo.";
-    if (code == 200 || code == 10) return "Falta un permiso (o la app no lo tiene aprobado): " + msg;
-    if (code == 4 || code == 17 || code == 32) return "Facebook pide esperar (limite de pedidos).";
+    if (code == 190) return tr("La sesion de Facebook vencio o fue revocada: conecta la cuenta de nuevo.");
+    if (code == 200 || code == 10) return tr("Falta un permiso (o la app no lo tiene aprobado): %1").arg(msg);
+    if (code == 4 || code == 17 || code == 32) return tr("Facebook pide esperar (limite de pedidos).");
     if (msg.contains("redirect_uri", Qt::CaseInsensitive))
-        return "Facebook rechazo la redireccion: agrega la URL de redireccion en la app de Meta (Inicio de "
-               "sesion con Facebook -> Configuracion).";
+        return tr("Facebook rechazo la redireccion: agrega la URL de redireccion en la app de Meta (Inicio de "
+                  "sesion con Facebook -> Configuracion).");
     if (!msg.isEmpty()) return "Facebook: " + msg;
-    return QString("Facebook respondio %1").arg(status);
+    return tr("Facebook respondio %1").arg(status);
 }
 
 // --- Login ------------------------------------------------------------------------------
 
 void FacebookClient::login(Done done) {
-    if (!hasClient()) return done(false, {}, "Falta configurar la app de Meta (ID y clave secreta).");
+    if (!hasClient()) return done(false, {}, tr("Falta configurar la app de Meta (ID y clave secreta)."));
     cancelLogin();
     loginServer_ = new QTcpServer(this);
     if (!loginServer_->listen(QHostAddress::LocalHost, static_cast<quint16>(port_))) {
@@ -186,8 +186,7 @@ void FacebookClient::login(Done done) {
         loginServer_ = nullptr;
         return done(
             false, {},
-            QString(
-                "El puerto %1 esta ocupado: cambialo en la configuracion de Facebook (y en la app de Meta).")
+            tr("El puerto %1 esta ocupado: cambialo en la configuracion de Facebook (y en la app de Meta).")
                 .arg(port_));
     }
     loginState_ = randomState();
@@ -224,15 +223,15 @@ void FacebookClient::login(Done done) {
                     s->disconnectFromHost();
                 };
                 if (!q.hasQueryItem("code") && !q.hasQueryItem("error"))
-                    return page("…", "Esperando a Facebook.", false);
+                    return page("…", tr("Esperando a Facebook."), false);
                 if (q.queryItemValue("state") != loginState_)
-                    return page("No coincide", "Este enlace no corresponde al login en curso.", false);
+                    return page(tr("No coincide"), tr("Este enlace no corresponde al login en curso."), false);
                 if (q.hasQueryItem("error")) {
-                    page("Cancelado", "No se dio permiso. Podes cerrar esta pestaña.", false);
-                    return finishLogin(false, "Cancelaste el permiso en Facebook.");
+                    page(tr("Cancelado"), tr("No se dio permiso. Podes cerrar esta pestaña."), false);
+                    return finishLogin(false, tr("Cancelaste el permiso en Facebook."));
                 }
-                page("¡Listo!",
-                     "Broadcast Appliance ya puede usar tus Paginas de Facebook. Podes cerrar esta pestaña.",
+                page(tr("¡Listo!"),
+                     tr("Broadcast Appliance ya puede usar tus Paginas de Facebook. Podes cerrar esta pestaña."),
                      true);
                 exchange(q.queryItemValue("code", QUrl::FullyDecoded),
                          [this](bool ok, const QJsonObject&, const QString& e) { finishLogin(ok, e); });
@@ -241,7 +240,7 @@ void FacebookClient::login(Done done) {
     });
     QPointer<QTcpServer> server(loginServer_);
     QTimer::singleShot(ba::ajustes::entero("plataformas.loginMin", 5) * 60 * 1000, this, [this, server]() {
-        if (server && server == loginServer_) finishLogin(false, "El login no se completo a tiempo.");
+        if (server && server == loginServer_) finishLogin(false, tr("El login no se completo a tiempo."));
     });
     emit stateChanged();
     openBrowser_(url.toString(QUrl::FullyEncoded));
@@ -262,7 +261,7 @@ void FacebookClient::exchange(const QString& code, Done done) {
         const QJsonObject o = parse(r.body);
         if (r.status != 200 || !o.contains("access_token"))
             return done(false, {},
-                        r.status == 0 ? "Sin conexion con Facebook: " + QString::fromStdString(r.error)
+                        r.status == 0 ? tr("Sin conexion con Facebook: %1").arg(QString::fromStdString(r.error))
                                       : explain(r.status, QByteArray::fromStdString(r.body)));
         QUrlQuery lq;
         lq.addQueryItem("grant_type", "fb_exchange_token");
@@ -325,8 +324,8 @@ void FacebookClient::loadPages(Done done) {
             emit self->stateChanged();
             if (pages.isEmpty())
                 return done(false, {},
-                            "La cuenta no administra ninguna Pagina de Facebook (la API solo permite "
-                            "transmitir a Paginas).");
+                            tr("La cuenta no administra ninguna Pagina de Facebook (la API solo permite "
+                               "transmitir a Paginas)."));
             done(true, QJsonObject{{"user", self->user_}, {"pages", self->pages()}}, {});
         });
     });
@@ -345,7 +344,7 @@ void FacebookClient::finishLogin(bool ok, const QString& error) {
 }
 
 void FacebookClient::cancelLogin() {
-    if (loginServer_) finishLogin(false, "Login cancelado.");
+    if (loginServer_) finishLogin(false, tr("Login cancelado."));
 }
 
 void FacebookClient::logout(Done done) {
@@ -369,9 +368,9 @@ void FacebookClient::logout(Done done) {
 // --- Graph ----------------------------------------------------------------------------------
 
 void FacebookClient::graph(const QString& method, const QString& path, const QUrlQuery& params, Done done) {
-    if (!loggedIn()) return done(false, {}, "No hay una cuenta de Facebook conectada.");
+    if (!loggedIn()) return done(false, {}, tr("No hay una cuenta de Facebook conectada."));
     const QString token = pageToken();
-    if (token.isEmpty()) return done(false, {}, "No hay una Pagina de Facebook elegida.");
+    if (token.isEmpty()) return done(false, {}, tr("No hay una Pagina de Facebook elegida."));
     QUrlQuery q = params;
     q.addQueryItem("access_token", token);
     net::HttpRequest req;
@@ -387,7 +386,7 @@ void FacebookClient::graph(const QString& method, const QString& path, const QUr
     net::asyncRequest(this, req, [self, done](const net::HttpResponse& r) {
         if (!self) return;
         if (r.status >= 200 && r.status < 300) return done(true, parse(r.body), {});
-        const QString e = r.status == 0 ? "Sin conexion con Facebook: " + QString::fromStdString(r.error)
+        const QString e = r.status == 0 ? tr("Sin conexion con Facebook: %1").arg(QString::fromStdString(r.error))
                                         : explain(r.status, QByteArray::fromStdString(r.body));
         if (parse(r.body).value("error").toObject().value("code").toInt() == 190) { // token invalido
             self->userToken_.clear();
@@ -440,7 +439,7 @@ void FacebookClient::createLive(const QJsonObject& p, Done done) {
         QString server, key;
         const QString secure = d.value("secure_stream_url").toString(d.value("stream_url").toString());
         if (!splitIngest(secure, server, key))
-            return done(false, {}, "Facebook no entrego la direccion de ingesta.");
+            return done(false, {}, tr("Facebook no entrego la direccion de ingesta."));
         done(true,
              QJsonObject{{"id", d.value("id")}, {"ingestion", QJsonObject{{"url", server}, {"key", key}}}},
              {});
@@ -539,8 +538,8 @@ void FacebookClient::comment(const QString& liveId, const QString& text, Done do
 
 void FacebookClient::uploadVideo(const QString& path, const QJsonObject& meta, Done done) {
     const QFileInfo fi(path);
-    if (!fi.isFile()) return done(false, {}, "No existe el archivo " + path);
-    if (pageToken().isEmpty()) return done(false, {}, "No hay una Pagina de Facebook elegida.");
+    if (!fi.isFile()) return done(false, {}, tr("No existe el archivo %1").arg(path));
+    if (pageToken().isEmpty()) return done(false, {}, tr("No hay una Pagina de Facebook elegida."));
     net::HttpRequest req;
     req.method = "POST";
     req.url = (ep_.video + "/" + pageId_ + "/videos").toStdString();
@@ -556,7 +555,7 @@ void FacebookClient::uploadVideo(const QString& path, const QJsonObject& meta, D
         const QJsonObject o = parse(r.body);
         if (r.status != 200 || !o.contains("upload_session_id"))
             return done(false, {},
-                        r.status == 0 ? "Sin conexion con Facebook: " + QString::fromStdString(r.error)
+                        r.status == 0 ? tr("Sin conexion con Facebook: %1").arg(QString::fromStdString(r.error))
                                       : explain(r.status, QByteArray::fromStdString(r.body)));
         self->uploadChunk(path, o.value("upload_session_id").toString(),
                           o.value("start_offset").toString().toLongLong(),
@@ -591,7 +590,7 @@ void FacebookClient::uploadChunk(const QString& path, const QString& session, qi
         return;
     }
     QFile f(path);
-    if (!f.open(QIODevice::ReadOnly) || !f.seek(start)) return done(false, {}, "No se pudo leer " + path);
+    if (!f.open(QIODevice::ReadOnly) || !f.seek(start)) return done(false, {}, tr("No se pudo leer %1").arg(path));
     const QByteArray chunk = f.read(end - start);
     const std::string boundary = "----ba" + std::to_string(QRandomGenerator::system()->generate());
     const auto field = [&boundary](const std::string& k, const std::string& v) {
@@ -616,7 +615,7 @@ void FacebookClient::uploadChunk(const QString& path, const QString& session, qi
             const QJsonObject o = parse(r.body);
             if (r.status != 200 || !o.contains("start_offset"))
                 return done(false, {},
-                            r.status == 0 ? "La subida se corto: " + QString::fromStdString(r.error)
+                            r.status == 0 ? tr("La subida se corto: %1").arg(QString::fromStdString(r.error))
                                           : explain(r.status, QByteArray::fromStdString(r.body)));
             const qint64 ns = o.value("start_offset").toString().toLongLong();
             const qint64 ne = o.value("end_offset").toString().toLongLong();

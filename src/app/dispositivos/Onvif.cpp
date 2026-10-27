@@ -38,7 +38,7 @@ void ClienteOnvif::soap(const QString& u, const QString& cuerpo, bool conClave,
             r->isOpen() ? r->readAll() : QByteArray(); // cortada por tiempo: ya está cerrada
         QString falla = onvif::leerFalla(xml);
         if (falla.isEmpty() && r->error() != QNetworkReply::NoError && xml.isEmpty())
-            falla = "sin respuesta: " + r->errorString();
+            falla = tr("sin respuesta: %1").arg(r->errorString());
         cb(falla.isEmpty(), xml, falla);
     });
 }
@@ -147,7 +147,7 @@ void ClienteOnvif::funciones(Listo listo) {
             }
             const Pedido x = pedidos->takeFirst();
             if (yo->servicios_.value(x.servicio).toString().isEmpty()) {
-                (*crudo)[x.clave] = QVariantMap{{"error", "la cámara no tiene el servicio " + x.servicio}};
+                (*crudo)[x.clave] = QVariantMap{{"error", tr("la cámara no tiene el servicio %1").arg(x.servicio)}};
                 return (*paso)();
             }
             yo->soap(yo->url(x.servicio), yo->completar(x.cuerpo), true,

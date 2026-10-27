@@ -7,6 +7,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include <QCoreApplication>
 #include <QPointer>
 #include <QUrl>
 
@@ -80,7 +81,7 @@ void PtzOnvif::soap(const QString& url, const QString& cuerpo, Respuesta alTermi
             r->isOpen() ? r->readAll() : QByteArray(); // cortada por tiempo: ya está cerrada
         const QString falla = onvif::leerFalla(xml);
         if (r->error() != QNetworkReply::NoError && xml.isEmpty()) {
-            setEstado(false, QStringLiteral("Sin respuesta de la cámara (%1)").arg(r->errorString()));
+            setEstado(false, QCoreApplication::translate("ptz", "Sin respuesta de la cámara (%1)").arg(r->errorString()));
             alTerminar(false, xml);
             return;
         }
@@ -88,8 +89,8 @@ void PtzOnvif::soap(const QString& url, const QString& cuerpo, Respuesta alTermi
             const bool clave = falla.contains("auth", Qt::CaseInsensitive) ||
                                falla.contains("Sender not Authorized") ||
                                r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 401;
-            setEstado(listo(), clave ? QStringLiteral("La cámara no acepta el usuario o la clave")
-                                     : QStringLiteral("La cámara contestó: %1").arg(falla));
+            setEstado(listo(), clave ? QCoreApplication::translate("ptz", "La cámara no acepta el usuario o la clave")
+                                     : QCoreApplication::translate("ptz", "La cámara contestó: %1").arg(falla));
             alTerminar(false, xml);
             return;
         }
@@ -111,7 +112,7 @@ void PtzOnvif::configurar(const QJsonObject& conf) {
     presets_.clear();
     desfase_ = 0;
     if (conf.value("host").toString().trimmed().isEmpty()) {
-        setEstado(false, QStringLiteral("Falta la dirección de la cámara"));
+        setEstado(false, QCoreApplication::translate("ptz", "Falta la dirección de la cámara"));
         return;
     }
     paso("hora");
@@ -119,7 +120,7 @@ void PtzOnvif::configurar(const QJsonObject& conf) {
 
 void PtzOnvif::paso(const QString& que) {
     if (que == "hora") {
-        setEstado(false, QStringLiteral("Conectando con %1…").arg(dispositivo_));
+        setEstado(false, QCoreApplication::translate("ptz", "Conectando con %1…").arg(dispositivo_));
         soap(
             dispositivo_, onvif::getSystemDateAndTime(),
             [this](bool ok, const QByteArray& xml) {
@@ -153,8 +154,7 @@ void PtzOnvif::paso(const QString& que) {
                     }
             if (perfil_.token.isEmpty() && !perfiles.isEmpty()) perfil_ = perfiles.first();
             if (servicios_.ptz.isEmpty() || perfil_.token.isEmpty()) {
-                setEstado(true, QStringLiteral(
-                                    "Conectada, pero la cámara no tiene PTZ por ONVIF (queda el digital)"));
+                setEstado(true, QCoreApplication::translate("ptz", "Conectada, pero la cámara no tiene PTZ por ONVIF (queda el digital)"));
                 emit estadoCambio();
                 return;
             }
@@ -167,7 +167,7 @@ void PtzOnvif::leerPresets() {
     soap(servicios_.ptz, onvif::getPresets(perfil_.token), [this](bool ok, const QByteArray& xml) {
         if (ok) presets_ = onvif::leerPresets(xml);
         leerMotor();
-        setEstado(true, QStringLiteral("Conectada (ONVIF, perfil %1, %2 presets)")
+        setEstado(true, QCoreApplication::translate("ptz", "Conectada (ONVIF, perfil %1, %2 presets)")
                             .arg(perfil_.nombre.isEmpty() ? perfil_.token : perfil_.nombre)
                             .arg(presets_.size()));
         emit estadoCambio(); // las capacidades cambiaron
@@ -254,7 +254,7 @@ void PtzOnvif::vapix(const QString& consulta, std::function<void(bool)> alTermin
         r->deleteLater();
         const int cod = r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const bool ok = cod > 0 && cod < 400;
-        if (!ok) setEstado(listo(), QStringLiteral("La cámara no aceptó el movimiento (HTTP %1)").arg(cod));
+        if (!ok) setEstado(listo(), QCoreApplication::translate("ptz", "La cámara no aceptó el movimiento (HTTP %1)").arg(cod));
         if (alTerminar) alTerminar(ok);
     });
 }
@@ -283,12 +283,12 @@ void PtzOnvif::enfocar(double v) {
 void PtzOnvif::irAPreset(int n) {
     if (n < 1 || n > presets_.size()) {
         setEstado(listo(),
-                  QStringLiteral("La cámara no tiene el preset %1 (tiene %2)").arg(n).arg(presets_.size()));
+                  QCoreApplication::translate("ptz", "La cámara no tiene el preset %1 (tiene %2)").arg(n).arg(presets_.size()));
         return;
     }
     soap(servicios_.ptz, onvif::gotoPreset(perfil_.token, presets_[n - 1].token),
          [this, n](bool ok, const QByteArray&) {
-             if (ok) setEstado(true, QStringLiteral("Yendo al preset %1").arg(n));
+             if (ok) setEstado(true, QCoreApplication::translate("ptz", "Yendo al preset %1").arg(n));
          });
 }
 
@@ -299,7 +299,7 @@ void PtzOnvif::guardarPreset(int n) {
     soap(servicios_.ptz, onvif::setPreset(perfil_.token, QStringLiteral("Preset %1").arg(n), token),
          [this, n](bool ok, const QByteArray&) {
              if (!ok) return;
-             setEstado(true, QStringLiteral("Preset %1 guardado en la cámara").arg(n));
+             setEstado(true, QCoreApplication::translate("ptz", "Preset %1 guardado en la cámara").arg(n));
              leerPresets();
          });
 }
@@ -315,7 +315,7 @@ void PtzOnvif::grabarPosicion(int, const QString& nombre, std::function<void(boo
              const QString token = ok ? onvif::leerTokenPreset(xml) : QString();
              listo(ok && !token.isEmpty(), token);
              if (ok) {
-                 setEstado(true, QStringLiteral("«%1» grabada en la cámara").arg(nombre));
+                 setEstado(true, QCoreApplication::translate("ptz", "«%1» grabada en la cámara").arg(nombre));
                  leerPresets();
              }
          });

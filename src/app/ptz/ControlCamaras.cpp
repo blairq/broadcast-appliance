@@ -77,45 +77,45 @@ ControlCamaras::~ControlCamaras() {
 // ---------------------------------------------------------------------------
 
 QVariantList ControlCamaras::backends() {
-    const QVariantMap host{{"clave", "host"}, {"etiqueta", "Dirección (IP o nombre)"}, {"tipo", "text"}};
+    const QVariantMap host{{"clave", "host"}, {"etiqueta", QCoreApplication::translate("ptz", "Dirección (IP o nombre)")}, {"tipo", "text"}};
     const QVariantMap puerto{
-        {"clave", "puerto"}, {"etiqueta", "Puerto (vacío = el de siempre)"}, {"tipo", "int"}};
-    const QVariantMap usuario{{"clave", "usuario"}, {"etiqueta", "Usuario"}, {"tipo", "text"}};
-    const QVariantMap clave{{"clave", "clave"}, {"etiqueta", "Clave"}, {"tipo", "password"}};
+        {"clave", "puerto"}, {"etiqueta", QCoreApplication::translate("ptz", "Puerto (vacío = el de siempre)")}, {"tipo", "int"}};
+    const QVariantMap usuario{{"clave", "usuario"}, {"etiqueta", QCoreApplication::translate("ptz", "Usuario")}, {"tipo", "text"}};
+    const QVariantMap clave{{"clave", "clave"}, {"etiqueta", QCoreApplication::translate("ptz", "Clave")}, {"tipo", "password"}};
     return {
         QVariantMap{{"id", "ninguno"},
-                    {"nombre", "Solo digital"},
-                    {"ayuda", "La cámara no se mueve: recorte y zoom en la GPU."},
+                    {"nombre", QCoreApplication::translate("ptz", "Solo digital")},
+                    {"ayuda", QCoreApplication::translate("ptz", "La cámara no se mueve: recorte y zoom en la GPU.")},
                     {"campos", QVariantList{}}},
         QVariantMap{
             {"id", "visca"},
-            {"nombre", "VISCA por IP"},
-            {"ayuda", "Sony, PTZOptics, BirdDog, Avonic, Marshall, AVer, Lumens y la mayoría de las chinas. "
-                      "Sony usa UDP 52381; PTZOptics y similares, TCP 5678 o UDP 1259."},
+            {"nombre", QCoreApplication::translate("ptz", "VISCA por IP")},
+            {"ayuda", QCoreApplication::translate("ptz", "Sony, PTZOptics, BirdDog, Avonic, Marshall, AVer, Lumens y la mayoría de las chinas. "
+                      "Sony usa UDP 52381; PTZOptics y similares, TCP 5678 o UDP 1259.")},
             {"campos",
              QVariantList{
                  host,
                  QVariantMap{{"clave", "transporte"},
-                             {"etiqueta", "Transporte"},
+                             {"etiqueta", QCoreApplication::translate("ptz", "Transporte")},
                              {"tipo", "choice"},
                              {"opciones",
                               QVariantList{QVariantMap{{"valor", "sony"},
-                                                       {"texto", "UDP con encabezado Sony (52381)"}},
-                                           QVariantMap{{"valor", "tcp"}, {"texto", "TCP crudo (5678)"}},
-                                           QVariantMap{{"valor", "udp"}, {"texto", "UDP crudo (1259)"}}}}},
+                                                       {"texto", QCoreApplication::translate("ptz", "UDP con encabezado Sony (52381)")}},
+                                           QVariantMap{{"valor", "tcp"}, {"texto", QCoreApplication::translate("ptz", "TCP crudo (5678)")}},
+                                           QVariantMap{{"valor", "udp"}, {"texto", QCoreApplication::translate("ptz", "UDP crudo (1259)")}}}}},
                  puerto,
                  QVariantMap{
-                     {"clave", "direccion"}, {"etiqueta", "Dirección VISCA (1-7)"}, {"tipo", "int"}}}}},
+                     {"clave", "direccion"}, {"etiqueta", QCoreApplication::translate("ptz", "Dirección VISCA (1-7)")}, {"tipo", "int"}}}}},
         QVariantMap{{"id", "onvif"},
                     {"nombre", "ONVIF"},
-                    {"ayuda", "Cámaras IP en general (Profile S). «Buscar en la red» las encuentra solas."},
+                    {"ayuda", QCoreApplication::translate("ptz", "Cámaras IP en general (Profile S). «Buscar en la red» las encuentra solas.")},
                     {"campos", QVariantList{host, puerto, usuario, clave,
                                             QVariantMap{{"clave", "perfil"},
-                                                        {"etiqueta", "Perfil (vacío = el que tenga PTZ)"},
+                                                        {"etiqueta", QCoreApplication::translate("ptz", "Perfil (vacío = el que tenga PTZ)")},
                                                         {"tipo", "text"}}}}},
         QVariantMap{{"id", "panasonic"},
                     {"nombre", "Panasonic AW/UE"},
-                    {"ayuda", "AW-HE40/42/50/60/70/130, AW-UE70/100/150/160 (control por HTTP)."},
+                    {"ayuda", QCoreApplication::translate("ptz", "AW-HE40/42/50/60/70/130, AW-UE70/100/150/160 (control por HTTP).")},
                     {"campos", QVariantList{host, puerto, usuario, clave}}},
     };
 }
@@ -150,7 +150,7 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
                  return f;
              }()},
             {"estado", c.hw ? c.hw->estado()
-                            : (c.digital ? QStringLiteral("Digital (recorte en la GPU)")
+                            : (c.digital ? QCoreApplication::translate("ptz", "Digital (recorte en la GPU)")
                                          : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
             {"posiciones", posiciones(qs(c.entrada))}};
@@ -255,7 +255,7 @@ void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
 ControlCamaras::Camara* ControlCamaras::camara(const QString& entrada, QString* error) {
     auto it = camaras_.find(entrada.toStdString());
     if (it == camaras_.end() || !tipoEntrada_.count(it->first)) {
-        if (error) *error = QStringLiteral("No hay una entrada de video «%1»").arg(entrada);
+        if (error) *error = QCoreApplication::translate("ptz", "No hay una entrada de video «%1»").arg(entrada);
         return nullptr;
     }
     return it->second.get();
@@ -273,7 +273,7 @@ PtzBackend* ControlCamaras::activo(Camara& c) const {
     if (c == nullptr) return error;                                                                          \
     PtzBackend* b = activo(*c);                                                                              \
     if (b == nullptr)                                                                                        \
-        return QStringLiteral("«%1» no tiene PTZ: prendé el digital o elegí un backend").arg(entrada);        \
+        return QCoreApplication::translate("ptz", "«%1» no tiene PTZ: prendé el digital o elegí un backend").arg(entrada);        \
     ++c->movimientos;
 
 void ControlCamaras::pulsar(const QString& entrada, double pan, double tilt, double zoom) {
@@ -310,7 +310,7 @@ QString ControlCamaras::enfocar(const QString& entrada, double v) {
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     if (!c->hw || !c->hw->capacidades().foco)
-        return QStringLiteral("«%1» no tiene foco controlable").arg(entrada);
+        return QCoreApplication::translate("ptz", "«%1» no tiene foco controlable").arg(entrada);
     c->hw->enfocar(qBound(-1.0, v, 1.0));
     return {};
 }
@@ -320,7 +320,7 @@ QString ControlCamaras::autoFoco(const QString& entrada, bool automatico) {
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     if (!c->hw || !c->hw->capacidades().autoFoco)
-        return QStringLiteral("«%1» no deja cambiar el autofoco").arg(entrada);
+        return QCoreApplication::translate("ptz", "«%1» no deja cambiar el autofoco").arg(entrada);
     c->hw->autoFoco(automatico);
     return {};
 }
@@ -341,20 +341,20 @@ QString ControlCamaras::irPreset(const QString& entrada, int n) {
         emit cambio();
         return {};
     }
-    return QStringLiteral("«%1» no tiene una posición número %2 (ptz_posiciones da las que hay)").arg(entrada).arg(n);
+    return QCoreApplication::translate("ptz", "«%1» no tiene una posición número %2 (ptz_posiciones da las que hay)").arg(entrada).arg(n);
 }
 
 QString ControlCamaras::guardarPreset(const QString& entrada, int n) {
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
-    if (n < 1) return QStringLiteral("El número de preset va desde 1");
+    if (n < 1) return QCoreApplication::translate("ptz", "El número de preset va desde 1");
     // Ya hay una posición con ese número: se regraba donde está ahora. Si no, una nueva.
     if (const Posicion* p = c->posiciones.porNumero(n)) {
         const QVariantMap r = editarPosicion(entrada, p->id, {{"regrabar", true}});
         return r.value("ok").toBool() ? QString() : r.value("error").toString();
     }
-    const QVariantMap r = crearPosicion(entrada, nombreLibre(*c, QStringLiteral("Preset %1").arg(n)), {}, 0, -1, n);
+    const QVariantMap r = crearPosicion(entrada, nombreLibre(*c, QCoreApplication::translate("ptz", "Preset %1").arg(n)), {}, 0, -1, n);
     return r.value("ok").toBool() ? QString() : r.value("error").toString();
 }
 
@@ -369,7 +369,7 @@ QString ControlCamaras::encuadre(const QString& entrada, double x, double y, dou
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
-    if (!c->digital || !c->dig) return QStringLiteral("El PTZ digital está apagado en «%1»").arg(entrada);
+    if (!c->digital || !c->dig) return QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada);
     ++c->movimientos;
     if (!c->dig->ir(qBound(0.0, x, 1.0), qBound(0.0, y, 1.0), qBound(1.0, zoom, 8.0),
                     qBound(0.0, segundos, 10.0)))
@@ -488,15 +488,15 @@ void ControlCamaras::crearHardware(Camara& c) {
 QString ControlCamaras::configurar(const QString& entrada, const QString& backend, const QVariantMap& conf) {
     static const QStringList kValidos{"ninguno", "visca", "onvif", "panasonic", "plugin"};
     if (!kValidos.contains(backend))
-        return QStringLiteral("Backend «%1» desconocido (ninguno, visca, onvif, panasonic, plugin)")
+        return QCoreApplication::translate("ptz", "Backend «%1» desconocido (ninguno, visca, onvif, panasonic, plugin)")
             .arg(backend);
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
     if (backend == "plugin" && conf.value("plugin").toString().isEmpty())
-        return QStringLiteral("Falta el plugin");
+        return QCoreApplication::translate("ptz", "Falta el plugin");
     if (backend != "ninguno" && backend != "plugin" && conf.value("host").toString().trimmed().isEmpty())
-        return QStringLiteral("Falta la dirección de la cámara");
+        return QCoreApplication::translate("ptz", "Falta la dirección de la cámara");
     QJsonObject j = QJsonObject::fromVariantMap(conf);
     const QString clave = j.take("clave").toString();
     if (!clave.isEmpty()) cred::write(credenciales_, nombreClave(c->entrada).c_str(), clave.toUtf8());
@@ -545,7 +545,7 @@ QString ControlCamaras::setDigital(const QString& entrada, bool prendido) {
 
 QString ControlCamaras::setMejora(const QString& entrada, const QString& modo) {
     if (modo != "general" && modo != "si" && modo != "no")
-        return QStringLiteral("Modo «%1»: general, si o no").arg(modo);
+        return QCoreApplication::translate("ptz", "Modo «%1»: general, si o no").arg(modo);
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
@@ -557,13 +557,13 @@ QString ControlCamaras::setMejora(const QString& entrada, const QString& modo) {
 }
 
 QString ControlCamaras::setModo(const QString& entrada, const QString& modo) {
-    if (modo != "optico" && modo != "digital") return QStringLiteral("Modo «%1»: optico o digital").arg(modo);
+    if (modo != "optico" && modo != "digital") return QCoreApplication::translate("ptz", "Modo «%1»: optico o digital").arg(modo);
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
-    if (modo == "optico" && !c->hw) return QStringLiteral("«%1» no tiene backend de hardware").arg(entrada);
+    if (modo == "optico" && !c->hw) return QCoreApplication::translate("ptz", "«%1» no tiene backend de hardware").arg(entrada);
     if (modo == "digital" && !c->digital)
-        return QStringLiteral("El PTZ digital está apagado en «%1»").arg(entrada);
+        return QCoreApplication::translate("ptz", "El PTZ digital está apagado en «%1»").arg(entrada);
     // Lo que se estaba moviendo, se para.
     if (c->hw) c->hw->parar();
     if (c->dig) c->dig->parar();

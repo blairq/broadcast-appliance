@@ -13,6 +13,8 @@
 
 #include "dispositivos/SondaReal.hpp"
 
+#include "i18n/I18n.hpp"
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -125,9 +127,10 @@ json probarAsio(const std::string& id) {
     IASIO* a = nullptr;
     const HRESULT hr = CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, clsid, reinterpret_cast<void**>(&a));
     if (FAILED(hr) || a == nullptr) {
-        char buf[64];
-        std::snprintf(buf, sizeof buf, "no se pudo cargar el driver (COM 0x%08lX)", static_cast<unsigned long>(hr));
-        return {{"ok", false}, {"motivo", buf}};
+        char buf[16];
+        std::snprintf(buf, sizeof buf, "0x%08lX", static_cast<unsigned long>(hr));
+        return {{"ok", false},
+                {"motivo", ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no se pudo cargar el driver (COM %1)"), {buf})}};
     }
     json r;
     if (a->init(GetDesktopWindow()) != 1) {
@@ -143,9 +146,12 @@ json probarAsio(const std::string& id) {
         const long c = a->getChannels(&entradas, &salidas);
         a->getSampleRate(&frecuencia);
         if (c != 0) {
-            r = {{"ok", false}, {"motivo", "no dice cuántos canales tiene (error " + std::to_string(c) + ")"}};
+            r = {{"ok", false},
+                 {"motivo", ba::i18n::llenar(ba::i18n::traducir("dispositivos", "no dice cuántos canales tiene (error %1)"),
+                                             {std::to_string(c)})}};
         } else {
-            std::string detalle = std::to_string(entradas) + " entradas, " + std::to_string(salidas) + " salidas";
+            std::string detalle = ba::i18n::llenar(ba::i18n::traducir("dispositivos", "%1 entradas, %2 salidas"),
+                                                   {std::to_string(entradas), std::to_string(salidas)});
             if (frecuencia > 0) detalle += ", " + std::to_string(static_cast<int>(frecuencia + 0.5)) + " Hz";
             r = {{"ok", true},
                  {"detalle", detalle},

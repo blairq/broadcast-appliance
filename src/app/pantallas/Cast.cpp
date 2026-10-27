@@ -3,6 +3,8 @@
 // ============================================================================
 #include "pantallas/Cast.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -253,12 +255,13 @@ bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::strin
     };
     const std::string p = std::to_string(puerto);
     if (mbedtls_ctr_drbg_seed(&d_->drbg, mbedtls_entropy_func, &d_->entropia, nullptr, 0) != 0)
-        return falla("no se pudo inicializar el azar");
-    if (conectarDesde(d_->net, host, puerto, desde) != 0) return falla("no contesta en " + host + ":" + p);
+        return falla(ba::i18n::traducir("pantallas", "no se pudo inicializar el azar"));
+    if (conectarDesde(d_->net, host, puerto, desde) != 0)
+        return falla(ba::i18n::llenar(ba::i18n::traducir("pantallas", "no contesta en %1"), {host + ":" + p}));
     mbedtls_net_set_nonblock(&d_->net);
     if (mbedtls_ssl_config_defaults(&d_->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM,
                                     MBEDTLS_SSL_PRESET_DEFAULT) != 0)
-        return falla("no se pudo preparar el TLS");
+        return falla(ba::i18n::traducir("pantallas", "no se pudo preparar el TLS"));
     // El certificado del aparato es suyo, no lo firma nadie conocido: no hay
     // nada que verificar. No es un descuido —el canal va por la red local y lo
     // que viaja es "mostrá esta página"—, pero por eso mismo no se manda nada
@@ -266,7 +269,7 @@ bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::strin
     mbedtls_ssl_conf_authmode(&d_->conf, MBEDTLS_SSL_VERIFY_NONE);
     mbedtls_ssl_conf_rng(&d_->conf, mbedtls_ctr_drbg_random, &d_->drbg);
     mbedtls_ssl_conf_read_timeout(&d_->conf, static_cast<std::uint32_t>(timeoutMs));
-    if (mbedtls_ssl_setup(&d_->ssl, &d_->conf) != 0) return falla("no se pudo preparar el TLS");
+    if (mbedtls_ssl_setup(&d_->ssl, &d_->conf) != 0) return falla(ba::i18n::traducir("pantallas", "no se pudo preparar el TLS"));
     mbedtls_ssl_set_bio(&d_->ssl, &d_->net, mbedtls_net_send, mbedtls_net_recv, mbedtls_net_recv_timeout);
 
     const std::int64_t vence = ahoraMs() + timeoutMs;
@@ -274,8 +277,8 @@ bool Canal::abrir(const std::string& host, int puerto, int timeoutMs, std::strin
         const int r = mbedtls_ssl_handshake(&d_->ssl);
         if (r == 0) break;
         if (r != MBEDTLS_ERR_SSL_WANT_READ && r != MBEDTLS_ERR_SSL_WANT_WRITE)
-            return falla("el aparato rechazó la conexión segura");
-        if (ahoraMs() > vence) return falla("no terminó de conectar a tiempo");
+            return falla(ba::i18n::traducir("pantallas", "el aparato rechazó la conexión segura"));
+        if (ahoraMs() > vence) return falla(ba::i18n::traducir("pantallas", "no terminó de conectar a tiempo"));
     }
     d_->abierto = true;
     // Sin esto el aparato corta a los pocos segundos sin decir nada.
@@ -291,7 +294,7 @@ void Canal::cerrar() {
 
 bool Canal::mandar(const Mensaje& m, std::string* error) {
     if (!d_->abierto) {
-        if (error != nullptr) *error = "el canal no está abierto";
+        if (error != nullptr) *error = ba::i18n::traducir("pantallas", "el canal no está abierto");
         return false;
     }
     const std::string datos = armar(m);
@@ -304,7 +307,7 @@ bool Canal::mandar(const Mensaje& m, std::string* error) {
             continue;
         }
         if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE) continue;
-        if (error != nullptr) *error = "se cortó al escribir";
+        if (error != nullptr) *error = ba::i18n::traducir("pantallas", "se cortó al escribir");
         d_->abierto = false;
         return false;
     }
@@ -327,7 +330,7 @@ bool Canal::esperar(const std::string& tema, int timeoutMs, Mensaje& out, std::s
             if (tema.empty() || out.tema == tema) return true;
         }
         if (ahoraMs() > vence) {
-            if (error != nullptr) *error = "el aparato no contestó a tiempo";
+            if (error != nullptr) *error = ba::i18n::traducir("pantallas", "el aparato no contestó a tiempo");
             return false;
         }
         unsigned char buf[4096];
@@ -338,7 +341,7 @@ bool Canal::esperar(const std::string& tema, int timeoutMs, Mensaje& out, std::s
         }
         if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE || r == MBEDTLS_ERR_SSL_TIMEOUT)
             continue;
-        if (error != nullptr) *error = "el aparato cerró la conexión";
+        if (error != nullptr) *error = ba::i18n::traducir("pantallas", "el aparato cerró la conexión");
         d_->abierto = false;
         return false;
     }
@@ -354,7 +357,7 @@ bool Canal::pedir(const std::string& destino, const std::string& tema, json cuer
         Mensaje m;
         const int queda = static_cast<int>(vence - ahoraMs());
         if (queda <= 0) {
-            if (error != nullptr) *error = "el aparato no contestó a tiempo";
+            if (error != nullptr) *error = ba::i18n::traducir("pantallas", "el aparato no contestó a tiempo");
             return false;
         }
         if (!esperar(tema, queda, m, error)) return false;
@@ -479,13 +482,14 @@ Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, i
         e.error.clear();
     } else {
         if (r.value("type", "") == "LAUNCH_ERROR") {
-            e.error = "el televisor no pudo abrir DashCast (" + r.value("reason", "sin motivo") + ")";
+            e.error = ba::i18n::llenar(ba::i18n::traducir("pantallas", "el televisor no pudo abrir DashCast (%1)"),
+                                       {r.value("reason", ba::i18n::traducir("pantallas", "sin motivo"))});
             return e;
         }
         leerEstado(r, e);
     }
     if (e.transportId.empty()) {
-        e.error = "el televisor no dijo por dónde hablarle a la aplicación";
+        e.error = ba::i18n::traducir("pantallas", "el televisor no dijo por dónde hablarle a la aplicación");
         return e;
     }
 

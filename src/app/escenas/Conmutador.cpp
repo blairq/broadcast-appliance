@@ -2,6 +2,8 @@
 
 #include "escenas/Conmutador.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 
@@ -41,12 +43,17 @@ std::string Conmutador::cortar(const std::string& escena, const std::string& tip
         ms = e.value("ms", -1);
     }
     const bool ok = tipo.empty() ? rt_.setScene(escena) : rt_.setSceneCon(escena, tipo, ms);
-    if (!ok) return rt_.lastError().empty() ? "no se pudo poner «" + escena + "» al aire" : rt_.lastError();
+    if (!ok)
+        return rt_.lastError().empty()
+                   ? ba::i18n::llenar(ba::i18n::traducir("aire", "no se pudo poner «%1» al aire"), {escena})
+                   : rt_.lastError();
     // Cada cambio del aire al registro, con por dónde vino: «la cambia y vuelve sola»
     // se ve acá (quién la devolvió y cuándo).
     ba::diag::registro().linea(ba::diag::Nivel::Info, "aire", 0,
-                               "al aire: «" + escena + "» (salió «" + antes + "», por " + via +
-                                   (tipo.empty() ? "" : ", " + tipo) + ")");
+                               tipo.empty() ? ba::i18n::llenar(ba::i18n::traducir("aire", "al aire: «%1» (salió «%2», por %3)"),
+                                                               {escena, antes, via})
+                                            : ba::i18n::llenar(ba::i18n::traducir("aire", "al aire: «%1» (salió «%2», por %3, %4)"),
+                                                               {escena, antes, via, tipo}));
     aplicarAfv(escena, tipo == "cut" ? 0 : (ms < 0 ? rt_.config().transition.durationMs : ms));
     rt_.save(); // la escena al aire vuelve igual tras un corte de luz
     emit alAireCambio(QString::fromStdString(escena));
@@ -54,22 +61,22 @@ std::string Conmutador::cortar(const std::string& escena, const std::string& tip
 }
 
 std::string Conmutador::poner(const std::string& escena, const std::string& tipo, int ms) {
-    return cortar(escena, tipo, ms, "corte directo");
+    return cortar(escena, tipo, ms, ba::i18n::traducir("aire", "corte directo").c_str());
 }
 
 std::string Conmutador::armar(const std::string& escena) {
     if (escena == alAire())
         // Armar lo que ya está al aire deja el TAKE sin sentido (cortaría a lo mismo).
-        return "«" + escena + "» ya está al aire: armá otra para el próximo take.";
+        return ba::i18n::llenar(ba::i18n::traducir("aire", "«%1» ya está al aire: armá otra para el próximo take."), {escena});
     const auto nombres = rt_.engine().sceneNames();
     if (!escena.empty() && std::find(nombres.begin(), nombres.end(), escena) == nombres.end())
-        return "no existe la escena «" + escena + "»";
+        return ba::i18n::llenar(ba::i18n::traducir("aire", "no existe la escena «%1»"), {escena});
     setArmadaYAvisar(escena);
     return {};
 }
 
 std::string Conmutador::take(const std::string& tipo, int ms) {
-    if (armada_.empty()) return "No hay ninguna escena armada: elegí una en el bus de preview.";
+    if (armada_.empty()) return ba::i18n::traducir("aire", "No hay ninguna escena armada: elegí una en el bus de preview.");
     const std::string entra = armada_;
     const std::string sale = alAire();
     if (std::string e = cortar(entra, tipo, ms, "TAKE"); !e.empty()) return e;
@@ -80,7 +87,7 @@ std::string Conmutador::take(const std::string& tipo, int ms) {
 }
 
 std::string Conmutador::tbar(double t, bool soltar) {
-    if (armada_.empty()) return "No hay ninguna escena armada para la T-bar.";
+    if (armada_.empty()) return ba::i18n::traducir("aire", "No hay ninguna escena armada para la T-bar.");
     const std::string entra = armada_;
     const std::string sale = alAire();
     bool llego = false;
@@ -127,7 +134,7 @@ void Conmutador::aplicarAfv(const std::string& destino, int ms) {
 std::string Conmutador::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
     static const std::vector<std::string> tipos{"", "cut", "fade", "swipe", "slide", "fade_to_color"};
     if (std::find(tipos.begin(), tipos.end(), tipo) == tipos.end())
-        return "tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)";
+        return ba::i18n::traducir("aire", "tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)");
     if (tipo.empty())
         transicionesEntrada_.erase(escena);
     else

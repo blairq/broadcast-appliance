@@ -3,6 +3,8 @@
 // ============================================================================
 #include "camaras/SincroLabios.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 
@@ -71,7 +73,8 @@ Medicion medirRetardo(const std::vector<Golpe>& audio, const std::vector<Golpe>&
                       int dispersionMaxMs) {
     Medicion m;
     if (audio.empty() || video.empty()) {
-        m.problema = audio.empty() ? "no se escuchó ningún aplauso" : "no se vio ningún aplauso";
+        m.problema = audio.empty() ? ba::i18n::traducir("camaras", "no se escuchó ningún aplauso")
+                                   : ba::i18n::traducir("camaras", "no se vio ningún aplauso");
         return m;
     }
 
@@ -101,8 +104,8 @@ Medicion medirRetardo(const std::vector<Golpe>& audio, const std::vector<Golpe>&
 
     m.aplausos = static_cast<int>(retardos.size());
     if (retardos.empty()) {
-        m.problema = "se oyeron aplausos y se vieron aplausos, pero ninguno coincide: "
-                     "¿la persona estaba frente a esta cámara?";
+        m.problema = ba::i18n::traducir("camaras", "se oyeron aplausos y se vieron aplausos, pero ninguno coincide: "
+                                                   "¿la persona estaba frente a esta cámara?");
         return m;
     }
 
@@ -116,11 +119,12 @@ Medicion medirRetardo(const std::vector<Golpe>& audio, const std::vector<Golpe>&
     // Tres aplausos es el minimo para que la mediana signifique algo: con dos,
     // cualquiera de los dos manda.
     if (m.aplausos < 3) {
-        m.problema = "solo " + std::to_string(m.aplausos) +
-                     " aplauso(s): pedí unos cuantos más antes de confiar en el número";
+        m.problema = ba::i18n::traducir("camaras", "solo %n aplauso: pedí unos cuantos más antes de confiar en el número",
+                                        nullptr, m.aplausos);
     } else if (m.dispersionMs > dispersionMaxMs) {
-        m.problema = "las mediciones varían ±" + std::to_string(m.dispersionMs) +
-                     " ms entre sí: la cámara tiene jitter y este número es aproximado";
+        m.problema = ba::i18n::llenar(ba::i18n::traducir("camaras", "las mediciones varían ±%1 ms entre sí: la cámara tiene "
+                                                                    "jitter y este número es aproximado"),
+                                      {std::to_string(m.dispersionMs)});
     } else {
         m.confiable = true;
     }

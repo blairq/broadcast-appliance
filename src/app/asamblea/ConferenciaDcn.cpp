@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/ConferenciaDcn.hpp"
+#include "i18n/I18n.hpp"
 
 #include "control/BusEventos.hpp"
 #include "plugins/Plugins.hpp"
@@ -88,10 +89,10 @@ int ConferenciaDcn::presentesCentral() const {
 }
 
 json ConferenciaDcn::pasarAQuorum(const std::string& asunto) {
-    if (!aQuorum_) return {{"error", "Quórum no está disponible"}};
+    if (!aQuorum_) return {{"error", ba::i18n::traducir("asamblea", "Quórum no está disponible")}};
     const json v = estado_.value("votacion", json::object());
     if (v.value("estado", std::string()) != "cerrada" || !v.contains("totales"))
-        return {{"error", "no hay una votación cerrada en la central (cerrala primero)"}};
+        return {{"error", ba::i18n::traducir("asamblea", "no hay una votación cerrada en la central (cerrala primero)")}};
     const json t = v["totales"];
     json nominal = json::array();
     for (const auto& n : v.value("nominal", json::array())) {
@@ -125,13 +126,13 @@ void ConferenciaDcn::control(const std::string& nombre, const json& argsPedidos,
     if (nombre == "votacion" && args.value("accion", std::string()) == "preparar" && !args.contains("numero"))
         args["numero"] = estado_.value("votacion", json::object()).value("numero", 0) + 1;
     plugins::Plugins* p = plugins_ ? plugins_() : nullptr;
-    if (p == nullptr) return listo(false, {}, "los plugins no están disponibles");
+    if (p == nullptr) return listo(false, {}, ba::i18n::traducir("asamblea", "los plugins no están disponibles"));
     if (p->estado(kPlugin).value("estado", std::string()) != "corriendo")
-        return listo(false, {}, "el control de la central (plugin bosch-dcn) no está corriendo: conectalo en "
-                                "Asamblea → Conferencia (o dcn_conectar)");
+        return listo(false, {}, ba::i18n::traducir("asamblea", "el control de la central (plugin bosch-dcn) no está "
+                                                               "corriendo: conectalo en Asamblea → Conferencia (o dcn_conectar)"));
     QPointer<ConferenciaDcn> yo(this);
     p->pedir(kPlugin, "control", {{"nombre", nombre}, {"args", args}}, [listo, nombre, yo](json r) {
-        if (!r.value("ok", false)) return listo(false, {}, limpio(r.value("error", std::string("falló"))));
+        if (!r.value("ok", false)) return listo(false, {}, limpio(r.value("error", ba::i18n::traducir("asamblea", "falló"))));
         // La votación que contestó la orden ya es la de ahora (el estado del bus llega después).
         if (yo && (nombre == "votacion" || nombre == "votacion_resultado") && r.value("resultado", json()).is_object()) {
             yo->estado_["votacion"] = r["resultado"];
@@ -143,10 +144,11 @@ void ConferenciaDcn::control(const std::string& nombre, const json& argsPedidos,
 
 void ConferenciaDcn::conectar(const json& config, Listo listo) {
     plugins::Plugins* p = plugins_ ? plugins_() : nullptr;
-    if (p == nullptr) return listo(false, {}, "los plugins no están disponibles");
+    if (p == nullptr) return listo(false, {}, ba::i18n::traducir("asamblea", "los plugins no están disponibles"));
     if (!std::filesystem::exists(p->carpetaDe(kPlugin) / "plugin.json")) {
         const std::string e = p->desdeEjemplo(kPlugin, kPlugin);
-        if (!e.empty()) return listo(false, {}, "no se pudo instalar el plugin bosch-dcn: " + e);
+        if (!e.empty())
+            return listo(false, {}, ba::i18n::llenar(ba::i18n::traducir("asamblea", "no se pudo instalar el plugin bosch-dcn: %1"), {e}));
     }
     QPointer<ConferenciaDcn> yo(this);
     const auto pedirConectar = [yo, config, listo]() {

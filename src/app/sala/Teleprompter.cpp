@@ -2,6 +2,8 @@
 
 #include "sala/Teleprompter.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "ui/Discursos.hpp"
 
 #include <algorithm>
@@ -17,10 +19,10 @@ void Teleprompter::mandar(const nlohmann::json& orden, Listo listo) {
 void Teleprompter::ver(Listo listo) { pedir(sala_, "GET", "/api/v1/prompter", {}, std::move(listo)); }
 
 std::string Teleprompter::cargarDiscurso(const Discursos& docs, const std::string& rel, bool arrancar, Listo listo) {
-    if (rel.empty()) return "No dice qué discurso.";
+    if (rel.empty()) return ba::i18n::traducir("sala", "No dice qué discurso.");
     bool ok = false;
     const QString texto = docs.leer(QString::fromStdString(rel), &ok);
-    if (!ok) return "No pude abrir «" + rel + "».";
+    if (!ok) return ba::i18n::llenar(ba::i18n::traducir("sala", "No pude abrir «%1»."), {rel});
     nlohmann::json orden{{"titulo", rel}, {"texto", texto.toStdString()}};
     if (arrancar) orden["corriendo"] = true;
     mandar(orden, std::move(listo));

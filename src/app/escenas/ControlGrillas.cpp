@@ -4,6 +4,8 @@
 
 #include "escenas/ControlGrillas.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/SesionRemota.hpp"
 #include "emision/BroadcastEngine.hpp"
@@ -251,7 +253,9 @@ void ControlGrillas::recalcular() {
                {"personas", personas},
                {"fuera", fuera},
                {"mas", res[i].mas}};
-        if (c.canal == 0) x["aviso"] = "sin canal: hay más de " + std::to_string(grilla::kMaxGrillas) + " grillas";
+        if (c.canal == 0)
+            x["aviso"] = ba::i18n::llenar(ba::i18n::traducir("escenas", "sin canal: hay más de %1 grillas"),
+                                          {std::to_string(grilla::kMaxGrillas)});
         grillas.push_back(std::move(x));
     }
     json gente = json::array();
@@ -294,20 +298,26 @@ QVariantList ControlGrillas::genteUi() const { return aQtLista(estado_.value("ge
 std::string ControlGrillas::ajustar(const std::string& fuente, const json& cambios) {
     const auto fs = fuentes();
     if (std::find(fs.begin(), fs.end(), fuente) == fs.end())
-        return "no hay una grilla de personas que se llame «" + fuente + "» (crear_fuente con type ba_grilla)";
+        return ba::i18n::llenar(
+            ba::i18n::traducir("escenas", "no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)"),
+            {fuente});
     if (const std::string e = grilla::Config::validar(cambios); !e.empty()) return e;
-    if (!fuentes::cambiarAjustes(fuente, cambios)) return "no se pudieron guardar los ajustes de «" + fuente + "»";
+    if (!fuentes::cambiarAjustes(fuente, cambios))
+        return ba::i18n::llenar(ba::i18n::traducir("escenas", "no se pudieron guardar los ajustes de «%1»"), {fuente});
     recalcular();
     return {};
 }
 
 std::string ControlGrillas::validarMano(const std::string& fuente, const std::string& clave) const {
     const auto fs = fuentes();
-    if (std::find(fs.begin(), fs.end(), fuente) == fs.end()) return "no hay una grilla de personas que se llame «" + fuente + "»";
+    if (std::find(fs.begin(), fs.end(), fuente) == fs.end())
+        return ba::i18n::llenar(ba::i18n::traducir("escenas", "no hay una grilla de personas que se llame «%1»"), {fuente});
     if (clave.empty()) return {};
     for (const json& p : estado_.value("gente", json::array()))
         if (p.value("clave", std::string()) == clave) return {};
-    return "«" + clave + "» no está conectado (las claves son sala:<id> o asamblea:<id>, ver grilla_personas_estado)";
+    return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no está conectado (las claves son sala:<id> o asamblea:<id>, "
+                                                          "ver grilla_personas_estado)"),
+                            {clave});
 }
 
 std::string ControlGrillas::fijar(const std::string& fuente, const std::string& clave) {
@@ -320,7 +330,7 @@ std::string ControlGrillas::fijar(const std::string& fuente, const std::string& 
 std::string ControlGrillas::sacar(const std::string& fuente, const std::string& clave) {
     // Sacar no pide que esté conectado: se puede sacar a alguien que se está reconectando.
     if (std::string e = validarMano(fuente, ""); !e.empty()) return e;
-    if (clave.empty()) return "falta a quién (la clave)";
+    if (clave.empty()) return ba::i18n::traducir("escenas", "falta a quién (la clave)");
     manual_.sacar(fuente, clave);
     recalcular();
     return {};

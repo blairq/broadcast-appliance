@@ -1,6 +1,7 @@
 // src/app/red/Red.cpp — ver Red.hpp
 
 #include "red/Red.hpp"
+#include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include "net/Credentials.hpp"
@@ -229,9 +230,9 @@ bool Red::clave(const std::string& ip, QString& usuario, QString& clave) const {
 }
 
 QString Red::guardarCredenciales(const QString& ip, const QString& usuario, const QString& clave) {
-    if (ip.isEmpty() || usuario.trimmed().isEmpty()) return "Falta el usuario.";
+    if (ip.isEmpty() || usuario.trimmed().isEmpty()) return tr("Falta el usuario.");
     if (!guardarClave(ip.toStdString(), usuario.trimmed(), clave))
-        return "No se pudo guardar (Credenciales/).";
+        return tr("No se pudo guardar (Credenciales/).");
     // Con la clave, se vuelven a probar sus URLs y se rehace la ficha.
     probarUrls(ip.toStdString(), [](json) {});
     return {};
@@ -240,7 +241,7 @@ QString Red::guardarCredenciales(const QString& ip, const QString& usuario, cons
 // --- Escanear --------------------------------------------------------------------------------
 
 void Red::escanear(Listo listo) {
-    if (escaneando_) return listo({{"error", "ya hay un escaneo en curso"}});
+    if (escaneando_) return listo({{"error", tr("ya hay un escaneo en curso").toStdString()}});
     escaneando_ = true;
     esc_ = std::make_unique<Escaneo>();
     esc_->listo = std::move(listo);
@@ -273,7 +274,7 @@ void Red::escanear(Listo listo) {
             }
         }
     }
-    progreso_ = "Buscando en " + esc_->subredes.join(", ") + "…";
+    progreso_ = tr("Buscando en %1…").arg(esc_->subredes.join(", "));
     emit cambio();
     // ONVIF, en paralelo.
     esc_->onvif = std::make_unique<ptz::OnvifBusqueda>();
@@ -300,7 +301,7 @@ void Red::escanear(Listo listo) {
                 if (!esc_) return;
                 --esc_->activos;
                 if (esc_->siguiente % 200 == 0) {
-                    progreso_ = QString("Probando puertos: %1 de %2…")
+                    progreso_ = tr("Probando puertos: %1 de %2…")
                                     .arg(esc_->siguiente)
                                     .arg(esc_->pendientes.size());
                     emit cambio();
@@ -332,7 +333,7 @@ void Red::escanear(Listo listo) {
 void Red::terminarBarrido() {
     if (!esc_ || esc_->cerrando) return;
     esc_->cerrando = true;
-    progreso_ = "Reconociendo equipos…";
+    progreso_ = tr("Reconociendo equipos…");
     emit cambio();
     // Los equipos: lo que tiene algún puerto de video abierto o contestó ONVIF.
     const auto arp = tablaArp();
@@ -430,7 +431,7 @@ void Red::reconocer(const std::string& ip) {
     const bool video = pi.puertos.count(554) || pi.puertos.count(8554) || e.contains("onvif");
     if (!video && m.confianza < 2)
         m = {"", pi.fabricanteMac.empty() ? std::string("desconocido") : pi.fabricanteMac,
-             "no tiene video (ni RTSP ni ONVIF)", 0};
+             tr("no tiene video (ni RTSP ni ONVIF)").toStdString(), 0};
     e["marca"] = {{"id", m.id}, {"nombre", m.nombre}, {"porque", m.porque}, {"confianza", m.confianza}};
     const std::string modelo = minusculas(pi.onvifNombre + " " + pi.onvifModelo);
     const bool grabador =
@@ -477,7 +478,7 @@ void Red::reconocer(const std::string& ip) {
 
 void Red::trabajoListo() {
     if (!esc_) return;
-    progreso_ = QString("Reconociendo equipos (faltan %1)…").arg(esc_->trabajos - 1);
+    progreso_ = tr("Reconociendo equipos (faltan %1)…").arg(esc_->trabajos - 1);
     emit cambio();
     if (--esc_->trabajos <= 0) cerrarEscaneo();
 }
@@ -618,7 +619,7 @@ void Red::sondearRtsp(const std::string& ip, json candidatas, Listo listo) {
 void Red::probarUrls(const std::string& ip, Listo listo) {
     json e = equipo(ip);
     if (e.empty())
-        return listo({{"error", "«" + ip + "» no está en el último escaneo: red_escanear primero"}});
+        return listo({{"error", tr("«%1» no está en el último escaneo: red_escanear primero").arg(QString::fromStdString(ip)).toStdString()}});
     std::set<int> pu;
     for (const auto& p : e.value("puertos", json::array()))
         pu.insert(p.get<int>());
@@ -677,7 +678,8 @@ void Red::analizar(const QString& uri, Listo listo) {
                                 pd = gst_discoverer_video_info_get_par_denom(v);
                     o["pixel"] = pn == pd || pd == 0
                                      ? std::string("cuadrado")
-                                     : std::to_string(pn) + "/" + std::to_string(pd) + " (no cuadrado)";
+                                     : std::to_string(pn) + "/" + std::to_string(pd) + " " +
+                                           ba::i18n::traducir("red", "(no cuadrado)");
                     o["bitrate_kbps"] = gst_discoverer_video_info_get_bitrate(v) / 1000;
                     if (GstCaps* caps = gst_discoverer_stream_info_get_caps(GST_DISCOVERER_STREAM_INFO(v))) {
                         gchar* desc = gst_pb_utils_get_codec_description(caps);
@@ -709,15 +711,15 @@ void Red::analizar(const QString& uri, Listo listo) {
                 gst_discoverer_stream_info_list_free(as);
             } else if (info != nullptr && !r.contains("error")) {
                 const GstDiscovererResult res = gst_discoverer_info_get_result(info);
-                r = {{"error", res == GST_DISCOVERER_TIMEOUT       ? "no contestó a tiempo"
-                               : res == GST_DISCOVERER_URI_INVALID ? "URL inválida"
-                                                                   : "no se pudo abrir el stream"}};
+                r = {{"error", res == GST_DISCOVERER_TIMEOUT       ? ba::i18n::traducir("red", "no contestó a tiempo")
+                               : res == GST_DISCOVERER_URI_INVALID ? ba::i18n::traducir("red", "URL inválida")
+                                                                   : ba::i18n::traducir("red", "no se pudo abrir el stream")}};
             }
             if (info != nullptr) gst_discoverer_info_unref(info);
             if (d != nullptr) g_object_unref(d);
         }
 #else
-        r = {{"error", "esta compilación no trae GStreamer"}};
+        r = {{"error", ba::i18n::traducir("red", "esta compilación no trae GStreamer")}};
 #endif
         QMetaObject::invokeMethod(
             qApp,
@@ -728,7 +730,7 @@ void Red::analizar(const QString& uri, Listo listo) {
                 try {
                     listo(r);
                 } catch (const std::exception& e) {
-                    listo({{"error", std::string("falló al procesar el análisis: ") + e.what()}});
+                    listo({{"error", ba::i18n::llenar(ba::i18n::traducir("red", "falló al procesar el análisis: %1"), {e.what()})}});
                 }
             },
             Qt::QueuedConnection);
@@ -777,7 +779,7 @@ void Red::ficha(const std::string& ip, Listo listo) {
             try {
                 cb(r->error() == QNetworkReply::NoError && ptz::onvif::leerFalla(xml).isEmpty(), xml);
             } catch (const std::exception& ex) {
-                (*f)["error"] = std::string("falló al leer la respuesta ONVIF: ") + ex.what();
+                (*f)["error"] = ba::i18n::llenar(ba::i18n::traducir("red", "falló al leer la respuesta ONVIF: %1"), {ex.what()});
                 terminar();
             }
         });
@@ -790,8 +792,11 @@ void Red::ficha(const std::string& ip, Listo listo) {
         soap(servicio, cuerpoInfo(), true, [=](bool ok, QByteArray xml) {
             if (!ok) {
                 const QString falla = ptz::onvif::leerFalla(xml);
-                (*f)["error"] = conClave ? "ONVIF rechazó el usuario y la clave guardados" +
-                                               (falla.isEmpty() ? std::string() : ": " + falla.toStdString())
+                (*f)["error"] = conClave ? (falla.isEmpty()
+                                                ? ba::i18n::traducir("red", "ONVIF rechazó el usuario y la clave guardados")
+                                                : ba::i18n::llenar(ba::i18n::traducir("red", "ONVIF rechazó el usuario y la "
+                                                                                             "clave guardados: %1"),
+                                                                   {falla.toStdString()}))
                                          : "ONVIF pide usuario y clave: camara_credenciales {\"ip\": \"" +
                                                ip + "\", \"pedir\": true}";
                 (*f)["onvif"] = false;
@@ -931,21 +936,21 @@ QVariantMap Red::fichaDe(const QString& ip) const {
 // --- Agregar al estudio ------------------------------------------------------------------------
 
 std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
-    if (video_ == nullptr) return "el video no está disponible";
+    if (video_ == nullptr) return ba::i18n::traducir("red", "el video no está disponible");
     // Solo el PTZ de una entrada que ya existe (cuando llega la clave después).
     if (op.value("solo_ptz", false)) {
         const std::string entrada = op.value("entrada", std::string());
         if (entrada.empty()) return "con `solo_ptz` hace falta `entrada` (la que ya muestra esta cámara)";
         QString u, c;
         if (!clave(ip, u, c)) return "falta la clave ONVIF: camara_credenciales primero";
-        if (!camaras_) return "el PTZ no está disponible";
+        if (!camaras_) return ba::i18n::traducir("red", "el PTZ no está disponible");
         const json fi = fichas_.count(ip) ? fichas_.at(ip) : json::object();
         QVariantMap conf{{"host", QString::fromStdString(ip)}, {"usuario", u}, {"clave", c}};
         const std::string pp = fi.value("ptz", json::object()).value("perfil", std::string());
         if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
         const QString e = camaras_->configurar(QString::fromStdString(entrada), "onvif", conf);
         if (!e.isEmpty()) return e.toStdString();
-        if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"ptz", "ONVIF configurado"}};
+        if (hecho != nullptr) *hecho = {{"entrada", entrada}, {"ptz", ba::i18n::traducir("red", "ONVIF configurado")}};
         return {};
     }
     const std::string escena = op.value("escena", std::string());
@@ -991,7 +996,7 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
     std::string nombre = op.value("nombre", std::string());
     if (nombre.empty()) nombre = e.value("onvif", json::object()).value("nombre", std::string());
     if (nombre.empty())
-        nombre = e.value("marca", json::object()).value("nombre", std::string("Cámara")) + " " + ip;
+        nombre = e.value("marca", json::object()).value("nombre", ba::i18n::traducir("red", "Cámara")) + " " + ip;
     const bool normalizar = op.value(
         "normalizar",
         fi.value("plan", json::object()).value("argumentos", json::object()).value("normalizar", true));
@@ -1014,9 +1019,10 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
         if (!pp.empty()) conf["perfil"] = QString::fromStdString(pp);
         const QString e2 = camaras_->configurar(QString::fromStdString(nombre), "onvif", conf);
         h["ptz"] =
-            e2.isEmpty() ? json("ONVIF configurado") : json("no se pudo configurar: " + e2.toStdString());
+            e2.isEmpty() ? json(ba::i18n::traducir("red", "ONVIF configurado"))
+                         : json(ba::i18n::llenar(ba::i18n::traducir("red", "no se pudo configurar: %1"), {e2.toStdString()}));
     } else if (tienePtz) {
-        h["ptz"] = "no (se pidió sin PTZ)";
+        h["ptz"] = ba::i18n::traducir("red", "no (se pidió sin PTZ)");
     } else if (e.contains("onvif") && (!conClave || fi.empty() || fi.contains("error"))) {
         // No se sabe: ONVIF no se pudo consultar (falta la clave), no que no tenga.
         h["ptz"] =
@@ -1025,7 +1031,7 @@ std::string Red::agregar(const std::string& ip, const json& op, json* hecho) {
             "camara_agregar {\"ip\": \"" +
             ip + "\", \"solo_ptz\": true, \"entrada\": \"" + nombre + "\"}. Mientras, PTZ digital.";
     } else {
-        h["ptz"] = "no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)";
+        h["ptz"] = ba::i18n::traducir("red", "no tiene PTZ por ONVIF (queda el PTZ digital: recorte y zoom en la GPU)");
     }
     if (hecho != nullptr) *hecho = h;
     return {};
@@ -1094,9 +1100,9 @@ QVariantMap Red::camaraDeEntrada(const QString& entrada) const {
 
 void Red::activarPtzReal(const QString& entrada, const QString& usuario, const QString& clave) {
     const std::string ip = ipDeEntrada(entrada);
-    if (ip.empty()) return emit ptzListo(entrada, false, "«" + entrada + "» no es una cámara de red");
+    if (ip.empty()) return emit ptzListo(entrada, false, tr("«%1» no es una cámara de red").arg(entrada));
     if (!usuario.trimmed().isEmpty() && !clave.isEmpty() && !guardarClave(ip, usuario.trimmed(), clave))
-        return emit ptzListo(entrada, false, "No se pudo guardar la clave");
+        return emit ptzListo(entrada, false, tr("No se pudo guardar la clave"));
     QPointer<Red> yo(this);
     activarPtz(ip, entrada, [yo, entrada](bool ok, QString texto) {
         if (yo) emit yo->ptzListo(entrada, ok, texto);
@@ -1117,24 +1123,24 @@ void Red::activarPtz(const std::string& ip, const QString& entrada,
             if (notas.is_string()) pista = notas.get<std::string>();
             for (const auto& n : notas.is_array() ? notas : json::array())
                 if (n.is_string()) pista += (pista.empty() ? "" : "; ") + n.get<std::string>();
-            if (!pista.empty()) pista = " (" + pista + ")";
-            return listo(false,
-                         QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF")) +
-                                                ". Revisá el usuario y la clave" + pista +
-                                                " y que la cámara tenga la hora bien."));
+            const QString error = QString::fromStdString(f.value("error", tr("La cámara no contestó por ONVIF").toStdString()));
+            return listo(false, pista.empty()
+                                    ? tr("%1. Revisá el usuario y la clave y que la cámara tenga la hora bien.").arg(error)
+                                    : tr("%1. Revisá el usuario y la clave (%2) y que la cámara tenga la hora bien.")
+                                          .arg(error, QString::fromStdString(pista)));
         }
         const json ptz = f.value("ptz", json::object());
         if (!ptz.value("tiene", false))
-            return listo(false, "La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene "
-                                "permiso de PTZ). Queda el PTZ digital.");
+            return listo(false, tr("La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene "
+                                   "permiso de PTZ). Queda el PTZ digital."));
         json h;
         const std::string e =
             yo->agregar(ip, json{{"solo_ptz", true}, {"entrada", entrada.toStdString()}}, &h);
         if (!e.empty()) return listo(false, QString::fromStdString(e));
         const size_t presets = ptz.value("presets", json::array()).size();
-        listo(true, "PTZ real activado por ONVIF" +
-                        (presets ? QString(" (%1 presets de la cámara)").arg(presets) : QString()) +
-                        ". El joystick ahora mueve la cámara.");
+        listo(true, presets ? tr("PTZ real activado por ONVIF (%1 presets de la cámara). El joystick ahora mueve la cámara.")
+                                  .arg(presets)
+                            : tr("PTZ real activado por ONVIF. El joystick ahora mueve la cámara."));
     });
 }
 

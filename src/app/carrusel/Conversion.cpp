@@ -122,19 +122,19 @@ void Conversor::cancelar() {
 
 void Conversor::convertir(const QString& archivo, const QString& destino, int anchoPx) {
     if (d_->corriendo) {
-        emit fallo("ya hay una conversión en curso");
+        emit fallo(tr("ya hay una conversión en curso"));
         return;
     }
     if (!QFileInfo::exists(archivo)) {
-        emit fallo("no existe: " + archivo);
+        emit fallo(tr("no existe: %1").arg(archivo));
         return;
     }
     if (!esDocumento(archivo)) {
-        emit fallo("no sé desarmar " + extension(archivo));
+        emit fallo(tr("no sé desarmar %1").arg(extension(archivo)));
         return;
     }
     if (!QDir().mkpath(destino)) {
-        emit fallo("no puedo escribir en " + destino);
+        emit fallo(tr("no puedo escribir en %1").arg(destino));
         return;
     }
 
@@ -153,19 +153,19 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     const QString bin = herramienta("deckcraft");
     if (bin.isEmpty()) {
         d_->corriendo = false;
-        emit fallo("este equipo no trae DeckCraft: convertí la presentación a PDF y traé el PDF");
+        emit fallo(tr("este equipo no trae DeckCraft: convertí la presentación a PDF y traé el PDF"));
         return;
     }
 
     d_->temporal = std::make_unique<QTemporaryDir>();
     if (!d_->temporal->isValid()) {
         d_->corriendo = false;
-        emit fallo("no pude crear una carpeta temporal");
+        emit fallo(tr("no pude crear una carpeta temporal"));
         return;
     }
     const QString tmp = d_->temporal->path();
 
-    emit avance("Convirtiendo la presentación", 0, 0);
+    emit avance(tr("Convirtiendo la presentación"), 0, 0);
 
     d_->proc = new QProcess(this);
     const QString esperado = tmp + "/" + QFileInfo(archivo).completeBaseName() + ".pdf";
@@ -179,7 +179,7 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
         if (!QFileInfo::exists(esperado)) {
             const QString dijo = QString::fromLocal8Bit(d_->proc->readAll()).trimmed();
             d_->limpiar();
-            emit fallo(dijo.isEmpty() ? QString("DeckCraft no pudo abrir el archivo (¿está dañado?)")
+            emit fallo(dijo.isEmpty() ? tr("DeckCraft no pudo abrir el archivo (¿está dañado?)")
                                       : "DeckCraft: " + dijo.left(600));
             return;
         }
@@ -190,12 +190,12 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
         // borraba el proceso que finished iba a leer.
         if (d_->cancelado || e == QProcess::Crashed) return;
         d_->limpiar();
-        emit fallo("no se pudo arrancar DeckCraft");
+        emit fallo(tr("no se pudo arrancar DeckCraft"));
     });
     QTimer::singleShot(kLimiteConversionMs(), this, [this]() {
         if (d_->corriendo && d_->proc) {
             d_->limpiar();
-            emit fallo("DeckCraft tardó demasiado y lo corté");
+            emit fallo(tr("DeckCraft tardó demasiado y lo corté"));
         }
     });
     // Se le cierra la entrada apenas arranca: un hijo con un stdin abierto que
@@ -211,15 +211,15 @@ void Conversor::arrancarPaginas(const QString& rutaPdf) {
     d_->pdf = std::make_unique<QPdfDocument>();
     if (d_->pdf->load(rutaPdf) != QPdfDocument::Error::None) {
         d_->limpiar();
-        emit fallo("el PDF no se pudo leer");
+        emit fallo(tr("el PDF no se pudo leer"));
         return;
     }
     if (d_->pdf->pageCount() <= 0) {
         d_->limpiar();
-        emit fallo("el PDF no tiene páginas");
+        emit fallo(tr("el PDF no tiene páginas"));
         return;
     }
-    emit avance("Armando las láminas", 0, d_->pdf->pageCount());
+    emit avance(tr("Armando las láminas"), 0, d_->pdf->pageCount());
     QTimer::singleShot(0, this, &Conversor::rendirUna);
 }
 
@@ -239,12 +239,12 @@ void Conversor::rendirUna() {
     const QString ruta = d_->destino + "/" + nombre;
     if (img.isNull() || !img.save(ruta, "PNG")) {
         d_->limpiar();
-        emit fallo(QString("no pude escribir la lámina %1").arg(i + 1));
+        emit fallo(tr("no pude escribir la lámina %1").arg(i + 1));
         return;
     }
     d_->salida << ruta;
     d_->pagina++;
-    emit avance("Armando las láminas", d_->pagina, total);
+    emit avance(tr("Armando las láminas"), d_->pagina, total);
 
     if (d_->pagina >= total) {
         const QStringList hechas = d_->salida;

@@ -3,6 +3,8 @@
 // ============================================================================
 #include "resolucion/Plan.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -10,6 +12,8 @@
 namespace ba::app::resolucion {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -127,7 +131,7 @@ json planear(const Entrada& e) {
     out["llega"] = js(llega);
 
     if (D.vacio()) {
-        out["nota"] = "no está en ninguna escena: no se puede decir cuánto hace falta";
+        out["nota"] = traducir("resolucion", "no está en ninguna escena: no se puede decir cuánto hace falta");
         out["hallazgos"] = hallazgos;
         out["niveles"] = niveles;
         return out;
@@ -141,8 +145,8 @@ json planear(const Entrada& e) {
     }
     if (iSr >= 0 && iPtz > iSr)
         hallazgo("orden_ptz_superres", "mal_armado",
-                 "El PTZ está después de la superresolución: recorta píxeles que la superres inventó. Va antes: la "
-                 "superres tiene que recibir la ventana real de la cámara.",
+                 traducir("resolucion", "El PTZ está después de la superresolución: recorta píxeles que la superres "
+                                        "inventó. Va antes: la superres tiene que recibir la ventana real de la cámara."),
                  pasos[iPtz].t->id, {{"accion", "reordenar"}, {"tarjeta", pasos[iPtz].t->id}, {"antes_de", pasos[iSr].t->id}});
 
     // Un filtro que solo trabaja en RAM entre tarjetas de GPU: parte la cadena.
@@ -155,8 +159,10 @@ json planear(const Entrada& e) {
             for (size_t k = i + 1; k < pasos.size(); ++k) gpuDespues = gpuDespues || pasos[k].t->gpuPosible;
             if (gpuAntes && gpuDespues)
                 hallazgo("parte_la_cadena", "mal_armado",
-                         "«" + p.t->titulo + "» solo trabaja en RAM y está entre tarjetas que van en la GPU: el video baja y "
-                         "vuelve a subir en cada cuadro. Movelo al principio o al final de la cadena.",
+                         llenar(traducir("resolucion", "«%1» solo trabaja en RAM y está entre tarjetas que van en la GPU: el "
+                                                       "video baja y vuelve a subir en cada cuadro. Movelo al principio o al "
+                                                       "final de la cadena."),
+                                {p.t->titulo}),
                          p.t->id, {{"accion", "mover"}, {"tarjeta", p.t->id}, {"a", "final"}});
         }
 
@@ -165,19 +171,23 @@ json planear(const Entrada& e) {
         const auto& p = pasos[iSr];
         if (p.sale.ancho <= p.entra.ancho && p.sale.alto <= p.entra.alto)
             hallazgo("superres_no_agranda", "mejorable",
-                     "La superresolución no está agrandando: entra y sale " + txt(p.entra) +
-                         " (el motor no acepta ese tamaño —el de Apple llega a 960×960— o está en reposo). En esta cadena sobra; "
-                         "si hace falta, tiene que recibir " + txt(escalar(D, 0.5)) + ".",
+                     llenar(traducir("resolucion", "La superresolución no está agrandando: entra y sale %1 (el motor no "
+                                                   "acepta ese tamaño —el de Apple llega a 960×960— o está en reposo). En "
+                                                   "esta cadena sobra; si hace falta, tiene que recibir %2."),
+                            {txt(p.entra), txt(escalar(D, 0.5))}),
                      p.t->id, {{"accion", "apagar"}, {"tarjeta", p.t->id}});
         else if (p.entra.ancho >= D.ancho * 0.95 && p.entra.alto >= D.alto * 0.95)
             hallazgo("superres_sobra", "mejorable",
-                     "La superresolución agranda algo que ya cubre lo que se ve: entra " + txt(p.entra) + ", sale " + txt(p.sale) +
-                         " y la escena lo muestra como mucho a " + txt(D) + ". Gasta la GPU en píxeles que después se tiran.",
+                     llenar(traducir("resolucion", "La superresolución agranda algo que ya cubre lo que se ve: entra %1, "
+                                                   "sale %2 y la escena lo muestra como mucho a %3. Gasta la GPU en píxeles "
+                                                   "que después se tiran."),
+                            {txt(p.entra), txt(p.sale), txt(D)}),
                      p.t->id, {{"accion", "apagar"}, {"tarjeta", p.t->id}});
         else if (p.real.area() < p.entra.area() * 0.8)
             hallazgo("superres_estirado", "mejorable",
-                     "La superresolución recibe un recorte estirado (" + txt(p.entra) + " con el detalle de " + txt(p.real) +
-                         "): rinde peor que con la ventana real. El PTZ debería entregarle " + txt(escalar(necesitaEn[iSr].vacio() ? D : necesitaEn[iSr], 0.5)) + ".",
+                     llenar(traducir("resolucion", "La superresolución recibe un recorte estirado (%1 con el detalle de "
+                                                   "%2): rinde peor que con la ventana real. El PTZ debería entregarle %3."),
+                            {txt(p.entra), txt(p.real), txt(escalar(necesitaEn[iSr].vacio() ? D : necesitaEn[iSr], 0.5))}),
                      p.t->id);
     }
 
@@ -189,15 +199,20 @@ json planear(const Entrada& e) {
         for (size_t k = iPtz + 1; k < pasos.size(); ++k) srDespues = srDespues || pasos[k].tipo == "superres";
         if (z > 1.001 && p.real.area() < D.area() * 0.9) {
             const bool mucho = p.real.area() < D.area() / 9.0;
-            std::string t = "Con zoom " + num(z) + " el PTZ toma una ventana de " + txt(p.real) + " de la cámara y la estira a " +
-                            txt(p.sale) + " (se ve a " + txt(D) + ").";
-            if (!srDespues) t += " Una superresolución después del PTZ, o un modo más grande de la cámara, devuelve detalle.";
+            std::string t = llenar(traducir("resolucion", "Con zoom %1 el PTZ toma una ventana de %2 de la cámara y la "
+                                                          "estira a %3 (se ve a %4)."),
+                                   {num(z), txt(p.real), txt(p.sale), txt(D)});
+            if (!srDespues)
+                t += " " + traducir("resolucion", "Una superresolución después del PTZ, o un modo más grande de la cámara, "
+                                                  "devuelve detalle.");
             // Con superres después, perder detalle con poco zoom es lo esperado: la superres lo recupera.
             if (mucho || !srDespues) hallazgo("zoom_sin_detalle", mucho ? "mal" : "mejorable", t, p.t->id);
         }
         if (deMas(p.sale, D) && !srDespues)
             hallazgo("ptz_saca_de_mas", "mejorable",
-                     "El PTZ saca " + txt(p.sale) + " y se ve a " + txt(D) + ": podría entregar lo que se pide.", p.t->id);
+                     llenar(traducir("resolucion", "El PTZ saca %1 y se ve a %2: podría entregar lo que se pide."),
+                            {txt(p.sale), txt(D)}),
+                     p.t->id);
     }
 
     // --- Lo que llega a la escena contra lo que se ve ----------------------------------------
@@ -209,12 +224,14 @@ json planear(const Entrada& e) {
             if (p.sale.area() > p.entra.area() * 1.1) quien = &p;
         if (quien != nullptr && quien->tipo != "superres")
             hallazgo("agranda_de_mas", "mejorable",
-                     "«" + quien->t->titulo + "» agranda a " + txt(quien->sale) + " y se ve como mucho a " + txt(D) +
-                         ": se escala de más.",
+                     llenar(traducir("resolucion", "«%1» agranda a %2 y se ve como mucho a %3: se escala de más."),
+                            {quien->t->titulo, txt(quien->sale), txt(D)}),
                      quien->t->id);
         else if (quien == nullptr && !e.esCamara)
             hallazgo("llega_de_mas", "mejorable",
-                     "Llega a la escena en " + txt(llega) + " y se ve como mucho a " + txt(D) + ": se procesa de más.", "");
+                     llenar(traducir("resolucion", "Llega a la escena en %1 y se ve como mucho a %2: se procesa de más."),
+                            {txt(llega), txt(D)}),
+                     "");
     }
 
     // --- La fuente --------------------------------------------------------------------------
@@ -231,26 +248,32 @@ json planear(const Entrada& e) {
             const json arreglo{{"accion", "modo_camara"}, {"valor", rec.valor()}};
             if (!e.origen.vacio() && e.origen.area() > recT.area() * 1.4 && recT.ancho >= necesitaFuente.ancho)
                 hallazgo("fuente_de_mas", "mejorable",
-                         "La cámara entrega " + txt(e.origen) + " y para lo que se ve alcanza " + txt(recT) + " (" + rec.etiqueta() +
-                             "): se captura, se decodifica y se escala de más.",
+                         llenar(traducir("resolucion", "La cámara entrega %1 y para lo que se ve alcanza %2 (%3): se "
+                                                       "captura, se decodifica y se escala de más."),
+                                {txt(e.origen), txt(recT), rec.etiqueta()}),
                          "", arreglo);
             else if (!e.origen.vacio() && e.origen.ancho < necesitaFuente.ancho * 0.95 && recT.area() > e.origen.area() * 1.2)
                 hallazgo("fuente_de_menos", "mejorable",
-                         "La cámara entrega " + txt(e.origen) + " y hace falta " + txt(necesitaFuente) + ": tiene " + rec.etiqueta() + ".", "",
+                         llenar(traducir("resolucion", "La cámara entrega %1 y hace falta %2: tiene %3."),
+                                {txt(e.origen), txt(necesitaFuente), rec.etiqueta()}),
+                         "",
                          arreglo);
             if (e.modoActual.is_object() && e.modoActual.value("convertido_por_el_sistema", false) && rec.formato != "crudo")
                 hallazgo("convertido_por_el_sistema", "mejorable",
-                         "El modo actual lo decodifica el sistema en la CPU sin decirlo; " + rec.etiqueta() + " hace lo mismo a la vista.",
+                         llenar(traducir("resolucion", "El modo actual lo decodifica el sistema en la CPU sin decirlo; %1 "
+                                                       "hace lo mismo a la vista."),
+                                {rec.etiqueta()}),
                          "", arreglo);
         }
     }
     if (!e.fija && e.origenFps > 0 && e.origenFps < e.fps - 1) {
-        std::string t = "La fuente da " + num(e.origenFps) + " cps y el lienzo pide " + num(e.fps) + ": se repiten cuadros.";
+        std::string t = llenar(traducir("resolucion", "La fuente da %1 cps y el lienzo pide %2: se repiten cuadros."),
+                               {num(e.origenFps), num(e.fps)});
         json arreglo;
         if (e.esCamara)
             for (const auto& m : e.modos)
                 if (m.usable() && m.fps >= e.fps - 0.5 && m.ancho >= std::min(e.origen.ancho, necesitaFuente.ancho)) {
-                    t += " La cámara tiene " + m.etiqueta() + ".";
+                    t += " " + llenar(traducir("resolucion", "La cámara tiene %1."), {m.etiqueta()});
                     arreglo = {{"accion", "modo_camara"}, {"valor", m.valor()}};
                     break;
                 }

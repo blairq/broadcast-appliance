@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/OrdenDelDia.hpp"
+#include "i18n/I18n.hpp"
 
 #include "control/BusEventos.hpp"
 
@@ -148,7 +149,8 @@ std::string OrdenDelDia::cargar(const std::string& texto, int* cuantos) {
         nuevos.push_back({{"n", n}, {"expediente", expediente}, {"titulo", titulo}, {"estado", "pendiente"},
                           {"inicio_ms", 0}, {"fin_ms", 0}, {"resultado", ""}});
     }
-    if (nuevos.empty()) return "no encontré puntos en el texto (una línea por punto: «1. Expte. 123/24 – Título»)";
+    if (nuevos.empty())
+        return ba::i18n::traducir("asamblea", "no encontré puntos en el texto (una línea por punto: «1. Expte. 123/24 – Título»)");
     puntos_ = nuevos;
     if (cuantos != nullptr) *cuantos = static_cast<int>(nuevos.size());
     publicar();
@@ -162,11 +164,11 @@ json OrdenDelDia::actual() const {
 }
 
 std::string OrdenDelDia::punto(int n, const std::string& estado, const std::string& resultado) {
-    if (!kEstados.count(estado)) return "estado: pendiente, en_tratamiento, votado, comision o retirado";
+    if (!kEstados.count(estado)) return ba::i18n::traducir("asamblea", "estado: pendiente, en_tratamiento, votado, comision o retirado");
     json* p = nullptr;
     for (auto& x : puntos_)
         if (x.value("n", 0) == n) p = &x;
-    if (p == nullptr) return "no hay un punto " + std::to_string(n);
+    if (p == nullptr) return ba::i18n::llenar(ba::i18n::traducir("asamblea", "no hay un punto %1"), {std::to_string(n)});
     const std::int64_t ahora = ahoraMs();
     if (estado == "en_tratamiento") {
         // Uno solo a la vez: el que estaba en tratamiento pasa a «votado» si nadie dijo otra cosa.
@@ -196,7 +198,7 @@ std::string OrdenDelDia::punto(int n, const std::string& estado, const std::stri
 std::string OrdenDelDia::siguiente() {
     for (const auto& p : puntos_)
         if (p.value("estado", std::string()) == "pendiente") return punto(p.value("n", 0), "en_tratamiento", "");
-    return "no quedan puntos pendientes";
+    return ba::i18n::traducir("asamblea", "no quedan puntos pendientes");
 }
 
 json OrdenDelDia::tiemposPalabra(const json& remotos) const {

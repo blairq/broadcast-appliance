@@ -2,6 +2,7 @@
 
 #include "ptz/PtzPlugin.hpp"
 
+#include <QCoreApplication>
 #include <QJsonObject>
 
 namespace ba::app::ptz {
@@ -33,8 +34,8 @@ void PtzPlugin::configurar(const QJsonObject& conf) {
 
 void PtzPlugin::refrescar() {
     const bool hay = enlace().capacidades && enlace().capacidades(plugin_, entrada_).is_object();
-    setEstado(hay, hay ? QStringLiteral("Plugin «%1»").arg(plugin_)
-                       : QStringLiteral("El plugin «%1» no está corriendo").arg(plugin_));
+    setEstado(hay, hay ? QCoreApplication::translate("ptz", "Plugin «%1»").arg(plugin_)
+                       : QCoreApplication::translate("ptz", "El plugin «%1» no está corriendo").arg(plugin_));
 }
 
 void PtzPlugin::pedir(const std::string& accion, nlohmann::json args) {

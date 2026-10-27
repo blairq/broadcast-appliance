@@ -29,7 +29,7 @@ nlohmann::json RespaldoEntradas::respaldo(const std::string& entrada) const {
 std::string RespaldoEntradas::setRespaldo(const std::string& entrada, const std::string& escena,
                                           const std::string& alPerderAire, int ms) {
     if (alPerderAire != "avisar" && alPerderAire != "armar" && alPerderAire != "cortar")
-        return "al_perder_aire: avisar, armar o cortar";
+        return tr("al_perder_aire: avisar, armar o cortar").toStdString();
     nlohmann::json todos = leer();
     todos[entrada] = {{"escena", escena}, {"al_perder_aire", alPerderAire}, {"ms", std::clamp(ms, 200, 60000)}};
     std::ofstream o(rt_.dataRoot() / "Config" / "respaldo-entradas.json");
@@ -78,13 +78,13 @@ void RespaldoEntradas::revisar() {
         const QString qe = QString::fromStdString(escena);
         if (modo == "cortar" && !escena.empty()) {
             const std::string err = conmutador_.poner(escena);
-            emit aviso(err.empty() ? "«" + e + "» se quedó sin señal al aire: se cortó a «" + qe + "»"
-                                   : "«" + e + "» se quedó sin señal al aire y no se pudo cortar a «" + qe +
-                                         "»: " + QString::fromStdString(err));
+            emit aviso(err.empty() ? tr("«%1» se quedó sin señal al aire: se cortó a «%2»").arg(e, qe)
+                                   : tr("«%1» se quedó sin señal al aire y no se pudo cortar a «%2»: %3")
+                                         .arg(e, qe, QString::fromStdString(err)));
         } else if (modo == "armar" && !escena.empty()) {
             const std::string err = conmutador_.armar(escena);
-            emit aviso(err.empty() ? "«" + e + "» se quedó sin señal al aire: «" + qe + "» quedó armada (TAKE)"
-                                   : "«" + e + "» se quedó sin señal al aire: " + QString::fromStdString(err));
+            emit aviso(err.empty() ? tr("«%1» se quedó sin señal al aire: «%2» quedó armada (TAKE)").arg(e, qe)
+                                   : tr("«%1» se quedó sin señal al aire: %2").arg(e, QString::fromStdString(err)));
         } else if (tuvoSenal_.contains(e)) {
             // Solo la que tenía señal y la perdió: una entrada de invitado o de pantalla
             // compartida vacía (nadie conectado, nadie compartiendo) es lo normal, no una
@@ -93,10 +93,10 @@ void RespaldoEntradas::revisar() {
         }
     }
     if (perdidas.size() == 1)
-        emit aviso(perdidas.first() + " se quedó sin señal AL AIRE");
+        emit aviso(tr("%1 se quedó sin señal AL AIRE").arg(perdidas.first()));
     else if (perdidas.size() > 1)
-        emit aviso(perdidas.mid(0, perdidas.size() - 1).join(", ") + " y " + perdidas.last() +
-                   " se quedaron sin señal AL AIRE");
+        emit aviso(tr("%1 y %2 se quedaron sin señal AL AIRE")
+                       .arg(perdidas.mid(0, perdidas.size() - 1).join(", "), perdidas.last()));
 }
 
 } // namespace ba::app::escenas

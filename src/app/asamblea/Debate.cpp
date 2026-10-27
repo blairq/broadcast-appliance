@@ -2,6 +2,7 @@
 // src/app/asamblea/Debate.cpp — ver Debate.hpp
 
 #include "asamblea/Debate.hpp"
+#include "i18n/I18n.hpp"
 
 #include "asamblea/Cuerpo.hpp"
 
@@ -52,7 +53,7 @@ void Debate::guardar() const {
 }
 
 std::string Debate::configurar(const json& c) {
-    if (!c.is_object()) return "la configuración va como objeto";
+    if (!c.is_object()) return ba::i18n::traducir("asamblea", "la configuración va como objeto");
     if (c.contains("escenas") && c["escenas"].is_object())
         for (const char* k : {"sala_sala", "sala_remoto", "remoto_remoto"})
             if (c["escenas"].contains(k) && c["escenas"][k].is_string()) config_["escenas"][k] = c["escenas"][k];
@@ -103,10 +104,10 @@ QVariantMap Debate::estado() const { return aQvm(estadoJson()); }
 
 std::string Debate::iniciar(const std::string& a, const std::string& b, const std::string& t) {
     const json ia = cuerpo_.buscar(a), ib = cuerpo_.buscar(b);
-    if (ia.empty()) return "no hay nadie con la banca, id o nombre «" + a + "» en el Cuerpo";
-    if (ib.empty()) return "no hay nadie con la banca, id o nombre «" + b + "» en el Cuerpo";
+    if (ia.empty()) return ba::i18n::llenar(ba::i18n::traducir("asamblea", "no hay nadie con la banca, id o nombre «%1» en el Cuerpo"), {a});
+    if (ib.empty()) return ba::i18n::llenar(ba::i18n::traducir("asamblea", "no hay nadie con la banca, id o nombre «%1» en el Cuerpo"), {b});
     const std::string idA = ia.value("id", std::string()), idB = ib.value("id", std::string());
-    if (idA == idB) return "un debate es entre dos personas distintas";
+    if (idA == idB) return ba::i18n::traducir("asamblea", "un debate es entre dos personas distintas");
     if (activo_) terminar();
     aviso_.clear();
     if (g_.terminarOrador) g_.terminarOrador();
@@ -128,9 +129,11 @@ std::string Debate::iniciar(const std::string& a, const std::string& b, const st
     // La escena de este tipo de debate.
     escena_ = config_["escenas"].value(tipo(), std::string());
     if (escena_.empty()) {
-        aviso_ += (aviso_.empty() ? "" : "; ") + std::string("no hay escena configurada para un debate ") +
-                  (tipo() == "sala_sala" ? "entre dos de la sala" : tipo() == "sala_remoto" ? "entre uno de la sala y un remoto"
-                                                                                           : "entre dos remotos");
+        aviso_ += (aviso_.empty() ? "" : "; ") +
+                  (tipo() == "sala_sala"     ? ba::i18n::traducir("asamblea", "no hay escena configurada para un debate entre dos de la sala")
+                   : tipo() == "sala_remoto" ? ba::i18n::traducir("asamblea", "no hay escena configurada para un debate entre uno de "
+                                                                              "la sala y un remoto")
+                                             : ba::i18n::traducir("asamblea", "no hay escena configurada para un debate entre dos remotos"));
     } else if (config_.value("directo", false) && g_.cortar) {
         g_.cortar(escena_);
     } else if (g_.armar) {
@@ -145,8 +148,8 @@ std::string Debate::iniciar(const std::string& a, const std::string& b, const st
 }
 
 std::string Debate::turno(const std::string& t) {
-    if (!activo_) return "no hay un debate en curso";
-    if (t != "a" && t != "b" && t != "ambos" && t != "nadie") return "el turno es a, b, ambos o nadie";
+    if (!activo_) return ba::i18n::traducir("asamblea", "no hay un debate en curso");
+    if (t != "a" && t != "b" && t != "ambos" && t != "nadie") return ba::i18n::traducir("asamblea", "el turno es a, b, ambos o nadie");
     turno_ = t;
     turnoDesdeMs_ = ahoraMs();
     turnoS_ = config_.value("turno_s", 120);
@@ -196,8 +199,8 @@ void Debate::tic() {
         const auto avisar = [&](const std::string& que) {
             if (remoto && g_.avisoRemoto) g_.avisoRemoto(id, que);
             if (!remoto && g_.avisoCentral) g_.avisoCentral(cuerpo_.buscar(id).value("banca", std::string()), que);
-            emit aviso(QString::fromStdString(cuerpo_.buscar(id).value("nombre", id) +
-                                              (que == "terminado" ? ": se terminó su tiempo de debate" : ": queda un minuto")),
+            emit aviso((que == "terminado" ? tr("%1: se terminó su tiempo de debate") : tr("%1: queda un minuto"))
+                           .arg(QString::fromStdString(cuerpo_.buscar(id).value("nombre", id))),
                        que == "terminado" ? "warning" : "info");
         };
         if (queda <= 60 && !avisoMinuto_ && turnoS_ > 60) {

@@ -205,7 +205,7 @@ void TerminalView::paint(QPainter* p) {
     // Indicador de historial.
     if (scroll_ > 0) {
         const QString t =
-            QString("↑ historial (%1 lineas) — rueda abajo o cualquier tecla para volver").arg(scroll_);
+            tr("↑ historial (%n linea) — rueda abajo o cualquier tecla para volver", "", scroll_);
         QFont f = font_;
         f.setPixelSize(std::max(11, font_.pixelSize() - 3));
         p->setFont(f);
@@ -224,7 +224,7 @@ void TerminalView::paint(QPainter* p) {
         p->setFont(f);
         p->setPen(QColor(150, 160, 175));
         p->drawText(boundingRect().adjusted(0, 0, 0, -12), Qt::AlignHCenter | Qt::AlignBottom,
-                    "— el agente no esta corriendo —");
+                    tr("— el agente no esta corriendo —"));
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include "ptz/PtzProtocolos.hpp"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 #include <QStringList>
@@ -139,13 +140,13 @@ Respuesta leer(const QByteArray& datos) {
 
 QString textoError(int codigo) {
     switch (codigo) {
-        case 0x01: return QStringLiteral("largo de mensaje inválido");
-        case 0x02: return QStringLiteral("orden que la cámara no entiende");
-        case 0x03: return QStringLiteral("la cámara está ocupada (buffer lleno)");
-        case 0x04: return QStringLiteral("orden cancelada");
-        case 0x05: return QStringLiteral("no hay socket");
-        case 0x41: return QStringLiteral("la cámara no puede hacer eso ahora");
-        default: return QStringLiteral("error VISCA %1").arg(codigo, 2, 16, QLatin1Char('0'));
+        case 0x01: return QCoreApplication::translate("ptz", "largo de mensaje inválido");
+        case 0x02: return QCoreApplication::translate("ptz", "orden que la cámara no entiende");
+        case 0x03: return QCoreApplication::translate("ptz", "la cámara está ocupada (buffer lleno)");
+        case 0x04: return QCoreApplication::translate("ptz", "orden cancelada");
+        case 0x05: return QCoreApplication::translate("ptz", "no hay socket");
+        case 0x41: return QCoreApplication::translate("ptz", "la cámara no puede hacer eso ahora");
+        default: return QCoreApplication::translate("ptz", "error VISCA %1").arg(codigo, 2, 16, QLatin1Char('0'));
     }
 }
 
@@ -251,8 +252,7 @@ QByteArray sobre(const QString& cuerpo, const QString& usuario, const QString& c
                                          .addSecs(desfaseSeg)
                                          .toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"))
                                    : creadoFijo;
-        cab = QStringLiteral(
-                  "<s:Header><wsse:Security s:mustUnderstand=\"1\" xmlns:wsse=\"%1\" xmlns:wsu=\"%2\">"
+        cab = QStringLiteral("<s:Header><wsse:Security s:mustUnderstand=\"1\" xmlns:wsse=\"%1\" xmlns:wsu=\"%2\">"
                   "<wsse:UsernameToken><wsse:Username>%3</wsse:Username>"
                   "<wsse:Password Type=\"%4\">%5</wsse:Password>"
                   "<wsse:Nonce EncodingType=\"%6\">%7</wsse:Nonce>"
@@ -260,8 +260,7 @@ QByteArray sobre(const QString& cuerpo, const QString& usuario, const QString& c
                   .arg(kWsse, kWsu, esc(usuario), kDigest, QString::fromLatin1(digest(nonce, creado, clave)),
                        kBase64, QString::fromLatin1(nonce.toBase64()), creado);
     }
-    return QStringLiteral(
-               "<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope %1>%2<s:Body>%3</s:Body></s:Envelope>")
+    return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?><s:Envelope %1>%2<s:Body>%3</s:Body></s:Envelope>")
         .arg(kNs, cab, cuerpo)
         .toUtf8();
 }
@@ -619,12 +618,11 @@ QString leerFalla(const QByteArray& xml) {
     QString t = primerTexto(xml, QStringLiteral("Text"));
     if (t.isEmpty()) t = primerTexto(xml, QStringLiteral("Reason"));
     if (t.isEmpty()) t = primerTexto(xml, QStringLiteral("Value"));
-    return t.isEmpty() ? QStringLiteral("la cámara contestó un error SOAP") : t;
+    return t.isEmpty() ? QCoreApplication::translate("ptz", "la cámara contestó un error SOAP") : t;
 }
 
 QByteArray sondeo(const QString& idMensaje) {
-    return QStringLiteral(
-               "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+    return QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                "<e:Envelope xmlns:e=\"http://www.w3.org/2003/05/soap-envelope\" "
                "xmlns:w=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" "
                "xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\" "

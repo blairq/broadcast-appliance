@@ -80,8 +80,8 @@ QVariantMap ControlCamaras::sacarFoto(const QString& entrada) {
             if (q->tieneCamara() || c->hw->usaTokens()) c->foto.idMemoria = q->id; // (ONVIF: el token llega después)
             guardarPronto();
         } else {
-            aviso = QStringLiteral("La foto queda sin memoria de la cámara (%1): tocarla sirve mientras no se la mueva.")
-                        .arg(e.isEmpty() ? QStringLiteral("no contestó") : e);
+            aviso = QCoreApplication::translate("ptz", "La foto queda sin memoria de la cámara (%1): tocarla sirve mientras no se la mueva.")
+                        .arg(e.isEmpty() ? QCoreApplication::translate("ptz", "no contestó") : e);
         }
     }
     c->foto.movimientos = c->movimientos;
@@ -100,7 +100,7 @@ QVariantMap ControlCamaras::sacarFoto(const QString& entrada) {
                 Camara* c = yo->camara(entrada, nullptr);
                 if (c == nullptr) return;
                 if (img.isNull()) {
-                    emit yo->aviso(QStringLiteral("La entrada «%1» no da imagen ahora: no hay foto").arg(entrada));
+                    emit yo->aviso(QCoreApplication::translate("ptz", "La entrada «%1» no da imagen ahora: no hay foto").arg(entrada));
                     return;
                 }
                 std::error_code ec;
@@ -108,7 +108,7 @@ QVariantMap ControlCamaras::sacarFoto(const QString& entrada) {
                 const QString nombre = QString::fromStdString(yo->nombreClave(c->entrada)) + "-foto.jpg";
                 const QString ruta = QString::fromStdWString((yo->carpetaMiniaturas() / nombre.toStdWString()).wstring());
                 if (!img.save(ruta, "JPG", 85)) {
-                    emit yo->aviso(QStringLiteral("No se pudo guardar la foto en %1").arg(ruta));
+                    emit yo->aviso(QCoreApplication::translate("ptz", "No se pudo guardar la foto en %1").arg(ruta));
                     return;
                 }
                 c->foto.archivo = nombre;
@@ -137,7 +137,7 @@ QString ControlCamaras::apuntarEnFoto(const QString& entrada, double u, double v
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return error;
-    if (c->foto.archivo.isEmpty()) return QStringLiteral("Primero sacá una foto");
+    if (c->foto.archivo.isEmpty()) return QCoreApplication::translate("ptz", "Primero sacá una foto");
     // Quieta desde la foto: la foto ES lo que ve; se apunta ya.
     if (c->movimientos == c->foto.movimientos) {
         const QString e = apuntar(entrada, u, v, ancho, alto);
@@ -145,7 +145,7 @@ QString ControlCamaras::apuntarEnFoto(const QString& entrada, double u, double v
         return e;
     }
     if (c->foto.idMemoria.isEmpty())
-        return QStringLiteral("La cámara se movió desde la foto y no tiene una memoria para volver: sacá otra foto.");
+        return QCoreApplication::translate("ptz", "La cámara se movió desde la foto y no tiene una memoria para volver: sacá otra foto.");
     const QVariantMap r = irAPosicion(entrada, c->foto.idMemoria, -1);
     if (!r.value("ok").toBool()) return r.value("error").toString();
     // Cuando llegó (la cabeza no avisa: se espera lo que tarda una típica), se apunta.

@@ -1,6 +1,7 @@
 // src/app/red/Biblioteca.cpp — ver Biblioteca.hpp
 
 #include "red/Biblioteca.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -117,7 +118,7 @@ bool Biblioteca::leer(const std::string& ruta) {
 }
 
 Marca Biblioteca::reconocer(const Pistas& p) const {
-    Marca mejor{"generica", "Genérica", "no se reconoció la marca", 0};
+    Marca mejor{"generica", ba::i18n::traducir("red", "Genérica"), ba::i18n::traducir("red", "no se reconoció la marca"), 0};
     const auto probar = [&](int confianza, const char* clave, const std::string& texto,
                             const std::string& porque) {
         if (confianza <= mejor.confianza || texto.empty()) return;
@@ -129,16 +130,18 @@ Marca Biblioteca::reconocer(const Pistas& p) const {
         }
     };
     probar(3, "onvif", p.onvifNombre, "ONVIF «" + p.onvifNombre + "»");
-    probar(3, "onvif", p.onvifModelo, "ONVIF modelo «" + p.onvifModelo + "»");
-    probar(2, "server", p.server, "su servidor web dice «" + p.server + "»");
-    probar(2, "titulo", p.titulo, "su página web se llama «" + p.titulo + "»");
-    probar(1, "mac", p.fabricanteMac, "MAC de " + p.fabricanteMac);
+    probar(3, "onvif", p.onvifModelo, ba::i18n::llenar(ba::i18n::traducir("red", "ONVIF modelo «%1»"), {p.onvifModelo}));
+    probar(2, "server", p.server, ba::i18n::llenar(ba::i18n::traducir("red", "su servidor web dice «%1»"), {p.server}));
+    probar(2, "titulo", p.titulo, ba::i18n::llenar(ba::i18n::traducir("red", "su página web se llama «%1»"), {p.titulo}));
+    probar(1, "mac", p.fabricanteMac, ba::i18n::llenar(ba::i18n::traducir("red", "MAC de %1"), {p.fabricanteMac}));
     if (mejor.confianza == 0)
         for (const auto& m : marcas_)
             for (const auto& pu : m["detectar"].value("puertos", json::array()))
                 if (p.puertos.count(pu.get<int>())) {
                     mejor = {m.value("id", ""), m.value("nombre", ""),
-                             "tiene abierto el puerto " + std::to_string(pu.get<int>()), 0};
+                             ba::i18n::llenar(ba::i18n::traducir("red", "tiene abierto el puerto %1"),
+                                              {std::to_string(pu.get<int>())}),
+                             0};
                     return mejor;
                 }
     return mejor;

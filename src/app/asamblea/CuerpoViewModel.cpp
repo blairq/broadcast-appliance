@@ -85,7 +85,7 @@ QString CuerpoViewModel::rutaFoto(const QString& idOBanca) const {
 }
 
 QString CuerpoViewModel::guardarFoto(const QString& id, const QImage& img) {
-    if (img.isNull()) return "no hay imagen";
+    if (img.isNull()) return tr("no hay imagen");
     // Cuadrada: el centro, un poco hacia arriba (en una foto de busto la cara está arriba del centro).
     const int lado = std::min(img.width(), img.height());
     const int x = (img.width() - lado) / 2;
@@ -95,7 +95,7 @@ QString CuerpoViewModel::guardarFoto(const QString& id, const QImage& img) {
     const QString rel = "Fotos/cuerpo/" + id + ".jpg";
     const QString ruta = QString::fromStdWString((datos_ / rel.toStdWString()).wstring());
     QDir().mkpath(QFileInfo(ruta).absolutePath());
-    if (!cuadrada.save(ruta, "JPG", 88)) return "no se pudo guardar la foto en " + ruta;
+    if (!cuadrada.save(ruta, "JPG", 88)) return tr("no se pudo guardar la foto en %1").arg(ruta);
     std::string err;
     nlohmann::json c{{"id", id.toStdString()}, {"foto", rel.toStdString()}};
     if (c_->guardar(c, &err).empty()) return QString::fromStdString(err);
@@ -103,19 +103,19 @@ QString CuerpoViewModel::guardarFoto(const QString& id, const QImage& img) {
 }
 
 QString CuerpoViewModel::subirFoto(const QString& id, const QString& archivo) {
-    if (c_->buscar(id.toStdString()).empty()) return "no hay un integrante con ese id";
+    if (c_->buscar(id.toStdString()).empty()) return tr("no hay un integrante con ese id");
     const QString ruta = archivo.startsWith("file:") ? QUrl(archivo).toLocalFile() : archivo;
     QImage img(ruta);
-    if (img.isNull()) return "no se pudo leer la imagen «" + ruta + "»";
+    if (img.isNull()) return tr("no se pudo leer la imagen «%1»").arg(ruta);
     return guardarFoto(id, img);
 }
 
 void CuerpoViewModel::capturarFoto(const QString& id) {
     const nlohmann::json i = c_->buscar(id.toStdString());
-    if (i.empty()) return emit fotoLista(id, false, "no hay un integrante con ese id");
+    if (i.empty()) return emit fotoLista(id, false, tr("no hay un integrante con ese id"));
     const QString camara = QString::fromStdString(i.value("preset_ptz", nlohmann::json::object()).value("camara", std::string()));
     if (camara.isEmpty() || !g_.capturar)
-        return emit fotoLista(id, false, "su banca no tiene cámara (preset PTZ en el Cuerpo): subí la foto a mano");
+        return emit fotoLista(id, false, tr("su banca no tiene cámara (preset PTZ en el Cuerpo): subí la foto a mano"));
     // Primero la cámara a su banca; si no se puede mover (está al aire), se captura como está.
     QString aviso;
     const QString banca = QString::fromStdString(i.value("banca", std::string()));
@@ -125,10 +125,10 @@ void CuerpoViewModel::capturarFoto(const QString& id) {
         if (!yo) return;
         yo->g_.capturar(camara, [yo, id, camara, aviso](QImage img) {
             if (!yo) return;
-            if (img.isNull()) return emit yo->fotoLista(id, false, "la cámara «" + camara + "» no da imagen ahora");
+            if (img.isNull()) return emit yo->fotoLista(id, false, tr("la cámara «%1» no da imagen ahora").arg(camara));
             const QString e = yo->guardarFoto(id, img);
             if (!e.isEmpty()) return emit yo->fotoLista(id, false, e);
-            emit yo->fotoLista(id, true, aviso.isEmpty() ? "foto capturada" : "capturada sin mover la cámara: " + aviso);
+            emit yo->fotoLista(id, true, aviso.isEmpty() ? tr("foto capturada") : tr("capturada sin mover la cámara: %1").arg(aviso));
         });
     });
 }
@@ -173,8 +173,9 @@ bool CuerpoViewModel::validar(const QString& id) {
 QString CuerpoViewModel::importar(const QString& archivo, bool reemplazar) {
     const QString ruta = archivo.startsWith("file:") ? QUrl(archivo).toLocalFile() : archivo;
     const nlohmann::json r = c_->importarCsv(ruta.toStdString(), reemplazar);
-    QString t = QString("Importados %1, actualizados %2").arg(r.value("importados", 0)).arg(r.value("actualizados", 0));
-    if (!r["errores"].empty()) t += QString(", %1 con error (%2)").arg(r["errores"].size()).arg(QString::fromStdString(r["errores"][0].get<std::string>()));
+    QString t = tr("Importados %1, actualizados %2").arg(r.value("importados", 0)).arg(r.value("actualizados", 0));
+    if (!r["errores"].empty())
+        t += tr(", %1 con error (%2)").arg(r["errores"].size()).arg(QString::fromStdString(r["errores"][0].get<std::string>()));
     return t;
 }
 
