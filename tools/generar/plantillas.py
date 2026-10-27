@@ -751,6 +751,12 @@ def main():
     ap.add_argument("--textos", action="store_true",
                     help="escribe assets/idiomas/es/plantillas/textos.json (la tabla para traducir) y no genera nada")
     args = ap.parse_args()
+    # PIL hace falta para las imágenes: sin él, el script borraba lo generado y fallaba a mitad.
+    if not args.textos:
+        try:
+            import PIL  # noqa: F401
+        except ImportError:
+            sys.exit("plantillas.py necesita PIL (Pillow): corrélo con .venv/bin/python3")
     global IDIOMA, DEMOS
     IDIOMA = "es" if args.textos else args.idioma
     cargar_textos(IDIOMA)
