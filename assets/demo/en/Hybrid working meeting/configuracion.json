@@ -1,0 +1,10 @@
+{
+ "descripcion": "Board, team or committee with some people in the room and some remote; presentations and documents.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "reunion-hibrida",
+  "icono": "⧉",
+  "orden": 1
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Mass, service, wedding or celebration: music, lyrics on screen, readings, streaming.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "ceremonia",
+  "icono": "✧",
+  "orden": 14
+ }
+}

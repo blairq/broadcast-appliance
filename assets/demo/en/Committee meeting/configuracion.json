@@ -1,0 +1,10 @@
+{
+ "descripcion": "Committee of a deliberative body: agenda, files, committee reports, orderly turns to speak.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "comision",
+  "icono": "§",
+  "orden": 2
+ }
+}

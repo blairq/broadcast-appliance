@@ -1,0 +1,32 @@
+{
+ "puntos": [
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 1,
+   "resultado": "",
+   "titulo": "Roll call of present and remote members"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 2,
+   "resultado": "",
+   "titulo": "‹Item 1›"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 3,
+   "resultado": "",
+   "titulo": "‹Item 2›"
+  }
+ ],
+ "tramos": []
+}

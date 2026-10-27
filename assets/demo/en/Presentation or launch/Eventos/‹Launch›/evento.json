@@ -1,0 +1,182 @@
+{
+ "nombre": "‹Launch›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Launch of a product, book or project: video, presentation, guests and press.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b355-g",
+   "nombre": "Standby",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c354-g",
+     "tipo": "escena",
+     "texto": "On air: Standby",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b360-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c356-g",
+     "tipo": "nota",
+     "texto": "Opening video (load it in Media)",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    },
+    {
+     "id": "c357-g",
+     "tipo": "escena",
+     "texto": "On air: Stage",
+     "datos": {
+      "escena": "Stage"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c358-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Presenter›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Presenter›",
+       "cargo": "‹Company›",
+       "acento": "#ff3d00",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c359-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b363-g",
+   "nombre": "Presentation",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c361-g",
+     "tipo": "escena",
+     "texto": "On air: Presentation",
+     "datos": {
+      "escena": "Presentation"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c362-g",
+     "tipo": "nota",
+     "texto": "‹What is being launched›",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b365-g",
+   "nombre": "Press questions",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c364-g",
+     "tipo": "nota",
+     "texto": "Questions",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b371-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c366-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c367-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c368-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c369-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c370-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

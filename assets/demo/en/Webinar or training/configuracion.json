@@ -1,0 +1,10 @@
+{
+ "descripcion": "Online presentation with registrants, questions, polls and downloadable material.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "webinar",
+  "icono": "▣",
+  "orden": 11
+ }
+}

@@ -1,0 +1,123 @@
+{
+  "nombre": "Zócalo con cámara",
+  "categoria": "General",
+  "descripcion": "Nombre y cargo con la cámara de quien habla, en vivo, en un recuadro a la izquierda que entra y se va con el zócalo.",
+  "ancho": 1100,
+  "alto": 240,
+  "seVa": "queda",
+  "parametros": [
+    {
+      "clave": "nombre",
+      "titulo": "Nombre",
+      "tipo": "texto",
+      "porDefecto": "Nombre Apellido",
+      "ayuda": "Quien habla."
+    },
+    {
+      "clave": "cargo",
+      "titulo": "Cargo",
+      "tipo": "texto",
+      "porDefecto": "Cargo o función",
+      "ayuda": "Lo que va abajo del nombre. Puede ir vacío."
+    },
+    {
+      "clave": "camara",
+      "titulo": "Cámara",
+      "tipo": "fuente",
+      "porDefecto": "Cámara",
+      "ayuda": "La fuente de video del recuadro (la cámara del orador, un invitado). Si ya está en la escena se mueve esa y, cuando el zócalo se va, vuelve a su lugar; si no, se suma sola mientras dure. Vacía: sale sin video."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#1f6fb2",
+      "ayuda": "El marco del recuadro."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1100,
+    "alto": 240,
+    "entrada": {
+      "efecto": "desliza-izquierda",
+      "duracion": 450
+    },
+    "salida": {
+      "efecto": "desenfoca",
+      "duracion": 320
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 8,
+        "abajo": 26,
+        "ancho": 178,
+        "alto": 158,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "panel",
+        "izquierda": 186,
+        "abajo": 30,
+        "alto": 150,
+        "color": "#10141a",
+        "opacidad": 0.93,
+        "ajustaA": [
+          "nombre",
+          "cargo"
+        ]
+      },
+      {
+        "tipo": "texto",
+        "id": "nombre",
+        "valor": "{nombre}",
+        "tamano": 46,
+        "peso": "semi",
+        "izquierda": 214,
+        "abajo": 100,
+        "aparece": 180
+      },
+      {
+        "tipo": "texto",
+        "id": "cargo",
+        "valor": "{cargo}",
+        "tamano": 26,
+        "color": "#c3cad3",
+        "izquierda": 216,
+        "abajo": 58,
+        "aparece": 300
+      }
+    ],
+    "escena": [
+      {
+        "fuente": "{camara}",
+        "donde": "arriba",
+        "ajuste": "cubrir",
+        "claves": [
+          {"ms": 0, "x": -170, "y": 60, "ancho": 170, "alto": 150, "alfa": 0},
+          {"ms": 450, "x": 12, "alfa": 1}
+        ],
+        "salida": [
+          {"ms": 0},
+          {"ms": 320, "alfa": 0}
+        ]
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "◉",
+      "titulo": "Con la cámara de quien habla",
+      "prompt": "Sacá este zócalo con el nombre y el cargo de quien está hablando y, en el recuadro, la cámara que lo está tomando (grafico_mostrar con `video`)."
+    }
+  ]
+}

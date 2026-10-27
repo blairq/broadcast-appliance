@@ -1,0 +1,251 @@
+{
+ "nombre": "‹Public hearing›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Registered residents who speak in turns with a fixed time; speaker registration and minutes.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b338-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c331-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c332-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c333-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c334-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Public hearing›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Public hearing›",
+       "bajada": "‹Subtitle›",
+       "acento": "#15803d"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c335-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c336-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#15803d",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c337-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b341-g",
+   "nombre": "Formal opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c339-g",
+     "tipo": "escena",
+     "texto": "On air: Chair",
+     "datos": {
+      "escena": "Chair"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c340-g",
+     "tipo": "nota",
+     "texto": "Reading of the purpose of the hearing and the rules",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b347-g",
+   "nombre": "Registered speakers",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c342-g",
+     "tipo": "escena",
+     "texto": "On air: Speaker",
+     "datos": {
+      "escena": "Speaker"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c343-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Speaker 1›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Speaker 1›",
+       "cargo": "‹Entity›",
+       "acento": "#15803d",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c344-g",
+     "tipo": "nota",
+     "texto": "5 minutes",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    },
+    {
+     "id": "c345-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Speaker 2›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Speaker 2›",
+       "cargo": "‹Entity›",
+       "acento": "#15803d",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c346-g",
+     "tipo": "nota",
+     "texto": "5 minutes",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b353-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c348-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c349-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c350-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c351-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c352-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

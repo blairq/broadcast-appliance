@@ -1,0 +1,216 @@
+{
+ "nombre": "‹Ceremony›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Mass, service, wedding or celebration: music, lyrics on screen, readings, streaming.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b318-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c311-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c312-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c313-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c314-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Ceremony›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Ceremony›",
+       "bajada": "‹Subtitle›",
+       "acento": "#b08d57"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c315-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c316-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#b08d57",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c317-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b324-g",
+   "nombre": "Celebration",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c319-g",
+     "tipo": "escena",
+     "texto": "On air: Altar",
+     "datos": {
+      "escena": "Altar"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c320-g",
+     "tipo": "nota",
+     "texto": "‹Moment 1›",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    },
+    {
+     "id": "c321-g",
+     "tipo": "escena",
+     "texto": "Song with lyrics",
+     "datos": {
+      "escena": "Lyrics"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c322-g",
+     "tipo": "grafico",
+     "texto": "Lyrics: ‹song›",
+     "datos": {
+      "fuente": "Lyrics",
+      "grafico": "letra",
+      "valores": {
+       "estrofa": "‹First line›\n‹Second line›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c323-g",
+     "tipo": "nota",
+     "texto": "‹Moment 2›",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b330-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c325-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c326-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c327-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c328-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c329-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

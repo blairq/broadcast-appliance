@@ -1,0 +1,10 @@
+{
+ "descripcion": "Owners or members, in person and by video call, voting by majority or percentage.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "consorcio",
+  "icono": "⌘",
+  "orden": 6
+ }
+}

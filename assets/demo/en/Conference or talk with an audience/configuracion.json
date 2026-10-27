@@ -1,0 +1,10 @@
+{
+ "descripcion": "One or more speakers, audience in the room and online, questions, streaming.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "conferencia",
+  "icono": "◉",
+  "orden": 8
+ }
+}

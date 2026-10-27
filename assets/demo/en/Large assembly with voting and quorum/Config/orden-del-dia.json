@@ -1,0 +1,41 @@
+{
+ "puntos": [
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 1,
+   "resultado": "",
+   "titulo": "Appointment of two members to sign the minutes"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 2,
+   "resultado": "",
+   "titulo": "Consideration of the annual report and financial statements"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 3,
+   "resultado": "",
+   "titulo": "‹Item 3›"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 4,
+   "resultado": "",
+   "titulo": "Election of officers"
+  }
+ ],
+ "tramos": []
+}

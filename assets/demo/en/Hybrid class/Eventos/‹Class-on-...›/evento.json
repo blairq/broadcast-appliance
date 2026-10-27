@@ -1,0 +1,323 @@
+{
+ "nombre": "‹Class on ...›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Teacher with students in the classroom and remote; materials, attendance at hand, questions, maybe translation.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b161-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c154-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c155-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c156-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c157-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Class on ...›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Class on ...›",
+       "bajada": "‹Subtitle›",
+       "acento": "#facc15"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c158-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c159-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#facc15",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c160-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b164-g",
+   "nombre": "Attendance",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c162-g",
+     "tipo": "escena",
+     "texto": "On air: Grid",
+     "datos": {
+      "escena": "Grid"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c163-g",
+     "tipo": "nota",
+     "texto": "Take attendance (roll: check in each student)",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b170-g",
+   "nombre": "‹Topic 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c165-g",
+     "tipo": "escena",
+     "texto": "On air: Teacher",
+     "datos": {
+      "escena": "Teacher"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c166-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Topic 1›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Topic 1›",
+       "bajada": "‹Subtitle›",
+       "acento": "#facc15"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c167-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: topic 1",
+     "datos": {
+      "discurso": "1-tema-1.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c168-g",
+     "tipo": "escena",
+     "texto": "The topic's card",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c169-g",
+     "tipo": "nota",
+     "texto": "Explanation",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b175-g",
+   "nombre": "‹Topic 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c171-g",
+     "tipo": "escena",
+     "texto": "On air: Teacher",
+     "datos": {
+      "escena": "Teacher"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c172-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Topic 2›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Topic 2›",
+       "bajada": "‹Subtitle›",
+       "acento": "#facc15"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c173-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: topic 2",
+     "datos": {
+      "discurso": "2-tema-2.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c174-g",
+     "tipo": "nota",
+     "texto": "Explanation",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b178-g",
+   "nombre": "Questions",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c176-g",
+     "tipo": "escena",
+     "texto": "On air: Remote question",
+     "datos": {
+      "escena": "Remote question"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c177-g",
+     "tipo": "nota",
+     "texto": "Questions from the room and from remote students",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b184-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c179-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c180-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c181-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c182-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c183-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Assembly or session with quorum and voting where some members take part remotely.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "asamblea-remota",
+  "icono": "⌂",
+  "orden": 5
+ }
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "TVs at the venue, printed or on-screen QR codes, signage that changes during the event.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "senaletica",
+  "icono": "⊞",
+  "orden": 18
+ }
+}

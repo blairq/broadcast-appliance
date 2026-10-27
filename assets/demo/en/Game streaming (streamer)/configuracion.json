@@ -1,0 +1,10 @@
+{
+ "descripcion": "Game on screen, streamer camera, audience chat on screen, alerts.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "streaming-juegos",
+  "icono": "▶",
+  "orden": 12
+ }
+}

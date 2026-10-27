@@ -1,0 +1,10 @@
+{
+ "descripcion": "Launch of a product, book or project: video, presentation, guests and press.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "lanzamiento",
+  "icono": "✦",
+  "orden": 16
+ }
+}

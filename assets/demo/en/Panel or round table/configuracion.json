@@ -1,0 +1,10 @@
+{
+ "descripcion": "Moderator and several panelists (in person or remote), turns and questions.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "panel",
+  "icono": "☰",
+  "orden": 9
+ }
+}

@@ -1,0 +1,124 @@
+{
+  "nombre": "Zócalo de integrante",
+  "categoria": "Asamblea",
+  "descripcion": "Nombre, cargo y bloque de quien habla desde su banca, abajo a la izquierda. Los datos salen validados del Cuerpo.",
+  "ancho": 1100,
+  "alto": 240,
+  "parametros": [
+    {
+      "clave": "nombre",
+      "titulo": "Nombre",
+      "tipo": "texto",
+      "porDefecto": "Nombre Apellido",
+      "ayuda": "Tal cual figura en el Cuerpo (validado)."
+    },
+    {
+      "clave": "cargo",
+      "titulo": "Cargo",
+      "tipo": "texto",
+      "porDefecto": "Integrante",
+      "ayuda": "El cargo oficial."
+    },
+    {
+      "clave": "bloque",
+      "titulo": "Bloque",
+      "tipo": "texto",
+      "porDefecto": "Bloque",
+      "ayuda": "Va en el color de acento. Puede ir vacío."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#1f6fb2",
+      "ayuda": "El color del cuerpo o del bloque."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milisegundos desde que apareció. 0 = se queda hasta que lo saquen."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1100,
+    "alto": 240,
+    "entrada": {
+      "efecto": "desliza-izquierda",
+      "duracion": 450
+    },
+    "salida": {
+      "efecto": "desenfoca",
+      "duracion": 320
+    },
+    "capas": [
+      {
+        "tipo": "barra",
+        "ancho": 12,
+        "alto": 150,
+        "color": "{acento}",
+        "izquierda": 0,
+        "abajo": 30
+      },
+      {
+        "tipo": "panel",
+        "izquierda": 12,
+        "abajo": 30,
+        "alto": 150,
+        "color": "#10141a",
+        "opacidad": 0.93,
+        "ajustaA": [
+          "nombre",
+          "cargo",
+          "bloque"
+        ]
+      },
+      {
+        "tipo": "texto",
+        "id": "nombre",
+        "valor": "{nombre}",
+        "tamano": 46,
+        "peso": "semi",
+        "izquierda": 42,
+        "abajo": 112,
+        "aparece": 180
+      },
+      {
+        "tipo": "texto",
+        "id": "cargo",
+        "valor": "{cargo}",
+        "tamano": 26,
+        "color": "#c3cad3",
+        "izquierda": 44,
+        "abajo": 76,
+        "aparece": 300
+      },
+      {
+        "tipo": "texto",
+        "id": "bloque",
+        "valor": "{bloque}",
+        "tamano": 24,
+        "peso": "semi",
+        "color": "{acento}",
+        "izquierda": 44,
+        "abajo": 42,
+        "aparece": 400
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "◉",
+      "titulo": "El que habla",
+      "prompt": "Llená este zócalo con el orador presencial al aire (banca) usando el Cuerpo: nombre, cargo y bloque. Si no está validado, avisame antes de sacarlo."
+    },
+    {
+      "icono": "∞",
+      "titulo": "Que se escriba solo",
+      "prompt": "Armá un vínculo para esta fuente: nombre {orador.nombre}, cargo {orador.cargo}, bloque {orador.bloque}, que dispare solo cuando cambia el orador."
+    }
+  ]
+}

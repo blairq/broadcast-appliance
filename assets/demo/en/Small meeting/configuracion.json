@@ -1,0 +1,10 @@
+{
+ "descripcion": "Up to about 10 people, in person, remote or mixed. Little setup: it just has to work and get recorded.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "reunion-chica",
+  "icono": "☺",
+  "orden": 0
+ }
+}

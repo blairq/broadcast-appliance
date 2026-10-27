@@ -1,0 +1,36 @@
+{
+ "nombre": "‹Event signage›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "TVs at the venue, printed or on-screen QR codes, signage that changes during the event.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b391-g",
+   "nombre": "During the event",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c389-g",
+     "tipo": "escena",
+     "texto": "On air: Room screen",
+     "datos": {
+      "escena": "Room screen"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c390-g",
+     "tipo": "nota",
+     "texto": "Send the scene to each TV (pantalla_mostrar)",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

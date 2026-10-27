@@ -1,0 +1,278 @@
+{
+ "nombre": "‹Conference›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "One or more speakers, audience in the room and online, questions, streaming.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b192-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c185-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c186-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c187-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c188-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Conference›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Conference›",
+       "bajada": "‹Subtitle›",
+       "acento": "#8b5cf6"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c189-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c190-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#8b5cf6",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c191-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b197-g",
+   "nombre": "‹Speaker 1›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c193-g",
+     "tipo": "escena",
+     "texto": "On air: Speaker",
+     "datos": {
+      "escena": "Speaker"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c194-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Speaker 1›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Speaker 1›",
+       "cargo": "‹Title›",
+       "acento": "#8b5cf6",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c195-g",
+     "tipo": "escena",
+     "texto": "Their presentation",
+     "datos": {
+      "escena": "Presentation"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c196-g",
+     "tipo": "nota",
+     "texto": "Talk",
+     "datos": {},
+     "duracionSeg": 1500,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b201-g",
+   "nombre": "‹Speaker 2›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c198-g",
+     "tipo": "escena",
+     "texto": "On air: Remote guest",
+     "datos": {
+      "escena": "Remote guest"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c199-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Speaker 2›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Speaker 2›",
+       "cargo": "‹Title›",
+       "acento": "#8b5cf6",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c200-g",
+     "tipo": "nota",
+     "texto": "Talk",
+     "datos": {},
+     "duracionSeg": 1500,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b204-g",
+   "nombre": "Audience questions",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c202-g",
+     "tipo": "escena",
+     "texto": "On air: Questions",
+     "datos": {
+      "escena": "Questions"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c203-g",
+     "tipo": "nota",
+     "texto": "Moderated questions",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b210-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c205-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c206-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c207-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c208-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c209-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

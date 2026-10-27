@@ -1,0 +1,10 @@
+{
+ "descripcion": "One or two hosts with guests, careful audio, video for social media.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "entrevista",
+  "icono": "🎙",
+  "orden": 10
+ }
+}

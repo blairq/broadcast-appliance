@@ -1,0 +1,201 @@
+{
+ "nombre": "‹Interview›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "One or two hosts with guests, careful audio, video for social media.",
+ "asamblea": false,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b241-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c234-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c235-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c236-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c237-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Interview›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Interview›",
+       "bajada": "‹Subtitle›",
+       "acento": "#f43f5e"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c238-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c239-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#f43f5e",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c240-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b245-g",
+   "nombre": "Interview",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c242-g",
+     "tipo": "escena",
+     "texto": "On air: Two-shot",
+     "datos": {
+      "escena": "Two-shot"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c243-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Guest›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Guest›",
+       "cargo": "‹Who they are›",
+       "acento": "#f43f5e",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c244-g",
+     "tipo": "nota",
+     "texto": "‹Questions›",
+     "datos": {},
+     "duracionSeg": 1800,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b251-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c246-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c247-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c248-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c249-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c250-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,268 @@
+{
+ "nombre": "‹Owners' meeting›",
+ "fecha": "",
+ "inicio": "",
+ "huso": "",
+ "nota": "Owners or members, in person and by video call, voting by majority or percentage.",
+ "asamblea": true,
+ "autoAceptar": [],
+ "bloques": [
+  {
+   "id": "b135-g",
+   "nombre": "Opening",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c128-g",
+     "tipo": "escena",
+     "texto": "Standby slate with the start time",
+     "datos": {
+      "escena": "Standby"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c129-g",
+     "tipo": "espera",
+     "texto": "Confirm everything is ready to start",
+     "datos": {},
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c130-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c131-g",
+     "tipo": "grafico",
+     "texto": "Slate: ‹Owners' meeting›",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "‹Owners' meeting›",
+       "bajada": "‹Subtitle›",
+       "acento": "#16a34a"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c132-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the opening",
+     "datos": {
+      "discurso": "0-apertura.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c133-g",
+     "tipo": "grafico",
+     "texto": "Lower third: ‹Host name›",
+     "datos": {
+      "fuente": "Lower third",
+      "grafico": "zocalo",
+      "valores": {
+       "nombre": "‹Host name›",
+       "cargo": "‹Title or role›",
+       "acento": "#16a34a",
+       "salidaEn": 0
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c134-g",
+     "tipo": "nota",
+     "texto": "Welcome and introduction of the event",
+     "datos": {},
+     "duracionSeg": 120,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b138-g",
+   "nombre": "Call to order",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c136-g",
+     "tipo": "escena",
+     "texto": "On air: Head table",
+     "datos": {
+      "escena": "Head table"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c137-g",
+     "tipo": "nota",
+     "texto": "Attendance, proxies and quorum",
+     "datos": {},
+     "duracionSeg": 600,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b144-g",
+   "nombre": "Financial statements",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c139-g",
+     "tipo": "grafico",
+     "texto": "Slate: Annual financial statements",
+     "datos": {
+      "fuente": "Slate",
+      "grafico": "placa-titulo",
+      "valores": {
+       "titulo": "Annual financial statements",
+       "bajada": "‹Subtitle›",
+       "acento": "#16a34a"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c140-g",
+     "tipo": "escena",
+     "texto": "The financial statements on screen",
+     "datos": {
+      "escena": "PDF"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c141-g",
+     "tipo": "nota",
+     "texto": "Presentation and questions",
+     "datos": {},
+     "duracionSeg": 1200,
+     "automatico": false
+    },
+    {
+     "id": "c142-g",
+     "tipo": "escena",
+     "texto": "On air: Vote",
+     "datos": {
+      "escena": "Vote"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c143-g",
+     "tipo": "nota",
+     "texto": "Approval",
+     "datos": {},
+     "duracionSeg": 300,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b147-g",
+   "nombre": "‹Other items›",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c145-g",
+     "tipo": "nota",
+     "texto": "‹Item›",
+     "datos": {},
+     "duracionSeg": 900,
+     "automatico": false
+    },
+    {
+     "id": "c146-g",
+     "tipo": "escena",
+     "texto": "On air: Vote",
+     "datos": {
+      "escena": "Vote"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  },
+  {
+   "id": "b153-g",
+   "nombre": "Closing",
+   "nota": "",
+   "cues": [
+    {
+     "id": "c148-g",
+     "tipo": "escena",
+     "texto": "On air: Host",
+     "datos": {
+      "escena": "Host"
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c149-g",
+     "tipo": "teleprompter",
+     "texto": "Teleprompter: the closing",
+     "datos": {
+      "discurso": "9-cierre.txt",
+      "arrancar": false
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    },
+    {
+     "id": "c150-g",
+     "tipo": "nota",
+     "texto": "Thanks and closing",
+     "datos": {},
+     "duracionSeg": 60,
+     "automatico": false
+    },
+    {
+     "id": "c151-g",
+     "tipo": "escena",
+     "texto": "On air: Closing",
+     "datos": {
+      "escena": "Closing"
+     },
+     "duracionSeg": 15,
+     "automatico": false
+    },
+    {
+     "id": "c152-g",
+     "tipo": "grafico",
+     "texto": "Closing slate: where to watch the recording",
+     "datos": {
+      "fuente": "Closing slate",
+      "grafico": "cierre",
+      "valores": {
+       "titulo": "Thanks for joining us!",
+       "bajada": "‹Where the recording will be›"
+      }
+     },
+     "duracionSeg": 0,
+     "automatico": false
+    }
+   ]
+  }
+ ]
+}

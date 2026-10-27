@@ -1,0 +1,10 @@
+{
+ "descripcion": "School ceremony, graduation, anniversary: anthem, flags, crest, speeches and names.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "acto",
+  "icono": "★",
+  "orden": 13
+ }
+}

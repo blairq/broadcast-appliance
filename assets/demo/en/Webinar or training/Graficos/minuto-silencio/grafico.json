@@ -1,0 +1,77 @@
+{
+  "nombre": "Minuto de silencio",
+  "categoria": "Asamblea",
+  "descripcion": "Placa sobria para un minuto de silencio, con el homenaje. Fondo negro, sin color.",
+  "seVa": "al-avanzar",
+  "ancho": 1920,
+  "alto": 1080,
+  "parametros": [
+    {
+      "clave": "homenaje",
+      "titulo": "En memoria de",
+      "tipo": "texto",
+      "porDefecto": "",
+      "ayuda": "A quién se homenajea. Puede ir vacío."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 60000,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Un minuto: 60000. 0 = se queda hasta que la saquen."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 1080,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 1200
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 1200
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 1920,
+        "alto": 1080,
+        "color": "#000000",
+        "opacidad": 0.97
+      },
+      {
+        "tipo": "texto",
+        "id": "titulo",
+        "valor": "MINUTO DE SILENCIO",
+        "tamano": 72,
+        "peso": "liviana",
+        "izquierda": 560,
+        "arriba": 470
+      },
+      {
+        "tipo": "texto",
+        "id": "homenaje",
+        "valor": "{homenaje}",
+        "tamano": 36,
+        "peso": "liviana",
+        "color": "#a0a0a0",
+        "izquierda": 564,
+        "arriba": 580,
+        "ancho": 800,
+        "aparece": 900
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "◼",
+      "titulo": "Un minuto",
+      "prompt": "Sacá al aire la placa de minuto de silencio con el homenaje que te diga, y que se vaya sola al minuto. Antes preguntame a quién."
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "nombre": "Halftime",
+  "descripcion": "The halftime slate. “Sports” style.",
+  "categoria": "From the template",
+  "ancho": 1600,
+  "alto": 620,
+  "duracionMs": 2000,
+  "parametros": [
+    {
+      "clave": "etiqueta",
+      "titulo": "Label",
+      "tipo": "texto",
+      "porDefecto": "Halftime",
+      "ayuda": "The small line on top, in capitals."
+    },
+    {
+      "clave": "titulo",
+      "titulo": "Title",
+      "tipo": "texto",
+      "porDefecto": "‹Home› 0 - 0 ‹Away›",
+      "ayuda": ""
+    },
+    {
+      "clave": "bajada",
+      "titulo": "Subtitle",
+      "tipo": "texto",
+      "porDefecto": "The second half is coming up",
+      "ayuda": ""
+    },
+    {
+      "clave": "acento",
+      "titulo": "Accent color",
+      "tipo": "color",
+      "ayuda": "The event's color.",
+      "porDefecto": "#22c55e"
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "When it leaves",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Milliseconds since it appeared. 0 = stays until taken off."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+ "descripcion": "Match or tournament: scoreboard, clock, commentary, replays and sponsors.",
+ "generada": true,
+ "plantilla": true,
+ "plantillaDatos": {
+  "escenario": "deportivo",
+  "icono": "⚽",
+  "orden": 17
+ }
+}
