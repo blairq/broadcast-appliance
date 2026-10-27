@@ -82,7 +82,7 @@ void ControlWebGateway::emparejar(const json& perfil, const std::string& nombre,
         return;
     }
     if (!gw_.online()) {
-        listo({{"error", "El gateway no está andando: el navegador no tendría a quién conectarse."}});
+        listo({{"error", tr("El gateway no está andando: el navegador no tendría a quién conectarse.").toStdString()}});
         return;
     }
     const std::string codigo = texto(c, "codigo");

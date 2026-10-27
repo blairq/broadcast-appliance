@@ -51,7 +51,7 @@ QVector<QImage> cuadrosDeVideo(const QString& ruta, int max, QString& error) {
     QVector<QImage> out;
     gchar* uri = gst_filename_to_uri(ruta.toUtf8().constData(), nullptr);
     if (uri == nullptr) {
-        error = QStringLiteral("No entiendo la ruta %1").arg(ruta);
+        error = QCoreApplication::translate("caras", "No entiendo la ruta %1").arg(ruta);
         return out;
     }
     const std::string desc = std::string("uridecodebin uri=\"") + uri +
@@ -63,7 +63,7 @@ QVector<QImage> cuadrosDeVideo(const QString& ruta, int max, QString& error) {
     GError* err = nullptr;
     GstElement* p = gst_parse_launch(desc.c_str(), &err);
     if (p == nullptr || err != nullptr) {
-        error = QStringLiteral("No se puede leer el video: %1").arg(err ? err->message : "?");
+        error = QCoreApplication::translate("caras", "No se puede leer el video: %1").arg(err ? err->message : "?");
         if (err) g_error_free(err);
         if (p) gst_object_unref(p);
         return out;
@@ -97,11 +97,11 @@ QVector<QImage> cuadrosDeVideo(const QString& ruta, int max, QString& error) {
         if (GstMessage* msg = gst_bus_pop_filtered(bus, GST_MESSAGE_ERROR)) {
             GError* e = nullptr;
             gst_message_parse_error(msg, &e, nullptr);
-            error = QStringLiteral("No se puede leer el video: %1").arg(e ? e->message : "?");
+            error = QCoreApplication::translate("caras", "No se puede leer el video: %1").arg(e ? e->message : "?");
             if (e) g_error_free(e);
             gst_message_unref(msg);
         } else {
-            error = QStringLiteral("El archivo no tiene video que se pueda leer");
+            error = QCoreApplication::translate("caras", "El archivo no tiene video que se pueda leer");
         }
         gst_object_unref(bus);
     }
@@ -143,14 +143,14 @@ void CarasBotonera::terminar(const QString& id, const QString& error) {
 
 QString CarasBotonera::guardar(const QString& id, const QVector<QImage>& cuadros, const QImage& grande,
                                const QString& original) {
-    if (cuadros.isEmpty()) return QStringLiteral("No llegó ninguna imagen");
+    if (cuadros.isEmpty()) return QCoreApplication::translate("caras", "No llegó ninguna imagen");
     const fs::path dir = carpeta(id);
     std::error_code ec;
     fs::create_directories(dir, ec);
     const QString base = QString::fromStdWString(dir.wstring());
     for (int i = 0; i < cuadros.size(); ++i)
         if (!cuadrado(cuadros[i], kLado).save(base + "/" + QString::fromStdString(archivoCuadro(i)), "JPG", 82))
-            return QStringLiteral("No se pudo guardar en %1").arg(base);
+            return QCoreApplication::translate("caras", "No se pudo guardar en %1").arg(base);
     if (!original.isEmpty()) {
         const QString ext = QFileInfo(original).suffix().toLower();
         QFile::copy(original, base + "/medio." + (ext.isEmpty() ? QStringLiteral("bin") : ext));
@@ -163,9 +163,9 @@ QString CarasBotonera::guardar(const QString& id, const QVector<QImage>& cuadros
 
 QVariantMap CarasBotonera::importar(const QString& archivo) {
     const QString ruta = rutaDe(archivo);
-    if (!QFileInfo::exists(ruta)) return {{"error", QStringLiteral("No existe %1").arg(ruta)}};
+    if (!QFileInfo::exists(ruta)) return {{"error", QCoreApplication::translate("caras", "No existe %1").arg(ruta)}};
     const QString id = nuevoId();
-    empezar(QStringLiteral("Leyendo %1…").arg(QFileInfo(ruta).fileName()));
+    empezar(QCoreApplication::translate("caras", "Leyendo %1…").arg(QFileInfo(ruta).fileName()));
     QPointer<CarasBotonera> yo(this);
     std::thread([yo, ruta, id]() {
         QVector<QImage> cuadros;
@@ -191,7 +191,7 @@ QVariantMap CarasBotonera::importar(const QString& archivo) {
                 grande = r.read();
                 if (!grande.isNull()) cuadros.push_back(grande);
             }
-            if (cuadros.isEmpty()) error = QStringLiteral("No se pudo leer la imagen: %1").arg(r.errorString());
+            if (cuadros.isEmpty()) error = QCoreApplication::translate("caras", "No se pudo leer la imagen: %1").arg(r.errorString());
         } else {
             cuadros = cuadrosDeVideo(ruta, kFps * kMaxSegundos, error);
         }
@@ -209,9 +209,9 @@ QVariantMap CarasBotonera::importar(const QString& archivo) {
 }
 
 QVariantMap CarasBotonera::capturarFoto(const QString& entrada) {
-    if (entrada.isEmpty()) return {{"error", QStringLiteral("Elegí una cámara")}};
+    if (entrada.isEmpty()) return {{"error", QCoreApplication::translate("caras", "Elegí una cámara")}};
     const QString id = nuevoId();
-    empezar(QStringLiteral("Sacando la foto…"));
+    empezar(QCoreApplication::translate("caras", "Sacando la foto…"));
     QPointer<CarasBotonera> yo(this);
     rt_.engine().capturarAparte(
         entrada.toStdString(), 1280, [yo, id, entrada](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
@@ -221,7 +221,7 @@ QVariantMap CarasBotonera::capturarFoto(const QString& entrada) {
                 [yo, id, img, entrada]() {
                     if (!yo) return;
                     if (img.isNull()) {
-                        yo->terminar(id, QStringLiteral("«%1» no da imagen ahora").arg(entrada));
+                        yo->terminar(id, QCoreApplication::translate("caras", "«%1» no da imagen ahora").arg(entrada));
                         return;
                     }
                     yo->terminar(id, yo->guardar(id, {img}, img));
@@ -232,10 +232,10 @@ QVariantMap CarasBotonera::capturarFoto(const QString& entrada) {
 }
 
 QVariantMap CarasBotonera::grabar(const QString& entrada, double segundos) {
-    if (entrada.isEmpty()) return {{"error", QStringLiteral("Elegí una cámara")}};
+    if (entrada.isEmpty()) return {{"error", QCoreApplication::translate("caras", "Elegí una cámara")}};
     const int n = std::clamp(static_cast<int>(std::lround(segundos * kFps)), kFps, kFps * kMaxSegundos);
     const QString id = nuevoId();
-    empezar(QStringLiteral("Grabando %1 s…").arg(n / kFps));
+    empezar(QCoreApplication::translate("caras", "Grabando %1 s…").arg(n / kFps));
     // Un cuadro cada 1/8 s; cada uno llega cuando llega (en otro hilo).
     struct Toma {
         QVector<QImage> cuadros;
@@ -252,7 +252,7 @@ QVariantMap CarasBotonera::grabar(const QString& entrada, double segundos) {
         for (const QImage& i : toma->cuadros)
             if (!i.isNull()) buenos.push_back(i);
         if (buenos.isEmpty()) {
-            yo->terminar(id, QStringLiteral("«%1» no da imagen ahora").arg(entrada));
+            yo->terminar(id, QCoreApplication::translate("caras", "«%1» no da imagen ahora").arg(entrada));
             return;
         }
         yo->terminar(id, yo->guardar(id, buenos, {}));
@@ -267,7 +267,7 @@ QVariantMap CarasBotonera::grabar(const QString& entrada, double segundos) {
             return;
         }
         const int i = toma->pedidos++;
-        estado_ = QStringLiteral("Grabando… %1 s").arg((n - i + kFps - 1) / kFps);
+        estado_ = QCoreApplication::translate("caras", "Grabando… %1 s").arg((n - i + kFps - 1) / kFps);
         emit cambio();
         rt_.engine().capturarAparte(
             entrada.toStdString(), 320, [yo, toma, i, n, cerrar](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {

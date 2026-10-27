@@ -58,7 +58,7 @@ void BotoneraGateway::evento(const json& ev) {
     } else if (tipo == "remota") {
         const std::string e = bot_.entradaRemota(texto(ev, "dispositivo"), texto(ev, "perfil"), texto(ev, "pagina"),
                                                  ev.value("x", -1), ev.value("y", -1), texto(ev, "accion"), texto(ev, "ip"));
-        if (!e.empty()) emit aviso(QString::fromStdString("API remota de la botonera: " + e), "aviso");
+        if (!e.empty()) emit aviso(tr("API remota de la botonera: %1").arg(QString::fromStdString(e)), "aviso");
     } else if (tipo == "conexion") {
         bot_.marcarConexion(texto(ev, "dispositivo"), ev.value("conectado", false), texto(ev, "ip"));
     }
@@ -77,7 +77,7 @@ void BotoneraGateway::emparejar(const std::string& perfil, const std::string& no
         return;
     }
     if (!gw_.online()) {
-        listo({{"error", "El gateway no está andando: la tablet no tendría a quién conectarse."}});
+        listo({{"error", tr("El gateway no está andando: la tablet no tendría a quién conectarse.").toStdString()}});
         return;
     }
     const std::string codigo = texto(c, "codigo");
@@ -114,14 +114,15 @@ void BotoneraGateway::baseRedLocal(ConferenceClient& gw, const std::string& serv
     // servicio, por la puerta de la sala. Se pide en el momento (es lo que va en el QR).
     sala::pedir(gw, "GET", "/api/v1/direcciones", {}, [servicio, listo](const std::string& error, const json& r) {
         if (!error.empty() || !r.is_object()) {
-            listo({{"error", "No pude preguntarle a la conferencia su dirección en la red local."}, {"sin_respuesta", true}});
+            listo({{"error", tr("No pude preguntarle a la conferencia su dirección en la red local.").toStdString()},
+                   {"sin_respuesta", true}});
             return;
         }
         for (const auto& s : r.value("servicios", json::array())) {
             if (s.value("id", std::string()) != servicio) continue;
             const json& u = s["local"];
             if (!u.is_string()) {
-                listo({{"error", s.value("motivo_local", std::string("No hay dirección en la red local."))}});
+                listo({{"error", s.value("motivo_local", tr("No hay dirección en la red local.").toStdString())}});
                 return;
             }
             std::string base = u.get<std::string>();
@@ -135,7 +136,7 @@ void BotoneraGateway::baseRedLocal(ConferenceClient& gw, const std::string& serv
             listo(out);
             return;
         }
-        listo({{"error", "La conferencia no informó la dirección de «" + servicio + "»."}});
+        listo({{"error", tr("La conferencia no informó la dirección de «%1».").arg(QString::fromStdString(servicio)).toStdString()}});
     });
 }
 

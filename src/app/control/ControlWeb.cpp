@@ -4,6 +4,7 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "diag/Registro.hpp"
+#include "i18n/I18n.hpp"
 #include "mcp/McpCore.hpp"
 #include "mcp/McpTraza.hpp"
 
@@ -21,6 +22,8 @@
 namespace ba::app::control {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 namespace fs = std::filesystem;
 
 namespace {
@@ -198,13 +201,13 @@ json ControlWeb::normalizarPerfil(const json& perfil, std::string* error) {
     } else if (perfil.is_array()) {
         for (const auto& c : perfil) {
             if (!c.is_string() || c.get<std::string>().empty() || c.get<std::string>().size() > 64) {
-                if (error) *error = "el perfil es una lista de categorías (texto) o \"*\"";
+                if (error) *error = traducir("control-web", "el perfil es una lista de categorías (texto) o \"*\"");
                 return nullptr;
             }
             v.push_back(c.get<std::string>());
         }
     } else {
-        if (error) *error = "el perfil es una lista de categorías o \"*\" (todas)";
+        if (error) *error = traducir("control-web", "el perfil es una lista de categorías o \"*\" (todas)");
         return nullptr;
     }
     for (auto& c : v)
@@ -269,7 +272,8 @@ json ControlWeb::nuevoCodigo(const json& perfil, const std::string& nombre) {
     if (p.is_null()) return {{"error", e}};
     const std::string codigo = hexAleatorio(16); // 128 bits
     codigos_[codigo] = {p, nombre.substr(0, 60), ahora + kCodigoMs()};
-    ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0, "código de emparejamiento (perfil " + perfilTexto(p) + ")");
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0,
+                               llenar(traducir("control-web", "código de emparejamiento (perfil %1)"), {perfilTexto(p)}));
     return {{"codigo", codigo}, {"vence_ms", ahora + kCodigoMs()}, {"perfil", p}};
 }
 
@@ -277,17 +281,21 @@ std::string ControlWeb::solicitud(const std::string& sol, const std::string& cod
                                   const std::string& ip) {
     auto it = codigos_.find(codigo);
     if (it == codigos_.end() || it->second.venceMs < ahoraMs()) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "control-web", 0, "emparejar rechazado desde " + ip + ": código inválido o vencido");
-        return "código inválido o vencido";
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "control-web", 0,
+            llenar(traducir("control-web", "emparejar rechazado desde %1: código inválido o vencido"), {ip}));
+        return traducir("control-web", "código inválido o vencido");
     }
     const Codigo c = it->second;
     codigos_.erase(it); // de un solo uso
     if (static_cast<int>(datos_["aparatos"].size()) >= kMaxAparatos)
-        return "ya hay " + std::to_string(kMaxAparatos) + " aparatos";
-    const std::string n = !nombre.empty() ? nombre.substr(0, 60) : (!c.nombre.empty() ? c.nombre : "Navegador");
+        return llenar(traducir("control-web", "ya hay %1 aparatos"), {std::to_string(kMaxAparatos)});
+    const std::string n =
+        !nombre.empty() ? nombre.substr(0, 60) : (!c.nombre.empty() ? c.nombre : traducir("control-web", "Navegador"));
     solicitudes_[sol] = {n, ip, c.perfil, ahoraMs()};
     ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0,
-                               "«" + n + "» (" + ip + ") pide emparejarse (perfil " + perfilTexto(c.perfil) + ")");
+                               llenar(traducir("control-web", "«%1» (%2) pide emparejarse (perfil %3)"),
+                                      {n, ip, perfilTexto(c.perfil)}));
     emit solicitudNueva(QString::fromStdString(sol), QString::fromStdString(n), QString::fromStdString(ip));
     emit solicitudesCambio();
     return {};
@@ -295,9 +303,9 @@ std::string ControlWeb::solicitud(const std::string& sol, const std::string& cod
 
 json ControlWeb::resolverSolicitud(const std::string& sol, bool aprobar, const json& perfil, bool humano) {
     auto it = solicitudes_.find(sol);
-    if (it == solicitudes_.end()) return {{"error", "no hay esa solicitud"}};
+    if (it == solicitudes_.end()) return {{"error", traducir("control-web", "no hay esa solicitud")}};
     if (aprobar && !humano)
-        return {{"error", "aprobar un aparato lo hace una persona (en la app, Servicios → Control web)"}};
+        return {{"error", traducir("control-web", "aprobar un aparato lo hace una persona (en la app, Servicios → Control web)")}};
     json p = it->second.perfil;
     if (!perfil.is_null()) {
         std::string e;
@@ -308,7 +316,8 @@ json ControlWeb::resolverSolicitud(const std::string& sol, bool aprobar, const j
     solicitudes_.erase(it);
     emit solicitudesCambio();
     if (!aprobar) {
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0, "emparejamiento negado: «" + s.nombre + "» (" + s.ip + ")");
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0,
+                                   llenar(traducir("control-web", "emparejamiento negado: «%1» (%2)"), {s.nombre, s.ip}));
         emit resuelta({{"solicitud", sol}, {"estado", "rechazada"}});
         return {{"aprobada", false}};
     }
@@ -326,7 +335,7 @@ json ControlWeb::resolverSolicitud(const std::string& sol, bool aprobar, const j
                                   {"creado_ms", ahoraMs()},
                                   {"ultimo_uso_ms", ahoraMs()}});
     guardar();
-    auditar(id, "emparejado desde " + s.ip + " con el perfil " + perfilTexto(p));
+    auditar(id, llenar(traducir("control-web", "emparejado desde %1 con el perfil %2"), {s.ip, perfilTexto(p)}));
     // Primero las credenciales (para que el token ya valga) y después el token al aparato.
     emit credencialesCambio();
     emit resuelta({{"solicitud", sol}, {"estado", "aprobada"}, {"aparato", id}, {"token", token}});
@@ -336,15 +345,18 @@ json ControlWeb::resolverSolicitud(const std::string& sol, bool aprobar, const j
 
 std::string ControlWeb::setPerfil(const std::string& aparato, const json& categorias, bool humano) {
     json* a = buscarAparato(aparato);
-    if (a == nullptr) return "no hay un aparato «" + aparato + "»";
+    if (a == nullptr) return llenar(traducir("control-web", "no hay un aparato «%1»"), {aparato});
     std::string e;
     const json p = normalizarPerfil(categorias, &e);
     if (p.is_null()) return e;
     const json antes = a->value("perfil", json::array());
-    if (!humano && amplia(antes, p)) return "ampliar el perfil de un aparato lo hace una persona: solo se puede achicar";
+    if (!humano && amplia(antes, p))
+        return traducir("control-web", "ampliar el perfil de un aparato lo hace una persona: solo se puede achicar");
     (*a)["perfil"] = p;
     guardar();
-    auditar(aparato, "perfil " + perfilTexto(antes) + " → " + perfilTexto(p) + (humano ? "" : " (achicado por el asistente)"));
+    auditar(aparato, humano ? llenar(traducir("control-web", "perfil %1 → %2"), {perfilTexto(antes), perfilTexto(p)})
+                            : llenar(traducir("control-web", "perfil %1 → %2 (achicado por el asistente)"),
+                                     {perfilTexto(antes), perfilTexto(p)}));
     // Lo que mira y las herramientas que ve se rehacen ya.
     for (auto& [cid, c] : conns_) {
         if (c.aparato != aparato) continue;
@@ -363,13 +375,14 @@ bool ControlWeb::quitar(const std::string& aparato) {
     v.erase(std::remove_if(v.begin(), v.end(), [&](const json& a) { return a.value("id", std::string()) == aparato; }), v.end());
     if (v.size() == antes) return false;
     guardar();
-    ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0, aparato + ": quitado (su token deja de valer)");
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0,
+                               llenar(traducir("control-web", "%1: quitado (su token deja de valer)"), {aparato}));
     std::vector<std::string> cortarlas;
     for (const auto& [cid, c] : conns_)
         if (c.aparato == aparato) cortarlas.push_back(cid);
     for (const auto& cid : cortarlas) {
         conns_.erase(cid);
-        emit cortar(QString::fromStdString(cid), "Este aparato fue quitado.");
+        emit cortar(QString::fromStdString(cid), tr("Este aparato fue quitado."));
     }
     reacomodarSondeos();
     emit credencialesCambio();
@@ -387,18 +400,20 @@ std::string ControlWeb::setTunel(bool habilitar, const std::string& pin, bool hu
     if (!habilitar) {
         datos_["tunel"] = {{"habilitado", false}};
         guardar();
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0, "acceso desde afuera: apagado");
+        ba::diag::registro().linea(ba::diag::Nivel::Info, "control-web", 0,
+                                   traducir("control-web", "acceso desde afuera: apagado"));
         emit credencialesCambio();
         emit aparatosCambio();
         return {};
     }
-    if (!humano) return "habilitar el acceso desde afuera lo hace una persona";
+    if (!humano) return traducir("control-web", "habilitar el acceso desde afuera lo hace una persona");
     if (pin.size() < 4 || pin.size() > 12 || !std::all_of(pin.begin(), pin.end(), [](char c) { return c >= '0' && c <= '9'; }))
-        return "el PIN es de 4 a 12 cifras";
+        return traducir("control-web", "el PIN es de 4 a 12 cifras");
     const std::string sal = hexAleatorio(16);
     datos_["tunel"] = {{"habilitado", true}, {"sal", sal}, {"hash_pin", sha256(sal + pin)}};
     guardar();
-    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "control-web", 0, "acceso desde afuera (túnel, con PIN): HABILITADO");
+    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "control-web", 0,
+                               traducir("control-web", "acceso desde afuera (túnel, con PIN): HABILITADO"));
     emit credencialesCambio();
     emit aparatosCambio();
     return {};
@@ -441,7 +456,9 @@ void ControlWeb::conexion(const std::string& cid, const std::string& aparato, bo
     }
     json* a = buscarAparato(aparato);
     if (a == nullptr) {
-        mandar(cid, {{"type", "auth"}, {"ok", false}, {"error", "Este aparato no está emparejado (o fue quitado)."}});
+        mandar(cid, {{"type", "auth"},
+                     {"ok", false},
+                     {"error", traducir("control-web", "Este aparato no está emparejado (o fue quitado).")}});
         emit cortar(QString::fromStdString(cid), "");
         return;
     }
@@ -452,7 +469,9 @@ void ControlWeb::conexion(const std::string& cid, const std::string& aparato, bo
     (*a)["ultimo_uso_ms"] = ahoraMs();
     if (!ip.empty()) (*a)["ip"] = ip;
     guardar();
-    auditar(aparato, "conectado desde " + (ip.empty() ? std::string("?") : ip) + (c.lugar == "afuera" ? " (afuera)" : ""));
+    auditar(aparato, c.lugar == "afuera"
+                         ? llenar(traducir("control-web", "conectado desde %1 (afuera)"), {ip.empty() ? std::string("?") : ip})
+                         : llenar(traducir("control-web", "conectado desde %1"), {ip.empty() ? std::string("?") : ip}));
     enviarAuth(cid);
     emit conexionesCambio();
     emit aparatosCambio();
@@ -544,12 +563,13 @@ void ControlWeb::llamar(const std::string& cid, const json& msg) {
         mandar(cid, r);
     };
     const json* a = buscarAparato(c.aparato);
-    if (a == nullptr || core_ == nullptr) return responder(false, "La app no está lista para recibir órdenes.");
+    if (a == nullptr || core_ == nullptr)
+        return responder(false, traducir("control-web", "La app no está lista para recibir órdenes."));
     // El límite por aparato (un joystick que se vuelve loco no tapa a la app).
     const std::int64_t ahora = ahoraMs();
     while (!c.llamadas.empty() && ahora - c.llamadas.front() > 1000) c.llamadas.pop_front();
     if (static_cast<int>(c.llamadas.size()) >= kLlamadasPorSegundo())
-        return responder(false, "Demasiadas órdenes por segundo: esperá un momento.");
+        return responder(false, traducir("control-web", "Demasiadas órdenes por segundo: esperá un momento."));
     c.llamadas.push_back(ahora);
 
     const std::string pedida = textoDe(msg, "herramienta");
@@ -557,25 +577,29 @@ void ControlWeb::llamar(const std::string& cid, const json& msg) {
     const json args = msg.contains("args") && msg["args"].is_object() ? msg["args"] : json::object();
     const mcp::Tool* tool = core_->findTool(h);
     if (tool == nullptr) {
-        auditar(c.aparato, "pidió «" + pedida + "», que no existe");
-        return responder(false, "No existe la herramienta «" + pedida + "».");
+        auditar(c.aparato, llenar(traducir("control-web", "pidió «%1», que no existe"), {pedida}));
+        return responder(false, llenar(traducir("control-web", "No existe la herramienta «%1»."), {pedida}));
     }
     if (!permite(a->value("perfil", json::array()), tool->category)) {
-        auditar(c.aparato, "RECHAZADA " + h + " (categoría «" + tool->category + "» fuera de su perfil)");
-        return responder(false, "«" + h + "» (categoría «" + tool->category +
-                                    "») no está en el perfil de este aparato. Lo amplía una persona desde la app.");
+        auditar(c.aparato, llenar(traducir("control-web", "RECHAZADA %1 (categoría «%2» fuera de su perfil)"), {h, tool->category}));
+        return responder(false, llenar(traducir("control-web", "«%1» (categoría «%2») no está en el perfil de este aparato. "
+                                                               "Lo amplía una persona desde la app."),
+                                       {h, tool->category}));
     }
     const bool confirmado = msg.value("confirmado", false);
     if (!confirmado && core_->hayAire() && core_->aire().esDeAire(h, args)) {
-        auditar(c.aparato, "a confirmar (de aire, con aire) " + h + " " + mcp::Traza::resumir(args, 220));
+        auditar(c.aparato, llenar(traducir("control-web", "a confirmar (de aire, con aire) %1 %2"),
+                                  {h, mcp::Traza::resumir(args, 220)}));
         mandar(cid, {{"type", "confirmar"},
                      {"id", id},
                      {"herramienta", h},
-                     {"texto", "«" + (tool->title.empty() ? h : tool->title) +
-                                   "» cambia lo que sale y hay aire (transmisión o grabación). ¿Lo hacés igual?"}});
+                     {"texto", llenar(traducir("control-web", "«%1» cambia lo que sale y hay aire (transmisión o "
+                                                              "grabación). ¿Lo hacés igual?"),
+                                      {tool->title.empty() ? h : tool->title})}});
         return;
     }
-    auditar(c.aparato, std::string(confirmado ? "llamó (confirmada) " : "llamó ") + h + " " + mcp::Traza::resumir(args, 220));
+    auditar(c.aparato, confirmado ? llenar(traducir("control-web", "llamó (confirmada) %1 %2"), {h, mcp::Traza::resumir(args, 220)})
+                                  : llenar(traducir("control-web", "llamó %1 %2"), {h, mcp::Traza::resumir(args, 220)}));
     // Una persona apretando, como la botonera: no pasa por la aprobación del
     // asistente ni por la guarda de aire (la confirmó en su pantalla).
     const mcp::CallContext ctx{"control-web:" + c.aparato, "", "control-web:" + c.aparato, true, {}};
@@ -594,16 +618,16 @@ void ControlWeb::llamar(const std::string& cid, const json& msg) {
 }
 
 std::string ControlWeb::motivoTema(const json& perfil, const Tema& t) const {
-    if (core_ == nullptr) return "la app no está lista";
+    if (core_ == nullptr) return traducir("control-web", "la app no está lista");
     int hay = 0;
     for (const auto& h : t.herramientas) {
         const mcp::Tool* tool = core_->findTool(h);
         if (tool == nullptr) continue;
         ++hay;
         if (!permite(perfil, tool->category))
-            return "necesita la categoría «" + tool->category + "», que no está en el perfil";
+            return llenar(traducir("control-web", "necesita la categoría «%1», que no está en el perfil"), {tool->category});
     }
-    return hay == 0 ? "no está disponible en esta app" : std::string();
+    return hay == 0 ? traducir("control-web", "no está disponible en esta app") : std::string();
 }
 
 void ControlWeb::mirar(const std::string& cid, const json& msg) {
@@ -618,7 +642,8 @@ void ControlWeb::mirar(const std::string& cid, const json& msg) {
         if (!x.is_string()) continue;
         const std::string id = x.get<std::string>();
         const auto t = std::find_if(temas().begin(), temas().end(), [&](const Tema& y) { return y.id == id; });
-        const std::string motivo = t == temas().end() ? "no hay un tema «" + id + "»" : motivoTema(perfil, *t);
+        const std::string motivo =
+            t == temas().end() ? llenar(traducir("control-web", "no hay un tema «%1»"), {id}) : motivoTema(perfil, *t);
         if (motivo.empty()) nuevos.insert(id);
         else rechazados.push_back({{"tema", id}, {"error", motivo}});
     }
@@ -726,7 +751,7 @@ void ControlWeb::sondear(const std::string& tema) {
         } catch (const std::exception& e) {
             if (!*llamado) {
                 *llamado = true;
-                (*acumulado)[h] = {{"error", std::string("la herramienta falló: ") + e.what()}};
+                (*acumulado)[h] = {{"error", llenar(traducir("control-web", "la herramienta falló: %1"), {e.what()})}};
                 (*fuerte)(i + 1);
             }
         }

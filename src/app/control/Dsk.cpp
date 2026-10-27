@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Dsk.hpp"
+#include "i18n/I18n.hpp"
 
 #include "emision/BroadcastEngine.hpp"
 
@@ -73,8 +74,8 @@ void Dsk::avisar() {
 
 std::string Dsk::definir(int capa, const json& def) {
     json* c = buscar(capa);
-    if (c == nullptr) return "la capa va de 1 a 4";
-    if (!def.is_object()) return "la definición es un objeto";
+    if (c == nullptr) return ba::i18n::traducir("dsk", "la capa va de 1 a 4");
+    if (!def.is_object()) return ba::i18n::traducir("dsk", "la definición es un objeto");
     // Sobre una copia: solo se guarda si el motor la acepta (antes quedaba guardado un
     // contenido que el motor había rechazado, y el motor seguía con el viejo).
     json nueva = *c;
@@ -91,10 +92,13 @@ std::string Dsk::definir(int capa, const json& def) {
 
 std::string Dsk::mostrar(int capa, bool visible, bool confirmada) {
     json* c = buscar(capa);
-    if (c == nullptr) return "la capa va de 1 a 4";
+    if (c == nullptr) return ba::i18n::traducir("dsk", "la capa va de 1 a 4");
     if (!visible && c->value("fijo", false) && !confirmada)
-        return "la capa «" + c->value("nombre", std::string()) + "» es fija (p. ej. el intérprete de LSA): bajarla necesita confirmación";
-    if (visible && c->value("contenido", json::array()).empty()) return "la capa no tiene contenido: definila primero";
+        return ba::i18n::llenar(ba::i18n::traducir("dsk", "la capa «%1» es fija (p. ej. el intérprete de LSA): bajarla "
+                                                          "necesita confirmación"),
+                                {c->value("nombre", std::string())});
+    if (visible && c->value("contenido", json::array()).empty())
+        return ba::i18n::traducir("dsk", "la capa no tiene contenido: definila primero");
     if (!engine_.dskMostrar(capa, visible, c->value("transicion_ms", 300))) return engine_.lastError();
     (*c)["visible"] = visible;
     avisar();
@@ -102,8 +106,8 @@ std::string Dsk::mostrar(int capa, bool visible, bool confirmada) {
 }
 
 std::string Dsk::plantillaLsa(int capa, const std::string& entrada, const std::string& posicion, double tamano) {
-    if (entrada.empty()) return "falta la entrada (la cámara del intérprete)";
-    return definir(capa, {{"nombre", "Intérprete LSA"},
+    if (entrada.empty()) return ba::i18n::traducir("dsk", "falta la entrada (la cámara del intérprete)");
+    return definir(capa, {{"nombre", ba::i18n::traducir("dsk", "Intérprete LSA")},
                           {"contenido", json::array({entrada})},
                           {"recuadro", {{"posicion", posicion.empty() ? "abajo_derecha" : posicion},
                                         {"tamano", tamano > 0 ? tamano : 0.28},

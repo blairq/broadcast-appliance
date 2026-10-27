@@ -172,7 +172,7 @@ json SatelliteServidor::estado() const {
 }
 
 QString SatelliteServidor::configurar(bool activo, int puerto) {
-    if (puerto < 1024 || puerto > 65535) return "puerto entre 1024 y 65535";
+    if (puerto < 1024 || puerto > 65535) return tr("puerto entre 1024 y 65535");
     const bool reabrir = activo_ != activo || puerto_ != puerto;
     activo_ = activo;
     puerto_ = puerto;
@@ -228,7 +228,7 @@ void SatelliteServidor::abrir() {
     srv_ = std::make_unique<QTcpServer>();
     connect(srv_.get(), &QTcpServer::newConnection, this, &SatelliteServidor::nueva);
     if (!srv_->listen(QHostAddress::Any, static_cast<quint16>(puerto_))) {
-        error_ = "no pude abrir el puerto " + QString::number(puerto_) + ": " + srv_->errorString();
+        error_ = tr("no pude abrir el puerto %1: %2").arg(puerto_).arg(srv_->errorString());
         srv_.reset();
     }
 }
@@ -317,10 +317,12 @@ void SatelliteServidor::linea(Cliente& c, const std::string& l) {
         return;
     }
     if (cmd == "ADD-DEVICE") {
-        if (dev.empty() || dev.size() > 64) return enviar(c, "ADD-DEVICE ERROR MESSAGE=\"falta DEVICEID\"");
+        // El MESSAGE lo muestra Companion: va traducido (sin comillas adentro).
+        if (dev.empty() || dev.size() > 64)
+            return enviar(c, "ADD-DEVICE ERROR MESSAGE=\"" + tr("falta DEVICEID").toStdString() + "\"");
         if (!permitida(c.ip)) {
             if (rechazadas_.count(c.ip) > 0)
-                return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev + " MESSAGE=\"IP rechazada\"");
+                return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev + " MESSAGE=\"" + tr("IP rechazada").toStdString() + "\"");
             if (pendientes_.count(c.ip) == 0) {
                 const std::string producto = arg("PRODUCT_NAME");
                 pendientes_[c.ip] = {producto.empty() ? dev : producto.substr(0, 60),
@@ -328,8 +330,8 @@ void SatelliteServidor::linea(Cliente& c, const std::string& l) {
                 bot_.auditar(c.ip, "satellite_pendiente", dev + " " + producto);
                 emit cambio();
             }
-            return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev +
-                                 " MESSAGE=\"IP no permitida: aprobala en Servicios o en Botonera (Aparatos)\"");
+            return enviar(c, "ADD-DEVICE ERROR DEVICEID=" + dev + " MESSAGE=\"" +
+                                 tr("IP no permitida: aprobala en Servicios o en Botonera (Aparatos)").toStdString() + "\"");
         }
         Aparato ap;
         ap.id = dev;
@@ -359,9 +361,11 @@ void SatelliteServidor::linea(Cliente& c, const std::string& l) {
         emit cambio();
         return enviar(c, "REMOVE-DEVICE OK DEVICEID=" + dev);
     }
-    if (ap == c.aparatos.end()) return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"aparato desconocido\"");
+    if (ap == c.aparatos.end())
+        return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"" + tr("aparato desconocido").toStdString() + "\"");
     const int key = std::atoi(arg("KEY", "-1").c_str());
-    if (key < 0 || key >= ap->second.total) return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"tecla fuera de rango\"");
+    if (key < 0 || key >= ap->second.total)
+        return enviar(c, cmd + " ERROR DEVICEID=" + dev + " MESSAGE=\"" + tr("tecla fuera de rango").toStdString() + "\"");
     const int x = key % ap->second.porFila, y = key / ap->second.porFila;
     if (cmd == "KEY-PRESS") {
         const bool apretada = verdad("PRESSED", false);
