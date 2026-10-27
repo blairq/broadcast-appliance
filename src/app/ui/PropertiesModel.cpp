@@ -120,16 +120,16 @@ void PropertiesModel::rebuild() {
         BroadcastEngine& motor = rt_.engine();
         Row c;
         c.name = "camara";
-        c.label = "Cámara o capturadora";
+        c.label = tr("Cámara o capturadora");
         c.kind = "list";
-        c.help = "Las cámaras USB y capturadoras conectadas a esta máquina.";
+        c.help = tr("Las cámaras USB y capturadoras conectadas a esta máquina.");
         bool esta = false;
         for (const auto& d : video::camarasDelEquipo(motor)) {
             c.options << QVariantMap{{"value", qs(d.value)}, {"label", qs(d.name)}};
             esta = esta || d.value == cam;
         }
-        if (!cam.empty() && !esta) c.options << QVariantMap{{"value", qs(cam)}, {"label", "(no está conectada)"}};
-        if (c.options.isEmpty()) c.help = "No se encontró ninguna cámara ni capturadora conectada.";
+        if (!cam.empty() && !esta) c.options << QVariantMap{{"value", qs(cam)}, {"label", tr("(no está conectada)")}};
+        if (c.options.isEmpty()) c.help = tr("No se encontró ninguna cámara ni capturadora conectada.");
         c.value = qs(cam);
         rows_.push_back(c);
         if (!cam.empty() || inputs::esCamara(tipo, ajustes)) {
@@ -139,10 +139,12 @@ void PropertiesModel::rebuild() {
             m.kind = "list";
             std::string porque;
             const auto a = video::modoAutomatico(cam, &porque);
-            m.help = "Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo decodifica. "
-                     "Automático: el que conviene para el lienzo" +
-                     (porque.empty() ? QString(".") : QString(" (") + qs(porque) + ").");
-            m.options << QVariantMap{{"value", QString()}, {"label", a.ancho > 0 ? qs("Automático: " + a.etiqueta()) : QString("Automático")}};
+            m.help = porque.empty() ? tr("Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo "
+                                         "decodifica. Automático: el que conviene para el lienzo.")
+                                    : tr("Tamaño, cuadros por segundo y formato (crudo, MJPEG, H.264), con quién lo "
+                                         "decodifica. Automático: el que conviene para el lienzo (%1).")
+                                          .arg(qs(porque));
+            m.options << QVariantMap{{"value", QString()}, {"label", a.ancho > 0 ? tr("Automático: %1").arg(qs(a.etiqueta())) : tr("Automático")}};
             for (const auto& mo : video::modosDeCamara(cam))
                 if (mo.usable()) m.options << QVariantMap{{"value", qs(mo.valor())}, {"label", qs(mo.etiqueta())}};
             m.value = qs(ajustes.value("camara_modo", std::string()));
@@ -150,9 +152,9 @@ void PropertiesModel::rebuild() {
         } else {
             Row pl;
             pl.name = "pipeline";
-            pl.label = "O un pipeline de GStreamer";
+            pl.label = tr("O un pipeline de GStreamer");
             pl.kind = "text";
-            pl.help = "Cualquier origen: «rtspsrc location=rtsp://… ! decodebin», «videotestsrc»…";
+            pl.help = tr("Cualquier origen: «rtspsrc location=rtsp://… ! decodebin», «videotestsrc»…");
             pl.value = QString();
             rows_.push_back(pl);
         }

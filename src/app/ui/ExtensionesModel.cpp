@@ -2,6 +2,7 @@
 // src/app/ui/ExtensionesModel.cpp — ver ExtensionesModel.hpp
 // ============================================================================
 #include "ui/ExtensionesModel.hpp"
+#include "i18n/I18n.hpp"
 
 #include <vector>
 
@@ -65,7 +66,7 @@ void ExtensionesModel::refrescar() {
             // No se saltea en silencio: una carpeta que no se carga y nadie
             // dice por qué es media hora de buscar en el lugar equivocado.
             e.nombre = id;
-            e.problema = "el nombre de la carpeta tiene caracteres que no se pueden usar";
+            e.problema = tr("el nombre de la carpeta tiene caracteres que no se pueden usar");
             d_->ext.push_back(e);
             continue;
         }
@@ -73,7 +74,7 @@ void ExtensionesModel::refrescar() {
         QFile f(dir.filePath("extension.json"));
         if (!f.open(QIODevice::ReadOnly)) {
             e.nombre = id;
-            e.problema = "le falta extension.json";
+            e.problema = tr("le falta extension.json");
             d_->ext.push_back(e);
             continue;
         }
@@ -81,7 +82,7 @@ void ExtensionesModel::refrescar() {
         const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &pe);
         if (!doc.isObject()) {
             e.nombre = id;
-            e.problema = "extension.json no es JSON válido: " + pe.errorString();
+            e.problema = tr("extension.json no es JSON válido: %1").arg(pe.errorString());
             d_->ext.push_back(e);
             continue;
         }
@@ -92,9 +93,9 @@ void ExtensionesModel::refrescar() {
         // La vista tiene que estar ADENTRO de su carpeta: sin esto, un
         // "tarjeta": "../../otra/cosa.qml" cargaría cualquier archivo.
         if (rel.contains("..") || rel.contains('/') || rel.contains('\\')) {
-            e.problema = "«tarjeta» tiene que ser un archivo de la propia carpeta";
+            e.problema = tr("«tarjeta» tiene que ser un archivo de la propia carpeta");
         } else if (!QFile::exists(dir.filePath(rel))) {
-            e.problema = "falta el archivo " + rel;
+            e.problema = tr("falta el archivo %1").arg(rel);
         } else {
             e.vista = QUrl::fromLocalFile(dir.filePath(rel)).toString();
         }
@@ -181,14 +182,15 @@ void ExtensionesModel::cargada(const QString& id, bool bien, const QString& erro
     // dibuja, y apagarla obligaría a prenderla a mano después de cada error de
     // tipeo. Se registra con el archivo y la línea, que es lo que se arregla.
     ba::diag::registro().linea(ba::diag::Nivel::Aviso, "extensiones", 0,
-                               "la tarjeta «" + id.toStdString() + "» no cargó: " + error.toStdString());
-    emit const_cast<ExtensionesModel*>(this)->notify(
-        "La tarjeta «" + id + "» tiene un error (mirá el Registro)", "error");
+                               ba::i18n::llenar(ba::i18n::traducir("extensiones", "la tarjeta «%1» no cargó: %2"),
+                                                {id.toStdString(), error.toStdString()}));
+    emit const_cast<ExtensionesModel*>(this)->notify(tr("La tarjeta «%1» tiene un error (mirá el Registro)").arg(id),
+                                                     "error");
 }
 
 QString ExtensionesModel::motivoNoCarga(const QString& id) const {
     if (enVivo_ && enVivo_() && !yaCargadas_.count(id))
-        return "En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.";
+        return tr("En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.");
     return {};
 }
 
@@ -196,17 +198,19 @@ void ExtensionesModel::tardo(const QString& id, int ms) {
     ba::diag::diario().termina((kPrefijo + id).toStdString());
     ba::diag::diario().setApagado((kPrefijo + id).toStdString(), true);
     ba::diag::registro().linea(ba::diag::Nivel::Aviso, "extensiones", 0,
-                               "la tarjeta «" + id.toStdString() + "» tardó más de " + std::to_string(ms) +
-                                   " ms en cargar: se cortó y quedó apagada (se prende desde el Registro)");
-    emit notify("La tarjeta «" + id + "» tardaba demasiado en cargar: quedó apagada", "error");
+                               ba::i18n::llenar(ba::i18n::traducir("extensiones", "la tarjeta «%1» tardó más de %2 ms en "
+                                                                                  "cargar: se cortó y quedó apagada (se "
+                                                                                  "prende desde el Registro)"),
+                                                {id.toStdString(), std::to_string(ms)}));
+    emit notify(tr("La tarjeta «%1» tardaba demasiado en cargar: quedó apagada").arg(id), "error");
 }
 
 void ExtensionesModel::prender(const QString& id) {
     ba::diag::diario().setApagado((kPrefijo + id).toStdString(), false);
     ba::diag::registro().linea(ba::diag::Nivel::Info, "extensiones", 0,
-                               "«" + id.toStdString() + "» vuelve a cargarse");
+                               ba::i18n::llenar(ba::i18n::traducir("extensiones", "«%1» vuelve a cargarse"), {id.toStdString()}));
     refrescar();
-    emit notify("«" + id + "» se va a cargar de nuevo", "ok");
+    emit notify(tr("«%1» se va a cargar de nuevo").arg(id), "ok");
 }
 
 } // namespace ba::app

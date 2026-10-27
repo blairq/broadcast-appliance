@@ -285,7 +285,7 @@ QString SourcesModel::addExisting(const QString& name) {
     spec.id = rt_.engine().sourceTypeId(n);
     spec.name = n;
     if (spec.id.empty()) {
-        emit const_cast<SourcesModel*>(this)->error("No existe la fuente '" + name + "'.");
+        emit const_cast<SourcesModel*>(this)->error(tr("No existe la fuente '%1'.").arg(name));
         return {};
     }
     // Sin settings: addSource ve que ya existe una fuente con ese nombre y

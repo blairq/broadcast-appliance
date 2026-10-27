@@ -2,9 +2,11 @@
 // src/app/ui/QrViewModel.cpp — ver QrViewModel.hpp
 // ============================================================================
 #include "ui/QrViewModel.hpp"
+#include "i18n/I18n.hpp"
 
 #include <fstream>
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -49,64 +51,67 @@ struct Tipo {
     bool delAparato;
 };
 
+/// Un texto de los catálogos (marcado con QT_TRANSLATE_NOOP) en el idioma del operador.
+QString tq(const char* s) { return *s ? QCoreApplication::translate("qr", s) : QString(); }
+
 const std::vector<Tipo>& catalogo() {
     static const std::vector<Tipo> t = {
         {"enlace",
-         "Un enlace",
-         "Una dirección web. Lo más usado y lo que menos ocupa.",
-         {{"url", "Dirección", "https://…", false}},
+         QT_TRANSLATE_NOOP("qr", "Un enlace"),
+         QT_TRANSLATE_NOOP("qr", "Una dirección web. Lo más usado y lo que menos ocupa."),
+         {{"url", QT_TRANSLATE_NOOP("qr", "Dirección"), "https://…", false}},
          false},
         {"wifi",
-         "Red WiFi",
-         "El teléfono ofrece conectarse solo, sin tipear la clave.",
-         {{"red", "Nombre de la red", "Estudio", false},
-          {"clave", "Clave", "", false},
-          {"seguridad", "Seguridad", "WPA", false}},
+         QT_TRANSLATE_NOOP("qr", "Red WiFi"),
+         QT_TRANSLATE_NOOP("qr", "El teléfono ofrece conectarse solo, sin tipear la clave."),
+         {{"red", QT_TRANSLATE_NOOP("qr", "Nombre de la red"), QT_TRANSLATE_NOOP("qr", "Estudio"), false},
+          {"clave", QT_TRANSLATE_NOOP("qr", "Clave"), "", false},
+          {"seguridad", QT_TRANSLATE_NOOP("qr", "Seguridad"), "WPA", false}},
          false},
         {"contacto",
-         "Un contacto",
-         "El teléfono ofrece agregarlo a la agenda (vCard).",
-         {{"nombre", "Nombre y apellido", "Ana Pérez", false},
-          {"telefono", "Teléfono", "+54 9 11 …", false},
-          {"email", "Correo", "ana@…", false},
-          {"organizacion", "Organización", "", false},
-          {"cargo", "Cargo", "", false},
-          {"web", "Web", "", false}},
+         QT_TRANSLATE_NOOP("qr", "Un contacto"),
+         QT_TRANSLATE_NOOP("qr", "El teléfono ofrece agregarlo a la agenda (vCard)."),
+         {{"nombre", QT_TRANSLATE_NOOP("qr", "Nombre y apellido"), QT_TRANSLATE_NOOP("qr", "Ana Pérez"), false},
+          {"telefono", QT_TRANSLATE_NOOP("qr", "Teléfono"), "+54 9 11 …", false},
+          {"email", QT_TRANSLATE_NOOP("qr", "Correo"), "ana@…", false},
+          {"organizacion", QT_TRANSLATE_NOOP("qr", "Organización"), "", false},
+          {"cargo", QT_TRANSLATE_NOOP("qr", "Cargo"), "", false},
+          {"web", QT_TRANSLATE_NOOP("qr", "Web"), "", false}},
          false},
         {"reunion",
-         "Una reunión",
-         "Meet, Zoom o Teams. Si ya tenés el enlace entero, pegalo.",
-         {{"plataforma", "Plataforma", "meet", false},
-          {"codigo", "Código o enlace", "abc-defg-hij", false},
-          {"clave", "Clave (Zoom)", "", false}},
+         QT_TRANSLATE_NOOP("qr", "Una reunión"),
+         QT_TRANSLATE_NOOP("qr", "Meet, Zoom o Teams. Si ya tenés el enlace entero, pegalo."),
+         {{"plataforma", QT_TRANSLATE_NOOP("qr", "Plataforma"), "meet", false},
+          {"codigo", QT_TRANSLATE_NOOP("qr", "Código o enlace"), "abc-defg-hij", false},
+          {"clave", QT_TRANSLATE_NOOP("qr", "Clave (Zoom)"), "", false}},
          false},
         {"texto",
-         "Un texto",
-         "Lo que sea. El teléfono lo muestra y ofrece copiarlo.",
-         {{"texto", "Texto", "", true}},
+         QT_TRANSLATE_NOOP("qr", "Un texto"),
+         QT_TRANSLATE_NOOP("qr", "Lo que sea. El teléfono lo muestra y ofrece copiarlo."),
+         {{"texto", QT_TRANSLATE_NOOP("qr", "Texto"), "", true}},
          false},
         {"telefono",
-         "Llamar",
-         "Al escanearlo, el teléfono ofrece llamar.",
-         {{"numero", "Número", "+54 9 11 …", false}},
+         QT_TRANSLATE_NOOP("qr", "Llamar"),
+         QT_TRANSLATE_NOOP("qr", "Al escanearlo, el teléfono ofrece llamar."),
+         {{"numero", QT_TRANSLATE_NOOP("qr", "Número"), "+54 9 11 …", false}},
          false},
         {"correo",
-         "Escribir un correo",
-         "Abre el correo con el destinatario puesto.",
-         {{"direccion", "Para", "produccion@…", false},
-          {"asunto", "Asunto", "", false},
-          {"cuerpo", "Texto", "", true}},
+         QT_TRANSLATE_NOOP("qr", "Escribir un correo"),
+         QT_TRANSLATE_NOOP("qr", "Abre el correo con el destinatario puesto."),
+         {{"direccion", QT_TRANSLATE_NOOP("qr", "Para"), "produccion@…", false},
+          {"asunto", QT_TRANSLATE_NOOP("qr", "Asunto"), "", false},
+          {"cuerpo", QT_TRANSLATE_NOOP("qr", "Texto"), "", true}},
          false},
         // --- Los del aparato: el contenido lo arma el sistema ----------------
-        {"sala", "Entrar a la conferencia", "El enlace de invitados de esta conferencia, con su PIN adentro.", {}, true},
-        {"prompter", "El teleprompter", "La pantalla del orador (solo lee, no lleva clave).", {}, true},
-        {"rotulos", "Rotular desde el celular", "Los textos de la escena al aire, con su clave.", {}, true},
+        {"sala", QT_TRANSLATE_NOOP("qr", "Entrar a la conferencia"), QT_TRANSLATE_NOOP("qr", "El enlace de invitados de esta conferencia, con su PIN adentro."), {}, true},
+        {"prompter", QT_TRANSLATE_NOOP("qr", "El teleprompter"), QT_TRANSLATE_NOOP("qr", "La pantalla del orador (solo lee, no lleva clave)."), {}, true},
+        {"rotulos", QT_TRANSLATE_NOOP("qr", "Rotular desde el celular"), QT_TRANSLATE_NOOP("qr", "Los textos de la escena al aire, con su clave."), {}, true},
         // El que se proyecta o se imprime en el programa: lo escanean todos los
         // que estan en la sala, asi que va con la clave adentro. Pedirle a
         // doscientas personas que tipeen una clave es perder a la mitad.
         {"publico",
-         "Preguntas del publico",
-         "La pagina para preguntar y votar desde la butaca, con su clave.",
+         QT_TRANSLATE_NOOP("qr", "Preguntas del publico"),
+         QT_TRANSLATE_NOOP("qr", "La pagina para preguntar y votar desde la butaca, con su clave."),
          {},
          true},
     };
@@ -308,12 +313,12 @@ QVariantList QrViewModel::codigos() const {
     for (const QVariant& v : d_->biblioteca.value(d_->ambito)) {
         QVariantMap m = v.toMap();
         const Tipo* t = tipoPorId(m.value("tipo").toString());
-        m["tipoTitulo"] = t == nullptr ? m.value("tipo") : QString::fromUtf8(t->titulo);
+        m["tipoTitulo"] = t == nullptr ? m.value("tipo") : tq(t->titulo);
         // Un resumen legible: el primer campo con algo.
         QString resumen;
         if (t != nullptr) {
             if (t->delAparato) {
-                resumen = "lo arma el sistema";
+                resumen = tr("lo arma el sistema");
             } else {
                 const QVariantMap datos = m.value("datos").toMap();
                 for (const Campo& c : t->campos) {
@@ -342,7 +347,7 @@ void QrViewModel::setAmbito(const QString& a) {
 
 QString QrViewModel::sinEvento() const {
     if (d_->evento == nullptr || d_->evento->carpetaDeDiscursos().isEmpty())
-        return "No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.";
+        return tr("No hay ningún evento abierto: los códigos del evento se guardan en su carpeta.");
     return {};
 }
 
@@ -352,12 +357,12 @@ QVariantList QrViewModel::tipos() const {
         QVariantList campos;
         for (const Campo& c : t.campos)
             campos.append(QVariantMap{{"clave", QString::fromUtf8(c.clave)},
-                                      {"etiqueta", QString::fromUtf8(c.etiqueta)},
-                                      {"ejemplo", QString::fromUtf8(c.ejemplo)},
+                                      {"etiqueta", tq(c.etiqueta)},
+                                      {"ejemplo", tq(c.ejemplo)},
                                       {"largo", c.largo}});
         out.append(QVariantMap{{"id", QString::fromUtf8(t.id)},
-                               {"titulo", QString::fromUtf8(t.titulo)},
-                               {"ayuda", QString::fromUtf8(t.ayuda)},
+                               {"titulo", tq(t.titulo)},
+                               {"ayuda", tq(t.ayuda)},
                                {"campos", campos},
                                {"delAparato", t.delAparato}});
     }
@@ -366,10 +371,10 @@ QVariantList QrViewModel::tipos() const {
 
 QVariantList QrViewModel::iconos() const {
     QVariantList out;
-    out.append(QVariantMap{{"id", ""}, {"titulo", "Sin ícono"}});
+    out.append(QVariantMap{{"id", ""}, {"titulo", tr("Sin ícono")}});
     for (const qr::Icono& i : qr::iconos())
         out.append(QVariantMap{{"id", QString::fromStdString(i.id)},
-                               {"titulo", QString::fromStdString(i.titulo)},
+                               {"titulo", QString::fromStdString(ba::i18n::traducir("iconos", i.titulo.c_str()))},
                                {"trazos", QString::fromStdString(i.trazos)}});
     return out;
 }
@@ -495,7 +500,7 @@ void QrViewModel::setTipo(const QString& tipo) {
     if (t->delAparato) {
         d_->contenido = d_->delAparato.value(tipo);
         d_->aviso = d_->contenido.isEmpty()
-                        ? "Todavía no tengo ese enlace: hace falta que el servidor esté corriendo."
+                        ? tr("Todavía no tengo ese enlace: hace falta que el servidor esté corriendo.")
                         : QString();
     } else {
         d_->contenido = armar(tipo, d_->datos);
@@ -539,7 +544,7 @@ void QrViewModel::setEstilo(const QString& clave, const QVariant& valor) {
 
 QString QrViewModel::guardar(const QString& nombre) {
     const QString n = limpiarNombre(nombre.isEmpty() ? d_->nombre : nombre);
-    if (n.isEmpty()) return "Ponele un nombre.";
+    if (n.isEmpty()) return tr("Ponele un nombre.");
     if (d_->ambito == "evento" && !sinEvento().isEmpty()) return sinEvento();
     QVariantList lista = d_->biblioteca.value(d_->ambito);
     QVariantMap m;
@@ -562,8 +567,8 @@ QString QrViewModel::guardar(const QString& nombre) {
     d_->nombre = n;
     d_->sucio = false;
     diag::registro().linea(diag::Nivel::Info, "qr", 0,
-                           "guardado «" + n.toStdString() + "» (" + d_->tipo.toStdString() + ", " +
-                               d_->ambito.toStdString() + ")");
+                           ba::i18n::llenar(ba::i18n::traducir("qr", "guardado «%1» (%2, %3)"),
+                                            {n.toStdString(), d_->tipo.toStdString(), d_->ambito.toStdString()}));
     emit bibliotecaCambio();
     emit editorCambio();
     return {};
@@ -577,10 +582,10 @@ QString QrViewModel::borrar(const QString& id) {
             lista.removeAt(i);
             break;
         }
-    if (lista.size() == antes) return "No lo encuentro.";
+    if (lista.size() == antes) return tr("No lo encuentro.");
     d_->biblioteca[d_->ambito] = lista;
     d_->guardarArchivo(d_->ambito);
-    diag::registro().linea(diag::Nivel::Info, "qr", 0, "borrado " + id.toStdString());
+    diag::registro().linea(diag::Nivel::Info, "qr", 0, ba::i18n::llenar(ba::i18n::traducir("qr", "borrado %1"), {id.toStdString()}));
     if (d_->abierto == id) {
         d_->abierto.clear();
         d_->nombre.clear();
@@ -592,7 +597,7 @@ QString QrViewModel::borrar(const QString& id) {
 
 QString QrViewModel::copiarA(const QString& id, const QString& ambito) {
     const QString destino = ambito == "evento" ? "evento" : "global";
-    if (destino == d_->ambito) return "Ya está en ese ámbito.";
+    if (destino == d_->ambito) return tr("Ya está en ese ámbito.");
     if (destino == "evento" && !sinEvento().isEmpty()) return sinEvento();
     for (const QVariant& v : d_->biblioteca.value(d_->ambito)) {
         QVariantMap m = v.toMap();
@@ -603,11 +608,11 @@ QString QrViewModel::copiarA(const QString& id, const QString& ambito) {
         d_->biblioteca[destino] = lista;
         d_->guardarArchivo(destino);
         emit bibliotecaCambio();
-        emit notify("Copiado a " + QString(destino == "evento" ? "el evento" : "la biblioteca general"),
+        emit notify(destino == "evento" ? tr("Copiado al evento") : tr("Copiado a la biblioteca general"),
                     "ok");
         return {};
     }
-    return "No lo encuentro.";
+    return tr("No lo encuentro.");
 }
 
 // --- Salidas --------------------------------------------------------------------
@@ -671,10 +676,10 @@ struct DelAparato {
     const char* tipo;
     const char* etiqueta;
 };
-const DelAparato kDelAparato[] = {{"publico", "Público: preguntar y votar (con la clave adentro)"},
-                                  {"sala", "Conferencia: entrar como invitado (con el PIN adentro)"},
-                                  {"prompter", "Prompter: la vista del orador"},
-                                  {"rotulos", "Rótulos: cargarlos desde el teléfono"}};
+const DelAparato kDelAparato[] = {{"publico", QT_TRANSLATE_NOOP("qr", "Público: preguntar y votar (con la clave adentro)")},
+                                  {"sala", QT_TRANSLATE_NOOP("qr", "Conferencia: entrar como invitado (con el PIN adentro)")},
+                                  {"prompter", QT_TRANSLATE_NOOP("qr", "Prompter: la vista del orador")},
+                                  {"rotulos", QT_TRANSLATE_NOOP("qr", "Rótulos: cargarlos desde el teléfono")}};
 } // namespace
 
 QrViewModel* QrViewModel::elDeLaApp() { return gElDeLaApp; }
@@ -694,17 +699,17 @@ QString urlDeTotem(const std::function<QVariantList()>& totems, const QString& i
 QVariantList QrViewModel::paraElegir() const {
     QVariantList out;
     for (const auto& x : kDelAparato)
-        out << QVariantMap{{"value", QString("aparato:") + x.tipo}, {"label", QString::fromUtf8(x.etiqueta)}};
+        out << QVariantMap{{"value", QString("aparato:") + x.tipo}, {"label", tq(x.etiqueta)}};
     // Los tótems de registro del evento: el QR que se escanea para registrarse.
     if (d_->totems)
         for (const QVariant& v : d_->totems()) {
             const QVariantMap m = v.toMap();
             out << QVariantMap{{"value", "registro:" + m.value("id").toString()},
-                               {"label", "Registro de personas: " + m.value("nombre").toString()}};
+                               {"label", tr("Registro de personas: %1").arg(m.value("nombre").toString())}};
         }
     for (const QVariant& v : todos()) {
         const QVariantMap m = v.toMap();
-        out << QVariantMap{{"value", m.value("id")}, {"label", m.value("nombre").toString() + " (guardado)"}};
+        out << QVariantMap{{"value", m.value("id")}, {"label", tr("%1 (guardado)").arg(m.value("nombre").toString())}};
     }
     return out;
 }
@@ -714,7 +719,7 @@ QVariantMap QrViewModel::paraProyectarElegido(const QString& elegido) {
         const QString url = urlDeTotem(d_->totems, elegido.mid(9));
         if (url.isEmpty()) return {};
         return QVariantMap{{"texto", url},
-                           {"nombre", "Registro de personas"},
+                           {"nombre", tr("Registro de personas")},
                            {"estilo", QString::fromStdString(qr::aConsulta(aEstilo(estiloDeFabrica())))}};
     }
     if (!elegido.startsWith("aparato:")) return paraProyectar(elegido);
@@ -791,18 +796,18 @@ QString QrViewModel::escribir(const QString& svgTexto, const QString& nombre, co
 QString QrViewModel::exportar(const QString& formato, int px) {
     const QString svgTexto = svgActual();
     if (svgTexto.isEmpty()) {
-        emit notify(d_->aviso.isEmpty() ? "No hay nada que exportar." : d_->aviso, "error");
+        emit notify(d_->aviso.isEmpty() ? tr("No hay nada que exportar.") : d_->aviso, "error");
         return {};
     }
     // Se rasteriza el MISMO SVG que se guarda como .svg: no hay dos dibujos
     // que puedan diferir.
     const QString ruta = escribir(svgTexto, d_->nombre, formato, px);
     if (ruta.isEmpty()) {
-        emit notify("No pude escribir el archivo.", "error");
+        emit notify(tr("No pude escribir el archivo."), "error");
         return {};
     }
-    diag::registro().linea(diag::Nivel::Info, "qr", 0, "exportado a " + ruta.toStdString());
-    emit notify("Guardado en " + ruta, "ok");
+    diag::registro().linea(diag::Nivel::Info, "qr", 0, ba::i18n::llenar(ba::i18n::traducir("qr", "exportado a %1"), {ruta.toStdString()}));
+    emit notify(tr("Guardado en %1").arg(ruta), "ok");
     return ruta;
 }
 

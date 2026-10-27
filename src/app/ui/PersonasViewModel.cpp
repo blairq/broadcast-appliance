@@ -2,6 +2,7 @@
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
 #include "ui/PersonasViewModel.hpp"
+#include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
@@ -126,8 +127,8 @@ struct PersonasViewModel::Impl {
 // que no hay nadie guardado.
 PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>(rt, vm)) {
-    d_->aviso = "Este equipo se compiló sin reconocimiento de rostros. Para activarlo: "
-                "`make deps-rostros` y volver a compilar.";
+    d_->aviso = tr("Este equipo se compiló sin reconocimiento de rostros. Para activarlo: "
+                   "`make deps-rostros` y volver a compilar.");
 }
 PersonasViewModel::~PersonasViewModel() = default;
 QVariantList PersonasViewModel::personas() const { return {}; }
@@ -397,7 +398,7 @@ void PersonasViewModel::alRostros(const QString& entrada, const std::string& js,
         }
         error = QString::fromStdString(j.value("error", std::string()));
     } else {
-        error = "La tarjeta Rostros mandó algo que no se entiende.";
+        error = tr("La tarjeta Rostros mandó algo que no se entiende.");
     }
     d_->idsDe[feed] = ids;
     std::vector<Impl::Espera> esperan = std::move(it->second);
@@ -427,7 +428,7 @@ void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Ana
             if (e == l.end()) return;
             Analisis f = std::move(e->luego);
             l.erase(e);
-            f({}, QImage(), "La tarjeta Rostros de «" + etiquetaDe(feed) + "» no contestó (¿hay imagen?).");
+            f({}, QImage(), tr("La tarjeta Rostros de «%1» no contestó (¿hay imagen?).").arg(etiquetaDe(feed)));
         });
         return;
     }
@@ -448,7 +449,7 @@ void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Ana
             QTimer::singleShot(200, this, [this, feed, luego]() { reintentarAnalisis(feed, luego, 1); });
             return;
         }
-        return luego({}, QImage(), "No hay imagen en «" + etiquetaDe(feed) + "».");
+        return luego({}, QImage(), tr("No hay imagen en «%1».").arg(etiquetaDe(feed)));
     }
     const int w = img->width();
     const int h = img->height();
@@ -474,7 +475,7 @@ void PersonasViewModel::reintentarAnalisis(const QString& feed, Analisis luego, 
             reintentarAnalisis(feed, std::move(luego), intento + 1);
         });
     } else {
-        luego({}, QImage(), "No hay imagen en «" + etiquetaDe(feed) + "».");
+        luego({}, QImage(), tr("No hay imagen en «%1».").arg(etiquetaDe(feed)));
     }
 }
 
@@ -648,7 +649,7 @@ void PersonasViewModel::compararFoto(const QByteArray& jpeg, const QString& pers
     if (!d_->listo) return luego(0.0f, false, d_->aviso);
     auto img = std::make_shared<QImage>();
     std::vector<std::uint8_t> bgra;
-    if (!desdeJpeg(jpeg, *img, bgra)) return luego(0.0f, false, "La foto no se pudo leer.");
+    if (!desdeJpeg(jpeg, *img, bgra)) return luego(0.0f, false, tr("La foto no se pudo leer."));
     const int w = img->width(), h = img->height();
     QPointer<PersonasViewModel> yo(this);
     d_->rec.pedir(std::move(bgra), w, h, false,
@@ -656,9 +657,9 @@ void PersonasViewModel::compararFoto(const QByteArray& jpeg, const QString& pers
                       if (!yo) return;
                       if (!error.isEmpty()) return luego(0.0f, false, error);
                       const int i = laMasGrande(v);
-                      if (i < 0) return luego(0.0f, false, "No se ve ninguna cara en la foto.");
+                      if (i < 0) return luego(0.0f, false, tr("No se ve ninguna cara en la foto."));
                       const auto* f = yo->d_->libreta.porId(personaId.toStdString());
-                      if (f == nullptr) return luego(0.0f, false, "No hay ficha con ese id.");
+                      if (f == nullptr) return luego(0.0f, false, tr("No hay ficha con ese id."));
                       float mejor = 0.0f;
                       for (const auto& c : f->caras)
                           mejor = std::max(mejor, ba::rostros::parecido(v[static_cast<std::size_t>(i)].vector, c));
@@ -671,7 +672,7 @@ void PersonasViewModel::identificarFoto(const QByteArray& jpeg,
     if (!d_->listo) return luego({}, d_->aviso);
     auto img = std::make_shared<QImage>();
     std::vector<std::uint8_t> bgra;
-    if (!desdeJpeg(jpeg, *img, bgra)) return luego({}, "La foto no se pudo leer.");
+    if (!desdeJpeg(jpeg, *img, bgra)) return luego({}, tr("La foto no se pudo leer."));
     const int w = img->width(), h = img->height();
     QPointer<PersonasViewModel> yo(this);
     // NO descartable: uno descartado no contesta nunca, y quien pregunta (el
@@ -704,7 +705,7 @@ void PersonasViewModel::altaConFoto(const QByteArray& jpeg, const QString& nombr
     if (!d_->listo) return luego({}, d_->aviso);
     auto img = std::make_shared<QImage>();
     std::vector<std::uint8_t> bgra;
-    if (!desdeJpeg(jpeg, *img, bgra)) return luego({}, "La foto no se pudo leer.");
+    if (!desdeJpeg(jpeg, *img, bgra)) return luego({}, tr("La foto no se pudo leer."));
     const int w = img->width(), h = img->height();
     QPointer<PersonasViewModel> yo(this);
     d_->rec.pedir(std::move(bgra), w, h, false,
@@ -712,10 +713,10 @@ void PersonasViewModel::altaConFoto(const QByteArray& jpeg, const QString& nombr
                       if (!yo) return;
                       if (!error.isEmpty()) return luego({}, error);
                       const int i = laMasGrande(v);
-                      if (i < 0) return luego({}, "No se ve ninguna cara en la foto.");
+                      if (i < 0) return luego({}, tr("No se ve ninguna cara en la foto."));
                       const auto& visto = v[static_cast<std::size_t>(i)];
                       if (!calidadDe(*img, visto.cara).sirve)
-                          return luego({}, "La cara de la foto no sirve para reconocerla.");
+                          return luego({}, tr("La cara de la foto no sirve para reconocerla."));
                       auto& libreta = yo->d_->libreta;
                       // Si ya es de alguien con nombre, no se crea otra ficha: dos
                       // fichas para la misma cara reconocen a cualquiera de las dos.
@@ -774,12 +775,10 @@ void PersonasViewModel::altaSiDioSuNombre(const QString& uid, const QString& fic
     persistir();
     d_->nombradas[uid] = fichaId;
     if (!propia)
-        emit notify("Anoté a «" + QString::fromStdString(nombre) +
-                        "» en Personas: dio su nombre y se le ve bien la cara.",
+        emit notify(tr("Anoté a «%1» en Personas: dio su nombre y se le ve bien la cara.").arg(QString::fromStdString(nombre)),
                     "info");
     ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
-                               "alta automática: «" + nombre + "» (ficha " + fichaId.toStdString() + ", lobby " +
-                                   uid.toStdString() + ")");
+                               ba::i18n::llenar(ba::i18n::traducir("rostros", "alta automática: «%1» (ficha %2, lobby %3)"), {nombre, fichaId.toStdString(), uid.toStdString()}));
 }
 
 QVariantMap PersonasViewModel::enLobby() const { return d_->enLobby; }
@@ -883,7 +882,7 @@ QString PersonasViewModel::guardar(const QString& id, const QString& nombre, con
                                    const QString& nota) {
     if (!d_->listo) return {};
     if (nombre.trimmed().isEmpty()) {
-        emit notify("Ponele un nombre: sin eso la ficha no sirve para nada.", "aviso");
+        emit notify(tr("Ponele un nombre: sin eso la ficha no sirve para nada."), "aviso");
         return {};
     }
     ba::rostros::Persona p;
@@ -921,15 +920,15 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
                   [this, id, nuevaFoto](std::vector<Reconocedor::Visto> vistos, const QImage& img,
                                         const QString& error) {
                       if (!error.isEmpty()) return emit notify(error, "error");
-                      if (vistos.empty()) return emit notify("No se ve ninguna cara ahí.", "aviso");
+                      if (vistos.empty()) return emit notify(tr("No se ve ninguna cara ahí."), "aviso");
                       if (vistos.size() > 1)
-                          return emit notify("Hay " + QString::number(vistos.size()) +
-                                                 " caras en el cuadro: no adivino cuál es. Elegí una fuente "
-                                                 "donde esté sola.",
+                          return emit notify(tr("Hay %1 caras en el cuadro: no adivino cuál es. Elegí una fuente "
+                                                "donde esté sola.")
+                                                 .arg(vistos.size()),
                                              "aviso");
                       const auto alta = d_->libreta.sumarCara(id.toStdString(), vistos[0].vector);
                       if (alta == ba::rostros::Personas::Alta::NoExiste)
-                          return emit notify("No existe esa persona.", "error");
+                          return emit notify(tr("No existe esa persona."), "error");
                       const auto* p = d_->libreta.porId(id.toStdString());
                       if (p != nullptr && (p->foto.empty() || nuevaFoto)) {
                           const QString archivo = escribirFoto(img, vistos[0].cara, d_->carpetaFotos, id);
@@ -941,8 +940,8 @@ void PersonasViewModel::sumarCara(const QString& id, const QString& feed, bool n
                       }
                       persistir();
                       emit notify(alta == ba::rostros::Personas::Alta::Sumada
-                                      ? "Cara sumada."
-                                      : "Esa pose ya la tenía: probá desde otro ángulo.",
+                                      ? tr("Cara sumada.")
+                                      : tr("Esa pose ya la tenía: probá desde otro ángulo."),
                                   alta == ba::rostros::Personas::Alta::Sumada ? "ok" : "aviso");
                   });
 }
@@ -1002,13 +1001,11 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     // SE AVISA SIEMPRE. Que alguien entre a la sala sin que nadie lo decida en
     // el momento está bien si estaba en la lista, pero el operador tiene que
     // enterarse en el acto: es gente que aparece en su sala.
-    emit notify((nombre.isEmpty() ? QString("Alguien de la lista del evento") : nombre) +
-                    " entró sola: tiene permiso en el padrón del evento.",
+    emit notify(tr("%1 entró sola: tiene permiso en el padrón del evento.")
+                    .arg(nombre.isEmpty() ? tr("Alguien de la lista del evento") : nombre),
                 "info");
     ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
-                               "auto-aceptada del evento: «" + nombre.toStdString() + "» (ficha " +
-                                   personaId.toStdString() + ", lobby " + uid.toStdString() + ", parecido " +
-                                   std::to_string(parecido) + ")");
+                               ba::i18n::llenar(ba::i18n::traducir("rostros", "auto-aceptada del evento: «%1» (ficha %2, lobby %3, parecido %4)"), {nombre.toStdString(), personaId.toStdString(), uid.toStdString(), std::to_string(parecido)}));
 }
 
 void PersonasViewModel::acreditarEnLaPuerta(const QString& personaId, const QString& nombre) {
@@ -1024,18 +1021,16 @@ void PersonasViewModel::acreditarEnLaPuerta(const QString& personaId, const QStr
         // organiza, no del reconocimiento. Se avisa una vez y se sigue.
         if (primera) {
             d_->avisadosPuerta.insert(personaId);
-            emit notify((nombre.isEmpty() ? QString("Alguien") : nombre) +
-                            " llegó y no está en el padrón del evento.",
+            emit notify(tr("%1 llegó y no está en el padrón del evento.").arg(nombre.isEmpty() ? tr("Alguien") : nombre),
                         "warn");
         }
         return;
     }
     if (!primera) return;
     d_->avisadosPuerta.insert(personaId);
-    emit notify((nombre.isEmpty() ? QString("Alguien de la libreta") : nombre) + " llegó.", "info");
+    emit notify(tr("%1 llegó.").arg(nombre.isEmpty() ? tr("Alguien de la libreta") : nombre), "info");
     ba::diag::registro().linea(ba::diag::Nivel::Info, "rostros", 0,
-                               "acreditado en la puerta: «" + nombre.toStdString() + "» (ficha " +
-                                   personaId.toStdString() + ")");
+                               ba::i18n::llenar(ba::i18n::traducir("rostros", "acreditado en la puerta: «%1» (ficha %2)"), {nombre.toStdString(), personaId.toStdString()}));
 }
 
 void PersonasViewModel::resolver(const QString& feed, const QString& uid,
@@ -1180,8 +1175,8 @@ QString PersonasViewModel::anotarDesconocida(const std::vector<float>& v, const 
         if (++p.veces < kVecesParaAnotar()) return {};
 
         if (static_cast<int>(d_->libreta.todas().size()) >= kMaxFichasAuto()) {
-            d_->aviso = QString("La libreta llegó a %1 fichas: apagué el anotado automático para "
-                                "no llenarla de desconocidos. Completá o borrá las que sobran.")
+            d_->aviso = tr("La libreta llegó a %1 fichas: apagué el anotado automático para "
+                           "no llenarla de desconocidos. Completá o borrá las que sobran.")
                             .arg(kMaxFichasAuto());
             setAutoalta(false);
             emit notify(d_->aviso, "aviso");
@@ -1208,7 +1203,7 @@ QString PersonasViewModel::anotarDesconocida(const std::vector<float>& v, const 
 }
 
 QString PersonasViewModel::etiquetaDe(const QString& feed) const {
-    if (feed.startsWith("entrada:")) return "Cámara · " + feed.mid(8);
+    if (feed.startsWith("entrada:")) return tr("Cámara · %1").arg(feed.mid(8));
     return static_cast<FrameService*>(d_->vm.frames())->label(feed);
 }
 
@@ -1220,7 +1215,7 @@ QVariantList PersonasViewModel::fuentes() const {
     // Las cámaras del estudio (las entradas del grafo de video).
     if (auto* vg = d_->vm.videoGrafos())
         for (const QString& e : vg->entradas())
-            out.append(QVariantMap{{"clave", "entrada:" + e}, {"etiqueta", "Cámara · " + e}});
+            out.append(QVariantMap{{"clave", "entrada:" + e}, {"etiqueta", tr("Cámara · %1").arg(e)}});
     return out;
 }
 #endif // BA_HAVE_ROSTROS

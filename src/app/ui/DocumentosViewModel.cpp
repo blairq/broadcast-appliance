@@ -130,7 +130,7 @@ json DocumentosViewModel::agregar(const fs::path& archivo, const json& datos) {
     emit cambio();
     json out{{"id", id}, {"documento", d.documento(id)}};
     if (!l.texto.empty()) out["comienzo_del_texto"] = l.texto; // para escribir la descripción
-    if (!l.miniatura) out["nota"] = "sin miniatura (no es un PDF ni una imagen, o no se pudo leer)";
+    if (!l.miniatura) out["nota"] = tr("sin miniatura (no es un PDF ni una imagen, o no se pudo leer)").toStdString();
     return out;
 }
 
@@ -153,11 +153,11 @@ void DocumentosViewModel::agregarConvirtiendo(const fs::path& archivo, const jso
     aPdf_->archivo(origen, pdf, [yo, pdf, tmp, datos, listo](const QString& err) {
         json r;
         if (!err.isEmpty())
-            r = {{"error", "no se pudo pasar a PDF: " + err.toStdString()}};
+            r = {{"error", tr("no se pudo pasar a PDF: %1").arg(err).toStdString()}};
         else if (yo)
             r = yo->agregar(fs::path(pdf.toStdU16String()), datos);
         else
-            r = {{"error", "se cerró mientras convertía"}};
+            r = {{"error", tr("se cerró mientras convertía").toStdString()}};
         if (r.is_object() && !r.contains("error")) r["convertido"] = true;
         QDir(tmp).removeRecursively();
         listo(r);
@@ -169,12 +169,12 @@ std::string DocumentosViewModel::editar(const std::string& id, const json& cambi
     // Otra página de carátula: se rehace la miniatura de esa página (y queda guardada).
     if (cambios.contains("pagina_tapa")) {
         const fs::path r = d.ruta(id);
-        if (r.empty()) return "no hay un documento «" + id + "»";
+        if (r.empty()) return tr("no hay un documento «%1»").arg(QString::fromStdString(id)).toStdString();
         QPdfDocument pdf;
-        if (pdf.load(qp(r)) != QPdfDocument::Error::None) return "solo un PDF tiene páginas para elegir la carátula";
+        if (pdf.load(qp(r)) != QPdfDocument::Error::None) return tr("solo un PDF tiene páginas para elegir la carátula").toStdString();
         const int p = cambios["pagina_tapa"].is_number_integer() ? cambios["pagina_tapa"].get<int>() : 0;
-        if (p < 1 || p > pdf.pageCount()) return "la página tiene que ir de 1 a " + std::to_string(pdf.pageCount());
-        if (!tapa(pdf, p - 1, d.miniatura(id))) return "no se pudo hacer la carátula de la página " + std::to_string(p);
+        if (p < 1 || p > pdf.pageCount()) return tr("la página tiene que ir de 1 a %1").arg(pdf.pageCount()).toStdString();
+        if (!tapa(pdf, p - 1, d.miniatura(id))) return tr("no se pudo hacer la carátula de la página %1").arg(p).toStdString();
     }
     const std::string e = d.editar(id, cambios);
     if (e.empty()) emit cambio();
@@ -190,9 +190,9 @@ std::string DocumentosViewModel::quitar(const std::string& id) {
 json DocumentosViewModel::texto(const std::string& id, int desde, int hasta) const {
     const evento::Documentos d(evento_());
     const fs::path r = d.ruta(id);
-    if (r.empty()) return {{"error", "no hay un documento «" + id + "»"}};
+    if (r.empty()) return {{"error", tr("no hay un documento «%1»").arg(QString::fromStdString(id)).toStdString()}};
     QPdfDocument pdf;
-    if (pdf.load(qp(r)) != QPdfDocument::Error::None) return {{"error", "no es un PDF que se pueda leer"}};
+    if (pdf.load(qp(r)) != QPdfDocument::Error::None) return {{"error", tr("no es un PDF que se pueda leer").toStdString()}};
     const int n = pdf.pageCount();
     const int a = std::clamp(desde < 1 ? 1 : desde, 1, std::max(1, n));
     const int b = std::clamp(hasta < 1 ? n : hasta, a, std::max(1, n));
@@ -208,11 +208,11 @@ QString DocumentosViewModel::agregarUi(const QStringList& archivos) {
         const QString nombre = QFileInfo(local).fileName();
         if (APdf::necesitaConvertir(local) || local.endsWith(".md", Qt::CaseInsensitive) ||
             local.endsWith(".txt", Qt::CaseInsensitive) || local.endsWith(".markdown", Qt::CaseInsensitive))
-            emit notify("Pasando «" + nombre + "» a PDF…", "info");
+            emit notify(tr("Pasando «%1» a PDF…").arg(nombre), "info");
         QPointer<DocumentosViewModel> yo(this);
         agregarConvirtiendo(fs::path(local.toStdU16String()), json::object(), [yo, nombre](const json& r) {
             if (yo && r.contains("error"))
-                emit yo->notify("No se pudo agregar «" + nombre + "»: " + QString::fromStdString(r.value("error", std::string())),
+                emit yo->notify(tr("No se pudo agregar «%1»: %2").arg(nombre, QString::fromStdString(r.value("error", std::string()))),
                                 "error");
         });
     }

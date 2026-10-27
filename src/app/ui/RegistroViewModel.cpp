@@ -2,6 +2,7 @@
 // src/app/ui/RegistroViewModel.cpp — ver RegistroViewModel.hpp
 // ============================================================================
 #include "ui/RegistroViewModel.hpp"
+#include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
@@ -144,8 +145,8 @@ void RegistroViewModel::setNivelDelProceso(int n) {
     // Queda anotado en el propio registro: si mañana aparece un log lleno de
     // trazas, tiene que decir quién lo puso así y cuándo.
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               std::string("nivel de registro cambiado a ") + ba::diag::nombreDeNivel(v) +
-                                   " desde el visor");
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "nivel de registro cambiado a %1 desde el visor"),
+                                                {ba::diag::nombreDeNivel(v)}));
     emit cambio();
     refrescar();
 }
@@ -166,9 +167,10 @@ QString RegistroViewModel::culpable() const { return QString::fromStdString(ba::
 void RegistroViewModel::prender(const QString& id) {
     ba::diag::diario().setApagado(id.toStdString(), false);
     ba::diag::registro().linea(ba::diag::Nivel::Info, "arranque", 0,
-                               "«" + id.toStdString() + "» vuelve a cargarse en el próximo arranque");
+                               ba::i18n::llenar(ba::i18n::traducir("arranque", "«%1» vuelve a cargarse en el próximo arranque"),
+                                                {id.toStdString()}));
     emit cambio();
-    emit notify("«" + id + "» se va a cargar en el próximo arranque", "ok");
+    emit notify(tr("«%1» se va a cargar en el próximo arranque").arg(id), "ok");
 }
 
 QString RegistroViewModel::exportar() {
@@ -176,23 +178,22 @@ QString RegistroViewModel::exportar() {
     const QString ruta = QDir(d_->carpeta()).filePath(nombre);
     QFile f(ruta);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emit notify("No se pudo escribir " + ruta, "error");
+        emit notify(tr("No se pudo escribir %1").arg(ruta), "error");
         return {};
     }
     // Con el filtro adelante: quien lo reciba tiene que saber que esta mirando
     // un recorte y cual.
-    QString cab =
-        "# Registro exportado " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss") + "\n";
-    cab += "# desde nivel: " + niveles().value(minimo(), "traza");
-    if (!modulo().isEmpty()) cab += "  modulo: " + modulo();
-    if (!busca().isEmpty()) cab += "  busca: " + busca();
-    cab += "  (" + QString::number(d_->lineas.size()) + " lineas)\n\n";
+    QString cab = "# " + tr("Registro exportado %1").arg(QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss")) + "\n";
+    cab += "# " + tr("desde nivel: %1").arg(niveles().value(minimo(), "traza"));
+    if (!modulo().isEmpty()) cab += "  " + tr("modulo: %1").arg(modulo());
+    if (!busca().isEmpty()) cab += "  " + tr("busca: %1").arg(busca());
+    cab += "  " + tr("(%1 lineas)").arg(d_->lineas.size()) + "\n\n";
     f.write(cab.toUtf8());
     f.write(comoTexto().toUtf8());
     f.close();
     ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                               "registro exportado a " + nombre.toStdString());
-    emit notify("Registro guardado en Logs/" + nombre, "ok");
+                               ba::i18n::llenar(ba::i18n::traducir("registro", "registro exportado a %1"), {nombre.toStdString()}));
+    emit notify(tr("Registro guardado en Logs/%1").arg(nombre), "ok");
     return ruta;
 }
 
@@ -260,9 +261,9 @@ QString RegistroViewModel::comoTexto() const {
 
 void RegistroViewModel::marcar(const QString& texto) {
     ba::diag::registro().linea(ba::diag::Nivel::Info, "marca", 0,
-                               texto.isEmpty() ? "marca del operador" : texto.toStdString());
+                               texto.isEmpty() ? ba::i18n::traducir("marca", "marca del operador") : texto.toStdString());
     refrescar();
-    emit notify("Marca puesta en el registro", "ok");
+    emit notify(tr("Marca puesta en el registro"), "ok");
 }
 
 } // namespace ba::app

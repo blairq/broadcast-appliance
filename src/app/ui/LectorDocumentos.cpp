@@ -2,6 +2,7 @@
 // src/app/ui/LectorDocumentos.cpp — ver LectorDocumentos.hpp
 // ============================================================================
 #include "ui/LectorDocumentos.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QByteArray>
 #include <QThread>
@@ -86,9 +87,9 @@ bool LectorDocumentos::disponible() {
 
 QString LectorDocumentos::dorsoCon(QString* falta) const {
     QString f;
-    if (vision_.disponible && vision_.disponible(&f)) return "modelo local";
+    if (vision_.disponible && vision_.disponible(&f)) return tr("modelo local");
     if (falta != nullptr) *falta = f;
-    if (!dataRoot_.empty() && agent::modeloPropioListo(dataRoot_)) return "modelo propio";
+    if (!dataRoot_.empty() && agent::modeloPropioListo(dataRoot_)) return tr("modelo propio");
     return {};
 }
 
@@ -112,8 +113,8 @@ json LectorDocumentos::tipos() const {
     for (const auto& t : catalogo_.tipos()) {
         const auto fs = t->formatos();
         out.push_back({{"id", t->id()},
-                       {"titulo", t->titulo()},
-                       {"comoSeDice", t->comoSeDice()},
+                       {"titulo", ba::i18n::traducir("documentos", t->titulo().c_str())},
+                       {"comoSeDice", ba::i18n::traducir("documentos", t->comoSeDice().c_str())}, // va al público: idioma del evento cuando esté a mano
                        {"formatos", fs},
                        {"origen", "fabrica"},
                        {"pais", t->id() == "dni-ar" ? "AR" : ""},
@@ -157,7 +158,7 @@ void LectorDocumentos::leer(const QImage& img, std::vector<std::string> aceptado
     (void)aceptados;
     (void)descartable;
     Resultado r;
-    r.error = "Esta compilación no trae el lector de códigos de barras (zxing-cpp).";
+    r.error = tr("Esta compilación no trae el lector de códigos de barras (zxing-cpp).");
     luego(std::move(r));
 #endif
 }
@@ -180,12 +181,12 @@ void LectorDocumentos::leerDorso(const QImage& img, std::vector<std::string> ace
             if (puerto == 0) {
                 soltar();
                 return yo->dorsoConPropio(img, std::move(aceptados), std::move(confirmador), std::move(luego),
-                                          "modelo local: " + error.toStdString() + "; ");
+                                          tr("modelo local: %1; ").arg(error).toStdString());
             }
             agent::FuenteMirada f;
             f.url = "http://127.0.0.1:" + std::to_string(puerto) + "/v1";
             f.modelo = "local"; // el alias del llama-server
-            f.nombre = "modelo local";
+            f.nombre = tr("modelo local").toStdString();
             agent::mirarAparte(f, img, agent::pedidoDelDorso(), yo.data(),
                                [yo, soltar, img, aceptados = std::move(aceptados), confirmador = std::move(confirmador),
                                 luego = std::move(luego)](std::string texto, std::string err) mutable {
@@ -194,8 +195,9 @@ void LectorDocumentos::leerDorso(const QImage& img, std::vector<std::string> ace
                                    // Sin respuesta del local: el propio, si hay.
                                    if (texto.empty() && agent::modeloPropioListo(yo->dataRoot_))
                                        return yo->dorsoConPropio(img, std::move(aceptados), std::move(confirmador),
-                                                                 std::move(luego), "modelo local: " + err + "; ");
-                                   yo->alTranscribir(std::move(texto), std::move(err), "modelo local",
+                                                                 std::move(luego),
+                                                                 tr("modelo local: %1; ").arg(QString::fromStdString(err)).toStdString());
+                                   yo->alTranscribir(std::move(texto), std::move(err), tr("modelo local").toStdString(),
                                                      std::move(aceptados), std::move(confirmador), std::move(luego));
                                });
         });
@@ -212,9 +214,9 @@ void LectorDocumentos::dorsoConPropio(const QImage& img, std::vector<std::string
     if (dataRoot_.empty() || !agent::fuentePropia(dataRoot_, f, &error)) {
         Resultado r;
         r.dorso = true;
-        r.error = QString::fromStdString("No hay con qué leer el dorso (" + antes +
-                                         (error.empty() ? std::string("sin modelo propio") : error) +
-                                         "): hace falta la visión del modelo local o un modelo propio.");
+        r.error = tr("No hay con qué leer el dorso (%1%2): hace falta la visión del modelo local o un modelo propio.")
+                      .arg(QString::fromStdString(antes),
+                           error.empty() ? tr("sin modelo propio") : QString::fromStdString(error));
         luego(std::move(r));
         return;
     }
@@ -223,7 +225,7 @@ void LectorDocumentos::dorsoConPropio(const QImage& img, std::vector<std::string
                        [yo, antes, aceptados = std::move(aceptados), confirmador = std::move(confirmador),
                         luego = std::move(luego)](std::string texto, std::string err) mutable {
                            if (yo.isNull()) return;
-                           yo->alTranscribir(std::move(texto), antes + err, "modelo propio", std::move(aceptados),
+                           yo->alTranscribir(std::move(texto), antes + err, tr("modelo propio").toStdString(), std::move(aceptados),
                                              std::move(confirmador), std::move(luego));
                        });
 }
@@ -235,7 +237,7 @@ void LectorDocumentos::alTranscribir(std::string texto, std::string error, std::
     r.dorso = true;
     r.con = con;
     if (texto.empty()) {
-        r.error = QString::fromStdString("El " + con + " no leyó el dorso: " + error);
+        r.error = tr("El %1 no leyó el dorso: %2").arg(QString::fromStdString(con), QString::fromStdString(error));
         return luego(std::move(r));
     }
     // Lo que contestó NO va a ningún registro: son los datos de la persona.
@@ -245,7 +247,8 @@ void LectorDocumentos::alTranscribir(std::string texto, std::string error, std::
     if (!aceptada) {
         r.noSeVe = l.estado == E::NoSeVe;
         r.dudosa = l.estado == E::Dudosa;
-        r.detalle = r.dudosa ? "no cierra el verificador compuesto: hace falta otra foto que coincida" : l.motivo;
+        r.detalle = r.dudosa ? tr("no cierra el verificador compuesto: hace falta otra foto que coincida").toStdString()
+                             : l.motivo;
         return luego(std::move(r));
     }
     traducir({documentos::Codigo{documentos::kFormatoMrz, l.texto, {}}}, std::move(aceptados),
@@ -253,7 +256,7 @@ void LectorDocumentos::alTranscribir(std::string texto, std::string error, std::
                  x.dorso = true;
                  x.con = con;
                  if (!x.leido) {
-                     x.detalle = "los renglones no son de un documento de los aceptados";
+                     x.detalle = tr("los renglones no son de un documento de los aceptados").toStdString();
                      // Los renglones son los datos de la persona: no salen (MCP, logs).
                      for (auto& c : x.codigos) c.texto.clear();
                  }

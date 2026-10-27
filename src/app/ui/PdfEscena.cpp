@@ -124,8 +124,8 @@ PdfEscena::json PdfEscena::estado() const {
                {"zoom", f.ajustes.value("zoom", 1.0)},
                {"x", f.ajustes.value("x", 0.5)},
                {"y", f.ajustes.value("y", 0.5)}};
-        if (ruta.isEmpty()) o["error"] = "no tiene ningún PDF elegido";
-        else if (!QFileInfo::exists(ruta)) o["error"] = "no está el archivo";
+        if (ruta.isEmpty()) o["error"] = tr("no tiene ningún PDF elegido").toStdString();
+        else if (!QFileInfo::exists(ruta)) o["error"] = tr("no está el archivo").toStdString();
         fs.push_back(o);
     }
     json docs = json::array();
@@ -143,8 +143,8 @@ std::string PdfEscena::resolver(const QString& fuente, QString* error) const {
     for (const auto& f : lista)
         if (fuente.isEmpty() || QString::fromStdString(f.nombre) == fuente) return f.nombre;
     if (error != nullptr)
-        *error = lista.empty() ? "no hay ninguna fuente PDF en las escenas (armá la escena «PDF»)"
-                               : "no hay una fuente PDF llamada «" + fuente + "»";
+        *error = lista.empty() ? tr("no hay ninguna fuente PDF en las escenas (armá la escena «PDF»)")
+                               : tr("no hay una fuente PDF llamada «%1»").arg(fuente);
     return {};
 }
 
@@ -152,7 +152,7 @@ QString PdfEscena::elegir(const QString& fuente, const QString& id) {
     QString err;
     const std::string n = resolver(fuente, &err);
     if (n.empty()) return err;
-    if (evento::Documentos(rt_.dataRoot()).ruta(id.toStdString()).empty()) return "no hay un documento «" + id + "»";
+    if (evento::Documentos(rt_.dataRoot()).ruta(id.toStdString()).empty()) return tr("no hay un documento «%1»").arg(id);
     fuentes::cambiarAjustes(n, json{{"documento", id.toStdString()}, {"archivo", ""}, {"pagina", 1}, {"zoom", 1.0}, {"x", 0.5}, {"y", 0.5}});
     tic();
     return {};
@@ -163,8 +163,8 @@ QString PdfEscena::elegirArchivo(const QString& fuente, const QString& ruta) {
     const std::string n = resolver(fuente, &err);
     if (n.empty()) return err;
     const QString r = ruta.startsWith("file:") ? QUrl(ruta).toLocalFile() : ruta;
-    if (!QFileInfo::exists(r)) return "no existe " + r;
-    if (abrir(r) == nullptr) return "no es un PDF que se pueda abrir";
+    if (!QFileInfo::exists(r)) return tr("no existe %1").arg(r);
+    if (abrir(r) == nullptr) return tr("no es un PDF que se pueda abrir");
     fuentes::cambiarAjustes(n, json{{"documento", ""}, {"archivo", r.toStdString()}, {"pagina", 1}, {"zoom", 1.0}, {"x", 0.5}, {"y", 0.5}});
     tic();
     return {};
@@ -177,13 +177,13 @@ QString PdfEscena::irA(const QString& fuente, int pagina) {
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) {
             const QString ruta = rutaDe(f.ajustes);
-            if (abrir(ruta) == nullptr) return "esa fuente no tiene un PDF que se pueda abrir";
+            if (abrir(ruta) == nullptr) return tr("esa fuente no tiene un PDF que se pueda abrir");
             const int total = std::max(1, paginasDe(ruta));
             fuentes::cambiarAjustes(n, json{{"pagina", std::clamp(pagina, 1, total)}});
             tic();
             return {};
         }
-    return "no está la fuente";
+    return tr("no está la fuente");
 }
 
 QString PdfEscena::paso(const QString& fuente, int delta) {
@@ -192,7 +192,7 @@ QString PdfEscena::paso(const QString& fuente, int delta) {
     if (n.empty()) return err;
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) return irA(QString::fromStdString(n), std::max(1, f.ajustes.value("pagina", 1)) + delta);
-    return "no está la fuente";
+    return tr("no está la fuente");
 }
 
 PdfEscena::Geometria PdfEscena::geometria(const json& a) {
@@ -232,7 +232,7 @@ QString PdfEscena::mover(const QString& fuente, double dx, double dy) {
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
         if (f.nombre == n) {
             const Geometria g = geometria(f.ajustes);
-            if (g.W <= 0) return "esa fuente no tiene un PDF que se pueda abrir";
+            if (g.W <= 0) return tr("esa fuente no tiene un PDF que se pueda abrir");
             // El centro, acotado para que lo visible no se salga de la página.
             const auto acotar = [](double v, double visible, double total) {
                 if (visible >= total) return 0.5;
@@ -245,14 +245,14 @@ QString PdfEscena::mover(const QString& fuente, double dx, double dy) {
             tic();
             return {};
         }
-    return "no está la fuente";
+    return tr("no está la fuente");
 }
 
 QString PdfEscena::crearEscena(const QString& nombre) {
     const std::string esc = nombre.trimmed().isEmpty() ? std::string("PDF") : nombre.trimmed().toStdString();
     const auto escenas = rt_.engine().sceneNames();
     if (std::find(escenas.begin(), escenas.end(), esc) == escenas.end() && !rt_.addScene(esc))
-        return QString::fromStdString(rt_.lastError().empty() ? "no se pudo crear la escena" : rt_.lastError());
+        return rt_.lastError().empty() ? tr("no se pudo crear la escena") : QString::fromStdString(rt_.lastError());
     // Ya tiene una fuente PDF: listo.
     const auto ss = rt_.engine().sceneSources(esc);
     for (const auto& f : fuentes::de(fuentespdf::kTipo))
@@ -269,7 +269,7 @@ QString PdfEscena::crearEscena(const QString& nombre) {
                          .dump();
     s.rect = CanvasRect{0, 0, 1, 1};
     if (!rt_.addSource(esc, s))
-        return QString::fromStdString(rt_.lastError().empty() ? "no se pudo agregar la fuente PDF" : rt_.lastError());
+        return rt_.lastError().empty() ? tr("no se pudo agregar la fuente PDF") : QString::fromStdString(rt_.lastError());
     tic();
     return {};
 }

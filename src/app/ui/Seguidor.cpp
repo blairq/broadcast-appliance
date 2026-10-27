@@ -110,15 +110,15 @@ void Seguidor::analizar(const QString& entrada) {
             emit yo->analizado(entrada, error);
         });
 #else
-    emit analizado(entrada, "Este programa se armó sin reconocimiento de rostros");
+    emit analizado(entrada, tr("Este programa se armó sin reconocimiento de rostros"));
 #endif
 }
 
 QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
 #if BA_HAVE_ROSTROS
-    if (!personas_ || !camaras_ || !grafos_) return "El seguimiento no está disponible";
+    if (!personas_ || !camaras_ || !grafos_) return tr("El seguimiento no está disponible");
     if (camaras_->modoActivo(entrada).isEmpty())
-        return "«" + entrada + "» no tiene PTZ: prendé el digital o configurá su motor";
+        return tr("«%1» no tiene PTZ: prendé el digital o configurá su motor").arg(entrada);
     QString obj;
     if (!objetivo.value("id").toString().isEmpty())
         obj = "persona:" + objetivo.value("id").toString();
@@ -148,7 +148,7 @@ QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
 #else
     Q_UNUSED(entrada);
     Q_UNUSED(objetivo);
-    return "Este programa se armó sin reconocimiento de rostros";
+    return tr("Este programa se armó sin reconocimiento de rostros");
 #endif
 }
 

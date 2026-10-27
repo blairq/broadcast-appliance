@@ -2,6 +2,7 @@
 // src/app/ui/CarruselViewModel.cpp — ver CarruselViewModel.hpp
 // ============================================================================
 #include "ui/CarruselViewModel.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QDir>
 
@@ -43,7 +44,7 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
     store_ = std::make_unique<carrusel::Store>(
         std::filesystem::path(raiz.absoluteFilePath("Config/carruseles.json").toStdWString()));
     if (!store_->error().empty())
-        emit notify(QString::fromStdString("Carruseles: " + store_->error()), "error");
+        emit notify(tr("Carruseles: %1").arg(QString::fromStdString(store_->error())), "error");
 
     conv_ = std::make_unique<carrusel::Conversor>(this);
     connect(conv_.get(), &carrusel::Conversor::avance, this, [this](QString etapa, int hecho, int total) {
@@ -63,25 +64,27 @@ CarruselViewModel::CarruselViewModel(AppRuntime& rt, QObject* parent) : QObject(
             c.agregar(l);
         }
         if (!store_->guardar(c))
-            anotar(diag::Nivel::Aviso, "no pude guardar el carrusel «" + destinoConversion_.toStdString() +
-                                           "»: " + store_->error());
+            anotar(diag::Nivel::Aviso,
+                   ba::i18n::llenar(ba::i18n::traducir("laminas", "no pude guardar el carrusel «%1»: %2"),
+                                    {destinoConversion_.toStdString(), store_->error()}));
         else
-            anotar(diag::Nivel::Info, "«" + destinoConversion_.toStdString() +
-                                          "»: " + std::to_string(imagenes.size()) + " laminas");
+            anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("laminas", "«%1»: %2 laminas"),
+                                                       {destinoConversion_.toStdString(), std::to_string(imagenes.size())}));
         actual_ = destinoConversion_;
         revisarEscena();
         emit cambio();
-        emit notify(QString("«%1»: %2 láminas listas").arg(destinoConversion_).arg(imagenes.size()), "ok");
+        emit notify(tr("«%1»: %2 láminas listas").arg(destinoConversion_).arg(imagenes.size()), "ok");
     });
     connect(conv_.get(), &carrusel::Conversor::fallo, this, [this](QString motivo) {
         convirtiendo_ = false;
         etapa_.clear();
         emit progreso();
         anotar(motivo == "cancelado" ? diag::Nivel::Info : diag::Nivel::Aviso,
-               "desarmar «" + destinoConversion_.toStdString() + "»: " + motivo.toStdString());
+               ba::i18n::llenar(ba::i18n::traducir("laminas", "desarmar «%1»: %2"),
+                                {destinoConversion_.toStdString(), motivo.toStdString()}));
         // Cancelar lo pidió el operador: no es una falla que haya que anunciar
         // en rojo como si algo se hubiera roto.
-        emit notify(motivo == "cancelado" ? "Conversión cancelada" : "No se pudo desarmar: " + motivo,
+        emit notify(motivo == "cancelado" ? tr("Conversión cancelada") : tr("No se pudo desarmar: %1").arg(motivo),
                     motivo == "cancelado" ? "info" : "error");
     });
 }
@@ -173,11 +176,11 @@ int CarruselViewModel::total() const { return total_; }
 bool CarruselViewModel::crear(const QString& nombre) {
     const QString n = nombre.trimmed();
     if (n.isEmpty()) {
-        emit notify("Poné un nombre: sin nombre no se lo puede volver a encontrar", "error");
+        emit notify(tr("Poné un nombre: sin nombre no se lo puede volver a encontrar"), "error");
         return false;
     }
     if (store_->porNombre(n.toStdString())) {
-        emit notify("Ya hay un carrusel llamado «" + n + "»", "error");
+        emit notify(tr("Ya hay un carrusel llamado «%1»").arg(n), "error");
         return false;
     }
     carrusel::Carrusel c;
@@ -216,7 +219,7 @@ bool CarruselViewModel::agregar(const QString& archivo) {
     carrusel::Lamina l;
     l.archivo = archivo.toStdString();
     if (!c->agregar(l)) {
-        emit notify("Esa imagen ya estaba en el carrusel", "info");
+        emit notify(tr("Esa imagen ya estaba en el carrusel"), "info");
         return false;
     }
     store_->persistir();
@@ -307,11 +310,11 @@ void CarruselViewModel::empujar(const carrusel::Carrusel& c) {
 bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& escena) {
     carrusel::Carrusel* c = store_->porNombre(carrusel.toStdString());
     if (c == nullptr) {
-        emit notify("No hay ningún carrusel llamado «" + carrusel + "»", "error");
+        emit notify(tr("No hay ningún carrusel llamado «%1»").arg(carrusel), "error");
         return false;
     }
     if (c->vacio()) {
-        emit notify("«" + carrusel + "» no tiene láminas todavía", "error");
+        emit notify(tr("«%1» no tiene láminas todavía").arg(carrusel), "error");
         return false;
     }
     // El nombre lleva el del carrusel adentro: en la lista de fuentes de la
@@ -330,7 +333,7 @@ bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& e
             // escena): eso no es un error, es reusar la misma fuente.
             const QString err = QString::fromStdString(rt_.lastError());
             if (!err.contains("exist", Qt::CaseInsensitive) && !err.contains("ya", Qt::CaseInsensitive)) {
-                emit notify("No se pudo poner en la escena: " + err, "error");
+                emit notify(tr("No se pudo poner en la escena: %1").arg(err), "error");
                 return false;
             }
         }
@@ -341,7 +344,7 @@ bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& e
     rt_.save();
     revisarEscena();
     emit cambio();
-    emit notify("«" + carrusel + "» quedó en «" + escena + "». Tocá una lámina para ponerla.", "ok");
+    emit notify(tr("«%1» quedó en «%2». Tocá una lámina para ponerla.").arg(carrusel, escena), "ok");
     return true;
 }
 
@@ -352,7 +355,7 @@ bool CarruselViewModel::soltarDeEscena(const QString& carrusel) {
     store_->persistir();
     revisarEscena();
     emit cambio();
-    emit notify("«" + carrusel + "» ya no maneja ninguna fuente. La imagen quedó como estaba.", "info");
+    emit notify(tr("«%1» ya no maneja ninguna fuente. La imagen quedó como estaba.").arg(carrusel), "info");
     return true;
 }
 
@@ -372,7 +375,7 @@ bool CarruselViewModel::sePuedeDesarmar(const QString& archivo) const {
 
 void CarruselViewModel::desarmar(const QString& documento, const QString& nombre) {
     if (convirtiendo_) {
-        emit notify("Esperá: ya se está desarmando otro", "info");
+        emit notify(tr("Esperá: ya se está desarmando otro"), "info");
         return;
     }
     QString n = nombre.trimmed();
@@ -391,7 +394,8 @@ void CarruselViewModel::desarmar(const QString& documento, const QString& nombre
     hecho_ = 0;
     total_ = 0;
     emit progreso();
-    anotar(diag::Nivel::Info, "desarmando " + documento.toStdString() + " -> «" + n.toStdString() + "»");
+    anotar(diag::Nivel::Info, ba::i18n::llenar(ba::i18n::traducir("laminas", "desarmando %1 -> «%2»"),
+                                               {documento.toStdString(), n.toStdString()}));
     conv_->convertir(documento, carpetaDe(n));
 }
 

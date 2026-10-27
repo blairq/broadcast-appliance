@@ -7,6 +7,7 @@
 #include <set>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -33,68 +34,68 @@ const std::vector<Grupo>& catalogo() {
     // Por momento de uso: arriba lo que se toca en vivo y bajo presión; abajo lo
     // que se configura una vez. Las salidas (pantallas, multiview, redes) juntas.
     static const std::vector<Grupo> g = {
-        {"En vivo",
-         {{0, "dashboard", "⌂", "Dashboard"},
-          {1, "escenas", "▦", "Escenas y fuentes"},
-          {21, "camaras", "⌖", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara"},
-          {2, "sala", "☎", "Conferencia (lobby, invitados, chat)"},
-          {12, "rotulos", "✎", "Rótulos en vivo: los textos de la escena que está al aire"},
-          {15, "prompter", "▤", "Teleprompter: los discursos y el control del atril"},
-          {19, "publico", "☷", "Público: las preguntas de la gente y la urna, para moderar en vivo"},
+        {QT_TRANSLATE_NOOP("riel", "En vivo"),
+         {{0, "dashboard", "⌂", QT_TRANSLATE_NOOP("riel", "Dashboard")},
+          {1, "escenas", "▦", QT_TRANSLATE_NOOP("riel", "Escenas y fuentes")},
+          {21, "camaras", "⌖", QT_TRANSLATE_NOOP("riel", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara")},
+          {2, "sala", "☎", QT_TRANSLATE_NOOP("riel", "Conferencia (lobby, invitados, chat)")},
+          {12, "rotulos", "✎", QT_TRANSLATE_NOOP("riel", "Rótulos en vivo: los textos de la escena que está al aire")},
+          {15, "prompter", "▤", QT_TRANSLATE_NOOP("riel", "Teleprompter: los discursos y el control del atril")},
+          {19, "publico", "☷", QT_TRANSLATE_NOOP("riel", "Público: las preguntas de la gente y la urna, para moderar en vivo")},
           {26, "asamblea", "⚖",
-           "Asamblea: central de conferencia (micrófonos de banca), recinto, orden del día y votación"}}},
-        {"Evento",
+           QT_TRANSLATE_NOOP("riel", "Asamblea: central de conferencia (micrófonos de banca), recinto, orden del día y votación")}}},
+        {QT_TRANSLATE_NOOP("riel", "Evento"),
          {{10, "guion", "≣",
-           "Evento: el abierto (con sus escenas, mezclador, medios y asamblea), su guion, padrón, orden del día y "
-           "web; evento nuevo o abrir otro"},
-          {20, "medios", "♫", "Medios: música, videos, imágenes y presentaciones, con vista previa"},
-          {11, "graficos", "◈", "Gráficos animados: zócalos, placas y tickers"},
-          {17, "qr", "⊞", "Códigos QR: la biblioteca y el estudio de diseño"},
-          {18, "personas", "☻", "Personas: quién es quién, para que el sistema los reconozca"},
+           QT_TRANSLATE_NOOP("riel", "Evento: el abierto (con sus escenas, mezclador, medios y asamblea), su guion, padrón, orden del día y "
+           "web; evento nuevo o abrir otro")},
+          {20, "medios", "♫", QT_TRANSLATE_NOOP("riel", "Medios: música, videos, imágenes y presentaciones, con vista previa")},
+          {11, "graficos", "◈", QT_TRANSLATE_NOOP("riel", "Gráficos animados: zócalos, placas y tickers")},
+          {17, "qr", "⊞", QT_TRANSLATE_NOOP("riel", "Códigos QR: la biblioteca y el estudio de diseño")},
+          {18, "personas", "☻", QT_TRANSLATE_NOOP("riel", "Personas: quién es quién, para que el sistema los reconozca")},
           {27, "historico", "⌛",
-           "Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió"}}},
-        {"Salidas",
-         {{16, "pantallas", "⧉", "Pantallas: los monitores de esta máquina y las TV de la red, y qué va en cada uno"},
+           QT_TRANSLATE_NOOP("riel", "Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió")}}},
+        {QT_TRANSLATE_NOOP("riel", "Salidas"),
+         {{16, "pantallas", "⧉", QT_TRANSLATE_NOOP("riel", "Pantallas: los monitores de esta máquina y las TV de la red, y qué va en cada uno")},
           {28, "multiview", "▥",
-           "Multiview: varias fuentes en un muro, con separación y bordes de color, tally y vúmetros; a otro monitor"},
-          {3, "youtube", "▶", "YouTube (cuenta, videos, en vivo)"},
-          {4, "twitch", "◆", "Twitch (canal, vivo, chat)"},
-          {5, "facebook", "f", "Facebook (Páginas, vivos, videos)"}}},
+           QT_TRANSLATE_NOOP("riel", "Multiview: varias fuentes en un muro, con separación y bordes de color, tally y vúmetros; a otro monitor")},
+          {3, "youtube", "▶", QT_TRANSLATE_NOOP("riel", "YouTube (cuenta, videos, en vivo)")},
+          {4, "twitch", "◆", QT_TRANSLATE_NOOP("riel", "Twitch (canal, vivo, chat)")},
+          {5, "facebook", "f", QT_TRANSLATE_NOOP("riel", "Facebook (Páginas, vivos, videos)")}}},
         // Primero lo que entra (video, audio), después DE DÓNDE sale (los dispositivos de
         // la máquina, con su nombre) y al final qué se le hace a cada señal (Video, Audio).
-        {"Señales y equipos",
+        {QT_TRANSLATE_NOOP("riel", "Señales y equipos"),
          {{8, "entradas", "◉",
-           "Entradas de video: las cámaras, capturadoras, NDI y señales de red que usa el evento, con su imagen "
-           "y en qué escenas están"},
+           QT_TRANSLATE_NOOP("riel", "Entradas de video: las cámaras, capturadoras, NDI y señales de red que usa el evento, con su imagen "
+           "y en qué escenas están")},
           {31, "entradas_audio", "🎙",
-           "Entradas de audio: los micrófonos, líneas y placas que usa el evento, y si están conectados"},
+           QT_TRANSLATE_NOOP("riel", "Entradas de audio: los micrófonos, líneas y placas que usa el evento, y si están conectados")},
           {24, "equipos", "⌁",
-           "Dispositivos y equipos: todo lo de audio y video de la máquina con el nombre que le pusiste y si "
-           "está conectado; buscar en la red y el USB y manejarlo (ONVIF, claves, PTZ, UVC)"},
-          {22, "video", "⧈", "Video: qué se le hace a cada entrada (croma, color, recorte) y salidas con nombre"},
-          {9, "audio", "🎚", "Audio: el procesamiento de cada entrada de audio (módulos LSP por fuente)"},
-          {25, "botonera", "▣", "Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI"}}},
-        {"Sistema",
-         {{7, "asistente", "✦", "Asistente: la terminal del agente que trabaja con vos"},
-          {14, "agentes", "⚇", "Agentes: los roles automáticos, qué hacen y qué hicieron"},
+           QT_TRANSLATE_NOOP("riel", "Dispositivos y equipos: todo lo de audio y video de la máquina con el nombre que le pusiste y si "
+           "está conectado; buscar en la red y el USB y manejarlo (ONVIF, claves, PTZ, UVC)")},
+          {22, "video", "⧈", QT_TRANSLATE_NOOP("riel", "Video: qué se le hace a cada entrada (croma, color, recorte) y salidas con nombre")},
+          {9, "audio", "🎚", QT_TRANSLATE_NOOP("riel", "Audio: el procesamiento de cada entrada de audio (módulos LSP por fuente)")},
+          {25, "botonera", "▣", QT_TRANSLATE_NOOP("riel", "Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI")}}},
+        {QT_TRANSLATE_NOOP("riel", "Sistema"),
+         {{7, "asistente", "✦", QT_TRANSLATE_NOOP("riel", "Asistente: la terminal del agente que trabaja con vos")},
+          {14, "agentes", "⚇", QT_TRANSLATE_NOOP("riel", "Agentes: los roles automáticos, qué hacen y qué hicieron")},
           {23, "plugins", "⌬",
-           "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones"},
+           QT_TRANSLATE_NOOP("riel", "Plugins: programas en Python para equipos raros, tarjetas y automatizaciones")},
           {30, "latencias", "⏱",
-           "Latencias del pipeline: cuánto tarda cada cosa, de cada entrada a cada salida (video y audio, "
-           "tarjeta por tarjeta, módulo por módulo), y los análisis"},
+           QT_TRANSLATE_NOOP("riel", "Latencias del pipeline: cuánto tarda cada cosa, de cada entrada a cada salida (video y audio, "
+           "tarjeta por tarjeta, módulo por módulo), y los análisis")},
           {29, "enlaces", "⇄",
-           "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
-           "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR"},
+           QT_TRANSLATE_NOOP("riel", "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
+           "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR")},
           // Ante última: se mira cuando algo anduvo mal, no en el día a día.
-          {13, "registro", "❑", "Logs del sistema: todo lo que pasa, de los tres procesos"},
-          {6, "configuracion", "⚙", "Configuración"}}},
+          {13, "registro", "❑", QT_TRANSLATE_NOOP("riel", "Logs del sistema: todo lo que pasa, de los tres procesos")},
+          {6, "configuracion", "⚙", QT_TRANSLATE_NOOP("riel", "Configuración")}}},
     };
     return g;
 }
 
 /// El título corto de una página: la primera parte del tip, sin la aclaración.
 QString titulo(const char* tip) {
-    QString t = QString::fromUtf8(tip);
+    QString t = QCoreApplication::translate("riel", tip); // traducido: el título es lo de antes de «:» o « (»
     const int dosPuntos = t.indexOf(':');
     if (dosPuntos > 0) t = t.left(dosPuntos);
     const int parentesis = t.indexOf(" (");
@@ -229,12 +230,12 @@ QVariantList RielConfig::grupos() const {
             items.append(QVariantMap{{"page", i.page},
                                      {"id", QString::fromUtf8(i.id)},
                                      {"icon", QString::fromUtf8(i.icon)},
-                                     {"tip", QString::fromUtf8(i.tip)},
+                                     {"tip", QCoreApplication::translate("riel", i.tip)},
                                      {"titulo", titulo(i.tip)}});
         }
         // Un grupo sin páginas a la vista no aporta ni su separador.
         if (items.isEmpty()) continue;
-        out.append(QVariantMap{{"titulo", QString::fromUtf8(g.titulo)}, {"items", items}});
+        out.append(QVariantMap{{"titulo", QCoreApplication::translate("riel", g.titulo)}, {"items", items}});
     }
     return out;
 }
@@ -276,9 +277,9 @@ QVariantList RielConfig::paginas() const {
             out.append(QVariantMap{{"page", i.page},
                                    {"id", QString::fromUtf8(i.id)},
                                    {"icon", QString::fromUtf8(i.icon)},
-                                   {"tip", QString::fromUtf8(i.tip)},
+                                   {"tip", QCoreApplication::translate("riel", i.tip)},
                                    {"titulo", titulo(i.tip)},
-                                   {"grupo", QString::fromUtf8(g.titulo)},
+                                   {"grupo", QCoreApplication::translate("riel", g.titulo)},
                                    {"visible", d_->escondidas.count(i.page) == 0},
                                    {"fija", i.page == kPaginaConfig}});
         }

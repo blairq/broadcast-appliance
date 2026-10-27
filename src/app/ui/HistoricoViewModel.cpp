@@ -20,6 +20,7 @@
 #include <set>
 
 #include "evento/Bitacora.hpp"
+#include "i18n/I18n.hpp"
 #include "evento/CierreEvento.hpp"
 #include "evento/FotosConfig.hpp"
 #include "evento/Historico.hpp"
@@ -263,8 +264,8 @@ QVariantList HistoricoViewModel::archivos(const QString& carpeta) const {
 nlohmann::json HistoricoViewModel::traerDelDiaJson(const std::string& carpeta, bool mover, std::int64_t desdeMs,
                                                   std::int64_t hastaMs) {
     const fs::path dir = carpetaEvento(carpeta);
-    if (dir.empty()) return {{"error", "no hay un evento «" + carpeta + "»"}};
-    if (!lugar(carpeta).abierto) return {{"error", "es de otro evento: abrilo para traerle lo del día"}};
+    if (dir.empty()) return {{"error", tr("no hay un evento «%1»").arg(QString::fromStdString(carpeta)).toStdString()}};
+    if (!lugar(carpeta).abierto) return {{"error", tr("es de otro evento: abrilo para traerle lo del día").toStdString()}};
     if (desdeMs == 0) {
         // El día del evento: el de su inicio, su fecha o el de la jornada automática.
         const auto d = ev_.datosEvento(carpeta);
@@ -279,7 +280,7 @@ nlohmann::json HistoricoViewModel::traerDelDiaJson(const std::string& carpeta, b
             dia = QDate::fromString(f, "yyyy-MM-dd");
         }
         if (!dia.isValid()) dia = QDate::fromString(QString::fromStdString(d.dia), "yyyy-MM-dd");
-        if (!dia.isValid()) return {{"error", "el evento no tiene día (ni inicio, ni fecha): pasá desde y hasta"}};
+        if (!dia.isValid()) return {{"error", tr("el evento no tiene día (ni inicio, ni fecha): pasá desde y hasta").toStdString()}};
         desdeMs = QDateTime(dia, QTime(0, 0)).toMSecsSinceEpoch();
         QDate ultimo = d.terminadoMs != 0 ? QDateTime::fromMSecsSinceEpoch(d.terminadoMs).date() : dia;
         if (ultimo < dia) ultimo = dia;
@@ -343,11 +344,11 @@ QVariantList HistoricoViewModel::comparar(const QString& carpeta, const QString&
 
 QString HistoricoViewModel::prepararRestauracion(const QString& carpeta, const QString& foto, const QStringList& archivos) {
     const fs::path dir = carpetaEvento(carpeta.toStdString());
-    if (dir.empty()) return "No está ese evento.";
+    if (dir.empty()) return tr("No está ese evento.");
     if (!lugar(carpeta.toStdString()).abierto)
-        return "Es de otro evento: abrilo para volver a esa configuración, o creá un evento nuevo desde esta foto.";
+        return tr("Es de otro evento: abrilo para volver a esa configuración, o creá un evento nuevo desde esta foto.");
     const auto f = evento::FotosConfig::cargar(dir / "config" / ((foto.isEmpty() ? QString("inicio") : foto) + ".json").toStdString());
-    if (f.is_null()) return "Ese evento no tiene esa foto de la configuración.";
+    if (f.is_null()) return tr("Ese evento no tiene esa foto de la configuración.");
     std::vector<std::string> l;
     for (const QString& a : archivos) l.push_back(a.toStdString());
     evento::FotosConfig fotos(ev_.carpetaConfig(), ev_.raizEventos() / ".objetos");
@@ -399,7 +400,7 @@ void HistoricoViewModel::verificar(const QString& carpeta) {
     QPointer<HistoricoViewModel> self(this);
     QThreadPool::globalInstance()->start([self, dir, carpeta, enCursoAhora]() {
         auto r = evento::CierreEvento::verificar(dir);
-        if (enCursoAhora) r["aviso"] = "Está en curso: se sigue escribiendo, los sellos valen cuando termine.";
+        if (enCursoAhora) r["aviso"] = tr("Está en curso: se sigue escribiendo, los sellos valen cuando termine.").toStdString();
         QMetaObject::invokeMethod(qApp, [self, carpeta, r]() {
             if (self) emit self->verificado(carpeta, aQv(r).toMap());
         }, Qt::QueuedConnection);
@@ -413,7 +414,7 @@ QString HistoricoViewModel::carpetaDeExportar() const {
 void HistoricoViewModel::exportar(const QString& carpeta, const QString& destino, bool conGrabaciones) {
     const fs::path dir = carpetaEvento(carpeta.toStdString());
     if (dir.empty()) {
-        emit exportado(carpeta, "No está ese evento.", {});
+        emit exportado(carpeta, tr("No está ese evento."), {});
         return;
     }
     const fs::path dst = (destino.isEmpty() ? carpetaDeExportar() : destino).toStdString();
@@ -445,7 +446,7 @@ nlohmann::json HistoricoViewModel::retencion(bool simular) {
     const int dias = ajustesJson()["retencion"].value("grabaciones_dias", 0);
     json eventos = json::array();
     std::uintmax_t total = 0;
-    if (dias <= 0) return {{"grabaciones_dias", 0}, {"eventos", eventos}, {"bytes", 0}, {"nota", "la retención está apagada"}};
+    if (dias <= 0) return {{"grabaciones_dias", 0}, {"eventos", eventos}, {"bytes", 0}, {"nota", tr("la retención está apagada").toStdString()}};
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     const qint64 limite = ahora - static_cast<qint64>(dias) * 24 * 3600 * 1000;
     const std::string enCursoAhora = enCurso().toStdString();
@@ -464,7 +465,10 @@ nlohmann::json HistoricoViewModel::retencion(bool simular) {
         if (!simular) {
             evento::Bitacora b;
             b.setArchivo(dir / "bitacora.jsonl");
-            b.anotar("evento", "retencion", "grabaciones borradas (retención de " + std::to_string(dias) + " días)", r, ahora);
+            b.anotar("evento", "retencion",
+                     ba::i18n::llenar(ba::i18n::traducir("historico", "grabaciones borradas (retención de %1 días)"),
+                                      {std::to_string(dias)}),
+                     r, ahora);
             b.vaciar();
         }
     }
@@ -514,26 +518,28 @@ std::string HistoricoViewModel::guardarAjustesJson(const nlohmann::json& c) {
         if (!reg.is_object()) reg = nlohmann::json::object();
         for (const auto& [k, v] : c["registrar"].items()) {
             const auto& cats = evento::Bitacora::categorias();
-            if (std::find(cats.begin(), cats.end(), k) == cats.end()) return "no hay una categoría «" + k + "»";
-            if (!v.is_boolean()) return "«" + k + "»: true o false";
+            if (std::find(cats.begin(), cats.end(), k) == cats.end())
+                return tr("no hay una categoría «%1»").arg(QString::fromStdString(k)).toStdString();
+            if (!v.is_boolean()) return tr("«%1»: true o false").arg(QString::fromStdString(k)).toStdString();
             reg[k] = v;
         }
         j["registrar"] = reg;
     }
     if (c.contains("retencion")) {
-        if (!c["retencion"].is_object()) return "`retencion`: {grabaciones_dias, aviso_disco_pct}";
+        if (!c["retencion"].is_object()) return tr("`retencion`: {grabaciones_dias, aviso_disco_pct}").toStdString();
         json ret = j.value("retencion", json::object());
         if (!ret.is_object()) ret = json::object();
         for (const auto& [k, v] : c["retencion"].items()) {
-            if (k != "grabaciones_dias" && k != "aviso_disco_pct") return "en `retencion` no hay «" + k + "»";
+            if (k != "grabaciones_dias" && k != "aviso_disco_pct")
+                return tr("en `retencion` no hay «%1»").arg(QString::fromStdString(k)).toStdString();
             if (!v.is_number_integer() || v.get<int>() < 0 || (k == "aviso_disco_pct" && v.get<int>() > 100))
-                return "«" + k + "»: un entero (días, o % de 0 a 100)";
+                return tr("«%1»: un entero (días, o % de 0 a 100)").arg(QString::fromStdString(k)).toStdString();
             ret[k] = v;
         }
         j["retencion"] = ret;
     }
     if (c.contains("bus_excluir")) {
-        if (!c["bus_excluir"].is_array()) return "`bus_excluir`: una lista de patrones del bus";
+        if (!c["bus_excluir"].is_array()) return tr("`bus_excluir`: una lista de patrones del bus").toStdString();
         j["bus_excluir"] = c["bus_excluir"];
     }
     std::error_code ec;

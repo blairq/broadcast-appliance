@@ -180,8 +180,8 @@ void OperatorMessages::dismiss(int id) { close(id, "dismissed", {}); }
 QString OperatorMessages::submitCredential(int id, const QVariantMap& values) {
     const json m = get(id);
     if (m.is_null() || m.value("status", "") != "open" || m.value("kind", "") != "credential")
-        return "Ese formulario ya no esta.";
-    if (!saveCredential_) return "No se pueden guardar credenciales ahora.";
+        return tr("Ese formulario ya no esta.");
+    if (!saveCredential_) return tr("No se pueden guardar credenciales ahora.");
     const QString err = saveCredential_(qs(m, "platform"), values);
     if (!err.isEmpty()) return err;
     close(id, "saved", {});
@@ -190,10 +190,10 @@ QString OperatorMessages::submitCredential(int id, const QVariantMap& values) {
 
 QString OperatorMessages::sendReply(int id, const QString& text) {
     const json m = get(id);
-    if (m.is_null() || m.value("status", "") != "open") return "Ese mensaje ya no esta.";
-    if (text.trimmed().isEmpty()) return "Escribi la respuesta.";
+    if (m.is_null() || m.value("status", "") != "open") return tr("Ese mensaje ya no esta.");
+    if (text.trimmed().isEmpty()) return tr("Escribi la respuesta.");
     const QString to = qs(m, "to").isEmpty() ? qs(m, "participantId") : qs(m, "to");
-    if (!sendChat_) return "El chat de la conferencia no esta disponible.";
+    if (!sendChat_) return tr("El chat de la conferencia no esta disponible.");
     const QString err = sendChat_(to.isEmpty() ? "all" : to, text.trimmed());
     if (!err.isEmpty()) return err;
     close(id, "sent", text.trimmed());
