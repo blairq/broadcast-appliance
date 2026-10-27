@@ -18,8 +18,8 @@ mismo .ts: cada lote es un archivo JSON aparte.
       terminar. Revisa que la traducción conserve los %1, %n y las marcas fijas
       («[OPERADOR]»): si no, no la mete y lo dice.
 
-El id es el orden del mensaje en el .ts: importar sobre un .ts que cambió (otro lupdate
-en el medio) se rechaza; se vuelve a exportar.
+Al importar, cada texto se busca por contexto + fuente + desambiguación: un lote sirve
+aunque en el medio haya corrido lupdate (lo que ya no está se saltea y se cuenta).
 """
 import argparse
 import hashlib
@@ -110,49 +110,49 @@ def _ok(fuente: str, trad: str) -> str:
 def importar(ts: pathlib.Path, carpeta: pathlib.Path) -> int:
     arbol = ET.parse(ts)
     raiz = arbol.getroot()
-    h = huella(ts)
-    por_id = {i: m for i, _, m in mensajes(raiz)}
-    puestos = rechazados = 0
+    # Por contexto + fuente + desambiguación (no por posición): un lote sirve aunque en el
+    # medio haya corrido lupdate y aparecido textos nuevos; lo que ya no está se saltea.
+    por_clave = {}
+    for _, ctx, m in mensajes(raiz):
+        por_clave.setdefault((ctx, m.findtext("source") or "", m.findtext("comment") or ""), []).append(m)
+    puestos = rechazados = faltan = 0
     for archivo in sorted(carpeta.glob("lote-*.json")):
         lote = json.loads(archivo.read_text(encoding="utf-8"))
-        if lote.get("ts") != h:
-            print(f"[lotes] {archivo.name}: salió de otra versión del .ts (volvé a exportar)", file=sys.stderr)
-            return 1
         for e in lote["textos"]:
-            m = por_id.get(e["id"])
-            if m is None or (m.findtext("source") or "") != e["fuente"]:
-                print(f"[lotes] {archivo.name}: el id {e['id']} no coincide", file=sys.stderr)
-                return 1
-            t = m.find("translation")
+            ms = por_clave.get((e["contexto"], e["fuente"], e.get("desambiguacion", "")))
+            if not ms:
+                faltan += 1
+                continue
             if e.get("plural"):
                 formas = e.get("traducciones") or []
                 if not formas or not all(formas):
                     continue
                 malo = next((_ok(e["fuente"], f) for f in formas if _ok(e["fuente"], f)), "")
-                if malo:
-                    rechazados += 1
-                    print(f"[lotes] {archivo.name} id {e['id']}: {malo}: {formas}", file=sys.stderr)
-                    continue
-                for hijo in list(t):
-                    t.remove(hijo)
-                t.text = None
-                for f in formas:
-                    ET.SubElement(t, "numerusform").text = f
             else:
                 trad = e.get("traduccion", "")
                 if not trad:
                     continue
                 malo = _ok(e["fuente"], trad)
-                if malo:
-                    rechazados += 1
-                    print(f"[lotes] {archivo.name} id {e['id']}: {malo}: {trad!r}", file=sys.stderr)
-                    continue
-                t.text = trad
-            t.attrib.pop("type", None)
+            if malo:
+                rechazados += 1
+                print(f"[lotes] {archivo.name} id {e['id']}: {malo}: {formas if e.get('plural') else trad!r}",
+                      file=sys.stderr)
+                continue
+            for m in ms:
+                t = m.find("translation")
+                for hijo in list(t):
+                    t.remove(hijo)
+                if e.get("plural"):
+                    t.text = None
+                    for f in formas:
+                        ET.SubElement(t, "numerusform").text = f
+                else:
+                    t.text = trad
+                t.attrib.pop("type", None)
             puestos += 1
     arbol.write(ts, encoding="utf-8", xml_declaration=True)
     # El formato de lupdate (DOCTYPE, sangría): la próxima `make i18n-actualizar` lo deja igual.
-    print(f"[lotes] {puestos} traducciones puestas, {rechazados} rechazadas")
+    print(f"[lotes] {puestos} traducciones puestas, {rechazados} rechazadas, {faltan} que ya no están en el .ts")
     return 1 if rechazados else 0
 
 
