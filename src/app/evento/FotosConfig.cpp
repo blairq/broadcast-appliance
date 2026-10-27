@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/FotosConfig.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -180,7 +182,7 @@ nlohmann::json FotosConfig::conTapadosDe(const json& foto, const json& actual) {
 nlohmann::json FotosConfig::prepararRestauracion(const json& foto, const std::vector<std::string>& archivos,
                                                  const std::string& desde) {
     const json a = foto.value("archivos", json::object());
-    if (a.empty()) return json{{"error", "la foto está vacía"}};
+    if (a.empty()) return json{{"error", ba::i18n::traducir("evento", "la foto está vacía")}};
     const fs::path dir = config_ / ".restaurar";
     std::error_code ec;
     fs::remove_all(dir / "archivos", ec);
@@ -208,7 +210,7 @@ nlohmann::json FotosConfig::prepararRestauracion(const json& foto, const std::ve
     }
     for (const std::string& pedido : archivos)
         if (!a.contains(pedido)) omitidos.push_back(pedido);
-    if (hechos.empty()) return json{{"error", "nada para restaurar"}, {"omitidos", omitidos}};
+    if (hechos.empty()) return json{{"error", ba::i18n::traducir("evento", "nada para restaurar")}, {"omitidos", omitidos}};
     guardar(dir / "plan.json", json{{"desde", desde}, {"t_foto", foto.value("t", 0LL)}, {"archivos", hechos}});
     return json{{"archivos", hechos}, {"omitidos", omitidos}};
 }

@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/EventoStore.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -29,19 +31,23 @@ bool escribirJson(const fs::path& archivo, const json& j, std::string* err) {
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
         if (!out) {
-            if (err != nullptr) *err = "no se pudo escribir " + archivo.filename().string();
+            if (err != nullptr)
+                *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1"), {archivo.filename().string()});
             return false;
         }
         out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         if (!out.good()) {
-            if (err != nullptr) *err = "no se pudo escribir " + archivo.filename().string() + " entero";
+            if (err != nullptr)
+                *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo escribir %1 entero"), {archivo.filename().string()});
             return false;
         }
     }
     std::error_code ec;
     fs::rename(tmp, archivo, ec);
     if (ec) {
-        if (err != nullptr) *err = "no se pudo reemplazar " + archivo.filename().string() + ": " + ec.message();
+        if (err != nullptr)
+            *err = ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar %1: %2"),
+                                    {archivo.filename().string(), ec.message()});
         fs::remove(tmp, ec);
         return false;
     }
@@ -168,24 +174,25 @@ std::vector<Reparo> revisarArchivos(const Evento& e, const fs::path& carpeta, co
                 if (!enMedia.empty() && fs::exists(enMedia, ec)) p = enMedia;
                 else if (p.empty() || !fs::exists(p, ec)) {
                     rs.push_back({static_cast<int>(bi), static_cast<int>(ci), true,
-                                  "falta «" + rel + "» en los medios del evento"});
+                                  ba::i18n::llenar(ba::i18n::traducir("evento", "falta «%1» en los medios del evento"), {rel})});
                     continue;
                 }
             }
             if (p.empty()) {
-                rs.push_back({ib, ic, true, "\"" + rel + "\" apunta fuera de " + sub + "/"});
+                rs.push_back({ib, ic, true, ba::i18n::llenar(ba::i18n::traducir("evento", "\"%1\" apunta fuera de %2/"), {rel, sub})});
                 continue;
             }
             if (!fs::exists(p, ec)) {
-                rs.push_back({ib, ic, true, "falta el archivo " + sub + "/" + rel});
+                rs.push_back({ib, ic, true, ba::i18n::llenar(ba::i18n::traducir("evento", "falta el archivo %1"), {sub + "/" + rel})});
                 continue;
             }
             if (fs::is_directory(p, ec)) {
-                rs.push_back({ib, ic, true, sub + "/" + rel + " es una carpeta, no un archivo"});
+                rs.push_back({ib, ic, true,
+                              ba::i18n::llenar(ba::i18n::traducir("evento", "%1 es una carpeta, no un archivo"), {sub + "/" + rel})});
                 continue;
             }
             if (fs::file_size(p, ec) == 0 && !ec)
-                rs.push_back({ib, ic, true, sub + "/" + rel + " esta vacio"});
+                rs.push_back({ib, ic, true, ba::i18n::llenar(ba::i18n::traducir("evento", "%1 esta vacio"), {sub + "/" + rel})});
         }
     }
     return rs;
@@ -313,7 +320,7 @@ std::string EventoStore::crearCarpeta(const std::string& ruta, std::string* err)
         limpia = unir(limpia, n);
     }
     if (limpia.empty()) {
-        ponerErr(err, "ese nombre no sirve para una carpeta");
+        ponerErr(err, ba::i18n::traducir("evento", "ese nombre no sirve para una carpeta"));
         return {};
     }
     std::error_code ec;
@@ -323,13 +330,13 @@ std::string EventoStore::crearCarpeta(const std::string& ruta, std::string* err)
     while (std::getline(s2, parte, '/')) {
         tramo = unir(tramo, parte);
         if (fs::exists(raiz_ / tramo / kGuion, ec)) {
-            ponerErr(err, "«" + tramo + "» es un evento, no una carpeta");
+            ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "«%1» es un evento, no una carpeta"), {tramo}));
             return {};
         }
     }
     fs::create_directories(raiz_ / limpia, ec);
     if (ec) {
-        ponerErr(err, "no se pudo crear la carpeta: " + ec.message());
+        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo crear la carpeta: %1"), {ec.message()}));
         return {};
     }
     return limpia;
@@ -358,7 +365,7 @@ std::string EventoStore::crear(const std::string& nombre, std::string* err, cons
                                const std::string& nombreCarpeta) {
     const std::string base = nombreDeCarpeta(nombreCarpeta.empty() ? nombre : nombreCarpeta);
     if (base.empty()) {
-        ponerErr(err, "ese nombre no sirve para una carpeta");
+        ponerErr(err, ba::i18n::traducir("evento", "ese nombre no sirve para una carpeta"));
         return {};
     }
     std::string grupo;
@@ -375,7 +382,7 @@ std::string EventoStore::crear(const std::string& nombre, std::string* err, cons
 
     const fs::path dir = raiz_ / carpeta;
     if (!fs::create_directories(dir, ec)) {
-        ponerErr(err, "no se pudo crear la carpeta: " + ec.message());
+        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo crear la carpeta: %1"), {ec.message()}));
         return {};
     }
     for (const char* sub : {"Medios", "Discursos", "Respaldos"})
@@ -392,7 +399,7 @@ Evento EventoStore::cargar(const std::string& carpeta, bool* ok, std::string* er
     const fs::path archivo = raiz_ / carpeta / kGuion;
     std::ifstream in(archivo);
     if (!in) {
-        ponerErr(err, "no hay guion en " + archivo.string());
+        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no hay guion en %1"), {archivo.string()}));
         return {};
     }
     std::stringstream ss;
@@ -402,7 +409,7 @@ Evento EventoStore::cargar(const std::string& carpeta, bool* ok, std::string* er
         // El archivo esta ahi pero roto. No se devuelve un evento vacio como
         // si nada: el operador tiene que enterarse ANTES de empezar a editar
         // encima, porque el respaldo del guardado siguiente seria el roto.
-        ponerErr(err, "el guion esta dañado (JSON invalido): mira en Respaldos/");
+        ponerErr(err, ba::i18n::traducir("evento", "el guion esta dañado (JSON invalido): mira en Respaldos/"));
         return {};
     }
     if (ok != nullptr) *ok = true;
@@ -413,7 +420,7 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
     const fs::path dir = raiz_ / carpeta;
     std::error_code ec;
     if (!fs::is_directory(dir, ec)) {
-        ponerErr(err, "no existe la carpeta del evento");
+        ponerErr(err, ba::i18n::traducir("evento", "no existe la carpeta del evento"));
         return false;
     }
     const fs::path archivo = dir / kGuion;
@@ -432,18 +439,18 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
         if (!out) {
-            ponerErr(err, "no se pudo escribir en la carpeta del evento");
+            ponerErr(err, ba::i18n::traducir("evento", "no se pudo escribir en la carpeta del evento"));
             return false;
         }
         out << e.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         if (!out.good()) {
-            ponerErr(err, "no se pudo escribir el guion entero");
+            ponerErr(err, ba::i18n::traducir("evento", "no se pudo escribir el guion entero"));
             return false;
         }
     }
     fs::rename(tmp, archivo, ec);
     if (ec) {
-        ponerErr(err, "no se pudo reemplazar el guion: " + ec.message());
+        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo reemplazar el guion: %1"), {ec.message()}));
         fs::remove(tmp, ec);
         return false;
     }
@@ -452,20 +459,20 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
 
 bool EventoStore::borrar(const std::string& carpeta, std::string* err) const {
     if (!rutaValida(carpeta)) {
-        ponerErr(err, "nombre de carpeta invalido");
+        ponerErr(err, ba::i18n::traducir("evento", "nombre de carpeta invalido"));
         return false;
     }
     std::error_code ec;
     const fs::path dir = raiz_ / carpeta;
     // Solo eventos: una carpeta que agrupa puede tener años de histórico adentro.
     if (!fs::is_directory(dir, ec) || !fs::exists(dir / kGuion, ec)) {
-        ponerErr(err, "no existe ese evento");
+        ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return false;
     }
     if (enCurso() == carpeta) fs::remove(raiz_ / kEnCurso, ec);
     fs::remove_all(dir, ec);
     if (ec) {
-        ponerErr(err, "no se pudo borrar: " + ec.message());
+        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo borrar: %1"), {ec.message()}));
         return false;
     }
     return true;
@@ -474,7 +481,7 @@ bool EventoStore::borrar(const std::string& carpeta, std::string* err) const {
 std::string EventoStore::mover(const std::string& evento, const std::string& aCarpeta, std::string* err) {
     std::error_code ec;
     if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
-        ponerErr(err, "no existe ese evento");
+        ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return {};
     }
     std::string grupo;
@@ -486,7 +493,7 @@ std::string EventoStore::mover(const std::string& evento, const std::string& aCa
     std::string destino = unir(grupo, nombre);
     if (destino == evento) return evento;
     if (destino.rfind(evento + "/", 0) == 0) {
-        ponerErr(err, "no se puede mover un evento adentro de sí mismo");
+        ponerErr(err, ba::i18n::traducir("evento", "no se puede mover un evento adentro de sí mismo"));
         return {};
     }
     for (int i = 2; fs::exists(raiz_ / destino, ec) && i < 1000; ++i)
@@ -494,7 +501,7 @@ std::string EventoStore::mover(const std::string& evento, const std::string& aCa
     const bool eraEnCurso = enCurso() == evento;
     fs::rename(raiz_ / evento, raiz_ / destino, ec);
     if (ec) {
-        ponerErr(err, "no se pudo mover: " + ec.message());
+        ponerErr(err, ba::i18n::llenar(ba::i18n::traducir("evento", "no se pudo mover: %1"), {ec.message()}));
         return {};
     }
     if (eraEnCurso) {
@@ -514,7 +521,7 @@ DatosDelEvento EventoStore::datos(const std::string& evento) const {
 bool EventoStore::guardarDatos(const std::string& evento, const DatosDelEvento& d, std::string* err) const {
     std::error_code ec;
     if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
-        ponerErr(err, "no existe ese evento");
+        ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return false;
     }
     return escribirJson(raiz_ / evento / kFicha, d.aJson(), err);
@@ -532,7 +539,7 @@ std::string EventoStore::enCurso() const {
 bool EventoStore::iniciar(const std::string& evento, std::int64_t ahoraMs, std::string* err) {
     std::error_code ec;
     if (!rutaValida(evento) || !fs::exists(raiz_ / evento / kGuion, ec)) {
-        ponerErr(err, "no existe ese evento");
+        ponerErr(err, ba::i18n::traducir("evento", "no existe ese evento"));
         return false;
     }
     const std::string antes = enCurso();
@@ -552,7 +559,7 @@ bool EventoStore::terminar(std::int64_t ahoraMs, std::string* err) {
     std::error_code ec;
     fs::remove(raiz_ / kEnCurso, ec);
     if (e.empty()) {
-        ponerErr(err, "no hay ningún evento en curso");
+        ponerErr(err, ba::i18n::traducir("evento", "no hay ningún evento en curso"));
         return false;
     }
     DatosDelEvento d = datos(e);
@@ -563,7 +570,7 @@ bool EventoStore::terminar(std::int64_t ahoraMs, std::string* err) {
 
 std::string EventoStore::asegurarDelDia(const std::string& dia, std::int64_t ahoraMs, std::string* err) {
     if (dia.size() != 10) {
-        ponerErr(err, "día inválido");
+        ponerErr(err, ba::i18n::traducir("evento", "día inválido"));
         return {};
     }
     const std::string actual = enCurso();
@@ -576,7 +583,7 @@ std::string EventoStore::asegurarDelDia(const std::string& dia, std::int64_t aho
                                    "Julio", "Agosto",  "Septiembre", "Octubre", "Noviembre", "Diciembre"};
     const int mes = std::atoi(dia.substr(5, 2).c_str());
     if (mes < 1 || mes > 12) {
-        ponerErr(err, "día inválido");
+        ponerErr(err, ba::i18n::traducir("evento", "día inválido"));
         return {};
     }
     const std::string grupo = dia.substr(0, 4) + "/" + kMeses[mes - 1];
@@ -593,7 +600,7 @@ std::string EventoStore::asegurarDelDia(const std::string& dia, std::int64_t aho
         DatosDelEvento d;
         d.automatico = true;
         d.dia = dia;
-        d.notas = "Creado solo: no había ningún evento en curso.";
+        d.notas = ba::i18n::traducir("evento", "Creado solo: no había ningún evento en curso.");
         if (!guardarDatos(carpeta, d, err)) return {};
     }
     if (!iniciar(carpeta, ahoraMs, err)) return {};

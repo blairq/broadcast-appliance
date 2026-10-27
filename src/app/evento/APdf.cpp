@@ -55,7 +55,7 @@ QString imprimir(QTextDocument& doc, const QString& titulo, const QString& desti
         w.setCreator("Broadcast Appliance");
         doc.print(&w);
     }
-    return QFileInfo(destino).size() > 0 ? QString() : QString("no se pudo escribir %1").arg(destino);
+    return QFileInfo(destino).size() > 0 ? QString() : QCoreApplication::translate("evento", "no se pudo escribir %1").arg(destino);
 }
 
 /// Una imagen en una página de su forma (A4 vertical u horizontal), centrada.
@@ -63,7 +63,7 @@ QString imagen(const QString& origen, const QString& destino) {
     QImageReader r(origen);
     r.setAutoTransform(true);
     const QImage img = r.read();
-    if (img.isNull()) return "no se pudo leer la imagen: " + r.errorString();
+    if (img.isNull()) return QCoreApplication::translate("evento", "no se pudo leer la imagen: %1").arg(r.errorString());
     QDir().mkpath(QFileInfo(destino).absolutePath());
     {
         QPdfWriter w(destino);
@@ -79,7 +79,7 @@ QString imagen(const QString& origen, const QString& destino) {
                           tam.width(), tam.height()),
                     img);
     }
-    return QFileInfo(destino).size() > 0 ? QString() : QString("no se pudo escribir %1").arg(destino);
+    return QFileInfo(destino).size() > 0 ? QString() : QCoreApplication::translate("evento", "no se pudo escribir %1").arg(destino);
 }
 
 } // namespace
@@ -114,17 +114,17 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
         // Siempre después (nunca adentro de la llamada): el que llama ya terminó lo suyo.
         QTimer::singleShot(0, [listo, err]() { listo(err); });
     };
-    if (!QFileInfo(origen).isFile()) return avisar("no existe el archivo " + origen);
-    if (!sabe(origen)) return avisar("no sé convertir «." + e + "» a PDF (sé: " + formatos() + ")");
+    if (!QFileInfo(origen).isFile()) return avisar(tr("no existe el archivo %1").arg(origen));
+    if (!sabe(origen)) return avisar(tr("no sé convertir «.%1» a PDF (sé: %2)").arg(e, formatos()));
     QDir().mkpath(QFileInfo(destino).absolutePath());
     if (e == "pdf") {
         QFile::remove(destino);
-        return avisar(QFile::copy(origen, destino) ? QString() : "no se pudo copiar a " + destino);
+        return avisar(QFile::copy(origen, destino) ? QString() : tr("no se pudo copiar a %1").arg(destino));
     }
     if (kImagen.contains(e)) return avisar(imagen(origen, destino));
     if (kTexto.contains(e)) {
         QFile f(origen);
-        if (!f.open(QIODevice::ReadOnly)) return avisar("no se pudo leer " + origen);
+        if (!f.open(QIODevice::ReadOnly)) return avisar(tr("no se pudo leer %1").arg(origen));
         const QString contenido = QString::fromUtf8(f.readAll());
         return avisar(texto(contenido, e == "txt" ? "texto" : "markdown", QFileInfo(origen).completeBaseName(), destino));
     }
@@ -134,13 +134,13 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
     if (bin.isEmpty()) {
         if (e == "html" || e == "htm" || e == "xhtml") {
             QFile f(origen);
-            if (!f.open(QIODevice::ReadOnly)) return avisar("no se pudo leer " + origen);
+            if (!f.open(QIODevice::ReadOnly)) return avisar(tr("no se pudo leer %1").arg(origen));
             QTextDocument doc;
             doc.setBaseUrl(QUrl::fromLocalFile(QFileInfo(origen).absolutePath() + "/")); // las imágenes relativas
             doc.setHtml(QString::fromUtf8(f.readAll()));
             return avisar(imprimir(doc, QFileInfo(origen).completeBaseName(), destino));
         }
-        return avisar("este equipo no trae " + nombre + " para convertir «." + e + "»");
+        return avisar(tr("este equipo no trae %1 para convertir «.%2»").arg(nombre, e));
     }
     const QString tmp = temporal();
     const QString esperado = tmp + "/" + QFileInfo(origen).completeBaseName() + ".pdf";
@@ -158,21 +158,21 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
         // Vale si el PDF está (no solo el código de salida); lo que haya dicho va en el motivo.
         if (!QFileInfo::exists(esperado)) {
             const QString dijo = QString::fromLocal8Bit(p->readAll()).trimmed();
-            return terminar(dijo.isEmpty() ? nombre + " no pudo abrir el archivo (¿está dañado?)"
+            return terminar(dijo.isEmpty() ? tr("%1 no pudo abrir el archivo (¿está dañado?)").arg(nombre)
                                            : nombre + ": " + dijo.left(600));
         }
         QFile::remove(destino);
         terminar(QFile::rename(esperado, destino) || QFile::copy(esperado, destino) ? QString()
-                                                                                    : "no se pudo escribir " + destino);
+                                                                                    : tr("no se pudo escribir %1").arg(destino));
     });
     connect(p, &QProcess::errorOccurred, this, [terminar, nombre](QProcess::ProcessError e) {
-        if (e == QProcess::FailedToStart) terminar("no arrancó " + nombre);
+        if (e == QProcess::FailedToStart) terminar(tr("no arrancó %1").arg(nombre));
     });
     connect(p, &QProcess::started, p, [p]() { p->closeWriteChannel(); });
     // Uno trabado no deja la conversión colgada para siempre.
     QTimer::singleShot(180000, p, [p, terminar, nombre]() {
         p->kill();
-        terminar(nombre + " tardó más de 3 minutos: se cortó");
+        terminar(tr("%1 tardó más de 3 minutos: se cortó").arg(nombre));
     });
     p->start();
 }

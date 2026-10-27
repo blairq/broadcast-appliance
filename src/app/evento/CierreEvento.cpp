@@ -3,6 +3,8 @@
 // ============================================================================
 #include "evento/CierreEvento.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
@@ -202,7 +204,9 @@ nlohmann::json CierreEvento::sellar(const fs::path& evento, std::int64_t ahoraMs
 nlohmann::json CierreEvento::verificar(const fs::path& evento, const std::atomic<bool>* cancelar) {
     std::ifstream f(evento / "sellos.json", std::ios::binary);
     const json s = f ? json::parse(f, nullptr, false) : json();
-    if (!s.is_object()) return json{{"ok", false}, {"error", "el evento no tiene sellos.json (no se cerró, o se está sellando)"}};
+    if (!s.is_object())
+        return json{{"ok", false},
+                    {"error", ba::i18n::traducir("evento", "el evento no tiene sellos.json (no se cerró, o se está sellando)")}};
     const json a = s.value("archivos", json::object());
     json cambiados = json::array(), faltan = json::array(), nuevos = json::array();
     std::error_code ec;
