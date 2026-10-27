@@ -62,11 +62,11 @@
     <section class="hero">
       <div class="hero-marca" data-vivo="seccion-numero" aria-hidden="true"></div>
       <div class="contenedor">
-        <p class="ceja">Sección <span data-vivo="seccion-numero"></span> / <span data-vivo="seccion-total"></span>
+        <p class="ceja"><span data-vivo="seccion-de"></span>
           · <span data-vivo="seccion-duracion"></span> · <span class="estado-seccion" data-vivo="seccion-estado"></span></p>
         <h1 class="h1" data-vivo="seccion-nombre">{{titulo}}</h1>
         <!-- de-que-se-trata: una o dos líneas concretas (quién habla, qué se decide). -->
-        <p class="bajada">Parte de <span data-vivo="nombre">{{evento}}</span>.</p>
+        <p class="bajada" data-vivo="parte-de">Parte de {{evento}}.</p>
         <p class="habla" data-vivo-si="habla" hidden><span class="ceja" data-i18n="Habla ahora">Habla ahora</span> <b data-vivo="habla"></b></p>
         <div class="hero-acciones">
           <a class="boton primario" href="#vivo" data-i18n="Ver en vivo">Ver en vivo</a>
@@ -139,7 +139,7 @@
         <div class="cabeza-seccion">
           <p class="ceja"><span data-num></span> / <span data-i18n="La asamblea">La asamblea</span></p>
           <h2 class="h2" data-vivo="asamblea-cuerpo">La asamblea</h2>
-          <p class="bajada"><b data-vivo="asamblea-presentes">0</b> de <span data-vivo="asamblea-total">0</span> integrantes presentes
+          <p class="bajada"><span data-vivo-frase="asamblea-presentes"><b>0</b> de <span>0</span> integrantes presentes</span>
             <span data-vivo-si="asamblea-quorum" hidden> · <span class="estado" data-vivo="asamblea-quorum"></span></span></p>
         </div>
         <div class="tarjeta" data-vivo-si="punto" hidden style="margin-bottom:24px">
@@ -213,7 +213,7 @@
       <div class="pie-grilla">
         <div>
           <p class="h3" style="margin:0 0 10px" data-vivo="nombre">{{evento}}</p>
-          <p><span data-vivo="fecha-larga"></span><span data-vivo-si="huso" hidden> (hora de <span data-vivo="huso"></span>)</span></p>
+          <p><span data-vivo="fecha-larga"></span><span data-vivo-si="huso" hidden> <span data-vivo="hora-de-entre-parentesis"></span></span></p>
           <p data-i18n="Esta página se actualiza sola mientras el evento pasa.">Esta página se actualiza sola mientras el evento pasa.</p>
         </div>
         <div><h4 data-i18n="El evento">El evento</h4><ul>

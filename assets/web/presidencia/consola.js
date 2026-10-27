@@ -7,7 +7,8 @@
 
 const $ = (id) => document.getElementById(id);
 // Los textos, en el idioma del evento. Lo que se pinta espera a que estén.
-const listo = BAi18n.iniciar({ contexto: "web/presidencia", preferir: "evento" }).then(() => { if (window.BA && BA.traducir) BA.traducir(); });
+// (los componentes de neuro.js se traducen solos con el evento ba-idioma)
+const listo = BAi18n.iniciar({ contexto: "web/presidencia", preferir: "evento" });
 const llenar = (s, ...v) => BAi18n.llenar(s, ...v);
 const frag = new URLSearchParams(location.hash.slice(1));
 const consola = frag.get("c") || "";

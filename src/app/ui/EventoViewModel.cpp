@@ -857,9 +857,9 @@ QString EventoViewModel::enlaceDeCue(const QString& tipo) const {
 }
 
 QVariantList EventoViewModel::escenarios() const {
-    QFile f(":/escenarios/indice.json");
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    return QJsonDocument::fromJson(f.readAll()).array().toVariantList();
+    // Las guías son del operador (para él y el asistente): en su idioma.
+    const std::string indice = ba::i18n::leer("guias/escenarios/indice.json");
+    return QJsonDocument::fromJson(QByteArray::fromStdString(indice)).array().toVariantList();
 }
 
 QString EventoViewModel::pedidoDeEscenario(const QString& id, const QString& notas, const QString& plantilla) const {

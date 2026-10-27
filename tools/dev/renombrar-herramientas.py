@@ -26,7 +26,7 @@ import subprocess
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-CARPETAS = ["src", "datos", "docs", "tools", "resources", "plantillas", "Makefile", "CLAUDE.md"]
+CARPETAS = ["src", "datos", "assets/idiomas", "docs", "tools", "resources", "plantillas", "Makefile", "CLAUDE.md"]
 EXT = {".cpp", ".hpp", ".h", ".mm", ".c", ".qml", ".js", ".py", ".json", ".jsonl", ".md", ".txt", ".html",
        ".css", ".sh", ".yml", ".yaml", ".toml", ".csv", ""}
 NO_TOCAR = [re.compile(p) for p in (
@@ -38,7 +38,8 @@ ALIAS = RAIZ / "src/app/mcp/McpRenombres.cpp"
 # --solo-app: la app, su ayuda y sus guias; los datos y scripts de ENTRENAMIENTO
 # se migran despues (mientras se entrena, el prompt sale de docs/mcp.json y de
 # datos/ con los nombres viejos y la capa de traduccion del perfil)
-SOLO_APP = [re.compile(p) for p in (r"^datos/(?!escenarios/)", r"^tools/entrenar/")]
+# (las guias de eventos y la ayuda del MCP estan en assets/idiomas: son de la app)
+SOLO_APP = [re.compile(p) for p in (r"^datos/", r"^tools/entrenar/")]
 
 
 def archivos(solo_app=False):

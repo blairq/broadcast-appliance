@@ -2,7 +2,7 @@
 // si aparecen en «Evento nuevo» y en «Prepararlo con el asistente»; abrir una para
 // editarla (la app se reinicia con ella), restablecer una del programa que se editó,
 // borrar una propia y guardar el evento abierto como plantilla nueva.
-// Las del programa (assets/demo, generadas por tools/generar/plantillas.py) no se tocan:
+// Las del programa (assets/demo/<idioma>: las del idioma del operador, generadas por tools/generar/plantillas.py) no se tocan:
 // editarla hace una copia propia que le gana. Modelo: Studio.configuraciones
 // (plantillasAdminUi, plantillaAjustarUi, plantillaMoverUi, plantillaEditarUi…).
 import QtQuick

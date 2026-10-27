@@ -18,7 +18,7 @@ todo el texto está escrito en español, directo en el código.
 | Modelos locales entrenados | `datos/entrenamiento/` (unos 9.000 ejemplos, todo en español) | — |
 | Voz | reconocimiento (Nemotron / Parakeet), síntesis (Piper `es_AR-daniela`), ritmo del prompter medido en es_AR | público, operador |
 | Tótems | `registro/Conversacion.cpp`: frases, correo dictado («arroba», «punto»), DNI argentino | público |
-| Plantillas y guías | `datos/escenarios/` (19 guías), `assets/demo/` (generado con `tools/generar/plantillas.py`), `graficos-plantilla` | operador, público |
+| Plantillas y guías | `assets/idiomas/<c>/guias/escenarios/` (19 guías), `assets/demo/<c>/` (generado con `tools/generar/plantillas.py`), `graficos-plantilla` | operador, público |
 | Gráficos al aire | textos fijos («En vivo», votación, quórum), formato de la hora y la fecha | público |
 | Documentación y empaquetado | README (ya en inglés y español), `docs/manual`, `LEEME.txt`, «Leeme primero» del `.dmg`, notas del release, pantalla de arranque | operador |
 
@@ -38,7 +38,7 @@ de recursos, y la app descubre los idiomas por lo que encuentra:
   - la voz de síntesis y el modelo de reconocimiento;
   - el ritmo del prompter;
   - las reglas del tótem (correo dictado, confirmación, números);
-- guías y plantillas en `datos/escenarios/<idioma>/` y en `assets/demo/<idioma>/`.
+- guías en `assets/idiomas/<idioma>/guias/escenarios/` y plantillas en `assets/demo/<idioma>/` (los textos de `plantillas.py` en `assets/idiomas/<idioma>/plantillas/textos.json`).
 
 `if (idioma == "en")` está prohibido. Lo que cambia entre idiomas va en el perfil, y
 `test_i18n.py` lo busca en el código.
@@ -194,7 +194,7 @@ fases mecánicas se reparten entre agentes en paralelo por carpeta (contrato de
 | **I4. Web** | `i18n.js` y catálogos; idioma del navegador o del evento; selector en invitado y sesión | agentes por interfaz |
 | **I5. Asistente** | prompts a `assets/prompts/es/`, descripciones MCP al `.ts`, responder en el idioma del operador | yo, porque es delicado |
 | **I6. Voz y tótems** | catálogo de voces por idioma, perfiles del tótem, documentos por país, ritmo del prompter | yo, y se prueba con señales y archivos sintéticos (nada por los parlantes) |
-| **I7. Contenido del evento** | gráficos y plantillas de gráficos, guías (`datos/escenarios/<idioma>/`), plantillas de demo (`plantillas.py` con idioma), subtítulos y traducción en vivo, con el idioma del evento como origen | agentes |
+| **I7. Contenido del evento** | gráficos y plantillas de gráficos, guías (`assets/idiomas/<idioma>/guias/escenarios/`), plantillas de demo (`plantillas.py` con idioma), subtítulos y traducción en vivo, con el idioma del evento como origen | agentes |
 | **I8. Documentación y empaquetado** | `docs/manual` en inglés, `LEEME.txt` y «Leeme primero» por idioma (va el del sistema, o los dos), notas del release en inglés y español, pantalla de arranque | agentes |
 | **I9. Traducción al inglés** | completar `ba_en.ts`, prompts y ejemplos en inglés; revisión con capturas de cada pantalla | yo y agentes; vos revisás lo dudoso |
 | **I10. Modelos locales** | corpus de entrenamiento multilingüe (ejemplos escritos para cada idioma, no traducidos a ciegas) y reentrenar; examen por idioma | al final, junto con el reentrenamiento pendiente |

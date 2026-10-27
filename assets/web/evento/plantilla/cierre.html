@@ -50,7 +50,7 @@
       <div class="contenedor">
         <p class="ceja"><span data-vivo="fecha-corta"></span> · <span data-vivo="estado">Terminó</span></p>
         <h1 class="h1" data-i18n="Gracias por estar.">Gracias por estar.</h1>
-        <p class="bajada"><span data-vivo="nombre">{{titulo}}</span> terminó. Acá queda la grabación y todo lo que pasó.</p>
+        <p class="bajada" data-vivo="termino">{{titulo}} terminó. Acá queda la grabación y todo lo que pasó.</p>
         <div class="hero-acciones">
           <a class="boton primario" href="#vivo" data-i18n="Volver a verlo">Volver a verlo</a>
           <a class="boton secundario" href="#programa" data-vivo-si="secciones" data-i18n="Lo que pasó">Lo que pasó</a>
@@ -89,7 +89,7 @@
         <div class="cabeza-seccion">
           <p class="ceja"><span data-num></span> / <span data-i18n="La asamblea">La asamblea</span></p>
           <h2 class="h2" data-vivo="asamblea-cuerpo">La asamblea</h2>
-          <p class="bajada"><b data-vivo="asamblea-presentes">0</b> de <span data-vivo="asamblea-total">0</span> integrantes presentes
+          <p class="bajada"><span data-vivo-frase="asamblea-presentes"><b>0</b> de <span>0</span> integrantes presentes</span>
             <span data-vivo-si="asamblea-quorum" hidden> · <span class="estado" data-vivo="asamblea-quorum"></span></span></p>
         </div>
         <div class="tarjeta" data-vivo-si="punto" hidden style="margin-bottom:24px">

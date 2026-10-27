@@ -593,8 +593,7 @@
   }
 
   // Los textos, en el idioma del evento.
-  await BAi18n.iniciar({ contexto: "web/botonera", preferir: "evento" });
-  BA.traducir();
+  await BAi18n.iniciar({ contexto: "web/botonera", preferir: "evento" }); // neuro.js se traduce solo (ba-idioma)
   const codigo = codigoDelFragmento();
   if (codigo) mostrarEmparejar(codigo);
   else conectar();

@@ -68,7 +68,7 @@
           <a class="boton primario" href="#vivo" data-i18n="Ver en vivo">Ver en vivo</a>
           <a class="boton secundario" href="#programa" data-vivo-si="secciones" data-i18n="Ver el programa">Ver el programa</a>
         </div>
-        <p class="micro"><span data-i18n="En vivo por internet · Sin registrarse">En vivo por internet · Sin registrarse</span><span data-vivo-si="huso" hidden> · Hora de <span data-vivo="huso"></span></span></p>
+        <p class="micro"><span data-i18n="En vivo por internet · Sin registrarse">En vivo por internet · Sin registrarse</span><span data-vivo-si="huso" hidden> · <span data-vivo="hora-de"></span></span></p>
       </div>
     </section>
 
@@ -144,7 +144,7 @@
         <div class="cabeza-seccion">
           <p class="ceja"><span data-num></span> / <span data-i18n="La asamblea">La asamblea</span></p>
           <h2 class="h2" data-vivo="asamblea-cuerpo">La asamblea</h2>
-          <p class="bajada"><b data-vivo="asamblea-presentes">0</b> de <span data-vivo="asamblea-total">0</span> integrantes presentes
+          <p class="bajada"><span data-vivo-frase="asamblea-presentes"><b>0</b> de <span>0</span> integrantes presentes</span>
             <span data-vivo-si="asamblea-quorum" hidden> · <span class="estado" data-vivo="asamblea-quorum"></span></span></p>
         </div>
         <div class="tarjeta" data-vivo-si="punto" hidden style="margin-bottom:24px">
@@ -288,7 +288,7 @@
           <h3><button type="button" aria-expanded="false" aria-controls="r1" data-i18n="¿Hay que registrarse?">¿Hay que registrarse?</button></h3>
           <div class="respuesta" id="r1" hidden><p data-i18n="No. Entrás y mirás. No pedimos cuenta, mail ni datos.">No. Entrás y mirás. No pedimos cuenta, mail ni datos.</p></div>
           <h3><button type="button" aria-expanded="false" aria-controls="r2" data-i18n="¿A qué hora empieza?">¿A qué hora empieza?</button></h3>
-          <div class="respuesta" id="r2" hidden><p>El <span data-vivo="fecha-larga">día y la hora se confirman acá</span><span data-vivo-si="huso" hidden> (hora de <span data-vivo="huso"></span>)</span>. <span data-i18n="La cuenta regresiva de arriba ya está en tu hora.">La cuenta regresiva de arriba ya está en tu hora.</span></p></div>
+          <div class="respuesta" id="r2" hidden><p><span data-vivo="cuando">El día y la hora se confirman acá.</span> <span data-i18n="La cuenta regresiva de arriba ya está en tu hora.">La cuenta regresiva de arriba ya está en tu hora.</span></p></div>
           <h3><button type="button" aria-expanded="false" aria-controls="r3" data-i18n="¿Queda grabado?">¿Queda grabado?</button></h3>
           <div class="respuesta" id="r3" hidden><p data-i18n="Sí. Cuando termine, la grabación queda en el mismo lugar del vivo.">Sí. Cuando termine, la grabación queda en el mismo lugar del vivo.</p></div>
           <h3><button type="button" aria-expanded="false" aria-controls="r4" data-i18n="¿Cómo participo?">¿Cómo participo?</button></h3>
@@ -317,7 +317,7 @@
       <div class="pie-grilla">
         <div>
           <p class="h3" style="margin:0 0 10px" data-vivo="nombre">{{titulo}}</p>
-          <p><span data-vivo="fecha-larga"></span><span data-vivo-si="huso" hidden> (hora de <span data-vivo="huso"></span>)</span></p>
+          <p><span data-vivo="fecha-larga"></span><span data-vivo-si="huso" hidden> <span data-vivo="hora-de-entre-parentesis"></span></span></p>
           <p data-i18n="Esta página se actualiza sola mientras el evento pasa.">Esta página se actualiza sola mientras el evento pasa.</p>
         </div>
         <div><h4 data-i18n="El evento">El evento</h4><ul>

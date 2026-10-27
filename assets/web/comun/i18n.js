@@ -10,6 +10,11 @@
 //   t("Salida", { desambiguacion: "audio" })
 //   <button data-i18n="Entrar a la sala">Entrar a la sala</button>   // en el HTML:
 //   <input data-i18n-placeholder="Tu nombre">                          // BAi18n.aplicar()
+//   <img data-i18n-alt="Logo del evento">                              // (y -title, -aria-label)
+//
+// Al terminar iniciar() (también al cambiar de idioma con elegir) dispara `ba-idioma` en
+// window, con el código en event.detail.idioma: lo que pinta textos por su cuenta (neuro.js,
+// lo que arma el JS de la página) los vuelve a armar ahí.
 //
 // Qué idioma: ?idioma= en la URL, si no el que eligió esta persona en la página
 // (BAi18n.elegir, se recuerda en este navegador), si no según `preferir` (el del evento
@@ -122,6 +127,9 @@
     document.documentElement.lang = pedido.codigo;
     document.documentElement.dir = pedido.rtl ? "rtl" : "ltr";
     aplicar(document);
+    try {
+      window.dispatchEvent(new CustomEvent("ba-idioma", { detail: { idioma: pedido.codigo, perfil: pedido } }));
+    } catch (e) { /* un escuchador que falla no frena la página */ }
     return pedido.codigo;
   }
 
@@ -153,7 +161,7 @@
   }
 
   const ATRIBUTOS = { "data-i18n-placeholder": "placeholder", "data-i18n-title": "title",
-                      "data-i18n-aria-label": "aria-label" };
+                      "data-i18n-aria-label": "aria-label", "data-i18n-alt": "alt" };
   function aplicar(raiz) {
     raiz = raiz || document;
     raiz.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n")); });
