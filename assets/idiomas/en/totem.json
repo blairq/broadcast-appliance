@@ -1,0 +1,113 @@
+{
+  "_comentario": "How the kiosk UNDERSTANDS what people say in English (registro/Conversacion). What the kiosk SAYS is not here: it is in the catalog (context «totem», i18n/ba_en.ts). The word lists are compared against the speech-to-text output once flattened (lowercase, without the accents in «aplanar» and with punctuation as spaces): so a contraction is written with a space where the apostrophe was («don t know», «that s right»). Only «nombre» keeps the apostrophe («i'm»). A phrase is several words separated by one space. What the kiosk says has to be answerable with these lists: the catalog confirmation (“Say “yes, that's correct”…”) with the ones in «respuestas». See docs/desarrollo/I18N.md, «Tótem: datos del idioma».",
+
+  "aplanar": {
+    "_comentario": "Letter (UTF-8) → what it becomes when flattened. Anything not listed here that is not ASCII is dropped. A space: taken as a separator. The typographic apostrophe becomes the plain one (so «I’m» and «I'm» are the same).",
+    "á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n", "è": "e", "ç": "c", "ö": "o", "ä": "a",
+    "Á": "a", "É": "e", "Í": "i", "Ó": "o", "Ú": "u", "Ü": "u", "Ñ": "n", "È": "e", "Ç": "c", "Ö": "o", "Ä": "a",
+    "’": "'", "‘": "'", "“": " ", "”": " ", "—": " ", "–": " "
+  },
+
+  "numeros": {
+    "_comentario": "Numbers said in words. «regla» «en» (Conversacion.cpp, grupo()): the hundred MULTIPLIES the unit before it («two hundred», «a hundred» or a bare «hundred» = 100), optionally followed by a «conectoresCentena» («and») and 1..99; a ten («thirty») optionally followed by its unit («thirty five»: no connector, the hyphen is a space); or a unit (0 to 19). «mil» (thousand) multiplies what comes before (or 1) and adds; «millon» multiplies everything before. «ninguno» counts as zero. «oh» is zero in phone numbers («five five five oh one»). «digitos»: how each digit 0..9 is said, to read back a phone or an email (not flattened).",
+    "regla": "en",
+    "unidades": {
+      "zero": 0, "oh": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+      "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+      "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19
+    },
+    "decenas": {
+      "twenty": 20, "thirty": 30, "forty": 40, "fourty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80,
+      "ninety": 90
+    },
+    "conectores": [],
+    "centenas": {"hundred": 100, "hundreds": 100},
+    "centenasSolas": [],
+    "conectoresCentena": ["and"],
+    "mil": ["thousand", "thousands"],
+    "millon": ["million", "millions"],
+    "ninguno": ["none", "nobody", "nothing", "nil"],
+    "digitos": ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+  },
+
+  "respuestas": {
+    "_comentario": "Yes or no. First «noSabe» (neither yes nor no: ask again) and «noFrases» (a no even if it has a yes inside: «not right»); then, if one of «si» or of «no» appears (and not both), that one. The first of each list is the one used when the model answers with a boolean.",
+    "si": ["yes", "yeah", "yep", "yup", "yes yes", "sure", "of course", "correct", "that s correct", "it s correct",
+           "right", "that s right", "exactly", "affirmative", "ok", "okay", "alright", "all right", "fine", "perfect",
+           "absolutely", "definitely", "certainly", "sounds good", "looks good", "good", "great", "uh huh", "mhm",
+           "that s it", "it is", "yes it is", "you got it", "spot on", "indeed"],
+    "no": ["no", "nope", "nah", "negative", "not really", "not at all", "wrong", "that s wrong", "incorrect",
+           "that s incorrect", "never", "no way", "not quite", "it s not", "it isn t", "that isn t", "not"],
+    "noSabe": ["i don t know", "don t know", "dont know", "i dunno", "dunno", "not sure", "i m not sure", "no idea"],
+    "noFrases": ["not right", "not correct", "isn t right", "isn t correct", "that s not right", "that s not correct",
+                 "not ok", "not okay", "not good", "no no", "not at all", "not really", "not quite", "it s not",
+                 "it isn t", "that isn t", "no that s wrong"]
+  },
+
+  "_comentarioListas": "cancelar, repetir and saltear: «exactas» = the whole utterance is that; «contiene» = it appears in the utterance (as whole words).",
+  "cancelar": {
+    "exactas": ["cancel", "cancel it", "cancel that", "stop", "bye", "goodbye", "bye bye", "i m leaving", "i m off",
+                "forget it", "never mind", "nevermind"],
+    "contiene": ["cancel the registration", "cancel my registration", "cancel registration", "cancel the check in",
+                 "cancel check in"]
+  },
+  "repetir": {
+    "exactas": ["what", "what s that", "what did you say", "sorry", "pardon", "pardon me", "excuse me", "come again",
+                "say again", "say that again", "repeat", "repeat that", "repeat please", "again", "one more time",
+                "i didn t get that", "i didn t catch that", "i didn t understand", "i didn t hear you",
+                "i couldn t hear you", "huh", "eh"],
+    "contiene": ["can you repeat", "could you repeat", "say that again", "repeat the question"]
+  },
+  "saltear": {
+    "exactas": ["pass", "skip", "i don t know", "don t know", "dont know"],
+    "contiene": ["skip", "skip it", "skip this", "next", "next one", "next question", "i d rather not", "rather not",
+                 "prefer not", "i prefer not to say", "i don t want to", "i don t have", "i don t have one",
+                 "i don t remember", "i can t remember", "later", "another time", "not now"]
+  },
+
+  "correo": {
+    "_comentario": "The dictated email. «signos»: what is said instead of a sign, in order (multi-word phrases are replaced first, then single words). «noSonDigitos»: units of «numeros» that are not turned into a digit («oh» is more often the letter o in an email). «antes» and «despues»: what is said before the email («my email is») and after («thanks»), which is removed. «terminaciones»: domain endings that, standing alone after the at sign, take a dot («gmail com» → gmail.com). «dominios»: a domain said without its ending that is completed. «decir»: how each sign is read back aloud.",
+    "signos": [["at sign", "@"], ["dot com", ".com"], ["under score", "_"], ["low dash", "_"], ["at", "@"],
+               ["dot", "."], ["period", "."], ["underscore", "_"], ["underline", "_"], ["dash", "-"],
+               ["hyphen", "-"], ["minus", "-"]],
+    "noSonDigitos": ["oh"],
+    "antes": ["my", "email", "e-mail", "mail", "address", "is", "it", "it s", "s", "its", "the", "um", "uh", "er", "oh",
+              "well", "so", "ok", "okay", "yes", "yeah", "sure", "i", "have", "that", "would", "be"],
+    "despues": ["thanks", "thank", "you", "please", "that", "s", "it", "all", "done"],
+    "terminaciones": ["com", "net", "org", "edu", "gov", "io", "co", "us", "uk", "ca", "au", "ar", "es", "mx"],
+    "dominios": {"gmail": "gmail.com", "googlemail": "googlemail.com", "hotmail": "hotmail.com", "yahoo": "yahoo.com",
+                 "outlook": "outlook.com", "live": "live.com", "icloud": "icloud.com", "aol": "aol.com",
+                 "msn": "msn.com", "protonmail": "protonmail.com", "comcast": "comcast.net"},
+    "decir": {".": "dot", "@": "at", "_": "underscore", "-": "dash"}
+  },
+
+  "telefono": {
+    "_comentario": "«mas»: what is said for the + of the country code (only at the start); «decirMas», how it is read back. «repetir»: «double five» = 55, «triple zero» = 000. «grupo»: how many digits are read and shown together (the first group takes the remainder: 55 5123 4567).",
+    "mas": ["plus"],
+    "decirMas": "plus",
+    "repetir": {"double": 2, "triple": 3},
+    "grupo": 4
+  },
+
+  "nombre": {
+    "_comentario": "«antes»: what is said before the name, in order (the first one that matches at the start is removed, and again, until none is left). Here the apostrophe stays («i'm»). «despues»: at the end. «noEmpiezaCon»: if the utterance starts like this, it is not a name («no thanks»). «particulas»: lowercase in the middle of a name («Ana María de la Fuente», «Ludwig van Beethoven»).",
+    "antes": ["hi", "hello", "hey", "hi there", "good morning", "good afternoon", "good evening", "um", "uh", "er",
+              "well", "so", "ok", "okay", "yes", "yeah", "sure", "my full name is", "my name is", "my name's",
+              "the name is", "name is", "my name", "i'm", "i am", "it's", "it is", "this is", "call me",
+              "people call me", "they call me", "i go by"],
+    "despues": ["thanks", "thank you", "please"],
+    "noEmpiezaCon": ["no", "nope", "not"],
+    "particulas": ["de", "del", "la", "las", "los", "y", "e", "da", "di", "dos", "das", "du", "van", "von", "der", "den",
+                   "el"]
+  },
+
+  "opciones": {
+    "_comentario": "Picking an option by its order: «orden» has, for the first, the second…, how it is named; «ultima», the last one.",
+    "orden": [["first", "one", "1", "1st"], ["second", "two", "2", "2nd"], ["third", "three", "3", "3rd"],
+              ["fourth", "four", "4", "4th"], ["fifth", "five", "5", "5th"]],
+    "ultima": ["last", "last one", "the last"]
+  },
+
+  "etiquetaEnMinuscula": true,
+  "_comentarioEtiqueta": "etiquetaEnMinuscula: a field label said in the middle of a sentence starts lowercase («Got email…»; an acronym like «ID» stays)."
+}

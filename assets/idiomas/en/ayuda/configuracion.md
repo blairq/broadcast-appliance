@@ -1,0 +1,5 @@
+- `settings_list` (or `{"section": ...}`): key, value, type, options, range, help and scope.
+- `settings_set {"values": {"clave": valor, ...}}` applies and saves. `{"resetSection": "Video"}` restores the defaults.
+- Scope: `live` (immediately), `gateway` (restarts the conference: guests reconnect), `restart` (on the next startup).
+- Sections (the ones on the left of Settings): Video, Cameras and inputs, Audio, Translation, Streaming, Recording, Encoding, Guests, Conference, Conference network, Remote session, Faces, Check-in kiosks, Control surface and devices, Teleprompter, Displays, Event page, Pinggy, Cloudflare, Own tunnel (WireGuard), Assistant (MCP), System voice (tabs Operator voice and Attendant voice), Local models, System control, Appearance, Plugins and downloads, System and data. For access from the internet: `help {"topic": "acceso_remoto"}`.
+- To have SEVERAL complete configurations (one per client, a test one, the demo) and switch between them: `help {"topic": "configuraciones"}`.

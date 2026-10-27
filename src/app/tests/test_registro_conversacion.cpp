@@ -17,6 +17,9 @@
 //      lo vuelve a pedir del dorso, el segundo fallo saltea; sin dorso, como antes.
 //   6. Otro idioma: con un totem.json y un catálogo de mentira («at», «dot», «yes»), entiende
 //      y habla en ese idioma sin tocar el código (ningún idioma está escrito en Conversacion).
+//   7. El inglés de verdad: con assets/idiomas/en/totem.json, los números con la regla «en»
+//      (la centena multiplica: «two hundred and thirty four»), el correo dictado («at», «dot»,
+//      «underscore»), el teléfono («plus», «double», «oh») y sí/no; el español, igual.
 // ============================================================================
 #include <cstdio>
 #include <filesystem>
@@ -687,6 +690,63 @@ void confirmarConBotones() {
           "las frases largas que pide");
 }
 
+void ingles() {
+    // Los perfiles de la compilación (assets/idiomas): el totem.json real del inglés.
+    long long n = -1;
+    const auto num = [&n](const char* dicho) {
+        n = -1;
+        return entenderNumero(dicho, n, "en") ? n : -1;
+    };
+    CHECK(num("thirty-five") == 35, "inglés: decena y unidad con guion");
+    CHECK(num("nineteen") == 19, "inglés: unidad de dos cifras");
+    CHECK(num("two hundred and thirty-four") == 234, "inglés: la centena multiplica, con «and»");
+    CHECK(num("two hundred thirty four") == 234, "inglés: la centena multiplica, sin «and»");
+    CHECK(num("a hundred") == 100 && num("one hundred and five") == 105, "inglés: «a hundred», «one hundred and five»");
+    CHECK(num("nine hundred") == 900, "inglés: centena sola");
+    CHECK(num("two thousand twenty-six") == 2026, "inglés: mil");
+    CHECK(num("three hundred thousand") == 300000, "inglés: centena de miles");
+    CHECK(num("one million two hundred thousand") == 1200000, "inglés: millón");
+    CHECK(num("none") == 0, "inglés: «none» es cero");
+    CHECK(num("about 40 people") == 40, "inglés: en cifras");
+
+    std::string o;
+    CHECK(entenderCorreo("my email is john dot smith at gmail dot com", o, "en") && o == "john.smith@gmail.com",
+          "inglés: correo con «at» y «dot»");
+    CHECK(entenderCorreo("It's mary underscore jones at yahoo dot com, thanks.", o, "en") && o == "mary_jones@yahoo.com",
+          "inglés: «underscore», «it's» y «thanks»");
+    CHECK(entenderCorreo("ann dash lee five at outlook", o, "en") && o == "ann-lee5@outlook.com",
+          "inglés: «dash», dígito en palabra y dominio completado");
+    CHECK(entenderCorreo("bob at company co uk", o, "en") && o == "bob@company.co.uk", "inglés: terminaciones sueltas");
+    CHECK(!entenderCorreo("juan arroba gmail punto com", o, "en"), "inglés: «arroba» no es nada");
+
+    CHECK(entenderTelefono("plus one five five five oh one two three four five six seven", o, "en") && o == "+155501234567",
+          "inglés: teléfono con «plus» y «oh»");
+    CHECK(entenderTelefono("double five triple two four three one eight", o, "en") && o == "552224318",
+          "inglés: «double» y «triple»");
+
+    CHECK(entenderSiNo("yes", "en") == 1 && entenderSiNo("Yeah, that's right", "en") == 1 &&
+              entenderSiNo("yes, that's correct", "en") == 1,
+          "inglés: sí");
+    CHECK(entenderSiNo("no", "en") == 0 && entenderSiNo("no, that's incorrect", "en") == 0 &&
+              entenderSiNo("that's not right", "en") == 0 && entenderSiNo("nope", "en") == 0,
+          "inglés: no (y «not right» aunque lleve «right»)");
+    CHECK(entenderSiNo("I don't know", "en") == -1 && entenderSiNo("sí", "en") == -1, "inglés: ni sí ni no");
+
+    CHECK(entenderNombre("Hi, my name is Mary O'Brien", o, "en") && o == "Mary O'brien", "inglés: «hi, my name is»");
+    CHECK(entenderNombre("I’m Ludwig van Beethoven", o, "en") && o == "Ludwig van Beethoven",
+          "inglés: «I’m» con el apóstrofo tipográfico y partícula");
+    CHECK(!entenderNombre("no thanks", o, "en"), "inglés: «no thanks» no es un nombre");
+
+    Campo c;
+    c.tipo = TipoCampo::Correo;
+    CHECK(paraDecir(c, "a_b@x.com", "en") == "a underscore b at x dot com", "inglés: el correo dicho");
+
+    // El español no cambió.
+    CHECK(numero("doscientos treinta y cuatro") == 234 && numero("cien") == 100 && numero("ciento cinco") == 105,
+          "el español sigue igual: centenas");
+    CHECK(entenderSiNo("sí") == 1 && entenderSiNo("yes") != 1, "el español sigue igual: sí");
+}
+
 void otroIdioma() {
     namespace fs = std::filesystem;
     const fs::path base = fs::temp_directory_path() / "ba-test-registro-idioma";
@@ -776,6 +836,7 @@ int main() {
     documentoTipeadoYDictado();
     documentoSinConfirmarYCara();
     documentoDorso();
+    ingles();
     otroIdioma();
     if (g_fallos == 0) std::printf("test_registro_conversacion: todo bien\n");
     return g_fallos == 0 ? 0 : 1;

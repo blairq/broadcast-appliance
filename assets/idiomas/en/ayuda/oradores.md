@@ -1,0 +1,7 @@
+- `speakers_config {"enabled": true, "defaultTime": "3:00", "multi": false, "defaultSlot": 1, "carousel": "manual"|"chain"|"time", "graceSec": 10}`.
+- With the mode on, **admitting** puts the person in the **queue** (they watch the program, they don't go on air).
+- `speaker_next` brings on the next one; `speaker_on_air {"participant", "on"}` a specific person (on=false takes them off: they go back as "spoke").
+- `speaker_move {"participant", "position"}`, `speaker_time {"participant", "time"}`, `participant_requeue`.
+- The clock **never takes anyone off** except with the `time` carousel (past zero + grace period, it rotates). Once time is up it counts negative; the guest sees it.
+- `remotos_fila_ver`: the queue with what the person on air has left (negative `remainingSec` = over time).
+- Board for a tablet: `room_link {"board": true}`.

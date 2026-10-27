@@ -307,29 +307,14 @@ bool esPalabraNumero(const Lengua& L, const std::string& w) {
     return L.unidades.count(w) != 0 || L.decenas.count(w) != 0 || L.centenas.count(w) != 0;
 }
 
-/// Un grupo de 0 a 999 dicho en palabras a partir de `i` («cuatrocientos
-/// cuarenta y cinco», «once», «treinta»). Devuelve -1 si en `i` no empieza uno.
-/// La regla «es» del perfil (la única por ahora; ver totem.json, «numeros»): otra forma de
-/// armar los números va acá, elegida por `L.reglaNumeros`.
-int grupo(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
+int grupo(const Lengua& L, const std::vector<std::string>& w, std::size_t& i);
+
+/// Una decena seguida o no de su unidad («treinta y cinco», «thirty five»), o una unidad
+/// («once», «nineteen»). Devuelve -1 si en `i` no empieza una. Común a las dos reglas.
+int decenaOUnidad(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
     if (i >= w.size()) return -1;
-    int v = -1;
-    if (auto c = L.centenas.find(w[i]); c != L.centenas.end()) {
-        v = c->second;
-        ++i;
-        // Una centena sola («cien») no lleva resto; las demás pueden seguir («ciento veinte»).
-        if (esUna(L.centenasSolas, w[i - 1])) return v;
-        std::size_t j = i;
-        if (j < w.size() && esUna(L.conectoresCentena, w[j])) ++j;
-        const int resto = grupo(L, w, j);
-        if (resto > 0 && resto < 100) {
-            v += resto;
-            i = j;
-        }
-        return v;
-    }
     if (auto d = L.decenas.find(w[i]); d != L.decenas.end()) {
-        v = d->second;
+        int v = d->second;
         ++i;
         // Sin conectores, la unidad va pegada («thirty five»).
         if (L.conectores.empty()) {
@@ -351,6 +336,62 @@ int grupo(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
         return u->second;
     }
     return -1;
+}
+
+/// La regla «en»: la centena MULTIPLICA a la unidad que va antes («two hundred», «a
+/// hundred» o «hundred» solo = 100), seguida o no de un conector («and») y de 1..99
+/// («two hundred and thirty four»). Sin centena, una decena o una unidad, como en «es».
+int grupoCentenaMultiplica(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
+    if (i >= w.size()) return -1;
+    int v = -1;
+    const auto u = L.unidades.find(w[i]);
+    if (u != L.unidades.end() && u->second >= 1 && u->second <= 9 && i + 1 < w.size()) {
+        if (auto c = L.centenas.find(w[i + 1]); c != L.centenas.end()) {
+            v = u->second * c->second;
+            i += 2;
+        }
+    }
+    if (v < 0) {
+        if (auto c = L.centenas.find(w[i]); c != L.centenas.end()) {
+            v = c->second;
+            ++i;
+        }
+    }
+    if (v < 0) return decenaOUnidad(L, w, i);
+    std::size_t j = i;
+    if (j < w.size() && esUna(L.conectoresCentena, w[j])) ++j;
+    const int resto = decenaOUnidad(L, w, j);
+    if (resto > 0 && resto < 100) {
+        v += resto;
+        i = j;
+    }
+    return v;
+}
+
+/// Un grupo de 0 a 999 dicho en palabras a partir de `i` («cuatrocientos
+/// cuarenta y cinco», «once», «treinta»). Devuelve -1 si en `i` no empieza uno.
+/// Cómo se arma lo dice `numeros.regla` del totem.json: «es» (la centena es una palabra
+/// propia, «doscientos», seguida o no de 1..99) o «en» (la centena multiplica a la unidad
+/// de antes: «two hundred thirty»). Otra forma de armar los números va acá.
+int grupo(const Lengua& L, const std::vector<std::string>& w, std::size_t& i) {
+    if (L.reglaNumeros == "en") return grupoCentenaMultiplica(L, w, i);
+    if (i >= w.size()) return -1;
+    int v = -1;
+    if (auto c = L.centenas.find(w[i]); c != L.centenas.end()) {
+        v = c->second;
+        ++i;
+        // Una centena sola («cien») no lleva resto; las demás pueden seguir («ciento veinte»).
+        if (esUna(L.centenasSolas, w[i - 1])) return v;
+        std::size_t j = i;
+        if (j < w.size() && esUna(L.conectoresCentena, w[j])) ++j;
+        const int resto = grupo(L, w, j);
+        if (resto > 0 && resto < 100) {
+            v += resto;
+            i = j;
+        }
+        return v;
+    }
+    return decenaOUnidad(L, w, i);
 }
 
 std::string digitoEnPalabra(const Lengua& L, char d) {
