@@ -1,28 +1,89 @@
 #!/usr/bin/env python3
-"""Genera las plantillas de evento del programa (assets/demo/<Nombre>/), una por escenario.
+"""Genera las plantillas de evento del programa (assets/demo/<idioma>/<Nombre>/), una por escenario.
 
 Cada plantilla es una configuración completa como la «Demo parlamentaria»: sus escenas
 (Config/app.json, solo las escenas: lo demás lo completa la app con lo de fábrica), los
 gráficos de fábrica, el guion del evento con sus bloques y cues (textos para completar
 marcados ‹así›), discursos de ejemplo para el teleprompter y, donde corresponde, un
 padrón de ejemplo. El asistente parte de acá y la ajusta con la entrevista de la guía
-(datos/escenarios/<id>.md).
+(assets/idiomas/<idioma>/guias/escenarios/<id>.md).
 
-    python3 tools/generar/plantillas.py          # regenera todas (borra las generadas antes)
+    python3 tools/generar/plantillas.py                # regenera las de español (borra las generadas antes)
+    python3 tools/generar/plantillas.py --idioma en    # las de otro idioma (ver «Idiomas» abajo)
+    python3 tools/generar/plantillas.py --textos       # la tabla de textos para traducir
 
 Las plantillas generadas llevan en configuracion.json {"generada": true}: solo esas se
 borran al regenerar (la Demo parlamentaria, hecha a mano, no se toca).
+
+IDIOMAS. Las plantillas son de lo que ve el público (rótulos, placas, la web del evento) y
+de lo que lee el operador (escenas, bloques, notas): van en un idioma. Cada idioma tiene su
+carpeta, assets/demo/<código>/ (se instala en Demos/<código>/ y la app lista las del idioma
+del operador, arranque/Configuraciones). Para sacar las de un idioma nuevo:
+  1. Que sus guías estén traducidas: assets/idiomas/<c>/guias/escenarios/indice.json da el
+     nombre de cada plantilla (su carpeta) y su descripción.
+  2. `--textos` escribe assets/idiomas/es/plantillas/textos.json: cada texto de las
+     plantillas (el original) con su traducción, que en español es el mismo. Se copia a
+     assets/idiomas/<c>/plantillas/textos.json y se traducen los valores (las claves quedan
+     en español). Los ‹…› son para completar: se traducen con sus ‹ › y todo; los %s y %d
+     quedan. Lo que falte sale en español (y el script lo avisa).
+  3. `--idioma <c>` genera assets/demo/<c>/.
+Los nombres de escenas y fuentes se traducen con la misma tabla en todos lados (las escenas,
+las cues que las nombran), así que la plantilla queda coherente. La Demo parlamentaria está
+hecha a mano y es solo en español; los gráficos de fábrica (assets/graficos) se copian tal
+como están.
 """
 import json
 import os
 import shutil
 import sys
+import tempfile
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEMOS = os.path.join(RAIZ, "assets", "demo")
+IDIOMA = "es"  # el de las plantillas que se están armando (lo pone main)
+DEMOS = os.path.join(RAIZ, "assets", "demo", IDIOMA)
 GRAFICOS = os.path.join(RAIZ, "assets", "graficos")
 EXTENSIONES = os.path.join(RAIZ, "assets", "extensiones")
-INDICE = os.path.join(RAIZ, "datos", "escenarios", "indice.json")
+IDIOMAS = os.path.join(RAIZ, "assets", "idiomas")
+
+
+def indice_de(idioma):
+    """Los escenarios (id, título, ícono, resumen) en ese idioma: el índice de sus guías."""
+    f = os.path.join(IDIOMAS, idioma, "guias", "escenarios", "indice.json")
+    if not os.path.isfile(f):
+        print("OJO: no hay guías en «%s»: los nombres de las plantillas salen en español" % idioma, file=sys.stderr)
+        f = os.path.join(IDIOMAS, "es", "guias", "escenarios", "indice.json")
+    return json.load(open(f))
+
+
+# --- Textos ----------------------------------------------------------------------------
+# Todo texto de las plantillas pasa por T: el original en español → el del idioma
+# (assets/idiomas/<c>/plantillas/textos.json). Lo que no está sale como está.
+TEXTOS = {}
+USADOS = []      # los que pasaron por T, en orden (para --textos)
+FALTAN = set()   # los que no tienen traducción en el idioma pedido
+
+
+def cargar_textos(idioma):
+    global TEXTOS
+    TEXTOS = {}
+    if idioma == "es":
+        return
+    f = os.path.join(IDIOMAS, idioma, "plantillas", "textos.json")
+    if not os.path.isfile(f):
+        sys.exit("no hay textos de las plantillas en «%s» (%s): ver --textos" % (idioma, os.path.relpath(f, RAIZ)))
+    TEXTOS = {k: v for k, v in json.load(open(f)).items() if isinstance(v, str) and v}
+
+
+def T(texto):
+    if not isinstance(texto, str) or not texto:
+        return texto
+    if texto in TEXTOS.values() and texto not in TEXTOS:
+        return texto  # ya traducido (un nombre que pasa dos veces)
+    if texto not in USADOS:
+        USADOS.append(texto)
+    if IDIOMA != "es" and texto not in TEXTOS:
+        FALTAN.add(texto)
+    return TEXTOS.get(texto, texto)
 
 MOLDES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "graficos-plantilla")
 
@@ -98,7 +159,7 @@ FONDO = 0xFF2A2320   # 0xAABBGGRR (rojo en el byte bajo): un gris azulado oscuro
 
 # --- Fuentes -------------------------------------------------------------------------
 def fuente(id, nombre, rect, settings, visible=True):
-    return {"id": id, "name": nombre, "rect": list(rect), "settings": settings, "visible": visible,
+    return {"id": id, "name": T(nombre), "rect": list(rect), "settings": settings, "visible": visible,
             "volume": 1.0, "muted": False}
 
 
@@ -108,7 +169,7 @@ def fondo(color=None):
 
 
 def texto(nombre, txt, rect, tam=72):
-    return fuente("text_ft2_source_v2", nombre, rect, {"text": txt, "font": {"face": "Helvetica", "size": tam}})
+    return fuente("text_ft2_source_v2", nombre, rect, {"text": T(txt), "font": {"face": "Helvetica", "size": tam}})
 
 
 def camara(nombre="Cámara", rect=(0, 0, 1, 1)):
@@ -176,7 +237,7 @@ def copiar_medios(dest):
         shutil.copy(os.path.join(MEDIOS, f), os.path.join(dest, "Media", f))
 
 
-SIN_PLACA = {"Espera", "Cierre", "PDF", "Pausa", "Entretiempo", "QR grande", "Placa"}
+SIN_PLACA = ("Espera", "Cierre", "PDF", "Pausa", "Entretiempo", "QR grande", "Placa")  # en español: T al comparar
 
 
 def con_placa(escenas):
@@ -184,7 +245,7 @@ def con_placa(escenas):
     la dispara en la escena que esté al aire (antes vivía solo en la escena «Placa» y una
     cue después de «Al aire: Conducción» se dibujaba sin verse). Es UNA fuente compartida."""
     for e in escenas:
-        if e["name"] in SIN_PLACA or any(x.get("name") == "Placa" for x in e["sources"]):
+        if e["name"] in {T(x) for x in SIN_PLACA} or any(x.get("name") == T("Placa") for x in e["sources"]):
             continue
         # En el tercio de abajo: centrada tapaba la cara de quien está en cámara.
         e["sources"].append(grafico("Placa", "placa-titulo", (0, 0.60)))
@@ -195,7 +256,7 @@ def revisar_guion(titulo, escenas, bloques):
     """Recorre el guion siguiendo la escena al aire: cada cue de gráfico tiene que caer en una
     fuente que esté en esa escena (si no, sale al aire sin verse). Devuelve los problemas."""
     fuentes = {e["name"]: {x["name"] for x in e["sources"]} for e in escenas}
-    al_aire, mal = "Espera", []
+    al_aire, mal = T("Espera"), []
     for b in bloques:
         for c in b["cues"]:
             if c["tipo"] == "escena":
@@ -213,7 +274,7 @@ def con_bandera(escenas):
     se carga una vez. No va en una capa DSK: una escena o fuente en el DSK se compone
     sobre negro opaco (Composicion: background=black) y tapaba el programa."""
     for e in escenas:
-        e["sources"] = [x for x in e["sources"] if x.get("name") != "Bandera"] + [bandera()]
+        e["sources"] = [x for x in e["sources"] if x.get("name") != T("Bandera")] + [bandera()]
     return escenas
 
 
@@ -228,14 +289,14 @@ def pdf():
 
 
 def escena(nombre, fuentes, carpeta=""):
-    return {"name": nombre, "folder": carpeta, "sources": fuentes}
+    return {"name": T(nombre), "folder": carpeta, "sources": fuentes}
 
 
 def escenas_base(titulo):
     """Las que tiene todo evento."""
     return [
         escena("Espera", [fondo(), grafico("Placa de espera", "espera", al_abrir=True,
-                                           valores={"titulo": titulo, "bajada": "Empezamos a las ‹hora›"})]),
+                                           valores={"titulo": T(titulo), "bajada": T("Empezamos a las ‹hora›")})]),
         escena("Conducción", [camara(), zocalo()]),
         escena("Invitado remoto", [fondo(), sala("remoto", 1, "Remoto con la palabra"), zocalo()]),
         escena("Presentación", [fondo(), sala("remoto_contenido", 1, "Remoto con la palabra — contenido"),
@@ -265,39 +326,42 @@ def cue(tipo, texto_, datos=None, seg=0, auto=False):
 
 
 def c_escena(nombre, txt=None, seg=0):
-    return cue("escena", txt or "Al aire: %s" % nombre, {"escena": nombre}, seg)
+    return cue("escena", T(txt) if txt else T("Al aire: %s") % T(nombre), {"escena": T(nombre)}, seg)
 
 
 def c_zocalo(nombre="‹Nombre›", cargo="‹Cargo›"):
-    return cue("grafico", "Zócalo: %s" % nombre,
-               {"fuente": "Zócalo", "grafico": "zocalo", "valores": {"nombre": nombre, "cargo": cargo, "acento": EST["acento"],
+    nombre, cargo = T(nombre), T(cargo)
+    return cue("grafico", T("Zócalo: %s") % nombre,
+               {"fuente": T("Zócalo"), "grafico": "zocalo", "valores": {"nombre": nombre, "cargo": cargo, "acento": EST["acento"],
                                                                       "salidaEn": 0}})
 
 
 def c_placa(titulo, bajada="‹Bajada›"):
-    return cue("grafico", "Placa: %s" % titulo,
-               {"fuente": "Placa", "grafico": "placa-titulo",
+    titulo, bajada = T(titulo), T(bajada)
+    return cue("grafico", T("Placa: %s") % titulo,
+               {"fuente": T("Placa"), "grafico": "placa-titulo",
                 "valores": {"titulo": titulo, "bajada": bajada, "acento": EST["acento"]}})  # se va al avanzar (su ficha)
 
 
 def c_grafico(fuente_, cual, valores, txt):
-    return cue("grafico", txt, {"fuente": fuente_, "grafico": cual, "valores": dict(valores)})
+    return cue("grafico", T(txt), {"fuente": T(fuente_), "grafico": cual,
+                                   "valores": {k: T(v) for k, v in valores.items()}})
 
 
 def c_prompter(archivo, txt):
-    return cue("teleprompter", txt, {"discurso": archivo, "arrancar": False})
+    return cue("teleprompter", T(txt), {"discurso": archivo, "arrancar": False})
 
 
 def c_nota(txt, seg=0):
-    return cue("nota", txt, {}, seg)
+    return cue("nota", T(txt), {}, seg)
 
 
 def c_espera(txt):
-    return cue("espera", txt)
+    return cue("espera", T(txt))
 
 
 def bloque(nombre, cues):
-    return {"id": _id("b"), "nombre": nombre, "nota": "", "cues": cues}
+    return {"id": _id("b"), "nombre": T(nombre), "nota": "", "cues": cues}
 
 
 def apertura(titulo):
@@ -319,8 +383,8 @@ def cierre():
 
 # --- Escenarios ----------------------------------------------------------------------
 def p(titulo, extra_escenas, bloques, padron=None, discursos=None):
-    return {"titulo_evento": titulo, "escenas": extra_escenas, "bloques": bloques, "padron": padron or [],
-            "discursos": discursos or {}}
+    return {"titulo_evento": T(titulo), "escenas": extra_escenas, "bloques": bloques, "padron": padron or [],
+            "discursos": {k: T(v) for k, v in (discursos or {}).items()}}
 
 
 # Los papeles del padrón (evento/Padron): orador, panelista, publico, prensa, staff.
@@ -328,7 +392,7 @@ PAPELES = {"orador": "orador", "panelista": "panelista", "invitado": "orador"}
 
 
 def gente(n, papel, vota=False, prefijo="Integrante"):
-    return [{"nombre": "‹%s %d›" % (prefijo, i + 1), "papel": PAPELES.get(papel, "publico"), "vota": vota}
+    return [{"nombre": T("‹%s %d›") % (T(prefijo), i + 1), "papel": PAPELES.get(papel, "publico"), "vota": vota}
             for i in range(n)]
 
 
@@ -571,6 +635,8 @@ GRAFICOS_DE = {
                                          "Hasta tres renglones (separados con un salto de línea)."), P_ACENTO, P_SALIDA]}},
 }
 PROPIOS = {}  # los de la plantilla que se está armando (lo pone main)
+# Los textos por defecto de los moldes (graficos-plantilla/*.qml), que se traducen al escribirlos.
+MOLDES_TEXTOS = ("‹Título›", "‹Bajada›", "‹LOC›", "‹VIS›", "‹Nombre›", "‹Cargo›", "‹Primer verso›", "‹Segundo verso›")
 PROBLEMAS = []  # lo que revisar_guion encontró (main sale con error si hay)
 
 
@@ -583,21 +649,27 @@ def escribir_graficos(dest, meta):
         if os.path.isdir(d):
             shutil.rmtree(d)
         os.makedirs(d)
-        tokens = dict(EST, plantilla=meta["titulo"], **g.get("tokens", {}))
+        tokens = dict(EST, plantilla=meta["titulo"], **{k: T(v) for k, v in g.get("tokens", {}).items()})
         qml = string.Template(open(os.path.join(MOLDES, g["molde"] + ".qml")).read()).substitute(tokens)
+        for ph in MOLDES_TEXTOS:  # los ‹…› por defecto de los moldes
+            qml = qml.replace(ph, T(ph).replace('"', '\\"'))
         open(os.path.join(d, "grafico.qml"), "w").write(qml)
         params = []
         for prm in g["parametros"]:
             prm = dict(prm)
+            for k in ("titulo", "ayuda", "porDefecto"):
+                if isinstance(prm.get(k), str):
+                    prm[k] = T(prm[k])
             if prm["clave"] == "acento":
                 prm["porDefecto"] = EST["acento"]
             if prm["clave"] == "duracionEntrada":
                 prm["porDefecto"] = int(EST["entradaMs"])
             params.append(prm)
-        ficha = {"nombre": g["nombre"], "descripcion": g["descripcion"] + " Estilo «%s»." % EST["estilo"]}
+        ficha = {"nombre": T(g["nombre"]),
+                 "descripcion": T(g["descripcion"]) + " " + T("Estilo «%s».") % T(EST["estilo"])}
         if g.get("seVa"):
             ficha["seVa"] = g["seVa"]  # cuándo se va una cue del guion que no lo dice (EventoViewModel)
-        ficha.update({"categoria": "De la plantilla", "ancho": g["ancho"], "alto": g["alto"], "duracionMs": g["duracionMs"],
+        ficha.update({"categoria": T("De la plantilla"), "ancho": g["ancho"], "alto": g["alto"], "duracionMs": g["duracionMs"],
                       "parametros": params})
         json.dump(ficha, open(os.path.join(d, "grafico.json"), "w"), ensure_ascii=False, indent=2)
 
@@ -627,7 +699,7 @@ def escribir(dest, meta, esc):
     if os.path.exists(dest):
         shutil.rmtree(dest)
     os.makedirs(os.path.join(dest, "Config"))
-    titulo = esc["titulo_evento"]
+    titulo = esc["titulo_evento"]  # ya traducido (p)
     escenas = escenas_base(titulo)
     nombres = {e["name"] for e in escenas}
     for e in esc["escenas"]:
@@ -638,13 +710,13 @@ def escribir(dest, meta, esc):
     for m in revisar_guion(meta["titulo"], escenas, esc["bloques"]):
         print("OJO", m, file=sys.stderr)
         PROBLEMAS.append(m)
-    json.dump({"scenes": escenas, "currentScene": "Espera"}, open(os.path.join(dest, "Config", "app.json"), "w"),
+    json.dump({"scenes": escenas, "currentScene": T("Espera")}, open(os.path.join(dest, "Config", "app.json"), "w"),
               ensure_ascii=False, indent=1)
     escribir_graficos(dest, meta)
     copiar_medios(dest)
     if meta["id"] in ORDEN_DEL_DIA:
         puntos = [{"estado": "pendiente", "expediente": "", "fin_ms": 0, "inicio_ms": 0, "n": i + 1, "resultado": "",
-                   "titulo": t} for i, t in enumerate(ORDEN_DEL_DIA[meta["id"]])]
+                   "titulo": T(t)} for i, t in enumerate(ORDEN_DEL_DIA[meta["id"]])]
         json.dump({"puntos": puntos, "tramos": []}, open(os.path.join(dest, "Config", "orden-del-dia.json"), "w"),
                   ensure_ascii=False, indent=1)
     if os.path.isdir(EXTENSIONES):
@@ -654,8 +726,8 @@ def escribir(dest, meta, esc):
     json.dump({"nombre": titulo, "fecha": "", "inicio": "", "huso": "", "nota": meta["resumen"],
                "asamblea": meta["id"] in ASAMBLEAS, "autoAceptar": [], "bloques": esc["bloques"]},
               open(os.path.join(ev, "evento.json"), "w"), ensure_ascii=False, indent=1)
-    discursos = {"0-apertura.txt": "‹Buenas tardes y bienvenidos a ...›\n\n‹Lo que vas a decir al abrir.›\n",
-                 "9-cierre.txt": "‹Gracias a todos por ...›\n"}
+    discursos = {"0-apertura.txt": T("‹Buenas tardes y bienvenidos a ...›\n\n‹Lo que vas a decir al abrir.›\n"),
+                 "9-cierre.txt": T("‹Gracias a todos por ...›\n")}
     discursos.update(esc["discursos"])
     for nom, txt in discursos.items():
         open(os.path.join(ev, "Discursos", nom), "w").write(txt)
@@ -673,7 +745,35 @@ def escribir(dest, meta, esc):
 
 
 def main():
-    indice = json.load(open(INDICE))
+    import argparse
+    ap = argparse.ArgumentParser(description="Genera las plantillas de evento del programa (assets/demo/<idioma>)")
+    ap.add_argument("--idioma", default="es", help="el código del idioma (assets/idiomas/<c>): es, en, pt-BR…")
+    ap.add_argument("--textos", action="store_true",
+                    help="escribe assets/idiomas/es/plantillas/textos.json (la tabla para traducir) y no genera nada")
+    args = ap.parse_args()
+    global IDIOMA, DEMOS
+    IDIOMA = "es" if args.textos else args.idioma
+    cargar_textos(IDIOMA)
+    if args.textos:
+        DEMOS = tempfile.mkdtemp(prefix="plantillas-")  # se arman para juntar los textos y se tiran
+        try:
+            generar(retocar=False)
+        finally:
+            shutil.rmtree(DEMOS, ignore_errors=True)
+        dest = os.path.join(IDIOMAS, "es", "plantillas", "textos.json")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        json.dump({t: t for t in USADOS}, open(dest, "w"), ensure_ascii=False, indent=1)
+        print("textos:", len(USADOS), "→", os.path.relpath(dest, RAIZ))
+        return
+    DEMOS = os.path.join(RAIZ, "assets", "demo", IDIOMA)
+    os.makedirs(DEMOS, exist_ok=True)
+    generar(retocar=True)
+    if FALTAN:
+        print("OJO: %d textos sin traducir en «%s» (salen en español)" % (len(FALTAN), IDIOMA), file=sys.stderr)
+
+
+def generar(retocar):
+    indice = indice_de(IDIOMA)
     defs = escenarios()  # solo para saber cuáles hay (se vuelven a armar con cada estilo)
     # Fuera las generadas antes (las hechas a mano quedan).
     for d in os.listdir(DEMOS):
@@ -695,8 +795,9 @@ def main():
         _n[0] = 0
         escribir(os.path.join(DEMOS, meta["titulo"]), meta, escenarios()[meta["id"]])
         hechas += 1
-    print("plantillas generadas:", hechas)
-    retocar_demo(next(dict(m, orden=i) for i, m in enumerate(indice) if m["id"] == "sesion-deliberativa"))
+    print("plantillas generadas:", hechas, "(%s)" % os.path.relpath(DEMOS, RAIZ))
+    if retocar:
+        retocar_demo(next(dict(m, orden=i) for i, m in enumerate(indice) if m["id"] == "sesion-deliberativa"))
     if PROBLEMAS:
         sys.exit("%d problemas en los guiones (arriba)" % len(PROBLEMAS))
 
@@ -709,7 +810,8 @@ def retocar_demo(meta):
     EST, PROPIOS = ESTILOS["sesion-deliberativa"], dict(GRAFICOS_BASE)
     dest = os.path.join(DEMOS, "Demo parlamentaria")
     if not os.path.isfile(os.path.join(dest, "Config", "app.json")):
-        print("FALTA la Demo parlamentaria (assets/demo/Demo parlamentaria)", file=sys.stderr)
+        # Está hecha a mano, en español: en otro idioma no hay (salvo que alguien la haga).
+        print("FALTA la Demo parlamentaria (%s)" % os.path.relpath(dest, RAIZ), file=sys.stderr)
         return
     for cual, g in PROPIOS.items():
         d = os.path.join(dest, "Graficos", cual)
