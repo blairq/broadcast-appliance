@@ -14,7 +14,11 @@ QUE LEE de cada bloque `t.name = "x"; ... core_.addTool(...)`:
 COMO. Los literales de C++ se evaluan: cadenas pegadas ("a" "b"), crudas
 (R"(...)"), concatenaciones con + y constantes del mismo archivo; y las listas
 de inicializacion de nlohmann::json con SU regla: una lista es un objeto si
-TODOS sus elementos son pares {cadena, valor}; si no, es un arreglo. Lo que no
+TODOS sus elementos son pares {cadena, valor}; si no, es un arreglo. Los textos
+marcados para traducir (`ba::i18n::traducir("mcp", "…")`, `tr`,
+`QCoreApplication::translate`, `QT_TRANSLATE_NOOP`; `llenar(…, {…})` con datos
+literales) valen su original en espanol, que es lo que manda el aparato sin
+traduccion y con lo que se entrena el modelo. Lo que no
 se puede evaluar (una funcion, un bucle) queda marcado «sin_extraer»: nunca se
 adivina.
 
@@ -115,6 +119,12 @@ def _a_json(v):
     if isinstance(v, list):
         return [_a_json(x) for x in v]
     return v
+
+
+# Las marcas de traduccion: en que argumento esta el texto original (la
+# descripcion envuelta en `ba::i18n::traducir("mcp", "…")` vale "…").
+_TRADUCIR = {"traducir": 1, "translate": 1, "QT_TRANSLATE_NOOP": 1, "tr": 0, "qsTr": 0, "QT_TR_NOOP": 0,
+             "llenar": None}
 
 
 class _Eval:
@@ -223,6 +233,8 @@ class _Eval:
             if len(a) != 1 or not isinstance(a[0], str):
                 raise NoSe(f"{v}(...) raro")
             return a[0]
+        if self.ver()[1] == "(" and base in _TRADUCIR:
+            return self.traducir(base)
         if self.ver()[1] == "(":
             return self.llamada(v)
         if self.ver()[1] in (".", "->", "["):
@@ -230,6 +242,22 @@ class _Eval:
         if v in self.ambito:
             return self.ambito[v]
         return self.resolver(v, pos)
+
+    def traducir(self, base):
+        """Un texto marcado para traducir: vale su ORIGINAL (el literal en español),
+        que es lo que el aparato manda en el idioma original. `llenar(texto, {a, b})`
+        se evalua solo si los datos tambien son literales."""
+        a = self.args()
+        if base == "llenar":
+            if len(a) != 2 or not isinstance(a[0], str) or not isinstance(a[1], list) \
+                    or not all(isinstance(x, str) for x in a[1]):
+                raise NoSe("llenar() con datos que no son literales")
+            return re.sub(r"%([1-9])", lambda m: a[1][int(m.group(1)) - 1]
+                          if int(m.group(1)) <= len(a[1]) else m.group(0), a[0])
+        i = _TRADUCIR[base]
+        if len(a) <= i or not isinstance(a[i], str):
+            raise NoSe(f"{base}() sin texto literal")
+        return a[i]
 
     def llamada(self, nombre):
         """Una funcion del mismo archivo que arma json: con un solo `return` (y,
