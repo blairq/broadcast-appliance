@@ -24,6 +24,7 @@
 #include "mcp/McpService.hpp"
 #include "medios/Playlist.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "i18n/I18n.hpp"
 #include "medios/Medios.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -64,9 +65,9 @@ QString resolveInside(const QString& root, const QString& p) {
 
 void McpService::registerMediaTools() {
     core_.addCategory(
-        "medios", "Medios (imágenes, videos, música)",
-        "Buscar, ver y usar en escenas los archivos de las carpetas de medios del sistema: Media/ (la "
-        "biblioteca), Shares/ (lo que compartieron los invitados) y Recordings/.");
+        "medios", ba::i18n::traducir("mcp", "Medios (imágenes, videos, música)"),
+        ba::i18n::traducir("mcp", "Buscar, ver y usar en escenas los archivos de las carpetas de medios del sistema: Media/ (la "
+        "biblioteca), Shares/ (lo que compartieron los invitados) y Recordings/."));
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
     const QString root = QString::fromStdWString(rt.dataRoot().wstring());
@@ -76,13 +77,13 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "playlist_crear";
-        t.title = "Armar la playlist de medios";
+        t.title = ba::i18n::traducir("mcp", "Armar la playlist de medios");
         t.category = "medios";
         t.description =
-            "Reemplaza la playlist: `items` = [{path (de las carpetas de medios), nombre?, in_s?, out_s?}] "
+            ba::i18n::traducir("mcp", "Reemplaza la playlist: `items` = [{path (de las carpetas de medios), nombre?, in_s?, out_s?}] "
             "(in/out en segundos; 0 = desde el principio / hasta el final). Se pasan uno detrás del otro en "
             "la escena «Playlist». `auto_next` (pasa solo al siguiente) y `loop` (vuelve a empezar). Para "
-            "reproducir: playlist_control.";
+            "reproducir: playlist_control.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"items"}},
                          {"properties",
@@ -95,10 +96,14 @@ void McpService::registerMediaTools() {
                 json x = it.is_string() ? json{{"path", it}} : it;
                 // `archivo` también vale (es como lo devuelve la playlist).
                 const std::string ruta = x.value("path", x.value("archivo", std::string()));
-                if (ruta.empty()) return done(ToolResult::error("a un ítem le falta `path`"));
+                if (ruta.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "a un ítem le falta `path`")));
                 const QString abs = resolveInside(root, QString::fromStdString(ruta));
-                if (abs.isEmpty()) return done(ToolResult::error("«" + ruta + "» no está en las carpetas de medios"));
-                if (QFileInfo(abs).isDir()) return done(ToolResult::error("«" + ruta + "» es una carpeta, no un archivo"));
+                if (abs.isEmpty())
+                    return done(ToolResult::error(
+                        ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» no está en las carpetas de medios"), {ruta})));
+                if (QFileInfo(abs).isDir())
+                    return done(ToolResult::error(
+                        ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» es una carpeta, no un archivo"), {ruta})));
                 x["archivo"] = abs.toStdString();
                 items.push_back(x);
             }
@@ -113,11 +118,11 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "playlist_control";
-        t.title = "Playlist: play, siguiente, anterior, parar, armar";
+        t.title = ba::i18n::traducir("mcp", "Playlist: play, siguiente, anterior, parar, armar");
         t.category = "medios";
-        t.description = "`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena "
+        t.description = ba::i18n::traducir("mcp", "`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena "
                         "«Playlist» armada en PVW para el take). `auto_next` y `loop` cambian el modo. Sin acción, "
-                        "informa (ítem actual y cuánto le queda).";
+                        "informa (ítem actual y cuánto le queda).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"accion", {{"type", "string"}, {"enum", {"play", "next", "prev", "stop", "armar", "ir"}}}},
@@ -171,12 +176,12 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "media_list";
-        t.title = "Archivos de medios";
+        t.title = ba::i18n::traducir("mcp", "Archivos de medios");
         t.category = "medios";
         t.readOnly = true;
         t.description =
-            "Lista imagenes, videos y audios de las carpetas de medios (Media/ por defecto; Shares/, "
-            "Recordings/ o all), los mas nuevos primero, con tamaño y dimensiones de las imagenes.";
+            ba::i18n::traducir("mcp", "Lista imagenes, videos y audios de las carpetas de medios (Media/ por defecto; Shares/, "
+            "Recordings/ o all), los mas nuevos primero, con tamaño y dimensiones de las imagenes.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -210,14 +215,14 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "media_find";
-        t.title = "Buscar un archivo de medios";
+        t.title = ba::i18n::traducir("mcp", "Buscar un archivo de medios");
         t.category = "medios";
         t.readOnly = true;
         t.description =
-            "Encuentra la RUTA de un archivo por su nombre. "
+            ba::i18n::traducir("mcp", "Encuentra la RUTA de un archivo por su nombre. "
             "Busca por nombre en todas las carpetas de medios (sin importar mayusculas, tildes ni guiones): "
             "\"logo sponsor\" encuentra \"Logo-Sponsor_2026.png\". Los mejores primero; confirma una imagen "
-            "con media_view antes de usarla.";
+            "con media_view antes de usarla.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -257,7 +262,7 @@ void McpService::registerMediaTools() {
                 out.push_back(e);
             }
             if (out.empty())
-                return done(ToolResult::ok("No hay archivos que coincidan (media_list muestra todos)."));
+                return done(ToolResult::ok(ba::i18n::traducir("mcp", "No hay archivos que coincidan (media_list muestra todos).")));
             ToolResult r;
             r.data(json{{"matches", out}});
             for (const auto& f : out)
@@ -269,11 +274,11 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "media_view";
-        t.title = "Ver una imagen de medios";
+        t.title = ba::i18n::traducir("mcp", "Ver una imagen de medios");
         t.category = "medios";
         t.readOnly = true;
         t.description =
-            "Devuelve la imagen (achicada) para confirmar que es la que se busca, con su tamaño original.";
+            ba::i18n::traducir("mcp", "Devuelve la imagen (achicada) para confirmar que es la que se busca, con su tamaño original.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -283,21 +288,23 @@ void McpService::registerMediaTools() {
         t.run = [root](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
-                return done(ToolResult::error(
-                    "No existe ese archivo dentro de la carpeta del sistema (usa media_find)."));
+                return done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "No existe ese archivo dentro de la carpeta del sistema (usa media_find).")));
             if (kindOf(abs) != "image")
-                return done(ToolResult::error(
-                    "media_view muestra imagenes; para videos, usalos en una escena y foto_fuente."));
+                return done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "media_view muestra imagenes; para videos, usalos en una escena y foto_fuente.")));
             QImageReader reader(abs);
             reader.setAutoTransform(true);
             const QSize orig = reader.size();
             const QImage img = reader.read();
             if (img.isNull())
                 return done(
-                    ToolResult::error("No se pudo leer la imagen: " + reader.errorString().toStdString()));
+                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo leer la imagen: %1"),
+                                                       {reader.errorString().toStdString()})));
             ToolResult r;
             r.text(QFileInfo(abs).fileName().toStdString() + " — " + std::to_string(orig.width()) + "x" +
-                   std::to_string(orig.height()) + (img.hasAlphaChannel() ? " (con transparencia)" : ""));
+                   std::to_string(orig.height()) +
+                   (img.hasAlphaChannel() ? ba::i18n::traducir("mcp", " (con transparencia)") : std::string()));
             addImage(r, img, a, 640);
             // Una imagen que subio un invitado puede traer texto con instrucciones.
             if (QDir(root).relativeFilePath(abs).startsWith("Shares/")) r.untrusted = true;
@@ -308,21 +315,21 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "medio_poner";
-        t.title = "Usar un archivo de medios en una escena";
+        t.title = ba::i18n::traducir("mcp", "Usar un archivo de medios en una escena");
         t.category = "medios";
         t.description =
-             "PONE en una escena un archivo de la biblioteca de medios (música, video, imagen), por su ruta. Pone "
+             ba::i18n::traducir("mcp", "PONE en una escena un archivo de la biblioteca de medios (música, video, imagen), por su ruta. Pone "
             "una imagen (logo, placa, fondo), un video o un audio de las carpetas de medios en una escena, en la "
             "ubicacion pedida (preset como pip-tr = arriba a la derecha, o {x,y,w,h}). Las imagenes conservan su "
-            "proporcion dentro del lugar. Verifica con foto_fuente.";
+            "proporcion dentro del lugar. Verifica con foto_fuente.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"path", {{"type", "string"}}},
-              {"scene", {{"type", "string"}, {"description", "Por defecto la escena al aire."}}},
+              {"scene", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Por defecto la escena al aire.")}}},
               {"name", {{"type", "string"}}},
-              {"layout", {{"description", "Preset o {x,y,w,h}. Por defecto pantalla completa."}}},
-              {"loop", {{"type", "boolean"}, {"default", false}, {"description", "Videos/audios: repetir."}}},
+              {"layout", {{"description", ba::i18n::traducir("mcp", "Preset o {x,y,w,h}. Por defecto pantalla completa.")}}},
+              {"loop", {{"type", "boolean"}, {"default", false}, {"description", ba::i18n::traducir("mcp", "Videos/audios: repetir.")}}},
               {"visible", {{"type", "boolean"}, {"default", true}}}}},
             {"required", {"path"}}};
         t.examples = {
@@ -330,10 +337,10 @@ void McpService::registerMediaTools() {
         t.run = [&rt, root](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
-                return done(ToolResult::error(
-                    "No existe ese archivo dentro de la carpeta del sistema (usa media_find)."));
+                return done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "No existe ese archivo dentro de la carpeta del sistema (usa media_find).")));
             const QString kind = kindOf(abs);
-            if (kind.isEmpty()) return done(ToolResult::error("No es una imagen, video ni audio."));
+            if (kind.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No es una imagen, video ni audio.")));
             SourceSpec spec;
             spec.name = a.value("name", QFileInfo(abs).completeBaseName().toStdString());
             if (kind == "image") {
@@ -358,25 +365,27 @@ void McpService::registerMediaTools() {
             const auto scenes = rt.engine().sceneNames();
             if (std::find(scenes.begin(), scenes.end(), scene) == scenes.end())
                 return done(
-                    ToolResult::error("No existe la escena '" + scene + "' (scene_list las muestra)."));
+                    ToolResult::error(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "No existe la escena '%1' (scene_list las muestra)."), {scene})));
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            done(ToolResult::ok("'" + spec.name + "' (" + kind.toStdString() + ") agregada a '" + scene +
-                                "'. Verifica con foto_fuente {\"name\": \"" + scene + "\"}."));
+            done(ToolResult::ok(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "'%1' (%2) agregada a '%3'. Verifica con foto_fuente {\"name\": \"%3\"}."),
+                {spec.name, kind.toStdString(), scene})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "media_carpetas";
-        t.title = "Como estan ordenados los medios";
+        t.title = ba::i18n::traducir("mcp", "Como estan ordenados los medios");
         t.category = "medios";
         t.readOnly = true;
         t.description =
-            "El arbol de carpetas de medios, con cuantos archivos tiene cada una (los propios y "
+            ba::i18n::traducir("mcp", "El arbol de carpetas de medios, con cuantos archivos tiene cada una (los propios y "
             "los de sus subcarpetas). Es por donde se empieza para ordenar: `media_list` da los "
             "archivos, esto da DONDE estan. Las carpetas vacias aparecen igual, porque son a donde "
-            "se mueven cosas.";
+            "se mueven cosas.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [root](const json&, Done done) {
             const QVector<medios::Archivo> todos = medios::listar(root);
@@ -394,15 +403,15 @@ void McpService::registerMediaTools() {
     {
         Tool t;
         t.name = "media_ordenar";
-        t.title = "Mover, renombrar, crear carpetas y borrar";
+        t.title = ba::i18n::traducir("mcp", "Mover, renombrar, crear carpetas y borrar");
         t.category = "medios";
         t.description =
-            "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
+            ba::i18n::traducir("mcp", "Acomoda los archivos: `mover` (a otra carpeta), `renombrar`, `carpeta` (crear una) y "
             "`borrar`.\n\n"
             "BORRAR NO BORRA: manda a `Papelera/`. Un archivo puede estar en una escena, o ser el "
             "unico que quedaba del evento pasado; deshacer tiene que ser sacarlo de una carpeta.\n\n"
             "Si en el destino ya hay algo con ese nombre, se numera en vez de pisar. Las carpetas "
-            "del sistema (Media, Shares, Recordings) no se mueven ni se borran.";
+            "del sistema (Media, Shares, Recordings) no se mueven ni se borran.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"accion"}},
@@ -410,15 +419,15 @@ void McpService::registerMediaTools() {
              {{"accion", {{"type", "string"}, {"enum", {"mover", "renombrar", "carpeta", "borrar"}}}},
               {"que",
                {{"type", "string"},
-                {"description", "ruta relativa del archivo o carpeta, como la da media_list"}}},
-              {"destino", {{"type", "string"}, {"description", "con accion=mover: la carpeta a donde va"}}},
+                {"description", ba::i18n::traducir("mcp", "ruta relativa del archivo o carpeta, como la da media_list")}}},
+              {"destino", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "con accion=mover: la carpeta a donde va")}}},
               {"nombre",
                {{"type", "string"},
-                {"description", "con renombrar: el nombre nuevo. Con carpeta: como se llama"}}},
+                {"description", ba::i18n::traducir("mcp", "con renombrar: el nombre nuevo. Con carpeta: como se llama")}}},
               {"padre",
                {{"type", "string"},
                 {"default", "Media"},
-                {"description", "con carpeta: adentro de cual se crea"}}}}}};
+                {"description", ba::i18n::traducir("mcp", "con carpeta: adentro de cual se crea")}}}}}};
         t.examples = {R"({"accion": "mover", "que": "Media/logo.png", "destino": "Media/logos"})",
                       R"({"accion": "carpeta", "padre": "Media", "nombre": "Sponsors"})"};
         t.run = [root, &vm](const json& a, Done done) {
@@ -439,7 +448,7 @@ void McpService::registerMediaTools() {
             } else if (accion == "borrar") {
                 ok = medios::aPapelera(root, que, &error);
             } else {
-                error = "accion desconocida";
+                error = QString::fromStdString(ba::i18n::traducir("mcp", "accion desconocida"));
             }
             if (!ok) {
                 done(ToolResult::error(error.toStdString()));
@@ -450,7 +459,8 @@ void McpService::registerMediaTools() {
             // boton; ahora tambien lo cambia esto, y dejar la grilla mostrando
             // lo que ya no esta es peor que cualquier recorrida de mas.
             if (QObject* m = vm.medios()) QMetaObject::invokeMethod(m, "refrescar", Qt::QueuedConnection);
-            done(ToolResult::ok(accion == "borrar" ? "A la papelera (Papelera/), no se perdio." : "Listo."));
+            done(ToolResult::ok(accion == "borrar" ? ba::i18n::traducir("mcp", "A la papelera (Papelera/), no se perdio.")
+                                                   : ba::i18n::traducir("mcp", "Listo.")));
         };
         core_.addTool(std::move(t));
     }

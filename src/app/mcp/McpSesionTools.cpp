@@ -15,6 +15,7 @@
 #include "asamblea/SesionRemota.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "i18n/I18n.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include <algorithm>
@@ -25,21 +26,22 @@ void McpService::registerSesionTools() {
     asamblea::SesionRemota* s = vm_.sesionRemota();
     if (s == nullptr) return;
     auto& cuerpo = vm_.cuerpo().cuerpo();
-    core_.addCategory("sesion", "Banca virtual (sesión remota)",
-                      "Integrantes que sesionan desde el navegador (en la sala o afuera): link personal y PIN, "
-                      "habilitarlos viéndolos por la cámara, presentes por la banca virtual, registro para el acta.");
+    core_.addCategory("sesion", ba::i18n::traducir("mcp", "Banca virtual (sesión remota)"),
+                      ba::i18n::traducir("mcp", "Integrantes que sesionan desde el navegador (en la sala o afuera): link personal y PIN, "
+                      "habilitarlos viéndolos por la cámara, presentes por la banca virtual, registro para el acta."));
 
-    const json quien = {{"type", "string"}, {"description", "La banca, el id o el nombre del integrante (como en el Cuerpo)."}};
+    const json quien = {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La banca, el id o el nombre del integrante (como en el Cuerpo).")}};
     // El id del integrante a partir de banca, id o nombre.
     const auto idDe = [&cuerpo](const json& a, std::string& error) -> std::string {
         const std::string q = a.value("integrante", a.value("banca", std::string()));
         if (q.empty()) {
-            error = "falta la banca (o el integrante)";
+            error = ba::i18n::traducir("mcp", "falta la banca (o el integrante)");
             return {};
         }
         const json i = cuerpo.buscar(q);
         if (!i.is_object() || i.empty()) {
-            error = "no hay nadie con la banca o el nombre «" + q + "» en el Cuerpo";
+            error = ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay nadie con la banca o el nombre «%1» en el Cuerpo"),
+                                     {q});
             return {};
         }
         return i.value("id", std::string());
@@ -48,12 +50,12 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_estado";
-        t.title = "Quién está en la banca virtual";
+        t.title = ba::i18n::traducir("mcp", "Quién está en la banca virtual");
         t.category = "sesion";
         t.readOnly = true;
-        t.description = "Los integrantes con link de la banca virtual: si están conectados, si esperan que los "
+        t.description = ba::i18n::traducir("mcp", "Los integrantes con link de la banca virtual: si están conectados, si esperan que los "
                         "habiliten o ya están habilitados (cuentan como presentes), desde dónde (sala o afuera) y "
-                        "quién los habilitó. `presentes` es cuántos cuentan para el quórum por acá.";
+                        "quién los habilitó. `presentes` es cuántos cuentan para el quórum por acá.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         t.run = [s](const json&, Done done) {
             done(ToolResult().data({{"participantes", s->participantes()},
@@ -68,18 +70,18 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_credencial";
-        t.title = "Link y PIN de un integrante";
+        t.title = ba::i18n::traducir("mcp", "Link y PIN de un integrante");
         t.category = "sesion";
         t.destructive = true;
-        t.description = "El link personal y el PIN de la banca virtual de un integrante. Sin acceso fijo, genera "
+        t.description = ba::i18n::traducir("mcp", "El link personal y el PIN de la banca virtual de un integrante. Sin acceso fijo, genera "
                         "uno nuevo (el anterior deja de andar) y se muestra UNA sola vez. Con acceso fijo "
                         "(sesion_acceso_opciones), si ya tenía devuelve EL MISMO (`repetido`: true) y solo cambia con "
                         "`renovar`: true. Con el PIN en el QR viene también `link_con_pin` (entra sin tipear). Se le "
-                        "pasan al integrante por un canal seguro (no por el chat de la transmisión).";
+                        "pasan al integrante por un canal seguro (no por el chat de la transmisión).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien},
                                          {"renovar", {{"type", "boolean"},
-                                                      {"description", "Link y PIN nuevos aunque el acceso sea fijo (el anterior deja de andar)"}}}}},
+                                                      {"description", ba::i18n::traducir("mcp", "Link y PIN nuevos aunque el acceso sea fijo (el anterior deja de andar)")}}}}},
                          {"required", {"banca"}}};
         t.run = [s, idDe](const json& a, Done done) {
             std::string e;
@@ -94,33 +96,33 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_acceso_opciones";
-        t.title = "Opciones del acceso de los integrantes";
+        t.title = ba::i18n::traducir("mcp", "Opciones del acceso de los integrantes");
         t.category = "sesion";
-        t.description = "Cómo es el acceso de los integrantes de la asamblea por el navegador. `pin_en_qr`: el PIN va "
+        t.description = ba::i18n::traducir("mcp", "Cómo es el acceso de los integrantes de la asamblea por el navegador. `pin_en_qr`: el PIN va "
                         "adentro del QR (escanea y entra sin tipear; el QR solo ya es la credencial entera). "
                         "`acceso_fijo`: el link y el PIN de cada uno quedan guardados (cifrados) y no cambian salvo que "
                         "se renueve (sesion_credencial con renovar); apagarlo borra los guardados (los links siguen "
-                        "andando). Sin argumentos, devuelve cómo están.";
+                        "andando). Sin argumentos, devuelve cómo están.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"pin_en_qr", {{"type", "boolean"}}}, {"acceso_fijo", {{"type", "boolean"}}}}}};
         t.run = [s](const json& a, Done done) {
             if (a.contains("pin_en_qr") && a["pin_en_qr"].is_boolean()) s->setPinEnQr(a["pin_en_qr"].get<bool>());
             if (a.contains("acceso_fijo") && a["acceso_fijo"].is_boolean()) s->setAccesoFijo(a["acceso_fijo"].get<bool>());
             done(ToolResult().data({{"pin_en_qr", s->pinEnQr()}, {"acceso_fijo", s->accesoFijo()},
-                                    {"nota", s->accesoFijo() ? "Los que ya tenían acceso antes de prenderlo necesitan un link nuevo una vez para que quede guardado."
-                                                             : ""}}));
+                                    {"nota", s->accesoFijo() ? ba::i18n::traducir("mcp", "Los que ya tenían acceso antes de prenderlo necesitan un link nuevo una vez para que quede guardado.")
+                                                             : std::string()}}));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "sesion_clave";
-        t.title = "Usuario y contraseña de un integrante";
+        t.title = ba::i18n::traducir("mcp", "Usuario y contraseña de un integrante");
         t.category = "sesion";
         t.destructive = true;
-        t.description = "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
+        t.description = ba::i18n::traducir("mcp", "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
                         "(12 caracteres fáciles de dictar) reemplaza a la anterior y se muestra UNA sola vez. Necesita "
-                        "que ya tenga link (sesion_credencial). `usuario` opcional (de fábrica, banca<número>).";
+                        "que ya tenga link (sesion_credencial). `usuario` opcional (de fábrica, banca<número>).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien}, {"usuario", {{"type", "string"}}}}},
                          {"required", {"banca"}}};
@@ -137,9 +139,9 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_datos";
-        t.title = "Datos de contacto de un conferencista";
+        t.title = ba::i18n::traducir("mcp", "Datos de contacto de un conferencista");
         t.category = "sesion";
-        t.description = "Guarda su `email`, `telefono` y una `nota` (para la secretaría; no se publican).";
+        t.description = ba::i18n::traducir("mcp", "Guarda su `email`, `telefono` y una `nota` (para la secretaría; no se publican).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"banca", quien}, {"email", {{"type", "string"}}}, {"telefono", {{"type", "string"}}},
@@ -158,16 +160,16 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_revocar";
-        t.title = "Revocar el link de un integrante";
+        t.title = ba::i18n::traducir("mcp", "Revocar el link de un integrante");
         t.category = "sesion";
         t.destructive = true;
-        t.description = "Su link deja de andar (y si está conectado, se lo corta). Para volver a entrar necesita uno nuevo.";
+        t.description = ba::i18n::traducir("mcp", "Su link deja de andar (y si está conectado, se lo corta). Para volver a entrar necesita uno nuevo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"banca", quien}}}, {"required", {"banca"}}};
         t.run = [s, idDe](const json& a, Done done) {
             std::string e;
             const std::string id = idDe(a, e);
             if (id.empty()) return done(ToolResult::error(e));
-            if (!s->revocar(id)) return done(ToolResult::error("no tenía link"));
+            if (!s->revocar(id)) return done(ToolResult::error(ba::i18n::traducir("mcp", "no tenía link")));
             done(ToolResult().data({{"revocado", id}}));
         };
         core_.addTool(std::move(t));
@@ -175,11 +177,11 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_habilitar";
-        t.title = "Habilitar a un integrante de la banca virtual";
+        t.title = ba::i18n::traducir("mcp", "Habilitar a un integrante de la banca virtual");
         t.category = "sesion";
-        t.description = "Con `habilitado: true` (de fábrica) cuenta como presente y, en las fases siguientes, puede "
+        t.description = ba::i18n::traducir("mcp", "Con `habilitado: true` (de fábrica) cuenta como presente y, en las fases siguientes, puede "
                         "pedir la palabra y votar; con false vuelve a esperar. Solo después de VERLO por la cámara "
-                        "(la interfaz muestra su foto): nunca habilites a alguien sin que una persona lo haya visto.";
+                        "(la interfaz muestra su foto): nunca habilites a alguien sin que una persona lo haya visto.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien}, {"habilitado", {{"type", "boolean"}}}}},
                          {"required", {"banca"}}};
@@ -196,11 +198,11 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_expulsar";
-        t.title = "Sacar a alguien de la banca virtual";
+        t.title = ba::i18n::traducir("mcp", "Sacar a alguien de la banca virtual");
         t.category = "sesion";
         t.destructive = true;
-        t.description = "Corta su conexión (su link sigue andando: si vuelve a entrar, hay que habilitarlo de nuevo). "
-                        "`motivo` es lo que ve en su pantalla.";
+        t.description = ba::i18n::traducir("mcp", "Corta su conexión (su link sigue andando: si vuelve a entrar, hay que habilitarlo de nuevo). "
+                        "`motivo` es lo que ve en su pantalla.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien}, {"motivo", {{"type", "string"}}}}},
                          {"required", {"banca"}}};
@@ -217,14 +219,14 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_votacion";
-        t.title = "Votación en los celulares";
+        t.title = ba::i18n::traducir("mcp", "Votación en los celulares");
         t.category = "sesion";
-        t.description = "Los integrantes habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
+        t.description = ba::i18n::traducir("mcp", "Los integrantes habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
                         "cuenta regresiva). Si la central abre una votación, los celulares la siguen solos; esto es para "
                         "votar SIN la central (o ver cómo va): `accion` abrir {tema, menu: si_no | si_no_abstencion | "
                         "si_no_abstencion_nppv, segundos} | pausar | reanudar | cerrar | estado | a_quorum (carga el "
                         "resultado oficial en Quórum: un voto por integrante, con el origen de cada uno; nunca sin que "
-                        "una persona lo pida). `voto_s` cambia el tiempo para votar de fábrica.";
+                        "una persona lo pida). `voto_s` cambia el tiempo para votar de fábrica.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"accion", {{"type", "string"}, {"enum", {"abrir", "pausar", "reanudar", "cerrar", "estado", "a_quorum"}}}},
@@ -237,7 +239,7 @@ void McpService::registerSesionTools() {
             if (a.contains("voto_s")) s->setVotoSegundos(a.value("voto_s", 60));
             // Las reglas (numerar, cerrar mostrando el resultado, a Quórum) son del modelo de votaciones.
             asamblea::Votaciones* v = vmRef.votaciones();
-            if (v == nullptr) return done(ToolResult::error("Las votaciones de la asamblea no están disponibles."));
+            if (v == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "Las votaciones de la asamblea no están disponibles.")));
             const std::string acc = a.value("accion", std::string("estado"));
             if (acc == "abrir") {
                 const std::string e = v->abrirEnCelulares(a.value("tema", std::string()),
@@ -260,13 +262,13 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_consola";
-        t.title = "Acceso a la consola web de la presidencia";
+        t.title = ba::i18n::traducir("mcp", "Acceso a la consola web de la presidencia");
         t.category = "sesion";
         t.destructive = true;
-        t.description = "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
+        t.description = ba::i18n::traducir("mcp", "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
                         "oradores y su tiempo, la votación, el programa en vivo y el integrante que habla, y «apretar para "
                         "hablar» con los que pidieron la palabra. `accion` crear {nombre} (devuelve link y PIN UNA vez) | "
-                        "revocar {id} | listar.";
+                        "revocar {id} | listar.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"accion", {{"type", "string"}, {"enum", {"crear", "revocar", "listar"}}}},
@@ -276,7 +278,7 @@ void McpService::registerSesionTools() {
             const std::string acc = a.value("accion", std::string("listar"));
             if (acc == "crear") return done(ToolResult().data(s->generarConsola(a.value("nombre", std::string("Presidencia")))));
             if (acc == "revocar" && !s->revocarConsola(a.value("id", std::string())))
-                return done(ToolResult::error("no hay una consola con ese id"));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay una consola con ese id")));
             done(ToolResult().data({{"consolas", s->consolas()}}));
         };
         core_.addTool(std::move(t));
@@ -284,13 +286,13 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_vistas";
-        t.title = "Lo que ven los remotos en su celular";
+        t.title = ba::i18n::traducir("mcp", "Lo que ven los remotos en su celular");
         t.category = "sesion";
-        t.description = "Además de su propia cámara (siempre, en un recuadro), el integrante remoto puede mirar en "
+        t.description = ba::i18n::traducir("mcp", "Además de su propia cámara (siempre, en un recuadro), el integrante remoto puede mirar en "
                         "su celular hasta dos canales por WebRTC y cambiar entre ellos: `canales` = [{nombre, fuente}] "
                         "con fuente «programa» (la salida principal) o el nombre de una escena. Sin argumentos dice "
                         "cuáles hay. Las escenas usan los canales de las pantallas de la sala (4 entre todos) y se "
-                        "componen solo mientras haya algún remoto conectado.";
+                        "componen solo mientras haya algún remoto conectado.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"canales",
@@ -309,7 +311,8 @@ void McpService::registerSesionTools() {
                     if (f.empty() || f == "programa") continue;
                     const auto n = rt->engine().sceneNames();
                     if (std::find(n.begin(), n.end(), f) == n.end())
-                        return done(ToolResult::error("no hay ninguna escena «" + f + "» (scene_list)"));
+                        return done(ToolResult::error(
+                            ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay ninguna escena «%1» (scene_list)"), {f})));
                 }
                 const std::string e = s->setVistas(a["canales"]);
                 if (!e.empty()) return done(ToolResult::error(e));
@@ -321,11 +324,11 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_hablar";
-        t.title = "Hablarle a un remoto (apretar para hablar)";
+        t.title = ba::i18n::traducir("mcp", "Hablarle a un remoto (apretar para hablar)");
         t.category = "sesion";
-        t.description = "Con `activo: true` el integrante remoto (`banca`) oye tu voz (tu micrófono de la sala, el "
+        t.description = ba::i18n::traducir("mcp", "Con `activo: true` el integrante remoto (`banca`) oye tu voz (tu micrófono de la sala, el "
                         "mismo con el que le hablás a los invitados) mezclada en el sonido de su celular y ve «Te están "
-                        "hablando»; con false se corta. Es para hablarle un momento: no lo dejes prendido.";
+                        "hablando»; con false se corta. Es para hablarle un momento: no lo dejes prendido.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"banca", quien}, {"activo", {{"type", "boolean"}}}}},
                          {"required", {"banca", "activo"}}};
@@ -333,21 +336,22 @@ void McpService::registerSesionTools() {
             std::string e;
             const std::string id = idDe(a, e);
             if (id.empty()) return done(ToolResult::error(e));
-            if (vm->presidencia() == nullptr) return done(ToolResult::error("La sesión remota no está andando."));
+            if (vm->presidencia() == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La sesión remota no está andando.")));
             const std::string r = vm->presidencia()->hablarARemoto(id, a.value("activo", false));
             if (!r.empty()) return done(ToolResult::error(r));
-            done(ToolResult::ok(a.value("activo", false) ? "Le estás hablando." : "Listo, ya no le hablás."));
+            done(ToolResult::ok(a.value("activo", false) ? ba::i18n::traducir("mcp", "Le estás hablando.")
+                                                         : ba::i18n::traducir("mcp", "Listo, ya no le hablás.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "sesion_registro";
-        t.title = "Registro de la banca virtual";
+        t.title = ba::i18n::traducir("mcp", "Registro de la banca virtual");
         t.category = "sesion";
         t.readOnly = true;
-        t.description = "Quién entró, desde dónde, quién lo habilitó, intentos fallidos y bloqueos: lo que va "
-                        "anexado al acta. `texto: true` lo da como en el acta.";
+        t.description = ba::i18n::traducir("mcp", "Quién entró, desde dónde, quién lo habilitó, intentos fallidos y bloqueos: lo que va "
+                        "anexado al acta. `texto: true` lo da como en el acta.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"texto", {{"type", "boolean"}}}}}};
         t.run = [s](const json& a, Done done) {
             if (a.value("texto", false)) return done(ToolResult().data({{"texto", s->anexoActa()}}));

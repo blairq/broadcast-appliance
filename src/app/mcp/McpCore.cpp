@@ -7,6 +7,7 @@
 #include "mcp/McpEtiquetas.hpp"
 #include "mcp/McpIndice.hpp"
 #include "mcp/McpTraza.hpp"
+#include "i18n/I18n.hpp"
 
 #include <chrono>
 
@@ -90,39 +91,41 @@ ToolResult ToolResult::ok(const std::string& message) {
 // --- McpCore ------------------------------------------------------------------
 
 McpCore::McpCore() {
-    addCategory("ayuda", "Ayuda", "Guía, temas y fichas de cada herramienta.");
+    addCategory("ayuda", ba::i18n::traducir("mcp", "Ayuda"), ba::i18n::traducir("mcp", "Guía, temas y fichas de cada herramienta."));
     // La ayuda es parte del protocolo de este servidor: siempre esta.
     Tool help;
     help.name = "help";
-    help.title = "Ayuda del appliance";
+    help.title = ba::i18n::traducir("mcp", "Ayuda del appliance");
     help.category = "ayuda";
     help.readOnly = true;
     help.idempotent = true;
     help.description =
-        "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
+        ba::i18n::traducir("mcp", "Sistema de ayuda. Sin argumentos: guia general, flujos de trabajo y catalogo completo de "
         "herramientas "
         "por categoria. Con `topic`: un tema (ej. 'escenas', 'imagenes', 'oradores'). Con `tool`: ficha "
         "completa "
-        "de una herramienta (que hace, argumentos, ejemplos). Empeza por aca si no sabes como hacer algo.";
+        "de una herramienta (que hace, argumentos, ejemplos). Empeza por aca si no sabes como hacer algo.");
     help.inputSchema =
         json{{"type", "object"},
              {"properties",
-              {{"topic", {{"type", "string"}, {"description", "Id del tema (ver la guia general)."}}},
-               {"tool", {{"type", "string"}, {"description", "Nombre de una herramienta."}}}}}};
+              {{"topic", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Id del tema (ver la guia general).")}}},
+               {"tool", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre de una herramienta.")}}}}}};
     help.examples = {R"({})", R"({"topic": "imagenes"})", R"({"tool": "scene_define"})"};
     help.run = [this](const json& a, Done done) {
         if (a.contains("tool") && a["tool"].is_string()) {
             const std::string t = helpTool(a["tool"].get<std::string>());
-            done(t.empty() ? ToolResult::error("No existe la herramienta '" + a["tool"].get<std::string>() +
-                                               "'. Llama `help` sin argumentos para ver el catalogo, o "
-                                               "`help_search`.")
+            done(t.empty() ? ToolResult::error(ba::i18n::llenar(
+                                 ba::i18n::traducir("mcp", "No existe la herramienta '%1'. Llama `help` sin argumentos "
+                                                           "para ver el catalogo, o `help_search`."),
+                                 {a["tool"].get<std::string>()}))
                            : ToolResult::ok(t));
             return;
         }
         if (a.contains("topic") && a["topic"].is_string()) {
             const std::string t = helpTopic(a["topic"].get<std::string>());
-            done(t.empty() ? ToolResult::error("No existe el tema '" + a["topic"].get<std::string>() +
-                                               "'. Los temas estan listados en `help`.")
+            done(t.empty() ? ToolResult::error(ba::i18n::llenar(
+                                 ba::i18n::traducir("mcp", "No existe el tema '%1'. Los temas estan listados en `help`."),
+                                 {a["topic"].get<std::string>()}))
                            : ToolResult::ok(t));
             return;
         }
@@ -133,59 +136,54 @@ McpCore::McpCore() {
     // Estado de la salvaguarda de la sesion que llama (lo resuelve callTool).
     Tool sec;
     sec.name = "security_status";
-    sec.title = "Salvaguarda de esta sesion";
+    sec.title = ba::i18n::traducir("mcp", "Salvaguarda de esta sesion");
     sec.category = "ayuda";
     sec.readOnly = true;
     sec.description =
-        "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
+        ba::i18n::traducir("mcp", "Dice si esta sesion leyo contenido de los invitados de la conferencia (su chat, nombres, archivos o "
         "video). Si lo leyo, toda accion que modifica algo espera que el operador la apruebe con un "
         "click: es "
         "una regla del servidor, no depende de vos. Para volver a actuar directo hace falta una sesion nueva "
-        "(reiniciar el asistente).";
-    sec.run = [](const json&, Done done) { done(ToolResult::error("(la resuelve el servidor)")); };
+        "(reiniciar el asistente).");
+    sec.run = [](const json&, Done done) { done(ToolResult::error(ba::i18n::traducir("mcp", "(la resuelve el servidor)"))); };
     addTool(std::move(sec));
 
     Tool search;
     search.name = "help_search";
-    search.title = "Buscar en la ayuda";
+    search.title = ba::i18n::traducir("mcp", "Buscar en la ayuda");
     search.category = "ayuda";
     search.readOnly = true;
     search.idempotent = true;
     search.description =
-        "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
-        "las mejores coincidencias con su descripcion.";
+        ba::i18n::traducir("mcp", "Busca por palabras en todas las herramientas y temas de ayuda (tolera tildes). Devuelve "
+        "las mejores coincidencias con su descripcion.");
     search.inputSchema =
         json{{"type", "object"},
-             {"properties", {{"query", {{"type", "string"}, {"description", "Que queres hacer o saber."}}}}},
+             {"properties", {{"query", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Que queres hacer o saber.")}}}}},
              {"required", {"query"}}};
     search.examples = {R"({"query": "poner un texto en pantalla"})",
                        R"({"query": "ver la camara de un invitado"})"};
     search.run = [this](const json& a, Done done) {
         const json hits = this->search(a.value("query", ""), enCurso_.rol);
         if (hits.empty()) {
-            done(ToolResult::ok("Sin coincidencias. Proba con otras palabras o llama `help` para ver todo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Sin coincidencias. Proba con otras palabras o llama `help` para ver todo.")));
             return;
         }
         std::ostringstream out;
-        out << "Coincidencias para \"" << a.value("query", "") << "\":\n";
+        out << ba::i18n::llenar(ba::i18n::traducir("mcp", "Coincidencias para \"%1\":"), {a.value("query", "")}) << "\n";
         for (const auto& h : hits) {
             out << "- [" << h["kind"].get<std::string>() << "] " << h["id"].get<std::string>() << " — "
                 << h["title"].get<std::string>();
             // Por que salio. Una busqueda que no dice con que palabra enganchó
             // no se puede corregir: el que pregunta vuelve a probar a ciegas.
             if (h.contains("porque") && h["porque"].is_array() && !h["porque"].empty()) {
-                out << "  (por: ";
-                bool primero = true;
-                for (const auto& t : h["porque"]) {
-                    if (!primero) out << ", ";
-                    out << t.get<std::string>();
-                    primero = false;
-                }
-                out << ")";
+                std::string por;
+                for (const auto& t : h["porque"]) por += (por.empty() ? "" : ", ") + t.get<std::string>();
+                out << "  " << ba::i18n::llenar(ba::i18n::traducir("mcp", "(por: %1)"), {por});
             }
             out << "\n";
         }
-        out << "\nPara el detalle: help {\"tool\": ...} o help {\"topic\": ...}.";
+        out << "\n" << ba::i18n::traducir("mcp", "Para el detalle: help {\"tool\": ...} o help {\"topic\": ...}.");
         ToolResult r;
         r.text(out.str());
         r.structured = json{{"results", hits}};
@@ -205,13 +203,15 @@ std::string McpCore::mapaDeCategorias(const std::string& rol) const {
     for (const Tool& t : tools_)
         if (permitida(t, rol)) ++cuantas[t.category];
     std::string out =
-        rol.empty() ? "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
-                      "aparece, fijate en que categoria caeria y pedi su ayuda con "
-                      "`help {\"topic\": \"<categoria>\"}`.\n\n"
-                    : "## Mapa de herramientas\n\nSos el rol `" + rol +
-                          "`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos; si el "
-                          "encargo lo necesita, pediselo a otro rol con `agente_encargar` o contalo en tu "
-                          "resumen final para que lo vea el operador.\n\n";
+        rol.empty() ? ba::i18n::traducir("mcp", "## Mapa de herramientas\n\nNo te quedes con lo que ves: si algo no "
+                                                "aparece, fijate en que categoria caeria y pedi su ayuda con "
+                                                "`help {\"topic\": \"<categoria>\"}`.\n\n")
+                    : ba::i18n::llenar(
+                          ba::i18n::traducir("mcp", "## Mapa de herramientas\n\nSos el rol `%1`: este es TODO tu juego. "
+                                                    "Lo que no esta aca no lo podes hacer vos; si el "
+                                                    "encargo lo necesita, pediselo a otro rol con `agente_encargar` o "
+                                                    "contalo en tu resumen final para que lo vea el operador.\n\n"),
+                          {rol});
     for (const Category& c : categories_) {
         const auto it = cuantas.find(c.id);
         const int n = it == cuantas.end() ? 0 : it->second;
@@ -242,7 +242,10 @@ json McpCore::catalogo() const {
             it = donde.find("");
             if (it == donde.end()) {
                 it = donde.emplace("", out.size()).first;
-                out.push_back({{"id", ""}, {"titulo", "Otras"}, {"resumen", ""}, {"herramientas", json::array()}});
+                out.push_back({{"id", ""},
+                               {"titulo", ba::i18n::traducir("mcp", "Otras")},
+                               {"resumen", ""},
+                               {"herramientas", json::array()}});
             }
         }
         std::string etiquetas;
@@ -291,9 +294,11 @@ void McpCore::verificarJuegos() const {
     for (const Category& c : categories_) registradas.insert(c.id);
     for (const std::string& c : reales)
         if (registradas.count(c) == 0)
-            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                       "la categoria '" + c + "' la usan herramientas pero no esta registrada "
-                                       "(falta addCategory)");
+            ba::diag::registro().linea(
+                ba::diag::Nivel::Aviso, "mcp", 0,
+                ba::i18n::llenar(ba::i18n::traducir("mcp", "la categoria '%1' la usan herramientas pero no esta "
+                                                           "registrada (falta addCategory)"),
+                                 {c}));
     // El asistente interactivo ve todo lo que se opera: una categoria nueva que no
     // esta en su juego no existe para el (ni en help_search). Ver Roles::juegoDelAsistente.
     if (const auto as = roles_.find("asistente"); as != roles_.end())
@@ -301,17 +306,20 @@ void McpCore::verificarJuegos() const {
             if (as->second.count(c) == 0 && comunes_.count(c) == 0) {
                 int n = 0;
                 for (const Tool& t : tools_) n += t.category == c ? 1 : 0;
-                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                           "el asistente no ve la categoria '" + c + "' (" + std::to_string(n) +
-                                               " herramientas): sumarla a Roles::juegoDelAsistente si se opera");
+                ba::diag::registro().linea(
+                    ba::diag::Nivel::Aviso, "mcp", 0,
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "el asistente no ve la categoria '%1' (%2 herramientas): "
+                                                               "sumarla a Roles::juegoDelAsistente si se opera"),
+                                     {c, std::to_string(n)}));
             }
     for (const auto& [rol, cats] : roles_)
         for (const std::string& c : cats)
             if (reales.count(c) == 0)
-                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                           "el juego de '" + rol + "' nombra la categoria '" + c +
-                                               "', que no la usa ninguna herramienta (ver "
-                                               "addCategory)");
+                ba::diag::registro().linea(
+                    ba::diag::Nivel::Aviso, "mcp", 0,
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "el juego de '%1' nombra la categoria '%2', que no la "
+                                                               "usa ninguna herramienta (ver addCategory)"),
+                                     {rol, c}));
 }
 
 void McpCore::setRoles(std::map<std::string, std::set<std::string>> categoriasPorRol,
@@ -375,15 +383,17 @@ std::string validarValor(const json& p, const json& v, const std::string& ruta) 
             want = p["type"].get<std::string>();
             ok = typeMatches(want, v);
         }
-        if (!ok) return "`" + ruta + "` debe ser " + want + " (llego " + typeName(v) + ")";
+        if (!ok)
+            return ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` debe ser %2 (llego %3)"),
+                                    {ruta, want, typeName(v)});
     }
     if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
-        return "`" + ruta + "` debe ser uno de " + dump(p["enum"]);
+        return ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` debe ser uno de %2"), {ruta, dump(p["enum"])});
     if (v.is_number()) {
         if (p.contains("minimum") && v.get<double>() < p["minimum"].get<double>())
-            return "`" + ruta + "` minimo " + dump(p["minimum"]);
+            return ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` minimo %2"), {ruta, dump(p["minimum"])});
         if (p.contains("maximum") && v.get<double>() > p["maximum"].get<double>())
-            return "`" + ruta + "` maximo " + dump(p["maximum"]);
+            return ba::i18n::llenar(ba::i18n::traducir("mcp", "`%1` maximo %2"), {ruta, dump(p["maximum"])});
     }
     if (v.is_object() && p.contains("properties")) return validarObjeto(p, v, ruta + ".");
     if (v.is_array() && p.contains("items") && p["items"].is_object())
@@ -397,12 +407,13 @@ std::string validarObjeto(const json& schema, const json& obj, const std::string
     const json props = schema.value("properties", json::object());
     for (const auto& req : schema.value("required", json::array())) {
         const std::string k = req.get<std::string>();
-        if (!obj.contains(k) || obj[k].is_null()) return "falta el argumento obligatorio `" + ruta + k + "`";
+        if (!obj.contains(k) || obj[k].is_null())
+            return ba::i18n::llenar(ba::i18n::traducir("mcp", "falta el argumento obligatorio `%1`"), {ruta + k});
     }
     for (auto it = obj.begin(); it != obj.end(); ++it) {
         if (!props.contains(it.key())) {
             if (schema.value("additionalProperties", true) == false)
-                return "argumento desconocido `" + ruta + it.key() + "`";
+                return ba::i18n::llenar(ba::i18n::traducir("mcp", "argumento desconocido `%1`"), {ruta + it.key()});
             continue;
         }
         if (std::string e = validarValor(props[it.key()], it.value(), ruta + it.key()); !e.empty()) return e;
@@ -412,7 +423,7 @@ std::string validarObjeto(const json& schema, const json& obj, const std::string
 } // namespace
 
 std::string McpCore::validate(const json& schema, const json& args) {
-    if (!args.is_object()) return "los argumentos deben ser un objeto JSON";
+    if (!args.is_object()) return ba::i18n::traducir("mcp", "los argumentos deben ser un objeto JSON");
     return validarObjeto(schema, args, "");
 }
 
@@ -421,7 +432,7 @@ std::string McpCore::validate(const json& schema, const json& args) {
 void McpCore::handle(const json& message, std::function<void(json)> reply, const CallContext& ctx) {
     if (message.is_array()) {
         if (message.empty()) {
-            reply(rpcError(nullptr, -32600, "lote vacio"));
+            reply(rpcError(nullptr, -32600, ba::i18n::traducir("mcp", "lote vacio")));
             return;
         }
         // Lote: se junta cada respuesta (pueden llegar en otro orden/momento).
@@ -497,7 +508,7 @@ json McpCore::taintInfo(const std::string& session) const {
 void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const CallContext& ctx) {
     if (!msg.is_object() || msg.value("jsonrpc", "") != "2.0") {
         reply(rpcError(msg.is_object() && msg.contains("id") ? msg["id"] : json(), -32600,
-                       "no es JSON-RPC 2.0"));
+                       ba::i18n::traducir("mcp", "no es JSON-RPC 2.0")));
         return;
     }
     const bool isRequest = msg.contains("id") && !msg["id"].is_null();
@@ -546,9 +557,18 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
                 std::string quien = ci.value("name", std::string("?"));
                 if (ci.contains("version") && ci["version"].is_string()) quien += " " + ci["version"].get<std::string>();
                 clientes_[ctx.session] = quien;
-                ba::diag::registro().linea(ba::diag::Nivel::Info, "mcp", 0,
-                                           "se conectó «" + quien + "»" + (ctx.rol.empty() ? std::string() : " con el rol " + ctx.rol) +
-                                               (ctx.session.empty() ? std::string() : " (sesión " + ctx.session.substr(0, 8) + ")"));
+                // Con rol y sesión, con uno solo o con ninguno: cada frase entera.
+                const std::string ses = ctx.session.empty() ? std::string() : ctx.session.substr(0, 8);
+                const std::string texto =
+                    !ctx.rol.empty() && !ses.empty()
+                        ? ba::i18n::llenar(ba::i18n::traducir("mcp", "se conectó «%1» con el rol %2 (sesión %3)"),
+                                           {quien, ctx.rol, ses})
+                    : !ctx.rol.empty()
+                        ? ba::i18n::llenar(ba::i18n::traducir("mcp", "se conectó «%1» con el rol %2"), {quien, ctx.rol})
+                    : !ses.empty()
+                        ? ba::i18n::llenar(ba::i18n::traducir("mcp", "se conectó «%1» (sesión %2)"), {quien, ses})
+                        : ba::i18n::llenar(ba::i18n::traducir("mcp", "se conectó «%1»"), {quien});
+                ba::diag::registro().linea(ba::diag::Nivel::Info, "mcp", 0, texto);
             }
             reply(rpcResult(id, initializeResult(params, ctx)));
         } else if (method == "ping") {
@@ -560,7 +580,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
             reply(rpcResult(id, json{{"tools", list}}));
         } else if (method == "tools/call") {
             if (!params.contains("name") || !params["name"].is_string()) {
-                reply(rpcError(id, -32602, "falta `name`"));
+                reply(rpcError(id, -32602, ba::i18n::traducir("mcp", "falta `name`")));
                 return;
             }
             callTool(params, [id, reply](json result) { reply(rpcResult(id, std::move(result))); }, ctx);
@@ -598,7 +618,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
             const auto it = std::find_if(prompts_.begin(), prompts_.end(),
                                          [&](const Prompt& p) { return p.name == name; });
             if (it == prompts_.end()) {
-                reply(rpcError(id, -32602, "no existe el prompt '" + name + "'"));
+                reply(rpcError(id, -32602, ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el prompt '%1'"), {name})));
                 return;
             }
             const std::string text = it->render(params.value("arguments", json::object()));
@@ -612,10 +632,10 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
         } else if (method == "completion/complete") {
             reply(rpcResult(id, json{{"completion", {{"values", json::array()}, {"hasMore", false}}}}));
         } else {
-            reply(rpcError(id, -32601, "metodo desconocido: " + method));
+            reply(rpcError(id, -32601, ba::i18n::llenar(ba::i18n::traducir("mcp", "metodo desconocido: %1"), {method})));
         }
     } catch (const std::exception& e) {
-        reply(rpcError(id, -32603, std::string("error interno: ") + e.what()));
+        reply(rpcError(id, -32603, ba::i18n::llenar(ba::i18n::traducir("mcp", "error interno: %1"), {e.what()})));
     }
 }
 
@@ -698,13 +718,18 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         // herramienta que no existe casi siempre quiere decir que falta
         // registrarla, no que el que llamo se equivoco. Eso hay que verlo sin
         // tener que abrir la traza.
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                   "NO EXISTE la herramienta '" + name + "'" +
-                                       (ctx.rol.empty() ? "" : " [" + ctx.rol + "]") +
-                                       (hint.empty() ? "" : " (parecidas:" + hint + ")"));
-        finish(ToolResult::error("No existe la herramienta '" + name + "'." +
-                                 (hint.empty() ? "" : " ¿Quisiste decir:" + hint + "?") +
-                                 " `help` lista todas."));
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "mcp", 0,
+            ba::i18n::llenar(ba::i18n::traducir("mcp", "NO EXISTE la herramienta '%1'%2%3"),
+                             {name, ctx.rol.empty() ? std::string() : " [" + ctx.rol + "]",
+                              hint.empty() ? std::string()
+                                           : ba::i18n::llenar(ba::i18n::traducir("mcp", " (parecidas:%1)"), {hint})}));
+        finish(ToolResult::error(
+            hint.empty()
+                ? ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la herramienta '%1'. `help` lista todas."), {name})
+                : ba::i18n::llenar(ba::i18n::traducir(
+                                       "mcp", "No existe la herramienta '%1'. ¿Quisiste decir:%2? `help` lista todas."),
+                                   {name, hint})));
         return;
     }
     // El rol de los disparadores: todo menos lo que corta o desarma (salvo lo
@@ -716,25 +741,29 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                                "agente_configurar", "mcp_aire_ajustar"};
         const bool negada = kNo.count(name) != 0 || name.rfind("plugin_", 0) == 0;
         if (negada && ctx.permitidas.count(name) == 0) {
-            ToolResult r = ToolResult::error("El rol `disparador` no puede usar '" + name +
-                                             "'. Si la regla lo necesita, agregalo en `permitir_aire` (fuera del aire).");
+            ToolResult r = ToolResult::error(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "El rol `disparador` no puede usar '%1'. Si la regla lo necesita, agregalo "
+                                          "en `permitir_aire` (fuera del aire)."),
+                {name}));
             r.structured = json{{"bloqueada_por_rol", true}};
             finish(r);
             return;
         }
     } else if (!permitida(*tool, ctx.rol)) {
         finish(
-            ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
-                              "`) no esta en el juego del rol `" + ctx.rol +
-                              "`. `agente_roles` dice que roles tienen esa categoria: si alguno la tiene, "
-                              "pediselo con `agente_encargar`; si ninguno, no se puede desde aca: decile al "
-                              "operador que hace falta y no improvises otro camino."));
+            ToolResult::error(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "La herramienta '%1' (categoria `%2`) no esta en el juego del rol `%3`. "
+                                          "`agente_roles` dice que roles tienen esa categoria: si alguno la tiene, "
+                                          "pediselo con `agente_encargar`; si ninguno, no se puede desde aca: decile al "
+                                          "operador que hace falta y no improvises otro camino."),
+                {name, tool->category, ctx.rol})));
         return;
     }
     const std::string problem = validate(tool->inputSchema, args);
     if (!problem.empty()) {
-        finish(ToolResult::error("Argumentos invalidos para " + name + ": " + problem +
-                                 ". Ficha completa: help {\"tool\": \"" + name + "\"}."));
+        finish(ToolResult::error(ba::i18n::llenar(
+            ba::i18n::traducir("mcp", "Argumentos invalidos para %1: %2. Ficha completa: help {\"tool\": \"%1\"}."),
+            {name, problem})));
         return;
     }
     // Un argumento que la herramienta no conoce se ignora… y se avisa: si no,
@@ -748,7 +777,8 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         if (!ignorados.empty()) {
             for (auto it = props.begin(); it != props.end(); ++it)
                 acepta += (acepta.empty() ? "`" : ", `") + it.key() + "`";
-            *nota = "OJO: " + name + " no conoce " + ignorados + " (se ignoró). Acepta: " + acepta + ".";
+            *nota = ba::i18n::llenar(ba::i18n::traducir("mcp", "OJO: %1 no conoce %2 (se ignoró). Acepta: %3."),
+                                     {name, ignorados, acepta});
         }
     }
     // Estado de la salvaguarda de ESTA sesion (lo sabe el servidor, no el modelo).
@@ -759,12 +789,12 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                                              : "invitados";
         finish(
             ToolResult()
-                .text(t ? "Esta sesion leyo contenido de invitados de la conferencia: toda accion que modifica algo "
-                          "necesita "
-                          "que el operador la apruebe con un click."
-                        : "Esta sesion no leyo contenido de invitados: las acciones se ejecutan directo "
-                          "(politica: " +
-                              std::string(pol) + ").")
+                .text(t ? ba::i18n::traducir("mcp", "Esta sesion leyo contenido de invitados de la conferencia: toda "
+                                                    "accion que modifica algo necesita que el operador la apruebe con "
+                                                    "un click.")
+                        : ba::i18n::llenar(ba::i18n::traducir("mcp", "Esta sesion no leyo contenido de invitados: las "
+                                                                     "acciones se ejecutan directo (politica: %1)."),
+                                           {pol}))
                 .data(json{{"policy", pol}, {"session", taintInfo(ctx.session)}}));
         return;
     }
@@ -796,7 +826,8 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         if (!ctx.rol.empty()) quien += " [" + ctx.rol + (ctx.asistente.empty() ? "" : ":" + ctx.asistente) + "]";
         if (!ctx.origen.empty()) quien += " <" + ctx.origen + ">";
         if (const auto c = clientes_.find(ctx.session); c != clientes_.end()) quien += " «" + c->second + "»";
-        else if (ctx.origen.empty() && !ctx.session.empty()) quien += " (sesión " + ctx.session.substr(0, 8) + ")";
+        else if (ctx.origen.empty() && !ctx.session.empty())
+            quien += ba::i18n::llenar(ba::i18n::traducir("mcp", " (sesión %1)"), {ctx.session.substr(0, 8)});
         // Los argumentos van en la linea: «audio_set FALLO» sin decir de que
         // canal ni a que valor no sirve para entender nada despues.
         const std::string resumenArgs = Traza::resumir(args, 220);
@@ -808,13 +839,14 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                 const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                     std::chrono::steady_clock::now() - arranque)
                                     .count();
-                ba::diag::registro().linea(r.isError  ? ba::diag::Nivel::Aviso
-                                           : modifica ? ba::diag::Nivel::Info
-                                                      : ba::diag::Nivel::Depuracion,
-                                           "mcp", 0,
-                                           name + quien + (r.isError ? " FALLO" : "") + " (" +
-                                               std::to_string(ms) + " ms) " + resumenArgs +
-                                               (r.isError ? " -> " + primerTexto(r) : ""));
+                ba::diag::registro().linea(
+                    r.isError  ? ba::diag::Nivel::Aviso
+                    : modifica ? ba::diag::Nivel::Info
+                               : ba::diag::Nivel::Depuracion,
+                    "mcp", 0,
+                    r.isError ? ba::i18n::llenar(ba::i18n::traducir("mcp", "%1%2 FALLO (%3 ms) %4 -> %5"),
+                                                 {name, quien, std::to_string(ms), resumenArgs, primerTexto(r)})
+                              : name + quien + " (" + std::to_string(ms) + " ms) " + resumenArgs);
                 if (untrustedOut || r.untrusted) taint(session, name);
                 // Si modifico algo y salio bien, las vistas se enteran ANTES de
                 // que se conteste: asi no hay un instante en el que el
@@ -826,9 +858,11 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         } catch (const std::exception& e) {
             if (!*called) {
                 *called = true;
-                ba::diag::registro().linea(ba::diag::Nivel::Error, "mcp", 0,
-                                           name + quien + " reviento: " + e.what());
-                finish(ToolResult::error(std::string("La herramienta fallo: ") + e.what()));
+                ba::diag::registro().linea(
+                    ba::diag::Nivel::Error, "mcp", 0,
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "%1%2 reviento: %3"), {name, quien, e.what()}));
+                finish(ToolResult::error(
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "La herramienta fallo: %1"), {e.what()})));
             }
         }
         enCurso_ = CallContext{};
@@ -853,43 +887,56 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         return;
     }
     if (sinAprobaciones_) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                   "MODO PRUEBA: " + name + " se ejecuta sin aprobación" +
-                                       (deAire || automaticoEnVivo ? " (acción de aire)" : ""));
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "mcp", 0,
+            deAire || automaticoEnVivo
+                ? ba::i18n::llenar(ba::i18n::traducir("mcp", "MODO PRUEBA: %1 se ejecuta sin aprobación (acción de aire)"),
+                                   {name})
+                : ba::i18n::llenar(ba::i18n::traducir("mcp", "MODO PRUEBA: %1 se ejecuta sin aprobación"), {name}));
         execute();
         return;
     }
-    const std::string quienPide = ctx.origen.empty() ? "el asistente" : ctx.origen;
+    const std::string quienPide = ctx.origen.empty() ? ba::i18n::traducir("mcp", "el asistente") : ctx.origen;
     if (!approver_) {
         ToolResult r = ToolResult::error(
             deAire || automaticoEnVivo
-                ? "Accion de AIRE bloqueada (" + name + ", pedida por " + quienPide +
-                      "): con la transmision o la grabacion andando necesita que una persona la confirme, y no "
-                      "hay a quien preguntarle. Pedile al operador que la haga el."
-                : "Accion bloqueada: esta sesion leyo contenido de invitados y no hay a quien pedirle "
-                  "aprobacion. Pedile al operador que la haga el.");
+                ? ba::i18n::llenar(
+                      ba::i18n::traducir("mcp", "Accion de AIRE bloqueada (%1, pedida por %2): con la transmision o la "
+                                                "grabacion andando necesita que una persona la confirme, y no "
+                                                "hay a quien preguntarle. Pedile al operador que la haga el."),
+                      {name, quienPide})
+                : ba::i18n::traducir("mcp", "Accion bloqueada: esta sesion leyo contenido de invitados y no hay a quien "
+                                            "pedirle aprobacion. Pedile al operador que la haga el."));
         if (deAire || automaticoEnVivo) r.structured = json{{"necesita_confirmacion", true}, {"motivo", "de aire"}};
         finish(r);
         return;
     }
+    // El prefijo «ACCIÓN DE AIRE: » NO se traduce: es la marca con la que el que
+    // arma la tarjeta (McpService::setApprover) sabe que es de aire. Lo de después sí.
+    const std::string kDeAire = "ACCIÓN DE AIRE: ";
     const std::string reason =
-        deAire ? "ACCIÓN DE AIRE: «" + name + "» cambia lo que sale y la pidió " + quienPide +
-                     ". Con la transmisión o la grabación andando, siempre la confirma una persona."
+        deAire ? kDeAire + ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» cambia lo que sale y la pidió %2. Con "
+                                                                      "la transmisión o la grabación andando, siempre "
+                                                                      "la confirma una persona."),
+                                            {name, quienPide})
         : automaticoEnVivo
-            ? "ACCIÓN DE AIRE: en vivo, " + quienPide + " solo hace lo reversible sin preguntar; «" + name +
-                  "» necesita tu confirmación."
+            ? kDeAire + ba::i18n::llenar(ba::i18n::traducir("mcp", "en vivo, %1 solo hace lo reversible sin "
+                                                                   "preguntar; «%2» necesita tu confirmación."),
+                                         {quienPide, name})
         : policy_ == ApprovalPolicy::Always
-            ? "La politica pide aprobar toda accion del asistente."
-            : "El asistente leyo contenido de invitados de la conferencia (" + taint_[session].source +
-                  "): por seguridad, lo que modifica algo necesita tu aprobacion.";
+            ? ba::i18n::traducir("mcp", "La politica pide aprobar toda accion del asistente.")
+            : ba::i18n::llenar(ba::i18n::traducir("mcp", "El asistente leyo contenido de invitados de la conferencia "
+                                                         "(%1): por seguridad, lo que modifica algo necesita tu "
+                                                         "aprobacion."),
+                               {taint_[session].source});
     approver_(*tool, args, reason, [execute, finish, name](bool ok) {
         if (ok) {
             execute();
         } else {
-            finish(ToolResult::error(
-                "El operador NO aprobo " + name +
-                ". No reintentes la misma accion: preguntale que queres hacer (operator_ask) o "
-                "segui con otra cosa."));
+            finish(ToolResult::error(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "El operador NO aprobo %1. No reintentes la misma accion: preguntale que "
+                                          "queres hacer (operator_ask) o segui con otra cosa."),
+                {name})));
         }
     });
 }
@@ -897,8 +944,10 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
 void McpCore::pedirAprobacion(const std::string& herramienta, const json& args, const std::string& motivo,
                               std::function<void(bool)> decide) {
     if (sinAprobaciones_) {
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                   "MODO PRUEBA: " + herramienta + " sigue sin la aprobación de una persona (" + motivo + ")");
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "mcp", 0,
+            ba::i18n::llenar(ba::i18n::traducir("mcp", "MODO PRUEBA: %1 sigue sin la aprobación de una persona (%2)"),
+                             {herramienta, motivo}));
         decide(true);
         return;
     }
@@ -915,7 +964,7 @@ json McpCore::resourceList() const {
     for (const HelpTopic& t : topics_) {
         list.push_back(json{{"uri", "ba://ayuda/" + t.id},
                             {"name", "ayuda-" + t.id},
-                            {"title", "Ayuda: " + t.title},
+                            {"title", ba::i18n::llenar(ba::i18n::traducir("mcp", "Ayuda: %1"), {t.title})},
                             {"description", t.summary},
                             {"mimeType", "text/markdown"}});
     }
@@ -934,19 +983,19 @@ json McpCore::readResource(const std::string& uri, std::string& error) const {
     static const std::string kHelp = "ba://ayuda/";
     if (uri.rfind(kHelpTool, 0) == 0) {
         const std::string t = helpTool(uri.substr(kHelpTool.size()));
-        if (t.empty()) error = "no existe esa herramienta";
+        if (t.empty()) error = ba::i18n::traducir("mcp", "no existe esa herramienta");
         return contents(t, "text/markdown");
     }
     if (uri.rfind(kHelp, 0) == 0) {
         const std::string id = uri.substr(kHelp.size());
         const std::string t = id == "indice" ? helpOverview() : helpTopic(id);
-        if (t.empty()) error = "no existe ese tema";
+        if (t.empty()) error = ba::i18n::traducir("mcp", "no existe ese tema");
         return contents(t, "text/markdown");
     }
     for (const Resource& r : resources_) {
         if (r.uri == uri) return contents(r.read ? r.read() : std::string(), r.mimeType);
     }
-    error = "recurso desconocido: " + uri;
+    error = ba::i18n::llenar(ba::i18n::traducir("mcp", "recurso desconocido: %1"), {uri});
     return json();
 }
 
@@ -954,12 +1003,13 @@ json McpCore::readResource(const std::string& uri, std::string& error) const {
 
 std::string McpCore::helpOverview() const {
     std::ostringstream o;
-    o << "# Broadcast Appliance — guia para operar con herramientas\n\n";
+    o << ba::i18n::traducir("mcp", "# Broadcast Appliance — guia para operar con herramientas") << "\n\n";
     if (!instructions_.empty()) o << instructions_ << "\n\n";
-    o << "## Temas de ayuda (help {\"topic\": \"<id>\"})\n";
+    o << ba::i18n::traducir("mcp", "## Temas de ayuda (help {\"topic\": \"<id>\"})") << "\n";
     for (const HelpTopic& t : topics_)
         o << "- `" << t.id << "` — " << t.title << ": " << t.summary << "\n";
-    o << "\n## Herramientas por categoria (help {\"tool\": \"<nombre>\"} para la ficha)\n";
+    o << "\n" << ba::i18n::traducir("mcp", "## Herramientas por categoria (help {\"tool\": \"<nombre>\"} para la ficha)")
+      << "\n";
     for (const Category& c : categories_) {
         std::vector<const Tool*> in;
         for (const Tool& t : tools_)
@@ -972,9 +1022,9 @@ std::string McpCore::helpOverview() const {
             o << "- `" << t->name << "`" << (t->readOnly ? "" : " ✎") << " — " << first << "\n";
         }
     }
-    o << "\n(✎ = cambia algo en la app; el resto solo consulta.)\n";
+    o << "\n" << ba::i18n::traducir("mcp", "(✎ = cambia algo en la app; el resto solo consulta.)") << "\n";
     if (!prompts_.empty()) {
-        o << "\n## Guias paso a paso (prompts MCP)\n";
+        o << "\n" << ba::i18n::traducir("mcp", "## Guias paso a paso (prompts MCP)") << "\n";
         for (const Prompt& p : prompts_)
             o << "- `" << p.name << "` — " << p.description << "\n";
     }
@@ -994,32 +1044,47 @@ std::string McpCore::helpTool(const std::string& name) const {
     std::ostringstream o;
     o << "# " << t->name << " — " << t->title << "\n\n" << t->description << "\n";
     if (!t->details.empty()) o << "\n" << t->details << "\n";
-    o << "\n**Tipo:** " << (t->readOnly ? "solo consulta" : "cambia la app")
-      << (t->destructive ? " (destructiva: borra, corta o saca algo)" : "") << "\n";
+    const std::string tipo = t->readOnly ? ba::i18n::traducir("mcp", "solo consulta") : ba::i18n::traducir("mcp", "cambia la app");
+    o << "\n"
+      << (t->destructive
+              ? ba::i18n::llenar(ba::i18n::traducir("mcp", "**Tipo:** %1 (destructiva: borra, corta o saca algo)"), {tipo})
+              : ba::i18n::llenar(ba::i18n::traducir("mcp", "**Tipo:** %1"), {tipo}))
+      << "\n";
     const json props = t->inputSchema.value("properties", json::object());
     if (!props.empty()) {
-        o << "\n## Argumentos\n";
+        o << "\n" << ba::i18n::traducir("mcp", "## Argumentos") << "\n";
         const json req = t->inputSchema.value("required", json::array());
         for (auto it = props.begin(); it != props.end(); ++it) {
             const json& p = it.value();
             const bool r = std::find(req.begin(), req.end(), it.key()) != req.end();
+            const std::string tipoArg = p.contains("type")
+                                            ? p["type"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)
+                                            : ba::i18n::traducir("mcp", "cualquiera");
             o << "- `" << it.key() << "` ("
-              << (p.contains("type") ? p["type"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : std::string("cualquiera"))
-              << (r ? ", obligatorio" : ", opcional") << ")";
+              << (r ? ba::i18n::llenar(ba::i18n::traducir("mcp", "%1, obligatorio"), {tipoArg})
+                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "%1, opcional"), {tipoArg}))
+              << ")";
             if (p.contains("description")) o << ": " << p["description"].get<std::string>();
-            if (p.contains("enum")) o << " Valores: " << p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << ".";
-            if (p.contains("default")) o << " Por defecto: " << p["default"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << ".";
+            if (p.contains("enum"))
+                o << " "
+                  << ba::i18n::llenar(ba::i18n::traducir("mcp", "Valores: %1."),
+                                      {p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)});
+            if (p.contains("default"))
+                o << " "
+                  << ba::i18n::llenar(ba::i18n::traducir("mcp", "Por defecto: %1."),
+                                      {p["default"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)});
             o << "\n";
         }
     } else {
-        o << "\nSin argumentos.\n";
+        o << "\n" << ba::i18n::traducir("mcp", "Sin argumentos.") << "\n";
     }
     if (!t->examples.empty()) {
-        o << "\n## Ejemplos\n";
+        o << "\n" << ba::i18n::traducir("mcp", "## Ejemplos") << "\n";
         for (const std::string& e : t->examples)
             o << "```json\n" << e << "\n```\n";
     }
-    o << "\n## Esquema JSON\n```json\n" << t->inputSchema.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n```\n";
+    o << "\n" << ba::i18n::traducir("mcp", "## Esquema JSON") << "\n```json\n"
+      << t->inputSchema.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n```\n";
     return o.str();
 }
 
@@ -1046,10 +1111,11 @@ void McpCore::armarIndice() const {
         std::string lista;
         for (const std::string& n : sinEtiquetas)
             lista += (lista.empty() ? "" : ", ") + n;
-        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
-                                   "sin etiquetas (no se van a encontrar buscando; ver "
-                                   "McpEtiquetas.cpp): " +
-                                       lista);
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "mcp", 0,
+            ba::i18n::llenar(ba::i18n::traducir("mcp", "sin etiquetas (no se van a encontrar buscando; ver "
+                                                       "McpEtiquetas.cpp): %1"),
+                             {lista}));
     }
     for (const HelpTopic& t : topics_) {
         Documento d;
