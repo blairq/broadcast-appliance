@@ -223,7 +223,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+203"/>
+        <location line="+204"/>
         <source>%n conexión</source>
         <translation>
             <numerusform>%n conexión</numerusform>
@@ -321,7 +321,7 @@
 <context>
     <name>EventoViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1166"/>
+        <location filename="../src/app/ui/EventoViewModel.cpp" line="+1163"/>
         <source>, %n bloque vacío que no pasa</source>
         <translation>
             <numerusform>, %n bloque vacío que no pasa</numerusform>
@@ -329,7 +329,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+404"/>
+        <location line="+407"/>
         <source>La revisión encontró %n problema que impide correr el guion</source>
         <translation>
             <numerusform>La revisión encontró %n problema que impide correr el guion</numerusform>
@@ -1115,7 +1115,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>StudioViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4339"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+4364"/>
         <source>Hay %n persona conectada</source>
         <translation>
             <numerusform>Hay %n persona conectada</numerusform>
@@ -1341,6 +1341,25 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     </message>
 </context>
 <context>
+    <name>asamblea</name>
+    <message numerus="yes">
+        <location filename="../src/app/asamblea/SesionRemota.cpp" line="+896"/>
+        <source>Votación %1: se cerró (%n voto remoto)</source>
+        <translation>
+            <numerusform>Votación %1: se cerró (%n voto remoto)</numerusform>
+            <numerusform>Votación %1: se cerró (%n votos remotos)</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Votación %1 «%2»: se cerró (%n voto remoto)</source>
+        <translation>
+            <numerusform>Votación %1 «%2»: se cerró (%n voto remoto)</numerusform>
+            <numerusform>Votación %1 «%2»: se cerró (%n votos remotos)</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>camaras</name>
     <message numerus="yes">
         <location filename="../src/app/camaras/SincroLabios.cpp" line="+122"/>
@@ -1389,7 +1408,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+235"/>
+        <location line="+232"/>
         <source>%n bloque</source>
         <translation>
             <numerusform>%n bloque</numerusform>
@@ -1535,14 +1554,14 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     <name>web/evento</name>
     <message numerus="yes">
         <location line="+666"/>
-        <source>%n día</source>
+        <source>%n día %1 h</source>
         <translation>
-            <numerusform>%n día</numerusform>
-            <numerusform>%n días</numerusform>
+            <numerusform>%n día %1 h</numerusform>
+            <numerusform>%n días %1 h</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+26"/>
+        <location line="+30"/>
         <source>%n sección</source>
         <translation>
             <numerusform>%n sección</numerusform>
@@ -1550,18 +1569,26 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+28"/>
+        <location line="+42"/>
         <source>%n página</source>
         <translation>
             <numerusform>%n página</numerusform>
             <numerusform>%n páginas</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location line="+40"/>
+        <source>%1 de %n integrante presente</source>
+        <translation>
+            <numerusform>%1 de %n integrante presente</numerusform>
+            <numerusform>%1 de %n integrantes presentes</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>web/guest</name>
     <message numerus="yes">
-        <location line="+150"/>
+        <location line="+112"/>
         <source>Hay %n persona antes que vos.</source>
         <translation>
             <numerusform>Hay %n persona antes que vos.</numerusform>
