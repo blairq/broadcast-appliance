@@ -17,9 +17,9 @@ Rectangle {
         const motivo = page.cc ? page.cc.chequearMovimiento(page.sel, false, "") : ""
         if (motivo === "") { accion(); return }
         ApplicationWindow.window.confirm({
-            title: "La cámara «" + page.sel + "» está al aire",
-            text: motivo + " ¿Mover igual?",
-            accept: "Mover igual", reject: "Cancelar",
+            title: qsTr("La cámara «%1» está al aire").arg(page.sel),
+            text: qsTr("%1 ¿Mover igual?").arg(motivo),
+            accept: qsTr("Mover igual"), reject: qsTr("Cancelar"),
             action: accion
         })
     }
@@ -113,11 +113,11 @@ Rectangle {
         Panel {
             Layout.preferredWidth: 280
             Layout.fillHeight: true
-            title: "Cámaras (" + (page.cc ? page.cc.camaras.length : 0) + ")"
+            title: qsTr("Cámaras (%1)").arg(page.cc ? page.cc.camaras.length : 0)
             GlassButton {
                 id: botonRecinto
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                text: "▦ Recinto (bancas)"; active: page.verRecinto
+                text: qsTr("▦ Recinto (bancas)"); active: page.verRecinto
                 onClicked: page.verRecinto = true
             }
             ListView {
@@ -128,7 +128,7 @@ Rectangle {
                 model: page.cc ? page.cc.camaras : []
                 Text { anchors.centerIn: parent; width: parent.width - 20; visible: lista.count === 0; wrapMode: Text.WordWrap
                        horizontalAlignment: Text.AlignHCenter; color: Theme.textFaint; font.pixelSize: 13
-                       text: "No hay entradas de video. Agregá una cámara en Entradas." }
+                       text: qsTr("No hay entradas de video. Agregá una cámara en Entradas.") }
                 delegate: Rectangle {
                     required property var modelData
                     width: lista.width
@@ -152,15 +152,15 @@ Rectangle {
                             RowLayout {
                                 spacing: 6
                                 Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: modelData.listo ? Theme.ok : Theme.warn }
-                                Text { text: modelData.backend === "ninguno" ? (modelData.digital ? "Digital" : "Sin PTZ")
-                                                                            : modelData.backend.toUpperCase() + (modelData.digital ? " + digital" : "")
+                                Text { text: modelData.backend === "ninguno" ? (modelData.digital ? qsTr("Digital") : qsTr("Sin PTZ"))
+                                                                            : modelData.backend.toUpperCase() + (modelData.digital ? " + " + qsTr("digital") : "")
                                        color: Theme.textDim; font.pixelSize: 11 }
                             }
-                            Text { visible: modelData.mejoraActiva; text: "✦ Mejorar imagen"; color: Theme.accentSoft; font.pixelSize: 10 }
+                            Text { visible: modelData.mejoraActiva; text: qsTr("✦ Mejorar imagen"); color: Theme.accentSoft; font.pixelSize: 10 }
                             Text {
                                 readonly property var r: { page.redTick; return Studio.red ? Studio.red.camaraDeEntrada(modelData.entrada) : ({}) }
                                 visible: modelData.backend === "ninguno" && r.ip !== undefined && r.ptz !== false
-                                text: r.ptz === true ? "⚙ PTZ real disponible: configuralo" : "⚙ Cámara de red: ¿tiene PTZ real?"
+                                text: r.ptz === true ? qsTr("⚙ PTZ real disponible: configuralo") : qsTr("⚙ Cámara de red: ¿tiene PTZ real?")
                                 color: Theme.amber; font.pixelSize: 10
                             }
                         }
@@ -201,7 +201,7 @@ Rectangle {
                             radius: 10; color: "black"; clip: true
                             VideoItem { id: video; anchors.fill: parent; source: page.cam ? "entrada:" + page.sel : ""; fillMode: VideoItem.Fit }
                             Text { visible: !video.hasFrame; anchors.centerIn: parent
-                                   text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 13 }
+                                   text: qsTr("Sin señal"); color: Theme.textFaint; font.pixelSize: 13 }
                             // Donde cae la imagen dentro del rectángulo (Fit deja bandas).
                             readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
                             readonly property real iw: Math.min(width, height * aspecto)
@@ -220,11 +220,12 @@ Rectangle {
                             Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
                             Rectangle { anchors.centerIn: parent; width: 1; height: 18; color: Qt.rgba(1, 1, 1, 0.35) }
                             StatusPill { anchors { left: parent.left; top: parent.top; margins: 8 }
-                                         text: page.mueveDigital ? "DIGITAL" : "ÓPTICO"; dot: page.cam && page.cam.listo ? Theme.ok : Theme.warn }
+                                         text: page.mueveDigital ? qsTr("DIGITAL") : qsTr("ÓPTICO"); dot: page.cam && page.cam.listo ? Theme.ok : Theme.warn }
                             Text {
                                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
                                 horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
-                                text: "Clic: apuntar · arrastrar: encuadrar ese cuadro" + (page.mueveDigital ? " · rueda: zoom · doble clic: cuadro completo" : "")
+                                text: page.mueveDigital ? qsTr("Clic: apuntar · arrastrar: encuadrar ese cuadro · rueda: zoom · doble clic: cuadro completo")
+                                                       : qsTr("Clic: apuntar · arrastrar: encuadrar ese cuadro")
                                 color: Qt.rgba(1, 1, 1, 0.55); font.pixelSize: 10
                                 style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
                             }
@@ -265,7 +266,7 @@ Rectangle {
                             visible: page.cam !== null && page.cam.digital
                             Layout.preferredWidth: 200
                             spacing: 6
-                            Text { text: "Encuadre digital"; color: Theme.textDim; font.pixelSize: 12 }
+                            Text { text: qsTr("Encuadre digital"); color: Theme.textDim; font.pixelSize: 12 }
                             Rectangle {
                                 id: mapa
                                 Layout.preferredWidth: 200; Layout.preferredHeight: 112
@@ -284,9 +285,9 @@ Rectangle {
                                                                                  Math.max(1, Math.min(8, mapa.zoomActual * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
                                 }
                             }
-                            Text { text: "Zoom " + (page.pos.zoom ? page.pos.zoom.toFixed(2) : "1.00") + "×  ·  clic: centrar, rueda: zoom"
+                            Text { text: qsTr("Zoom %1×  ·  clic: centrar, rueda: zoom").arg(page.pos.zoom ? page.pos.zoom.toFixed(2) : "1.00")
                                    color: Theme.textFaint; font.pixelSize: 10; Layout.preferredWidth: 200; wrapMode: Text.WordWrap }
-                            GlassButton { compact: true; text: "Cuadro completo"; onClicked: page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) }
+                            GlassButton { compact: true; text: qsTr("Cuadro completo"); onClicked: page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) }
                         }
                     }
                 }
@@ -297,18 +298,18 @@ Rectangle {
                     Layout.fillWidth: true
                     visible: page.esDeRed && !page.conHw
                     Layout.preferredHeight: visible ? ptzRealCol.implicitHeight + 64 : 0
-                    title: "Mover la cámara de verdad (PTZ real)"
+                    title: qsTr("Mover la cámara de verdad (PTZ real)")
                     ColumnLayout {
                         id: ptzRealCol
                         anchors.fill: parent
                         spacing: 8
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
-                            text: "«" + page.sel + "» es una cámara de red en " + (page.red.ip || "") +
-                                  (page.red.marca ? " (" + page.red.marca + (page.red.modelo ? " " + page.red.modelo : "") + ")" : "") +
-                                  ". Ahora el joystick mueve solo el RECORTE digital. " +
-                                  (page.red.ptz === true ? "La cámara tiene PTZ por ONVIF: con su usuario y clave se mueve el motor, con zoom óptico y sus presets."
-                                                         : "Si es una cámara PTZ (domo, motorizada), con su usuario y clave ONVIF se mueve el motor, con zoom óptico y sus presets.")
+                            text: qsTr("«%1» es una cámara de red en %2%3. Ahora el joystick mueve solo el RECORTE digital. %4")
+                                  .arg(page.sel).arg(page.red.ip || "")
+                                  .arg(page.red.marca ? " (" + page.red.marca + (page.red.modelo ? " " + page.red.modelo : "") + ")" : "")
+                                  .arg(page.red.ptz === true ? qsTr("La cámara tiene PTZ por ONVIF: con su usuario y clave se mueve el motor, con zoom óptico y sus presets.")
+                                                             : qsTr("Si es una cámara PTZ (domo, motorizada), con su usuario y clave ONVIF se mueve el motor, con zoom óptico y sus presets."))
                         }
                         Repeater {
                             model: page.red.notas || []
@@ -321,17 +322,17 @@ Rectangle {
                             TextField {
                                 id: ptzUsuario
                                 Layout.preferredWidth: 180
-                                placeholderText: "Usuario ONVIF"
+                                placeholderText: qsTr("Usuario ONVIF")
                                 text: page.red.usuario || ""
                             }
                             TextField {
                                 id: ptzClave
                                 Layout.fillWidth: true
                                 echoMode: TextInput.Password
-                                placeholderText: page.red.tieneClave ? "Clave (ya guardada: vacío = usar esa)" : "Clave"
+                                placeholderText: page.red.tieneClave ? qsTr("Clave (ya guardada: vacío = usar esa)") : qsTr("Clave")
                             }
                             GlassButton {
-                                text: page.activandoPtz ? "Consultando la cámara…" : "Activar PTZ real"
+                                text: page.activandoPtz ? qsTr("Consultando la cámara…") : qsTr("Activar PTZ real")
                                 active: true
                                 enabled: !page.activandoPtz && ptzUsuario.text.trim() !== "" && (ptzClave.text !== "" || page.red.tieneClave)
                                 onClicked: {
@@ -349,7 +350,7 @@ Rectangle {
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "La clave se guarda cifrada en este equipo. Si la cámara no es ONVIF (VISCA, Panasonic…), elegí su control abajo, en «La cámara»."
+                            text: qsTr("La clave se guarda cifrada en este equipo. Si la cámara no es ONVIF (VISCA, Panasonic…), elegí su control abajo, en «La cámara».")
                         }
                     }
                 }
@@ -358,7 +359,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: mandos.implicitHeight + 64
-                    title: "Mover"
+                    title: qsTr("Mover")
                     ColumnLayout {
                         id: mandos
                         anchors.fill: parent
@@ -366,23 +367,24 @@ Rectangle {
                         Text {
                             visible: !page.conHw
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                            text: page.cam && page.cam.digital ? "Mueve el recorte digital (zoom y encuadre en la GPU): esta cámara no tiene el motor configurado." +
-                                                                 (page.esDeRed ? " Para moverla de verdad: «Activar PTZ real», arriba." : " Si es motorizada, elegí su control en «La cámara», abajo.")
-                                                               : "Esta cámara no tiene PTZ: prendé el digital (abajo) o configurá su control."
+                            text: page.cam && page.cam.digital ? qsTr("Mueve el recorte digital (zoom y encuadre en la GPU): esta cámara no tiene el motor configurado.") + " " +
+                                                                 (page.esDeRed ? qsTr("Para moverla de verdad: «Activar PTZ real», arriba.") : qsTr("Si es motorizada, elegí su control en «La cámara», abajo."))
+                                                               : qsTr("Esta cámara no tiene PTZ: prendé el digital (abajo) o configurá su control.")
                         }
                         Text {
                             visible: page.conHw
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: page.cam && page.cam.listo ? Theme.ok : Theme.warn; font.pixelSize: 12
-                            text: page.cam ? "Motor: " + page.cam.backend.toUpperCase() + (page.cam.conf && page.cam.conf.host ? " en " + page.cam.conf.host : "") +
-                                             " — " + (page.cam.estado || (page.cam.listo ? "contesta" : "no contesta")) : ""
+                            text: page.cam ? (page.cam.conf && page.cam.conf.host ? qsTr("Motor: %1 en %2").arg(page.cam.backend.toUpperCase()).arg(page.cam.conf.host)
+                                                                                  : qsTr("Motor: %1").arg(page.cam.backend.toUpperCase())) +
+                                             " — " + (page.cam.estado || (page.cam.listo ? qsTr("contesta") : qsTr("no contesta"))) : ""
                         }
                         RowLayout {
                             visible: page.conHw && page.cam.digital
                             spacing: 8
-                            Text { text: "El joystick mueve:"; color: Theme.textDim; font.pixelSize: 12 }
-                            GlassButton { compact: true; text: "La cámara (óptico)"; active: !page.mueveDigital
+                            Text { text: qsTr("El joystick mueve:"); color: Theme.textDim; font.pixelSize: 12 }
+                            GlassButton { compact: true; text: qsTr("La cámara (óptico)"); active: !page.mueveDigital
                                           onClicked: page.avisar(page.cc.setModo(page.sel, "optico")) }
-                            GlassButton { compact: true; text: "El recorte (digital)"; active: page.mueveDigital
+                            GlassButton { compact: true; text: qsTr("El recorte (digital)"); active: page.mueveDigital
                                           onClicked: page.avisar(page.cc.setModo(page.sel, "digital")) }
                         }
                         RowLayout {
@@ -438,9 +440,9 @@ Rectangle {
                                 RowLayout {
                                     visible: page.caps.zoom === true
                                     spacing: 6
-                                    Text { text: "Zoom"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
+                                    Text { text: qsTr("Zoom"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
                                     Repeater {
-                                        model: [{t: "− Alejar", v: -1}, {t: "+ Acercar", v: 1}]
+                                        model: [{t: qsTr("− Alejar"), v: -1}, {t: qsTr("+ Acercar"), v: 1}]
                                         delegate: Rectangle {
                                             required property var modelData
                                             width: 96; height: 34; radius: 10
@@ -460,9 +462,9 @@ Rectangle {
                                 RowLayout {
                                     visible: !page.mueveDigital && page.conHw && page.cam.capacidades.foco === true
                                     spacing: 6
-                                    Text { text: "Foco"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
+                                    Text { text: qsTr("Foco"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
                                     Repeater {
-                                        model: [{t: "Cerca", v: -1}, {t: "Lejos", v: 1}]
+                                        model: [{t: qsTr("Cerca"), v: -1}, {t: qsTr("Lejos"), v: 1}]
                                         delegate: Rectangle {
                                             required property var modelData
                                             width: 96; height: 34; radius: 10
@@ -478,19 +480,19 @@ Rectangle {
                                             }
                                         }
                                     }
-                                    GlassButton { compact: true; text: "Auto"; visible: page.cam !== null && page.cam.capacidades.autoFoco === true
+                                    GlassButton { compact: true; text: qsTr("Auto"); visible: page.cam !== null && page.cam.capacidades.autoFoco === true
                                                   onClicked: page.avisar(page.cc.autoFoco(page.sel, true)) }
-                                    GlassButton { compact: true; text: "Manual"; visible: page.cam !== null && page.cam.capacidades.autoFoco === true
+                                    GlassButton { compact: true; text: qsTr("Manual"); visible: page.cam !== null && page.cam.capacidades.autoFoco === true
                                                   onClicked: page.avisar(page.cc.autoFoco(page.sel, false)) }
                                 }
                                 RowLayout {
                                     spacing: 6
-                                    Text { text: "Velocidad"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
+                                    Text { text: qsTr("Velocidad"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 46 }
                                     Slider { from: 0.1; to: 1; value: page.velocidad; Layout.preferredWidth: 160
                                              onMoved: page.velocidad = value }
                                     Text { text: Math.round(page.velocidad * 100) + "%"; color: Theme.textFaint; font.pixelSize: 11 }
                                 }
-                                GlassButton { compact: true; text: page.mueveDigital ? "⌂ Cuadro completo" : "⌂ Home"
+                                GlassButton { compact: true; text: page.mueveDigital ? qsTr("⌂ Cuadro completo") : qsTr("⌂ Home")
                                               visible: page.caps.home === true; onClicked: page.avisar(page.cc.home(page.sel)) }
                             }
                         }
@@ -506,19 +508,19 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: posCol.implicitHeight + 64
-                    title: "Posiciones y presets (" + (page.cam ? page.cam.posiciones.length : 0) + ")"
+                    title: qsTr("Posiciones y presets (%1)").arg(page.cam ? page.cam.posiciones.length : 0)
                     ColumnLayout {
                         id: posCol
                         anchors.fill: parent
                         spacing: 8
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                               text: "Guarda donde está ahora la cámara con un nombre: el encuadre digital y, si es motorizada (ONVIF, VISCA, Panasonic), una memoria de la cámara; igual en todas. Cada una tiene su número de preset (los controles y botones que llaman por número van a esa). El nombre y el comentario sirven para pedirla de palabra." }
+                               text: qsTr("Guarda donde está ahora la cámara con un nombre: el encuadre digital y, si es motorizada (ONVIF, VISCA, Panasonic), una memoria de la cámara; igual en todas. Cada una tiene su número de preset (los controles y botones que llaman por número van a esa). El nombre y el comentario sirven para pedirla de palabra.") }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { id: posNombre; Layout.preferredWidth: 180; placeholderText: "Nombre (p. ej. Atril)" }
-                            TextField { id: posComentario; Layout.fillWidth: true; placeholderText: "Comentario (opcional)" }
+                            TextField { id: posNombre; Layout.preferredWidth: 180; placeholderText: qsTr("Nombre (p. ej. Atril)") }
+                            TextField { id: posComentario; Layout.fillWidth: true; placeholderText: qsTr("Comentario (opcional)") }
                             GlassButton {
-                                text: "Guardar donde está ahora"; active: true; enabled: posNombre.text.trim() !== ""
+                                text: qsTr("Guardar donde está ahora"); active: true; enabled: posNombre.text.trim() !== ""
                                 onClicked: {
                                     const r = page.cc.crearPosicion(page.sel, posNombre.text, posComentario.text)
                                     page.avisar(r.ok ? (r.aviso || "") : r.error)
@@ -545,7 +547,7 @@ Rectangle {
                                     Image { anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true
                                             source: filaPos.modelData.miniatura_url || "" }
                                     Text { anchors.centerIn: parent; visible: !filaPos.modelData.miniatura_url
-                                           text: "sin foto"; color: Theme.textFaint; font.pixelSize: 11 }
+                                           text: qsTr("sin foto"); color: Theme.textFaint; font.pixelSize: 11 }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                 onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, -1)
                                                              page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
@@ -561,21 +563,21 @@ Rectangle {
                                                font { pixelSize: 12; weight: Font.DemiBold } }
                                         SpinBox { id: edNumero; visible: filaPos.editando; from: 1; to: 999; editable: true
                                                   value: filaPos.modelData.numero || 1; Layout.preferredWidth: 96
-                                                  ToolTip.visible: hovered; ToolTip.text: "Número de preset (único en la cámara)" }
+                                                  ToolTip.visible: hovered; ToolTip.text: qsTr("Número de preset (único en la cámara)") }
                                         Text { visible: !filaPos.editando; text: filaPos.modelData.nombre; color: Theme.text
                                                font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true; elide: Text.ElideRight }
                                         TextField { id: edNombre; visible: filaPos.editando; Layout.preferredWidth: 180; text: filaPos.modelData.nombre }
                                         TextField { id: edComentario; visible: filaPos.editando; Layout.fillWidth: true; text: filaPos.modelData.comentario || "" }
-                                        GlassButton { compact: true; text: "Ir"; active: true; visible: !filaPos.editando
+                                        GlassButton { compact: true; text: qsTr("Ir"); active: true; visible: !filaPos.editando
                                                       onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, -1)
                                                                    page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
-                                        GlassButton { compact: true; text: "Foto"; visible: !filaPos.editando
-                                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Vuelve a sacar la foto con lo que se ve ahora"
+                                        GlassButton { compact: true; text: qsTr("Foto"); visible: !filaPos.editando
+                                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Vuelve a sacar la foto con lo que se ve ahora")
                                                       onClicked: page.avisar(page.cc.capturarMiniatura(page.sel, filaPos.modelData.id)) }
-                                        GlassButton { compact: true; text: "Regrabar"; visible: !filaPos.editando
+                                        GlassButton { compact: true; text: qsTr("Regrabar"); visible: !filaPos.editando
                                                       onClicked: { const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id, {regrabar: true})
                                                                    page.avisar(r.ok ? (r.aviso || "") : r.error) } }
-                                        GlassButton { compact: true; text: filaPos.editando ? "Listo" : "Editar"
+                                        GlassButton { compact: true; text: filaPos.editando ? qsTr("Listo") : qsTr("Editar")
                                                       onClicked: {
                                                           if (filaPos.editando) {
                                                               const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id,
@@ -585,13 +587,13 @@ Rectangle {
                                                               if (r.ok) filaPos.editando = false
                                                           } else filaPos.editando = true
                                                       } }
-                                        GlassButton { compact: true; text: "Borrar"; visible: !filaPos.editando
+                                        GlassButton { compact: true; text: qsTr("Borrar"); visible: !filaPos.editando
                                                       onClicked: {
                                                           const cc = page.cc, entrada = page.sel, id = filaPos.modelData.id, nombre = filaPos.modelData.nombre
                                                           ApplicationWindow.window.confirm({
-                                                              title: "¿Borrar la posición «" + nombre + "»?",
-                                                              text: "Se borra de la lista y se libera su memoria en la cámara.",
-                                                              accept: "Borrar", reject: "Cancelar",
+                                                              title: qsTr("¿Borrar la posición «%1»?").arg(nombre),
+                                                              text: qsTr("Se borra de la lista y se libera su memoria en la cámara."),
+                                                              accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
                                                               action: function() { page.avisar(cc.borrarPosicion(entrada, id)) }
                                                           })
                                                       } }
@@ -599,12 +601,12 @@ Rectangle {
                                     RowLayout {
                                         visible: filaPos.editando
                                         Layout.fillWidth: true
-                                        Text { text: "Velocidad de la cabeza"; color: Theme.textDim; font.pixelSize: 11 }
+                                        Text { text: qsTr("Velocidad de la cabeza"); color: Theme.textDim; font.pixelSize: 11 }
                                         Slider { id: edVelocidad; from: 0; to: 1; Layout.preferredWidth: 140
                                                  value: filaPos.modelData.velocidad || 0 }
-                                        Text { text: edVelocidad.value < 0.01 ? "la de la cámara" : Math.round(edVelocidad.value * 100) + " %"
+                                        Text { text: edVelocidad.value < 0.01 ? qsTr("la de la cámara") : Math.round(edVelocidad.value * 100) + " %"
                                                color: Theme.textDim; font.pixelSize: 11; Layout.preferredWidth: 90 }
-                                        Text { text: "Recorte en"; color: Theme.textDim; font.pixelSize: 11 }
+                                        Text { text: qsTr("Recorte en"); color: Theme.textDim; font.pixelSize: 11 }
                                         // En décimas de segundo; -1 décima = sin fijar (usa lo que diga quien la llama).
                                         SpinBox { id: edSegundos; from: -1; to: 100; editable: true
                                                   value: filaPos.modelData.segundos !== undefined ? Math.round(filaPos.modelData.segundos * 10) : -1
@@ -620,10 +622,10 @@ Rectangle {
                                             const m = filaPos.modelData
                                             const partes = []
                                             if (m.definicion) partes.push(m.definicion.ancho + "×" + m.definicion.alto)
-                                            if (m.velocidad) partes.push("cabeza al " + Math.round(m.velocidad * 100) + " %")
-                                            if (m.segundos !== undefined) partes.push("recorte en " + m.segundos.toFixed(1) + " s")
-                                            if (m.digital) partes.push("digital " + m.digital.zoom.toFixed(2) + "× en " + m.digital.x.toFixed(2) + ", " + m.digital.y.toFixed(2))
-                                            if (m.camara) partes.push(m.camara.backend.toUpperCase() + (m.camara.memoria ? " memoria " + m.camara.memoria : m.camara.token ? " token " + m.camara.token : " (grabando…)"))
+                                            if (m.velocidad) partes.push(qsTr("cabeza al %1 %").arg(Math.round(m.velocidad * 100)))
+                                            if (m.segundos !== undefined) partes.push(qsTr("recorte en %1 s").arg(m.segundos.toFixed(1)))
+                                            if (m.digital) partes.push(qsTr("digital %1× en %2, %3").arg(m.digital.zoom.toFixed(2)).arg(m.digital.x.toFixed(2)).arg(m.digital.y.toFixed(2)))
+                                            if (m.camara) partes.push(m.camara.backend.toUpperCase() + (m.camara.memoria ? " " + qsTr("memoria %1").arg(m.camara.memoria) : m.camara.token ? " " + qsTr("token %1").arg(m.camara.token) : " " + qsTr("(grabando…)")))
                                             return partes.join("  ·  ")
                                         }
                                     }
@@ -638,7 +640,7 @@ Rectangle {
                     id: panelHw
                     Layout.fillWidth: true
                     Layout.preferredHeight: hwCol.implicitHeight + 64
-                    title: "La cámara: su control (motor)"
+                    title: qsTr("La cámara: su control (motor)")
                     property string backend: page.cam ? page.cam.backend : "ninguno"
                     property var valores: ({})
                     function definicion() {
@@ -661,7 +663,7 @@ Rectangle {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Control"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
+                            Text { text: qsTr("Control"); color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 110 }
                             ComboBox {
                                 id: backendBox
                                 Layout.fillWidth: true
@@ -687,7 +689,7 @@ Rectangle {
                                     visible: modelData.tipo !== "choice"
                                     Layout.fillWidth: true
                                     echoMode: modelData.tipo === "password" ? TextInput.Password : TextInput.Normal
-                                    placeholderText: modelData.tipo === "password" && page.cam && page.cam.tieneClave ? "(guardada; vacío = no cambiar)" : ""
+                                    placeholderText: modelData.tipo === "password" && page.cam && page.cam.tieneClave ? qsTr("(guardada; vacío = no cambiar)") : ""
                                     text: panelHw.valores[modelData.clave] !== undefined ? String(panelHw.valores[modelData.clave]) : ""
                                     onTextEdited: { const v = panelHw.valores; v[modelData.clave] = text; panelHw.valores = v }
                                 }
@@ -707,7 +709,7 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             GlassButton {
-                                text: "Aplicar"; active: true
+                                text: qsTr("Aplicar"); active: true
                                 onClicked: {
                                     const v = Object.assign({}, panelHw.valores)
                                     // Lo que no se tocó del combo vale su primera opción.
@@ -719,7 +721,7 @@ Rectangle {
                             }
                             GlassButton {
                                 visible: panelHw.backend === "onvif"
-                                text: page.cc && page.cc.buscando ? "Buscando…" : "Buscar en la red"
+                                text: page.cc && page.cc.buscando ? qsTr("Buscando…") : qsTr("Buscar en la red")
                                 enabled: page.cc && !page.cc.buscando
                                 onClicked: page.cc.buscarOnvif()
                             }
@@ -733,10 +735,10 @@ Rectangle {
                                 height: 40; radius: 8; color: Qt.rgba(1, 1, 1, 0.05)
                                 RowLayout {
                                     anchors { fill: parent; margins: 8 }
-                                    Text { text: (modelData.nombre || "Cámara") + (modelData.modelo ? " · " + modelData.modelo : "")
+                                    Text { text: (modelData.nombre || qsTr("Cámara")) + (modelData.modelo ? " · " + modelData.modelo : "")
                                            color: Theme.text; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
                                     Text { text: modelData.host; color: Theme.textDim; font.pixelSize: 12 }
-                                    GlassButton { compact: true; text: "Usar"
+                                    GlassButton { compact: true; text: qsTr("Usar")
                                                   onClicked: { const v = panelHw.valores; v.host = modelData.direccion; panelHw.valores = v } }
                                 }
                             }
@@ -748,7 +750,7 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: digCol.implicitHeight + 64
-                    title: "Digital e imagen"
+                    title: qsTr("Digital e imagen")
                     ColumnLayout {
                         id: digCol
                         anchors.fill: parent
@@ -758,9 +760,9 @@ Rectangle {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                Text { text: "PTZ digital"; color: Theme.text; font.pixelSize: 13 }
+                                Text { text: qsTr("PTZ digital"); color: Theme.text; font.pixelSize: 13 }
                                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                                       text: "Recorte y zoom en la GPU, en cualquier cámara. Sin zoom no cuesta nada." }
+                                       text: qsTr("Recorte y zoom en la GPU, en cualquier cámara. Sin zoom no cuesta nada.") }
                             }
                             Toggle { checked: page.cam ? page.cam.digital : false
                                      onToggled: (w) => page.avisar(page.cc.setDigital(page.sel, w)) }
@@ -770,15 +772,15 @@ Rectangle {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                Text { text: "Mejorar imagen"; color: Theme.text; font.pixelSize: 13 }
+                                Text { text: qsTr("Mejorar imagen"); color: Theme.text; font.pixelSize: 13 }
                                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                                       text: "Limpia el ruido, pega el color a los bordes y afila. Lo general (y la intensidad) está en Configuración → Cámaras y entradas." }
+                                       text: qsTr("Limpia el ruido, pega el color a los bordes y afila. Lo general (y la intensidad) está en Configuración → Cámaras y entradas.") }
                             }
                             ComboBox {
                                 Layout.preferredWidth: 220
-                                model: [{v: "general", t: "Como lo general (" + (page.cc && page.cc.mejoraGeneral ? "prendido" : "apagado") + ")"},
-                                        {v: "si", t: "Siempre en esta cámara"},
-                                        {v: "no", t: "Nunca en esta cámara"}]
+                                model: [{v: "general", t: page.cc && page.cc.mejoraGeneral ? qsTr("Como lo general (prendido)") : qsTr("Como lo general (apagado)")},
+                                        {v: "si", t: qsTr("Siempre en esta cámara")},
+                                        {v: "no", t: qsTr("Nunca en esta cámara")}]
                                 textRole: "t"
                                 valueRole: "v"
                                 currentIndex: page.cam ? ["general", "si", "no"].indexOf(page.cam.mejora) : 0
@@ -793,7 +795,7 @@ Rectangle {
             visible: page.verRecinto
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Recinto" + (Studio.cuerpo.nombre ? " · " + Studio.cuerpo.nombre : "")
+            title: qsTr("Recinto") + (Studio.cuerpo.nombre ? " · " + Studio.cuerpo.nombre : "")
             ScrollView {
                 anchors.fill: parent
                 contentWidth: availableWidth
@@ -806,7 +808,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Text { anchors.centerIn: parent; color: Theme.textFaint; font.pixelSize: 14
-                   text: "Elegí una cámara de la lista." }
+                   text: qsTr("Elegí una cámara de la lista.") }
         }
     }
 }

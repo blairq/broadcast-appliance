@@ -83,7 +83,7 @@ Rectangle {
         page.tm.linea = s
     }
     function tituloDe(id) {
-        for (const n of (page.mapa.nodos || [])) if (n.id === id) return n.titulo + (n.medio === "audio" && n.tipo === "entrada" ? " (audio)" : "")
+        for (const n of (page.mapa.nodos || [])) if (n.id === id) return n.medio === "audio" && n.tipo === "entrada" ? qsTr("%1 (audio)").arg(n.titulo) : n.titulo
         for (const s of (page.mapa.salidas || [])) if (s.id === id) return s.titulo
         return id
     }
@@ -224,7 +224,7 @@ Rectangle {
     function ms(v) { return v === null || v === undefined ? "—" : (v >= 1000 ? (v / 1000).toFixed(2) + " s" : Math.round(v) + " ms") }
     function hace(t) {
         const s = Math.round((Date.now() - t) / 1000)
-        return s < 60 ? "hace " + s + " s" : s < 3600 ? "hace " + Math.round(s / 60) + " min" : new Date(t).toLocaleString(Qt.locale(), "d/M HH:mm")
+        return s < 60 ? qsTr("hace %1 s").arg(s) : s < 3600 ? qsTr("hace %1 min").arg(Math.round(s / 60)) : new Date(t).toLocaleString(Qt.locale(), "d/M HH:mm")
     }
 
     // --- Fondo: la profundidad -----------------------------------------------------------
@@ -245,23 +245,23 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Latencias y sincronía"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+            Text { text: qsTr("Latencias y sincronía"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
             Row {
                 spacing: 4
-                GlassButton { compact: true; text: "Mapa"; icon: "⤳"; active: page.pestana === "mapa"; onClicked: page.pestana = "mapa" }
-                GlassButton { compact: true; text: "Sincronía"; icon: "⏱"; active: page.pestana === "sincronia"; onClicked: page.pestana = "sincronia" }
+                GlassButton { compact: true; text: qsTr("Mapa"); icon: "⤳"; active: page.pestana === "mapa"; onClicked: page.pestana = "mapa" }
+                GlassButton { compact: true; text: qsTr("Sincronía"); icon: "⏱"; active: page.pestana === "sincronia"; onClicked: page.pestana = "sincronia" }
             }
             StatusPill {
                 readonly property var es: page.mapa.estudio || {}
-                text: "Estudio " + page.ms(es.latencia_ms) + (es.tope_ms ? " · tope " + page.ms(es.tope_ms) : "")
+                text: qsTr("Estudio %1").arg(page.ms(es.latencia_ms)) + (es.tope_ms ? " · " + qsTr("tope %1").arg(page.ms(es.tope_ms)) : "")
                 dot: Theme.ok
                 TapHandler { onTapped: page.pestana = "sincronia" }
             }
             Text {
                 Layout.fillWidth: true
                 text: page.pestana === "mapa"
-                      ? "De la captura a cada salida. Medido: lo que pasó de verdad · declarado: la latencia que se le fijó. Tocá una tarjeta para ver su detalle."
-                      : "Todo alineado con la menor latencia: quién la marca, qué entradas se sincronizan con la sala, reloj y red."
+                      ? qsTr("De la captura a cada salida. Medido: lo que pasó de verdad · declarado: la latencia que se le fijó. Tocá una tarjeta para ver su detalle.")
+                      : qsTr("Todo alineado con la menor latencia: quién la marca, qué entradas se sincronizan con la sala, reloj y red.")
                 color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
             }
         }
@@ -298,7 +298,7 @@ Rectangle {
                     GlassButton {
                         Layout.fillWidth: true
                         text: page.tm && page.tm.analisis.length && page.tm.analisis[0].estado === "midiendo"
-                              ? "Midiendo… " + Math.round(100 * page.tm.analisis[0].progreso) + " %" : "Analizar 10 s"
+                              ? qsTr("Midiendo… %1 %").arg(Math.round(100 * page.tm.analisis[0].progreso)) : qsTr("Analizar 10 s")
                         icon: "▶"
                         active: true
                         enabled: !(page.tm && page.tm.analisis.length && page.tm.analisis[0].estado === "midiendo")
@@ -306,28 +306,28 @@ Rectangle {
                     }
                     GlassButton {
                         Layout.fillWidth: true
-                        text: "Marca de tiempo"
+                        text: qsTr("Marca de tiempo")
                         icon: "⏺"
                         enabled: false
                         ToolTip.visible: hovered; ToolTip.delay: 300
-                        ToolTip.text: "Próximamente: cada entrada estampa su hora de captura (en ns) y se lee en la TV, los invitados y YouTube."
+                        ToolTip.text: qsTr("Próximamente: cada entrada estampa su hora de captura (en ns) y se lee en la TV, los invitados y YouTube.")
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                    Text { text: "Mostrar"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Mostrar"); color: Theme.textDim; font.pixelSize: 11 }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 4
-                        GlassButton { compact: true; text: "Video"; active: page.verVideo; onClicked: page.verVideo = !page.verVideo }
-                        GlassButton { compact: true; text: "Audio"; active: page.verAudio; onClicked: page.verAudio = !page.verAudio }
-                        GlassButton { compact: true; text: "Solo medido"; active: page.soloMedido; onClicked: page.soloMedido = !page.soloMedido }
-                        GlassButton { compact: true; text: "En reposo"; active: page.verReposo; onClicked: page.verReposo = !page.verReposo }
+                        GlassButton { compact: true; text: qsTr("Video"); active: page.verVideo; onClicked: page.verVideo = !page.verVideo }
+                        GlassButton { compact: true; text: qsTr("Audio"); active: page.verAudio; onClicked: page.verAudio = !page.verAudio }
+                        GlassButton { compact: true; text: qsTr("Solo medido"); active: page.soloMedido; onClicked: page.soloMedido = !page.soloMedido }
+                        GlassButton { compact: true; text: qsTr("En reposo"); active: page.verReposo; onClicked: page.verReposo = !page.verReposo }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Entradas"; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
+                        Text { text: qsTr("Entradas"); color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
                         Text {
-                            text: "todas"; color: Theme.accent; font.pixelSize: 10
+                            text: qsTr("todas"); color: Theme.accent; font.pixelSize: 10
                             TapHandler { onTapped: page.ocultas = ({}) }
                         }
                     }
@@ -393,7 +393,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     visible: page.acomodo.nodos.length === 0
-                    text: page.tm ? "Todavía no hay nada que mostrar: ¿el motor está andando?" : "El análisis de latencias no está disponible"
+                    text: page.tm ? qsTr("Todavía no hay nada que mostrar: ¿el motor está andando?") : qsTr("El análisis de latencias no está disponible")
                     color: Theme.textFaint; font.pixelSize: 13
                 }
 
@@ -497,7 +497,7 @@ Rectangle {
                         spacing: 8
                         Text {
                             visible: !barraElegida.n
-                            text: "Tocá una tarjeta para elegirla: después, analizarla por dentro, verla en la gráfica o ver su detalle."
+                            text: qsTr("Tocá una tarjeta para elegirla: después, analizarla por dentro, verla en la gráfica o ver su detalle.")
                             color: Theme.textDim; font.pixelSize: 11
                         }
                         Text {
@@ -509,7 +509,7 @@ Rectangle {
                         }
                         GlassButton {
                             visible: !!barraElegida.n && barraElegida.entrada !== ""
-                            compact: true; icon: "🔍"; text: "Analizar por dentro (5 s)"
+                            compact: true; icon: "🔍"; text: qsTr("Analizar por dentro (5 s)")
                             onClicked: {
                                 page.recorridoDe = barraElegida.entrada
                                 const e = page.tm.analizarEntradaUi(barraElegida.entrada, 5)
@@ -518,19 +518,19 @@ Rectangle {
                         }
                         GlassButton {
                             visible: !!barraElegida.n
-                            compact: true; icon: "📈"; text: "En la gráfica"
+                            compact: true; icon: "📈"; text: qsTr("En la gráfica")
                             active: page.serie.indexOf(page.elegido) >= 0
                             onClicked: page.alternarSerie(page.elegido)
                         }
                         GlassButton {
                             visible: !!barraElegida.n
-                            compact: true; icon: "↻"; text: "Detalle"
+                            compact: true; icon: "↻"; text: qsTr("Detalle")
                             active: page.volteada === page.elegido
                             onClicked: page.volteada = page.volteada === page.elegido ? "" : page.elegido
                         }
                         GlassButton {
                             visible: !!barraElegida.n
-                            compact: true; text: "Soltar"
+                            compact: true; text: qsTr("Soltar")
                             onClicked: { page.elegido = ""; page.volteada = "" }
                         }
                     }
@@ -557,7 +557,7 @@ Rectangle {
                 Row {
                     anchors { right: parent.right; bottom: parent.bottom; margins: 10 }
                     spacing: 4
-                    GlassButton { compact: true; text: "Encajar"; icon: "⤢"; onClicked: parent.parent.encajar() }
+                    GlassButton { compact: true; text: qsTr("Encajar"); icon: "⤢"; onClicked: parent.parent.encajar() }
                     GlassButton { compact: true; text: "−"; onClicked: mundo.escala = Math.max(0.35, mundo.escala * 0.85) }
                     GlassButton { compact: true; text: Math.round(mundo.escala * 100) + " %"; onClicked: mundo.escala = 1.0 }
                     GlassButton { compact: true; text: "+"; onClicked: mundo.escala = Math.min(2.0, mundo.escala * 1.15) }
@@ -600,12 +600,12 @@ Rectangle {
                         resaltar: page.recorridoElementos
                         onCerrar: page.recorridoDe = ""
                     }
-                    Text { text: "Hasta cada salida"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Hasta cada salida"); color: Theme.textDim; font.pixelSize: 11 }
                     Text {
                         visible: (page.mapa.salidas || []).length === 0
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
-                        text: "Ninguna salida andando: cuando transmitas o grabes, acá aparece cuánto tarda hasta cada una."
+                        text: qsTr("Ninguna salida andando: cuando transmitas o grabes, acá aparece cuánto tarda hasta cada una.")
                         color: Theme.textFaint; font.pixelSize: 11
                     }
                     Repeater {
@@ -626,7 +626,7 @@ Rectangle {
                                 Text { text: page.ms(sal.modelData.total_ms); color: Theme.text; font.pixelSize: 24; font.weight: Font.Light }
                                 Text {
                                     width: parent.width; wrapMode: Text.WordWrap
-                                    text: sal.modelData.fuente === "medido" ? "medido de punta a punta" : "declarado (lo que se le fijó al pipeline)"
+                                    text: sal.modelData.fuente === "medido" ? qsTr("medido de punta a punta") : qsTr("declarado (lo que se le fijó al pipeline)")
                                     color: Theme.textFaint; font.pixelSize: 9
                                 }
                             }
@@ -653,7 +653,7 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
-                    Text { text: "Línea de tiempo"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: qsTr("Línea de tiempo"); color: Theme.textDim; font.pixelSize: 11 }
                     // Las series elegidas (✕ para sacarla).
                     Repeater {
                         model: page.serie
@@ -681,18 +681,18 @@ Rectangle {
                     }
                     Text {
                         visible: page.serie.length === 0
-                        text: "Elegí una tarjeta del mapa y tocá «En la gráfica» para sumarla acá (cada una con su color)."
+                        text: qsTr("Elegí una tarjeta del mapa y tocá «En la gráfica» para sumarla acá (cada una con su color).")
                         color: Theme.textFaint; font.pixelSize: 11
                     }
                     Item { Layout.fillWidth: true }
-                    GlassButton { compact: true; text: "Superpuestas"; active: page.modoLinea === "superpuestas"; onClicked: page.modoLinea = "superpuestas"; visible: page.serie.length > 0 }
-                    GlassButton { compact: true; text: "Apiladas"; active: page.modoLinea === "apiladas"; onClicked: page.modoLinea = "apiladas"; visible: page.serie.length > 0 }
+                    GlassButton { compact: true; text: qsTr("Superpuestas"); active: page.modoLinea === "superpuestas"; onClicked: page.modoLinea = "superpuestas"; visible: page.serie.length > 0 }
+                    GlassButton { compact: true; text: qsTr("Apiladas"); active: page.modoLinea === "apiladas"; onClicked: page.modoLinea = "apiladas"; visible: page.serie.length > 0 }
                     GlassButton {
                         compact: true; visible: page.serie.length > 0
-                        text: page.lineaAcumulado ? "Desde la captura" : "Lo que agrega"
+                        text: page.lineaAcumulado ? qsTr("Desde la captura") : qsTr("Lo que agrega")
                         onClicked: page.lineaAcumulado = !page.lineaAcumulado
                         ToolTip.visible: hovered; ToolTip.delay: 300
-                        ToolTip.text: "Lo que agrega cada tarjeta, o todo lo que lleva desde la captura (con la latencia del estudio de referencia)"
+                        ToolTip.text: qsTr("Lo que agrega cada tarjeta, o todo lo que lleva desde la captura (con la latencia del estudio de referencia)")
                     }
                     Repeater {
                         model: [{ t: "1 min", s: 60 }, { t: "5 min", s: 300 }, { t: "15 min", s: 900 }, { t: "30 min", s: 1800 }]
@@ -707,12 +707,12 @@ Rectangle {
                     }
                     GlassButton {
                         compact: true; visible: page.serie.length > 0
-                        text: page.pausada ? "Reanudar" : "Pausar"
+                        text: page.pausada ? qsTr("Reanudar") : qsTr("Pausar")
                         icon: page.pausada ? "▶" : "⏸"
                         active: page.pausada
                         onClicked: if (page.pausada) page.pausada = false; else page.pausar()
                     }
-                    GlassButton { compact: true; visible: page.serie.length > 0; text: "Limpiar"; onClicked: { page.tm.linea = []; page.pausada = false } }
+                    GlassButton { compact: true; visible: page.serie.length > 0; text: qsTr("Limpiar"); onClicked: { page.tm.linea = []; page.pausada = false } }
                 }
                 GraficaLatencia {
                     Layout.fillWidth: true
@@ -744,16 +744,16 @@ Rectangle {
                 spacing: 4
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Análisis"; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
+                    Text { text: qsTr("Análisis"); color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
                     Text {
                         visible: page.tm && page.tm.analisis.length > 0
-                        text: "borrar el historial"; color: Theme.textFaint; font.pixelSize: 10
+                        text: qsTr("borrar el historial"); color: Theme.textFaint; font.pixelSize: 10
                         TapHandler { onTapped: page.tm.borrarAnalisis() }
                     }
                 }
                 Text {
                     visible: !page.tm || page.tm.analisis.length === 0
-                    text: "Todavía no corriste ninguno: «Analizar 10 s» toma la mediana y el p95 de cada tramo y queda acá, en el historial del evento."
+                    text: qsTr("Todavía no corriste ninguno: «Analizar 10 s» toma la mediana y el p95 de cada tramo y queda acá, en el historial del evento.")
                     color: Theme.textFaint; font.pixelSize: 11
                 }
                 ListView {
@@ -777,7 +777,7 @@ Rectangle {
                             Row {
                                 spacing: 6
                                 StatusPill {
-                                    text: an.modelData.estado === "midiendo" ? "midiendo" : an.modelData.estado === "listo" ? "listo" : "falló"
+                                    text: an.modelData.estado === "midiendo" ? qsTr("midiendo") : an.modelData.estado === "listo" ? qsTr("listo") : qsTr("falló")
                                     dot: an.modelData.estado === "midiendo" ? Theme.amber : an.modelData.estado === "listo" ? Theme.ok : Theme.live
                                     pulse: an.modelData.estado === "midiendo"
                                     pixelSize: 10
@@ -808,7 +808,7 @@ Rectangle {
                             }
                             Text {
                                 visible: an.modelData.estado === "listo" && (an.modelData.salidas || []).length === 0
-                                text: Object.keys(an.modelData.nodos || {}).length + " tramos medidos (sin salidas andando)"
+                                text: qsTr("%n tramo medido (sin salidas andando)", "", Object.keys(an.modelData.nodos || {}).length)
                                 color: Theme.textDim; font.pixelSize: 10
                             }
                         }
@@ -831,22 +831,22 @@ Rectangle {
         contentItem: ColumnLayout {
             spacing: 10
             Text {
-                text: "Marcar " + (nota.t > 0 ? new Date(nota.t).toLocaleTimeString(Qt.locale(), "HH:mm:ss") : "")
+                text: qsTr("Marcar %1").arg(nota.t > 0 ? new Date(nota.t).toLocaleTimeString(Qt.locale(), "HH:mm:ss") : "")
                 color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold
             }
             TextField {
                 id: campoNota
                 Layout.fillWidth: true
-                placeholderText: "Qué pasó (p. ej. «se movió el cable de la cámara 2»)"
+                placeholderText: qsTr("Qué pasó (p. ej. «se movió el cable de la cámara 2»)")
                 color: Theme.text
                 onAccepted: guardarNota.clicked()
             }
             RowLayout {
                 Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: nota.close() }
+                GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: nota.close() }
                 GlassButton {
                     id: guardarNota
-                    compact: true; text: "Marcar"; active: true
+                    compact: true; text: qsTr("Marcar"); active: true
                     onClicked: {
                         page.tm.agregarEventoUi(nota.t, campoNota.text.trim())
                         if (page.pausada) page.eventosPausa = page.tm.eventos

@@ -40,13 +40,13 @@ Rectangle {
     }
     function nombreDeEstado(e) {
         switch (e) {
-        case "corriendo": return "corriendo"
-        case "arrancando": return "arrancando…"
-        case "dependencias": return "bajando bibliotecas…"
-        case "reiniciando": return "reiniciando…"
-        case "caido": return "caído"
-        case "bloqueado": return "bloqueado en vivo"
-        default: return "apagado"
+        case "corriendo": return qsTr("corriendo")
+        case "arrancando": return qsTr("arrancando…")
+        case "dependencias": return qsTr("bajando bibliotecas…")
+        case "reiniciando": return qsTr("reiniciando…")
+        case "caido": return qsTr("caído")
+        case "bloqueado": return qsTr("bloqueado en vivo")
+        default: return qsTr("apagado")
         }
     }
     function cargarVista() {
@@ -66,7 +66,7 @@ Rectangle {
     }
     FileDialog {
         id: importarDlg
-        title: "Plugin exportado (.zip)"
+        title: qsTr("Plugin exportado (.zip)")
         nameFilters: ["Plugin (*.zip)"]
         onAccepted: page.pl.importarUi(selectedFile)
     }
@@ -100,28 +100,28 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
-                Text { text: "Plugins"; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
+                Text { text: qsTr("Plugins"); color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
                 StatusPill {
-                    text: page.corriendo() + " corriendo de " + page.pl.lista.length
+                    text: qsTr("%1 corriendo de %2").arg(page.corriendo()).arg(page.pl.lista.length)
                     dot: page.corriendo() > 0 ? Theme.ok : Theme.textFaint
                 }
                 StatusPill {
                     visible: !page.pl.hayPython
-                    text: "falta Python en el programa"; dot: Theme.live
+                    text: qsTr("falta Python en el programa"); dot: Theme.live
                 }
                 Item { Layout.fillWidth: true }
                 GlassButton {
-                    compact: true; text: "Importar…"; icon: "⇩"
+                    compact: true; text: qsTr("Importar…"); icon: "⇩"
                     onClicked: importarDlg.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Instalar un plugin exportado en otro aparato (.zip)"
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Instalar un plugin exportado en otro aparato (.zip)")
                 }
-                GlassButton { compact: true; text: "Abrir la carpeta"; icon: "▤"; onClicked: page.pl.abrirCarpeta("") }
+                GlassButton { compact: true; text: qsTr("Abrir la carpeta"); icon: "▤"; onClicked: page.pl.abrirCarpeta("") }
             }
             Text {
                 Layout.fillWidth: true
-                text: "Un plugin es un programa en Python que corre aparte (si se cae, la emisión sigue) y puede ser una entrada de video o audio, " +
+                text: qsTr("Un plugin es un programa en Python que corre aparte (si se cae, la emisión sigue) y puede ser una entrada de video o audio, " +
                       "una tarjeta del grafo, el PTZ de una cámara que se maneja de forma rara, un canal de datos (quién habla) o una automatización. " +
-                      "Viven en " + page.pl.carpetaTexto + " y no se pierden al actualizar."
+                      "Viven en %1 y no se pierden al actualizar.").arg(page.pl.carpetaTexto)
                 color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
             }
 
@@ -134,12 +134,12 @@ Rectangle {
                     id: pedirCol
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Pedirle un plugin al asistente ✦"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Pedirle un plugin al asistente ✦"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true
-                        text: "Contale qué equipo es o qué necesitás (por ejemplo: «tengo una Logitech Rally por USB y quiero manejar su PTZ», " +
+                        text: qsTr("Contale qué equipo es o qué necesitás (por ejemplo: «tengo una Logitech Rally por USB y quiero manejar su PTZ», " +
                               "«juntá las dos Kandao y que se vea quien habla», «un efecto de viejo para la cámara 2», «avisame si hay movimiento en la cámara del hall»). " +
-                              "Lo escribe, lo prueba sin tocar el aire y lo deja andando."
+                              "Lo escribe, lo prueba sin tocar el aire y lo deja andando.")
                         color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
                     RowLayout {
@@ -148,19 +148,19 @@ Rectangle {
                         TextField {
                             id: pedido
                             Layout.fillWidth: true
-                            placeholderText: Studio.agent.running ? "Qué tiene que hacer el plugin…" : "Abrí el asistente ✦ para poder pedírselo"
+                            placeholderText: Studio.agent.running ? qsTr("Qué tiene que hacer el plugin…") : qsTr("Abrí el asistente ✦ para poder pedírselo")
                             color: Theme.text; font.pixelSize: 12
                             onAccepted: mandarPedido.clicked()
                         }
                         GlassButton {
                             id: mandarPedido
-                            compact: true; text: "Pedírselo"; active: true
+                            compact: true; text: qsTr("Pedírselo"); active: true
                             enabled: Studio.agent.running && pedido.text.trim() !== ""
                             onClicked: {
                                 Studio.agent.send("Hacé un plugin de Python para esto (help {\"topic\": \"plugins\"}): " + pedido.text.trim() +
                                                   ". Probalo con plugin_probar antes de activarlo y contame cómo se usa.")
                                 pedido.text = ""
-                                Studio.notify("Se lo pasé al asistente ✦", "info")
+                                Studio.notify(qsTr("Se lo pasé al asistente ✦"), "info")
                             }
                         }
                     }
@@ -179,25 +179,25 @@ Rectangle {
                 readonly property var elegido: ejemploBox.currentIndex >= 0 ? page.pl.ejemplos[ejemploBox.currentIndex] : null
                 function nombreCategoria(c) {
                     switch (c) {
-                    case "inicio": return "Para empezar"
-                    case "video": return "Video"
-                    case "automatizacion": return "Automatización"
-                    case "equipo": return "Equipos"
-                    case "superficie": return "Superficies de control"
-                    case "documentos": return "Documentos de identidad"
-                    default: return "Otros"
+                    case "inicio": return qsTr("Para empezar")
+                    case "video": return qsTr("Video")
+                    case "automatizacion": return qsTr("Automatización")
+                    case "equipo": return qsTr("Equipos")
+                    case "superficie": return qsTr("Superficies de control")
+                    case "documentos": return qsTr("Documentos de identidad")
+                    default: return qsTr("Otros")
                     }
                 }
                 ColumnLayout {
                     id: nuevoCol
                     anchors.fill: parent
                     spacing: 8
-                    Text { text: "Nuevo desde un ejemplo"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { text: qsTr("Nuevo desde un ejemplo"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text {
                         Layout.fillWidth: true
-                        text: "Un punto de partida que ya anda: una tarjeta de video hecha con GStreamer en Python (efecto, filtro o análisis), " +
+                        text: qsTr("Un punto de partida que ya anda: una tarjeta de video hecha con GStreamer en Python (efecto, filtro o análisis), " +
                               "una automatización que escucha el estudio y actúa, un equipo por la red (con simulador para probarlo sin el aparato)… " +
-                              "Se copia con el nombre que le pongas y el código queda para cambiarlo (o pedíselo al asistente)."
+                              "Se copia con el nombre que le pongas y el código queda para cambiarlo (o pedíselo al asistente).")
                         color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
                     }
                     RowLayout {
@@ -208,7 +208,7 @@ Rectangle {
                             Layout.fillWidth: true
                             model: page.pl.ejemplos
                             textRole: "nombre"
-                            displayText: currentIndex < 0 ? "Elegí un ejemplo…"
+                            displayText: currentIndex < 0 ? qsTr("Elegí un ejemplo…")
                                                           : nuevoPanel.nombreCategoria(nuevoPanel.elegido.categoria) + " · " + currentText
                             currentIndex: -1
                             delegate: ItemDelegate {
@@ -228,18 +228,18 @@ Rectangle {
                         TextField {
                             id: nuevoId
                             Layout.preferredWidth: 180
-                            placeholderText: "id nuevo (mi-camara)"
+                            placeholderText: qsTr("id nuevo (mi-camara)")
                             color: Theme.text; font.pixelSize: 12
                             validator: RegularExpressionValidator { regularExpression: /[a-z0-9-]{0,40}/ }
                         }
                         GlassButton {
-                            compact: true; text: "Crear"; icon: "＋"; active: true
+                            compact: true; text: qsTr("Crear"); icon: "＋"; active: true
                             enabled: nuevoPanel.elegido !== null && nuevoId.text !== ""
                             onClicked: {
                                 const e = page.pl.copiarEjemplo(nuevoPanel.elegido.ejemplo, nuevoId.text)
                                 if (e !== "") Studio.notify(e, "error")
                                 else {
-                                    Studio.notify("Listo «" + nuevoId.text + "»: prendelo y usalo desde su tarjeta de abajo", "info")
+                                    Studio.notify(qsTr("Listo «%1»: prendelo y usalo desde su tarjeta de abajo").arg(nuevoId.text), "info")
                                     page.abierto = nuevoId.text; page.vista = "resumen"; nuevoId.text = ""; ejemploBox.currentIndex = -1
                                 }
                             }
@@ -255,11 +255,11 @@ Rectangle {
             }
 
             // --- Los plugins ---------------------------------------------------------
-            Text { text: "Instalados"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Text { text: qsTr("Instalados"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
 
             Text {
                 visible: page.pl.lista.length === 0
-                text: "Todavía no hay plugins. Pedile uno al asistente o copiá un ejemplo."
+                text: qsTr("Todavía no hay plugins. Pedile uno al asistente o copiá un ejemplo.")
                 color: Theme.textFaint; font.pixelSize: 12
             }
 
@@ -303,7 +303,7 @@ Rectangle {
                                 Text {
                                     Layout.fillWidth: true
                                     visible: !!tarjeta.modelData.dice
-                                    text: tarjeta.modelData.dice ? "dice: " + tarjeta.modelData.dice.texto : ""
+                                    text: tarjeta.modelData.dice ? qsTr("dice: %1").arg(tarjeta.modelData.dice.texto) : ""
                                     color: tarjeta.modelData.dice && tarjeta.modelData.dice.ok === false ? Theme.warn : Theme.textDim
                                     font.pixelSize: 11; wrapMode: Text.WordWrap
                                 }
@@ -315,48 +315,48 @@ Rectangle {
                                 }
                             }
                             StatusPill {
-                                text: page.nombreDeEstado(tarjeta.modelData.estado) + (tarjeta.modelData.reinicios ? " · " + tarjeta.modelData.reinicios + " reinicios" : "")
+                                text: page.nombreDeEstado(tarjeta.modelData.estado) + (tarjeta.modelData.reinicios ? " · " + qsTr("%n reinicio", "", tarjeta.modelData.reinicios) : "")
                                 dot: page.colorDeEstado(tarjeta.modelData.estado)
                                 pulse: tarjeta.modelData.estado === "arrancando" || tarjeta.modelData.estado === "dependencias"
-                                medidaDe: "bajando bibliotecas…"
+                                medidaDe: qsTr("bajando bibliotecas…")
                             }
                             // Aprobado para el aire (T60): con el modo en vivo, solo arrancan estos.
                             StatusPill {
                                 visible: !!tarjeta.modelData.aprobado
-                                text: tarjeta.modelData.aprobado === "vigente" ? "aprobado para el aire" : "cambió desde que se aprobó"
+                                text: tarjeta.modelData.aprobado === "vigente" ? qsTr("aprobado para el aire") : qsTr("cambió desde que se aprobó")
                                 dot: tarjeta.modelData.aprobado === "vigente" ? Theme.ok : Theme.amber
                             }
                             GlassButton {
                                 compact: true
-                                text: tarjeta.modelData.aprobado === "vigente" ? "Quitar aprobación" : "Aprobar para el aire"
+                                text: tarjeta.modelData.aprobado === "vigente" ? qsTr("Quitar aprobación") : qsTr("Aprobar para el aire")
                                 ToolTip.visible: hovered
-                                ToolTip.text: "Fija el código de ahora: con el modo en vivo, solo arrancan los aprobados y sin cambios"
+                                ToolTip.text: qsTr("Fija el código de ahora: con el modo en vivo, solo arrancan los aprobados y sin cambios")
                                 onClicked: {
                                     const id = tarjeta.modelData.id
                                     if (tarjeta.modelData.aprobado === "vigente") { page.pl.desaprobarUi(id); return }
                                     const a = page.pl.aprobacionUi(id)
-                                    const cambios = a && a.cambiaron && a.cambiaron.length ? "Cambiaron: " + a.cambiaron.join(", ") + ".\n\n" : ""
+                                    const cambios = a && a.cambiaron && a.cambiaron.length ? qsTr("Cambiaron: %1.").arg(a.cambiaron.join(", ")) + "\n\n" : ""
                                     ApplicationWindow.window.confirm({
-                                        title: "¿Aprobar «" + tarjeta.modelData.nombre + "» para el aire?",
-                                        text: cambios + "Queda fijado el código de ahora. Si después cambia, en vivo no arranca hasta que lo vuelvas a aprobar.",
-                                        accept: "Aprobar", reject: "Cancelar",
+                                        title: qsTr("¿Aprobar «%1» para el aire?").arg(tarjeta.modelData.nombre),
+                                        text: cambios + qsTr("Queda fijado el código de ahora. Si después cambia, en vivo no arranca hasta que lo vuelvas a aprobar."),
+                                        accept: qsTr("Aprobar"), reject: qsTr("Cancelar"),
                                         action: function() { const e = page.pl.aprobarUi(id); if (e !== "") Studio.notify(e, "error") }
                                     })
                                 }
                             }
                             GlassButton {
-                                compact: true; text: "Probar"; icon: "✓"
+                                compact: true; text: qsTr("Probar"); icon: "✓"
                                 enabled: !(tarjeta.prueba && tarjeta.prueba.probando)
-                                ToolTip.visible: hovered; ToolTip.text: "Lo corre aparte, sin tocar el aire, y dice si anda"
+                                ToolTip.visible: hovered; ToolTip.text: qsTr("Lo corre aparte, sin tocar el aire, y dice si anda")
                                 onClicked: { page.pl.probarUi(tarjeta.modelData.id); page.abierto = tarjeta.modelData.id; page.vista = "resumen" }
                             }
                             GlassButton {
-                                compact: true; text: "Reiniciar"; icon: "↻"
+                                compact: true; text: qsTr("Reiniciar"); icon: "↻"
                                 enabled: tarjeta.modelData.estado !== "apagado"
                                 onClicked: page.pl.reiniciarUi(tarjeta.modelData.id)
                             }
                             GlassButton {
-                                compact: true; text: tarjeta.abierta ? "Cerrar" : "Ver"; icon: tarjeta.abierta ? "▴" : "▾"
+                                compact: true; text: tarjeta.abierta ? qsTr("Cerrar") : qsTr("Ver"); icon: tarjeta.abierta ? "▴" : "▾"
                                 onClicked: { page.abierto = tarjeta.abierta ? "" : tarjeta.modelData.id; page.vista = "resumen" }
                             }
                         }
@@ -369,7 +369,7 @@ Rectangle {
                                 model: tarjeta.modelData.entradas || []
                                 delegate: StatusPill {
                                     required property var modelData
-                                    text: "entrada: " + modelData.nombre + (modelData.video ? " 🎥" : "") + (modelData.audio ? " 🔊" : "")
+                                    text: qsTr("entrada: %1").arg(modelData.nombre) + (modelData.video ? " 🎥" : "") + (modelData.audio ? " 🔊" : "")
                                     dot: Theme.accent
                                 }
                             }
@@ -377,17 +377,17 @@ Rectangle {
                                 model: tarjeta.modelData.tarjetas || []
                                 delegate: StatusPill {
                                     required property var modelData
-                                    text: "tarjeta de " + (modelData.medio === "audio" ? "audio" : "video") + ": " + modelData.nombre
+                                    text: (modelData.medio === "audio" ? qsTr("tarjeta de audio: %1") : qsTr("tarjeta de video: %1")).arg(modelData.nombre)
                                     dot: Theme.amber
                                 }
                             }
                             Repeater {
                                 model: tarjeta.modelData.ptz || []
-                                delegate: StatusPill { required property var modelData; text: "PTZ de " + modelData.entrada; dot: Theme.ok }
+                                delegate: StatusPill { required property var modelData; text: qsTr("PTZ de %1").arg(modelData.entrada); dot: Theme.ok }
                             }
                             Repeater {
                                 model: tarjeta.modelData.escucha || []
-                                delegate: StatusPill { required property var modelData; text: "escucha " + modelData; dot: Theme.textDim }
+                                delegate: StatusPill { required property var modelData; text: qsTr("escucha %1").arg(modelData); dot: Theme.textDim }
                             }
                         }
 
@@ -409,18 +409,18 @@ Rectangle {
                                     }
                                 }
                                 Item { Layout.fillWidth: true }
-                                GlassButton { compact: true; text: "Carpeta"; icon: "▤"; onClicked: page.pl.abrirCarpeta(tarjeta.modelData.id) }
+                                GlassButton { compact: true; text: qsTr("Carpeta"); icon: "▤"; onClicked: page.pl.abrirCarpeta(tarjeta.modelData.id) }
                                 GlassButton {
-                                    compact: true; text: "Exportar"; icon: "⇧"
+                                    compact: true; text: qsTr("Exportar"); icon: "⇧"
                                     onClicked: page.pl.exportarUi(tarjeta.modelData.id)
-                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un .zip para instalarlo en otro aparato (sin sus bibliotecas ni datos)"
+                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Un .zip para instalarlo en otro aparato (sin sus bibliotecas ni datos)")
                                 }
                                 GlassButton {
-                                    compact: true; text: "Borrar"; icon: "✕"
+                                    compact: true; text: qsTr("Borrar"); icon: "✕"
                                     onClicked: {
                                         const e = page.pl.borrarUi(tarjeta.modelData.id)
                                         if (e !== "") Studio.notify(e, "error")
-                                        else { Studio.notify("Se movió a Plugins/.papelera", "info"); page.abierto = "" }
+                                        else { Studio.notify(qsTr("Se movió a Plugins/.papelera"), "info"); page.abierto = "" }
                                     }
                                 }
                             }
@@ -439,14 +439,14 @@ Rectangle {
                                     text: {
                                         const r = tarjeta.prueba
                                         if (!r) return ""
-                                        if (r.probando) return "Probando…"
-                                        let t = (r.ok ? "✓ La prueba anduvo" : "✕ La prueba falló") + " (" + (r.cuando || "") + ")"
+                                        if (r.probando) return qsTr("Probando…")
+                                        let t = (r.ok ? qsTr("✓ La prueba anduvo (%1)") : qsTr("✕ La prueba falló (%1)")).arg(r.cuando || "")
                                         if (r.error) t += ": " + r.error
                                         for (const x of (r.tarjetas || []))
-                                            t += "\n  tarjeta " + x.tarjeta + ": " + (x.error ? x.error : (x.ms_promedio + " ms por cuadro" + (x.aviso_tiempo ? " — " + x.aviso_tiempo : "")))
+                                            t += "\n  " + qsTr("tarjeta %1: %2").arg(x.tarjeta).arg(x.error ? x.error : (qsTr("%1 ms por cuadro").arg(x.ms_promedio) + (x.aviso_tiempo ? " — " + x.aviso_tiempo : "")))
                                         for (const x of (r.entradas || []))
-                                            t += "\n  entrada " + x.entrada + (x.medio ? " (" + x.medio + ")" : "") + ": " +
-                                                 (x.error ? x.error : x.gst ? "pipeline de GStreamer (se arma al prenderlo)" : x.por_segundo + " por segundo")
+                                            t += "\n  " + qsTr("entrada %1: %2").arg(x.entrada + (x.medio ? " (" + x.medio + ")" : ""))
+                                                 .arg(x.error ? x.error : x.gst ? qsTr("pipeline de GStreamer (se arma al prenderlo)") : qsTr("%1 por segundo").arg(x.por_segundo))
                                         return t
                                     }
                                 }
@@ -462,7 +462,7 @@ Rectangle {
                                         anchors.fill: parent
                                         spacing: 6
                                         Text {
-                                            text: tarjeta.modelData.panel && tarjeta.modelData.panel.titulo ? tarjeta.modelData.panel.titulo : "Panel"
+                                            text: tarjeta.modelData.panel && tarjeta.modelData.panel.titulo ? tarjeta.modelData.panel.titulo : qsTr("Panel")
                                             color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                                         }
                                         PanelPlugin {
@@ -476,7 +476,7 @@ Rectangle {
 
                                 Text {
                                     visible: (tarjeta.modelData.controles || []).length > 0
-                                    text: tarjeta.modelData.panel ? "Más acciones" : "Acciones"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                    text: tarjeta.modelData.panel ? qsTr("Más acciones") : qsTr("Acciones"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                                 }
                                 Repeater {
                                     model: tarjeta.modelData.controles || []
@@ -547,7 +547,7 @@ Rectangle {
 
                                 Text {
                                     visible: (tarjeta.modelData.tarjetas || []).length > 0
-                                    text: "Poner sus tarjetas"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                    text: qsTr("Poner sus tarjetas"); color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                                 }
                                 Repeater {
                                     model: tarjeta.modelData.tarjetas || []
@@ -565,15 +565,15 @@ Rectangle {
                                             id: destino
                                             Layout.preferredWidth: 240
                                             model: tj.audio ? page.pl.fuentesConAudio() : page.pl.entradasVideo()
-                                            displayText: currentIndex < 0 ? (tj.audio ? "¿en qué fuente?" : "¿en qué entrada?") : currentText
+                                            displayText: currentIndex < 0 ? (tj.audio ? qsTr("¿en qué fuente?") : qsTr("¿en qué entrada?")) : currentText
                                             currentIndex: -1
                                         }
                                         GlassButton {
-                                            compact: true; text: tj.audio ? "Poner como filtro" : "Poner en el grafo"
+                                            compact: true; text: tj.audio ? qsTr("Poner como filtro") : qsTr("Poner en el grafo")
                                             enabled: destino.currentIndex >= 0 && tarjeta.modelData.estado === "corriendo"
                                             onClicked: {
                                                 const e = page.pl.tarjetaUi(tarjeta.modelData.id, tj.modelData.nombre, destino.currentText, tj.audio)
-                                                Studio.notify(e !== "" ? e : "Listo: «" + tj.modelData.nombre + "» en " + destino.currentText, e !== "" ? "error" : "info")
+                                                Studio.notify(e !== "" ? e : qsTr("Listo: «%1» en %2").arg(tj.modelData.nombre).arg(destino.currentText), e !== "" ? "error" : "info")
                                             }
                                         }
                                         Text {
@@ -601,7 +601,7 @@ Rectangle {
                             Text {
                                 visible: page.vista === "codigo"
                                 Layout.fillWidth: true
-                                text: "Para cambiar el código, pedíselo al asistente (o editá plugin.py en su carpeta y reinicialo)."
+                                text: qsTr("Para cambiar el código, pedíselo al asistente (o editá plugin.py en su carpeta y reinicialo).")
                                 color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
                             }
 
@@ -612,7 +612,7 @@ Rectangle {
                                 spacing: 6
                                 Text {
                                     visible: claves.count > 0
-                                    text: "Claves (se guardan cifradas; el plugin las lee con plugin.secreto)"
+                                    text: qsTr("Claves (se guardan cifradas; el plugin las lee con plugin.secreto)")
                                     color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
                                 }
                                 Repeater {
@@ -628,15 +628,15 @@ Rectangle {
                                             id: valorSec
                                             Layout.fillWidth: true
                                             echoMode: TextInput.Password
-                                            placeholderText: sec.modelData.cargada ? "cargada ✓ (escribí para cambiarla)" : "sin cargar"
+                                            placeholderText: sec.modelData.cargada ? qsTr("cargada ✓ (escribí para cambiarla)") : qsTr("sin cargar")
                                             color: Theme.text; font.pixelSize: 12
                                         }
                                         GlassButton {
-                                            compact: true; text: "Guardar"
+                                            compact: true; text: qsTr("Guardar")
                                             enabled: valorSec.text !== ""
                                             onClicked: {
                                                 const e = page.pl.guardarSecreto(tarjeta.modelData.id, sec.modelData.clave, valorSec.text)
-                                                Studio.notify(e !== "" ? e : "Clave guardada (cifrada)", e !== "" ? "error" : "info")
+                                                Studio.notify(e !== "" ? e : qsTr("Clave guardada (cifrada)"), e !== "" ? "error" : "info")
                                                 if (e === "") valorSec.text = ""
                                             }
                                         }
@@ -646,13 +646,13 @@ Rectangle {
                                     Layout.fillWidth: true
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "Lo que el plugin lee en plugin.config (número de serie, IP, modo…). Al guardar se le pasa en vivo."
+                                        text: qsTr("Lo que el plugin lee en plugin.config (número de serie, IP, modo…). Al guardar se le pasa en vivo.")
                                         color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WordWrap
                                     }
                                     GlassButton {
-                                        compact: true; text: page.configJson ? "Como formulario" : "Como JSON"
+                                        compact: true; text: page.configJson ? qsTr("Como formulario") : qsTr("Como JSON")
                                         onClicked: {
-                                            if (page.configJson) { try { page.configForm = JSON.parse(configArea.text) } catch (e) { Studio.notify("El JSON no es válido", "error"); return } }
+                                            if (page.configJson) { try { page.configForm = JSON.parse(configArea.text) } catch (e) { Studio.notify(qsTr("El JSON no es válido"), "error"); return } }
                                             else configArea.text = JSON.stringify(page.configForm, null, 2)
                                             page.configJson = !page.configJson
                                         }
@@ -671,7 +671,7 @@ Rectangle {
                                                                       : (modelData === "dispositivo" || modelData.endsWith("_dispositivo")) && (typeof v === "string" || v === null) ? "dispositivo"
                                                                       : typeof v === "boolean" ? "si_no" : typeof v === "number" ? "numero" : typeof v === "string" ? "texto" : "json"
                                         readonly property var opciones: clase === "escena" ? Studio.inputs.scenes.map(e => ({ value: e, label: e }))
-                                                                      : clase === "dispositivo" ? [{ value: "", label: "La primera que haya" }].concat(Studio.inputs.devices.map(d => ({ value: d.value, label: d.name })))
+                                                                      : clase === "dispositivo" ? [{ value: "", label: qsTr("La primera que haya") }].concat(Studio.inputs.devices.map(d => ({ value: d.value, label: d.name })))
                                                                       : []
                                         Layout.fillWidth: true
                                         spacing: 8
@@ -691,7 +691,7 @@ Rectangle {
                                                 const i = cf.opciones.findIndex(o => o.value === (cf.v || ""))
                                                 return i
                                             }
-                                            displayText: currentIndex >= 0 ? currentText : (cf.v ? cf.v + " (no está)" : "Elegir…")
+                                            displayText: currentIndex >= 0 ? currentText : (cf.v ? qsTr("%1 (no está)").arg(cf.v) : qsTr("Elegir…"))
                                             onActivated: { const c = page.configForm; c[cf.modelData] = currentValue; page.configForm = Object.assign({}, c) }
                                         }
                                         TextField {
@@ -704,7 +704,7 @@ Rectangle {
                                             onEditingFinished: {
                                                 const c = page.configForm
                                                 if (cf.clase === "numero") c[cf.modelData] = Number(text)
-                                                else if (cf.clase === "json") { try { c[cf.modelData] = JSON.parse(text) } catch (e) { Studio.notify("«" + cf.modelData + "»: JSON no válido", "error"); return } }
+                                                else if (cf.clase === "json") { try { c[cf.modelData] = JSON.parse(text) } catch (e) { Studio.notify(qsTr("«%1»: JSON no válido").arg(cf.modelData), "error"); return } }
                                                 else c[cf.modelData] = text
                                                 page.configForm = Object.assign({}, c)
                                             }
@@ -714,7 +714,7 @@ Rectangle {
                                 }
                                 Text {
                                     visible: !page.configJson && Object.keys(page.configForm).length === 0
-                                    text: "Este plugin no tiene configuración."
+                                    text: qsTr("Este plugin no tiene configuración.")
                                     color: Theme.textFaint; font.pixelSize: 12
                                 }
                                 ScrollView {
@@ -731,10 +731,10 @@ Rectangle {
                                 RowLayout {
                                     Item { Layout.fillWidth: true }
                                     GlassButton {
-                                        compact: true; text: "Guardar configuración"; active: true
+                                        compact: true; text: qsTr("Guardar configuración"); active: true
                                         onClicked: {
                                             const e = page.pl.guardarConfig(tarjeta.modelData.id, page.configJson ? configArea.text : JSON.stringify(page.configForm, null, 2))
-                                            Studio.notify(e !== "" ? e : "Configuración guardada", e !== "" ? "error" : "info")
+                                            Studio.notify(e !== "" ? e : qsTr("Configuración guardada"), e !== "" ? "error" : "info")
                                         }
                                     }
                                 }
@@ -761,10 +761,10 @@ Rectangle {
                         spacing: 6
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Equipos conectados"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                            Text { text: qsTr("Equipos conectados"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                             Item { Layout.fillWidth: true }
                             GlassButton {
-                                compact: true; text: page.pl.buscandoEquipos ? "Buscando…" : "Buscar"; icon: "⌕"
+                                compact: true; text: page.pl.buscandoEquipos ? qsTr("Buscando…") : qsTr("Buscar"); icon: "⌕"
                                 enabled: !page.pl.buscandoEquipos
                                 onClicked: page.pl.buscarEquipos()
                             }
@@ -772,7 +772,7 @@ Rectangle {
                         Text {
                             visible: Object.keys(page.pl.equipos).length === 0
                             Layout.fillWidth: true
-                            text: "Cámaras, micrófonos, USB, HID y puertos serie: el primer paso para saber qué es un equipo raro y por dónde se le habla."
+                            text: qsTr("Cámaras, micrófonos, USB, HID y puertos serie: el primer paso para saber qué es un equipo raro y por dónde se le habla.")
                             color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
                         }
                         Repeater {
@@ -795,14 +795,14 @@ Rectangle {
                             model: page.pl.equipos.usb || []
                             delegate: Text {
                                 required property var modelData
-                                text: "USB " + modelData.vid + ":" + modelData.pid + "  " + (modelData.fabricante || "") + " " + (modelData.producto || "") + (modelData.uvc ? "  (cámara UVC)" : "")
+                                text: "USB " + modelData.vid + ":" + modelData.pid + "  " + (modelData.fabricante || "") + " " + (modelData.producto || "") + (modelData.uvc ? "  " + qsTr("(cámara UVC)") : "")
                                 color: Theme.textDim; font.pixelSize: 11
                             }
                         }
                         Text {
                             visible: Object.keys(page.pl.equipos).length > 0
-                            text: (page.pl.equipos.hid || []).length + " equipos HID · " + (page.pl.equipos.serie || []).length + " puertos serie" +
-                                  ((page.pl.equipos.usb || []).length === 0 ? " · nada por USB" : "")
+                            text: qsTr("%n equipo HID", "", (page.pl.equipos.hid || []).length) + " · " + qsTr("%n puerto serie", "", (page.pl.equipos.serie || []).length) +
+                                  ((page.pl.equipos.usb || []).length === 0 ? " · " + qsTr("nada por USB") : "")
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                     }
@@ -817,10 +817,10 @@ Rectangle {
                         id: eventosCol
                         anchors.fill: parent
                         spacing: 4
-                        Text { text: "Lo que publican (eventos)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text { text: qsTr("Lo que publican (eventos)"); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                         Text {
                             visible: page.pl.eventosRecientes.length === 0
-                            text: "Nada todavía. Un plugin publica con plugin.evento(«hablando», {…})."
+                            text: qsTr("Nada todavía. Un plugin publica con plugin.evento(«hablando», {…}).")
                             color: Theme.textFaint; font.pixelSize: 11
                         }
                         Repeater {
