@@ -72,6 +72,9 @@ void normalizadores() {
     CHECK(correo("Jorge Porte arroba gmail com") == "jorgeporte@gmail.com", "«gmail com» sin el punto");
     CHECK(correo("ana arroba empresa com ar") == "ana@empresa.com.ar", "terminaciones sueltas: con punto");
     CHECK(correo("ana arroba com") == "<no>", "una terminación sola no es un dominio");
+    // Como lo escribe Nemotron: comas, «gmail. com» con espacio y una inicial con punto.
+    CHECK(correo("Jorge Portega, arroba gmail. com") == "jorgeportega@gmail.com", "coma y «gmail. com»");
+    CHECK(correo("Jorge P. Ortega, arroba gmail. com") == "jorgep.ortega@gmail.com", "una inicial con punto");
     CHECK(correo("j o r g e arroba gmail punto com") == "jorge@gmail.com", "deletreado letra por letra");
     CHECK(correo("jorge ortega gmail punto com") == "<no>", "sin arroba no es un correo");
     CHECK(correo("arroba gmail punto com") == "<no>", "sin nada antes de la arroba");
@@ -145,6 +148,8 @@ void nombresYOpciones() {
     CHECK(nombre("sí") == "<no>", "un sí no es un nombre");
     CHECK(nombre("dale") == "<no>", "dale no es un nombre");
     CHECK(nombre("no quiero") == "<no>", "no quiero no es un nombre");
+    CHECK(nombre("no") == "<no>", "un no no es un nombre");
+    CHECK(nombre("no lo sé") == "<no>", "no lo sé no es un nombre");
     CHECK(nombre("1234") == "<no>", "números no");
     CHECK(nombre("cinco") == "<no>", "un número dicho no");
     CHECK(nombre("") == "<no>", "vacío");

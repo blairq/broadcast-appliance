@@ -241,7 +241,7 @@ std::string sistemaRegistro(const std::string& prompt, const Totem& t, const std
     std::string s = prompt;
     reemplazar(s, "{evento}", evento.empty() ? std::string("el evento") : evento);
     reemplazar(s, "{campos}", campos.empty() ? std::string("(ninguno)") : campos);
-    reemplazar(s, "{ficha}", recortar(t.ficha).empty() ? std::string("(no hay ficha: del evento solo sabés su nombre)")
+    reemplazar(s, "{ficha}", recortar(t.ficha).empty() ? std::string("Solo su nombre: nada más (ni horarios, ni lugar).")
                                                        : recortar(t.ficha));
     return s;
 }
@@ -255,13 +255,16 @@ json herramientasRegistro(const Totem& t) {
          {{"name", "registro_poner"},
           {"description",
            "Anota UN dato que dijo la persona (llamala una vez por cada dato, aunque sean varios en el mismo turno). "
-           "El valor, tal como lo dijo: el sistema lo valida y lo normaliza (un correo dictado con «arroba» y "
-           "«punto», un teléfono en palabras). Si no valida, devuelve el error."},
+           "El valor ya armado, como se escribe: un correo como correo (jorge.ortega@gmail.com: «arroba» es @, "
+           "«punto» es .), un teléfono en dígitos (1145678901), un nombre con mayúsculas. Lo que dijo llega de un "
+           "reconocedor de voz que a veces escribe mal («P. Ortega» o «Portega» por «punto ortega», «ciclo» por "
+           "«cinco»): interpretalo con criterio. No inventes lo que no dijo; si no se entiende, no lo anotes y "
+           "pedíselo de nuevo. Se le va a confirmar en voz alta. Si no tiene el formato, devuelve el error."},
           {"parameters",
            {{"type", "object"},
             {"properties",
              {{"campo", {{"type", "string"}, {"enum", claves}, {"description", "la clave del campo"}}},
-              {"valor", {{"type", "string"}, {"description", "lo que dijo la persona para ese campo"}}}}},
+              {"valor", {{"type", "string"}, {"description", "el dato ya armado, como se escribe"}}}}},
             {"required", {"campo", "valor"}}}}}}};
     const json confirmar{
         {"type", "function"},
@@ -269,7 +272,18 @@ json herramientasRegistro(const Totem& t) {
          {{"name", "registro_confirmar"},
           {"description", "La persona dijo que sí, que está bien lo que se le estaba confirmando."},
           {"parameters", {{"type", "object"}, {"properties", json::object()}}}}}};
-    return json::array({poner, confirmar});
+    const json decir{
+        {"type", "function"},
+        {"function",
+         {{"name", "registro_decir"},
+          {"description",
+           "Lo que le decís a la persona en voz alta: la respuesta a su pregunta, o pedirle de nuevo un dato que no "
+           "se entendió. Si solo anotaste datos, no hace falta."},
+          {"parameters",
+           {{"type", "object"},
+            {"properties", {{"texto", {{"type", "string"}, {"description", "una o dos frases cortas, en rioplatense"}}}}},
+            {"required", {"texto"}}}}}}};
+    return json::array({poner, confirmar, decir});
 }
 
 json ejecutarHerramienta(Conversacion& conv, const LlamadaHerramienta& ll, bool& rechazo) {
@@ -299,8 +313,16 @@ json ejecutarHerramienta(Conversacion& conv, const LlamadaHerramienta& ll, bool&
         }
         return {{"ok", true}};
     }
+    if (ll.nombre == "registro_decir") {
+        // Lo dice el tótem (AgenteRegistro::alTerminarVuelta lo junta en Vuelta::decir).
+        if (!a.is_object() || recortar(texto(a, "texto")).empty()) {
+            rechazo = true;
+            return {{"error", "Falta el texto: {\"texto\": \"…\"}."}};
+        }
+        return {{"ok", true}};
+    }
     rechazo = true;
-    return {{"error", "No existe la herramienta «" + ll.nombre + "»: usá registro_poner o registro_confirmar."}};
+    return {{"error", "No existe la herramienta «" + ll.nombre + "»: usá registro_poner, registro_confirmar o registro_decir."}};
 }
 
 // --- Los turnos -----------------------------------------------------------------------------
@@ -329,6 +351,14 @@ json AgenteRegistro::cuerpo(const json& mensajes) const {
     return b;
 }
 
+void AgenteRegistro::conHerramientas(json& cuerpo, const Totem& t) {
+    cuerpo["tools"] = herramientasRegistro(t);
+    // Siempre con herramientas, también para hablar (registro_decir): suelto, el modelo chico
+    // contaba los datos en prosa («ya tengo tu correo…») sin anotarlos. Con «required» el
+    // servidor lo obliga con una gramática a contestar con llamadas.
+    cuerpo["tool_choice"] = "required";
+}
+
 json AgenteRegistro::empezarTurno(Conversacion& conv, const std::string& dicho) {
     if (sistema_.empty()) sistema_ = sistemaRegistro(prompt_, conv.totem(), conv.evento());
     conv.empezarTurnoModelo();
@@ -338,7 +368,8 @@ json AgenteRegistro::empezarTurno(Conversacion& conv, const std::string& dicho) 
     herramientas_ = json::array();
     const json e = conv.estadoParaModelo();
     std::string ctx = "Paso del guion: " + e.value("paso", std::string()) + ".";
-    if (e.contains("pregunta")) ctx += "\nLe preguntó: «" + e["pregunta"].get<std::string>() + "»";
+    if (e.contains("pregunta"))
+        ctx += "\nEl guion le preguntó (y se lo vuelve a preguntar él, no vos): «" + e["pregunta"].get<std::string>() + "»";
     if (e.contains("seConfirma")) ctx += "\nSe está confirmando: " + e["seConfirma"].dump();
     if (!e["anotados"].empty()) ctx += "\nAnotado: " + e["anotados"].dump();
     if (!e["pendientes"].empty()) ctx += "\nSin confirmar todavía: " + e["pendientes"].dump();
@@ -347,7 +378,7 @@ json AgenteRegistro::empezarTurno(Conversacion& conv, const std::string& dicho) 
     ctx += "\n\nLa persona dijo: «" + dicho + "»";
     mensajes_ = json::array({{{"role", "user"}, {"content", ctx}}});
     json b = cuerpo(mensajes_);
-    b["tools"] = herramientasRegistro(conv.totem());
+    conHerramientas(b, conv.totem());
     return b;
 }
 
@@ -361,6 +392,11 @@ AgenteRegistro::Vuelta AgenteRegistro::alTerminarVuelta(Conversacion& conv, cons
         const LlamadaHerramienta& ll = t.llamadas[i];
         bool rechazo = false;
         json r = ejecutarHerramienta(conv, ll, rechazo);
+        if (ll.nombre == "registro_decir" && !rechazo) {
+            const json a = json::parse(ll.argumentos, nullptr, false);
+            v.decir += (v.decir.empty() ? "" : " ") + recortar(texto(a, "texto"));
+            dijoAlgo_ = true;
+        }
         rechazoVuelta = rechazoVuelta || rechazo;
         const std::string id = ll.id.empty() ? "llamada-" + std::to_string(vueltas_) + "-" + std::to_string(i) : ll.id;
         llamadas.push_back({{"id", id}, {"type", "function"}, {"function", {{"name", ll.nombre}, {"arguments", ll.argumentos}}}});
@@ -376,12 +412,12 @@ AgenteRegistro::Vuelta AgenteRegistro::alTerminarVuelta(Conversacion& conv, cons
     v.rechazos = rechazos_;
     // Algo no validó y no lo repreguntó: una vuelta más con los resultados, para que lo pida
     // de nuevo con sus palabras (o lo anote bien).
-    if (rechazoVuelta && recortar(t.texto).empty() && vueltas_ < kVueltasMax) {
+    if (rechazoVuelta && recortar(t.texto).empty() && v.decir.empty() && vueltas_ < kVueltasMax) {
         json asistente{{"role", "assistant"}, {"content", t.texto}, {"tool_calls", llamadas}};
         mensajes_.push_back(asistente);
         for (const json& r : v.resultados) mensajes_.push_back(r);
         v.cuerpo = cuerpo(mensajes_);
-        v.cuerpo["tools"] = herramientasRegistro(conv.totem());
+        conHerramientas(v.cuerpo, conv.totem());
         v.otraVuelta = true;
     }
     return v;

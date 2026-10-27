@@ -309,7 +309,8 @@ bool entenderCorreo(const std::string& dicho, std::string& out) {
     while (!w.empty() && std::find(kDespues.begin(), kDespues.end(), w.back()) != kDespues.end()) w.pop_back();
     // «gmail com», «yahoo com ar»: el punto no se dijo (o la voz a texto lo perdió). Un
     // dominio no tiene espacios, así que las terminaciones conocidas sueltas van con punto.
-    if (const auto at = std::find(w.begin(), w.end(), "@"); at != w.end() && std::find(at, w.end(), ".") == w.end()) {
+    const auto conPunto = [](const std::string& x) { return x.find('.') != std::string::npos; };
+    if (const auto at = std::find(w.begin(), w.end(), "@"); at != w.end() && std::none_of(at, w.end(), conPunto)) {
         static const std::vector<std::string> kTerminaciones{"com", "ar", "net", "org", "edu", "gob", "gov", "uy", "cl", "es"};
         for (auto it = w.end() - 1; it > at + 1 && std::find(kTerminaciones.begin(), kTerminaciones.end(), *it) != kTerminaciones.end(); --it)
             *it = "." + *it;

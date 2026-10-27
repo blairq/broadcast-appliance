@@ -222,7 +222,7 @@ int main(int argc, char** argv) {
     CHECK(v.frases.empty(), "el modelo no dijo nada (anotó y listo)");
     {
         const json p = json::parse(falso.pedidos.back());
-        CHECK(p.value("stream", false) && p["tools"].size() == 2 && p.value("model", "") == "local", "el pedido: streaming y herramientas");
+        CHECK(p.value("stream", false) && p["tools"].size() == 3 && p.value("tool_choice", "") == "required" && p.value("model", "") == "local", "el pedido: streaming y herramientas");
     }
     CHECK(!a.oido("sí, es correcto"), "el «sí» suelto lo contesta el guion, sin el modelo");
     auto r = conv.oido("sí, es correcto");

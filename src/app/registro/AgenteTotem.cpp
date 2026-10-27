@@ -112,6 +112,12 @@ void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& erro
     const AgenteRegistro::Vuelta v = agente_.alTerminarVuelta(conv_, t);
     dijoAlgo_ = v.dijoAlgo;
     rechazos_ = v.rechazos;
+    // Lo que pidió decir con registro_decir (si además lo escribió como texto, ya salió).
+    if (!v.decir.empty() && texto_.find_first_not_of(" \n") == std::string::npos) {
+        texto_ = v.decir;
+        if (alTexto) alTexto(paraHablar(texto_));
+        if (const std::string h = paraHablar(v.decir); !h.empty() && alFrase) alFrase(h);
+    }
     if (v.otraVuelta) {
         // Algo no validó: una vuelta más para que lo repregunte (dentro del mismo tope).
         mandar(v.cuerpo);

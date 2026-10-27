@@ -160,6 +160,9 @@ void herramientas() {
     CHECK(!rechazo && r.value("ok", false) && contiene(r.value("anotado", ""), "arroba"), "lo dictado valida");
     CHECK(c.datos().value("correo", "") == "jorge.ortega@gmail.com", "normalizado");
     CHECK(c.hayPendientes(), "pendiente de confirmar");
+    // «no» no es un nombre (el modelo chico lo anotaba de «¿hay café?»): lo rechaza el validador.
+    r = ejecutarHerramienta(c, poner("nombre", "no"), rechazo);
+    CHECK(rechazo, "«no» como nombre, rechazado");
     r = ejecutarHerramienta(c, {"", "registro_confirmar", "{}"}, rechazo);
     CHECK(rechazo, "confirmar lo que todavía no se le leyó: no");
     r = ejecutarHerramienta(c, {"", "registro_borrar_todo", "{}"}, rechazo);
@@ -181,7 +184,7 @@ void turnos() {
         AgenteRegistro a("Sos el asistente de {evento}.\n{campos}\n{ficha}", "local");
         const json b = a.empezarTurno(c, "soy Jorge Ortega, mi correo es jorge punto ortega arroba gmail punto com y mi "
                                          "teléfono once cuatro cinco seis siete ocho nueve uno dos");
-        CHECK(b.value("stream", false) && b["tools"].size() == 2 && b.value("model", "") == "local", "el pedido");
+        CHECK(b.value("stream", false) && b["tools"].size() == 3 && b.value("model", "") == "local", "el pedido");
         CHECK(contiene(b["messages"][0]["content"].get<std::string>(), "el Congreso") &&
                   contiene(b["messages"][0]["content"].get<std::string>(), "sala A"),
               "el sistema con el evento y la ficha");
@@ -269,6 +272,20 @@ void turnos() {
         auto r = c.despuesDelModelo(v.dijoAlgo, v.rechazos, guion);
         CHECK(!guion && v.dijoAlgo, "contestó el modelo");
         CHECK(r.decir == c.retomar() && contiene(r.decir, "nombre"), "y el guion retoma la pregunta del nombre");
+        // Lo mismo con registro_decir (con tool_choice «required» habla por ahí).
+        {
+            Conversacion c2(totem(), "x");
+            c2.usarModelo(true);
+            c2.empezar({});
+            AgenteRegistro a2("{campos}", "local");
+            const json b2 = a2.empezarTurno(c2, "¿hay café?");
+            CHECK(b2.value("tool_choice", "") == "required" && b2["tools"].size() == 3, "siempre con herramientas, también para hablar");
+            auto v2 = a2.alTerminarVuelta(c2, turno("", {{"d1", "registro_decir", R"({"texto":"Sí, hay café en la entrada."})"}}));
+            CHECK(v2.decir == "Sí, hay café en la entrada." && v2.dijoAlgo && !v2.otraVuelta && !v2.rechazos, "registro_decir es lo que se dice");
+            bool g2 = true;
+            auto r2 = c2.despuesDelModelo(v2.dijoAlgo, v2.rechazos, g2);
+            CHECK(!g2 && r2.decir == c2.retomar(), "y el guion retoma");
+        }
         a.anotarIntercambio("¿a qué hora empieza?", "Empieza a las 19. " + r.decir);
         const json b = a.empezarTurno(c, "Jorge");
         CHECK(b["messages"].size() == 4 && b["messages"][2].value("role", "") == "assistant", "la historia corta va en el turno siguiente");
@@ -385,7 +402,7 @@ void pedido() {
     t.ficha.clear();
     const std::string s = sistemaRegistro("Sos de {evento}.\nCampos:\n{campos}\nFicha: {ficha}", t, "");
     CHECK(contiene(s, "Sos de el evento.") && contiene(s, "- nombre (Nombre, nombre, obligatorio)") &&
-              contiene(s, "- telefono (Teléfono, telefono)") && contiene(s, "no hay ficha"),
+              contiene(s, "- telefono (Teléfono, telefono)") && contiene(s, "Solo su nombre"),
           "el prompt con los campos y sin ficha");
     const json h = herramientasRegistro(t);
     CHECK(h[0]["function"]["parameters"]["properties"]["campo"]["enum"] == json({"nombre", "correo", "telefono"}),

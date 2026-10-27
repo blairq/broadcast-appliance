@@ -96,7 +96,8 @@ class LectorSse {
 /// El mensaje de sistema: el prompt del rol con {evento}, {campos} (los del tótem, uno por
 /// línea) y {ficha} (la del tótem, o que no hay) reemplazados.
 std::string sistemaRegistro(const std::string& prompt, const Totem& t, const std::string& evento);
-/// Las herramientas: registro_poner {campo (las claves del tótem), valor} y registro_confirmar.
+/// Las herramientas: registro_poner {campo (las claves del tótem), valor}, registro_confirmar y
+/// registro_decir {texto} (lo que se le dice a la persona).
 nlohmann::json herramientasRegistro(const Totem& t);
 /// Hace lo que pidió el modelo contra la conversación. Devuelve el resultado para el modelo
 /// ({ok, anotado} o {error}); `rechazo` = no se pudo.
@@ -117,7 +118,8 @@ class AgenteRegistro {
     struct Vuelta {
         bool otraVuelta = false;  ///< mandar `cuerpo` (con los resultados de las herramientas)
         nlohmann::json cuerpo;
-        bool dijoAlgo = false;    ///< en todo el turno, el modelo escribió algo
+        bool dijoAlgo = false;    ///< en todo el turno, el modelo escribió algo (o llamó registro_decir)
+        std::string decir;        ///< lo que pidió decir con registro_decir en esta vuelta
         bool rechazos = false;    ///< en todo el turno, alguna herramienta no validó
         nlohmann::json resultados = nlohmann::json::array(); ///< de esta vuelta
     };
@@ -134,6 +136,7 @@ class AgenteRegistro {
 
    private:
     nlohmann::json cuerpo(const nlohmann::json& mensajes) const;
+    static void conHerramientas(nlohmann::json& cuerpo, const Totem& t);
 
     std::string prompt_;
     std::string modelo_;
