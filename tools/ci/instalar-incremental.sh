@@ -51,20 +51,39 @@ if [ -f "$ANT" ]; then
             borrados=$((borrados + 1))
         fi
     done < <(LC_ALL=C comm -23 <(LC_ALL=C sort -u "$ANT") <(LC_ALL=C sort -u "$M"))
-    # Las carpetas que quedaron vacías POR lo borrado, también (si no, una regla que
-    # se fue —LibreOffice: 502 carpetas— deja su árbol vacío en el bundle). Se sube
-    # desde la carpeta de cada borrado mientras esté vacía, pero nunca se toca una de
-    # primer nivel: el esqueleto del bundle (Config/, Logs/...) se instala vacío a
-    # propósito.
+    # Las carpetas vacías del árbol que era de lo borrado, también (si no, una regla
+    # que se fue —LibreOffice: 502 carpetas— deja su árbol vacío en el bundle). El
+    # árbol de un borrado es su carpeta más alta (debajo del primer nivel) donde ya
+    # no se instala nada: ahí adentro se borran TODAS las vacías, también las que la
+    # regla instalaba vacías desde siempre (no figuran en ningún manifest, así que
+    # subir desde cada archivo no pasa por ellas). Nunca se toca una de primer nivel
+    # ni lo que sigue teniendo algo instalado: el esqueleto del bundle (Config/,
+    # Logs/...) se instala vacío a propósito.
     carpetas=0
-    while IFS= read -r f; do
-        case "$f" in "$abs"/* | "$P"/*) ;; *) continue ;; esac
-        d="$(dirname "$f")"
-        while [ "$(dirname "$d")" != "$abs" ] && [ "$d" != "$abs" ] && [ -d "$d" ] && [ -z "$(ls -A "$d")" ]; do
-            rmdir "$d" && carpetas=$((carpetas + 1))
-            d="$(dirname "$d")"
-        done
-    done < <(LC_ALL=C comm -23 <(LC_ALL=C sort -u "$ANT") <(LC_ALL=C sort -u "$M"))
+    while IFS= read -r d; do
+        [ -d "$d" ] || continue
+        antes=$(find "$d" -type d | wc -l)
+        find "$d" -depth -type d -empty -delete
+        despues=0
+        [ -d "$d" ] && despues=$(find "$d" -type d | wc -l)
+        carpetas=$((carpetas + antes - despues))
+    done < <(LC_ALL=C comm -23 <(LC_ALL=C sort -u "$ANT") <(LC_ALL=C sort -u "$M") | awk -v abs="$abs" -v p="$P" '
+        # Las carpetas que siguen teniendo algo instalado (todas las de cada archivo del manifest nuevo).
+        FNR == NR { d = $0; while (sub(/\/[^\/]*$/, "", d) && d != "") vivas[d] = 1; next }
+        {
+            f = $0
+            if (index(f, abs "/") != 1 && index(f, p "/") != 1) next
+            raiz = (index(f, abs "/") == 1) ? abs : p
+            d = f; arriba = ""
+            while (sub(/\/[^\/]*$/, "", d) && d != raiz) {
+                if (d in vivas) break
+                # una de primer nivel (su padre es la raíz) nunca
+                padre = d; sub(/\/[^\/]*$/, "", padre)
+                if (padre == raiz) break
+                arriba = d
+            }
+            if (arriba != "" && !(arriba in vistas)) { vistas[arriba] = 1; print arriba }
+        }' "$M" -)
     log "$borrados archivos que ya no se instalan, borrados ($carpetas carpetas que quedaron vacías)"
     rm -f "$ANT"
 fi
