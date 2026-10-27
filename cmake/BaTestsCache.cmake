@@ -73,6 +73,11 @@ function(ba_tests_registrar)
     foreach(_d IN LISTS _dirs)
         get_property(_tests DIRECTORY "${_d}" PROPERTY TESTS)
         foreach(_t IN LISTS _tests)
+            # Los tests esperan los textos en el original: el idioma del sistema (o el
+            # guardado en un launcher.json) no los cambia (ba::i18n::idiomaDeLaMaquina).
+            if(NOT CMAKE_VERSION VERSION_LESS 3.28)
+                set_property(TEST "${_t}" DIRECTORY "${_d}" APPEND PROPERTY ENVIRONMENT "BA_IDIOMA=es")
+            endif()
             set(_e "{}")
             if(_t IN_LIST BA_TESTS_LENTOS)
                 string(JSON _e SET "${_e}" lento true)
