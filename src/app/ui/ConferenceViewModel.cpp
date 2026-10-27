@@ -158,7 +158,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
             authSeguidos_ = 0;
         }
         const std::string t = sala::explicarError(ss(e));
-        emit notify(t == ss(e) ? "La conferencia respondio: " + e : frase(t), "error");
+        emit notify(t == ss(e) ? tr("La conferencia respondio: %1").arg(e) : frase(t), "error");
     });
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (!on) return;
@@ -379,7 +379,7 @@ void ConferenceViewModel::onSnapshot() {
             waiting.append(p);
             nowWaiting << p.value("id").toString();
             if (!knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
-                emit notify(p.value("name").toString() + " espera en el lobby", "info");
+                emit notify(tr("%1 espera en el lobby").arg(p.value("name").toString()), "info");
             }
             // Atencion automatica: se le encarga al asistente una sola vez por
             // persona (mientras siga esperando).
@@ -572,7 +572,7 @@ QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
     QPointer<ConferenceViewModel> yo(this);
     return qs(control_->configurarProxy(c, [yo](const std::string& e) {
         if (yo && !e.empty())
-            emit yo->notify("No se pudo reiniciar la conferencia: " + qs(e) + ". Si sigue, cerrá y volvé a abrir el programa.",
+            emit yo->notify(tr("No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.").arg(qs(e)),
                             "error");
     }));
 }
@@ -584,8 +584,8 @@ QString ConferenceViewModel::reiniciarSala() {
         if (e.empty() || !yo) return;
         QMetaObject::invokeMethod(yo.data(), [yo, e]() {
             if (yo)
-                emit yo->notify("No se pudo reiniciar la conferencia: " + QString::fromStdString(e) +
-                                    ". Si sigue, cerrá y volvé a abrir el programa.",
+                emit yo->notify(tr("No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.")
+                                    .arg(QString::fromStdString(e)),
                                 "error");
         }, Qt::QueuedConnection);
     });
@@ -675,8 +675,8 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
         },
         [yo](const std::string& err) {
             if (yo && !err.empty())
-                emit yo->notify("No se pudo reiniciar la conferencia: " + qs(err) +
-                                    ". Si sigue, cerrá y volvé a abrir el programa.",
+                emit yo->notify(tr("No se pudo reiniciar la conferencia: %1. Si sigue, cerrá y volvé a abrir el programa.")
+                                    .arg(qs(err)),
                                 "error");
         });
     if (!e.empty()) emit serverConfigReady({}, qs(e));
@@ -695,7 +695,7 @@ void ConferenceViewModel::admitAll() {
     participantes_->admitirATodos([yo](int pedidos, int admitidos, const std::string& err) {
         // Los que no pudieron pasar ya los avisó `failed` (sala llena, etc.).
         if (yo && pedidos > 0 && err.empty())
-            emit yo->notify(QString("Pasaron los %1 que esperaban").arg(admitidos), "ok");
+            emit yo->notify(tr("Pasaron los %1 que esperaban").arg(admitidos), "ok");
     });
 }
 
@@ -709,7 +709,7 @@ void ConferenceViewModel::setLocked(bool on) { control_->entrada(std::nullopt, o
 void ConferenceViewModel::newPin(const QString& pin) {
     QPointer<ConferenceViewModel> yo(this);
     control_->cambiarPin(ss(pin), [yo](const std::string& err, const nlohmann::json& r) {
-        if (yo && err.empty()) emit yo->notify("PIN nuevo: " + qs(r.value("pin", std::string())), "ok");
+        if (yo && err.empty()) emit yo->notify(tr("PIN nuevo: %1").arg(qs(r.value("pin", std::string()))), "ok");
     });
 }
 
@@ -730,7 +730,7 @@ void ConferenceViewModel::desbloquearPin(const QString& ip) {
         if (!err.empty()) return emit yo->notify(tr("No se pudo desbloquear (¿la conferencia está conectada?)"), "error");
         yo->bloqueosPin_ = aMapa(r.value("bloqueos", nlohmann::json::object()));
         emit yo->bloqueosPinChanged();
-        emit yo->notify(cual.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + cual,
+        emit yo->notify(cual.isEmpty() ? tr("Desbloqueados todos (y el bloqueo general)") : tr("Desbloqueada %1").arg(cual),
                         "ok");
     });
 }
@@ -742,7 +742,7 @@ void ConferenceViewModel::takeShare(const QString& id) {
     // modelo, el mismo que usa el MCP (share_take).
     const sala::ControlSala::Tomado t = control_->tomarArchivo(ss(id));
     if (!t.error.empty()) return emit notify(qs(t.error), "error");
-    emit notify("«" + qs(t.nombre) + "» agregado a la escena " + qs(t.escena), "ok");
+    emit notify(tr("«%1» agregado a la escena %2").arg(qs(t.nombre), qs(t.escena)), "ok");
 }
 
 QVariantList ConferenceViewModel::chatCon(const QString& uid) const {

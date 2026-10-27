@@ -119,7 +119,7 @@ void YouTubeViewModel::login() {
             if (e != "Login cancelado.") setError(e);
             return;
         }
-        emit notify("Conectado a YouTube: " + acc.value("title").toString(), "ok");
+        emit notify(tr("Conectado a YouTube: %1").arg(acc.value("title").toString()), "ok");
         refresh();
     });
 }
@@ -240,13 +240,13 @@ void YouTubeViewModel::uploadRecording(const QString& path, const QString& title
     uploadRecording(path, QJsonObject{{"title", title}, {"description", description}, {"privacy", privacy}},
                     [this](bool ok, const QJsonObject& d, const QString& e) {
                         if (!ok) return setError(e);
-                        emit notify("Subido a YouTube: " + d.value("url").toString(), "ok");
+                        emit notify(tr("Subido a YouTube: %1").arg(d.value("url").toString()), "ok");
                     });
 }
 
 void YouTubeViewModel::uploadRecording(const QString& path, const QJsonObject& meta,
                                        YouTubeClient::Done done) {
-    if (!upload_.isEmpty()) return done(false, {}, "Ya hay una subida en curso.");
+    if (!upload_.isEmpty()) return done(false, {}, tr("Ya hay una subida en curso."));
     upload_ = QVariantMap{{"path", path},
                           {"title", meta.value("title").toString(QFileInfo(path).completeBaseName())},
                           {"sent", 0},
@@ -271,7 +271,7 @@ void YouTubeViewModel::createBroadcast(const QString& title, const QString& desc
         [this](bool ok, const QJsonObject& d, const QString& e) {
             track(false);
             if (!ok) return setError(e);
-            emit notify("Evento creado: " + d.value("url").toString(), "ok");
+            emit notify(tr("Evento creado: %1").arg(d.value("url").toString()), "ok");
             refresh();
         });
 }
@@ -279,7 +279,7 @@ void YouTubeViewModel::createBroadcast(const QString& title, const QString& desc
 void YouTubeViewModel::goLive(const QString& broadcastId) {
     goLive(broadcastId, [this](bool ok, const QJsonObject&, const QString& e) {
         if (!ok) return setError(e);
-        emit notify("Transmitiendo a YouTube. El evento pasa a en vivo cuando YouTube recibe la señal.",
+        emit notify(tr("Transmitiendo a YouTube. El evento pasa a en vivo cuando YouTube recibe la señal."),
                     "ok");
     });
 }
@@ -288,8 +288,8 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
     if (rt_.engine().status().streaming) {
         return done(false, {},
                     broadcastId == liveBroadcastId_
-                        ? "Ya se esta transmitiendo a este evento."
-                        : "La app ya esta transmitiendo: corta esa transmision primero.");
+                        ? tr("Ya se esta transmitiendo a este evento.")
+                        : tr("La app ya esta transmitiendo: corta esa transmision primero."));
     }
     track(true);
     QPointer<YouTubeViewModel> self(this);
@@ -301,12 +301,11 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
         const QString url = ing.value("url").toString();
         const QString key = ing.value("key").toString();
         if (url.isEmpty() || key.isEmpty())
-            return done(false, {}, "YouTube no entrego servidor o clave de ingesta.");
+            return done(false, {}, tr("YouTube no entrego servidor o clave de ingesta."));
         // Servidor y clave SOLO en memoria (la politica del appliance).
         if (!self->rt_.startStreaming(url.toStdString(), key.toStdString()))
             return done(false, {},
-                        "La app no pudo empezar a transmitir: " +
-                            QString::fromStdString(self->rt_.lastError()));
+                        tr("La app no pudo empezar a transmitir: %1").arg(QString::fromStdString(self->rt_.lastError())));
         self->liveBroadcastId_ = broadcastId;
         self->setChatBroadcast(broadcastId);
         emit self->stateChanged();
@@ -432,7 +431,7 @@ void YouTubeViewModel::pollChat() {
                     if (e.contains("ended", Qt::CaseInsensitive) ||
                         e.contains("disabled", Qt::CaseInsensitive) ||
                         e.contains("NotFound", Qt::CaseInsensitive)) {
-                        emit self->notify("YouTube: el chat de ese evento no esta disponible (" + e + ")",
+                        emit self->notify(tr("YouTube: el chat de ese evento no esta disponible (%1)").arg(e),
                                           "warn");
                         return;
                     }
@@ -479,7 +478,7 @@ void YouTubeViewModel::pollChat() {
                      if (self->liveChatId_.isEmpty()) {
                          self->chatInFlight_ = false;
                          emit self->notify(
-                             "YouTube: ese evento no tiene chat (todavia no empezo o esta deshabilitado).",
+                             tr("YouTube: ese evento no tiene chat (todavia no empezo o esta deshabilitado)."),
                              "warn");
                          self->chatTimer_.start(ba::ajustes::sAMs("chat.sinChatS", 20));
                          return;
