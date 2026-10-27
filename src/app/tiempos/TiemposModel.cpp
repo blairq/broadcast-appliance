@@ -2,6 +2,7 @@
 // src/app/tiempos/TiemposModel.cpp — ver TiemposModel.hpp
 // ============================================================================
 #include "tiempos/TiemposModel.hpp"
+#include "i18n/I18n.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -41,7 +42,7 @@ TiemposModel::TiemposModel(std::function<Fotos()> fotos, std::filesystem::path a
     const json j = json::parse(f, nullptr, false);
     if (j.is_array()) analisis_ = j;
     for (auto& a : analisis_)
-        if (a.value("estado", std::string()) == "midiendo") a["estado"] = "fallo", a["error"] = "se cerró la app midiendo";
+        if (a.value("estado", std::string()) == "midiendo") a["estado"] = "fallo", a["error"] = ba::i18n::traducir("tiempos", "se cerró la app midiendo");
 }
 
 TiemposModel::~TiemposModel() {
@@ -118,7 +119,8 @@ json TiemposModel::recorrido(const std::string& entrada) {
 
 void TiemposModel::setActivo(bool a) {
     if (a == activo()) return;
-    qInfo("[tiempos] %s", a ? "midiendo (la página se ve)" : "en reposo");
+    qInfo("[tiempos] %s", a ? ba::i18n::traducir("tiempos", "midiendo (la página se ve)").c_str()
+                            : ba::i18n::traducir("tiempos", "en reposo").c_str());
     if (a) {
         tic(); // que la página no arranque vacía
         timer_.start();
@@ -141,7 +143,7 @@ bool TiemposModel::rehacer(bool avisar) {
         }
         return true;
     } catch (const std::exception& e) {
-        qWarning("[tiempos] no se pudo armar el grafo: %s", e.what());
+        qWarning("[tiempos] %s", ba::i18n::llenar(ba::i18n::traducir("tiempos", "no se pudo armar el grafo: %1"), {e.what()}).c_str());
         return false;
     }
 }
@@ -263,32 +265,39 @@ void TiemposModel::detectar(qint64 t) {
         }
         if (f.value("cand", ahoraSi) != f.value("estado", ahoraSi) && t - f.value("desde", t) >= kFirmeMs) {
             f["estado"] = f["cand"];
-            if (!arrancando) evento(f.value("desde", t), ahoraSi ? tipoSi : tipoNo, e + (ahoraSi ? si : no), e);
+            if (!arrancando) evento(f.value("desde", t), ahoraSi ? tipoSi : tipoNo, ba::i18n::llenar(ahoraSi ? si : no, {e}), e);
         }
     };
     for (const auto& [e, activa] : ahora["activas"].items())
-        firme("activas", e, activa.get<bool>(), ": llegan datos", ": dejaron de llegar datos", "conexion", "desconexion");
+        firme("activas", e, activa.get<bool>(), ba::i18n::traducir("tiempos", "%1: llegan datos"),
+              ba::i18n::traducir("tiempos", "%1: dejaron de llegar datos"), "conexion", "desconexion");
     for (const auto& [e, era] : previo_["activas"].items())
         if (!ahora["activas"].contains(e)) {
-            if (firmes_["activas"].value(e, json::object()).value("estado", false)) evento(t, "desconexion", e + ": ya no está", e);
+            if (firmes_["activas"].value(e, json::object()).value("estado", false))
+                evento(t, "desconexion", ba::i18n::llenar(ba::i18n::traducir("tiempos", "%1: ya no está"), {e}), e);
             firmes_["activas"].erase(e);
         }
     for (const auto& [e, tarde] : ahora["tarde"].items())
-        firme("tarde", e, tarde.get<bool>(), ": llega tarde a la mezcla", ": volvió a llegar a tiempo", "tarde", "tarde");
+        firme("tarde", e, tarde.get<bool>(), ba::i18n::traducir("tiempos", "%1: llega tarde a la mezcla"),
+              ba::i18n::traducir("tiempos", "%1: volvió a llegar a tiempo"), "tarde", "tarde");
     // Los rearmes, solo de las que estaban andando (las que esperan a alguien se rearman solas cada tanto).
     for (const auto& [e, r] : ahora["rearme"].items())
         if (r.get<bool>() && !previo_["rearme"].value(e, false) && firmes_["activas"].value(e, json::object()).value("estado", false))
-            evento(t, "rearme", e + ": se rearmó", e);
+            evento(t, "rearme", ba::i18n::llenar(ba::i18n::traducir("tiempos", "%1: se rearmó"), {e}), e);
     const std::string esc = ahora.value("escena", std::string()), escAntes = previo_.value("escena", std::string());
-    if (esc != escAntes && !esc.empty() && !arrancando) evento(t, "escena", "Al aire: " + esc);
+    if (esc != escAntes && !esc.empty() && !arrancando)
+        evento(t, "escena", ba::i18n::llenar(ba::i18n::traducir("tiempos", "Al aire: %1"), {esc}));
     for (const auto& [id, titulo] : ahora["salidas"].items())
-        if (!previo_["salidas"].contains(id)) evento(t, "salida", titulo.get<std::string>() + ": arrancó");
+        if (!previo_["salidas"].contains(id))
+            evento(t, "salida", ba::i18n::llenar(ba::i18n::traducir("tiempos", "%1: arrancó"), {titulo.get<std::string>()}));
     for (const auto& [id, titulo] : previo_["salidas"].items())
-        if (!ahora["salidas"].contains(id)) evento(t, "salida", titulo.get<std::string>() + ": paró");
+        if (!ahora["salidas"].contains(id))
+            evento(t, "salida", ba::i18n::llenar(ba::i18n::traducir("tiempos", "%1: paró"), {titulo.get<std::string>()}));
     const double lat = ahora.value("latencia", 0.0), latAntes = previo_.value("latencia", 0.0);
     if (!arrancando && std::fabs(lat - latAntes) >= 10.0)
-        evento(t, "latencia", "Latencia del estudio: " + std::to_string(static_cast<int>(std::lround(latAntes))) + " → " +
-                                  std::to_string(static_cast<int>(std::lround(lat))) + " ms");
+        evento(t, "latencia", ba::i18n::llenar(ba::i18n::traducir("tiempos", "Latencia del estudio: %1 → %2 ms"),
+                                               {std::to_string(static_cast<int>(std::lround(latAntes))),
+                                                std::to_string(static_cast<int>(std::lround(lat)))}));
     previo_ = std::move(ahora);
     if (eventos_.size() != antes) emit eventosCambio();
 }
@@ -367,7 +376,7 @@ double redondo(double ms) { return std::round(ms * 10.0) / 10.0; }
 QVariantList TiemposModel::analisis() const { return aVariant(analisis_).toList(); }
 
 QString TiemposModel::analizar(int segundos, std::function<void(const json&)> listo, std::vector<std::string> entradas) {
-    if (muestreo_.isActive() || !conSondas_.empty()) return QStringLiteral("ya hay un análisis midiendo");
+    if (muestreo_.isActive() || !conSondas_.empty()) return tr("ya hay un análisis midiendo");
     // Las sondas: en las entradas pedidas, o en todas las del motor.
     if (sondas_.empezar) {
         if (entradas.empty()) {
@@ -376,13 +385,14 @@ QString TiemposModel::analizar(int segundos, std::function<void(const json&)> li
                 for (const auto& [id, e] : f.motor["entradas"].items()) entradas.push_back(id);
         } else {
             for (const auto& id : entradas)
-                if (!existeEntrada(id)) return QString::fromStdString("no existe la entrada «" + id + "»");
+                if (!existeEntrada(id)) return tr("no existe la entrada «%1»").arg(QString::fromStdString(id));
         }
         conSondas_ = entradas;
         enHilo([s = sondas_.empezar, entradas]() {
             for (const auto& id : entradas) {
                 const std::string e = s(id);
-                if (!e.empty()) qWarning("[tiempos] sondas en %s: %s", id.c_str(), e.c_str());
+                if (!e.empty())
+                    qWarning("[tiempos] %s", ba::i18n::llenar(ba::i18n::traducir("tiempos", "sondas en %1: %2"), {id, e}).c_str());
             }
         });
     }
@@ -469,7 +479,7 @@ void TiemposModel::cerrar() {
     a["progreso"] = 1.0;
     if (nodos.empty() && a.value("pipelines", json::object()).empty()) {
         a["estado"] = "fallo";
-        a["error"] = "no llegó ninguna medición (¿el motor está andando?)";
+        a["error"] = ba::i18n::traducir("tiempos", "no llegó ninguna medición (¿el motor está andando?)");
     } else {
         a["estado"] = "listo";
     }

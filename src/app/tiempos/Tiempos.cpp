@@ -3,6 +3,8 @@
 // ============================================================================
 #include "tiempos/Tiempos.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -12,6 +14,8 @@
 namespace ba::app::tiempos {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -36,8 +40,9 @@ void ponerTramoDeEspera(json& n, double previo, double fijada, double medida, do
     n["acumulado_ms"] = std::round(acum * 10) / 10;
     n["fuente"] = medida >= 0 ? "medido" : "declarado";
     n["estado"] = "bien";
-    n["detalle"]["que_es"] = "espera en el colchón: cada cuadro sale a su hora de captura + la latencia fijada, para que "
-                             "todas las entradas salgan juntas (por eso es más que lo que tarda cada tarjeta)";
+    n["detalle"]["que_es"] = traducir("tiempos", "espera en el colchón: cada cuadro sale a su hora de captura + la latencia "
+                                                 "fijada, para que todas las entradas salgan juntas (por eso es más que lo que "
+                                                 "tarda cada tarjeta)");
     n["detalle"]["espera_ms"] = std::round(std::max(0.0, acum - previo) * 10) / 10;
     if (medida >= 0) {
         n["detalle"]["edad_medida_ms"] = std::round(medida * 10) / 10;
@@ -47,16 +52,24 @@ void ponerTramoDeEspera(json& n, double previo, double fijada, double medida, do
         // Sale más tarde que lo fijado (más de un cuadro): algo de adentro no da abasto.
         if (fijada > 0 && dif > std::max(cuadroMs, 10.0)) {
             n["estado"] = "justo";
-            n["detalle"]["aviso"] = "sale " + std::to_string(static_cast<int>(dif)) + " ms más tarde que lo fijado";
+            n["detalle"]["aviso"] =
+                llenar(traducir("tiempos", "sale %1 ms más tarde que lo fijado"), {std::to_string(static_cast<int>(dif))});
         }
     }
 }
 
 std::string tituloDeElemento(const std::string& e) {
-    static const std::map<std::string, std::string> nombres{
-        {"baptz", "PTZ digital"},       {"baptzgl", "PTZ digital"},  {"bamejora", "Mejorar imagen"},
-        {"basuperres", "Superresolución"}, {"baonnxsr", "Superresolución"}, {"baplugin", "Plugin"},
-        {"barostros", "Rostros"},       {"barack", "Rack de audio"}, {"balimitador", "Limitador"}};
+    // Se arma en cada llamada: así sale en el idioma de ahora.
+    const std::map<std::string, std::string> nombres{
+        {"baptz", traducir("tiempos", "PTZ digital")},
+        {"baptzgl", traducir("tiempos", "PTZ digital")},
+        {"bamejora", traducir("tiempos", "Mejorar imagen")},
+        {"basuperres", traducir("tiempos", "Superresolución")},
+        {"baonnxsr", traducir("tiempos", "Superresolución")},
+        {"baplugin", traducir("tiempos", "Plugin")},
+        {"barostros", traducir("tiempos", "Rostros")},
+        {"barack", traducir("tiempos", "Rack de audio")},
+        {"balimitador", traducir("tiempos", "Limitador")}};
     const auto it = nombres.find(e);
     return it != nombres.end() ? it->second : e;
 }
@@ -281,8 +294,11 @@ json armar(const Fotos& f) {
                             p.id = "modulo:" + id + ":" + n.value("id", std::string());
                             p.tipo = "derivacion";
                             p.titulo = !n.value("etiqueta", std::string()).empty() ? n.value("etiqueta", std::string())
-                                       : tn == "texto" ? std::string("Voz a texto") : tn == "habla" ? std::string("Texto a voz") : std::string("Traducción");
-                            p.detalle = {{"que", "escucha una copia del audio: no atrasa lo que sale"}, {"tipo", tn}};
+                                       : tn == "texto" ? traducir("tiempos", "Voz a texto")
+                                       : tn == "habla" ? traducir("tiempos", "Texto a voz")
+                                                       : traducir("tiempos", "Traducción");
+                            p.detalle = {{"que", traducir("tiempos", "escucha una copia del audio: no atrasa lo que sale")},
+                                         {"tipo", tn}};
                             for (const char* k : {"flujo", "modo", "nombre"})
                                 if (n.contains(k)) p.detalle[k] = n[k];
                             ramas.push_back(std::move(p));
@@ -355,8 +371,9 @@ json armar(const Fotos& f) {
                 ne["fuente"] = "hora_corrida";
                 ne["estado"] = "tarde";
                 ne["detalle"]["edad_ms"] = redondo(edadCruda);
-                ne["detalle"]["aviso"] = "la hora que trae está corrida " + std::to_string(static_cast<long long>(edadCruda / 1000)) +
-                                         " s del reloj del estudio: no es una demora, es otro reloj";
+                ne["detalle"]["aviso"] = llenar(traducir("tiempos", "la hora que trae está corrida %1 s del reloj del estudio: "
+                                                                    "no es una demora, es otro reloj"),
+                                                {std::to_string(static_cast<long long>(edadCruda / 1000))});
             }
             a.seguir(idE, {});
             std::string previo = idE;
@@ -399,7 +416,7 @@ json armar(const Fotos& f) {
     if (programaV.is_object() && !programaV.empty()) {
         const std::string id = "escena:programa";
         const std::string esc = video.value("al_aire", std::string());
-        json& n = a.nodo(id, "escena", esc.empty() ? std::string("Programa") : esc, 2, "video");
+        json& n = a.nodo(id, "escena", esc.empty() ? traducir("tiempos", "Programa") : esc, 2, "video");
         const double lat = num(programaV, "latencia_salida_ms", num(programaV, "latencia_ms", 0.0));
         n["detalle"] = {{"escena", esc}, {"latencia_fijada_ms", lat}, {"gpu", programaV.value("gpu", json())},
                         {"en_transicion", si(programaV, "en_transicion")}};
@@ -431,8 +448,8 @@ json armar(const Fotos& f) {
         if (!llegan.empty()) n["detalle"]["llegan"] = llegan;
         ponerTramoDeEspera(n, previo, lat, edadMedida(programaV), edadMedida(programaV, "p95_ms"), cuadroMs);
         if (!llegan.empty()) {
-            n["detalle"]["que_es"] = "lo que agrega el compositor: su latencia y esperar a la capa que llega última (el "
-                                     "colchón de cada entrada ya está en su tramo)";
+            n["detalle"]["que_es"] = traducir("tiempos", "lo que agrega el compositor: su latencia y esperar a la capa que llega "
+                                                         "última (el colchón de cada entrada ya está en su tramo)");
             // Lo fijado al compositor no incluye el colchón de las entradas (está en los tramos):
             // lo que se vigila es lo que agrega él, que no pase de dos cuadros.
             n["detalle"].erase("aviso");
@@ -440,8 +457,9 @@ json armar(const Fotos& f) {
             const double propio = n["ms"].get<double>();
             if (propio > 2 * cuadroMs + 5) {
                 n["estado"] = "justo";
-                n["detalle"]["aviso"] = "el compositor agrega " + std::to_string(static_cast<int>(propio)) +
-                                        " ms (más de dos cuadros): algo de adentro no da abasto";
+                n["detalle"]["aviso"] = llenar(traducir("tiempos", "el compositor agrega %1 ms (más de dos cuadros): algo de "
+                                                                   "adentro no da abasto"),
+                                               {std::to_string(static_cast<int>(propio))});
             }
         }
         a.acumulado[id] = n["acumulado_ms"].get<double>();
@@ -450,7 +468,7 @@ json armar(const Fotos& f) {
     }
     if (programaA.is_object() && !programaA.empty()) {
         const std::string id = "mezcla:programa";
-        json& n = a.nodo(id, "mezcla", "Mezcla del programa", 2, "audio");
+        json& n = a.nodo(id, "mezcla", traducir("tiempos", "Mezcla del programa"), 2, "audio");
         const double lat = num(programaA, "latencia_salida_ms", num(programaA, "latencia_ms", 0.0));
         n["detalle"] = {{"latencia_fijada_ms", lat}};
         std::vector<std::string> desde;
@@ -507,14 +525,15 @@ json armar(const Fotos& f) {
     };
     const json& fs = f.salidas;
     const json principal = fs.value("principal", json::object());
-    if (si(principal, "andando")) salida("salida:transmision", "transmision", "Transmisión", principal, json::object());
+    if (si(principal, "andando")) salida("salida:transmision", "transmision", traducir("tiempos", "Transmisión"), principal, json::object());
     const json extras = fs.value("extras", json::object());
     for (const auto& [x, st] : extras.items())
         if (si(st, "andando"))
-            salida("salida:transmision:" + x, "transmision", "Transmisión " + x, st, {{"destino", st.value("destino", std::string())}});
+            salida("salida:transmision:" + x, "transmision", llenar(traducir("tiempos", "Transmisión %1"), {x}), st,
+                   {{"destino", st.value("destino", std::string())}});
     const json grab = fs.value("grabacion", json::object());
     if (si(grab, "activa"))
-        salida("salida:grabacion", "grabacion", "Grabación", grab.value("estado", json::object()),
+        salida("salida:grabacion", "grabacion", traducir("tiempos", "Grabación"), grab.value("estado", json::object()),
                {{"archivo", grab.value("archivo", std::string())}});
 
     return {{"nodos", a.nodos},
@@ -624,25 +643,33 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
                 puedeGpu = puedeGpu || gpu(x.get<std::string>());
                 cualquiera = cualquiera || x == "cualquiera";
             }
-            porque += (porque.empty() ? "" : "; ") + quien(m) +
-                      (puedeGpu ? " puede trabajar en la GPU pero negoció RAM (lo que tiene al lado la obligó)"
-                       : cualquiera ? " acepta cualquier memoria pero negoció RAM"
-                                    : " trabaja en RAM: sus pads solo aceptan memoria del sistema");
+            porque += (porque.empty() ? "" : "; ") +
+                      llenar(puedeGpu     ? traducir("tiempos", "%1 puede trabajar en la GPU pero negoció RAM (lo que tiene al "
+                                                                "lado la obligó)")
+                             : cualquiera ? traducir("tiempos", "%1 acepta cualquier memoria pero negoció RAM")
+                                          : traducir("tiempos", "%1 trabaja en RAM: sus pads solo aceptan memoria del sistema"),
+                             {quien(m)});
         }
         nombres.push_back(el.value("nombre", std::string()));
         hallazgo("ida_y_vuelta", "aviso",
-                 "El video baja de la " + nombreMemoria(b.value("memoria_entrada", std::string())) + " en «" +
-                     b.value("nombre", std::string()) + "» y vuelve a subir en «" + el.value("nombre", std::string()) +
-                     "»" + (porque.empty() ? "" : ": " + porque) + ". Cada cruce copia el cuadro entero (" + msTexto(ms) +
-                     " entre bajar y subir, más CPU y ancho de memoria).",
+                 porque.empty()
+                     ? llenar(traducir("tiempos", "El video baja de la %1 en «%2» y vuelve a subir en «%3». Cada cruce copia "
+                                                  "el cuadro entero (%4 entre bajar y subir, más CPU y ancho de memoria)."),
+                              {nombreMemoria(b.value("memoria_entrada", std::string())), b.value("nombre", std::string()),
+                               el.value("nombre", std::string()), msTexto(ms)})
+                     : llenar(traducir("tiempos", "El video baja de la %1 en «%2» y vuelve a subir en «%3»: %4. Cada cruce "
+                                                  "copia el cuadro entero (%5 entre bajar y subir, más CPU y ancho de memoria)."),
+                              {nombreMemoria(b.value("memoria_entrada", std::string())), b.value("nombre", std::string()),
+                               el.value("nombre", std::string()), porque, msTexto(ms)}),
                  ms, nombres);
         bajo = -1;
     }
     if (bajo >= 0) {
         const json& b = elems[static_cast<size_t>(bajo)];
         hallazgo("termina_en_ram", "info",
-                 "Desde «" + b.value("nombre", std::string()) + "» el video sigue en RAM hasta la salida de la entrada (" +
-                     quien(b) + " lo bajó de la GPU y nadie lo vuelve a subir).",
+                 llenar(traducir("tiempos", "Desde «%1» el video sigue en RAM hasta la salida de la entrada (%2 lo bajó de la "
+                                            "GPU y nadie lo vuelve a subir)."),
+                        {b.value("nombre", std::string()), quien(b)}),
                  b.value("agrega_ms", 0.0), {b.value("nombre", std::string())});
     }
 
@@ -666,18 +693,21 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
             const double ms = el.value("agrega_ms", 0.0);
             if (ms > std::max(cuadro > 0 ? cuadro * 2 : 66.0, 50.0))
                 hallazgo("captura_lenta", "aviso",
-                         "La fuente entrega los cuadros con " + msTexto(ms) +
-                             " de edad desde que se tomaron (la cámara, el USB, el driver y el sistema): es lo que más pesa y "
-                             "no lo agrega ninguna tarjeta. Probá otro modo de la cámara (crudo o MJPEG, menos resolución o más cps).",
+                         llenar(traducir("tiempos", "La fuente entrega los cuadros con %1 de edad desde que se tomaron (la "
+                                                    "cámara, el USB, el driver y el sistema): es lo que más pesa y no lo agrega "
+                                                    "ninguna tarjeta. Probá otro modo de la cámara (crudo o MJPEG, menos "
+                                                    "resolución o más cps)."),
+                                {msTexto(ms)}),
                          ms, {n});
             continue;
         }
         if (el.contains("cambia_la_hora_ms")) {
             const double c = el.value("cambia_la_hora_ms", 0.0);
             hallazgo("cambia_la_hora", "aviso",
-                     quien(el) + " publica los cuadros con otra hora: salen " + msTexto(c) +
-                         " «más jóvenes» que como entraron. Lo que se mide después queda corrido eso; si es un mezclador "
-                         "de video, el contenido queda " + msTexto(c) + " más tarde que el audio en las salidas.",
+                     llenar(traducir("tiempos", "%1 publica los cuadros con otra hora: salen %2 «más jóvenes» que como "
+                                                "entraron. Lo que se mide después queda corrido eso; si es un mezclador de "
+                                                "video, el contenido queda %2 más tarde que el audio en las salidas."),
+                            {quien(el), msTexto(c)}),
                      c, {n});
             continue;
         }
@@ -685,10 +715,13 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
         const double umbral = cuadro > 0 ? cuadro * 1.5 : 40.0;
         if (ms > umbral) {
             const bool mucho = cuadro > 0 ? ms > cuadro * 3 : ms > 100;
-            std::string t = quien(el) + " agrega " + msTexto(ms);
-            if (cuadro > 0) t += " (≈" + std::to_string(static_cast<int>(ms / cuadro + 0.5)) + " cuadros)";
-            t += el.contains("nivel_cola_ms") ? ": la cola guarda " + msTexto(el.value("nivel_cola_ms", 0.0)) + " de video"
-                 : ": tarda o retiene cuadros (un filtro temporal que guarda cuadros cuenta aunque procese rápido)";
+            std::string t = llenar(traducir("tiempos", "%1 agrega %2"), {quien(el), msTexto(ms)});
+            if (cuadro > 0)
+                t += " " + traducir("tiempos", "(≈%n cuadro)", nullptr, static_cast<int>(ms / cuadro + 0.5));
+            t += el.contains("nivel_cola_ms")
+                     ? llenar(traducir("tiempos", ": la cola guarda %1 de video"), {msTexto(el.value("nivel_cola_ms", 0.0))})
+                     : traducir("tiempos", ": tarda o retiene cuadros (un filtro temporal que guarda cuadros cuenta aunque "
+                                           "procese rápido)");
             hallazgo("retiene", mucho ? "problema" : "aviso", t, ms, {n});
         }
         if (el.contains("declara_ms") && !esDePaso(el)) {
@@ -696,14 +729,15 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
             const double tol = std::max(5.0, cuadro * 0.5);
             if (ms - dec > tol && ms > 5)
                 hallazgo("declara_menos", "aviso",
-                         quien(el) + " tarda " + msTexto(ms) + " pero le declara " + msTexto(dec) +
-                             " al pipeline: la compensación del estudio no lo sabe; si lo que falta se acerca al colchón "
-                             "de la entrada, llega tarde a la mezcla.",
+                         llenar(traducir("tiempos", "%1 tarda %2 pero le declara %3 al pipeline: la compensación del estudio "
+                                                    "no lo sabe; si lo que falta se acerca al colchón de la entrada, llega "
+                                                    "tarde a la mezcla."),
+                                {quien(el), msTexto(ms), msTexto(dec)}),
                          ms - dec, {n});
             else if (dec - ms > std::max(20.0, cuadro))
                 hallazgo("declara_de_mas", "info",
-                         quien(el) + " declara " + msTexto(dec) + " pero tarda " + msTexto(ms) +
-                             ": el estudio espera de más por él.",
+                         llenar(traducir("tiempos", "%1 declara %2 pero tarda %3: el estudio espera de más por él."),
+                                {quien(el), msTexto(dec), msTexto(ms)}),
                          dec - ms, {n});
         }
         const std::string fab = fabricaDe(el);
@@ -712,16 +746,22 @@ json diagnosticar(const json& pipeline, const std::map<std::string, TarjetaEnPip
         if (esConversor(el) && !deGpu && !gpu(el.value("memoria_entrada", std::string())) && ms >= 1.0 &&
             el.value("caps_entrada", std::string()) != el.value("caps_salida", std::string()))
             hallazgo("conversion_cpu", ms >= 5 ? "aviso" : "info",
-                     "«" + n + "» convierte en la CPU (" + el.value("caps_entrada", std::string()) + " → " +
-                         el.value("caps_salida", std::string()) + "): " + msTexto(ms) +
-                         (duenio.count(n) ? "; lo pide " + quien(el) : std::string()),
+                     duenio.count(n)
+                         ? llenar(traducir("tiempos", "«%1» convierte en la CPU (%2 → %3): %4; lo pide %5"),
+                                  {n, el.value("caps_entrada", std::string()), el.value("caps_salida", std::string()),
+                                   msTexto(ms), quien(el)})
+                         : llenar(traducir("tiempos", "«%1» convierte en la CPU (%2 → %3): %4"),
+                                  {n, el.value("caps_entrada", std::string()), el.value("caps_salida", std::string()),
+                                   msTexto(ms)}),
                      ms, {n});
     }
     if (colchonPlaca > std::max(10.0, cuadro * 0.5))
         hallazgo("colchon_placa", colchonPlaca > std::max(cuadro * 2.5, 60.0) ? "aviso" : "info",
-                 "Antes de la composición, la cadena de la placa «sin señal» retiene " + msTexto(colchonPlaca) +
-                     ": el conmutador no deja pasar el cuadro apenas llega (un fallbackswitch espera la latencia declarada + un "
-                     "margen). Es el colchón de esta entrada; la composición ya espera sola a la más lenta.",
+                 llenar(traducir("tiempos", "Antes de la composición, la cadena de la placa «sin señal» retiene %1: el "
+                                            "conmutador no deja pasar el cuadro apenas llega (un fallbackswitch espera la "
+                                            "latencia declarada + un margen). Es el colchón de esta entrada; la composición "
+                                            "ya espera sola a la más lenta."),
+                        {msTexto(colchonPlaca)}),
                  colchonPlaca, colchonNombres);
     const auto peso = [](const json& h) {
         const std::string g = h.value("gravedad", std::string());
