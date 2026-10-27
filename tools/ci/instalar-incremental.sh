@@ -51,8 +51,20 @@ if [ -f "$ANT" ]; then
             borrados=$((borrados + 1))
         fi
     done < <(LC_ALL=C comm -23 <(LC_ALL=C sort -u "$ANT") <(LC_ALL=C sort -u "$M"))
-    # Las carpetas que quedan vacías se dejan: el esqueleto del bundle (Config/,
-    # Logs/...) se instala vacío a propósito.
-    log "$borrados archivos que ya no se instalan, borrados"
+    # Las carpetas que quedaron vacías POR lo borrado, también (si no, una regla que
+    # se fue —LibreOffice: 502 carpetas— deja su árbol vacío en el bundle). Se sube
+    # desde la carpeta de cada borrado mientras esté vacía, pero nunca se toca una de
+    # primer nivel: el esqueleto del bundle (Config/, Logs/...) se instala vacío a
+    # propósito.
+    carpetas=0
+    while IFS= read -r f; do
+        case "$f" in "$abs"/* | "$P"/*) ;; *) continue ;; esac
+        d="$(dirname "$f")"
+        while [ "$(dirname "$d")" != "$abs" ] && [ "$d" != "$abs" ] && [ -d "$d" ] && [ -z "$(ls -A "$d")" ]; do
+            rmdir "$d" && carpetas=$((carpetas + 1))
+            d="$(dirname "$d")"
+        done
+    done < <(LC_ALL=C comm -23 <(LC_ALL=C sort -u "$ANT") <(LC_ALL=C sort -u "$M"))
+    log "$borrados archivos que ya no se instalan, borrados ($carpetas carpetas que quedaron vacías)"
     rm -f "$ANT"
 fi
