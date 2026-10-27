@@ -1,6 +1,7 @@
 // src/app/red/Rtsp.cpp — ver Rtsp.hpp
 
 #include "red/Rtsp.hpp"
+#include <QCoreApplication>
 
 #include <QCryptographicHash>
 #include <QRegularExpression>
@@ -107,12 +108,12 @@ QString autorizacion(const Respuesta& desafio, const QString& url, const QString
 }
 
 QString estadoDe(int codigo) {
-    if (codigo == 200) return "se ve";
-    if (codigo == 401) return "pide usuario y clave";
-    if (codigo == 403) return "clave incorrecta o sin permiso";
-    if (codigo == 404 || codigo == 400 || codigo == 454) return "no existe";
-    if (codigo == 0) return "no contesta";
-    return "contestó " + QString::number(codigo);
+    if (codigo == 200) return QCoreApplication::translate("red", "se ve");
+    if (codigo == 401) return QCoreApplication::translate("red", "pide usuario y clave");
+    if (codigo == 403) return QCoreApplication::translate("red", "clave incorrecta o sin permiso");
+    if (codigo == 404 || codigo == 400 || codigo == 454) return QCoreApplication::translate("red", "no existe");
+    if (codigo == 0) return QCoreApplication::translate("red", "no contesta");
+    return QCoreApplication::translate("red", "contestó %1").arg(codigo);
 }
 
 } // namespace ba::app::red::rtsp
