@@ -39,7 +39,7 @@ json herramientasArchivos() {
     json t = json::array();
     t.push_back(herramienta(
         "system_archivos",
-        "Archivos y carpetas de esta máquina. `accion`:\n"
+        ba::i18n::traducir("mcp", "Archivos y carpetas de esta máquina. `accion`:\n"
         "- leer `ruta`: el texto (desde la línea `desde`, `lineas` como mucho, 2000); una imagen (png, jpg, gif, bmp) "
         "vuelve como imagen.\n"
         "- escribir `ruta` `contenido` (`agregar`: al final); crea las carpetas que falten.\n"
@@ -50,7 +50,7 @@ json herramientasArchivos() {
         "- crear_carpeta `ruta`.\n"
         "Rutas con variables (%USERPROFILE%\\Desktop en Windows; ~/Desktop o $HOME en macOS y Linux); las relativas, desde "
         "la carpeta del usuario. Permiso: archivos "
-        "(leer, listar, info) y archivos_escribir (lo demás).",
+        "(leer, listar, info) y archivos_escribir (lo demás)."),
         esquema({{"accion", {{"type", "string"}, {"enum", {"leer", "escribir", "listar", "info", "copiar", "mover", "borrar", "crear_carpeta"}}}},
                  {"ruta", {{"type", "string"}}},
                  {"destino", {{"type", "string"}}},
@@ -66,11 +66,11 @@ json herramientasArchivos() {
                 {"accion", "ruta"})));
     t.push_back(herramienta(
         "system_registro",
-        "El registro de Windows; en macOS, las preferencias (`clave` = el dominio: com.apple.dock, NSGlobalDomain; "
+        ba::i18n::traducir("mcp", "El registro de Windows; en macOS, las preferencias (`clave` = el dominio: com.apple.dock, NSGlobalDomain; "
         "`nombre` = la preferencia). En Windows `clave`: «HKCU\\Software\\…» (HKCU, HKLM, HKCR, HKU, HKCC). `accion`: leer (el valor "
         "`nombre`; vacío = el predeterminado), listar (subclaves y valores), escribir (`nombre`, `valor`, `tipo`: sz, "
         "expand_sz, multi_sz —una lista—, dword, qword), borrar (el valor `nombre`; nunca una clave entera). Permiso: "
-        "sistema para leer y listar; registro para escribir y borrar (apagado de fábrica).",
+        "sistema para leer y listar; registro para escribir y borrar (apagado de fábrica)."),
         esquema({{"accion", {{"type", "string"}, {"enum", {"leer", "listar", "escribir", "borrar"}}}},
                  {"clave", {{"type", "string"}}},
                  {"nombre", {{"type", "string"}}},
@@ -79,8 +79,8 @@ json herramientasArchivos() {
                 {"accion", "clave"})));
     t.push_back(herramienta(
         "system_aviso",
-        "Muestra un aviso del sistema (la notificación de Windows o de macOS): `titulo` y `texto`, `tipo`: info, aviso, error. Para "
-        "avisarle algo a la persona que está en la máquina. Permiso: avisos.",
+        ba::i18n::traducir("mcp", "Muestra un aviso del sistema (la notificación de Windows o de macOS): `titulo` y `texto`, `tipo`: info, aviso, error. Para "
+        "avisarle algo a la persona que está en la máquina. Permiso: avisos."),
         esquema({{"titulo", {{"type", "string"}}}, {"texto", {{"type", "string"}}}, {"tipo", {{"type", "string"}, {"enum", {"info", "aviso", "error"}}}}},
                 {"texto"})));
     return t;
@@ -116,7 +116,7 @@ std::string error(DWORD e) {
     wchar_t* m = nullptr;
     FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, e, 0,
                    reinterpret_cast<wchar_t*>(&m), 0, nullptr);
-    std::string s = m != nullptr ? aU(m) : "error " + std::to_string(e);
+    std::string s = m != nullptr ? aU(m) : ba::i18n::llenar(ba::i18n::traducir("mcp", "error %1"), {std::to_string(e)});
     if (m) LocalFree(m);
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ' || s.back() == '.')) s.pop_back();
     return s + " (" + std::to_string(e) + ")";
@@ -155,7 +155,7 @@ json archivos(const json& id, const json& a, const Permisos& p) {
     if (escribe ? !p.archivos_escribir : !p.archivos) return sinPermiso(id, escribe ? "archivos_escribir" : "archivos");
     const std::wstring r = ruta(a.value("ruta", std::string()));
     const std::string ru = aU(r);
-    if (r.empty()) return resultadoTexto(id, "falta `ruta`", true);
+    if (r.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `ruta`"), true);
 
     if (accion == "info") {
         WIN32_FILE_ATTRIBUTE_DATA d{};
@@ -175,7 +175,7 @@ json archivos(const json& id, const json& a, const Permisos& p) {
             std::string datos;
             bool cortado = false;
             if (!leerTodo(r, datos, 8u << 20, cortado)) return resultadoTexto(id, ru + ": " + error(GetLastError()), true);
-            if (cortado) return resultadoTexto(id, ru + ": imagen de más de 8 MB", true);
+            if (cortado) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: imagen de más de 8 MB"), {ru}), true);
             const std::string mime = ext == L".png" ? "image/png" : ext == L".gif" ? "image/gif" : ext == L".bmp" ? "image/bmp"
                                      : ext == L".webp" ? "image/webp" : "image/jpeg";
             json res = resultadoImagen(id, base64(reinterpret_cast<const unsigned char*>(datos.data()), datos.size()), ru);
@@ -186,7 +186,8 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         bool cortado = false;
         if (!leerTodo(r, datos, 16u << 20, cortado)) return resultadoTexto(id, ru + ": " + error(GetLastError()), true);
         if (datos.find('\0') != std::string::npos && !(datos.size() >= 2 && static_cast<unsigned char>(datos[0]) == 0xFF))
-            return resultadoTexto(id, ru + " es binario (" + std::to_string(datos.size()) + " bytes): no se muestra como texto", true);
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 es binario (%2 bytes): no se muestra como texto"),
+                                                   {ru, std::to_string(datos.size())}), true);
         // UTF-16 con BOM, UTF-8 (con o sin BOM) o la página de Windows.
         if (datos.size() >= 2 && static_cast<unsigned char>(datos[0]) == 0xFF && static_cast<unsigned char>(datos[1]) == 0xFE)
             datos = aU(std::wstring(reinterpret_cast<const wchar_t*>(datos.data() + 2), (datos.size() - 2) / 2));
@@ -213,8 +214,8 @@ json archivos(const json& id, const json& a, const Permisos& p) {
             ++total;
         }
         json d{{"ruta", ru}, {"texto", out}, {"desde", desde}, {"lineas", puestas}, {"lineas_total", total}};
-        if (desde + puestas - 1 < total) d["nota"] = "hay más: `desde` " + std::to_string(desde + puestas);
-        if (cortado) d["nota_tamano"] = "el archivo pasa de 16 MB: se leyó el principio";
+        if (desde + puestas - 1 < total) d["nota"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "hay más: `desde` %1"), {std::to_string(desde + puestas)});
+        if (cortado) d["nota_tamano"] = ba::i18n::traducir("mcp", "el archivo pasa de 16 MB: se leyó el principio");
         return resultadoDatos(id, d);
     }
 
@@ -251,7 +252,7 @@ json archivos(const json& id, const json& a, const Permisos& p) {
             FindClose(h);
         }
         json d{{"carpeta", ru}, {"elementos", l}, {"total", total}};
-        if (total > l.size()) d["nota"] = "hay " + std::to_string(total - l.size()) + " más (`max`, `patron`)";
+        if (total > l.size()) d["nota"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "hay %1 más (`max`, `patron`)"), {std::to_string(total - l.size())});
         return resultadoDatos(id, d);
     }
 
@@ -272,19 +273,21 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         const DWORD e = GetLastError();
         CloseHandle(h);
         if (!ok) return resultadoTexto(id, ru + ": " + error(e), true);
-        return resultadoTexto(id, std::string(agregar ? "Agregados " : "Escritos ") + std::to_string(c.size()) + " bytes en " + ru + ".");
+        return resultadoTexto(id, ba::i18n::llenar(agregar ? ba::i18n::traducir("mcp", "Agregados %1 bytes en %2.")
+                                                     : ba::i18n::traducir("mcp", "Escritos %1 bytes en %2."),
+                                             {std::to_string(c.size()), ru}));
     }
 
     if (accion == "crear_carpeta") {
         for (size_t k = 3; k <= r.size(); ++k)
             if (k == r.size() || r[k] == L'\\') CreateDirectoryW(r.substr(0, k).c_str(), nullptr);
-        if (!PathIsDirectoryW(r.c_str())) return resultadoTexto(id, "no se pudo crear " + ru, true);
-        return resultadoTexto(id, "Carpeta " + ru + " lista.");
+        if (!PathIsDirectoryW(r.c_str())) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo crear %1"), {ru}), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Carpeta %1 lista."), {ru}));
     }
 
     if (accion == "copiar" || accion == "mover") {
         const std::wstring d = ruta(a.value("destino", std::string()));
-        if (a.value("destino", std::string()).empty()) return resultadoTexto(id, "falta `destino`", true);
+        if (a.value("destino", std::string()).empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `destino`"), true);
         const bool reemplazar = a.value("reemplazar", false);
         // SHFileOperation: archivos y carpetas enteras; sin preguntar ni mostrar nada.
         std::wstring de = r + L'\0', a2 = d + L'\0';
@@ -294,12 +297,16 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         op.pTo = a2.c_str();
         op.fFlags = FOF_NOCONFIRMMKDIR | FOF_SILENT | FOF_NOERRORUI | (reemplazar ? FOF_NOCONFIRMATION : FOF_RENAMEONCOLLISION);
         const int e = SHFileOperationW(&op);
-        if (e != 0 || op.fAnyOperationsAborted) return resultadoTexto(id, "no se pudo " + accion + " " + ru + " (código " + std::to_string(e) + ")", true);
-        return resultadoTexto(id, std::string(accion == "copiar" ? "Copiado " : "Movido ") + ru + " → " + aU(d) + ".");
+        if (e != 0 || op.fAnyOperationsAborted) return resultadoTexto(id, ba::i18n::llenar(accion == "copiar" ? ba::i18n::traducir("mcp", "no se pudo copiar %1 (código %2)")
+                                                                                      : ba::i18n::traducir("mcp", "no se pudo mover %1 (código %2)"),
+                                                                    {ru, std::to_string(e)}), true);
+        return resultadoTexto(id, ba::i18n::llenar(accion == "copiar" ? ba::i18n::traducir("mcp", "Copiado %1 → %2.")
+                                                                 : ba::i18n::traducir("mcp", "Movido %1 → %2."),
+                                             {ru, aU(d)}));
     }
 
     if (accion == "borrar") {
-        if (GetFileAttributesW(r.c_str()) == INVALID_FILE_ATTRIBUTES) return resultadoTexto(id, ru + ": no existe", true);
+        if (GetFileAttributesW(r.c_str()) == INVALID_FILE_ATTRIBUTES) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no existe"), {ru}), true);
         // A la papelera, siempre (FOF_ALLOWUNDO): nada se borra para siempre desde acá.
         std::wstring de = r + L'\0';
         SHFILEOPSTRUCTW op{};
@@ -307,10 +314,10 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         op.pFrom = de.c_str();
         op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI;
         const int e = SHFileOperationW(&op);
-        if (e != 0 || op.fAnyOperationsAborted) return resultadoTexto(id, "no se pudo borrar " + ru + " (código " + std::to_string(e) + ")", true);
-        return resultadoTexto(id, ru + " fue a la papelera (se puede recuperar).");
+        if (e != 0 || op.fAnyOperationsAborted) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo borrar %1 (código %2)"), {ru, std::to_string(e)}), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 fue a la papelera (se puede recuperar)."), {ru}));
     }
-    return resultadoTexto(id, "acción desconocida: " + accion, true);
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "acción desconocida: %1"), {accion}), true);
 }
 
 // --- Registro ------------------------------------------------------------------------
@@ -376,7 +383,7 @@ json registro(const json& id, const json& a, const Permisos& p) {
     HKEY raiz;
     std::wstring sub;
     const std::string c = a.value("clave", std::string());
-    if (!clave(c, raiz, sub)) return resultadoTexto(id, "la clave empieza con HKCU, HKLM, HKCR, HKU o HKCC", true);
+    if (!clave(c, raiz, sub)) return resultadoTexto(id, ba::i18n::traducir("mcp", "la clave empieza con HKCU, HKLM, HKCR, HKU o HKCC"), true);
     const std::wstring nombre = aW(a.value("nombre", std::string()));
     HKEY k = nullptr;
     LSTATUS e = escribe ? RegCreateKeyExW(raiz, sub.c_str(), 0, nullptr, 0, KEY_READ | KEY_WRITE, nullptr, &k, nullptr)
@@ -431,18 +438,18 @@ json registro(const json& id, const json& a, const Permisos& p) {
             d.assign(reinterpret_cast<const BYTE*>(w.data()), reinterpret_cast<const BYTE*>(w.data() + w.size()));
         }
         e = RegSetValueExW(k, nombre.c_str(), 0, t, d.data(), static_cast<DWORD>(d.size()));
-        out = e == ERROR_SUCCESS ? resultadoTexto(id, "Escrito " + c + " \\ " + aU(nombre) + " (" + tipo + ").")
+        out = e == ERROR_SUCCESS ? resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Escrito %1 \\ %2 (%3)."), {c, aU(nombre), tipo}))
                                  : resultadoTexto(id, error(static_cast<DWORD>(e)), true);
     } else if (accion == "borrar") {
         if (nombre.empty()) {
-            out = resultadoTexto(id, "falta `nombre`: se borra un valor, nunca una clave entera", true);
+            out = resultadoTexto(id, ba::i18n::traducir("mcp", "falta `nombre`: se borra un valor, nunca una clave entera"), true);
         } else {
             e = RegDeleteValueW(k, nombre.c_str());
-            out = e == ERROR_SUCCESS ? resultadoTexto(id, "Borrado " + c + " \\ " + aU(nombre) + ".")
+            out = e == ERROR_SUCCESS ? resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrado %1 \\ %2."), {c, aU(nombre)}))
                                      : resultadoTexto(id, error(static_cast<DWORD>(e)), true);
         }
     } else {
-        out = resultadoTexto(id, "acción desconocida: " + accion, true);
+        out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "acción desconocida: %1"), {accion}), true);
     }
     RegCloseKey(k);
     return out;
@@ -481,7 +488,7 @@ json aviso(const json& id, const json& a, const Permisos& p) {
         Sleep(8000);
         Shell_NotifyIconW(NIM_DELETE, &n);
     }).detach();
-    return ok ? resultadoTexto(id, "Aviso mostrado.") : resultadoTexto(id, "Windows no dejó mostrar el aviso", true);
+    return ok ? resultadoTexto(id, ba::i18n::traducir("mcp", "Aviso mostrado.")) : resultadoTexto(id, ba::i18n::traducir("mcp", "Windows no dejó mostrar el aviso"), true);
 }
 
 } // namespace
@@ -532,14 +539,14 @@ json archivos(const json& id, const json& a, const Permisos& p) {
     const std::string accion = a.value("accion", std::string());
     const bool escribe = accion != "leer" && accion != "listar" && accion != "info";
     if (escribe ? !p.archivos_escribir : !p.archivos) return sinPermiso(id, escribe ? "archivos_escribir" : "archivos");
-    if (a.value("ruta", std::string()).empty()) return resultadoTexto(id, "falta `ruta`", true);
+    if (a.value("ruta", std::string()).empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `ruta`"), true);
     const fs::path r = ruta(a.value("ruta", std::string()));
     const std::string ru = r.string();
     std::error_code ec;
 
     if (accion == "info") {
         const auto st = fs::status(r, ec);
-        if (ec || !fs::exists(st)) return resultadoTexto(id, ru + ": no existe", true);
+        if (ec || !fs::exists(st)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no existe"), {ru}), true);
         const bool carpeta = fs::is_directory(st);
         json j{{"ruta", ru}, {"carpeta", carpeta}, {"modificado", fecha(fs::last_write_time(r, ec))},
                {"oculto", !r.filename().string().empty() && r.filename().string()[0] == '.'},
@@ -552,10 +559,10 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         std::string ext = r.extension().string();
         for (char& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
         std::ifstream f(r, std::ios::binary);
-        if (!f) return resultadoTexto(id, ru + ": no se pudo abrir", true);
+        if (!f) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no se pudo abrir"), {ru}), true);
         const auto tam = fs::file_size(r, ec);
         if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" || ext == ".bmp" || ext == ".webp") {
-            if (tam > (8u << 20)) return resultadoTexto(id, ru + ": imagen de más de 8 MB", true);
+            if (tam > (8u << 20)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: imagen de más de 8 MB"), {ru}), true);
             std::string datos((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
             const std::string mime = ext == ".png" ? "image/png" : ext == ".gif" ? "image/gif" : ext == ".bmp" ? "image/bmp"
                                      : ext == ".webp" ? "image/webp" : "image/jpeg";
@@ -568,7 +575,8 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         f.read(datos.data(), static_cast<std::streamsize>(datos.size()));
         datos.resize(static_cast<size_t>(f.gcount()));
         const bool cortado = tam > max;
-        if (datos.find('\0') != std::string::npos) return resultadoTexto(id, ru + " es binario (" + std::to_string(tam) + " bytes): no se muestra como texto", true);
+        if (datos.find('\0') != std::string::npos) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 es binario (%2 bytes): no se muestra como texto"),
+                                                   {ru, std::to_string(tam)}), true);
         if (datos.size() >= 3 && datos.compare(0, 3, "\xEF\xBB\xBF") == 0) datos.erase(0, 3);
         const int desde = std::max(1, a.value("desde", 1)), lineas = std::max(1, a.value("lineas", 2000));
         std::string out;
@@ -589,8 +597,8 @@ json archivos(const json& id, const json& a, const Permisos& p) {
             ++total;
         }
         json d{{"ruta", ru}, {"texto", out}, {"desde", desde}, {"lineas", puestas}, {"lineas_total", total}};
-        if (desde + puestas - 1 < total) d["nota"] = "hay más: `desde` " + std::to_string(desde + puestas);
-        if (cortado) d["nota_tamano"] = "el archivo pasa de 16 MB: se leyó el principio";
+        if (desde + puestas - 1 < total) d["nota"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "hay más: `desde` %1"), {std::to_string(desde + puestas)});
+        if (cortado) d["nota_tamano"] = ba::i18n::traducir("mcp", "el archivo pasa de 16 MB: se leyó el principio");
         return resultadoDatos(id, d);
     }
 
@@ -598,7 +606,7 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         const std::string patron = a.value("patron", std::string("*"));
         const bool rec = a.value("recursivo", false), ocultos = a.value("ocultos", false);
         const size_t max = static_cast<size_t>(std::clamp(a.value("max", 500), 1, 5000));
-        if (!fs::is_directory(r, ec)) return resultadoTexto(id, ru + ": no es una carpeta", true);
+        if (!fs::is_directory(r, ec)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no es una carpeta"), {ru}), true);
         json l = json::array();
         size_t total = 0;
         const auto ver = [&](const fs::directory_entry& e, const std::string& relativo) {
@@ -629,7 +637,7 @@ json archivos(const json& id, const json& a, const Permisos& p) {
             }
         }
         json d{{"carpeta", ru}, {"elementos", l}, {"total", total}};
-        if (total > l.size()) d["nota"] = "hay " + std::to_string(total - l.size()) + " más (`max`, `patron`)";
+        if (total > l.size()) d["nota"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "hay %1 más (`max`, `patron`)"), {std::to_string(total - l.size())});
         return resultadoDatos(id, d);
     }
 
@@ -637,23 +645,25 @@ json archivos(const json& id, const json& a, const Permisos& p) {
         fs::create_directories(r.parent_path(), ec);
         const bool agregar = a.value("agregar", false);
         std::ofstream f(r, std::ios::binary | (agregar ? std::ios::app : std::ios::trunc));
-        if (!f) return resultadoTexto(id, ru + ": no se pudo escribir", true);
+        if (!f) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no se pudo escribir"), {ru}), true);
         const std::string c = a.value("contenido", std::string());
         f << c;
-        if (!f) return resultadoTexto(id, ru + ": no se pudo escribir", true);
-        return resultadoTexto(id, std::string(agregar ? "Agregados " : "Escritos ") + std::to_string(c.size()) + " bytes en " + ru + ".");
+        if (!f) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no se pudo escribir"), {ru}), true);
+        return resultadoTexto(id, ba::i18n::llenar(agregar ? ba::i18n::traducir("mcp", "Agregados %1 bytes en %2.")
+                                                     : ba::i18n::traducir("mcp", "Escritos %1 bytes en %2."),
+                                             {std::to_string(c.size()), ru}));
     }
 
     if (accion == "crear_carpeta") {
         fs::create_directories(r, ec);
-        if (!fs::is_directory(r, ec)) return resultadoTexto(id, "no se pudo crear " + ru, true);
-        return resultadoTexto(id, "Carpeta " + ru + " lista.");
+        if (!fs::is_directory(r, ec)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo crear %1"), {ru}), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Carpeta %1 lista."), {ru}));
     }
 
     if (accion == "copiar" || accion == "mover") {
-        if (a.value("destino", std::string()).empty()) return resultadoTexto(id, "falta `destino`", true);
+        if (a.value("destino", std::string()).empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `destino`"), true);
         fs::path d = ruta(a.value("destino", std::string()));
-        if (!fs::exists(r, ec)) return resultadoTexto(id, ru + ": no existe", true);
+        if (!fs::exists(r, ec)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no existe"), {ru}), true);
         if (fs::is_directory(d, ec)) d /= r.filename();
         const bool reemplazar = a.value("reemplazar", false);
         if (fs::exists(d, ec) && !reemplazar) {
@@ -671,18 +681,22 @@ json archivos(const json& id, const json& a, const Permisos& p) {
             }
         } else
             fs::copy(r, d, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
-        if (ec) return resultadoTexto(id, "no se pudo " + accion + " " + ru + ": " + ec.message(), true);
-        return resultadoTexto(id, std::string(accion == "copiar" ? "Copiado " : "Movido ") + ru + " → " + d.string() + ".");
+        if (ec) return resultadoTexto(id, ba::i18n::llenar(accion == "copiar" ? ba::i18n::traducir("mcp", "no se pudo copiar %1: %2")
+                                                                   : ba::i18n::traducir("mcp", "no se pudo mover %1: %2"),
+                                                   {ru, ec.message()}), true);
+        return resultadoTexto(id, ba::i18n::llenar(accion == "copiar" ? ba::i18n::traducir("mcp", "Copiado %1 → %2.")
+                                                                 : ba::i18n::traducir("mcp", "Movido %1 → %2."),
+                                             {ru, d.string()}));
     }
 
     if (accion == "borrar") {
-        if (!fs::exists(r, ec)) return resultadoTexto(id, ru + ": no existe", true);
+        if (!fs::exists(r, ec)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1: no existe"), {ru}), true);
         // A la papelera, siempre: nada se borra para siempre desde acá.
         std::string e;
-        if (!aLaPapelera(ru, e)) return resultadoTexto(id, "no se pudo mandar a la papelera " + ru + ": " + e, true);
-        return resultadoTexto(id, ru + " fue a la papelera (se puede recuperar).");
+        if (!aLaPapelera(ru, e)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo mandar a la papelera %1: %2"), {ru, e}), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 fue a la papelera (se puede recuperar)."), {ru}));
     }
-    return resultadoTexto(id, "acción desconocida: " + accion, true);
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "acción desconocida: %1"), {accion}), true);
 }
 
 } // namespace

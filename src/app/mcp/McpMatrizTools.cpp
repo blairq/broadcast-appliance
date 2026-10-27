@@ -10,6 +10,7 @@
 // cambiaría el prompt.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -31,17 +32,17 @@ void McpService::registerMatrizTools() {
     if (auto* mz = qobject_cast<audio::Mezclador*>(vm_.mezcladorQml())) {
         Tool t;
         t.name = "mezclador_estado";
-        t.title = "El Mezclador: niveles de cada entrada y salida, y adónde va cada una";
+        t.title = ba::i18n::traducir("mcp", "El Mezclador: niveles de cada entrada y salida, y adónde va cada una");
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
+            ba::i18n::traducir("mcp", "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
             "rack, vaya a donde vaya) su pico, RMS y retención (2 s) por canal en dB, el fader, mute, escucha "
             "y a qué destinos va; por salida (Programa, pistas, buses, placa) su nivel; y el loudness del "
-            "programa (EBU R128).";
-        t.details = "Niveles en dBFS, [L, R]; -100 = nada. Una entrada «sin salida» (envios vacío) suena pero no "
+            "programa (EBU R128).");
+        t.details = ba::i18n::traducir("mcp", "Niveles en dBFS, [L, R]; -100 = nada. Una entrada «sin salida» (envios vacío) suena pero no "
                     "va a ningún lado: suele ser un error de la matriz (audio_matriz_cruce la conecta). La "
-                    "ventana se abre con ui_panel_window {panel: mezclador}.";
+                    "ventana se abre con ui_panel_window {panel: mezclador}.");
         t.run = [mz](const json&, Done done) {
             // Sin la ventana abierta no corre su temporizador: se mide una vez acá.
             if (!mz->activo()) mz->medirYa();
@@ -52,25 +53,25 @@ void McpService::registerMatrizTools() {
     if (auto* mz = qobject_cast<audio::Mezclador*>(vm_.mezcladorQml())) {
         Tool t;
         t.name = "mezclador_analisis_lsp";
-        t.title = "Abrir un analizador de LSP sobre una entrada";
+        t.title = ba::i18n::traducir("mcp", "Abrir un analizador de LSP sobre una entrada");
         t.category = "audio_rack";
         t.description =
-            "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
+            ba::i18n::traducir("mcp", "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
             "aparte para el operador): espectro (Spectrum Analyzer), fase (Phase Detector: L contra R), "
             "osciloscopio, latencia (Latency Meter) o perfil (Profiler: barrido, respuesta impulsiva y RT60; "
-            "SUENA). Si ya está en su rack lo reusa; si no, lo agrega al final (deja pasar el audio sin tocarlo).";
-        t.details = "La interfaz de LSP es para el operador: sus gráficos no vuelven por acá (LSP no publica sus "
-                    "medidores por CLAP). Para leer números usá mezclador_estado o audio_analyze.";
+            "SUENA). Si ya está en su rack lo reusa; si no, lo agrega al final (deja pasar el audio sin tocarlo).");
+        t.details = ba::i18n::traducir("mcp", "La interfaz de LSP es para el operador: sus gráficos no vuelven por acá (LSP no publica sus "
+                    "medidores por CLAP). Para leer números usá mezclador_estado o audio_analyze.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "cual"}},
                          {"properties",
-                          {{"entrada", {{"type", "string"}, {"description", "una de mezclador_estado.entradas"}}},
+                          {{"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "una de mezclador_estado.entradas")}}},
                            {"cual", {{"type", "string"}, {"enum", {"espectro", "fase", "osciloscopio", "latencia", "perfil"}}}}}}};
         t.run = [mz](const json& a, Done done) {
             const QString e = mz->abrirAnalisisLsp(QString::fromStdString(a["entrada"].get<std::string>()),
                                                    QString::fromStdString(a["cual"].get<std::string>()));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult::ok("Abierto: la interfaz de LSP está en una ventana aparte."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Abierto: la interfaz de LSP está en una ventana aparte.")));
         };
         core_.addTool(std::move(t));
     }
@@ -78,13 +79,13 @@ void McpService::registerMatrizTools() {
     {
         Tool t;
         t.name = "audio_matriz";
-        t.title = "La matriz de mezcla";
+        t.title = ba::i18n::traducir("mcp", "La matriz de mezcla");
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas del motor "
+            ba::i18n::traducir("mcp", "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas del motor "
             "(la 1 es el programa; nativas, sin retardo) y los buses virtuales (salidas a un "
-            "dispositivo, entradas que vuelven como fuente). Con los envíos y sus ajustes.";
+            "dispositivo, entradas que vuelven como fuente). Con los envíos y sus ajustes.");
         t.run = [m](const json&, Done done) {
             m->refrescar();
             json d = m->estado();
@@ -98,18 +99,18 @@ void McpService::registerMatrizTools() {
     {
         Tool t;
         t.name = "audio_matriz_cruce";
-        t.title = "Prender, apagar o ajustar un cruce";
+        t.title = ba::i18n::traducir("mcp", "Prender, apagar o ajustar un cruce");
         t.category = "audio_rack";
         t.idempotent = true;
         t.description =
-            "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
+            ba::i18n::traducir("mcp", "`fuente` → `bus` (pista1..pista6, `escucha` = los auriculares del operador, o el id de un bus "
             "virtual): `activo` lo prende o apaga. "
             "En buses virtuales, además, `nivel_db` (-60 a +12), `pan` (-1 izq a 1 der) y `mute`; "
-            "`ajustes: false` lo vuelve a 0 dB, centro.";
+            "`ajustes: false` lo vuelve a 0 dB, centro.");
         t.details =
-            "Las pistas son la asignacion nativa de la fuente: solo prender o apagar, sin retardo. "
+            ba::i18n::traducir("mcp", "Las pistas son la asignacion nativa de la fuente: solo prender o apagar, sin retardo. "
             "La pista 1 es lo que sale al AIRE: apagarla saca esa fuente del programa. Los buses virtuales "
-            "pasan por una mezcla propia (~25 ms). Una entrada virtual no puede mandarse a su propio bus.";
+            "pasan por una mezcla propia (~25 ms). Una entrada virtual no puede mandarse a su propio bus.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"fuente", "bus"}},
                          {"properties",
@@ -134,23 +135,23 @@ void McpService::registerMatrizTools() {
                 const QVariantMap c = m->cruces().value(f + "|" + b).toMap();
                 if (!c.value("activo").toBool())
                     return done(
-                        ToolResult::error("Ese cruce no está activo (o es una pista nativa, sin ajustes)."));
+                        ToolResult::error(ba::i18n::traducir("mcp", "Ese cruce no está activo (o es una pista nativa, sin ajustes).")));
                 m->ajustar(f, b, a.value("nivel_db", c.value("nivelDb").toDouble()),
                            a.value("pan", c.value("pan").toDouble()),
                            a.value("mute", c.value("mute").toBool()));
             }
-            done(ToolResult::ok("Listo.").data(m->estado()));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")).data(m->estado()));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_bus_agregar";
-        t.title = "Agregar una entrada o salida virtual";
+        t.title = ba::i18n::traducir("mcp", "Agregar una entrada o salida virtual");
         t.category = "audio_rack";
-        t.description = "`tipo` \"salida\": un bus que sale por un dispositivo (`dispositivo`: id de "
+        t.description = ba::i18n::traducir("mcp", "`tipo` \"salida\": un bus que sale por un dispositivo (`dispositivo`: id de "
                         "audio_dispositivos). `tipo` \"entrada\": un bus cuya mezcla vuelve como una fuente "
-                        "nueva (aparece en Audio con su menú de filtros). `nombre` opcional.";
+                        "nueva (aparece en Audio con su menú de filtros). `nombre` opcional.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"tipo"}},
                          {"properties",
@@ -165,35 +166,35 @@ void McpService::registerMatrizTools() {
                     : m->agregarSalidaVirtual(nombre,
                                               QString::fromStdString(a.value("dispositivo", std::string())));
             if (!e.isEmpty()) return done(err(e));
-            done(ToolResult::ok("Agregado.").data(m->estado()));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Agregado.")).data(m->estado()));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_bus_quitar";
-        t.title = "Quitar un bus virtual";
+        t.title = ba::i18n::traducir("mcp", "Quitar un bus virtual");
         t.category = "audio_rack";
         t.destructive = true;
-        t.description = "Quita una entrada o salida virtual (y sus envíos). Las pistas no se quitan.";
+        t.description = ba::i18n::traducir("mcp", "Quita una entrada o salida virtual (y sus envíos). Las pistas no se quitan.");
         t.inputSchema = {
             {"type", "object"}, {"required", {"bus"}}, {"properties", {{"bus", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {
             const QString e = m->quitarBus(QString::fromStdString(a.value("bus", std::string())));
             if (!e.isEmpty()) return done(err(e));
-            done(ToolResult::ok("Quitado."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Quitado.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_bus_renombrar";
-        t.title = "Renombrar un bus o una pista";
+        t.title = ba::i18n::traducir("mcp", "Renombrar un bus o una pista");
         t.category = "audio_rack";
         t.idempotent = true;
         t.description =
-            "Cambia el nombre de una pista (pista1..pista6) o de un bus virtual. Una entrada virtual "
-            "cambia también el nombre de su fuente.";
+            ba::i18n::traducir("mcp", "Cambia el nombre de una pista (pista1..pista6) o de un bus virtual. Una entrada virtual "
+            "cambia también el nombre de su fuente.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"bus", "nombre"}},
                          {"properties", {{"bus", {{"type", "string"}}}, {"nombre", {{"type", "string"}}}}}};
@@ -201,18 +202,18 @@ void McpService::registerMatrizTools() {
             const QString e = m->renombrar(QString::fromStdString(a.value("bus", std::string())),
                                            QString::fromStdString(a.value("nombre", std::string())));
             if (!e.isEmpty()) return done(err(e));
-            done(ToolResult::ok("Renombrado."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Renombrado.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_bus_dispositivo";
-        t.title = "A qué dispositivo sale una salida virtual";
+        t.title = ba::i18n::traducir("mcp", "A qué dispositivo sale una salida virtual");
         t.category = "audio_rack";
         t.idempotent = true;
         t.description =
-            "Cambia el dispositivo de una salida virtual (`dispositivo`: id de audio_dispositivos).";
+            ba::i18n::traducir("mcp", "Cambia el dispositivo de una salida virtual (`dispositivo`: id de audio_dispositivos).");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"bus", "dispositivo"}},
@@ -222,19 +223,19 @@ void McpService::registerMatrizTools() {
                 m->setDispositivo(QString::fromStdString(a.value("bus", std::string())),
                                   QString::fromStdString(a.value("dispositivo", std::string())));
             if (!e.isEmpty()) return done(err(e));
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "audio_dispositivos";
-        t.title = "Dispositivos de salida del equipo";
+        t.title = ba::i18n::traducir("mcp", "Dispositivos de salida del equipo");
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, "
-            "para las salidas virtuales de la matriz.";
+            ba::i18n::traducir("mcp", "Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, "
+            "para las salidas virtuales de la matriz.");
         t.run = [m](const json&, Done done) {
             json out = json::array();
             for (const QVariant& v : m->dispositivos())
@@ -247,13 +248,13 @@ void McpService::registerMatrizTools() {
     {
         Tool t;
         t.name = "audio_matriz_equipo";
-        t.title = "Entradas y salidas del equipo en la matriz";
+        t.title = ba::i18n::traducir("mcp", "Entradas y salidas del equipo en la matriz");
         t.category = "audio_rack";
         t.description =
-            "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
+            ba::i18n::traducir("mcp", "Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna "
             "por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. "
             "`mostrar` (true/false) muestra u oculta todo el equipo; `dispositivo` (id) con `visible` "
-            "muestra u oculta uno (lo oculto no se abre).";
+            "muestra u oculta uno (lo oculto no se abre).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"mostrar", {{"type", "boolean"}}},
@@ -284,14 +285,14 @@ void McpService::registerMatrizTools() {
     {
         Tool t;
         t.name = "audio_filtros_catalogo";
-        t.title = "Catalogo de filtros de audio (LSP)";
+        t.title = ba::i18n::traducir("mcp", "Catalogo de filtros de audio (LSP)");
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para "
+            ba::i18n::traducir("mcp", "Las familias de filtros LSP (compresor, compuerta, EQ...) en castellano: que hacen, para "
             "que sirven en vivo, si se recomiendan para vivo y sus variantes (id del plugin, mono/"
             "estereo, sidechain). `buscar` filtra por palabras (castellano o ingles), `categoria` y "
-            "`solo_vivo`. El id de una variante es el que se agrega al rack de una fuente.";
+            "`solo_vivo`. El id de una variante es el que se agrega al rack de una fuente.");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"buscar", {{"type", "string"}}},
@@ -301,7 +302,7 @@ void McpService::registerMatrizTools() {
         auto* au = static_cast<audio::AudioViewModel*>(vm_.audio());
         t.run = [au](const json& a, Done done) {
             if (au == nullptr)
-                return done(ToolResult::error("Esta compilacion no tiene los modulos de audio."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Esta compilacion no tiene los modulos de audio.")));
             const QString q = QString::fromStdString(a.value("buscar", std::string())).toLower();
             const QString c = QString::fromStdString(a.value("categoria", std::string()));
             const bool vivo = a.value("solo_vivo", false);

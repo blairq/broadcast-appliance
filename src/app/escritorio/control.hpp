@@ -18,6 +18,8 @@
 // ============================================================================
 #pragma once
 
+#include "i18n/I18n.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <string>
@@ -55,7 +57,7 @@ std::string base64(const unsigned char* d, size_t n);
 /// {"type": "object", "properties": props (siempre un objeto), "required": req}
 json esquema(json props, std::vector<std::string> req = {});
 /// Una herramienta para tools/list.
-json herramienta(const char* nombre, const char* descripcion, json esquema);
+json herramienta(const char* nombre, const std::string& descripcion, json esquema);
 /// «El control del sistema no tiene permiso para «que»…» (error).
 json sinPermiso(const json& id, const char* que);
 /// Lo que contesta una herramienta que todavía no tiene motor en este sistema (las

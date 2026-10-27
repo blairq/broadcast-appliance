@@ -11,6 +11,7 @@
 
 #include "agent/AgentViewModel.hpp"
 #include "agent/EstadoIA.hpp"
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -30,30 +31,30 @@ json idsDeProveedores(agent::AgentViewModel* ag) {
 
 void McpService::registerAssistantTools() {
     core_.addCategory(
-        "asistente", "Pestaña Asistente",
-        "El agente de IA que corre en la pestaña Asistente (Claude Code, Antigravity para Gemini u opencode): "
-        "proveedor, modelo, instalación, arrancar/detener y mandarle pedidos.");
+        "asistente", ba::i18n::traducir("mcp", "Pestaña Asistente"),
+        ba::i18n::traducir("mcp", "El agente de IA que corre en la pestaña Asistente (Claude Code, Antigravity para Gemini u opencode): "
+        "proveedor, modelo, instalación, arrancar/detener y mandarle pedidos."));
     auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
     {
         Tool t;
         t.name = "ia_estado";
-        t.title = "Qué parte de la IA no anda o falta configurar";
+        t.title = ba::i18n::traducir("mcp", "Qué parte de la IA no anda o falta configurar");
         t.category = "asistente";
         t.readOnly = true;
         t.description =
-            "La lista de lo que falta para que la asistencia con IA ande entera: el asistente (instalado, "
+            ba::i18n::traducir("mcp", "La lista de lo que falta para que la asistencia con IA ande entera: el asistente (instalado, "
             "clave, corriendo, MCP), el modelo local, el dictado y la voz del operador (reconocedor, "
             "micrófono), la voz que contesta, los auriculares, la voz del teleprompter y las traducciones. "
             "Cada problema trae `pagina` y `seccion` (ui_show_page) para llevar al operador a arreglarlo. "
-            "Es lo mismo que muestra la pastilla «IA» del encabezado.";
-        t.details = "Usalo primero cuando alguien no sabe por dónde empezar, o algo de voz/IA no responde: "
+            "Es lo mismo que muestra la pastilla «IA» del encabezado.");
+        t.details = ba::i18n::traducir("mcp", "Usalo primero cuando alguien no sabe por dónde empezar, o algo de voz/IA no responde: "
                     "seguí la guía de puesta en marcha (help {\"topic\": \"puesta-en-marcha\"}) en el orden "
-                    "que dice, y volvé a mirar hasta que `todo_bien` sea true.";
+                    "que dice, y volvé a mirar hasta que `todo_bien` sea true.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
         StudioViewModel* vm = &vm_;
         t.run = [vm](const json&, Done done) {
             agent::EstadoIA* e = vm->estadoIAModelo();
-            if (e == nullptr) return done(ToolResult::error("El estado de la IA no está disponible."));
+            if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "El estado de la IA no está disponible.")));
             done(ToolResult().data(e->estado()));
         };
         core_.addTool(std::move(t));
@@ -62,13 +63,13 @@ void McpService::registerAssistantTools() {
         Tool t;
         t.name = "agente_limpieza";
         t.destructive = true; // borra (la lista sola no toca nada)
-        t.title = "Limpiar los asistentes";
+        t.title = ba::i18n::traducir("mcp", "Limpiar los asistentes");
         t.category = "asistente";
         t.description =
-            "Lo que ocupan los asistentes (Claude Code, Antigravity, opencode) y su limpieza: los chats guardados "
-            "que se acumulan, las versiones viejas del programa, o reinstalar si algo falla.";
+            ba::i18n::traducir("mcp", "Lo que ocupan los asistentes (Claude Code, Antigravity, opencode) y su limpieza: los chats guardados "
+            "que se acumulan, las versiones viejas del programa, o reinstalar si algo falla.");
         t.details =
-            "Sin `accion` (o `ver`): por motor, las versiones instaladas (cuál se usa), lo que ocupa el "
+            ba::i18n::traducir("mcp", "Sin `accion` (o `ver`): por motor, las versiones instaladas (cuál se usa), lo que ocupa el "
             "programa, los chats y el perfil entero, y los espacios de trabajo.\n"
             "- `chats`: borra los chats guardados (`motor` vacío = de todos, y los espacios de trabajo). "
             "El login y los ajustes quedan.\n"
@@ -76,7 +77,7 @@ void McpService::registerAssistantTools() {
             "- `reinstalar`: borra el programa del `motor` y lo vuelve a bajar (el login y los chats quedan).\n"
             "- `de_cero`: además borra el perfil entero: chats, ajustes y el LOGIN (hay que volver a entrar). "
             "Las claves de API pegadas quedan.\n"
-            "Nada de eso se puede con el asistente o un encargo de agentes corriendo.";
+            "Nada de eso se puede con el asistente o un encargo de agentes corriendo.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -89,16 +90,21 @@ void McpService::registerAssistantTools() {
             if (accion == "chats" || accion == "versiones") {
                 const QVariantMap r = accion == "chats" ? ag->borrarChats(motor) : ag->borrarVersionesViejas(motor);
                 if (!r.value("ok").toBool()) return done(ToolResult::error(r.value("error").toString().toStdString()));
-                return done(ToolResult::ok(std::string(accion == "chats" ? "Chats borrados" : "Versiones viejas borradas") +
-                                           ": se liberaron " + mb(r.value("bytes").toDouble()) + "."));
+                return done(ToolResult::ok(ba::i18n::llenar(
+                    accion == "chats" ? ba::i18n::traducir("mcp", "Chats borrados: se liberaron %1.")
+                                      : ba::i18n::traducir("mcp", "Versiones viejas borradas: se liberaron %1."),
+                    {mb(r.value("bytes").toDouble())})));
             }
             if (accion == "reinstalar" || accion == "de_cero") {
-                if (motor.isEmpty()) return done(ToolResult::error("Decí qué `motor` reinstalar."));
+                if (motor.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Decí qué `motor` reinstalar.")));
                 const QString e = ag->reinstalar(motor, accion == "de_cero");
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                return done(ToolResult::ok("Reinstalando " + motor.toStdString() +
-                                           (accion == "de_cero" ? " desde cero (hay que volver a entrar)" : "") +
-                                           ": el avance, en assistant_status."));
+                return done(ToolResult::ok(ba::i18n::llenar(
+                    accion == "de_cero"
+                        ? ba::i18n::traducir("mcp", "Reinstalando %1 desde cero (hay que volver a entrar): el avance, en "
+                                                    "assistant_status.")
+                        : ba::i18n::traducir("mcp", "Reinstalando %1: el avance, en assistant_status."),
+                    {motor.toStdString()})));
             }
             ag->revisarLimpieza();
             done(ToolResult().data(json{{"limpieza", qvToJson(ag->limpieza())}}));
@@ -113,15 +119,15 @@ void McpService::registerAssistantTools() {
     };
     const json propAsistente = {{"type", "string"},
                                 {"enum", {"evento", "automatizacion"}},
-                                {"description", "Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas)."}};
+                                {"description", ba::i18n::traducir("mcp", "Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas).")}};
     {
         Tool t;
         t.name = "assistant_status";
-        t.title = "Estado del asistente";
+        t.title = ba::i18n::traducir("mcp", "Estado del asistente");
         t.category = "asistente";
         t.readOnly = true;
         t.description =
-            "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.";
+            ba::i18n::traducir("mcp", "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"asistente", propAsistente}}}};
         t.run = [elegir](const json& a, Done done) {
             auto* ag = elegir(a);
@@ -142,12 +148,12 @@ void McpService::registerAssistantTools() {
     {
         Tool t;
         t.name = "assistant_config";
-        t.title = "Configurar el asistente";
+        t.title = ba::i18n::traducir("mcp", "Configurar el asistente");
         t.category = "asistente";
         t.description =
-            "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al "
+            ba::i18n::traducir("mcp", "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al "
             "chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La "
-            "clave de API se carga en la pestaña (no por aca).";
+            "clave de API se carga en la pestaña (no por aca).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"provider",
@@ -167,35 +173,37 @@ void McpService::registerAssistantTools() {
             if (a.contains("model")) ag->setModel(QString::fromStdString(a["model"]));
             if (a.contains("autoStart")) ag->setAutoStart(a["autoStart"].get<bool>());
             if (a.contains("alertsToChat")) ag->setAlertsToChat(a["alertsToChat"].get<bool>());
-            done(ToolResult::ok("Listo: " + ag->provider().toStdString() +
-                                (ag->model().isEmpty() ? "" : " / " + ag->model().toStdString())));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: %1"),
+                                                 {ag->provider().toStdString() +
+                                                  (ag->model().isEmpty() ? "" : " / " + ag->model().toStdString())})));
         };
         core_.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "assistant_install";
-        t.title = "Instalar el agente";
+        t.title = ba::i18n::traducir("mcp", "Instalar el agente");
         t.category = "asistente";
         t.openWorld = true;
         t.description =
-            "Descarga el agente del proveedor elegido (version fijada, SHA-256) a la carpeta portable. "
-            "Con wait=true espera a que termine (max. 15 min).";
+            ba::i18n::traducir("mcp", "Descarga el agente del proveedor elegido (version fijada, SHA-256) a la carpeta portable. "
+            "Con wait=true espera a que termine (max. 15 min).");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"wait", {{"type", "boolean"}, {"default", false}}}, {"asistente", propAsistente}}}};
         t.run = [elegir](const json& a, Done done) {
             auto* ag = elegir(a);
-            if (ag->installed()) return done(ToolResult::ok("Ya esta instalado."));
+            if (ag->installed()) return done(ToolResult::ok(ba::i18n::traducir("mcp", "Ya esta instalado.")));
             ag->install();
             if (!a.value("wait", false))
-                return done(ToolResult::ok("Instalando: " + ag->installText().toStdString()));
+                return done(ToolResult::ok(
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "Instalando: %1"), {ag->installText().toStdString()})));
             auto* timer = new QTimer(ag);
             auto elapsed = std::make_shared<int>(0);
             QObject::connect(timer, &QTimer::timeout, ag, [ag, timer, elapsed, done]() {
                 *elapsed += 500;
                 if (ag->installing() && *elapsed < 15 * 60 * 1000) return;
                 timer->deleteLater();
-                done(ag->installed() ? ToolResult::ok("Instalado.")
+                done(ag->installed() ? ToolResult::ok(ba::i18n::traducir("mcp", "Instalado."))
                                      : ToolResult::error(ag->installText().toStdString()));
             });
             timer->start(500);
@@ -205,9 +213,9 @@ void McpService::registerAssistantTools() {
     {
         Tool t;
         t.name = "assistant_run";
-        t.title = "Arrancar / detener el asistente";
+        t.title = ba::i18n::traducir("mcp", "Arrancar / detener el asistente");
         t.category = "asistente";
-        t.description = "action: start | stop | restart.";
+        t.description = ba::i18n::traducir("mcp", "action: start | stop | restart.");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart"}}}}, {"asistente", propAsistente}}},
@@ -229,7 +237,7 @@ void McpService::registerAssistantTools() {
                 if (arranca && !ag->running() && !fallo && *pasado < 30000) return;
                 timer->deleteLater();
                 if (fallo) return done(ToolResult::error(ag->lastError().toStdString()));
-                done(ToolResult::ok(ag->running() ? "Corriendo." : "Detenido."));
+                done(ToolResult::ok(ag->running() ? ba::i18n::traducir("mcp", "Corriendo.") : ba::i18n::traducir("mcp", "Detenido.")));
             });
             timer->start(300);
         };
@@ -238,18 +246,18 @@ void McpService::registerAssistantTools() {
     {
         Tool t;
         t.name = "assistant_send";
-        t.title = "Mandar un pedido al asistente";
+        t.title = ba::i18n::traducir("mcp", "Mandar un pedido al asistente");
         t.category = "asistente";
-        t.description = "Escribe el texto en el prompt del agente de la pestaña y lo manda (como si lo "
-                        "tipeara la persona).";
+        t.description = ba::i18n::traducir("mcp", "Escribe el texto en el prompt del agente de la pestaña y lo manda (como si lo "
+                        "tipeara la persona).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"text", {{"type", "string"}}}, {"asistente", propAsistente}}}, {"required", {"text"}}};
         t.run = [elegir](const json& a, Done done) {
             auto* ag = elegir(a);
             if (!ag->running())
-                return done(ToolResult::error("El asistente no esta corriendo (assistant_run)."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "El asistente no esta corriendo (assistant_run).")));
             ag->send(QString::fromStdString(a["text"]));
-            done(ToolResult::ok("Enviado."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Enviado.")));
         };
         core_.addTool(std::move(t));
     }

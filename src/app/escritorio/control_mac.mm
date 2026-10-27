@@ -73,14 +73,17 @@ std::string minusculas(std::string s) {
 
 // --- Permisos del sistema (TCC) ------------------------------------------------------
 
-const char* kSinAccesibilidad =
-    "macOS no le dio el permiso «Accesibilidad» (mouse, teclado y ventanas): Ajustes del Sistema › Privacidad y "
-    "seguridad › Accesibilidad, y habilitá Broadcast Appliance (y la terminal del asistente si aparece). La "
-    "primera vez macOS muestra su cartel; después de prenderlo, volvé a intentar.";
-const char* kSinPantalla =
-    "macOS no le dio el permiso «Grabación de pantalla» (capturas y títulos de las ventanas): Ajustes del Sistema › "
-    "Privacidad y seguridad › Grabación de pantalla y del audio del sistema, y habilitá Broadcast Appliance. "
-    "Puede pedir volver a abrir la app.";
+std::string sinAccesibilidad() {
+    return ba::i18n::traducir("mcp", "macOS no le dio el permiso «Accesibilidad» (mouse, teclado y ventanas): Ajustes del "
+                                     "Sistema › Privacidad y seguridad › Accesibilidad, y habilitá Broadcast Appliance (y la "
+                                     "terminal del asistente si aparece). La primera vez macOS muestra su cartel; después de "
+                                     "prenderlo, volvé a intentar.");
+}
+std::string sinPantalla() {
+    return ba::i18n::traducir("mcp", "macOS no le dio el permiso «Grabación de pantalla» (capturas y títulos de las ventanas): "
+                                     "Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y del audio del "
+                                     "sistema, y habilitá Broadcast Appliance. Puede pedir volver a abrir la app.");
+}
 
 bool accesibilidad() {
     const void* claves[] = {kAXTrustedCheckOptionPrompt};
@@ -171,7 +174,7 @@ CGImageRef capturarImagen(CGRect r, CGWindowID ventana, std::string& error) {
                                                     }];
         dispatch_semaphore_wait(s, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
         if (contenido == nil) {
-            error = err ? std::string(kSinPantalla) : "macOS no contestó qué hay en pantalla";
+            error = err ? sinPantalla() : ba::i18n::traducir("mcp", "macOS no contestó qué hay en pantalla");
             return nullptr;
         }
         SCContentFilter* filtro = nil;
@@ -182,7 +185,7 @@ CGImageRef capturarImagen(CGRect r, CGWindowID ventana, std::string& error) {
             for (SCWindow* x in contenido.windows)
                 if (x.windowID == ventana) w = x;
             if (w == nil) {
-                error = "esa ventana no está a la vista";
+                error = ba::i18n::traducir("mcp", "esa ventana no está a la vista");
                 return nullptr;
             }
             filtro = [[SCContentFilter alloc] initWithDesktopIndependentWindow:w];
@@ -194,7 +197,7 @@ CGImageRef capturarImagen(CGRect r, CGWindowID ventana, std::string& error) {
             for (SCDisplay* x in contenido.displays)
                 if (CGRectContainsRect(CGDisplayBounds(x.displayID), r)) d = x;
             if (d == nil) {
-                error = "no hay pantallas";
+                error = ba::i18n::traducir("mcp", "no hay pantallas");
                 return nullptr;
             }
             const CGRect bd = CGDisplayBounds(d.displayID);
@@ -214,7 +217,7 @@ CGImageRef capturarImagen(CGRect r, CGWindowID ventana, std::string& error) {
                                       dispatch_semaphore_signal(s2);
                                   }];
         dispatch_semaphore_wait(s2, dispatch_time(DISPATCH_TIME_NOW, 8 * NSEC_PER_SEC));
-        if (img == nullptr) error = err ? aU(err.localizedDescription) : "la captura no llegó";
+        if (img == nullptr) error = err ? aU(err.localizedDescription) : ba::i18n::traducir("mcp", "la captura no llegó");
         return img;
     }
 #pragma clang diagnostic push
@@ -224,7 +227,7 @@ CGImageRef capturarImagen(CGRect r, CGWindowID ventana, std::string& error) {
                                   : CGWindowListCreateImage(r, kCGWindowListOptionOnScreenOnly, kCGNullWindowID,
                                                             kCGWindowImageDefault);
 #pragma clang diagnostic pop
-    if (img == nullptr) error = kSinPantalla;
+    if (img == nullptr) error = sinPantalla();
     return img;
 }
 
@@ -421,7 +424,7 @@ bool mandarTeclas(const std::string& combo) {
 
 std::string donde() {
     NSRunningApplication* a = NSWorkspace.sharedWorkspace.frontmostApplication;
-    return a ? "en «" + aU(a.localizedName) + "»" : "sin aplicación al frente";
+    return a ? ba::i18n::llenar(ba::i18n::traducir("mcp", "en «%1»"), {aU(a.localizedName)}) : ba::i18n::traducir("mcp", "sin aplicación al frente");
 }
 
 // --- Procesos y comandos --------------------------------------------------------------
@@ -470,30 +473,32 @@ bool vivo(pid_t pid) { return kill(pid, 0) == 0 || errno == EPERM; }
 
 json cerrarProceso(const json& id, pid_t pid, bool forzar) {
     const std::string nombre = nombreProceso(pid);
-    if (nombre.empty() || !vivo(pid)) return resultadoTexto(id, "no existe el proceso " + std::to_string(pid), true);
+    if (nombre.empty() || !vivo(pid)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no existe el proceso %1"), {std::to_string(pid)}), true);
     // Primero como al cerrar la aplicación (le pregunta si guardar); si no, SIGTERM.
     NSRunningApplication* app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
     if (app) [app terminate];
     else kill(pid, SIGTERM);
-    std::string como = app ? "le pidió que se cierre" : "SIGTERM";
+    std::string como = app ? ba::i18n::traducir("mcp", "le pidió que se cierre") : std::string("SIGTERM");
     for (int i = 0; i < 40 && vivo(pid); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
     if (vivo(pid)) {
         if (!forzar)
-            return resultadoTexto(id, "«" + nombre + "» (pid " + std::to_string(pid) +
-                                          ") sigue abierto (quizás pregunta si guardar). Con forzar: true se termina en seco.",
+            return resultadoTexto(id,
+                                  ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» (pid %2) sigue abierto (quizás pregunta si "
+                                                                             "guardar). Con forzar: true se termina en seco."),
+                                                   {nombre, std::to_string(pid)}),
                                   true);
         kill(pid, SIGKILL);
         for (int i = 0; i < 30 && vivo(pid); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        como = "terminado en seco";
+        como = ba::i18n::traducir("mcp", "terminado en seco");
     }
-    if (vivo(pid)) return resultadoTexto(id, "«" + nombre + "» no terminó", true);
-    return resultadoTexto(id, "Cerrado «" + nombre + "» (pid " + std::to_string(pid) + ", " + como + ").");
+    if (vivo(pid)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» no terminó"), {nombre}), true);
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Cerrado «%1» (pid %2, %3)."), {nombre, std::to_string(pid), como}));
 }
 
 json correrComando(const json& id, const std::string& cmd, const std::string& shell, const std::string& carpeta,
                    int segundos) {
     int tubo[2];
-    if (pipe(tubo) != 0) return resultadoTexto(id, "no se pudo crear la tubería", true);
+    if (pipe(tubo) != 0) return resultadoTexto(id, ba::i18n::traducir("mcp", "no se pudo crear la tubería"), true);
     posix_spawn_file_actions_t fa;
     posix_spawn_file_actions_init(&fa);
     posix_spawn_file_actions_adddup2(&fa, tubo[1], 1);
@@ -519,7 +524,7 @@ json correrComando(const json& id, const std::string& cmd, const std::string& sh
     close(tubo[1]);
     if (rc != 0) {
         close(tubo[0]);
-        return resultadoTexto(id, "no se pudo correr el comando (error " + std::to_string(rc) + ")", true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo correr el comando (error %1)"), {std::to_string(rc)}), true);
     }
     std::string salida;
     bool cortada = false, vencido = false;
@@ -553,8 +558,8 @@ json correrComando(const json& id, const std::string& cmd, const std::string& sh
     close(tubo[0]);
     const long long codigo = WIFEXITED(estado) ? WEXITSTATUS(estado) : -1;
     json d{{"codigo", codigo}, {"salida", salida}};
-    if (cortada) d["nota"] = "salida larga: quedan los últimos 200 KB";
-    if (vencido) d["vencido"] = "pasaron " + std::to_string(segundos) + " s y se terminó";
+    if (cortada) d["nota"] = ba::i18n::traducir("mcp", "salida larga: quedan los últimos 200 KB");
+    if (vencido) d["vencido"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "pasaron %1 s y se terminó"), {std::to_string(segundos)});
     return resultadoDatos(id, d);
 }
 
@@ -665,10 +670,12 @@ json registroSistema(const json& id, const json& a, const Permisos& p) {
         const bool escribe = accion == "escribir" || accion == "borrar";
         if (escribe ? !p.registro : !p.sistema) return sinPermiso(id, escribe ? "registro" : "sistema");
         const std::string dom = a.value("clave", std::string());
-        if (dom.empty()) return resultadoTexto(id, "falta `clave`: en macOS, el dominio de las preferencias (com.apple.dock, NSGlobalDomain…)", true);
+        if (dom.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `clave`: en macOS, el dominio de las preferencias (com.apple.dock, NSGlobalDomain…)"), true);
         if (dom.rfind("HK", 0) == 0)
-            return resultadoTexto(id, "En macOS no hay registro de Windows: system_registro maneja las preferencias. `clave` es "
-                                      "el dominio (com.apple.dock, NSGlobalDomain…) y `nombre` la preferencia.",
+            return resultadoTexto(id,
+                                  ba::i18n::traducir("mcp", "En macOS no hay registro de Windows: system_registro maneja las "
+                                                            "preferencias. `clave` es el dominio (com.apple.dock, "
+                                                            "NSGlobalDomain…) y `nombre` la preferencia."),
                                   true);
         CFStringRef d = (__bridge CFStringRef)(dom == "NSGlobalDomain" ? (NSString*)kCFPreferencesAnyApplication : aNS(dom));
         const auto aJson = [](NSObject* v) -> json {
@@ -687,17 +694,17 @@ json registroSistema(const json& id, const json& a, const Permisos& p) {
             return resultadoDatos(id, {{"dominio", dom}, {"valores", valores}});
         }
         const std::string nombre = a.value("nombre", std::string());
-        if (nombre.empty()) return resultadoTexto(id, "falta `nombre`: la preferencia", true);
+        if (nombre.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta `nombre`: la preferencia"), true);
         CFStringRef k = (__bridge CFStringRef)aNS(nombre);
         if (accion == "leer") {
             NSObject* v = CFBridgingRelease(CFPreferencesCopyValue(k, d, kCFPreferencesCurrentUser, kCFPreferencesAnyHost));
-            if (v == nil) return resultadoTexto(id, "no hay «" + nombre + "» en " + dom, true);
+            if (v == nil) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay «%1» en %2"), {nombre, dom}), true);
             return resultadoDatos(id, {{"dominio", dom}, {"nombre", nombre}, {"valor", aJson(v)}});
         }
         if (accion == "borrar") {
             CFPreferencesSetValue(k, nullptr, d, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
             CFPreferencesSynchronize(d, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-            return resultadoTexto(id, "Borrada «" + nombre + "» de " + dom + ".");
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Borrada «%1» de %2."), {nombre, dom}));
         }
         if (accion == "escribir") {
             const json v = a.contains("valor") ? a["valor"] : json();
@@ -712,9 +719,9 @@ json registroSistema(const json& id, const json& a, const Permisos& p) {
             else nv = aNS(v.is_string() ? v.get<std::string>() : v.dump());
             CFPreferencesSetValue(k, (__bridge CFPropertyListRef)nv, d, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
             CFPreferencesSynchronize(d, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-            return resultadoTexto(id, "Escrita «" + nombre + "» en " + dom + " (la aplicación la ve al volver a abrirse).");
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Escrita «%1» en %2 (la aplicación la ve al volver a abrirse)."), {nombre, dom}));
         }
-        return resultadoTexto(id, "acción desconocida: " + accion, true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "acción desconocida: %1"), {accion}), true);
     }
 }
 
@@ -728,14 +735,14 @@ json avisoSistema(const json& id, const json& a, const Permisos& p) {
         };
         const std::string titulo = a.value("titulo", std::string("Broadcast Appliance"));
         const std::string tipo = a.value("tipo", std::string("info"));
-        const std::string sub = tipo == "error" ? "Error" : tipo == "aviso" ? "Atención" : "";
+        const std::string sub = tipo == "error" ? ba::i18n::traducir("mcp", "Error") : tipo == "aviso" ? ba::i18n::traducir("mcp", "Atención") : std::string();
         NSAppleScript* s = [[NSAppleScript alloc]
             initWithSource:aNS("display notification \"" + esc(a.value("texto", std::string())) + "\" with title \"" + esc(titulo) +
                                "\"" + (sub.empty() ? "" : " subtitle \"" + sub + "\""))];
         NSDictionary* err = nil;
         [s executeAndReturnError:&err];
-        if (err) return resultadoTexto(id, "macOS no dejó mostrar el aviso: " + aU([err description]), true);
-        return resultadoTexto(id, "Aviso mostrado.");
+        if (err) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "macOS no dejó mostrar el aviso: %1"), {aU([err description])}), true);
+        return resultadoTexto(id, ba::i18n::traducir("mcp", "Aviso mostrado."));
     }
 }
 
@@ -860,7 +867,7 @@ void recorrerAx(Lectura& l, AXUIElementRef e, int prof, bool enPagina) {
             if (clave) j["clave"] = true;
             if (rol == "AXTextField" || rol == "AXTextArea" || rol == "AXSearchField" || rol == "AXComboBox" || rol == "AXPopUpButton") {
                 std::string v = clave ? std::string() : axTexto(e, kAXValueAttribute);
-                if (!clave) j["valor"] = v.empty() ? std::string("(vacío)") : (v.size() > 300 ? v.substr(0, 297) + "…" : v);
+                if (!clave) j["valor"] = v.empty() ? ba::i18n::traducir("mcp", "(vacío)") : (v.size() > 300 ? v.substr(0, 297) + "…" : v);
             }
             if (rol == "AXCheckBox" || (rol == "AXRadioButton" && sub != "AXTabButton")) j["marcado"] = axTexto(e, kAXValueAttribute) == "1";
             if (sub == "AXTabButton" && axTexto(e, kAXValueAttribute) == "1") j["elegido"] = true;
@@ -930,7 +937,9 @@ AXUIElementRef elementoAx(const json& a, json& info, std::string& error) {
         std::lock_guard<std::mutex> l(gUiMu);
         const int n = a.value("n", 0);
         if (n < 1 || n > static_cast<int>(gLeidos.size())) {
-            error = gLeidos.empty() ? "no hay una lectura: system_ui_leer primero" : "no hay un elemento " + std::to_string(n) + " en la última lectura";
+            error = gLeidos.empty() ? ba::i18n::traducir("mcp", "no hay una lectura: system_ui_leer primero")
+                                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay un elemento %1 en la última lectura"),
+                                                       {std::to_string(n)});
             return nullptr;
         }
         AXUIElementRef e = gLeidos[static_cast<size_t>(n - 1)];
@@ -940,13 +949,13 @@ AXUIElementRef elementoAx(const json& a, json& info, std::string& error) {
     }
     const std::string nombre = minusculas(a.value("nombre", std::string())), rol = minusculas(a.value("rol", std::string()));
     if (nombre.empty()) {
-        error = "falta `n` o `nombre`";
+        error = ba::i18n::traducir("mcp", "falta `n` o `nombre`");
         return nullptr;
     }
     std::string titulo, app;
     AXUIElementRef w = ventanaAx(a, titulo, app);
     if (w == nullptr) {
-        error = "no encontré esa ventana";
+        error = ba::i18n::traducir("mcp", "no encontré esa ventana");
         return nullptr;
     }
     Lectura l;
@@ -967,7 +976,7 @@ AXUIElementRef elementoAx(const json& a, json& info, std::string& error) {
             break;
         }
     for (auto& [e, j] : l.elementos) CFRelease(e);
-    if (elegido == nullptr) error = "no encontré «" + a.value("nombre", std::string()) + "» en esa ventana (system_ui_leer)";
+    if (elegido == nullptr) error = ba::i18n::llenar(ba::i18n::traducir("mcp", "no encontré «%1» en esa ventana (system_ui_leer)"), {a.value("nombre", std::string())});
     return elegido;
 }
 
@@ -976,7 +985,7 @@ AXUIElementRef elementoAx(const json& a, json& info, std::string& error) {
 bool atenderUia(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
     if (nombre.rfind("system_ui_", 0) != 0) return false;
     @autoreleasepool {
-        if (!accesibilidad()) return out = resultadoTexto(id, kSinAccesibilidad, true), true;
+        if (!accesibilidad()) return out = resultadoTexto(id, sinAccesibilidad(), true), true;
         if (nombre == "system_ui_leer") {
             if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
             std::vector<json> pedidas;
@@ -1038,17 +1047,17 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
                     }
                     v["texto"] = t;
                 }
-                if (lista.empty()) v["nota"] = "nada para tocar (una app que no habla Accesibilidad: system_pantalla)";
+                if (lista.empty()) v["nota"] = ba::i18n::traducir("mcp", "nada para tocar (una app que no habla Accesibilidad: system_pantalla)");
                 vs.push_back(v);
             }
-            if (vs.empty()) return out = resultadoTexto(id, "no encontré esa ventana", true), true;
+            if (vs.empty()) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true), true;
             {
                 std::lock_guard<std::mutex> lk(gUiMu);
                 for (AXUIElementRef e : gLeidos) CFRelease(e);
                 gLeidos = std::move(quedan);
             }
             json d = vs.size() == 1 ? vs[0] : json{{"ventanas", vs}};
-            if (cortado) d["cortado"] = "se llegó al tope de elementos: `max`, `filtro` o una ventana sola";
+            if (cortado) d["cortado"] = ba::i18n::traducir("mcp", "se llegó al tope de elementos: `max`, `filtro` o una ventana sola");
             return out = resultadoDatos(id, d), true;
         }
         if (nombre == "system_ui_clic") {
@@ -1061,8 +1070,8 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
             const CGPoint c = CGPointMake(CGRectGetMidX(r), CGRectGetMidY(r));
             std::string como;
             const bool porMouse = a.value("con_mouse", false) || a.value("doble", false) || a.value("boton", std::string("izq")) == "der";
-            if (!porMouse && AXUIElementPerformAction(e, kAXPressAction) == kAXErrorSuccess) como = "su acción (presionar)";
-            else if (!porMouse && AXUIElementPerformAction(e, kAXPickAction) == kAXErrorSuccess) como = "su acción (elegir)";
+            if (!porMouse && AXUIElementPerformAction(e, kAXPressAction) == kAXErrorSuccess) como = ba::i18n::traducir("mcp", "su acción (presionar)");
+            else if (!porMouse && AXUIElementPerformAction(e, kAXPickAction) == kAXErrorSuccess) como = ba::i18n::traducir("mcp", "su acción (elegir)");
             else {
                 const Boton b = boton(a.value("boton", std::string("izq")));
                 mouse(kCGEventMouseMoved, c, kCGMouseButtonLeft);
@@ -1072,11 +1081,11 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
                     mouse(b.abajo, c, b.b, 2);
                     mouse(b.arriba, c, b.b, 2);
                 }
-                como = "clic de mouse en su centro";
+                como = ba::i18n::traducir("mcp", "clic de mouse en su centro");
             }
             CFRelease(e);
-            return out = resultadoTexto(id, "Clic en " + info.value("rol", std::string()) + " «" + info.value("nombre", std::string()) +
-                                                "» (" + como + ")."),
+            return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Clic en %1 «%2» (%3)."),
+                                                         {info.value("rol", std::string()), info.value("nombre", std::string()), como})),
                    true;
         }
         if (nombre == "system_ui_escribir") {
@@ -1092,27 +1101,27 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
             if (AXUIElementIsAttributeSettable(e, kAXValueAttribute, &settable) == kAXErrorSuccess && settable) {
                 const std::string nuevo = reemplazar ? texto : axTexto(e, kAXValueAttribute) + texto;
                 AXUIElementSetAttributeValue(e, kAXValueAttribute, (__bridge CFStringRef)aNS(nuevo));
-                como = "puso el valor";
+                como = ba::i18n::traducir("mcp", "puso el valor");
             } else {
                 AXUIElementSetAttributeValue(e, kAXFocusedAttribute, kCFBooleanTrue);
                 if (reemplazar) mandarTeclas("cmd+a");
                 escribirTexto(texto);
-                como = "lo escribió con el teclado";
+                como = ba::i18n::traducir("mcp", "lo escribió con el teclado");
             }
             if (a.value("enter", false)) {
                 AXUIElementSetAttributeValue(e, kAXFocusedAttribute, kCFBooleanTrue);
                 mandarTeclas("enter");
             }
             CFRelease(e);
-            return out = resultadoTexto(id, "Escrito en " + info.value("rol", std::string()) + " «" + info.value("nombre", std::string()) +
-                                                "» (" + como + ")."),
+            return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Escrito en %1 «%2» (%3)."),
+                                                         {info.value("rol", std::string()), info.value("nombre", std::string()), como})),
                    true;
         }
         if (nombre == "system_ui_texto") {
             if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
             std::string titulo, app;
             AXUIElementRef w = ventanaAx(a, titulo, app);
-            if (w == nullptr) return out = resultadoTexto(id, "no encontré esa ventana", true), true;
+            if (w == nullptr) return out = resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true), true;
             Lectura l;
             l.todos = false;
             l.conTexto = true;
@@ -1146,7 +1155,8 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(300));
             } while (std::chrono::steady_clock::now() < fin);
-            return out = resultadoTexto(id, "No apareció «" + a.value("nombre", std::string()) + "» en " + std::to_string(ms) + " ms.", true), true;
+            return out = resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "No apareció «%1» en %2 ms."),
+                                                                 {a.value("nombre", std::string()), std::to_string(ms)}), true), true;
         }
     }
     return false;
@@ -1170,20 +1180,15 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         json out;
         if (atenderUia(id, nombre, a, p, out) || atenderChrome(id, nombre, a, p, out) || atenderArchivos(id, nombre, a, p, out))
             return out;
-        const auto noPermiso = [&](const char* que) {
-            return resultadoTexto(id,
-                                  std::string("El control del sistema no tiene permiso para «") + que +
-                                      "» (Configuración → Control del sistema, o control_configurar).",
-                                  true);
-        };
+        const auto noPermiso = [&](const std::string& que) { return sinPermiso(id, que.c_str()); };
         if (nombre == "system_pantalla") {
             if (!p.pantalla) return noPermiso("pantalla");
-            if (!permisoPantalla()) return resultadoTexto(id, kSinPantalla, true);
+            if (!permisoPantalla()) return resultadoTexto(id, sinPantalla(), true);
             CGRect r = escritorioVirtual();
             if (a.contains("monitor")) {
                 const auto ms = monitores();
                 const int i = a.value("monitor", 0);
-                if (i < 0 || i >= static_cast<int>(ms.size())) return resultadoTexto(id, "no existe ese monitor", true);
+                if (i < 0 || i >= static_cast<int>(ms.size())) return resultadoTexto(id, ba::i18n::traducir("mcp", "no existe ese monitor"), true);
                 r = CGRectMake(ms[i].x, ms[i].y, ms[i].w, ms[i].h);
             }
             const double escala = std::clamp(a.value("escala", 1.0), 0.1, 1.0);
@@ -1192,30 +1197,34 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                 json b = a;
                 if (a.contains("ventana")) b["id"] = a["ventana"];
                 Ventana v;
-                if (!buscarVentana(b, v)) return resultadoTexto(id, "no encontré esa ventana (system_ventanas las lista)", true);
+                if (!buscarVentana(b, v)) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana (system_ventanas las lista)"), true);
                 CGImageRef img = capturarImagen(v.r, v.id, error);
                 if (img == nullptr) return resultadoTexto(id, error, true);
                 const int sw = std::max(1, static_cast<int>(v.r.size.width * escala));
                 const int sh = std::max(1, static_cast<int>(v.r.size.height * escala));
                 const bool ok = aPng(img, sw, sh, png);
                 CGImageRelease(img);
-                if (!ok) return resultadoTexto(id, "no se pudo armar la imagen", true);
-                return resultadoImagen(id, png, "Ventana «" + tituloDe(v) + "»: " + std::to_string(sw) + "x" + std::to_string(sh));
+                if (!ok) return resultadoTexto(id, ba::i18n::traducir("mcp", "no se pudo armar la imagen"), true);
+                return resultadoImagen(id, png, ba::i18n::llenar(ba::i18n::traducir("mcp", "Ventana «%1»: %2x%3"), {tituloDe(v), std::to_string(sw), std::to_string(sh)}));
             }
             if (a.contains("ancho") && a.contains("alto"))
                 r = CGRectMake(a.value("x", 0), a.value("y", 0), a.value("ancho", 0), a.value("alto", 0));
-            if (r.size.width <= 0 || r.size.height <= 0) return resultadoTexto(id, "tamaño inválido", true);
+            if (r.size.width <= 0 || r.size.height <= 0) return resultadoTexto(id, ba::i18n::traducir("mcp", "tamaño inválido"), true);
             CGImageRef img = capturarImagen(r, 0, error);
             if (img == nullptr) return resultadoTexto(id, error, true);
             const int w = static_cast<int>(r.size.width), h = static_cast<int>(r.size.height);
             const int sw = std::max(1, static_cast<int>(w * escala)), sh = std::max(1, static_cast<int>(h * escala));
             const bool ok = aPng(img, sw, sh, png);
             CGImageRelease(img);
-            if (!ok) return resultadoTexto(id, "no se pudo armar la imagen", true);
-            return resultadoImagen(id, png, "Captura de " + std::to_string(w) + "x" + std::to_string(h) + " en " +
-                                                std::to_string(static_cast<int>(r.origin.x)) + "," +
-                                                std::to_string(static_cast<int>(r.origin.y)) + " (en puntos de pantalla)" +
-                                                (sw != w ? " (achicada a " + std::to_string(sw) + "x" + std::to_string(sh) + ")" : ""));
+            if (!ok) return resultadoTexto(id, ba::i18n::traducir("mcp", "no se pudo armar la imagen"), true);
+            const std::string px = std::to_string(static_cast<int>(r.origin.x)), py = std::to_string(static_cast<int>(r.origin.y));
+            return resultadoImagen(
+                id, png,
+                sw != w ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Captura de %1x%2 en %3,%4 (en puntos de pantalla) "
+                                                                     "(achicada a %5x%6)"),
+                                           {std::to_string(w), std::to_string(h), px, py, std::to_string(sw), std::to_string(sh)})
+                        : ba::i18n::llenar(ba::i18n::traducir("mcp", "Captura de %1x%2 en %3,%4 (en puntos de pantalla)"),
+                                           {std::to_string(w), std::to_string(h), px, py}));
         }
         if (nombre == "system_monitores") {
             if (!p.pantalla) return noPermiso("pantalla");
@@ -1224,11 +1233,11 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             for (const auto& m : monitores())
                 l.push_back({{"indice", i++}, {"x", m.x}, {"y", m.y}, {"ancho", m.w}, {"alto", m.h}, {"principal", m.principal},
                              {"escala", CGDisplayPixelsWide(m.id) > 0 ? static_cast<double>(CGDisplayPixelsWide(m.id)) / m.w : 1.0}});
-            return resultadoDatos(id, {{"monitores", l}, {"nota", "coordenadas en puntos de pantalla (las del mouse)"}});
+            return resultadoDatos(id, {{"monitores", l}, {"nota", ba::i18n::traducir("mcp", "coordenadas en puntos de pantalla (las del mouse)")}});
         }
         if (nombre == "system_mouse") {
             if (!p.mouse) return noPermiso("mouse");
-            if (!accesibilidad()) return resultadoTexto(id, kSinAccesibilidad, true);
+            if (!accesibilidad()) return resultadoTexto(id, sinAccesibilidad(), true);
             const std::string accion = a.value("accion", std::string());
             const Boton b = boton(a.value("boton", std::string("izq")));
             CGPoint pt = cursor();
@@ -1257,7 +1266,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                 CGEventPost(kCGHIDEventTap, e);
                 CFRelease(e);
             } else if (accion != "mover")
-                return resultadoTexto(id, "acción desconocida", true);
+                return resultadoTexto(id, ba::i18n::traducir("mcp", "acción desconocida"), true);
             const CGPoint fin = cursor();
             std::string sobre;
             for (const auto& v : ventanas())
@@ -1265,23 +1274,24 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                     sobre = tituloDe(v);
                     break;
                 }
-            return resultadoTexto(id, "Hecho. El mouse quedó en " + std::to_string(static_cast<int>(fin.x)) + "," +
-                                          std::to_string(static_cast<int>(fin.y)) + (sobre.empty() ? "." : ", sobre «" + sobre + "»."));
+            const std::string fx = std::to_string(static_cast<int>(fin.x)), fy = std::to_string(static_cast<int>(fin.y));
+            return resultadoTexto(id, sobre.empty() ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. El mouse quedó en %1,%2."), {fx, fy})
+                                                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. El mouse quedó en %1,%2, sobre «%3»."), {fx, fy, sobre}));
         }
         if (nombre == "system_teclado") {
             if (!p.teclado) return noPermiso("teclado");
-            if (!accesibilidad()) return resultadoTexto(id, kSinAccesibilidad, true);
+            if (!accesibilidad()) return resultadoTexto(id, sinAccesibilidad(), true);
             if (a.contains("texto")) escribirTexto(a.value("texto", std::string()));
             if (a.contains("teclas") && !mandarTeclas(a.value("teclas", std::string())))
-                return resultadoTexto(id, "no entendí la combinación de teclas", true);
-            return resultadoTexto(id, "Hecho, " + donde() + ".");
+                return resultadoTexto(id, ba::i18n::traducir("mcp", "no entendí la combinación de teclas"), true);
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho, %1."), {donde()}));
         }
         if (nombre == "system_ejecutar") {
             if (!p.ejecutar) return noPermiso("ejecutar");
             const bool admin = a.value("admin", false);
-            if (admin && !p.ejecutar_admin) return noPermiso("ejecutar como administrador");
+            if (admin && !p.ejecutar_admin) return noPermiso(ba::i18n::traducir("mcp", "ejecutar como administrador"));
             const std::string prog = a.value("programa", std::string());
-            if (prog.empty()) return resultadoTexto(id, "falta el programa", true);
+            if (prog.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el programa"), true);
             const std::string args = a.value("argumentos", std::string());
             if (admin) {
                 // macOS pide la clave del administrador en su propio cartel.
@@ -1292,8 +1302,8 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                     initWithSource:aNS("do shell script \"" + esc + " > /dev/null 2>&1 &\" with administrator privileges")];
                 NSDictionary* err = nil;
                 [s executeAndReturnError:&err];
-                if (err) return resultadoTexto(id, "no se pudo como administrador: " + aU([err description]), true);
-                return resultadoTexto(id, "Ejecutado «" + prog + "» como administrador.");
+                if (err) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo como administrador: %1"), {aU([err description])}), true);
+                return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Ejecutado «%1» como administrador."), {prog}));
             }
             NSWorkspace* ws = NSWorkspace.sharedWorkspace;
             NSURL* url = nil;
@@ -1308,7 +1318,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                     if ([NSFileManager.defaultManager fileExistsAtPath:cand]) url = [NSURL fileURLWithPath:cand];
                 }
             }
-            if (url == nil) return resultadoTexto(id, "no encontré «" + prog + "» (ruta, URL, nombre de la aplicación o su identificador)", true);
+            if (url == nil) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no encontré «%1» (ruta, URL, nombre de la aplicación o su identificador)"), {prog}), true);
             __block NSError* err = nil;
             __block pid_t pid = 0;
             dispatch_semaphore_t s = dispatch_semaphore_create(0);
@@ -1325,13 +1335,13 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             if (esApp) [ws openApplicationAtURL:url configuration:cfg completionHandler:listo];
             else [ws openURL:url configuration:cfg completionHandler:listo];
             dispatch_semaphore_wait(s, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
-            if (err) return resultadoTexto(id, "no se pudo abrir «" + prog + "»: " + aU(err.localizedDescription), true);
-            return resultadoTexto(id, "Ejecutado «" + prog + "»" + (pid ? " (pid " + std::to_string(pid) + ")" : "") + ".");
+            if (err) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo abrir «%1»: %2"), {prog, aU(err.localizedDescription)}), true);
+            return resultadoTexto(id, pid ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Ejecutado «%1» (pid %2)."), {prog, std::to_string(pid)}) : ba::i18n::llenar(ba::i18n::traducir("mcp", "Ejecutado «%1»."), {prog}));
         }
         if (nombre == "system_buscar") {
             if (!p.buscar) return noPermiso("buscar");
             std::string patron = a.value("patron", std::string());
-            if (patron.empty()) return resultadoTexto(id, "falta el patrón", true);
+            if (patron.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el patrón"), true);
             std::string dir = a.value("carpeta", std::string());
             if (dir.empty()) dir = aU(NSHomeDirectory());
             if (patron.find('*') == std::string::npos && patron.find('?') == std::string::npos) patron = "*" + patron + "*";
@@ -1356,17 +1366,19 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                              {"alto", static_cast<int>(v.r.size.height)}});
             json d{{"ventanas", l}};
             if (!CGPreflightScreenCaptureAccess())
-                d["nota"] = "sin el permiso «Grabación de pantalla» macOS no da los títulos: va el nombre de la aplicación";
+                d["nota"] = ba::i18n::traducir("mcp", "sin el permiso «Grabación de pantalla» macOS no da los títulos: va el nombre de la aplicación");
             return resultadoDatos(id, d);
         }
         if (nombre == "system_ventana") {
             if (!p.ventanas) return noPermiso("ventanas");
             Ventana v;
-            if (!buscarVentana(a, v)) return resultadoTexto(id, "no encontré esa ventana", true);
+            if (!buscarVentana(a, v)) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true);
             const std::string accion = a.value("accion", std::string());
             if (accion == "fijar_arriba" || accion == "soltar_arriba")
-                return resultadoTexto(id, "macOS no deja poner una ventana de otro programa siempre arriba (solo el "
-                                          "propio programa puede). Alternativa: activarla cuando haga falta.",
+                return resultadoTexto(id,
+                                      ba::i18n::traducir("mcp", "macOS no deja poner una ventana de otro programa siempre arriba "
+                                                                "(solo el propio programa puede). Alternativa: activarla cuando "
+                                                                "haga falta."),
                                       true);
             if (accion == "activar") {
                 activarApp(v.pid);
@@ -1375,12 +1387,12 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                         AXUIElementPerformAction(w, kAXRaiseAction);
                         CFRelease(w);
                     }
-                return resultadoTexto(id, "Hecho: «" + tituloDe(v) + "» al frente.");
+                return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho: «%1» al frente."), {tituloDe(v)}));
             }
-            if (!accesibilidad()) return resultadoTexto(id, kSinAccesibilidad, true);
+            if (!accesibilidad()) return resultadoTexto(id, sinAccesibilidad(), true);
             AXUIElementRef w = axDe(v);
-            if (w == nullptr) return resultadoTexto(id, "no pude manejar esa ventana (Accesibilidad no la ve)", true);
-            std::string res = "Hecho «" + tituloDe(v) + "».";
+            if (w == nullptr) return resultadoTexto(id, ba::i18n::traducir("mcp", "no pude manejar esa ventana (Accesibilidad no la ve)"), true);
+            std::string res = ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho «%1»."), {tituloDe(v)});
             if (accion == "minimizar") AXUIElementSetAttributeValue(w, kAXMinimizedAttribute, kCFBooleanTrue);
             else if (accion == "restaurar") {
                 AXUIElementSetAttributeValue(w, kAXMinimizedAttribute, kCFBooleanFalse);
@@ -1403,7 +1415,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                     r.size.height = a.value("alto", static_cast<int>(r.size.height));
                     if (r.size.width < 50 || r.size.height < 30) {
                         CFRelease(w);
-                        return resultadoTexto(id, "tamaño muy chico", true);
+                        return resultadoTexto(id, ba::i18n::traducir("mcp", "tamaño muy chico"), true);
                     }
                 }
                 AXValueRef pos = AXValueCreate((AXValueType)kAXValueCGPointType, &r.origin);
@@ -1412,9 +1424,11 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                 AXUIElementSetAttributeValue(w, kAXSizeAttribute, tam);
                 CFRelease(pos);
                 CFRelease(tam);
-                res = (accion == "mover" ? "Movida «" : "Maximizada «") + tituloDe(v) + "»: " + std::to_string(static_cast<int>(r.origin.x)) +
-                      "," + std::to_string(static_cast<int>(r.origin.y)) + ", " + std::to_string(static_cast<int>(r.size.width)) + "x" +
-                      std::to_string(static_cast<int>(r.size.height)) + ".";
+                res = ba::i18n::llenar(accion == "mover" ? ba::i18n::traducir("mcp", "Movida «%1»: %2,%3, %4x%5.")
+                                                         : ba::i18n::traducir("mcp", "Maximizada «%1»: %2,%3, %4x%5."),
+                                       {tituloDe(v), std::to_string(static_cast<int>(r.origin.x)),
+                                        std::to_string(static_cast<int>(r.origin.y)), std::to_string(static_cast<int>(r.size.width)),
+                                        std::to_string(static_cast<int>(r.size.height))});
             } else if (accion == "cerrar") {
                 AXUIElementRef b = nullptr;
                 if (AXUIElementCopyAttributeValue(w, kAXCloseButtonAttribute, (CFTypeRef*)&b) == kAXErrorSuccess && b) {
@@ -1422,11 +1436,11 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
                     CFRelease(b);
                 } else {
                     CFRelease(w);
-                    return resultadoTexto(id, "esa ventana no tiene botón de cerrar", true);
+                    return resultadoTexto(id, ba::i18n::traducir("mcp", "esa ventana no tiene botón de cerrar"), true);
                 }
             } else {
                 CFRelease(w);
-                return resultadoTexto(id, "acción desconocida", true);
+                return resultadoTexto(id, ba::i18n::traducir("mcp", "acción desconocida"), true);
             }
             CFRelease(w);
             return resultadoTexto(id, res);
@@ -1437,8 +1451,8 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             if (a.contains("texto")) {
                 [pb clearContents];
                 if (![pb setString:aNS(a.value("texto", std::string())) forType:NSPasteboardTypeString])
-                    return resultadoTexto(id, "no se pudo escribir", true);
-                return resultadoTexto(id, "Copiado al portapapeles.");
+                    return resultadoTexto(id, ba::i18n::traducir("mcp", "no se pudo escribir"), true);
+                return resultadoTexto(id, ba::i18n::traducir("mcp", "Copiado al portapapeles."));
             }
             return resultadoDatos(id, {{"texto", aU([pb stringForType:NSPasteboardTypeString])}});
         }
@@ -1477,14 +1491,14 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         if (nombre == "system_proceso_cerrar") {
             if (!p.procesos) return noPermiso("procesos");
             const auto pid = static_cast<pid_t>(a.value("pid", 0LL));
-            if (pid <= 1) return resultadoTexto(id, "ese proceso es del sistema: no se cierra", true);
-            if (pid == getpid() || pid == getppid()) return resultadoTexto(id, "ese soy yo (ba-control) o quien me lanzó", true);
+            if (pid <= 1) return resultadoTexto(id, ba::i18n::traducir("mcp", "ese proceso es del sistema: no se cierra"), true);
+            if (pid == getpid() || pid == getppid()) return resultadoTexto(id, ba::i18n::traducir("mcp", "ese soy yo (ba-control) o quien me lanzó"), true);
             return cerrarProceso(id, pid, a.value("forzar", false));
         }
         if (nombre == "system_comando") {
             if (!p.comandos) return noPermiso("comandos");
             const std::string cmd = a.value("comando", std::string());
-            if (cmd.empty()) return resultadoTexto(id, "falta el comando", true);
+            if (cmd.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el comando"), true);
             return correrComando(id, cmd, a.value("shell", std::string("sistema")), a.value("carpeta", std::string()),
                                  std::clamp(a.value("segundos", 30), 1, 300));
         }
@@ -1497,18 +1511,18 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             const std::string t = a.value("titulo", std::string());
             if (t.empty()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-                return resultadoTexto(id, "Listo: pasaron " + std::to_string(ms) + " ms.");
+                return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: pasaron %1 ms."), {std::to_string(ms)}));
             }
             if (!p.ventanas) return noPermiso("ventanas");
             const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
             do {
                 Ventana v;
-                if (buscarVentana(json{{"titulo", t}}, v)) return resultadoTexto(id, "Apareció «" + tituloDe(v) + "».");
+                if (buscarVentana(json{{"titulo", t}}, v)) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Apareció «%1»."), {tituloDe(v)}));
                 std::this_thread::sleep_for(std::chrono::milliseconds(150));
             } while (std::chrono::steady_clock::now() < fin);
-            return resultadoTexto(id, "No apareció ninguna ventana con «" + t + "» en " + std::to_string(ms) + " ms.", true);
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "No apareció ninguna ventana con «%1» en %2 ms."), {t, std::to_string(ms)}), true);
         }
-        return resultadoTexto(id, "herramienta desconocida: " + nombre, true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "herramienta desconocida: %1"), {nombre}), true);
     }
 }
 

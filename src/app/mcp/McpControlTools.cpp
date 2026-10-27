@@ -13,6 +13,7 @@
 // ============================================================================
 
 #include "agent/ControlSistema.hpp"
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -25,14 +26,14 @@ void McpService::registerControlTools() {
     {
         Tool t;
         t.name = "control_estado";
-        t.title = "Permisos del control del sistema";
+        t.title = ba::i18n::traducir("mcp", "Permisos del control del sistema");
         t.category = "agentes";
         t.readOnly = true;
-        t.description = "Si el asistente puede manejar el escritorio de esta máquina (servidor MCP `control`, las "
+        t.description = ba::i18n::traducir("mcp", "Si el asistente puede manejar el escritorio de esta máquina (servidor MCP `control`, las "
                         "mismas herramientas system_* en Windows, macOS y Linux: mouse, teclado, capturas, abrir "
                         "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo, los elementos "
                         "de las ventanas, Chrome, archivos, registro) y con qué permisos. `preguntar`: el asistente pide "
-                        "permiso al operador antes de cada acción. `soportado`: si en este sistema ya anda.";
+                        "permiso al operador antes de cada acción. `soportado`: si en este sistema ya anda.");
         t.run = [this](const json&, Done done) {
             json d = ControlSistema::leer(ba::platform::dataRoot()).comoJson();
             json caps = json::array();
@@ -45,11 +46,11 @@ void McpService::registerControlTools() {
 #elif defined(__APPLE__)
             d["sistema"] = "macOS";
             d["soportado"] = true;
-            d["nota"] = "pide los permisos «Accesibilidad» y «Grabación de pantalla» de macOS la primera vez";
+            d["nota"] = ba::i18n::traducir("mcp", "pide los permisos «Accesibilidad» y «Grabación de pantalla» de macOS la primera vez");
 #else
             d["sistema"] = "Linux";
             d["soportado"] = false;
-            d["nota"] = "en Linux andan system_archivos y system_chrome; el resto está en camino";
+            d["nota"] = ba::i18n::traducir("mcp", "en Linux andan system_archivos y system_chrome; el resto está en camino");
 #endif
             done(ToolResult().data(d));
         };
@@ -58,16 +59,16 @@ void McpService::registerControlTools() {
     {
         Tool t;
         t.name = "control_configurar";
-        t.title = "Cambiar los permisos del control del sistema";
+        t.title = ba::i18n::traducir("mcp", "Cambiar los permisos del control del sistema");
         t.category = "agentes";
         t.destructive = true;
-        t.description = "Prende o apaga el control del sistema (el escritorio de esta máquina) y sus permisos. `habilitado`: el "
+        t.description = ba::i18n::traducir("mcp", "Prende o apaga el control del sistema (el escritorio de esta máquina) y sus permisos. `habilitado`: el "
                         "interruptor general. `preguntar`: que el asistente pida permiso antes de cada acción. "
                         "`permisos`: {pantalla, mouse, teclado, ejecutar, ejecutar_admin, buscar, ventanas, "
                         "portapapeles, procesos, comandos, sistema, archivos, archivos_escribir, navegador, registro, "
-                        "avisos} en true/false. Lo que no se manda queda como estaba.";
-        t.details = "Los permisos valen en la llamada siguiente. Prender o apagar el control entero, o cambiar "
-                    "`preguntar`, vale al relanzar el asistente (es cuando se le arma la lista de servidores).";
+                        "avisos} en true/false. Lo que no se manda queda como estaba.");
+        t.details = ba::i18n::traducir("mcp", "Los permisos valen en la llamada siguiente. Prender o apagar el control entero, o cambiar "
+                    "`preguntar`, vale al relanzar el asistente (es cuando se le arma la lista de servidores).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"habilitado", {{"type", "boolean"}}},
@@ -80,9 +81,10 @@ void McpService::registerControlTools() {
             if (p.is_object())
                 for (auto it = p.begin(); it != p.end(); ++it)
                     if (c.capacidad(it.key()) == nullptr)
-                        return done(ToolResult::error("no existe el permiso «" + it.key() + "» (control_estado los lista)"));
+                        return done(ToolResult::error(ba::i18n::llenar(
+                            ba::i18n::traducir("mcp", "no existe el permiso «%1» (control_estado los lista)"), {it.key()})));
             c.aplicar(a);
-            if (!c.guardar(ba::platform::dataRoot())) return done(ToolResult::error("no se pudo guardar la configuración"));
+            if (!c.guardar(ba::platform::dataRoot())) return done(ToolResult::error(ba::i18n::traducir("mcp", "no se pudo guardar la configuración")));
             done(ToolResult().data(c.comoJson()));
         };
         core_.addTool(std::move(t));

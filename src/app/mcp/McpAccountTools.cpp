@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "i18n/I18n.hpp"
 #include "net/AccountGuides.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -38,9 +39,9 @@ const json kPlatformArg{{"type", "string"}, {"enum", {"youtube", "twitch", "face
 
 void McpService::registerAccountTools() {
     core_.addCategory(
-        "cuentas", "Cuentas (YouTube, Twitch, Facebook)",
-        "Conectar las cuentas de las plataformas: qué falta, pasos guiados con enlaces, formulario "
-        "seguro para las credenciales y prueba de la conexión. Empezar por accounts_status.");
+        "cuentas", ba::i18n::traducir("mcp", "Cuentas (YouTube, Twitch, Facebook)"),
+        ba::i18n::traducir("mcp", "Conectar las cuentas de las plataformas: qué falta, pasos guiados con enlaces, formulario "
+        "seguro para las credenciales y prueba de la conexión. Empezar por accounts_status."));
     auto* yt = static_cast<YouTubeViewModel*>(vm_.youtube());
     auto* tw = static_cast<TwitchViewModel*>(vm_.twitch());
     auto* fb = static_cast<FacebookViewModel*>(vm_.facebook());
@@ -54,13 +55,16 @@ void McpService::registerAccountTools() {
                    {"loggedIn", yt->loggedIn()},
                    {"loginPending", yt->loginPending()},
                    {"account", ch.value("title").toString().toStdString()}};
-            s["next"] = !yt->configured()    ? "Falta la credencial de Google: account_setup_guide + "
-                                               "account_credentials_request (o youtube_setup "
-                                               "{\"fromDownloads\": true} si ya bajo el JSON)."
-                        : yt->loginPending() ? "Login en curso: la persona tiene que elegir la cuenta en el "
-                                               "navegador."
-                        : !yt->loggedIn()    ? "Falta conectar la cuenta: youtube_login."
-                                          : "Listo. account_check {\"platform\": \"youtube\"} lo verifica.";
+            s["next"] = !yt->configured()
+                            ? ba::i18n::traducir("mcp", "Falta la credencial de Google: account_setup_guide + "
+                                                        "account_credentials_request (o youtube_setup "
+                                                        "{\"fromDownloads\": true} si ya bajo el JSON).")
+                        : yt->loginPending()
+                            ? ba::i18n::traducir("mcp", "Login en curso: la persona tiene que elegir la cuenta en el "
+                                                        "navegador.")
+                        : !yt->loggedIn()
+                            ? ba::i18n::traducir("mcp", "Falta conectar la cuenta: youtube_login.")
+                            : ba::i18n::traducir("mcp", "Listo. account_check {\"platform\": \"youtube\"} lo verifica.");
             return s;
         }
         if (p == "twitch") {
@@ -73,12 +77,14 @@ void McpService::registerAccountTools() {
                 s["verificationUri"] = tw->verificationUri().toStdString();
             }
             s["next"] = !tw->configured()
-                            ? "Falta el ID de cliente de una app de Twitch: account_setup_guide + "
-                              "account_credentials_request."
-                        : tw->loginPending() ? "Login en curso: la persona confirma el codigo userCode en "
-                                               "verificationUri (twitch.tv/activate)."
-                        : !tw->loggedIn()    ? "Falta conectar la cuenta: twitch_login."
-                                             : "Listo. account_check {\"platform\": \"twitch\"} lo verifica.";
+                            ? ba::i18n::traducir("mcp", "Falta el ID de cliente de una app de Twitch: account_setup_guide + "
+                                                        "account_credentials_request.")
+                        : tw->loginPending()
+                            ? ba::i18n::traducir("mcp", "Login en curso: la persona confirma el codigo userCode en "
+                                                        "verificationUri (twitch.tv/activate).")
+                        : !tw->loggedIn()
+                            ? ba::i18n::traducir("mcp", "Falta conectar la cuenta: twitch_login.")
+                            : ba::i18n::traducir("mcp", "Listo. account_check {\"platform\": \"twitch\"} lo verifica.");
             return s;
         }
         json s{{"configured", fb->configured()},
@@ -87,25 +93,26 @@ void McpService::registerAccountTools() {
                {"account", fb->client().user().value("name").toString().toStdString()},
                {"page", fb->client().page().value("name").toString().toStdString()},
                {"redirectUri", fb->redirectUri().toStdString()}};
-        s["next"] = !fb->configured()    ? "Falta la app de Meta (ID + clave secreta): account_setup_guide + "
-                                           "account_credentials_request."
-                    : fb->loginPending() ? "Login en curso: la persona autoriza en el navegador."
-                    : !fb->loggedIn()    ? "Falta conectar la cuenta: facebook_login."
+        s["next"] = !fb->configured()
+                        ? ba::i18n::traducir("mcp", "Falta la app de Meta (ID + clave secreta): account_setup_guide + "
+                                                    "account_credentials_request.")
+                    : fb->loginPending() ? ba::i18n::traducir("mcp", "Login en curso: la persona autoriza en el navegador.")
+                    : !fb->loggedIn()    ? ba::i18n::traducir("mcp", "Falta conectar la cuenta: facebook_login.")
                     : fb->client().pageId().isEmpty()
-                        ? "Falta elegir la pagina donde transmitir: facebook_pages."
-                        : "Listo. account_check {\"platform\": \"facebook\"} lo verifica.";
+                        ? ba::i18n::traducir("mcp", "Falta elegir la pagina donde transmitir: facebook_pages.")
+                        : ba::i18n::traducir("mcp", "Listo. account_check {\"platform\": \"facebook\"} lo verifica.");
         return s;
     };
 
     {
         Tool t;
         t.name = "accounts_status";
-        t.title = "Estado de las cuentas";
+        t.title = ba::i18n::traducir("mcp", "Estado de las cuentas");
         t.category = "cuentas";
         t.readOnly = true;
         t.description =
-            "Para YouTube, Twitch y Facebook: si hay credencial, si hay cuenta conectada (cual) y el "
-            "PASO SIGUIENTE (`next`). Nunca devuelve secretos.";
+            ba::i18n::traducir("mcp", "Para YouTube, Twitch y Facebook: si hay credencial, si hay cuenta conectada (cual) y el "
+            "PASO SIGUIENTE (`next`). Nunca devuelve secretos.");
         t.run = [state](const json&, Done done) {
             done(ToolResult().data(json{{"youtube", state("youtube")},
                                         {"twitch", state("twitch")},
@@ -116,20 +123,20 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_setup_guide";
-        t.title = "Pasos para conectar una plataforma";
+        t.title = ba::i18n::traducir("mcp", "Pasos para conectar una plataforma");
         t.category = "cuentas";
         t.readOnly = true;
         t.description =
-            "Los pasos (con enlaces) para crear la app/credencial en Google Cloud, Twitch o Meta, los "
+            ba::i18n::traducir("mcp", "Los pasos (con enlaces) para crear la app/credencial en Google Cloud, Twitch o Meta, los "
             "VALORES "
             "EXACTOS a pegar (`paste`: URI de redireccion, tipo de cliente...) y que pide el formulario. "
             "Guialo "
-            "de a un paso: account_open abre la pagina del paso; al final, account_credentials_request.";
+            "de a un paso: account_open abre la pagina del paso; al final, account_credentials_request.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"platform", kPlatformArg}}}, {"required", {"platform"}}};
         t.run = [fb](const json& a, Done done) {
             const json g = accounts::guide(a.value("platform", ""), fb->redirectUri().toStdString());
-            if (g.is_null()) return done(ToolResult::error("platform: youtube, twitch o facebook."));
+            if (g.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "platform: youtube, twitch o facebook.")));
             done(ToolResult().data(g));
         };
         core_.addTool(std::move(t));
@@ -137,30 +144,31 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_open";
-        t.title = "Abrir la pagina de un paso";
+        t.title = ba::i18n::traducir("mcp", "Abrir la pagina de un paso");
         t.category = "cuentas";
         t.openWorld = true;
         t.description =
-            "Abre en el navegador de esta maquina el enlace del paso `step` (1, 2...) de la guia de "
-            "la plataforma. Solo abre enlaces de la guia.";
+            ba::i18n::traducir("mcp", "Abre en el navegador de esta maquina el enlace del paso `step` (1, 2...) de la guia de "
+            "la plataforma. Solo abre enlaces de la guia.");
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"platform", kPlatformArg}, {"step", {{"type", "integer"}, {"minimum", 1}}}}},
             {"required", {"platform", "step"}}};
         t.run = [yt, fb](const json& a, Done done) {
             const json g = accounts::guide(a.value("platform", ""), fb->redirectUri().toStdString());
-            if (g.is_null()) return done(ToolResult::error("platform: youtube, twitch o facebook."));
+            if (g.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "platform: youtube, twitch o facebook.")));
             const int n = a.value("step", 1);
             const json& steps = g["steps"];
             if (n < 1 || n > static_cast<int>(steps.size()))
-                return done(ToolResult::error("La guia tiene " + std::to_string(steps.size()) + " pasos."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "La guia tiene %n paso.", nullptr,
+                                                                  static_cast<int>(steps.size()))));
             const json& s = steps[static_cast<size_t>(n - 1)];
-            if (s["links"].empty()) return done(ToolResult::error("Ese paso no tiene enlace."));
+            if (s["links"].empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Ese paso no tiene enlace.")));
             const std::string url = s["links"][0].value("u", "");
             yt->openUrl(QString::fromStdString(url));
             done(ToolResult()
-                     .text("Abri " + url + " (" + s.value("t", "") +
-                           "). Decile a la persona que hacer: " + s.value("d", ""))
+                     .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Abri %1 (%2). Decile a la persona que hacer: %3"),
+                                            {url, s.value("t", ""), s.value("d", "")}))
                      .data(json{{"opened", url}, {"step", s}}));
         };
         core_.addTool(std::move(t));
@@ -168,48 +176,50 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_credentials_request";
-        t.title = "Pedir la credencial (formulario seguro)";
+        t.title = ba::i18n::traducir("mcp", "Pedir la credencial (formulario seguro)");
         t.category = "cuentas";
         t.description =
-            "Muestra en la barra del operador un formulario para pegar el ID y el secreto de la plataforma "
+            ba::i18n::traducir("mcp", "Muestra en la barra del operador un formulario para pegar el ID y el secreto de la plataforma "
             "(YouTube: tambien importar el JSON de Google, solo o desde Descargas). Se guarda cifrado "
             "directo "
             "desde la app: vos NUNCA ves el secreto. NO le pidas a la persona que pegue secretos en el chat. "
             "Con `timeoutSec` > 0 espera el resultado (saved / dismissed); 0 = no espera (te llega a tu "
-            "chat).";
+            "chat).");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"platform", kPlatformArg},
-              {"text", {{"type", "string"}, {"description", "Explicacion corta para la persona"}}},
+              {"text", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Explicacion corta para la persona")}}},
               {"timeoutSec", {{"type", "integer"}, {"default", 600}, {"maximum", 1800}}}}},
             {"required", {"platform"}}};
         t.run = [msgs, fb, state](const json& a, Done done) {
             const std::string p = accounts::normalize(a.value("platform", ""));
             const json g = accounts::guide(p, fb->redirectUri().toStdString());
-            if (g.is_null()) return done(ToolResult::error("platform: youtube, twitch o facebook."));
+            if (g.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "platform: youtube, twitch o facebook.")));
             json spec{
                 {"kind", "credential"},
                 {"platform", p},
                 {"priority", "info"},
-                {"title", "Conectar " + g.value("title", p)},
-                {"text", a.value("text", std::string("Pegá acá los datos de la app que creaste. Se guardan "
-                                                     "cifrados en este equipo; el asistente no los ve."))},
+                {"title", ba::i18n::llenar(ba::i18n::traducir("mcp", "Conectar %1"), {g.value("title", p)})},
+                {"text", a.value("text", ba::i18n::traducir("mcp", "Pegá acá los datos de la app que creaste. Se guardan "
+                                                                "cifrados en este equipo; el asistente no los ve."))},
                 {"fields", g["credential"]["fields"]},
                 {"importFile", g["credential"].value("importFile", false)}};
             const int id = msgs->post(spec);
             const int timeout = a.value("timeoutSec", 600);
             if (timeout <= 0)
-                return done(ToolResult::ok("Formulario en la barra (id " + std::to_string(id) +
-                                           "): cuando lo complete te llega a tu chat."));
+                return done(ToolResult::ok(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "Formulario en la barra (id %1): cuando lo complete te llega a tu chat."),
+                    {std::to_string(id)})));
             msgs->waitAnswer(id, timeout * 1000, [done, id, p, state](json item) {
                 if (item.is_null())
-                    return done(ToolResult::ok("Todavia no lo completo (el formulario " + std::to_string(id) +
-                                               " sigue en la barra)."));
+                    return done(ToolResult::ok(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "Todavia no lo completo (el formulario %1 sigue en la barra)."),
+                        {std::to_string(id)})));
                 if (item.value("status", "") != "saved")
-                    return done(ToolResult::ok("La persona cerro el formulario sin guardar."));
+                    return done(ToolResult::ok(ba::i18n::traducir("mcp", "La persona cerro el formulario sin guardar.")));
                 done(ToolResult()
-                         .text("Credencial de " + p + " guardada. Siguiente paso: " + p + "_login.")
+                         .text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Credencial de %1 guardada. Siguiente paso: %1_login."), {p}))
                          .data(state(p)));
             });
         };
@@ -218,19 +228,19 @@ void McpService::registerAccountTools() {
     {
         Tool t;
         t.name = "account_check";
-        t.title = "Probar la conexion";
+        t.title = ba::i18n::traducir("mcp", "Probar la conexion");
         t.category = "cuentas";
         t.readOnly = true;
         t.openWorld = true;
         t.description =
-            "Prueba la conexion de verdad contra la API y explica lo que falte: YouTube (canal, vivo "
+            ba::i18n::traducir("mcp", "Prueba la conexion de verdad contra la API y explica lo que falte: YouTube (canal, vivo "
             "habilitado), Twitch (canal, permiso de la clave de transmision), Facebook (permisos otorgados, "
-            "paginas, pagina elegida).";
+            "paginas, pagina elegida).");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"platform", kPlatformArg}}}, {"required", {"platform"}}};
         t.run = [yt, tw, fb, state](const json& a, Done done) {
             const std::string p = accounts::normalize(a.value("platform", ""));
-            if (p.empty()) return done(ToolResult::error("platform: youtube, twitch o facebook."));
+            if (p.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "platform: youtube, twitch o facebook.")));
             const json st = state(p);
             if (!st.value("configured", false) || !st.value("loggedIn", false))
                 return done(ToolResult().data(json{{"ok", false}, {"problem", st.value("next", "")}}));
@@ -260,8 +270,9 @@ void McpService::registerAccountTools() {
                             json r{{"ok", ok2}, {"channel", toJson(ch)}, {"streamKeyAccess", ok2}};
                             if (!ok2)
                                 r["problem"] =
-                                    "No se pudo leer la clave de transmision: " + e2.toStdString() +
-                                    " (desconecta y volve a conectar con twitch_login).";
+                                    ba::i18n::llenar(ba::i18n::traducir("mcp", "No se pudo leer la clave de transmision: %1 "
+                                                                               "(desconecta y volve a conectar con twitch_login)."),
+                                                     {e2.toStdString()});
                             done(ToolResult().data(r));
                         });
                 });
@@ -293,13 +304,13 @@ void McpService::registerAccountTools() {
                            {"pages", pages},
                            {"page", fb->client().page().value("name").toString().toStdString()}};
                     if (!missing.empty())
-                        r["problem"] = "Faltan permisos: al conectar, la persona tiene que aceptar todos (y "
-                                       "elegir la pagina). facebook_logout + facebook_login.";
+                        r["problem"] = ba::i18n::traducir("mcp", "Faltan permisos: al conectar, la persona tiene que aceptar todos (y "
+                                                                 "elegir la pagina). facebook_logout + facebook_login.");
                     else if (pages == 0)
                         r["problem"] =
-                            "La cuenta no administra ninguna pagina (o no la eligio al autorizar).";
+                            ba::i18n::traducir("mcp", "La cuenta no administra ninguna pagina (o no la eligio al autorizar).");
                     else if (!pageChosen)
-                        r["problem"] = "Falta elegir la pagina: facebook_pages.";
+                        r["problem"] = ba::i18n::traducir("mcp", "Falta elegir la pagina: facebook_pages.");
                     done(ToolResult().data(r));
                 });
         };

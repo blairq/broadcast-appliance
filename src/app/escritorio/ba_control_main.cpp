@@ -36,6 +36,7 @@
 // ============================================================================
 
 #include "escritorio/control.hpp"
+#include "platform/Paths.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -174,7 +175,7 @@ json esquema(json props, std::vector<std::string> req) {
     return j;
 }
 
-json herramienta(const char* nombre, const char* descripcion, json esq) {
+json herramienta(const char* nombre, const std::string& descripcion, json esq) {
     return {{"name", nombre}, {"description", descripcion}, {"inputSchema", std::move(esq)}};
 }
 
@@ -186,29 +187,31 @@ std::string todaviaNo(const std::string& herramienta) {
 #else
     const char* sis = "Linux";
 #endif
-    return herramienta + " todavía no está hecha en " + sis +
-           " (las herramientas system_* son las mismas en los tres sistemas; el motor de este está en camino).";
+    return ba::i18n::llenar(ba::i18n::traducir("mcp", "%1 todavía no está hecha en %2 (las herramientas system_* son las "
+                                                      "mismas en los tres sistemas; el motor de este está en camino)."),
+                            {herramienta, sis});
 }
 
 json sinPermiso(const json& id, const char* que) {
     return resultadoTexto(id,
-                          std::string("El control del sistema no tiene permiso para «") + que +
-                              "» (Configuración → Control del sistema, o control_configurar).",
+                          ba::i18n::llenar(ba::i18n::traducir("mcp", "El control del sistema no tiene permiso para «%1» "
+                                                                     "(Configuración → Control del sistema, o control_configurar)."),
+                                           {que}),
                           true);
 }
 
 json catalogo() {
     const auto obj = [](json props, std::vector<std::string> req = {}) { return esquema(std::move(props), std::move(req)); };
     json tools = json::array();
-    const auto tool = [&](const char* name, const char* desc, json schema) {
+    const auto tool = [&](const char* name, const std::string& desc, json schema) {
         tools.push_back({{"name", name}, {"description", desc}, {"inputSchema", schema}});
     };
     tool("system_pantalla",
-         "Saca una captura de pantalla de ESTA máquina (PNG; Windows, macOS o Linux). Sin argumentos: todo el "
+         ba::i18n::traducir("mcp", "Saca una captura de pantalla de ESTA máquina (PNG; Windows, macOS o Linux). Sin argumentos: todo el "
          "escritorio (todos los monitores). `monitor`: el índice de system_monitores. `x,y,ancho,alto`: una región. "
          "`ventana` (id de system_ventanas) o `titulo`: solo esa ventana, aunque esté tapada. `escala`: achicar "
          "(0.1..1, p. ej. 0.5 en un monitor 4K). Las coordenadas de la imagen son las del mouse (en macOS, puntos "
-         "de pantalla). Permiso: pantalla.",
+         "de pantalla). Permiso: pantalla."),
          obj({{"monitor", {{"type", "integer"}}},
               {"ventana", {{"type", "integer"}}},
               {"titulo", {{"type", "string"}}},
@@ -217,12 +220,12 @@ json catalogo() {
               {"y", {{"type", "integer"}}},
               {"ancho", {{"type", "integer"}}},
               {"alto", {{"type", "integer"}}}}));
-    tool("system_monitores", "Lista los monitores: índice, posición, tamaño y cuál es el principal. Permiso: pantalla.",
+    tool("system_monitores", ba::i18n::traducir("mcp", "Lista los monitores: índice, posición, tamaño y cuál es el principal. Permiso: pantalla."),
          obj({}));
     tool("system_mouse",
-         "Mueve o acciona el mouse. `accion`: mover, click, doble, arrastrar, rueda. `x,y` el destino (en "
+         ba::i18n::traducir("mcp", "Mueve o acciona el mouse. `accion`: mover, click, doble, arrastrar, rueda. `x,y` el destino (en "
          "píxeles del escritorio virtual); `hasta_x,hasta_y` para arrastrar; `boton`: izq, der, medio; "
-         "`pasos` para la rueda (positivo arriba). Permiso: mouse.",
+         "`pasos` para la rueda (positivo arriba). Permiso: mouse."),
          obj({{"accion", {{"type", "string"}, {"enum", {"mover", "click", "doble", "arrastrar", "rueda"}}}},
               {"x", {{"type", "integer"}}},
               {"y", {{"type", "integer"}}},
@@ -232,17 +235,17 @@ json catalogo() {
               {"pasos", {{"type", "integer"}}}},
              {"accion"}));
     tool("system_teclado",
-         "Escribe texto o manda una combinación de teclas. `texto`: lo escribe tal cual (Unicode). `teclas`: "
+         ba::i18n::traducir("mcp", "Escribe texto o manda una combinación de teclas. `texto`: lo escribe tal cual (Unicode). `teclas`: "
          "una combinación como \"mod+c\", \"alt+tab\", \"enter\", \"f5\". `mod` es la tecla de los atajos de "
          "este sistema (Control en Windows y Linux, Comando en macOS): «mod+c» copia en los tres. `cmd`/`win`/"
-         "`super` es Comando en macOS y la tecla Windows en Windows. Permiso: teclado.",
+         "`super` es Comando en macOS y la tecla Windows en Windows. Permiso: teclado."),
          obj({{"texto", {{"type", "string"}}}, {"teclas", {{"type", "string"}}}}));
     tool("system_ejecutar",
-         "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: la ruta del programa o "
+         ba::i18n::traducir("mcp", "Abre un programa, un archivo o una URL (como lo haría doble clic). `programa`: la ruta del programa o "
          "de un archivo, una URL o (en macOS) el nombre de la aplicación («Safari») o su identificador. "
          "`argumentos`: opcional. `carpeta`: carpeta de trabajo. `admin`: true lo corre como administrador (pide "
          "UAC en Windows, la clave en macOS). `oculto`: sin ventana / sin traerlo al frente. Permiso: ejecutar (y "
-         "ejecutar_admin si admin).",
+         "ejecutar_admin si admin)."),
          obj({{"programa", {{"type", "string"}}},
               {"argumentos", {{"type", "string"}}},
               {"carpeta", {{"type", "string"}}},
@@ -250,19 +253,19 @@ json catalogo() {
               {"oculto", {{"type", "boolean"}}}},
              {"programa"}));
     tool("system_buscar",
-         "Busca archivos por nombre. `patron`: parte del nombre (acepta * y ?). `carpeta`: dónde (por defecto "
-         "el perfil del usuario). `max`: cuántos como mucho (por defecto 100). Permiso: buscar.",
+         ba::i18n::traducir("mcp", "Busca archivos por nombre. `patron`: parte del nombre (acepta * y ?). `carpeta`: dónde (por defecto "
+         "el perfil del usuario). `max`: cuántos como mucho (por defecto 100). Permiso: buscar."),
          obj({{"patron", {{"type", "string"}}},
               {"carpeta", {{"type", "string"}}},
               {"max", {{"type", "integer"}}}},
              {"patron"}));
-    tool("system_ventanas", "Lista las ventanas visibles: título, id, aplicación, si es un navegador "
-         "(Chrome, Edge…: ver system_chrome), proceso y posición. Permiso: ventanas.",
+    tool("system_ventanas", ba::i18n::traducir("mcp", "Lista las ventanas visibles: título, id, aplicación, si es un navegador "
+         "(Chrome, Edge…: ver system_chrome), proceso y posición. Permiso: ventanas."),
          obj({}));
     tool("system_ventana",
-         "Acciona una ventana. `id` (de system_ventanas) o `titulo` (parte del título o de la aplicación). "
+         ba::i18n::traducir("mcp", "Acciona una ventana. `id` (de system_ventanas) o `titulo` (parte del título o de la aplicación). "
          "`accion`: activar, minimizar, maximizar, restaurar, cerrar, mover (con `x,y` y/o `ancho,alto`), "
-         "fijar_arriba (siempre visible; macOS no lo deja para otros programas) o soltar_arriba. Permiso: ventanas.",
+         "fijar_arriba (siempre visible; macOS no lo deja para otros programas) o soltar_arriba. Permiso: ventanas."),
          obj({{"id", {{"type", "integer"}}},
               {"titulo", {{"type", "string"}}},
               {"accion",
@@ -274,39 +277,39 @@ json catalogo() {
               {"alto", {{"type", "integer"}}}},
              {"accion"}));
     tool("system_portapapeles",
-         "Lee o escribe el portapapeles de texto. Sin `texto`: lo lee. Con `texto`: lo pone. Permiso: portapapeles.",
+         ba::i18n::traducir("mcp", "Lee o escribe el portapapeles de texto. Sin `texto`: lo lee. Con `texto`: lo pone. Permiso: portapapeles."),
          obj({{"texto", {{"type", "string"}}}}));
     tool("system_cursor",
-         "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado), y si la "
+         ba::i18n::traducir("mcp", "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado), y si la "
          "persona está usando la máquina (`inactivo_s`: hace cuánto tocó mouse o teclado; `usandola` si fue hace "
-         "menos de 5 s: esperar antes de mover el mouse). Sin argumentos. Permiso: pantalla.",
+         "menos de 5 s: esperar antes de mover el mouse). Sin argumentos. Permiso: pantalla."),
          obj({}));
     tool("system_procesos",
-         "Lista los procesos: pid, nombre, memoria (MB) y si tienen ventana. `nombre`: filtrar (parte del nombre "
-         "del ejecutable). `max`: cuántos (por defecto 200, los que más memoria usan primero). Permiso: procesos.",
+         ba::i18n::traducir("mcp", "Lista los procesos: pid, nombre, memoria (MB) y si tienen ventana. `nombre`: filtrar (parte del nombre "
+         "del ejecutable). `max`: cuántos (por defecto 200, los que más memoria usan primero). Permiso: procesos."),
          obj({{"nombre", {{"type", "string"}}}, {"max", {{"type", "integer"}}}}));
     tool("system_proceso_cerrar",
-         "Cierra un proceso por su `pid` (de system_procesos): primero le pide que cierre sus ventanas; con "
+         ba::i18n::traducir("mcp", "Cierra un proceso por su `pid` (de system_procesos): primero le pide que cierre sus ventanas; con "
          "`forzar`: true lo termina en seco (se pierde lo no guardado). Nunca por nombre: el pid es uno solo. "
-         "Permiso: procesos.",
+         "Permiso: procesos."),
          obj({{"pid", {{"type", "integer"}}}, {"forzar", {{"type", "boolean"}}}}, {"pid"}));
     tool("system_comando",
-         "Corre un comando y devuelve lo que contesta (salida, errores y código de salida). `comando`: la línea a "
+         ba::i18n::traducir("mcp", "Corre un comando y devuelve lo que contesta (salida, errores y código de salida). `comando`: la línea a "
          "correr. `shell`: sistema (por defecto: cmd en Windows, zsh en macOS, sh en Linux), cmd, powershell, sh o "
          "bash. `carpeta`: dónde. `segundos`: lo más que espera (por defecto 30, hasta 300; si se pasa, lo termina). "
-         "Sin ventana. Permiso: comandos.",
+         "Sin ventana. Permiso: comandos."),
          obj({{"comando", {{"type", "string"}}},
               {"shell", {{"type", "string"}, {"enum", {"sistema", "cmd", "powershell", "sh", "bash"}}}},
               {"carpeta", {{"type", "string"}}},
               {"segundos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 300}}}},
              {"comando"}));
     tool("system_sistema",
-         "Los datos del equipo: el sistema (Windows, macOS o Linux, con su versión), nombre, usuario, procesadores, memoria total y libre, discos "
-         "con su espacio libre, hace cuánto que está prendido y la batería si tiene. Sin argumentos. Permiso: sistema.",
+         ba::i18n::traducir("mcp", "Los datos del equipo: el sistema (Windows, macOS o Linux, con su versión), nombre, usuario, procesadores, memoria total y libre, discos "
+         "con su espacio libre, hace cuánto que está prendido y la batería si tiene. Sin argumentos. Permiso: sistema."),
          obj({}));
     tool("system_esperar",
-         "Espera `ms` milisegundos (hasta 30000), o hasta que aparezca una ventana cuyo título contenga "
-         "`titulo` (con `ms` como límite). Para dar tiempo a que abra un programa antes de seguir.",
+         ba::i18n::traducir("mcp", "Espera `ms` milisegundos (hasta 30000), o hasta que aparezca una ventana cuyo título contenga "
+         "`titulo` (con `ms` como límite). Para dar tiempo a que abra un programa antes de seguir."),
          obj({{"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 30000}}}, {"titulo", {{"type", "string"}}}}));
     // Las otras partes: UI Automation, Chrome, archivos y registro.
     for (const json& parte : {herramientasUia(), herramientasChrome(), herramientasArchivos()})
@@ -404,7 +407,7 @@ bool capturar(int x, int y, int w, int h, double escala, std::string& png, int& 
     DeleteObject(bmp);
     DeleteDC(mem);
     ReleaseDC(nullptr, screen);
-    if (!listo) error = "no se pudo capturar la pantalla";
+    if (!listo) error = ba::i18n::traducir("mcp", "no se pudo capturar la pantalla");
     return listo;
 }
 
@@ -412,14 +415,14 @@ bool capturar(int x, int y, int w, int h, double escala, std::string& png, int& 
 /// que dibuja la GPU). Minimizada no hay nada que dibujar.
 bool capturarVentana(HWND h, double escala, std::string& png, int& sw, int& sh, std::string& error) {
     if (IsIconic(h)) {
-        error = "la ventana está minimizada (system_ventana accion=restaurar primero)";
+        error = ba::i18n::traducir("mcp", "la ventana está minimizada (system_ventana accion=restaurar primero)");
         return false;
     }
     RECT r{};
     GetWindowRect(h, &r);
     const int w = r.right - r.left, alto = r.bottom - r.top;
     if (w <= 0 || alto <= 0) {
-        error = "la ventana no tiene tamaño";
+        error = ba::i18n::traducir("mcp", "la ventana no tiene tamaño");
         return false;
     }
     HDC screen = GetDC(nullptr);
@@ -433,7 +436,7 @@ bool capturarVentana(HWND h, double escala, std::string& png, int& sw, int& sh, 
     DeleteObject(bmp);
     DeleteDC(mem);
     ReleaseDC(nullptr, screen);
-    if (!listo) error = "Windows no dejó capturar esa ventana";
+    if (!listo) error = ba::i18n::traducir("mcp", "Windows no dejó capturar esa ventana");
     return listo;
 }
 
@@ -579,12 +582,13 @@ bool mandarTeclas(const std::string& combo) {
 std::string tituloDe(HWND h) {
     wchar_t t[512];
     const int n = h != nullptr ? GetWindowTextW(h, t, 512) : 0;
-    return n > 0 ? aU(std::wstring(t, n)) : std::string("(sin título)");
+    return n > 0 ? aU(std::wstring(t, n)) : ba::i18n::traducir("mcp", "(sin título)");
 }
 /// «en «título» (id N)»: dónde fue lo que se hizo, para que el asistente vea
 /// si le pegó a la ventana que quería (un título parcial puede coincidir con otra).
 std::string donde(HWND h) {
-    return "en «" + tituloDe(h) + "» (id " + std::to_string(reinterpret_cast<long long>(h)) + ")";
+    return ba::i18n::llenar(ba::i18n::traducir("mcp", "en «%1» (id %2)"),
+                            {tituloDe(h), std::to_string(reinterpret_cast<long long>(h))});
 }
 
 /// Trae una ventana al frente de verdad. Windows no deja que un proceso de
@@ -723,7 +727,8 @@ json listarProcesos(const std::string& filtro, int max) {
 
 json cerrarProceso(const json& id, DWORD pid, bool forzar) {
     HANDLE hp = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (hp == nullptr) return resultadoTexto(id, "no pude abrir el proceso " + std::to_string(pid) + " (¿no existe, o es de otro usuario?)", true);
+    if (hp == nullptr) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no pude abrir el proceso %1 (¿no existe, o es de otro usuario?)"),
+                                                          {std::to_string(pid)}), true);
     std::string nombre;
     wchar_t ruta[MAX_PATH];
     DWORD n = MAX_PATH;
@@ -733,21 +738,27 @@ json cerrarProceso(const json& id, DWORD pid, bool forzar) {
     for (const auto& w : ventanas())
         if (w.pid == pid) PostMessageW(w.hwnd, WM_CLOSE, 0, 0), ++ventanasCerradas;
     DWORD r = ventanasCerradas > 0 ? WaitForSingleObject(hp, 4000) : WAIT_TIMEOUT;
-    std::string como = "cerró sus ventanas";
+    std::string como = ba::i18n::traducir("mcp", "cerró sus ventanas");
     if (r != WAIT_OBJECT_0) {
         if (!forzar) {
             CloseHandle(hp);
-            return resultadoTexto(id, "«" + nombre + "» (pid " + std::to_string(pid) + ") sigue abierto" +
-                                          (ventanasCerradas ? " (quizás pregunta si guardar)" : " (no tiene ventanas)") +
-                                          ". Con forzar: true se termina en seco.", true);
+            return resultadoTexto(id,
+                                  ba::i18n::llenar(ventanasCerradas
+                                                       ? ba::i18n::traducir("mcp", "«%1» (pid %2) sigue abierto (quizás pregunta "
+                                                                                   "si guardar). Con forzar: true se termina en seco.")
+                                                       : ba::i18n::traducir("mcp", "«%1» (pid %2) sigue abierto (no tiene "
+                                                                                   "ventanas). Con forzar: true se termina en seco."),
+                                                   {nombre, std::to_string(pid)}),
+                                  true);
         }
         TerminateProcess(hp, 1);
         r = WaitForSingleObject(hp, 3000);
-        como = "terminado en seco";
+        como = ba::i18n::traducir("mcp", "terminado en seco");
     }
     CloseHandle(hp);
-    if (r != WAIT_OBJECT_0) return resultadoTexto(id, "«" + nombre + "» no terminó", true);
-    return resultadoTexto(id, "Cerrado «" + nombre + "» (pid " + std::to_string(pid) + ", " + como + ").");
+    if (r != WAIT_OBJECT_0) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» no terminó"), {nombre}), true);
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Cerrado «%1» (pid %2, %3)."),
+                                          {nombre, std::to_string(pid), como}));
 }
 
 // -- Comandos --
@@ -764,7 +775,7 @@ std::string deConsola(const std::string& s) {
 json correrComando(const json& id, const std::string& cmd, const std::string& shell, const std::string& carpeta, int segundos) {
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
     HANDLE leer = nullptr, escribirP = nullptr;
-    if (!CreatePipe(&leer, &escribirP, &sa, 0)) return resultadoTexto(id, "no se pudo crear la tubería", true);
+    if (!CreatePipe(&leer, &escribirP, &sa, 0)) return resultadoTexto(id, ba::i18n::traducir("mcp", "no se pudo crear la tubería"), true);
     SetHandleInformation(leer, HANDLE_FLAG_INHERIT, 0);
     HANDLE nul = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING, 0, nullptr);
     STARTUPINFOW si{};
@@ -792,7 +803,8 @@ json correrComando(const json& id, const std::string& cmd, const std::string& sh
         const DWORD e = GetLastError();
         CloseHandle(leer);
         if (job) CloseHandle(job);
-        return resultadoTexto(id, "no se pudo correr el comando (error " + std::to_string(e) + ")", true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo correr el comando (error %1)"), {std::to_string(e)}),
+                              true);
     }
     if (job) AssignProcessToJobObject(job, pi.hProcess);
     ResumeThread(pi.hThread);
@@ -826,8 +838,8 @@ json correrComando(const json& id, const std::string& cmd, const std::string& sh
     lector.join();
     CloseHandle(leer);
     json d{{"codigo", static_cast<long long>(codigo)}, {"salida", deConsola(salida)}};
-    if (cortada) d["nota"] = "salida larga: quedan los últimos 200 KB";
-    if (vencido) d["vencido"] = "pasaron " + std::to_string(segundos) + " s y se terminó";
+    if (cortada) d["nota"] = ba::i18n::traducir("mcp", "salida larga: quedan los últimos 200 KB");
+    if (vencido) d["vencido"] = ba::i18n::llenar(ba::i18n::traducir("mcp", "pasaron %1 s y se terminó"), {std::to_string(segundos)});
     return resultadoDatos(id, d);
 }
 
@@ -881,12 +893,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     json out;
     if (atenderUia(id, nombre, a, p, out) || atenderChrome(id, nombre, a, p, out) || atenderArchivos(id, nombre, a, p, out))
         return out;
-    const auto noPermiso = [&](const char* que) {
-        return resultadoTexto(id,
-                              std::string("El control del sistema no tiene permiso para «") + que +
-                                  "» (Configuración → Control del sistema, o control_configurar).",
-                              true);
-    };
+    const auto noPermiso = [&](const std::string& que) { return sinPermiso(id, que.c_str()); };
     if (nombre == "system_pantalla") {
         if (!p.pantalla) return noPermiso("pantalla");
         const Virtual v;
@@ -894,7 +901,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         if (a.contains("monitor")) {
             const auto ms = monitores();
             const int i = a.value("monitor", 0);
-            if (i < 0 || i >= static_cast<int>(ms.size())) return resultadoTexto(id, "no existe ese monitor", true);
+            if (i < 0 || i >= static_cast<int>(ms.size())) return resultadoTexto(id, ba::i18n::traducir("mcp", "no existe ese monitor"), true);
             x = ms[i].x; y = ms[i].y; w = ms[i].w; h = ms[i].h;
         }
         const double escala = a.value("escala", 1.0);
@@ -904,18 +911,23 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             json b = a;
             if (a.contains("ventana")) b["id"] = a["ventana"];
             HWND hv = buscarVentana(b);
-            if (hv == nullptr) return resultadoTexto(id, "no encontré esa ventana (system_ventanas las lista)", true);
+            if (hv == nullptr) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana (system_ventanas las lista)"), true);
             if (!capturarVentana(hv, escala, png, sw, sh, error)) return resultadoTexto(id, error, true);
-            return resultadoImagen(id, png, "Ventana «" + tituloDe(hv) + "»: " + std::to_string(sw) + "x" + std::to_string(sh));
+            return resultadoImagen(id, png, ba::i18n::llenar(ba::i18n::traducir("mcp", "Ventana «%1»: %2x%3"),
+                                                     {tituloDe(hv), std::to_string(sw), std::to_string(sh)}));
         }
         if (a.contains("ancho") && a.contains("alto")) {
             x = a.value("x", 0); y = a.value("y", 0); w = a.value("ancho", w); h = a.value("alto", h);
         }
-        if (w <= 0 || h <= 0) return resultadoTexto(id, "tamaño inválido", true);
+        if (w <= 0 || h <= 0) return resultadoTexto(id, ba::i18n::traducir("mcp", "tamaño inválido"), true);
         if (!capturar(x, y, w, h, escala, png, sw, sh, error)) return resultadoTexto(id, error, true);
-        return resultadoImagen(id, png, "Captura de " + std::to_string(w) + "x" + std::to_string(h) + " en " +
-                                            std::to_string(x) + "," + std::to_string(y) +
-                                            (sw != w ? " (achicada a " + std::to_string(sw) + "x" + std::to_string(sh) + ")" : ""));
+        return resultadoImagen(
+            id, png,
+            sw != w ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Captura de %1x%2 en %3,%4 (achicada a %5x%6)"),
+                                       {std::to_string(w), std::to_string(h), std::to_string(x), std::to_string(y),
+                                        std::to_string(sw), std::to_string(sh)})
+                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "Captura de %1x%2 en %3,%4"),
+                                       {std::to_string(w), std::to_string(h), std::to_string(x), std::to_string(y)}));
     }
     if (nombre == "system_monitores") {
         if (!p.pantalla) return noPermiso("pantalla");
@@ -952,22 +964,22 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         GetCursorPos(&pt);
         HWND bajo = WindowFromPoint(pt);
         HWND raiz = bajo != nullptr ? GetAncestor(bajo, GA_ROOT) : nullptr;
-        return resultadoTexto(id, "Hecho. El mouse quedó en " + std::to_string(pt.x) + "," + std::to_string(pt.y) +
-                                      ", sobre «" + tituloDe(raiz) + "».");
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho. El mouse quedó en %1,%2, sobre «%3»."),
+                                                   {std::to_string(pt.x), std::to_string(pt.y), tituloDe(raiz)}));
     }
     if (nombre == "system_teclado") {
         if (!p.teclado) return noPermiso("teclado");
         if (a.contains("texto")) escribirTexto(aW(a.value("texto", std::string())));
         if (a.contains("teclas") && !mandarTeclas(a.value("teclas", std::string())))
-            return resultadoTexto(id, "no entendí la combinación de teclas", true);
-        return resultadoTexto(id, "Hecho, " + donde(GetForegroundWindow()) + ".");
+            return resultadoTexto(id, ba::i18n::traducir("mcp", "no entendí la combinación de teclas"), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho, %1."), {donde(GetForegroundWindow())}));
     }
     if (nombre == "system_ejecutar") {
         if (!p.ejecutar) return noPermiso("ejecutar");
         const bool admin = a.value("admin", false);
-        if (admin && !p.ejecutar_admin) return noPermiso("ejecutar como administrador");
+        if (admin && !p.ejecutar_admin) return noPermiso(ba::i18n::traducir("mcp", "ejecutar como administrador"));
         const std::string prog = a.value("programa", std::string());
-        if (prog.empty()) return resultadoTexto(id, "falta el programa", true);
+        if (prog.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el programa"), true);
         SHELLEXECUTEINFOW ei{};
         ei.cbSize = sizeof(ei);
         ei.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -981,18 +993,22 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         ei.nShow = a.value("oculto", false) ? SW_HIDE : SW_SHOWNORMAL;
         if (!ShellExecuteExW(&ei)) {
             const DWORD e = GetLastError();
-            if (e == ERROR_CANCELLED) return resultadoTexto(id, "el usuario canceló el pedido de administrador (UAC)", true);
-            return resultadoTexto(id, "no se pudo ejecutar «" + prog + "» (error " + std::to_string(e) + ")", true);
+            if (e == ERROR_CANCELLED) return resultadoTexto(id, ba::i18n::traducir("mcp", "el usuario canceló el pedido de administrador (UAC)"), true);
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "no se pudo ejecutar «%1» (error %2)"), {prog, std::to_string(e)}),
+                                  true);
         }
         DWORD pid = 0;
         if (ei.hProcess != nullptr) { pid = GetProcessId(ei.hProcess); CloseHandle(ei.hProcess); }
-        return resultadoTexto(id, "Ejecutado «" + prog + "»" + (admin ? " como administrador" : "") +
-                                      (pid ? " (pid " + std::to_string(pid) + ")" : "") + ".");
+        const std::string texto = admin ? (pid ? ba::i18n::traducir("mcp", "Ejecutado «%1» como administrador (pid %2).")
+                                               : ba::i18n::traducir("mcp", "Ejecutado «%1» como administrador."))
+                                        : (pid ? ba::i18n::traducir("mcp", "Ejecutado «%1» (pid %2).")
+                                               : ba::i18n::traducir("mcp", "Ejecutado «%1»."));
+        return resultadoTexto(id, ba::i18n::llenar(texto, {prog, std::to_string(pid)}));
     }
     if (nombre == "system_buscar") {
         if (!p.buscar) return noPermiso("buscar");
         const std::string patron = a.value("patron", std::string());
-        if (patron.empty()) return resultadoTexto(id, "falta el patrón", true);
+        if (patron.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el patrón"), true);
         std::wstring dir = aW(a.value("carpeta", std::string()));
         if (dir.empty()) {
             wchar_t perfil[MAX_PATH];
@@ -1028,12 +1044,12 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "system_ventana") {
         if (!p.ventanas) return noPermiso("ventanas");
         HWND h = buscarVentana(a);
-        if (h == nullptr) return resultadoTexto(id, "no encontré esa ventana", true);
+        if (h == nullptr) return resultadoTexto(id, ba::i18n::traducir("mcp", "no encontré esa ventana"), true);
         const std::string accion = a.value("accion", std::string());
         if (accion == "activar") {
             if (!traerAlFrente(h))
-                return resultadoTexto(id, "Windows no dejó traer esa ventana al frente (probá con system_mouse "
-                                          "un clic sobre ella)", true);
+                return resultadoTexto(id, ba::i18n::traducir("mcp", "Windows no dejó traer esa ventana al frente (probá con system_mouse "
+                                                              "un clic sobre ella)"), true);
         }
         else if (accion == "minimizar") ShowWindow(h, SW_MINIMIZE);
         else if (accion == "maximizar") ShowWindow(h, SW_MAXIMIZE);
@@ -1045,22 +1061,23 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             if (IsZoomed(h) || IsIconic(h)) ShowWindow(h, SW_RESTORE), GetWindowRect(h, &r);
             const int x = a.value("x", static_cast<int>(r.left)), y = a.value("y", static_cast<int>(r.top));
             const int w = a.value("ancho", static_cast<int>(r.right - r.left)), alto = a.value("alto", static_cast<int>(r.bottom - r.top));
-            if (w < 50 || alto < 30) return resultadoTexto(id, "tamaño muy chico", true);
+            if (w < 50 || alto < 30) return resultadoTexto(id, ba::i18n::traducir("mcp", "tamaño muy chico"), true);
             SetWindowPos(h, nullptr, x, y, w, alto, SWP_NOZORDER | SWP_NOACTIVATE);
             GetWindowRect(h, &r);
-            return resultadoTexto(id, "Movida " + donde(h) + ": " + std::to_string(r.left) + "," + std::to_string(r.top) + ", " +
-                                          std::to_string(r.right - r.left) + "x" + std::to_string(r.bottom - r.top) + ".");
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Movida %1: %2,%3, %4x%5."),
+                                                       {donde(h), std::to_string(r.left), std::to_string(r.top),
+                                                        std::to_string(r.right - r.left), std::to_string(r.bottom - r.top)}));
         }
         else if (accion == "fijar_arriba") SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         else if (accion == "soltar_arriba") SetWindowPos(h, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-        else return resultadoTexto(id, "acción desconocida", true);
-        return resultadoTexto(id, "Hecho " + donde(h) + ".");
+        else return resultadoTexto(id, ba::i18n::traducir("mcp", "acción desconocida"), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Hecho %1."), {donde(h)}));
     }
     if (nombre == "system_portapapeles") {
         if (!p.portapapeles) return noPermiso("portapapeles");
         if (a.contains("texto")) {
-            if (!portapapelesEscribir(aW(a.value("texto", std::string())))) return resultadoTexto(id, "no se pudo escribir", true);
-            return resultadoTexto(id, "Copiado al portapapeles.");
+            if (!portapapelesEscribir(aW(a.value("texto", std::string())))) return resultadoTexto(id, ba::i18n::traducir("mcp", "no se pudo escribir"), true);
+            return resultadoTexto(id, ba::i18n::traducir("mcp", "Copiado al portapapeles."));
         }
         return resultadoDatos(id, {{"texto", portapapelesLeer()}});
     }
@@ -1093,14 +1110,14 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "system_proceso_cerrar") {
         if (!p.procesos) return noPermiso("procesos");
         const DWORD pid = static_cast<DWORD>(a.value("pid", 0LL));
-        if (pid <= 4) return resultadoTexto(id, "ese proceso es del sistema: no se cierra", true);
-        if (pid == GetCurrentProcessId()) return resultadoTexto(id, "ese soy yo (ba-control)", true);
+        if (pid <= 4) return resultadoTexto(id, ba::i18n::traducir("mcp", "ese proceso es del sistema: no se cierra"), true);
+        if (pid == GetCurrentProcessId()) return resultadoTexto(id, ba::i18n::traducir("mcp", "ese soy yo (ba-control)"), true);
         return cerrarProceso(id, pid, a.value("forzar", false));
     }
     if (nombre == "system_comando") {
         if (!p.comandos) return noPermiso("comandos");
         const std::string cmd = a.value("comando", std::string());
-        if (cmd.empty()) return resultadoTexto(id, "falta el comando", true);
+        if (cmd.empty()) return resultadoTexto(id, ba::i18n::traducir("mcp", "falta el comando"), true);
         return correrComando(id, cmd, a.value("shell", std::string("sistema")), a.value("carpeta", std::string()),
                              std::clamp(a.value("segundos", 30), 1, 300));
     }
@@ -1114,16 +1131,17 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
         if (t.empty()) {
             Sleep(static_cast<DWORD>(ms));
-            return resultadoTexto(id, "Listo: pasaron " + std::to_string(ms) + " ms.");
+            return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: pasaron %1 ms."), {std::to_string(ms)}));
         }
         if (!p.ventanas) return noPermiso("ventanas");
         do {
-            if (HWND h = buscarVentana(json{{"titulo", t}})) return resultadoTexto(id, "Apareció " + donde(h) + ".");
+            if (HWND h = buscarVentana(json{{"titulo", t}})) return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "Apareció %1."), {donde(h)}));
             Sleep(150);
         } while (std::chrono::steady_clock::now() < fin);
-        return resultadoTexto(id, "No apareció ninguna ventana con «" + t + "» en " + std::to_string(ms) + " ms.", true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "No apareció ninguna ventana con «%1» en %2 ms."),
+                                              {t, std::to_string(ms)}), true);
     }
-    return resultadoTexto(id, "herramienta desconocida: " + nombre, true);
+    return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "herramienta desconocida: %1"), {nombre}), true);
 }
 #elif !defined(__APPLE__) && !defined(__linux__)  // otro sistema (macOS: control_mac.mm; Linux: control_linux.cpp)
 json ejecutarHerramienta(const json& id, const std::string& nombre, const json& a, const Permisos& p) {
@@ -1133,7 +1151,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     return resultadoTexto(id, todaviaNo(nombre), true);
 }
 bool aLaPapelera(const std::string&, std::string& error) {
-    error = "la papelera de Linux todavía no está hecha";
+    error = ba::i18n::traducir("mcp", "la papelera de Linux todavía no está hecha");
     return false;
 }
 json registroSistema(const json& id, const json&, const Permisos&) { return resultadoTexto(id, todaviaNo("system_registro"), true); }
@@ -1144,17 +1162,17 @@ json ventanasDeNavegador() { return json::array(); }
 json llamarHerramienta(const json& id, const std::string& nombre, const json& recibidos) {
     // Sin argumentos algunos clientes mandan null; cualquier otra cosa que no sea un objeto, se dice.
     const json a = recibidos.is_null() ? json::object() : recibidos;
-    if (!a.is_object()) return resultadoTexto(id, "`arguments` tiene que ser un objeto ({\"clave\": valor})", true);
+    if (!a.is_object()) return resultadoTexto(id, ba::i18n::traducir("mcp", "`arguments` tiene que ser un objeto ({\"clave\": valor})"), true);
     const Permisos p = permisos();
     if (!p.habilitado)
         return resultadoTexto(id,
-                              "El control del sistema está deshabilitado (Configuración → Control del sistema, "
-                              "o control_configurar {habilitado: true}).",
+                              ba::i18n::traducir("mcp", "El control del sistema está deshabilitado (Configuración → Control "
+                                                        "del sistema, o control_configurar {habilitado: true})."),
                               true);
     try {
         return ejecutarHerramienta(id, nombre, a, p);
     } catch (const std::exception& e) {
-        return resultadoTexto(id, std::string("error: ") + e.what(), true);
+        return resultadoTexto(id, ba::i18n::llenar(ba::i18n::traducir("mcp", "error: %1"), {e.what()}), true);
     }
 }
 
@@ -1163,6 +1181,11 @@ json llamarHerramienta(const json& id, const std::string& nombre, const json& re
 using namespace bactl;
 
 int main() {
+    // El idioma del operador (el de la máquina): las descripciones y las respuestas las lee el modelo en ese idioma.
+    {
+        const std::string raiz = bactl::dataRoot();
+        ba::i18n::usar(ba::i18n::idiomaDeLaMaquina(raiz.empty() ? ba::platform::dataRoot() : std::filesystem::path(raiz)));
+    }
 #if defined(_WIN32)
     // El protocolo va en bytes: sin la conversión \n → \r\n del modo texto.
     _setmode(_fileno(stdin), _O_BINARY);
@@ -1191,10 +1214,11 @@ int main() {
                         {"capabilities", {{"tools", json::object()}}},
                         {"serverInfo", {{"name", "ba-control"}, {"version", "1.0"}}},
                         {"instructions",
-                         "Control del escritorio de ESTA máquina Windows (mouse, teclado, captura, abrir "
-                         "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del equipo). Mirá "
-                         "system_monitores y system_pantalla antes de mover el mouse por coordenadas, y "
-                         "system_cursor antes de escribir (qué ventana tiene el foco)."}}}});
+                         ba::i18n::traducir("mcp", "Control del escritorio de ESTA máquina Windows (mouse, teclado, captura, abrir "
+                                                   "programas, buscar, ventanas, portapapeles, procesos, comandos, datos del "
+                                                   "equipo). Mirá system_monitores y system_pantalla antes de mover el mouse "
+                                                   "por coordenadas, y system_cursor antes de escribir (qué ventana tiene el "
+                                                   "foco).")}}}});
         } else if (metodo == "tools/list") {
             escribir({{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"tools", catalogo()}}}});
         } else if (metodo == "tools/call") {
@@ -1204,7 +1228,7 @@ int main() {
         } else if (metodo == "ping") {
             escribir({{"jsonrpc", "2.0"}, {"id", id}, {"result", json::object()}});
         } else if (!notificacion) {
-            escribir({{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", -32601}, {"message", "método desconocido"}}}});
+            escribir({{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", -32601}, {"message", ba::i18n::traducir("mcp", "método desconocido")}}}});
         }
     }
 #if defined(_WIN32)

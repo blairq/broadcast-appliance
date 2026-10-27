@@ -3,6 +3,7 @@
 // ============================================================================
 #include "mcp/McpTraza.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "i18n/I18n.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -143,7 +144,9 @@ void Traza::abrir(const std::filesystem::path& dir) {
     d_->escritos = std::filesystem::exists(d_->archivo, ec)
                        ? static_cast<std::size_t>(std::filesystem::file_size(d_->archivo, ec))
                        : 0;
-    if (d_->salida) d_->salida << "\n==== " << ahora() << " | traza MCP abierta ====\n" << std::flush;
+    if (d_->salida)
+        d_->salida << "\n==== " << ahora() << " | " << ba::i18n::traducir("mcp", "traza MCP abierta") << " ====\n"
+                   << std::flush;
 }
 
 bool Traza::abierta() const { return d_ != nullptr && d_->salida.is_open(); }
@@ -174,7 +177,7 @@ std::string Traza::resumir(const json& j, std::size_t tope) {
     try {
         return recortar(podar(j).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), tope);
     } catch (const std::exception& e) {
-        return std::string("(no se pudo resumir: ") + e.what() + ")";
+        return ba::i18n::llenar(ba::i18n::traducir("mcp", "(no se pudo resumir: %1)"), {e.what()});
     }
 }
 
