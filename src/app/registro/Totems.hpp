@@ -42,8 +42,8 @@ enum class TipoCampo { Texto, Nombre, Correo, Telefono, Numero, SiNo, Opcion, Do
 
 const char* nombreDeTipo(TipoCampo t);
 bool tipoDeNombre(const std::string& s, TipoCampo& out);
-/// Para leer en la interfaz («Correo electrónico»).
-const char* etiquetaDeTipo(TipoCampo t);
+/// Para leer en la interfaz («Correo electrónico»), en `idioma` ("" = el del operador).
+std::string etiquetaDeTipo(TipoCampo t, const std::string& idioma = {});
 /// Todos, en el orden en que se ofrecen.
 const std::vector<TipoCampo>& todosLosTipos();
 
@@ -73,8 +73,8 @@ struct Campo {
     static Campo deJson(const nlohmann::json& j);
 };
 
-/// La pregunta de fábrica de un tipo.
-std::string preguntaDeFabrica(TipoCampo t);
+/// La pregunta de fábrica de un tipo, en `idioma` (el del evento; "" = el del operador).
+std::string preguntaDeFabrica(TipoCampo t, const std::string& idioma = {});
 
 struct Totem {
     /// [a-z0-9-]{1,32}: va en la url y en el almacén de secretos.
@@ -121,15 +121,20 @@ bool claveValida(const std::string& clave);
 /// Un id a partir del nombre («Entrada principal» -> "entrada-principal"),
 /// que no choque con `usados`.
 std::string idDesdeNombre(const std::string& nombre, const std::vector<std::string>& usados);
-/// Un tótem nuevo con valores razonables: pide nombre (obligatorio) y correo.
-Totem totemNuevo(const std::string& id, const std::string& nombre);
+/// Un tótem nuevo con valores razonables: pide nombre (obligatorio) y correo. Lo que dice y
+/// muestra al público (saludo, despedida, etiquetas, el ejemplo del correo) en `idioma`, el
+/// del evento ("" = el del operador): se guarda así en registro.json, y el organizador lo
+/// cambia. Totem::deJson completa lo que falta en el idioma del operador.
+Totem totemNuevo(const std::string& id, const std::string& nombre, const std::string& idioma = {});
 /// Revisa que el tótem se pueda usar. "" o qué está mal (en castellano, para
 /// mostrarlo tal cual).
 std::string validar(const Totem& t);
 
 /// Reemplaza {evento}, {nombre} y {hola} en un texto de la configuración y
-/// emprolija lo que queda («Hola , bienvenido» -> «Hola, bienvenido»).
-std::string conDatos(const std::string& texto, const std::string& evento, const std::string& nombre);
+/// emprolija lo que queda («Hola , bienvenido» -> «Hola, bienvenido»). «Hola» y «el evento»
+/// (si no tiene nombre), en `idioma` ("" = el del operador).
+std::string conDatos(const std::string& texto, const std::string& evento, const std::string& nombre,
+                     const std::string& idioma = {});
 
 class Totems {
    public:

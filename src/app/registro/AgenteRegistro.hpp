@@ -94,13 +94,16 @@ class LectorSse {
 };
 
 /// El mensaje de sistema: el prompt del rol con {evento}, {campos} (los del tótem, uno por
-/// línea) y {ficha} (la del tótem, o que no hay) reemplazados.
-std::string sistemaRegistro(const std::string& prompt, const Totem& t, const std::string& evento);
+/// línea) y {ficha} (la del tótem, o que no hay) reemplazados. Lo que se agrega, en `idioma`
+/// (el del evento: el modelo habla con el público; "" = el del operador).
+std::string sistemaRegistro(const std::string& prompt, const Totem& t, const std::string& evento,
+                            const std::string& idioma = {});
 /// Las herramientas: registro_poner {campo (las claves del tótem), valor}, registro_confirmar y
-/// registro_decir {texto} (lo que se le dice a la persona).
-nlohmann::json herramientasRegistro(const Totem& t);
+/// registro_decir {texto} (lo que se le dice a la persona). Las descripciones en `idioma`
+/// (la de registro_poner, con sus ejemplos, en assets/idiomas/<código>/prompts/totem/).
+nlohmann::json herramientasRegistro(const Totem& t, const std::string& idioma = {});
 /// Hace lo que pidió el modelo contra la conversación. Devuelve el resultado para el modelo
-/// ({ok, anotado} o {error}); `rechazo` = no se pudo.
+/// ({ok, anotado} o {error}, en el idioma de la conversación); `rechazo` = no se pudo.
 nlohmann::json ejecutarHerramienta(Conversacion& conv, const LlamadaHerramienta& ll, bool& rechazo);
 
 /// Los turnos de una conversación con el modelo. Cada turno arranca con lo que dijo la persona
@@ -140,11 +143,12 @@ class AgenteRegistro {
 
    private:
     nlohmann::json cuerpo(const nlohmann::json& mensajes) const;
-    static void conHerramientas(nlohmann::json& cuerpo, const Totem& t);
+    static void conHerramientas(nlohmann::json& cuerpo, const Totem& t, const std::string& idioma);
 
     std::string prompt_;
     std::string modelo_;
     std::string sistema_; ///< armado en el primer turno (el tótem no cambia en una conversación)
+    std::string idioma_;  ///< el de la conversación (el del evento), desde el primer turno
     std::vector<nlohmann::json> historia_; ///< por intercambio, sus mensajes (persona, herramientas, respuesta)
     nlohmann::json mensajes_ = nlohmann::json::array(); ///< los del turno en curso
     nlohmann::json herramientas_ = nlohmann::json::array(); ///< llamadas y resultados del turno en curso
