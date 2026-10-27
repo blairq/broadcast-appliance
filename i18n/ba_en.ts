@@ -49211,6 +49211,94 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
     </message>
 </context>
 <context>
+    <name>modos</name>
+    <message>
+        <location filename="../src/motor/ModosVideo.cpp" line="+92"/>
+        <source> · %1 cps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source> · crudo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source> · crudo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> (lo convierte el sistema en la CPU: la cámara lo manda comprimido)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source> (no hay decodificador)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> (decodifica la GPU: %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source> (decodifica la CPU: %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+143"/>
+        <source>ningún modo que se pueda usar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>para %1×%2 a %3 cps: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>el más grande que hay (ninguno llega al tamaño pedido)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>el más chico que cubre el tamaño</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>; ningún modo de ese tamaño da los cps pedidos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>; con otra proporción (se recorta o se ajusta en la escena)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>; crudo, pero lo convierte el sistema</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>; crudo (sin decodificar)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>; %1 decodificado en la GPU (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>; %1 decodificado en la CPU (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>modovivo</name>
     <message>
         <location filename="../src/app/arranque/ModoVivoConfig.cpp" line="+32"/>

@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ModosVideo.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -14,6 +16,8 @@
 namespace ba::motor {
 
 using json = nlohmann::json;
+using ba::i18n::llenar;
+using ba::i18n::traducir;
 
 namespace {
 
@@ -85,15 +89,17 @@ std::string ModoVideo::valor() const {
 
 std::string ModoVideo::etiqueta() const {
     std::string e = std::to_string(ancho) + "×" + std::to_string(alto);
-    if (fps > 0) e += " · " + numero(fps) + " cps";
+    if (fps > 0) e += llenar(traducir("modos", " · %1 cps"), {numero(fps)});
     if (formato == "crudo") {
-        e += " · crudo" + (pixel.empty() ? std::string() : " " + pixel);
-        if (convertido) e += " (lo convierte el sistema en la CPU: la cámara lo manda comprimido)";
+        e += pixel.empty() ? traducir("modos", " · crudo") : llenar(traducir("modos", " · crudo %1"), {pixel});
+        if (convertido) e += traducir("modos", " (lo convierte el sistema en la CPU: la cámara lo manda comprimido)");
     } else {
         std::string f = formato == "mjpeg" ? "MJPEG" : formato == "h264" ? "H.264" : "H.265";
         e += " · " + f;
-        e += decodificador.empty() ? " (no hay decodificador)"
-                                   : std::string(" (decodifica ") + (gpu ? "la GPU" : "la CPU") + ": " + decodificador + ")";
+        e += decodificador.empty() ? traducir("modos", " (no hay decodificador)")
+                                   : llenar(gpu ? traducir("modos", " (decodifica la GPU: %1)")
+                                                : traducir("modos", " (decodifica la CPU: %1)"),
+                                            {decodificador});
     }
     return e;
 }
@@ -235,21 +241,25 @@ ModoVideo elegirModo(const std::vector<ModoVideo>& modos, const PedidoVideo& p, 
         if (mejor == nullptr || clave(m) < clave(*mejor)) mejor = &m;
     }
     if (mejor == nullptr) {
-        if (porque != nullptr) *porque = "ningún modo que se pueda usar";
+        if (porque != nullptr) *porque = traducir("modos", "ningún modo que se pueda usar");
         return {};
     }
     ModoVideo r = *mejor;
     r.fps = cpsPara(r, p.fps);
     if (porque != nullptr) {
         const auto [noCps, noProp, noCubre, area, c] = clave(r);
-        std::string t = p.ancho > 0 ? "para " + std::to_string(p.ancho) + "×" + std::to_string(p.alto) + " a " + numero(p.fps) + " cps: "
+        std::string t = p.ancho > 0 ? llenar(traducir("modos", "para %1×%2 a %3 cps: "),
+                                             {std::to_string(p.ancho), std::to_string(p.alto), numero(p.fps)})
                                     : "";
-        t += noCubre ? "el más grande que hay (ninguno llega al tamaño pedido)" : "el más chico que cubre el tamaño";
-        if (noCps) t += "; ningún modo de ese tamaño da los cps pedidos";
-        if (noProp) t += "; con otra proporción (se recorta o se ajusta en la escena)";
-        t += r.formato == "crudo" ? (r.convertido ? "; crudo, pero lo convierte el sistema" : "; crudo (sin decodificar)")
-                                  : "; " + r.formato + (r.gpu ? " decodificado en la GPU" : " decodificado en la CPU") + " (" +
-                                        r.decodificador + ")";
+        t += noCubre ? traducir("modos", "el más grande que hay (ninguno llega al tamaño pedido)")
+                     : traducir("modos", "el más chico que cubre el tamaño");
+        if (noCps) t += traducir("modos", "; ningún modo de ese tamaño da los cps pedidos");
+        if (noProp) t += traducir("modos", "; con otra proporción (se recorta o se ajusta en la escena)");
+        t += r.formato == "crudo" ? (r.convertido ? traducir("modos", "; crudo, pero lo convierte el sistema")
+                                                  : traducir("modos", "; crudo (sin decodificar)"))
+                                  : llenar(r.gpu ? traducir("modos", "; %1 decodificado en la GPU (%2)")
+                                                 : traducir("modos", "; %1 decodificado en la CPU (%2)"),
+                                           {r.formato, r.decodificador});
         *porque = t;
     }
     return r;
