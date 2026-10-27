@@ -289,8 +289,10 @@ class TotemsViewModel : public QObject {
     /// El servidor y el prompt del rol «registro». false y `falta` si no hay.
     bool fuenteAgente(agent::FuenteMirada& f, std::string& prompt, std::string& falta) const;
     /// Uno nuevo para la conversación de `c` (o ninguno: el guion solo).
-    void crearAgente(Conexion& c);
+    void crearAgente(Conexion& c, bool avisar = true);
     /// Lo oído, al modelo. false = lo contesta el guion (como sin modelo).
+    /// Lo juntado del turno va al modelo (o al guion).
+    void cerrarTurno(Conexion& c);
     bool alOidoAgente(Conexion& c, const std::string& texto);
     /// Solo la voz (sin la pantalla): de a una frase, mientras el modelo sigue escribiendo.
     void hablar(Conexion& c, const std::string& texto);

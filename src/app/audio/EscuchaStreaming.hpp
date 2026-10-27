@@ -134,6 +134,8 @@ class EscuchaStreaming : public Reconocedor {
     void decodificarListos(const std::vector<int>& streams);
     /// Termina la frase de una corriente con el texto que tenga su stream.
     void emitir(const std::string& clave, Corriente& c, const Frase& frase);
+    /// Lo del texto del stream que todavía no salió como frase.
+    static std::string nuevoDe(const Corriente& c, const std::string& texto);
 
     std::unique_ptr<Modelo> modelo_; ///< solo el hilo del motor
     FabricaDetector fabricaDetector_; ///< solo el hilo del motor

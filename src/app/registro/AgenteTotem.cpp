@@ -6,6 +6,7 @@
 #include <QPointer>
 
 #include "ajustes/Ajustes.hpp"
+#include "diag/Registro.hpp"
 
 namespace ba::registro {
 
@@ -104,6 +105,10 @@ void AgenteTotem::alTerminarVuelta(const TurnoModelo& t, const std::string& erro
         return;
     }
     if (const std::string resto = paraHablar(frases_.terminar()); !resto.empty() && alFrase) alFrase(resto);
+    // En depuración (son datos de la persona): qué anotó el modelo en cada vuelta.
+    for (const LlamadaHerramienta& ll : t.llamadas)
+        ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
+                                   "modelo: " + ll.nombre + " " + ll.argumentos);
     const AgenteRegistro::Vuelta v = agente_.alTerminarVuelta(conv_, t);
     dijoAlgo_ = v.dijoAlgo;
     rechazos_ = v.rechazos;

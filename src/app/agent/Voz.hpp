@@ -209,6 +209,9 @@ class Voz : public QObject {
     /// interrumpan) o le van ceros? La lee el hilo de audio; Voz la actualiza si
     /// cambia el motor o la opción.
     std::shared_ptr<std::atomic<bool>> oyeMientrasHabla(const QString& clave);
+    /// La persona está hablando ahora en el oído de `clave`: el VAD la oye, o el motor tiene
+    /// texto a medias. Para saber si una frase cerrada en una pausa es el fin del turno.
+    bool oyendoVoz(const QString& clave) const;
     QVariantMap reconocedores() const { return reconocedoresEstado_; }
     /// El motor de un consumidor ("parakeet" o "nemotron"): lo cambia, lo guarda
     /// y pasa sus oídos abiertos al motor nuevo. "" o el error.

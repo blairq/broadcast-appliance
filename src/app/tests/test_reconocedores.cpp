@@ -146,15 +146,16 @@ constexpr std::size_t kBloque = 8960; // 560 ms a 16 kHz, como Nemotron
 class ModeloFalso : public EscuchaStreaming::Modelo {
    public:
     struct Stream {
-        std::size_t recibido = 0, decodificado = 0, turno = 0;
+        std::size_t recibido = 0, decodificado = 0, palabras = 0; ///< una «palabra» por bloque decodificado
         bool fin = false;
     };
     std::map<int, Stream> streams;
     std::vector<int> lotes; ///< tamaño de cada llamada a decodificar
     std::size_t aceptadas = 0;
-    std::size_t turnoMax = 0; ///< > 0: fin de turno al decodificar tanto en un turno
+    std::size_t turnoMax = 0; ///< > 0: fin de turno cada tanto decodificado (sigue hasta otra palabra)
     int ultimo = 0;
     int soltados = 0;
+    int reinicios = 0;
 
     int nuevoStream() override {
         streams[++ultimo] = {};
@@ -180,15 +181,24 @@ class ModeloFalso : public EscuchaStreaming::Modelo {
             Stream& x = streams[s];
             const std::size_t n = std::min(kBloque, x.recibido - x.decodificado);
             x.decodificado += n;
-            x.turno += n;
+            ++x.palabras;
         }
     }
+    /// Como el transducer: el texto del stream solo crece («p1 p2 p3…»), hasta un reinicio.
     std::string texto(int s) override {
-        const Stream& x = streams[s];
-        return x.turno == 0 ? std::string() : " voz " + std::to_string(x.turno);
+        std::string t;
+        for (std::size_t i = 1; i <= streams[s].palabras; ++i) t += " p" + std::to_string(i);
+        return t;
     }
-    bool finDeTurno(int s) override { return turnoMax > 0 && streams[s].turno >= turnoMax; }
-    void reiniciar(int s) override { streams[s].turno = 0; }
+    /// Como sherpa-onnx: una vez en fin de turno, sigue ahí hasta la palabra siguiente.
+    bool finDeTurno(int s) override {
+        const std::size_t cada = turnoMax / kBloque;
+        return cada > 0 && streams[s].palabras > 0 && streams[s].palabras % cada == 0;
+    }
+    void reiniciar(int s) override {
+        streams[s].palabras = 0;
+        ++reinicios;
+    }
 };
 
 /// Voz = una ventana con energía.
@@ -281,7 +291,7 @@ void probarStreaming() {
         frases.cv.wait_for(l, std::chrono::seconds(5), [&] { return frases.total() >= 3; });
         CHECK(frases.por.size() == 3, "una frase por cada corriente");
         for (const auto& k : claves)
-            CHECK(frases.por[k].size() == 1 && frases.por[k][0].rfind("voz ", 0) == 0,
+            CHECK(frases.por[k].size() == 1 && frases.por[k][0].rfind("p1", 0) == 0,
                   ("la frase de " + k + " (sin el espacio del principio)").c_str());
         CHECK(frases.empezaron.size() == 3, "avisa cuando cada una empieza a hablar");
     }
@@ -311,6 +321,20 @@ void probarStreaming() {
         std::unique_lock<std::mutex> l(frases.m);
         frases.cv.wait_for(l, std::chrono::seconds(5), [&] { return frases.por["registro:a"].size() >= 2; });
         CHECK(frases.por["registro:a"].size() >= 2, "el fin de turno del modelo corta una voz larga");
+    }
+    e.esperarVuelta();
+    {
+        // Sin reiniciar el stream (reiniciado, el de verdad se come las palabras siguientes):
+        // cada frase trae lo nuevo, y juntas son todo lo dicho, sin huecos ni repetidos.
+        std::lock_guard<std::mutex> l(frases.m);
+        std::string juntas;
+        for (const std::string& f : frases.por["registro:a"]) juntas += (juntas.empty() ? "" : " ") + f;
+        std::string esperado;
+        for (std::size_t i = 1; i <= std::count(juntas.begin(), juntas.end(), 'p'); ++i)
+            esperado += (esperado.empty() ? "p" : " p") + std::to_string(i);
+        std::printf("   frases: «%s»\n", juntas.c_str());
+        CHECK(modelo->reinicios == 0, "el fin de turno no reinicia el stream");
+        CHECK(juntas == esperado && frases.por["registro:a"].front() == "p1 p2 p3", "las frases son lo nuevo de cada turno");
     }
     modelo->turnoMax = 0;
 

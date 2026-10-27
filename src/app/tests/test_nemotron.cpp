@@ -8,7 +8,9 @@
 // Lo que prueba: que esta sherpa-onnx carga el modelo y le entiende el idioma
 // por stream, que DOS corrientes a la vez (el mismo wav, 48 kHz, de a 10 ms y
 // con silencio antes y después, como llega del lobby) salen con texto y se
-// decodificaron en lote, y la toma suelta (el dictado). Imprime el texto y los
+// decodificaron en lote, y la toma suelta (el dictado). BA_NEMOTRON_PAUSA cambia el fin
+// de turno y BA_NEMOTRON_CORTES="pausa,maximo" los cortes del VAD (para ver cómo se parte
+// una frase larga con pausas: juntas, las frases tienen que decir lo mismo que la toma). Imprime el texto y los
 // tiempos para mirar la calidad a ojo.
 
 #include "audio/EscuchaNemotron.hpp"
@@ -112,6 +114,8 @@ int main() {
     mn.joiner = d + "/joiner.int8.onnx";
     mn.tokens = d + "/tokens.txt";
     mn.vad = vad;
+    // BA_NEMOTRON_PAUSA: el fin de turno del modelo en segundos (la app usa la pausa de los cortes + 0,3).
+    if (const char* pausa = std::getenv("BA_NEMOTRON_PAUSA")) mn.pausaTurno = std::atof(pausa);
     const auto t0 = std::chrono::steady_clock::now();
     ba::app::audio::cargarNemotron(e, mn, [&](const std::string& err) {
         std::lock_guard<std::mutex> l(m);
@@ -134,6 +138,11 @@ int main() {
     const int voces = std::max(2, vocesEnv != nullptr ? std::atoi(vocesEnv) : 2);
     std::vector<std::string> claves;
     for (int k = 0; k < voces; ++k) claves.push_back(k == 0 ? "registro:a" : k == 1 ? "registro:b" : "registro:" + std::to_string(k));
+    // BA_NEMOTRON_CORTES="pausa,maximo": los cortes del VAD (los de Configuración → Audio y voz).
+    if (const char* cortes = std::getenv("BA_NEMOTRON_CORTES")) {
+        Reconocedor::Cortes c;
+        if (std::sscanf(cortes, "%lf,%lf", &c.pausa, &c.maximo) == 2) e.setCortes(c);
+    }
     for (const auto& k : claves) e.abrirContinuo(k);
     const auto t1 = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < senal.size(); i += 480) {

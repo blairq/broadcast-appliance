@@ -57,6 +57,11 @@ namespace {
 // cortos para que no parezca colgado, largos para no apurar a nadie.
 constexpr qint64 kSilencioMs = 12000;      ///< sin decir nada: «¿seguís ahí?»
 constexpr qint64 kMargenVozMs = 350;       ///< después de hablar, antes de volver a escuchar
+/// Fin del turno: tanto sin voz después de la última frase. El reconocedor cierra cada frase en
+/// una pausa corta (la de los subtítulos); quien dicta un correo hace pausas más largas, y una
+/// respuesta larga no se contesta por pedazos.
+constexpr qint64 kFinTurnoMs = 700;
+constexpr qint64 kTurnoTopeMs = 8000; ///< con el VAD oyendo «voz» sin parar (ruido): se manda igual
 constexpr qint64 kEntreFotosMs = 600;      ///< a lo sumo una foto al reconocimiento por conexión
 constexpr qint64 kEntreFotosFrenteMs = 250; ///< en el paso de la foto, más seguido: se busca el momento
 constexpr qint64 kFotoMs = 7000;           ///< cuánto se espera una toma de frente antes de pedirla de nuevo
@@ -157,6 +162,11 @@ struct TotemsViewModel::Conexion {
     /// Mientras habla el asistente: al oído le llegan ceros. Lo lee el hilo de
     /// GStreamer, por eso atómico y compartido (sobrevive a la conexión).
     std::shared_ptr<std::atomic<bool>> callado = std::make_shared<std::atomic<bool>>(false);
+    /// El oído sigue oyendo mientras habla el asistente (Nemotron y «puede interrumpir»).
+    std::shared_ptr<std::atomic<bool>> oye;
+    /// Lo oído en este turno que todavía no se mandó: las frases se juntan hasta el fin del turno.
+    QString turno;
+    qint64 turnoMs = 0; ///< cuándo llegó la última frase del turno
     bool hablando = false;
     bool sintetizando = false;
     qint64 finHablaMs = 0;
@@ -802,7 +812,8 @@ void TotemsViewModel::abrirOido(Conexion& c) {
     const auto callado = c.callado;
     // Con Nemotron y «interrumpir», el oído sigue oyendo mientras habla el asistente: la
     // página pide el micrófono con cancelación de eco y su voz baja por el mismo WebRTC.
-    const auto oye = voz_->oyeMientrasHabla(clave);
+    c.oye = voz_->oyeMientrasHabla(clave);
+    const auto oye = c.oye;
     c.toma = rt_.operatorFeed().escucharRegistro(k, [voz, cl, callado, oye](const float* d, std::size_t n) {
         thread_local std::vector<float> mono;
         mono.resize(n);
@@ -950,11 +961,19 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
     auto it = conns_.find(conn);
     if (it == conns_.end()) return;
     Conexion& c = *it->second;
-    // Lo que el oído cerró justo cuando el asistente empezaba a hablar (o el eco
+    if (t.trimmed().isEmpty()) return;
+    // Si el oído sigue mientras habla el asistente (la página cancela el eco), una frase que
+    // termina con la voz sonando es la persona que siguió hablando: la frase anterior se
+    // cerró en una pausa, pero la voz nunca paró y el VAD no avisó que «empieza» otra.
+    // Interrumpe como si hubiera empezado ahora.
+    if (c.hablando && c.oye && c.oye->load(std::memory_order_relaxed)) interrumpido(conn);
+    // Sin eso, lo que el oído cerró justo cuando el asistente empezaba a hablar (o el eco
     // de su propia voz) no cuenta.
-    if (c.hablando || t.trimmed().isEmpty()) return;
+    if (c.hablando) return;
     c.oidoTexto = t.trimmed();
     c.ultimaVozMs = ahoraMs();
+    ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
+                               "tótem (" + conn.toStdString() + "): oyó «" + c.oidoTexto.toStdString() + "»");
     enviar(conn, {{"type", "oido"}, {"texto", c.oidoTexto.toStdString()}});
     // Atendida: lo oído se muestra (a quien atiende también), pero le contesta una persona.
     if (c.conv != nullptr && c.conv->atendida()) {
@@ -962,14 +981,33 @@ void TotemsViewModel::alOido(const QString& conn, const QString& t) {
         return;
     }
     if (c.conv != nullptr && c.conv->enCurso()) {
-        if (!c.buscandoFoto) enviar(conn, {{"type", "estado"}, {"estado", "pensando"}});
-        if (alOidoAgente(c, c.oidoTexto.toStdString())) { // lo entiende el modelo (y el guion retoma)
-            emit vivoCambio();
-            return;
-        }
-        const auto r = c.conv->oido(c.oidoTexto.toStdString());
-        aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
+        // Se junta con lo anterior del turno; sale cuando la persona termina (tic). Un «sí» o un
+        // «no» corto a una confirmación, al instante: ahí no viene nada más.
+        c.turno = c.turno.isEmpty() ? c.oidoTexto : c.turno + " " + c.oidoTexto;
+        c.turnoMs = c.ultimaVozMs;
+        if (c.turno != c.oidoTexto) enviar(conn, {{"type", "oido"}, {"texto", c.turno.toStdString()}});
+        const std::string dicho = c.turno.toStdString();
+        if (c.conv->pedido().value("confirmando", false) && registro::entenderSiNo(dicho) != -1 &&
+            c.turno.split(' ', Qt::SkipEmptyParts).size() <= 3)
+            cerrarTurno(c);
     }
+    emit vivoCambio();
+}
+
+void TotemsViewModel::cerrarTurno(Conexion& c) {
+    const std::string dicho = c.turno.toStdString();
+    c.turno.clear();
+    c.turnoMs = 0;
+    if (dicho.empty() || c.conv == nullptr || !c.conv->enCurso() || c.conv->atendida()) return;
+    ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "registro", 0,
+                               "tótem (" + c.conn.toStdString() + "): turno «" + dicho + "»");
+    if (!c.buscandoFoto) enviar(c.conn, {{"type", "estado"}, {"estado", "pensando"}});
+    if (alOidoAgente(c, dicho)) { // lo entiende el modelo (y el guion retoma)
+        emit vivoCambio();
+        return;
+    }
+    const auto r = c.conv->oido(dicho);
+    aplicar(c, r.decir, r.campos, r.pedir, r.guardar, r.terminar, r.foto);
     emit vivoCambio();
 }
 
@@ -1157,6 +1195,13 @@ void TotemsViewModel::tic() {
         mirarDocumento(c);
         // Atendida por una persona: ni silencios, ni foto, ni arranque solo (el guion está en pausa).
         if (c.conv != nullptr && c.conv->atendida()) continue;
+        // Lo oído espera el fin del turno: un rato sin frases nuevas y sin voz sonando.
+        if (!c.turno.isEmpty() && !c.hablando) {
+            const qint64 paso = ahora - c.turnoMs;
+            if ((paso >= kFinTurnoMs && (voz_ == nullptr || !voz_->oyendoVoz("registro:" + c.conn))) || paso >= kTurnoTopeMs)
+                cerrarTurno(c);
+            continue;
+        }
         // Terminó de hablar: lo sintetizado ya salió por el canal.
         if (c.hablando) {
             const VozAlLobby* v = c.canal > 0 && c.canal < static_cast<int>(voces_.size())
@@ -1900,7 +1945,7 @@ bool TotemsViewModel::fuenteAgente(agent::FuenteMirada& f, std::string& prompt, 
     return true;
 }
 
-void TotemsViewModel::crearAgente(Conexion& c) {
+void TotemsViewModel::crearAgente(Conexion& c, bool avisar) {
     c.agente.reset();
     c.textoModelo.clear();
     c.diceAntes.clear();
@@ -1909,9 +1954,10 @@ void TotemsViewModel::crearAgente(Conexion& c) {
     agent::FuenteMirada f;
     std::string prompt, falta;
     if (!fuenteAgente(f, prompt, falta)) {
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
-                                   "tótem «" + c.totem.toStdString() + "» (" + c.conn.toStdString() +
-                                       "): guion solo (" + falta + ")");
+        if (avisar)
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "registro", 0,
+                                       "tótem «" + c.totem.toStdString() + "» (" + c.conn.toStdString() +
+                                           "): por ahora el guion solo (" + falta + ")");
         return;
     }
     auto a = std::make_unique<registro::AgenteTotem>(f, prompt, *c.conv, registro::AgenteTotem::tiemposDeAjustes());
@@ -1958,6 +2004,11 @@ void TotemsViewModel::crearAgente(Conexion& c) {
 }
 
 bool TotemsViewModel::alOidoAgente(Conexion& c, const std::string& texto) {
+    // El modelo puede no estar listo cuando la conversación empieza (el servidor local
+    // carga en unos segundos): se vuelve a intentar en cada turno, y apenas está, entiende
+    // él. Antes se decidía una vez y la conversación entera quedaba con el guion solo.
+    // (Un agente que ya se cayó por no contestar sigue existiendo: no se rehace acá.)
+    if (c.agente == nullptr && c.conv != nullptr && c.conv->totem().conModelo) crearAgente(c, false);
     return c.agente != nullptr && c.agente->oido(texto);
 }
 

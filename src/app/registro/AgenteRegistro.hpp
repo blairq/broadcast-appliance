@@ -125,7 +125,9 @@ class AgenteRegistro {
     Vuelta alTerminarVuelta(Conversacion& conv, const TurnoModelo& t);
 
     /// Lo que se habló en el turno (lo que dijo la persona y lo que se le contestó, del
-    /// modelo y del guion): va como historia corta en los turnos siguientes.
+    /// modelo y del guion): va como historia corta en los turnos siguientes, CON las
+    /// herramientas que llamó el modelo y sus resultados. Sin ellas el modelo ve una charla en
+    /// la que «el asistente» solo habla y nunca anota, y desde el segundo turno lo imita.
     void anotarIntercambio(const std::string& persona, const std::string& asistente);
 
     const std::string& modelo() const { return modelo_; }
@@ -136,8 +138,9 @@ class AgenteRegistro {
     std::string prompt_;
     std::string modelo_;
     std::string sistema_; ///< armado en el primer turno (el tótem no cambia en una conversación)
-    std::vector<std::pair<std::string, std::string>> historia_;
+    std::vector<nlohmann::json> historia_; ///< por intercambio, sus mensajes (persona, herramientas, respuesta)
     nlohmann::json mensajes_ = nlohmann::json::array(); ///< los del turno en curso
+    nlohmann::json herramientas_ = nlohmann::json::array(); ///< llamadas y resultados del turno en curso
     int vueltas_ = 0;
     bool dijoAlgo_ = false;
     bool rechazos_ = false;

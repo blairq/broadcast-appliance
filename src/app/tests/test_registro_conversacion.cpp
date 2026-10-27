@@ -69,6 +69,9 @@ void normalizadores() {
     CHECK(correo("maria guion lopez arroba empresa punto com punto ar gracias") == "maria-lopez@empresa.com.ar",
           "guion y «gracias» al final");
     CHECK(correo("el mail es pepe arroba fibertel") == "pepe@fibertel.com", "fibertel");
+    CHECK(correo("Jorge Porte arroba gmail com") == "jorgeporte@gmail.com", "«gmail com» sin el punto");
+    CHECK(correo("ana arroba empresa com ar") == "ana@empresa.com.ar", "terminaciones sueltas: con punto");
+    CHECK(correo("ana arroba com") == "<no>", "una terminación sola no es un dominio");
     CHECK(correo("j o r g e arroba gmail punto com") == "jorge@gmail.com", "deletreado letra por letra");
     CHECK(correo("jorge ortega gmail punto com") == "<no>", "sin arroba no es un correo");
     CHECK(correo("arroba gmail punto com") == "<no>", "sin nada antes de la arroba");

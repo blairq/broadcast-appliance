@@ -6,6 +6,7 @@
 // ============================================================================
 #include "audio/EscuchaStreaming.hpp"
 #include "agent/Vocabulario.hpp"
+#include "diag/Registro.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -89,8 +90,15 @@ struct EscuchaStreaming::Corriente {
     int stream = -1;           ///< -1: no hay frase en curso
     bool cerrando = false;     ///< se le cerró la entrada: falta decodificar lo último
     bool partir = false;       ///< larguísima sin pausas: el turno se reinicia sin cortar el audio
+    bool cortarEnPausa = false; ///< pasó el largo máximo e hizo una pausa: sale lo dicho, el stream sigue
     std::size_t cola = 0;      ///< muestras del margen de después que quedan por pasar
     std::size_t enFrase = 0;   ///< muestras pasadas al modelo en esta frase
+    std::size_t enStream = 0;  ///< muestras pasadas al stream desde que se creó o se reinició
+    /// El texto del stream que ya salió como frase. En un fin de turno el stream NO se reinicia
+    /// (reiniciado, el encoder arranca en frío y se come las palabras del medio segundo
+    /// siguiente: «Hola, soy Jorge [Ortega], mi correo…»): sale solo lo nuevo.
+    std::string emitido;
+    bool enFin = false; ///< el stream ya estaba en fin de turno (sale una frase cuando empieza, no mientras dura)
     bool oia = false;          ///< el VAD oía voz en la ventana anterior
     std::string parcial;
 };
@@ -269,9 +277,19 @@ void EscuchaStreaming::decodificarListos(const std::vector<int>& streams) {
     }
 }
 
+std::string EscuchaStreaming::nuevoDe(const Corriente& c, const std::string& texto) {
+    // El transducer solo agrega: lo ya emitido es el principio. Si no (no debería), todo.
+    return texto.compare(0, c.emitido.size(), c.emitido) == 0 ? texto.substr(c.emitido.size()) : texto;
+}
+
 void EscuchaStreaming::emitir(const std::string& clave, Corriente& c, const Frase& frase) {
     Resultado r;
-    r.texto = corregido(modelo_->texto(c.stream));
+    const std::string todo = modelo_->texto(c.stream);
+    // La continuación de una frase cortada en una pausa puede empezar con su signo («, y mi…»).
+    std::string nuevo = nuevoDe(c, todo);
+    nuevo.erase(0, std::min(nuevo.size(), nuevo.find_first_not_of(" ,.;:")));
+    r.texto = corregido(nuevo);
+    c.emitido = todo;
     r.segundosDeAudio = static_cast<double>(c.enFrase) / kFrecuencia;
     c.parcial.clear();
     c.enFrase = 0;
@@ -312,10 +330,11 @@ void EscuchaStreaming::atenderCorrientes() {
 
     const auto nAntes = static_cast<std::size_t>(margenes.antes * kFrecuencia);
     const auto nDespues = static_cast<std::size_t>(std::max(margenes.despues, cortes.pausa) * kFrecuencia);
-    // Pasado el máximo, la frase se cierra en la primera pausa (la del VAD, que
-    // ya es la pausa de los cortes), no en seco a mitad de palabra: cortada así,
-    // el modelo pierde las palabras de los dos lados del corte (se vio con
-    // Nemotron: «y [vengo por] la sesión»). Y si no hay pausa, al tope se
+    // Pasado el máximo, la frase sale en la primera pausa (la del VAD, que ya es
+    // la pausa de los cortes), no en seco a mitad de palabra, y sin cerrar el
+    // stream: cortado o reiniciado, el modelo pierde las palabras de los dos
+    // lados del corte (se vio con Nemotron: «y [vengo por] la sesión», «Hola,
+    // soy Jorge O[rtega, mi correo es]…»). Y si no hay pausa, al tope se
     // reinicia el turno sin cortar el audio.
     const auto nLargo = static_cast<std::size_t>(cortes.maximo * kFrecuencia);
     const auto nTope = static_cast<std::size_t>((cortes.maximo * 2 + 4) * kFrecuencia);
@@ -357,23 +376,36 @@ void EscuchaStreaming::atenderCorrientes() {
                 }
                 // Empieza una frase: el stream nuevo recibe el margen de antes y la ventana.
                 c.stream = modelo_->nuevoStream();
+                ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "escucha", 0,
+                                           clave + ": voz, frase nueva (" + std::to_string(c.antes.size() * 1000 / kFrecuencia) + " ms antes)");
                 const std::vector<float> previo(c.antes.begin(), c.antes.end());
                 c.antes.clear();
                 if (!previo.empty()) modelo_->aceptar(c.stream, previo.data(), previo.size());
                 c.enFrase = previo.size();
+                c.enStream = previo.size();
+                c.emitido.clear();
+                c.enFin = false;
                 alModelo += static_cast<double>(previo.size()) / kFrecuencia;
             }
             modelo_->aceptar(c.stream, v, w);
             c.enFrase += w;
+            c.enStream += w;
             alModelo += static_cast<double>(w) / kFrecuencia;
             if (hayVoz)
                 c.cola = nDespues;
             else
-                c.cola = c.enFrase >= nLargo ? 0 : (c.cola > w ? c.cola - w : 0);
+                c.cola = c.cola > w ? c.cola - w : 0;
+            if (!hayVoz && c.cola > 0 && c.enFrase >= nLargo) {
+                // Larga y con una pausa: sale lo dicho hasta acá, pero el stream NO se cierra
+                // (uno nuevo arranca en frío y se come lo que la persona sigue diciendo).
+                c.cortarEnPausa = true;
+            }
             if (c.cola == 0) {
                 // Se acabó el margen de después sin voz (o, larga, hizo una pausa): se cierra.
                 modelo_->terminarEntrada(c.stream);
                 c.cerrando = true;
+                ba::diag::registro().linea(ba::diag::Nivel::Depuracion, "escucha", 0,
+                                           clave + ": sin voz, se cierra la frase (" + std::to_string(c.enFrase * 1000 / kFrecuencia) + " ms)");
             } else if (c.enFrase >= nTope) {
                 c.partir = true;
             }
@@ -397,15 +429,31 @@ void EscuchaStreaming::atenderCorrientes() {
             c.stream = -1;
             c.cerrando = false;
             c.cola = 0;
+            c.emitido.clear();
+            c.cortarEnPausa = false;
             continue;
         }
-        if (c.partir || modelo_->finDeTurno(c.stream)) {
+        // Fin de turno: sale lo dicho desde la frase anterior y el stream sigue. Se reinicia
+        // solo si ya es muy largo (antes de la regla del largo máximo del modelo, que si no
+        // daría fin de turno a cada palabra), y entonces en una pausa.
+        const bool fin = modelo_->finDeTurno(c.stream);
+        const bool empiezaFin = fin && !c.enFin;
+        c.enFin = fin;
+        if (c.partir || (empiezaFin && c.enStream >= nTope)) {
             emitir(clave, c, frase);
             modelo_->reiniciar(c.stream);
             c.partir = false;
+            c.enStream = 0;
+            c.emitido.clear();
+            c.enFin = false;
             continue;
         }
-        c.parcial = sinEspaciosAlPrincipio(modelo_->texto(c.stream));
+        if (empiezaFin || c.cortarEnPausa) {
+            emitir(clave, c, frase);
+            c.cortarEnPausa = false;
+            continue;
+        }
+        c.parcial = sinEspaciosAlPrincipio(nuevoDe(c, modelo_->texto(c.stream)));
     }
 
     std::lock_guard<std::mutex> l(contLock_);

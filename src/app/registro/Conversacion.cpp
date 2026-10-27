@@ -307,6 +307,13 @@ bool entenderCorreo(const std::string& dicho, std::string& out) {
     static const std::vector<std::string> kDespues{"gracias", "nada", "mas", "eso", "es", "todo", "listo"};
     while (!w.empty() && std::find(kAntes.begin(), kAntes.end(), w.front()) != kAntes.end()) w.erase(w.begin());
     while (!w.empty() && std::find(kDespues.begin(), kDespues.end(), w.back()) != kDespues.end()) w.pop_back();
+    // «gmail com», «yahoo com ar»: el punto no se dijo (o la voz a texto lo perdió). Un
+    // dominio no tiene espacios, así que las terminaciones conocidas sueltas van con punto.
+    if (const auto at = std::find(w.begin(), w.end(), "@"); at != w.end() && std::find(at, w.end(), ".") == w.end()) {
+        static const std::vector<std::string> kTerminaciones{"com", "ar", "net", "org", "edu", "gob", "gov", "uy", "cl", "es"};
+        for (auto it = w.end() - 1; it > at + 1 && std::find(kTerminaciones.begin(), kTerminaciones.end(), *it) != kTerminaciones.end(); --it)
+            *it = "." + *it;
+    }
     std::string c = unir(w, 0, std::string::npos, "");
     const auto arroba = c.find('@');
     if (arroba == std::string::npos || arroba == 0 || c.find('@', arroba + 1) != std::string::npos) return false;
@@ -1471,7 +1478,10 @@ std::string Conversacion::fraseConfirmarVarios() const {
     if (v.empty()) return {};
     // Uno solo, con la misma frase del guion («Anoté jorge punto…»).
     if (v.size() == 1) return "Anoté " + paraDecir(t_.campos[solo], valores_[solo]) + ". " + kConfirmar;
-    return "Anoté " + enumerar(v) + ". " + kConfirmar;
+    // Varios de una: se repasan todos y se pregunta por el conjunto. Con el modelo, la
+    // persona puede decir directamente cuál está mal («el correo es con jota»).
+    return "Anoté " + enumerar(v) + ". ¿Está todo correcto? Decime «sí, está todo correcto»" +
+           (modelo_ ? std::string(" o cuál dato está mal.") : std::string(" o «no, hay algo mal»."));
 }
 
 std::string Conversacion::retomar() const {

@@ -353,6 +353,21 @@ std::shared_ptr<std::atomic<bool>> Voz::oyeMientrasHabla(const QString& clave) {
     return b;
 }
 
+bool Voz::oyendoVoz(const QString& clave) const {
+#if defined(BA_HAVE_VOZ)
+    const std::string k = clave.toStdString();
+    std::lock_guard<std::mutex> l(rutasLock_);
+    const auto r = rutas_.find(k);
+    if (r == rutas_.end()) return false;
+    const auto oido = r->second->oido();
+    const auto o = oido.find(k);
+    return o != oido.end() && (o->second.hablando || !o->second.parcial.empty());
+#else
+    Q_UNUSED(clave);
+    return false;
+#endif
+}
+
 nlohmann::json Voz::reconocedoresJson() const {
 #if defined(BA_HAVE_VOZ)
     nlohmann::json j = reconocedores_->estado();

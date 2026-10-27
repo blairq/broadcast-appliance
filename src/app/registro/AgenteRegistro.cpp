@@ -320,10 +320,8 @@ AgenteRegistro::AgenteRegistro(std::string prompt, std::string modelo)
 json AgenteRegistro::cuerpo(const json& mensajes) const {
     json todos = json::array();
     todos.push_back({{"role", "system"}, {"content", sistema_}});
-    for (const auto& [persona, asistente] : historia_) {
-        todos.push_back({{"role", "user"}, {"content", persona}});
-        if (!asistente.empty()) todos.push_back({{"role", "assistant"}, {"content", asistente}});
-    }
+    for (const json& intercambio : historia_)
+        for (const json& m : intercambio) todos.push_back(m);
     for (const json& m : mensajes) todos.push_back(m);
     json b{{"model", modelo_}, {"messages", todos}, {"stream", true}, {"temperature", 0.2}, {"max_tokens", 300}};
     // Sin pensar: en una charla hablada lo que importa es la primera palabra.
@@ -337,6 +335,7 @@ json AgenteRegistro::empezarTurno(Conversacion& conv, const std::string& dicho) 
     vueltas_ = 0;
     dijoAlgo_ = false;
     rechazos_ = false;
+    herramientas_ = json::array();
     const json e = conv.estadoParaModelo();
     std::string ctx = "Paso del guion: " + e.value("paso", std::string()) + ".";
     if (e.contains("pregunta")) ctx += "\nLe preguntó: «" + e["pregunta"].get<std::string>() + "»";
@@ -368,6 +367,11 @@ AgenteRegistro::Vuelta AgenteRegistro::alTerminarVuelta(Conversacion& conv, cons
         v.resultados.push_back({{"role", "tool"}, {"tool_call_id", id}, {"content", r.dump()}});
     }
     rechazos_ = rechazos_ || rechazoVuelta;
+    // Para la historia: lo que dijo va al final, una sola vez (con lo que agregue el guion).
+    if (!llamadas.empty()) {
+        herramientas_.push_back({{"role", "assistant"}, {"content", ""}, {"tool_calls", llamadas}});
+        for (const json& r : v.resultados) herramientas_.push_back(r);
+    }
     v.dijoAlgo = dijoAlgo_;
     v.rechazos = rechazos_;
     // Algo no validó y no lo repreguntó: una vuelta más con los resultados, para que lo pida
@@ -384,7 +388,11 @@ AgenteRegistro::Vuelta AgenteRegistro::alTerminarVuelta(Conversacion& conv, cons
 }
 
 void AgenteRegistro::anotarIntercambio(const std::string& persona, const std::string& asistente) {
-    historia_.emplace_back("La persona dijo: «" + persona + "»", asistente);
+    json intercambio = json::array({{{"role", "user"}, {"content", "La persona dijo: «" + persona + "»"}}});
+    for (json& m : herramientas_) intercambio.push_back(std::move(m));
+    herramientas_ = json::array();
+    if (!asistente.empty()) intercambio.push_back({{"role", "assistant"}, {"content", asistente}});
+    historia_.push_back(std::move(intercambio));
     while (historia_.size() > kHistoria) historia_.erase(historia_.begin());
 }
 

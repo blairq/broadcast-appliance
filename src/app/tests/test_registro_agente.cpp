@@ -194,7 +194,7 @@ void turnos() {
         auto r = c.despuesDelModelo(v.dijoAlgo, v.rechazos, guion);
         CHECK(!guion, "lo resolvió el modelo");
         CHECK(contiene(r.decir, "Anoté nombre Jorge Ortega, correo jorge punto ortega arroba") &&
-                  contiene(r.decir, " y teléfono ") && contiene(r.decir, "¿Es correcto?"),
+                  contiene(r.decir, " y teléfono ") && contiene(r.decir, "¿Está todo correcto?") && contiene(r.decir, "cuál dato está mal"),
               "se confirman juntos, en una frase");
         CHECK(c.pedido().value("confirmando", false), "con los botones Sí / No");
         CHECK(c.paraElGuion("sí, es correcto"), "el «sí» suelto lo resuelve el guion");
@@ -250,7 +250,7 @@ void turnos() {
         a.empezarTurno(c, "el nombre, es Jorge Ortiz");
         v = a.alTerminarVuelta(c, turno("", {poner("nombre", "Jorge Ortiz")}));
         r = c.despuesDelModelo(v.dijoAlgo, v.rechazos, guion);
-        CHECK(contiene(r.decir, "Jorge Ortiz") && contiene(r.decir, "¿Es correcto?"), "y lo vuelve a confirmar");
+        CHECK(contiene(r.decir, "Jorge Ortiz") && contiene(r.decir, "¿Está todo correcto?"), "y lo vuelve a confirmar");
         // «sí» con más palabras, dicho al modelo: registro_confirmar.
         a.empezarTurno(c, "sí, ahora está todo bien");
         v = a.alTerminarVuelta(c, turno("", {{"", "registro_confirmar", "{}"}}));
@@ -272,6 +272,17 @@ void turnos() {
         a.anotarIntercambio("¿a qué hora empieza?", "Empieza a las 19. " + r.decir);
         const json b = a.empezarTurno(c, "Jorge");
         CHECK(b["messages"].size() == 4 && b["messages"][2].value("role", "") == "assistant", "la historia corta va en el turno siguiente");
+        // Un turno en el que anotó: la historia lleva la llamada y su resultado, no solo lo
+        // que se dijo (si no, el modelo aprende de su historia a hablar sin anotar).
+        v = a.alTerminarVuelta(c, turno("", {poner("nombre", "Jorge Ortega")}));
+        r = c.despuesDelModelo(v.dijoAlgo, v.rechazos, guion);
+        a.anotarIntercambio("Jorge", r.decir);
+        const json b2 = a.empezarTurno(c, "sí, es correcto");
+        const json& ms = b2["messages"];
+        CHECK(ms.size() == 8 && ms[4].value("role", "") == "assistant" && ms[4].contains("tool_calls") &&
+                  ms[5].value("role", "") == "tool" && ms[6].value("role", "") == "assistant" &&
+                  ms[6].value("content", "") == r.decir,
+              "la historia lleva las herramientas del turno y lo que se contestó");
     }
     // --- Un dato que no valida: otra vuelta y el modelo repregunta ---
     {

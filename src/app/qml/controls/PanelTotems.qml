@@ -291,16 +291,16 @@ Item {
                                             onClicked: datosDlg.abrir(filaC.conn)
                                         }
                                         GlassButton {
-                                            compact: true; visible: filaC.c.atendida; text: "Devolver"
+                                            compact: true; visible: filaC.c.atendida === true; text: "Devolver"
                                             onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "asistente"))
                                             ToolTip.visible: hovered; ToolTip.text: "Que siga el asistente, desde el próximo dato que falta"
                                         }
                                         GlassButton {
-                                            compact: true; visible: filaC.c.atendida; text: "Guardar"
+                                            compact: true; visible: filaC.c.atendida === true; text: "Guardar"
                                             onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "guardar"))
                                         }
                                         GlassButton {
-                                            compact: true; visible: filaC.c.atendida; text: "Cancelar"
+                                            compact: true; visible: filaC.c.atendida === true; text: "Cancelar"
                                             onClicked: raiz.resultado(raiz.tv.terminarAtencion(filaC.conn, "cancelar"))
                                         }
                                     }
