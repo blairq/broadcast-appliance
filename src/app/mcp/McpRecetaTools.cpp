@@ -31,6 +31,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include "i18n/I18n.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -102,12 +103,12 @@ void McpService::registerRecetaTools() {
     {
         Tool t;
         t.name = "receta_listar";
-        t.title = "Recetas que hay";
+        t.title = ba::i18n::traducir("mcp", "Recetas que hay");
         t.category = "recetas";
         t.readOnly = true;
-        t.description = "Que recetas hay disponibles para correr, con su nombre.";
-        t.details = "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
-                    "despues nadie sabe cual es la buena.";
+        t.description = ba::i18n::traducir("mcp", "Que recetas hay disponibles para correr, con su nombre.");
+        t.details = ba::i18n::traducir("mcp", "Antes de armar una nueva, fijate si ya hay una que haga eso: repetidas, "
+                    "despues nadie sabe cual es la buena.");
         t.run = [&rt](const json&, Done done) { done(ToolResult().data(json{{"recetas", leer(rt)}})); };
         core_.addTool(std::move(t));
     }
@@ -115,11 +116,11 @@ void McpService::registerRecetaTools() {
     {
         Tool t;
         t.name = "receta_guardar";
-        t.title = "Guardar una receta";
+        t.title = ba::i18n::traducir("mcp", "Guardar una receta");
         t.category = "recetas";
-        t.description = "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o "
-                        "reemplaza) una serie de pasos con un nombre.";
-        t.details = "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
+        t.description = ba::i18n::traducir("mcp", "GUARDA una receta: una secuencia de pasos para repetirla despues igual. Guarda (o "
+                        "reemplaza) una serie de pasos con un nombre.");
+        t.details = ba::i18n::traducir("mcp", "Un paso es `{ \"tool\": \"<herramienta>\", \"args\": { ... } }`. Los pasos corren EN "
                     "ORDEN y si uno falla la receta se frena ahi.\n\n"
                     "Los textos de `args` aceptan `{parametros}` entre llaves, que se reemplazan al "
                     "correrla: asi una misma receta sirve para todos los casos en vez de una por orador.\n\n"
@@ -134,32 +135,32 @@ void McpService::registerRecetaTools() {
                     "    ]\n\n"
                     "NO hay condiciones, bucles ni recetas que llamen a recetas: eso ya es un programa, y un "
                     "programa que corre en vivo no lo depura nadie a las ocho de la noche. Si hay que "
-                    "decidir algo, decidilo vos y despues llama a la receta que corresponda.";
+                    "decidir algo, decidilo vos y despues llama a la receta que corresponda.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"id",
-               {{"type", "string"}, {"description", "Corto y sin espacios. Si ya existe, la reemplaza."}}},
+               {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Corto y sin espacios. Si ya existe, la reemplaza.")}}},
               {"nombre", {{"type", "string"}}},
-              {"descripcion", {{"type", "string"}, {"description", "Que hace y cuando conviene usarla."}}},
+              {"descripcion", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Que hace y cuando conviene usarla.")}}},
               {"pasos", {{"type", "array"}, {"items", {{"type", "object"}}}}}}},
             {"required", {"id", "pasos"}}};
         t.run = [&rt, &core](const json& a, Done done) {
             const std::string id = a["id"].get<std::string>();
             if (!a["pasos"].is_array() || a["pasos"].empty())
-                return done(ToolResult::error("Una receta sin pasos no hace nada."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Una receta sin pasos no hace nada.")));
 
             // Se valida AHORA que cada herramienta exista: descubrir que un
             // paso no existe en vivo, a mitad de la receta, es el peor momento.
             for (const json& p : a["pasos"]) {
                 if (!p.is_object() || !p.contains("tool") || !p["tool"].is_string())
                     return done(
-                        ToolResult::error("Cada paso necesita `tool` con el nombre de una herramienta."));
+                        ToolResult::error(ba::i18n::traducir("mcp", "Cada paso necesita `tool` con el nombre de una herramienta.")));
                 const std::string n = p["tool"].get<std::string>();
                 if (n.rfind("receta_", 0) == 0)
                     return done(ToolResult::error(
-                        "Una receta no puede llamar a otra receta: asi no hay forma de armar un "
-                        "ciclo infinito sin darse cuenta."));
+                        ba::i18n::traducir("mcp", "Una receta no puede llamar a otra receta: asi no hay forma de armar un "
+                        "ciclo infinito sin darse cuenta.")));
                 if (core.findTool(n) == nullptr)
                     return done(ToolResult::error("No existe la herramienta \"" + n + "\"."));
             }
@@ -176,7 +177,7 @@ void McpService::registerRecetaTools() {
                     reemplazo = true;
                 }
             if (!reemplazo) recetas.push_back(nueva);
-            if (!escribir(rt, recetas)) return done(ToolResult::error("No se pudo guardar."));
+            if (!escribir(rt, recetas)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo guardar.")));
             done(ToolResult::ok((reemplazo ? "Receta reemplazada: " : "Receta guardada: ") + id + " (" +
                                 std::to_string(a["pasos"].size()) + " pasos)."));
         };
@@ -186,10 +187,10 @@ void McpService::registerRecetaTools() {
     {
         Tool t;
         t.name = "receta_borrar";
-        t.title = "Borrar una receta";
+        t.title = ba::i18n::traducir("mcp", "Borrar una receta");
         t.category = "recetas";
         t.destructive = true;
-        t.description = "Saca una receta de la lista.";
+        t.description = ba::i18n::traducir("mcp", "Saca una receta de la lista.");
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
         t.run = [&rt](const json& a, Done done) {
@@ -200,7 +201,7 @@ void McpService::registerRecetaTools() {
                 if (r.value("id", std::string()) != id) quedan.push_back(r);
             if (quedan.size() == recetas.size())
                 return done(ToolResult::error("No existe la receta \"" + id + "\"."));
-            if (!escribir(rt, quedan)) return done(ToolResult::error("No se pudo guardar."));
+            if (!escribir(rt, quedan)) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo guardar.")));
             done(ToolResult::ok("Receta borrada: " + id + "."));
         };
         core_.addTool(std::move(t));
@@ -209,15 +210,15 @@ void McpService::registerRecetaTools() {
     {
         Tool t;
         t.name = "receta_correr";
-        t.title = "Correr una receta";
+        t.title = ba::i18n::traducir("mcp", "Correr una receta");
         t.category = "recetas";
-        t.description = "Ejecuta los pasos de una receta, en orden.";
-        t.details = "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
+        t.description = ba::i18n::traducir("mcp", "Ejecuta los pasos de una receta, en orden.");
+        t.details = ba::i18n::traducir("mcp", "Si un paso falla, SE FRENA AHI y te dice cual y por que: en vivo, seguir dejaria el "
                     "sistema a mitad de camino y sin que nadie sepa donde.\n\n"
                     "`parametros` reemplaza los `{...}` de los pasos.\n\n"
                     "Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argumentos, "
                     "se pide aprobacion humana si la politica lo exige y la interfaz se entera. Una receta "
-                    "no puede hacer nada que no puedas hacer paso a paso.";
+                    "no puede hacer nada que no puedas hacer paso a paso.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "string"}}}, {"parametros", {{"type", "object"}}}}},
                          {"required", {"id"}}};

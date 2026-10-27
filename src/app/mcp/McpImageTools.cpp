@@ -16,6 +16,7 @@
 // ============================================================================
 
 #include <QFont>
+#include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
 #include <QGuiApplication>
 #include <QPainter>
@@ -73,7 +74,7 @@ bool feedImage(StudioViewModel& vm, const std::string& key, QImage& out) {
 
 const json kImageProps = {
     {"maxWidth",
-     {{"type", "integer"}, {"minimum", 64}, {"maximum", 3840}, {"description", "Ancho maximo en px."}}},
+     {{"type", "integer"}, {"minimum", 64}, {"maximum", 3840}, {"description", ba::i18n::traducir("mcp", "Ancho maximo en px.")}}},
     {"format", {{"type", "string"}, {"enum", {"jpeg", "png"}}, {"default", "jpeg"}}},
     {"quality", {{"type", "integer"}, {"minimum", 10}, {"maximum", 100}, {"default", 85}}}};
 
@@ -163,12 +164,12 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "foto_programa";
-        t.title = "Ver el programa";
+        t.title = ba::i18n::traducir("mcp", "Ver el programa");
         t.category = "imagenes";
         t.readOnly = true;
-        t.description = "Una foto de lo que sale AL AIRE ahora, para ver si está negro, congelado o mal encuadrado. Imagen de "
+        t.description = ba::i18n::traducir("mcp", "Una foto de lo que sale AL AIRE ahora, para ver si está negro, congelado o mal encuadrado. Imagen de "
             "lo que esta saliendo al aire ahora (la escena del programa, render completo del motor). Por defecto "
-            "1280 px de ancho, JPEG.";
+            "1280 px de ancho, JPEG.");
         t.inputSchema = withImageProps(json::object());
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             renderAparte(rt, "", a.value("maxWidth", 1280), [&rt, &vm, &core, a, done](QImage img, std::string err) {
@@ -186,21 +187,21 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "video_scope";
-        t.title = "Instrumentos de video (forma de onda, vectorscopio…)";
+        t.title = ba::i18n::traducir("mcp", "Instrumentos de video (forma de onda, vectorscopio…)");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
+            ba::i18n::traducir("mcp", "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
             "(`histograma`) del programa o de una `fuente`, más cuánto de la imagen está fuera de rango: "
             "`legalidad` = % de negros aplastados, blancos quemados y puntos fuera de la gama compuesta PAL "
-            "(lo que balegal corrige). La imagen se guarda en disco (no viaja en la conversación).";
+            "(lo que balegal corrige). La imagen se guarda en disco (no viaja en la conversación).");
         t.inputSchema = withImageProps(json{
-            {"fuente", {{"type", "string"}, {"description", "Fuente o escena; sin esto, el programa."}}},
+            {"fuente", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Fuente o escena; sin esto, el programa.")}}},
             {"tipo", {{"type", "string"}, {"enum", {"onda", "parade", "vector", "histograma"}}, {"default", "onda"}}}});
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             video::TipoScope tipo = video::TipoScope::Onda;
             if (!video::tipoScopeDeTexto(QString::fromStdString(a.value("tipo", std::string("onda"))), tipo))
-                return done(ToolResult::error("`tipo`: onda, parade, vector o histograma"));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "`tipo`: onda, parade, vector o histograma")));
             const std::string fuente = a.value("fuente", std::string());
             renderAparte(rt, fuente, 960, [&rt, &vm, &core, a, done, fuente, tipo](QImage img, std::string err) {
             if (img.isNull() && (!fuente.empty() || !feedImage(vm, "program", img)))
@@ -225,12 +226,12 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "video_legalizar";
-        t.title = "Legalizar para TV";
+        t.title = ba::i18n::traducir("mcp", "Legalizar para TV");
         t.category = "imagenes";
         t.description =
-            "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
+            ba::i18n::traducir("mcp", "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
             "entrada): `modo` no | pal (luma/croma en rango y gama compuesta +133 %) | ntsc (más estricto, "
-            "+120 %) | rango (solo luma y croma). Para entregar a un canal. Sin argumentos informa.";
+            "+120 %) | rango (solo luma y croma). Para entregar a un canal. Sin argumentos informa.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"modo", {{"type", "string"}, {"enum", {"no", "pal", "ntsc", "rango"}}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
@@ -249,14 +250,14 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "foto_fuente";
-        t.title = "Ver una fuente o escena";
+        t.title = ba::i18n::traducir("mcp", "Ver una fuente o escena");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "La foto de UNA fuente (cámara, imagen, texto, invitado) o de una escena entera, esté o no al aire. "
-            "Ideal para revisar una escena antes de cambiarla, o verificar lo que armaste con scene_define.";
+             ba::i18n::traducir("mcp", "La foto de UNA fuente (cámara, imagen, texto, invitado) o de una escena entera, esté o no al aire. "
+            "Ideal para revisar una escena antes de cambiarla, o verificar lo que armaste con scene_define.");
         t.inputSchema =
-            withImageProps(json{{"name", {{"type", "string"}, {"description", "Fuente o escena."}}}});
+            withImageProps(json{{"name", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Fuente o escena.")}}}});
         t.inputSchema["required"] = {"name"};
         t.run = [&rt, &core](const json& a, Done done) {
             // Una fuente recién creada (una cámara de red que todavía conecta)
@@ -296,18 +297,18 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "foto_todas_escenas";
-        t.title = "Vista multiple de escenas";
+        t.title = ba::i18n::traducir("mcp", "Vista multiple de escenas");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "Una sola foto con TODAS las escenas en grilla, cada una con su nombre; la del aire, marcada en rojo. "
-            "Como el multiview de un switcher.";
+             ba::i18n::traducir("mcp", "Una sola foto con TODAS las escenas en grilla, cada una con su nombre; la del aire, marcada en rojo. "
+            "Como el multiview de un switcher.");
         t.inputSchema = withImageProps(
             json{{"cellWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 400}}}});
         t.run = [&rt, &core](const json& a, Done done) {
             const int cellW = a.value("cellWidth", 400);
             const std::vector<std::string> nombres = rt.engine().sceneNames();
-            if (nombres.empty()) return done(ToolResult::error("No hay escenas."));
+            if (nombres.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No hay escenas.")));
             // Una escena por vez, sin que espere la interfaz (renderAparte); al
             // final, la grilla.
             auto juntas = std::make_shared<std::vector<std::pair<QString, QImage>>>();
@@ -337,13 +338,13 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "capture_feed";
-        t.title = "Ver un video de entrada";
+        t.title = ba::i18n::traducir("mcp", "Ver un video de entrada");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Ultimo cuadro de un video que llega a la app: program, guest:N (camara del invitado del "
+            ba::i18n::traducir("mcp", "Ultimo cuadro de un video que llega a la app: program, guest:N (camara del invitado del "
             "lugar N), share:N (su pantalla), lobby:K (preview del lobby), backstage:K (fila de "
-            "oradores), operator (con lo que te ve el lobby). feeds_list muestra cuales hay.";
+            "oradores), operator (con lo que te ve el lobby). feeds_list muestra cuales hay.");
         t.inputSchema = withImageProps(json{{"key", {{"type", "string"}}}});
         t.inputSchema["required"] = {"key"};
         t.run = [&vm, &rt, &core](const json& a, Done done) {
@@ -383,14 +384,14 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "foto_invitado";
-        t.title = "Ver a una persona";
+        t.title = ba::i18n::traducir("mcp", "Ver a una persona");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "La foto de UNA persona de la conferencia, por nombre o id: su cámara en vivo o su última imagen. Con "
-            "includeScreen tambien su pantalla compartida.";
+             ba::i18n::traducir("mcp", "La foto de UNA persona de la conferencia, por nombre o id: su cámara en vivo o su última imagen. Con "
+            "includeScreen tambien su pantalla compartida.");
         t.inputSchema =
-            withImageProps(json{{"participant", {{"type", "string"}, {"description", "Nombre o id."}}},
+            withImageProps(json{{"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Nombre o id.")}}},
                                 {"includeScreen", {{"type", "boolean"}, {"default", false}}}});
         t.inputSchema["required"] = {"participant"};
         t.run = [&vm, &rt, &core, personImage](const json& a, Done done) {
@@ -408,7 +409,7 @@ void McpService::registerImageTools() {
                                    p.value("slot", 0) > 0) {
                                    QImage s;
                                    if (feedImage(vm, "share:" + std::to_string(p.value("slot", 0)), s)) {
-                                       r.text("Su pantalla compartida:");
+                                       r.text(ba::i18n::traducir("mcp", "Su pantalla compartida:"));
                                        addImage(r, s, a, 1280, core, rt.dataRoot());
                                    }
                                }
@@ -421,12 +422,12 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "foto_todos_invitados";
-        t.title = "Ver a todas las personas";
+        t.title = ba::i18n::traducir("mcp", "Ver a todas las personas");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "Una foto de CADA persona de la conferencia (lobby, adentro y fila de oradores), con su nombre y estado. "
-            "Default 480 px.";
+             ba::i18n::traducir("mcp", "Una foto de CADA persona de la conferencia (lobby, adentro y fila de oradores), con su nombre y estado. "
+            "Default 480 px.");
         t.inputSchema = withImageProps(json{
             {"state", {{"type", "string"}, {"enum", {"all", "waiting", "admitted"}}, {"default", "all"}}}});
         t.run = [&vm, &rt, &core, personImage](const json& a, Done done) {
@@ -435,7 +436,7 @@ void McpService::registerImageTools() {
             std::vector<json> people;
             for (const auto& p : snap.value("participants", json::array()))
                 if (only == "all" || p.value("state", "") == only) people.push_back(p);
-            if (people.empty()) return done(ToolResult::ok("No hay nadie en la conferencia."));
+            if (people.empty()) return done(ToolResult::ok(ba::i18n::traducir("mcp", "No hay nadie en la conferencia.")));
             struct Acc {
                 ToolResult r;
                 size_t pending;
@@ -470,18 +471,18 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "capture_sequence";
-        t.title = "Secuencia de cuadros (video)";
+        t.title = ba::i18n::traducir("mcp", "Secuencia de cuadros (video)");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Toma `frames` imagenes separadas `intervalMs` de: el programa, una fuente/escena, un video "
+            ba::i18n::traducir("mcp", "Toma `frames` imagenes separadas `intervalMs` de: el programa, una fuente/escena, un video "
             "(clave de feeds_list) o una persona. Para analizar movimiento, si alguien habla o hace "
-            "gestos, si un video avanza, transiciones, congelamientos.";
+            "gestos, si un video avanza, transiciones, congelamientos.");
         t.inputSchema = withImageProps(json{
             {"target",
              {{"type", "string"},
-              {"description", "'program', nombre de fuente/escena, o clave de video (guest:1...)."}}},
-            {"participant", {{"type", "string"}, {"description", "En vez de target: una persona."}}},
+              {"description", ba::i18n::traducir("mcp", "'program', nombre de fuente/escena, o clave de video (guest:1...).")}}},
+            {"participant", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "En vez de target: una persona.")}}},
             {"frames", {{"type", "integer"}, {"minimum", 2}, {"maximum", 16}, {"default", 4}}},
             {"intervalMs", {{"type", "integer"}, {"minimum", 50}, {"maximum", 10000}, {"default", 500}}}});
         t.run = [&rt, &vm, self, &core](const json& a, Done done) {
@@ -554,13 +555,13 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "imagen_preguntar";
-        t.title = "Que se ve: se lo pregunta a un agente que mira";
+        t.title = ba::i18n::traducir("mcp", "Que se ve: se lo pregunta a un agente que mira");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-             "Contesta una PREGUNTA concreta sobre lo que se ve en una cámara, el programa, una escena o la app; "
-            "no devuelve la foto. Solo video, nada de audio. Devuelve TEXTO.";
-        t.details = "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
+             ba::i18n::traducir("mcp", "Contesta una PREGUNTA concreta sobre lo que se ve en una cámara, el programa, una escena o la app; "
+            "no devuelve la foto. Solo video, nada de audio. Devuelve TEXTO.");
+        t.details = ba::i18n::traducir("mcp", "ESTA ES LA UNICA FORMA DE MIRAR, y no es un rodeo: tu conversacion aguanta muy pocas "
                     "imagenes y, pasadas esas, se cuelga —no da error, se cuelga, en el medio de una "
                     "transmision en vivo—. Por eso las herramientas `capture_*` te devuelven un archivo y "
                     "no la imagen. Aca la mira un agente aparte, con esa imagen y nada mas, y te contesta "
@@ -573,38 +574,38 @@ void McpService::registerImageTools() {
                     "compara vos los dos textos.\n\n"
                     "QUIEN MIRA. Si hay un modelo local cargado con vision (Configuracion -> Modelos "
                     "locales), mira el, en esta maquina y en alrededor de un segundo; si no, el modelo "
-                    "propio. No la uses para mirar cada dos segundos.";
+                    "propio. No la uses para mirar cada dos segundos.");
         t.inputSchema = {
             {"type", "object"},
             {"required", {"que"}},
             {"properties",
              {{"que",
                {{"type", "string"},
-                {"description", "la pregunta concreta que tiene que contestar mirando la imagen"}}},
+                {"description", ba::i18n::traducir("mcp", "la pregunta concreta que tiene que contestar mirando la imagen")}}},
               {"fuente",
                {{"type", "string"},
                 {"description",
-                 "que mirar: 'programa' (lo que sale al aire, por defecto), 'interfaz' (la "
+                 ba::i18n::traducir("mcp", "que mirar: 'programa' (lo que sale al aire, por defecto), 'interfaz' (la "
                  "pantalla de la app), el NOMBRE de una escena o fuente (cualquiera, este o no al aire: no "
-                 "hace falta armarla), o una clave de feeds_list (guest:1, lobby:2, armada...)"}}}}}};
+                 "hace falta armarla), o una clave de feeds_list (guest:1, lobby:2, armada...)")}}}}}};
         t.examples = {R"({"que": "Se ve a alguien o esta el cuadro en negro?"})",
                       R"({"que": "El rotulo de abajo dice el nombre correcto?", "fuente": "programa"})",
                       R"({"que": "Cuantas personas hay en cuadro?", "fuente": "guest:1"})"};
         t.run = [&vm, &rt, self](const json& a, Done done) {
             const std::string que = a.value("que", std::string());
             if (que.empty())
-                return done(ToolResult::error("Decile QUE tiene que mirar: sin pregunta concreta "
-                                              "devuelve una descripcion que no sirve para decidir."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "Decile QUE tiene que mirar: sin pregunta concreta "
+                                              "devuelve una descripcion que no sirve para decidir.")));
             const std::string fuente = a.value("fuente", std::string("programa"));
 
             // Con la imagen en la mano, lo que sigue (se llama ya, o cuando llega
             // el cuadro: renderAparte, que no hace esperar a la interfaz).
             const auto seguir = [&vm, &rt, a, done, que, fuente](QImage img) {
-            if (img.isNull()) return done(ToolResult::error("No se pudo tomar la imagen."));
+            if (img.isNull()) return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo tomar la imagen.")));
 
             const QString archivo = guardarCaptura(img, rt.dataRoot(), a, 1280);
             if (archivo.isEmpty())
-                return done(ToolResult::error("No se pudo guardar la captura para que la miren."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "No se pudo guardar la captura para que la miren.")));
 
             const std::string donde =
                 fuente == "interfaz" ? "la pantalla de la aplicacion" : "el video de '" + fuente + "'";
@@ -653,7 +654,7 @@ void McpService::registerImageTools() {
             };
             if (fuente == "interfaz") {
                 QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-                if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+                if (w == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
                 return seguir(w->grabWindow());
             }
             if (fuente == "programa" || fuente == "program") {
@@ -681,20 +682,20 @@ void McpService::registerImageTools() {
     {
         Tool t;
         t.name = "capture_ui";
-        t.title = "Captura de la app";
+        t.title = ba::i18n::traducir("mcp", "Captura de la app");
         t.category = "imagenes";
         t.readOnly = true;
         t.description =
-            "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
+            ba::i18n::traducir("mcp", "Captura de pantalla de la propia aplicacion: la ventana principal (lo que ve el operador) "
             "y, con window=all, tambien las demas ventanas abiertas: las de salida de video y las "
-            "pestañas que el operador saco a su propio monitor (ver ui_page_window).";
+            "pestañas que el operador saco a su propio monitor (ver ui_page_window).");
         t.inputSchema = withImageProps(
             json{{"window", {{"type", "string"}, {"enum", {"main", "all"}}, {"default", "main"}}}});
         t.run = [self, &rt, &core](const json& a, Done done) {
             QQuickWindow* main = self->mainWindow_ ? self->mainWindow_() : nullptr;
-            if (main == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            if (main == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             ToolResult r;
-            r.text("Ventana principal");
+            r.text(ba::i18n::traducir("mcp", "Ventana principal"));
             addImage(r, main->grabWindow(), a, 1600, core, rt.dataRoot());
             if (a.value("window", std::string("main")) == "all") {
                 int n = 1;

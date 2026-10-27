@@ -8,6 +8,7 @@
 // cada punto de escucha, mirar el análisis y la propuesta, aplicar, verificar.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -81,19 +82,19 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "mezclador_pestana";
-        t.title = "Mostrar la consola o la calibración en la ventana del Mezclador";
+        t.title = ba::i18n::traducir("mcp", "Mostrar la consola o la calibración en la ventana del Mezclador");
         t.category = kCat;
         t.idempotent = true;
-        t.description = "Cambia la pestaña de la ventana del Mezclador: consola (tiras, salidas, matriz) o calibracion "
-                        "(croquis, mediciones, curvas, propuesta). Para que el operador vea lo que se le explica.";
+        t.description = ba::i18n::traducir("mcp", "Cambia la pestaña de la ventana del Mezclador: consola (tiras, salidas, matriz) o calibracion "
+                        "(croquis, mediciones, curvas, propuesta). Para que el operador vea lo que se le explica.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"pestana"}},
                          {"properties",
                           {{"pestana", {{"type", "string"}, {"enum", {"consola", "calibracion"}}}},
-                           {"matriz", {{"type", "boolean"}, {"description", "en consola: la matriz desplegada abajo"}}},
+                           {"matriz", {{"type", "boolean"}, {"description", ba::i18n::traducir("mcp", "en consola: la matriz desplegada abajo")}}},
                            {"vista", {{"type", "string"},
                                       {"enum", {"respuesta", "impulso", "rt", "propuesta"}},
-                                      {"description", "en calibracion: curvas, impulso y ETC, RT60 por banda o la propuesta"}}}}}};
+                                      {"description", ba::i18n::traducir("mcp", "en calibracion: curvas, impulso y ETC, RT60 por banda o la propuesta")}}}}}};
         t.run = [mz](const json& a, Done done) {
             mz->setPestana(QString::fromStdString(a.value("pestana", "consola")));
             if (a.contains("matriz")) mz->setMatrizAbierta(a.value("matriz", false));
@@ -105,21 +106,21 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_ver";
-        t.title = "La calibración de sala: sesión, análisis, propuesta y verificación";
+        t.title = ba::i18n::traducir("mcp", "La calibración de sala: sesión, análisis, propuesta y verificación");
         t.category = kCat;
         t.readOnly = true;
         t.description =
-            "Lo mismo que la pestaña Calibración del Mezclador: la sesión abierta (sala, parlantes, micrófonos, "
+            ba::i18n::traducir("mcp", "Lo mismo que la pestaña Calibración del Mezclador: la sesión abierta (sala, parlantes, micrófonos, "
             "puntos y mediciones), el análisis (RT60 por banda, frecuencia de Schroeder, por parlante el promedio "
             "espacial, los modos confirmados con su modo teórico, los pozos, la llegada y el nivel), la propuesta "
             "(cada filtro con su motivo, lo que NO se corrige y por qué, retardos, niveles, polaridad) y la "
             "verificación (antes contra después). También las sesiones guardadas, los dispositivos y los modelos "
-            "de micrófono conocidos.";
+            "de micrófono conocidos.");
         t.details =
-            "Curvas en tercios de octava [[Hz, dB]…] (dB relativos: valen las diferencias). Sin sesión: "
+            ba::i18n::traducir("mcp", "Curvas en tercios de octava [[Hz, dB]…] (dB relativos: valen las diferencias). Sin sesión: "
             "calibracion_crear. Procedimiento: crear → agregar parlantes, micrófono(s) y 5-9 puntos de escucha "
             "(a más de 1 m de las paredes, no simétricos) → medir cada parlante en cada punto → ver → aplicar → "
-            "medir de nuevo con etapa verificacion. La ventana se abre con ui_panel_window {panel: mezclador}.";
+            "medir de nuevo con etapa verificacion. La ventana se abre con ui_panel_window {panel: mezclador}.");
         t.run = [c](const json&, Done done) {
             json d = {{"estado", c->estado().toStdString()},
                       {"mensaje", c->mensaje().toStdString()},
@@ -175,17 +176,17 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_crear";
-        t.title = "Empezar (o abrir) una sesión de calibración";
+        t.title = ba::i18n::traducir("mcp", "Empezar (o abrir) una sesión de calibración");
         t.category = kCat;
-        t.description = "Una sesión nueva para la sala de `largo` × `ancho` × `alto` metros, o con `abrir` una guardada "
-                        "(su id, de calibracion_ver.sesiones).";
+        t.description = ba::i18n::traducir("mcp", "Una sesión nueva para la sala de `largo` × `ancho` × `alto` metros, o con `abrir` una guardada "
+                        "(su id, de calibracion_ver.sesiones).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"nombre", {{"type", "string"}}},
-                           {"largo", {{"type", "number"}, {"description", "m"}}},
-                           {"ancho", {{"type", "number"}, {"description", "m"}}},
-                           {"alto", {{"type", "number"}, {"description", "m"}}},
-                           {"abrir", {{"type", "string"}, {"description", "id de una sesión guardada"}}}}}};
+                           {"largo", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "m")}}},
+                           {"ancho", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "m")}}},
+                           {"alto", {{"type", "number"}, {"description", ba::i18n::traducir("mcp", "m")}}},
+                           {"abrir", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "id de una sesión guardada")}}}}}};
         t.run = [c](const json& a, Done done) {
             if (a.contains("abrir")) return done(resultado(c->abrir(qs(a, "abrir")), c, "abierta"));
             done(resultado(c->nueva(qs(a, "nombre"), a.value("largo", 0.0), a.value("ancho", 0.0), a.value("alto", 0.0)), c,
@@ -196,11 +197,11 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_sala";
-        t.title = "Medidas de la sala y curva objetivo";
+        t.title = ba::i18n::traducir("mcp", "Medidas de la sala y curva objetivo");
         t.category = kCat;
         t.idempotent = true;
-        t.description = "Cambia las medidas (m) y/o la pendiente de la curva objetivo (dB/octava: 0 plana, -0,8 de "
-                        "fábrica para palabra en sala, como propone Toole).";
+        t.description = ba::i18n::traducir("mcp", "Cambia las medidas (m) y/o la pendiente de la curva objetivo (dB/octava: 0 plana, -0,8 de "
+                        "fábrica para palabra en sala, como propone Toole).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"largo", {{"type", "number"}}},
@@ -222,16 +223,16 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_agregar";
-        t.title = "Agregar un parlante, un micrófono o un punto";
+        t.title = ba::i18n::traducir("mcp", "Agregar un parlante, un micrófono o un punto");
         t.category = kCat;
         t.description =
-            "`que`: parlante (`dispositivo` = id de una salida de calibracion_ver.salidas y `canal` 0 = izquierdo, "
+            ba::i18n::traducir("mcp", "`que`: parlante (`dispositivo` = id de una salida de calibracion_ver.salidas y `canal` 0 = izquierdo, "
             "1 = derecho, -1 = todos), microfono (`dispositivo` = id de una entrada y `canal`; `calibracion`: "
             "plano, modelo con `modelo` (sm58, sm57…) o archivo con `archivo` = ruta al .txt del fabricante) o "
             "punto (`tipo`: escucha, cerca —a ~1 m de un parlante—, pared o microfono —donde está uno de la "
-            "mesa—). `x`, `y` en metros desde la esquina del frente izquierdo (x a lo largo).";
-        t.details = "Devuelve el id nuevo. La sala simulada (no suena; con --test) es el dispositivo «sala-simulada» "
-                    "en la salida Y en la entrada.";
+            "mesa—). `x`, `y` en metros desde la esquina del frente izquierdo (x a lo largo).");
+        t.details = ba::i18n::traducir("mcp", "Devuelve el id nuevo. La sala simulada (no suena; con --test) es el dispositivo «sala-simulada» "
+                    "en la salida Y en la entrada.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"que"}},
                          {"properties",
@@ -264,11 +265,11 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_editar";
-        t.title = "Mover o quitar algo del croquis; cambiar la calibración de un micrófono";
+        t.title = ba::i18n::traducir("mcp", "Mover o quitar algo del croquis; cambiar la calibración de un micrófono");
         t.category = kCat;
-        t.description = "Con `x`, `y`: mueve el parlante, micrófono o punto `id`. Con `quitar: true`: lo saca (sus "
+        t.description = ba::i18n::traducir("mcp", "Con `x`, `y`: mueve el parlante, micrófono o punto `id`. Con `quitar: true`: lo saca (sus "
                         "mediciones quedan pero no entran al análisis). Con `calibracion` (y `modelo`/`archivo`): "
-                        "cambia la del micrófono. Con `borrar_medicion: true`, `id` es una medición y se borra.";
+                        "cambia la del micrófono. Con `borrar_medicion: true`, `id` es una medición y se borra.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties",
@@ -295,19 +296,19 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_medir";
-        t.title = "Medir un parlante en un punto (barrido: SUENA)";
+        t.title = ba::i18n::traducir("mcp", "Medir un parlante en un punto (barrido: SUENA)");
         t.category = kCat;
         t.description =
-            "Saca un barrido exponencial (20 Hz-20 kHz, `duracion_s` 1-15, de fábrica 4) por la salida del "
+            ba::i18n::traducir("mcp", "Saca un barrido exponencial (20 Hz-20 kHz, `duracion_s` 1-15, de fábrica 4) por la salida del "
             "`parlante` a `nivel_db` dBFS (de fábrica -20, nunca más de -6) y graba el `microfono` puesto en el "
             "`punto`. Espera y devuelve la medición: llegada del directo (ms), relación señal/ruido de la "
             "respuesta impulsiva (dB, hace falta 40 o más), RT60 (LSP), EDT/T20/T30 por octava, C50, polaridad "
             "y la respuesta en tercios. `etapa`: antes (de fábrica), verificacion (después de aplicar) o "
-            "sustitucion (para calibrar un micrófono contra otro).";
+            "sustitucion (para calibrar un micrófono contra otro).");
         t.details =
-            "SUENA FUERTE: confirmá con el operador que no hay público, que los micrófonos en vivo están "
+            ba::i18n::traducir("mcp", "SUENA FUERTE: confirmá con el operador que no hay público, que los micrófonos en vivo están "
             "cerrados y el volumen del equipo bajo; subí de a poco. No mide con la emisión o la grabación en "
-            "curso. Con el micrófono cardioide (SM58): apuntado al parlante, a más de 1 m.";
+            "curso. Con el micrófono cardioide (SM58): apuntado al parlante, a más de 1 m.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"parlante", "punto", "microfono"}},
                          {"properties",
@@ -342,7 +343,7 @@ void McpService::registerCalibracionTools() {
                 QObject::disconnect(*con);
                 *hecho = true;
                 c->cancelar();
-                done(ToolResult::error("la medición no terminó en 60 s (cancelada)"));
+                done(ToolResult::error(ba::i18n::traducir("mcp", "la medición no terminó en 60 s (cancelada)")));
             });
         };
         core_.addTool(std::move(t));
@@ -350,14 +351,14 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_medicion";
-        t.title = "Una medición entera";
+        t.title = ba::i18n::traducir("mcp", "Una medición entera");
         t.category = kCat;
         t.readOnly = true;
-        t.description = "Todo lo de la medición `id`: llegada, SNR, RT por banda, C50, polaridad, respuesta en tercios.";
+        t.description = ba::i18n::traducir("mcp", "Todo lo de la medición `id`: llegada, SNR, RT por banda, C50, polaridad, respuesta en tercios.");
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
         t.run = [c](const json& a, Done done) {
             json m = c->medicionJson(a.value("id", ""));
-            if (m.is_null()) return done(ToolResult::error("no está la medición"));
+            if (m.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no está la medición")));
             compactar(m);
             done(ToolResult().data(m));
         };
@@ -366,11 +367,11 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_sustitucion";
-        t.title = "Calibrar un micrófono contra uno de referencia";
+        t.title = ba::i18n::traducir("mcp", "Calibrar un micrófono contra uno de referencia");
         t.category = kCat;
-        t.description = "La corrección del `microfono` (un SM58, por ejemplo) por sustitución: el mismo parlante y el "
+        t.description = ba::i18n::traducir("mcp", "La corrección del `microfono` (un SM58, por ejemplo) por sustitución: el mismo parlante y el "
                         "mismo punto medidos con un micrófono de medición (`con_referencia`, id de esa medición) y con "
-                        "él (`con_microfono`). Queda guardada en el micrófono y vale en esa orientación.";
+                        "él (`con_microfono`). Queda guardada en el micrófono y vale en esa orientación.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"microfono", "con_referencia", "con_microfono"}},
                          {"properties",
@@ -386,15 +387,15 @@ void McpService::registerCalibracionTools() {
     {
         Tool t;
         t.name = "calibracion_aplicar";
-        t.title = "Aplicar (o sacar) el EQ de sala";
+        t.title = ba::i18n::traducir("mcp", "Aplicar (o sacar) el EQ de sala");
         t.category = kCat;
         t.description =
-            "Pone los filtros de la propuesta del `parlante` en un ecualizador paramétrico de LSP («eq-sala») en "
+            ba::i18n::traducir("mcp", "Pone los filtros de la propuesta del `parlante` en un ecualizador paramétrico de LSP («eq-sala») en "
             "el rack de `fuente` (la entrada que alimenta ese parlante, de mezclador_estado.entradas). Con "
             "`revertir: true` saca el EQ de sala de esa fuente. Los retardos y niveles propuestos no se aplican "
-            "solos: se informan.";
-        t.details = "Después de aplicar: medir de nuevo los mismos puntos con etapa verificacion y mirar "
-                    "calibracion_ver.verificacion (si empeoró, revertir).";
+            "solos: se informan.");
+        t.details = ba::i18n::traducir("mcp", "Después de aplicar: medir de nuevo los mismos puntos con etapa verificacion y mirar "
+                    "calibracion_ver.verificacion (si empeoró, revertir).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"fuente"}},
                          {"properties",
