@@ -233,6 +233,46 @@ Cambios respecto de lo escrito arriba:
 - **Excepción registrada en el test (`PENDIENTES`):** la traducción en vivo parte del
   castellano (`PanelTraduccion.qml`), y eso se arregla en I7.
 
+**I1–I4 hechas (2026-10-27)**, con 9 agentes en paralelo. Resultado: 11.468 textos en los `.ts`.
+- **QML:** de 2.644 textos sin marcar quedan 82, a propósito (marcas, unidades, claves).
+- **C++ de la app:** unos 4.500 textos.
+- **Logs y programas sin Qt:** unos 850.
+- **Web:** unos 930 textos. Todas las páginas reciben el idioma del evento abierto (en
+  `/comun/i18n/idiomas.json`), y las de invitados, sesión remota y público tienen un selector
+  de idioma.
+- **Plurales:** los de español completos (un test lo exige).
+- **Lo que comparaba textos entre módulos ahora compara claves:**
+  - calibración (`mensajeAviso`), superresolución (`trabajo.tipo`);
+  - disco (`esAvisoDeDiscoBien`), GStreamer (`sinGStreamer`), Configuración (`seccionVisible`);
+  - ajustes por MCP (`SettingsModel::fallo`), el log de refrescos (código 1 de `qt`).
+- **Recorrida en pseudo-idioma por todas las páginas:** sin errores de QML, y el registro sale
+  traducido.
+
+Lo que quedó para las fases que siguen, con su dueño:
+- **I5 (asistente):** los textos que van a un modelo, que se dejaron sin marcar a propósito:
+  - QML: pedidos al asistente y sugerencias por página;
+  - C++: las notas [OPERADOR], las instrucciones de atención y `pedidoDeEscenario`;
+  - el MCP entero y `escritorio/`.
+- **I6 (tótems):** `registro/Conversacion.cpp`, las preguntas de los campos en `Totems.cpp`, y
+  `comoSeDice` en el idioma del evento.
+- **I7 (contenido del evento):** lo que sale al aire o al público y hoy va en el idioma del
+  operador, porque el módulo no conoce el idioma del evento:
+  - placas («sin señal», «Volvemos enseguida»), rótulos de punto y quórum;
+  - la botonera, los avisos del prompter, el título de la transmisión;
+  - el nombre de evento automático, el acta de la asamblea y lo que ven los integrantes;
+  - las frases partidas de las plantillas de la página del evento;
+  - la traducción en vivo, que parte del castellano.
+- **Claves que se muestran crudas:** piden etiqueta aparte cuando su módulo las traduzca:
+  - tipos de cue, de celda de la botonera y de la bitácora;
+  - posiciones del recuadro, votos, categorías de filtros y módulos, tipos del buscador de red.
+- **Comparaciones de texto entre módulos que quedan:** YouTube y Facebook «Login cancelado.»,
+  los estados del chat de Twitch, el perfil «Control de escenas» de la botonera.
+- **Avisos del motor armados con dos pedazos traducidos:** pasarlos a frases enteras.
+- **Sin marcar por cómo se compilan:**
+  - `core/rostros/Rostros.cpp`: el plugin de GStreamer lo compila sin `I18n.cpp`;
+  - `launcher/Log.cpp`: `test_sha256` lo compila sin `ba_core`;
+  - el autotest del motor: el CI busca su texto exacto.
+
 ## Riesgos
 
 - **Volumen:** son miles de cadenas. Lo mecánico (I1, I2) es lo largo, pero es lo más fácil
