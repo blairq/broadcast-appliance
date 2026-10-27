@@ -27,8 +27,9 @@
   "use strict";
   const BA = (window.BA = window.BA || {});
   // Los textos propios de los componentes, en el idioma de la página (/comun/i18n.js).
-  // Los componentes se arman antes de que cargue el idioma: la página llama a
-  // BA.traducir() después de BAi18n.iniciar() (y de BAi18n.elegir()).
+  // Los componentes se arman antes de que cargue el idioma: se vuelven a traducir solos con
+  // el evento `ba-idioma` que dispara BAi18n.iniciar() (y BAi18n.elegir()); BA.traducir()
+  // queda para llamarlo a mano.
   const t = (s, op) => (window.BAi18n ? window.BAi18n.t(s, op) : s);
 
   // --- Temas ---------------------------------------------------------------------------
@@ -383,6 +384,7 @@
   BA.traducir = () => {
     for (const el of document.querySelectorAll("ba-tarjeta, ba-tally")) if (el.traducir) el.traducir();
   };
+  window.addEventListener("ba-idioma", () => BA.traducir());
 
   const definir = (n, c) => { if (!customElements.get(n)) customElements.define(n, c); };
   definir("ba-boton", BaBoton);

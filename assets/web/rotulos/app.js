@@ -167,8 +167,8 @@ function dibujar(est) {
 }
 
 // Los textos, en el idioma del evento; después, a mirar.
+// (los componentes de neuro.js se traducen solos con el evento ba-idioma)
 BAi18n.iniciar({ contexto: "web/rotulos", preferir: "evento" }).then(() => {
-  if (window.BA && BA.traducir) BA.traducir();
   mirar();
   setInterval(mirar, 1500);
 });
