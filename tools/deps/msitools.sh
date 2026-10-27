@@ -3,8 +3,8 @@
 # tools/deps/msitools.sh — abrir un .msi desde Linux, sin instalar nada
 #
 # Proposito:
-#   El LibreOffice de Windows viene en un `.msi` y el bundle para Windows se
-#   arma DESDE ACA. Un .msi no es un zip: es un documento compuesto OLE con
+#   El GStreamer oficial de Windows viene en un `.msi` (tools/deps/gstreamer-win.sh)
+#   y el bundle para Windows se arma DESDE ACA. Un .msi no es un zip: es un documento compuesto OLE con
 #   tablas (Directory, Component, File) y un .cab adentro. El arbol
 #   `program/`, `share/` no esta escrito en ningun lado: se RECONSTRUYE
 #   cruzando esas tablas. Eso es lo que hace `msiextract`.
@@ -21,7 +21,7 @@
 #
 # 7z NO SIRVE, y conviene que quede escrito para que nadie lo intente de nuevo:
 # abre el .msi pero escupe los flujos OLE crudos (_0001.cfs y asi). Medido
-# sobre el .msi de LibreOffice: 19.496 archivos y ni un solo directorio.
+# sobre el .msi de LibreOffice (cuando viajaba): 19.496 archivos y ni un solo directorio.
 #
 # DE glibc Y glib NO NOS HACEMOS CARGO. libc6 y libglib2.0 estan en cualquier
 # Linux con entorno grafico y vendorearlas seria arrastrar medio sistema para

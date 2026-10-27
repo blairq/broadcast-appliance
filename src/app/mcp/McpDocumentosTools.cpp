@@ -71,7 +71,7 @@ void McpService::registerDocumentosTools() {
         t.title = "Agregar un documento al evento";
         t.category = "documentos";
         t.description = "Agrega un documento a la documentación del evento: un PDF o una imagen tal cual, y un Word, "
-                        "planilla, presentación, HTML, Markdown o texto pasado a PDF antes (LibreOffice o Qt, del bundle). "
+                        "planilla, presentación, HTML, Markdown o texto pasado a PDF antes (WordCraft, DeckCraft, GridCraft o Qt, del bundle). "
                         "Lo copia a la carpeta docs/ del evento y "
                         "guarda su carátula (la primera página) para la web. `archivo`: la ruta. `titulo` y `descripcion` "
                         "(si no se dan: el título del PDF; la respuesta trae el comienzo del texto para escribir una "

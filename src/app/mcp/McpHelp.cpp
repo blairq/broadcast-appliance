@@ -463,7 +463,7 @@ En medio de la charla el orador dice "volve a la del grafico de barras". Con vei
 - `laminas_armar {"nombre", "imagenes"}`: armar uno a mano con placas sueltas (logos, fondos). Si ya existe, agrega al final.
 - `laminas_editar {"carrusel", "accion"}`: quitar una lamina, moverla de lugar, renombrar, borrar o soltarlo de la escena. `borrar` se lleva el carrusel, NO las imagenes.
 - `laminas_aplicar {"carrusel", "escena"}`: **es el paso que falta casi siempre**. Hasta que el carrusel no esta EN una escena, `laminas_ir` mueve el puntero y no se ve nada.
-- `laminas_desarmar {"archivo", "nombre"}`: convierte un PDF o un .pptx en laminas. **Tarda** (segundos por pagina) y no espera: avisa que empezo, y cuando termina aparece en `carruseles_listar`. Un .pptx necesita que el equipo traiga LibreOffice; un PDF no.
+- `laminas_desarmar {"archivo", "nombre"}`: convierte un PDF o un .pptx en laminas. **Tarda** (segundos por pagina) y no espera: avisa que empezo, y cuando termina aparece en `carruseles_listar`. Un .pptx pasa por DeckCraft (viaja en el programa); el .ppt viejo y el .odp, exportados a .pptx o a PDF.
 
 ## Que se busca y como
 El operador escribe "barras" en un cuadro y le queda esa lamina. Eso funciona si alguien miro las imagenes antes: `laminas_sin_analizar {"carrusel"}` da la proxima sin etiquetas, se la mira con `imagen_preguntar` (que es quien sabe mirar: el asistente principal NO recibe imagenes), y lo que se vio se guarda con `laminas_etiquetar {"carrusel", "numero", "etiquetas"}`. Se hace **una vez por lamina**; si salio vacio queda marcada igual, para no volver a mirarla para siempre.
@@ -481,7 +481,7 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
 
 - `documentos_listar` (o `{"punto": 2}`, `{"seccion": "<id>"}`), `documento_agregar {"archivo", "titulo", "descripcion", "puntos", "secciones", "publico"}`, `documento_editar` (también `pagina_tapa`: otra página como carátula), `documento_quitar`, `documento_texto`, `documento_abrir`.
 - **Agregar un Word, una planilla, una presentación, un HTML o un Markdown ya lo pasa a PDF** (no hace falta convertir antes).
-- `pdf_convertir {"archivo"}` o `{"texto", "formato": "markdown"|"html"|"texto", "titulo"}`: hace un PDF con lo que trae el programa (LibreOffice y Qt, cualquier idioma). `destino` para elegir dónde; `agregar_al_evento: true` lo suma a la documentación.
+- `pdf_convertir {"archivo"}` o `{"texto", "formato": "markdown"|"html"|"texto", "titulo"}`: hace un PDF con lo que trae el programa (WordCraft, DeckCraft, GridCraft y Qt, cualquier idioma). `destino` para elegir dónde; `agregar_al_evento: true` lo suma a la documentación.
 - **Para un PDF no uses Chrome sin pantalla** (`--print-to-pdf`, Puppeteer, Playwright): en macOS pide el llavero del sistema y no viaja con el programa. Usá `pdf_convertir`.
 - Tus temporales van a `Runtime/tmp/` dentro de la carpeta de datos (TMPDIR): todo queda en el pendrive.)md"},
     {"configuraciones", "Configuraciones con nombre",

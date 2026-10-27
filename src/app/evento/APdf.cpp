@@ -25,8 +25,12 @@ namespace ba::app {
 
 namespace {
 
-const QStringList kOffice = {"doc", "docx", "odt", "fodt", "rtf", "ppt", "pptx", "odp", "fodp",
-                             "xls", "xlsx", "ods", "fods", "csv", "html", "htm", "xhtml"};
+// De oficina, cada uno con su herramienta (tools/deps/craft.sh). El .ppt viejo y el .odp
+// no: DeckCraft no los lee (se exportan a .pptx o a PDF).
+const QStringList kWord = {"doc", "docx", "odt", "rtf", "html", "htm", "xhtml"};
+const QStringList kDeck = {"pptx", "deckcraft"};
+const QStringList kGrid = {"xls", "xlsx", "ods", "csv"};
+const QStringList kOffice = kWord + kDeck + kGrid;
 const QStringList kTexto = {"md", "markdown", "txt"};
 const QStringList kImagen = {"png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff"};
 
@@ -87,7 +91,7 @@ bool APdf::sabe(const QString& archivo) {
     return e == "pdf" || kOffice.contains(e) || kTexto.contains(e) || kImagen.contains(e);
 }
 
-bool APdf::necesitaOffice(const QString& archivo) { return kOffice.contains(ext(archivo)); }
+bool APdf::necesitaConvertir(const QString& archivo) { return kOffice.contains(ext(archivo)); }
 
 QString APdf::formatos() { return (QStringList{"pdf"} + kOffice + kTexto + kImagen).join(", "); }
 
@@ -124,8 +128,9 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
         const QString contenido = QString::fromUtf8(f.readAll());
         return avisar(texto(contenido, e == "txt" ? "texto" : "markdown", QFileInfo(origen).completeBaseName(), destino));
     }
-    // De oficina (y HTML): LibreOffice. Sin él, el HTML todavía sale con Qt.
-    const QString bin = carrusel::Conversor::soffice();
+    // De oficina (y HTML): WordCraft, DeckCraft o GridCraft. Sin ellos, el HTML todavía sale con Qt.
+    const QString nombre = kWord.contains(e) ? "wordcraft" : kDeck.contains(e) ? "deckcraft" : "gridcraft";
+    const QString bin = carrusel::Conversor::herramienta(nombre);
     if (bin.isEmpty()) {
         if (e == "html" || e == "htm" || e == "xhtml") {
             QFile f(origen);
@@ -135,14 +140,13 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
             doc.setHtml(QString::fromUtf8(f.readAll()));
             return avisar(imprimir(doc, QFileInfo(origen).completeBaseName(), destino));
         }
-        return avisar("este equipo no trae LibreOffice para convertir «." + e + "»");
+        return avisar("este equipo no trae " + nombre + " para convertir «." + e + "»");
     }
     const QString tmp = temporal();
-    auto* p = new QProcess(this);
-    carrusel::Conversor::prepararOffice(*p, bin, origen, tmp, tmp + "/perfil");
-    p->setProcessChannelMode(QProcess::MergedChannels);
-    auto hecho = std::make_shared<bool>(false);
     const QString esperado = tmp + "/" + QFileInfo(origen).completeBaseName() + ".pdf";
+    auto* p = new QProcess(this);
+    carrusel::Conversor::prepararConversion(*p, bin, origen, esperado);
+    auto hecho = std::make_shared<bool>(false);
     const auto terminar = [p, tmp, hecho, listo](const QString& err) {
         if (*hecho) return;
         *hecho = true;
@@ -150,24 +154,25 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
         QDir(tmp).removeRecursively();
         listo(err);
     };
-    connect(p, &QProcess::finished, this, [p, esperado, destino, terminar](int, QProcess::ExitStatus) {
-        // El código de salida miente (0 sin haber escrito nada): vale si el PDF está.
+    connect(p, &QProcess::finished, this, [p, esperado, destino, nombre, terminar](int, QProcess::ExitStatus) {
+        // Vale si el PDF está (no solo el código de salida); lo que haya dicho va en el motivo.
         if (!QFileInfo::exists(esperado)) {
             const QString dijo = QString::fromLocal8Bit(p->readAll()).trimmed();
-            return terminar(dijo.isEmpty() ? QString("LibreOffice no pudo abrir el archivo (¿está dañado?)")
-                                           : "LibreOffice: " + dijo.left(600));
+            return terminar(dijo.isEmpty() ? nombre + " no pudo abrir el archivo (¿está dañado?)"
+                                           : nombre + ": " + dijo.left(600));
         }
         QFile::remove(destino);
         terminar(QFile::rename(esperado, destino) || QFile::copy(esperado, destino) ? QString()
                                                                                     : "no se pudo escribir " + destino);
     });
-    connect(p, &QProcess::errorOccurred, this, [terminar](QProcess::ProcessError e) {
-        if (e == QProcess::FailedToStart) terminar("no arrancó LibreOffice");
+    connect(p, &QProcess::errorOccurred, this, [terminar, nombre](QProcess::ProcessError e) {
+        if (e == QProcess::FailedToStart) terminar("no arrancó " + nombre);
     });
+    connect(p, &QProcess::started, p, [p]() { p->closeWriteChannel(); });
     // Uno trabado no deja la conversión colgada para siempre.
-    QTimer::singleShot(180000, p, [p, terminar]() {
+    QTimer::singleShot(180000, p, [p, terminar, nombre]() {
         p->kill();
-        terminar("LibreOffice tardó más de 3 minutos: se cortó");
+        terminar(nombre + " tardó más de 3 minutos: se cortó");
     });
     p->start();
 }

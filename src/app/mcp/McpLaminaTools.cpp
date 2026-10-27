@@ -234,8 +234,8 @@ void McpService::registerLaminaTools() {
         t.category = "laminas";
         t.description = "Convierte cada pagina de un PDF o de una presentacion en una lamina y arma "
                         "un carrusel con ellas. Tarda (segundos por pagina) y avisa cuando termina; "
-                        "el operador ve la barra de trabajo. Un .pptx necesita que el equipo traiga "
-                        "LibreOffice; un PDF no.";
+                        "el operador ve la barra de trabajo. Un .pptx pasa por DeckCraft (viaja en el "
+                        "programa); el .ppt viejo y el .odp no se leen: exportalos a .pptx o a PDF.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -253,8 +253,8 @@ void McpService::registerLaminaTools() {
             }
             if (!cc->sePuedeDesarmar(archivo)) {
                 done(ToolResult::error("No se puede desarmar " + archivo.toStdString() +
-                                       ". Un PDF siempre se puede; un .pptx solo si este equipo trae "
-                                       "LibreOffice."));
+                                       ". Se puede un PDF o un .pptx (este, con DeckCraft); el .ppt viejo "
+                                       "y el .odp, exportados a .pptx o a PDF."));
                 return;
             }
             cc->desarmar(archivo, QString::fromStdString(a.value("nombre", std::string())));

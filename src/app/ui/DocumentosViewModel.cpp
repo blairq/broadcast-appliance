@@ -206,7 +206,7 @@ QString DocumentosViewModel::agregarUi(const QStringList& archivos) {
     for (const QString& a : archivos) {
         const QString local = a.startsWith("file:") ? QUrl(a).toLocalFile() : a;
         const QString nombre = QFileInfo(local).fileName();
-        if (APdf::necesitaOffice(local) || local.endsWith(".md", Qt::CaseInsensitive) ||
+        if (APdf::necesitaConvertir(local) || local.endsWith(".md", Qt::CaseInsensitive) ||
             local.endsWith(".txt", Qt::CaseInsensitive) || local.endsWith(".markdown", Qt::CaseInsensitive))
             emit notify("Pasando «" + nombre + "» a PDF…", "info");
         QPointer<DocumentosViewModel> yo(this);

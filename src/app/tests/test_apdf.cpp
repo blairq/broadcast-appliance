@@ -1,7 +1,7 @@
 // test_apdf: lo que la web publica, pasado a PDF con lo del bundle (evento/APdf):
-// un texto en varios idiomas y escrituras, un Markdown, una imagen, un HTML y una
-// presentación (estos dos, con el LibreOffice vendoreado). Cada PDF se vuelve a leer:
-// que tenga páginas y, el de texto, las palabras.
+// un texto en varios idiomas y escrituras, un Markdown, una imagen, y con WordCraft,
+// DeckCraft y GridCraft vendoreados un HTML, una planilla y una presentación. Cada PDF
+// se vuelve a leer: que tenga páginas y, el de texto, las palabras.
 #include "evento/APdf.hpp"
 
 #include <QDir>
@@ -91,8 +91,8 @@ int main(int argc, char** argv) {
         const QString e2 = convertir(c, d + "/raro.xyz", d + "/raro.pdf");
         chequear(e.isEmpty() && !e2.isEmpty(), "formato desconocido: error claro", e2);
     }
-#ifdef BA_LIBREOFFICE_DIR
-    // 5. Un HTML (LibreOffice).
+#ifdef BA_CRAFT_DIR
+    // 5. Un HTML (WordCraft).
     {
         QFile f(d + "/pagina.html");
         f.open(QIODevice::WriteOnly);
@@ -102,9 +102,9 @@ int main(int argc, char** argv) {
         const QString e = convertir(c, d + "/pagina.html", d + "/pagina.pdf");
         QString t;
         const int n = paginas(d + "/pagina.pdf", &t);
-        chequear(e.isEmpty() && n >= 1 && t.contains("Documento"), "HTML (LibreOffice)", e.isEmpty() ? QString::number(n) + " pág." : e);
+        chequear(e.isEmpty() && n >= 1 && t.contains("Documento"), "HTML (WordCraft)", e.isEmpty() ? QString::number(n) + " pág." : e);
     }
-    // 6. Una planilla (CSV: Calc).
+    // 6. Una planilla (CSV: GridCraft).
     {
         QFile f(d + "/planilla.csv");
         f.open(QIODevice::WriteOnly);
@@ -113,16 +113,16 @@ int main(int argc, char** argv) {
         const QString e = convertir(c, d + "/planilla.csv", d + "/planilla.pdf");
         QString t;
         const int n = paginas(d + "/planilla.pdf", &t);
-        chequear(e.isEmpty() && n >= 1 && t.contains("Presupuesto"), "planilla .csv (LibreOffice Calc)", e.isEmpty() ? QString::number(n) + " pág." : e);
+        chequear(e.isEmpty() && n >= 1 && t.contains("Presupuesto"), "planilla .csv (GridCraft)", e.isEmpty() ? QString::number(n) + " pág." : e);
     }
-    // 7. Una presentación (LibreOffice).
+    // 7. Una presentación (DeckCraft).
     {
         const QString e = convertir(c, QString(BA_TEST_DATOS) + "/tres-laminas.pptx", d + "/laminas.pdf");
         const int n = paginas(d + "/laminas.pdf");
-        chequear(e.isEmpty() && n == 3, "presentación .pptx (LibreOffice)", e.isEmpty() ? QString::number(n) + " pág." : e);
+        chequear(e.isEmpty() && n == 3, "presentación .pptx (DeckCraft)", e.isEmpty() ? QString::number(n) + " pág." : e);
     }
 #else
-    std::printf("(sin LibreOffice en extern/: HTML y .pptx no se prueban)\n");
+    std::printf("(sin extern/craft: HTML, planilla y .pptx no se prueban)\n");
 #endif
     // Nada quedó en los temporales.
     const QStringList quedan = QDir(d + "/Runtime/tmp/pdf").entryList(QDir::NoDotAndDotDot | QDir::AllEntries);

@@ -119,7 +119,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/terceros-linux.sh', 'tools/deps/gstreamer-linux.sh', 'tools/deps/libreoffice.sh') }}
+          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/terceros-linux.sh', 'tools/deps/gstreamer-linux.sh', 'tools/deps/craft.sh', 'tools/deps/fuentes-texto.sh') }}
 
       - name: Dependencias (make deps-linux)
         run: |
@@ -216,7 +216,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-win-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/win-toolchain.sh', 'tools/deps/ndi-src.sh', 'tools/deps/lsp-win.sh', 'tools/ci/test-win.sh', 'tools/deps/libreoffice.sh', 'tools/deps/msitools.sh') }}
+          key: extern-win-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/win-toolchain.sh', 'tools/deps/ndi-src.sh', 'tools/deps/lsp-win.sh', 'tools/ci/test-win.sh', 'tools/deps/craft.sh', 'tools/deps/fuentes-texto.sh', 'tools/deps/msitools.sh') }}
 
       # deps-win incluye el Qt del host (moc/rcc/qmlcachegen corren en Linux).
       - name: Dependencias (make deps-win)

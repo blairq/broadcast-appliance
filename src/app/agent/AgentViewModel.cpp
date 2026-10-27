@@ -51,6 +51,7 @@
 
 #include "agent/AlertEngine.hpp"
 #include "arranque/AppRuntime.hpp"
+#include "carrusel/Conversion.hpp"
 #include "net/Credentials.hpp"
 #include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"
@@ -1267,6 +1268,42 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
                               error, true, true);
 }
 
+namespace {
+/// Los MCP de WordCraft, DeckCraft y GridCraft: el asistente arma documentos de Word,
+/// presentaciones y planillas con gráficos. WordCraft y DeckCraft, encerrados en `carpeta`
+/// (la de la configuración: los eventos, sus medios y su documentación); GridCraft no tiene
+/// cómo encerrarse. Sus carpetas de usuario, en <datos>/Runtime/craft (portable).
+/// {nombre: {command, args, env}}, solo los que viajan.
+json mcpOficina(const QString& carpeta, const QString& datosMaquina) {
+    json out = json::object();
+    const std::string casa = (datosMaquina + "/Runtime/craft").toStdString();
+    QDir().mkpath(QString::fromStdString(casa));
+    const json env{{"HOME", casa}, {"USERPROFILE", casa}, {"APPDATA", casa}, {"LOCALAPPDATA", casa},
+                   {"XDG_CONFIG_HOME", casa}, {"XDG_DATA_HOME", casa}, {"XDG_CACHE_HOME", casa}};
+    for (const char* app : {"wordcraft", "deckcraft", "gridcraft"}) {
+        const QString bin = ba::carrusel::Conversor::herramienta(app);
+        if (bin.isEmpty()) continue;
+        json args = json::array({"mcp"});
+        if (std::string(app) != "gridcraft")
+            for (const char* f : {"--automation-read-root", "--automation-write-root"}) {
+                args.push_back(f);
+                args.push_back(carpeta.toStdString());
+            }
+        out[app] = json{{"command", bin.toStdString()}, {"args", args}, {"env", env}};
+    }
+    return out;
+}
+
+/// Lo que el asistente tiene que saber de esos MCP (va al final de su prompt).
+const char* kOficinaPrompt =
+    "\n\n# Documentos, presentaciones y planillas\n"
+    "Además del aparato tenés tres MCP de oficina: `wordcraft` (documentos de Word: programa, orden del día, acta, "
+    "cartas), `deckcraft` (presentaciones: láminas para la apertura, los oradores, los puntos del orden del día) y "
+    "`gridcraft` (planillas con fórmulas y gráficos: votaciones, asistencia). Guardá lo que hagas en la carpeta del "
+    "evento: los documentos para la web, en su documentación (después `documento_agregar`); una presentación, como "
+    ".pptx en Medios/ y `laminas_desarmar` para el carrusel; un gráfico, como imagen en Medios/ para una escena.";
+} // namespace
+
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
                                            const QStringList& bridgeArgs, const QString& prompt,
                                            QString* error, bool consola, bool conControl) {
@@ -1284,6 +1321,10 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
             p += QByteArray::fromStdString(c->instrucciones);
         }
     }
+    // Los MCP de oficina, para el asistente del operador y el de automatización (los que
+    // manejan el evento); un rol de un tiro no los necesita.
+    const json oficina = conControl ? mcpOficina(QString::fromStdU16String(rt_.dataRoot().u16string()), root) : json::object();
+    if (!oficina.empty()) p += kOficinaPrompt;
     for (const char* f : {"CLAUDE.md", "GEMINI.md", "AGENTS.md"})
         if (!writeText(ws + "/" + f, p)) {
             if (error != nullptr) *error = "No se pudo escribir " + ws;
@@ -1312,6 +1353,10 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
             json c = mcpControl;
             c["type"] = "stdio";
             servidores["control"] = c;
+        }
+        for (const auto& [nombre, m] : oficina.items()) {
+            servidores[nombre] = m;
+            servidores[nombre]["type"] = "stdio";
         }
         writeText(ws + "/mcp.json", QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     } else if (runtime == "opencode") {
@@ -1343,6 +1388,11 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                                      {"command", ccmd},
                                      {"environment", {{"BA_DATA_ROOT", root.toStdString()}}},
                                      {"enabled", true}};
+        }
+        for (const auto& [nombre, m] : oficina.items()) {
+            json ocmd = json::array({m["command"]});
+            for (const auto& a : m["args"]) ocmd.push_back(a);
+            cfg["mcp"][nombre] = {{"type", "local"}, {"command", ocmd}, {"environment", m["env"]}, {"enabled", true}};
         }
         if (!modelo.isEmpty()) cfg["model"] = modelo.toStdString();
         // El modelo de la casa: se le arma a opencode el proveedor compatible
@@ -1420,6 +1470,10 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
             directas[n] = "direct";
         servidores["broadcast"]["toolExposure"] = directas;
         if (control) servidores["control"] = mcpControl;
+        for (const auto& [nombre, m] : oficina.items()) {
+            servidores[nombre] = m;
+            servidores[nombre]["exposure"] = "deferred"; // con tool_search, como las del aparato
+        }
         writeText(root + "/Credenciales/agentes/pi/mcp.json",
                   QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     } else if (runtime == "antigravity") {
@@ -1432,6 +1486,10 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         if (control) {
             servidores["control"] = mcpControl;
             servidores["control"]["disabled"] = false;
+        }
+        for (const auto& [nombre, m] : oficina.items()) {
+            servidores[nombre] = m;
+            servidores[nombre]["disabled"] = false;
         }
         writeText(home + "/.gemini/config/mcp_config.json",
                   QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
@@ -1575,7 +1633,8 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         o.args = {dir + "/pi/" + QString::fromStdString(pin.value("paquete", json::object()).value("script", "")),
                   "--provider", "modelo-local", "--model", "local", "--offline", "--approve",
                   "--no-extensions", "-e", "builtin:mcp", "-e", guarda, "--no-context-files", "--no-skills",
-                  "--no-prompt-templates", "--tools", "tool_search,mcp__broadcast__*,mcp__control__*",
+                  "--no-prompt-templates", "--tools",
+                  "tool_search,mcp__broadcast__*,mcp__control__*,mcp__wordcraft__*,mcp__deckcraft__*,mcp__gridcraft__*",
                   "--system-prompt", prompt};
         o.env["PI_CODING_AGENT_DIR"] = profile;
         o.env["HOME"] = profile;
@@ -1694,7 +1753,9 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // en Configuración apagaron «preguntar»; si no, Claude le pide permiso al
         // operador en su consola antes de cada acción.
         const ControlSistema ctl = ControlSistema::leer(ba::platform::dataRoot());
-        QStringList permitidas{"mcp__broadcast"};
+        // Los de oficina (documentos, presentaciones, planillas), permitidos: trabajan en la
+        // carpeta de la configuración y no tocan el aire.
+        QStringList permitidas{"mcp__broadcast", "mcp__wordcraft", "mcp__deckcraft", "mcp__gridcraft"};
         if (ctl.habilitado && !ctl.preguntar) permitidas << "mcp__control";
         // Fuera del aire: consola (PowerShell, Bash) y archivos (Write, Edit).
         if (conConsola_)

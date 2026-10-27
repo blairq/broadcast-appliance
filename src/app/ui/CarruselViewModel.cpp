@@ -367,7 +367,7 @@ bool CarruselViewModel::etiquetar(const QString& carrusel, int i, const QString&
 
 bool CarruselViewModel::sePuedeDesarmar(const QString& archivo) const {
     if (!carrusel::Conversor::esDocumento(archivo)) return false;
-    return !carrusel::Conversor::necesitaOffice(archivo) || !carrusel::Conversor::soffice().isEmpty();
+    return !carrusel::Conversor::necesitaConvertir(archivo) || !carrusel::Conversor::herramienta("deckcraft").isEmpty();
 }
 
 void CarruselViewModel::desarmar(const QString& documento, const QString& nombre) {

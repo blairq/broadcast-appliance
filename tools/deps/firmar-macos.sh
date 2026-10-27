@@ -42,7 +42,7 @@ sort "$CACHE" >"$TMP/antes"
 # Nuevos o cambiados desde la última firma.
 comm -23 "$TMP/ahora" "$TMP/antes" | cut -d'|' -f3- >"$TMP/cambiados"
 
-# Los de adentro de una .app (LibreOffice) se firman con la .app entera, abajo.
+# Los de adentro de una .app (si el bundle llevara alguna) se firman con la .app entera, abajo.
 grep -v '\.app/' "$TMP/cambiados" | tr '\n' '\0' | xargs -0 file -N -F $'\t' 2>/dev/null |
     awk -F'\t' 'index($1, " (for architecture ") == 0 && $2 ~ /Mach-O/ {print $1}' >"$TMP/macho"
 

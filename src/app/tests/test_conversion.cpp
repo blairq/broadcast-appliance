@@ -1,17 +1,13 @@
 // ============================================================================
 // src/app/tests/test_conversion.cpp — de un .pptx a laminas, de verdad
 //
-// Esto NO simula la conversion: corre el LibreOffice vendoreado sobre una
-// presentacion de tres laminas y cuenta los PNG que salen. Es el unico test
-// que puede avisar de una poda de mas en tools/deps/libreoffice.sh, que ya
-// dejo una vez un binario que no abria NINGUN archivo.
+// Esto NO simula la conversion: corre el DeckCraft vendoreado (tools/deps/craft.sh)
+// sobre una presentacion de tres laminas y cuenta los PNG que salen.
 //
-//   1. Que sabemos desarmar, y que un PDF no necesita LibreOffice.
+//   1. Que sabemos desarmar, y que un PDF no pasa por DeckCraft.
 //   2. Un .pptx entero: tres paginas, tres PNG, y el avance llega al final.
 //   3. Un archivo que no existe falla avisando, no revienta.
-//
-// Si este equipo no tiene extern/libreoffice, el punto 2 se SALTEA en vez de
-// fallar: no todos los que compilan bajan 400 MB.
+//   4. Una ruta con espacios (la carpeta del aparato se llama «Broadcast Appliance»).
 // ============================================================================
 #include <cstdio>
 
@@ -35,9 +31,9 @@ namespace {
 
 int g_fallos = 0;
 
-/// Bajo Wine (los tests de Windows se corren asi desde Linux) el LibreOffice de
-/// Windows no convierte: eso se prueba en un Windows de verdad. Wine se
-/// reconoce por `wine_get_version`, que solo exporta su ntdll.
+/// Bajo Wine (los tests de Windows se corren asi desde Linux) las herramientas de
+/// Windows no se prueban: eso va en un Windows de verdad. Wine se reconoce por
+/// `wine_get_version`, que solo exporta su ntdll.
 bool bajoWine() {
 #ifdef _WIN32
     HMODULE ntdll = GetModuleHandleA("ntdll.dll");
@@ -47,8 +43,8 @@ bool bajoWine() {
 #endif
 }
 
-/// Hay un LibreOffice que se pueda correr aca.
-bool hayOffice() { return !Conversor::soffice().isEmpty() && !bajoWine(); }
+/// Hay un DeckCraft que se pueda correr aca.
+bool hayDeck() { return !Conversor::herramienta("deckcraft").isEmpty() && !bajoWine(); }
 #define CHECK(cond, msg)                                                                                     \
     do {                                                                                                     \
         if (!(cond)) {                                                                                       \
@@ -91,20 +87,19 @@ QString fixture(const char* nombre) { return QString(BA_TEST_DATOS) + "/" + nomb
 
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
-    // CON ESPACIO, A PROPOSITO. QTemporaryDir nombra la carpeta con el nombre
-    // del programa, y el perfil de LibreOffice vive adentro de ella. El aparato
-    // se llama «Broadcast Appliance»: con la URL del perfil sin codificar,
-    // LibreOffice moria sin decir una palabra y fallaba SOLO adentro del
-    // aparato, porque este test se llamaba test_conversion. Ponerle un espacio
-    // es lo que hace que el test pueda volver a encontrarlo.
+    // CON ESPACIO, A PROPOSITO: QTemporaryDir nombra la carpeta con el nombre del
+    // programa, y el aparato se llama «Broadcast Appliance».
     QCoreApplication::setApplicationName("Prueba De Conversion");
+    QTemporaryDir datos;
+    qputenv("BA_DATA_ROOT", datos.path().toUtf8()); // la carpeta de las herramientas (Runtime/craft), acá
 
     // --- 1. Que sabemos desarmar -------------------------------------------
     CHECK(Conversor::esDocumento("a.pptx"), "pptx es documento");
     CHECK(Conversor::esDocumento("A.PDF"), "la extension no distingue mayusculas");
     CHECK(!Conversor::esDocumento("a.jpg"), "una foto no se desarma");
-    CHECK(!Conversor::necesitaOffice("a.pdf"), "un PDF no necesita LibreOffice");
-    CHECK(Conversor::necesitaOffice("a.pptx"), "un pptx si");
+    CHECK(!Conversor::necesitaConvertir("a.pdf"), "un PDF no pasa por DeckCraft");
+    CHECK(Conversor::necesitaConvertir("a.pptx"), "un pptx si");
+    CHECK(!Conversor::esDocumento("a.ppt"), "el .ppt viejo no: DeckCraft no lo lee");
 
     // --- 3. Un archivo que no existe ---------------------------------------
     {
@@ -118,9 +113,9 @@ int main(int argc, char** argv) {
     }
 
     // --- 2. El .pptx entero -------------------------------------------------
-    if (!hayOffice()) {
-        std::printf(bajoWine() ? "SALTEADO: bajo Wine el LibreOffice de Windows no convierte\n"
-                               : "SALTEADO: no hay extern/libreoffice en este equipo\n");
+    if (!hayDeck()) {
+        std::printf(bajoWine() ? "SALTEADO: bajo Wine no se prueban las herramientas de Windows\n"
+                               : "SALTEADO: no hay extern/craft en este equipo\n");
     } else {
         QTemporaryDir tmp;
         Conversor c;
@@ -140,12 +135,8 @@ int main(int argc, char** argv) {
     }
 
     // --- 4. Una ruta con espacios -------------------------------------------
-    // No es rebuscado: la carpeta temporal de LibreOffice se llama como la
-    // app, y la app se llama «Broadcast Appliance». Con la URL del perfil sin
-    // codificar, LibreOffice moria sin decir nada y la conversion fallaba
-    // SOLO adentro del aparato: desde la terminal y desde este mismo test
-    // andaba, porque aca el programa se llama test_conversion.
-    if (hayOffice()) {
+    // No es rebuscado: la carpeta del aparato se llama «Broadcast Appliance».
+    if (hayDeck()) {
         QTemporaryDir tmp;
         const QString conEspacios = tmp.path() + "/Con Espacios Adentro";
         QDir().mkpath(conEspacios);

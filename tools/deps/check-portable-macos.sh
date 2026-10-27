@@ -28,8 +28,8 @@ trap 'rm -f "$HAVE"' EXIT
     find "$BUNDLE" -type d -name '*.framework' | sed 's|.*/||' 
 } | sort -u >"$HAVE"
 
-# Solo lo que se carga (ejecutables, dylibs, bundles): un .o suelto (el de
-# Python de LibreOffice, para compilar extensiones) no se firma ni se carga.
+# Solo lo que se carga (ejecutables, dylibs, bundles): un .o suelto no se firma
+# ni se carga.
 while IFS= read -r f; do
     count=$((count + 1))
     rel="${f#"$BUNDLE"/}"

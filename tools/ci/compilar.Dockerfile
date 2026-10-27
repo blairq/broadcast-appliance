@@ -6,11 +6,6 @@
 # Nada de esto viaja en el bundle: son las herramientas de quien compila (las
 # dependencias del producto las baja cada `make deps-*` a extern/, con hash).
 #
-# Las bibliotecas de escritorio de la ultima linea (cups, nss, avahi...) las
-# pide el LibreOffice oficial al sistema (tools/deps/linux-baseline-libreoffice.txt):
-# el runner del CI las trae y sin ellas libreoffice.sh no puede VERIFICAR que
-# convierte.
-#
 # En una Mac con Apple Silicon corre con Rosetta (ver compilar-en-docker.sh).
 # ============================================================================
 FROM ubuntu:24.04
@@ -32,7 +27,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libwayland-dev libdrm-dev libfreetype-dev libfontconfig1-dev \
       libsndfile1-dev libcairo2-dev libgl-dev \
       xvfb libgl1-mesa-dri \
-      libcups2t64 libnss3 libavahi-client3 libxinerama1 libglib2.0-0t64 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /trabajo

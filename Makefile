@@ -54,7 +54,7 @@ PIP       ?= .venv/bin/pip
 .PHONY: test-rapido test-completo deps-win-todo deps-linux-todo dist-win-zip dist-linux-tar app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
         deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
-        deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
+        deps-lsp deps-status deps-clean deps-craft deps-craft-linux deps-craft-win deps-craft-mac deps-fuentes-texto \
         deps-msitools mcp-inventario deps-llamacpp deps-llamacpp-win deps-llamacpp-linux bateria-local corpus-entrenamiento \
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
         modelo-corpus modelo-inventario modelo-etiquetas \
@@ -111,8 +111,9 @@ help:
 	@echo "  make deps-lsp         Modulos LSP 1.2.35 (CLAP, Linux) -> extern/lsp"
 	@echo "  make deps-lsp-win     Modulos LSP 1.2.35 para Windows (compilados desde fuente) -> extern/lsp"
 	@echo "  make deps-clap        Headers de CLAP 1.2.6 -> extern/clap"
-	@echo "  make deps-libreoffice LibreOffice headless (PowerPoint -> PDF) y sus fuentes"
-	@echo "  make deps-msitools    abrir el .msi de Windows desde Linux (lo pide deps-libreoffice-win)"
+	@echo "  make deps-craft       WordCraft, DeckCraft y GridCraft (Word, PowerPoint y planillas a PDF; su MCP)"
+	@echo "  make deps-fuentes-texto las tipografías de texto de los gráficos y rótulos"
+	@echo "  make deps-msitools    abrir el .msi de Windows desde Linux (lo pide deps-gstreamer-win)"
 	@echo "  make mcp-inventario   docs/mcp.json: todas las herramientas MCP (con el aparato andando)"
 	@echo "  make deps-llamacpp    llama.cpp (CPU) para probar un modelo chico local"
 	@echo "  make bateria-local    cuanto tarda y cuanto acierta ese modelo (prefijo cacheado)"
@@ -123,8 +124,6 @@ help:
 	@echo "  make venv-entrenar         el entorno para entrenar (torch, unsloth, gguf)"
 	@echo "  make vector-control MODELO=... el vector que empuja a derivar, y su curva"
 	@echo "  make corpus-descubrir      que herramientas nuevas no tienen frases"
-	@echo "                        -> extern/libreoffice. OPCIONAL y pesado (~280 MB por"
-	@echo "                        plataforma): solo hace falta si alguien trae .pptx."
 	@echo "  make deps-mbedtls     mbedtls v3.6.2 (fuente de build) -> extern/mbedtls"
 	@echo "  make deps-nlohmann    nlohmann/json v3.11.3 (fuente de build) -> extern/nlohmann-json"
 	@echo "  make deps-samplerate  libsamplerate 0.2.2 (fuente de build) -> extern/libsamplerate"
@@ -239,7 +238,7 @@ release:
 	@python3 tools/ci/huellas.py atajo --nombre "release (chequeo + manifest)" \
 	  --clave-en $(BUILD_DIR)/atajos/release.json --memo $(BUILD_DIR)/atajos/huellas.json \
 	  --entrada release --excluir manifest.json --entrada tools/deploy --entrada tools/deps/check-portable.sh \
-	  --entrada tools/deps/linux-baseline.txt --entrada tools/deps/linux-baseline-libreoffice.txt \
+	  --entrada tools/deps/linux-baseline.txt \
 	  --salida release/manifest.json -- sh -c '\
 	    if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release || exit 1; fi; \
 	    BA_MANIFEST_CACHE=$(BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest release'
@@ -277,7 +276,7 @@ deps-win:
 
 deps-win-todo: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
-          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
+          deps-craft-win deps-fuentes-texto deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
@@ -317,7 +316,7 @@ release-win: win
 	@python3 tools/ci/huellas.py atajo --nombre "release-win (chequeo + manifest)" \
 	  --clave-en $(WIN_BUILD_DIR)/atajos/release-win.json --memo $(WIN_BUILD_DIR)/atajos/huellas.json \
 	  --entrada $(WIN_RELEASE) --excluir manifest.json --entrada tools/deploy --entrada tools/deps/check-portable-win.sh \
-	  --entrada tools/deps/windows-baseline.txt --entrada tools/deps/windows-baseline-libreoffice.txt \
+	  --entrada tools/deps/windows-baseline.txt \
 	  --salida $(WIN_RELEASE)/manifest.json -- sh -c '\
 	    tools/deps/check-portable-win.sh $(WIN_RELEASE) && \
 	    BA_MANIFEST_CACHE=$(WIN_BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest $(WIN_RELEASE)'
@@ -357,7 +356,7 @@ deps-linux:
 	@$(DEPS_ATAJO) --nombre deps-linux --clave-en $(EXTERNS_DIR)/.atajos/deps-linux.json -- $(MAKE) deps-linux-todo
 
 deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
-            deps-clap deps-lsp deps-lspdsp-linux deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
+            deps-clap deps-lsp deps-lspdsp-linux deps-craft-linux deps-fuentes-texto deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
             deps-llamacpp-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
@@ -384,7 +383,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con las de terceros (deps-terceros-linux).
 deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
+            deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-craft-mac deps-fuentes-texto deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -799,7 +798,7 @@ ARGON2_SENT := $(ARGON2_DEST)/Makefile
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+deps: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-fuentes-texto deps-craft deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
 # --- Bibliotecas de terceros de Linux (compiladas desde fuente) -------------
 # FFmpeg, x264, SRT, libva, libv4l2, cairo, libsndfile, libmicrodns... desde
@@ -1184,25 +1183,30 @@ deps-lsp:
 # CLAP (free-audio/clap, MIT): headers del formato de plugins que carga el host.
 CLAP_VER := 1.2.6
 CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
-# --- LibreOffice (opcional) --------------------------------------------------
-# Para pasar a PDF: presentaciones (el carrusel, docs/funciones/CARRUSEL.md) y Word, planillas
-# y HTML (la documentación del evento, evento/APdf).
-# NO entra en `make deps`: hay que pedirlo, porque son ~420 MB por plataforma y
-# el que recibe PDF no lo necesita. El bundle lo incluye solo si esta.
-# En la Mac, el de macOS (el .dmg se monta con hdiutil: solo se arma ahi).
-deps-libreoffice:
-	@if [ "$$(uname -s)" = Darwin ]; then tools/deps/libreoffice.sh mac; else tools/deps/libreoffice.sh todo; fi
+# --- WordCraft, DeckCraft y GridCraft ----------------------------------------
+# Pasan a PDF lo que trae la gente (el carrusel, docs/funciones/CARRUSEL.md, y la
+# documentación del evento, evento/APdf) y, por su MCP, el asistente arma
+# documentos, presentaciones y gráficos. Reemplazan a LibreOffice: se bajan los
+# releases oficiales (no se compilan) y viaja solo la herramienta de línea de
+# comandos de cada uno. Ver tools/deps/craft.sh.
+deps-craft:
+	@if [ "$$(uname -s)" = Darwin ]; then tools/deps/craft.sh mac; else tools/deps/craft.sh linux; fi
 
-deps-libreoffice-mac:
-	tools/deps/libreoffice.sh mac
+deps-craft-mac:
+	tools/deps/craft.sh mac
 
-deps-libreoffice-linux:
-	tools/deps/libreoffice.sh linux
+deps-craft-linux:
+	tools/deps/craft.sh linux
 
-deps-libreoffice-win:
-	tools/deps/libreoffice.sh win
+deps-craft-win:
+	tools/deps/craft.sh win
 
-# Para abrir el .msi de Windows desde Linux. Lo llama deps-libreoffice-win solo
+# Las tipografías de texto (Liberation, Carlito, DejaVu, Noto…) para los gráficos y
+# los rótulos: los mismos paquetes con que se arma LibreOffice. Ver tools/deps/fuentes-texto.sh.
+deps-fuentes-texto:
+	tools/deps/fuentes-texto.sh
+
+# Para abrir el .msi de Windows desde Linux. Lo llama deps-gstreamer-win solo
 # si hace falta; esta aparte para poder pedirlo suelto. Es una herramienta de
 # COMPILACION: no viaja en el bundle y no se instala en el sistema.
 deps-msitools:

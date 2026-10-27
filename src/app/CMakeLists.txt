@@ -424,30 +424,31 @@ if(BA_APP_QT_OK)
 # no hace falta un ffmpeg del sistema, ni VLC, ni levantar otro proceso. Se
 # verifico con ldd: `libffmpegmediaplugin.so` no pide ningun libav*.
 target_link_libraries(ba-app PRIVATE Qt6::Gui Qt6::Quick Qt6::Qml Qt6::QuickControls2 Qt6::Network Qt6::Svg Qt6::Pdf Qt6::Multimedia)
-# Donde esta el LibreOffice de extern/, para poder convertir corriendo desde el
-# directorio de compilacion. En el bundle se lo busca al lado del ejecutable.
+# WordCraft, DeckCraft y GridCraft (sus herramientas de línea de comandos,
+# tools/deps/craft.sh): pasan a PDF lo que trae la gente (el carrusel, la
+# documentación del evento) y, por su MCP, el asistente arma documentos,
+# presentaciones y gráficos. Reemplazan a LibreOffice. Se buscan acá para correr
+# desde la compilación; en el bundle van en bin/craft.
 if(WIN32)
-    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/win")
+    set(_ba_craft_dir "${CMAKE_SOURCE_DIR}/extern/craft/win")
+    set(_ba_craft_exe ".exe")
 elseif(APPLE)
-    # macOS: la .app oficial (tools/deps/libreoffice.sh mac). Sin esta rama se
-    # tomaba (y se metia al bundle) el de Linux.
-    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/macos")
+    set(_ba_craft_dir "${CMAKE_SOURCE_DIR}/extern/craft/mac")
+    set(_ba_craft_exe "")
 else()
-    set(_ba_lo_dir "${CMAKE_SOURCE_DIR}/extern/libreoffice/linux")
+    set(_ba_craft_dir "${CMAKE_SOURCE_DIR}/extern/craft/linux")
+    set(_ba_craft_exe "")
 endif()
-# Esta el LibreOffice de esta plataforma? (en macOS no hay program/: es una .app)
-if(APPLE)
-    set(_ba_lo_ok FALSE)
-    if(EXISTS "${_ba_lo_dir}/LibreOffice.app/Contents/MacOS/soffice")
-        set(_ba_lo_ok TRUE)
+set(_ba_craft_ok TRUE)
+foreach(_app wordcraft deckcraft gridcraft)
+    if(NOT EXISTS "${_ba_craft_dir}/${_app}-cli${_ba_craft_exe}")
+        set(_ba_craft_ok FALSE)
     endif()
-elseif(EXISTS "${_ba_lo_dir}/program")
-    set(_ba_lo_ok TRUE)
+endforeach()
+if(_ba_craft_ok)
+    target_compile_definitions(ba-app PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
 else()
-    set(_ba_lo_ok FALSE)
-endif()
-if(_ba_lo_ok)
-    target_compile_definitions(ba-app PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
+    ba_falta("Documentos (WordCraft, DeckCraft, GridCraft)" "no están en ${_ba_craft_dir} ('make deps-craft')")
 endif()
     target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=1)
     # Version visible en Configuracion -> Sistema y datos (soporte).
@@ -522,37 +523,26 @@ endif()
         file(GLOB _ba_fonts "${CMAKE_SOURCE_DIR}/extern/fonts/*.ttf")
         install(FILES ${_ba_fonts} "${CMAKE_SOURCE_DIR}/extern/fonts/OFL.txt" DESTINATION data/fonts COMPONENT bundle)
     endif()
-    # Las tipografias de texto que trae LibreOffice (make deps-libreoffice):
-    # Liberation, Carlito, Caladea, DejaVu, Noto. VIAJAN AUNQUE NO SE INCLUYA
-    # LibreOffice, y es a proposito: son para los graficos y los rotulos, no
-    # para convertir nada. Hasta ahora lo unico que viajaba era JetBrains Mono,
-    # una monoespaciada de programar, y todo lo demas dependia de las fuentes de
-    # la maquina —lo que rompe la portabilidad: una escena diseñada aca se ve
+    # Las tipografías de texto (make deps-fuentes-texto): Liberation, Carlito,
+    # Caladea, DejaVu, Noto, Alef, Rubik, Gentium y Linux Libertine. Son para los
+    # gráficos y los rótulos: sin ellas todo dependería de las fuentes de la
+    # máquina —lo que rompe la portabilidad: una escena diseñada acá se vería
     # distinta en el equipo de respaldo—.
-    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/libreoffice/fonts")
-        file(GLOB _ba_lo_fonts "${CMAKE_SOURCE_DIR}/extern/libreoffice/fonts/*.ttf")
-        if(_ba_lo_fonts)
-            install(FILES ${_ba_lo_fonts} DESTINATION data/fonts COMPONENT bundle)
-            list(LENGTH _ba_lo_fonts _ba_lo_n)
-            message(STATUS "ba-app: ${_ba_lo_n} tipografias de LibreOffice al bundle")
-        endif()
+    file(GLOB _ba_fuentes_texto "${CMAKE_SOURCE_DIR}/extern/fuentes-texto/*.ttf")
+    if(_ba_fuentes_texto)
+        install(FILES ${_ba_fuentes_texto} DESTINATION data/fonts COMPONENT bundle)
+        install(DIRECTORY "${CMAKE_SOURCE_DIR}/extern/fuentes-texto/licencias/" DESTINATION data/fonts/licencias
+                COMPONENT bundle)
+    else()
+        ba_falta("Tipografías de texto" "no están en extern/fuentes-texto ('make deps-fuentes-texto')")
     endif()
-    # LibreOffice headless, SOLO si se lo bajo (make deps-libreoffice). Es lo
-    # que convierte un .pptx a PDF para armar un carrusel; el que recibe PDF no
-    # carga ~420 MB para nada. Ver tools/deps/libreoffice.sh.
-    if(_ba_lo_ok)
-        install(DIRECTORY "${_ba_lo_dir}/" DESTINATION bin/libreoffice
-                COMPONENT bundle USE_SOURCE_PERMISSIONS)
-        if(WIN32)
-            # El .msi instala el runtime de Visual C++ en el SISTEMA, no en
-            # program/: extraido a mano queda afuera, y en un Windows sin el
-            # Redistributable soffice.exe no arrancaria. Va el mismo CRT de
-            # MSVC que usan nuestros .exe, junto a soffice (Windows busca las
-            # DLL en la carpeta del programa, no en bin/64bit).
-            file(GLOB _ba_crt_lo "${CMAKE_SOURCE_DIR}/extern/msvc/redist/*.dll")
-            install(FILES ${_ba_crt_lo} DESTINATION bin/libreoffice/program COMPONENT bundle)
-        endif()
-        message(STATUS "ba-app: LibreOffice headless al bundle (${_ba_lo_dir})")
+    # WordCraft, DeckCraft y GridCraft (solo sus herramientas de línea de comandos) y sus licencias.
+    if(_ba_craft_ok)
+        foreach(_app wordcraft deckcraft gridcraft)
+            install(PROGRAMS "${_ba_craft_dir}/${_app}-cli${_ba_craft_exe}" DESTINATION bin/craft COMPONENT bundle)
+        endforeach()
+        install(DIRECTORY "${_ba_craft_dir}/licencias/" DESTINATION bin/craft/licencias COMPONENT bundle)
+        message(STATUS "ba-app: WordCraft, DeckCraft y GridCraft al bundle (${_ba_craft_dir})")
     endif()
     message(STATUS "ba-app: interfaz grafica con Qt ${Qt6_VERSION} vendoreado (${BA_QT_PREFIX})")
     # Test de la logica de disposicion del dashboard (ViewModel sin interfaz).
@@ -994,27 +984,26 @@ endif()
     target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_carrusel COMMAND test_carrusel)
 
-    # De un .pptx a laminas, corriendo el LibreOffice vendoreado de verdad: es
-    # lo unico que avisa si la poda de tools/deps/libreoffice.sh se paso.
+    # De un .pptx a láminas, corriendo el DeckCraft vendoreado de verdad.
     add_executable(test_conversion tests/test_conversion.cpp carrusel/Conversion.cpp)
     target_include_directories(test_conversion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_conversion PRIVATE Qt6::Core Qt6::Gui Qt6::Pdf)
+    target_link_libraries(test_conversion PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_conversion PRIVATE
         BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
-    if(_ba_lo_ok)
-        target_compile_definitions(test_conversion PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
+    if(_ba_craft_ok)
+        target_compile_definitions(test_conversion PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
     endif()
     set_target_properties(test_conversion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_conversion COMMAND test_conversion)
 
     # Lo que se publica, a PDF (evento/APdf): texto en varios idiomas, Markdown, imagen,
-    # y con el LibreOffice vendoreado, HTML y .pptx. Cada PDF se vuelve a leer.
+    # y con WordCraft, DeckCraft y GridCraft, Word, HTML, .pptx y planillas. Cada PDF se vuelve a leer.
     add_executable(test_apdf tests/test_apdf.cpp evento/APdf.cpp carrusel/Conversion.cpp)
     target_include_directories(test_apdf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_apdf PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_apdf PRIVATE BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
-    if(_ba_lo_ok)
-        target_compile_definitions(test_apdf PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
+    if(_ba_craft_ok)
+        target_compile_definitions(test_apdf PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
     endif()
     set_target_properties(test_apdf PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_apdf COMMAND test_apdf)

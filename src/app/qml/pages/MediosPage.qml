@@ -39,7 +39,7 @@ Rectangle {
         const s = page.m.seleccion
         for (let i = 0; i < s.length; i++) {
             const e = s[i].split(".").pop().toLowerCase()
-            if (e === "pdf" || e === "pptx" || e === "ppt" || e === "odp") return s[i]
+            if (e === "pdf" || e === "pptx" || e === "deckcraft") return s[i]
         }
         return ""
     }
@@ -85,7 +85,7 @@ Rectangle {
                 }
                 ProgressBar {
                     Layout.preferredWidth: 180
-                    // LibreOffice no informa progreso: mientras convierte, la
+                    // DeckCraft no informa progreso: mientras convierte, la
                     // barra va indeterminada en vez de fingir un número.
                     indeterminate: page.cc.total <= 0
                     from: 0; to: Math.max(1, page.cc.total)

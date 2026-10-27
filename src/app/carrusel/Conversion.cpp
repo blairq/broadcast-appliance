@@ -1,5 +1,6 @@
 #include "carrusel/Conversion.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "platform/Paths.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -17,23 +18,19 @@
 
 #include <memory>
 
-#ifdef Q_OS_UNIX
-#include <csignal>
-#endif
-
 namespace ba::carrusel {
 namespace {
 
-/// Lo que LibreOffice abre y nosotros queremos. `.key` de Keynote NO está: lo
-/// abre mal y media lámina sale en blanco, que es peor que decir que no.
-const QStringList kExtensiones = {"pdf", "pptx", "ppt", "odp", "odg", "fodp"};
+/// Lo que DeckCraft abre (y un PDF, que no pasa por nadie). El .ppt viejo (binario)
+/// y el .odp NO: DeckCraft no los lee; se exportan a .pptx o a PDF. `.deckcraft` es
+/// lo que arma el asistente con el MCP de DeckCraft.
+const QStringList kExtensiones = {"pdf", "pptx", "deckcraft"};
 
 QString extension(const QString& archivo) { return QFileInfo(archivo).suffix().toLower(); }
 
-/// Convertir tarda, pero no una hora: si LibreOffice no terminó en cinco
-/// minutos es que se quedó esperando algo que nunca va a llegar (un diálogo
-/// que en headless nadie puede contestar) y lo mejor es decirlo.
-inline int kLimiteOfficeMs() { return ba::ajustes::entero("carrusel.limiteOfficeMin", 5) * 60 * 1000; }
+/// Convertir tarda milisegundos, no una hora: si no terminó en cinco minutos se
+/// trabó y lo mejor es decirlo.
+inline int kLimiteConversionMs() { return ba::ajustes::entero("carrusel.limiteOfficeMin", 5) * 60 * 1000; }
 
 } // namespace
 
@@ -69,92 +66,49 @@ Conversor::~Conversor() {
 
 bool Conversor::esDocumento(const QString& archivo) { return kExtensiones.contains(extension(archivo)); }
 
-bool Conversor::necesitaOffice(const QString& archivo) {
+bool Conversor::necesitaConvertir(const QString& archivo) {
     return esDocumento(archivo) && extension(archivo) != "pdf";
 }
 
-QString Conversor::soffice() {
-    // Primero lo que diga el entorno: es como los tests apuntan al de extern/
-    // sin tener que instalar el bundle entero para probar una conversión.
-    const QString env = qEnvironmentVariable("BA_SOFFICE");
-    if (!env.isEmpty() && QFileInfo::exists(env)) return env;
-
+QString Conversor::herramienta(const QString& nombre) {
+#ifdef Q_OS_WIN
+    const QString exe = nombre + "-cli.exe";
+#else
+    const QString exe = nombre + "-cli";
+#endif
     QStringList velas;
+    // Primero lo que diga el entorno: es como los tests apuntan al de extern/ sin
+    // instalar el bundle entero.
+    const QString env = qEnvironmentVariable("BA_CRAFT_DIR");
+    if (!env.isEmpty()) velas << env + "/" + exe;
+    // SIEMPRE la que viaja con nosotros (bin/craft, al lado de bin/64bit): nunca una
+    // del sistema, que en otra máquina puede no estar (el aparato es portable).
     const QString dir = QCoreApplication::applicationDirPath();
-    // En macOS es una .app. SIEMPRE la que viaja con nosotros: nunca la de
-    // /Applications, que en otra Mac puede no estar (el aparato es portable).
-    for (const QString& base : {dir + "/libreoffice", dir + "/../libreoffice"})
-        velas << base + "/program/soffice" << base + "/program/soffice.exe"
-              << base + "/LibreOffice.app/Contents/MacOS/soffice";
-#ifdef BA_LIBREOFFICE_DIR
-    // El árbol de extern/, para correr desde el directorio de compilación.
-    velas << QString(BA_LIBREOFFICE_DIR) + "/program/soffice"
-          << QString(BA_LIBREOFFICE_DIR) + "/program/soffice.exe"
-          << QString(BA_LIBREOFFICE_DIR) + "/LibreOffice.app/Contents/MacOS/soffice";
+    velas << dir + "/craft/" + exe << dir + "/../craft/" + exe;
+#ifdef BA_CRAFT_DIR
+    velas << QString(BA_CRAFT_DIR) + "/" + exe; // el de extern/, corriendo desde la compilación
 #endif
     for (const QString& c : velas)
         if (QFileInfo(c).isExecutable()) return QFileInfo(c).absoluteFilePath();
     return {};
 }
 
-void Conversor::prepararOffice(QProcess& p, const QString& bin, const QString& archivo, const QString& salida,
-                               const QString& perfil) {
-#ifdef Q_OS_UNIX
-    // EL HIJO ARRANCA CON LAS SEÑALES LIMPIAS. LibreOffice se abre en dos
-    // procesos (soffice lanza soffice.bin) y espera a su propio hijo; nosotros
-    // corremos adentro de una app que tiene SIGCHLD y compañía tocados —libobs
-    // y Qt los manejan a su manera— y eso el hijo lo HEREDA. Con la máscara
-    // heredada, LibreOffice moría con `RuntimeException` de UNO y no escribía
-    // nada: desde una terminal, con el mismo comando y las mismas variables,
-    // convertía perfecto. Eso fue lo que lo delató.
-    p.setChildProcessModifier([] {
-        sigset_t ninguna;
-        sigemptyset(&ninguna);
-        sigprocmask(SIG_SETMASK, &ninguna, nullptr);
-        struct sigaction porDefecto {};
-        porDefecto.sa_handler = SIG_DFL;
-        sigemptyset(&porDefecto.sa_mask);
-        for (int s : {SIGCHLD, SIGPIPE, SIGTERM, SIGINT, SIGHUP, SIGUSR1, SIGUSR2})
-            sigaction(s, &porDefecto, nullptr);
-    });
-#endif
-    // El perfil va al temporal: sin esto, dos conversiones a la vez chocan por
-    // el mismo ~/.config y la segunda muere sin decir por qué.
-    p.setArguments(
-        {"--headless", "--norestore", "--invisible",
-         // CODIFICADA. `toString()` deja los espacios tal cual y la
-         // carpeta temporal lleva el nombre de la app: «Broadcast
-         // Appliance», con espacio. LibreOffice recibia
-         // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
-         // el perfil y se moria con un `RuntimeException` de UNO sin decir
-         // una palabra. Desde una terminal andaba, y el test tambien,
-         // porque ahi el nombre del programa no tiene espacios.
-         "-env:UserInstallation=" + QUrl::fromLocalFile(perfil).toString(QUrl::FullyEncoded),
-         "--convert-to", "pdf", "--outdir", salida, archivo});
+void Conversor::prepararConversion(QProcess& p, const QString& bin, const QString& archivo, const QString& salida) {
     p.setProgram(bin);
-
-    // ENTORNO LIMPIO, Y A PROPOSITO. El hijo heredaba el de la app entera
-    // —variables de libobs, de Qt, de cachés redirigidos al bundle— y eso
-    // alcanzaba para que LibreOffice muriera con `RuntimeException` de UNO sin
-    // escribir nada. Desde una terminal, mismo comando, convertía perfecto.
-    // Acá se le pasa lo mínimo que necesita cualquier programa y nada más:
-    // convertir un archivo no tiene por qué depender de cómo arrancó el
-    // aparato.
-    QProcessEnvironment limpio;
-    const QProcessEnvironment heredado = QProcessEnvironment::systemEnvironment();
-    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"), QStringLiteral("USER"),
-                             QStringLiteral("LOGNAME"), QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
-        if (heredado.contains(k)) limpio.insert(k, heredado.value(k));
-    if (!limpio.contains("HOME")) limpio.insert("HOME", perfil);
-    // Sin pantalla: es headless y pedirle una X que puede no estar es una
-    // fuente de fallas que no necesitamos.
-    limpio.insert("SAL_USE_VCLPLUGIN", "svp");
-    p.setProcessEnvironment(limpio);
-    // Todo por el mismo caño: LibreOffice reparte sus quejas entre salida y
-    // error sin criterio claro, y perder la mitad al diagnosticar es peor que
-    // mezclarlas.
+    p.setArguments({"convert", archivo, salida});
+    // Sus carpetas de usuario, en los datos: convirtiendo no escriben nada, pero si un
+    // día guardan un log o una caché, que quede en el pendrive y no en el sistema.
+    QProcessEnvironment e = QProcessEnvironment::systemEnvironment();
+    const QString casa = QString::fromStdU16String((ba::platform::dataRoot() / "Runtime" / "craft").u16string());
+    QDir().mkpath(casa);
+    for (const QString& k : {QStringLiteral("HOME"), QStringLiteral("USERPROFILE"), QStringLiteral("APPDATA"),
+                             QStringLiteral("LOCALAPPDATA"), QStringLiteral("XDG_CONFIG_HOME"),
+                             QStringLiteral("XDG_DATA_HOME"), QStringLiteral("XDG_CACHE_HOME"),
+                             QStringLiteral("XDG_STATE_HOME")})
+        e.insert(k, casa);
+    p.setProcessEnvironment(e);
+    // Lo que diga (un archivo que no pudo abrir, una lámina que dejó afuera), junto.
     p.setProcessChannelMode(QProcess::MergedChannels);
-
 }
 
 bool Conversor::ocupado() const { return d_->corriendo; }
@@ -191,15 +145,15 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     d_->ancho = anchoPx > 0 ? anchoPx : 1920;
     d_->pagina = 0;
 
-    if (!necesitaOffice(archivo)) {
+    if (!necesitaConvertir(archivo)) {
         arrancarPaginas(archivo);
         return;
     }
 
-    const QString bin = soffice();
+    const QString bin = herramienta("deckcraft");
     if (bin.isEmpty()) {
         d_->corriendo = false;
-        emit fallo("este equipo no trae LibreOffice: convertí la presentación a PDF y traé el PDF");
+        emit fallo("este equipo no trae DeckCraft: convertí la presentación a PDF y traé el PDF");
         return;
     }
 
@@ -214,40 +168,34 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     emit avance("Convirtiendo la presentación", 0, 0);
 
     d_->proc = new QProcess(this);
-    prepararOffice(*d_->proc, bin, archivo, tmp, tmp + "/perfil");
-
     const QString esperado = tmp + "/" + QFileInfo(archivo).completeBaseName() + ".pdf";
+    prepararConversion(*d_->proc, bin, archivo, esperado);
     connect(d_->proc, &QProcess::finished, this, [this, esperado](int, QProcess::ExitStatus) {
         // Sin proceso ya se aviso (se corto por tiempo): leer su salida seria
         // usar un puntero nulo.
         if (d_->cancelado || !d_->proc) return;
-        // El código de salida miente: LibreOffice contesta 0 aunque no haya
-        // escrito nada. Lo que vale es si el PDF está.
+        // Vale si el PDF está (no solo el código de salida). Lo que haya dicho va en el
+        // motivo: «no pudo» a secas no dice por dónde empezar a mirar.
         if (!QFileInfo::exists(esperado)) {
-            // Lo que haya dicho LibreOffice va en el motivo. Sin esto el aviso
-            // es «no pudo» a secas y no hay por donde empezar a mirar: pasó, y
-            // averiguarlo costó una tarde.
-            QString dijo = QString::fromLocal8Bit(d_->proc->readAllStandardError()).trimmed();
-            if (dijo.isEmpty()) dijo = QString::fromLocal8Bit(d_->proc->readAllStandardOutput()).trimmed();
+            const QString dijo = QString::fromLocal8Bit(d_->proc->readAll()).trimmed();
             d_->limpiar();
-            emit fallo(dijo.isEmpty() ? QString("LibreOffice no pudo abrir el archivo (¿está dañado?)")
-                                      : "LibreOffice: " + dijo.left(600));
+            emit fallo(dijo.isEmpty() ? QString("DeckCraft no pudo abrir el archivo (¿está dañado?)")
+                                      : "DeckCraft: " + dijo.left(600));
             return;
         }
         arrancarPaginas(esperado);
     });
     connect(d_->proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError e) {
-        // Si se cayo, despues llega finished, que avisa con lo que dijo
-        // LibreOffice. Limpiar aca borraba el proceso que finished iba a leer
-        // (se vio con Wine, pero un LibreOffice que se cae tumbaba la app igual).
+        // Si se cayó, después llega finished, que avisa con lo que dijo. Limpiar acá
+        // borraba el proceso que finished iba a leer.
         if (d_->cancelado || e == QProcess::Crashed) return;
         d_->limpiar();
-        emit fallo("no se pudo arrancar LibreOffice");
+        emit fallo("no se pudo arrancar DeckCraft");
     });
-    QTimer::singleShot(kLimiteOfficeMs(), this, [this]() {
+    QTimer::singleShot(kLimiteConversionMs(), this, [this]() {
         if (d_->corriendo && d_->proc) {
             d_->limpiar();
-            emit fallo("LibreOffice tardó demasiado y lo corté");
+            emit fallo("DeckCraft tardó demasiado y lo corté");
         }
     });
     // Se le cierra la entrada apenas arranca: un hijo con un stdin abierto que

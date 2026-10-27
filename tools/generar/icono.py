@@ -18,8 +18,8 @@ aparte). Lo generado se versiona: ni el build ni CI necesitan Pillow.
     .venv/bin/pip install Pillow     # una vez, en el venv del proyecto
     .venv/bin/python tools/generar/icono.py  # reescribe assets/icons y assets/web/comun
 
-El logo con el nombre (logo.png, para el README) usa Carlito Bold, que viene
-con el LibreOffice vendoreado (make deps-libreoffice); si no está, se saltea.
+El logo con el nombre (logo.png, para el README) usa Carlito Bold, de las
+tipografías de texto del bundle (make deps-fuentes-texto); si no está, se saltea.
 """
 
 from __future__ import annotations
@@ -191,7 +191,7 @@ def svg_con_nombre() -> str:
 
 
 def logo_con_nombre(completo: Image.Image, texto=(244, 244, 246)) -> Image.Image | None:
-    fuente = RAIZ / "extern" / "libreoffice" / "fonts" / "Carlito-Bold.ttf"
+    fuente = RAIZ / "extern" / "fuentes-texto" / "Carlito-Bold.ttf"
     if not fuente.exists():
         return None
     ancho, alto = 1700, 512
@@ -247,7 +247,7 @@ def main() -> int:
         con_nombre.save(ICONOS / "logo.png")
         logo_con_nombre(completo, texto=(27, 27, 31)).save(ICONOS / "logo-claro.png")
     else:
-        print("aviso: sin extern/libreoffice/fonts/Carlito-Bold.ttf no se genera logo.png")
+        print("aviso: sin extern/fuentes-texto/Carlito-Bold.ttf no se genera logo.png")
 
     # Web: el ícono de «agregar a la pantalla de inicio» y el favicon.
     comun = WEB / "comun"

@@ -42,8 +42,8 @@ Item {
         id: elegir
         title: "Documentos para el evento"
         fileMode: FileDialog.OpenFiles
-        // Lo que no es PDF ni imagen se pasa a PDF al agregarlo (APdf: LibreOffice o Qt, del bundle).
-        nameFilters: ["Documentos (*.pdf *.doc *.docx *.odt *.rtf *.ppt *.pptx *.odp *.xls *.xlsx *.ods *.csv *.html *.htm *.md *.txt *.png *.jpg *.jpeg *.webp)",
+        // Lo que no es PDF ni imagen se pasa a PDF al agregarlo (APdf: WordCraft, DeckCraft, GridCraft o Qt, del bundle).
+        nameFilters: ["Documentos (*.pdf *.doc *.docx *.odt *.rtf *.pptx *.xls *.xlsx *.ods *.csv *.html *.htm *.md *.txt *.png *.jpg *.jpeg *.webp)",
                       "PDF e imágenes (*.pdf *.png *.jpg *.jpeg *.webp)", "Todos (*)"]
         onAccepted: pd.agregar(selectedFiles.map(u => u.toString()))
     }

@@ -65,34 +65,34 @@ Un orador manda un PDF o un PowerPoint y eso tiene que volverse un carrusel.
   máquina que ya tenía Qt el módulo no se bajaría nunca y nadie se enteraría
   hasta que un PDF no abriera. Está contemplado en las dos plataformas.
 - **PowerPoint: es otra cosa.** Un `.pptx` es un zip con XML; sacar las
-  diapositivas COMO SE VEN necesita un motor de maquetado, y el único que lo
-  hace bien es LibreOffice: unos 400 MB. En un aparato que se define por caber
-  en un pendrive, eso no es un detalle de implementación.
+  diapositivas COMO SE VEN necesita un motor de maquetado. Al principio el
+  único que lo hacía bien era LibreOffice (~280 MB podado, 508 MB en la Mac,
+  ~1,3 GB en Windows) y viajaba por eso.
 
-  **Decidido: se carga LibreOffice**, porque el caso real es que alguien traiga
-  sólo el `.pptx` y no haya con quién discutirlo. Pero **no pesa en el
-  pendrive del que no lo necesita**: `make deps-libreoffice` lo baja aparte y
-  el bundle lo incluye sólo si la carpeta existe.
-
-  Medido, y conviene saberlo: **no se puede quedar sólo con Impress.**
-  LibreOffice fusiona el núcleo en `libmergedlo.so`, que sola pesa 85 MB.
-  Sacando Writer (20 MB), Calc (19 MB) y el arte de la interfaz (38 MB, que
-  headless no se usa) se baja de 355 MB a ~280 MB y ahí se termina.
-
-  Se bajan **las dos plataformas** —el `.tar.gz` de `.deb` y el `.msi`— y se
-  extraen sin instalar nada, porque el bundle de Windows se arma desde Linux.
+  **Ahora: DeckCraft** (2026-10-27). Es una reimplementación de PowerPoint en
+  Rust ([storytold/deckcraft](https://github.com/storytold/deckcraft),
+  Apache-2.0) con una herramienta de línea de comandos que convierte sin
+  pantalla, en milisegundos: `deckcraft-cli convert x.pptx x.pdf`. Junto con
+  WordCraft (Word) y GridCraft (planillas) reemplazaron a LibreOffice también en
+  la documentación del evento (`evento/APdf`). Se bajan los releases oficiales
+  con versión y sha256 fijos (no se compilan) y viaja solo la herramienta de
+  línea de comandos de cada uno: unos 160 MB en la Mac. Ver `tools/deps/craft.sh`.
+  Lo que se perdió: el `.ppt` viejo (binario) y el `.odp` no se leen; se
+  exportan a `.pptx` o a PDF. Además tienen MCP: el asistente puede armar
+  presentaciones, documentos y gráficos.
 
 ## Y de paso, las tipografías
 
-El tarball oficial de LibreOffice trae un juego de texto decente —Liberation,
-Carlito, Caladea, DejaVu, Noto— y eso tapa el agujero número 2 del escenógrafo:
-hasta ahora **lo único que viajaba era JetBrains Mono**, una monoespaciada de
-programar, y todo lo demás dependía de las fuentes de la máquina. Una escena
-diseñada acá se veía distinta en el equipo de respaldo.
+LibreOffice traía un juego de texto decente —Liberation, Carlito, Caladea,
+DejaVu, Noto, Alef, Rubik, Gentium, Linux Libertine— y eso tapó el agujero
+número 2 del escenógrafo: hasta entonces **lo único que viajaba era JetBrains
+Mono**, una monoespaciada de programar, y todo lo demás dependía de las fuentes
+de la máquina. Una escena diseñada acá se veía distinta en el equipo de respaldo.
 
-Las fuentes se extraen **aparte** y **viajan aunque no se incluya LibreOffice**:
-son para los gráficos y los rótulos, no para convertir nada. (El paquete de la
-distribución no las trae —verificado, cero archivos—; el oficial sí.)
+Sin LibreOffice, siguen viajando: `tools/deps/fuentes-texto.sh` baja **los
+mismos paquetes con que se arma LibreOffice**, de su espejo de dependencias y
+con el sha256 de su `download.lst`. Son para los gráficos y los rótulos, no
+para convertir nada.
 
 ## La tarjeta
 
@@ -110,4 +110,4 @@ distribución no las trae —verificado, cero archivos—; el oficial sí.)
 3. Las etiquetas por `vision` y el filtro instantáneo.
 4. El control 3D.
 5. Traer un PDF (con el módulo `qtpdf`, ya pedido en el Makefile).
-6. PowerPoint con LibreOffice (`make deps-libreoffice`, ya está el vendoreo).
+6. PowerPoint con DeckCraft (`make deps-craft`).

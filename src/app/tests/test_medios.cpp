@@ -48,7 +48,8 @@ void tipos() {
     CHECK(tipoDe("sinextension") == Tipo::Desconocido, "sin extension tampoco");
 
     CHECK(sePuedeDesarmar("charla.pdf"), "de un pdf sale un carrusel");
-    CHECK(sePuedeDesarmar("charla.ppt"), "del ppt viejo tambien");
+    CHECK(sePuedeDesarmar("charla.pptx"), "de un pptx tambien (DeckCraft)");
+    CHECK(!sePuedeDesarmar("charla.ppt"), "del ppt viejo no: DeckCraft no lo lee (se exporta a .pptx)");
     CHECK(!sePuedeDesarmar("logo.png"), "de una imagen sola no");
 }
 

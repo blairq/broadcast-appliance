@@ -17,8 +17,8 @@ namespace {
 const QStringList kImagenes{"png", "jpg", "jpeg", "gif", "bmp", "tga", "webp", "psd", "svg"};
 const QStringList kVideos{"mp4", "mkv", "mov", "webm", "avi", "flv", "ts", "m4v", "mpg", "mpeg", "wmv"};
 const QStringList kAudios{"mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma"};
-/// De estos sale un carrusel. El `.ppt` viejo tambien lo abre LibreOffice.
-const QStringList kDocumentos{"pdf", "pptx", "ppt", "odp"};
+/// De estos sale un carrusel (un .pptx, con DeckCraft).
+const QStringList kDocumentos{"pdf", "pptx", "deckcraft"}; // los de carrusel::Conversor::esDocumento
 
 /// Cuantos archivos se miran como mucho. Una carpeta de medios tiene cientos;
 /// diez mil es que alguien apunto a su disco entero, y recorrerlo entero

@@ -62,7 +62,7 @@ class CarruselViewModel : public QObject {
     Q_PROPERTY(QString consulta READ consulta WRITE setConsulta NOTIFY cambio)
 
     /// La barra de trabajo. `total` en 0 con `convirtiendo` en true significa
-    /// que no se sabe cuánto falta (LibreOffice no informa progreso): la barra
+    /// que no se sabe cuánto falta (DeckCraft no informa progreso): la barra
     /// va indeterminada en vez de fingir un número.
     Q_PROPERTY(bool convirtiendo READ convirtiendo NOTIFY progreso)
     Q_PROPERTY(QString etapa READ etapa NOTIFY progreso)
@@ -129,7 +129,7 @@ class CarruselViewModel : public QObject {
     Q_INVOKABLE void desarmar(const QString& documento, const QString& nombre = {});
     Q_INVOKABLE void cancelar();
     /// true si este equipo puede desarmar ESE archivo. Un PDF sí siempre; un
-    /// .pptx sólo si el bundle trae LibreOffice.
+    /// .pptx con DeckCraft (viaja en el bundle).
     Q_INVOKABLE bool sePuedeDesarmar(const QString& archivo) const;
 
    signals:

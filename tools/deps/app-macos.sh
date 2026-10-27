@@ -66,7 +66,7 @@ else
     rm -rf "$APP"
     mkdir -p "$C/MacOS"
     log "copiando el bundle a $(basename "$APP")/Contents/Resources"
-    # ditto conserva enlaces, permisos y firmas (frameworks, la .app de LibreOffice).
+    # ditto conserva enlaces, permisos y firmas (frameworks).
     ditto "$REL" "$R"
     mv "$R/BroadcastAppliance" "$C/MacOS/BroadcastAppliance"
 fi

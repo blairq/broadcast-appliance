@@ -42,10 +42,8 @@ leer_base() { # $1 = archivo, $2 = nombre del arreglo
         [ -n "$l" ] && dst["${l,,}"]=1
     done <"$1"
 }
-declare -A base=() base_lo=()
+declare -A base=()
 leer_base "$BASELINE" base
-# Lo que ademas puede pedir LibreOffice, y solo el (ver el archivo).
-leer_base "$ROOT/tools/deps/windows-baseline-libreoffice.txt" base_lo
 
 # Los PE y su sha256.
 mapfile -d '' pes < <(find "$BUNDLE" -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.clap' \) -print0)
@@ -79,22 +77,19 @@ for pe in "${pes[@]}"; do
     rel="${pe#"$BUNDLE"/}"
     dir="${rel%/*}"
     [ "$dir" = "$rel" ] && dir=""
-    # LibreOffice corre desde bin/libreoffice/program/ y Windows busca sus DLL
-    # AHI (la carpeta del programa) o en el sistema: que este en bin/64bit no
-    # le sirve. Asi se escapo el runtime de Visual C++, que el .msi pone en
-    # System32 y no en program/.
-    es_lo=0
-    case "$rel" in bin/libreoffice/*) es_lo=1 ;; esac
+    # Un programa que corre suelto fuera de bin/64bit (bin/craft: WordCraft y
+    # compañía) busca sus DLL en SU carpeta o en el sistema: que esté en otro
+    # lado del bundle no le sirve. Así se le escapó a LibreOffice (cuando viajaba)
+    # el runtime de Visual C++.
+    suelto=0
+    case "$rel" in bin/craft/*) suelto=1 ;; esac
     for dll in ${importa[${sha[$pe]}]}; do
         k="${dll,,}"
         [ -n "${base[$k]:-}" ] && continue
         case "$k" in api-ms-win-* | ext-ms-win-*) continue ;; esac
-        if [ "$es_lo" = 1 ]; then
-            [ -n "${base_lo[$k]:-}" ] && continue
-            # Su carpeta, o la del .exe que arranco el proceso (program/).
+        if [ "$suelto" = 1 ]; then
             [ -n "${archivo[${dir,,}/$k]:-}" ] && continue
-            [ -n "${archivo[bin/libreoffice/program/$k]:-}" ] && continue
-            echo "FALTA: $rel importa $dll (ni en su carpeta, ni en program/, ni en Windows)"
+            echo "FALTA: $rel importa $dll (ni en su carpeta ni en Windows)"
             fail=1
             continue
         fi

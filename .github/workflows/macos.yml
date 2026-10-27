@@ -49,7 +49,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-macos-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/gstreamer-macos.sh', 'tools/deps/lsp-macos.sh', 'tools/deps/libreoffice.sh') }}
+          key: extern-macos-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/gstreamer-macos.sh', 'tools/deps/lsp-macos.sh', 'tools/deps/craft.sh', 'tools/deps/fuentes-texto.sh') }}
 
       - name: Dependencias (make deps-macos)
         run: |
