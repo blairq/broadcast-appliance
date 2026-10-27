@@ -4,6 +4,8 @@
 
 #include "escenas/GrillaPersonas.hpp"
 
+#include "i18n/I18n.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -114,7 +116,7 @@ Config Config::desdeAjustes(const std::string& fuente, const json& ajustesIn) {
 }
 
 std::string Config::validar(const json& cambios) {
-    if (!cambios.is_object()) return "los ajustes van en un objeto";
+    if (!cambios.is_object()) return ba::i18n::traducir("escenas", "los ajustes van en un objeto");
     const auto enumera = [&](const char* k, std::initializer_list<const char*> ok) -> std::string {
         if (!cambios.contains(k)) return {};
         const json& v = cambios[k];
@@ -123,17 +125,18 @@ std::string Config::validar(const json& cambios) {
                 if (v.get<std::string>() == x) return {};
         std::string lista;
         for (const char* x : ok) lista += std::string(lista.empty() ? "" : ", ") + x;
-        return std::string("«") + k + "» es uno de: " + lista;
+        return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» es uno de: %2"), {k, lista});
     };
     const auto numero = [&](const char* k, int mn, int mx) -> std::string {
         if (!cambios.contains(k)) return {};
         const json& v = cambios[k];
         if (!v.is_number() || v.get<double>() < mn || v.get<double>() > mx)
-            return std::string("«") + k + "» va de " + std::to_string(mn) + " a " + std::to_string(mx);
+            return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» va de %2 a %3"), {k, std::to_string(mn), std::to_string(mx)});
         return {};
     };
     const auto booleano = [&](const char* k) -> std::string {
-        if (cambios.contains(k) && !cambios[k].is_boolean()) return std::string("«") + k + "» es true o false";
+        if (cambios.contains(k) && !cambios[k].is_boolean())
+            return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» es true o false"), {k});
         return {};
     };
     static const std::set<std::string> kConocidos = {
@@ -141,7 +144,7 @@ std::string Config::validar(const json& cambios) {
         "solo_con_camara", "sin_al_aire", "resaltar", "ancho", "alto", "separacion", "margen",
         "proporcion", "transicion_ms", "fondo", "color_resaltar"};
     for (const auto& [k, v] : cambios.items())
-        if (!kConocidos.count(k)) return "«" + k + "» no es un ajuste de la grilla de personas";
+        if (!kConocidos.count(k)) return ba::i18n::llenar(ba::i18n::traducir("escenas", "«%1» no es un ajuste de la grilla de personas"), {k});
     for (const std::string& e :
          {enumera("origen", {"sala", "asamblea", "ambas"}), enumera("reparto", {"en_orden", "parejo"}),
           enumera("orden", {"llegada", "habla", "prioridad"}),
@@ -151,7 +154,8 @@ std::string Config::validar(const json& cambios) {
           numero("ancho", 64, 3840), numero("alto", 64, 2160), numero("separacion", 0, 200), numero("margen", 0, 500),
           numero("transicion_ms", 0, 3000), booleano("solo_con_camara"), booleano("sin_al_aire"), booleano("resaltar")})
         if (!e.empty()) return e;
-    if (cambios.contains("grupo") && !cambios["grupo"].is_string()) return "«grupo» es un texto (vacío = sola)";
+    if (cambios.contains("grupo") && !cambios["grupo"].is_string())
+        return ba::i18n::traducir("escenas", "«grupo» es un texto (vacío = sola)");
     return {};
 }
 
