@@ -196,14 +196,23 @@ json geom(const QRect& r) {
 /// Asi que se pregunta antes y se avisa.
 bool ubicaElPrograma() { return !QGuiApplication::platformName().contains("wayland"); }
 
-const char* kSobreWayland =
+// Marcado para traducir: se traduce al usarlo (sobreWayland).
+const char* kSobreWayland = QT_TRANSLATE_NOOP(
+    "mcp",
     "Este escritorio es Wayland: ubicar las ventanas es del compositor, no del programa. El TAMAÑO se "
     "aplica; la POSICION no. No es un error de la app y no se puede forzar desde adentro. Ojo, tampoco "
     "alcanza con arrancar sobre XWayland (QT_QPA_PLATFORM=xcb): se probo, y GNOME ignora igual la "
     "posicion pedida y coloca las ventanas a su criterio. Con un escritorio que si lo respete (KDE, "
     "XFCE, un gestor de mosaico, o X11 a secas) estas herramientas funcionan enteras. Mientras tanto "
     "sirven para LEER donde esta todo, para el tamaño, y para pantalla completa en un monitor, que es "
-    "lo que mas se usa.";
+    "lo que mas se usa.");
+std::string sobreWayland() { return ba::i18n::traducir("mcp", kSobreWayland); }
+
+/// «(x,y) anchoxalto», para decir dónde quedó una ventana y dónde se pidió.
+std::string posTam(const QRect& q) {
+    return "(" + std::to_string(q.x()) + "," + std::to_string(q.y()) + ") " + std::to_string(q.width()) + "x" +
+           std::to_string(q.height());
+}
 
 } // namespace
 
@@ -257,14 +266,14 @@ void McpService::registerVentanaTools() {
             json r{{"ventanas", vs}, {"monitores", ms}, {"zonas", kZonas}};
             r["ubicarPorSoftware"] = ubicaElPrograma();
             if (!ubicaElPrograma()) {
-                r["ojo"] = kSobreWayland;
+                r["ojo"] = sobreWayland();
                 // `monitor` sale de lo que dice Qt, y en Wayland Qt informa la
                 // pantalla que se le PIDIO aunque la ventana no se haya movido.
                 // Decirlo es la diferencia entre un dato y una suposicion.
-                r["ojoMonitor"] =
-                    "En este escritorio `monitor` es lo que cree Qt, no necesariamente donde se ve la "
-                    "ventana: pedir un cambio de monitor no falla y tampoco la mueve. Para mandarla de "
-                    "verdad, pantalla completa (`estado: \"pantalla-completa\"` con `monitor`).";
+                r["ojoMonitor"] = ba::i18n::traducir(
+                    "mcp", "En este escritorio `monitor` es lo que cree Qt, no necesariamente donde se ve la "
+                           "ventana: pedir un cambio de monitor no falla y tampoco la mueve. Para mandarla de "
+                           "verdad, pantalla completa (`estado: \"pantalla-completa\"` con `monitor`).");
             }
             done(ToolResult::ok(r.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
         };
@@ -280,19 +289,18 @@ void McpService::registerVentanaTools() {
                         "pantalla. Es para acomodar el puesto de trabajo. Acomoda una ventana: a otro "
                         "monitor, a una zona de ese monitor, a un tamaño y posicion "
                         "exactos, o a pantalla completa. Los ids salen de ventana_listar.");
-        t.details =
-            "USA `zona` SIEMPRE QUE PUEDAS, no x/y/ancho/alto. La zona se calcula contra el area util "
+        t.details = ba::i18n::llenar(
+            ba::i18n::traducir("mcp", "USA `zona` SIEMPRE QUE PUEDAS, no x/y/ancho/alto. La zona se calcula contra el area util "
             "del monitor (sin la barra del sistema) y sale bien con monitores de distinto tamaño; "
             "calcular los pixeles a mano termina en ventanas a medio salir de la pantalla.\n\n"
-            "Zonas: " +
-            std::string(kZonas) +
-            ".\n\n"
+            "Zonas: %1.\n\n"
             "`monitor` es el nombre que da ventana_listar (\"DP-1\", \"HDMI-1\") o su numero (1, 2...). "
             "Sin `monitor`, la zona se aplica en el monitor donde ya esta.\n\n"
             "`estado`: normal, maximizada, pantalla-completa, minimizada. Pantalla completa ignora la "
             "zona (ocupa todo), asi que para volver a acomodarla hay que ponerla en normal primero.\n\n"
             "Para armar un puesto de varios monitores, una llamada por ventana. `ventana_listar` "
-            "despues confirma como quedo.";
+            "despues confirma como quedo."),
+            {kZonas});
         t.inputSchema = {
             {"type", "object"},
             {"required", {"ventana"}},
@@ -301,7 +309,7 @@ void McpService::registerVentanaTools() {
                {{"type", "string"},
                 {"description", ba::i18n::traducir("mcp", "id de ventana_listar (p. ej. \"principal\", \"pagina:guion\")")}}},
               {"monitor", {{"type", json::array({"string", "integer"})}, {"description", ba::i18n::traducir("mcp", "nombre o numero del monitor")}}},
-              {"zona", {{"type", "string"}, {"description", std::string("una de: ") + kZonas}}},
+              {"zona", {{"type", "string"}, {"description", ba::i18n::llenar(ba::i18n::traducir("mcp", "una de: %1"), {kZonas})}}},
               {"x", {{"type", "integer"}}},
               {"y", {{"type", "integer"}}},
               {"ancho", {{"type", "integer"}}},
@@ -316,8 +324,9 @@ void McpService::registerVentanaTools() {
             const QString id = QString::fromStdString(a["ventana"].get<std::string>());
             QWindow* w = porId(id);
             if (w == nullptr)
-                return done(ToolResult::error("No hay una ventana \"" + id.toStdString() +
-                                              "\" abierta. ventana_listar dice cuales hay."));
+                return done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "No hay una ventana \"%1\" abierta. ventana_listar dice cuales hay."),
+                    {id.toStdString()})));
             std::string hecho;
 
             // 1) El monitor primero: la zona se calcula contra el que va a quedar.
@@ -328,8 +337,9 @@ void McpService::registerVentanaTools() {
                                       : QString::number(a["monitor"].get<int>());
                 QScreen* s = monitorPorNombre(n);
                 if (s == nullptr)
-                    return done(ToolResult::error("No conozco el monitor \"" + n.toStdString() +
-                                                  "\". ventana_listar los lista."));
+                    return done(ToolResult::error(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "No conozco el monitor \"%1\". ventana_listar los lista."),
+                        {n.toStdString()})));
                 destino = s;
             }
 
@@ -346,10 +356,10 @@ void McpService::registerVentanaTools() {
                 const QString z = QString::fromStdString(a["zona"].get<std::string>());
                 const QRect zr = zonaEn(destino, z);
                 if (zr.isEmpty())
-                    return done(ToolResult::error("No conozco la zona \"" + z.toStdString() +
-                                                  "\". Las que hay: " + kZonas + "."));
+                    return done(ToolResult::error(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "No conozco la zona \"%1\". Las que hay: %2."), {z.toStdString(), kZonas})));
                 r = zr;
-                hecho += " zona " + z.toStdString();
+                hecho += ba::i18n::llenar(ba::i18n::traducir("mcp", " zona %1"), {z.toStdString()});
             } else if (destino != w->screen()) {
                 // Sin zona pero con monitor: se lleva el mismo tamaño, pegada a
                 // la esquina util, para que no quede partida entre los dos.
@@ -366,11 +376,11 @@ void McpService::registerVentanaTools() {
 
             if (destino != w->screen()) {
                 w->setScreen(destino);
-                hecho += " a " + destino->name().toStdString();
+                hecho += ba::i18n::llenar(ba::i18n::traducir("mcp", " a %1"), {destino->name().toStdString()});
             }
 
             if (acomoda && !a.contains("estado")) {
-                if (hecho.empty()) hecho = " movida";
+                if (hecho.empty()) hecho = ba::i18n::traducir("mcp", " movida");
                 const std::string titulo2 = w->title().toStdString();
                 const std::string h = hecho;
                 const QRect obj = r;
@@ -379,17 +389,14 @@ void McpService::registerVentanaTools() {
                 // la ventana en otro lado es peor que una que no puede.
                 colocarMarco(w, r, [w, done, titulo2, h, obj](bool ok) {
                     if (ok)
-                        return done(ToolResult::ok("«" + titulo2 + "»:" + h +
-                                                   ". ventana_listar confirma como quedo."));
+                        return done(ToolResult::ok(ba::i18n::llenar(
+                            ba::i18n::traducir("mcp", "«%1»:%2. ventana_listar confirma como quedo."), {titulo2, h})));
                     const QRect q = w->frameGeometry();
-                    done(ToolResult::error(
-                        "«" + titulo2 + "»:" + h + ", PERO quedo en (" + std::to_string(q.x()) + "," +
-                        std::to_string(q.y()) + ") " + std::to_string(q.width()) + "x" +
-                        std::to_string(q.height()) + " y se habia pedido (" + std::to_string(obj.x()) + "," +
-                        std::to_string(obj.y()) + ") " + std::to_string(obj.width()) + "x" +
-                        std::to_string(obj.height()) + ". " +
-                        (ubicaElPrograma() ? std::string("El escritorio la ubico por su cuenta.")
-                                           : std::string(kSobreWayland))));
+                    done(ToolResult::error(ba::i18n::llenar(
+                        ba::i18n::traducir("mcp", "«%1»:%2, PERO quedo en %3 y se habia pedido %4. %5"),
+                        {titulo2, h, posTam(q), posTam(obj),
+                         ubicaElPrograma() ? ba::i18n::traducir("mcp", "El escritorio la ubico por su cuenta.")
+                                           : sobreWayland()})));
                 });
                 return;
             }
@@ -402,7 +409,7 @@ void McpService::registerVentanaTools() {
                 const int mr = fg.right() - cg.right(), mb = fg.bottom() - cg.bottom();
                 w->setGeometry(QRect(r.x() + ml, r.y() + mt, std::max(320, r.width() - ml - mr),
                                      std::max(200, r.height() - mt - mb)));
-                if (hecho.empty()) hecho = " movida";
+                if (hecho.empty()) hecho = ba::i18n::traducir("mcp", " movida");
             }
 
             if (a.contains("estado")) {
@@ -423,7 +430,8 @@ void McpService::registerVentanaTools() {
                     const std::string titulo2 = w->title().toStdString();
                     QTimer::singleShot(180, w, [w, done, titulo2, hecho]() {
                         w->setVisibility(QWindow::FullScreen);
-                        done(ToolResult::ok("«" + titulo2 + "»:" + hecho + " (pantalla completa)."));
+                        done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1»:%2 (pantalla completa)."),
+                                                             {titulo2, hecho})));
                     });
                     return;
                 }
@@ -454,22 +462,26 @@ void McpService::registerVentanaTools() {
                     const QRect q = w->frameGeometry();
                     const bool ok = std::abs(q.x() - pedido.x()) <= 8 && std::abs(q.y() - pedido.y()) <= 8;
                     if (!ok) {
-                        aviso = " PERO quedo en (" + std::to_string(q.x()) + "," + std::to_string(q.y()) +
-                                ") " + std::to_string(q.width()) + "x" + std::to_string(q.height()) +
-                                ", y se habia pedido (" + std::to_string(pedido.x()) + "," +
-                                std::to_string(pedido.y()) + ") " + std::to_string(pedido.width()) + "x" +
-                                std::to_string(pedido.height()) + ". " +
-                                (ubicaElPrograma()
-                                     ? std::string("La ubico el escritorio por su cuenta. Hay gestores de "
-                                                   "ventanas —GNOME entre ellos, tambien sobre X11— que "
-                                                   "no respetan la posicion que pide un programa.")
-                                     : std::string(kSobreWayland));
+                        aviso = ba::i18n::llenar(
+                            ba::i18n::traducir("mcp", " PERO quedo en %1, y se habia pedido %2. %3"),
+                            {posTam(q), posTam(pedido),
+                             ubicaElPrograma()
+                                 ? ba::i18n::traducir("mcp", "La ubico el escritorio por su cuenta. Hay gestores de "
+                                                             "ventanas —GNOME entre ellos, tambien sobre X11— que "
+                                                             "no respetan la posicion que pide un programa.")
+                                 : sobreWayland()});
                     }
                 }
-                done(aviso.empty() ? ToolResult::ok("«" + titulo + "»" +
-                                                    (hecho.empty() ? " sin cambios" : ":" + hecho) +
-                                                    ". ventana_listar confirma como quedo.")
-                                   : ToolResult::error("«" + titulo + "»:" + hecho + "," + aviso));
+                done(aviso.empty()
+                         ? ToolResult::ok(
+                               hecho.empty()
+                                   ? ba::i18n::llenar(ba::i18n::traducir(
+                                                          "mcp", "«%1» sin cambios. ventana_listar confirma como quedo."),
+                                                      {titulo})
+                                   : ba::i18n::llenar(
+                                         ba::i18n::traducir("mcp", "«%1»:%2. ventana_listar confirma como quedo."),
+                                         {titulo, hecho}))
+                         : ToolResult::error("«" + titulo + "»:" + hecho + "," + aviso));
             });
         };
         core_.addTool(std::move(t));
@@ -569,8 +581,9 @@ void McpService::registerVentanaTools() {
                                      return o;
                                  };
                                  if (fallaron->empty())
-                                     return done(ToolResult::ok("Acomodadas: " + juntar(*listas) +
-                                                                ". ventana_listar confirma como quedo."));
+                                     return done(ToolResult::ok(ba::i18n::llenar(
+                                         ba::i18n::traducir("mcp", "Acomodadas: %1. ventana_listar confirma como quedo."),
+                                         {juntar(*listas)})));
                                  // No se pudieron repartir: se hace lo unico
                                  // que queda, una por monitor a pantalla
                                  // completa, y se nombra lo que sobro.
@@ -591,14 +604,15 @@ void McpService::registerVentanaTools() {
                                      full += (full.empty() ? "" : ", ") + idDe(v).toStdString() + " -> " +
                                              r2.p->name().toStdString();
                                  }
-                                 std::string msg =
-                                     "Este escritorio no dejo repartirlas por zonas (se probo y quedaron "
-                                     "en otro lado), asi que va una por monitor a PANTALLA COMPLETA: " +
-                                     full + ".";
+                                 std::string msg = ba::i18n::llenar(
+                                     ba::i18n::traducir("mcp", "Este escritorio no dejo repartirlas por zonas (se probo y quedaron "
+                                                               "en otro lado), asi que va una por monitor a PANTALLA COMPLETA: %1."),
+                                     {full});
                                  if (!sobra.empty())
-                                     msg += " NO entraron (" + sobra +
-                                            "): sin poder ubicar ventanas no hay forma de poner dos en "
-                                            "un mismo monitor. Quedaron donde estaban.";
+                                     msg += ba::i18n::llenar(
+                                         ba::i18n::traducir("mcp", " NO entraron (%1): sin poder ubicar ventanas no hay forma de "
+                                                                   "poner dos en un mismo monitor. Quedaron donde estaban."),
+                                         {sobra});
                                  done(ToolResult::ok(msg));
                              });
             }
@@ -626,8 +640,8 @@ void McpService::registerVentanaTools() {
             const QString cual = QString::fromStdString(a.value("monitor", std::string()));
             const QString err = vm_.identificarPantallas(cual);
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
-            done(ToolResult::ok(cual.isEmpty() ? "Cartel puesto en cada monitor unos segundos."
-                                               : "Cartel puesto en ese monitor unos segundos."));
+            done(ToolResult::ok(cual.isEmpty() ? ba::i18n::traducir("mcp", "Cartel puesto en cada monitor unos segundos.")
+                                               : ba::i18n::traducir("mcp", "Cartel puesto en ese monitor unos segundos.")));
         };
         core_.addTool(std::move(t));
     }
@@ -660,8 +674,9 @@ void McpService::registerVentanaTools() {
             const QString id = QString::fromStdString(a.value("ventana", std::string("principal")));
             QWindow* w = porId(id);
             if (w == nullptr) {
-                done(ToolResult::error("No hay ninguna ventana «" + id.toStdString() +
-                                       "». `ventana_listar` dice cuales hay."));
+                done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "No hay ninguna ventana «%1». `ventana_listar` dice cuales hay."),
+                    {id.toStdString()})));
                 return;
             }
             auto* qw = qobject_cast<QQuickWindow*>(w);
@@ -684,7 +699,7 @@ void McpService::registerVentanaTools() {
                 return;
             }
             ToolResult r;
-            r.text("Interfaz de «" + id.toStdString() + "».");
+            r.text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Interfaz de «%1»."), {id.toStdString()}));
             addImage(r, img, a, 1280, core_, rt_.dataRoot());
             done(r);
         };
@@ -707,14 +722,15 @@ void McpService::registerVentanaTools() {
         t.run = [](const json& a, Done done) {
             const QString id = QString::fromStdString(a["ventana"].get<std::string>());
             if (id == "principal" || id == "ba:principal")
-                return done(ToolResult::error(
-                    "La ventana principal no se cierra por aca: eso es cerrar la app (app_quit)."));
+                return done(ToolResult::error(ba::i18n::traducir(
+                    "mcp", "La ventana principal no se cierra por aca: eso es cerrar la app (app_quit).")));
             QWindow* w = porId(id);
             if (w == nullptr)
-                return done(ToolResult::error("No hay una ventana \"" + id.toStdString() + "\" abierta."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay una ventana \"%1\" abierta."),
+                                                               {id.toStdString()})));
             const std::string titulo = w->title().toStdString();
             w->close();
-            done(ToolResult::ok("«" + titulo + "» cerrada."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "«%1» cerrada."), {titulo})));
         };
         core_.addTool(std::move(t));
     }

@@ -125,7 +125,9 @@ void McpService::registerUiTools() {
                     if (m.value("id").toString() == q || m.value("nombre").toString().compare(q, Qt::CaseInsensitive) == 0)
                         hallado = m.value("id").toString();
                 }
-                if (hallado.isEmpty()) return done(ToolResult::error("no hay una multivista «" + q.toStdString() + "»"));
+                if (hallado.isEmpty())
+                    return done(ToolResult::error(
+                        ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay una multivista «%1»"), {q.toStdString()})));
                 id = hallado;
                 vm.setMultiviewActual(id);
             }
@@ -196,8 +198,8 @@ void McpService::registerUiTools() {
             if (w == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             const int pagina = paginaDeId(vm, a["page"].get<std::string>());
             if (pagina < 0)
-                return done(
-                    ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pagina \"%1\"."),
+                                                               {a["page"].get<std::string>()})));
             w->setProperty("page", pagina);
             // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
             // vea un salto; despues, no se nota.
@@ -206,7 +208,7 @@ void McpService::registerUiTools() {
                 if (a["page"] == "configuracion") vm.setSeccionConfig(s);
                 else emit vm.mostrarSeccion(QString::fromStdString(a["page"].get<std::string>()), s);
             }
-            done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Pagina: %1"), {a["page"].get<std::string>()})));
         };
         core_.addTool(std::move(t));
     }
@@ -245,10 +247,13 @@ void McpService::registerUiTools() {
             if (panel != "cerrar" && std::find(it->second.begin(), it->second.end(), panel) == it->second.end()) {
                 std::string l;
                 for (const auto& x : it->second) l += (l.empty() ? "" : ", ") + x;
-                return done(ToolResult::error("«" + panel + "» no es un panel de " + pag + ": " + l + " o cerrar."));
+                return done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "«%1» no es un panel de %2: %3 o cerrar."), {panel, pag, l})));
             }
             const int pagina = paginaDeId(vm, pag);
-            if (pagina < 0) return done(ToolResult::error("No conozco la pagina \"" + pag + "\"."));
+            if (pagina < 0)
+                return done(
+                    ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pagina \"%1\"."), {pag})));
             std::string pedido = panel;
             if (pag == "escenas" && panel == "efectos") {
                 const std::string f = a.value("fuente", std::string());
@@ -257,7 +262,9 @@ void McpService::registerUiTools() {
             }
             w->setProperty("page", pagina);
             emit vm.abrirPanel(QString::fromStdString(pag), QString::fromStdString(pedido));
-            done(ToolResult::ok(panel == "cerrar" ? "Paneles de " + pag + " cerrados." : "Abierto: " + pag + " → " + panel));
+            done(ToolResult::ok(panel == "cerrar"
+                                    ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Paneles de %1 cerrados."), {pag})
+                                    : ba::i18n::llenar(ba::i18n::traducir("mcp", "Abierto: %1 → %2"), {pag, panel})));
         };
         core_.addTool(std::move(t));
     }
@@ -290,18 +297,20 @@ void McpService::registerUiTools() {
             if (w == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "La interfaz grafica no esta abierta.")));
             const int idx = paginaDeId(vm, a["page"].get<std::string>());
             if (idx < 0)
-                return done(
-                    ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No conozco la pagina \"%1\"."),
+                                                               {a["page"].get<std::string>()})));
             auto* riel = static_cast<RielConfig*>(vm.riel());
             const QString titulo = riel->tituloDePagina(idx);
             // `cerrar`: la ventana se cierra y la página queda en la principal (el Asistente
             // vuelve a mostrar su terminal ahí).
             if (a.value("cerrar", false)) {
                 QMetaObject::invokeMethod(w, "traerPagina", Q_ARG(QVariant, QString::fromStdString(a["page"].get<std::string>())));
-                return done(ToolResult::ok("\"" + titulo.toStdString() + "\" vuelve a la ventana principal."));
+                return done(ToolResult::ok(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "\"%1\" vuelve a la ventana principal."), {titulo.toStdString()})));
             }
             QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx), Q_ARG(QVariant, titulo));
-            done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierta en su propia ventana."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "\"%1\" abierta en su propia ventana."),
+                                                 {titulo.toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -362,8 +371,10 @@ void McpService::registerUiTools() {
             CatalogoVisible* cat = vm.catalogoVisible();
             const CatalogoVisible::Cosa* cosa = cat ? cat->buscar(QString::fromStdString(id)) : nullptr;
             if (cosa == nullptr || cosa->dibujo.isEmpty())
-                return done(ToolResult::error("\"" + id + "\" no es algo que se pueda abrir en una ventana: "
-                                              "catalogo_listar {\"donde\": \"monitor\"} dice que hay."));
+                return done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "\"%1\" no es algo que se pueda abrir en una ventana: "
+                                              "catalogo_listar {\"donde\": \"monitor\"} dice que hay."),
+                    {id})));
             const std::string titulo = cosa->titulo.toStdString();
             // Por el modelo de las ventanas (el mismo que usa el boton ⧉): se recuerda.
             QString err;
@@ -373,9 +384,11 @@ void McpService::registerUiTools() {
             const std::string nombre = modo == "pagina" ? "ba:pagina:" + id.substr(7)
                                        : modo == "panel" ? "ba:panel:" + cosa->dibujo.value("panel").toString().toStdString()
                                                          : "ba:salida:" + std::to_string(vid);
-            done(ToolResult::ok("\"" + titulo + "\" abierto en su propia ventana (" + nombre +
-                                "), que se recuerda al reiniciar. Con `ventana_mover` (o output_window) se la manda al "
-                                "monitor que corresponda; para dejarlo FIJO en un monitor, `monitor_asignar`."));
+            done(ToolResult::ok(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "\"%1\" abierto en su propia ventana (%2), que se recuerda al reiniciar. Con "
+                                          "`ventana_mover` (o output_window) se la manda al monitor que corresponda; "
+                                          "para dejarlo FIJO en un monitor, `monitor_asignar`."),
+                {titulo, nombre})));
         };
         core_.addTool(std::move(t));
     }
@@ -502,7 +515,9 @@ void McpService::registerUiTools() {
                         id = m.value("id").toString();
                 }
                 if (id.isEmpty())
-                    return done(ToolResult::error(("No hay ninguna multivista «" + pedida + "». Hay: " + hay.join(", ")).toStdString()));
+                    return done(ToolResult::error(
+                        ba::i18n::llenar(ba::i18n::traducir("mcp", "No hay ninguna multivista «%1». Hay: %2"),
+                                         {pedida.toStdString(), hay.join(", ").toStdString()})));
                 dash->setBackgroundLayout("multiview:" + id);
             }
             if (a.contains("dim")) dash->setBackgroundDim(a["dim"]);
@@ -552,10 +567,12 @@ void McpService::registerUiTools() {
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Indica `cosas`, `open` o el `id` de una ventana (dashboard_list).")));
             }
             if (windows->ventana(id).isEmpty())
-                return done(ToolResult::error("No hay una ventana " + std::to_string(id) + " (dashboard_list)."));
+                return done(ToolResult::error(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "No hay una ventana %1 (dashboard_list)."), {std::to_string(id)})));
             if (a.value("close", false)) {
                 windows->cerrar(id);
-                return done(ToolResult::ok("Ventana " + std::to_string(id) + " cerrada."));
+                return done(ToolResult::ok(
+                    ba::i18n::llenar(ba::i18n::traducir("mcp", "Ventana %1 cerrada."), {std::to_string(id)})));
             }
             if (a.contains("layout")) windows->setDistribucion(id, layout);
             if (a.contains("screen")) {
@@ -564,8 +581,9 @@ void McpService::registerUiTools() {
                 windows->setMonitor(id, m);
             }
             if (a.contains("fullscreen")) windows->setPantallaCompleta(id, a["fullscreen"].get<bool>());
-            done(ToolResult::ok("Ventana salida:" + std::to_string(id) + " lista (" +
-                                windows->ventana(id).value("titulo").toString().toStdString() + ")."));
+            done(ToolResult::ok(ba::i18n::llenar(
+                ba::i18n::traducir("mcp", "Ventana salida:%1 lista (%2)."),
+                {std::to_string(id), windows->ventana(id).value("titulo").toString().toStdString()})));
         };
         core_.addTool(std::move(t));
     }
@@ -661,8 +679,8 @@ void McpService::registerUiTools() {
                     if (!p.is_string()) continue;
                     const int pagina = paginaDeId(vm, p.get<std::string>());
                     if (pagina < 0)
-                        return done(
-                            ToolResult::error("No conozco la pagina \"" + p.get<std::string>() + "\"."));
+                        return done(ToolResult::error(ba::i18n::llenar(
+                            ba::i18n::traducir("mcp", "No conozco la pagina \"%1\"."), {p.get<std::string>()})));
                     riel->setVisible(pagina, ver);
                 }
             }
@@ -712,8 +730,8 @@ void McpService::registerUiTools() {
             QFile f(dir + "/" + name);
             if (!f.open(QIODevice::ReadOnly)) {
                 QStringList logs = QDir(dir).entryList(QStringList{"*.log"}, QDir::Files);
-                return done(ToolResult::error("No existe " + name.toStdString() +
-                                              ". Hay: " + logs.join(", ").toStdString()));
+                return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe %1. Hay: %2"),
+                                                               {name.toStdString(), logs.join(", ").toStdString()})));
             }
             // Solo el final: los registros pueden ser grandes.
             if (f.size() > 4 * 1024 * 1024) f.seek(f.size() - 4 * 1024 * 1024);
@@ -730,7 +748,7 @@ void McpService::registerUiTools() {
             QString out;
             for (const QString& l : keep)
                 out += l + "\n";
-            done(ToolResult::ok(out.isEmpty() ? "(vacio)" : out.toStdString()));
+            done(ToolResult::ok(out.isEmpty() ? ba::i18n::traducir("mcp", "(vacio)") : out.toStdString()));
         };
         core_.addTool(std::move(t));
     }
