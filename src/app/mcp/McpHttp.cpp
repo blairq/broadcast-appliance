@@ -17,6 +17,7 @@
 #include <QTcpSocket>
 #include <QUrl>
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpCore.hpp"
 
 namespace ba::app::mcp {
@@ -130,14 +131,14 @@ void McpHttp::onReadable(QTcpSocket* s) {
     b += s->readAll();
     const qsizetype end = b.indexOf("\r\n\r\n");
     if (end < 0) {
-        if (b.size() > kMaxHeaders) respond(s, 413, "text/plain", "cabeceras demasiado grandes\n");
+        if (b.size() > kMaxHeaders) respond(s, 413, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "cabeceras demasiado grandes") + "\n"));
         return;
     }
     const QByteArray headers = b.left(end);
     const QByteArray line = headers.left(headers.indexOf("\r\n"));
     const QList<QByteArray> parts = line.split(' ');
     if (parts.size() < 2) {
-        respond(s, 400, "text/plain", "peticion invalida\n");
+        respond(s, 400, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "peticion invalida") + "\n"));
         return;
     }
     const QByteArray method = parts[0];
@@ -145,7 +146,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
     if (const int q = path.indexOf('?'); q >= 0) path = path.left(q);
     const qsizetype length = headerValue(headers, "Content-Length").toLongLong();
     if (length < 0 || length > kMaxBody) {
-        respond(s, 413, "text/plain", "cuerpo demasiado grande\n");
+        respond(s, 413, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "cuerpo demasiado grande") + "\n"));
         return;
     }
     if (b.size() < end + 4 + length) return; // falta cuerpo
@@ -158,11 +159,11 @@ void McpHttp::onReadable(QTcpSocket* s) {
         return;
     }
     if (path != "/mcp") {
-        respond(s, 404, "text/plain", "no encontrado (el endpoint MCP es /mcp)\n");
+        respond(s, 404, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "no encontrado (el endpoint MCP es /mcp)") + "\n"));
         return;
     }
     if (!localOrigin(headerValue(headers, "Origin"))) {
-        respond(s, 403, "text/plain", "origen no permitido\n");
+        respond(s, 403, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "origen no permitido") + "\n"));
         return;
     }
     const QByteArray auth = headerValue(headers, "Authorization");
@@ -174,7 +175,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
         return;
     }
     if (method == "GET") {
-        respond(s, 405, "text/plain", "este servidor no abre flujos SSE; usa POST\n",
+        respond(s, 405, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "este servidor no abre flujos SSE; usa POST") + "\n"),
                 "Allow: POST, DELETE\r\n");
         return;
     }
@@ -184,7 +185,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
         return;
     }
     if (method != "POST") {
-        respond(s, 405, "text/plain", "metodo no permitido\n", "Allow: POST, DELETE\r\n");
+        respond(s, 405, "text/plain", QByteArray::fromStdString(ba::i18n::traducir("mcp", "metodo no permitido") + "\n"), "Allow: POST, DELETE\r\n");
         return;
     }
     json msg;

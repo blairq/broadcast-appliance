@@ -73,8 +73,10 @@ class Indice {
     const Documento& doc(std::size_t i) const { return docs_.at(i); }
     std::size_t tamano() const { return docs_.size(); }
 
-    /// Separa en términos: minúsculas, sin tildes, sin puntuación. Pública
-    /// porque el que etiqueta necesita ver exactamente lo mismo que el índice.
+    /// Separa en términos: minúsculas, sin tildes, sin puntuación, sin palabras
+    /// vacías, con las reglas del idioma del operador (el campo «buscador» de su
+    /// perfil; ver docs/desarrollo/I18N.md). Pública porque el que etiqueta
+    /// necesita ver exactamente lo mismo que el índice.
     static std::vector<std::string> terminos(const std::string& s);
 
    private:

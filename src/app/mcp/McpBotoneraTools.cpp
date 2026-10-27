@@ -12,6 +12,7 @@
 // confirma una persona.
 // ============================================================================
 
+#include "i18n/I18n.hpp"
 #include "mcp/McpBotoneraTools.hpp"
 
 #include <QPointer>
@@ -38,17 +39,18 @@ namespace {
 
 json objetoCelda() {
     return {{"type", "object"},
-            {"description", "{tipo: herramienta, herramienta, args} | {tipo: pagina, ir_a} | {tipo: secuencia, pasos, "
+            {"description", ba::i18n::traducir("mcp", "{tipo: herramienta, herramienta, args} | {tipo: pagina, ir_a} | {tipo: secuencia, pasos, "
                             "espera_ms} | {tipo: receta, id}. En args, \"{{valor}}\" (fader/perilla), \"{{delta}}\" "
-                            "(perilla relativa), \"{{no_activo}}\" (alternar: mudo, por ejemplo)."}};
+                            "(perilla relativa), \"{{no_activo}}\" (alternar: mudo, por ejemplo).")}};
 }
 
 } // namespace
 
 void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
-    core.addCategory("botonera", "Botonera y eventos",
-                     "La superficie de control (tablet por QR, Stream Deck, MIDI por plugin) y el bus de eventos de la "
-                     "app (lo que está al aire, salidas, niveles, alarmas) para botones, plugins y disparadores.");
+    core.addCategory("botonera", ba::i18n::traducir("mcp", "Botonera y eventos"),
+                     ba::i18n::traducir("mcp", "La superficie de control (tablet por QR, Stream Deck, MIDI por plugin) y "
+                                               "el bus de eventos de la app (lo que está al aire, salidas, niveles, "
+                                               "alarmas) para botones, plugins y disparadores."));
     control::BusEventos& bus = vm.bus();
     control::Botonera& bot = vm.botonera();
 
@@ -56,15 +58,15 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "eventos_temas";
-        t.title = "Temas del bus de eventos";
+        t.title = ba::i18n::traducir("mcp", "Temas del bus de eventos");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally "
+        t.description = ba::i18n::traducir("mcp", "Los temas que publica la app con su ultimo valor: aire/escena, aire/armada, aire/tally "
                         "{programa, preview, fuentes_programa, fuentes_preview, transmitiendo, grabando}, salida/stream, "
                         "salida/grabacion, audio/nivel/<fuente> {pico_db, volumen_db, mudo}, audio/loudness {m, s, i, "
                         "tp, lra, fuera_de_objetivo}, alarma/<regla>, entrada/senal, oradores/al_aire, "
                         "sala/participantes y plugin/<id>/<canal>. `patron` filtra: «+» un nivel, «#» el resto "
-                        "(audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.";
+                        "(audio/nivel/+, aire/#). Sirven para ligaduras de la botonera y @plugin.escuchar.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"patron", {{"type", "string"}}}}}};
         t.run = [&bus](const json& a, Done done) {
             done(ToolResult().data({{"temas", bus.temas(a.value("patron", std::string()))}}));
@@ -74,14 +76,14 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "eventos_ultimo";
-        t.title = "Ultimo valor de un tema";
+        t.title = ba::i18n::traducir("mcp", "Ultimo valor de un tema");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "El ultimo valor publicado en `tema` (eventos_temas), con la hora.";
+        t.description = ba::i18n::traducir("mcp", "El ultimo valor publicado en `tema` (eventos_temas), con la hora.");
         t.inputSchema = {{"type", "object"}, {"required", {"tema"}}, {"properties", {{"tema", {{"type", "string"}}}}}};
         t.run = [&bus](const json& a, Done done) {
             const json u = bus.ultimo(a.value("tema", std::string()));
-            if (u.is_null()) return done(ToolResult::error("ese tema no se publico todavia (eventos_temas)"));
+            if (u.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "ese tema no se publico todavia (eventos_temas)")));
             done(ToolResult().data(u));
         };
         core.addTool(std::move(t));
@@ -89,12 +91,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "eventos_esperar";
-        t.title = "Esperar un evento";
+        t.title = ba::i18n::traducir("mcp", "Esperar un evento");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Espera hasta `timeout_s` (de fabrica 20, como mucho 60) a que se publique algo en alguno de "
+        t.description = ba::i18n::traducir("mcp", "Espera hasta `timeout_s` (de fabrica 20, como mucho 60) a que se publique algo en alguno de "
                         "los `temas` (patrones) y lo devuelve. Para reaccionar a «salio al aire», «se cayo la entrada», "
-                        "una alarma. Los niveles de audio cambian todo el tiempo: no los esperes.";
+                        "una alarma. Los niveles de audio cambian todo el tiempo: no los esperes.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"temas"}},
                          {"properties",
@@ -122,9 +124,9 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                     QTimer::singleShot(0, [terminar, tema, v]() { terminar(ToolResult().data({{"tema", tema}, {"valor", v}})); });
                 }));
             }
-            if (st->subs.empty()) return terminar(ToolResult::error("faltan temas"));
+            if (st->subs.empty()) return terminar(ToolResult::error(ba::i18n::traducir("mcp", "faltan temas")));
             QTimer::singleShot(a.value("timeout_s", 20) * 1000, [terminar]() {
-                terminar(ToolResult().text("No paso nada en ese tiempo.").data({{"timeout", true}}));
+                terminar(ToolResult().text(ba::i18n::traducir("mcp", "No paso nada en ese tiempo.")).data({{"timeout", true}}));
             });
         };
         core.addTool(std::move(t));
@@ -134,33 +136,33 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_perfiles";
-        t.title = "Perfiles de la botonera";
+        t.title = ba::i18n::traducir("mcp", "Perfiles de la botonera");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Los perfiles (cada uno es un PUESTO: director, audio, sala…) con sus paginas y las "
-                        "herramientas que puede usar. Un aparato emparejado muestra el perfil que tiene asignado.";
+        t.description = ba::i18n::traducir("mcp", "Los perfiles (cada uno es un PUESTO: director, audio, sala…) con sus paginas y las "
+                        "herramientas que puede usar. Un aparato emparejado muestra el perfil que tiene asignado.");
         t.run = [&bot](const json&, Done done) { done(ToolResult().data({{"perfiles", bot.perfiles()}})); };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_plantillas";
-        t.title = "Plantillas de la botonera";
+        t.title = ba::i18n::traducir("mcp", "Plantillas de la botonera");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Las plantillas de fabrica (director, audio, asamblea, prompter): se arman con las escenas, "
-                        "fuentes y bancas que hay ahora.";
+        t.description = ba::i18n::traducir("mcp", "Las plantillas de fabrica (director, audio, asamblea, prompter): se arman con las escenas, "
+                        "fuentes y bancas que hay ahora.");
         t.run = [&bot](const json&, Done done) { done(ToolResult().data({{"plantillas", bot.plantillas()}})); };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_perfil_crear";
-        t.title = "Crear un perfil de botonera";
+        t.title = ba::i18n::traducir("mcp", "Crear un perfil de botonera");
         t.category = "botonera";
-        t.description = "Un perfil nuevo, vacio o `desde_plantilla` (botonera_plantillas). Desde una plantilla trae "
+        t.description = ba::i18n::traducir("mcp", "Un perfil nuevo, vacio o `desde_plantilla` (botonera_plantillas). Desde una plantilla trae "
                         "las herramientas que usan sus botones; vacio, sin herramientas: los permisos los da una "
-                        "persona en la pagina Botonera.";
+                        "persona en la pagina Botonera.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"desde_plantilla", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
@@ -169,17 +171,17 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             if (a.contains("nombre")) p["nombre"] = a["nombre"];
             const std::string e = bot.crearPerfil(p, a.value("desde_plantilla", std::string()), &id);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().text("Creado: " + id).data(bot.perfil(id)));
+            done(ToolResult().text(ba::i18n::llenar(ba::i18n::traducir("mcp", "Creado: %1"), {id})).data(bot.perfil(id)));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_perfil_editar";
-        t.title = "Editar un perfil de botonera";
+        t.title = ba::i18n::traducir("mcp", "Editar un perfil de botonera");
         t.category = "botonera";
-        t.description = "Cambia `nombre`, `herramientas_permitidas` (solo QUITAR: sumar lo hace una persona) o "
-                        "`puede_editar` (solo apagarlo).";
+        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `herramientas_permitidas` (solo QUITAR: sumar lo hace una persona) o "
+                        "`puede_editar` (solo apagarlo).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil"}},
                          {"properties",
@@ -192,7 +194,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             c.erase("perfil");
             const std::string e = bot.editarPerfil(a.value("perfil", std::string()), c, false);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core.addTool(std::move(t));
     }
@@ -200,27 +202,27 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         Tool t;
         t.name = "botonera_perfil_borrar";
         t.destructive = true;
-        t.title = "Borrar un perfil de botonera";
+        t.title = ba::i18n::traducir("mcp", "Borrar un perfil de botonera");
         t.category = "botonera";
-        t.description = "Borra el `perfil` (los aparatos que lo tenian quedan sin perfil). Confirmalo con el operador.";
+        t.description = ba::i18n::traducir("mcp", "Borra el `perfil` (los aparatos que lo tenian quedan sin perfil). Confirmalo con el operador.");
         t.inputSchema = {{"type", "object"}, {"required", {"perfil"}}, {"properties", {{"perfil", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
-            if (!bot.borrarPerfil(a.value("perfil", std::string()))) return done(ToolResult::error("no hay ese perfil"));
-            done(ToolResult::ok("Borrado."));
+            if (!bot.borrarPerfil(a.value("perfil", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese perfil")));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Borrado.")));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_exportar";
-        t.title = "Exportar un perfil";
+        t.title = ba::i18n::traducir("mcp", "Exportar un perfil");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "El `perfil` entero en JSON (para guardarlo o pasarlo a otro equipo con botonera_importar).";
+        t.description = ba::i18n::traducir("mcp", "El `perfil` entero en JSON (para guardarlo o pasarlo a otro equipo con botonera_importar).");
         t.inputSchema = {{"type", "object"}, {"required", {"perfil"}}, {"properties", {{"perfil", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
             const json p = bot.exportar(a.value("perfil", std::string()));
-            if (p.is_null()) return done(ToolResult::error("no hay ese perfil"));
+            if (p.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese perfil")));
             done(ToolResult().data(p));
         };
         core.addTool(std::move(t));
@@ -228,16 +230,16 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_importar";
-        t.title = "Importar un perfil";
+        t.title = ba::i18n::traducir("mcp", "Importar un perfil");
         t.category = "botonera";
-        t.description = "Crea un perfil desde el `json` de botonera_exportar. Entra SIN herramientas permitidas: las da "
-                        "una persona.";
+        t.description = ba::i18n::traducir("mcp", "Crea un perfil desde el `json` de botonera_exportar. Entra SIN herramientas permitidas: las da "
+                        "una persona.");
         t.inputSchema = {{"type", "object"}, {"required", {"json"}}, {"properties", {{"json", {{"type", "object"}}}}}};
         t.run = [&bot](const json& a, Done done) {
             std::string id;
             const std::string e = bot.importar(a.value("json", json::object()), &id);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Importado como " + id + " (sin permisos todavia)."));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Importado como %1 (sin permisos todavia)."), {id})));
         };
         core.addTool(std::move(t));
     }
@@ -246,25 +248,25 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_paginas";
-        t.title = "Paginas de un perfil";
+        t.title = ba::i18n::traducir("mcp", "Paginas de un perfil");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Las paginas del `perfil` con su grilla (columnas x filas) y cuantas celdas tienen.";
+        t.description = ba::i18n::traducir("mcp", "Las paginas del `perfil` con su grilla (columnas x filas) y cuantas celdas tienen.");
         t.inputSchema = {{"type", "object"}, {"required", {"perfil"}}, {"properties", {{"perfil", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
             for (const auto& p : bot.perfiles())
                 if (p.value("id", std::string()) == a.value("perfil", std::string()))
                     return done(ToolResult().data({{"paginas", p["paginas"]}}));
-            done(ToolResult::error("no hay ese perfil"));
+            done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese perfil")));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_pagina_crear";
-        t.title = "Crear una pagina";
+        t.title = ba::i18n::traducir("mcp", "Crear una pagina");
         t.category = "botonera";
-        t.description = "Una pagina nueva en el `perfil`, con `columnas` y `filas` (1 a 16).";
+        t.description = ba::i18n::traducir("mcp", "Una pagina nueva en el `perfil`, con `columnas` y `filas` (1 a 16).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "nombre", "columnas", "filas"}},
                          {"properties",
@@ -277,16 +279,16 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             const std::string e = bot.crearPagina(a.value("perfil", std::string()), a.value("nombre", std::string()),
                                                   a.value("columnas", 4), a.value("filas", 3), &id);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Creada: " + id));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Creada: %1"), {id})));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_pagina_editar";
-        t.title = "Editar una pagina";
+        t.title = ba::i18n::traducir("mcp", "Editar una pagina");
         t.category = "botonera";
-        t.description = "Cambia `nombre`, `columnas` o `filas` de la `pagina`.";
+        t.description = ba::i18n::traducir("mcp", "Cambia `nombre`, `columnas` o `filas` de la `pagina`.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina"}},
                          {"properties",
@@ -301,7 +303,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             c.erase("pagina");
             const std::string e = bot.editarPagina(a.value("perfil", std::string()), a.value("pagina", std::string()), c);
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core.addTool(std::move(t));
     }
@@ -309,33 +311,33 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         Tool t;
         t.name = "botonera_pagina_borrar";
         t.destructive = true;
-        t.title = "Borrar una pagina";
+        t.title = ba::i18n::traducir("mcp", "Borrar una pagina");
         t.category = "botonera";
-        t.description = "Borra la `pagina` (un perfil siempre conserva al menos una).";
+        t.description = ba::i18n::traducir("mcp", "Borra la `pagina` (un perfil siempre conserva al menos una).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina"}},
                          {"properties", {{"perfil", {{"type", "string"}}}, {"pagina", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
             if (!bot.borrarPagina(a.value("perfil", std::string()), a.value("pagina", std::string())))
-                return done(ToolResult::error("no se pudo (¿es la unica?)"));
-            done(ToolResult::ok("Borrada."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "no se pudo (¿es la unica?)")));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Borrada.")));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_celdas";
-        t.title = "Celdas de una pagina";
+        t.title = ba::i18n::traducir("mcp", "Celdas de una pagina");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Las celdas de la `pagina` con su definicion y lo que muestran ahora (render: texto, fondo, "
-                        "titilar, valor…).";
+        t.description = ba::i18n::traducir("mcp", "Las celdas de la `pagina` con su definicion y lo que muestran ahora (render: texto, fondo, "
+                        "titilar, valor…).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina"}},
                          {"properties", {{"perfil", {{"type", "string"}}}, {"pagina", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
             const json c = bot.celdas(a.value("perfil", std::string()), a.value("pagina", std::string()));
-            if (c.is_null()) return done(ToolResult::error("no hay esa pagina"));
+            if (c.is_null()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay esa pagina")));
             done(ToolResult().data({{"celdas", c}}));
         };
         core.addTool(std::move(t));
@@ -343,16 +345,16 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_celda_set";
-        t.title = "Poner una celda";
+        t.title = ba::i18n::traducir("mcp", "Poner una celda");
         t.category = "botonera";
         t.description =
-            "Pone (o reemplaza) la celda en (`x`, `y`) de la `pagina`. `tipo`: boton, fader, perilla, medidor, texto o "
+            ba::i18n::traducir("mcp", "Pone (o reemplaza) la celda en (`x`, `y`) de la `pagina`. `tipo`: boton, fader, perilla, medidor, texto o "
             "reloj. `estilo`: {texto, icono, color, fondo, tamano_texto}. `accion` al apretar (o al soltar si hay "
             "`accion_mantener`, que corre al mantener 0,7 s), `accion_soltar`. `valor` para fader/perilla: {min, max, "
             "paso, inicial, modo: absoluto|relativo}. `estado`: ligaduras al bus [{tema, ruta, op (== != > < >= <= en "
             "contiene existe), valor, efecto (fondo color texto titilar valor icono activo nivel), dato}]; en texto, "
             "«{{v}}» es el valor. Ej. tally: {tema: aire/tally, ruta: programa, op: ==, valor: Camara 2, efecto: fondo, "
-            "dato: #c62828}. La herramienta de la accion tiene que estar en herramientas_permitidas del perfil.";
+            "dato: #c62828}. La herramienta de la accion tiene que estar en herramientas_permitidas del perfil.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
                          {"properties",
@@ -376,22 +378,22 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             const std::string e = bot.setCelda(a.value("perfil", std::string()), a.value("pagina", std::string()), c);
             if (!e.empty()) return done(ToolResult::error(e));
             const std::string aviso = bot.avisoPermisos(a.value("perfil", std::string()), c);
-            done(ToolResult::ok(aviso.empty() ? std::string("Listo.") : "Listo. Ojo: " + aviso));
+            done(ToolResult::ok(aviso.empty() ? ba::i18n::traducir("mcp", "Listo.") : ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo. Ojo: %1"), {aviso})));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_cara";
-        t.title = "Poner la cara de un botón (foto o video corto)";
+        t.title = ba::i18n::traducir("mcp", "Poner la cara de un botón (foto o video corto)");
         t.category = "botonera";
         t.description =
-            "Le pone de cara al botón en (`x`, `y`) una foto o un video de hasta 5 s, que se ve en la tablet, en el "
+            ba::i18n::traducir("mcp", "Le pone de cara al botón en (`x`, `y`) una foto o un video de hasta 5 s, que se ve en la tablet, en el "
             "Stream Deck y en la grilla de la app (el video se repite a 8 cuadros/s). De `archivo` (imagen, GIF o video: "
             "los primeros 5 s) o de la cámara `entrada` (lo que muestra ahora: apuntala antes con ptz_apuntar o "
             "ptz_encuadre); con `segundos` (1-5) graba un video, si no saca una foto. `al_tocar`: además, al tocar el "
             "botón pone ese medio en la escena al aire (medio_poner; el perfil tiene que permitirla). Si no hay celda en "
-            "(`x`, `y`), crea un botón (como la pagina Botonera). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:<id>»).";
+            "(`x`, `y`), crea un botón (como la pagina Botonera). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:<id>»).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
                          {"properties",
@@ -399,8 +401,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                            {"pagina", {{"type", "string"}}},
                            {"x", {{"type", "integer"}, {"minimum", 0}}},
                            {"y", {{"type", "integer"}, {"minimum", 0}}},
-                           {"archivo", {{"type", "string"}, {"description", "Ruta de una imagen, GIF o video."}}},
-                           {"entrada", {{"type", "string"}, {"description", "La cámara (ptz_camaras)."}}},
+                           {"archivo", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "Ruta de una imagen, GIF o video.")}}},
+                           {"entrada", {{"type", "string"}, {"description", ba::i18n::traducir("mcp", "La cámara (ptz_camaras).")}}},
                            {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 5}}},
                            {"al_tocar", {{"type", "boolean"}}}}}};
         t.examples = {R"({"perfil": "operador", "pagina": "principal", "x": 0, "y": 0, "entrada": "Cámara 1", "segundos": 3})",
@@ -412,7 +414,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             control::CarasBotonera& caras = vm.carasBotonera();
             const QString archivo = QString::fromStdString(a.value("archivo", std::string()));
             const QString entrada = QString::fromStdString(a.value("entrada", std::string()));
-            if (archivo.isEmpty() == entrada.isEmpty()) return done(ToolResult::error("Pasá `archivo` o `entrada` (uno)"));
+            if (archivo.isEmpty() == entrada.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Pasá `archivo` o `entrada` (uno)")));
             QVariantMap r;
             if (!archivo.isEmpty())
                 r = caras.importar(archivo);
@@ -433,9 +435,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                     std::string aviso;
                     const std::string e = bot.ponerCara(perfil, pagina, x, y, id.toStdString(), al, &aviso);
                     if (!e.empty()) return done(ToolResult::error(e));
-                    done(ToolResult::ok("Listo: cara «medio:" + id.toStdString() + "» (" +
-                                        std::to_string(caras.info(id).value("cuadros").toInt()) + " cuadro(s)" +
-                                        (aviso.empty() ? std::string() : "; " + aviso) + ")."));
+                    const std::string cuadros =
+                        ba::i18n::traducir("mcp", "%n cuadro", nullptr, caras.info(id).value("cuadros").toInt());
+                    done(ToolResult::ok(
+                        aviso.empty()
+                            ? ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: cara «medio:%1» (%2)."), {id.toStdString(), cuadros})
+                            : ba::i18n::llenar(ba::i18n::traducir("mcp", "Listo: cara «medio:%1» (%2; %3)."), {id.toStdString(), cuadros, aviso})));
                 });
         };
         core.addTool(std::move(t));
@@ -444,9 +449,9 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         Tool t;
         t.name = "botonera_celda_borrar";
         t.destructive = true;
-        t.title = "Borrar una celda";
+        t.title = ba::i18n::traducir("mcp", "Borrar una celda");
         t.category = "botonera";
-        t.description = "Saca la celda en (`x`, `y`).";
+        t.description = ba::i18n::traducir("mcp", "Saca la celda en (`x`, `y`).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
                          {"properties",
@@ -457,20 +462,20 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.run = [&bot](const json& a, Done done) {
             if (!bot.borrarCelda(a.value("perfil", std::string()), a.value("pagina", std::string()), a.value("x", -1),
                                  a.value("y", -1)))
-                return done(ToolResult::error("no hay una celda ahi"));
-            done(ToolResult::ok("Borrada."));
+                return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay una celda ahi")));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Borrada.")));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_presionar";
-        t.title = "Probar una celda";
+        t.title = ba::i18n::traducir("mcp", "Probar una celda");
         t.category = "botonera";
-        t.description = "Prueba la celda (`x`, `y`) por el camino completo, como si la apretaran en un aparato: "
+        t.description = ba::i18n::traducir("mcp", "Prueba la celda (`x`, `y`) por el camino completo, como si la apretaran en un aparato: "
                         "`accion` presionar (de fabrica), soltar, valor (`v`) o girar (`v` = delta). Pasa por los "
                         "permisos del perfil; lo de aire, al aire, lo aprueba una persona. El resultado queda en "
-                        "botonera_auditoria.";
+                        "botonera_auditoria.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"perfil", "pagina", "x", "y"}},
                          {"properties",
@@ -489,7 +494,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             if (!e.empty()) return done(ToolResult::error(e));
             if (que == "presionar") bot.simular(a.value("perfil", std::string()), a.value("pagina", std::string()),
                                                 {{"type", "soltar"}, {"x", a.value("x", 0)}, {"y", a.value("y", 0)}});
-            done(ToolResult::ok("Enviado (mira botonera_auditoria para el resultado)."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Enviado (mira botonera_auditoria para el resultado).")));
         };
         core.addTool(std::move(t));
     }
@@ -498,12 +503,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_dispositivos";
-        t.title = "Aparatos de la botonera";
+        t.title = ba::i18n::traducir("mcp", "Aparatos de la botonera");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Las tablets emparejadas y los aparatos de hardware de los plugins (origen plugin), con su "
+        t.description = ba::i18n::traducir("mcp", "Las tablets emparejadas y los aparatos de hardware de los plugins (origen plugin), con su "
                         "perfil, pagina, IP, ultimo uso y si estan conectados ahora. Tambien las solicitudes de "
-                        "emparejamiento que esperan a una persona.";
+                        "emparejamiento que esperan a una persona.");
         t.run = [&bot](const json&, Done done) {
             json sol = json::array();
             for (const QVariant& v : bot.solicitudesUi()) {
@@ -519,9 +524,9 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_dispositivo_asignar";
-        t.title = "Asignar perfil a un aparato";
+        t.title = ba::i18n::traducir("mcp", "Asignar perfil a un aparato");
         t.category = "botonera";
-        t.description = "El `dispositivo` pasa a mostrar el `perfil` (y la `pagina`, opcional).";
+        t.description = ba::i18n::traducir("mcp", "El `dispositivo` pasa a mostrar el `perfil` (y la `pagina`, opcional).");
         t.inputSchema = {{"type", "object"},
                          {"required", {"dispositivo", "perfil"}},
                          {"properties",
@@ -530,19 +535,19 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             const std::string e = bot.asignar(a.value("dispositivo", std::string()), a.value("perfil", std::string()),
                                               a.value("pagina", std::string()));
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_emparejar";
-        t.title = "Emparejar una tablet";
+        t.title = ba::i18n::traducir("mcp", "Emparejar una tablet");
         t.category = "botonera";
-        t.description = "Genera un codigo de un uso (vence en 2 minutos) atado al `perfil` y la URL para el QR (el "
+        t.description = ba::i18n::traducir("mcp", "Genera un codigo de un uso (vence en 2 minutos) atado al `perfil` y la URL para el QR (el "
                         "codigo va en el fragmento #p=, que no sale en registros). Cuando la tablet la abre, una "
                         "PERSONA aprueba el emparejamiento en la pagina Botonera: el asistente no puede. `vence_dias`: "
-                        "dias sin uso hasta que el token deja de valer (30 de fabrica, 0 = no vence).";
+                        "dias sin uso hasta que el token deja de valer (30 de fabrica, 0 = no vence).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"perfil", {{"type", "string"}}},
@@ -559,8 +564,8 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                            {"huella_tls", r.value("huella", std::string())},
                            {"aviso", r.value("aviso", std::string())}};
                     done(ToolResult()
-                             .text("Abri la URL en la tablet (o mostrá el QR de la pagina Botonera). "
-                                   "Despues el operador aprueba en la pagina Botonera.")
+                             .text(ba::i18n::traducir("mcp", "Abri la URL en la tablet (o mostrá el QR de la pagina Botonera). "
+                                   "Despues el operador aprueba en la pagina Botonera."))
                              .data(d));
                 });
         };
@@ -570,27 +575,27 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         Tool t;
         t.name = "botonera_revocar";
         t.destructive = true;
-        t.title = "Revocar un aparato";
+        t.title = ba::i18n::traducir("mcp", "Revocar un aparato");
         t.category = "botonera";
-        t.description = "El token del `dispositivo` (o de todas las tablets con \"todos\") deja de valer y se corta su "
-                        "conexion. Confirmalo con el operador.";
+        t.description = ba::i18n::traducir("mcp", "El token del `dispositivo` (o de todas las tablets con \"todos\") deja de valer y se corta su "
+                        "conexion. Confirmalo con el operador.");
         t.inputSchema = {{"type", "object"}, {"required", {"dispositivo"}}, {"properties", {{"dispositivo", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
             const int n = bot.revocar(a.value("dispositivo", std::string()));
-            if (n == 0) return done(ToolResult::error("no hay ese aparato"));
-            done(ToolResult::ok("Revocados: " + std::to_string(n)));
+            if (n == 0) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese aparato")));
+            done(ToolResult::ok(ba::i18n::llenar(ba::i18n::traducir("mcp", "Revocados: %1"), {std::to_string(n)})));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_auditoria";
-        t.title = "Auditoria de la botonera";
+        t.title = ba::i18n::traducir("mcp", "Auditoria de la botonera");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Lo que paso: emparejamientos, revocaciones, conexiones, cada accion hecha o rechazada (y por "
+        t.description = ba::i18n::traducir("mcp", "Lo que paso: emparejamientos, revocaciones, conexiones, cada accion hecha o rechazada (y por "
                         "que), confirmaciones de aire y ediciones. Filtra por `desde_ms` y `dispositivo`. Tambien queda "
-                        "en Logs/botonera.log.";
+                        "en Logs/botonera.log.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"desde_ms", {{"type", "integer"}}}, {"dispositivo", {{"type", "string"}}}}}};
         t.run = [&bot](const json& a, Done done) {
@@ -601,11 +606,11 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_estado";
-        t.title = "Estado de la botonera";
+        t.title = ba::i18n::traducir("mcp", "Estado de la botonera");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "El servidor de la botonera en el gateway: conexiones vivas, credenciales cargadas, "
-                        "solicitudes; y los aparatos de la app.";
+        t.description = ba::i18n::traducir("mcp", "El servidor de la botonera en el gateway: conexiones vivas, credenciales cargadas, "
+                        "solicitudes; y los aparatos de la app.");
         t.run = [&vm, &bot](const json&, Done done) {
             vm.botoneraGateway().estado([done, base = json{{"dispositivos", bot.dispositivos()}}](const json& gw) mutable {
                 base["gateway"] = gw;
@@ -615,29 +620,29 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         core.addTool(std::move(t));
     }
     // --- DSK: capas encima del programa ---------------------------------------------------
-    core.addCategory("dsk", "Capas (DSK)",
-                     "Cuatro capas globales encima del programa que no cambian con la escena: logo o mosca, el "
-                     "recuadro del intérprete de LSA, un zócalo fijo, un reloj.");
+    core.addCategory("dsk", ba::i18n::traducir("mcp", "Capas (DSK)"),
+                     ba::i18n::traducir("mcp", "Cuatro capas globales encima del programa que no cambian con la escena: "
+                                               "logo o mosca, el recuadro del intérprete de LSA, un zócalo fijo, un reloj."));
     {
         Tool t;
         t.name = "dsk_capas_ver";
-        t.title = "Capas DSK";
+        t.title = ba::i18n::traducir("mcp", "Capas DSK");
         t.category = "dsk";
         t.readOnly = true;
-        t.description = "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están "
-            "arriba.";
+        t.description = ba::i18n::traducir("mcp", "Las capas del DSK, por encima de todas las escenas (logo, intérprete, reloj): qué tienen y si están "
+            "arriba.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data({{"capas", vm.dsk().capas()}})); };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "dsk_definir";
-        t.title = "Definir una capa DSK";
+        t.title = ba::i18n::traducir("mcp", "Definir una capa DSK");
         t.category = "dsk";
-        t.description = "Arma la `capa` (1-4) con `contenido` (nombres de escenas o fuentes, apiladas en ese orden), "
+        t.description = ba::i18n::traducir("mcp", "Arma la `capa` (1-4) con `contenido` (nombres de escenas o fuentes, apiladas en ese orden), "
                         "`recuadro` opcional {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, "
                         "tamano: 0..1 del ancho, margen}, `fijo` y `transicion_ms`. Con `lsa_entrada`, la plantilla "
-                        "«Interprete LSA»: esa entrada en un recuadro abajo a la derecha, fija. No la sube: dsk_mostrar.";
+                        "«Interprete LSA»: esa entrada en un recuadro abajo a la derecha, fija. No la sube: dsk_mostrar.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"capa"}},
                          {"properties",
@@ -659,17 +664,17 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                 e = vm.dsk().definir(capa, d);
             }
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult().text("Listo (todavia abajo: dsk_mostrar para subirla).").data({{"capas", vm.dsk().capas()}}));
+            done(ToolResult().text(ba::i18n::traducir("mcp", "Listo (todavia abajo: dsk_mostrar para subirla).")).data({{"capas", vm.dsk().capas()}}));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "dsk_mostrar";
-        t.title = "Subir o bajar una capa DSK";
+        t.title = ba::i18n::traducir("mcp", "Subir o bajar una capa DSK");
         t.category = "dsk";
-        t.description = "Sube (`visible` true) o baja la `capa` con su fundido. Es de aire. Bajar una capa FIJA (el "
-                        "interprete de LSA) necesita `confirmar`: true, y solo si el operador lo pidio.";
+        t.description = ba::i18n::traducir("mcp", "Sube (`visible` true) o baja la `capa` con su fundido. Es de aire. Bajar una capa FIJA (el "
+                        "interprete de LSA) necesita `confirmar`: true, y solo si el operador lo pidio.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"capa", "visible"}},
                          {"properties",
@@ -679,7 +684,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.run = [&vm](const json& a, Done done) {
             const std::string e = vm.dsk().mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false));
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok(a.value("visible", true) ? "Arriba." : "Abajo."));
+            done(ToolResult::ok(a.value("visible", true) ? ba::i18n::traducir("mcp", "Arriba.") : ba::i18n::traducir("mcp", "Abajo.")));
         };
         core.addTool(std::move(t));
     }
@@ -688,22 +693,22 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "acciones_listar";
-        t.title = "Acciones de un golpe";
+        t.title = ba::i18n::traducir("mcp", "Acciones de un golpe");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "El catalogo de acciones (TAKE, FTB, placa, siguiente banca, siguiente punto, prompter, armar o "
+        t.description = ba::i18n::traducir("mcp", "El catalogo de acciones (TAKE, FTB, placa, siguiente banca, siguiente punto, prompter, armar o "
                         "cortar a cada escena, mutear cada fuente, subir/bajar cada capa DSK…) con su id: lo usan los "
-                        "atajos de teclado (atajo_asignar) y accion_ejecutar.";
+                        "atajos de teclado (atajo_asignar) y accion_ejecutar.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data({{"acciones", vm.acciones().catalogo()}})); };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "atajos_listar";
-        t.title = "Atajos de teclado";
+        t.title = ba::i18n::traducir("mcp", "Atajos de teclado");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Los atajos: tecla, accion y si es global (funciona aunque la ventana no tenga el foco).";
+        t.description = ba::i18n::traducir("mcp", "Los atajos: tecla, accion y si es global (funciona aunque la ventana no tenga el foco).");
         t.run = [&vm](const json&, Done done) {
             done(ToolResult().data({{"atajos", vm.acciones().atajos()}, {"globales_disponibles", vm.acciones().globalesDisponibles()}}));
         };
@@ -712,12 +717,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "atajo_asignar";
-        t.title = "Asignar un atajo de teclado";
+        t.title = ba::i18n::traducir("mcp", "Asignar un atajo de teclado");
         t.category = "botonera";
-        t.description = "Asigna `tecla` («Ctrl+Shift+T», «F5», «Alt+1»; en la Mac «Ctrl» es Comando) a `accion` (id de "
+        t.description = ba::i18n::traducir("mcp", "Asigna `tecla` («Ctrl+Shift+T», «F5», «Alt+1»; en la Mac «Ctrl» es Comando) a `accion` (id de "
                         "acciones_listar). `global`: funciona aunque la ventana no tenga el foco (Mac y Windows). Una tecla "
                         "que ya tiene otra accion da error: sacala primero. Un pedal de prompter que manda una tecla se "
-                        "asigna igual.";
+                        "asigna igual.");
         t.inputSchema = {{"type", "object"},
                          {"required", {"tecla", "accion"}},
                          {"properties", {{"tecla", {{"type", "string"}}}, {"accion", {{"type", "string"}}}, {"global", {{"type", "boolean"}}}}}};
@@ -725,7 +730,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             const std::string e = vm.acciones().asignar(a.value("tecla", std::string()), a.value("accion", std::string()),
                                                         a.value("global", false));
             if (!e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Listo."));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };
         core.addTool(std::move(t));
     }
@@ -733,23 +738,23 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         Tool t;
         t.name = "atajo_quitar";
         t.destructive = true;
-        t.title = "Quitar un atajo";
+        t.title = ba::i18n::traducir("mcp", "Quitar un atajo");
         t.category = "botonera";
-        t.description = "Saca el atajo de `tecla` (o de la accion con ese id).";
+        t.description = ba::i18n::traducir("mcp", "Saca el atajo de `tecla` (o de la accion con ese id).");
         t.inputSchema = {{"type", "object"}, {"required", {"tecla"}}, {"properties", {{"tecla", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            if (!vm.acciones().quitar(a.value("tecla", std::string()))) return done(ToolResult::error("no hay ese atajo"));
-            done(ToolResult::ok("Quitado."));
+            if (!vm.acciones().quitar(a.value("tecla", std::string()))) return done(ToolResult::error(ba::i18n::traducir("mcp", "no hay ese atajo")));
+            done(ToolResult::ok(ba::i18n::traducir("mcp", "Quitado.")));
         };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "accion_ejecutar";
-        t.title = "Ejecutar una accion";
+        t.title = ba::i18n::traducir("mcp", "Ejecutar una accion");
         t.category = "botonera";
-        t.description = "Ejecuta la `accion` (id de acciones_listar) como si se apretara su atajo, pero con los permisos "
-                        "y la guarda de aire del que lo pide.";
+        t.description = ba::i18n::traducir("mcp", "Ejecuta la `accion` (id de acciones_listar) como si se apretara su atajo, pero con los permisos "
+                        "y la guarda de aire del que lo pide.");
         t.inputSchema = {{"type", "object"}, {"required", {"accion"}}, {"properties", {{"accion", {{"type", "string"}}}}}};
         t.run = [&vm, &core](const json& a, Done done) {
             const json r = vm.acciones().resolver(a.value("accion", std::string()));
@@ -773,21 +778,21 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "modo_vivo_estado";
-        t.title = "Modo en vivo";
+        t.title = ba::i18n::traducir("mcp", "Modo en vivo");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Si el modo en vivo esta activo (transmitiendo o con el evento en vivo; opcionalmente grabando), "
-                        "que paginas protege (piden escribir CONFIRMAR con un motivo) y cuales se desbloquearon.";
+        t.description = ba::i18n::traducir("mcp", "Si el modo en vivo esta activo (transmitiendo o con el evento en vivo; opcionalmente grabando), "
+                        "que paginas protege (piden escribir CONFIRMAR con un motivo) y cuales se desbloquearon.");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.modoVivoEstado())); };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "modo_vivo_ajustes";
-        t.title = "Ajustes del modo en vivo";
+        t.title = ba::i18n::traducir("mcp", "Ajustes del modo en vivo");
         t.category = "botonera";
-        t.description = "Fuera del vivo: `activo`, `incluir_grabando` y `paginas` protegidas (ids del riel: configuracion, "
-                        "plugins, agentes, asistente…).";
+        t.description = ba::i18n::traducir("mcp", "Fuera del vivo: `activo`, `incluir_grabando` y `paginas` protegidas (ids del riel: configuracion, "
+                        "plugins, agentes, asistente…).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
@@ -805,12 +810,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "supervisor_caidas";
-        t.title = "Las ultimas caidas";
+        t.title = ba::i18n::traducir("mcp", "Las ultimas caidas");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Las ultimas `n` (10 de fabrica) caidas que anoto el supervisor: que se cayo (app o gateway), la "
+        t.description = ba::i18n::traducir("mcp", "Las ultimas `n` (10 de fabrica) caidas que anoto el supervisor: que se cayo (app o gateway), la "
                         "causa (error de memoria, abortado, colgado…), el codigo y la hora. La ultima la muestra un cartel "
-                        "al volver, con cuanto tardo el aire en volver.";
+                        "al volver, con cuanto tardo el aire en volver.");
         t.inputSchema = {{"type", "object"}, {"properties", {{"n", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}}}};
         t.run = [&vm](const json& a, Done done) {
             json d{{"caidas", vm.caidas(a.value("n", 10))}};
@@ -826,26 +831,27 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "config_generaciones";
-        t.title = "Generaciones de la configuracion";
+        t.title = ba::i18n::traducir("mcp", "Generaciones de la configuracion");
         t.category = "botonera";
-        t.description = "Cada archivo de Config/ guarda la version anterior (.anterior) al guardarse; si el actual esta "
+        t.description = ba::i18n::traducir("mcp", "Cada archivo de Config/ guarda la version anterior (.anterior) al guardarse; si el actual esta "
                         "roto, se carga solo el anterior. Sin argumentos, lista los que tienen anterior. Con `restaurar` "
                         "(nombre del archivo, p. ej. app.json) y fuera de vivo, vuelve a la version anterior (rige al "
-                        "reiniciar).";
+                        "reiniciar).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"restaurar", {{"type", "string"}}}}}};
         t.run = [&vm, &core](const json& a, Done done) {
             namespace fs = std::filesystem;
             const fs::path dir = vm.datosRaiz() / "Config";
             if (a.contains("restaurar")) {
-                if (vm.modoVivo() || core.hayAire()) return done(ToolResult::error("no se restaura en vivo"));
+                if (vm.modoVivo() || core.hayAire()) return done(ToolResult::error(ba::i18n::traducir("mcp", "no se restaura en vivo")));
                 const std::string n = fs::path(a.value("restaurar", std::string())).filename().string();
                 const fs::path prev = dir / (n + ".anterior");
                 std::error_code ec;
-                if (!fs::exists(prev, ec)) return done(ToolResult::error("no hay version anterior de " + n));
+                if (!fs::exists(prev, ec)) return done(ToolResult::error(ba::i18n::llenar(ba::i18n::traducir("mcp", "no hay version anterior de %1"), {n})));
                 fs::copy_file(dir / n, dir / (n + ".reemplazado"), fs::copy_options::overwrite_existing, ec);
                 fs::copy_file(prev, dir / n, fs::copy_options::overwrite_existing, ec);
                 if (ec) return done(ToolResult::error(ec.message()));
-                return done(ToolResult::ok("Restaurado " + n + " (el que estaba quedo como .reemplazado). Rige al reiniciar."));
+                return done(ToolResult::ok(ba::i18n::llenar(
+                    ba::i18n::traducir("mcp", "Restaurado %1 (el que estaba quedo como .reemplazado). Rige al reiniciar."), {n})));
             }
             json lista = json::array();
             std::error_code ec;
@@ -863,11 +869,11 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "media_restante";
-        t.title = "Cuanto le queda al medio al aire";
+        t.title = ba::i18n::traducir("mcp", "Cuanto le queda al medio al aire");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Los videos o audios que se estan reproduciendo al aire y cuantos segundos les quedan (tambien en "
-                        "el bus: aire/medios). Para avisar antes de que termine y armar lo que sigue.";
+        t.description = ba::i18n::traducir("mcp", "Los videos o audios que se estan reproduciendo al aire y cuantos segundos les quedan (tambien en "
+                        "el bus: aire/medios). Para avisar antes de que termine y armar lo que sigue.");
         t.run = [&vm](const json&, Done done) {
             json out = json::array();
             for (const QVariant& v : vm.mediosAlAire()) {
@@ -884,12 +890,12 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "stream_salud";
-        t.title = "Salud de la transmision";
+        t.title = ba::i18n::traducir("mcp", "Salud de la transmision");
         t.category = "salidas";
         t.readOnly = true;
-        t.description = "Por destino (principal y los adicionales): kbps reales, cuadros perdidos por la red y por el "
+        t.description = ba::i18n::traducir("mcp", "Por destino (principal y los adicionales): kbps reales, cuadros perdidos por la red y por el "
                         "codificador, congestion (0 a 1), si esta reconectando, cuantas reconexiones hubo y cuanto tardo la "
-                        "ultima. Con `destino` y `minutos` (hasta 10), la serie de a un punto por segundo.";
+                        "ultima. Con `destino` y `minutos` (hasta 10), la serie de a un punto por segundo.");
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"destino", {{"type", "string"}}}, {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 10}}}}}};
         t.run = [&vm](const json& a, Done done) {
@@ -904,24 +910,24 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_satellite_estado";
-        t.title = "Companion Satellite: estado";
+        t.title = ba::i18n::traducir("mcp", "Companion Satellite: estado");
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "El servidor de la Satellite API de Bitfocus Companion (TCP 16622): si esta prendido, las IP "
+        t.description = ba::i18n::traducir("mcp", "El servidor de la Satellite API de Bitfocus Companion (TCP 16622): si esta prendido, las IP "
                         "permitidas, las que pidieron y esperan aprobacion, y los Satellite conectados con sus "
-                        "aparatos (Stream Deck, Loupedeck, X-keys… que maneja Companion Satellite en otra maquina).";
+                        "aparatos (Stream Deck, Loupedeck, X-keys… que maneja Companion Satellite en otra maquina).");
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.satellite().estado())); };
         core.addTool(std::move(t));
     }
     {
         Tool t;
         t.name = "botonera_satellite";
-        t.title = "Companion Satellite: prender, apagar, puerto";
+        t.title = ba::i18n::traducir("mcp", "Companion Satellite: prender, apagar, puerto");
         t.category = "botonera";
-        t.description = "Prende (`activo`) o apaga el servidor de la Satellite API en `puerto` (16622 de fabrica). "
+        t.description = ba::i18n::traducir("mcp", "Prende (`activo`) o apaga el servidor de la Satellite API en `puerto` (16622 de fabrica). "
                         "Cada aparato que agregue un Companion Satellite es un aparato mas de la botonera "
                         "(botonera_dispositivo_asignar). El protocolo no tiene clave: solo red local y solo las IP "
-                        "que una PERSONA permite en la pagina Botonera (aca se pueden QUITAR con `quitar_ip`).";
+                        "que una PERSONA permite en la pagina Botonera (aca se pueden QUITAR con `quitar_ip`).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
@@ -941,15 +947,15 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_api_remota";
-        t.title = "API remota HTTP de la botonera (Companion «Generic HTTP»)";
+        t.title = ba::i18n::traducir("mcp", "API remota HTTP de la botonera (Companion «Generic HTTP»)");
         t.category = "botonera";
         t.description =
-            "Prende o apaga (`activo`) la API remota: POST /api/botonera/<perfil>/pagina/<pagina>/celda/<x>/<y>/"
+            ba::i18n::traducir("mcp", "Prende o apaga (`activo`) la API remota: POST /api/botonera/<perfil>/pagina/<pagina>/celda/<x>/<y>/"
             "<presionar|soltar|tocar> en el puerto de la conferencia, con «Authorization: Bearer <token>». Es lo que "
             "llama el módulo «Generic HTTP» de Bitfocus Companion sin escribir código. Cada acceso tiene su "
             "perfil y sus permisos, como una tablet. El TOKEN lo crea y lo ve una PERSONA en Botonera → "
             "Integraciones («Nuevo acceso HTTP…»): acá no se entrega. Sin argumentos informa y lista los "
-            "accesos (se revocan con botonera_dispositivo_revocar).";
+            "accesos (se revocan con botonera_dispositivo_revocar).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             auto& b = vm.botonera();
