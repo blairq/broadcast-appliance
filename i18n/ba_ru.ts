@@ -47811,7 +47811,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <source>La conferencia escucha solo en esta máquina (Configuración → Red de la sala → Acceso): por la red local no entran; desde afuera, por el túnel.</source>
+        <source>La conferencia escucha solo en esta máquina (Configuración → Red de la conferencia → Acceso): por la red local no entran; desde afuera, por el túnel.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

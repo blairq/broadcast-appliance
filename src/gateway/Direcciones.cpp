@@ -129,8 +129,8 @@ json armar(const Entradas& e) {
                 f["motivo_local"] = traducir("gateway", "Sin HTTPS el navegador no da cámara ni micrófono por la red local.");
             } else {
                 f["motivo_local"] = traducir("gateway", "La conferencia escucha solo en esta máquina (Configuración → Red "
-                                                        "de la sala → Acceso): por la red local no entran; desde afuera, "
-                                                        "por el túnel.");
+                                                        "de la conferencia → Acceso): por la red local no entran; desde "
+                                                        "afuera, por el túnel.");
             }
         } else if (s.puerta == Puerta::Evento && !e.eventoWeb) {
             f["motivo_local"] = traducir("gateway", "No hay una página del evento publicada (Evento → Web del evento).");

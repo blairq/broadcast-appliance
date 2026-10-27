@@ -133,7 +133,7 @@
         <location line="-311"/>
         <location line="+26"/>
         <source>El evento está corriendo: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
-        <translation>The event is running: the tunnel stays as is until it ends (it restarts the conference).</translation>
+        <translation>The event is running: the tunnel isn&apos;t touched until it ends (it restarts the conference).</translation>
     </message>
     <message>
         <location line="-24"/>
@@ -1123,7 +1123,7 @@
     <message>
         <location line="+13"/>
         <source>ARMADA</source>
-        <translation>CUED</translation>
+        <translation>LOADED</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1138,7 +1138,7 @@
     <message>
         <location line="+1"/>
         <source>Corte seco a la armada</source>
-        <translation>Hard cut to the cued scene</translation>
+        <translation>Hard cut to the loaded scene</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1345,13 +1345,13 @@
     <message>
         <location line="+4"/>
         <source>Quién se sienta en cada banca: nombre, bloque, foto, cámara y unidad de la central</source>
-        <translation>Who sits in each seat: name, block, photo, camera and central unit</translation>
+        <translation>Who sits in each seat: name, caucus, photo, camera and central unit</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Central: %1 · %2</source>
         <comment>micrófonos abiertos · pedidos de palabra</comment>
-        <translation>Central: %1 · %2</translation>
+        <translation>Central unit: %1 · %2</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -1373,12 +1373,12 @@
     <message>
         <location line="+1"/>
         <source>Central: %1</source>
-        <translation>Central: %1</translation>
+        <translation>Central unit: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Central sin conectar</source>
-        <translation>Central not connected</translation>
+        <translation>Central unit not connected</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -1488,7 +1488,7 @@
     <message>
         <location line="+1"/>
         <source>Votación</source>
-        <translation>Vote</translation>
+        <translation>Voting</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2830,7 +2830,7 @@ Add a microphone or a system input.</translation>
     <message>
         <location filename="../src/app/audio/AudioViewModel.cpp" line="+226"/>
         <source>Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a texto). Si la fuente es una entrada de placa, su captura se abre sola.</source>
-        <translation>Brings the audio of another source (after its own rack) into this graph. It doesn&apos;t connect by itself: wire it wherever you want (the mix, a compressor&apos;s sidechain, speech to text). If the source is a capture card input, its capture opens automatically.</translation>
+        <translation>Brings the audio of another source (after its own rack) into this graph. It doesn&apos;t connect by itself: wire it wherever you want (the mix, a compressor&apos;s sidechain, speech to text). If the source is a audio interface input, its capture opens automatically.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -3231,7 +3231,7 @@ This opens it in another window, so you can have both at once.</translation>
     <message>
         <location line="+9"/>
         <source>Dejar fijo en este monitor (Salidas → Pantallas)</source>
-        <translation>Pin to this monitor (Outputs → Displays)</translation>
+        <translation>Pin to this monitor (Outputs → Screens)</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -4782,7 +4782,7 @@ Scrolling the strip doesn&apos;t change what&apos;s shown.</translation>
     <message>
         <location line="+8"/>
         <source>Modo oradores</source>
-        <translation>Speaker mode</translation>
+        <translation>Speakers mode</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4937,7 +4937,7 @@ Scrolling the strip doesn&apos;t change what&apos;s shown.</translation>
     <message>
         <location line="+1"/>
         <source>No lo tengo en la libreta</source>
-        <translation>Not in my address book</translation>
+        <translation>Not in my face registry</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -6684,7 +6684,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+16"/>
         <source>ARMADA</source>
-        <translation>CUED</translation>
+        <translation>LOADED</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6699,7 +6699,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+3"/>
         <source>Corte seco a la armada (sin transición)</source>
-        <translation>Hard cut to the cued scene (no transition)</translation>
+        <translation>Hard cut to the loaded scene (no transition)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6754,7 +6754,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+7"/>
         <source>La transición con la que entra la escena armada</source>
-        <translation>The transition the cued scene enters with</translation>
+        <translation>The transition the loaded scene enters with</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -7009,7 +7009,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+84"/>
         <source>solo se les pone nombre a los dispositivos de audio y video (cámaras, micrófonos, placas, NDI, cámaras de red)</source>
-        <translation>only audio and video devices can be named (cameras, microphones, capture cards, NDI, network cameras)</translation>
+        <translation>only audio and video devices can be named (cameras, microphones, audio interfaces, NDI, network cameras)</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -7919,7 +7919,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+0"/>
         <source>Salidas de audio (placas de sonido)</source>
-        <translation>Audio outputs (sound cards)</translation>
+        <translation>Audio outputs (audio interfaces)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8135,7 +8135,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+0"/>
         <source>Probar de nuevo</source>
-        <translation>Test again</translation>
+        <translation>Try again</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -8711,7 +8711,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+6"/>
         <source>Votación</source>
-        <translation>Vote</translation>
+        <translation>Voting</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -10564,7 +10564,7 @@ Turn it on from the Log.</translation>
     <message>
         <location line="+10"/>
         <source>Plantilla «Intérprete LSA»</source>
-        <translation>“Sign interpreter” template</translation>
+        <translation>“LSA interpreter” template</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10631,7 +10631,7 @@ Turn it on from the Log.</translation>
     <message>
         <location filename="../src/app/ui/FrameService.cpp" line="+64"/>
         <source>Armada (preview)</source>
-        <translation>Cued (preview)</translation>
+        <translation>Loaded (preview)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11410,7 +11410,7 @@ It&apos;s changed in its code (Plugins section, or by asking the assistant). Her
     <message>
         <location line="+1"/>
         <source>Lugar</source>
-        <translation>Place</translation>
+        <translation>Venue</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12296,7 +12296,7 @@ It&apos;s changed in its code (Plugins section, or by asking the assistant). Her
     <message>
         <location line="+1"/>
         <source>Los que tienen el permiso entran solos si la cámara los reconoce: a la conferencia sin esperar, y en la asamblea quedan habilitados. Se avisa siempre. Sin ficha de rostro no se puede dar el permiso.</source>
-        <translation>Those with permission get in automatically if the camera recognizes them: into the conference without waiting, and in the assembly they&apos;re admitted. There&apos;s always a notice. Without a face record the permission can&apos;t be granted.</translation>
+        <translation>Those with permission get in automatically if the camera recognizes them: into the conference without waiting, and in the assembly they&apos;re admitted. There&apos;s always a notice. Without a face profile the permission can&apos;t be granted.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -12316,7 +12316,7 @@ It&apos;s changed in its code (Plugins section, or by asking the assistant). Her
     <message>
         <location line="+6"/>
         <source>Nadie del padrón tiene ficha de rostro todavía.</source>
-        <translation>Nobody on the roll has a face record yet.</translation>
+        <translation>Nobody on the roll has a face profile yet.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -12391,7 +12391,7 @@ It&apos;s changed in its code (Plugins section, or by asking the assistant). Her
 <context>
     <name>Main</name>
     <message>
-        <location filename="../src/app/qml/Main.qml" line="+21"/>
+        <location filename="../src/app/qml/Main.qml" line="+25"/>
         <source>MODO PRUEBA (--test): el asistente actúa SIN pedir aprobación, ni siquiera en el aire</source>
         <translation>TEST MODE (--test): the assistant acts WITHOUT asking for approval, even on air</translation>
     </message>
@@ -13062,7 +13062,7 @@ It&apos;s changed in its code (Plugins section, or by asking the assistant). Her
     <message>
         <location line="+4"/>
         <source>Las entradas y salidas de lo que está enchufado (bocinas, monitores con audio, placas USB): mostrarlas u ocultarlas, todas o una por una.</source>
-        <translation>Inputs and outputs of whatever is plugged in (speakers, monitors with audio, USB cards): show or hide them, all or one by one.</translation>
+        <translation>Inputs and outputs of whatever is plugged in (speakers, monitors with audio, USB audio interfaces): show or hide them, all or one by one.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -13343,7 +13343,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
     <message>
         <location line="+3"/>
         <source>Un bus que sale por un dispositivo del equipo: otra placa, auriculares, o un cable virtual hacia otra aplicación.</source>
-        <translation>A bus that goes out through a hardware device: another card, headphones, or a virtual cable to another application.</translation>
+        <translation>A bus that goes out through a hardware device: another audio interface, headphones, or a virtual cable to another application.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -13704,7 +13704,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
     <message>
         <location line="+5"/>
         <source>Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)</source>
-        <translation>Sync with the video: delay this audio until it matches the lips (by hand or measuring with claps)</translation>
+        <translation>Sync to video: delay this audio until it matches the lips (by hand or measuring with claps)</translation>
     </message>
     <message numerus="yes">
         <location line="+42"/>
@@ -13722,7 +13722,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
     <message>
         <location line="+15"/>
         <source>Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)</source>
-        <translation>Mute the whole group (if they&apos;re all muted already, it opens them again)</translation>
+        <translation>Mute the whole group (if all are already muted, unmutes them)</translation>
     </message>
     <message>
         <location line="+53"/>
@@ -13738,7 +13738,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
 <context>
     <name>ModelosLocales</name>
     <message>
-        <location filename="../src/app/agent/ModelosLocales.cpp" line="+252"/>
+        <location filename="../src/app/agent/ModelosLocales.cpp" line="+281"/>
         <source>«%1» no es un modelo GGUF del catálogo.</source>
         <translation>“%1” isn&apos;t a GGUF model from the catalog.</translation>
     </message>
@@ -14197,7 +14197,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
     <message>
         <location line="+6"/>
         <source>Tally (rojo al aire, verde armada)</source>
-        <translation>Tally (red on air, green cued)</translation>
+        <translation>Tally (red on air, green loaded)</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -14395,7 +14395,7 @@ The matrix doesn&apos;t change what comes in: it decides which outputs it goes t
     <message>
         <location line="+0"/>
         <source>Atención</source>
-        <translation>Attention</translation>
+        <translation>Warning</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -16077,7 +16077,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>Que el asistente los atienda: les mira la cara contra su ficha y habilita solo a quien tiene permiso de entrar solo en el padrón del evento; al resto te lo pregunta.</source>
-        <translation>Have the assistant attend them: it checks their face against their record and only admits those with permission to get in automatically on the event roll; it asks you about the rest.</translation>
+        <translation>Have the assistant attend them: it checks their face against their profile and only admits those with permission to get in automatically on the event roll; it asks you about the rest.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -17553,7 +17553,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+13"/>
         <source>Desde cero (de fábrica)</source>
-        <translation>From scratch (factory)</translation>
+        <translation>From scratch (defaults)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -18009,7 +18009,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>Cortar la escena al aire (si no, queda armada para el TAKE)</source>
-        <translation>Cut the scene to air (otherwise it stays ready for TAKE)</translation>
+        <translation>Cut the scene to air (otherwise it stays loaded for TAKE)</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -18209,7 +18209,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+7"/>
         <source>Descripción (la ve el público)</source>
-        <translation>Description (the public sees it)</translation>
+        <translation>Description (the audience sees it)</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -18387,7 +18387,7 @@ Add images from the Files tab.</translation>
     <message>
         <location filename="../src/app/qml/controls/PanelEventoWeb.qml" line="+37"/>
         <source>La página que ve el público en la dirección del evento: la de la sección que se está tratando, que cambia sola cuando avanza el guion, con una franja «en vivo» arriba. Son archivos HTML en la carpeta Web/ del evento (quedan en el historial). Se genera una plantilla básica sola; el asistente la personaliza (textos, imágenes, diseño).</source>
-        <translation>The page the public sees at the event address: the one for the section under way, which changes on its own as the rundown advances, with a “live” bar at the top. They are HTML files in the event&apos;s Web/ folder (kept in the history). A basic template is generated automatically; the assistant customizes it (text, images, design).</translation>
+        <translation>The page the audience sees at the event address: the one for the section under way, which changes on its own as the rundown advances, with a “live” bar at the top. They are HTML files in the event&apos;s Web/ folder (kept in the history). A basic template is generated automatically; the assistant customizes it (text, images, design).</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -18528,7 +18528,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+6"/>
         <source>El público puede preguntar y votar (la página muestra el enlace y las preguntas moderadas)</source>
-        <translation>The public can ask questions and vote (the page shows the link and the moderated questions)</translation>
+        <translation>The audience can ask questions and vote (the page shows the link and the moderated questions)</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -18628,7 +18628,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+4"/>
         <source>Abrir la carpeta</source>
-        <translation>Open the folder</translation>
+        <translation>Open folder</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -19163,7 +19163,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>a comisión</source>
-        <translation>to committee</translation>
+        <translation>sent to committee</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -19200,7 +19200,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+0"/>
         <source>A comisión</source>
-        <translation>To committee</translation>
+        <translation>Sent to committee</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -19273,7 +19273,7 @@ Add images from the Files tab.</translation>
     <message>
         <location filename="../src/app/qml/controls/PanelPadron.qml" line="+24"/>
         <source>público</source>
-        <translation>public</translation>
+        <translation>audience</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -19403,7 +19403,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+2"/>
         <source>sin definir</source>
-        <translation>undefined</translation>
+        <translation>not set</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19433,7 +19433,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>Se saca a «%1» de la lista de este evento. No toca su ficha de rostro.</source>
-        <translation>“%1” is removed from this event&apos;s list. Their face record is not touched.</translation>
+        <translation>“%1” is removed from this event&apos;s list. Their face profile is not touched.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19483,7 +19483,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+5"/>
         <source>«Vota» no sale del papel: en una asamblea un propietario es público y vota, y la prensa no. Sin esto no hay quórum.</source>
-        <translation>“Votes” doesn&apos;t follow from the role: in an owners&apos; assembly an owner is public and votes, and the press doesn&apos;t. Without this there&apos;s no quorum.</translation>
+        <translation>“Votes” doesn&apos;t follow from the role: in an owners&apos; assembly an owner is audience and votes, and the press doesn&apos;t. Without this there&apos;s no quorum.</translation>
     </message>
 </context>
 <context>
@@ -19511,12 +19511,12 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>Armar en PVW</source>
-        <translation>Set up in PVW</translation>
+        <translation>Load in PVW</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deja la escena «Playlist» armada para el take</source>
-        <translation>Leaves the “Playlist” scene ready for the take</translation>
+        <translation>Leaves the “Playlist” scene loaded for the take</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -19536,7 +19536,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+7"/>
         <source>Vacía. En «Archivos», elegí videos o audios y «Sumar a la playlist» (o pedile al asistente que la arme).</source>
-        <translation>Empty. In “Files”, choose videos or audio and “Add to playlist” (or ask the assistant to build it).</translation>
+        <translation>Empty. In “Files”, choose videos or audio and “Add to the playlist” (or ask the assistant to build it).</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -19577,7 +19577,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+0"/>
         <source>público</source>
-        <translation>public</translation>
+        <translation>audience</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -19675,7 +19675,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+16"/>
         <source>Todavía no preguntó nadie. El QR de la página del público es por donde entran.</source>
-        <translation>Nobody has asked yet. The QR code on the public page is how they get in.</translation>
+        <translation>Nobody has asked yet. The QR code on the Audience page is how they get in.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19723,7 +19723,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+0"/>
         <source>Apagado: todas las redes trabajan</source>
-        <translation>Off: all nets work</translation>
+        <translation>Off: all models work</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19743,7 +19743,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+5"/>
         <source>Las redes de todas las cámaras quedan cargadas y calientes; trabajan las que se ven grandes en el programa o en el preview (la escena armada), hasta lo que aguante cada acelerador. Al pasar una cámara a preview la red entra de a poco: sale al aire ya mejorada, sin saltos ni cuadros negros.</source>
-        <translation>The nets for all cameras stay loaded and warm; the ones working are those shown large in program or preview (the staged scene), up to what each accelerator can handle. When a camera goes to preview its net fades in: it goes on air already enhanced, with no jumps or black frames.</translation>
+        <translation>The models for all cameras stay loaded and warm; the ones working are those shown large in program or preview (the loaded scene), up to what each accelerator can handle. When a camera goes to preview its model fades in: it goes on air already enhanced, with no jumps or black frames.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -19763,12 +19763,12 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>Redes a la vez</source>
-        <translation>Nets at once</translation>
+        <translation>Models at once</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tope de redes a la vez</source>
-        <translation>Max nets at once</translation>
+        <translation>Max models at once</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -19783,7 +19783,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+7"/>
         <source>Cada acelerador corre de a una red por vez: en un cuadro (%1 ms) le entran las redes cuyo tiempo medido sume hasta ese porcentaje. Lo que ya está prendido tiene un margen para no titilar; lo nuevo espera 2 s a que la medición se asiente.</source>
-        <translation>Each accelerator runs one net at a time: a frame (%1 ms) fits the nets whose measured times add up to that percentage. What&apos;s already on has some headroom so it doesn&apos;t flicker; new ones wait 2 s for the measurement to settle.</translation>
+        <translation>Each accelerator runs one model at a time: a frame (%1 ms) fits the models whose measured times add up to that percentage. What&apos;s already on has some headroom so it doesn&apos;t flicker; new ones wait 2 s for the measurement to settle.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -19828,7 +19828,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+2"/>
         <source>Prender la red al pasar la cámara a preview (si no, recién al salir al aire)</source>
-        <translation>Turn the net on when the camera goes to preview (otherwise only when it goes on air)</translation>
+        <translation>Turn the model on when the camera goes to preview (otherwise only when it goes on air)</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -19863,7 +19863,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+6"/>
         <source>ms para que la red entre o salga de a poco</source>
-        <translation>ms for the net to fade in or out</translation>
+        <translation>ms for the model to fade in or out</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -19883,7 +19883,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+11"/>
         <source>red</source>
-        <translation>net</translation>
+        <translation>model</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -19924,12 +19924,12 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+0"/>
         <source>Siempre con red</source>
-        <translation>Always with net</translation>
+        <translation>Always with model</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Nunca con red</source>
-        <translation>Never with net</translation>
+        <translation>Never with model</translation>
     </message>
 </context>
 <context>
@@ -19982,7 +19982,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+7"/>
         <source>Legalizar para TV</source>
-        <translation>Legalize for TV</translation>
+        <translation>Broadcast legalizer</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -20025,7 +20025,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+2"/>
         <source>Red: %1</source>
-        <translation>Net: %1</translation>
+        <translation>Model: %1</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -20060,17 +20060,17 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+3"/>
         <source>apagado: todas las redes trabajan</source>
-        <translation>off: all nets work</translation>
+        <translation>off: all models work</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 con red, %2 afiladas, %3 en reposo · capacidad fija</source>
-        <translation>%1 with net, %2 sharpened, %3 idle · fixed capacity</translation>
+        <translation>%1 with model, %2 sharpened, %3 idle · fixed capacity</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 con red, %2 afiladas, %3 en reposo · capacidad medida</source>
-        <translation>%1 with net, %2 sharpened, %3 idle · measured capacity</translation>
+        <translation>%1 with model, %2 sharpened, %3 idle · measured capacity</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -20085,7 +20085,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+4"/>
         <source>Graba un minuto de la cámara (sin tocar lo que sale al aire: una de red, de su dirección; una local, cuadros de lo que sale de su grafo), arma pares «la imagen achicada y comprimida → la original» y entrena una red chica que aprende a deshacer lo que hace ESA cámara. Al terminar la pone en la entrada y dice cuánto mejora contra el agrandado común. Volver a entrenar sigue desde la anterior.</source>
-        <translation>Records a minute from the camera (without touching what goes on air: a network one, from its address; a local one, frames from its graph output), builds pairs “the shrunk, compressed image → the original” and trains a small net that learns to undo what THAT camera does. When done, it puts it on the input and says how much better it is than a regular upscale. Training again continues from the previous one.</translation>
+        <translation>Records a minute from the camera (without touching what goes on air: a network one, from its address; a local one, frames from its graph output), builds pairs “the shrunk, compressed image → the original” and trains a small model that learns to undo what THAT camera does. When done, it puts it on the input and says how much better it is than a regular upscale. Training again continues from the previous one.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -20191,7 +20191,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+0"/>
         <source>El programador usa estos números antes de prender una red.</source>
-        <translation>The scheduler uses these numbers before turning on a net.</translation>
+        <translation>The scheduler uses these numbers before turning on a model.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20231,7 +20231,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+0"/>
         <source>abrir la red: %1 s</source>
-        <translation>net load: %1 s</translation>
+        <translation>model load: %1 s</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -20256,12 +20256,12 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+8"/>
         <source>Placa de video y aceleración</source>
-        <translation>Graphics card and acceleration</translation>
+        <translation>GPU and acceleration</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Placa detectada: %1</source>
-        <translation>Detected card: %1</translation>
+        <translation>Detected GPU: %1</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -20296,7 +20296,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+9"/>
         <source>Con TensorRT (compila la red para la placa; ~2 GB más)</source>
-        <translation>With TensorRT (compiles the net for the card; ~2 GB more)</translation>
+        <translation>With TensorRT (compiles the model for the GPU; ~2 GB more)</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -20311,17 +20311,17 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+8"/>
         <source>Con AMD o Intel en Windows no hace falta bajar nada: las redes (SPAN, Real-ESRGAN, la red chica) corren en la placa con DirectML, que ya viene en el programa, y el laboratorio entrena en la placa con PyTorch para DirectML (se instala solo con él la primera vez que se baja un modelo o se entrena). FSR corre siempre en la placa, con cualquier marca.</source>
-        <translation>With AMD or Intel on Windows there&apos;s nothing to download: the nets (SPAN, Real-ESRGAN, the small net) run on the card with DirectML, which already ships with the program, and the lab trains on the card with PyTorch for DirectML (installed along with it the first time a model is downloaded or trained). FSR always runs on the card, any brand.</translation>
+        <translation>With AMD or Intel on Windows there&apos;s nothing to download: the models (SPAN, Real-ESRGAN, the small model) run on the GPU with DirectML, which already ships with the program, and the lab trains on the GPU with PyTorch for DirectML (installed along with it the first time a model is downloaded or trained). FSR always runs on the GPU, any brand.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Destilar una red chica de una grande</source>
-        <translation>Distill a small net from a large one</translation>
+        <translation>Distill a small model from a large one</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Una red propia chica (corre en vivo hasta en la CPU) aprende a imitar a una red grande (el maestro) mirando lo que ve la cámara: sirve en máquinas donde el maestro no da en vivo. En la CPU tarda más pero no calienta la GPU.</source>
-        <translation>A small net of your own (runs live even on the CPU) learns to imitate a large net (the teacher) by watching what the camera sees: useful on machines where the teacher can&apos;t run live. On the CPU it takes longer but doesn&apos;t heat up the GPU.</translation>
+        <translation>A small model of your own (runs live even on the CPU) learns to imitate a large model (the teacher) by watching what the camera sees: useful on machines where the teacher can&apos;t run live. On the CPU it takes longer but doesn&apos;t heat up the GPU.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -20351,17 +20351,17 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+4"/>
         <source>La misma red compilada para un tamaño de entrada fijo: el Neural Engine (CoreML) solo corre tamaños compilados, y TensorRT y DirectML van mejor con la forma fija (ONNX). Cada variante guarda su ficha (variante.json: qué es, para qué cámara, tamaños de entrada, red y salida, lo medido). La tarjeta usa sola la del tamaño que le llega. Se hacen acá mismo, sin bajar nada. Los shaders GLSL no las necesitan: la placa los compila para cualquier tamaño.</source>
-        <translation>The same net compiled for a fixed input size: the Neural Engine (CoreML) only runs compiled sizes, and TensorRT and DirectML work better with a fixed shape (ONNX). Each variant keeps its record (variante.json: what it is, which camera it&apos;s for, input, net and output sizes, measurements). The card automatically uses the one matching the size it receives. They&apos;re made right here, with nothing to download. GLSL shaders don&apos;t need them: the card compiles them for any size.</translation>
+        <translation>The same model compiled for a fixed input size: the Neural Engine (CoreML) only runs compiled sizes, and TensorRT and DirectML work better with a fixed shape (ONNX). Each variant keeps its record (variante.json: what it is, which camera it&apos;s for, input, model and output sizes, measurements). The card automatically uses the one matching the size it receives. They&apos;re made right here, with nothing to download. GLSL shaders don&apos;t need them: the GPU compiles them for any size.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>No hay redes instaladas (Modelos, más abajo, o superres_instalar).</source>
-        <translation>No nets installed (Models, below, or superres_instalar).</translation>
+        <translation>No models installed (Models, below, or superres_instalar).</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Red</source>
-        <translation>Net</translation>
+        <translation>Model</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -20447,7 +20447,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+5"/>
         <source>Cualquier elemento de GStreamer como método de superresolución: uno de GStreamer, o uno propio (por ejemplo una red compilada con TensorRT para la placa) con su biblioteca en la carpeta gst/ del plugin. Si trabaja en memoria de la placa (CUDA, OpenGL, Direct3D) la entrada se la da sin pasar por la CPU. Después se elige en la tarjeta como cualquier otro.</source>
-        <translation>Any GStreamer element as a super-resolution method: a stock GStreamer one, or your own (for example a net compiled with TensorRT for the card) with its library in the plugin&apos;s gst/ folder. If it works in card memory (CUDA, OpenGL, Direct3D), the input is handed to it without going through the CPU. Then it&apos;s chosen on the card like any other.</translation>
+        <translation>Any GStreamer element as a super-resolution method: a stock GStreamer one, or your own (for example a model compiled with TensorRT for the GPU) with its library in the plugin&apos;s gst/ folder. If it works in GPU memory (CUDA, OpenGL, Direct3D), the input is handed to it without going through the CPU. Then it&apos;s chosen on the card like any other.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -20497,7 +20497,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+1"/>
         <source>mi-red-trt (letras, números, guiones)</source>
-        <translation>my-net-trt (letters, numbers, hyphens)</translation>
+        <translation>my-model-trt (letters, numbers, hyphens)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20781,7 +20781,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+3"/>
         <source>El asistente se calla; en el tótem dice «Te atiende una persona del equipo»</source>
-        <translation>The assistant goes quiet; the kiosk says “A team member will help you”</translation>
+        <translation>The assistant goes quiet; the kiosk says “A team member is helping you”</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -21111,7 +21111,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="-512"/>
         <source>Se traduce desde el idioma del evento: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>Translated from the event language: %1.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -21132,7 +21132,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+4"/>
         <source>Baja los paquetes para traducir del idioma del evento a este (70 a 300 MB cada uno; si no hay uno directo, pasa por otro idioma, casi siempre el inglés)</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads the packages to translate from the event language into this one (70 to 300 MB each; if there is no direct one, it goes through another language, almost always English)</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -21757,7 +21757,7 @@ Add images from the Files tab.</translation>
     <message>
         <location filename="../src/app/qml/controls/PanelVozAtendedor.qml" line="+30"/>
         <source>Esta compilación no trae la atención hablada (falta el motor de voz).</source>
-        <translation>This build doesn&apos;t include spoken assistance (the voice engine is missing).</translation>
+        <translation>This build doesn&apos;t include voice assistance (the voice engine is missing).</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -22411,7 +22411,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+9"/>
         <source>No pude sacar el enlace del público</source>
-        <translation>I couldn&apos;t get the public link</translation>
+        <translation>I couldn&apos;t get the Audience link</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22714,8 +22714,8 @@ Add images from the Files tab.</translation>
         <location line="+2"/>
         <source>%n en la libreta</source>
         <translation>
-            <numerusform>%n in the address book</numerusform>
-            <numerusform>%n in the address book</numerusform>
+            <numerusform>%n in the face registry</numerusform>
+            <numerusform>%n in the face registry</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -22734,7 +22734,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+2"/>
         <source>Libreta</source>
-        <translation>Address book</translation>
+        <translation>Face registry</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -22774,7 +22774,7 @@ Add images from the Files tab.</translation>
     <message>
         <location line="+2"/>
         <source>Abre una ficha sin nombre por cada cara desconocida que pase por esta cámara, y le suma poses a las que ya conoce.</source>
-        <translation>Opens an unnamed record for each unknown face that passes this camera, and adds poses to the ones it already knows.</translation>
+        <translation>Opens an unnamed profile for each unknown face that passes this camera, and adds poses to the ones it already knows.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -22907,7 +22907,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+1"/>
         <source>Se va la ficha, su foto y sus caras (%1). Para volver a reconocerla hay que darla de alta otra vez y mostrarle la cara de nuevo.</source>
-        <translation>The record, its photo and its faces (%1) are removed. To recognize them again you&apos;ll have to enroll them again and show their face again.</translation>
+        <translation>The profile, its photo and its faces (%1) are removed. To recognize them again you&apos;ll have to enroll them again and show their face again.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -22954,7 +22954,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="-55"/>
         <source>No hay ficha con ese id.</source>
-        <translation>There&apos;s no record with that id.</translation>
+        <translation>There&apos;s no profile with that id.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -22969,7 +22969,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+107"/>
         <source>Ponele un nombre: sin eso la ficha no sirve para nada.</source>
-        <translation>Give it a name: without one the record is useless.</translation>
+        <translation>Give it a name: without one the profile is useless.</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -23024,12 +23024,12 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+0"/>
         <source>Alguien de la libreta</source>
-        <translation>Someone from the address book</translation>
+        <translation>Someone from the face registry</translation>
     </message>
     <message>
         <location line="+147"/>
         <source>La libreta llegó a %1 fichas: apagué el anotado automático para no llenarla de desconocidos. Completá o borrá las que sobran.</source>
-        <translation>The address book reached %1 records: I turned off automatic adding so it doesn&apos;t fill up with strangers. Complete or delete the extra ones.</translation>
+        <translation>The face registry reached %1 profiles: I turned off automatic adding so it doesn&apos;t fill up with strangers. Complete or delete the extra ones.</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -23156,7 +23156,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+2"/>
         <source>Abrir la carpeta</source>
-        <translation>Open the folder</translation>
+        <translation>Open folder</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -23856,7 +23856,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+7"/>
         <source>PARÁ AHÍ</source>
-        <translation>HOLD IT</translation>
+        <translation>STOP THERE</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -23901,7 +23901,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+1"/>
         <source>Se escucha bajo</source>
-        <translation>Too quiet</translation>
+        <translation>Sounds quiet</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -24402,7 +24402,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+1"/>
         <source>Motor: %1</source>
-        <translation>Motor: %1</translation>
+        <translation>Engine: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -25066,7 +25066,7 @@ Front, side, with and without glasses: that&apos;s how they get recognized on th
     <message>
         <location line="+20"/>
         <source>Escanealo con la tablet o el celular: abre la Botonera con las escenas (un toque arma, TAKE corta), FTB, grabación y transmisión. El código sirve una sola vez.</source>
-        <translation>Scan it with the tablet or phone: it opens the Control surface with the scenes (one tap stages, TAKE cuts), FTB, recording and streaming. The code works only once.</translation>
+        <translation>Scan it with the tablet or phone: it opens the Control surface with the scenes (one tap loads, TAKE cuts), FTB, recording and streaming. The code works only once.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -25889,7 +25889,7 @@ DOWN</translation>
     <message>
         <location line="+2"/>
         <source>Al aire (arma su cámara)</source>
-        <translation>On air (stages their camera)</translation>
+        <translation>On air (loads their camera)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -26315,7 +26315,7 @@ Try lowering the level, removing the module or clearing the search. The files ar
     <message>
         <location filename="../src/app/escenas/RespaldoEntradas.cpp" line="+32"/>
         <source>al_perder_aire: avisar, armar o cortar</source>
-        <translation>al_perder_aire: notify, stage or cut</translation>
+        <translation>al_perder_aire: avisar, armar or cortar</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -26330,7 +26330,7 @@ Try lowering the level, removing the module or clearing the search. The files ar
     <message>
         <location line="+4"/>
         <source>«%1» se quedó sin señal al aire: «%2» quedó armada (TAKE)</source>
-        <translation>“%1” lost signal on air: “%2” is staged (TAKE)</translation>
+        <translation>“%1” lost signal on air: “%2” is loaded (TAKE)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26566,12 +26566,12 @@ Add one in Scenes and sources: place it where you want the lower third to appear
     <message>
         <location line="+7"/>
         <source>Armar en PVW</source>
-        <translation>Stage in PVW</translation>
+        <translation>Load in PVW</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Lo dibuja en «%1» y la deja armada: sale con TAKE</source>
-        <translation>Draws it in “%1” and leaves it staged: it goes out with TAKE</translation>
+        <translation>Draws it in “%1” and leaves it loaded: it goes out with TAKE</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -26626,7 +26626,7 @@ Add one in Scenes and sources: place it where you want the lower third to appear
     <message>
         <location line="+19"/>
         <source>Rotular desde el celular</source>
-        <translation>Lower thirds from a phone</translation>
+        <translation>Lower thirds from your phone</translation>
     </message>
     <message>
         <location line="+63"/>
@@ -26713,7 +26713,7 @@ Add one in Scenes and sources: place it where you want the lower third to appear
         <location line="+1"/>
         <source>Clic: armar para el TAKE
 Doble clic: cortar al aire ya</source>
-        <translation>Click: stage for TAKE
+        <translation>Click: load for TAKE
 Double-click: cut to air now</translation>
     </message>
     <message>
@@ -26724,7 +26724,7 @@ Double-click: cut to air now</translation>
     <message>
         <location line="+14"/>
         <source>ARMADA · %1</source>
-        <translation>STAGED · %1</translation>
+        <translation>LOADED · %1</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -26740,8 +26740,8 @@ Double-click: cut to air now</translation>
         <location line="+4"/>
         <source>Saca al aire la escena armada.
 La que sale queda armada, para volver.</source>
-        <translation>Takes the staged scene to air.
-The outgoing one stays staged, to go back.</translation>
+        <translation>Takes the loaded scene to air.
+The outgoing one stays loaded, to go back.</translation>
     </message>
     <message>
         <location line="+45"/>
@@ -26769,7 +26769,7 @@ The outgoing one stays staged, to go back.</translation>
     <message>
         <location line="+4"/>
         <source>Apagado (recomendado): el botón de cada escena la ARMA en el preview y sale con TAKE. Prendido: corta directo (al aire pide confirmación).</source>
-        <translation>Off (recommended): each scene&apos;s button STAGES it in preview and it goes out with TAKE. On: cuts directly (on air it asks for confirmation).</translation>
+        <translation>Off (recommended): each scene&apos;s button LOADS it in preview and it goes out with TAKE. On: cuts directly (on air it asks for confirmation).</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -26784,12 +26784,12 @@ The outgoing one stays staged, to go back.</translation>
     <message>
         <location line="+0"/>
         <source>Armada</source>
-        <translation>Staged</translation>
+        <translation>Loaded</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Armar</source>
-        <translation>Stage</translation>
+        <translation>Load</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -29144,7 +29144,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+2"/>
         <source>Siguiente ▶ (armar)</source>
-        <translation>Next ▶ (stage)</translation>
+        <translation>Next ▶ (load)</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -29159,12 +29159,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+0"/>
         <source>Armar solo</source>
-        <translation>Auto-stage</translation>
+        <translation>Auto-load</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Armar solo: la banca queda en el preview; el TAKE sigue siendo tuyo.</source>
-        <translation>Auto-stage: the seat goes to preview; TAKE is still yours.</translation>
+        <translation>Auto-load: the seat goes to preview; TAKE is still yours.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -29189,7 +29189,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+5"/>
         <source>Armar</source>
-        <translation>Stage</translation>
+        <translation>Load</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -29199,7 +29199,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+28"/>
         <source>Un toque: a la fila · doble toque: armar al aire</source>
-        <translation>One tap: to the queue · double tap: stage for air</translation>
+        <translation>One tap: to the queue · double tap: load for air</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -29664,12 +29664,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+14"/>
         <source>APROBADO</source>
-        <translation type="unfinished"></translation>
+        <translation>PASSED</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>RECHAZADO</source>
-        <translation type="unfinished"></translation>
+        <translation>REJECTED</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -29870,7 +29870,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+2"/>
         <source>Repetición armada: dale TAKE.</source>
-        <translation>Replay staged: hit TAKE.</translation>
+        <translation>Replay loaded: hit TAKE.</translation>
     </message>
     <message>
         <location line="+129"/>
@@ -30256,7 +30256,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="-476"/>
         <source>Red chica de «%1»</source>
-        <translation>Small net for “%1”</translation>
+        <translation>Small model for “%1”</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -30276,7 +30276,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+29"/>
         <source>el maestro tiene que ser una red del catálogo (superres_plugins: realesr-general-x4v3, lsdir-compact-x4…)</source>
-        <translation>the teacher must be a net from the catalog (superres_plugins: realesr-general-x4v3, lsdir-compact-x4…)</translation>
+        <translation>the teacher must be a model from the catalog (superres_plugins: realesr-general-x4v3, lsdir-compact-x4…)</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -30371,7 +30371,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+43"/>
         <source>en la Mac el ONNX Runtime del programa ya usa CoreML (GPU y Neural Engine), y las redes instaladas corren en CoreML nativo: no hace falta bajar nada</source>
-        <translation>on the Mac the program&apos;s ONNX Runtime already uses CoreML (GPU and Neural Engine), and installed nets run in native CoreML: nothing to download</translation>
+        <translation>on the Mac the program&apos;s ONNX Runtime already uses CoreML (GPU and Neural Engine), and installed models run in native CoreML: nothing to download</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -30381,7 +30381,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+3"/>
         <source>DirectML ya anda; el runtime de %1 es más rápido (TensorRT compila la red para la placa)</source>
-        <translation>DirectML already works; the %1 runtime is faster (TensorRT compiles the net for the card)</translation>
+        <translation>DirectML already works; the %1 runtime is faster (TensorRT compiles the model for the GPU)</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -31155,7 +31155,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <location line="+6"/>
         <location line="+270"/>
         <source>alguien del equipo</source>
-        <translation>a team member</translation>
+        <translation>someone from the team</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -31276,12 +31276,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location filename="../src/app/agent/Traductor.cpp" line="+134"/>
         <source>No hay paquetes para traducir desde el idioma del evento (%1).</source>
-        <translation type="unfinished"></translation>
+        <translation>No packages to translate from the event language (%1).</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>No hay paquetes para traducir del %1 a otro idioma.</source>
-        <translation type="unfinished"></translation>
+        <translation>No packages to translate from %1 into another language.</translation>
     </message>
     <message>
         <location line="+105"/>
@@ -31341,7 +31341,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+23"/>
         <source>no hay paquetes para traducir desde el idioma del evento (%1); hay: es, en, pt, fr, de, ru, zh</source>
-        <translation type="unfinished"></translation>
+        <translation>no packages to translate from the event language (%1); available: es, en, pt, fr, de, ru, zh</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -31814,7 +31814,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>VentanaSuelta</name>
     <message>
-        <location filename="../src/app/qml/VentanaSuelta.qml" line="+209"/>
+        <location filename="../src/app/qml/VentanaSuelta.qml" line="+211"/>
         <source>«%1» quedó fijo en ese monitor (Salidas → Pantallas).</source>
         <translation>“%1” is now pinned to that monitor (Outputs → Screens).</translation>
     </message>
@@ -31895,7 +31895,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+1"/>
         <source>Superresolución · red</source>
-        <translation>Super-resolution · network</translation>
+        <translation>Super-resolution · model</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -32660,7 +32660,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+1"/>
         <source>Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara</source>
-        <translation>Double the resolution of network cameras (Apple, FSR, ONNX networks) and train a network on what a camera sees</translation>
+        <translation>Double the resolution of network cameras (Apple, FSR, ONNX models) and train a model on what a camera sees</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32746,7 +32746,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+0"/>
         <source>Armar</source>
-        <translation>Cue</translation>
+        <translation>Load</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -33069,7 +33069,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+4"/>
         <source>Saca el vector de cada cara (lo que compara la libreta). Personas lo prende sola cuando usa la cámara.</source>
-        <translation>Extracts each face&apos;s vector (what the face book compares). People turns it on by itself when it uses the camera.</translation>
+        <translation>Extracts each face&apos;s vector (what the face registry compares). People turns it on by itself when it uses the camera.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -33280,7 +33280,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+0"/>
         <source>TensorRT (NVIDIA, compila la red)</source>
-        <translation>TensorRT (NVIDIA, compiles the network)</translation>
+        <translation>TensorRT (NVIDIA, compiles the model)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -33310,12 +33310,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
     <message>
         <location line="+11"/>
         <source>Red ONNX</source>
-        <translation>ONNX network</translation>
+        <translation>ONNX model</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Red CoreML</source>
-        <translation>CoreML network</translation>
+        <translation>CoreML model</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -33985,7 +33985,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+3"/>
         <source>No hay. Agregá una abajo, o buscá cámaras en la red (Entradas → «Buscar cámaras en la red…»).</source>
-        <translation>None. Add one below, or search for cameras on the network (Inputs → “Find cameras on the network…”).</translation>
+        <translation>None. Add one below, or search for cameras on the network (Inputs → “Search for cameras on the network…”).</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -35448,7 +35448,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+1"/>
         <source>Placa «Volvemos enseguida»</source>
-        <translation>“Be right back” slate</translation>
+        <translation>“We&apos;ll be right back” slate</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35468,17 +35468,17 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+1"/>
         <source>Siguiente banca (armar)</source>
-        <translation>Next seat (cue)</translation>
+        <translation>Next seat (load)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Terminar al orador presencial</source>
-        <translation>End the in-person speaker</translation>
+        <translation>End the in-room speaker</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Armar la banca que pidió la palabra</source>
-        <translation>Cue the seat that asked to speak</translation>
+        <translation>Load the seat that requested the floor</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -35533,7 +35533,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+1"/>
         <source>Armar «%1»</source>
-        <translation>Cue “%1”</translation>
+        <translation>Load “%1”</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -35778,12 +35778,12 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+6"/>
         <source>No hay ninguna escena armada: elegí una en el bus de preview.</source>
-        <translation>No scene is cued: choose one on the preview bus.</translation>
+        <translation>No scene is loaded: choose one on the preview bus.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>No hay ninguna escena armada para la T-bar.</source>
-        <translation>No scene is cued for the T-bar.</translation>
+        <translation>No scene is loaded for the T-bar.</translation>
     </message>
     <message>
         <location line="+47"/>
@@ -37171,7 +37171,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+0"/>
         <source>Si está apagado, el supervisor reinicia solo sin preguntar.</source>
-        <translation>If off, the supervisor restarts automatically without asking.</translation>
+        <translation>If off, the watchdog restarts automatically without asking.</translation>
     </message>
     <message>
         <location line="+307"/>
@@ -37621,7 +37621,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+0"/>
         <source>El del idioma del evento</source>
-        <translation type="unfinished"></translation>
+        <translation>The event language&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39897,7 +39897,7 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+8"/>
         <source>unidad %1</source>
-        <translation type="unfinished">unit %1</translation>
+        <translation>unit %1</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -40070,98 +40070,98 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+40"/>
         <source>Punto %1: %2</source>
-        <translation type="unfinished">Item %1: %2</translation>
+        <translation>Item %1: %2</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Orden del día</source>
-        <translation type="unfinished">Agenda</translation>
+        <translation>Agenda</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>N.º</source>
-        <translation type="unfinished"></translation>
+        <translation>No.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Expediente</source>
-        <translation type="unfinished"></translation>
+        <translation>File</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Punto</source>
-        <translation type="unfinished"></translation>
+        <translation>Item</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Estado</source>
-        <translation type="unfinished">Status</translation>
+        <translation>Status</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tratamiento</source>
-        <translation type="unfinished"></translation>
+        <translation>Handling</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resultado</source>
-        <translation type="unfinished">Result</translation>
+        <translation>Result</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>pendiente</source>
-        <translation type="unfinished">pending</translation>
+        <translation>pending</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>en tratamiento</source>
-        <translation type="unfinished">under discussion</translation>
+        <translation>under discussion</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>votado</source>
-        <translation type="unfinished">voted</translation>
+        <translation>voted</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>a comisión</source>
-        <translation type="unfinished">to committee</translation>
+        <translation>sent to committee</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>retirado</source>
-        <translation type="unfinished">withdrawn</translation>
+        <translation>withdrawn</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Uso de la palabra</source>
-        <translation type="unfinished"></translation>
+        <translation>Speaking time</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Orador</source>
-        <translation type="unfinished">Speaker</translation>
+        <translation>Speaker</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Banca</source>
-        <translation type="unfinished">Seat</translation>
+        <translation>Seat</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tiempo</source>
-        <translation type="unfinished">Time</translation>
+        <translation>Time</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Por punto</source>
-        <translation type="unfinished"></translation>
+        <translation>By item</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>P%1 %2</source>
         <extracomment>el tiempo que habló en un punto del orden del día: «P2 3:15» (P de punto)</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>I%1 %2</translation>
     </message>
     <message>
         <location filename="../src/app/asamblea/Presidencia.cpp" line="-231"/>
@@ -40191,27 +40191,27 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+181"/>
         <source>Debate</source>
-        <translation type="unfinished">Debate</translation>
+        <translation>Debate</translation>
     </message>
     <message>
         <location filename="../src/app/asamblea/Quorum.cpp" line="+45"/>
         <source>mayoría absoluta</source>
-        <translation type="unfinished"></translation>
+        <translation>absolute majority</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>dos tercios de los presentes</source>
-        <translation type="unfinished"></translation>
+        <translation>two thirds of those present</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>dos tercios de los miembros</source>
-        <translation type="unfinished"></translation>
+        <translation>two thirds of the members</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>mayoría simple</source>
-        <translation type="unfinished"></translation>
+        <translation>simple majority</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -40251,62 +40251,62 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+22"/>
         <source>Quórum</source>
-        <translation type="unfinished"></translation>
+        <translation>Quorum</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Miembros: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Members: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Necesarios para sesionar: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Needed for quorum: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Presentes al cerrar el acta: %1 (hay quórum)</source>
-        <translation type="unfinished"></translation>
+        <translation>Present when the minutes were closed: %1 (quorum)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Presentes al cerrar el acta: %1 (SIN quórum)</source>
-        <translation type="unfinished"></translation>
+        <translation>Present when the minutes were closed: %1 (NO quorum)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Votaciones oficiales</source>
-        <translation type="unfinished">Official votes</translation>
+        <translation>Official votes</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>(sin asunto)</source>
-        <translation type="unfinished"></translation>
+        <translation>(no subject)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Afirmativos **%1**, negativos **%2**, abstenciones **%3** (presentes %4). Requería %5 (%6 votos): **%7**.</source>
-        <translation type="unfinished"></translation>
+        <translation>Yes **%1**, no **%2**, abstain **%3** (present %4). Required %5 (%6 votes): **%7**.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>APROBADO</source>
-        <translation type="unfinished"></translation>
+        <translation>PASSED</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>RECHAZADO</source>
-        <translation type="unfinished"></translation>
+        <translation>REJECTED</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Integrante</source>
-        <translation type="unfinished"></translation>
+        <translation>Member</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Voto</source>
-        <translation type="unfinished">Vote</translation>
+        <translation>Vote</translation>
     </message>
     <message>
         <location filename="../src/app/asamblea/SeguirMicrofono.cpp" line="+67"/>
@@ -40364,17 +40364,17 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+149"/>
         <source>La votación no está abierta.</source>
-        <translation type="unfinished"></translation>
+        <translation>Voting is not open.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Se terminó el tiempo para votar.</source>
-        <translation type="unfinished"></translation>
+        <translation>Time to vote is up.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Opción inválida.</source>
-        <translation type="unfinished"></translation>
+        <translation>Invalid option.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -40385,12 +40385,12 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+4"/>
         <source>La presidencia te desconectó.</source>
-        <translation type="unfinished">The chair disconnected you.</translation>
+        <translation>The chair disconnected you.</translation>
     </message>
     <message>
         <location line="+144"/>
         <source>%1 · Banca %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · Seat %2</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -40411,7 +40411,7 @@ Choose something else in Outputs → Screens.</translation>
         <location line="+24"/>
         <location line="+7"/>
         <source>Salida principal</source>
-        <translation type="unfinished">Main output</translation>
+        <translation>Main output</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -40431,168 +40431,168 @@ Choose something else in Outputs → Screens.</translation>
     <message>
         <location line="+63"/>
         <source>Banca %1: votó «%2» en la central y «%3» por el celular; vale el del celular (el último)</source>
-        <translation type="unfinished"></translation>
+        <translation>Seat %1: voted “%2” on the central unit and “%3” on the phone; the phone vote counts (the latest)</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Afirmativo</source>
-        <translation type="unfinished">Yes</translation>
+        <translation>Yes</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Negativo</source>
-        <translation type="unfinished">No</translation>
+        <translation>No</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Abstención</source>
-        <translation type="unfinished">Abstain</translation>
+        <translation>Abstain</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No participa</source>
-        <translation type="unfinished"></translation>
+        <translation>Not voting</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Sesión por la banca virtual (link personal y PIN)</source>
-        <translation type="unfinished"></translation>
+        <translation>Session through the virtual seat (personal link and PIN)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>entró</source>
-        <translation type="unfinished"></translation>
+        <translation>joined</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>salió</source>
-        <translation type="unfinished"></translation>
+        <translation>left</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>habilitado</source>
-        <translation type="unfinished"></translation>
+        <translation>enabled</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>deshabilitado</source>
-        <translation type="unfinished"></translation>
+        <translation>disabled</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>desconectado por la presidencia</source>
-        <translation type="unfinished"></translation>
+        <translation>disconnected by the chair</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>intento fallido</source>
-        <translation type="unfinished"></translation>
+        <translation>failed attempt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>bloqueado por PIN errado</source>
-        <translation type="unfinished"></translation>
+        <translation>locked out by wrong PIN</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>link generado</source>
-        <translation type="unfinished"></translation>
+        <translation>link generated</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>link revocado</source>
-        <translation type="unfinished"></translation>
+        <translation>link revoked</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>contraseña generada</source>
-        <translation type="unfinished"></translation>
+        <translation>password generated</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>pidió la palabra</source>
-        <translation type="unfinished">asked for the floor</translation>
+        <translation>requested the floor</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>canceló su pedido</source>
-        <translation type="unfinished"></translation>
+        <translation>canceled the request</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>tuvo la palabra</source>
-        <translation type="unfinished"></translation>
+        <translation>had the floor</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>terminó de hablar</source>
-        <translation type="unfinished"></translation>
+        <translation>finished speaking</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>votó</source>
-        <translation type="unfinished"></translation>
+        <translation>voted</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>se abrió la votación</source>
-        <translation type="unfinished"></translation>
+        <translation>voting opened</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>se cerró la votación</source>
-        <translation type="unfinished"></translation>
+        <translation>voting closed</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Votación %1: se abrió en los celulares</source>
-        <translation type="unfinished"></translation>
+        <translation>Vote %1: opened on the phones</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Votación %1 «%2»: se abrió en los celulares</source>
-        <translation type="unfinished"></translation>
+        <translation>Vote %1 “%2”: opened on the phones</translation>
     </message>
     <message numerus="yes">
         <location line="+3"/>
         <source>Votación %1: se cerró (%n voto remoto)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Vote %1: closed (%n remote vote)</numerusform>
+            <numerusform>Vote %1: closed (%n remote votes)</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Votación %1 «%2»: se cerró (%n voto remoto)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Vote %1 “%2”: closed (%n remote vote)</numerusform>
+            <numerusform>Vote %1 “%2”: closed (%n remote votes)</numerusform>
         </translation>
     </message>
     <message>
         <location line="+8"/>
         <source> (banca %1)</source>
-        <translation type="unfinished"></translation>
+        <translation> (seat %1)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source> por %1</source>
-        <translation type="unfinished"></translation>
+        <translation> by %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source> desde la sala</source>
-        <translation type="unfinished"></translation>
+        <translation> from the chamber</translation>
     </message>
     <message>
         <location line="+1"/>
         <source> desde afuera</source>
-        <translation type="unfinished"></translation>
+        <translation> from outside</translation>
     </message>
     <message>
         <location line="+2"/>
         <source> «%1» (votación %2)</source>
-        <translation type="unfinished"></translation>
+        <translation> “%1” (vote %2)</translation>
     </message>
     <message>
         <location filename="../src/app/asamblea/Votaciones.cpp" line="+67"/>
@@ -40613,31 +40613,31 @@ Choose something else in Outputs → Screens.</translation>
         <location filename="../src/app/asamblea/Votos.hpp" line="+17"/>
         <source>afirmativo</source>
         <extracomment>un voto, como va en la tabla nominal del acta (en minúsculas)</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>yes</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>negativo</source>
         <extracomment>un voto, como va en la tabla nominal del acta (en minúsculas)</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>no</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>abstención</source>
         <extracomment>un voto, como va en la tabla nominal del acta (en minúsculas)</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>abstain</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>ausente</source>
         <extracomment>un voto, como va en la tabla nominal del acta (en minúsculas)</extracomment>
-        <translation type="unfinished">missing</translation>
+        <translation>absent</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>no participa</source>
         <extracomment>un voto, como va en la tabla nominal del acta (en minúsculas)</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>not voting</translation>
     </message>
 </context>
 <context>
@@ -41868,7 +41868,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+2"/>
         <source>Entradas del equipo (placas)</source>
-        <translation>Device inputs (interfaces)</translation>
+        <translation>Device inputs (audio interfaces)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -42139,7 +42139,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="-46"/>
         <source>Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión</source>
-        <translation>Scenes with tally (one tap cues, TAKE cuts), FTB, recording and streaming</translation>
+        <translation>Scenes with tally (one tap loads, TAKE cuts), FTB, recording and streaming</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -42161,7 +42161,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="-87"/>
         <source>Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE</source>
-        <translation>The body&apos;s seats (one tap: cued on air), next, end, TAKE</translation>
+        <translation>The body&apos;s seats (one tap: loaded for air), next, end, TAKE</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -42172,7 +42172,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="-107"/>
         <source>Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE</source>
-        <translation>The seats where they are in the room (one tap: cued on air), next, end, TAKE</translation>
+        <translation>The seats where they are in the room (one tap: loaded for air), next, end, TAKE</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -42310,18 +42310,18 @@ Data (from %2): %3</translation>
         <source>Escena PDF
 (armar)</source>
         <translation>PDF scene
-(cue)</translation>
+(load)</translation>
     </message>
     <message>
         <location line="+115"/>
         <location filename="../src/app/control/SatelliteServidor.cpp" line="-3"/>
         <source>aparato desconocido</source>
-        <translation type="unfinished">unknown device</translation>
+        <translation>unknown device</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>el aparato no tiene un perfil asignado (página Botonera)</source>
-        <translation type="unfinished"></translation>
+        <translation>the device has no profile assigned (Control surface page)</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -42363,7 +42363,7 @@ Data (from %2): %3</translation>
         <location line="+67"/>
         <location line="+1"/>
         <source>código inválido o vencido</source>
-        <translation type="unfinished">invalid or expired code</translation>
+        <translation>invalid or expired code</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -42373,17 +42373,17 @@ Data (from %2): %3</translation>
     <message>
         <location line="+62"/>
         <source>Este aparato no tiene perfil: asignalo en la página Botonera.</source>
-        <translation type="unfinished"></translation>
+        <translation>This device has no profile: assign one on the Control surface page.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Este perfil no permite editar desde el aparato.</source>
-        <translation type="unfinished"></translation>
+        <translation>This profile doesn&apos;t allow editing from the device.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>La confirmación venció: volvé a apretar.</source>
-        <translation type="unfinished"></translation>
+        <translation>The confirmation expired: press again.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -42393,32 +42393,32 @@ Data (from %2): %3</translation>
     <message>
         <location line="+55"/>
         <source>%1 (no está en el perfil «%2»)</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 (not in profile “%2”)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>«%1» no está permitida en este perfil.</source>
-        <translation type="unfinished"></translation>
+        <translation>“%1” is not allowed in this profile.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Cambia el aire: confirmá</source>
-        <translation type="unfinished">Changes what&apos;s on air: confirm</translation>
+        <translation>Changes what&apos;s on air: confirm</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Demasiadas acciones por segundo.</source>
-        <translation type="unfinished"></translation>
+        <translation>Too many actions per second.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>No se pudo.</source>
-        <translation type="unfinished">Couldn&apos;t do it.</translation>
+        <translation>Couldn&apos;t do it.</translation>
     </message>
     <message>
         <location filename="../src/app/control/SatelliteServidor.cpp" line="-31"/>
         <source>IP no permitida: aprobala en Servicios o en Botonera (Aparatos)</source>
-        <translation type="unfinished">IP not allowed: approve it in Services or in Control surface (Devices)</translation>
+        <translation>IP not allowed: approve it in Services or in Control surface (Devices)</translation>
     </message>
 </context>
 <context>
@@ -43034,37 +43034,37 @@ Data (from %2): %3</translation>
     <message>
         <location line="-21"/>
         <source>Ponete entero en el cuadro: la cara sale cortada.</source>
-        <translation type="unfinished"></translation>
+        <translation>Get fully in the frame: your face is cut off.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Acercate un poco a la cámara.</source>
-        <translation type="unfinished"></translation>
+        <translation>Move a little closer to the camera.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Hay poca luz: ponete de frente a una ventana o a una luz.</source>
-        <translation type="unfinished"></translation>
+        <translation>Not enough light: face a window or a light.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Hay mucha luz atrás: corrite un poco de la ventana.</source>
-        <translation type="unfinished"></translation>
+        <translation>Too much light behind you: move away from the window a bit.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Mirá de frente a la cámara.</source>
-        <translation type="unfinished"></translation>
+        <translation>Look straight at the camera.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Quedate quieto un momento.</source>
-        <translation type="unfinished"></translation>
+        <translation>Hold still for a moment.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Así está bien.</source>
-        <translation type="unfinished"></translation>
+        <translation>That&apos;s good.</translation>
     </message>
 </context>
 <context>
@@ -44375,7 +44375,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+18"/>
         <source>Salida de audio (placa de sonido, auriculares, HDMI) · %1</source>
-        <translation>Audio output (sound card, headphones, HDMI) · %1</translation>
+        <translation>Audio output (audio interface, headphones, HDMI) · %1</translation>
     </message>
     <message>
         <location line="+51"/>
@@ -44405,12 +44405,12 @@ Data (from %2): %3</translation>
     <message>
         <location line="+10"/>
         <source>Cámaras, micrófonos y placas de sonido de esta máquina</source>
-        <translation>This machine&apos;s cameras, microphones and sound cards</translation>
+        <translation>This machine&apos;s cameras, microphones and audio interfaces</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Las cámaras y capturadoras, los micrófonos y entradas de audio y las salidas de las placas de sonido, con su id estable. Se vuelve a buscar solo cuando se enchufa o se desenchufa algo.</source>
-        <translation>Cameras and capture cards, microphones and audio inputs, and sound card outputs, with their stable id. It searches again automatically when something is plugged in or unplugged.</translation>
+        <translation>Cameras and capture cards, microphones and audio inputs, and audio interface outputs, with their stable id. It searches again automatically when something is plugged in or unplugged.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -45027,7 +45027,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+47"/>
         <source>armar: %1</source>
-        <translation>cue: %1</translation>
+        <translation>load: %1</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -45274,7 +45274,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+30"/>
         <source>Volvemos enseguida</source>
-        <translation>Be right back</translation>
+        <translation>We&apos;ll be right back</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -46852,7 +46852,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+10"/>
         <source>Jornada del %1/%2/%3</source>
-        <translation type="unfinished"></translation>
+        <translation>Session of %1/%2/%3</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -46882,17 +46882,17 @@ Data (from %2): %3</translation>
     <message>
         <location line="+13"/>
         <source>En vivo por internet.</source>
-        <translation type="unfinished">Live online.</translation>
+        <translation>Live online.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 · %2 · en vivo por internet.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · %2 · live online.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 · en vivo por internet.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · live online.</translation>
     </message>
     <message>
         <location filename="../src/app/evento/FotosConfig.cpp" line="+185"/>
@@ -46922,46 +46922,46 @@ Data (from %2): %3</translation>
     <message>
         <location filename="../src/app/evento/Padron.cpp" line="-312"/>
         <source>orador</source>
-        <translation type="unfinished">speaker</translation>
+        <translation>speaker</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>panelista</source>
-        <translation type="unfinished">panelist</translation>
+        <translation>panelist</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+4"/>
         <source>público</source>
-        <translation type="unfinished">public</translation>
+        <translation>audience</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>prensa</source>
-        <translation type="unfinished">press</translation>
+        <translation>press</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>staff</source>
-        <translation type="unfinished">staff</translation>
+        <translation>staff</translation>
     </message>
     <message>
         <location line="+8"/>
         <location line="+5"/>
         <source>sin definir</source>
         <extracomment>por dónde asiste: todavía no se sabe</extracomment>
-        <translation type="unfinished">undefined</translation>
+        <translation>not set</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>presencial</source>
-        <translation type="unfinished"></translation>
+        <translation>in person</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>en línea</source>
         <extracomment>por dónde asiste: por internet</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>online</translation>
     </message>
     <message>
         <location line="+273"/>
@@ -47007,7 +47007,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+16"/>
         <source>la tarjeta «%1» tardó más de %2 ms en cargar: se cortó y quedó apagada (se prende desde el Registro)</source>
-        <translation>card “%1” took more than %2 ms to load: it was stopped and left off (turn it on from the Registry)</translation>
+        <translation>card “%1” took more than %2 ms to load: it was stopped and left off (turn it on from the Log)</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -47187,7 +47187,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+6"/>
         <source>Los del aparato (Público, Conferencia, Prompter, Rótulos) se mantienen al día solos: si cambia la clave o el PIN, el QR cambia. Los guardados se diseñan en «Códigos QR».</source>
-        <translation>The device&apos;s own (Public, Conference, Prompter, Lower thirds) stay up to date on their own: if the password or PIN changes, the QR changes. Saved ones are designed in “QR codes”.</translation>
+        <translation>The device&apos;s own (Audience, Conference, Prompter, Lower thirds) stay up to date on their own: if the password or PIN changes, the QR changes. Saved ones are designed in “QR codes”.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -47544,12 +47544,12 @@ Data (from %2): %3</translation>
     <message>
         <location line="+4"/>
         <source>cloudflared: supervisor arrancado (metrics=127.0.0.1:%1)</source>
-        <translation>cloudflared: supervisor started (metrics=127.0.0.1:%1)</translation>
+        <translation>cloudflared: watchdog started (metrics=127.0.0.1:%1)</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>cloudflared: supervisor detenido (reinicios=%1)</source>
-        <translation>cloudflared: supervisor stopped (restarts=%1)</translation>
+        <translation>cloudflared: watchdog stopped (restarts=%1)</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -47689,7 +47689,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+1"/>
         <source>Página del público</source>
-        <translation>Public page</translation>
+        <translation>Audience page</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -47738,8 +47738,8 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>La conferencia escucha solo en esta máquina (Configuración → Red de la sala → Acceso): por la red local no entran; desde afuera, por el túnel.</source>
-        <translation>The conference only listens on this machine (Settings → Room network → Access): nobody gets in over the local network; from outside, through the tunnel.</translation>
+        <source>La conferencia escucha solo en esta máquina (Configuración → Red de la conferencia → Acceso): por la red local no entran; desde afuera, por el túnel.</source>
+        <translation>The conference only listens on this machine (Settings → Conference network → Access): it can’t be reached over the local network; from outside, through the tunnel.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -47995,17 +47995,17 @@ Data (from %2): %3</translation>
     <message>
         <location line="+2"/>
         <source>pinggy: supervisor arrancado (http -&gt; 127.0.0.1:%1, TURN -&gt; 127.0.0.1:%2)</source>
-        <translation>pinggy: supervisor started (http -&gt; 127.0.0.1:%1, TURN -&gt; 127.0.0.1:%2)</translation>
+        <translation>pinggy: watchdog started (http -&gt; 127.0.0.1:%1, TURN -&gt; 127.0.0.1:%2)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>pinggy: supervisor arrancado (http -&gt; 127.0.0.1:%1)</source>
-        <translation>pinggy: supervisor started (http -&gt; 127.0.0.1:%1)</translation>
+        <translation>pinggy: watchdog started (http -&gt; 127.0.0.1:%1)</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>pinggy: supervisor detenido (reinicios=%1)</source>
-        <translation>pinggy: supervisor stopped (restarts=%1)</translation>
+        <translation>pinggy: watchdog stopped (restarts=%1)</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -48129,32 +48129,32 @@ Data (from %2): %3</translation>
     <message>
         <location line="+82"/>
         <source>registro: atención remota %1 («%2») conectada desde %3</source>
-        <translation>check-in: remote attendant %1 (“%2”) connected from %3</translation>
+        <translation>check-in: remote support %1 (“%2”) connected from %3</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>registro: atención remota %1 desconectada</source>
-        <translation>check-in: remote attendant %1 disconnected</translation>
+        <translation>check-in: remote support %1 disconnected</translation>
     </message>
     <message>
         <location line="+138"/>
         <source>registro: origen ajeno en la atención remota desde %1</source>
-        <translation>check-in: foreign origin on remote attendance from %1</translation>
+        <translation>check-in: foreign origin on remote support from %1</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>atencion llena</source>
-        <translation>attendance full</translation>
+        <translation>remote support full</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>registro: demasiados intentos fallidos (atención remota) desde %1</source>
-        <translation>check-in: too many failed attempts (remote attendance) from %1</translation>
+        <translation>check-in: too many failed attempts (remote support) from %1</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>registro: la atención remota %1 manda demasiado; se corta</source>
-        <translation>check-in: remote attendant %1 is sending too much; cutting it off</translation>
+        <translation>check-in: remote support %1 is sending too much; cutting it off</translation>
     </message>
     <message>
         <location filename="../src/gateway/Sesion.cpp" line="-59"/>
@@ -48543,22 +48543,22 @@ Data (from %2): %3</translation>
     <message>
         <location line="+27"/>
         <source>registro: sin sesiones WebRTC libres para la atención remota %1</source>
-        <translation>check-in: no free WebRTC sessions for remote attendant %1</translation>
+        <translation>check-in: no free WebRTC sessions for remote support %1</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>registro: atención remota %1 (sesion %2) conectada</source>
-        <translation>check-in: remote attendant %1 (session %2) connected</translation>
+        <translation>check-in: remote support %1 (session %2) connected</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>registro: atención remota %1 (sesion %2) cerrada</source>
-        <translation>check-in: remote attendant %1 (session %2) closed</translation>
+        <translation>check-in: remote support %1 (session %2) closed</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>registro: setRemoteOffer de la atención remota %1 falló</source>
-        <translation>check-in: setRemoteOffer from remote attendant %1 failed</translation>
+        <translation>check-in: setRemoteOffer from remote support %1 failed</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -49206,7 +49206,7 @@ Data (from %2): %3</translation>
     <message>
         <location line="+4"/>
         <source>Hola</source>
-        <translation type="unfinished"></translation>
+        <translation>Hello</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -49518,12 +49518,12 @@ Data (from %2): %3</translation>
     <message>
         <location filename="../src/app/graficos/Vinculos.cpp" line="-224"/>
         <source>sí</source>
-        <translation type="unfinished">yes</translation>
+        <translation>yes</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>no</source>
-        <translation type="unfinished">no</translation>
+        <translation>no</translation>
     </message>
 </context>
 <context>
@@ -49634,7 +49634,7 @@ Data (from %2): %3</translation>
 Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin cargo muestra solo el nombre, y si no queda nada no hay cartel. Ejemplos: «{nombre}», «{nombre} — {cargo}», «Cara {id}», «{confianza}», «{nombre} #{id}». `texto_posicion`: arriba | abajo de la cara (si arriba no entra, va abajo); `texto_tamano`: fracción del alto del video (0,035 = 3,5 %); el color es el de la marca (`color`). Vacío = sin texto.</source>
         <translation>THE OVERLAY TEXT (Faces card, parameter `texto`) is a template: write whatever you want and these tags are replaced with each face&apos;s data:
   {nombre}     who it is (set by People when it recognizes them; empty otherwise)
-  {cargo}      their title, from their record in People
+  {cargo}      their title, from their profile in People
   {id}         the face number (kept while it moves)
   {confianza}  how sure the detection is (“91 %”)
   {n}          how many faces are in the frame
@@ -49653,7 +49653,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
     <message>
         <location line="+1"/>
         <source>Sacar el vector de cada cara para la libreta de Personas (lo prende sola Personas cuando usa la cámara).</source>
-        <translation>Extract each face&apos;s vector for the People notebook (People turns it on by itself when it uses the camera).</translation>
+        <translation>Extract each face&apos;s vector for the People face registry (People turns it on by itself when it uses the camera).</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -49713,7 +49713,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
     <message>
         <location line="+1"/>
         <source>A quién: vacío (nadie) | id:N (la cara número N) | persona:X (id de su ficha o su nombre) | x,y (la cara más cercana a ese punto de la toma, 0..1) | mayor (la más grande) | centro (la más cercana al centro).</source>
-        <translation>Whom: empty (nobody) | id:N (face number N) | persona:X (their record id or name) | x,y (the face closest to that point of the shot, 0..1) | mayor (the largest) | centro (the closest to the center).</translation>
+        <translation>Whom: empty (nobody) | id:N (face number N) | persona:X (their profile id or name) | x,y (the face closest to that point of the shot, 0..1) | mayor (the largest) | centro (the closest to the center).</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50206,7 +50206,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
     <message>
         <location line="+3"/>
         <source>Duplica la resolución (Apple en macOS 26, FSR 1 en cualquier GPU, o una red ONNX entrenada con la cámara): lo que la sigue trabaja al doble y la escena la recibe grande. Compensa el audio solo.</source>
-        <translation>Doubles the resolution (Apple on macOS 26, FSR 1 on any GPU, or an ONNX network trained with the camera): whatever follows works at double size and the scene receives it large. Compensates the audio automatically.</translation>
+        <translation>Doubles the resolution (Apple on macOS 26, FSR 1 on any GPU, or an ONNX model trained with the camera): whatever follows works at double size and the scene receives it large. Compensates the audio automatically.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -52666,7 +52666,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     <message>
         <location line="+1"/>
         <source>corta la armada al aire</source>
-        <translation>cuts the prepared one to air</translation>
+        <translation>cuts the loaded one to air</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52791,7 +52791,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     <message>
         <location line="+1"/>
         <source>abre o cierra el micrófono de una banca en la central de conferencia</source>
-        <translation>opens or closes a seat&apos;s microphone on the conference system</translation>
+        <translation>opens or closes a seat&apos;s microphone on the central unit</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53134,7 +53134,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     <message>
         <location line="+1"/>
         <source>recinto_editar {filas, columnas, auto: true} (o Asamblea → Recinto → «Acomodar solas»).</source>
-        <translation>recinto_editar {filas, columnas, auto: true} (or Assembly → Chamber → “Arrange automatically”).</translation>
+        <translation>recinto_editar {filas, columnas, auto: true} (or Assembly → Chamber → “Auto-arrange”).</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -53272,7 +53272,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     <message>
         <location line="+2"/>
         <source>La central de conferencia no está conectada.</source>
-        <translation>The conference system isn&apos;t connected.</translation>
+        <translation>The central unit isn&apos;t connected.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53312,7 +53312,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     <message>
         <location line="+1"/>
         <source>Revisar lo que hace falta para sesionar (Cuerpo, recinto, cámaras, escenas, central, banca virtual) y armar las escenas de una asamblea.</source>
-        <translation>Check what&apos;s needed to hold a session (Body, chamber, cameras, scenes, conference system, virtual seat) and set up an assembly&apos;s scenes.</translation>
+        <translation>Check what&apos;s needed to hold a session (Body, chamber, cameras, scenes, central unit, virtual seat) and set up an assembly&apos;s scenes.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -53322,7 +53322,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
     <message>
         <location line="+3"/>
         <source>Revisa lo que necesita una sesión de asamblea y dice qué falta y cómo se arregla: integrantes con banca, la grilla del recinto, el preset de cámara de cada banca, ESCENAS que muestren esas cámaras y al remoto con la palabra, las escenas del debate, la central (unidades por banca), la banca virtual y el orden del día. Correla antes de dar por armado un evento de asamblea y contale al operador lo que salga.</source>
-        <translation>Checks what an assembly session needs and says what&apos;s missing and how to fix it: members with seats, the chamber grid, each seat&apos;s camera preset, SCENES showing those cameras and the remote member with the floor, the debate scenes, the conference system (units per seat), the virtual seat and the agenda. Run it before considering an assembly event ready and tell the operator what comes up.</translation>
+        <translation>Checks what an assembly session needs and says what&apos;s missing and how to fix it: members with seats, the chamber grid, each seat&apos;s camera preset, SCENES showing those cameras and the remote member with the floor, the debate scenes, the central unit (units per seat), the virtual seat and the agenda. Run it before considering an assembly event ready and tell the operator what comes up.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -53578,7 +53578,7 @@ None of this can be done while the assistant or an agent job is running.</transl
     <message>
         <location line="+3"/>
         <source>Si el asistente atiende a los que llegan (conferencia y asamblea), si lo hace hablando, quién atiende (recepción o automatización), a quién está atendiendo y de qué forma, el alta automática en Personas y la voz del atendedor.</source>
-        <translation>Whether the assistant greets people who arrive (Conference and assembly), whether it does so by voice, who greets (reception or automation), who it is greeting and how, automatic sign-up in People and the greeter&apos;s voice.</translation>
+        <translation>Whether the assistant greets people who arrive (Conference and assembly), whether it does so by voice, who greets (reception or automation), who it is greeting and how, automatic sign-up in People and the attendant voice.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -53608,12 +53608,12 @@ None of this can be done while the assistant or an agent job is running.</transl
     <message>
         <location line="+18"/>
         <source>Probar la voz del atendedor sin que suene</source>
-        <translation>Test the greeter&apos;s voice silently</translation>
+        <translation>Test the attendant voice silently</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Genera `texto` (o una frase de ejemplo) con la voz del atendedor SIN reproducirlo: devuelve cuánto dura, su forma de onda (picos de 0 a 1) y dónde quedó el .wav para escucharlo aparte.</source>
-        <translation>Generates `texto` (or a sample phrase) with the greeter&apos;s voice WITHOUT playing it: returns how long it lasts, its waveform (peaks from 0 to 1) and where the .wav was saved so you can listen to it separately.</translation>
+        <translation>Generates `texto` (or a sample phrase) with the attendant voice WITHOUT playing it: returns how long it lasts, its waveform (peaks from 0 to 1) and where the .wav was saved so you can listen to it separately.</translation>
     </message>
     <message>
         <location filename="../src/app/mcp/McpAudioTools.cpp" line="+48"/>
@@ -53683,7 +53683,7 @@ None of this can be done while the assistant or an agent job is running.</transl
     <message>
         <location line="+4"/>
         <source>El inventario de fuentes con SONIDO. Todas las fuentes con audio (microfonos, placas, videos con sonido, invitados...), si tienen rack, cuantos modulos y el nivel de salida.</source>
-        <translation>The inventory of sources with SOUND. All sources with audio (microphones, sound cards, videos with sound, guests...), whether they have a rack, how many modules and the output level.</translation>
+        <translation>The inventory of sources with SOUND. All sources with audio (microphones, audio interfaces, videos with sound, guests...), whether they have a rack, how many modules and the output level.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -53823,7 +53823,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+3"/>
         <source>Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, compresor, deesser, eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de `after` (vacio = justo antes de la salida). `preset` aplica valores de partida (p. ej. &quot;voz&quot;). Tambien &quot;analizador&quot;, y &quot;entrada&quot; con `fuente`: trae el audio de OTRA fuente (el microfono, un invitado, un canal de placa) como una tarjeta del grafo; despues se cablea con audio_patch (sale por &quot;out&quot;). &quot;traducir&quot; pone una tarjeta Traducir (sin cables) que traduce la salida de texto `desde` al idioma `a`; se ajusta con traduccion_ajustar.</source>
-        <translation>Adds a module to the source&apos;s rack (creates the rack if it has none): from the catalog (gate, compresor, deesser, eq, multibanda, limitador) or any LSP id. It&apos;s inserted in the chain after `after` (empty = right before the output). `preset` applies starting values (e.g. &quot;voz&quot;). Also &quot;analizador&quot;, and &quot;entrada&quot; with `fuente`: brings in the audio of ANOTHER source (the microphone, a guest, a sound card channel) as a card in the graph; then wire it with audio_patch (it comes out of &quot;out&quot;). &quot;traducir&quot; adds a Translate card (no cables) that translates the `desde` text output into language `a`; adjust it with traduccion_ajustar.</translation>
+        <translation>Adds a module to the source&apos;s rack (creates the rack if it has none): from the catalog (gate, compresor, deesser, eq, multibanda, limitador) or any LSP id. It&apos;s inserted in the chain after `after` (empty = right before the output). `preset` applies starting values (e.g. &quot;voz&quot;). Also &quot;analizador&quot;, and &quot;entrada&quot; with `fuente`: brings in the audio of ANOTHER source (the microphone, a guest, an audio interface channel) as a card in the graph; then wire it with audio_patch (it comes out of &quot;out&quot;). &quot;traducir&quot; adds a Translate card (no cables) that translates the `desde` text output into language `a`; adjust it with traduccion_ajustar.</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -54113,7 +54113,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+4"/>
         <source>QUE ES: las salidas fisicas de esta maquina (auriculares, parlantes, HDMI), agrupadas por placa. PARA QUE: escuchar aparte lo que pasa por cualquier punto del rack de una fuente, sin tocar lo que sale al aire ni a la mezcla del programa. Con `audio_output_set` se agrega al grafo una tarjeta con esa salida y despues se le conecta lo que se quiera oir (audio_patch). OJO: el motor reproduce por UNA salida a la vez; elegir otra cambia la de todos.</source>
-        <translation>WHAT IT IS: this machine&apos;s physical outputs (headphones, speakers, HDMI), grouped by card. WHAT FOR: to listen separately to what passes through any point of a source&apos;s rack, without touching what goes on air or into the program mix. With `audio_output_set` a card with that output is added to the graph and then you connect whatever you want to hear (audio_patch). CAREFUL: the engine plays through ONE output at a time; choosing another changes it for everyone.</translation>
+        <translation>WHAT IT IS: this machine&apos;s physical outputs (headphones, speakers, HDMI), grouped by audio interface. WHAT FOR: to listen separately to what passes through any point of a source&apos;s rack, without touching what goes on air or into the program mix. With `audio_output_set` a card with that output is added to the graph and then you connect whatever you want to hear (audio_patch). CAREFUL: the engine plays through ONE output at a time; choosing another changes it for everyone.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -54266,7 +54266,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+3"/>
         <source>Las plantillas de fabrica (director, audio, asamblea, prompter): se arman con las escenas, fuentes y bancas que hay ahora.</source>
-        <translation>The factory templates (director, audio, assembly, teleprompter): they&apos;re built with the scenes, sources and seats that exist now.</translation>
+        <translation>The default templates (director, audio, assembly, teleprompter): they&apos;re built with the scenes, sources and seats that exist now.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -54276,7 +54276,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+2"/>
         <source>Un perfil nuevo, vacio o `desde_plantilla` (botonera_plantillas). Desde una plantilla trae las herramientas que usan sus botones; vacio, sin herramientas: los permisos los da una persona en la pagina Botonera.</source>
-        <translation>A new profile, empty or `desde_plantilla` (botonera_plantillas). From a template it brings the tools its buttons use; empty, no tools: permissions are granted by a person on the Control Surface page.</translation>
+        <translation>A new profile, empty or `desde_plantilla` (botonera_plantillas). From a template it brings the tools its buttons use; empty, no tools: permissions are granted by a person on the Control surface page.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -54430,7 +54430,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+3"/>
         <source>Le pone de cara al botón en (`x`, `y`) una foto o un video de hasta 5 s, que se ve en la tablet, en el Stream Deck y en la grilla de la app (el video se repite a 8 cuadros/s). De `archivo` (imagen, GIF o video: los primeros 5 s) o de la cámara `entrada` (lo que muestra ahora: apuntala antes con ptz_apuntar o ptz_encuadre); con `segundos` (1-5) graba un video, si no saca una foto. `al_tocar`: además, al tocar el botón pone ese medio en la escena al aire (medio_poner; el perfil tiene que permitirla). Si no hay celda en (`x`, `y`), crea un botón (como la pagina Botonera). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:&lt;id&gt;»).</source>
-        <translation>Puts a photo or a video of up to 5 s on the face of the button at (`x`, `y`), shown on the tablet, on the Stream Deck and on the app&apos;s grid (the video loops at 8 frames/s). From `archivo` (image, GIF or video: the first 5 s) or from the camera `entrada` (what it shows now: aim it first with ptz_apuntar or ptz_encuadre); with `segundos` (1-5) it records a video, otherwise it takes a photo. `al_tocar`: also, tapping the button puts that media in the on-air scene (medio_poner; the profile must allow it). If there&apos;s no cell at (`x`, `y`), creates a button (like the Control Surface page). Takes as long as the shot lasts; returns the id (estilo.imagen = “medio:&lt;id&gt;”).</translation>
+        <translation>Puts a photo or a video of up to 5 s on the face of the button at (`x`, `y`), shown on the tablet, on the Stream Deck and on the app&apos;s grid (the video loops at 8 frames/s). From `archivo` (image, GIF or video: the first 5 s) or from the camera `entrada` (what it shows now: aim it first with ptz_apuntar or ptz_encuadre); with `segundos` (1-5) it records a video, otherwise it takes a photo. `al_tocar`: also, tapping the button puts that media in the on-air scene (medio_poner; the profile must allow it). If there&apos;s no cell at (`x`, `y`), creates a button (like the Control surface page). Takes as long as the shot lasts; returns the id (estilo.imagen = “medio:&lt;id&gt;”).</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -54523,12 +54523,12 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+2"/>
         <source>Genera un codigo de un uso (vence en 2 minutos) atado al `perfil` y la URL para el QR (el codigo va en el fragmento #p=, que no sale en registros). Cuando la tablet la abre, una PERSONA aprueba el emparejamiento en la pagina Botonera: el asistente no puede. `vence_dias`: dias sin uso hasta que el token deja de valer (30 de fabrica, 0 = no vence).</source>
-        <translation>Generates a one-time code (expires in 2 minutes) tied to the `perfil` and the URL for the QR (the code goes in the #p= fragment, which doesn&apos;t appear in logs). When the tablet opens it, a PERSON approves the pairing on the Control Surface page: the assistant can&apos;t. `vence_dias`: days without use until the token stops being valid (default 30, 0 = never expires).</translation>
+        <translation>Generates a one-time code (expires in 2 minutes) tied to the `perfil` and the URL for the QR (the code goes in the #p= fragment, which doesn&apos;t appear in logs). When the tablet opens it, a PERSON approves the pairing on the Control surface page: the assistant can&apos;t. `vence_dias`: days without use until the token stops being valid (default 30, 0 = never expires).</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Abri la URL en la tablet (o mostrá el QR de la pagina Botonera). Despues el operador aprueba en la pagina Botonera.</source>
-        <translation>Open the URL on the tablet (or show the QR on the Control Surface page). Then the operator approves on the Control Surface page.</translation>
+        <translation>Open the URL on the tablet (or show the QR on the Control surface page). Then the operator approves on the Control surface page.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -54634,7 +54634,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+3"/>
         <source>El catalogo de acciones (TAKE, FTB, placa, siguiente banca, siguiente punto, prompter, armar o cortar a cada escena, mutear cada fuente, subir/bajar cada capa DSK…) con su id: lo usan los atajos de teclado (atajo_asignar) y accion_ejecutar.</source>
-        <translation>The catalog of actions (TAKE, FTB, slate, next seat, next agenda item, teleprompter, preview or cut to each scene, mute each source, bring each DSK layer up/down…) with their id: used by keyboard shortcuts (atajo_asignar) and accion_ejecutar.</translation>
+        <translation>The catalog of actions (TAKE, FTB, slate, next seat, next agenda item, teleprompter, load or cut to each scene, mute each source, bring each DSK layer up/down…) with their id: used by keyboard shortcuts (atajo_asignar) and accion_ejecutar.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -54717,7 +54717,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+3"/>
         <source>Las ultimas `n` (10 de fabrica) caidas que anoto el supervisor: que se cayo (app o gateway), la causa (error de memoria, abortado, colgado…), el codigo y la hora. La ultima la muestra un cartel al volver, con cuanto tardo el aire en volver.</source>
-        <translation>The last `n` (default 10) crashes recorded by the supervisor: what crashed (app or gateway), the cause (memory error, aborted, hung…), the code and the time. The latest one is shown in a banner on return, with how long it took the air to come back.</translation>
+        <translation>The last `n` (default 10) crashes recorded by the watchdog: what crashed (app or gateway), the cause (memory error, aborted, hung…), the code and the time. The latest one is shown in a banner on return, with how long it took the air to come back.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -54782,7 +54782,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+2"/>
         <source>Prende (`activo`) o apaga el servidor de la Satellite API en `puerto` (16622 de fabrica). Cada aparato que agregue un Companion Satellite es un aparato mas de la botonera (botonera_dispositivo_asignar). El protocolo no tiene clave: solo red local y solo las IP que una PERSONA permite en la pagina Botonera (aca se pueden QUITAR con `quitar_ip`).</source>
-        <translation>Turns on (`activo`) or off the Satellite API server on `puerto` (default 16622). Each device a Companion Satellite adds is one more control surface device (botonera_dispositivo_asignar). The protocol has no password: local network only and only the IPs a PERSON allows on the Control Surface page (here they can be REMOVED with `quitar_ip`).</translation>
+        <translation>Turns on (`activo`) or off the Satellite API server on `puerto` (default 16622). Each device a Companion Satellite adds is one more control surface device (botonera_dispositivo_asignar). The protocol has no password: local network only and only the IPs a PERSON allows on the Control surface page (here they can be REMOVED with `quitar_ip`).</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -54792,7 +54792,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+3"/>
         <source>Prende o apaga (`activo`) la API remota: POST /api/botonera/&lt;perfil&gt;/pagina/&lt;pagina&gt;/celda/&lt;x&gt;/&lt;y&gt;/&lt;presionar|soltar|tocar&gt; en el puerto de la conferencia, con «Authorization: Bearer &lt;token&gt;». Es lo que llama el módulo «Generic HTTP» de Bitfocus Companion sin escribir código. Cada acceso tiene su perfil y sus permisos, como una tablet. El TOKEN lo crea y lo ve una PERSONA en Botonera → Integraciones («Nuevo acceso HTTP…»): acá no se entrega. Sin argumentos informa y lista los accesos (se revocan con botonera_dispositivo_revocar).</source>
-        <translation>Turns the remote API on or off (`activo`): POST /api/botonera/&lt;perfil&gt;/pagina/&lt;pagina&gt;/celda/&lt;x&gt;/&lt;y&gt;/&lt;presionar|soltar|tocar&gt; on the Conference port, with “Authorization: Bearer &lt;token&gt;”. It&apos;s what Bitfocus Companion&apos;s “Generic HTTP” module calls without writing code. Each access has its own profile and permissions, like a tablet. The TOKEN is created and seen by a PERSON in Control Surface → Integrations (“New HTTP access…”): it&apos;s not handed out here. Without arguments it reports and lists the accesses (revoked with botonera_dispositivo_revocar).</translation>
+        <translation>Turns the remote API on or off (`activo`): POST /api/botonera/&lt;perfil&gt;/pagina/&lt;pagina&gt;/celda/&lt;x&gt;/&lt;y&gt;/&lt;presionar|soltar|tocar&gt; on the Conference port, with “Authorization: Bearer &lt;token&gt;”. It&apos;s what Bitfocus Companion&apos;s “Generic HTTP” module calls without writing code. Each access has its own profile and permissions, like a tablet. The TOKEN is created and seen by a PERSON in Control surface → Integrations (“New HTTP access…”): it&apos;s not handed out here. Without arguments it reports and lists the accesses (revoked with botonera_dispositivo_revocar).</translation>
     </message>
     <message>
         <location filename="../src/app/mcp/McpCalibracionTools.cpp" line="+85"/>
@@ -55855,12 +55855,12 @@ You&apos;re the `%1` role: this is your WHOLE toolset. What isn&apos;t here you 
     <message>
         <location filename="../src/app/mcp/McpDcnTools.cpp" line="+23"/>
         <source>Central de conferencia (micrófonos de banca)</source>
-        <translation>Conference system (seat microphones)</translation>
+        <translation>Central unit (seat microphones)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>La central Bosch DCN del recinto: abrir y cerrar micrófonos de banca, pedidos de palabra, siguiente orador, modo de operación, unidades de cada banca.</source>
-        <translation>The venue&apos;s Bosch DCN central unit: open and close seat microphones, requests to speak, next speaker, operating mode, units for each seat.</translation>
+        <translation>The chamber&apos;s Bosch DCN central unit: open and close seat microphones, requests to speak, next speaker, operating mode, units for each seat.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -56190,7 +56190,7 @@ You&apos;re the `%1` role: this is your WHOLE toolset. What isn&apos;t here you 
     <message>
         <location line="+12"/>
         <source>Conectar la central de conferencia</source>
-        <translation>Connect the conference system</translation>
+        <translation>Connect the central unit</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -56391,12 +56391,12 @@ You&apos;re the `%1` role: this is your WHOLE toolset. What isn&apos;t here you 
         <location filename="../src/app/mcp/McpEquiposTools.cpp" line="+67"/>
         <location filename="../src/app/mcp/McpHelp.cpp" line="-20"/>
         <source>Dispositivos y equipos</source>
-        <translation>Devices and equipment</translation>
+        <translation>Devices</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Detectar equipos (red local, cámaras, micrófonos y placas de sonido de la máquina, NDI, USB/HID/serie) y hacerles cosas: ficha, funciones ONVIF, operaciones ONVIF crudas, claves, agregarlos como entrada, PTZ, explorar UVC… Los de audio y video tienen el nombre que les puso el operador (de la máquina, no del evento) y si están conectados; los que ya se vieron y hoy no están salen como ausentes.</source>
-        <translation>Detect devices (local network, the machine&apos;s cameras, microphones and sound cards, NDI, USB/HID/serial) and do things with them: details, ONVIF functions, raw ONVIF operations, passwords, adding them as an input, PTZ, exploring UVC… Audio and video devices have the name the operator gave them (per machine, not per event) and whether they&apos;re connected; those seen before that aren&apos;t here today show up as absent.</translation>
+        <translation>Detect devices (local network, the machine&apos;s cameras, microphones and audio interfaces, NDI, USB/HID/serial) and do things with them: details, ONVIF functions, raw ONVIF operations, passwords, adding them as an input, PTZ, exploring UVC… Audio and video devices have the name the operator gave them (per machine, not per event) and whether they&apos;re connected; those seen before that aren&apos;t here today show up as absent.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -56467,7 +56467,7 @@ You&apos;re the `%1` role: this is your WHOLE toolset. What isn&apos;t here you 
     <message>
         <location line="+3"/>
         <source>Le pone a un dispositivo de audio o video (cámara, capturadora, micrófono, placa de sonido, NDI, cámara de red) el nombre con que lo conoce el operador («Cámara del fondo», «Mic del atril»). Es de la MÁQUINA (vale para todos los eventos) y se guarda con el id estable del equipo, así que sigue aunque se lo reenchufe. Las entradas, el mezclador y las salidas lo muestran con ese nombre; una entrada nueva se llama así. `nombre` vacío: vuelve al del sistema. Dos dispositivos no pueden llamarse igual. No renombra entradas ya creadas (para eso, el nombre de la fuente).</source>
-        <translation>Gives an audio or video device (camera, capture card, microphone, sound card, NDI, network camera) the name the operator knows it by (“Back camera”, “Podium mic”). It belongs to the MACHINE (applies to all events) and is saved with the device&apos;s stable id, so it persists even if it&apos;s replugged. Inputs, the mixer and outputs show it with that name; a new input gets that name. Empty `nombre`: goes back to the system one. Two devices can&apos;t have the same name. Doesn&apos;t rename inputs already created (for that, the source name).</translation>
+        <translation>Gives an audio or video device (camera, capture card, microphone, audio interface, NDI, network camera) the name the operator knows it by (“Back camera”, “Podium mic”). It belongs to the MACHINE (applies to all events) and is saved with the device&apos;s stable id, so it persists even if it&apos;s replugged. Inputs, the mixer and outputs show it with that name; a new input gets that name. Empty `nombre`: goes back to the system one. Two devices can&apos;t have the same name. Doesn&apos;t rename inputs already created (for that, the source name).</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -57752,11 +57752,11 @@ It replaces nothing: if an event with that name already exists, it creates anoth
 
 Blocks go in order, with their cues. Each cue needs its own data depending on the type (a scene needs the scene name, a video needs the file): whatever is missing is flagged and `evento_revisar` lists it. A block without cues still works as a segment marker with its duration.
 
-`gente` builds the roll. For an assembly, `vota: true` on those entitled to vote: without it there is no quorum and nothing decided is valid. Face records are attached later with `padron_cambiar`.
+`gente` builds the roll. For an assembly, `vota: true` on those entitled to vote: without it there is no quorum and nothing decided is valid. Face profiles are attached later with `padron_cambiar`.
 
 THE DATE WITH ITS TIME ZONE is not optional in a hybrid event: whoever connects from elsewhere does not know what time it is. If you were not told, ask before setting up.
 
-AN ASSEMBLY SESSION (body with seats, central desk, roll-call vote, remote members) needs much more than the rundown: cameras per seat and SCENES that show them. Read help {&quot;topic&quot;: &quot;asamblea&quot;}; if a Body is loaded, the result includes what is missing (asamblea_revisar).</translation>
+AN ASSEMBLY SESSION (body with seats, central unit, roll-call vote, remote members) needs much more than the rundown: cameras per seat and SCENES that show them. Read help {&quot;topic&quot;: &quot;asamblea&quot;}; if a Body is loaded, the result includes what is missing (asamblea_revisar).</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -57916,12 +57916,12 @@ YouTube&apos;s rules are taken into account: the first one must be 0:00 (if the 
     <message>
         <location line="+42"/>
         <source>Para que alguien entre solo hace falta su ficha de rostro (`personaId`): sin cara no hay con que reconocerlo, y entraria por haber ESCRITO un nombre, que es lo que no se quiere. `rostro_listar` da las fichas.</source>
-        <translation>For someone to get in on their own, all it takes is their face record (`personaId`): without a face there is nothing to recognize them by, and they would get in for having TYPED a name, which is exactly what we do not want. `rostro_listar` gives the records.</translation>
+        <translation>For someone to get in on their own, all it takes is their face profile (`personaId`): without a face there is nothing to recognize them by, and they would get in for having TYPED a name, which is exactly what we do not want. `rostro_listar` gives the profiles.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>No hay ninguna ficha con id &apos;%1&apos; en la libreta de rostros. `rostro_listar` los da; si esa persona todavia no esta, dale de alta con `rostro_guardar` primero.</source>
-        <translation>There is no record with id &apos;%1&apos; in the face registry. `rostro_listar` lists them; if that person is not there yet, add them with `rostro_guardar` first.</translation>
+        <translation>There is no profile with id &apos;%1&apos; in the face registry. `rostro_listar` lists them; if that person is not there yet, add them with `rostro_guardar` first.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -57952,12 +57952,12 @@ Se puede filtrar por `papel`, `canal` o `estado` para no leer cuarenta renglones
         <translation>THIS ANSWERS “who is here”, which in a hybrid event is THE question and until now nobody could answer it: conference participants were visible through participant_* and people coming through the door were not visible anywhere. The roll is ONE for both worlds.
 
 Each person includes:
-- `papel`: speaker, panelist, audience, press or staff.
-- `canal`: in person, online or undefined (which is the honest value in a freshly built list).
-- `estado`: invited -&gt; confirmed -&gt; arrived -&gt; left.
-- `personaId`: their record in the face registry, if any. It is what allows recognizing them at the door; without it they can only be looked up by name.
+- `papel`: orador (speaker), panelista (panelist), publico (audience), prensa (press) or staff.
+- `canal`: presencial (in person), online or sin_definir (not set, which is the honest value in a freshly built list).
+- `estado`: invitado -&gt; confirmo -&gt; llego -&gt; se_fue (invited, confirmed, arrived, left).
+- `personaId`: their profile in the face registry, if any. It is what allows recognizing them at the door; without it they can only be looked up by name.
 - `vota`: whether they count toward quorum. It does NOT follow from the role: in an assembly an owner is audience and votes, and the press does not.
-- `llegoMs` and `porDonde`: when they were checked in and how (face, QR, desk, lobby).
+- `llegoMs` and `porDonde`: when they were checked in and how (rostro, qr, mostrador, lobby).
 - `codigo`: their voter code, four characters. It is what they are told at check-in so they can vote in a formal vote, where the phone is not enough —the site gets cleared and people vote again—. It has no O, 0, I or 1, because it is read out loud.
 
 `resumen` includes `presentes` (those who arrived), `presenciales` and `enLinea` (of those present, how), `faltan` and `votoPresente`, which is the QUORUM: how many of the voters are present. Without quorum, nothing decided in an assembly is valid.
@@ -57994,16 +57994,16 @@ Esto NO da de alta a nadie en la libreta de rostros: son dos cosas distintas a p
 
 The only required field is `nombre`. The rest can be filled in later with padron_cambiar: a half-finished list is useful, a list that could not be started is not.
 
-`personaId` is their record in the face registry (see rostro_listar). With it they are recognized at the door and can join the conference on their own; without it they can only be looked up by name.
+`personaId` is their profile in the face registry (see rostro_listar). With it they are recognized at the door and can join the conference on their own; without it they can only be looked up by name.
 
-`dejarPasarSolo` REQUIRES `personaId`: letting in whoever TYPED a name means letting in anyone who knows how to type it, so without a record it turns itself off.
+`dejarPasarSolo` REQUIRES `personaId`: letting in whoever TYPED a name means letting in anyone who knows how to type it, so without a profile it turns itself off.
 
 This does NOT add anyone to the face registry: they are two separate things on purpose. The registry is permanent and the roll expires with the event, because the same person is a panelist in one and audience in the next.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Su ficha en la libreta de rostros.</source>
-        <translation>Their record in the face registry.</translation>
+        <translation>Their profile in the face registry.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58051,7 +58051,7 @@ Para marcar que alguien LLEGO no uses esto: usa padron_acreditar, que ademas gua
 Una palabra que no se entiende en `papel`, `canal` o `estado` deja el valor que habia en vez de cambiarlo por el de fabrica: un dedazo no convierte a un orador en publico.</source>
         <translation>Changes ONLY what is sent and leaves the rest. Sending `nota` empty clears it; not sending it leaves it as it was.
 
-This is where the face record (`personaId`) gets attached to someone who was added before having one, which is the normal case: the list is built with names and the faces come later.
+This is where the face profile (`personaId`) gets attached to someone who was added before having one, which is the normal case: the list is built with names and the faces come later.
 
 Do not use this to mark that someone ARRIVED: use padron_acreditar, which also stores the time and how they came in.
 
@@ -58101,10 +58101,10 @@ Con `se_fue` en true se marca la salida, que es lo que saca a alguien del quorum
 
 They can be identified in three ways, in this order of confidence:
 - `id`: the roll id, when you already know who it is.
-- `personaId`: the face record, which is how the door camera reports it.
+- `personaId`: the face profile, which is how the door camera reports it.
 - `nombre`: as typed at a desk. It does not have to match exactly: accents, capitalization and extra spaces do not matter.
 
-The face record WINS over the name: anyone can type a name and in a list of forty there are two Gonzalezes.
+The face profile WINS over the name: anyone can type a name and in a list of forty there are two Gonzalezes.
 
 Checking in twice is NOT an error and does NOT change the time: at the door people get scanned again just in case all the time, and what matters is the first time.
 
@@ -58219,9 +58219,9 @@ If the event has no date, the invitation goes out without one and a warning is g
         <source>Es para el que se anoto dos veces o el que no venia a este evento. Para el que aviso que no viene, mejor dejarlo con `estado` en invitado: el que no esta en la lista no se distingue del que nunca se invito, y eso se nota al armar el evento siguiente.
 
 No toca la libreta de rostros: la ficha de la persona queda donde estaba.</source>
-        <translation>It is for someone added twice or someone who was not coming to this event. For someone who said they are not coming, better leave them with `estado` set to invited: someone not on the list is indistinguishable from someone never invited, and that shows when setting up the next event.
+        <translation>It is for someone added twice or someone who was not coming to this event. For someone who said they are not coming, better leave them with `estado` set to invitado: someone not on the list is indistinguishable from someone never invited, and that shows when setting up the next event.
 
-It does not touch the face registry: the person&apos;s record stays where it was.</translation>
+It does not touch the face registry: the person&apos;s profile stays where it was.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -58645,7 +58645,7 @@ LIVE VIDEO INSIDE (the speaker&apos;s camera in the lower third, “Lower third 
     <message>
         <location line="+5"/>
         <source>Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al aire y la deja armada; sale con TAKE (preview_al_aire).</source>
-        <translation>Set it up in PREVIEW instead of on air: it draws it in a scene that is not on air and leaves it ready; it goes out with TAKE (preview_al_aire).</translation>
+        <translation>Load it in PREVIEW instead of on air: it draws it in a scene that is not on air and leaves it loaded; it goes out with TAKE (preview_al_aire).</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -58662,7 +58662,7 @@ LIVE VIDEO INSIDE (the speaker&apos;s camera in the lower third, “Lower third 
     <message>
         <location line="+12"/>
         <source>«%1» está en la escena al aire: armarlo se vería. Usá una fuente de gráfico de otra escena, o mostralo sin armar.</source>
-        <translation>“%1” is in the on-air scene: setting it up would be visible. Use a graphic source from another scene, or show it without setting it up.</translation>
+        <translation>“%1” is in the on-air scene: loading it would be visible. Use a graphic source from another scene, or show it without loading it.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -58682,7 +58682,7 @@ LIVE VIDEO INSIDE (the speaker&apos;s camera in the lower third, “Lower third 
     <message>
         <location line="+12"/>
         <source>«%1» armado en el preview («%2»): sale con TAKE.</source>
-        <translation>“%1” set up in preview (“%2”): it goes out with TAKE.</translation>
+        <translation>“%1” loaded in preview (“%2”): it goes out with TAKE.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -59284,7 +59284,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+1"/>
         <source>Central de conferencia (Bosch DCN)</source>
-        <translation>Conference system (Bosch DCN)</translation>
+        <translation>Central unit (Bosch DCN)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59306,7 +59306,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
         <location line="+1"/>
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="-87"/>
         <source>Registro de personas (tótems)</source>
-        <translation>Attendee registration (kiosks)</translation>
+        <translation>People check-in (kiosks)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59321,17 +59321,17 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+1"/>
         <source>Cómo se prepara una sesión: Cuerpo, recinto, cámaras, ESCENAS, central, remotos, debate.</source>
-        <translation>How to prepare a session: Body, chamber, cameras, SCENES, conference system, remote members, debate.</translation>
+        <translation>How to prepare a session: Body, chamber, cameras, SCENES, central unit, remote members, debate.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Procedimiento: evento en salón</source>
-        <translation type="unfinished"></translation>
+        <translation>Procedure: in-room event</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Paso a paso para diseñar, controlar, ensayar y salir con un evento en salón (con público, oradores, invitados remotos y preguntas).</source>
-        <translation type="unfinished"></translation>
+        <translation>Step by step to design, control, rehearse and go live with an in-room event (with an audience, speakers, remote guests and questions).</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59495,7 +59495,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+2"/>
         <source>Detectar equipos (red local, camaras, microfonos y placas de la maquina, NDI, USB/HID/serie), ponerles nombre y manejarlos con acciones: ficha, funciones ONVIF, operaciones ONVIF crudas, pedidos HTTP a la API de la marca, claves, agregar como entrada, PTZ real, explorar UVC.</source>
-        <translation>Discover devices (local network, cameras, microphones and the machine&apos;s cards, NDI, USB/HID/serial), name them and control them with actions: details, ONVIF functions, raw ONVIF operations, HTTP requests to the vendor&apos;s API, passwords, add as input, real PTZ, explore UVC.</translation>
+        <translation>Discover devices (local network, cameras, microphones and the machine&apos;s audio interfaces, NDI, USB/HID/serial), name them and control them with actions: details, ONVIF functions, raw ONVIF operations, HTTP requests to the vendor&apos;s API, passwords, add as input, real PTZ, explore UVC.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59567,7 +59567,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+1"/>
         <source>Mejorar la resolución de una cámara de baja definición (PAL, 720p): motores apple, fsr y redes ONNX (red chica entrenada con la propia cámara, SPAN, Real-ESRGAN).</source>
-        <translation>Improve the resolution of a low-definition camera (PAL, 720p): apple and fsr engines and ONNX networks (small network trained on the camera itself, SPAN, Real-ESRGAN).</translation>
+        <translation>Improve the resolution of a low-definition camera (PAL, 720p): apple and fsr engines and ONNX models (small model trained on the camera itself, SPAN, Real-ESRGAN).</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59900,7 +59900,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+16"/>
         <source>Legalizar para TV</source>
-        <translation>Make broadcast-legal</translation>
+        <translation>Broadcast legalizer</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -60664,7 +60664,7 @@ The operator&apos;s control card follows the scene: when this scene is on air, i
     <message>
         <location line="+4"/>
         <source>Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su rack, vaya a donde vaya) su pico, RMS y retención (2 s) por canal en dB, el fader, mute, escucha y a qué destinos va; por salida (Programa, pistas, buses, placa) su nivel; y el loudness del programa (EBU R128).</source>
-        <translation>The same as the Mixer window shows: per input (what COMES OUT of it, after its rack, wherever it goes) its peak, RMS and hold (2 s) per channel in dB, the fader, mute, monitoring and which destinations it goes to; per output (Program, tracks, buses, card) its level; and the program loudness (EBU R128).</translation>
+        <translation>The same as the Mixer window shows: per input (what COMES OUT of it, after its rack, wherever it goes) its peak, RMS and hold (2 s) per channel in dB, the fader, mute, monitoring and which destinations it goes to; per output (Program, tracks, buses, audio interface) its level; and the program loudness (EBU R128).</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -60785,7 +60785,7 @@ The operator&apos;s control card follows the scene: when this scene is on air, i
     <message>
         <location line="+4"/>
         <source>Las salidas de audio del equipo (placas, auriculares, cables virtuales): id y nombre, para las salidas virtuales de la matriz.</source>
-        <translation>The machine&apos;s audio outputs (cards, headphones, virtual cables): id and name, for the matrix&apos;s virtual outputs.</translation>
+        <translation>The machine&apos;s audio outputs (audio interfaces, headphones, virtual cables): id and name, for the matrix&apos;s virtual outputs.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -60795,7 +60795,7 @@ The operator&apos;s control card follows the scene: when this scene is on air, i
     <message>
         <location line="+3"/>
         <source>Lo enchufado (bocinas, monitores con audio, placas USB) en la matriz: las salidas, una columna por par de canales (id fis:...); las entradas, una fila por canal. Sin argumentos lo lista. `mostrar` (true/false) muestra u oculta todo el equipo; `dispositivo` (id) con `visible` muestra u oculta uno (lo oculto no se abre).</source>
-        <translation>What is plugged in (speakers, monitors with audio, USB cards) in the matrix: outputs, one column per channel pair (id fis:...); inputs, one row per channel. Without arguments it lists them. `mostrar` (true/false) shows or hides all hardware; `dispositivo` (id) with `visible` shows or hides one (hidden ones are not opened).</translation>
+        <translation>What is plugged in (speakers, monitors with audio, USB audio interfaces) in the matrix: outputs, one column per channel pair (id fis:...); inputs, one row per channel. Without arguments it lists them. `mostrar` (true/false) shows or hides all hardware; `dispositivo` (id) with `visible` shows or hides one (hidden ones are not opened).</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -60850,12 +60850,12 @@ The operator&apos;s control card follows the scene: when this scene is on air, i
     <message>
         <location line="+15"/>
         <source>Playlist: play, siguiente, anterior, parar, armar</source>
-        <translation>Playlist: play, next, previous, stop, cue up</translation>
+        <translation>Playlist: play, next, previous, stop, load</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena «Playlist» armada en PVW para el take). `auto_next` y `loop` cambian el modo. Sin acción, informa (ítem actual y cuánto le queda).</source>
-        <translation>`accion`: play (from `indice`, 0-based, or the current one), next, prev, stop or armar (leaves the “Playlist” scene ready in PVW for the take). `auto_next` and `loop` change the mode. Without an action, it reports (current item and time left).</translation>
+        <translation>`accion`: play (from `indice`, 0-based, or the current one), next, prev, stop or armar (leaves the “Playlist” scene loaded in PVW for the take). `auto_next` and `loop` change the mode. Without an action, it reports (current item and time left).</translation>
     </message>
     <message>
         <location line="+56"/>
@@ -61819,7 +61819,7 @@ If something with that name already exists at the destination, it is numbered in
     <message>
         <location line="+3"/>
         <source>MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel (una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC), escena (UNA escena cualquiera de las armadas, en vivo, este o no al aire: `escena` es su nombre) o tally (rojo si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de pantalla_listar.</source>
-        <translation>SHOWS something (a QR, a web page, a sign, the vote) on a TV on the network. Sends content to a screen. `tipo`: mensaje (big text), qr (a full-screen QR), reloj, url (any address), prompter (the speaker&apos;s view), carrusel (a rotation already built), programa (what is on air, live via WebRTC), escena (ANY one of the built scenes, live, on air or not: `escena` is its name) or tally (red if that camera is on air, green if it is cued). The fields for each type come from pantalla_listar.</translation>
+        <translation>SHOWS something (a QR, a web page, a sign, the vote) on a TV on the network. Sends content to a screen. `tipo`: mensaje (big text), qr (a full-screen QR), reloj, url (any address), prompter (the speaker&apos;s view), carrusel (a rotation already built), programa (what is on air, live via WebRTC), escena (ANY one of the built scenes, live, on air or not: `escena` is its name) or tally (red if that camera is on air, green if it is loaded). The fields for each type come from pantalla_listar.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -62996,7 +62996,7 @@ SCENES: “Señal de ajuste” = “Ajuste — barras y tono” (HD bars with th
 
 RUNDOWN: “Previa” at the start (test signal → wait for confirmation that it shows on the platform → holding slate with music → wait to begin) and “Cierre” at the end (closing music → end slate → wait to stop the stream and the recording). `musica_espera` and `musica_cierre` are files from Medios/ (media_list); without them, the music cues aren&apos;t added.
 
-SHOW THE OPERATOR what you&apos;re going to do first, and afterwards run evento_verificar. `al_aire: true` changes what goes on air (goes through the air guard): only before turning on the stream or when the operator asks for it; without it, the test signal is left set up in the preview.</translation>
+SHOW THE OPERATOR what you&apos;re going to do first, and afterwards run evento_verificar. `al_aire: true` changes what goes on air (goes through the air guard): only before turning on the stream or when the operator asks for it; without it, the test signal is left loaded in preview.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -63168,7 +63168,7 @@ SHOW THE OPERATOR what you&apos;re going to do first, and afterwards run evento_
     <message>
         <location line="+2"/>
         <source>señal de ajuste armada en el preview</source>
-        <translation>test signal set up in the preview</translation>
+        <translation>test signal loaded in preview</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -63507,7 +63507,7 @@ It doesn&apos;t change anything in the event except adding the missing manual it
     <message>
         <location line="+1"/>
         <source>Prueba de sonido con cada micrófono de la sala</source>
-        <translation>Sound check with each room microphone</translation>
+        <translation>Sound check with every microphone in the room</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63567,7 +63567,7 @@ It doesn&apos;t change anything in the event except adding the missing manual it
     <message>
         <location line="+2"/>
         <source>Central de conferencia probada banca por banca: cada micrófono abre y se oye</source>
-        <translation>Conference system tested seat by seat: each microphone opens and is heard</translation>
+        <translation>Central unit tested seat by seat: each microphone opens and is heard</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63577,7 +63577,7 @@ It doesn&apos;t change anything in the event except adding the missing manual it
     <message>
         <location line="+1"/>
         <source>Votación de prueba (central o banca virtual) y el resultado en pantalla</source>
-        <translation>Test vote (conference system or virtual seat) and the result on screen</translation>
+        <translation>Test vote (central unit or virtual seat) and the result on screen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63592,7 +63592,7 @@ It doesn&apos;t change anything in the event except adding the missing manual it
     <message>
         <location line="+1"/>
         <source>Quién toma el acta, y el registro andando (sesion_registro)</source>
-        <translation>Who takes the minutes, and the record running (sesion_registro)</translation>
+        <translation>Who takes the minutes, and the log running (sesion_registro)</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -65212,7 +65212,7 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
     <message>
         <location line="+15"/>
         <source>Admitir a todos</source>
-        <translation>Admit everyone</translation>
+        <translation>Admit all</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -65867,12 +65867,12 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
     <message>
         <location line="+1"/>
         <source>Reconocer a alguien que ya estuvo: la libreta de personas (nombre, cargo, notas) y quién aparece en cada cámara. También el alta guiada de un invitado por WebRTC (`rostro_calidad` dice que pedirle) y el anotado automático de toda cara nueva (`rostro_autoalta`). Corre en el aparato, sin red.</source>
-        <translation>Recognize someone who has been here before: the people book (name, title, notes) and who appears on each camera. Also the guided enrollment of a WebRTC guest (`rostro_calidad` says what to ask them for) and automatic registration of every new face (`rostro_autoalta`). Runs on the device, offline.</translation>
+        <translation>Recognize someone who has been here before: the face registry (name, title, notes) and who appears on each camera. Also the guided enrollment of a WebRTC guest (`rostro_calidad` says what to ask them for) and automatic registration of every new face (`rostro_autoalta`). Runs on the device, offline.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>No hay libreta de personas en este proceso.</source>
-        <translation>There is no people book in this process.</translation>
+        <translation>There is no face registry in this process.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -65895,7 +65895,7 @@ Si alguien no esta en la libreta, `rostro_guardar` lo da de alta con esa misma c
 
 IT DOESN&apos;T PUT UP LOWER THIRDS. It says who is there; putting it on air is a person&apos;s call.
 
-If someone isn&apos;t in the book, `rostro_guardar` enrolls them with that same face.</translation>
+If someone isn&apos;t in the face registry, `rostro_guardar` enrolls them with that same face.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -65990,7 +65990,7 @@ If there is more than one face in the frame it doesn&apos;t guess: it asks you t
     <message>
         <location line="+9"/>
         <source>La libreta de personas</source>
-        <translation>The people book</translation>
+        <translation>The face registry</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -66005,7 +66005,7 @@ If there is more than one face in the frame it doesn&apos;t guess: it asks you t
     <message>
         <location line="+16"/>
         <source>Borrar una persona de la libreta</source>
-        <translation>Delete a person from the book</translation>
+        <translation>Delete a person from the face registry</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -66133,7 +66133,7 @@ Check `rostro_calidad` FIRST: a blurry or profile face added to the profile mudd
     <message>
         <location line="+2"/>
         <source>Cada una trae su foto en `foto` (archivo al lado de la libreta) para que alguien pueda mirarla y decir quien es. Sin nombre no rotulan nada.</source>
-        <translation>Each one comes with its photo in `foto` (a file next to the book) so someone can look at it and say who it is. Without a name they don&apos;t label anything.</translation>
+        <translation>Each one comes with its photo in `foto` (a file next to the face registry) so someone can look at it and say who it is. Without a name they don&apos;t label anything.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -66201,7 +66201,7 @@ Necesita un evento abierto: el padron vive en el evento.</source>
 
 IT DOESN&apos;T ADD ANYONE TO THE ROLL. If someone not on the list arrives, it says so and moves on: whoever comes in uninvited is the organizer&apos;s decision, not recognition&apos;s. To add them, `padron_anotar`.
 
-It doesn&apos;t enroll face profiles either: that&apos;s `rostro_autoalta`, which is something else and can be on at the same time. One fills the BOOK (who this face is); this one fills the ATTENDANCE (this person is already here).
+It doesn&apos;t enroll face profiles either: that&apos;s `rostro_autoalta`, which is something else and can be on at the same time. One fills the face registry (who this face is); this one fills the ATTENDANCE (this person is already here).
 
 It requires the same confidence as for opening the room door, and that the face is clearly visible. Checking in the wrong person leaves two people wrongly recorded —one who didn&apos;t come and one who did— and it isn&apos;t discovered until the quorum has to be counted.
 
@@ -66237,7 +66237,7 @@ Needs an open event: the roll lives in the event.</translation>
     <message>
         <location line="+3"/>
         <source>Prende o apaga el anotado automatico: con el puesto, cada cara que pase por la camara elegida y no este en la libreta queda anotada SIN NOMBRE y con su foto, y a las que ya conoce les suma la pose nueva.</source>
-        <translation>Turns automatic registration on or off: when on, every face that passes the chosen camera and isn&apos;t in the book is registered WITHOUT A NAME and with its photo, and for the ones it already knows it adds the new pose.</translation>
+        <translation>Turns automatic registration on or off: when on, every face that passes the chosen camera and isn&apos;t in the face registry is registered WITHOUT A NAME and with its photo, and for the ones it already knows it adds the new pose.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -66248,7 +66248,7 @@ Anota recien despues de ver la misma cara tres pasadas seguidas: un reflejo o me
 Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como esta.</source>
         <translation>WHAT IT DOESN&apos;T DO: it doesn&apos;t name anyone or put anything on air. An unnamed profile doesn&apos;t label. Afterwards `rostro_pendientes` lists them and `rostro_guardar {id, nombre}` completes them.
 
-It registers only after seeing the same face three passes in a row: a reflection or half a face going in and out would fill the book with junk profiles.
+It registers only after seeing the same face three passes in a row: a reflection or half a face going in and out would fill the face registry with junk profiles.
 
 When it reaches 500 profiles it turns itself off and says so. Without `activo` it only reports how it is.</translation>
     </message>
@@ -66326,7 +66326,7 @@ The assisted enrollment loop for someone waiting:
 
 `uid` is the person (the same one `room_status`, `chat_send` and `participant_admit` use), and `feed` is their camera: it works as is in `rostro_calidad`, `rostro_sumar`, `rostro_guardar` and `capture_feed`.
 
-`parecido` below 0.45 comes without `id`: it means “don&apos;t know”, not “nobody”. If it&apos;s close to the cutoff (0.40, 0.43) it almost certainly IS someone in the book and what&apos;s missing is a better face: look at `sugerencia`, ask them via `chat_send`, and when `sirve` is true ask again.
+`parecido` below 0.45 comes without `id`: it means “don&apos;t know”, not “nobody”. If it&apos;s close to the cutoff (0.40, 0.43) it almost certainly IS someone in the face registry and what&apos;s missing is a better face: look at `sugerencia`, ask them via `chat_send`, and when `sirve` is true ask again.
 
 For this to answer anything, lobby recognition has to be on: `rostro_autoalta {activo: true, feed: &quot;lobby&quot;}`, or the “Recognize arrivals” switch on the Conference page. Without it nobody is watching those cameras.</translation>
     </message>
@@ -66350,7 +66350,7 @@ For this to answer anything, lobby recognition has to be on: `rostro_autoalta {a
 </source>
         <translation>BEFORE ASKING THEM ANYTHING, look at `rostro_lobby` and find their `uid` (%1):
 - If it comes with `nombre`, YOU ALREADY KNOW WHO THEY ARE: greet them by name, confirm in ONE single question the title on their profile, and don&apos;t ask again for what&apos;s already there. Asking someone the system recognizes for their name wastes their time.
-- If `parecido` is close to the cutoff (0.40 or more) but without `nombre`, it almost certainly IS someone in the book and what&apos;s missing is a better face: tell them via `chat_send` with the words from `sugerencia` (for example “look straight at the camera”), wait a few seconds and look at `rostro_lobby` again BEFORE asking who they are.
+- If `parecido` is close to the cutoff (0.40 or more) but without `nombre`, it almost certainly IS someone in the face registry and what&apos;s missing is a better face: tell them via `chat_send` with the words from `sugerencia` (for example “look straight at the camera”), wait a few seconds and look at `rostro_lobby` again BEFORE asking who they are.
 - If it doesn&apos;t recognize them, attend them as usual.
 
 </translation>
@@ -66983,7 +66983,7 @@ It can still be copied, and its sources edited: what&apos;s protected is it disa
     <message>
         <location line="+15"/>
         <source>Escena armada, pero no salió al aire: %1</source>
-        <translation>Scene built, but it didn&apos;t go on air: %1</translation>
+        <translation>Scene loaded, but it didn&apos;t go on air: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -67617,7 +67617,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
     <message>
         <location line="+2"/>
         <source>Si la entrada `entrada` se queda sin señal mas de `ms` (de fabrica 1000) estando en la escena al aire: `al_perder_aire` avisar (de fabrica), armar la `escena` de respaldo en el preview o cortar a ella. Sin `al_perder_aire`, muestra lo configurado y las entradas que ahora no tienen señal.</source>
-        <translation>If the input `entrada` loses signal for more than `ms` (default 1000) while in the on-air scene: `al_perder_aire` notify (default), load the backup `escena` into preview, or cut to it. Without `al_perder_aire`, shows the configuration and the inputs that currently have no signal.</translation>
+        <translation>If the input `entrada` loses signal for more than `ms` (default 1000) while in the on-air scene: `al_perder_aire` avisar (notify, default), armar (load the backup `escena` into preview) or cortar (cut to it). Without `al_perder_aire`, shows the configuration and the inputs that currently have no signal.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -67899,7 +67899,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
     <message>
         <location line="+2"/>
         <source>Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, bloque, distrito, banca (unica), camara + posicion (el preset PTZ de su banca), microfono (la fuente de audio de su banca), dcn_unidad (la unidad de la central Bosch DCN de su banca; vacío la saca), persona_id (la ficha de Personas), prioridad (número: mayor = antes en una grilla de personas ordenada por prioridad; &quot;&quot; la saca). Si cambia el nombre o el cargo, deja de estar validado (integrante_validar).</source>
-        <translation>With `id` it changes it; without `id`, it creates it (`nombre` required). Fields: nombre, cargo_oficial, bloque, distrito, banca (unique), camara + posicion (the PTZ preset for their seat), microfono (their seat&apos;s audio source), dcn_unidad (their seat&apos;s unit on the Bosch DCN central unit; empty removes it), persona_id (the People record), prioridad (number: higher = earlier in a people grid sorted by priority; &quot;&quot; removes it). If the name or title changes, it&apos;s no longer validated (integrante_validar).</translation>
+        <translation>With `id` it changes it; without `id`, it creates it (`nombre` required). Fields: nombre, cargo_oficial, bloque, distrito, banca (unique), camara + posicion (the PTZ preset for their seat), microfono (their seat&apos;s audio source), dcn_unidad (their seat&apos;s unit on the Bosch DCN central unit; empty removes it), persona_id (the People profile), prioridad (number: higher = earlier in a people grid sorted by priority; &quot;&quot; removes it). If the name or title changes, it&apos;s no longer validated (integrante_validar).</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -68636,7 +68636,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
     <message>
         <location line="+4"/>
         <source>Que placas y conectores de audio tiene la maquina: entradas (microfonos, lineas, interfaces) y salidas (parlantes, auriculares, HDMI). Salen del registro de la maquina (Dispositivos y equipos): `name` es el nombre que les puso el operador (o el del sistema si no le puso), `tecnico` el del sistema, `conectado` si esta ahora (los que la maquina ya vio y no estan figuran ausentes). El `value` de una entrada es el `device` de audio_input_add.</source>
-        <translation>Which audio interfaces and connectors the machine has: inputs (microphones, line, interfaces) and outputs (speakers, headphones, HDMI). They come from the machine&apos;s registry (Devices and equipment): `name` is the name the operator gave them (or the system&apos;s if none), `tecnico` the system&apos;s, `conectado` whether it&apos;s present now (those the machine has seen before and aren&apos;t present are listed as absent). An input&apos;s `value` is the `device` for audio_input_add.</translation>
+        <translation>Which audio interfaces and connectors the machine has: inputs (microphones, line, interfaces) and outputs (speakers, headphones, HDMI). They come from the machine&apos;s registry (Devices): `name` is the name the operator gave them (or the system&apos;s if none), `tecnico` the system&apos;s, `conectado` whether it&apos;s present now (those the machine has seen before and aren&apos;t present are listed as absent). An input&apos;s `value` is the `device` for audio_input_add.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -68756,7 +68756,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
     <message>
         <location line="+2"/>
         <source>Mide `segundos` (de fábrica 10, de 2 a 120) y devuelve la mediana y el p95 de lo que agrega cada nodo y del total de cada salida. Mientras mide, cada elemento del pipeline de las entradas (todas, o las de `entradas`) lleva una sonda: `pipelines` trae por entrada cada elemento con agrega_ms (lo que tarda Y lo que retiene), memoria_entrada/memoria_salida (gl, d3d12, cuda… o sistema) y `cruces` (dónde el video baja de la GPU a la memoria o vuelve a subir: cada cruce copia el cuadro entero). Lo de cada tarjeta pasa a ser lo medido. Queda en el historial del evento (la página Latencias del pipeline). No cambia nada del aire. Uno por vez.</source>
-        <translation>Measures for `segundos` (default 10, from 2 to 120) and returns the median and p95 of what each node adds and of each output&apos;s total. While measuring, each element of the input pipelines (all of them, or those in `entradas`) carries a probe: `pipelines` returns per input each element with agrega_ms (how long it takes AND what it holds), memoria_entrada/memoria_salida (gl, d3d12, cuda… or sistema) and `cruces` (where the video goes down from the GPU to memory or back up: each crossing copies the whole frame). Each card&apos;s figure becomes the measured one. It&apos;s kept in the event&apos;s history (the Pipeline latency page). Changes nothing on air. One at a time.</translation>
+        <translation>Measures for `segundos` (default 10, from 2 to 120) and returns the median and p95 of what each node adds and of each output&apos;s total. While measuring, each element of the input pipelines (all of them, or those in `entradas`) carries a probe: `pipelines` returns per input each element with agrega_ms (how long it takes AND what it holds), memoria_entrada/memoria_salida (gl, d3d12, cuda… or sistema) and `cruces` (where the video goes down from the GPU to memory or back up: each crossing copies the whole frame). Each card&apos;s figure becomes the measured one. It&apos;s kept in the event&apos;s history (the Pipeline latencies page). Changes nothing on air. One at a time.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -68781,7 +68781,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
     <message>
         <location line="+2"/>
         <source>Agrega una nota con `texto` en la línea de tiempo de Latencias del pipeline: ahora, o hace `hace_s` segundos, o en `t_ms` (ms de época). Sirve para marcar algo que el sistema no ve solo («se movió el cable», «entró el presidente») y después ver con tiempos_evento_impacto qué cambió.</source>
-        <translation>Adds a note with `texto` to the Pipeline latency timeline: now, or `hace_s` seconds ago, or at `t_ms` (epoch ms). Useful for marking something the system can&apos;t see by itself (“the cable was moved”, “the chair came in”) and then seeing with tiempos_evento_impacto what changed.</translation>
+        <translation>Adds a note with `texto` to the Pipeline latencies timeline: now, or `hace_s` seconds ago, or at `t_ms` (epoch ms). Useful for marking something the system can&apos;t see by itself (“the cable was moved”, “the chair came in”) and then seeing with tiempos_evento_impacto what changed.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -68806,7 +68806,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
     <message>
         <location line="+2"/>
         <source>Elige los `nodos` (ids de tiempos_mapa) que la página Latencias del pipeline muestra en su línea de tiempo, cada uno con su color (en ese orden). Sin `nodos`, dice cuáles están. `agregar` / `sacar` cambian uno sin tocar los demás.</source>
-        <translation>Chooses the `nodos` (ids from tiempos_mapa) the Pipeline latency page shows on its timeline, each with its color (in that order). Without `nodos`, says which are shown. `agregar` / `sacar` change one without touching the others.</translation>
+        <translation>Chooses the `nodos` (ids from tiempos_mapa) the Pipeline latencies page shows on its timeline, each with its color (in that order). Without `nodos`, says which are shown. `agregar` / `sacar` change one without touching the others.</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -69372,12 +69372,12 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     <message>
         <location line="+15"/>
         <source>El link de atención remota del registro</source>
-        <translation>The remote check-in assistance link</translation>
+        <translation>The check-in remote support link</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>El link de la página de atención del evento (…/registro-atiende/): quien lo abre (gente del equipo, desde un celular o una compu) ve todas las conversaciones de los tótems, mira y escucha una en vivo, la atiende ella (el asistente se calla y su voz le llega solo a ese tótem) y completa o corrige los datos. Con `mostrar` le muestra el QR al operador; con `renovar` el link viejo deja de andar (y se corta a quien lo tenga abierto). También dice quiénes lo tienen abierto.</source>
-        <translation>The link to the event&apos;s assistance page (…/registro-atiende/): whoever opens it (team members, from a phone or a computer) sees all the kiosk conversations, watches and listens to one live, takes it over (the assistant goes quiet and their voice reaches only that kiosk) and completes or corrects the data. With `mostrar` it shows the QR to the operator; with `renovar` the old link stops working (and whoever has it open is cut off). It also says who has it open.</translation>
+        <translation>The link to the event&apos;s remote support page (…/registro-atiende/): whoever opens it (team members, from a phone or a computer) sees all the kiosk conversations, watches and listens to one live, takes it over (the assistant goes quiet and their voice reaches only that kiosk) and completes or corrects the data. With `mostrar` it shows the QR to the operator; with `renovar` the old link stops working (and whoever has it open is cut off). It also says who has it open.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -69387,7 +69387,7 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     <message>
         <location line="+3"/>
         <source>No hay un evento abierto: la atención es de un evento.</source>
-        <translation>There&apos;s no open event: assistance belongs to an event.</translation>
+        <translation>There&apos;s no open event: remote support belongs to an event.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -69397,12 +69397,12 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     <message>
         <location line="+2"/>
         <source>Atención del registro</source>
-        <translation>Check-in assistance</translation>
+        <translation>Check-in support</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Para el equipo: mirar y atender los tótems</source>
-        <translation>For the team: watch and assist the kiosks</translation>
+        <translation>For the team: monitor and assist the kiosks</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -69412,7 +69412,7 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     <message>
         <location line="+2"/>
         <source>Interviene en una conversación de un tótem (el `conn` de totem_estado). `atender`: el guion se pausa (el asistente se calla y deja de preguntar; la pantalla del tótem dice «Te atiende…»). Después: `guardar` (lo guarda ya, como si hubiera terminado: padrón y, si la cara no se conocía, la libreta con la mejor foto), `devolver` (sigue el asistente desde el próximo dato que falta) o `cancelar`. Una conversación la atiende una persona a la vez.</source>
-        <translation>Steps into a kiosk conversation (the `conn` from totem_estado). `atender`: the script pauses (the assistant goes quiet and stops asking; the kiosk screen says “Assisting you…”). Then: `guardar` (saves it now, as if it had finished: roll and, if the face wasn&apos;t known, the face book with the best photo), `devolver` (the assistant resumes from the next missing answer) or `cancelar`. A conversation is handled by one person at a time.</translation>
+        <translation>Steps into a kiosk conversation (the `conn` from totem_estado). `atender`: the script pauses (the assistant goes quiet and stops asking; the kiosk screen says “Assisting you…”). Then: `guardar` (saves it now, as if it had finished: roll and, if the face wasn&apos;t known, the face registry with the best photo), `devolver` (the assistant resumes from the next missing answer) or `cancelar`. A conversation is handled by one person at a time.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -69517,17 +69517,17 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     <message>
         <location line="-125"/>
         <source>Las traducciones configuradas (de qué salida de texto, a qué idioma, en qué salida publican, la última frase y su demora), si falta bajar algún paquete, el estado del motor y los idiomas: `origen` (el del evento, de donde se traduce si no se dice otro) y `destinos` (a cuáles hay paquete desde ahí). Receta completa: help {&quot;topic&quot;: &quot;traduccion&quot;}.</source>
-        <translation type="unfinished"></translation>
+        <translation>The configured translations (from which text output, into which language, in which output they publish, the last sentence and its delay), whether any package still needs downloading, the engine status and the languages: `origen` (the event&apos;s, translated from unless another is given) and `destinos` (which ones have a package from there). Full recipe: help {&quot;topic&quot;: &quot;traduccion&quot;}.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Traduce `texto` (en `de`, el idioma del evento si no se dice) a `a`, con el glosario. Para probar cómo sale un término antes del evento.</source>
-        <translation type="unfinished"></translation>
+        <translation>Translates `texto` (in `de`, the event language if not given) into `a`, with the glossary. To test how a term comes out before the event.</translation>
     </message>
     <message>
         <location line="+99"/>
         <source>Baja los paquetes que hacen falta para traducir de `de` (el idioma del evento si no se dice) a `a` (uno o dos: sin paquete directo, pasa por otro idioma, casi siempre el inglés). Entre 70 y 300 MB cada uno; se ve el avance en modelo_local_estado.</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads the packages needed to translate from `de` (the event language if not given) into `a` (one or two: with no direct package, it goes through another language, almost always English). Between 70 and 300 MB each; progress shows in modelo_local_estado.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -69991,7 +69991,7 @@ THE BACK: types with `dorso: true` (the DNI and `mrz-td1`) can also be read from
     <message>
         <location line="+2"/>
         <source>Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel=&quot;cerrar&quot;. Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.</source>
-        <translation>Shows page `page` and opens its panel `panel` (the same one its button opens), or closes it with panel=&quot;cerrar&quot;. Panels: video → superresolucion (networks, GPU, models, training), entrada_virtual, catalogo (GStreamer modules); escenas → efectos (with `fuente`: selects it in the editor of the scene being edited and shows its transparency, soft edge and shadow); historico → registro (what&apos;s logged for each event, disk and retention); guion → the event page tabs (guion, padron, publico, orden, web, documentos). To look at it, capture_ui.</translation>
+        <translation>Shows page `page` and opens its panel `panel` (the same one its button opens), or closes it with panel=&quot;cerrar&quot;. Panels: video → superresolucion (models, GPU, model downloads, training), entrada_virtual, catalogo (GStreamer modules); escenas → efectos (with `fuente`: selects it in the editor of the scene being edited and shows its transparency, soft edge and shadow); historico → registro (what&apos;s logged for each event, disk and retention); guion → the event page tabs (guion, padron, publico, orden, web, documentos). To look at it, capture_ui.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -71151,7 +71151,7 @@ Closing a popped-out tab loses nothing: the page is still in the main window.</t
     <message>
         <location line="+4"/>
         <source>El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, CUDAMemory… o «sistema» = CPU), las TRANSICIONES (dónde se baja de la GPU a la CPU o se sube) y el TRABAJO EN CPU (convertir, escalar, componer, filtrar video en memoria de sistema; decodificar o codificar sin hardware). Sin `detalle`: por pipeline, qué lee y escribe, sus trabajos en CPU y sus transiciones. Con `detalle`: también cada elemento y cada enlace.</source>
-        <translation>The live map of ALL the engine&apos;s pipelines (inputs, GPU stages, compositions, mixes, views, outputs): each link with the memory actually negotiated (GLMemory, D3D11Memory, VAMemory, CUDAMemory… or “system” = CPU), the TRANSITIONS (where it drops from GPU to CPU or goes up) and the CPU WORK (converting, scaling, compositing, filtering video in system memory; decoding or encoding without hardware). Without `detalle`: per pipeline, what it reads and writes, its CPU work and its transitions. With `detalle`: also every element and every link.</translation>
+        <translation>The live map of ALL the engine&apos;s pipelines (inputs, slates, compositions, mixes, views, outputs): each link with the memory actually negotiated (GLMemory, D3D11Memory, VAMemory, CUDAMemory… or “system” = CPU), the TRANSITIONS (where it drops from GPU to CPU or goes up) and the CPU WORK (converting, scaling, compositing, filtering video in system memory; decoding or encoding without hardware). Without `detalle`: per pipeline, what it reads and writes, its CPU work and its transitions. With `detalle`: also every element and every link.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -71261,12 +71261,12 @@ Closing a popped-out tab loses nothing: the page is still in the main window.</t
     <message>
         <location line="+7"/>
         <source>Programador de superresolución: qué cámaras usan la red según programa y preview</source>
-        <translation>Super-resolution scheduler: which cameras use the network based on program and preview</translation>
+        <translation>Super-resolution scheduler: which cameras use the model based on program and preview</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo (hasta `max_activas`, por prioridad: programa, preview, más grande), barato (se ve grande pero no tiene turno: agrandado afilado) o reposo (no se ve o se ve chica). Se prende al pasar a preview, con una mezcla gradual de `transicion_ms`: la mejora entra sin saltos ni cuadros negros. La CAPACIDAD se mide sola (`capacidad` auto): cada acelerador (Neural Engine, GPU, CPU, CUDA, DirectML…) corre de a una red por vez, así que entran las redes cuyo tiempo medido sume hasta `uso_pct` % de un cuadro en su acelerador (`max_activas` es el tope); con `capacidad` fija, exactamente `max_activas`. `en_preview` false: solo lo que está al aire. `sin_turno`: barato (afilado) o reposo. `umbral_aumento`: desde cuánto agrandada en pantalla conviene la red (1.1 = más grande que la cámara). `forzar`: {entrada: siempre|nunca|auto}. Sin argumentos devuelve la configuración, el estado de cada cámara (modo, ms, acelerador) y el presupuesto usado de cada acelerador; con `activo` false, todas las redes trabajan siempre. Si una red no llega (tarda más del `umbral_pct` % del cuadro, 80 de fábrica, durante 2 s) suena la alarma (disparador superres_tarde, evento superres/tarde) y, con `bypass_auto` (de fábrica, sí), pasa sola a barato y vuelve a probar a los 15 s, 30 s, 1 min, 2 min; cada entrada dice `tarde` y `bypass_s`.</source>
-        <translation>With several cameras, all their networks stay loaded and warm but only those shown large do work: the scheduler watches program and preview (the staged scene) and sets each camera to active (up to `max_activas`, by priority: program, preview, largest), cheap (shown large but has no slot: sharpened upscale) or idle (not visible or shown small). It turns on when going to preview, with a gradual `transicion_ms` blend: the improvement comes in without jumps or black frames. CAPACITY is measured automatically (`capacidad` auto): each accelerator (Neural Engine, GPU, CPU, CUDA, DirectML…) runs one network at a time, so the networks admitted are those whose measured time adds up to `uso_pct` % of a frame on their accelerator (`max_activas` is the cap); with fixed `capacidad`, exactly `max_activas`. `en_preview` false: only what&apos;s on air. `sin_turno`: barato (sharpened) or reposo. `umbral_aumento`: from how much on-screen enlargement the network pays off (1.1 = larger than the camera). `forzar`: {entrada: siempre|nunca|auto}. Without arguments it returns the settings, each camera&apos;s state (mode, ms, accelerator) and each accelerator&apos;s used budget; with `activo` false, all networks always work. If a network can&apos;t keep up (takes more than `umbral_pct` % of the frame, 80 by default, for 2 s) the alarm goes off (trigger superres_tarde, event superres/tarde) and, with `bypass_auto` (default: yes), it switches to cheap on its own and retries after 15 s, 30 s, 1 min, 2 min; each input reports `tarde` and `bypass_s`.</translation>
+        <translation>With several cameras, all their models stay loaded and warm but only those shown large do work: the scheduler watches program and preview (the loaded scene) and sets each camera to active (up to `max_activas`, by priority: program, preview, largest), cheap (shown large but has no slot: sharpened upscale) or idle (not visible or shown small). It turns on when going to preview, with a gradual `transicion_ms` blend: the improvement comes in without jumps or black frames. CAPACITY is measured automatically (`capacidad` auto): each accelerator (Neural Engine, GPU, CPU, CUDA, DirectML…) runs one model at a time, so the models admitted are those whose measured time adds up to `uso_pct` % of a frame on their accelerator (`max_activas` is the cap); with fixed `capacidad`, exactly `max_activas`. `en_preview` false: only what&apos;s on air. `sin_turno`: barato (sharpened) or reposo. `umbral_aumento`: from how much on-screen enlargement the model pays off (1.1 = larger than the camera). `forzar`: {entrada: siempre|nunca|auto}. Without arguments it returns the settings, each camera&apos;s state (mode, ms, accelerator) and each accelerator&apos;s used budget; with `activo` false, all models always work. If a model can&apos;t keep up (takes more than `umbral_pct` % of the frame, 80 by default, for 2 s) the alarm goes off (trigger superres_tarde, event superres/tarde) and, with `bypass_auto` (default: yes), it switches to cheap on its own and retries after 15 s, 30 s, 1 min, 2 min; each input reports `tarde` and `bypass_s`.</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -71371,7 +71371,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Qué motores de superresolución hay en este sistema (apple: VideoToolbox macOS 26, ~3 ms; fsr: FSR 1 de AMD, cualquier GPU, sin red; onnx: una red ONNX), los modelos ONNX que hay (red chica entrenada con una cámara, SPAN, Real-ESRGAN: con su ganancia en dB si se midió), si el laboratorio está listo y el trabajo en curso (entrenando, convirtiendo…). Cada entrada de red dice su motor en video_estado. Ayuda: help {&quot;topic&quot;: &quot;superres&quot;}.</source>
-        <translation>Which super-resolution engines this system has (apple: VideoToolbox macOS 26, ~3 ms; fsr: AMD FSR 1, any GPU, no network; onnx: an ONNX network), the available ONNX models (small network trained on a camera, SPAN, Real-ESRGAN: with their dB gain if measured), whether the lab is ready and the current job (training, converting…). Each network input reports its engine in video_estado. Help: help {&quot;topic&quot;: &quot;superres&quot;}.</translation>
+        <translation>Which super-resolution engines this system has (apple: VideoToolbox macOS 26, ~3 ms; fsr: AMD FSR 1, any GPU, no model; onnx: an ONNX model), the available ONNX models (small model trained on a camera, SPAN, Real-ESRGAN: with their dB gain if measured), whether the lab is ready and the current job (training, converting…). Each network input reports its engine in video_estado. Help: help {&quot;topic&quot;: &quot;superres&quot;}.</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -71381,7 +71381,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la sigue trabaja al doble y la escena la recibe grande. Lo de fábrica: `plugin`, el id de un plugin de superresolución instalado (superres_plugins: apple, fsr, realesr-general-x4v3, la red propia…): la app lo corre con lo mejor de ESTA máquina (CoreML en la Mac, ONNX con DirectML o TensorRT en Windows/Linux). Si la entrada ya tiene la tarjeta, le cambia el plugin. A mano (sin plugin): `motor` apple | fsr | onnx | coreml con `modelo` (ruta). `despues`: tras qué tarjeta (vacío: al final). `unidades` (redes CoreML en la Mac): auto (Neural Engine), ane, gpu o cpu: con dos redes a la vez, una en la GPU reparte la carga (la GPU también compone la imagen, así que suele ser más lenta). `proveedor` (redes ONNX en Windows/Linux): auto, dml (DirectML), vulkan (ncnn: AMD, Intel y NVIDIA; pasa la red a ncnn la primera vez), tensorrt, cuda, openvino, migraphx o cpu.</source>
-        <translation>A video graph CARD on `entrada` (camera, network or virtual) that upscales 2x; whatever follows works at double size and the scene receives it large. The default way: `plugin`, the id of an installed super-resolution plugin (superres_plugins: apple, fsr, realesr-general-x4v3, your own network…): the app runs it with the best THIS machine has (CoreML on the Mac, ONNX with DirectML or TensorRT on Windows/Linux). If the input already has the card, it changes its plugin. Manually (no plugin): `motor` apple | fsr | onnx | coreml with `modelo` (path). `despues`: after which card (empty: at the end). `unidades` (CoreML networks on the Mac): auto (Neural Engine), ane, gpu or cpu: with two networks at once, one on the GPU spreads the load (the GPU also composites the picture, so it&apos;s usually slower). `proveedor` (ONNX networks on Windows/Linux): auto, dml (DirectML), vulkan (ncnn: AMD, Intel and NVIDIA; converts the network to ncnn the first time), tensorrt, cuda, openvino, migraphx or cpu.</translation>
+        <translation>A video graph CARD on `entrada` (camera, network or virtual) that upscales 2x; whatever follows works at double size and the scene receives it large. The default way: `plugin`, the id of an installed super-resolution plugin (superres_plugins: apple, fsr, realesr-general-x4v3, your own model…): the app runs it with the best THIS machine has (CoreML on the Mac, ONNX with DirectML or TensorRT on Windows/Linux). If the input already has the card, it changes its plugin. Manually (no plugin): `motor` apple | fsr | onnx | coreml with `modelo` (path). `despues`: after which card (empty: at the end). `unidades` (CoreML models on the Mac): auto (Neural Engine), ane, gpu or cpu: with two models at once, one on the GPU spreads the load (the GPU also composites the picture, so it&apos;s usually slower). `proveedor` (ONNX models on Windows/Linux): auto, dml (DirectML), vulkan (ncnn: AMD, Intel and NVIDIA; converts the model to ncnn the first time), tensorrt, cuda, openvino, migraphx or cpu.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -71411,7 +71411,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+4"/>
         <source>Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, SPAN; shaders como FSRCNNX y Anime4K; los integrados apple y fsr) y los instalados que no están en él (la red propia entrenada con una cámara). Cada uno: qué hace, escala, plataformas, `instalado`, `aca` (si corre en esta máquina) y `ms_coreml` (lo que tarda medido). Se instalan con superres_instalar y se ponen con superres_tarjeta {plugin}.</source>
-        <translation>Super-resolution plugins: the catalog ones (networks like Real-ESRGAN, LSDIR, NomosUni, SPAN; shaders like FSRCNNX and Anime4K; the built-in apple and fsr) and installed ones not in it (your own network trained on a camera). Each one: what it does, scale, platforms, `instalado`, `aca` (whether it runs on this machine) and `ms_coreml` (its measured time). Install them with superres_instalar and add them with superres_tarjeta {plugin}.</translation>
+        <translation>Super-resolution plugins: the catalog ones (models like Real-ESRGAN, LSDIR, NomosUni, SPAN; shaders like FSRCNNX and Anime4K; the built-in apple and fsr) and installed ones not in it (your own model trained on a camera). Each one: what it does, scale, platforms, `instalado`, `aca` (whether it runs on this machine) and `ms_coreml` (its measured time). Install them with superres_instalar and add them with superres_tarjeta {plugin}.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -71436,7 +71436,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un shader o un plugin propio. Los del catálogo se pueden volver a instalar.</source>
-        <translation>Deletes an installed plugin&apos;s folder (`id`, from superres_plugins): an installed network, a shader or your own plugin. Catalog ones can be reinstalled.</translation>
+        <translation>Deletes an installed plugin&apos;s folder (`id`, from superres_plugins): an installed model, a shader or your own plugin. Catalog ones can be reinstalled.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -71446,7 +71446,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo (CoreML para el Neural Engine; ONNX fijo para TensorRT/DirectML). Cada una con su variante.json: qué es, `para` qué cámara, `entrada`/`red`/`salida` (tamaños), `archivos`, `medido` (ms y acelerador), cuándo y con qué se hizo. El motor usa sola la del tamaño que le llega; si no hay, la general. `faltan`: los tamaños de las cámaras del estudio sin variante de ese plugin.</source>
-        <translation>The variants of a super-resolution network: the same network compiled for a fixed input size (CoreML for the Neural Engine; fixed ONNX for TensorRT/DirectML). Each has its variante.json: what it is, `para` which camera, `entrada`/`red`/`salida` (sizes), `archivos`, `medido` (ms and accelerator), when and with what it was made. The engine automatically uses the one for the size it receives; if there&apos;s none, the general one. `faltan`: sizes of studio cameras without a variant for that plugin.</translation>
+        <translation>The variants of a super-resolution model: the same model compiled for a fixed input size (CoreML for the Neural Engine; fixed ONNX for TensorRT/DirectML). Each has its variante.json: what it is, `para` which camera, `entrada`/`red`/`salida` (sizes), `archivos`, `medido` (ms and accelerator), when and with what it was made. The engine automatically uses the one for the size it receives; if there&apos;s none, the general one. `faltan`: sizes of studio cameras without a variant for that plugin.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -71456,7 +71456,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+13"/>
         <source>Compilar una red de superresolución para un tamaño de entrada</source>
-        <translation>Compile a super-resolution network for an input size</translation>
+        <translation>Compile a super-resolution model for an input size</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -71531,7 +71531,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada `entrada` (de red o cámara local): graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para máquinas donde el maestro no da en vivo. `minutos` de entrenamiento; `cpu` true para no usar la GPU (más lento, no calienta); `aplicar` la pone en la entrada al terminar. Queda como plugin «destilada-&lt;entrada&gt;» (superres_plugins). El avance, en superres_estado.</source>
-        <translation>Trains a small network of your own (2x luma: runs live even on the CPU) that IMITATES a large catalog network (`maestro`: realesr-general-x4v3 by default, lsdir-compact-x4…) on what input `entrada` sees (network or local camera): records 60 s, the teacher processes each frame and the small one learns to match it. For machines where the teacher can&apos;t run live. `minutos` of training; `cpu` true to avoid the GPU (slower, doesn&apos;t heat up); `aplicar` puts it on the input when done. It becomes the plugin “destilada-&lt;entrada&gt;” (superres_plugins). Progress in superres_estado.</translation>
+        <translation>Trains a small model of your own (2x luma: runs live even on the CPU) that IMITATES a large catalog model (`maestro`: realesr-general-x4v3 by default, lsdir-compact-x4…) on what input `entrada` sees (network or local camera): records 60 s, the teacher processes each frame and the small one learns to match it. For machines where the teacher can&apos;t run live. `minutos` of training; `cpu` true to avoid the GPU (slower, doesn&apos;t heat up); `aplicar` puts it on the input when done. It becomes the plugin “destilada-&lt;entrada&gt;” (superres_plugins). Progress in superres_estado.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -71546,7 +71546,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+4"/>
         <source>Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que compila la red para esa placa; AMD en Linux: ROCm/MIGraphX; Intel: OpenVINO) y qué conviene. En Windows con AMD (también las integradas Ryzen) y en la Mac no hace falta: DirectML y CoreML vienen con el programa. Se baja con superres_runtime_gpu_instalar.</source>
-        <translation>Which graphics card there is, whether the GPU ONNX Runtime is downloaded (NVIDIA: CUDA + TensorRT, which compiles the network for that card; AMD on Linux: ROCm/MIGraphX; Intel: OpenVINO) and what&apos;s recommended. On Windows with AMD (including Ryzen integrated graphics) and on the Mac it isn&apos;t needed: DirectML and CoreML ship with the program. Download it with superres_runtime_gpu_instalar.</translation>
+        <translation>Which GPU there is, whether the GPU ONNX Runtime is downloaded (NVIDIA: CUDA + TensorRT, which compiles the model for that GPU; AMD on Linux: ROCm/MIGraphX; Intel: OpenVINO) and what&apos;s recommended. On Windows with AMD (including Ryzen integrated graphics) and on the Mac it isn&apos;t needed: DirectML and CoreML ship with the program. Download it with superres_runtime_gpu_instalar.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -71556,12 +71556,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red instalada con cada acelerador: Neural Engine y GPU en la Mac; DirectML, CUDA/TensorRT, ROCm, OpenVINO, Vulkan y el procesador en Windows/Linux) a 540p, 720p, 1080p y al tamaño de cada cámara, y dice cuál corre en vivo, cuál a menos cuadros y cuál solo sirve para lo grabado. `accion`: resultado (lo último medido, de fábrica), correr, estado o cancelar.</source>
-        <translation>The benchmark: measures every available super-resolution (FSR, Apple, the shaders and each installed network with each accelerator: Neural Engine and GPU on the Mac; DirectML, CUDA/TensorRT, ROCm, OpenVINO, Vulkan and the CPU on Windows/Linux) at 540p, 720p, 1080p and at each camera&apos;s size, and says which runs live, which at fewer frames and which is only good for recordings. `accion`: resultado (the latest measurement, default), correr, estado or cancelar.</translation>
+        <translation>The benchmark: measures every available super-resolution (FSR, Apple, the shaders and each installed model with each accelerator: Neural Engine and GPU on the Mac; DirectML, CUDA/TensorRT, ROCm, OpenVINO, Vulkan and the CPU on Windows/Linux) at 540p, 720p, 1080p and at each camera&apos;s size, and says which runs live, which at fewer frames and which is only good for recordings. `accion`: resultado (the latest measurement, default), correr, estado or cancelar.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con sondas). Veredicto con los cuadros del lienzo: en_vivo (entra en el 85 % del cuadro, con cuántas a la vez), reducido (hasta 2,5 cuadros), diferido, no_corre. `recomendado`: lo mejor por tamaño (entre lo que va en vivo, una red le gana a FSR). Queda en Config/superres-banco.json y el programador lo usa para saber cuánto va a costar una red antes de prenderla. Tarda unos minutos y calienta la máquina; no arranca con algo al aire salvo `forzar`. Opciones: `resoluciones` [&quot;1280x720&quot;…], `metodos` [ids de plugin], `segundos` por prueba (4).</source>
-        <translation>Measures how long the network really takes per frame (as measured by the element itself; FSR and shaders, with probes). Verdict based on the canvas frame rate: en_vivo (fits in 85 % of the frame, with how many at once), reducido (up to 2.5 frames), diferido, no_corre. `recomendado`: the best per size (among what runs live, a network beats FSR). Saved in Config/superres-banco.json and the scheduler uses it to know how much a network will cost before turning it on. Takes a few minutes and heats up the machine; doesn&apos;t start with something on air unless `forzar`. Options: `resoluciones` [&quot;1280x720&quot;…], `metodos` [plugin ids], `segundos` per test (4).</translation>
+        <translation>Measures how long the model really takes per frame (as measured by the element itself; FSR and shaders, with probes). Verdict based on the canvas frame rate: en_vivo (fits in 85 % of the frame, with how many at once), reducido (up to 2.5 frames), diferido, no_corre. `recomendado`: the best per size (among what runs live, a model beats FSR). Saved in Config/superres-banco.json and the scheduler uses it to know how much a model will cost before turning it on. Takes a few minutes and heats up the machine; doesn&apos;t start with something on air unless `forzar`. Options: `resoluciones` [&quot;1280x720&quot;…], `metodos` [plugin ids], `segundos` per test (4).</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -71586,7 +71586,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que conviene para esta placa), con versiones fijas de PyPI verificadas por sha256. NVIDIA: varios GB (CUDA 13, cuDNN, TensorRT; `tensorrt` false para bajar solo CUDA). Al terminar hay que reiniciar el programa. El avance, en superres_estado (`trabajo`).</source>
-        <translation>Downloads into Datos (portable) the GPU ONNX Runtime for `tipo` (nvidia, amd or intel; empty = the right one for this card), with pinned PyPI versions verified by sha256. NVIDIA: several GB (CUDA 13, cuDNN, TensorRT; `tensorrt` false to download only CUDA). When it finishes, restart the program. Progress in superres_estado (`trabajo`).</translation>
+        <translation>Downloads into Datos (portable) the GPU ONNX Runtime for `tipo` (nvidia, amd or intel; empty = the right one for this GPU), with pinned PyPI versions verified by sha256. NVIDIA: several GB (CUDA 13, cuDNN, TensorRT; `tensorrt` false to download only CUDA). When it finishes, restart the program. Progress in superres_estado (`trabajo`).</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -71601,7 +71601,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a ONNX y, en la Mac, a CoreML para el Neural Engine (y se mide cuánto tarda); un shader se guarda. Corre en el laboratorio (la primera vez baja PyTorch): el avance, en superres_estado (`trabajo`).</source>
-        <translation>Downloads plugin `id` (verified by sha256) and prepares it for this machine: a network is exported to ONNX and, on the Mac, to CoreML for the Neural Engine (and its timing is measured); a shader is saved. Runs in the lab (the first time it downloads PyTorch): progress in superres_estado (`trabajo`).</translation>
+        <translation>Downloads plugin `id` (verified by sha256) and prepares it for this machine: a model is exported to ONNX and, on the Mac, to CoreML for the Neural Engine (and its timing is measured); a shader is saved. Runs in the lab (the first time it downloads PyTorch): progress in superres_estado (`trabajo`).</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -71617,7 +71617,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la elección de placa usá superres_tarjeta {plugin}.) Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la de Apple, la mejor en una Mac con macOS 26), fsr (FSR 1, cualquier GPU), onnx (con `modelo`: el archivo de superres_estado, p. ej. chica-Camara_1.onnx) o vacío para sacarla. Con un motor lento la entrada pierde cuadros: mirá superres_ms en video_estado (tiene que quedar bastante debajo de lo que dura un cuadro del lienzo: 1000/fps ms, 33 ms a 30 fps, 16 ms a 60).</source>
-        <translation>(Old method, in the source settings: for CoreML networks, shaders, plugins and choosing the GPU use superres_tarjeta {plugin}.) Doubles the resolution of a network input (`entrada`) with `motor`: apple (Apple&apos;s, the best on a Mac with macOS 26), fsr (FSR 1, any GPU), onnx (with `modelo`: the file from superres_estado, e.g. chica-Camara_1.onnx) or empty to remove it. With a slow engine the input drops frames: check superres_ms in video_estado (it must stay well below one canvas frame&apos;s duration: 1000/fps ms, 33 ms at 30 fps, 16 ms at 60).</translation>
+        <translation>(Old method, in the source settings: for CoreML models, shaders, plugins and choosing the GPU use superres_tarjeta {plugin}.) Doubles the resolution of a network input (`entrada`) with `motor`: apple (Apple&apos;s, the best on a Mac with macOS 26), fsr (FSR 1, any GPU), onnx (with `modelo`: the file from superres_estado, e.g. chica-Camara_1.onnx) or empty to remove it. With a slow engine the input drops frames: check superres_ms in video_estado (it must stay well below one canvas frame&apos;s duration: 1000/fps ms, 33 ms at 30 fps, 16 ms at 60).</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -71642,7 +71642,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; ~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en la placa—, dónde y cuánto ocupa), instalar (las baja ya, sin esperar a bajar un modelo) o borrar (libera el espacio; se vuelven a bajar cuando hagan falta). Instalar corre en segundo plano: superres_trabajo {esperar} para seguirlo.</source>
-        <translation>The libraries used to download, convert and train the networks (PyTorch, spandrel, onnx; ~800 MB, once). `accion`: estado (whether it&apos;s there, whether it uses DirectML —AMD/Intel on Windows: trains on the GPU—, where and how much space it takes), instalar (downloads them now, without waiting to download a model) or borrar (frees the space; they&apos;re downloaded again when needed). Installing runs in the background: superres_trabajo {esperar} to follow it.</translation>
+        <translation>The libraries used to download, convert and train the models (PyTorch, spandrel, onnx; ~800 MB, once). `accion`: estado (whether it&apos;s there, whether it uses DirectML —AMD/Intel on Windows: trains on the GPU—, where and how much space it takes), instalar (downloads them now, without waiting to download a model) or borrar (frees the space; they&apos;re downloaded again when needed). Installing runs in the background: superres_trabajo {esperar} to follow it.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -71698,12 +71698,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+14"/>
         <source>Entrenar la red chica mirando una cámara (un botón)</source>
-        <translation>Train the small network by watching a camera (one button)</translation>
+        <translation>Train the small model by watching a camera (one button)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su dirección; una cámara local, cuadros de lo que sale de su grafo (4 por segundo). Arma pares «la imagen achicada y comprimida -&gt; la original» y entrena una red chica (solo luma, x2) `minutos` minutos (5 de fábrica) para deshacer lo que hace ESA cámara. Si ya había una red de esa entrada, sigue desde ella. Con `aplicar` (de fábrica, sí) la pone en la entrada al terminar. Dice cuánto mejora contra el agrandado común (dB). Corre en segundo plano: el avance en superres_estado.</source>
-        <translation>Records ~1 minute of input `entrada` without touching the on-air picture: a network one, from its address; a local camera, frames of what comes out of its graph (4 per second). Builds pairs “the downscaled, compressed picture -&gt; the original” and trains a small network (luma only, 2x) for `minutos` minutes (5 by default) to undo what THAT camera does. If there was already a network for that input, it continues from it. With `aplicar` (default: yes) it puts it on the input when done. Reports how much it improves over regular upscaling (dB). Runs in the background: progress in superres_estado.</translation>
+        <translation>Records ~1 minute of input `entrada` without touching the on-air picture: a network one, from its address; a local camera, frames of what comes out of its graph (4 per second). Builds pairs “the downscaled, compressed picture -&gt; the original” and trains a small model (luma only, 2x) for `minutos` minutes (5 by default) to undo what THAT camera does. If there was already a model for that input, it continues from it. With `aplicar` (default: yes) it puts it on the input when done. Reports how much it improves over regular upscaling (dB). Runs in the background: progress in superres_estado.</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -72615,7 +72615,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+3"/>
         <source>rostro cara persona quien es reconocer identificar nombre cargo libreta caras conocidas quien llego quien esta</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>face person who is it recognize identify name title face book known faces who arrived who is here</translation>
+        <translation>face person who is it recognize identify name title face registry known faces who arrived who is here</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -72747,7 +72747,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>central de conferencia bosch dcn ccu microfonos de banca unidades consola delegados</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>conference system bosch dcn ccu seat microphones delegate units console</translation>
+        <translation>central unit conference system bosch dcn ccu seat microphones delegate units console</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -72813,7 +72813,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>editor escenas corte directo armar preview boton al aire</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>scene editor direct cut build preview on air button</translation>
+        <translation>scene editor direct cut load preview on air button</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73257,7 +73257,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>votar desde el celular votacion remota abrir votacion sin la central cartel rojo cuenta regresiva</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>vote from phone remote voting open vote without the conference system red sign countdown</translation>
+        <translation>vote from phone remote voting open vote without the central unit red sign countdown</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73281,7 +73281,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>central de conferencia bosch dcn microfonos de banca estado de la sala quien habla</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>conference system bosch dcn seat microphones room status who is speaking</translation>
+        <translation>central unit bosch dcn seat microphones room status who is speaking</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73347,7 +73347,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>unidades de la central banca de cada unidad microfonos conectados</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>conference system units each unit&apos;s seat connected microphones</translation>
+        <translation>central unit units: each unit&apos;s seat connected microphones</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73359,7 +73359,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>votar en la central abrir la votacion cerrar la votacion votacion nominal de la sala</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>vote on the conference system open the vote close the vote roll call vote in the room</translation>
+        <translation>vote on the central unit open the vote close the vote roll call vote in the room</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73371,7 +73371,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>presentes en la sala asistencia de la central quien esta</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>present in the room attendance from the conference system who is here</translation>
+        <translation>present in the room attendance from the central unit who is here</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73383,13 +73383,13 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>quorum con los presentes de la central asistencia para el quorum</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>quorum with those present from the conference system attendance for quorum</translation>
+        <translation>quorum with those present from the central unit attendance for quorum</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>simular voto probar votacion sin la central</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>simulate vote test voting without the conference system</translation>
+        <translation>simulate vote test voting without the central unit</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73401,13 +73401,13 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>conectar la central bosch dcn puerto serie rs232 ccu conferencia</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>connect bosch dcn conference system serial port rs232 ccu conference</translation>
+        <translation>connect bosch dcn central unit serial port rs232 ccu conference</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>soltar la central desconectar la ccu</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>release conference system disconnect ccu</translation>
+        <translation>release central unit disconnect ccu</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73419,13 +73419,13 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>tramas de la central diagnostico protocolo</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>conference system frames diagnostics protocol</translation>
+        <translation>central unit frames diagnostics protocol</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>simular un pedido de palabra probar sin la central</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>simulate request to speak test without the conference system</translation>
+        <translation>simulate request to speak test without the central unit</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73701,7 +73701,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>cut corte seco escena armada</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>cut hard cut staged scene take</translation>
+        <translation>cut hard cut loaded scene take</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73731,7 +73731,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>caidas reinicio causa crash supervisor</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>crashes restart cause crash supervisor</translation>
+        <translation>crashes restart cause crash watchdog</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -74025,13 +74025,13 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+6"/>
         <source>dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el proximo plano bus de preview previo antes de sacarlo cuear siguiente escena mesa switcher</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>stage it get it ready prepare the next one set up the next one cue up prepare the next shot preview bus preview before taking it cue next scene switcher</translation>
+        <translation>load it get it ready prepare the next one set up the next one load prepare the next shot preview bus preview before taking it cue next scene switcher</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>sacar al aire lo armado sacar la armada tomar el take ya take sacar al aire la armada cortar ahora disparar el plano preparado mesa switcher</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>take what&apos;s staged take the staged scene take it take now put the staged scene on air cut now fire the prepared shot switcher</translation>
+        <translation>take what&apos;s loaded take the loaded scene take it take now put the loaded scene on air cut now fire the loaded shot switcher</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -74601,7 +74601,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>placa de sonido a donde sale dispositivo de la salida virtual</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>sound card where it goes out virtual output device</translation>
+        <translation>sound card audio interface where it goes out virtual output device</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -74619,7 +74619,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>dispositivos placas de sonido auriculares salidas del equipo</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>devices sound cards headphones machine outputs</translation>
+        <translation>devices sound cards audio interfaces headphones machine outputs</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -74649,7 +74649,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>entradas y salidas del equipo enchufado parlantes placa usb canales</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>machine inputs and outputs plugged in speakers usb card channels</translation>
+        <translation>machine inputs and outputs plugged in speakers usb audio interface channels</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -75171,7 +75171,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>boton tarjeta del tablero agregar accion direccion al aire armada take tiempos del guion desvio</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>dashboard card button add action direction on air staged take rundown times deviation</translation>
+        <translation>dashboard card button add action direction on air loaded take rundown times deviation</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -75939,7 +75939,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>ponerle nombre a una camara microfono placa de sonido capturadora renombrar dispositivo nombre del operador como se llama</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>name a camera microphone sound card capture card rename device operator name what is it called</translation>
+        <translation>name a camera microphone sound card audio interface capture card rename device operator name what is it called</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -75957,7 +75957,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>drivers cuarentena driver colgado asio jack jackrouter asio4all sar placa de sonido no anda proveedor de dispositivos wasapi media foundation decklink que driver falla</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>drivers quarantine hung driver asio jack jackrouter asio4all sar sound card not working device provider wasapi media foundation decklink which driver fails</translation>
+        <translation>drivers quarantine hung driver asio jack jackrouter asio4all sar sound card audio interface not working device provider wasapi media foundation decklink which driver fails</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -76515,7 +76515,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>borrar modelo superresolucion red onnx espacio</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>delete super-resolution model network onnx space</translation>
+        <translation>delete super-resolution model neural network onnx space</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -76929,13 +76929,13 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>que personas hay guardadas libreta conocidas</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>which people are saved address book known</translation>
+        <translation>which people are saved face registry known</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>borrar una persona olvidar una cara sacar de la libreta</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>delete a person forget a face remove from the address book</translation>
+        <translation>delete a person forget a face remove from the face registry</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -77049,7 +77049,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+3"/>
         <source>link de atencion remota del registro qr para el equipo atender los totems desde el celular mirar y escuchar las conversaciones ayudar a la gente renovar</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>check-in remote attendance link qr for the team attend the kiosks from the phone watch and listen to conversations help people renew</translation>
+        <translation>check-in remote support link qr for the team attend the kiosks from the phone watch and listen to conversations help people renew</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -77145,7 +77145,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>destilar destilacion entrenar red propia maestro esrgan imitar camara superresolucion</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>distill distillation train own network teacher esrgan imitate camera super-resolution</translation>
+        <translation>distill distillation train own model teacher esrgan imitate camera super-resolution</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -77385,7 +77385,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location line="+2"/>
         <source>entrenar una red para esta camara aprender de la camara mejorar a medida entrenamiento</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation>train a network for this camera learn from the camera custom improvement training</translation>
+        <translation>train a model for this camera learn from the camera custom improvement training</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -78593,7 +78593,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+26"/>
         <source>no hay nada armado en el preview</source>
-        <translation>nothing is set up in preview</translation>
+        <translation>nothing is loaded in preview</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -79384,7 +79384,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+1"/>
         <source>Rojo si esa cámara está AL AIRE, verde si está armada para el próximo take. Se mira de reojo desde atrás de la cámara, así que es la pantalla entera de color. `fuente` es el nombre de la cámara o de la escena; vacío muestra el estado general, que sirve para la cabina.</source>
-        <translation>Red if that camera is ON AIR, green if it is set up for the next take. It is glanced at from behind the camera, so the whole screen is the color. `fuente` is the camera or scene name; empty shows the overall status, useful for the control room.</translation>
+        <translation>Red if that camera is ON AIR, green if it is loaded for the next take. It is glanced at from behind the camera, so the whole screen is the color. `fuente` is the camera or scene name; empty shows the overall status, useful for the control room.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -79903,27 +79903,27 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location filename="../src/app/control/Botonera.cpp" line="-678"/>
         <location filename="../src/app/ui/PrompterViewModel.cpp" line="-28"/>
         <source>Redondeá</source>
-        <translation type="unfinished">Wrap up</translation>
+        <translation>Wrap up</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Un minuto</source>
-        <translation type="unfinished">One minute</translation>
+        <translation>One minute</translation>
     </message>
     <message>
         <location filename="../src/app/ui/PrompterViewModel.cpp" line="+0"/>
         <source>Más despacio</source>
-        <translation type="unfinished"></translation>
+        <translation>Slow down</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Se escucha bajo</source>
-        <translation type="unfinished"></translation>
+        <translation>Sounds quiet</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Mirá a cámara</source>
-        <translation type="unfinished">Look at the camera</translation>
+        <translation>Look at the camera</translation>
     </message>
 </context>
 <context>
@@ -79996,7 +79996,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Cámaras IP en general (Profile S). «Buscar en la red» las encuentra solas.</source>
-        <translation>IP cameras in general (Profile S). “Search network” finds them automatically.</translation>
+        <translation>IP cameras in general (Profile S). “Search the network” finds them automatically.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -81074,7 +81074,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Recepción (atención hablada)</source>
-        <translation>Reception (spoken assistance)</translation>
+        <translation>Reception (voice assistance)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81125,12 +81125,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+19"/>
         <source>%1: %2 no entiende %3, y ningún otro reconocedor lo entiende.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2 doesn&apos;t understand %3, and no other recognizer does.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>%1: %2 no entiende %3; %4 sí (elegilo en la pestaña Agentes).</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2 doesn&apos;t understand %3; %4 does (pick it in the Agents tab).</translation>
     </message>
 </context>
 <context>
@@ -81191,7 +81191,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="-245"/>
         <source>El supervisor detecto un problema en los procesos hijos:</source>
-        <translation>The supervisor detected a problem in the child processes:</translation>
+        <translation>The watchdog detected a problem in the child processes:</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -81221,7 +81221,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>El supervisor requiere una accion del operador.</source>
-        <translation>The supervisor needs an operator action.</translation>
+        <translation>The watchdog needs an operator action.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -81823,7 +81823,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+182"/>
         <source>no se pudo publicar el link de atención remota: %1</source>
-        <translation>couldn&apos;t publish the remote assistance link: %1</translation>
+        <translation>couldn&apos;t publish the remote support link: %1</translation>
     </message>
     <message>
         <location line="+97"/>
@@ -81843,17 +81843,17 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+30"/>
         <source>tótem «%1» (%2): atención terminada (%3)</source>
-        <translation>kiosk “%1” (%2): assistance ended (%3)</translation>
+        <translation>kiosk “%1” (%2): remote support ended (%3)</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>atención remota: intento fallido desde %1</source>
-        <translation>remote assistance: failed attempt from %1</translation>
+        <translation>remote support: failed attempt from %1</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>atención remota: entró «%1» desde %2</source>
-        <translation>remote assistance: “%1” joined from %2</translation>
+        <translation>remote support: “%1” joined from %2</translation>
     </message>
     <message>
         <location line="+112"/>
@@ -82078,7 +82078,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Asamblea: central de conferencia (micrófonos de banca), recinto, orden del día y votación</source>
-        <translation>Assembly: conference system (seat microphones), chamber, agenda and voting</translation>
+        <translation>Assembly: central unit (seat microphones), chamber, agenda and voting</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -82158,7 +82158,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+3"/>
         <source>Entradas de audio: los micrófonos, líneas y placas que usa el evento, y si están conectados</source>
-        <translation>Audio inputs: the microphones, lines and interfaces the event uses, and whether they&apos;re connected</translation>
+        <translation>Audio inputs: the microphones, lines and audio interfaces the event uses, and whether they&apos;re connected</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -82178,7 +82178,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+1"/>
         <source>Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI</source>
-        <translation>Control surface: control surface on a tablet (QR), Stream Deck or MIDI</translation>
+        <translation>Control surface: on a tablet (QR), Stream Deck or MIDI</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -82226,17 +82226,17 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location filename="../src/app/ui/PersonasViewModel.cpp" line="-437"/>
         <source>alta automática: «%1» (ficha %2, lobby %3)</source>
-        <translation>auto-added: “%1” (record %2, lobby %3)</translation>
+        <translation>auto-added: “%1” (profile %2, lobby %3)</translation>
     </message>
     <message>
         <location line="+227"/>
         <source>auto-aceptada del evento: «%1» (ficha %2, lobby %3, parecido %4)</source>
-        <translation>auto-accepted from the event: “%1” (record %2, lobby %3, similarity %4)</translation>
+        <translation>auto-accepted from the event: “%1” (profile %2, lobby %3, similarity %4)</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>acreditado en la puerta: «%1» (ficha %2)</source>
-        <translation>checked in at the door: “%1” (record %2)</translation>
+        <translation>checked in at the door: “%1” (profile %2)</translation>
     </message>
     <message>
         <location filename="../src/core/rostros/Personas.cpp" line="+139"/>
@@ -83761,7 +83761,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location filename="../src/app/agent/Traductor.cpp" line="+37"/>
         <source>Señor presidente, solicito pasar a cuarto intermedio.</source>
-        <translation type="unfinished"></translation>
+        <translation>Mr. Chairman, I move for a recess.</translation>
     </message>
 </context>
 <context>
@@ -83793,7 +83793,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
         <location filename="../src/app/facebook/FacebookClient.cpp" line="-183"/>
         <location filename="../src/app/youtube/YouTubeClient.cpp" line="-22"/>
         <source>Transmision en vivo</source>
-        <translation type="unfinished"></translation>
+        <translation>Live stream</translation>
     </message>
 </context>
 <context>
@@ -84347,7 +84347,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Armado</source>
-        <translation>Preview</translation>
+        <translation>Loaded</translation>
     </message>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-159"/>
@@ -84444,7 +84444,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location filename="../src/gateway/RegistroAtiende.cpp" line="+5"/>
         <source>Este enlace de atención no es válido (o lo cambiaron). Pedí el nuevo.</source>
-        <translation>This help desk link is not valid (or it was changed). Ask for the new one.</translation>
+        <translation>This support link is not valid (or it was changed). Ask for the new one.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -84469,7 +84469,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+31"/>
         <source>Cambiaron el enlace de atención (o se cerró el evento).</source>
-        <translation>The help desk link was changed (or the event was closed).</translation>
+        <translation>The support link was changed (or the event was closed).</translation>
     </message>
     <message>
         <location filename="../src/gateway/Sesion.cpp" line="+8"/>
@@ -84913,12 +84913,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Nadie tiene la palabra</source>
-        <translation>No one has the floor</translation>
+        <translation>Nobody has the floor</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Nadie pidió la palabra.</source>
-        <translation>No one asked for the floor.</translation>
+        <translation>Nobody has asked for the floor.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -84948,7 +84948,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Más despacio</source>
-        <translation>Slower</translation>
+        <translation>Slow down</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -84973,7 +84973,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Avisarle al orador</source>
-        <translation>Notify the speaker</translation>
+        <translation>Signal the speaker</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -85023,7 +85023,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Conferencia cerrada</source>
-        <translation>Conference closed</translation>
+        <translation>Conference locked</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -85914,9 +85914,9 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message numerus="yes">
         <location line="+2"/>
         <source>%n día %1 h</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n day %1 h</numerusform>
+            <numerusform>%n days %1 h</numerusform>
         </translation>
     </message>
     <message>
@@ -85982,12 +85982,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>%1 terminó. Acá queda la grabación y todo lo que pasó.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 is over. The recording and everything that happened stay here.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Parte de %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>Part of %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
@@ -86005,42 +86005,42 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>%1 · %2 · en vivo por internet.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · %2 · live online.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 · en vivo por internet.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · live online.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Hora de %1</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 time</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>(hora de %1)</source>
-        <translation type="unfinished"></translation>
+        <translation>(%1 time)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>El día y la hora se confirman acá.</source>
-        <translation type="unfinished"></translation>
+        <translation>The date and time will be confirmed here.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>El %1 (hora de %2).</source>
-        <translation type="unfinished"></translation>
+        <translation>On %1 (%2 time).</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>El %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>On %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Sección %1 / %2</source>
-        <translation type="unfinished"></translation>
+        <translation>Section %1 / %2</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -86203,9 +86203,9 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message numerus="yes">
         <location line="+2"/>
         <source>%1 de %n integrante presente</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%1 of %n member present</numerusform>
+            <numerusform>%1 of %n members present</numerusform>
         </translation>
     </message>
     <message>
@@ -87102,7 +87102,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Volver a entrar</source>
-        <translation>Join again</translation>
+        <translation>Rejoin</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -87683,7 +87683,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>pidió la palabra</source>
-        <translation>asked for the floor</translation>
+        <translation>requested the floor</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -87693,7 +87693,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Pidieron la palabra</source>
-        <translation>Asked for the floor</translation>
+        <translation>Requested the floor</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -87703,7 +87703,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Votación</source>
-        <translation>Vote</translation>
+        <translation>Voting</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -87826,7 +87826,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Control del teleprompter</source>
-        <translation>Teleprompter control</translation>
+        <translation>Teleprompter remote</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -87906,7 +87906,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Avisarle al orador</source>
-        <translation>Alert the speaker</translation>
+        <translation>Signal the speaker</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -88019,7 +88019,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>consulta, no vinculante</source>
-        <translation>consultation, non-binding</translation>
+        <translation>advisory, non-binding</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -88413,12 +88413,12 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Este enlace de atención no es válido.</source>
-        <translation>This help link isn&apos;t valid.</translation>
+        <translation>This support link isn&apos;t valid.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Se cerró la atención.</source>
-        <translation>The help session was closed.</translation>
+        <translation>Remote support was closed.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -88433,7 +88433,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Este enlace de atención no está completo. Pedí el enlace de nuevo.</source>
-        <translation>This help link is incomplete. Ask for the link again.</translation>
+        <translation>This support link is incomplete. Ask for the link again.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -88443,7 +88443,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Atención del registro</source>
-        <translation>Check-in help</translation>
+        <translation>Check-in support</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -88533,7 +88533,7 @@ Changing it rebuilds the input (a moment without picture: better off air). estud
     <message>
         <location line="+2"/>
         <source>Atención cerrada</source>
-        <translation>Help session closed</translation>
+        <translation>Remote support closed</translation>
     </message>
 </context>
 <context>

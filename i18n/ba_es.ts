@@ -461,7 +461,7 @@
 <context>
     <name>Main</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/Main.qml" line="+177"/>
+        <location filename="../src/app/qml/Main.qml" line="+181"/>
         <source>Alcanza para ~%n minutos de grabación a este bitrate. ¿Grabar igual?</source>
         <translation>
             <numerusform>Alcanza para ~%n minuto de grabación a este bitrate. ¿Grabar igual?</numerusform>
