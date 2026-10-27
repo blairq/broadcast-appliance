@@ -84,7 +84,7 @@ StatusPill {
             text: qsTr("Pedirle al asistente que me guíe")
             enabled: !!Studio.agent && Studio.agent.running
             onTriggered: ApplicationWindow.window.pedirAlAsistente(
-                "Ayudame a poner en marcha lo que falta de la inteligencia artificial: mirá ia_estado y seguí la guía puesta-en-marcha, de a un paso.")
+                qsTr("Ayudame a poner en marcha lo que falta de la inteligencia artificial: mirá ia_estado y seguí la guía puesta-en-marcha, de a un paso."))
         }
     }
 }

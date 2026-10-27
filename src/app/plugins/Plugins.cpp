@@ -2011,8 +2011,8 @@ void Plugins::importar(const std::string& archivo, bool reemplazar, std::functio
                 r = {{"error", ba::i18n::llenar(ba::i18n::traducir("plugins", "no se pudo abrir el zip: %1"), {err.right(800).toStdString()})}};
             if (!r.contains("error")) {
                 r["estado"] = estado(r.value("id", std::string()));
-                r["siguiente"] =
-                    "plugin_probar y plugin_activar (las bibliotecas se bajan al probarlo o prenderlo)";
+                r["siguiente"] = ba::i18n::traducir(
+                    "asistente", "plugin_probar y plugin_activar (las bibliotecas se bajan al probarlo o prenderlo)");
                 emit cambio();
             }
             listo(r);
@@ -2026,7 +2026,7 @@ void Plugins::exportarUi(const QString& id) {
         if (r.contains("error")) return emit yo->aviso(q(r.value("error", std::string())), false);
         const QString arch = q(r.value("archivo", std::string()));
         QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(arch).absolutePath()));
-        emit yo->aviso("Exportado: " + arch, true);
+        emit yo->aviso(QCoreApplication::translate("plugins", "Exportado: %1").arg(arch), true);
     });
 }
 

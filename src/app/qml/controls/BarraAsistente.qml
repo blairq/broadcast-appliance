@@ -59,7 +59,8 @@ Panel {
     function mandar(texto) {
         const t = String(texto).trim()
         if (t === "" || !listo) return
-        ag.send(barra.contexto === "" ? t : barra.contexto + " " + t)
+        //: el contexto de la página (%1) y lo que pidió el operador (%2), para el asistente
+        ag.send(barra.contexto === "" ? t : qsTr("%1 %2").arg(barra.contexto).arg(t))
         campo.text = ""
         barra.mandado(t)
     }

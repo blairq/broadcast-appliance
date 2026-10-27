@@ -157,8 +157,9 @@ Rectangle {
                             compact: true; text: qsTr("Pedírselo"); active: true
                             enabled: Studio.agent.running && pedido.text.trim() !== ""
                             onClicked: {
-                                Studio.agent.send("Hacé un plugin de Python para esto (help {\"topic\": \"plugins\"}): " + pedido.text.trim() +
-                                                  ". Probalo con plugin_probar antes de activarlo y contame cómo se usa.")
+                                Studio.agent.send(qsTr("Hacé un plugin de Python para esto (help {\"topic\": \"plugins\"}): %1. " +
+                                                       "Probalo con plugin_probar antes de activarlo y contame cómo se usa.")
+                                                  .arg(pedido.text.trim()))
                                 pedido.text = ""
                                 Studio.notify(qsTr("Se lo pasé al asistente ✦"), "info")
                             }

@@ -984,13 +984,13 @@ Item {
         // --- El asistente -----------------------------------------------------------
         BarraAsistente {
             Layout.fillWidth: true
-            contexto: "[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]"
+            contexto: qsTr("[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]")
             sugerencias: [
-                { t: qsTr("Guiame paso a paso"), p: "Guiame paso a paso para calibrar esta sala: qué cargar, dónde poner el micrófono y cuándo medir. Esperá mi confirmación antes de cada barrido." },
-                { t: qsTr("Explicame la sala"), p: "Mirá el análisis de la calibración y explicame en criollo qué tiene esta sala: modos, reverberación, qué se nota al hablar." },
-                { t: qsTr("¿Qué conviene corregir?"), p: "Revisá la propuesta de la calibración: ¿los filtros tienen sentido? ¿hay algo que convenga resolver moviendo parlantes en vez de ecualizar?" },
-                { t: qsTr("Revisá la verificación"), p: "Compará antes y después de la calibración. Si algo empeoró, decime qué revertir o ajustar." },
-                { t: qsTr("Calibrar mi SM58"), p: "Quiero usar un SM58 para medir. Explicame cómo calibrarlo por sustitución si consigo un micrófono de medición, y qué límites tiene si no." }
+                { t: qsTr("Guiame paso a paso"), p: qsTr("Guiame paso a paso para calibrar esta sala: qué cargar, dónde poner el micrófono y cuándo medir. Esperá mi confirmación antes de cada barrido.") },
+                { t: qsTr("Explicame la sala"), p: qsTr("Mirá el análisis de la calibración y explicame en criollo qué tiene esta sala: modos, reverberación, qué se nota al hablar.") },
+                { t: qsTr("¿Qué conviene corregir?"), p: qsTr("Revisá la propuesta de la calibración: ¿los filtros tienen sentido? ¿hay algo que convenga resolver moviendo parlantes en vez de ecualizar?") },
+                { t: qsTr("Revisá la verificación"), p: qsTr("Compará antes y después de la calibración. Si algo empeoró, decime qué revertir o ajustar.") },
+                { t: qsTr("Calibrar mi SM58"), p: qsTr("Quiero usar un SM58 para medir. Explicame cómo calibrarlo por sustitución si consigo un micrófono de medición, y qué límites tiene si no.") }
             ]
         }
     }

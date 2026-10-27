@@ -230,9 +230,9 @@ ScrollView {
             extra: [
                 GlassButton {
                     compact: true; text: qsTr("✦ Que las arme el asistente"); active: true
-                    onClicked: pw.pedirAsistente("Personalizá la página web de este evento con `evento_web`: leé el guion, "
+                    onClicked: pw.pedirAsistente(qsTr("Personalizá la página web de este evento con `evento_web`: leé el guion, "
                         + "y escribí la portada, cada sección y el cierre con contenido de verdad (de qué se trata cada parte, "
-                        + "quién habla, horarios), un diseño cuidado y los datos en vivo de vivo.js. Después pasame la dirección con qr_mostrar.")
+                        + "quién habla, horarios), un diseño cuidado y los datos en vivo de vivo.js. Después pasame la dirección con qr_mostrar."))
                 },
                 GlassButton { compact: true; text: qsTr("Abrir la carpeta"); onClicked: Qt.openUrlExternally("file://" + pw.w.carpeta) }
             ]
@@ -250,8 +250,8 @@ ScrollView {
                     GlassButton { compact: true; text: qsTr("Ver"); enabled: pw.urlPublica !== "" && modelData.existe
                                   onClicked: Qt.openUrlExternally(pw.urlPublica + "/evento/" + modelData.pagina) }
                     GlassButton { compact: true; text: "✦"
-                                  onClicked: pw.pedirAsistente("Personalizá la página «" + (modelData.nombre || modelData.pagina)
-                                      + "» del sitio del evento con `evento_web` (pagina: " + modelData.pagina + ").")
+                                  onClicked: pw.pedirAsistente(qsTr("Personalizá la página «%1» del sitio del evento con `evento_web` (pagina: %2).")
+                                      .arg(modelData.nombre || modelData.pagina).arg(modelData.pagina))
                                   ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Pedile al asistente que la personalice") }
                 }
             }

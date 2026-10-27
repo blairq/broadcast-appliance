@@ -236,9 +236,9 @@ Rectangle {
                                             // agrega de qué fuente se habla, que es lo que el
                                             // asistente necesita para no adivinar.
                                             ApplicationWindow.window.pedirAlAsistente(
-                                                "Hablo de la fuente de gráfico «" + tarjeta.modelData.fuente +
-                                                "», que muestra «" + tarjeta.modelData.grafico + "» (id " +
-                                                tarjeta.modelData.id + "). " + modelData.prompt)
+                                                qsTr("Hablo de la fuente de gráfico «%1», que muestra «%2» (id %3). %4")
+                                                    .arg(tarjeta.modelData.fuente).arg(tarjeta.modelData.grafico)
+                                                    .arg(tarjeta.modelData.id).arg(modelData.prompt))
                                         }
                                         ToolTip.visible: hovered
                                         ToolTip.text: modelData.prompt

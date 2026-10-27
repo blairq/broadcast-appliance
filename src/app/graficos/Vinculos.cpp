@@ -145,8 +145,8 @@ QJsonObject Vinculos::resolver(const QJsonObject& v, QString* error) const {
     }
     if (error != nullptr)
         *error = faltan.isEmpty() ? QString()
-                                  : "no sé de dónde sacar " + faltan.join(", ") +
-                                        " (mirá los orígenes que hay, con rotulo_vinculos)";
+                                  : tr("no sé de dónde sacar %1 (mirá los orígenes que hay, con rotulo_vinculos)")
+                                        .arg(faltan.join(", "));
     return out;
 }
 

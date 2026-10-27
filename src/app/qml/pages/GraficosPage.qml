@@ -556,11 +556,11 @@ Rectangle {
                                 compact: true
                                 enabled: Studio.agent.running
                                 onClicked: ApplicationWindow.window.pedirAlAsistente(
-                                    "Proponé los botones («acciones») de este gráfico y escribilos en su " +
+                                    qsTr("Proponé los botones («acciones») de este gráfico y escribilos en su " +
                                     "grafico.json: cada uno con «titulo» corto, «icono» de un carácter y " +
                                     "«prompt» redactado como se lo pediría el operador en vivo. Mirá qué " +
                                     "parámetros tiene para saber qué le van a querer cambiar, y no pongas " +
-                                    "más de cuatro.")
+                                    "más de cuatro."))
                             }
 
                             Rectangle {
