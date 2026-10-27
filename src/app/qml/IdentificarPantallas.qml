@@ -5,11 +5,18 @@
 // y ver adónde iba. Esto pone el número y el nombre, grandes, en cada pantalla
 // a la vez, que es como lo resuelven los sistemas operativos.
 //
-// Y DE PASO PRUEBA SI SE PUEDE. En un escritorio que no deja que un programa
-// coloque sus ventanas, esto es lo único que igual funciona: no pide una
-// posición, pide PANTALLA COMPLETA EN UN MONITOR, que es una petición
-// distinta y los compositores sí la respetan. Si aparecen los dos carteles en
-// los dos monitores, mandar una ventana a un monitor también va a andar.
+// EL MISMO NÚMERO QUE LA PÁGINA. Los monitores salen de Studio.monitores (el
+// orden físico de pantallas/Monitores, de izquierda a derecha): el «2» del
+// cartel es el «2» de la página Pantallas, no el orden en que el sistema los
+// lista, que puede ser cualquiera.
+//
+// CÓMO SE PONE, SEGÚN EL SISTEMA. En Linux (Wayland) un programa no puede
+// colocar sus ventanas: lo único que el compositor respeta es PANTALLA
+// COMPLETA EN UN MONITOR, y de paso eso prueba que mandar una ventana a un
+// monitor va a andar. En macOS, en cambio, la pantalla completa es la nativa
+// (un escritorio propio con animación) y no se puede pedir para varias
+// ventanas a la vez: entraba UNA y las demás no. Ahí, y en Windows, el cartel
+// es una ventana sin bordes, encima de todo, del tamaño del monitor.
 import QtQuick
 import QtQuick.Window
 import BA
@@ -18,29 +25,40 @@ Item {
     id: raiz
     /// Cuántos milisegundos queda puesto.
     property int duracionMs: 4000
+    /// Los monitores a identificar (ids de pantallas/Monitores); vacío = todos.
+    property var ids: []
+    readonly property bool completa: Qt.platform.os === "linux"
 
-    function mostrar() {
-        raiz.hasta = Date.now() + raiz.duracionMs
+    function mostrar(soloEstos) {
+        raiz.ids = soloEstos || []
+        raiz.abierto = false // si ya estaba puesto, se rearma con los de ahora
         raiz.abierto = true
         cierre.restart()
     }
 
     property bool abierto: false
-    property double hasta: 0
     Timer { id: cierre; interval: raiz.duracionMs; onTriggered: raiz.abierto = false }
 
+    function pantallaDe(sistema) {
+        const ss = Qt.application.screens
+        for (let i = 0; i < ss.length; ++i)
+            if (ss[i].name === sistema) return ss[i]
+        return null
+    }
+
     Instantiator {
-        model: raiz.abierto ? Qt.application.screens : []
+        model: raiz.abierto ? Studio.monitores.filter(m => raiz.ids.length === 0 || raiz.ids.indexOf(m.id) >= 0) : []
         delegate: Window {
+            id: cartel
             required property var modelData
-            required property int index
-            screen: modelData
-            // Pantalla completa y no una geometría: en Wayland pedir una
-            // posición no hace nada, pero pantalla completa en un monitor sí.
-            visibility: Window.FullScreen
+            screen: raiz.pantallaDe(modelData.sistema)
+            x: modelData.x; y: modelData.y
+            width: modelData.ancho; height: modelData.alto
+            visibility: raiz.completa ? Window.FullScreen : Window.Windowed
             visible: true
             color: "#0b0d12"
-            flags: Qt.Window | Qt.FramelessWindowHint
+            flags: raiz.completa ? (Qt.Window | Qt.FramelessWindowHint)
+                                 : (Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
             Rectangle {
                 anchors.centerIn: parent
@@ -53,21 +71,21 @@ Item {
                     spacing: 6
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: index + 1
+                        text: cartel.modelData.orden
                         color: "white"
                         font { family: Theme.font; pixelSize: Math.round(parent.parent.height * 0.42)
                                weight: Font.Bold }
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: modelData.name
+                        text: cartel.modelData.nombre
                         color: "white"
                         font { family: Theme.font; pixelSize: 26; weight: Font.DemiBold }
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: modelData.width + " × " + modelData.height +
-                              (modelData === Qt.application.screens[0] ? "   ·   principal" : "")
+                        text: cartel.modelData.ancho + " × " + cartel.modelData.alto +
+                              (cartel.modelData.principal ? "   ·   principal" : "")
                         color: Qt.rgba(1, 1, 1, 0.8)
                         font { family: Theme.font; pixelSize: 15 }
                     }

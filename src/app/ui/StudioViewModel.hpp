@@ -915,7 +915,9 @@ class StudioViewModel : public QObject {
     /// Muestra un cartel grande en CADA monitor con su número y su nombre,
     /// unos segundos. Es la única forma de saber cuál es «DP-1» sin ponerse a
     /// mover ventanas a ver cuál se mueve.
-    Q_INVOKABLE void identificarPantallas() { emit identificarPedido(); }
+    /// El cartel con su número y su nombre (los de la página Pantallas) en cada monitor, o
+    /// solo en uno: `cual` es su número, su nombre o su id. Devuelve el error ("" = puesto).
+    Q_INVOKABLE QString identificarPantallas(const QString& cual = {});
 
     /// Los monitores donde YA hay una ventana nuestra, por nombre. Lo usa una
     /// ventana que se abre para nacer en uno libre en vez de encima de otra.
@@ -995,7 +997,7 @@ class StudioViewModel : public QObject {
     /// aire»: una pasa cada pocos segundos en vivo y la otra casi nunca.
     void escenasCambiaron();
     /// Alguien pidió identificar los monitores (ver `identificarPantallas`).
-    void identificarPedido();
+    void identificarPedido(const QStringList& ids); ///< vacío: todos
     void seccionConfigChanged();
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);

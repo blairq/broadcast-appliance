@@ -2799,6 +2799,19 @@ QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
 QObject* StudioViewModel::pantallas() const { return pantallas_.get(); }
 QObject* StudioViewModel::catalogoQml() const { return catalogo_.get(); }
+QString StudioViewModel::identificarPantallas(const QString& cual) {
+    if (cual.trimmed().isEmpty()) {
+        emit identificarPedido({});
+        return {};
+    }
+    const QString id = monitores_ ? monitores_->resolver(cual) : QString();
+    if (id.isEmpty()) return "No hay un monitor «" + cual + "»: decí su número, su nombre o su id.";
+    const QVariantMap m = monitores_->monitor(id);
+    if (!m.value("conectado").toBool()) return "El monitor «" + cual + "» no está conectado.";
+    emit identificarPedido({id});
+    return {};
+}
+
 QObject* StudioViewModel::pantallasConectadasQml() const { return monitores_.get(); }
 QObject* StudioViewModel::ventanasQml() const { return ventanas_.get(); }
 QObject* StudioViewModel::qr() const { return qr_.get(); }

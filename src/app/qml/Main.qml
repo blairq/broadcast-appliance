@@ -397,7 +397,7 @@ ApplicationWindow {
     IdentificarPantallas { id: identificar }
     Connections {
         target: Studio
-        function onIdentificarPedido() { identificar.mostrar() }
+        function onIdentificarPedido(ids) { identificar.mostrar(ids) }
     }
 
     // --- Riel de navegacion (vidrio flotante) ---------------------------------------

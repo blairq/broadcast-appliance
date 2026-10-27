@@ -610,17 +610,23 @@ void McpService::registerVentanaTools() {
         t.title = "Mostrar en cada monitor cual es";
         t.category = "ventanas";
         t.description =
-            "Pone unos segundos un cartel grande en CADA monitor con su numero y su nombre. Para saber "
-            "cual es \"DP-1\" sin mandar una ventana a ver adonde va.";
+            "Pone unos segundos un cartel grande en CADA monitor (o solo en `monitor`) con su numero y su "
+            "nombre, los mismos de la pagina Pantallas. Para saber cual es \"DP-1\" sin mandar una ventana a "
+            "ver adonde va.";
         t.details = "Usalo antes de acomodar el puesto: los nombres de los monitores no le dicen nada a "
                     "nadie hasta que se los ve puestos.\n\n"
                     "Tambien sirve de prueba: aparece con PANTALLA COMPLETA en cada monitor, que es lo "
                     "unico que un escritorio como GNOME respeta. Si los carteles salen donde tienen que "
                     "salir, mandar una ventana a pantalla completa a un monitor tambien va a andar.";
-        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
-        t.run = [this](const json&, Done done) {
-            vm_.identificarPantallas();
-            done(ToolResult::ok("Cartel puesto en cada monitor unos segundos."));
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"monitor", {{"type", "string"}, {"description", "solo este: su numero, su nombre o su id (vacio = todos)"}}}}}};
+        t.run = [this](const json& a, Done done) {
+            const QString cual = QString::fromStdString(a.value("monitor", std::string()));
+            const QString err = vm_.identificarPantallas(cual);
+            if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            done(ToolResult::ok(cual.isEmpty() ? "Cartel puesto en cada monitor unos segundos."
+                                               : "Cartel puesto en ese monitor unos segundos."));
         };
         core_.addTool(std::move(t));
     }
