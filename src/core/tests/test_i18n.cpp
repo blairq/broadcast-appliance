@@ -142,6 +142,24 @@ int main() {
           "árabe");
     check(i18n::formaPlural("polaco", 22) == 1 && i18n::formaPlural("polaco", 25) == 2, "polaco");
 
+    // --- Los archivos de cada idioma: el propio, el respaldo, el original -------------
+    {
+        const auto poner = [&](const std::string& c, const std::string& rel, const std::string& txt) {
+            fs::create_directories((perfiles / c / rel).parent_path());
+            std::ofstream(perfiles / c / rel) << txt;
+        };
+        poner("es", "prompts/a.md", "hola");
+        poner("es", "prompts/b.md", "solo en español");
+        poner("en", "prompts/a.md", "hello");
+        poner("en", "prompts/c.md", "del respaldo");
+        i18n::usar("zz");
+        check(i18n::leer("prompts/a.md") == "hello", "archivo: del respaldo (zz → en)");
+        check(i18n::leer("prompts/b.md") == "solo en español", "archivo: al final, el del original");
+        check(i18n::archivo("prompts/no.md").empty() && i18n::leer("prompts/no.md").empty(), "archivo que no está");
+        check(i18n::En("es").leer("prompts/a.md") == "hola", "archivo en otro idioma");
+        check(i18n::En("xx").leer("prompts/a.md") == "hola", "el pseudo-idioma da los del original");
+    }
+
     i18n::carpetas({}, {});
     fs::remove_all(base);
     std::printf("%s\n", g_fallas == 0 ? "TODO BIEN" : "HAY FALLAS");

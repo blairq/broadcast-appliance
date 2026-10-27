@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -352,6 +353,41 @@ std::string En::traducir(const char* contexto, const char* texto, const char* de
     }
     return traducirCon(cadena, contexto, texto, desambiguacion, n);
 }
+
+namespace {
+
+fs::path archivoEn(const std::string& codigo, const std::string& relativo) {
+    std::vector<std::string> codigos;
+    fs::path base;
+    {
+        Estado& e = estado();
+        std::lock_guard<std::mutex> l(e.mu);
+        base = dirPerfiles(e);
+        for (const auto& c : cadenaSinCandado(e, codigo)) codigos.push_back(c->perfil.codigo);
+        // Al final, siempre el original: es el que tiene todos los archivos.
+        for (const auto& p : perfilesSinCandado(e))
+            if (p.fuente) codigos.push_back(p.codigo);
+    }
+    std::error_code ec;
+    for (const auto& c : codigos) {
+        const fs::path f = base / c / fs::u8path(relativo);
+        if (fs::is_regular_file(f, ec)) return f;
+    }
+    return {};
+}
+
+std::string leerArchivo(const fs::path& f) {
+    if (f.empty()) return {};
+    std::ifstream in(f, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+} // namespace
+
+fs::path archivo(const std::string& relativo) { return archivoEn(actual().codigo, relativo); }
+std::string leer(const std::string& relativo) { return leerArchivo(archivo(relativo)); }
+fs::path En::archivo(const std::string& relativo) const { return archivoEn(codigo_, relativo); }
+std::string En::leer(const std::string& relativo) const { return leerArchivo(archivo(relativo)); }
 
 std::string llenar(const std::string& plantilla, std::initializer_list<std::string> valores) {
     std::string out;

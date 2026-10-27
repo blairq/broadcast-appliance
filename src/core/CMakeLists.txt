@@ -166,8 +166,8 @@ elseif(BA_I18N_TS)
     add_dependencies(ba_core ba_i18n_catalogos)
     install(FILES ${_ba_i18n_json} DESTINATION data/i18n COMPONENT bundle)
 endif()
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/idiomas/" DESTINATION data/idiomas COMPONENT bundle
-        FILES_MATCHING PATTERN "*.json")
+# Los perfiles y la carpeta de cada idioma (prompts, ayuda, guías: ba::i18n::archivo).
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/idiomas/" DESTINATION data/idiomas COMPONENT bundle)
 # Corriendo desde la compilación (tests, ba-app del build): los de acá.
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/i18n/I18n.cpp" PROPERTIES COMPILE_DEFINITIONS
     "BA_I18N_DEV_PERFILES=\"${CMAKE_SOURCE_DIR}/assets/idiomas\";BA_I18N_DEV_CATALOGOS=\"${BA_I18N_CATALOGOS}\"")

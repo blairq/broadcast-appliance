@@ -98,11 +98,23 @@ public:
     explicit En(std::string codigo) : codigo_(std::move(codigo)) {}
     std::string traducir(const char* contexto, const char* texto, const char* desambiguacion = nullptr,
                          int n = -1) const;
+    /// Los archivos de ese idioma (ver ba::i18n::archivo).
+    std::filesystem::path archivo(const std::string& relativo) const;
+    std::string leer(const std::string& relativo) const;
     const std::string& codigo() const { return codigo_; }
 
 private:
     std::string codigo_;
 };
+
+/// Los archivos de un idioma, para lo que es largo (los prompts del asistente, la ayuda
+/// del MCP, las guías y plantillas de eventos): `<perfiles>/<código>/<relativo>`, en la
+/// fuente `assets/idiomas/es/prompts/oficina.md`. El del idioma del operador; si no lo
+/// tiene, el de sus respaldos y al final el del original. Vacía si no está en ninguno.
+/// El pseudo-idioma no tiene archivos: da los del original.
+std::filesystem::path archivo(const std::string& relativo);
+/// Su contenido ("" si no está en ningún idioma).
+std::string leer(const std::string& relativo);
 
 /// Llena %1, %2… (hasta %9) con los valores, en el orden en que los diga la
 /// traducción. Un %n que quedó se deja (lo llena traducir).
